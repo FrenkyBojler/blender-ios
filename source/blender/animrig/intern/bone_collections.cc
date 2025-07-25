@@ -998,8 +998,9 @@ void ANIM_armature_bonecoll_reconstruct(bArmature *armature)
 static bool any_bone_collection_visible(const bArmature *armature,
                                         const ListBase /*BoneCollectionRef*/ *collection_refs)
 {
-  /* Special case: when a bone is not in any collection, it is visible. */
-  if (BLI_listbase_is_empty(collection_refs)) {
+  /* Special case: Hide bone when solo is active and it doesn't belong to any collection, see:
+   * #137090. */
+  if (BLI_listbase_is_empty(collection_refs) && !(armature->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     return true;
   }
 
@@ -1274,7 +1275,7 @@ void bonecolls_copy_expanded_flag(Span<BoneCollection *> bcolls_dest,
     }
 
     /* Try to find by name as a last resort. This function only works with
-     * non-const pointers, hence the const_cast.  */
+     * non-const pointers, hence the const_cast. */
     const BoneCollection *bcoll = bonecolls_get_by_name(bcolls_source, name);
     return bcoll;
   };

@@ -341,7 +341,7 @@ bool ui_searchbox_apply(uiBut *but, ARegion *region)
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
   uiButSearch *search_but = (uiButSearch *)but;
 
-  BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+  BLI_assert(but->type == ButType::SearchMenu);
 
   search_but->item_active = nullptr;
 
@@ -376,7 +376,7 @@ static ARegion *wm_searchbox_tooltip_init(
 
   LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      if (but->type != UI_BTYPE_SEARCH_MENU) {
+      if (but->type != ButType::SearchMenu) {
         continue;
       }
 
@@ -409,7 +409,7 @@ bool ui_searchbox_event(
   bool handled = false;
   bool tooltip_timer_started = false;
 
-  BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+  BLI_assert(but->type == ButType::SearchMenu);
 
   if (type == MOUSEPAN) {
     ui_pan_to_scroll(event, &type, &val);
@@ -513,7 +513,7 @@ void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool re
   uiButSearch *search_but = (uiButSearch *)but;
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
 
-  BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+  BLI_assert(but->type == ButType::SearchMenu);
 
   /* reset vars */
   data->items.totitem = 0;
@@ -592,10 +592,15 @@ int ui_searchbox_autocomplete(bContext *C, ARegion *region, uiBut *but, char *st
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
   int match = AUTOCOMPLETE_NO_MATCH;
 
-  BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+  BLI_assert(but->type == ButType::SearchMenu);
 
   if (str[0]) {
-    data->items.autocpl = UI_autocomplete_begin(str, ui_but_string_get_maxncpy(but));
+    int maxncpy = ui_but_string_get_maxncpy(but);
+    if (maxncpy == 0) {
+      /* The string length is dynamic, just assume a reasonable length. */
+      maxncpy = strlen(str) + 1024;
+    }
+    data->items.autocpl = UI_autocomplete_begin(str, maxncpy);
 
     ui_searchbox_update_fn(C, search_but, but->editstr, &data->items);
 

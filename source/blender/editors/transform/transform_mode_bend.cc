@@ -64,6 +64,7 @@ struct BendCustomData {
 static void transdata_elem_bend(const TransInfo *t,
                                 const TransDataContainer *tc,
                                 TransData *td,
+                                TransDataExtension *td_ext,
                                 float angle,
                                 const BendCustomData *bend_data,
                                 const float warp_sta_local[3],
@@ -120,7 +121,7 @@ static void transdata_elem_bend(const TransInfo *t,
 
   /* Rotation. */
   if ((t->flag & T_POINTS) == 0) {
-    ElementRotation(t, tc, td, mat, V3D_AROUND_LOCAL_ORIGINS);
+    ElementRotation(t, tc, td, td_ext, mat, V3D_AROUND_LOCAL_ORIGINS);
   }
 
   /* Location. */
@@ -169,7 +170,7 @@ static void Bend(TransInfo *t)
    * this isn't essential but nicer to give reasonable snapping values for radius. */
   if (t->tsnap.mode & SCE_SNAP_TO_INCREMENT) {
     const float radius_snap = 0.1f;
-    const float snap_hack = (t->snap[0] * bend_data->warp_init_dist) / radius_snap;
+    const float snap_hack = (t->increment[0] * bend_data->warp_init_dist) / radius_snap;
     values.scale *= snap_hack;
     transform_snap_increment(t, values.vector);
     values.scale /= snap_hack;
@@ -248,12 +249,14 @@ static void Bend(TransInfo *t)
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         TransData *td = &tc->data[i];
+        TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
         if (td->flag & TD_SKIP) {
           continue;
         }
         transdata_elem_bend(t,
                             tc,
                             td,
+                            td_ext,
                             values.angle,
                             bend_data,
                             warp_sta_local,
@@ -284,7 +287,7 @@ static void initBend(TransInfo *t, wmOperator * /*op*/)
   t->num.idx_max = 1;
   initSnapAngleIncrements(t);
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_use_radians = (t->scene->unit.system_rotation == USER_UNIT_ROT_RADIANS);
   t->num.unit_type[0] = B_UNIT_ROTATION;

@@ -34,6 +34,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "ANIM_action.hh"
+
 #include "UI_interface_icons.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -71,7 +73,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
 
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_ICON_TOGGLE,
+                                 ButType::IconToggle,
                                  0,
                                  icon,
                                  x,
@@ -87,7 +89,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
-                                     UI_BTYPE_ICON_TOGGLE,
+                                     ButType::IconToggle,
                                      0,
                                      icon,
                                      name,
@@ -104,7 +106,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_CHECKBOX,
+                             ButType::Checkbox,
                              0,
                              name,
                              x,
@@ -125,7 +127,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       if (RNA_property_array_check(prop) && index == -1) {
         if (ELEM(RNA_property_subtype(prop), PROP_COLOR, PROP_COLOR_GAMMA)) {
           but = uiDefButR_prop(block,
-                               UI_BTYPE_COLOR,
+                               ButType::Color,
                                0,
                                name,
                                x,
@@ -147,7 +149,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                RNA_property_subtype(prop) == PROP_FACTOR)
       {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_NUM_SLIDER,
+                             ButType::NumSlider,
                              0,
                              name,
                              x,
@@ -163,7 +165,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_NUM,
+                             ButType::Num,
                              0,
                              name,
                              x,
@@ -186,7 +188,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
     case PROP_ENUM:
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_MENU,
+                                 ButType::Menu,
                                  0,
                                  icon,
                                  x,
@@ -202,7 +204,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
-                                     UI_BTYPE_MENU,
+                                     ButType::Menu,
                                      0,
                                      icon,
                                      std::nullopt,
@@ -219,7 +221,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_MENU,
+                             ButType::Menu,
                              0,
                              name,
                              x,
@@ -237,7 +239,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
     case PROP_STRING:
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_TEXT,
+                                 ButType::Text,
                                  0,
                                  icon,
                                  x,
@@ -253,7 +255,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
-                                     UI_BTYPE_TEXT,
+                                     ButType::Text,
                                      0,
                                      icon,
                                      name,
@@ -270,7 +272,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_TEXT,
+                             ButType::Text,
                              0,
                              name,
                              x,
@@ -301,7 +303,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
 
       but = uiDefIconTextButR_prop(block,
-                                   UI_BTYPE_SEARCH_MENU,
+                                   ButType::SearchMenu,
                                    0,
                                    icon,
                                    name,
@@ -322,7 +324,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       char text[256];
       SNPRINTF(text, IFACE_("%d items"), RNA_property_collection_length(ptr, prop));
       but = uiDefBut(
-          block, UI_BTYPE_LABEL, 0, text, x, y, width, height, nullptr, 0, 0, std::nullopt);
+          block, ButType::Label, 0, text, x, y, width, height, nullptr, 0, 0, std::nullopt);
       UI_but_flag_enable(but, UI_BUT_DISABLED);
       break;
     }
@@ -536,6 +538,13 @@ void ui_rna_collection_search_update_fn(
       else if (itemptr.type == &RNA_ActionSlot) {
         PropertyRNA *prop = RNA_struct_find_property(&itemptr, "name_display");
         name = RNA_property_string_get_alloc(&itemptr, prop, name_buf, sizeof(name_buf), nullptr);
+        /* Also show an icon for the data-block type that each slot is intended for. */
+        animrig::Slot &slot = reinterpret_cast<ActionSlot *>(itemptr.data)->wrap();
+        iconid = UI_icon_from_idcode(slot.idtype);
+        /* So indentation is kept when no icon is present. */
+        if (iconid == ICON_NONE) {
+          iconid = ICON_BLANK1;
+        }
       }
       else {
         name = RNA_struct_name_get_alloc(&itemptr, name_buf, sizeof(name_buf), nullptr);

@@ -42,9 +42,10 @@ void Instance::init()
   state.is_viewport_image_render = ctx->is_viewport_image_render();
   state.is_image_render = ctx->is_image_render();
   state.is_depth_only_drawing = ctx->is_depth();
+  state.skip_particles = ctx->mode == DRWContext::DEPTH_ACTIVE_OBJECT;
   state.is_material_select = ctx->is_material_select();
   state.draw_background = ctx->options.draw_background;
-  state.show_text = ctx->options.draw_text;
+  state.show_text = false;
 
   /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity. */
   state.clipping_plane_count = clipping_enabled_ ? 6 : 0;
@@ -86,6 +87,8 @@ void Instance::init()
       state.overlay = state.v3d->overlay;
       state.v3d_flag = state.v3d->flag;
       state.v3d_gridflag = state.v3d->gridflag;
+      state.show_text = !resources.is_selection() && !state.is_depth_only_drawing &&
+                        (ctx->v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0;
     }
     else {
       memset(&state.overlay, 0, sizeof(state.overlay));
@@ -129,7 +132,8 @@ void Instance::init()
 
   {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
-    if (resources.dummy_depth_tx.ensure_2d(GPU_DEPTH_COMPONENT32F, int2(1, 1), usage)) {
+    if (resources.dummy_depth_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH, int2(1, 1), usage))
+    {
       float data = 1.0f;
       GPU_texture_update_sub(resources.dummy_depth_tx, GPU_DATA_FLOAT, &data, 0, 0, 0, 1, 1, 1);
     }
@@ -208,7 +212,8 @@ void Instance::ensure_weight_ramp_texture()
     unit_float_to_uchar_clamp_v4(pixels_ubyte[i], pixels[i]);
   }
 
-  resources.weight_ramp_tx.ensure_1d(GPU_SRGB8_A8, res, GPU_TEXTURE_USAGE_SHADER_READ);
+  resources.weight_ramp_tx.ensure_1d(
+      gpu::TextureFormat::SRGBA_8_8_8_8, res, GPU_TEXTURE_USAGE_SHADER_READ);
   GPU_texture_update(resources.weight_ramp_tx, GPU_DATA_UBYTE, pixels_ubyte);
 }
 
@@ -237,7 +242,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   using namespace math;
   UniformData &gb = theme;
 
-  auto rgba_uchar_to_float = [](uchar r, uchar b, uchar g, uchar a) {
+  auto rgba_uchar_to_float = [](uchar r, uchar g, uchar b, uchar a) {
     return float4(r, g, b, a) / 255.0f;
   };
 
@@ -426,9 +431,11 @@ void Instance::begin_sync()
 {
   /* TODO(fclem): Against design. Should not sync depending on view. */
   View &view = View::default_get();
-  state.dt = DRW_text_cache_ensure();
   state.camera_position = view.viewinv().location();
   state.camera_forward = view.viewinv().z_axis();
+
+  DRW_text_cache_destroy(state.dt);
+  state.dt = DRW_text_cache_create();
 
   resources.begin_sync(state.clipping_plane_count);
 
@@ -682,7 +689,7 @@ void Instance::end_sync()
                                                    size.x,
                                                    size.y,
                                                    1,
-                                                   GPU_DEPTH32F_STENCIL8,
+                                                   gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
                                                    GPU_TEXTURE_USAGE_GENERAL,
                                                    nullptr);
     }
@@ -955,7 +962,20 @@ void Instance::draw_v3d(Manager &manager, View &view)
     background.draw_output(resources.overlay_output_color_only_fb, manager, view);
     anti_aliasing.draw_output(resources.overlay_output_color_only_fb, manager, view);
     cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
+
+    draw_text(resources.overlay_output_color_only_fb);
   }
+}
+
+void Instance::draw_text(Framebuffer &framebuffer)
+{
+  if (state.show_text == false) {
+    return;
+  }
+  GPU_framebuffer_bind(framebuffer);
+
+  GPU_depth_test(GPU_DEPTH_NONE);
+  DRW_text_cache_draw(state.dt, state.region, state.v3d);
 }
 
 bool Instance::object_is_selected(const ObjectRef &ob_ref)

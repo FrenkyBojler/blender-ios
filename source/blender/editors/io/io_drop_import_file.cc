@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -60,9 +61,9 @@ static void file_handler_import_operator_write_ptr(
   }
 
   PropertyRNA *directory_prop = RNA_struct_find_property_check(props, "directory", PROP_STRING);
+  char dir[FILE_MAX];
+  BLI_path_split_dir_part(paths[0].c_str(), dir, sizeof(dir));
   if (directory_prop) {
-    char dir[FILE_MAX];
-    BLI_path_split_dir_part(paths[0].c_str(), dir, sizeof(dir));
     RNA_property_string_set(&props, directory_prop, dir);
   }
 
@@ -72,11 +73,13 @@ static void file_handler_import_operator_write_ptr(
     RNA_property_collection_clear(&props, files_prop);
     for (const auto &index : supported_paths) {
       char file[FILE_MAX];
-      BLI_path_split_file_part(paths[index].c_str(), file, sizeof(file));
+      STRNCPY(file, paths[index].c_str());
+      BLI_path_rel(file, dir);
 
       PointerRNA item_ptr{};
       RNA_property_collection_add(&props, files_prop, &item_ptr);
-      RNA_string_set(&item_ptr, "name", file);
+      BLI_assert_msg(BLI_path_is_rel(file), "Expected path to be relative (start with '//')");
+      RNA_string_set(&item_ptr, "name", file + 2);
     }
   }
   const bool has_any_filepath_prop = filepath_prop || directory_prop || files_prop;
@@ -111,7 +114,8 @@ static wmOperatorStatus wm_drop_import_file_exec(bContext *C, wmOperator *op)
   WM_operator_properties_create_ptr(&file_props, ot);
   file_handler_import_operator_write_ptr(file_handlers[0], file_props, paths);
 
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &file_props, nullptr);
+  WM_operator_name_call_ptr(
+      C, ot, blender::wm::OpCallContext::InvokeDefault, &file_props, nullptr);
   WM_operator_properties_free(&file_props);
   return OPERATOR_FINISHED;
 }
@@ -136,14 +140,14 @@ static wmOperatorStatus wm_drop_import_file_invoke(bContext *C,
    */
   uiPopupMenu *pup = UI_popup_menu_begin(C, "", ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
   for (auto *file_handler : file_handlers) {
     wmOperatorType *ot = WM_operatortype_find(file_handler->import_operator, false);
     PointerRNA file_props = layout->op(ot,
                                        CTX_TIP_(ot->translation_context, ot->name),
                                        ICON_NONE,
-                                       WM_OP_INVOKE_DEFAULT,
+                                       blender::wm::OpCallContext::InvokeDefault,
                                        UI_ITEM_NONE);
     file_handler_import_operator_write_ptr(file_handler, file_props, paths);
   }

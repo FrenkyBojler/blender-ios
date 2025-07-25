@@ -258,6 +258,15 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   return *node;
 }
 
+void version_node_remove(bNodeTree &ntree, bNode &node)
+{
+  blender::bke::node_unlink_node(ntree, node);
+  blender::bke::node_unlink_attached(&ntree, &node);
+
+  blender::bke::node_free_node(&ntree, node);
+  blender::bke::node_rebuild_id_vector(ntree);
+}
+
 bNodeSocket &version_node_add_socket(bNodeTree &ntree,
                                      bNode &node,
                                      const eNodeSocketInOut in_out,
@@ -649,6 +658,15 @@ bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines)
   return true;
 }
 
+bNodeTree *version_get_scene_compositor_node_tree(Main *bmain, Scene *scene)
+{
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 4)) {
+    return scene->nodetree;
+  }
+
+  return scene->compositing_node_group;
+}
+
 static bool blendfile_or_libraries_versions_atleast(Main *bmain,
                                                     const short versionfile,
                                                     const short subversionfile)
@@ -755,8 +773,8 @@ void do_versions_after_setup(Main *new_bmain,
 
       BKE_libblock_management_main_add(new_bmain, ntree);
 
-      /* Note: The user count remains zero at this point. It will get automatically updated after
-       * blend file reading is done.*/
+      /* NOTE: The user count remains zero at this point. It will get automatically updated after
+       * blend file reading is done. */
     }
   }
 }

@@ -370,6 +370,16 @@ static bool edbm_bevel_calc(wmOperator *op)
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(
           em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+      if (affect == BEVEL_AFFECT_VERTICES) {
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+
+        if ((em->bm->selectmode & SCE_SELECT_VERTEX) == 0) {
+          BM_mesh_select_mode_flush_ex(em->bm, SCE_SELECT_VERTEX, BM_SELECT_LEN_FLUSH_RECALC_EDGE);
+        }
+      }
     }
 
     /* no need to de-select existing geometry */
@@ -897,7 +907,7 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   bool affect_type = RNA_enum_get(op->ptr, "affect");
 
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   row = &layout->row(false);
   row->prop(op->ptr, "affect", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);

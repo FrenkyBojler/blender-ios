@@ -82,7 +82,7 @@ static void wm_stl_export_draw(bContext *C, wmOperator *op)
   PointerRNA *ptr = op->ptr;
 
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "STL_export_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -170,7 +170,7 @@ void WM_OT_stl_export(wmOperatorType *ot)
   prop = RNA_def_string(ot->srna,
                         "collection",
                         nullptr,
-                        MAX_IDPROP_NAME,
+                        MAX_ID_NAME - 2,
                         "Source Collection",
                         "Export only objects from this collection (and its children)");
   RNA_def_property_flag(prop, PROP_HIDDEN);
@@ -244,7 +244,7 @@ static bool wm_stl_import_check(bContext * /*C*/, wmOperator *op)
 static void ui_stl_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "STL_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);

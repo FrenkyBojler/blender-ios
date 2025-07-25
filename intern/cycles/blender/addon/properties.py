@@ -16,7 +16,7 @@ from bpy.props import (
 )
 from bpy.app.translations import (
     contexts as i18n_contexts,
-    pgettext_tip as n_,
+    pgettext_n as n_,
     pgettext_rpt as rpt_,
 )
 
@@ -374,6 +374,7 @@ def update_pause(self, context):
 
 
 class CyclesRenderSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     device: EnumProperty(
         name="Device",
@@ -1111,6 +1112,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
 
 
 class CyclesCustomCameraSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     @classmethod
     def register(cls):
@@ -1126,6 +1128,7 @@ class CyclesCustomCameraSettings(bpy.types.PropertyGroup):
 
 
 class CyclesMaterialSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     emission_sampling: EnumProperty(
         name="Emission Sampling",
@@ -1182,6 +1185,7 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
 
 
 class CyclesLightSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     max_bounces: IntProperty(
         name="Max Bounces",
@@ -1222,6 +1226,7 @@ class CyclesLightSettings(bpy.types.PropertyGroup):
 
 
 class CyclesWorldSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     is_caustics_light: BoolProperty(
         name="Shadow Caustics",
@@ -1288,6 +1293,7 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
 
 
 class CyclesVisibilitySettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     camera: BoolProperty(
         name="Camera",
@@ -1340,6 +1346,8 @@ class CyclesVisibilitySettings(bpy.types.PropertyGroup):
 
 
 class CyclesMeshSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
+
     @classmethod
     def register(cls):
         bpy.types.Mesh.cycles = PointerProperty(
@@ -1366,6 +1374,7 @@ class CyclesMeshSettings(bpy.types.PropertyGroup):
 
 
 class CyclesObjectSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     use_motion_blur: BoolProperty(
         name="Use Motion Blur",
@@ -1464,6 +1473,7 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
 
 
 class CyclesCurveRenderSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     shape: EnumProperty(
         name="Shape",
@@ -1492,6 +1502,7 @@ class CyclesCurveRenderSettings(bpy.types.PropertyGroup):
 
 
 class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     pass_debug_sample_count: BoolProperty(
         name="Debug Sample Count",
@@ -1546,9 +1557,13 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
 
 
 class CyclesDeviceSettings(bpy.types.PropertyGroup):
-    id: StringProperty(name="ID")
-    name: StringProperty(name="Name")
-    use: BoolProperty(name="Use", default=True)
+    # Runtime properties
+    __slots__ = ("is_optimized")
+
+    # Properties saved in preferences
+    id: StringProperty(name="ID", description="Unique identifier of the device")
+    name: StringProperty(name="Name", description="Name of the device")
+    use: BoolProperty(name="Use", description="Use device for rendering", default=True)
     type: EnumProperty(name="Type", items=enum_device_type, default='CUDA')
 
 
@@ -1568,17 +1583,17 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         import _cycles
         has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
 
-        list = [('NONE', "None", "Don't use compute device", 0)]
+        list = [('NONE', "None", n_("Do not use compute device"), 0)]
         if has_cuda:
-            list.append(('CUDA', "CUDA", "Use CUDA for GPU acceleration", 1))
+            list.append(('CUDA', "CUDA", n_("Use CUDA for GPU acceleration"), 1))
         if has_optix:
-            list.append(('OPTIX', "OptiX", "Use OptiX for GPU acceleration", 3))
+            list.append(('OPTIX', "OptiX", n_("Use OptiX for GPU acceleration"), 3))
         if has_hip:
-            list.append(('HIP', "HIP", "Use HIP for GPU acceleration", 4))
+            list.append(('HIP', "HIP", n_("Use HIP for GPU acceleration"), 4))
         if has_metal:
-            list.append(('METAL', "Metal", "Use Metal for GPU acceleration", 5))
+            list.append(('METAL', "Metal", n_("Use Metal for GPU acceleration"), 5))
         if has_oneapi:
-            list.append(('ONEAPI', "oneAPI", "Use oneAPI for GPU acceleration", 6))
+            list.append(('ONEAPI', "oneAPI", n_("Use oneAPI for GPU acceleration"), 6))
 
         return list
 
@@ -1680,7 +1695,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         cpu_devices = []
         for device in device_list:
             entry = self.find_existing_device_entry(device)
-            entry.optimized = device[7]
+            entry.is_optimized = device[7]
             if entry.type == compute_device_type:
                 devices.append(entry)
             elif entry.type == 'CPU':
@@ -1796,7 +1811,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             col.label(text=rpt_("No compatible GPUs found for Cycles"), icon='INFO', translate=False)
 
             if device_type == 'CUDA':
-                compute_capability = "3.0"
+                compute_capability = "5.0"
                 col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
                           icon='BLANK1', translate=False)
             elif device_type == 'OPTIX':
@@ -1854,7 +1869,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         for device in devices:
             name = self._format_device_name(device.name)
-            if not device.optimized:
+            if not device.is_optimized:
                 name += rpt_(" (Unoptimized Performance)")
             box.prop(device, "use", text=name, translate=False)
 
@@ -1929,6 +1944,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
 
 class CyclesView3DShadingSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
+
     render_pass: EnumProperty(
         name="Render Pass",
         description="Render pass to show in the 3D Viewport",

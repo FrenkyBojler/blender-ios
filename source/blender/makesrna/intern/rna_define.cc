@@ -791,7 +791,9 @@ void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *rna_ext)
 
   /* Decrease the reference and set to null so #RNA_struct_free doesn't warn of a leak. */
   if (srna->py_type) {
+#  ifdef WITH_PYTHON
     BPY_DECREF(srna->py_type);
+#  endif
     RNA_struct_py_type_set(srna, nullptr);
   }
 #else
@@ -1252,7 +1254,7 @@ void RNA_def_struct_system_idprops_func(StructRNA *srna, const char *system_idpr
       "PropertyGroup",
       "",
       "The system properties root container, or None if there are no system properties stored in "
-      "this data yet, and its creation was not rquested");
+      "this data yet, and its creation was not requested");
   RNA_def_function_return(func, parm);
 }
 
