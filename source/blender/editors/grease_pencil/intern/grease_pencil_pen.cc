@@ -695,6 +695,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
                 curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
             MutableSpan<bool> selection = selection_writer.span.typed<bool>();
             selection.fill(false);
+            selection_writer.finish();
           }
           return;
         }
