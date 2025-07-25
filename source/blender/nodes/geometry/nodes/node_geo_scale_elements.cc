@@ -75,7 +75,6 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = int16_t(AttrDomain::Face);
-  node->custom2 = GEO_NODE_SCALE_ELEMENTS_UNIFORM;
 }
 
 static Array<int> create_reverse_offsets(const Span<int> indices, const int items_num)
