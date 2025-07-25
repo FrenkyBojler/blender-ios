@@ -34,6 +34,7 @@ set(SRC_GLSL_COMP
   draw_visibility_comp.glsl
 
   draw_curves_topology_comp.glsl
+  draw_curves_interpolation_comp.glsl
 
   subdiv_ibo_lines_comp.glsl
   subdiv_ibo_tris_comp.glsl

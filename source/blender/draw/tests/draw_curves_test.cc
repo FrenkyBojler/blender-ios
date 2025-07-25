@@ -2,14 +2,18 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "DNA_curves_types.h"
+
+#include "BKE_curves.hh"
+
+#include "GPU_batch.hh"
+#include "GPU_shader.hh"
+
 #include "draw_manager.hh"
 #include "draw_pass.hh"
 #include "draw_testing.hh"
 
 #include "draw_shader_shared.hh"
-
-#include "GPU_batch.hh"
-#include "GPU_shader.hh"
 
 namespace blender::draw {
 
@@ -354,5 +358,125 @@ static void test_draw_curves_topology()
   GPU_VERTBUF_DISCARD_SAFE(curve_offsets_buf);
 }
 DRAW_TEST(draw_curves_topology)
+
+static void test_draw_curves_interpolation()
+{
+  Manager manager;
+
+  GPUShader *sh = GPU_shader_create_from_info_name("draw_curves_interpolation");
+
+  const int curve_resolution = 2;
+
+  const Vector<int> evaluated_offsets_data = {0, 5, 8};
+  const OffsetIndices<int> evaluated_offsets = evaluated_offsets_data.as_span();
+
+  struct IntBuf {
+    int data;
+    GPU_VERTEX_FORMAT_FUNC(IntBuf, data);
+  };
+  gpu::VertBuf *curves_offsets_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_offsets_buf->allocate(3);
+  curves_offsets_buf->data<int>().copy_from({0, 3, 5});
+
+  gpu::VertBuf *curves_type_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_type_buf->allocate(2);
+  curves_type_buf->data<int>().copy_from({CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_CATMULL_ROM});
+
+  gpu::VertBuf *curves_resolution_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_resolution_buf->allocate(2);
+  curves_resolution_buf->data<int>().copy_from({curve_resolution, curve_resolution});
+
+  gpu::VertBuf *curves_evaluated_offsets_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_evaluated_offsets_buf->allocate(3);
+  curves_evaluated_offsets_buf->data<int>().copy_from(evaluated_offsets.data());
+
+  const Vector<float> points_radius = {1.0f, 0.5f, 0.0f, 0.0f, 2.0f};
+  const Vector<float3> points_pos = {
+      float3{1.0f}, float3{0.5f}, float3{0.0f}, float3{0.0f}, float3{2.0f}};
+
+  struct Position {
+    float3 pos;
+    GPU_VERTEX_FORMAT_FUNC(Position, pos);
+  };
+  gpu::VertBuf *points_pos_buf = GPU_vertbuf_create_with_format_ex(
+      Position::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  points_pos_buf->allocate(points_pos.size());
+  points_pos_buf->data<float3>().copy_from(points_pos);
+
+  struct Radius {
+    float rad;
+    GPU_VERTEX_FORMAT_FUNC(Radius, rad);
+  };
+  gpu::VertBuf *points_rad_buf = GPU_vertbuf_create_with_format_ex(
+      Radius::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  points_rad_buf->allocate(points_radius.size());
+  points_rad_buf->data<float>().copy_from(points_radius);
+
+  Vector<float> interp_data;
+  interp_data.resize(8);
+  {
+    StorageArrayBuffer<float4, 512> points_pos_rad_buf;
+    StorageArrayBuffer<float, 512> points_time_buf;
+    StorageArrayBuffer<float, 512> curves_length_buf;
+    points_pos_rad_buf.clear_to_zero();
+    points_time_buf.clear_to_zero();
+    curves_length_buf.clear_to_zero();
+
+    PassSimple pass("Curves Interpolation Catmull Rom");
+    pass.shader_set(sh);
+    pass.bind_ssbo("curves_offsets_buf", curves_offsets_buf);
+    pass.bind_ssbo("curves_type_buf", curves_type_buf);
+    pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
+    pass.bind_ssbo("curves_evaluated_offsets_buf", curves_evaluated_offsets_buf);
+    pass.bind_ssbo("points_pos_buf", points_pos_buf);
+    pass.bind_ssbo("points_rad_buf", points_rad_buf);
+    pass.bind_ssbo("points_pos_rad_buf", points_pos_rad_buf);
+    pass.bind_ssbo("points_time_buf", points_time_buf);
+    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.push_constant("curves_count", 2);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+    manager.submit(pass);
+
+    points_pos_rad_buf.read();
+    points_time_buf.read();
+    curves_length_buf.read();
+
+    bke::curves::catmull_rom::interpolate_to_evaluated(
+        GSpan(points_radius.as_span().slice(0, 3)),
+        false,
+        curve_resolution,
+        GMutableSpan(interp_data.as_mutable_span().slice(0, 5)));
+
+    bke::curves::catmull_rom::interpolate_to_evaluated(
+        GSpan(points_radius.as_span().slice(3, 2)),
+        false,
+        curve_resolution,
+        GMutableSpan(interp_data.as_mutable_span().slice(5, 3)));
+
+    EXPECT_EQ(points_pos_rad_buf[0], float4(interp_data[0]));
+    EXPECT_EQ(points_pos_rad_buf[1], float4(interp_data[1]));
+    EXPECT_EQ(points_pos_rad_buf[2], float4(interp_data[2]));
+    EXPECT_EQ(points_pos_rad_buf[3], float4(interp_data[3]));
+    EXPECT_EQ(points_pos_rad_buf[4], float4(interp_data[4]));
+    EXPECT_EQ(points_pos_rad_buf[5], float4(interp_data[5]));
+    EXPECT_EQ(points_pos_rad_buf[6], float4(interp_data[6]));
+    EXPECT_EQ(points_pos_rad_buf[7], float4(interp_data[7]));
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(points_pos_rad_buf[8], float4(0.0));
+  }
+
+  GPU_shader_unbind();
+
+  GPU_SHADER_FREE_SAFE(sh);
+  GPU_VERTBUF_DISCARD_SAFE(curves_offsets_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_type_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_resolution_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_evaluated_offsets_buf);
+  GPU_VERTBUF_DISCARD_SAFE(points_pos_buf);
+  GPU_VERTBUF_DISCARD_SAFE(points_rad_buf);
+}
+DRAW_TEST(draw_curves_interpolation)
 
 }  // namespace blender::draw
