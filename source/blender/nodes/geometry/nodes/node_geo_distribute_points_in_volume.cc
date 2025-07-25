@@ -77,10 +77,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryDistributePointsInVolume *data = MEM_callocN<NodeGeometryDistributePointsInVolume>(
-      __func__);
-  data->mode = GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME_DENSITY_RANDOM;
-  node->storage = data;
+  /* Still used for forward compatibility. */
+  node->storage = MEM_callocN<NodeGeometryDistributePointsInVolume>(__func__);
 }
 
 #ifdef WITH_OPENVDB

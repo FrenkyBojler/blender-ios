@@ -57,9 +57,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveFillet *data = MEM_callocN<NodeGeometryCurveFillet>(__func__);
-  data->mode = GEO_NODE_CURVE_FILLET_BEZIER;
-  node->storage = data;
+  /* Still used for forward compatibility. */
+  node->storage = MEM_callocN<NodeGeometryCurveFillet>(__func__);
 }
 
 static bke::CurvesGeometry fillet_curve(const bke::CurvesGeometry &src_curves,

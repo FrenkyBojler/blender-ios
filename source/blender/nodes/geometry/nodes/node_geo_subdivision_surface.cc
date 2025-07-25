@@ -60,10 +60,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySubdivisionSurface *data = MEM_callocN<NodeGeometrySubdivisionSurface>(__func__);
-  data->uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES;
-  data->boundary_smooth = SUBSURF_BOUNDARY_SMOOTH_ALL;
-  node->storage = data;
+  /* Still used for forward compatibility. */
+  node->storage = MEM_callocN<NodeGeometrySubdivisionSurface>(__func__);
 }
 
 #ifdef WITH_OPENSUBDIV

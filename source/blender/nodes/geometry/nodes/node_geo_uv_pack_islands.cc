@@ -71,11 +71,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Method used for packing UV islands");
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = int16_t(ShapeMethod::Aabb);
-}
-
 static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
                                            const Field<bool> selection_field,
                                            const Field<float3> uv_field,
@@ -213,7 +208,6 @@ static void node_register()
       "Scale islands of a UV map and move them so they fill the UV space as much as possible";
   ntype.enum_name_legacy = "UV_PACK_ISLANDS";
   ntype.nclass = NODE_CLASS_CONVERTER;
-  ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(ntype);

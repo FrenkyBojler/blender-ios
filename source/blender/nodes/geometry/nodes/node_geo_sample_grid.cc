@@ -112,7 +112,6 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = SOCK_FLOAT;
-  node->custom2 = int16_t(InterpolationMode::TriLinear);
 }
 
 #ifdef WITH_OPENVDB

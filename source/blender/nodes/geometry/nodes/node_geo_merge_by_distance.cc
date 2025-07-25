@@ -43,9 +43,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMergeByDistance *data = MEM_callocN<NodeGeometryMergeByDistance>(__func__);
-  data->mode = GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL;
-  node->storage = data;
+  /* Still used for forward compatibility. */
+  node->storage = MEM_callocN<NodeGeometryMergeByDistance>(__func__);
 }
 
 static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,

@@ -65,9 +65,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshToVolume *data = MEM_callocN<NodeGeometryMeshToVolume>(__func__);
-  data->resolution_mode = MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT;
-  node->storage = data;
+  /* Still used for forward compatibility. */
+  node->storage = MEM_callocN<NodeGeometryMeshToVolume>(__func__);
 }
 
 #ifdef WITH_OPENVDB
