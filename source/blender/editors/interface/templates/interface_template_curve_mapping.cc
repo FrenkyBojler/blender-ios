@@ -337,7 +337,8 @@ static void curvemap_buttons_layout(uiLayout *layout,
                                     bool brush,
                                     bool neg_slope,
                                     bool tone,
-                                    const RNAUpdateCb &cb)
+                                    const RNAUpdateCb &cb,
+                                    const blender::StringRef label)
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
   CurveMap *cm = &cumap->cm[cumap->cur];
@@ -356,6 +357,9 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
   /* curve chooser */
   uiLayout *row = &layout->row(false);
+  if (!label.is_empty()) {
+    row->label(label, ICON_NONE);
+  }
 
   if (labeltype == 'v') {
     /* vector */
@@ -573,10 +577,18 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
   /* Curve itself. */
   const int size = max_ii(layout->width(), UI_UNIT_X);
-  row = &layout->row(false);
-  uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
-      block, ButType::Curve, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, "");
-  curve_but->gradient_type = bg;
+  {
+    row = &layout->row(false);
+    uiButCurveMappingPreview *curve_but = static_cast<uiButCurveMappingPreview *>(uiDefBut(
+        block, ButType::CurvePreview, 0, "", 0, 0, size, UI_UNIT_Y, cumap, 0.0f, 1.0f, ""));
+    curve_but->gradient_type = UI_GRAD_SV;
+  }
+  {
+    row = &layout->row(false);
+    uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
+        block, ButType::Curve, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, "");
+    curve_but->gradient_type = bg;
+  }
 
   /* Sliders for selected curve point. */
   int i;
@@ -771,7 +783,8 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool levels,
                             bool brush,
                             bool neg_slope,
-                            bool tone)
+                            bool tone,
+                            const blender::StringRef label)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   uiBlock *block = layout->block();
@@ -797,7 +810,7 @@ void uiTemplateCurveMapping(uiLayout *layout,
   UI_block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
 
   curvemap_buttons_layout(
-      layout, &cptr, type, levels, brush, neg_slope, tone, RNAUpdateCb{*ptr, prop});
+      layout, &cptr, type, levels, brush, neg_slope, tone, RNAUpdateCb{*ptr, prop}, label);
 
   UI_block_lock_clear(block);
 }

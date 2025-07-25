@@ -1885,6 +1885,24 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   immUnbindProgram();
 }
 
+void ui_draw_but_CURVE_PREVIEW(ARegion *region,
+                               uiBut *but,
+                               const uiWidgetColors *wcol,
+                               const rcti *rect)
+{
+  uiButCurveMappingPreview *but_cumap_preview = static_cast<uiButCurveMappingPreview *>(but);
+  // const CurveMapping *cumap = (but_cumap_preview->cumap == nullptr) ? (CurveMapping *)but->poin
+  // :
+  //                                                                     but_cumap_preview->cumap;
+
+  if (but_cumap_preview->gradient_type != UI_GRAD_NONE) {
+    const float dummy_col[3] = {0.0f, 0.0f, 0.0f};
+    ui_draw_gradient(rect, dummy_col, but_cumap_preview->gradient_type, 1.0f);
+  }
+
+  UNUSED_VARS(region, but, wcol, rect);
+}
+
 /**
  * Helper for #ui_draw_but_CURVEPROFILE. Used to tell whether to draw a control point's handles.
  */

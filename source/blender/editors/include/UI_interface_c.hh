@@ -433,6 +433,7 @@ enum class ButType : int8_t {
   /** Sphere widget (used to input a unit-vector, aka normal). */
   Unitvec,
   Curve,
+  CurvePreview,
   /** Profile editing widget. */
   CurveProfile,
   ListBox,
@@ -2444,7 +2445,8 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool levels,
                             bool brush,
                             bool neg_slope,
-                            bool tone);
+                            bool tone,
+                            blender::StringRef label = "");
 /**
  * Template for a path creation widget intended for custom bevel profiles.
  * This section is quite similar to #uiTemplateCurveMapping, but with reduced complexity.
