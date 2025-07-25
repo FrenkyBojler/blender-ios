@@ -367,8 +367,7 @@ static void test_draw_curves_interpolation()
 
   const int curve_resolution = 2;
 
-  const Vector<int> evaluated_offsets_data = {0, 5, 8};
-  const OffsetIndices<int> evaluated_offsets = evaluated_offsets_data.as_span();
+  const Vector<int> evaluated_offsets = {0, 5, 8};
 
   struct IntBuf {
     int data;
@@ -388,7 +387,7 @@ static void test_draw_curves_interpolation()
 
   gpu::VertBuf *curves_evaluated_offsets_buf = GPU_vertbuf_create_with_format(IntBuf::format());
   curves_evaluated_offsets_buf->allocate(3);
-  curves_evaluated_offsets_buf->data<int>().copy_from(evaluated_offsets.data());
+  curves_evaluated_offsets_buf->data<int>().copy_from(evaluated_offsets);
 
   const Vector<float> points_radius = {1.0f, 0.5f, 0.0f, 0.0f, 2.0f};
   const Vector<float3> points_pos = {
