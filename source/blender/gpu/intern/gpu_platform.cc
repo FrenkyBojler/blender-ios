@@ -216,10 +216,11 @@ void GPU_platform_show_shader_error_popup()
   GHOST_ShowMessageBox(
       (GHOST_SystemHandle)GPU_backend_ghost_system_get(),
       "Blender - Shader Error",
-      "An error occurred while compiling shaders.\n"
-      "This is normally caused by GPU driver software that is not sufficiently up-to-date.\n"
-      "Newer graphics drivers might be available that fix this issue.\n\n"
-      "If updating your GPU drivers doesn't resolve the issue, then please file a bug report\n\n"
+      "An error occurred while compiling shaders."
+      "\n\n"
+      "Newer graphics drivers might be available that fix this issue. If this problem persists "
+      "with the latest drivers installed, then please file a bug report."
+      "\n\n"
       "Blender will now close.",
       "Find Latest Drivers",
       "Exit",
