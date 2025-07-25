@@ -99,7 +99,8 @@ class GreasePencilInterpolate : public testing::Test {
     Array<float> factors(num_dst_points, -12345.6f);
     geometry::sample_curve_padded(curves, curve_index, cyclic, reverse, indices, factors);
 
-    EXPECT_EQ_SPAN(expected_indices, indices.as_span());
+    EXPECT_EQ(expected_indices.size(), indices.size());
+    EXPECT_EQ_ARRAY(expected_indices.data(), indices.data(), indices.size());
 
     EXPECT_EQ(expected_factors.size(), factors.size());
     if (expected_factors.size() == factors.size()) {
