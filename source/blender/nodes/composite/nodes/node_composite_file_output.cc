@@ -396,40 +396,39 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
         ptr, RNA_struct_find_property(ptr, "file_slots"), active_index, &active_input_ptr);
     slots_prop = RNA_struct_find_property(ptr, "file_slots");
   }
-  int slots_len = RNA_property_collection_length(ptr, slots_prop);
+
   col = &row->column(true);
 
-  col->op("NODE_OT_output_file_add_socket", "", ICON_ADD, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
-  col->op("NODE_OT_output_file_remove_active_socket", "", ICON_REMOVE, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
+  col->op("NODE_OT_output_file_add_socket",
+          "",
+          ICON_ADD,
+          wm::OpCallContext::ExecDefault,
+          UI_ITEM_NONE);
+  col->op("NODE_OT_output_file_remove_active_socket",
+          "",
+          ICON_REMOVE,
+          wm::OpCallContext::ExecDefault,
+          UI_ITEM_NONE);
   col->separator();
 
   /* XXX collection lookup does not return the ID part of the pointer,
    * setting this manually here */
   active_input_ptr.owner_id = ptr->owner_id;
 
-
-
-  {
-
-
+  int slots_len = RNA_property_collection_length(ptr, slots_prop);
   if (slots_len > 0) {
     wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
 
-
-
-
-    uiLayout *move_col = &col->column(false);
+    uiLayout *sub = &col->column(true);
     if (slots_len < 2) {
-      move_col->active_set(false);  // disable buttons
+      sub->active_set(false);
     }
 
-    op_ptr = move_col->op(ot, "", ICON_TRIA_UP, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+    op_ptr = sub->op(ot, "", ICON_TRIA_UP, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
     RNA_enum_set(&op_ptr, "direction", 1);
 
-    op_ptr = move_col->op(ot, "", ICON_TRIA_DOWN, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+    op_ptr = sub->op(ot, "", ICON_TRIA_DOWN, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
     RNA_enum_set(&op_ptr, "direction", 2);
-
-
   }
 
   if (active_input_ptr.data) {
