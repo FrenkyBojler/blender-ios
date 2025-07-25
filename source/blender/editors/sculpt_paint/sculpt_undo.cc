@@ -35,6 +35,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_string.h"
+#include "BLI_task.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -307,8 +308,9 @@ struct PositionUndoStorage : NonMovable {
   IndexMask mask;
   Array<std::byte> compressed_data;
 
-  std::future<Array<std::byte>> compression_future;
+  TaskPool *compression_task_pool;
   std::atomic<bool> compression_ready{false};
+  std::atomic<bool> compression_started{false};
 
   PositionUndoStorage() = default;
   PositionUndoStorage(const StepData &step_data, const Span<std::unique_ptr<Node>> nodes)
@@ -353,18 +355,44 @@ struct PositionUndoStorage : NonMovable {
       });
     });
 
-    compression_future = std::async(std::launch::async, [positions = std::move(positions)]() {
-      Array<std::byte> result = compress_data(positions.as_span());
-      return result;
-    });
+    compression_task_pool = BLI_task_pool_create_background(this, TASK_PRIORITY_LOW);
+    compression_started = true;
+
+    CompressionData *task_data = new CompressionData{std::move(positions), this};
+    BLI_task_pool_push(
+        compression_task_pool, compression_task_function, task_data, true, compression_task_free);
+  }
+
+  ~PositionUndoStorage()
+  {
+    if (compression_started.load() && compression_task_pool) {
+      BLI_task_pool_work_and_wait(compression_task_pool);
+      BLI_task_pool_free(compression_task_pool);
+    }
   }
 
   void ensure_compression_complete()
   {
-    if (!compression_ready.load()) {
-      compressed_data = compression_future.get();
-      compression_ready = true;
+    if (!compression_ready.load(std::memory_order_acquire)) {
+      BLI_task_pool_work_and_wait(compression_task_pool);
     }
+  }
+
+  struct CompressionData {
+    Array<float3> positions;
+    PositionUndoStorage *storage;
+  };
+
+  static void compression_task_function(TaskPool *pool, void *task_data)
+  {
+    CompressionData *data = static_cast<CompressionData *>(task_data);
+    Array<std::byte> result = compress_data(data->positions.as_span());
+    data->storage->compressed_data = std::move(result);
+    data->storage->compression_ready.store(true, std::memory_order_release);
+  }
+  static void compression_task_free(TaskPool *pool, void *task_data)
+  {
+    delete static_cast<CompressionData *>(task_data);
   }
 };
 
@@ -509,10 +537,13 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
     }
   });
 
-  undo_data.compression_future = std::async(std::launch::async,
-                                            [decompressed = std::move(decompressed)]() {
-                                              return compress_data(decompressed.as_span());
-                                            });
+  PositionUndoStorage::CompressionData *task_data = new PositionUndoStorage::CompressionData{
+      std::move(decompressed), &undo_data};
+  BLI_task_pool_push(undo_data.compression_task_pool,
+                     PositionUndoStorage::compression_task_function,
+                     task_data,
+                     true,
+                     PositionUndoStorage::compression_task_free);
   undo_data.compression_ready = false;
 }
 
