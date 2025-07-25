@@ -2,13 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "FN_multi_function_builder.hh"
-#include "NOD_multi_function.hh"
 #include "node_shader_util.hh"
 
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "FN_multi_function_builder.hh"
+
+#include "NOD_multi_function.hh"
 namespace blender::nodes::node_shader_gamma_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
