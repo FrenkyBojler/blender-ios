@@ -200,7 +200,6 @@ export void chunked_zero_if_index_in_range_row_major(const uniform int row_count
                                                      uniform float rows_and_cols[][programCount])
 {
   sse_alighed(rows_and_cols);
-  uniform float * uniform rows_and_cols_flat = &rows_and_cols[0][0];
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const varying int col_indices = row_indices[row_index][programIndex] - col_offset;
     if (0 <= col_indices && col_indices < col_count) {

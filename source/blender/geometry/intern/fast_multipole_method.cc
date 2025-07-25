@@ -21,7 +21,7 @@
 #include "GEO_bounding_sphere.hh"
 #include "GEO_fast_multipole_method.hh"
 
-#include "fast_math.h"
+// #include "fast_math.h"
 
 #include "BLI_math_bits.h"
 
@@ -47,7 +47,7 @@ class ShiftedRange {
 
 }  // namespace blender
 
-#if (1)
+#if (0)
 namespace blender::fast_math {
 
 constexpr int programCount = ispc::FMMConstants::ChunkSize;
@@ -614,7 +614,7 @@ static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_ha
 #else
 namespace blender::fast_math {
 
-constexpr int programCount = 16;
+constexpr int programCount = 1;
 
 static BLI_NOINLINE void distance_to_n_squared(const Span<float> src_a_x,
                                                const Span<float> src_a_y,
@@ -631,7 +631,8 @@ static BLI_NOINLINE void distance_to_n_squared(const Span<float> src_a_x,
   }
 }
 
-static BLI_NOINLINE void chunked_squared_distances_table(
+
+static BLI_NOINLINE void chunked_squared_distances_row_major(
     const Span<float[programCount]> row_x,
     const Span<float[programCount]> row_y,
     const Span<float[programCount]> row_z,
@@ -648,28 +649,24 @@ static BLI_NOINLINE void chunked_squared_distances_table(
 
   BLI_assert(distances.size() == row_x.size() * col_z.size());
 
-  for (const int row_index : row_y.index_range()) {
-    for (const int col_index : col_x.index_range()) {
-      const float3 col_xyz(col_x[col_index], col_y[col_index], col_z[col_index]);
-      for (int programIndex = 0; programIndex < programCount; programIndex++) {
-        const float3 row_xyz(row_x[row_index][programIndex],
-                             row_y[row_index][programIndex],
-                             row_z[row_index][programIndex]);
-        const float3 batch = blender::math::square(row_xyz - col_xyz);
-        distances[row_index * col_x.size() + col_index][programIndex] = batch.x + batch.y +
-                                                                        batch.z;
-      }
+  for (const int row_index : row_z.index_range()) {
+    const float3 row_xyz = {row_x[row_index][0], row_y[row_index][0], row_z[row_index][0]};
+    for (const int col_index : col_z.index_range()) {
+      const float3 col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
+      const float3 batch = math::square(row_xyz - col_xyz);
+      distances[row_index * col_z.size() + col_index][0] = math::reduce_add(batch);
     }
   }
 }
 
-static BLI_NOINLINE void squared_distances_table(const Span<float> row_x,
-                                                 const Span<float> row_y,
-                                                 const Span<float> row_z,
-                                                 const Span<float> col_x,
-                                                 const Span<float> col_y,
-                                                 const Span<float> col_z,
-                                                 MutableSpan<float> distances)
+static BLI_NOINLINE void chunked_squared_distances_col_major(
+    const Span<float[programCount]> row_x,
+    const Span<float[programCount]> row_y,
+    const Span<float[programCount]> row_z,
+    const Span<float> col_x,
+    const Span<float> col_y,
+    const Span<float> col_z,
+    MutableSpan<float[programCount]> distances)
 {
   BLI_assert(row_x.size() == row_y.size());
   BLI_assert(row_x.size() == row_z.size());
@@ -679,17 +676,55 @@ static BLI_NOINLINE void squared_distances_table(const Span<float> row_x,
 
   BLI_assert(distances.size() == row_x.size() * col_z.size());
 
-  for (const int row_index : row_y.index_range()) {
-    const float3 row_xyz(row_x[row_index], row_y[row_index], row_z[row_index]);
-    for (const int col_index : col_x.index_range()) {
-      const float3 col_xyz(col_x[col_index], col_y[col_index], col_z[col_index]);
-      const float3 batch = blender::math::square(row_xyz - col_xyz);
-      distances[row_index * col_x.size() + col_index] = batch.x + batch.y + batch.z;
+  for (const int col_index : col_z.index_range()) {
+    const float3 col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
+    for (const int row_index : row_z.index_range()) {
+      const float3 row_xyz = {row_x[row_index][0], row_y[row_index][0], row_z[row_index][0]};
+      const float3 batch = math::square(row_xyz - col_xyz);
+      distances[col_index * row_z.size() + row_index][0] = math::reduce_add(batch);
     }
   }
 }
 
-static BLI_NOINLINE void chunked_zero_if_index_in_range(
+static BLI_NOINLINE void squared_distances_row_major(const Span<float> row_x,
+                                                     const Span<float> row_y,
+                                                     const Span<float> row_z,
+                                                     const Span<float> col_x,
+                                                     const Span<float> col_y,
+                                                     const Span<float> col_z,
+                                                     MutableSpan<float> distances)
+{
+  BLI_assert(row_x.size() == row_y.size());
+  BLI_assert(row_x.size() == row_z.size());
+
+  BLI_assert(col_x.size() == col_y.size());
+  BLI_assert(col_x.size() == col_z.size());
+
+  BLI_assert(distances.size() == row_x.size() * col_z.size());
+
+  BLI_assert(distances.is_empty());
+}
+
+static BLI_NOINLINE void squared_distances_col_major(const Span<float> row_x,
+                                                     const Span<float> row_y,
+                                                     const Span<float> row_z,
+                                                     const Span<float> col_x,
+                                                     const Span<float> col_y,
+                                                     const Span<float> col_z,
+                                                     MutableSpan<float> distances)
+{
+  BLI_assert(row_x.size() == row_y.size());
+  BLI_assert(row_x.size() == row_z.size());
+
+  BLI_assert(col_x.size() == col_y.size());
+  BLI_assert(col_x.size() == col_z.size());
+
+  BLI_assert(distances.size() == row_x.size() * col_z.size());
+
+  BLI_assert(distances.is_empty());
+}
+
+static BLI_NOINLINE void chunked_zero_if_index_in_range_row_major(
     const Span<int[programCount]> row_indices,
     const ShiftedRange col_range,
     MutableSpan<float[programCount]> rows_and_cols)
@@ -697,72 +732,97 @@ static BLI_NOINLINE void chunked_zero_if_index_in_range(
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
   for (const int row_index : row_indices.index_range()) {
-    for (const int col_index : col_range.index_range()) {
-      for (int programIndex = 0; programIndex < programCount; programIndex++) {
-        const int bucket_indices = row_indices[row_index][programIndex];
-        const bool mask = bucket_indices != col_range[col_index];
-        if (mask) {
-          rows_and_cols[row_index * col_range.size + col_index][programIndex] =
-              rows_and_cols[row_index * col_range.size + col_index][programIndex];
-        }
-        else {
-          rows_and_cols[row_index * col_range.size + col_index][programIndex] = 0.0f;
-        }
-      }
+    const int col_index = row_indices[row_index][0] - col_range.start;
+    if (0 <= col_index && col_index < col_range.size) {
+      rows_and_cols[row_index * col_range.size + col_index][0] = 0.0f;
     }
   }
 }
 
-static BLI_NOINLINE void zero_if_index_in_range(const Span<int> row_indices,
-                                                const ShiftedRange col_range,
-                                                MutableSpan<float> rows_and_cols)
+static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(const Span<int> col_indices,
+                                                                  const ShiftedRange row_range,
+                                                                  MutableSpan<float[programCount]> cols_and_rows)
+{
+  BLI_assert(row_range.size * col_indices.size() == cols_and_rows.size());
+
+  for (const int col_index : col_indices.index_range()) {
+    const int bucket_index = col_indices[col_index];
+    for (int row_index = 0; row_index < row_range.size; row_index++) {
+      const bool mask = bucket_index != row_index + row_range.start;
+      float &values = cols_and_rows[col_index * row_range.size + row_index][0];
+      values = mask ? values : 0.0f;
+    }
+  }
+}
+
+static BLI_NOINLINE void zero_if_index_in_range_row_major(const Span<int> row_indices,
+                                                          const ShiftedRange col_range,
+                                                          MutableSpan<float> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
-  for (const int row_index : row_indices.index_range()) {
-    for (const int col_index : col_range.index_range()) {
-      const int bucket_indices = row_indices[row_index];
-      const bool mask = bucket_indices != col_range[col_index];
-      if (mask) {
-        rows_and_cols[row_index * col_range.size + col_index] =
-            rows_and_cols[row_index * col_range.size + col_index];
-      }
-      else {
-        rows_and_cols[row_index * col_range.size + col_index] = 0.0f;
-      }
-    }
-  }
+  BLI_assert(row_indices.is_empty());
 }
 
-static BLI_NOINLINE void chunked_table_product_reduce(
+static BLI_NOINLINE void zero_if_index_in_range_col_major(const Span<int> row_indices,
+                                                          const ShiftedRange col_range,
+                                                          MutableSpan<float> rows_and_cols)
+{
+  BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
+
+  BLI_assert(row_indices.is_empty());
+}
+
+static BLI_NOINLINE void chunked_table_product_reduce_row_major(
     const Span<float[programCount]> rows_and_cols,
     const Span<float> col_values,
     MutableSpan<float[programCount]> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
+
   for (const int row_index : row_values.index_range()) {
+    float row_accum = 0.0f;
     for (const int col_index : col_values.index_range()) {
-      for (int programIndex = 0; programIndex < programCount; programIndex++) {
-        row_values[row_index][programIndex] +=
-            rows_and_cols[row_index * col_values.size() + col_index][programIndex] *
-            col_values[col_index];
-      }
+      row_accum += rows_and_cols[row_index * col_values.size() + col_index][0] * col_values[col_index];
     }
+    row_values[row_index][0] += row_accum;
   }
 }
 
-static BLI_NOINLINE void table_product_reduce(const Span<float> rows_and_cols,
-                                              const Span<float> col_values,
-                                              MutableSpan<float> row_values)
+static BLI_NOINLINE void chunked_table_product_reduce_col_major(
+    const Span<float[programCount]> rows_and_cols,
+    const Span<float[programCount]> col_values,
+    MutableSpan<float> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
+
   for (const int row_index : row_values.index_range()) {
+    float row_accum = 0.0f;
     for (const int col_index : col_values.index_range()) {
-      row_values[row_index] += rows_and_cols[row_index * col_values.size() + col_index] *
-                               col_values[col_index];
+      row_accum += rows_and_cols[row_index * col_values.size() + col_index][0] * col_values[col_index][0];
     }
+    row_values[row_index] += row_accum;
   }
 }
+
+static BLI_NOINLINE void table_product_reduce_row_major(const Span<float> rows_and_cols,
+                                                        const Span<float> col_values,
+                                                        MutableSpan<float> row_values)
+{
+  BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
+
+  BLI_assert(rows_and_cols.is_empty());
+}
+
+static BLI_NOINLINE void table_product_reduce_col_major(const Span<float> rows_and_cols,
+                                                        const Span<float> col_values,
+                                                        MutableSpan<float> row_values)
+{
+  BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
+
+  BLI_assert(rows_and_cols.is_empty());
+}
+
 
 template<typename T>
 static BLI_NOINLINE void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
