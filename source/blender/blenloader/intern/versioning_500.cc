@@ -1218,18 +1218,24 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
   version_node_remove(node_tree, node);
 }
 
-static void do_version_world_remove_use_nodes(World *world)
+static void do_version_world_remove_use_nodes(Main *bmain, World *world)
 {
-  bNodeTree *ntree = world->nodetree;
-  if (ntree == nullptr || world->use_nodes == true) {
+  if (world->use_nodes == true) {
     return;
   }
 
   /* Users defined a world node tree, but deactivated it by disabling "Use Nodes". So we
    * simulate the same effect by creating a new World Output node and setting it to active. */
+  bNodeTree *ntree = world->nodetree;
+  if (ntree == nullptr) {
+    /* In case the world was defined through Python API it might have been missing a node tree. */
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        bmain, &world->id, "World Node Tree Versioning", "ShaderNodeTree");
+  }
+
   bNode *old_output = nullptr;
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (STREQ(node->idname, "ShaderNodeOutputWorld") && (node->flag & NODE_ACTIVE)) {
+    if (STREQ(node->idname, "ShaderNodeOutputWorld") && (node->flag & NODE_DO_OUTPUT)) {
       old_output = node;
       old_output->flag &= ~NODE_DO_OUTPUT;
     }
@@ -1693,7 +1699,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 42)) {
     LISTBASE_FOREACH (World *, world, &bmain->worlds) {
-      do_version_world_remove_use_nodes(world);
+      do_version_world_remove_use_nodes(bmain, world);
     }
   }
 
