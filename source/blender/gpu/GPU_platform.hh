@@ -102,7 +102,7 @@ blender::Span<uint8_t> GPU_platform_luid();
 uint32_t GPU_platform_luid_node_mask();
 
 /* Show a window pop-up asking the user to update their drivers, then abort the process. */
-void GPU_platform_show_driver_error_popup();
+void GPU_platform_show_shader_error_popup();
 /* Return a link to the gpu troubleshooting manual page, automatically linking to the appropriate
  * OS and GPU vendor version. */
 const char *GPU_platform_support_link();

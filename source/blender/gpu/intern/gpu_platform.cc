@@ -206,7 +206,7 @@ uint32_t GPU_platform_luid_node_mask()
   return GPG.device_luid_node_mask;
 }
 
-void GPU_platform_show_driver_error_popup()
+void GPU_platform_show_shader_error_popup()
 {
   if (BKE_blender_version_is_release() && !G.background) {
 
