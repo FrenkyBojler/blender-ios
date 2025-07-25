@@ -626,6 +626,12 @@ ccl_device_inline float one_minus_cos(const float angle)
   return angle > 0.02f ? 1.0f - cosf(angle) : 0.5f * sqr(angle);
 }
 
+/*  2^a. */
+ccl_device_inline int power_of_2(const int a)
+{
+  return 1 << a;
+}
+
 ccl_device_inline float pow20(const float a)
 {
   return sqr(sqr(sqr(sqr(a)) * a));
@@ -658,6 +664,11 @@ ccl_device_inline float beta(const float x, const float y)
 ccl_device_inline float xor_signmask(const float x, const int y)
 {
   return __int_as_float(__float_as_int(x) ^ y);
+}
+
+ccl_device_inline float or_mask(const float x, const uint y)
+{
+  return __uint_as_float(__float_as_uint(x) | y);
 }
 
 ccl_device float bits_to_01(const uint bits)
