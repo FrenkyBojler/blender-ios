@@ -578,6 +578,10 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd,
 
     const VArray<bool> point_selection = *attributes.lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
+    const VArray<bool> selection_left = *attributes.lookup_or_default<bool>(
+        ".selection_handle_left", bke::AttrDomain::Point, true);
+    const VArray<bool> selection_right = *attributes.lookup_or_default<bool>(
+        ".selection_handle_right", bke::AttrDomain::Point, true);
 
     const Span<float3> positions = curves.positions();
     const VArray<bool> &cyclic = curves.cyclic();
@@ -588,12 +592,18 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd,
         continue;
       }
 
-      if (point_selection[curve_points.first()] && curve_points.size() != 1) {
-        pos += pen_global_to_screen(ptd, positions[curve_points.first()]);
-        num++;
+      if (point_selection[curve_points.first()] || selection_left[curve_points.first()] ||
+          selection_right[curve_points.first()])
+      {
+        if (curve_points.size() != 1) {
+          pos += pen_global_to_screen(ptd, positions[curve_points.first()]);
+          num++;
+        }
       }
 
-      if (point_selection[curve_points.last()]) {
+      if (point_selection[curve_points.last()] || selection_left[curve_points.last()] ||
+          selection_right[curve_points.last()])
+      {
         pos += pen_global_to_screen(ptd, positions[curve_points.last()]);
         num++;
       }
