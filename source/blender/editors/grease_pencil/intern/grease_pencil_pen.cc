@@ -355,6 +355,10 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
 
   const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
       ".selection", bke::AttrDomain::Point, true);
+  const VArray<bool> left_selected = *src_attributes.lookup_or_default<bool>(
+      ".selection_handle_left", bke::AttrDomain::Point, true);
+  const VArray<bool> right_selected = *src_attributes.lookup_or_default<bool>(
+      ".selection_handle_right", bke::AttrDomain::Point, true);
 
   Vector<int> dst_to_src_points(old_points_num);
   array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
@@ -376,16 +380,22 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
       continue;
     }
 
-    if (point_selection[curve_points.first()] && curve_points.size() != 1) {
-      /* Start-point extruded, we insert a new point at the beginning of the curve. */
-      dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
-      dst_selected_start.insert(curve_points.first() + point_offset, true);
-      dst_selected_end.insert(curve_points.first() + point_offset, false);
-      dst_curve_counts[curve_index]++;
-      point_offset++;
+    if (point_selection[curve_points.first()] || left_selected[curve_points.first()] ||
+        right_selected[curve_points.first()])
+    {
+      if (curve_points.size() != 1) {
+        /* Start-point extruded, we insert a new point at the beginning of the curve. */
+        dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
+        dst_selected_start.insert(curve_points.first() + point_offset, true);
+        dst_selected_end.insert(curve_points.first() + point_offset, false);
+        dst_curve_counts[curve_index]++;
+        point_offset++;
+      }
     }
 
-    if (point_selection[curve_points.last()]) {
+    if (point_selection[curve_points.last()] || left_selected[curve_points.last()] ||
+        right_selected[curve_points.last()])
+    {
       /* End-point extruded, we insert a new point at the end of the curve. */
       dst_to_src_points.insert(curve_points.last() + point_offset + 1, curve_points.last());
       dst_selected_end.insert(curve_points.last() + point_offset + 1, true);
