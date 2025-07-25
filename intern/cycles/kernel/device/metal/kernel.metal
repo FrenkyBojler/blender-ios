@@ -182,14 +182,9 @@ __intersection__local_tri_mblur(
       payload, primitive_id, barycentrics, ray_tmax);
 }
 
-inline bool metalrt_curve_skip_end_cap(constant KernelParamsMetal &launch_params_metal,
-                                       const int type,
-                                       const uint prim,
-                                       const float u)
+inline bool metalrt_curve_skip_end_cap(const int type, const float u)
 {
-  return (u == 0.0f && PRIMITIVE_UNPACK_SEGMENT(type) == 0) ||
-         (u == 1.0f &&
-          PRIMITIVE_UNPACK_SEGMENT(type) == kernel_data_fetch(curves, prim).num_keys - 1);
+  return ((u == 0.0f || u == 1.0f) && (type & PRIMITIVE_CURVE) != PRIMITIVE_CURVE_THICK_LINEAR);
 }
 
 template<uint intersection_type>
@@ -216,7 +211,7 @@ bool metalrt_shadow_all_hit(
     prim = segment.prim;
 
     /* Filter out curve end-caps. */
-    if (metalrt_curve_skip_end_cap(launch_params_metal, type, prim, u)) {
+    if (metalrt_curve_skip_end_cap(type, u)) {
       /* continue search */
       return true;
     }
@@ -421,7 +416,7 @@ inline TReturnType metalrt_visibility_test(
     prim = segment.prim;
 
     /* Filter out curve end-caps. */
-    if (metalrt_curve_skip_end_cap(launch_params_metal, type, prim, u)) {
+    if (metalrt_curve_skip_end_cap(type, u)) {
       result.accept = false;
       result.continue_search = true;
       return result;
@@ -467,7 +462,7 @@ inline TReturnType metalrt_visibility_test_shadow(
     prim = segment.prim;
 
     /* Filter out curve end-caps. */
-    if (metalrt_curve_skip_end_cap(launch_params_metal, type, prim, u)) {
+    if (metalrt_curve_skip_end_cap(type, u)) {
       result.accept = false;
       result.continue_search = true;
       return result;
