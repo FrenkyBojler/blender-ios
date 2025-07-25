@@ -970,9 +970,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         handles_right[point_i] = pen_screen_to_global(ptd, center_point + offset, depth_point);
         handles_left[point_i] = depth_point - (handles_right[point_i] - depth_point);
 
-        const int curve_i = point_to_curve_map[point_i];
-        const IndexRange points = points_by_curve[curve_i];
-        if (point_i != points.last()) {
+        if (!right_selected[point_i]) {
           std::swap(handles_right[point_i], handles_left[point_i]);
         }
       }
