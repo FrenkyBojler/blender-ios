@@ -24,9 +24,9 @@
  */
 #include "sculpt_undo.hh"
 
-#include "BLI_timeit.hh"
-#include "CLG_log.h"
 #include <mutex>
+
+#include "CLG_log.h"
 #include <zstd.h>
 
 #include "BLI_array.hh"
@@ -35,6 +35,7 @@
 #include "BLI_map.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
+#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
