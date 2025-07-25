@@ -350,8 +350,11 @@ static bool versioning_eevee_material_blend_mode_settings(bNodeTree *ntree, floa
       bNodeSocket *from_socket = alpha.socket->link->fromsock;
       bke::node_remove_link(ntree, *alpha.socket->link);
 
-      bNode *math_node = bke::node_add_node(nullptr, *ntree, "ShaderNodeMath");
-      math_node->custom1 = NODE_MATH_GREATER_THAN;
+      bNode *math_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMath");
+      // Migrate legacy Math node operation assignment to storage struct.
+      if (NodeShaderMath *storage = static_cast<NodeShaderMath *>(math_node->storage)) {
+        storage->operation = NODE_MATH_GREATER_THAN;
+      }
       math_node->flag |= NODE_COLLAPSED;
       math_node->parent = to_node->parent;
       math_node->locx_legacy = to_node->locx_legacy - math_node->width - 30;
