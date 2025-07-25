@@ -67,6 +67,19 @@ enum class PenModal : int8_t {
   LockAngle = 4,
 };
 
+enum class ElementMode : int8_t {
+  None = 0,
+  Point = 1,
+  Edge = 2,
+};
+
+struct ClosestElement {
+  ElementMode element_mode;
+  int point_index = -1;
+  int curve_index = -1;
+  float edge_t = -1.0f;
+};
+
 /* Used to scale the default select distance. */
 constexpr float selection_distance_factor = 0.9f;
 constexpr float selection_distance_factor_edge = 0.7f;
@@ -101,10 +114,9 @@ struct PenToolOperation {
   float2 mouse_co;
   float2 center_of_mass_co;
 
-  int closest_edge_point = -1;
-  int closest_curve = -1;
-  float closest_edge_t = -1.0f;
   int layer_index = -1;
+
+  ClosestElement closest_element;
 };
 
 static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
@@ -134,7 +146,8 @@ static float3 pen_screen_to_global(const PenToolOperation &ptd,
 /* Will return -1 if no points are near. */
 static int pen_find_closest_point(const PenToolOperation &ptd,
                                   const bke::CurvesGeometry &curves,
-                                  const float2 mouse_co)
+                                  const float2 mouse_co,
+                                  int *r_closest_curve)
 {
   float closest_distance_squared = std::numeric_limits<float>::max();
   int closest_point = -1;
@@ -150,6 +163,8 @@ static int pen_find_closest_point(const PenToolOperation &ptd,
         distance_squared < ptd.threshold_distance * ptd.threshold_distance)
     {
       closest_point = i;
+      const Array<int> point_to_curve_map = curves.point_to_curve_map();
+      *r_closest_curve = point_to_curve_map[i];
       closest_distance_squared = distance_squared;
     }
   }
@@ -256,6 +271,37 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
   }
 
   return closest_point;
+}
+
+static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
+                                               const bke::CurvesGeometry &curves,
+                                               const float2 mouse_co)
+{
+  ClosestElement closest_element;
+  int closest_curve;
+  const int closest_point = pen_find_closest_point(ptd, curves, mouse_co, &closest_curve);
+
+  if (closest_point != -1) {
+    closest_element.element_mode = ElementMode::Point;
+    closest_element.curve_index = closest_curve;
+    closest_element.point_index = closest_point;
+    return closest_element;
+  }
+
+  float edge_t;
+  const int closest_edge_point = pen_find_closest_edge_point(
+      ptd, curves, ptd.mouse_co, &closest_curve, &edge_t);
+
+  if (closest_edge_point != -1) {
+    closest_element.element_mode = ElementMode::Edge;
+    closest_element.point_index = closest_edge_point;
+    closest_element.curve_index = closest_curve;
+    closest_element.edge_t = edge_t;
+    return closest_element;
+  }
+
+  closest_element.element_mode = ElementMode::None;
+  return closest_element;
 }
 
 static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
@@ -589,19 +635,15 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       return;
     }
 
-    const int closest_point = pen_find_closest_point(ptd, curves, ptd.mouse_co);
+    ptd.closest_element = pen_find_closest_element(ptd, curves, ptd.mouse_co);
 
-    if (closest_point == -1) {
-      if (ptd.move_seg || ptd.insert_point) {
-        ptd.closest_edge_point = pen_find_closest_edge_point(
-            ptd, curves, ptd.mouse_co, &ptd.closest_curve, &ptd.closest_edge_t);
-        if (ptd.closest_edge_point != -1) {
-          ptd.layer_index = info.layer_index;
-          add_single.store(false, std::memory_order_relaxed);
-          return;
-        }
-      }
+    if (ptd.closest_element.element_mode == ElementMode::Edge) {
+      ptd.layer_index = info.layer_index;
+      add_single.store(false, std::memory_order_relaxed);
+      return;
+    }
 
+    if (ptd.closest_element.element_mode == ElementMode::None) {
       if (ptd.extrude_point) {
         bool extruded = false;
         curves = pen_extrude_curves(ptd, curves, &extruded);
@@ -627,19 +669,20 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       return;
     }
 
+    if (ptd.closest_element.element_mode != ElementMode::Point) {
+      return;
+    }
     const OffsetIndices points_by_curve = curves.points_by_curve();
-    const Array<int> point_to_curve_map = curves.point_to_curve_map();
-
-    const int curve_index = point_to_curve_map[closest_point];
-    const IndexRange points = points_by_curve[curve_index];
+    const IndexRange points = points_by_curve[ptd.closest_element.curve_index];
 
     if (event->val == KM_DBL_CLICK && ptd.cycle_handle_type) {
-      const int8_t handle_type = curves.handle_types_right_for_write()[closest_point];
+      const int8_t handle_type =
+          curves.handle_types_right_for_write()[ptd.closest_element.point_index];
       /* Cycle to the next type. */
       const int8_t new_handle_type = (handle_type + 1) % 4;
 
-      curves.handle_types_left_for_write()[closest_point] = new_handle_type;
-      curves.handle_types_right_for_write()[closest_point] = new_handle_type;
+      curves.handle_types_left_for_write()[ptd.closest_element.point_index] = new_handle_type;
+      curves.handle_types_right_for_write()[ptd.closest_element.point_index] = new_handle_type;
       curves.update_curve_types();
       curves.calculate_bezier_auto_handles();
       curves.tag_topology_changed();
@@ -647,7 +690,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     }
 
     if (ptd.delete_point) {
-      curves.remove_points(IndexRange::from_single(closest_point), {});
+      curves.remove_points(IndexRange::from_single(ptd.closest_element.point_index), {});
       add_single.store(false, std::memory_order_relaxed);
       point_removed.store(true, std::memory_order_relaxed);
       return;
@@ -661,10 +704,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       MutableSpan<bool> selection = selection_writer.span.typed<bool>();
 
       if (ptd.close_spline) {
-        if ((closest_point == points.first() && selection[points.last()]) ||
-            (closest_point == points.last() && selection[points.first()]))
+        if ((ptd.closest_element.point_index == points.first() && selection[points.last()]) ||
+            (ptd.closest_element.point_index == points.last() && selection[points.first()]))
         {
-          curves.cyclic_for_write()[curve_index] = true;
+          curves.cyclic_for_write()[ptd.closest_element.curve_index] = true;
           curves.calculate_bezier_auto_handles();
           info.drawing.tag_topology_changed();
           add_single.store(false, std::memory_order_relaxed);
@@ -676,7 +719,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       }
 
       if (ptd.select_point) {
-        selection[closest_point] = true;
+        selection[ptd.closest_element.point_index] = true;
         add_single.store(false, std::memory_order_relaxed);
       }
 
@@ -762,11 +805,12 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
 
     if (ptd.move_seg) {
-      if (ptd.closest_edge_point != -1 && ptd.layer_index == info.layer_index) {
-        const int curve_i = ptd.closest_curve;
+      if (ptd.closest_element.point_index != -1 && ptd.layer_index == info.layer_index) {
+        const int curve_i = ptd.closest_element.curve_index;
         const IndexRange points = points_by_curve[curve_i];
-        const int point_i1 = ptd.closest_edge_point;
-        const int point_i2 = (ptd.closest_edge_point + 1 - points.first()) % points.size() +
+        const int point_i1 = ptd.closest_element.point_index;
+        const int point_i2 = (ptd.closest_element.point_index + 1 - points.first()) %
+                                 points.size() +
                              points.first();
 
         const float3 depth_point = positions[point_i1];
@@ -777,7 +821,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         const float3 p2 = handles_left[point_i2];
         const float3 k2 = p1 - p2;
 
-        const float t = ptd.closest_edge_t;
+        const float t = ptd.closest_element.edge_t;
         const float t_sq = t * t;
         const float t_cu = t_sq * t;
         const float one_minus_t = 1.0f - t;
