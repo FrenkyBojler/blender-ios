@@ -8,11 +8,9 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline BsdfEvalRGBE BsdfEvalToBsdfEvalRGBE(ccl_private const BsdfEval &bsdfEval)
 {
   BsdfEvalRGBE bsdfEvalRGBE;
-  bsdfEvalRGBE.diffuse = rgb_to_rgbe(
-      make_float3(bsdfEval.diffuse.x, bsdfEval.diffuse.y, bsdfEval.diffuse.z));
-  bsdfEvalRGBE.glossy = rgb_to_rgbe(
-      make_float3(bsdfEval.glossy.x, bsdfEval.glossy.y, bsdfEval.glossy.z));
-  bsdfEvalRGBE.sum = rgb_to_rgbe(make_float3(bsdfEval.sum.x, bsdfEval.sum.y, bsdfEval.sum.z));
+  bsdfEvalRGBE.diffuse = rgb_to_rgbe(bsdfEval.diffuse);
+  bsdfEvalRGBE.glossy = rgb_to_rgbe(bsdfEval.glossy);
+  bsdfEvalRGBE.sum = rgb_to_rgbe(bsdfEval.sum);
   return bsdfEvalRGBE;
 }
 
