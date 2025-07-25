@@ -1,1 +1,2 @@
 Referenced by issue #143142, Normal Edit Modifier is not behaving predictably in 4.5
+Referenced by commit 8b883a39227e5ffc70d4c26f280a030cdc7ec7dd, Fix #143142: Displace modifier Custom Normal direction broken
