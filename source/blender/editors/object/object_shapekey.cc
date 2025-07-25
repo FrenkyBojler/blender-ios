@@ -418,7 +418,7 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
     changed = BKE_object_shapekey_free(bmain, ob);
   }
   else {
-    int cur_index = 0;
+
     /* This could be moved into a function of its own at some point. Right now it's only used here,
      * though, since its inner structure is taylored for allowing shapekey deletion. */
     const auto visit_selected_shapekeys = [&](FunctionRef<void(KeyBlock & kb)> callback) {
@@ -426,7 +426,8 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
       LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block) {
         /* Always try to find the keyblock again, as the previous one may have been deleted. For
          * the same reason, ob->shapenr has to be re-evaluated on every loop iteration. */
-        if (!shape_key_is_selected(*ob, *kb, cur_index++)) {
+        const int cur_index = BLI_findindex(&key.block, kb);
+        if (!shape_key_is_selected(*ob, *kb, cur_index)) {
           continue;
         }
         callback(*kb);
