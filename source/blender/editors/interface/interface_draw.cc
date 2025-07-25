@@ -1616,11 +1616,20 @@ static void gl_shaded_color(const uchar *color, int shade)
   immUniformColor3ubv(color_shaded);
 }
 
-void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
+void ui_draw_but_CURVE(ARegion *region,
+                       uiBut *but,
+                       const uiWidgetColors *wcol_base,
+                       const rcti *rect)
 {
   uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
   CurveMapping *cumap = (but_cumap->edit_cumap == nullptr) ? (CurveMapping *)but->poin :
                                                              but_cumap->edit_cumap;
+
+  const bool is_hovered = but->flag & UI_HOVER;
+  uiWidgetColors wcol = *wcol_base;
+  if (but_cumap->is_preview && is_hovered) {
+    UI_widget_color_hover(&wcol);
+  }
 
   const float clip_size_x = BLI_rctf_size_x(&cumap->curr);
   const float clip_size_y = BLI_rctf_size_y(&cumap->curr);
@@ -1693,10 +1702,10 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   }
   else {
     if (cumap->flag & CUMA_DO_CLIP) {
-      gl_shaded_color_get_fl(wcol->inner, -20, color_backdrop);
+      gl_shaded_color_get_fl(wcol.inner, -20, color_backdrop);
       immUniformColor3fv(color_backdrop);
       immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
-      immUniformColor3ubv(wcol->inner);
+      immUniformColor3ubv(wcol.inner);
       immRectf(pos,
                rect->xmin + zoomx * (cumap->clipr.xmin - offsx),
                rect->ymin + zoomy * (cumap->clipr.ymin - offsy),
@@ -1704,20 +1713,20 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
                rect->ymin + zoomy * (cumap->clipr.ymax - offsy));
     }
     else {
-      rgb_uchar_to_float(color_backdrop, wcol->inner);
+      rgb_uchar_to_float(color_backdrop, wcol.inner);
       immUniformColor3fv(color_backdrop);
       immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
     }
 
     if (draw_backdrop_grid) {
       /* grid, every 0.25 step */
-      gl_shaded_color(wcol->inner, -16);
+      gl_shaded_color(wcol.inner, -16);
       ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.25f);
       /* grid, every 1.0 step */
-      gl_shaded_color(wcol->inner, -24);
+      gl_shaded_color(wcol.inner, -24);
       ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 1.0f);
       /* axes */
-      gl_shaded_color(wcol->inner, -50);
+      gl_shaded_color(wcol.inner, -50);
       immBegin(GPU_PRIM_LINES, 4);
       immVertex2f(pos, rect->xmin, rect->ymin + zoomy * (-offsy));
       immVertex2f(pos, rect->xmax, rect->ymin + zoomy * (-offsy));
@@ -1807,7 +1816,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   GPU_blend(GPU_BLEND_ALPHA);
 
   /* Curve filled. */
-  immUniformColor3ubvAlpha(wcol->item, 128);
+  immUniformColor3ubvAlpha(wcol.item, 128);
   immBegin(GPU_PRIM_TRI_STRIP, (CM_TABLE * 2 + 2) + 4);
   immVertex2f(pos, line_range.xmin, rect->ymin);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -1823,7 +1832,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   /* Curve line. */
   GPU_line_width(1.0f);
-  immUniformColor3ubvAlpha(wcol->item, 255);
+  immUniformColor3ubvAlpha(wcol.item, 255);
   GPU_line_smooth(true);
   immBegin(GPU_PRIM_LINE_STRIP, (CM_TABLE + 1) + 2);
   immVertex2f(pos, line_range.xmin, line_range.ymin);
@@ -1887,7 +1896,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-  immUniformColor3ubv(wcol->outline);
+  immUniformColor3ubv(wcol.outline);
   imm_draw_box_wire_2d(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
   immUnbindProgram();
