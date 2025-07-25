@@ -16,13 +16,14 @@
 
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_inverse_eval_path.hh"
+#include "NOD_partial_eval.hh"
+#include "NOD_socket_usage_inference.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "ED_node.hh"
-#include "NOD_socket_usage_inference.hh"
 
 namespace blender::nodes::gizmos {
 
@@ -223,7 +224,7 @@ static void foreach_gizmo_for_input(const ie::SocketElem &input_socket,
     const bNodeTree &group = *reinterpret_cast<const bNodeTree *>(node.id);
     group.ensure_topology_cache();
     const ComputeContext &group_compute_context = compute_context_cache.for_group_node(
-        compute_context, node, tree);
+        compute_context, node.identifier, &tree);
     foreach_gizmo_for_group_input(
         group,
         ie::GroupInputElem{input_socket.socket->index(), input_socket.elem},
@@ -297,7 +298,7 @@ static void foreach_active_gizmo_in_open_node_editor(
   /* Check gizmos on input sockets. */
   for (auto &&item : gizmo_propagation.gizmo_inputs_by_node_inputs.items()) {
     const bNodeSocket &socket = *item.key.socket;
-    if (!socket.affects_node_output()) {
+    if (socket.is_inactive()) {
       continue;
     }
     const bNode &node = socket.owner_node();
@@ -504,7 +505,7 @@ void apply_gizmo_change(
     bContext &C,
     Object &object,
     NodesModifierData &nmd,
-    geo_eval_log::GeoModifierLog &eval_log,
+    geo_eval_log::GeoNodesLog &eval_log,
     const ComputeContext &gizmo_context,
     const bNodeSocket &gizmo_socket,
     const FunctionRef<void(bke::SocketValueVariant &value)> apply_on_gizmo_value_fn)
@@ -541,6 +542,15 @@ void apply_gizmo_change(
 
   /* Actually backpropagate the socket values. */
   ie::backpropagate_socket_values(C, object, nmd, eval_log, sockets_to_update);
+}
+
+bool value_node_has_gizmo(const bNodeTree &tree, const bNode &node)
+{
+  BLI_assert(partial_eval::is_supported_value_node(node));
+  if (!tree.runtime->gizmo_propagation) {
+    return false;
+  }
+  return tree.runtime->gizmo_propagation->gizmo_endpoint_sockets.contains(&node.output_socket(0));
 }
 
 }  // namespace blender::nodes::gizmos

@@ -51,9 +51,7 @@ class AttributeTexts : Overlay {
     }
 
     const Object &object = *ob_ref.object;
-    const DupliObject *dupli_object = ob_ref.dupli_object;
-    const bool is_preview = dupli_object != nullptr &&
-                            dupli_object->preview_base_geometry != nullptr;
+    const bool is_preview = ob_ref.preview_base_geometry() != nullptr;
     if (!is_preview) {
       return;
     }
@@ -61,11 +59,11 @@ class AttributeTexts : Overlay {
     DRWTextStore *dt = state.dt;
     const float4x4 &object_to_world = object.object_to_world();
 
-    if (dupli_object->preview_instance_index >= 0) {
-      const bke::Instances *instances = dupli_object->preview_base_geometry->get_instances();
+    if (ob_ref.preview_instance_index() >= 0) {
+      const bke::Instances *instances = ob_ref.preview_base_geometry()->get_instances();
       if (instances->attributes().contains(".viewer")) {
         add_instance_attributes_to_text_cache(
-            dt, instances->attributes(), object_to_world, dupli_object->preview_instance_index);
+            dt, instances->attributes(), object_to_world, ob_ref.preview_instance_index());
 
         return;
       }
@@ -182,7 +180,7 @@ class AttributeTexts : Overlay {
 
         if constexpr (std::is_same_v<T, bool>) {
           char numstr[64];
-          const size_t numstr_len = SNPRINTF_RLEN(numstr, "%s", value ? "True" : "False");
+          const size_t numstr_len = STRNCPY_RLEN(numstr, value ? "True" : "False");
           add_text_to_cache(dt, position, StringRef(numstr, numstr_len), col);
         }
         else if constexpr (std::is_same_v<T, int8_t>) {

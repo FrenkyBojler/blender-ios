@@ -564,7 +564,18 @@ static bool screen_area_join_ex(bContext *C,
 
   if (close_all_remainders || offset1 < 0 || offset2 > 0) {
     /* Close both if trimming `sa1`. */
+    float inner[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+    if (side1) {
+      rcti rect = {side1->v1->vec.x, side1->v3->vec.x, side1->v1->vec.y, side1->v3->vec.y};
+      screen_animate_area_highlight(
+          CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+    }
     screen_area_close(C, reports, screen, side1);
+    if (side2) {
+      rcti rect = {side2->v1->vec.x, side2->v3->vec.x, side2->v1->vec.y, side2->v3->vec.y};
+      screen_animate_area_highlight(
+          CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+    }
     screen_area_close(C, reports, screen, side2);
   }
   else {
@@ -649,6 +660,10 @@ static void region_cursor_set(wmWindow *win, bool swin_changed)
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
+  /* Don't touch cursor if something else is controling it, like button handling. See #51739. */
+  if (win->grabcursor) {
+    return;
+  }
   ED_screen_areas_iter (win, screen, area) {
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       if (region == screen->active_region) {
@@ -817,7 +832,7 @@ static void screen_refresh_if_needed(bContext *C, wmWindowManager *wm, wmWindow 
     /* Called even when creating the ghost window fails in #WM_window_open. */
     if (win->ghostwin) {
       /* Header size depends on DPI, let's verify. */
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
     }
 
     ED_screen_global_areas_refresh(win);

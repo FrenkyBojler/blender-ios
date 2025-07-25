@@ -17,6 +17,8 @@
 
 #include "BLI_rect.h"
 
+#include "ED_spreadsheet.hh"
+
 #include "spreadsheet_column.hh"
 #include "spreadsheet_draw.hh"
 #include "spreadsheet_intern.hh"
@@ -143,7 +145,7 @@ static void draw_left_column_content(const int scroll_offset_y,
 
   GPU_scissor(0, 0, drawer.left_column_width, region->winy - drawer.top_row_height);
 
-  uiBlock *left_column_block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::None);
+  uiBlock *left_column_block = UI_block_begin(C, region, __func__, ui::EmbossType::None);
   int first_row, max_visible_rows;
   get_visible_rows(drawer, region, scroll_offset_y, &first_row, &max_visible_rows);
   for (const int row_index : IndexRange(first_row, max_visible_rows)) {
@@ -179,7 +181,7 @@ static void draw_top_row_content(const bContext *C,
               region->winx - drawer.left_column_width,
               drawer.top_row_height);
 
-  uiBlock *first_row_block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::None);
+  uiBlock *first_row_block = UI_block_begin(C, region, __func__, ui::EmbossType::None);
 
   int left_x = drawer.left_column_width - scroll_offset_x;
   for (const int column_index : IndexRange(drawer.tot_columns)) {
@@ -217,7 +219,7 @@ static void draw_cell_contents(const bContext *C,
               region->winx - drawer.left_column_width,
               region->winy - drawer.top_row_height);
 
-  uiBlock *cells_block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::None);
+  uiBlock *cells_block = UI_block_begin(C, region, __func__, ui::EmbossType::None);
 
   int first_row, max_visible_rows;
   get_visible_rows(drawer, region, scroll_offset_y, &first_row, &max_visible_rows);
@@ -277,10 +279,12 @@ static void draw_column_reorder_source(const uint pos,
 {
   const ReorderColumnVisualizationData &data =
       *sspreadsheet.runtime->reorder_column_visualization_data;
+  const SpreadsheetTable &table = *get_active_table(sspreadsheet);
+  const SpreadsheetColumn &moving_column = *table.columns[data.old_index];
 
   rctf rect;
-  rect.xmin = data.column_to_move->runtime->left_x - scroll_offset_x;
-  rect.xmax = data.column_to_move->runtime->right_x - scroll_offset_x;
+  rect.xmin = moving_column.runtime->left_x - scroll_offset_x;
+  rect.xmax = moving_column.runtime->right_x - scroll_offset_x;
   rect.ymin = 0;
   rect.ymax = region.winy;
 
@@ -297,6 +301,9 @@ static void draw_column_reorder_destination(const ARegion &region,
 {
   const ReorderColumnVisualizationData &data =
       *sspreadsheet.runtime->reorder_column_visualization_data;
+  const SpreadsheetTable &table = *get_active_table(sspreadsheet);
+  const SpreadsheetColumn &moving_column = *table.columns[data.old_index];
+  const SpreadsheetColumn &insert_column = *table.columns[data.new_index];
 
   {
     /* Draw column that is moved. */
@@ -304,10 +311,10 @@ static void draw_column_reorder_destination(const ARegion &region,
     UI_GetThemeColorShade4fv(TH_BACK, -20, color);
     color.a = 0.3f;
     rctf offset_column_rect;
-    offset_column_rect.xmin = data.column_to_move->runtime->left_x + data.current_offset_x_px -
+    offset_column_rect.xmin = moving_column.runtime->left_x + data.current_offset_x_px -
                               scroll_offset_x;
     offset_column_rect.xmax = offset_column_rect.xmin +
-                              data.column_to_move->width * SPREADSHEET_WIDTH_UNIT;
+                              moving_column.width * SPREADSHEET_WIDTH_UNIT;
     offset_column_rect.ymin = 0;
     offset_column_rect.ymax = region.winy;
     UI_draw_roundbox_4fv(&offset_column_rect, true, 0, color);
@@ -317,10 +324,8 @@ static void draw_column_reorder_destination(const ARegion &region,
     ColorTheme4f color;
     UI_GetThemeColorShade4fv(TH_TEXT, 20, color);
     color.a = 0.6f;
-    const SpreadsheetColumn *first_column = static_cast<const SpreadsheetColumn *>(
-        sspreadsheet.columns.first);
-    const int insert_column_x = data.new_prev_column ? data.new_prev_column->runtime->right_x :
-                                                       first_column->runtime->left_x;
+    const int insert_column_x = data.new_index <= data.old_index ? insert_column.runtime->left_x :
+                                                                   insert_column.runtime->right_x;
     const int width = UI_UNIT_X * 0.1f;
     rctf insert_rect;
     insert_rect.xmin = insert_column_x - width / 2 - scroll_offset_x;
@@ -353,7 +358,7 @@ void draw_spreadsheet_in_region(const bContext *C,
   bool is_reordering_columns = sspreadsheet.runtime->reorder_column_visualization_data.has_value();
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   draw_index_column_background(pos, region, drawer);

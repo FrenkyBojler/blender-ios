@@ -96,10 +96,10 @@ void WorldPipeline::sync(GPUMaterial *gpumat)
   const int2 extent(1);
   constexpr eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE |
                                      GPU_TEXTURE_USAGE_SHADER_READ;
-  dummy_cryptomatte_tx_.ensure_2d(GPU_RGBA32F, extent, usage);
-  dummy_renderpass_tx_.ensure_2d(GPU_RGBA16F, extent, usage);
-  dummy_aov_color_tx_.ensure_2d_array(GPU_RGBA16F, extent, 1, usage);
-  dummy_aov_value_tx_.ensure_2d_array(GPU_R16F, extent, 1, usage);
+  dummy_cryptomatte_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_32_32_32_32, extent, usage);
+  dummy_renderpass_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_16_16_16_16, extent, usage);
+  dummy_aov_color_tx_.ensure_2d_array(gpu::TextureFormat::SFLOAT_16_16_16_16, extent, 1, usage);
+  dummy_aov_value_tx_.ensure_2d_array(gpu::TextureFormat::SFLOAT_16, extent, 1, usage);
 
   PassSimple &pass = cubemap_face_ps_;
   pass.init();
@@ -410,7 +410,7 @@ PassMain::Sub *ForwardPipeline::prepass_transparent_add(const Object *ob,
   float sorting_value = math::dot(float3(ob->object_to_world().location()), camera_forward_);
   PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
   pass->state_set(state);
-  pass->material_set(*inst_.manager, gpumat);
+  pass->material_set(*inst_.manager, gpumat, true);
   return pass;
 }
 
@@ -427,7 +427,7 @@ PassMain::Sub *ForwardPipeline::material_transparent_add(const Object *ob,
   float sorting_value = math::dot(float3(ob->object_to_world().location()), camera_forward_);
   PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
   pass->state_set(state);
-  pass->material_set(*inst_.manager, gpumat);
+  pass->material_set(*inst_.manager, gpumat, true);
   return pass;
 }
 
@@ -811,14 +811,14 @@ PassMain::Sub *DeferredLayer::material_add(::Material *blender_mat, GPUMaterial 
   return material_pass;
 }
 
-GPUTexture *DeferredLayer::render(View &main_view,
-                                  View &render_view,
-                                  Framebuffer &prepass_fb,
-                                  Framebuffer &combined_fb,
-                                  Framebuffer &gbuffer_fb,
-                                  int2 extent,
-                                  RayTraceBuffer &rt_buffer,
-                                  GPUTexture *radiance_behind_tx)
+gpu::Texture *DeferredLayer::render(View &main_view,
+                                    View &render_view,
+                                    Framebuffer &prepass_fb,
+                                    Framebuffer &combined_fb,
+                                    Framebuffer &gbuffer_fb,
+                                    int2 extent,
+                                    RayTraceBuffer &rt_buffer,
+                                    gpu::Texture *radiance_behind_tx)
 {
   if (closure_count_ == 0) {
     return nullptr;
@@ -850,8 +850,9 @@ GPUTexture *DeferredLayer::render(View &main_view,
   inst_.manager->submit(gbuffer_ps_, render_view);
 
   for (int i = 0; i < ARRAY_SIZE(direct_radiance_txs_); i++) {
-    direct_radiance_txs_[i].acquire(
-        (closure_count_ > i) ? extent : int2(1), DEFERRED_RADIANCE_FORMAT, usage_rw);
+    direct_radiance_txs_[i].acquire((closure_count_ > i) ? extent : int2(1),
+                                    gpu::TextureFormat::DEFERRED_RADIANCE_FORMAT,
+                                    usage_rw);
   }
 
   if (use_raytracing_) {
@@ -997,7 +998,7 @@ void DeferredPipeline::render(View &main_view,
                               RayTraceBuffer &rt_buffer_opaque_layer,
                               RayTraceBuffer &rt_buffer_refract_layer)
 {
-  GPUTexture *feedback_tx = nullptr;
+  gpu::Texture *feedback_tx = nullptr;
 
   GPU_debug_group_begin("Deferred.Opaque");
   feedback_tx = opaque_layer_.render(main_view,
@@ -1077,7 +1078,7 @@ PassMain::Sub *VolumeLayer::occupancy_add(const Object *ob,
   is_empty = false;
 
   PassMain::Sub *pass = &occupancy_ps_->sub(GPU_material_get_name(gpumat));
-  pass->material_set(*inst_.manager, gpumat);
+  pass->material_set(*inst_.manager, gpumat, true);
   pass->push_constant("use_fast_method", use_fast_occupancy);
   return pass;
 }
@@ -1091,7 +1092,7 @@ PassMain::Sub *VolumeLayer::material_add(const Object *ob,
   UNUSED_VARS_NDEBUG(ob);
 
   PassMain::Sub *pass = &material_ps_->sub(GPU_material_get_name(gpumat));
-  pass->material_set(*inst_.manager, gpumat);
+  pass->material_set(*inst_.manager, gpumat, true);
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_VOLUME_SCATTER)) {
     has_scatter = true;
   }
@@ -1174,13 +1175,12 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera, Object *ob)
 
   const Bounds<float3> bounds = BKE_object_boundbox_get(ob).value_or(Bounds(float3(0.0f)));
 
-  BoundBox bb;
-  BKE_boundbox_init_from_minmax(&bb, bounds.min, bounds.max);
+  const std::array<float3, 8> corners = bounds::corners(bounds);
 
   screen_bounds = std::nullopt;
   z_range = std::nullopt;
 
-  for (float3 l_corner : bb.vec) {
+  for (const float3 &l_corner : corners) {
     float3 ws_corner = math::transform_point(ob->object_to_world(), l_corner);
     /* Split view and projection for precision. */
     float3 vs_corner = math::transform_point(view_matrix, ws_corner);
@@ -1275,7 +1275,7 @@ void DeferredProbePipeline::begin_sync()
 
 void DeferredProbePipeline::end_sync()
 {
-  {
+  if (!opaque_layer_.prepass_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();
     /* Use depth test to reject background pixels. */
@@ -1388,7 +1388,13 @@ void PlanarProbePipeline::begin_sync()
 
   this->gbuffer_pass_sync(inst_);
 
-  {
+  closure_bits_ = CLOSURE_NONE;
+  closure_count_ = 0;
+}
+
+void PlanarProbePipeline::end_sync()
+{
+  if (!prepass_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);
@@ -1405,14 +1411,6 @@ void PlanarProbePipeline::begin_sync()
     pass.barrier(GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
-
-  closure_bits_ = CLOSURE_NONE;
-  closure_count_ = 0;
-}
-
-void PlanarProbePipeline::end_sync()
-{
-  /* No-op for now. */
 }
 
 PassMain::Sub *PlanarProbePipeline::prepass_add(::Material *blender_mat, GPUMaterial *gpumat)
@@ -1448,7 +1446,7 @@ PassMain::Sub *PlanarProbePipeline::material_add(::Material *blender_mat, GPUMat
 }
 
 void PlanarProbePipeline::render(View &view,
-                                 GPUTexture *depth_layer_tx,
+                                 gpu::Texture *depth_layer_tx,
                                  Framebuffer &gbuffer_fb,
                                  Framebuffer &combined_fb,
                                  int2 extent)

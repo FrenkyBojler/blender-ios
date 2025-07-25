@@ -15,6 +15,7 @@
 
 #include "NOD_geo_closure.hh"
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_values.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -122,11 +123,11 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const bNodeSocket &bsocket = zone_.input_node()->output_socket(i);
-      closure_signature_->inputs.append({SocketInterfaceKey(bsocket.name), bsocket.typeinfo});
+      closure_signature_->inputs.append({bsocket.name, bsocket.typeinfo});
     }
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const bNodeSocket &bsocket = zone_.output_node()->input_socket(i);
-      closure_signature_->outputs.append({SocketInterfaceKey(bsocket.name), bsocket.typeinfo});
+      closure_signature_->outputs.append({bsocket.name, bsocket.typeinfo});
     }
   }
 
@@ -139,7 +140,8 @@ class LazyFunctionForClosureZone : public LazyFunction {
       params.set_output(zone_info_.indices.outputs.border_link_usages[i], true);
     }
     if (!U.experimental.use_bundle_and_closure_nodes) {
-      params.set_output(zone_info_.indices.outputs.main[0], bke::SocketValueVariant(ClosurePtr()));
+      params.set_output(zone_info_.indices.outputs.main[0],
+                        bke::SocketValueVariant::From(ClosurePtr()));
       return;
     }
 
@@ -256,7 +258,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
                                         std::make_shared<ClosureEvalLog>())};
 
     params.set_output(zone_info_.indices.outputs.main[0],
-                      bke::SocketValueVariant(std::move(closure)));
+                      bke::SocketValueVariant::From(std::move(closure)));
   }
 };
 
@@ -347,7 +349,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
               {bnode_.identifier,
-               {geo_eval_log::NodeWarningType::Error, TIP_("Recursive closure is not allowed")}});
+               {NodeWarningType::Error, TIP_("Recursive closure is not allowed")}});
         }
         this->set_default_outputs(params);
         return;
@@ -375,7 +377,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         eval_storage.closure ? eval_storage.closure->source_location() : std::nullopt;
 
     bke::EvaluateClosureComputeContext closure_compute_context{
-        user_data.compute_context, bnode_.identifier, &bnode_, closure_source_location};
+        user_data.compute_context, bnode_.identifier, &btree_, closure_source_location};
     GeoNodesUserData closure_user_data = user_data;
     closure_user_data.compute_context = &closure_compute_context;
     closure_user_data.log_socket_values = should_log_socket_values_for_context(
@@ -395,7 +397,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
       if (const auto *closure_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
               context))
       {
-        if (closure_context->evaluate_node() == &bnode_) {
+        if (closure_context->node() == &bnode_) {
           return true;
         }
       }
@@ -428,7 +430,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     for (const NodeGeometryEvaluateClosureInputItem &item :
          Span{node_storage.input_items.items, node_storage.input_items.items_num})
     {
-      if (const std::optional<int> i = signature.find_input_index(SocketInterfaceKey{item.name})) {
+      if (const std::optional<int> i = signature.find_input_index(item.name)) {
         const ClosureSignature::Item &closure_item = signature.inputs[*i];
         if (!btree_.typeinfo->validate_link(eNodeSocketDatatype(item.socket_type),
                                             eNodeSocketDatatype(closure_item.type->type)))
@@ -436,7 +438,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
               {bnode_.identifier,
-               {geo_eval_log::NodeWarningType::Error,
+               {NodeWarningType::Error,
                 fmt::format(fmt::runtime(TIP_("Closure input has incompatible type: \"{}\"")),
                             item.name)}});
         }
@@ -446,7 +448,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
             *tree_logger->allocator,
             {bnode_.identifier,
              {
-                 geo_eval_log::NodeWarningType::Error,
+                 NodeWarningType::Error,
                  fmt::format(fmt::runtime(TIP_("Closure does not have input: \"{}\"")), item.name),
              }});
       }
@@ -454,8 +456,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     for (const NodeGeometryEvaluateClosureOutputItem &item :
          Span{node_storage.output_items.items, node_storage.output_items.items_num})
     {
-      if (const std::optional<int> i = signature.find_output_index(SocketInterfaceKey{item.name}))
-      {
+      if (const std::optional<int> i = signature.find_output_index(item.name)) {
         const ClosureSignature::Item &closure_item = signature.outputs[*i];
         if (!btree_.typeinfo->validate_link(eNodeSocketDatatype(closure_item.type->type),
                                             eNodeSocketDatatype(item.socket_type)))
@@ -463,7 +464,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
               {bnode_.identifier,
-               {geo_eval_log::NodeWarningType::Error,
+               {NodeWarningType::Error,
                 fmt::format(fmt::runtime(TIP_("Closure output has incompatible type: \"{}\"")),
                             item.name)}});
         }
@@ -472,7 +473,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         tree_logger->node_warnings.append(
             *tree_logger->allocator,
             {bnode_.identifier,
-             {geo_eval_log::NodeWarningType::Error,
+             {NodeWarningType::Error,
               fmt::format(fmt::runtime(TIP_("Closure does not have output: \"{}\"")),
                           item.name)}});
       }
@@ -500,13 +501,12 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
 
     Array<std::optional<int>> inputs_map(node_storage.input_items.items_num);
     for (const int i : inputs_map.index_range()) {
-      inputs_map[i] = closure_signature.find_input_index(
-          SocketInterfaceKey(node_storage.input_items.items[i].name));
+      inputs_map[i] = closure_signature.find_input_index(node_storage.input_items.items[i].name);
     }
     Array<std::optional<int>> outputs_map(node_storage.output_items.items_num);
     for (const int i : outputs_map.index_range()) {
       outputs_map[i] = closure_signature.find_output_index(
-          SocketInterfaceKey(node_storage.output_items.items[i].name));
+          node_storage.output_items.items[i].name);
     }
 
     lf::FunctionNode &lf_closure_node = lf_graph.add_function(closure.function());

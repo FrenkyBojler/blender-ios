@@ -60,18 +60,12 @@ class Context : public compositor::Context {
 
   const bNodeTree &get_node_tree() const override
   {
-    return *scene_->nodetree;
+    return *scene_->compositing_node_group;
   }
 
   bool use_gpu() const override
   {
     return true;
-  }
-
-  eCompositorDenoiseQaulity get_denoise_quality() const override
-  {
-    return static_cast<eCompositorDenoiseQaulity>(
-        this->get_render_data().compositor_denoise_preview_quality);
   }
 
   compositor::OutputTypes needed_outputs() const override
@@ -81,7 +75,7 @@ class Context : public compositor::Context {
 
   /* The viewport compositor does not support viewer outputs, so treat viewers as composite
    * outputs. */
-  bool treat_viewer_as_composite_output() const override
+  bool treat_viewer_as_compositor_output() const override
   {
     return true;
   }
@@ -89,11 +83,6 @@ class Context : public compositor::Context {
   const RenderData &get_render_data() const override
   {
     return scene_->r;
-  }
-
-  int2 get_render_size() const override
-  {
-    return int2(DRW_context_get()->viewport_size_get());
   }
 
   /* We limit the compositing region to the camera region if in camera view, while we use the
@@ -158,14 +147,14 @@ class Context : public compositor::Context {
     /* The combined pass is a special case where we return the viewport color texture, because it
      * includes Grease Pencil objects since GP is drawn using their own engine. */
     if (STREQ(pass_name, RE_PASSNAME_COMBINED)) {
-      GPUTexture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
+      gpu::Texture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
       compositor::Result pass = compositor::Result(*this, GPU_texture_format(combined_texture));
       pass.wrap_external(combined_texture);
       return pass;
     }
 
     /* Return the pass that was written by the engine if such pass was found. */
-    GPUTexture *pass_texture = DRW_viewport_pass_texture_get(pass_name).gpu_texture();
+    gpu::Texture *pass_texture = DRW_viewport_pass_texture_get(pass_name).gpu_texture();
     if (pass_texture) {
       compositor::Result pass = compositor::Result(*this, GPU_texture_format(pass_texture));
       pass.wrap_external(pass_texture);

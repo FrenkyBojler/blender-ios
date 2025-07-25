@@ -301,7 +301,6 @@ static void pydriver_error(ChannelDriver *driver, const PathResolvedRNA *anim_rn
 
   // BPy_errors_to_report(nullptr); /* TODO: reports. */
   PyErr_Print();
-  PyErr_Clear();
 }
 
 #ifdef USE_BYTECODE_WHITELIST
@@ -326,7 +325,9 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(UNARY_NEGATIVE)
     OK_OP(UNARY_NOT)
     OK_OP(UNARY_INVERT)
-    OK_OP(BINARY_SUBSCR)
+#  if PY_VERSION_HEX < 0x030e0000
+    OK_OP(BINARY_SUBSCR) /* Replaced with existing `BINARY_OP`. */
+#  endif
     OK_OP(GET_LEN)
 #  if PY_VERSION_HEX < 0x030c0000
     OK_OP(LIST_TO_TUPLE)
@@ -462,7 +463,6 @@ bool BPY_driver_secure_bytecode_test_ex(PyObject *expr_code,
     co_code = PyCode_GetCode(py_code);
     if (UNLIKELY(!co_code)) {
       PyErr_Print();
-      PyErr_Clear();
       return false;
     }
 
@@ -700,7 +700,6 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
       fprintf(stderr, "\t%s: couldn't add variable '%s' to namespace\n", __func__, dvar->name);
       // BPy_errors_to_report(nullptr); /* TODO: reports. */
       PyErr_Print();
-      PyErr_Clear();
     }
     Py_DECREF(driver_arg);
   }

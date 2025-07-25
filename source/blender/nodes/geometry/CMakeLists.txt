@@ -8,7 +8,12 @@ set(INC
   include
   ../intern
   ../../editors/include
+  ../../compositor
   ../../makesrna
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/derived_resources
+  ../../compositor/utilities
   ../../modifiers
   ../../io/common
   ../../io/csv
@@ -141,6 +146,9 @@ set(SRC
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_geometry.cc
+  nodes/node_geo_list.cc
+  nodes/node_geo_list_get_item.cc
+  nodes/node_geo_list_length.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
@@ -203,6 +211,7 @@ set(SRC
   nodes/node_geo_set_geometry_name.cc
   nodes/node_geo_set_grease_pencil_color.cc
   nodes/node_geo_set_grease_pencil_depth_mode.cc
+  nodes/node_geo_set_grease_pencil_softness.cc
   nodes/node_geo_set_id.cc
   nodes/node_geo_set_instance_transform.cc
   nodes/node_geo_set_material.cc
@@ -268,6 +277,7 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
+  bf_compositor
   bf_io_common
   bf_io_csv
   PRIVATE bf::intern::atomic

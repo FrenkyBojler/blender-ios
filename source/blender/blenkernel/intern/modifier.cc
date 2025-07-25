@@ -62,6 +62,7 @@
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 /* may move these, only for BKE_modifier_path_relbase */
@@ -77,7 +78,7 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.modifier"};
+static CLG_LogRef LOG = {"object.modifier"};
 static ModifierTypeInfo *modifier_types[NUM_MODIFIER_TYPES] = {nullptr};
 static VirtualModifierData virtualModifierCommonData;
 

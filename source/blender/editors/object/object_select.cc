@@ -57,6 +57,7 @@
 #include "ANIM_keyingsets.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -837,12 +838,9 @@ static bool select_grouped_collection(bContext *C, Object *ob)
 
   for (i = 0; i < collection_count; i++) {
     collection = ob_collections[i];
-    uiItemStringO(layout,
-                  collection->id.name + 2,
-                  ICON_NONE,
-                  "OBJECT_OT_select_same_collection",
-                  "collection",
-                  collection->id.name + 2);
+    PointerRNA op_ptr = layout->op(
+        "OBJECT_OT_select_same_collection", collection->id.name + 2, ICON_NONE);
+    RNA_string_set(&op_ptr, "collection", collection->id.name + 2);
   }
 
   UI_popup_menu_end(C, pup);

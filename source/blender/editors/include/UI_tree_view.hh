@@ -60,6 +60,12 @@ class TreeViewItemContainer {
   /** Pointer back to the owning item. */
   AbstractTreeViewItem *parent_ = nullptr;
 
+  /**
+   * Can be set to true to indicate that all of the children items do not have children themselves.
+   * In this case, no space is reserved for the chevron.
+   */
+  bool is_flat_ = false;
+
  public:
   enum class IterOptions {
     None = 0,
@@ -149,7 +155,10 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /** Visual feature: Define a number of item rows the view will show by default. If there
    * are fewer items, empty dummy items will be added. These contribute to the view bounds, so the
    * drop target of the view includes them, but they are not interactive (e.g. no mouse-hover
-   * highlight). */
+   * highlight).
+   *
+   * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
+   * height. */
   void set_default_rows(int default_rows);
 
  protected:
@@ -315,7 +324,6 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   void ensure_parents_uncollapsed();
 
  private:
-  static void tree_row_click_fn(bContext *, void *, void *);
   static void collapse_chevron_click_fn(bContext *, void *but_arg1, void *);
 
   /**
@@ -370,8 +378,6 @@ class BasicTreeViewItem : public AbstractTreeViewItem {
   IsActiveFn is_active_fn_;
 
  private:
-  static void tree_row_click_fn(bContext *C, void *arg1, void *arg2);
-
   std::optional<bool> should_be_active() const override;
   void on_activate(bContext &C) override;
 };

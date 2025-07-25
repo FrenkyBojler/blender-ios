@@ -38,14 +38,15 @@ struct EditBone {
   EditBone *next, *prev;
   /** User-Defined Properties on this Bone */
   IDProperty *prop;
+  /** System-Defined Properties storage. */
+  IDProperty *system_properties;
   /**
    * Edit-bones have a one-way link  (i.e. children refer
    * to parents.  This is converted to a two-way link for
    * normal bones when leaving edit-mode.
    */
   EditBone *parent;
-  /** (64 == MAXBONENAME) */
-  char name[64];
+  char name[/*MAXBONENAME*/ 64];
   /**
    * Roll along axis.  We'll ultimately use the axis/angle method
    * for determining the transformation matrix of the bone.  The axis
@@ -102,8 +103,8 @@ struct EditBone {
   float disp_mat[4][4];
   /** in Armature space, rest pos matrix */
   float disp_tail_mat[4][4];
-  /** in Armature space, rest pos matrix (32 == MAX_BBONE_SUBDIV) */
-  float disp_bbone_mat[32][4][4];
+  /** in Armature space, rest pos matrix. */
+  float disp_bbone_mat[/*MAX_BBONE_SUBDIV*/ 32][4][4];
 
   /** connected child temporary during drawing */
   EditBone *bbone_child;
@@ -218,10 +219,14 @@ void BKE_armature_bone_hash_free(bArmature *arm);
 bool BKE_armature_bone_flag_test_recursive(const Bone *bone, int flag);
 
 /**
- * Using `vec` with dist to bone `b1 - b2`.
+ * Bone influence factor from envelope distance.
  */
-float distfactor_to_bone(
-    const float vec[3], const float b1[3], const float b2[3], float rad1, float rad2, float rdist);
+float distfactor_to_bone(const blender::float3 &position,
+                         const blender::float3 &head,
+                         const blender::float3 &tail,
+                         float radius_head,
+                         float radius_tail,
+                         float falloff_distance);
 
 /**
  * Updates vectors and matrices on rest-position level, only needed
@@ -654,25 +659,25 @@ void BKE_armature_deform_coords_with_curves(
     int deformflag,
     blender::StringRefNull defgrp_name);
 
-void BKE_armature_deform_coords_with_mesh(const Object *ob_arm,
-                                          const Object *ob_target,
-                                          float (*vert_coords)[3],
-                                          float (*vert_deform_mats)[3][3],
-                                          int vert_coords_len,
-                                          int deformflag,
-                                          float (*vert_coords_prev)[3],
-                                          const char *defgrp_name,
-                                          const Mesh *me_target);
+void BKE_armature_deform_coords_with_mesh(
+    const Object &ob_arm,
+    const Object &ob_target,
+    blender::MutableSpan<blender::float3> vert_coords,
+    std::optional<blender::Span<blender::float3>> vert_coords_prev,
+    std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
+    int deformflag,
+    blender::StringRefNull defgrp_name,
+    const Mesh *me_target);
 
-void BKE_armature_deform_coords_with_editmesh(const Object *ob_arm,
-                                              const Object *ob_target,
-                                              float (*vert_coords)[3],
-                                              float (*vert_deform_mats)[3][3],
-                                              int vert_coords_len,
-                                              int deformflag,
-                                              float (*vert_coords_prev)[3],
-                                              const char *defgrp_name,
-                                              const BMEditMesh *em_target);
+void BKE_armature_deform_coords_with_editmesh(
+    const Object &ob_arm,
+    const Object &ob_target,
+    blender::MutableSpan<blender::float3> vert_coords,
+    std::optional<blender::Span<blender::float3>> vert_coords_prev,
+    std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
+    int deformflag,
+    blender::StringRefNull defgrp_name,
+    const BMEditMesh &em_target);
 
 /** \} */
 

@@ -91,7 +91,7 @@ class Context : public compositor::Context {
   /* Cached GPU and CPU passes that the compositor took ownership of. Those had their reference
    * count incremented when accessed and need to be freed/have their reference count decremented
    * when destroying the context. */
-  Vector<GPUTexture *> cached_gpu_passes_;
+  Vector<blender::gpu::Texture *> cached_gpu_passes_;
   Vector<ImBuf *> cached_cpu_passes_;
 
  public:
@@ -107,7 +107,7 @@ class Context : public compositor::Context {
   {
     output_result_.release();
     viewer_output_result_.release();
-    for (GPUTexture *pass : cached_gpu_passes_) {
+    for (blender::gpu::Texture *pass : cached_gpu_passes_) {
       GPU_texture_free(pass);
     }
     for (ImBuf *pass : cached_cpu_passes_) {
@@ -135,17 +135,6 @@ class Context : public compositor::Context {
     return this->get_render_data().compositor_device == SCE_COMPOSITOR_DEVICE_GPU;
   }
 
-  eCompositorDenoiseQaulity get_denoise_quality() const override
-  {
-    if (this->render_context()) {
-      return static_cast<eCompositorDenoiseQaulity>(
-          this->get_render_data().compositor_denoise_final_quality);
-    }
-
-    return static_cast<eCompositorDenoiseQaulity>(
-        this->get_render_data().compositor_denoise_preview_quality);
-  }
-
   compositor::OutputTypes needed_outputs() const override
   {
     return input_data_.needed_outputs;
@@ -156,7 +145,7 @@ class Context : public compositor::Context {
     return *(input_data_.render_data);
   }
 
-  int2 get_render_size() const override
+  int2 get_render_size() const
   {
     Render *render = RE_GetSceneRender(input_data_.scene);
     RenderResult *render_result = RE_AcquireResultRead(render);
@@ -216,10 +205,13 @@ class Context : public compositor::Context {
       {
         return viewer_output_result_;
       }
+
       /* Otherwise, the size or precision changed, so release its data and reset it, then we
        * reallocate it on the new domain below. */
       viewer_output_result_.release();
       viewer_output_result_ = this->create_result(compositor::ResultType::Color);
+      viewer_output_result_.set_transformation(domain.transformation);
+      viewer_output_result_.meta_data.is_non_color_data = is_data;
     }
 
     viewer_output_result_.set_precision(precision);
@@ -274,7 +266,7 @@ class Context : public compositor::Context {
         *this, this->result_type_from_pass(render_pass), compositor::ResultPrecision::Full);
 
     if (this->use_gpu()) {
-      GPUTexture *pass_texture = RE_pass_ensure_gpu_texture_cache(render, render_pass);
+      blender::gpu::Texture *pass_texture = RE_pass_ensure_gpu_texture_cache(render, render_pass);
       /* Don't assume render will keep pass data stored, add our own reference. */
       GPU_texture_ref(pass_texture);
       pass.wrap_external(pass_texture);
@@ -340,15 +332,6 @@ class Context : public compositor::Context {
     return compositor::ResultPrecision::Full;
   }
 
-  void set_info_message(StringRef /*message*/) const override
-  {
-    /* TODO: ignored for now. Currently only used to communicate incomplete node support
-     * which is already shown on the node itself.
-     *
-     * Perhaps this overall info message could be replaced by a boolean indicating
-     * incomplete support, and leave more specific message to individual nodes? */
-  }
-
   void populate_meta_data_for_pass(const Scene *scene,
                                    int view_layer_id,
                                    const char *pass_name,
@@ -391,7 +374,7 @@ class Context : public compositor::Context {
     BKE_stamp_info_callback(
         &callback_data,
         render_result->stamp_data,
-        [](void *user_data, const char *key, char *value, int /*value_length*/) {
+        [](void *user_data, const char *key, char *value, int /*value_maxncpy*/) {
           StampCallbackData *data = static_cast<StampCallbackData *>(user_data);
 
           const std::string manifest_key = bke::cryptomatte::BKE_cryptomatte_meta_data_key(

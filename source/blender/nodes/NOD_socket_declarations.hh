@@ -8,7 +8,10 @@
 
 #include "RNA_types.hh"
 
+#include "BKE_node_enum.hh"
+
 #include "BLI_color.hh"
+#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -78,9 +81,10 @@ class Vector : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_VECTOR;
 
-  float3 default_value = {0, 0, 0};
+  float4 default_value = {0, 0, 0, 0};
   float soft_min_value = -FLT_MAX;
   float soft_max_value = FLT_MAX;
+  int dimensions = 3;
   PropertySubType subtype = PROP_NONE;
 
   friend VectorBuilder;
@@ -95,8 +99,11 @@ class Vector : public SocketDeclaration {
 
 class VectorBuilder : public SocketDeclarationBuilder<Vector> {
  public:
+  VectorBuilder &default_value(const float2 value);
   VectorBuilder &default_value(const float3 value);
+  VectorBuilder &default_value(const float4 value);
   VectorBuilder &subtype(PropertySubType subtype);
+  VectorBuilder &dimensions(int dimensions);
   VectorBuilder &min(float min);
   VectorBuilder &max(float max);
   VectorBuilder &compact();
@@ -223,6 +230,7 @@ class Menu : public SocketDeclaration {
 
   int32_t default_value;
   bool is_expanded = false;
+  ImplicitSharingPtr<bke::RuntimeNodeEnumItems> items;
 
   friend MenuBuilder;
 
@@ -240,6 +248,9 @@ class MenuBuilder : public SocketDeclarationBuilder<Menu> {
 
   /** Draw the menu items next to each other instead of as a drop-down menu. */
   MenuBuilder &expanded(bool value = true);
+
+  /** Set the available items in the menu. The items array must have static lifetime. */
+  MenuBuilder &static_items(const EnumPropertyItem *items);
 };
 
 class BundleBuilder;
@@ -481,7 +492,19 @@ inline IntBuilder &IntBuilder::subtype(PropertySubType subtype)
 /** \name #VectorBuilder Inline Methods
  * \{ */
 
+inline VectorBuilder &VectorBuilder::default_value(const float2 value)
+{
+  decl_->default_value = float4(value, 0.0f, 0.0f);
+  return *this;
+}
+
 inline VectorBuilder &VectorBuilder::default_value(const float3 value)
+{
+  decl_->default_value = float4(value, 0.0f);
+  return *this;
+}
+
+inline VectorBuilder &VectorBuilder::default_value(const float4 value)
 {
   decl_->default_value = value;
   return *this;
@@ -490,6 +513,13 @@ inline VectorBuilder &VectorBuilder::default_value(const float3 value)
 inline VectorBuilder &VectorBuilder::subtype(PropertySubType subtype)
 {
   decl_->subtype = subtype;
+  return *this;
+}
+
+inline VectorBuilder &VectorBuilder::dimensions(int dimensions)
+{
+  BLI_assert(dimensions >= 2 && dimensions <= 4);
+  decl_->dimensions = dimensions;
   return *this;
 }
 
