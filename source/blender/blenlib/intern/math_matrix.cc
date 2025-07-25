@@ -10,6 +10,7 @@
 
 #include "BLI_math_rotation.hh"
 #include "BLI_simd.hh"
+#include "BLI_task.hh"
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -327,6 +328,30 @@ static void polar_decompose(const MatBase<T, 3, 3> &mat3,
 
 /** \} */
 
+template<typename T> bool contains_shear(const MatBase<T, 3, 3> &matrix, const T &epsilon = 1e-6)
+{
+  MatBase<T, 3, 3> U;
+  MatBase<T, 3, 3> P;
+  polar_decompose(matrix, U, P);
+
+  // Shear is present if the P matrix has significant non-zero off-diagonal elements.
+  // P is symmetric, so we only need to check the upper or lower triangle.
+  // We check the elements (0,1), (0,2), and (1,2) (and their symmetric counterparts).
+
+  if (math::abs(P[0][1]) > epsilon) {
+    return true;
+  }
+  if (math::abs(P[0][2]) > epsilon) {
+    return true;
+  }
+  if (math::abs(P[1][2]) > epsilon) {
+    return true;
+  }
+
+  // If all off-diagonal elements are close to zero, there's no significant shear.
+  return false;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Interpolate
  * \{ */
@@ -516,5 +541,50 @@ template float4x4 perspective_infinite(
 }  // namespace projection
 
 /** \} */
+
+void transform_normals(const float3x3 &transform, MutableSpan<float3> normals)
+{
+  const float3x3 normal_transform = math::transpose(math::invert(transform));
+  if (contains_shear(normal_transform)) {
+    threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
+      for (float3 &normal : normals.slice(range)) {
+        normal = math::normalize(normal_transform * normal);
+      }
+    });
+  }
+  else {
+    const float3x3 normalized_transform = math::normalize(normal_transform);
+    threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
+      for (float3 &normal : normals.slice(range)) {
+        normal = normalized_transform * normal;
+      }
+    });
+  }
+}
+
+void transform_normals(Span<float3> src, const float3x3 &transform, MutableSpan<float3> dst)
+{
+  const float3x3 normal_transform = math::transpose(math::invert(transform));
+  if (math::is_equal(normal_transform, float3x3::identity(), 1e-6f)) {
+    dst.copy_from(src);
+  }
+  else {
+    if (contains_shear(normal_transform)) {
+      threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          dst[i] = math::normalize(normal_transform * src[i]);
+        }
+      });
+    }
+    else {
+      const float3x3 normalized_transform = math::normalize(normal_transform);
+      threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          dst[i] = normalized_transform * src[i];
+        }
+      });
+    }
+  }
+}
 
 }  // namespace blender::math

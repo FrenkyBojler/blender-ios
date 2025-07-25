@@ -1806,4 +1806,7 @@ extern template float4x4 perspective(
 
 /** \} */
 
+void transform_normals(const float3x3 &transform, MutableSpan<float3> normals);
+void transform_normals(Span<float3> src, const float3x3 &transform, MutableSpan<float3> dst);
+
 }  // namespace blender::math
