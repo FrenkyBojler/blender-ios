@@ -839,25 +839,41 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
           continue;
         }
         const int positions_num = attributes->domain_size(bke::AttrDomain::Point);
+
+        Vector<const ForceField *> filtered_force_fields;
+        for (const ForceField &sim_force : behaviors.force_fields) {
+          if (is_path_selected(sim_force.self_path, sim_force.filter, sim_geometry.src.path)) {
+            filtered_force_fields.append(&sim_force);
+          }
+        }
+        Vector<const AccelerationField *> filtered_acceleration_fields;
+        for (const AccelerationField &sim_acceleration : behaviors.acceleration_fields) {
+          if (is_path_selected(
+                  sim_acceleration.self_path, sim_acceleration.filter, sim_geometry.src.path))
+          {
+            filtered_acceleration_fields.append(&sim_acceleration);
+          }
+        }
+
         Array<float3> force(positions_num, float3());
         Array<float3> acceleration(positions_num, float3());
         fn::FieldEvaluator field_evaluator{*field_context, positions_num};
-        for (const ForceField &sim_force : behaviors.force_fields) {
-          field_evaluator.add(sim_force.force_field);
+        for (const ForceField *sim_force : filtered_force_fields) {
+          field_evaluator.add(sim_force->force_field);
         }
-        for (const AccelerationField &sim_acceleration : behaviors.acceleration_fields) {
-          field_evaluator.add(sim_acceleration.acceleration_field);
+        for (const AccelerationField *sim_acceleration : filtered_acceleration_fields) {
+          field_evaluator.add(sim_acceleration->acceleration_field);
         }
         field_evaluator.evaluate();
-        for (const int force_i : behaviors.force_fields.index_range()) {
+        for (const int force_i : filtered_force_fields.index_range()) {
           VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
           for (const int i : force_varray.index_range()) {
             force[i] += force_varray[i];
           }
         }
-        for (const int acceleration_i : behaviors.acceleration_fields.index_range()) {
+        for (const int acceleration_i : filtered_acceleration_fields.index_range()) {
           VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
-              acceleration_i + behaviors.force_fields.size());
+              acceleration_i + filtered_force_fields.size());
           for (const int i : acceleration_varray.index_range()) {
             acceleration[i] += acceleration_varray[i];
           }

@@ -19,11 +19,15 @@ namespace blender::geometry::xpbd {
 
 class ForceField {
  public:
+  std::string self_path;
+  std::string filter;
   fn::Field<float3> force_field;
 };
 
 class AccelerationField {
  public:
+  std::string self_path;
+  std::string filter;
   fn::Field<float3> acceleration_field;
 };
 

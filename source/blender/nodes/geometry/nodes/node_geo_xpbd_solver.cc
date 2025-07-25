@@ -70,6 +70,8 @@ static void parse_behavior__force(ParseBehaviorParams &params)
   }
   geometry::xpbd::ForceField force;
   force.force_field = *force_field;
+  force.self_path = params.self_path();
+  force.filter = params.bundle.lookup<std::string>("Filter").value_or("");
   params.r_behaviors.force_fields.append(force);
 }
 
@@ -82,6 +84,8 @@ static void parse_behavior__acceleration(ParseBehaviorParams &params)
   }
   geometry::xpbd::AccelerationField acceleration;
   acceleration.acceleration_field = *acceleration_field;
+  acceleration.self_path = params.self_path();
+  acceleration.filter = params.bundle.lookup<std::string>("Filter").value_or("");
   params.r_behaviors.acceleration_fields.append(acceleration);
 }
 
