@@ -212,9 +212,12 @@ void GPU_platform_show_driver_error_popup()
 
     GHOST_ShowMessageBox(
         (GHOST_SystemHandle)GPU_backend_ghost_system_get(),
-        "Blender - Driver Error",
-        "Blender has detected an error that may be caused by an old/broken GPU driver.\n"
-        "Updating your drivers may fix the issue.",
+        "Blender - Shader Error",
+        "An error occurred while compiling shaders.\n"
+        "This is normally caused by GPU driver software that is not sufficiently up-to-date.\n"
+        "Newer graphics drivers might be available that fix this issue.\n\n"
+        "If updating your GPU drivers doesn't resolve the issue, then please file a bug report\n\n"
+        "Blender will now close.",
         "Find Latest Drivers",
         "Exit",
         GPU_platform_support_link(),
