@@ -25,6 +25,7 @@ ccl_device void bsdf_ray_portal_setup(ccl_private ShaderData *sd,
                                       float3 direction)
 {
   /* Check cutoff weight. */
+
   const float sample_weight = fabsf(average(weight));
   if (!(sample_weight >= CLOSURE_WEIGHT_CUTOFF)) {
     return;
