@@ -44,7 +44,7 @@ light_sample_shader_eval(KernelGlobals kg,
      * for GPU coherence and compile times. */
     PROFILING_INIT_FOR_SHADER(kg, PROFILING_SHADE_LIGHT_SETUP);
     if (ls->type == LIGHT_BACKGROUND) {
-      shader_setup_from_background(kg, emission_sd, ls->P, ls->D, time);
+      shader_setup_from_background(kg, emission_sd, ls->P, ls->D, 0.0f, time);
     }
     else {
       shader_setup_from_sample(kg,
