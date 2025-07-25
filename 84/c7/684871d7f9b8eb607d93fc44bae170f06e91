@@ -1,4 +1,4 @@
 Referenced by commit 6bfb6399ea3, Fix #132075: Realize instances crash with vertex group inputs
 Referenced by issue #132506, Fix #132075: Realize instances crash with vertex group inputs
 Referenced by issue #99197, Geometry Nodes: writing attributes (from procedurally created geometry) to vertex groups not working
-Referenced by pull request #142881, WIP: Fix #139258: Strokes lose deform groups when moving to another layer
+Referenced by pull request #142881, Fix #139258: Strokes lose deform groups when moving to another layer
