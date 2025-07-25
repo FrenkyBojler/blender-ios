@@ -227,13 +227,11 @@ def initialize_precompiled_libraries(args: argparse.Namespace) -> str:
 
     submodule_directories = get_submodule_directories(args)
 
-    macos_x64_warning = "WARNING: macOS x64/Intel support was dropped in Blender 5.0.\n" \
-                        "         As such, pre-compiled dependencies are no longer provided.\n" \
-                        "         You may build the dependencies yourself, or downgrade to Blender 4.5.\n" \
-                        "         For more details, please see: https://devtalk.blender.org/t/38835"
-
     if platform == "macos" and arch == "x64":
-        return macos_x64_warning
+        return ("WARNING: macOS x64/Intel support was dropped in Blender 5.0.\n"
+                "         As such, pre-compiled dependencies are no longer provided.\n"
+                "         You may build the dependencies yourself, or downgrade to Blender 4.5.\n"
+                "         For more details, please see: https://devtalk.blender.org/t/38835")
 
     if Path(submodule_dir) not in submodule_directories:
         return "Skipping libraries update: no configured submodule\n"
