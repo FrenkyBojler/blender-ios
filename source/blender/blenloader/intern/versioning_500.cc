@@ -35,6 +35,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_idprop.hh"
+#include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -1641,6 +1642,37 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         do_version_convert_gp_jitter_values(brush);
       }
     }
+  }
+
+  /* ImageFormatData gained a new media type which we need to set according to the existing imtype.
+   * We do that by calling BKE_image_format_set with the existing imtype, since it internally
+   * corrects the media type. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 42)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      BKE_image_format_set(&scene->r.im_format, &scene->id, scene->r.im_format.imtype);
+    }
+
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy != CMP_NODE_OUTPUT_FILE) {
+          continue;
+        }
+
+        NodeImageMultiFile *storage = static_cast<NodeImageMultiFile *>(node->storage);
+        BKE_image_format_set(&storage->format, id, storage->format.imtype);
+
+        LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
+          NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
+              input->storage);
+          BKE_image_format_set(&input_storage->format, id, input_storage->format.imtype);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
