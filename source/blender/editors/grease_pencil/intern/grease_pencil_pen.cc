@@ -917,13 +917,14 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     }
 
     IndexMaskMemory memory;
-    const IndexMask selection = retrieve_editable_and_selected_points(
+    const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
         *object, info.drawing, info.layer_index, memory);
-    if (selection.is_empty()) {
+
+    if (bezier_points.is_empty()) {
       return;
     }
 
-    selection.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
+    bezier_points.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
       const float3 depth_point = positions[point_i];
       float2 offset = float2(event->xy) - float2(event->prev_xy);
 
