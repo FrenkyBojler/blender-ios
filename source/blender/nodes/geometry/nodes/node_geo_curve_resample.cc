@@ -82,8 +82,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-  const GeometryNodeCurveResampleMode mode = params.extract_input<GeometryNodeCurveResampleMode>(
-      "Mode");
+  const auto mode = params.extract_input<GeometryNodeCurveResampleMode>("Mode");
 
   const NodeGeometryCurveResample &storage = node_storage(params.node());
 
