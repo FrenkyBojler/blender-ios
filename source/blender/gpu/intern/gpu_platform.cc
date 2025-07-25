@@ -25,6 +25,8 @@
 #include "BKE_blender_version.h"
 #include "BKE_global.hh"
 
+#include "BLT_translation.hh"
+
 #include "GPU_context.hh"
 #include "GPU_platform.hh"
 
@@ -213,19 +215,21 @@ void GPU_platform_show_shader_error_popup()
     return;
   }
 
-  GHOST_ShowMessageBox(
-      (GHOST_SystemHandle)GPU_backend_ghost_system_get(),
-      "Blender - Shader Error",
-      "An error occurred while compiling shaders."
-      "\n\n"
-      "Newer graphics drivers might be available that fix this issue. If this problem persists "
-      "with the latest drivers installed, then please file a bug report."
-      "\n\n"
-      "Blender will now close.",
-      "Find Latest Drivers",
-      "Exit",
-      GPU_platform_support_link(),
-      GHOST_DialogError);
+  GHOST_ShowMessageBox((GHOST_SystemHandle)GPU_backend_ghost_system_get(),
+                       CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Blender - Shader Error"),
+                       CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+                                  "An error occurred while compiling shaders."
+                                  "\n\n"
+                                  "Newer graphics drivers might be available that fix this issue."
+                                  "\n\n"
+                                  "If this problem persists with the latest drivers installed, "
+                                  "then please file a bug report."
+                                  "\n\n"
+                                  "Blender will now close."),
+                       CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Find Latest Drivers"),
+                       CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Exit"),
+                       GPU_platform_support_link(),
+                       GHOST_DialogError);
 
   throw std::exception("Shader Error");
 }
