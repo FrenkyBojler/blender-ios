@@ -25,7 +25,6 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
 {
   const int shader = kernel_data.background.surface_shader;
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
-  Spectrum light_visibility = one_spectrum();
 
   /* Use visibility flag to skip lights. */
   if (!is_light_shader_visible_to_path(shader, path_flag)) {

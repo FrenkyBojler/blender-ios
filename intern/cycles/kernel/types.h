@@ -582,9 +582,9 @@ struct BsdfEval {
 };
 
 typedef struct BsdfEvalRGBE {
-  SpectrumRGBE diffuse;
-  SpectrumRGBE glossy;
-  SpectrumRGBE sum;
+  RGBE diffuse;
+  RGBE glossy;
+  RGBE sum;
 } BsdfEvalRGBE;
 
 /* Closure Filter */
