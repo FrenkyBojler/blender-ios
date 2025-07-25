@@ -467,6 +467,7 @@ struct uiButCurveProfile : public uiBut {
 struct uiButCurveMapping : public uiBut {
   CurveMapping *edit_cumap = nullptr;
   eButGradientType gradient_type = UI_GRAD_SV;
+  bool is_preview = false;
 };
 
 /** Derived struct for #ButType::HotkeyEvent. */

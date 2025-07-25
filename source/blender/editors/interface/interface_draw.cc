@@ -1677,16 +1677,19 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
+  const bool draw_backdrop_grid = !but_cumap->is_preview;
+
   /* backdrop */
   float color_backdrop[4] = {0, 0, 0, 1};
-
   if (but_cumap->gradient_type == UI_GRAD_H) {
     /* grid, hsv uses different grid */
-    GPU_blend(GPU_BLEND_ALPHA);
-    ARRAY_SET_ITEMS(color_backdrop, 0, 0, 0, 48.0 / 255.0);
-    immUniformColor4fv(color_backdrop);
-    ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
-    GPU_blend(GPU_BLEND_NONE);
+    if (draw_backdrop_grid) {
+      GPU_blend(GPU_BLEND_ALPHA);
+      ARRAY_SET_ITEMS(color_backdrop, 0, 0, 0, 48.0 / 255.0);
+      immUniformColor4fv(color_backdrop);
+      ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
+      GPU_blend(GPU_BLEND_NONE);
+    }
   }
   else {
     if (cumap->flag & CUMA_DO_CLIP) {
@@ -1706,20 +1709,22 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
       immRectf(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
     }
 
-    /* grid, every 0.25 step */
-    gl_shaded_color(wcol->inner, -16);
-    ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.25f);
-    /* grid, every 1.0 step */
-    gl_shaded_color(wcol->inner, -24);
-    ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 1.0f);
-    /* axes */
-    gl_shaded_color(wcol->inner, -50);
-    immBegin(GPU_PRIM_LINES, 4);
-    immVertex2f(pos, rect->xmin, rect->ymin + zoomy * (-offsy));
-    immVertex2f(pos, rect->xmax, rect->ymin + zoomy * (-offsy));
-    immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymin);
-    immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymax);
-    immEnd();
+    if (draw_backdrop_grid) {
+      /* grid, every 0.25 step */
+      gl_shaded_color(wcol->inner, -16);
+      ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 0.25f);
+      /* grid, every 1.0 step */
+      gl_shaded_color(wcol->inner, -24);
+      ui_draw_but_curve_grid(pos, rect, zoomx, zoomy, offsx, offsy, 1.0f);
+      /* axes */
+      gl_shaded_color(wcol->inner, -50);
+      immBegin(GPU_PRIM_LINES, 4);
+      immVertex2f(pos, rect->xmin, rect->ymin + zoomy * (-offsy));
+      immVertex2f(pos, rect->xmax, rect->ymin + zoomy * (-offsy));
+      immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymin);
+      immVertex2f(pos, rect->xmin + zoomx * (-offsx), rect->ymax);
+      immEnd();
+    }
   }
 
   /* cfra option */
@@ -1835,41 +1840,44 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   GPU_blend(GPU_BLEND_NONE);
   immUnbindProgram();
 
-  /* The points, use aspect to make them visible on edges. */
-  format = immVertexFormat();
-  pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  const uint col = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-  const uint size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+  if (!but_cumap->is_preview) {
+    /* The points, use aspect to make them visible on edges. */
+    format = immVertexFormat();
+    pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    const uint col = GPU_vertformat_attr_add(
+        format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+    const uint size = GPU_vertformat_attr_add(
+        format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+    immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
 
-  GPU_program_point_size(true);
+    GPU_program_point_size(true);
 
-  /* Calculate vertex colors based on text theme. */
-  float color_vert[4], color_vert_select[4];
-  UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);
-  UI_GetThemeColor4fv(TH_TEXT, color_vert_select);
-  if (len_squared_v3v3(color_vert, color_vert_select) < 0.1f) {
-    interp_v3_v3v3(color_vert, color_vert_select, color_backdrop, 0.75f);
-  }
-  if (len_squared_v3(color_vert) > len_squared_v3(color_vert_select)) {
-    /* Ensure brightest text color is used for selection. */
-    swap_v3_v3(color_vert, color_vert_select);
-  }
+    /* Calculate vertex colors based on text theme. */
+    float color_vert[4], color_vert_select[4];
+    UI_GetThemeColor4fv(TH_TEXT_HI, color_vert);
+    UI_GetThemeColor4fv(TH_TEXT, color_vert_select);
+    if (len_squared_v3v3(color_vert, color_vert_select) < 0.1f) {
+      interp_v3_v3v3(color_vert, color_vert_select, color_backdrop, 0.75f);
+    }
+    if (len_squared_v3(color_vert) > len_squared_v3(color_vert_select)) {
+      /* Ensure brightest text color is used for selection. */
+      swap_v3_v3(color_vert, color_vert_select);
+    }
 
-  cmp = cuma->curve;
-  const float point_size = max_ff(U.pixelsize * 3.0f,
-                                  min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
-  immBegin(GPU_PRIM_POINTS, cuma->totpoint);
-  for (int a = 0; a < cuma->totpoint; a++) {
-    const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
-    const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-    immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert_select : color_vert);
-    immAttr1f(size, point_size);
-    immVertex2f(pos, fx, fy);
+    cmp = cuma->curve;
+    const float point_size = max_ff(U.pixelsize * 3.0f,
+                                    min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
+    immBegin(GPU_PRIM_POINTS, cuma->totpoint);
+    for (int a = 0; a < cuma->totpoint; a++) {
+      const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
+      const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
+      immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert_select : color_vert);
+      immAttr1f(size, point_size);
+      immVertex2f(pos, fx, fy);
+    }
+    immEnd();
+    immUnbindProgram();
   }
-  immEnd();
-  immUnbindProgram();
 
   /* Restore scissor-test. */
   GPU_scissor(scissor[0], scissor[1], scissor[2], scissor[3]);
