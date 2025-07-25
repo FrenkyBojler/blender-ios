@@ -610,13 +610,8 @@ static wmOperatorStatus paste_from_file(bContext *C, ReportList *reports, const 
 
 static wmOperatorStatus paste_from_file_exec(bContext *C, wmOperator *op)
 {
-  char *filepath;
-  wmOperatorStatus retval;
-
-  filepath = RNA_string_get_alloc(op->ptr, "filepath", nullptr, 0, nullptr);
-  retval = paste_from_file(C, op->reports, filepath);
-  MEM_freeN(filepath);
-
+  std::string filepath = RNA_string_get(op->ptr, "filepath");
+  wmOperatorStatus retval = paste_from_file(C, op->reports, filepath.c_str());
   return retval;
 }
 
@@ -719,7 +714,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   layout.label(RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
 
   uiBut *text_but = uiDefBut(block,
-                             UI_BTYPE_TEXT,
+                             ButType::Text,
                              0,
                              "",
                              0,
@@ -751,7 +746,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
 
   if (windows_layout) {
     confirm = uiDefIconTextBut(block,
-                               UI_BTYPE_BUT,
+                               ButType::But,
                                0,
                                0,
                                IFACE_("Insert"),
@@ -767,7 +762,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   }
 
   cancel = uiDefIconTextBut(block,
-                            UI_BTYPE_BUT,
+                            ButType::But,
                             0,
                             0,
                             IFACE_("Cancel"),
@@ -783,7 +778,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   if (!windows_layout) {
     split->column(false);
     confirm = uiDefIconTextBut(block,
-                               UI_BTYPE_BUT,
+                               ButType::But,
                                0,
                                0,
                                IFACE_("Insert"),
@@ -1913,7 +1908,6 @@ void FONT_OT_delete(wmOperatorType *ot)
 static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
-  char *inserted_utf8;
   char32_t *inserted_text;
   int a, len;
 
@@ -1921,18 +1915,17 @@ static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  inserted_utf8 = RNA_string_get_alloc(op->ptr, "text", nullptr, 0, nullptr);
-  len = BLI_strlen_utf8(inserted_utf8);
+  std::string inserted_utf8 = RNA_string_get(op->ptr, "text");
+  len = BLI_strlen_utf8(inserted_utf8.c_str());
 
   inserted_text = MEM_calloc_arrayN<char32_t>((len + 1), "FONT_insert_text");
-  len = BLI_str_utf8_as_utf32(inserted_text, inserted_utf8, MAXTEXT);
+  len = BLI_str_utf8_as_utf32(inserted_text, inserted_utf8.c_str(), MAXTEXT);
 
   for (a = 0; a < len; a++) {
     insert_into_textbuf(obedit, inserted_text[a]);
   }
 
   MEM_freeN(inserted_text);
-  MEM_freeN(inserted_utf8);
 
   kill_selection(obedit, len);
   text_update_edited(C, obedit, FO_EDIT);

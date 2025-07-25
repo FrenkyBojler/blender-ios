@@ -49,7 +49,7 @@
 static blender::bke::bNodeSocketTemplate cmp_node_rlayers_out[] = {
     {SOCK_RGBA, N_("Image"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_FLOAT, N_("Alpha"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT, N_(RE_PASSNAME_Z), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_(RE_PASSNAME_DEPTH), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_NORMAL), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_UV), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_VECTOR), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
@@ -666,7 +666,7 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   RNA_string_get(&scn_ptr, "name", scene_name);
 
   PointerRNA op_ptr = row->op(
-      "RENDER_OT_render", "", ICON_RENDER_STILL, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+      "RENDER_OT_render", "", ICON_RENDER_STILL, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_string_set(&op_ptr, "layer", layer_name);
   RNA_string_set(&op_ptr, "scene", scene_name);
 }
@@ -686,7 +686,7 @@ class RenderLayerOperation : public NodeOperation {
     Result &alpha_result = this->get_result("Alpha");
 
     if (image_result.should_compute() || alpha_result.should_compute()) {
-      const Result combined_pass = this->context().get_pass(
+      const Result combined_pass = this->context().get_input(
           scene, view_layer, RE_PASSNAME_COMBINED);
       if (image_result.should_compute()) {
         this->execute_pass(combined_pass, image_result);
@@ -713,7 +713,7 @@ class RenderLayerOperation : public NodeOperation {
       const char *pass_name = this->get_pass_name(output->identifier);
       this->context().populate_meta_data_for_pass(scene, view_layer, pass_name, result.meta_data);
 
-      const Result pass = this->context().get_pass(scene, view_layer, pass_name);
+      const Result pass = this->context().get_input(scene, view_layer, pass_name);
       this->execute_pass(pass, result);
     }
   }
@@ -755,8 +755,7 @@ class RenderLayerOperation : public NodeOperation {
 
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const rcti compositing_region = this->context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 lower_bound = this->context().get_compositing_region().min;
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
 
     pass.bind_as_texture(shader, "input_tx");
@@ -791,6 +790,11 @@ class RenderLayerOperation : public NodeOperation {
       case ResultType::Bool:
         /* Not supported. */
         break;
+      case ResultType::Menu:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(pass.type()));
+        BLI_assert_unreachable();
+        break;
     }
 
     BLI_assert_unreachable();
@@ -801,8 +805,7 @@ class RenderLayerOperation : public NodeOperation {
   {
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const rcti compositing_region = this->context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 lower_bound = this->context().get_compositing_region().min;
 
     result.allocate_texture(Domain(this->context().get_compositing_region_size()));
 

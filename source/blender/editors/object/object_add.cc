@@ -64,11 +64,7 @@
 #include "BKE_effect.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -2825,14 +2821,14 @@ static bool object_convert_poll(bContext *C)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   /* Don't use `active_object` in the context, it's important this value
-   * is from the view-layer as it's used to check if Blender is in edit-mode. */
+   * is from the view-layer as it's used to check if Blender is in object mode. */
   Object *obact = BKE_view_layer_active_object_get(view_layer);
-  if (obact && BKE_object_is_in_editmode(obact)) {
+  if (obact && obact->mode != OB_MODE_OBJECT) {
     return false;
   }
 
   /* Note that `obact` may not be editable,
-   * only check the active object to ensure Blender is not in edit-mode. */
+   * only check the active object to ensure Blender is in object mode. */
   return true;
 }
 
@@ -3252,7 +3248,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
       unique_attribute_id,
       bke::AttrDomain::Point,
       bke::AttrType::Float3,
-      bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
+      bke::AttributeInitVArray(VArray<float3>::from_span(normals)));
 
   const int edges_num = mesh_copied->edges_num;
   bke::CurvesGeometry curves = geometry::mesh_edges_to_curves_convert(

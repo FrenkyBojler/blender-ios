@@ -14,7 +14,7 @@
 #endif
 
 #ifdef WITH_METAL_BACKEND
-#  include "GHOST_ContextCGL.hh"
+#  include "GHOST_ContextMTL.hh"
 #endif
 
 #ifdef WITH_VULKAN_BACKEND
@@ -911,7 +911,7 @@ GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 
 #ifdef WITH_METAL_BACKEND
     case GHOST_kDrawingContextTypeMetal: {
-      GHOST_Context *context = new GHOST_ContextCGL(
+      GHOST_Context *context = new GHOST_ContextMTL(
           m_wantStereoVisual, m_metalView, m_metalLayer, false);
       if (context->initializeDrawingContext()) {
         return context;
@@ -1250,7 +1250,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(const uint8_t *bitm
                                                              const uint8_t *mask,
                                                              const int size[2],
                                                              const int hot_spot[2],
-                                                             const bool canInvertColor)
+                                                             const bool can_invert_color)
 {
   @autoreleasepool {
     if (m_customCursor) {
@@ -1284,7 +1284,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(const uint8_t *bitm
 
       /* Flip white cursor with black outline to black cursor with white outline
        * to match macOS platform conventions. */
-      if (canInvertColor) {
+      if (can_invert_color) {
         cursorBitmap[y] = ~cursorBitmap[y];
       }
     }

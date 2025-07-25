@@ -42,6 +42,7 @@
 
 #include "data_transfer_intern.hh"
 
+using blender::Span;
 using blender::StringRef;
 
 bDeformGroup *BKE_object_defgroup_new(Object *ob, const StringRef name)
@@ -1107,17 +1108,16 @@ void BKE_defvert_extract_vgroup_to_vertweights(const MDeformVert *dvert,
 void BKE_defvert_extract_vgroup_to_edgeweights(const MDeformVert *dvert,
                                                const int defgroup,
                                                const int verts_num,
-                                               const blender::int2 *edges,
-                                               const int edges_num,
+                                               blender::Span<blender::int2> edges,
                                                const bool invert_vgroup,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, edges_num, 0.0f);
+    copy_vn_fl(r_weights, edges.size(), 0.0f);
     return;
   }
 
-  int i = edges_num;
+  int i = edges.size();
   float *tmp_weights = MEM_malloc_arrayN<float>(size_t(verts_num), __func__);
 
   BKE_defvert_extract_vgroup_to_vertweights(
@@ -1135,17 +1135,16 @@ void BKE_defvert_extract_vgroup_to_edgeweights(const MDeformVert *dvert,
 void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
                                                const int defgroup,
                                                const int verts_num,
-                                               const int *corner_verts,
-                                               const int loops_num,
+                                               const Span<int> corner_verts,
                                                const bool invert_vgroup,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, loops_num, 0.0f);
+    copy_vn_fl(r_weights, corner_verts.size(), 0.0f);
     return;
   }
 
-  int i = loops_num;
+  int i = corner_verts.size();
   float *tmp_weights = MEM_malloc_arrayN<float>(size_t(verts_num), __func__);
 
   BKE_defvert_extract_vgroup_to_vertweights(
@@ -1161,8 +1160,7 @@ void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
 void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
                                                const int defgroup,
                                                const int verts_num,
-                                               const int *corner_verts,
-                                               const int /*loops_num*/,
+                                               const Span<int> corner_verts,
                                                const blender::OffsetIndices<int> faces,
                                                const bool invert_vgroup,
                                                float *r_weights)
@@ -1262,15 +1260,11 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
                                                                 const int mix_mode,
                                                                 const float mix_factor,
                                                                 const float *mix_weights,
-                                                                const int num_elem_dst,
                                                                 const bool use_create,
                                                                 const bool use_delete,
-                                                                Object *ob_src,
                                                                 Object *ob_dst,
-                                                                const MDeformVert *data_src,
-                                                                MDeformVert *data_dst,
-                                                                const CustomData * /*cd_src*/,
-                                                                CustomData *cd_dst,
+                                                                const Mesh &mesh_src,
+                                                                Mesh &mesh_dst,
                                                                 const bool /*use_dupref_dst*/,
                                                                 const int tolayers,
                                                                 const bool *use_layers_src,
@@ -1278,8 +1272,8 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
 {
   int idx_src;
   int idx_dst;
-  const ListBase *src_list = BKE_object_defgroup_list(ob_src);
-  ListBase *dst_defbase = BKE_object_defgroup_list_mutable(ob_dst);
+  const ListBase *src_list = &mesh_src.vertex_group_names;
+  ListBase *dst_defbase = &mesh_dst.vertex_group_names;
 
   const int tot_dst = BLI_listbase_count(dst_defbase);
 
@@ -1314,13 +1308,6 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
         }
       }
       if (r_map) {
-        /* At this stage, we **need** a valid CD_MDEFORMVERT layer on dest!
-         * Again, use_create is not relevant in this case */
-        if (!data_dst) {
-          data_dst = static_cast<MDeformVert *>(
-              CustomData_add_layer(cd_dst, CD_MDEFORMVERT, CD_SET_DEFAULT, num_elem_dst));
-        }
-
         while (idx_src--) {
           if (!use_layers_src[idx_src]) {
             continue;
@@ -1330,8 +1317,8 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
                                                mix_mode,
                                                mix_factor,
                                                mix_weights,
-                                               data_src,
-                                               data_dst,
+                                               mesh_src.deform_verts().data(),
+                                               mesh_dst.deform_verts_for_write().data(),
                                                idx_src,
                                                idx_src,
                                                elem_size,
@@ -1351,7 +1338,7 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
         for (dg_dst = static_cast<bDeformGroup *>(dst_defbase->first); dg_dst;) {
           bDeformGroup *dg_dst_next = dg_dst->next;
 
-          if (BKE_object_defgroup_name_index(ob_src, dg_dst->name) == -1) {
+          if (BKE_id_defgroup_name_index(&mesh_src.id, dg_dst->name) == -1) {
             BKE_object_defgroup_remove(ob_dst, dg_dst);
           }
           dg_dst = dg_dst_next;
@@ -1378,20 +1365,13 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
           }
         }
         if (r_map) {
-          /* At this stage, we **need** a valid CD_MDEFORMVERT layer on dest!
-           * use_create is not relevant in this case */
-          if (!data_dst) {
-            data_dst = static_cast<MDeformVert *>(
-                CustomData_add_layer(cd_dst, CD_MDEFORMVERT, CD_SET_DEFAULT, num_elem_dst));
-          }
-
           data_transfer_layersmapping_add_item(r_map,
                                                CD_FAKE_MDEFORMVERT,
                                                mix_mode,
                                                mix_factor,
                                                mix_weights,
-                                               data_src,
-                                               data_dst,
+                                               mesh_src.deform_verts().data(),
+                                               mesh_dst.deform_verts_for_write().data(),
                                                idx_src,
                                                idx_dst,
                                                elem_size,
@@ -1415,13 +1395,12 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
                                          const int mix_mode,
                                          const float mix_factor,
                                          const float *mix_weights,
-                                         const int num_elem_dst,
                                          const bool use_create,
                                          const bool use_delete,
                                          Object *ob_src,
                                          Object *ob_dst,
-                                         const CustomData *cd_src,
-                                         CustomData *cd_dst,
+                                         const Mesh &mesh_src,
+                                         Mesh &mesh_dst,
                                          const bool use_dupref_dst,
                                          const int fromlayers,
                                          const int tolayers)
@@ -1431,13 +1410,9 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
   const size_t elem_size = sizeof(MDeformVert);
 
   /* NOTE:
-   * VGroups are a bit hairy, since their layout is defined on object level (ob->defbase),
-   * while their actual data is a (mesh) CD layer.
-   * This implies we may have to handle data layout itself while having nullptr data itself,
+   * We may have to handle data layout itself while having nullptr data itself,
    * and even have to support nullptr data_src in transfer data code
    * (we always create a data_dst, though).
-   *
-   * NOTE: Above comment is outdated, but this function was written when that was true.
    */
 
   const ListBase *src_defbase = BKE_object_defgroup_list(ob_src);
@@ -1446,17 +1421,6 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
       BKE_object_defgroup_remove_all(ob_dst);
     }
     return true;
-  }
-
-  const MDeformVert *data_src = static_cast<const MDeformVert *>(
-      CustomData_get_layer(cd_src, CD_MDEFORMVERT));
-
-  MDeformVert *data_dst = static_cast<MDeformVert *>(
-      CustomData_get_layer_for_write(cd_dst, CD_MDEFORMVERT, num_elem_dst));
-  if (data_dst && use_dupref_dst && r_map) {
-    /* If dest is an evaluated mesh, we do not want to overwrite cdlayers of org mesh! */
-    data_dst = static_cast<MDeformVert *>(
-        CustomData_get_layer_for_write(cd_dst, CD_MDEFORMVERT, num_elem_dst));
   }
 
   if (fromlayers == DT_LAYERS_ACTIVE_SRC || fromlayers >= 0) {
@@ -1523,20 +1487,13 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
     }
 
     if (r_map) {
-      /* At this stage, we **need** a valid CD_MDEFORMVERT layer on dest!
-       * use_create is not relevant in this case */
-      if (!data_dst) {
-        data_dst = static_cast<MDeformVert *>(
-            CustomData_add_layer(cd_dst, CD_MDEFORMVERT, CD_SET_DEFAULT, num_elem_dst));
-      }
-
       data_transfer_layersmapping_add_item(r_map,
                                            CD_FAKE_MDEFORMVERT,
                                            mix_mode,
                                            mix_factor,
                                            mix_weights,
-                                           data_src,
-                                           data_dst,
+                                           mesh_src.deform_verts().data(),
+                                           mesh_dst.deform_verts_for_write().data(),
                                            idx_src,
                                            idx_dst,
                                            elem_size,
@@ -1572,15 +1529,11 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
                                                                 mix_mode,
                                                                 mix_factor,
                                                                 mix_weights,
-                                                                num_elem_dst,
                                                                 use_create,
                                                                 use_delete,
-                                                                ob_src,
                                                                 ob_dst,
-                                                                data_src,
-                                                                data_dst,
-                                                                cd_src,
-                                                                cd_dst,
+                                                                mesh_src,
+                                                                mesh_dst,
                                                                 use_dupref_dst,
                                                                 tolayers,
                                                                 use_layers_src,
@@ -1792,12 +1745,12 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
 
 VArray<float> varray_for_deform_verts(Span<MDeformVert> dverts, const int defgroup_index)
 {
-  return VArray<float>::For<VArrayImpl_For_VertexWeights>(dverts, defgroup_index);
+  return VArray<float>::from<VArrayImpl_For_VertexWeights>(dverts, defgroup_index);
 }
 VMutableArray<float> varray_for_mutable_deform_verts(MutableSpan<MDeformVert> dverts,
                                                      const int defgroup_index)
 {
-  return VMutableArray<float>::For<VArrayImpl_For_VertexWeights>(dverts, defgroup_index);
+  return VMutableArray<float>::from<VArrayImpl_For_VertexWeights>(dverts, defgroup_index);
 }
 
 void remove_defgroup_index(MutableSpan<MDeformVert> dverts, const int defgroup_index)
