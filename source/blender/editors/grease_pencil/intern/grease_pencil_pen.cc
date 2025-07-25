@@ -582,42 +582,15 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd,
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     const bke::CurvesGeometry &curves = info.drawing.strokes();
-
-    const bke::AttributeAccessor attributes = curves.attributes();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-
-    const VArray<bool> point_selection = *attributes.lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
-    const VArray<bool> selection_left = *attributes.lookup_or_default<bool>(
-        ".selection_handle_left", bke::AttrDomain::Point, true);
-    const VArray<bool> selection_right = *attributes.lookup_or_default<bool>(
-        ".selection_handle_right", bke::AttrDomain::Point, true);
-
     const Span<float3> positions = curves.positions();
-    const VArray<bool> &cyclic = curves.cyclic();
 
-    for (const int curve_index : curves.curves_range()) {
-      const IndexRange curve_points = points_by_curve[curve_index];
-      if (cyclic[curve_index]) {
-        continue;
-      }
+    IndexMaskMemory memory;
+    const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+        *ptd.vc.obact, info.drawing, info.layer_index, memory);
 
-      if (point_selection[curve_points.first()] || selection_left[curve_points.first()] ||
-          selection_right[curve_points.first()])
-      {
-        if (curve_points.size() != 1) {
-          pos += pen_global_to_screen(ptd, positions[curve_points.first()]);
-          num++;
-        }
-      }
-
-      if (point_selection[curve_points.last()] || selection_left[curve_points.last()] ||
-          selection_right[curve_points.last()])
-      {
-        pos += pen_global_to_screen(ptd, positions[curve_points.last()]);
-        num++;
-      }
-    }
+    bezier_points.foreach_index(
+        [&](const int64_t point_i) { pos += pen_global_to_screen(ptd, positions[point_i]); });
+    num += bezier_points.size();
   });
 
   if (num == 0) {
