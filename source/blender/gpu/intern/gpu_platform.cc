@@ -209,21 +209,22 @@ uint32_t GPU_platform_luid_node_mask()
 
 void GPU_platform_show_shader_error_popup()
 {
-  if (BKE_blender_version_is_release() && !G.background) {
-
-    GHOST_ShowMessageBox(
-        (GHOST_SystemHandle)GPU_backend_ghost_system_get(),
-        "Blender - Shader Error",
-        "An error occurred while compiling shaders.\n"
-        "This is normally caused by GPU driver software that is not sufficiently up-to-date.\n"
-        "Newer graphics drivers might be available that fix this issue.\n\n"
-        "If updating your GPU drivers doesn't resolve the issue, then please file a bug report\n\n"
-        "Blender will now close.",
-        "Find Latest Drivers",
-        "Exit",
-        GPU_platform_support_link(),
-        GHOST_DialogError);
+  if (!BKE_blender_version_is_release() || G.background) {
+    return;
   }
+
+  GHOST_ShowMessageBox(
+      (GHOST_SystemHandle)GPU_backend_ghost_system_get(),
+      "Blender - Shader Error",
+      "An error occurred while compiling shaders.\n"
+      "This is normally caused by GPU driver software that is not sufficiently up-to-date.\n"
+      "Newer graphics drivers might be available that fix this issue.\n\n"
+      "If updating your GPU drivers doesn't resolve the issue, then please file a bug report\n\n"
+      "Blender will now close.",
+      "Find Latest Drivers",
+      "Exit",
+      GPU_platform_support_link(),
+      GHOST_DialogError);
 
   throw std::exception("Shader Error");
 }
