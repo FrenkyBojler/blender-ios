@@ -34,6 +34,173 @@ static std::string combine_bundle_path(const Span<StringRef> &path)
   return fmt::format("{}", fmt::join(path, "/"));
 }
 
+static void parse_behavior__geometry(std::string path,
+                                     const Bundle &behavior_bundle,
+                                     ResourceScope &scope,
+                                     geometry::xpbd::Behaviors &r_behaviors)
+{
+  std::optional<GeometrySet> geometry = behavior_bundle.lookup<GeometrySet>("Geometry");
+  if (!geometry) {
+    return;
+  }
+  auto &sim_geometry_set = scope.construct<geometry::xpbd::SimGeometrySet>();
+  sim_geometry_set.path = path;
+  sim_geometry_set.geometry = *geometry;
+  sim_geometry_set.mass_attribute =
+      behavior_bundle.lookup<std::string>("Mass Attribute").value_or("mass");
+  sim_geometry_set.velocity_attribute =
+      behavior_bundle.lookup<std::string>("Velocity").value_or("velocity");
+  r_behaviors.sim_geometry_sets.append(&sim_geometry_set);
+}
+
+static void parse_behavior__force(std::string path,
+                                  const Bundle &behavior_bundle,
+                                  ResourceScope &scope,
+                                  geometry::xpbd::Behaviors &r_behaviors)
+{
+  std::optional<Field<float3>> force_field = behavior_bundle.lookup<Field<float3>>("Force Field");
+  if (!force_field) {
+    return;
+  }
+  geometry::xpbd::ForceField force;
+  force.force_field = *force_field;
+  r_behaviors.force_fields.append(force);
+}
+
+static void parse_behavior__acceleration(std::string path,
+                                         const Bundle &behavior_bundle,
+                                         ResourceScope &scope,
+                                         geometry::xpbd::Behaviors &r_behaviors)
+{
+  std::optional<Field<float3>> acceleration_field = behavior_bundle.lookup<Field<float3>>(
+      "Acceleration Field");
+  if (!acceleration_field) {
+    return;
+  }
+  geometry::xpbd::AccelerationField acceleration;
+  acceleration.acceleration_field = *acceleration_field;
+  r_behaviors.acceleration_fields.append(acceleration);
+}
+
+static void parse_behavior__edge_lengths(std::string path,
+                                         const Bundle &behavior_bundle,
+                                         ResourceScope &scope,
+                                         geometry::xpbd::Behaviors &r_behaviors)
+{
+  std::optional<std::string> rest_length_attribute = behavior_bundle.lookup<std::string>(
+      "Rest Length Attribute");
+  if (!rest_length_attribute) {
+    return;
+  }
+  if (rest_length_attribute->empty()) {
+    return;
+  }
+  const float compliance = behavior_bundle.lookup<float>("Compliance").value_or(0.0f);
+  r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__edge_lengths(
+      scope, std::move(*rest_length_attribute), compliance));
+}
+
+static void parse_behavior__curve_lengths(std::string path,
+                                          const Bundle &behavior_bundle,
+                                          ResourceScope &scope,
+                                          geometry::xpbd::Behaviors &r_behaviors)
+{
+  std::optional<std::string> rest_length_attribute = behavior_bundle.lookup<std::string>(
+      "Rest Length Attribute");
+  if (!rest_length_attribute) {
+    return;
+  }
+  if (rest_length_attribute->empty()) {
+    return;
+  }
+  const float compliance = behavior_bundle.lookup<float>("Compliance").value_or(0.0f);
+  r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__curve_lengths(
+      scope, std::move(*rest_length_attribute), compliance));
+}
+
+static void parse_behavior__fixed_positions(std::string path,
+                                            const Bundle &behavior_bundle,
+                                            ResourceScope &scope,
+                                            geometry::xpbd::Behaviors &r_behaviors)
+{
+  std::optional<Field<bool>> selection_field = behavior_bundle.lookup<Field<bool>>("Selection");
+  std::optional<Field<float3>> positions_field = behavior_bundle.lookup<Field<float3>>("Position");
+  if (!selection_field || !positions_field) {
+    return;
+  }
+  r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__fixed_positions(
+      scope, *selection_field, *positions_field));
+}
+
+static void parse_behavior__infinite_collision_plane(std::string path,
+                                                     const Bundle &behavior_bundle,
+                                                     ResourceScope &scope,
+                                                     geometry::xpbd::Behaviors &r_behaviors)
+{
+  std::optional<float3> position = behavior_bundle.lookup<float3>("Position");
+  std::optional<float3> normal = behavior_bundle.lookup<float3>("Normal");
+  if (!position || !normal) {
+    return;
+  }
+  r_behaviors.constraint_sets.append(
+      &geometry::xpbd::create_constraint__infinite_collision_plane(scope, *position, *normal));
+}
+
+static void parse_behavior__global_volume(std::string path,
+                                          const Bundle &behavior_bundle,
+                                          ResourceScope &scope,
+                                          geometry::xpbd::Behaviors &r_behaviors)
+{
+  std::optional<std::string> rest_volume_name = behavior_bundle.lookup<std::string>(
+      "Rest Volume Name");
+  if (!rest_volume_name || rest_volume_name->empty()) {
+    return;
+  }
+  const float overpressure = behavior_bundle.lookup<float>("Overpressure").value_or(1.0f);
+  r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__global_volume(
+      scope, std::move(*rest_volume_name), overpressure));
+}
+
+static void parse_behavior(const StringRef type,
+                           std::string path,
+                           const Bundle &behavior_bundle,
+                           ResourceScope &scope,
+                           geometry::xpbd::Behaviors &r_behaviors)
+{
+  if (type == "Geometry") {
+    parse_behavior__geometry(std::move(path), behavior_bundle, scope, r_behaviors);
+    return;
+  }
+  if (type == "Force") {
+    parse_behavior__force(std::move(path), behavior_bundle, scope, r_behaviors);
+    return;
+  }
+  if (type == "Acceleration") {
+    parse_behavior__acceleration(std::move(path), behavior_bundle, scope, r_behaviors);
+    return;
+  }
+  if (type == "Edge Length Constraint") {
+    parse_behavior__edge_lengths(std::move(path), behavior_bundle, scope, r_behaviors);
+    return;
+  }
+  if (type == "Curve Length Constraint") {
+    parse_behavior__curve_lengths(std::move(path), behavior_bundle, scope, r_behaviors);
+    return;
+  }
+  if (type == "Fixed Position Constraint") {
+    parse_behavior__fixed_positions(std::move(path), behavior_bundle, scope, r_behaviors);
+    return;
+  }
+  if (type == "Infinite Collision Plane") {
+    parse_behavior__infinite_collision_plane(std::move(path), behavior_bundle, scope, r_behaviors);
+    return;
+  }
+  if (type == "Global Volume Constraint") {
+    parse_behavior__global_volume(std::move(path), behavior_bundle, scope, r_behaviors);
+    return;
+  }
+}
+
 static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bundle,
                                                  ResourceScope &scope)
 {
@@ -44,108 +211,9 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
   foreach_behavior_in_bundle(
       *behaviors_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path_stack) {
-        const std::string path = combine_bundle_path(path_stack);
-        if (type == "Geometry") {
-          std::optional<GeometrySet> geometry = behavior_bundle.lookup<GeometrySet>("Geometry");
-          if (!geometry) {
-            return;
-          }
-          auto &sim_geometry_set = scope.construct<geometry::xpbd::SimGeometrySet>();
-          sim_geometry_set.path = path;
-          sim_geometry_set.geometry = *geometry;
-          sim_geometry_set.mass_attribute =
-              behavior_bundle.lookup<std::string>("Mass Attribute").value_or("mass");
-          sim_geometry_set.velocity_attribute =
-              behavior_bundle.lookup<std::string>("Velocity").value_or("velocity");
-          behaviors.sim_geometry_sets.append(&sim_geometry_set);
-          return;
-        }
-        if (type == "Force") {
-          std::optional<Field<float3>> force_field = behavior_bundle.lookup<Field<float3>>(
-              "Force Field");
-          if (!force_field) {
-            return;
-          }
-          geometry::xpbd::ForceField force;
-          force.force_field = *force_field;
-          behaviors.force_fields.append(force);
-          return;
-        }
-        if (type == "Acceleration") {
-          std::optional<Field<float3>> acceleration_field = behavior_bundle.lookup<Field<float3>>(
-              "Acceleration Field");
-          if (!acceleration_field) {
-            return;
-          }
-          geometry::xpbd::AccelerationField acceleration;
-          acceleration.acceleration_field = *acceleration_field;
-          behaviors.acceleration_fields.append(acceleration);
-          return;
-        }
-        if (type == "Edge Length Constraint") {
-          std::optional<std::string> rest_length_attribute = behavior_bundle.lookup<std::string>(
-              "Rest Length Attribute");
-          if (!rest_length_attribute) {
-            return;
-          }
-          if (rest_length_attribute->empty()) {
-            return;
-          }
-          const float compliance = behavior_bundle.lookup<float>("Compliance").value_or(0.0f);
-          behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__edge_lengths(
-              scope, std::move(*rest_length_attribute), compliance));
-          return;
-        }
-        if (type == "Curve Length Constraint") {
-          std::optional<std::string> rest_length_attribute = behavior_bundle.lookup<std::string>(
-              "Rest Length Attribute");
-          if (!rest_length_attribute) {
-            return;
-          }
-          if (rest_length_attribute->empty()) {
-            return;
-          }
-          const float compliance = behavior_bundle.lookup<float>("Compliance").value_or(0.0f);
-          behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__curve_lengths(
-              scope, std::move(*rest_length_attribute), compliance));
-          return;
-        }
-        if (type == "Fixed Position Constraint") {
-          std::optional<Field<bool>> selection_field = behavior_bundle.lookup<Field<bool>>(
-              "Selection");
-          std::optional<Field<float3>> positions_field = behavior_bundle.lookup<Field<float3>>(
-              "Position");
-          if (!selection_field || !positions_field) {
-            return;
-          }
-          behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__fixed_positions(
-              scope, *selection_field, *positions_field));
-          return;
-        }
-        if (type == "Infinite Collision Plane") {
-          std::optional<float3> position = behavior_bundle.lookup<float3>("Position");
-          std::optional<float3> normal = behavior_bundle.lookup<float3>("Normal");
-          if (!position || !normal) {
-            return;
-          }
-          behaviors.constraint_sets.append(
-              &geometry::xpbd::create_constraint__infinite_collision_plane(
-                  scope, *position, *normal));
-          return;
-        }
-        if (type == "Global Volume Constraint") {
-          std::optional<std::string> rest_volume_name = behavior_bundle.lookup<std::string>(
-              "Rest Volume Name");
-          if (!rest_volume_name || rest_volume_name->empty()) {
-            return;
-          }
-          const float overpressure = behavior_bundle.lookup<float>("Overpressure").value_or(1.0f);
-          behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__global_volume(
-              scope, std::move(*rest_volume_name), overpressure));
-          return;
-        }
+        std::string path = combine_bundle_path(path_stack);
+        parse_behavior(type, std::move(path), behavior_bundle, scope, behaviors);
       });
-
   return behaviors;
 }
 
