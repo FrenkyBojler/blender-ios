@@ -215,8 +215,7 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager 
     const Base* base = CTX_data_active_base(C);
     /* When attempting to switch modes automatically, if the object is not visible and is in Object
      * Mode, prevent forcibly changing the workspace. This is consistent with both the mode
-     * dropdown and pie menu.
-     */
+     * dropdown and pie menu. */
     const bool can_switch_from_object_mode = object && object->mode == OB_MODE_OBJECT && base && BKE_base_is_visible(v3d, base);
     if (!object || object->mode != OB_MODE_OBJECT || can_switch_from_object_mode) {
       blender::ed::object::mode_set(C, eObjectMode(workspace_new->object_mode));
