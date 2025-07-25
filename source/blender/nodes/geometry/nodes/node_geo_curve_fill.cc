@@ -45,10 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveFill *data = MEM_callocN<NodeGeometryCurveFill>(__func__);
-
-  data->mode = GEO_NODE_CURVE_FILL_MODE_TRIANGULATED;
-  node->storage = data;
+  node->storage = MEM_callocN<NodeGeometryCurveFill>(__func__);
 }
 
 static void fill_curve_vert_indices(const OffsetIndices<int> offsets,

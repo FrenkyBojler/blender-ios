@@ -711,15 +711,6 @@ static void do_version_uv_unwrap_options_to_inputs(bNodeTree &ntree, bNode &node
   socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.method;
 }
 
-static void do_version_rotate_rotation_options_to_inputs(bNodeTree &ntree, bNode &node)
-{
-  if (blender::bke::node_find_socket(node, SOCK_IN, "Space")) {
-    return;
-  }
-  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Space");
-  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
-}
-
 static void version_seq_text_from_legacy(Main *bmain)
 {
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
@@ -1842,9 +1833,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           }
           else if (node->type_legacy == GEO_NODE_UV_UNWRAP) {
             do_version_uv_unwrap_options_to_inputs(*node_tree, *node);
-          }
-          else if (node->type_legacy == FN_NODE_ROTATE_ROTATION) {
-            do_version_rotate_rotation_options_to_inputs(*node_tree, *node);
           }
         }
       }
