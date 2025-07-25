@@ -13,17 +13,17 @@
 #include "COM_context.hh"
 #include "COM_result.hh"
 
-#include "COM_algorithm_sample_gpu_texture.hh"
+#include "COM_algorithm_sample_pixel.hh"
 
 namespace blender::compositor {
 
 /* Samples a pixel from a GPU texture. */
-template<typename T> T sample_gpu_texture(Context &context, const Result &result, const int2 texel)
+template<typename T> T sample_pixel(Context &context, const Result &result, const int2 texel)
 {
   BLI_assert((texel.x >= 0) && (texel.y >= 0) && (texel.x < result.domain().size.x) &&
              (texel.y < result.domain().size.y));
 
-  GPUShader *shader = context.get_shader("compositor_sample_gpu_texture");
+  GPUShader *shader = context.get_shader("compositor_sample_pixel");
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_2iv(shader, "texel", texel);
@@ -57,7 +57,7 @@ template<typename T> T sample_gpu_texture(Context &context, const Result &result
   return sampled_value;
 }
 
-template float4 sample_gpu_texture<float4>(Context &context,
+template float4 sample_pixel<float4>(Context &context,
                                            const Result &result,
                                            const int2 texel);
 

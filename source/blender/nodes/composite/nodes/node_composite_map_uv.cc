@@ -18,7 +18,7 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "COM_algorithm_sample_gpu_texture.hh"
+#include "COM_algorithm_sample_pixel.hh"
 #include "COM_domain.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -122,7 +122,7 @@ class MapUVOperation : public NodeOperation {
     GPU_shader_unbind();
 
     if (input_uv.is_single_value()) {
-      float4 output_single_value = sample_gpu_texture<float4>(context(), output_image, int2(0, 0));
+      float4 output_single_value = sample_pixel<float4>(context(), output_image, int2(0, 0));
       output_image.set_single_value(output_single_value);
     }
   }
