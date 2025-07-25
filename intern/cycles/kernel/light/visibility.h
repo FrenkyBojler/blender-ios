@@ -5,7 +5,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-
 ccl_device_inline BsdfEvalRGBE BsdfEvalToBsdfEvalRGBE(ccl_private const BsdfEval &bsdfEval)
 {
   BsdfEvalRGBE bsdfEvalRGBE;
