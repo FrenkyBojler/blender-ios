@@ -1182,7 +1182,7 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       Vector<const void *> default_input_values = {
           bke::node_socket_type_find_static(SOCK_FLOAT)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
-          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE),
+          nodes::ClosureSignature::from_builtin(CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE),
           std::make_shared<ClosureMultiFunctionForFloatCurve>(*value.curve_mapping),
           std::move(default_input_values),
           std::nullopt,
@@ -1196,7 +1196,7 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       Vector<const void *> default_input_values = {
           bke::node_socket_type_find_static(SOCK_VECTOR)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
-          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE),
+          nodes::ClosureSignature::from_builtin(CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE),
           std::make_shared<ClosureMultiFunctionForVectorCurve>(*value.curve_mapping),
           std::move(default_input_values),
           std::nullopt,
@@ -1210,7 +1210,7 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       Vector<const void *> default_input_values = {
           bke::node_socket_type_find_static(SOCK_RGBA)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
-          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE),
+          nodes::ClosureSignature::from_builtin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE),
           std::make_shared<ClosureMultiFunctionForColorCurve>(*value.curve_mapping),
           std::move(default_input_values),
           std::nullopt,
@@ -1223,7 +1223,7 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       Vector<const void *> default_input_values = {
           bke::node_socket_type_find_static(SOCK_FLOAT)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
-          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP),
+          nodes::ClosureSignature::from_builtin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP),
           std::make_shared<ClosureMultiFunctionForColorRamp>(*value.color_ramp),
           std::move(default_input_values),
           std::nullopt,
