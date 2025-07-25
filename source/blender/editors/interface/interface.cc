@@ -4236,9 +4236,6 @@ static std::unique_ptr<uiBut> ui_but_new(const ButType type)
     case ButType::Curve:
       but = std::make_unique<uiButCurveMapping>();
       break;
-    case ButType::CurvePreview:
-      but = std::make_unique<uiButCurveMappingPreview>();
-      break;
     case ButType::CurveProfile:
       but = std::make_unique<uiButCurveProfile>();
       break;

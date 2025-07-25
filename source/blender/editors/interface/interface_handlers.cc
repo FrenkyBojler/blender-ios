@@ -1381,13 +1381,6 @@ static void ui_apply_but_CURVE(bContext *C, uiBut *but, uiHandleButtonData *data
   data->applied = true;
 }
 
-static void ui_apply_but_CURVE_PREVIEW(bContext *C, uiBut *but, uiHandleButtonData *data)
-{
-  ui_apply_but_func(C, but);
-  data->retval = but->retval;
-  data->applied = true;
-}
-
 static void ui_apply_but_CURVEPROFILE(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
   ui_apply_but_func(C, but);
@@ -2341,10 +2334,6 @@ static void ui_apply_but(
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     editcumap = but_cumap->edit_cumap;
   }
-  else if (but_type == ButType::CurvePreview) {
-    auto *but_cumap_preview = static_cast<uiButCurveMappingPreview *>(but);
-    editcumap = but_cumap_preview->cumap;
-  }
   else if (but_type == ButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
     editprofile = but_profile->edit_profile;
@@ -2359,10 +2348,6 @@ static void ui_apply_but(
   else if (but_type == ButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = nullptr;
-  }
-  else if (but_type == ButType::CurvePreview) {
-    auto *but_cumap_preview = static_cast<uiButCurveMappingPreview *>(but);
-    but_cumap_preview->cumap = nullptr;
   }
   else if (but_type == ButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
@@ -2432,9 +2417,6 @@ static void ui_apply_but(
     case ButType::Curve:
       ui_apply_but_CURVE(C, but, data);
       break;
-    case ButType::CurvePreview:
-      ui_apply_but_CURVE_PREVIEW(C, but, data);
-      break;
     case ButType::CurveProfile:
       ui_apply_but_CURVEPROFILE(C, but, data);
       break;
@@ -2492,10 +2474,6 @@ static void ui_apply_but(
   else if (but_type == ButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = editcumap;
-  }
-  else if (but_type == ButType::CurvePreview) {
-    auto *but_cumap_preview = static_cast<uiButCurveMappingPreview *>(but);
-    but_cumap_preview->cumap = editcumap;
   }
   else if (but_type == ButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
@@ -4224,10 +4202,6 @@ static void ui_numedit_begin(uiBut *but, uiHandleButtonData *data)
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = (CurveMapping *)but->poin;
   }
-  else if (but->type == ButType::CurvePreview) {
-    auto *but_cumap_preview = static_cast<uiButCurveMappingPreview *>(but);
-    but_cumap_preview->cumap = reinterpret_cast<CurveMapping *>(but->poin);
-  }
   else if (but->type == ButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
     but_profile->edit_profile = (CurveProfile *)but->poin;
@@ -4354,10 +4328,6 @@ static void ui_numedit_end(uiBut *but, uiHandleButtonData *data)
   else if (but->type == ButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = nullptr;
-  }
-  else if (but->type == ButType::CurvePreview) {
-    auto *but_cumap = static_cast<uiButCurveMappingPreview *>(but);
-    but_cumap->cumap = nullptr;
   }
   else if (but->type == ButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
@@ -7758,13 +7728,6 @@ static int ui_do_but_CURVE(
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static int ui_do_but_CURVE_PREVIEW(
-    bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
-{
-  UNUSED_VARS(C, block, but, data, event);
-  return WM_UI_HANDLER_CONTINUE;
-}
-
 /* Same as ui_numedit_but_CURVE with some smaller changes. */
 static bool ui_numedit_but_CURVEPROFILE(uiBlock *block,
                                         uiBut *but,
@@ -8486,9 +8449,6 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
       break;
     case ButType::Curve:
       retval = ui_do_but_CURVE(C, block, but, data, event);
-      break;
-    case ButType::CurvePreview:
-      retval = ui_do_but_CURVE_PREVIEW(C, block, but, data, event);
       break;
     case ButType::CurveProfile:
       retval = ui_do_but_CURVEPROFILE(C, block, but, data, event);

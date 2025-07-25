@@ -579,8 +579,8 @@ static void curvemap_buttons_layout(uiLayout *layout,
   const int size = max_ii(layout->width(), UI_UNIT_X);
   {
     row = &layout->row(false);
-    uiButCurveMappingPreview *curve_but = static_cast<uiButCurveMappingPreview *>(uiDefBut(
-        block, ButType::CurvePreview, 0, "", 0, 0, size, UI_UNIT_Y, cumap, 0.0f, 1.0f, ""));
+    uiButCurveMapping *curve_but = static_cast<uiButCurveMapping *>(
+        uiDefBut(block, ButType::Curve, 0, "", 0, 0, size, UI_UNIT_Y, cumap, 0.0f, 1.0f, ""));
     curve_but->gradient_type = bg;
   }
   {

@@ -5226,10 +5226,6 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         ui_draw_but_CURVE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case ButType::CurvePreview:
-        ui_draw_but_CURVE_PREVIEW(region, but, &tui->wcol_regular, rect);
-        break;
-
       case ButType::CurveProfile:
         ui_draw_but_CURVEPROFILE(region, but, &tui->wcol_regular, rect);
         break;

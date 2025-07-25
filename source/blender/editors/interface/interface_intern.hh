@@ -469,11 +469,6 @@ struct uiButCurveMapping : public uiBut {
   eButGradientType gradient_type = UI_GRAD_SV;
 };
 
-struct uiButCurveMappingPreview : public uiBut {
-  CurveMapping *cumap = nullptr;
-  eButGradientType gradient_type = UI_GRAD_SV;
-};
-
 /** Derived struct for #ButType::HotkeyEvent. */
 struct uiButHotkeyEvent : public uiBut {
   wmEventModifierFlag modifier_key = wmEventModifierFlag(0);
@@ -1169,10 +1164,6 @@ void ui_draw_but_VECTORSCOPE(ARegion *region,
 void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *wcol, const rcti *rect);
 void ui_draw_but_UNITVEC(uiBut *but, const uiWidgetColors *wcol, const rcti *rect, float radius);
 void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect);
-void ui_draw_but_CURVE_PREVIEW(ARegion *region,
-                               uiBut *but,
-                               const uiWidgetColors *wcol,
-                               const rcti *rect);
 /**
  * Draws the curve profile widget. Somewhat similar to ui_draw_but_CURVE.
  */

@@ -433,7 +433,6 @@ enum class ButType : int8_t {
   /** Sphere widget (used to input a unit-vector, aka normal). */
   Unitvec,
   Curve,
-  CurvePreview,
   /** Profile editing widget. */
   CurveProfile,
   ListBox,
