@@ -1467,6 +1467,8 @@ static const EnumPropertyItem *rna_ImageFormatSettings_file_format_itemf(bContex
     case MEDIA_TYPE_VIDEO:
       return video_image_type_items;
   }
+
+  return rna_enum_image_type_all_items;
 }
 
 static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext * /*C*/,
