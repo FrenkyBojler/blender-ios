@@ -1184,7 +1184,7 @@ static bool do_lasso_select_grease_pencil(const ViewContext *vc,
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                ob_eval, *object, info.layer_index, info.frame_number);
+                ob_eval, *object, info.drawing);
         const IndexMask visible_handle_elements =
             ed::greasepencil::retrieve_visible_bezier_handle_elements(
                 *object, info.drawing, info.layer_index, selection_domain, memory);
@@ -1790,7 +1790,7 @@ static bool object_mouse_select_menu(bContext *C,
   RNA_boolean_set(&ptr, "extend", params.sel_op == SEL_OP_ADD);
   RNA_boolean_set(&ptr, "deselect", params.sel_op == SEL_OP_SUB);
   RNA_boolean_set(&ptr, "toggle", params.sel_op == SEL_OP_XOR);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   BLI_freelistN(&base_ref_list);
@@ -2039,7 +2039,7 @@ static bool bone_mouse_select_menu(bContext *C,
   RNA_boolean_set(&ptr, "extend", params.sel_op == SEL_OP_ADD);
   RNA_boolean_set(&ptr, "deselect", params.sel_op == SEL_OP_SUB);
   RNA_boolean_set(&ptr, "toggle", params.sel_op == SEL_OP_XOR);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   BLI_freelistN(&bone_ref_list);
@@ -2753,6 +2753,9 @@ static bool ed_object_select_pick(bContext *C,
         /* Special case, even when there are no hits, pose logic may de-select all bones. */
         ((gpu->hits == 0) && has_pose_old))
     {
+      /* Regarding the `basact` null checks.
+       * While it's unlikely there are GPU hits *without* `basact` being found,
+       * it's possible looking up the selection index fails, see: #143161. */
 
       if (basact && (gpu->has_bones && (basact->object->type == OB_CAMERA))) {
         MovieClip *clip = BKE_object_movieclip_get(scene, basact->object, false);
@@ -2774,7 +2777,8 @@ static bool ed_object_select_pick(bContext *C,
           }
         }
       }
-      else if (ED_armature_pose_select_pick_with_buffer(scene,
+      else if ((basact || oldbasact) &&
+               ED_armature_pose_select_pick_with_buffer(scene,
                                                         view_layer,
                                                         v3d,
                                                         basact ? basact : (Base *)oldbasact,
@@ -3351,7 +3355,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
           /* Get deformation by modifiers. */
           bke::crazyspace::GeometryDeformation deformation =
               bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                  ob_eval, *object, info.layer_index, info.frame_number);
+                  ob_eval, *object, info.drawing);
 
           IndexMaskMemory memory;
           const IndexMask elements = ed::greasepencil::retrieve_editable_elements(
@@ -4409,7 +4413,7 @@ static bool do_grease_pencil_box_select(const ViewContext *vc,
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                ob_eval, *object, info.layer_index, info.frame_number);
+                ob_eval, *object, info.drawing);
         const IndexMask visible_handle_elements =
             ed::greasepencil::retrieve_visible_bezier_handle_elements(
                 *object, info.drawing, info.layer_index, selection_domain, memory);
@@ -5292,7 +5296,7 @@ static bool grease_pencil_circle_select(const ViewContext *vc,
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                ob_eval, *object, info.layer_index, info.frame_number);
+                ob_eval, *object, info.drawing);
         const IndexMask visible_handle_elements =
             ed::greasepencil::retrieve_visible_bezier_handle_elements(
                 *object, info.drawing, info.layer_index, selection_domain, memory);

@@ -1061,7 +1061,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
 
 static void fullscreen_azone_init(ScrArea *area, ARegion *region)
 {
-  if (ED_area_is_global(area) || (region->regiontype != RGN_TYPE_WINDOW)) {
+  if (ED_area_is_global(area) || !ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_PREVIEW)) {
     return;
   }
 
@@ -2614,6 +2614,16 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
   BKE_screen_area_free(tmp);
   MEM_delete(tmp);
 
+  /* The areas being swapped could be between different windows,
+   * so clear screen active region pointers. This is set later
+   * through regular operations. #141313. */
+  wmWindowManager *wm = CTX_wm_manager(C);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    if (bScreen *screen = WM_window_get_active_screen(win)) {
+      screen->active_region = nullptr;
+    }
+  }
+
   /* tell WM to refresh, cursor types etc */
   WM_event_add_mousemove(win);
 
@@ -2825,7 +2835,7 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
   PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
 
   uiDefButR(block,
-            UI_BTYPE_MENU,
+            ButType::Menu,
             0,
             "",
             xco,
@@ -2908,7 +2918,7 @@ static void ed_panel_draw(const bContext *C,
                           int em,
                           char *unique_panel_str,
                           const char *search_filter,
-                          wmOperatorCallContext op_context)
+                          blender::wm::OpCallContext op_context)
 {
   const uiStyle *style = UI_style_get_dpi();
 
@@ -2930,7 +2940,8 @@ static void ed_panel_draw(const bContext *C,
   const bool search_filter_active = search_filter != nullptr && search_filter[0] != '\0';
 
   /* bad fixed values */
-  int xco, yco, h = 0;
+  blender::int2 co = {0, 0};
+  int h = 0;
   int headerend = w - UI_UNIT_X;
 
   UI_panel_header_buttons_begin(panel);
@@ -2951,8 +2962,8 @@ static void ed_panel_draw(const bContext *C,
     pt->draw_header_preset(C, panel);
 
     UI_block_apply_search_filter(block, search_filter);
-    UI_block_layout_resolve(block, &xco, &yco);
-    UI_block_translate(block, headerend - xco, 0);
+    co = blender::ui::block_layout_resolve(block);
+    UI_block_translate(block, headerend - co.x, 0);
     panel->layout = nullptr;
   }
 
@@ -2991,8 +3002,8 @@ static void ed_panel_draw(const bContext *C,
     pt->draw_header(C, panel);
 
     UI_block_apply_search_filter(block, search_filter);
-    UI_block_layout_resolve(block, &xco, &yco);
-    panel->labelofs = xco - labelx;
+    co = blender::ui::block_layout_resolve(block);
+    panel->labelofs = co.x - labelx;
     panel->layout = nullptr;
   }
   else {
@@ -3032,11 +3043,11 @@ static void ed_panel_draw(const bContext *C,
     const bool ends_with_layout_panel_header = uiLayoutEndsWithPanelHeader(*panel->layout);
 
     UI_block_apply_search_filter(block, search_filter);
-    UI_block_layout_resolve(block, &xco, &yco);
+    co = blender::ui::block_layout_resolve(block);
     panel->layout = nullptr;
 
-    if (yco != 0) {
-      h = -yco;
+    if (co.y != 0) {
+      h = -co.y;
       h += style->panelspace;
       if (!ends_with_layout_panel_header) {
         /* Last layout panel header ends together with the panel. */
@@ -3159,7 +3170,7 @@ static int panel_draw_width_from_max_width_get(const ARegion *region,
 void ED_region_panels_layout_ex(const bContext *C,
                                 ARegion *region,
                                 ListBase *paneltypes,
-                                wmOperatorCallContext op_context,
+                                blender::wm::OpCallContext op_context,
                                 const char *contexts[],
                                 const char *category_override)
 {
@@ -3338,8 +3349,12 @@ void ED_region_panels_layout_ex(const bContext *C,
 
 void ED_region_panels_layout(const bContext *C, ARegion *region)
 {
-  ED_region_panels_layout_ex(
-      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, nullptr, nullptr);
+  ED_region_panels_layout_ex(C,
+                             region,
+                             &region->runtime->type->paneltypes,
+                             blender::wm::OpCallContext::InvokeRegionWin,
+                             nullptr,
+                             nullptr);
 }
 
 void ED_region_panels_draw(const bContext *C, ARegion *region)
@@ -3400,7 +3415,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
 
 void ED_region_panels_ex(const bContext *C,
                          ARegion *region,
-                         wmOperatorCallContext op_context,
+                         blender::wm::OpCallContext op_context,
                          const char *contexts[])
 {
   /* TODO: remove? */
@@ -3500,7 +3515,7 @@ static bool panel_property_search(const bContext *C,
     panel_type->draw(C, panel);
   }
 
-  UI_block_layout_free(block);
+  blender::ui::block_layout_free(block);
 
   /* We could check after each layout to increase the likelihood of returning early,
    * but that probably wouldn't make much of a difference anyway. */
@@ -3611,9 +3626,8 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   const float buttony_scale = buttony / float(UI_UNIT_Y);
 
   /* Vertically center buttons. */
-  int xco = int(UI_HEADER_OFFSET);
-  int yco = buttony + (region->winy - buttony) / 2;
-  int maxco = xco;
+  blender::int2 co = {int(UI_HEADER_OFFSET), buttony + (region->winy - buttony) / 2};
+  int maxco = co.x;
 
   /* set view2d view matrix for scrolling (without scrollers) */
   UI_view2d_view_ortho(&region->v2d);
@@ -3628,8 +3642,8 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
     uiLayout &layout = blender::ui::block_layout(block,
                                                  blender::ui::LayoutDirection::Horizontal,
                                                  blender::ui::LayoutType::Header,
-                                                 xco,
-                                                 yco,
+                                                 co.x,
+                                                 co.y,
                                                  buttony,
                                                  1,
                                                  0,
@@ -3649,14 +3663,14 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
       }
 
       /* for view2d */
-      xco = layout.width();
-      maxco = std::max(xco, maxco);
+      co.x = layout.width();
+      maxco = std::max(co.x, maxco);
     }
 
-    UI_block_layout_resolve(block, &xco, &yco);
+    co = blender::ui::block_layout_resolve(block);
 
     /* for view2d */
-    maxco = std::max(xco, maxco);
+    maxco = std::max(co.x, maxco);
 
     int new_sizex = (maxco + UI_HEADER_OFFSET) / UI_SCALE_FAC;
 

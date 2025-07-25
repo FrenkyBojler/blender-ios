@@ -39,6 +39,7 @@
 #include "kernel/svm/bevel.h"
 
 #include "kernel/util/ies.h"
+#include "kernel/util/texture_3d.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -105,6 +106,7 @@ ustring OSLRenderServices::u_path_diffuse_depth("path:diffuse_depth");
 ustring OSLRenderServices::u_path_glossy_depth("path:glossy_depth");
 ustring OSLRenderServices::u_path_transparent_depth("path:transparent_depth");
 ustring OSLRenderServices::u_path_transmission_depth("path:transmission_depth");
+ustring OSLRenderServices::u_path_portal_depth("path:portal_depth");
 ustring OSLRenderServices::u_trace("trace");
 ustring OSLRenderServices::u_hit("hit");
 ustring OSLRenderServices::u_hitdist("hitdist");
@@ -133,7 +135,7 @@ OSLRenderServices::OSLRenderServices(OSL::TextureSystem *texture_system, const i
 OSLRenderServices::~OSLRenderServices()
 {
   if (m_texturesys) {
-    VLOG_INFO << "OSL texture system stats:\n" << m_texturesys->getstats();
+    LOG_INFO << "OSL texture system stats:\n" << m_texturesys->getstats();
   }
 }
 
@@ -656,7 +658,7 @@ inline bool get_object_attribute_impl(const ThreadKernelGlobalsCPU *kg,
   T dy = make_zero<T>();
 #ifdef __VOLUME__
   if (primitive_is_volume_attribute(sd)) {
-    v = primitive_volume_attribute<T>(kg, sd, desc);
+    v = primitive_volume_attribute<T>(kg, sd, desc, true);
   }
   else
 #endif
@@ -923,6 +925,11 @@ bool OSLRenderServices::get_background_attribute(
   if (name == u_path_transparent_depth) {
     /* Transparent Ray Depth */
     const int f = READ_PATH_STATE(transparent_bounce);
+    return set_attribute(f, type, derivatives, val);
+  }
+  if (name == u_path_portal_depth) {
+    /* Portal Ray Depth */
+    const int f = READ_PATH_STATE(portal_bounce);
     return set_attribute(f, type, derivatives, val);
   }
 #undef READ_PATH_STATE
@@ -1346,7 +1353,8 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
       /* Packed texture. */
       const int slot = handle->svm_slots[0].y;
       const float3 P_float3 = make_float3(P.x, P.y, P.z);
-      float4 rgba = kernel_tex_image_interp_3d(kernel_globals, slot, P_float3, INTERPOLATION_NONE);
+      float4 rgba = kernel_tex_image_interp_3d(
+          kernel_globals, slot, P_float3, INTERPOLATION_NONE, -1.0f);
 
       result[0] = rgba[0];
       if (nchannels > 1) {
