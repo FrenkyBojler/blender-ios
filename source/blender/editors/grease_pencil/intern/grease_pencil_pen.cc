@@ -865,6 +865,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     MutableSpan<float3> positions = curves.positions_for_write();
     const OffsetIndices points_by_curve = curves.points_by_curve();
+    const bke::AttributeAccessor attributes = curves.attributes();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
@@ -947,11 +948,18 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
       return;
     }
 
+    const VArray<bool> left_selected = *attributes.lookup_or_default<bool>(
+        ".selection_handle_left", bke::AttrDomain::Point, true);
+    const VArray<bool> right_selected = *attributes.lookup_or_default<bool>(
+        ".selection_handle_right", bke::AttrDomain::Point, true);
+
     bezier_points.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
       const float3 depth_point = positions[point_i];
       float2 offset = float2(event->xy) - float2(event->prev_xy);
 
-      if (ptd.move_point && !ptd.point_added) {
+      if (ptd.move_point && !ptd.point_added &&
+          !(left_selected[point_i] || right_selected[point_i]))
+      {
         positions[point_i] = pen_screen_to_global(
             ptd, pen_global_to_screen(ptd, positions[point_i]) + offset, depth_point);
         handles_left[point_i] = pen_screen_to_global(
