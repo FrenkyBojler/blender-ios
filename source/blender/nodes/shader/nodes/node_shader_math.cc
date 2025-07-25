@@ -6,7 +6,6 @@
  * \ingroup shdnodes
  */
 
-#include "node_shader_util.hh"
 #include "node_util.hh"
 
 #include "NOD_inverse_eval_params.hh"
@@ -15,84 +14,48 @@
 #include "NOD_value_elem_eval.hh"
 
 #include "RNA_enum_types.hh"
+#include "node_shader_util.hh"
 
-namespace blender {
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 /* **************** SCALAR MATH ******************** */
 
-namespace nodes::node_shader_math_cc {
+namespace blender::nodes::node_shader_math_cc {
+
+  NODE_STORAGE_FUNCS(NodeShaderMath)
 
 static void sh_node_math_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Value").default_value(0.5f).min(-10000.0f).max(10000.0f).label_fn(
-      [](bNode node) {
-        switch (node.custom1) {
-          case NODE_MATH_POWER:
-            return IFACE_("Base");
-          case NODE_MATH_DEGREES:
-            return IFACE_("Radians");
-          case NODE_MATH_RADIANS:
-            return IFACE_("Degrees");
-          default:
-            return IFACE_("Value");
-        }
-      });
-  b.add_input<decl::Float>("Value", "Value_001")
-      .default_value(0.5f)
-      .min(-10000.0f)
-      .max(10000.0f)
-      .label_fn([](bNode node) {
-        switch (node.custom1) {
-          case NODE_MATH_WRAP:
-            return IFACE_("Max");
-          case NODE_MATH_MULTIPLY_ADD:
-            return IFACE_("Multiplier");
-          case NODE_MATH_LESS_THAN:
-          case NODE_MATH_GREATER_THAN:
-            return IFACE_("Threshold");
-          case NODE_MATH_PINGPONG:
-            return IFACE_("Scale");
-          case NODE_MATH_SNAP:
-            return IFACE_("Increment");
-          case NODE_MATH_POWER:
-            return IFACE_("Exponent");
-          case NODE_MATH_LOGARITHM:
-            return IFACE_("Base");
-          default:
-            return IFACE_("Value");
-        }
-      });
-  b.add_input<decl::Float>("Value", "Value_002")
-      .default_value(0.5f)
-      .min(-10000.0f)
-      .max(10000.0f)
-      .label_fn([](bNode node) {
-        switch (node.custom1) {
-          case NODE_MATH_WRAP:
-            return IFACE_("Min");
-          case NODE_MATH_MULTIPLY_ADD:
-            return IFACE_("Addend");
-          case NODE_MATH_COMPARE:
-            return IFACE_("Epsilon");
-          case NODE_MATH_SMOOTH_MAX:
-          case NODE_MATH_SMOOTH_MIN:
-            return IFACE_("Distance");
-          default:
-            return IFACE_("Value");
-        }
-      });
-  b.add_output<decl::Float>("Value");
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
+  b.add_input<decl::Float>("Value").default_value(0.5f).min(-10000.0f).max(10000.0f);
+  b.add_output<decl::Float>("Value").align_with_previous();
+  b.add_input<decl::Float>("Value", "Value_001").default_value(0.5f).min(-10000.0f).max(10000.0f);
+  b.add_input<decl::Float>("Value", "Value_002").default_value(0.5f).min(-10000.0f).max(10000.0f);
 }
 
+static void node_shader_buts_math(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  if (!node || !node->storage) {
+    return;
+  }
+  const NodeShaderMath &data = node_storage(*node);
+  layout->prop(ptr, "operation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "use_clamp", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
 class SocketSearchOp {
  public:
   std::string socket_name;
-  NodeMathOperation mode = NODE_MATH_ADD;
+  NodeMathOperation op = NODE_MATH_ADD;
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("ShaderNodeMath");
-    node.custom1 = mode;
+    node_storage(node).operation = op;
+    node_storage(node).use_clamp = false;
     params.update_and_connect_available_socket(node, socket_name);
   }
 };
@@ -124,6 +87,14 @@ static void sh_node_math_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
+static void node_shader_math_init(bNodeTree * /*tree*/, bNode *node)
+{
+  NodeShaderMath *data = MEM_callocN<NodeShaderMath>(__func__);
+  data->operation = NODE_MATH_ADD;
+  data->use_clamp = 0;
+  node->storage = data;
+}
+
 static const char *gpu_shader_get_name(int mode)
 {
   const FloatMathOperationInfo *info = get_float_math_operation_info(mode);
@@ -142,11 +113,11 @@ static int gpu_shader_math(GPUMaterial *mat,
                            GPUNodeStack *in,
                            GPUNodeStack *out)
 {
-  const char *name = gpu_shader_get_name(node->custom1);
+  const NodeShaderMath &storage = node_storage(*node);
+  const char *name = gpu_shader_get_name(storage.operation);
   if (name != nullptr) {
     int ret = GPU_stack_link(mat, node, name, in, out);
-
-    if (ret && node->custom2 & SHD_MATH_CLAMP) {
+    if (ret && storage.use_clamp) {
       float min[3] = {0.0f, 0.0f, 0.0f};
       float max[3] = {1.0f, 1.0f, 1.0f};
       GPU_link(
@@ -154,14 +125,14 @@ static int gpu_shader_math(GPUMaterial *mat,
     }
     return ret;
   }
-
   return 0;
 }
 
 static void node_eval_elem(value_elem::ElemEvalParams &params)
 {
   using namespace value_elem;
-  const NodeMathOperation op = NodeMathOperation(params.node.custom1);
+  const NodeShaderMath &storage = node_storage(params.node);
+  const NodeMathOperation op = NodeMathOperation(storage.operation);
   switch (op) {
     case NODE_MATH_ADD:
     case NODE_MATH_SUBTRACT:
@@ -179,7 +150,8 @@ static void node_eval_elem(value_elem::ElemEvalParams &params)
 
 static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
 {
-  const NodeMathOperation op = NodeMathOperation(params.node.custom1);
+  const NodeShaderMath &storage = node_storage(params.node);
+  const NodeMathOperation op = NodeMathOperation(storage.operation);
   switch (op) {
     case NODE_MATH_ADD:
     case NODE_MATH_SUBTRACT:
@@ -195,7 +167,8 @@ static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
 
 static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 {
-  const NodeMathOperation op = NodeMathOperation(params.node.custom1);
+  const NodeShaderMath &storage = node_storage(params.node);
+  const NodeMathOperation op = NodeMathOperation(storage.operation);
   const StringRef first_input_id = "Value";
   const StringRef second_input_id = "Value_001";
   const StringRef output_id = "Value";
@@ -230,10 +203,12 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
   }
 }
 
+
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  NodeMathOperation op = NodeMathOperation(node_->custom1);
+  const NodeShaderMath &storage = node_storage(*node_);
+  NodeMathOperation op = NodeMathOperation(storage.operation);
   NodeItem res = empty();
 
   /* Single operand operations */
@@ -399,8 +374,7 @@ NODE_SHADER_MATERIALX_BEGIN
     }
   }
 
-  bool clamp_output = node_->custom2 != 0;
-  if (clamp_output && res) {
+  if (storage.use_clamp && res) {
     res = res.clamp();
   }
 
@@ -424,9 +398,13 @@ void register_node_type_sh_math()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_math_declare;
   ntype.labelfunc = node_math_label;
+  ntype.draw_buttons = file_ns::node_shader_buts_math;
   ntype.gpu_fn = file_ns::gpu_shader_math;
   ntype.updatefunc = node_math_update;
-  ntype.build_multi_function = nodes::node_math_build_multi_function;
+  ntype.initfunc = file_ns::node_shader_math_init;
+  blender::bke::node_type_storage(
+      ntype, "NodeShaderMath", node_free_standard_storage, node_copy_standard_storage);
+  ntype.build_multi_function = blender::nodes::node_math_build_multi_function;
   ntype.gather_link_search_ops = file_ns::sh_node_math_gather_link_searches;
   ntype.materialx_fn = file_ns::node_shader_materialx;
   ntype.eval_elem = file_ns::node_eval_elem;
