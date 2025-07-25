@@ -68,12 +68,6 @@ class Context : public compositor::Context {
     return true;
   }
 
-  eCompositorDenoiseQaulity get_denoise_quality() const override
-  {
-    return static_cast<eCompositorDenoiseQaulity>(
-        this->get_render_data().compositor_denoise_preview_quality);
-  }
-
   compositor::OutputTypes needed_outputs() const override
   {
     return compositor::OutputTypes::Composite | compositor::OutputTypes::Viewer;
@@ -81,7 +75,7 @@ class Context : public compositor::Context {
 
   /* The viewport compositor does not support viewer outputs, so treat viewers as composite
    * outputs. */
-  bool treat_viewer_as_composite_output() const override
+  bool treat_viewer_as_compositor_output() const override
   {
     return true;
   }
@@ -89,11 +83,6 @@ class Context : public compositor::Context {
   const RenderData &get_render_data() const override
   {
     return scene_->r;
-  }
-
-  int2 get_render_size() const override
-  {
-    return int2(DRW_context_get()->viewport_size_get());
   }
 
   /* We limit the compositing region to the camera region if in camera view, while we use the
@@ -127,7 +116,7 @@ class Context : public compositor::Context {
     return visible_camera_region;
   }
 
-  compositor::Result get_output_result() override
+  compositor::Result get_output() override
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color,
                                                     compositor::ResultPrecision::Half);
@@ -135,9 +124,9 @@ class Context : public compositor::Context {
     return result;
   }
 
-  compositor::Result get_viewer_output_result(compositor::Domain /*domain*/,
-                                              bool /*is_data*/,
-                                              compositor::ResultPrecision /*precision*/) override
+  compositor::Result get_viewer_output(compositor::Domain /*domain*/,
+                                       bool /*is_data*/,
+                                       compositor::ResultPrecision /*precision*/) override
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color,
                                                     compositor::ResultPrecision::Half);
@@ -145,7 +134,7 @@ class Context : public compositor::Context {
     return result;
   }
 
-  compositor::Result get_pass(const Scene *scene, int view_layer, const char *pass_name) override
+  compositor::Result get_input(const Scene *scene, int view_layer, const char *pass_name) override
   {
     if (DEG_get_original(scene) != DEG_get_original(scene_)) {
       return compositor::Result(*this);
