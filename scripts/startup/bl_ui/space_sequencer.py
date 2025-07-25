@@ -986,13 +986,12 @@ class SEQUENCER_MT_strip_animation(Menu):
         layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set").always_prompt = True
         layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
 
+
 class SEQUENCER_MT_strip_mirror(Menu):
     bl_label = "Mirror"
 
     def draw(self, _context):
         layout = self.layout
-
-        # Operator only used in Preview.
         layout.operator_context = 'INVOKE_REGION_PREVIEW'
 
         layout.operator("transform.mirror", text="Interactive Mirror")
