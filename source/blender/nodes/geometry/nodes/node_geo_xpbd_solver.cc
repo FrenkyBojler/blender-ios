@@ -39,6 +39,11 @@ struct ParseBehaviorParams {
   const Bundle &bundle;
   ResourceScope &scope;
   geometry::xpbd::Behaviors &r_behaviors;
+
+  std::string self_path() const
+  {
+    return combine_bundle_path(this->path_elems);
+  }
 };
 
 static void parse_behavior__geometry(ParseBehaviorParams &params)
@@ -90,9 +95,14 @@ static void parse_behavior__edge_lengths(ParseBehaviorParams &params)
   if (rest_length_attribute->empty()) {
     return;
   }
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
-  params.r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__edge_lengths(
-      params.scope, std::move(*rest_length_attribute), compliance));
+  params.r_behaviors.constraint_sets.append(
+      &geometry::xpbd::create_constraint__edge_lengths(params.scope,
+                                                       params.self_path(),
+                                                       std::move(filter),
+                                                       std::move(*rest_length_attribute),
+                                                       compliance));
 }
 
 static void parse_behavior__curve_lengths(ParseBehaviorParams &params)

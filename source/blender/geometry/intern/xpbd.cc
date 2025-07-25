@@ -99,6 +99,27 @@ template<typename T> std::optional<T> SimGeometrySet::get_extra(const StringRef 
   return this->extra->lookup<T>(key);
 }
 
+static bool is_path_selected(const StringRef base_path,
+                             const StringRef filter,
+                             const StringRef other)
+{
+  if (filter.is_empty()) {
+    return true;
+  }
+  std::string absolute_filter;
+  if (filter.startswith("./")) {
+    absolute_filter = base_path + filter.drop_known_prefix("./");
+  }
+  else {
+    absolute_filter = filter;
+  }
+  if (!other.startswith(absolute_filter)) {
+    return false;
+  }
+  const StringRef remaining_other = other.drop_known_prefix(absolute_filter);
+  return remaining_other.is_empty() || remaining_other.startswith("/");
+}
+
 void ConstraintSet::ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
 
 void ConstraintSet::solve(ConstraintSetSolveParams & /*params*/) {}
@@ -190,18 +211,29 @@ static void solve_distance_constraint(const int geometry0,
 
 class EdgeLengthConstraintSet : public ConstraintSet {
  private:
+  std::string self_path_;
+  std::string filter_;
   std::string rest_length_attribute_;
   float compliance_;
 
  public:
-  EdgeLengthConstraintSet(std::string rest_length_attribute, const float compliance)
-      : rest_length_attribute_(std::move(rest_length_attribute)), compliance_(compliance)
+  EdgeLengthConstraintSet(std::string self_path,
+                          std::string filter,
+                          std::string rest_length_attribute,
+                          const float compliance)
+      : self_path_(std::move(self_path)),
+        filter_(std::move(filter)),
+        rest_length_attribute_(std::move(rest_length_attribute)),
+        compliance_(compliance)
   {
   }
 
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
       if (!mesh_ptr) {
         continue;
@@ -236,6 +268,9 @@ class EdgeLengthConstraintSet : public ConstraintSet {
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
       if (!mesh_ptr) {
         continue;
@@ -651,10 +686,13 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
 };
 
 ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
+                                               std::string self_path,
+                                               std::string filter,
                                                std::string rest_length_attribute,
                                                const float compliance)
 {
-  return scope.construct<EdgeLengthConstraintSet>(std::move(rest_length_attribute), compliance);
+  return scope.construct<EdgeLengthConstraintSet>(
+      std::move(self_path), std::move(filter), std::move(rest_length_attribute), compliance);
 }
 ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
                                                 std::string rest_length_attribute,

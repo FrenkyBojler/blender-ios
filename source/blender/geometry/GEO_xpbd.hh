@@ -110,6 +110,8 @@ struct Behaviors {
 void solve(Behaviors &behaviors, float delta_time, int substeps);
 
 ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
+                                               std::string self_path,
+                                               std::string filter,
                                                std::string rest_length_attribute,
                                                float compliance);
 ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
