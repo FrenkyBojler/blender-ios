@@ -314,18 +314,29 @@ class EdgeLengthConstraintSet : public ConstraintSet {
 
 class CurveLengthConstraintSet : public ConstraintSet {
  private:
+  std::string self_path_;
+  std::string filter_;
   std::string rest_length_attribute_;
   float compliance_;
 
  public:
-  CurveLengthConstraintSet(std::string rest_length_attribute, const float compliance)
-      : rest_length_attribute_(std::move(rest_length_attribute)), compliance_(compliance)
+  CurveLengthConstraintSet(std::string self_path,
+                           std::string filter,
+                           std::string rest_length_attribute,
+                           const float compliance)
+      : self_path_(std::move(self_path)),
+        filter_(std::move(filter)),
+        rest_length_attribute_(std::move(rest_length_attribute)),
+        compliance_(compliance)
   {
   }
 
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
       if (!curves_ptr) {
         continue;
@@ -370,6 +381,9 @@ class CurveLengthConstraintSet : public ConstraintSet {
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       const Curves *const *curves_id = std::get_if<Curves *>(&sim_geometry.data);
       if (!curves_id) {
         continue;
@@ -433,13 +447,19 @@ class CurveLengthConstraintSet : public ConstraintSet {
 
 class FixedPositionsConstraintSet : public ConstraintSet {
  private:
+  std::string self_path_;
+  std::string filter_;
   fn::Field<bool> selection_field_;
   fn::Field<float3> fixed_positions_field_;
 
  public:
-  FixedPositionsConstraintSet(fn::Field<bool> selection_field,
+  FixedPositionsConstraintSet(std::string self_path,
+                              std::string filter,
+                              fn::Field<bool> selection_field,
                               fn::Field<float3> fixed_positions_field)
-      : selection_field_(std::move(selection_field)),
+      : self_path_(std::move(self_path)),
+        filter_(std::move(filter)),
+        selection_field_(std::move(selection_field)),
         fixed_positions_field_(std::move(fixed_positions_field))
   {
   }
@@ -488,6 +508,9 @@ class FixedPositionsConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = sim_geometries[geometry_i];
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       std::optional<bke::GeometryFieldContext> field_context;
       const int points_num = sim_geometry.set_point_field_context(field_context);
       if (!field_context) {
@@ -509,12 +532,20 @@ class FixedPositionsConstraintSet : public ConstraintSet {
 
 class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
  private:
+  std::string self_path_;
+  std::string filter_;
   float3 position_;
   float3 normal_;
 
  public:
-  InfiniteCollisionPlaneConstraintSet(const float3 &position, const float3 &normal)
-      : position_(position), normal_(math::normalize(normal))
+  InfiniteCollisionPlaneConstraintSet(std::string self_path,
+                                      std::string filter,
+                                      const float3 &position,
+                                      const float3 &normal)
+      : self_path_(std::move(self_path)),
+        filter_(std::move(filter)),
+        position_(position),
+        normal_(math::normalize(normal))
   {
   }
 
@@ -522,6 +553,9 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       std::optional<bke::AttributeAccessor> attributes = sim_geometry.attributes();
       if (!attributes) {
         continue;
@@ -545,6 +579,9 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       SimGeometry &sim_geometry = sim_geometries[geometry_i];
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       std::optional<bke::MutableAttributeAccessor> attributes =
           sim_geometry.attributes_for_write();
       if (!attributes) {
@@ -569,18 +606,29 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
 
 class GlobalVolumeConstraintSet : public ConstraintSet {
  private:
+  std::string self_path_;
+  std::string filter_;
   std::string rest_volume_name_;
   float overpressure_;
 
  public:
-  GlobalVolumeConstraintSet(std::string rest_volume_name, const float overpressure = 1.0f)
-      : rest_volume_name_(std::move(rest_volume_name)), overpressure_(overpressure)
+  GlobalVolumeConstraintSet(std::string self_path,
+                            std::string filter,
+                            std::string rest_volume_name,
+                            const float overpressure = 1.0f)
+      : self_path_(std::move(self_path)),
+        filter_(std::move(filter)),
+        rest_volume_name_(std::move(rest_volume_name)),
+        overpressure_(overpressure)
   {
   }
 
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
       if (!mesh_ptr) {
         continue;
@@ -598,6 +646,9 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
       if (!mesh_ptr) {
         continue;
@@ -695,32 +746,42 @@ ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
       std::move(self_path), std::move(filter), std::move(rest_length_attribute), compliance);
 }
 ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
+                                                std::string self_path,
+                                                std::string filter,
                                                 std::string rest_length_attribute,
                                                 float compliance)
 {
-  return scope.construct<CurveLengthConstraintSet>(std::move(rest_length_attribute), compliance);
+  return scope.construct<CurveLengthConstraintSet>(
+      self_path, filter, std::move(rest_length_attribute), compliance);
 }
 
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
+                                                  std::string self_path,
+                                                  std::string filter,
                                                   fn::Field<bool> selection_field,
                                                   fn::Field<float3> fixed_positions_field)
 {
-  return scope.construct<FixedPositionsConstraintSet>(std::move(selection_field),
-                                                      std::move(fixed_positions_field));
+  return scope.construct<FixedPositionsConstraintSet>(
+      self_path, filter, std::move(selection_field), std::move(fixed_positions_field));
 }
 
 ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,
+                                                           std::string self_path,
+                                                           std::string filter,
                                                            const float3 &position,
                                                            const float3 &normal)
 {
-  return scope.construct<InfiniteCollisionPlaneConstraintSet>(position, normal);
+  return scope.construct<InfiniteCollisionPlaneConstraintSet>(self_path, filter, position, normal);
 }
 
 ConstraintSet &create_constraint__global_volume(ResourceScope &scope,
+                                                std::string self_path,
+                                                std::string filter,
                                                 std::string rest_volume_name,
                                                 const float overpressure)
 {
-  return scope.construct<GlobalVolumeConstraintSet>(std::move(rest_volume_name), overpressure);
+  return scope.construct<GlobalVolumeConstraintSet>(
+      self_path, filter, std::move(rest_volume_name), overpressure);
 }
 
 void solve(Behaviors &behaviors, const float total_delta_time, const int substeps)

@@ -115,9 +115,14 @@ static void parse_behavior__curve_lengths(ParseBehaviorParams &params)
   if (rest_length_attribute->empty()) {
     return;
   }
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
-  params.r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__curve_lengths(
-      params.scope, std::move(*rest_length_attribute), compliance));
+  params.r_behaviors.constraint_sets.append(
+      &geometry::xpbd::create_constraint__curve_lengths(params.scope,
+                                                        params.self_path(),
+                                                        std::move(filter),
+                                                        std::move(*rest_length_attribute),
+                                                        compliance));
 }
 
 static void parse_behavior__fixed_positions(ParseBehaviorParams &params)
@@ -127,8 +132,9 @@ static void parse_behavior__fixed_positions(ParseBehaviorParams &params)
   if (!selection_field || !positions_field) {
     return;
   }
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   params.r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__fixed_positions(
-      params.scope, *selection_field, *positions_field));
+      params.scope, params.self_path(), std::move(filter), *selection_field, *positions_field));
 }
 
 static void parse_behavior__infinite_collision_plane(ParseBehaviorParams &params)
@@ -138,9 +144,10 @@ static void parse_behavior__infinite_collision_plane(ParseBehaviorParams &params
   if (!position || !normal) {
     return;
   }
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   params.r_behaviors.constraint_sets.append(
       &geometry::xpbd::create_constraint__infinite_collision_plane(
-          params.scope, *position, *normal));
+          params.scope, params.self_path(), std::move(filter), *position, *normal));
 }
 
 static void parse_behavior__global_volume(ParseBehaviorParams &params)
@@ -150,9 +157,14 @@ static void parse_behavior__global_volume(ParseBehaviorParams &params)
   if (!rest_volume_name || rest_volume_name->empty()) {
     return;
   }
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float overpressure = params.bundle.lookup<float>("Overpressure").value_or(1.0f);
-  params.r_behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__global_volume(
-      params.scope, std::move(*rest_volume_name), overpressure));
+  params.r_behaviors.constraint_sets.append(
+      &geometry::xpbd::create_constraint__global_volume(params.scope,
+                                                        params.self_path(),
+                                                        std::move(filter),
+                                                        std::move(*rest_volume_name),
+                                                        overpressure));
 }
 
 using BehaviorParserFn = std::function<void(ParseBehaviorParams &)>;

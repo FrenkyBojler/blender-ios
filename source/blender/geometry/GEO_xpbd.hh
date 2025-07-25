@@ -115,16 +115,23 @@ ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
                                                std::string rest_length_attribute,
                                                float compliance);
 ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
+                                                std::string self_path,
+                                                std::string filter,
                                                 std::string rest_length_attribute,
                                                 float compliance);
-
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
+                                                  std::string self_path,
+                                                  std::string filter,
                                                   fn::Field<bool> selection_field,
                                                   fn::Field<float3> fixed_positions_field);
 ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,
+                                                           std::string self_path,
+                                                           std::string filter,
                                                            const float3 &position,
                                                            const float3 &normal);
 ConstraintSet &create_constraint__global_volume(ResourceScope &scope,
+                                                std::string self_path,
+                                                std::string filter,
                                                 std::string rest_volume_name,
                                                 float overpressure = 1.0f);
 
