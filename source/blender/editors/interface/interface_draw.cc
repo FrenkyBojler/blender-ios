@@ -1616,12 +1616,13 @@ static void gl_shaded_color(const uchar *color, int shade)
   immUniformColor3ubv(color_shaded);
 }
 
-void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
+static void draw_curve(CurveMapping *cumap,
+                       uiBut *but,
+                       const eButGradientType gradient_type,
+                       ARegion *region,
+                       const uiWidgetColors *wcol,
+                       const rcti *rect)
 {
-  uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
-  CurveMapping *cumap = (but_cumap->edit_cumap == nullptr) ? (CurveMapping *)but->poin :
-                                                             but_cumap->edit_cumap;
-
   const float clip_size_x = BLI_rctf_size_x(&cumap->curr);
   const float clip_size_y = BLI_rctf_size_y(&cumap->curr);
 
@@ -1659,7 +1660,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
               BLI_rcti_size_y(&scissor_new));
 
   /* Do this first to not mess imm context */
-  if (but_cumap->gradient_type == UI_GRAD_H) {
+  if (gradient_type == UI_GRAD_H) {
     /* magic trigger for curve backgrounds */
     const float col[3] = {0.0f, 0.0f, 0.0f}; /* dummy arg */
 
@@ -1680,7 +1681,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   /* backdrop */
   float color_backdrop[4] = {0, 0, 0, 1};
 
-  if (but_cumap->gradient_type == UI_GRAD_H) {
+  if (gradient_type == UI_GRAD_H) {
     /* grid, hsv uses different grid */
     GPU_blend(GPU_BLEND_ALPHA);
     ARRAY_SET_ITEMS(color_backdrop, 0, 0, 0, 48.0 / 255.0);
@@ -1737,7 +1738,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   if (cumap->flag & CUMA_DRAW_SAMPLE) {
     immBegin(GPU_PRIM_LINES, 2); /* will draw one of the following 3 lines */
-    if (but_cumap->gradient_type == UI_GRAD_H) {
+    if (gradient_type == UI_GRAD_H) {
       float tsample[3];
       float hsv[3];
       linearrgb_to_srgb_v3_v3(tsample, cumap->sample);
@@ -1885,22 +1886,24 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   immUnbindProgram();
 }
 
+void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
+{
+  uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
+  CurveMapping *cumap = (but_cumap->edit_cumap == nullptr) ? (CurveMapping *)but->poin :
+                                                             but_cumap->edit_cumap;
+  draw_curve(cumap, but, but_cumap->gradient_type, region, wcol, rect);
+}
+
 void ui_draw_but_CURVE_PREVIEW(ARegion *region,
                                uiBut *but,
                                const uiWidgetColors *wcol,
                                const rcti *rect)
 {
   uiButCurveMappingPreview *but_cumap_preview = static_cast<uiButCurveMappingPreview *>(but);
-  // const CurveMapping *cumap = (but_cumap_preview->cumap == nullptr) ? (CurveMapping *)but->poin
-  // :
-  //                                                                     but_cumap_preview->cumap;
+  CurveMapping *cumap = (but_cumap_preview->cumap == nullptr) ? (CurveMapping *)but->poin :
+                                                                but_cumap_preview->cumap;
 
-  if (but_cumap_preview->gradient_type != UI_GRAD_NONE) {
-    const float dummy_col[3] = {0.0f, 0.0f, 0.0f};
-    ui_draw_gradient(rect, dummy_col, but_cumap_preview->gradient_type, 1.0f);
-  }
-
-  UNUSED_VARS(region, but, wcol, rect);
+  draw_curve(cumap, but, but_cumap_preview->gradient_type, region, wcol, rect);
 }
 
 /**
