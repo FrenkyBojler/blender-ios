@@ -210,19 +210,23 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager 
 
   /* Automatic mode switching. */
   if (workspace_new->object_mode != workspace_old->object_mode) {
-    const Object *object = CTX_data_active_object(C);
-    /* Behavior that depends on the active area is not expected in the context of workspace
-     * switching, ignore the view-port even if it's available. */
-    const View3D *v3d = nullptr;
-
     const Base *base = CTX_data_active_base(C);
-    /* When attempting to switch modes automatically, if the object is not visible and is in Object
-     * Mode, prevent forcibly changing the object's mode. This is consistent with both the mode
-     * dropdown and pie menu. */
-    const bool can_switch_from_object_mode = object && object->mode == OB_MODE_OBJECT && base &&
-                                             BKE_base_is_visible(v3d, base);
-    const bool in_non_object_mode = object && object->mode != OB_MODE_OBJECT;
-    if (in_non_object_mode || can_switch_from_object_mode) {
+    const Object *object = base->object;
+    if (object) {
+      /* Behavior that depends on the active area is not expected in the context of workspace
+       * switching, ignore the view-port even if it's available. */
+      const View3D *v3d = nullptr;
+
+      const bool base_visible = BKE_base_is_visible(v3d, base);
+      if (!base_visible && object->mode == OB_MODE_OBJECT) {
+        /* Set this to nullptr to indicate that the mode should not be switched. This matches
+         * CTX_data_active_object behavior in the 3D Viewport. See `view3d_context` for more
+         * details. */
+        object = nullptr;
+      }
+    }
+
+    if (object) {
       blender::ed::object::mode_set(C, eObjectMode(workspace_new->object_mode));
     }
   }
