@@ -355,12 +355,40 @@ static void curvemap_buttons_layout(uiLayout *layout,
     split->row(false).prop(ptr, "tone", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
-  /* curve chooser */
-  uiLayout *row = &layout->row(false);
-  if (!label.is_empty()) {
-    row->label(label, ICON_NONE);
+  {
+    uiLayout *row = &layout->row(false);
+    if (!label.is_empty()) {
+      row->label(label, ICON_NONE);
+    }
+
+    const int width = std::max<int>(layout->width(), UI_UNIT_X);
+    if (cumap->flag & CUMA_COLLAPSED) {
+      uiButCurveMapping *curve_but = static_cast<uiButCurveMapping *>(
+          uiDefBut(block, ButType::Curve, 0, "", 0, 0, width, UI_UNIT_Y, cumap, 0.0f, 1.0f, ""));
+      curve_but->gradient_type = bg;
+      curve_but->is_preview = true;
+      return;
+    }
+    uiBut *but = uiDefIconBut(block,
+                              ButType::But,
+                              0,
+                              ICON_THREE_DOTS_HORIZONTAL,
+                              0,
+                              0,
+                              width,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0.0f,
+                              0.0f,
+                              "");
+    UI_but_func_set(but, [cumap](bContext &C) {
+      cumap->flag |= CUMA_COLLAPSED;
+      ED_region_tag_redraw(CTX_wm_region(&C));
+    });
   }
 
+  /* curve chooser */
+  uiLayout *row = &layout->row(false);
   if (labeltype == 'v') {
     /* vector */
     uiLayout *sub = &row->row(true);
@@ -577,19 +605,10 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
   /* Curve itself. */
   const int size = max_ii(layout->width(), UI_UNIT_X);
-  {
-    row = &layout->row(false);
-    uiButCurveMapping *curve_but = static_cast<uiButCurveMapping *>(
-        uiDefBut(block, ButType::Curve, 0, "", 0, 0, size, UI_UNIT_Y, cumap, 0.0f, 1.0f, ""));
-    curve_but->gradient_type = bg;
-    curve_but->is_preview = true;
-  }
-  {
-    row = &layout->row(false);
-    uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
-        block, ButType::Curve, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, "");
-    curve_but->gradient_type = bg;
-  }
+  row = &layout->row(false);
+  uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
+      block, ButType::Curve, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, "");
+  curve_but->gradient_type = bg;
 
   /* Sliders for selected curve point. */
   int i;

@@ -7576,10 +7576,24 @@ static int ui_do_but_CURVE(
   bool changed = false;
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  uiButCurveMapping *but_cumap = static_cast<uiButCurveMapping *>(but);
 
   int mx = event->xy[0];
   int my = event->xy[1];
   ui_window_to_block(data->region, block, &mx, &my);
+
+  if (but_cumap->is_preview) {
+    if (data->state == BUTTON_STATE_HIGHLIGHT && event->type == LEFTMOUSE &&
+        event->val == KM_PRESS)
+    {
+      CurveMapping *cumap = (CurveMapping *)but->poin;
+      const bool is_collapsed = cumap->flag & CUMA_COLLAPSED;
+      SET_FLAG_FROM_TEST(cumap->flag, !is_collapsed, CUMA_COLLAPSED);
+      ED_region_tag_redraw(CTX_wm_region(C));
+      return WM_UI_HANDLER_BREAK;
+    }
+    return WM_UI_HANDLER_CONTINUE;
+  }
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
