@@ -1894,7 +1894,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
     if (drawing_orig && drawing_eval) {
       /* Write the data to the original drawing. */
-      CurvesGeometry eval_strokes = drawing_eval->strokes();
+      const CurvesGeometry &eval_strokes = drawing_eval->strokes();
 
       /* Check for new vertex groups */
       LISTBASE_FOREACH (bDeformGroup *, dg, &eval_strokes.vertex_group_names) {
