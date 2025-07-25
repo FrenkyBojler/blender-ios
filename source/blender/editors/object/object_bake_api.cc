@@ -518,7 +518,7 @@ static bool bake_object_check(const Scene *scene,
       Image *image;
       ED_object_get_active_image(ob, mat_nr, &image, nullptr, &node, &ntree);
 
-      /* Don't bake to unselected images */
+      /* Don't bake to unselected images. */
       if (node && !(node->flag & NODE_SELECT)) {
         image = nullptr;
       }
