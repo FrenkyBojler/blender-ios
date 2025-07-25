@@ -646,6 +646,13 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       add_single.store(false, std::memory_order_relaxed);
     }
 
+    if (ptd.delete_point) {
+      curves.remove_points(IndexRange::from_single(closest_point), {});
+      add_single.store(false, std::memory_order_relaxed);
+      point_removed.store(true, std::memory_order_relaxed);
+      return;
+    }
+
     for (const StringRef selection_attribute_name :
          ed::curves::get_curves_selection_attribute_names(curves))
     {
@@ -674,12 +681,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       }
 
       selection_writer.finish();
-    }
-
-    if (ptd.delete_point) {
-      curves.remove_points(IndexRange::from_single(closest_point), {});
-      add_single.store(false, std::memory_order_relaxed);
-      point_removed.store(true, std::memory_order_relaxed);
     }
 
     changed.store(true, std::memory_order_relaxed);
