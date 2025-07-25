@@ -147,7 +147,8 @@ static float3 pen_screen_to_global(const PenToolOperation &ptd,
 
 /* Will return -1 if no points are near. */
 static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
-                                            const bke::CurvesGeometry &curves,
+                                            const bke::greasepencil::Drawing &drawing,
+                                            const int layer_index,
                                             const float2 mouse_co,
                                             int *r_closest_curve,
                                             ElementMode *r_element_mode)
@@ -155,6 +156,7 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
   float closest_distance_squared = std::numeric_limits<float>::max();
   int closest_point = -1;
 
+  const bke::CurvesGeometry curves = drawing.strokes();
   const Span<float3> positions = curves.positions();
   const Span<float3> handle_left = curves.handle_positions_left();
   const Span<float3> handle_right = curves.handle_positions_right();
@@ -175,37 +177,41 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
     }
   }
 
-  for (const int i : curves.points_range()) {
-    const float2 pos_proj = pen_global_to_screen(ptd, handle_left[i]);
+  IndexMaskMemory memory;
+  const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+      *ptd.vc.obact, drawing, layer_index, memory);
+
+  bezier_points.foreach_index([&](const int point_i) {
+    const float2 pos_proj = pen_global_to_screen(ptd, handle_left[point_i]);
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
     if (distance_squared < closest_distance_squared &&
         distance_squared < ptd.threshold_distance * ptd.threshold_distance)
     {
-      closest_point = i;
+      closest_point = point_i;
       const Array<int> point_to_curve_map = curves.point_to_curve_map();
-      *r_closest_curve = point_to_curve_map[i];
+      *r_closest_curve = point_to_curve_map[point_i];
       *r_element_mode = ElementMode::HandleLeft;
       closest_distance_squared = distance_squared;
     }
-  }
+  });
 
-  for (const int i : curves.points_range()) {
-    const float2 pos_proj = pen_global_to_screen(ptd, handle_right[i]);
+  bezier_points.foreach_index([&](const int point_i) {
+    const float2 pos_proj = pen_global_to_screen(ptd, handle_right[point_i]);
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
     if (distance_squared < closest_distance_squared &&
         distance_squared < ptd.threshold_distance * ptd.threshold_distance)
     {
-      closest_point = i;
+      closest_point = point_i;
       const Array<int> point_to_curve_map = curves.point_to_curve_map();
-      *r_closest_curve = point_to_curve_map[i];
+      *r_closest_curve = point_to_curve_map[point_i];
       *r_element_mode = ElementMode::HandleRight;
       closest_distance_squared = distance_squared;
     }
-  }
+  });
 
   return closest_point;
 }
@@ -312,14 +318,17 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
 }
 
 static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
-                                               const bke::CurvesGeometry &curves,
+                                               const bke::greasepencil::Drawing &drawing,
+                                               const int layer_index,
                                                const float2 mouse_co)
 {
   ClosestElement closest_element;
   int closest_curve;
   ElementMode element_mode;
   const int closest_point = pen_find_closest_point_or_handle(
-      ptd, curves, mouse_co, &closest_curve, &element_mode);
+      ptd, drawing, layer_index, mouse_co, &closest_curve, &element_mode);
+
+  const bke::CurvesGeometry curves = drawing.strokes();
 
   if (closest_point != -1) {
     closest_element.element_mode = element_mode;
@@ -670,7 +679,8 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       return;
     }
 
-    ptd.closest_element = pen_find_closest_element(ptd, curves, ptd.mouse_co);
+    ptd.closest_element = pen_find_closest_element(
+        ptd, info.drawing, info.layer_index, ptd.mouse_co);
 
     if (ptd.closest_element.element_mode == ElementMode::Edge) {
       ptd.layer_index = info.layer_index;
