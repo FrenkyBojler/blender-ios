@@ -60,9 +60,8 @@ void MetalDevice::set_error(const string &error)
   Device::set_error(error);
 
   if (!has_error) {
-    fprintf(stderr, "\nRefer to the Cycles GPU rendering documentation for possible solutions:\n");
-    fprintf(stderr,
-            "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n\n");
+    LOG_ERROR << "Refer to the Cycles GPU rendering documentation for possible solutions:\n"
+                 "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n";
     has_error = true;
   }
 }
@@ -100,8 +99,12 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     max_threads_per_threadgroup = 512;
 
     use_metalrt = info.use_hardware_raytracing;
-    if (auto *metalrt = getenv("CYCLES_METALRT")) {
+    if (const char *metalrt = getenv("CYCLES_METALRT")) {
       use_metalrt = (atoi(metalrt) != 0);
+    }
+
+    if (const char *str = getenv("CYCLES_METALRT_EXTENDED_LIMITS")) {
+      use_metalrt_extended_limits = (atoi(str) != 0);
     }
 
 #  if defined(MAC_OS_VERSION_15_0)
@@ -255,6 +258,9 @@ string MetalDevice::preprocess_source(MetalPipelineType pso_type,
     if (motion_blur) {
       global_defines += "#define __METALRT_MOTION__\n";
     }
+    if (use_metalrt_extended_limits) {
+      global_defines += "#define __METALRT_EXTENDED_LIMITS__\n";
+    }
   }
 
 #  ifdef WITH_CYCLES_DEBUG
@@ -309,6 +315,10 @@ string MetalDevice::preprocess_source(MetalPipelineType pso_type,
 #  undef KERNEL_STRUCT_MEMBER
 #  undef KERNEL_STRUCT_MEMBER_DONT_SPECIALIZE
 #  undef KERNEL_STRUCT_BEGIN
+
+      /* Replace "kernel_data.kernel_features" memory fetches with a function constant. */
+      string_replace_same_length(
+          *source, "kernel_data.kernel_features", "kernel_data_kernel_features");
 
       metal_printf("KernelData patching took %.1f ms", (time_dt() - starttime) * 1000.0);
     }
@@ -811,6 +821,34 @@ bool MetalDevice::is_ready(string &status) const
   return true;
 }
 
+bool MetalDevice::set_bvh_limits(size_t instance_count, size_t max_prim_count)
+{
+  /* For object & primitive counts above a certain limit, MetalRT requires extended limits to be
+   * built into the kernels, and when building BVHs. Following best practices, this should only
+   * be enabled when necessary. See
+   * https://developer.apple.com/documentation/metal/mtlaccelerationstructureusage/mtlaccelerationstructureusageextendedlimits?language=objc
+   */
+
+  const int standard_limits_max_prim_count = (1 << 28);
+  const int standard_limits_max_instance_count = (1 << 24);
+
+  bool using_metalrt_extended_limits_before = use_metalrt_extended_limits;
+
+  /* Enable extended limits if object count exceeds max supported by standard limits.
+   * Once enabled, it remains enabled for the lifetime of the device. */
+  if (instance_count > standard_limits_max_instance_count ||
+      max_prim_count > standard_limits_max_prim_count)
+  {
+    use_metalrt_extended_limits = true;
+    metal_printf("Enabling MetalRT extended limits (max_prim_count = %zu, instance_count = %zu)",
+                 max_prim_count,
+                 instance_count);
+  }
+
+  /* All BVHs need to be rebuilt if the extended limits state changes. */
+  return using_metalrt_extended_limits_before != use_metalrt_extended_limits;
+}
+
 void MetalDevice::optimize_for_scene(Scene *scene)
 {
   MetalPipelineType specialization_level = kernel_specialization_level;
@@ -1184,6 +1222,7 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
     BVHMetal *bvh_metal = static_cast<BVHMetal *>(bvh);
     bvh_metal->motion_blur = motion_blur;
     bvh_metal->use_pcmi = use_pcmi;
+    bvh_metal->extended_limits = use_metalrt_extended_limits;
     if (bvh_metal->build(progress, mtlDevice, mtlGeneralCommandQueue, refit)) {
 
       if (bvh->params.top_level) {

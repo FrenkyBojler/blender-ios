@@ -512,10 +512,13 @@ class NodeTreeMainUpdater {
     this->make_node_previews_dirty(ntree);
 
     this->propagate_runtime_flags(ntree);
-    if (ntree.type == NTREE_GEOMETRY) {
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
       if (this->propagate_enum_definitions(ntree)) {
         result.interface_changed = true;
       }
+    }
+
+    if (ntree.type == NTREE_GEOMETRY) {
       if (node_field_inferencing::update_field_inferencing(ntree)) {
         result.interface_changed = true;
       }
@@ -898,6 +901,8 @@ class NodeTreeMainUpdater {
         return SOCK_DISPLAY_SHAPE_DIAMOND;
       case StructureType::Grid:
         return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
+      case StructureType::List:
+        return SOCK_DISPLAY_SHAPE_LIST;
     }
     BLI_assert_unreachable();
     return SOCK_DISPLAY_SHAPE_CIRCLE;
@@ -921,6 +926,9 @@ class NodeTreeMainUpdater {
       }
       case StructureType::Grid: {
         return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
+      }
+      case StructureType::List: {
+        return SOCK_DISPLAY_SHAPE_LIST;
       }
     }
     BLI_assert_unreachable();
