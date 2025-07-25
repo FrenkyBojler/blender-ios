@@ -30,11 +30,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_single_menu(NORMAL_MODE_FREE);
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = NORMAL_MODE_MINIMUM_TWIST;
-}
-
 static void set_curve_normal(bke::CurvesGeometry &curves,
                              const NormalMode mode,
                              const fn::FieldContext &curve_context,
@@ -123,7 +118,6 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.initfunc = node_init;
 
   blender::bke::node_register_type(ntype);
 }
