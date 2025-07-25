@@ -27,6 +27,8 @@
 
 #include "DNA_defaults.h"
 #include "DNA_mask_types.h"
+#include "DNA_movieclip_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_curve.hh"
@@ -47,7 +49,7 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.mask"};
+static CLG_LogRef LOG = {"mask"};
 
 /** Reset runtime mask fields when data-block is being initialized. */
 static void mask_runtime_reset(Mask *mask)

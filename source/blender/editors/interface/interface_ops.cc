@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_armature_types.h"
+#include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h" /* for handling geometry nodes properties */
 #include "DNA_object_types.h"   /* for OB_DATA_SUPPORT_ID */
@@ -627,7 +628,7 @@ static wmOperatorStatus override_type_set_button_invoke(bContext *C,
                                                         const wmEvent * /*event*/)
 {
 #if 0 /* Disabled for now */
-  return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_DEFAULT);
+  return WM_menu_invoke_ex(C, op, blender::wm::OpCallContext::InvokeDefault);
 #else
   RNA_enum_set(op->ptr, "type", LIBOVERRIDE_OP_REPLACE);
   return override_type_set_button_exec(C, op);
@@ -1038,15 +1039,31 @@ static void override_idtemplate_menu()
 
 #define NOT_RNA_NULL(assignment) ((assignment).data != nullptr)
 
+/**
+ * Construct a PointerRNA that points to pchan->bone.
+ *
+ * Pose bones are owned by an Object, whereas `pchan->bone` is owned by the Armature, so this
+ * doesn't just remap the pointer's `data` field, but also its `owner_id`.
+ */
+static PointerRNA rnapointer_pchan_to_bone(const PointerRNA &pchan_ptr)
+{
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(pchan_ptr.data);
+
+  BLI_assert(GS(pchan_ptr.owner_id->name) == ID_OB);
+  Object *object = reinterpret_cast<Object *>(pchan_ptr.owner_id);
+
+  BLI_assert(GS(static_cast<ID *>(object->data)->name) == ID_AR);
+  bArmature *armature = static_cast<bArmature *>(object->data);
+
+  return RNA_pointer_create_discrete(&armature->id, &RNA_Bone, pchan->bone);
+}
+
 static void ui_context_selected_bones_via_pose(bContext *C, blender::Vector<PointerRNA> *r_lb)
 {
   blender::Vector<PointerRNA> lb = CTX_data_collection_get(C, "selected_pose_bones");
 
-  if (!lb.is_empty()) {
-    for (PointerRNA &ptr : lb) {
-      bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
-      ptr = RNA_pointer_create_discrete(ptr.owner_id, &RNA_Bone, pchan->bone);
-    }
+  for (PointerRNA &ptr : lb) {
+    ptr = rnapointer_pchan_to_bone(ptr);
   }
 
   *r_lb = std::move(lb);
@@ -1070,6 +1087,22 @@ static void ui_context_fcurve_modifiers_via_fcurve(bContext *C,
         /* Since names are unique it is safe to break here. */
         break;
       }
+    }
+  }
+}
+
+static void ui_context_selected_key_blocks(ID *owner_id_key, blender::Vector<PointerRNA> *r_lb)
+{
+  /* This function chooses to return the selected keyblocks of the owning Key ID.
+   * The other option would be to return identically named keyblocks from selected objects. I
+   * (christoph) think that the first case is more useful which is why the function works as it
+   * does. */
+  Key *containing_key = reinterpret_cast<Key *>(owner_id_key);
+  LISTBASE_FOREACH (KeyBlock *, key_block, &containing_key->block) {
+    /* This does not use the function `shape_key_is_selected` since that would include the active
+     * shapekey which is not required for this function to work. */
+    if (key_block->flag & KEYBLOCK_SEL) {
+      r_lb->append(RNA_pointer_create_discrete(owner_id_key, &RNA_ShapeKey, key_block));
     }
   }
 }
@@ -1109,9 +1142,8 @@ bool UI_context_copy_to_selected_list(bContext *C,
         *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
       }
       else {
-        bPoseChannel *pchan = static_cast<bPoseChannel *>(owner_ptr.data);
-        owner_ptr = RNA_pointer_create_discrete(owner_ptr.owner_id, &RNA_Bone, pchan->bone);
-        idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
+        PointerRNA bone_ptr = rnapointer_pchan_to_bone(owner_ptr);
+        idpath = RNA_path_from_struct_to_idproperty(&bone_ptr,
                                                     static_cast<const IDProperty *>(ptr->data));
         if (idpath) {
           ui_context_selected_bones_via_pose(C, r_lb);
@@ -1121,13 +1153,14 @@ bool UI_context_copy_to_selected_list(bContext *C,
 
     if (!idpath) {
       /* Check the active EditBone if in edit mode. */
-      idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
-                                                  static_cast<const IDProperty *>(ptr->data));
       if (NOT_RNA_NULL(
-              owner_ptr = CTX_data_pointer_get_type_silent(C, "active_bone", &RNA_EditBone)) &&
-          idpath)
+              owner_ptr = CTX_data_pointer_get_type_silent(C, "active_bone", &RNA_EditBone)))
       {
-        *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+        idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
+                                                    static_cast<const IDProperty *>(ptr->data));
+        if (idpath) {
+          *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+        }
       }
 
       /* Add other simple cases here (Node, NodeSocket, Sequence, ViewLayer etc). */
@@ -1140,12 +1173,23 @@ bool UI_context_copy_to_selected_list(bContext *C,
   }
 
   if (RNA_struct_is_a(ptr->type, &RNA_EditBone)) {
-    *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+    /* Special case when we do this for #edit_bone.lock.
+     * (if the edit_bone is locked, it is not included in "selected_editable_bones"). */
+    const char *prop_id = RNA_property_identifier(prop);
+    if (STREQ(prop_id, "lock")) {
+      *r_lb = CTX_data_collection_get(C, "selected_bones");
+    }
+    else {
+      *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+    }
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_PoseBone)) {
     *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Bone)) {
+    /* "selected_bones" or "selected_editable_bones" will only yield anything in Armature Edit
+     * mode. In other modes, it'll be empty, and the only way to get the selected bones is via
+     * "selected_pose_bones". */
     ui_context_selected_bones_via_pose(C, r_lb);
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_BoneColor)) {
@@ -1224,6 +1268,9 @@ bool UI_context_copy_to_selected_list(bContext *C,
   else if (RNA_struct_is_a(ptr->type, &RNA_MovieTrackingTrack)) {
     *r_lb = CTX_data_collection_get(C, "selected_movieclip_tracks");
   }
+  else if (RNA_struct_is_a(ptr->type, &RNA_ShapeKey)) {
+    ui_context_selected_key_blocks(ptr->owner_id, r_lb);
+  }
   else if (const std::optional<std::string> path_from_bone =
                RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_PoseBone);
            RNA_struct_is_a(ptr->type, &RNA_Constraint) && path_from_bone)
@@ -1268,6 +1315,12 @@ bool UI_context_copy_to_selected_list(bContext *C,
 
     *r_lb = lb;
     *r_path = path;
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_AssetMetaData)) {
+    /* Remap from #AssetRepresentation to #AssetMetaData. */
+    blender::Vector<PointerRNA> list_of_things = CTX_data_collection_get(C, "selected_assets");
+    CTX_data_collection_remap_property(list_of_things, "metadata");
+    *r_lb = list_of_things;
   }
   else if (CTX_wm_space_outliner(C)) {
     const ID *id = ptr->owner_id;
@@ -1963,8 +2016,8 @@ static bool jump_to_target_button(bContext *C, bool poll)
     }
     /* For string properties with prop_search, look up the search collection item. */
     if (type == PROP_STRING) {
-      const uiButSearch *search_but = (but->type == UI_BTYPE_SEARCH_MENU) ? (uiButSearch *)but :
-                                                                            nullptr;
+      const uiButSearch *search_but = (but->type == ButType::SearchMenu) ? (uiButSearch *)but :
+                                                                           nullptr;
 
       if (search_but && search_but->items_update_fn == ui_rna_collection_search_update_fn) {
         uiRNACollectionSearch *coll_search = static_cast<uiRNACollectionSearch *>(search_but->arg);
@@ -2139,7 +2192,7 @@ static wmOperatorStatus editsource_text_edit(bContext *C,
   RNA_int_set(&op_props, "column", 0);
 
   wmOperatorStatus result = WM_operator_name_call_ptr(
-      C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+      C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
   return result;
 }
@@ -2400,7 +2453,7 @@ static wmOperatorStatus drop_color_invoke(bContext *C, wmOperator *op, const wmE
    * if it does copy the data */
   but = ui_region_find_active_but(region);
 
-  if (but && but->type == UI_BTYPE_COLOR && but->rnaprop) {
+  if (but && but->type == ButType::Color && but->rnaprop) {
     if (!has_alpha) {
       color[3] = 1.0f;
     }
@@ -2483,12 +2536,9 @@ static bool drop_name_poll(bContext *C)
 static wmOperatorStatus drop_name_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   uiBut *but = UI_but_active_drop_name_button(C);
-  char *str = RNA_string_get_alloc(op->ptr, "string", nullptr, 0, nullptr);
+  std::string str = RNA_string_get(op->ptr, "string");
 
-  if (str) {
-    ui_but_set_string_interactive(C, but, str);
-    MEM_freeN(str);
-  }
+  ui_but_set_string_interactive(C, but, str.c_str());
 
   return OPERATOR_FINISHED;
 }
@@ -2792,16 +2842,48 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
-static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent * /*event*/)
 {
   const wmWindow &win = *CTX_wm_window(C);
-  const ARegion &region = *CTX_wm_region(C);
+  ARegion &region = *CTX_wm_region(C);
 
-  if (AbstractViewItem *active_item = UI_region_views_find_item_at(region, win.eventstate->xy)) {
-    active_item->activate(*C);
+  AbstractViewItem *clicked_item = UI_region_views_find_item_at(region, win.eventstate->xy);
+  if (clicked_item == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  AbstractView &view = clicked_item->get_view();
+  const bool is_multiselect = view.is_multiselect_supported();
+  const bool extend = RNA_boolean_get(op->ptr, "extend") && is_multiselect;
+  const bool range_select = RNA_boolean_get(op->ptr, "range_select") && is_multiselect;
+
+  if (!extend) {
+    /* Keep previous selection for extend selection, see: !138979. */
+    view.foreach_view_item([](AbstractViewItem &item) { item.set_selected(false); });
+  }
+
+  if (range_select) {
+    bool is_inside_range = false;
+    view.foreach_view_item([&](AbstractViewItem &item) {
+      if ((item.is_active()) ^ (&item == clicked_item)) {
+        is_inside_range = !is_inside_range;
+        /* Select end items from the range. */
+        item.set_selected(true);
+      }
+      if (is_inside_range) {
+        /* Select items within the range. */
+        item.set_selected(true);
+      }
+    });
+    ED_region_tag_redraw(&region);
     return OPERATOR_FINISHED;
   }
-  return OPERATOR_CANCELLED;
+
+  clicked_item->activate(*C);
+
+  return OPERATOR_FINISHED;
 }
 
 static void UI_OT_view_item_select(wmOperatorType *ot)
@@ -2810,10 +2892,19 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
   ot->idname = "UI_OT_view_item_select";
   ot->description = "Activate selected view item";
 
-  ot->exec = ui_view_item_select_exec;
+  ot->invoke = ui_view_item_select_invoke;
   ot->poll = ui_view_focused_poll;
 
   ot->flag = OPTYPE_INTERNAL;
+
+  PropertyRNA *prop = RNA_def_boolean(ot->srna, "extend", false, "extend", "Extend Selection");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "range_select",
+                         false,
+                         "Range Select",
+                         "Select all between clicked and active items");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 /** \} */
 

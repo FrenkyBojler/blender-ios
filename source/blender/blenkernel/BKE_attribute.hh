@@ -672,7 +672,7 @@ class AttributeAccessor {
     if (AttributeReader<T> varray = this->lookup<T>(attribute_id, domain)) {
       return varray;
     }
-    return {VArray<T>::ForSingle(default_value, this->domain_size(domain)), domain};
+    return {VArray<T>::from_single(default_value, this->domain_size(domain)), domain};
   }
 
   /**
@@ -786,6 +786,9 @@ class MutableAttributeAccessor : public AttributeAccessor {
            const AttrType data_type,
            const AttributeInit &initializer)
   {
+    if (!this->domain_supported(domain)) {
+      return false;
+    }
     if (this->contains(attribute_id)) {
       return false;
     }

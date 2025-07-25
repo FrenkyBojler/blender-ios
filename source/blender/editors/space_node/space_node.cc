@@ -64,7 +64,6 @@
 #include "WM_types.hh"
 
 #include "NOD_node_in_compute_context.hh"
-#include "NOD_socket_interface_key.hh"
 
 #include "io_utils.hh"
 
@@ -512,7 +511,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
     const FunctionRef<bool(const nodes::SocketInContext &)> handle_possible_target_socket_fn,
     const bool find_all)
 {
-  using BundlePath = Vector<nodes::SocketInterfaceKey, 0>;
+  using BundlePath = Vector<std::string, 0>;
 
   struct SocketToCheck {
     nodes::SocketInContext socket;
@@ -588,7 +587,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
       if (node->is_type("GeometryNodeCombineBundle")) {
         const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node->storage);
         BundlePath new_bundle_path = bundle_path;
-        new_bundle_path.append(nodes::SocketInterfaceKey{storage.items[socket->index()].name});
+        new_bundle_path.append(storage.items[socket->index()].name);
         add_if_new(node.output_socket(0), std::move(new_bundle_path));
         continue;
       }
@@ -596,11 +595,10 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
         if (bundle_path.is_empty()) {
           continue;
         }
-        const nodes::SocketInterfaceKey &last_key = bundle_path.last();
+        const StringRef last_key = bundle_path.last();
         const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node->storage);
         for (const int output_i : IndexRange(storage.items_num)) {
-          const nodes::SocketInterfaceKey key{storage.items[output_i].name};
-          if (last_key.matches(key)) {
+          if (last_key == storage.items[output_i].name) {
             add_if_new(node.output_socket(output_i), bundle_path.as_span().drop_back(1));
           }
         }
@@ -609,8 +607,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
       if (node->is_type("GeometryNodeClosureOutput")) {
         const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
             node->storage);
-        const nodes::SocketInterfaceKey key(
-            closure_storage.output_items.items[socket->index()].name);
+        const StringRef key = closure_storage.output_items.items[socket->index()].name;
         const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
             node.output_socket(0), compute_context_cache, is_evaluate_closure_node_input, true);
         for (const auto &target_socket : target_sockets) {
@@ -620,7 +617,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
           for (const int i : IndexRange(evaluate_storage.output_items.items_num)) {
             const NodeGeometryEvaluateClosureOutputItem &item =
                 evaluate_storage.output_items.items[i];
-            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+            if (key == item.name) {
               add_if_new(evaluate_node.output_socket(i), bundle_path);
             }
           }
@@ -633,8 +630,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
         }
         const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
             node->storage);
-        const nodes::SocketInterfaceKey key(
-            evaluate_storage.input_items.items[socket->index() - 1].name);
+        const StringRef key = evaluate_storage.input_items.items[socket->index() - 1].name;
         const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
             node.input_socket(0), compute_context_cache, is_closure_zone_output_socket, true);
         for (const nodes::SocketInContext origin_socket : origin_sockets) {
@@ -663,7 +659,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
               closure_output_node->storage);
           for (const int i : IndexRange(closure_output_storage.input_items.items_num)) {
             const NodeGeometryClosureInputItem &item = closure_output_storage.input_items.items[i];
-            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+            if (key == item.name) {
               add_if_new({&closure_context, &closure_input_node->output_socket(i)}, bundle_path);
             }
           }
@@ -728,7 +724,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
     const FunctionRef<bool(const nodes::SocketInContext &)> handle_possible_origin_socket_fn,
     const bool find_all)
 {
-  using BundlePath = Vector<nodes::SocketInterfaceKey, 0>;
+  using BundlePath = Vector<std::string, 0>;
 
   struct SocketToCheck {
     nodes::SocketInContext socket;
@@ -839,8 +835,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
       if (node->is_type("GeometryNodeEvaluateClosure")) {
         const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
             node->storage);
-        const nodes::SocketInterfaceKey key(
-            evaluate_storage.output_items.items[socket->index()].name);
+        const StringRef key = evaluate_storage.output_items.items[socket->index()].name;
         const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
             node.input_socket(0), compute_context_cache, is_closure_zone_output_socket, true);
         for (const nodes::SocketInContext origin_socket : origin_sockets) {
@@ -856,7 +851,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
                   &closure_tree, closure_output_node->identifier, origin_socket.context_hash()});
           for (const int i : IndexRange(closure_storage.output_items.items_num)) {
             const NodeGeometryClosureOutputItem &item = closure_storage.output_items.items[i];
-            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+            if (key == item.name) {
               add_if_new({&closure_context, &closure_output_node->input_socket(i)}, bundle_path);
             }
           }
@@ -872,8 +867,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
         }
         const auto &output_storage = *static_cast<const NodeGeometryClosureOutput *>(
             closure_output_node->storage);
-        const nodes::SocketInterfaceKey key(
-            output_storage.input_items.items[socket->index()].name);
+        const StringRef key = output_storage.input_items.items[socket->index()].name;
         const bNodeSocket &closure_output_socket = closure_output_node->output_socket(0);
         const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
             {socket.context, &closure_output_socket},
@@ -887,7 +881,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
           for (const int i : IndexRange(evaluate_storage.input_items.items_num)) {
             const NodeGeometryEvaluateClosureInputItem &item =
                 evaluate_storage.input_items.items[i];
-            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+            if (key == item.name) {
               add_if_new(target_node.input_socket(i + 1), bundle_path);
             }
           }
@@ -898,11 +892,10 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
         if (bundle_path.is_empty()) {
           continue;
         }
-        const nodes::SocketInterfaceKey &last_key = bundle_path.last();
+        const StringRef last_key = bundle_path.last();
         const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node->storage);
         for (const int input_i : IndexRange(storage.items_num)) {
-          const nodes::SocketInterfaceKey key{storage.items[input_i].name};
-          if (last_key.matches(key)) {
+          if (last_key == storage.items[input_i].name) {
             add_if_new(node.input_socket(input_i), bundle_path.as_span().drop_back(1));
           }
         }
@@ -911,7 +904,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
       if (node->is_type("GeometryNodeSeparateBundle")) {
         const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node->storage);
         BundlePath new_bundle_path = bundle_path;
-        new_bundle_path.append(nodes::SocketInterfaceKey{storage.items[socket->index()].name});
+        new_bundle_path.append(storage.items[socket->index()].name);
         add_if_new(node.input_socket(0), std::move(new_bundle_path));
         continue;
       }
@@ -936,7 +929,7 @@ Vector<nodes::BundleSignature> gather_linked_target_bundle_signatures(
   Vector<nodes::BundleSignature> signatures;
   for (const nodes::SocketInContext &target_socket : target_sockets) {
     const nodes::NodeInContext &target_node = target_socket.owner_node();
-    signatures.append(nodes::BundleSignature::FromSeparateBundleNode(*target_node.node));
+    signatures.append(nodes::BundleSignature::from_separate_bundle_node(*target_node.node));
   }
   return signatures;
 }
@@ -956,7 +949,7 @@ Vector<nodes::BundleSignature> gather_linked_origin_bundle_signatures(
   Vector<nodes::BundleSignature> signatures;
   for (const nodes::SocketInContext &origin_socket : origin_sockets) {
     const nodes::NodeInContext &origin_node = origin_socket.owner_node();
-    signatures.append(nodes::BundleSignature::FromCombineBundleNode(*origin_node.node));
+    signatures.append(nodes::BundleSignature::from_combine_bundle_node(*origin_node.node));
   }
   return signatures;
 }
@@ -974,7 +967,7 @@ Vector<nodes::ClosureSignature> gather_linked_target_closure_signatures(
   Vector<nodes::ClosureSignature> signatures;
   for (const nodes::SocketInContext &target_socket : target_sockets) {
     const nodes::NodeInContext &target_node = target_socket.owner_node();
-    signatures.append(nodes::ClosureSignature::FromEvaluateClosureNode(*target_node.node));
+    signatures.append(nodes::ClosureSignature::from_evaluate_closure_node(*target_node.node));
   }
   return signatures;
 }
@@ -990,11 +983,12 @@ Vector<nodes::ClosureSignature> gather_linked_origin_closure_signatures(
       compute_context_cache,
       [&](const nodes::SocketInContext &socket) {
         if (is_closure_zone_output_socket(socket)) {
-          signatures.append(nodes::ClosureSignature::FromClosureOutputNode(socket->owner_node()));
+          signatures.append(
+              nodes::ClosureSignature::from_closure_output_node(socket->owner_node()));
           return true;
         }
         if (is_non_empty_unlinked_closure_input(socket)) {
-          signatures.append(*nodes::ClosureSignature::FromBuiltin(
+          signatures.append(*nodes::ClosureSignature::from_builtin(
               dynamic_cast<const nodes::decl::Closure &>(*socket->runtime->declaration)
                   .closure_type));
           return true;
@@ -1995,10 +1989,11 @@ static void node_widgets()
   wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(&params);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_transform);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_crop);
-  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_sun_beams);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_glare);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_corner_pin);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_split);
 }
 
 static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
@@ -2313,7 +2308,7 @@ void ED_spacetype_node()
   art->cursor = node_cursor;
   art->event_cursor = true;
   art->clip_gizmo_events_by_ui = true;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   BLI_addhead(&st->regiontypes, art);
 

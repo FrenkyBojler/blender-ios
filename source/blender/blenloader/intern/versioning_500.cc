@@ -11,10 +11,12 @@
 #include <fmt/format.h>
 
 #include "DNA_ID.h"
+#include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 
@@ -33,21 +35,30 @@
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_idprop.hh"
+#include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_pointcache.h"
+#include "BKE_report.hh"
+
+#include "BLT_translation.hh"
+
+#include "BLO_read_write.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
+#include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
 
 #include "versioning_common.hh"
 
 // #include "CLG_log.h"
-// static CLG_LogRef LOG = {"blo.readfile.doversion"};
+// static CLG_LogRef LOG = {"blend.doversion"};
 
 void version_system_idprops_generate(Main *bmain)
 {
@@ -407,7 +418,7 @@ static void do_version_scene_remove_use_nodes(Scene *scene)
      * should not disable compositing. */
     return;
   }
-  else if (scene->use_nodes == false && scene->r.scemode & R_DOCOMP) {
+  if (scene->use_nodes == false && scene->r.scemode & R_DOCOMP) {
     /* A compositing node tree exists but users explicitly disabled compositing. */
     scene->r.scemode &= ~R_DOCOMP;
   }
@@ -498,6 +509,62 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
     blender::bke::node_tree_set_type(*node_tree);
     version_node_remove(*node_tree, *node);
   }
+}
+
+static void do_version_transform_geometry_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_points_to_volume_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Resolution Mode")) {
+    return;
+  }
+  const NodeGeometryPointsToVolume &storage = *static_cast<NodeGeometryPointsToVolume *>(
+      node.storage);
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Resolution Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.resolution_mode;
+}
+
+static void do_version_triangulate_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Quad Method")) {
+    bNodeSocket &socket = version_node_add_socket(
+        ntree, node, SOCK_IN, "NodeSocketMenu", "Quad Method");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "N-gon Method")) {
+    bNodeSocket &socket = version_node_add_socket(
+        ntree, node, SOCK_IN, "NodeSocketMenu", "N-gon Method");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2;
+  }
+}
+
+static void do_version_volume_to_mesh_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Resolution Mode")) {
+    return;
+  }
+  const NodeGeometryVolumeToMesh &storage = *static_cast<NodeGeometryVolumeToMesh *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Resolution Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.resolution_mode;
+}
+
+static void do_version_match_string_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Operation")) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Operation");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
 }
 
 static void version_seq_text_from_legacy(Main *bmain)
@@ -617,7 +684,7 @@ static void do_version_mix_color_use_alpha(bNodeTree *node_tree, bNode *node)
   }
   else {
     /* Otherwise, the factor is unlinked and we just copy the factor value to the first input in
-     * the multiply.*/
+     * the multiply. */
     static_cast<bNodeSocketValueFloat *>(multiply_input_a->default_value)->value =
         static_cast<bNodeSocketValueFloat *>(factor_input->default_value)->value;
   }
@@ -644,7 +711,7 @@ static void do_version_mix_color_use_alpha(bNodeTree *node_tree, bNode *node)
   }
   else {
     /* Otherwise, the B input is unlinked and we just copy the alpha value to the second input in
-     * the multiply.*/
+     * the multiply. */
     static_cast<bNodeSocketValueFloat *>(multiply_input_b->default_value)->value =
         static_cast<bNodeSocketValueRGBA *>(b_input->default_value)->value[3];
   }
@@ -987,7 +1054,7 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
           -math::numbers::pi_v<float> / 2.0f;
       position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = factor;
       /* The y-coordinate doesn't matter in this case, so set the value to 0.5 so that the gizmo
-       * appears nicely at the center.*/
+       * appears nicely at the center. */
       position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = 0.5f;
       break;
     }
@@ -1000,7 +1067,175 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
   }
 }
 
-void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
+static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *object)
+{
+  constexpr int PTCACHE_COMPRESS_LZO = 1;
+  constexpr int PTCACHE_COMPRESS_LZMA = 2;
+  ListBase pidlist;
+
+  BKE_ptcache_ids_from_object(&pidlist, object, nullptr, 0);
+
+  LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
+    bool found_incompatible_cache = false;
+    if (pid->cache->compression == PTCACHE_COMPRESS_LZO) {
+      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FAST;
+      found_incompatible_cache = true;
+    }
+    else if (pid->cache->compression == PTCACHE_COMPRESS_LZMA) {
+      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_SLOW;
+      found_incompatible_cache = true;
+    }
+
+    if (pid->type == PTCACHE_TYPE_DYNAMICPAINT) {
+      /* Dynamicpaint was hardcoded to use LZO. */
+      found_incompatible_cache = true;
+    }
+
+    if (!found_incompatible_cache) {
+      continue;
+    }
+
+    std::string cache_type;
+    switch (pid->type) {
+      case PTCACHE_TYPE_SOFTBODY:
+        cache_type = RPT_("Softbody");
+        break;
+      case PTCACHE_TYPE_PARTICLES:
+        cache_type = RPT_("Particle");
+        break;
+      case PTCACHE_TYPE_CLOTH:
+        cache_type = RPT_("Cloth");
+        break;
+      case PTCACHE_TYPE_SMOKE_DOMAIN:
+        cache_type = RPT_("Smoke Domain");
+        break;
+      case PTCACHE_TYPE_SMOKE_HIGHRES:
+        cache_type = RPT_("Smoke");
+        break;
+      case PTCACHE_TYPE_DYNAMICPAINT:
+        cache_type = RPT_("Dynamic Paint");
+        break;
+      case PTCACHE_TYPE_RIGIDBODY:
+        /* Rigidbody caches shouldn't have any disk caches, but keep it here just in case. */
+        cache_type = RPT_("Rigidbody");
+        break;
+    }
+    BLO_reportf_wrap(
+        fd->reports,
+        RPT_WARNING,
+        RPT_("%s Cache in object %s can not be read because it uses an "
+             "outdated compression method. You need to delete the caches and re-bake."),
+        cache_type.c_str(),
+        pid->owner_id->name + 2);
+  }
+
+  BLI_freelistN(&pidlist);
+}
+
+static void do_version_convert_gp_jitter_values(Brush *brush)
+{
+  /* Because this change is backported into the 4.5 branch, we need to avoid performing versioning
+   * in case the user updated their custom brush assets between using 4.5 and 5.0 to avoid
+   * overwriting their changes.
+   *
+   * See #142104
+   */
+  if ((brush->flag2 & BRUSH_JITTER_COLOR) != 0 || !is_zero_v3(brush->hsv_jitter)) {
+    return;
+  }
+
+  BrushGpencilSettings *settings = brush->gpencil_settings;
+  float old_hsv_jitter[3] = {
+      settings->random_hue, settings->random_saturation, settings->random_value};
+  if (!is_zero_v3(old_hsv_jitter)) {
+    brush->flag2 |= BRUSH_JITTER_COLOR;
+  }
+  copy_v3_v3(brush->hsv_jitter, old_hsv_jitter);
+  if (brush->curve_rand_hue) {
+    BKE_curvemapping_free_data(brush->curve_rand_hue);
+    BKE_curvemapping_copy_data(brush->curve_rand_hue, settings->curve_rand_hue);
+  }
+  else {
+    brush->curve_rand_hue = BKE_curvemapping_copy(settings->curve_rand_hue);
+  }
+  if (brush->curve_rand_saturation) {
+    BKE_curvemapping_free_data(brush->curve_rand_saturation);
+    BKE_curvemapping_copy_data(brush->curve_rand_saturation, settings->curve_rand_saturation);
+  }
+  else {
+    brush->curve_rand_saturation = BKE_curvemapping_copy(settings->curve_rand_saturation);
+  }
+  if (brush->curve_rand_value) {
+    BKE_curvemapping_free_data(brush->curve_rand_value);
+    BKE_curvemapping_copy_data(brush->curve_rand_value, settings->curve_rand_value);
+  }
+  else {
+    brush->curve_rand_value = BKE_curvemapping_copy(settings->curve_rand_value);
+  }
+}
+
+/* The Composite node was removed and a Group Output node should be used instead, so we need to
+ * make the replacement. But first note that the Group Output node relies on the node tree
+ * interface, so we ensure a default interface with a single input and output. This is only for
+ * root trees used as scene compositing node groups, for other node trees, we remove all composite
+ * nodes since they are no longer supported inside groups. */
+static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode &node)
+{
+  blender::bke::node_tree_set_type(node_tree);
+
+  /* Remove inactive nodes. */
+  if (!(node.flag & NODE_DO_OUTPUT)) {
+    version_node_remove(node_tree, node);
+    return;
+  }
+
+  bNodeSocket *old_image_input = blender::bke::node_find_socket(node, SOCK_IN, "Image");
+
+  /* Find the link going into the Image input of the Composite node. */
+  bNodeLink *image_link = nullptr;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
+    if (link->tosock == old_image_input) {
+      image_link = link;
+    }
+  }
+
+  bNode *group_output_node = blender::bke::node_add_node(nullptr, node_tree, "NodeGroupOutput");
+  group_output_node->parent = node.parent;
+  group_output_node->location[0] = node.location[0];
+  group_output_node->location[1] = node.location[1];
+
+  bNodeSocket *image_input = static_cast<bNodeSocket *>(group_output_node->inputs.first);
+  BLI_assert(blender::StringRef(image_input->name) == "Image");
+  copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
+             old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+
+  if (image_link) {
+    version_node_add_link(
+        node_tree, *image_link->fromnode, *image_link->fromsock, *group_output_node, *image_input);
+    blender::bke::node_remove_link(&node_tree, *image_link);
+  }
+
+  version_node_remove(node_tree, node);
+}
+
+/* Updates the media type of the given format to match its imtype. */
+static void update_format_media_type(ImageFormatData *format)
+{
+  if (BKE_imtype_is_image(format->imtype)) {
+    format->media_type = MEDIA_TYPE_IMAGE;
+  }
+  else if (BKE_imtype_is_multi_layer_image(format->imtype)) {
+    format->media_type = MEDIA_TYPE_MULTI_LAYER_IMAGE;
+  }
+  else if (BKE_imtype_is_movie(format->imtype)) {
+    format->media_type = MEDIA_TYPE_VIDEO;
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
+void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
@@ -1014,6 +1249,45 @@ void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         do_version_convert_to_generic_nodes_after_linking(bmain, ntree, id);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 37)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      do_version_remove_lzo_and_lzma_compression(fd, object);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 41)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, scene);
+      if (node_tree) {
+        /* Add a default interface for the node tree. See the versioning function below for more
+         * details. */
+        node_tree->tree_interface.clear_items();
+        node_tree->tree_interface.add_socket(
+            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+        node_tree->tree_interface.add_socket(
+            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
+        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_COMPOSITE_DEPRECATED) {
+            do_version_composite_node_in_scene_tree(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      blender::bke::node_tree_set_type(*node_tree);
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_COMPOSITE_DEPRECATED) {
+            /* See do_version_composite_node_in_scene_tree. */
+            version_node_remove(*node_tree, *node);
+          }
+        }
       }
     }
     FOREACH_NODETREE_END;
@@ -1147,7 +1421,9 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
-          do_version_normal_node_dot_product(node_tree, node);
+          if (node->type_legacy == CMP_NODE_NORMAL) {
+            do_version_normal_node_dot_product(node_tree, node);
+          }
         }
       }
     }
@@ -1227,7 +1503,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (node->type_legacy != CMP_NODE_TRANSLATE) {
           continue;
         }
-        if (node->storage != nullptr) {
+        if (node->storage == nullptr) {
           continue;
         }
         NodeTranslateData *data = static_cast<NodeTranslateData *>(node->storage);
@@ -1250,7 +1526,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
             break;
         }
-        node->storage = data;
       }
       FOREACH_NODETREE_END;
     }
@@ -1280,12 +1555,154 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 34)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy != CMP_NODE_SCALE) {
+          continue;
+        }
+        if (node->storage == nullptr) {
+          continue;
+        }
+        NodeScaleData *data = static_cast<NodeScaleData *>(node->storage);
+        data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+        data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+      }
+      FOREACH_NODETREE_END;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 35)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy != CMP_NODE_TRANSFORM) {
+          continue;
+        }
+        if (node->storage != nullptr) {
+          continue;
+        }
+        NodeTransformData *data = MEM_callocN<NodeTransformData>(__func__);
+        data->interpolation = node->custom1;
+        data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+        data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+        node->storage = data;
+      }
+      FOREACH_NODETREE_END;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 36)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image", "A");
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image_001", "B");
+
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z", "Depth A");
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z_001", "Depth B");
+
+        version_node_output_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image", "Result");
+        version_node_output_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z", "Depth");
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 38)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_GEOMETRY) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == GEO_NODE_TRANSFORM_GEOMETRY) {
+            do_version_transform_geometry_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_POINTS_TO_VOLUME) {
+            do_version_points_to_volume_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_TRIANGULATE) {
+            do_version_triangulate_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_VOLUME_TO_MESH) {
+            do_version_volume_to_mesh_options_to_inputs(*node_tree, *node);
+          }
+          else if (STREQ(node->idname, "FunctionNodeMatchString")) {
+            do_version_match_string_options_to_inputs(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 39)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      Editing *ed = seq::editing_get(scene);
+
+      if (ed != nullptr) {
+        seq::for_each_callback(&ed->seqbase, [](Strip *strip) -> bool {
+          LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+            seq::modifier_persistent_uid_init(*strip, *smd);
+          }
+          return true;
+        });
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 40)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->gpencil_settings) {
+        do_version_convert_gp_jitter_values(brush);
+      }
+    }
+  }
+
+  /* ImageFormatData gained a new media type which we need to be set according to the existing
+   * imtype. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 42)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      update_format_media_type(&scene->r.im_format);
+    }
+
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy != CMP_NODE_OUTPUT_FILE) {
+          continue;
+        }
+
+        NodeImageMultiFile *storage = static_cast<NodeImageMultiFile *>(node->storage);
+        update_format_media_type(&storage->format);
+
+        LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
+          NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
+              input->storage);
+          update_format_media_type(&input_storage->format);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
    *
    * \note Keep this message at the bottom of the function.
    */
+
+  /* Keep this versioning always enabled at the bottom of the function; it can only be moved behind
+   * a subversion bump when the file format is changed. */
+  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+    bke::mesh_freestyle_marks_to_generic(*mesh);
+  }
 
   FOREACH_NODETREE_BEGIN (bmain, tree, id) {
     LISTBASE_FOREACH (bNode *, node, &tree->nodes) {

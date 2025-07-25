@@ -329,6 +329,7 @@ typedef enum eNodeSocketDisplayShape {
   SOCK_DISPLAY_SHAPE_DIAMOND_DOT = 5,
   SOCK_DISPLAY_SHAPE_LINE = 6,
   SOCK_DISPLAY_SHAPE_VOLUME_GRID = 7,
+  SOCK_DISPLAY_SHAPE_LIST = 8,
 } eNodeSocketDisplayShape;
 
 /** Socket side (input/output). */
@@ -629,11 +630,6 @@ enum {
    * until the node type is registered.
    */
   NODE_INIT = 1 << 16,
-  /**
-   * Do recalculation of output, used to skip recalculation of unwanted
-   * composite out nodes when editing tree
-   */
-  NODE_DO_OUTPUT_RECALC = 1 << 17,
   /** A preview for the data in this node can be displayed in the spreadsheet editor. */
   // NODE_ACTIVE_PREVIEW = 1 << 18, /* deprecated */
   /** Active node that is used to paint on. */
@@ -1084,7 +1080,7 @@ typedef enum GeometryNodeAssetTraitFlag {
   /* Only used by Grease Pencil for now. */
   GEO_NODE_ASSET_PAINT = (1 << 10),
 } GeometryNodeAssetTraitFlag;
-ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_WAIT_FOR_CURSOR);
+ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_PAINT);
 
 /* Data structs, for `node->storage`. */
 
@@ -1587,6 +1583,12 @@ typedef struct NodeTrackPosData {
   char track_name[64];
 } NodeTrackPosData;
 
+typedef struct NodeTransformData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeTransformData;
+
 typedef struct NodeTranslateData {
   char wrap_axis DNA_DEPRECATED;
   char relative DNA_DEPRECATED;
@@ -1597,6 +1599,8 @@ typedef struct NodeTranslateData {
 
 typedef struct NodeScaleData {
   short interpolation;
+  char extension_x;
+  char extension_y;
 } NodeScaleData;
 
 typedef struct NodeDisplaceData {
@@ -1765,8 +1769,6 @@ typedef struct NodeGeometryObjectInfo {
 typedef struct NodeGeometryPointsToVolume {
   /** #GeometryNodePointsToVolumeResolutionMode */
   uint8_t resolution_mode;
-  /** #GeometryNodeAttributeInputMode */
-  uint8_t input_type_radius;
 } NodeGeometryPointsToVolume;
 
 typedef struct NodeGeometryCollectionInfo {
@@ -2209,7 +2211,7 @@ typedef struct NodeGeometryClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
-  /** #NodeSocketInterfaceStructureType.  */
+  /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type;
   char _pad[1];
   int identifier;
@@ -2248,7 +2250,7 @@ typedef struct NodeGeometryEvaluateClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  /** #NodeSocketInterfaceStructureType.  */
+  /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type;
   char _pad[1];
   int identifier;
@@ -2258,7 +2260,7 @@ typedef struct NodeGeometryEvaluateClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  /** #NodeSocketInterfaceStructureType.  */
+  /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type;
   char _pad[1];
   int identifier;
@@ -2350,7 +2352,7 @@ typedef struct NodeGeometryDialGizmo {
 } NodeGeometryDialGizmo;
 
 typedef struct NodeGeometryTransformGizmo {
-  /** #NodeGeometryTransformGizmoFlag.  */
+  /** #NodeGeometryTransformGizmoFlag. */
   uint32_t flag;
 } NodeGeometryTransformGizmo;
 
@@ -3017,6 +3019,7 @@ typedef enum CMPNodeGlareType {
   CMP_NODE_GLARE_STREAKS = 2,
   CMP_NODE_GLARE_GHOST = 3,
   CMP_NODE_GLARE_BLOOM = 4,
+  CMP_NODE_GLARE_SUN_BEAMS = 5,
 } CMPNodeGlareType;
 
 /* Kuwahara Node. Stored in variation */
@@ -3087,6 +3090,13 @@ typedef enum CMPNodeLensDistortionType {
   CMP_NODE_LENS_DISTORTION_RADIAL = 0,
   CMP_NODE_LENS_DISTORTION_HORIZONTAL = 1,
 } CMPNodeLensDistortionType;
+
+/* Alpha Over node. Stored in custom1. */
+typedef enum CMPNodeAlphaOverOperationType {
+  CMP_NODE_ALPHA_OVER_OPERATION_TYPE_OVER = 0,
+  CMP_NODE_ALPHA_OVER_OPERATION_TYPE_DISJOINT_OVER = 1,
+  CMP_NODE_ALPHA_OVER_OPERATION_TYPE_CONJOINT_OVER = 2,
+} CMPNodeAlphaOverOperationType;
 
 /* Relative To Pixel node. Stored in custom1. */
 typedef enum CMPNodeRelativeToPixelDataType {

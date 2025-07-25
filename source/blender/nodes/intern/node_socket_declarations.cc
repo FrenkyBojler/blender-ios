@@ -2,17 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_colorband.hh"
-#include "BLI_string.h"
-
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
+#include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node_runtime.hh"
 
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 namespace blender::nodes::decl {
 
@@ -604,6 +603,30 @@ bNodeSocket &Menu::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+MenuBuilder &MenuBuilder::static_items(const EnumPropertyItem *items)
+{
+  /* Using a global map ensures that the same runtime data is used for the same static items.
+   * This is necessary because otherwise each node would have a different (incompatible) menu
+   * definition. */
+  static Mutex mutex;
+  static Map<const EnumPropertyItem *, ImplicitSharingPtr<bke::RuntimeNodeEnumItems>>
+      items_by_enum_ptr;
+
+  std::lock_guard lock{mutex};
+  decl_->items = items_by_enum_ptr.lookup_or_add_cb(items, [&]() {
+    bke::RuntimeNodeEnumItems *runtime_items = new bke::RuntimeNodeEnumItems();
+    for (const EnumPropertyItem *item = items; item->identifier; item++) {
+      bke::RuntimeNodeEnumItem runtime_item;
+      runtime_item.name = item->name;
+      runtime_item.description = item->description;
+      runtime_item.identifier = item->value;
+      runtime_items->items.append(std::move(runtime_item));
+    }
+    return ImplicitSharingPtr<bke::RuntimeNodeEnumItems>(runtime_items);
+  });
+  return *this;
 }
 
 /** \} */

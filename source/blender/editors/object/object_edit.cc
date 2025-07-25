@@ -112,7 +112,7 @@
 
 namespace blender::ed::object {
 
-static CLG_LogRef LOG = {"ed.object.edit"};
+static CLG_LogRef LOG = {"object.edit"};
 
 /* prototypes */
 static ListBase selected_objects_get(bContext *C);
@@ -460,7 +460,8 @@ void collection_hide_menu_draw(const bContext *C, uiLayout *layout)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   LayerCollection *lc_scene = static_cast<LayerCollection *>(view_layer->layer_collections.first);
 
-  layout->operator_context_set(WM_OP_EXEC_REGION_WIN);
+  /* Use the "invoke" operator context so the "Shift" modifier is used to extend. */
+  layout->operator_context_set(wm::OpCallContext::InvokeRegionWin);
 
   LISTBASE_FOREACH (LayerCollection *, lc, &lc_scene->layer_collections) {
     int index = BKE_layer_collection_findindex(view_layer, lc);
@@ -2212,7 +2213,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
   ListBase objects = selected_objects_get(C);
 
   if (is_new) {
-    char new_collection_name[MAX_NAME];
+    char new_collection_name[MAX_ID_NAME - 2];
     RNA_string_get(op->ptr, "new_collection_name", new_collection_name);
     collection = BKE_collection_add(bmain, collection, new_collection_name);
   }
@@ -2303,8 +2304,9 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "collection_uid");
   bool is_move = STREQ(op->type->idname, "OBJECT_OT_move_to_collection");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    WM_menu_name_call(
-        C, is_move ? "OBJECT_MT_move_to_collection" : "OBJECT_MT_link_to_collection", 0);
+    WM_menu_name_call(C,
+                      is_move ? "OBJECT_MT_move_to_collection" : "OBJECT_MT_link_to_collection",
+                      wm::OpCallContext::InvokeDefault);
     return OPERATOR_FINISHED;
   }
 
@@ -2322,7 +2324,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
 
   prop = RNA_struct_find_property(op->ptr, "new_collection_name");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    char name[MAX_NAME];
+    char name[MAX_ID_NAME - 2];
 
     BKE_collection_new_name_get(collection, name);
 
@@ -2346,7 +2348,7 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
   wmOperatorType *ot = WM_operatortype_find(
       is_move ? "OBJECT_OT_move_to_collection" : "OBJECT_OT_link_to_collection", false);
 
-  layout.operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout.operator_context_set(wm::OpCallContext::InvokeDefault);
 
   PointerRNA op_ptr = layout.op(
       ot, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "New Collection"), ICON_ADD);
@@ -2389,8 +2391,8 @@ static void move_to_collection_menu_draw(const bContext *C, Menu *menu)
 {
   uiLayout &layout = *menu->layout;
   Scene *scene = CTX_data_scene(C);
-  if (layout.operator_context() == WM_OP_EXEC_REGION_WIN) {
-    layout.operator_context_set(WM_OP_INVOKE_REGION_WIN);
+  if (layout.operator_context() == wm::OpCallContext::ExecRegionWin) {
+    layout.operator_context_set(wm::OpCallContext::InvokeRegionWin);
     PointerRNA op_ptr = layout.op("WM_OT_search_single_menu", "Search...", ICON_VIEWZOOM);
     RNA_string_set(&op_ptr, "menu_idname", menu->type->idname);
     layout.separator();
@@ -2470,7 +2472,7 @@ void OBJECT_OT_move_to_collection(wmOperatorType *ot)
   prop = RNA_def_string(ot->srna,
                         "new_collection_name",
                         nullptr,
-                        MAX_NAME,
+                        MAX_ID_NAME - 2,
                         "Name",
                         "Name of the newly added collection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -2509,7 +2511,7 @@ void OBJECT_OT_link_to_collection(wmOperatorType *ot)
   prop = RNA_def_string(ot->srna,
                         "new_collection_name",
                         nullptr,
-                        MAX_NAME,
+                        MAX_ID_NAME - 2,
                         "Name",
                         "Name of the newly added collection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);

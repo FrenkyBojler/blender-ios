@@ -39,6 +39,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -72,7 +73,7 @@
 #  include "BLI_math_base.h" /* M_PI */
 #endif
 
-static CLG_LogRef LOG = {"bke.ipo"};
+static CLG_LogRef LOG = {"anim.ipo"};
 
 using namespace blender;
 
@@ -1336,7 +1337,7 @@ static void fcurve_add_to_list(
         agrp->flag |= AGRP_MUTED;
       }
 
-      STRNCPY(agrp->name, grpname);
+      STRNCPY_UTF8(agrp->name, grpname);
 
       BLI_addtail(&tmp_act.groups, agrp);
       BLI_uniquename(&tmp_act.groups,

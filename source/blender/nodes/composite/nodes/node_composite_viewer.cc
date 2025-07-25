@@ -41,8 +41,6 @@ static void node_composit_init_viewer(bNodeTree * /*ntree*/, bNode *node)
   node->storage = iuser;
   iuser->sfra = 1;
   node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
-
-  node->id = (ID *)BKE_image_ensure_viewer(G.main, IMA_TYPE_COMPOSITE, "Viewer Node");
 }
 
 using namespace blender::compositor;
@@ -55,7 +53,7 @@ class ViewerOperation : public NodeOperation {
   {
     /* Viewers are treated as composite outputs that should be in the bounds of the compositing
      * region, so do nothing if the compositing region is invalid. */
-    if (this->context().treat_viewer_as_composite_output() &&
+    if (this->context().treat_viewer_as_compositor_output() &&
         !this->context().is_valid_compositing_region())
     {
       return;
@@ -145,7 +143,7 @@ class ViewerOperation : public NodeOperation {
   {
     /* Viewers are treated as composite outputs that should be in the bounds of the compositing
      * region. */
-    if (context().treat_viewer_as_composite_output()) {
+    if (context().treat_viewer_as_compositor_output()) {
       const rcti compositing_region = context().get_compositing_region();
       return Bounds<int2>(int2(compositing_region.xmin, compositing_region.ymin),
                           int2(compositing_region.xmax, compositing_region.ymax));
@@ -159,7 +157,7 @@ class ViewerOperation : public NodeOperation {
   {
     /* Viewers are treated as composite outputs that should be in the domain of the compositing
      * region. */
-    if (context().treat_viewer_as_composite_output()) {
+    if (context().treat_viewer_as_compositor_output()) {
       return Domain(context().get_compositing_region_size());
     }
 
