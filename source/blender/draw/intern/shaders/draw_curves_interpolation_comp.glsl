@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * GPU generated indirection buffer. Updated on attribute change.
+ * GPU generated interpolated position and radius. Updated on attribute change.
  * One thread processes one curve.
+ *
+ * Equivalent of `CurvesGeometry::evaluated_positions()`.
  */
 
 #include "draw_curves_info.hh"
@@ -12,6 +14,11 @@
 COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolation)
 
 #include "gpu_shader_attribute_load_lib.glsl"
+
+struct IndexRange {
+  uint start;
+  uint end;
+};
 
 /* Copy of DNA enum in `DNA_curves_types.h`. */
 enum CurveType : uint32_t {
@@ -49,10 +56,11 @@ float4 calculate_basis(const float parameter)
                        -s * t * t);
 }
 
-int4 get_points(uint segment_id, uint curve_start, uint curve_end)
+int4 get_points(uint segment_id, IndexRange curve_range)
 {
   int4 point_ids = int(segment_id) + int4(-1, +0, +1, +2);
-  return clamp(int(curve_start) + point_ids, int4(curve_start), int4(curve_end - 1));
+  return clamp(
+      int(curve_range.start) + point_ids, int4(curve_range.start), int4(curve_range.end - 1));
 }
 
 float4 get_weights(float parameter)
@@ -60,12 +68,9 @@ float4 get_weights(float parameter)
   return catmull_rom::calculate_basis(parameter);
 }
 
-EvaluatedPoint get_evaluated_point(uint segment_id,
-                                   uint curve_start,
-                                   uint curve_end,
-                                   float parameter)
+EvaluatedPoint get_evaluated_point(uint segment_id, IndexRange curve_range, float parameter)
 {
-  const int4 point_ids = get_points(segment_id, curve_start, curve_end);
+  const int4 point_ids = get_points(segment_id, curve_range);
   const float3 lP_0 = gpu_attr_load_float3(points_pos_buf, int2(3, 0), point_ids.x);
   const float3 lP_1 = gpu_attr_load_float3(points_pos_buf, int2(3, 0), point_ids.y);
   const float3 lP_2 = gpu_attr_load_float3(points_pos_buf, int2(3, 0), point_ids.z);
@@ -83,7 +88,57 @@ EvaluatedPoint get_evaluated_point(uint segment_id,
   return pt;
 }
 
+void evaluate_curve(IndexRange curve_range, IndexRange evaluated_range, uint curve_resolution)
+{
+  for (uint i = 0; i < evaluated_range.end - evaluated_range.start; i++) {
+    const uint out_id = evaluated_range.start + i;
+    const uint segment_id = i / curve_resolution;
+    const float parameter = float(i % curve_resolution) / float(curve_resolution);
+
+    EvaluatedPoint pt = get_evaluated_point(segment_id, curve_range, parameter);
+    points_pos_rad_buf[out_id] = float4(pt.position, pt.radius);
+  }
+}
+
 }  // namespace catmull_rom
+
+namespace bezier {
+
+int2 get_points(uint segment_id, IndexRange curve_range)
+{
+  int2 point_ids = int(segment_id) + int2(+0, +1);
+  return clamp(
+      int(curve_range.start) + point_ids, int2(curve_range.start), int2(curve_range.end - 1));
+}
+
+EvaluatedPoint get_evaluated_point(uint segment_id, IndexRange curve_range, float parameter)
+{
+  const int2 point_ids = get_points(segment_id, curve_range);
+  const float3 lP_0 = gpu_attr_load_float3(points_pos_buf, int2(3, 0), point_ids.x);
+  const float3 lP_1 = gpu_attr_load_float3(points_pos_buf, int2(3, 0), point_ids.y);
+
+  const float rad_0 = points_rad_buf[point_ids.x];
+  const float rad_1 = points_rad_buf[point_ids.y];
+
+  EvaluatedPoint pt;
+  pt.position = mix(lP_0, lP_1, parameter);
+  pt.radius = mix(rad_0, rad_1, parameter);
+  return pt;
+}
+
+void evaluate_curve(IndexRange curve_range, IndexRange evaluated_range, uint curve_resolution)
+{
+  for (uint i = 0; i < evaluated_range.end - evaluated_range.start; i++) {
+    const uint out_id = evaluated_range.start + i;
+    const uint segment_id = i / curve_resolution;
+    const float parameter = float(i % curve_resolution) / float(curve_resolution);
+
+    EvaluatedPoint pt = get_evaluated_point(segment_id, curve_range, parameter);
+    points_pos_rad_buf[out_id] = float4(pt.position, pt.radius);
+  }
+}
+
+}  // namespace bezier
 
 void main()
 {
@@ -92,44 +147,39 @@ void main()
     return;
   }
 
-  const uint curve_start = curves_offsets_buf[curve_id];
-  const uint curve_end = curves_offsets_buf[curve_id + 1];
+  IndexRange curve_range;
+  curve_range.start = curves_offsets_buf[curve_id];
+  curve_range.end = curves_offsets_buf[curve_id + 1];
+
+  IndexRange evaluated_range;
+  evaluated_range.start = curves_evaluated_offsets_buf[curve_id];
+  evaluated_range.end = curves_evaluated_offsets_buf[curve_id + 1];
+
   const uint curve_resolution = curves_resolution_buf[curve_id];
   const CurveType curve_type = CurveType(curves_type_buf[curve_id]);
 
-  const uint evaluated_start = curves_evaluated_offsets_buf[curve_id];
-  const uint evaluated_end = curves_evaluated_offsets_buf[curve_id + 1];
-
-  float3 last_position = float3(0.0f);
-  float distance_along_curve = 0.0f;
-  for (uint i = 0; i < evaluated_end - evaluated_start; i++) {
-    const uint out_id = evaluated_start + i;
-    const uint segment_id = i / curve_resolution;
-    const float parameter = float(i % curve_resolution) / float(curve_resolution);
-
-    EvaluatedPoint pt;
-    switch (curve_type) {
-      case CURVE_TYPE_CATMULL_ROM:
-        pt = catmull_rom::get_evaluated_point(segment_id, curve_start, curve_end, parameter);
-        break;
-      case CURVE_TYPE_POLY:
-      case CURVE_TYPE_BEZIER:
-      case CURVE_TYPE_NURBS:
-        break;
-    }
-
-    points_pos_rad_buf[out_id] = float4(pt.position, pt.radius);
-
-    if (true /* TODO(fclem) Make it optional. */) {
-      distance_along_curve += (i == 0) ? 0.0f : distance(last_position, pt.position);
-      last_position = pt.position;
-      points_time_buf[out_id] = distance_along_curve;
-    }
+  switch (curve_type) {
+    case CURVE_TYPE_CATMULL_ROM:
+      catmull_rom::evaluate_curve(curve_range, evaluated_range, curve_resolution);
+      break;
+    case CURVE_TYPE_BEZIER:
+      bezier::evaluate_curve(curve_range, evaluated_range, curve_resolution);
+      break;
+    case CURVE_TYPE_POLY:
+    case CURVE_TYPE_NURBS:
+      /* Not implemented. */
+      break;
   }
 
   if (true /* TODO(fclem) Make it optional. */) {
+    float distance_along_curve = 0.0f;
+    points_time_buf[0] = 0.0f;
+    for (uint i = evaluated_range.start + 1; i < evaluated_range.end; i++) {
+      distance_along_curve += distance(points_pos_rad_buf[i].xyz, points_pos_rad_buf[i - 1].xyz);
+      points_time_buf[i] = distance_along_curve;
+    }
     curves_length_buf[curve_id] = distance_along_curve;
-    for (uint i = evaluated_start; i < evaluated_end; i++) {
+    for (uint i = evaluated_range.start + 1; i < evaluated_range.end; i++) {
       points_time_buf[i] /= distance_along_curve;
     }
   }

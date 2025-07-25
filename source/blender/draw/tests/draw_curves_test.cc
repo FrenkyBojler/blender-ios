@@ -432,6 +432,9 @@ static void test_draw_curves_interpolation()
     pass.bind_ssbo("points_pos_rad_buf", points_pos_rad_buf);
     pass.bind_ssbo("points_time_buf", points_time_buf);
     pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    /* Dummy, not used for Catmull-Rom. */
+    pass.bind_ssbo("handles_pos_left_buf", curves_evaluated_offsets_buf);
+    pass.bind_ssbo("handles_pos_right_buf", curves_evaluated_offsets_buf);
     pass.push_constant("curves_count", 2);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
