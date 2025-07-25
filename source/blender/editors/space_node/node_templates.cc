@@ -539,7 +539,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 
       if (first) {
         column = &layout->column(false);
-        blender::ui::block_layout_set_current(block, column);
+        ui::block_layout_set_current(block, column);
 
         column->label(IFACE_(cname), ICON_NODE);
         but = block->buttons.last().get();
@@ -615,7 +615,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
   bNodeSocket *sock = arg->sock;
   bke::bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
-  blender::ui::block_layout_set_current(block, layout);
+  ui::block_layout_set_current(block, layout);
   split = &layout->split(0.0f, false);
 
   arg->bmain = bmain;
@@ -627,7 +627,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
   }
 
   column = &split->column(false);
-  blender::ui::block_layout_set_current(block, column);
+  ui::block_layout_set_current(block, column);
 
   if (sock->link) {
     column->label(IFACE_("Link"), ICON_NONE);

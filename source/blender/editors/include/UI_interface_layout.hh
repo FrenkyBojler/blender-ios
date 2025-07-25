@@ -818,7 +818,6 @@ uiLayout &block_layout(uiBlock *block,
                        const uiStyle *style);
 int2 block_layout_resolve(uiBlock *block);
 
-
 void block_layout_set_current(uiBlock *block, uiLayout *layout);
 bool block_layout_needs_resolving(const uiBlock *block);
 /**
@@ -868,7 +867,6 @@ enum eUI_Item_Flag : uint16_t {
 };
 ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
-
 
 /**
  * Apply property search behavior, setting panel flags and deactivating buttons that don't match.
