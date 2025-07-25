@@ -17,6 +17,8 @@
 
 #include "BLT_translation.hh"
 
+#include "FN_multi_function_builder.hh"
+
 #include <fmt/format.h>
 
 namespace blender::bke {
@@ -587,17 +589,35 @@ void copy_with_checked_indices(const VArray<T> &src,
                                MutableSpan<T> dst)
 {
   const IndexRange src_range = src.index_range();
-  devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
-    mask.foreach_index(GrainSize(4096), [&](const int i) {
-      const int index = indices[i];
-      if (src_range.contains(index)) {
-        dst[i] = src[index];
-      }
-      else {
-        dst[i] = {};
-      }
-    });
+  const GVArray src_indices = indices;
+  mask.foreach_segment([&](const IndexMaskSegment &segment) {
+    mf::build::detail::execute_materialized(
+        TypeSequence<mf::ParamTag<mf::ParamCategory::SingleInput, int>,
+                     mf::ParamTag<mf::ParamCategory::SingleOutput, T>>(),
+        std::make_index_sequence<2>(),
+        [src_range, &src](const int64_t src_index, T &dst) {
+          if (src_range.contains(src_index)) {
+            dst = src[src_index];
+          }
+          else {
+            dst = {};
+          }
+        },
+        segment,
+        std::make_tuple(src_indices.get_implementation(), dst.data()));
   });
+
+  // devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
+  //   mask.foreach_index(GrainSize(4096), [&](const int i) {
+  //     const int index = indices[i];
+  //     if (src_range.contains(index)) {
+  //       dst[i] = src[index];
+  //     }
+  //     else {
+  //       dst[i] = {};
+  //     }
+  //   });
+  // });
 }
 
 void copy_with_checked_indices(const GVArray &src,
