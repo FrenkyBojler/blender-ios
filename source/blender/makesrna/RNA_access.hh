@@ -214,8 +214,12 @@ PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifi
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
 const ListBase *RNA_struct_type_functions(StructRNA *srna);
 
-char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len)
-    ATTR_WARN_UNUSED_RESULT;
+[[nodiscard]] char *RNA_struct_name_get_alloc_ex(
+    PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop);
+[[nodiscard]] char *RNA_struct_name_get_alloc(PointerRNA *ptr,
+                                              char *fixedbuf,
+                                              int fixedlen,
+                                              int *r_len);
 
 /**
  * Use when registering structs with the #STRUCT_PUBLIC_NAMESPACE flag.
@@ -683,6 +687,12 @@ bool RNA_enum_icon_from_value(const EnumPropertyItem *item, int value, int *r_ic
 bool RNA_enum_name_from_value(const EnumPropertyItem *item, int value, const char **r_name);
 
 void RNA_string_get(PointerRNA *ptr, const char *name, char *value);
+/**
+ * Retrieve string from a string property, or an empty string if the property does not exist.
+ * \note This mostly exists as a C++ replacement for #RNA_string_get_alloc or a simpler replacement
+ * for the overload with a return pointer argument with easy support for arbitrary length strings.
+ */
+std::string RNA_string_get(PointerRNA *ptr, const char *name);
 char *RNA_string_get_alloc(PointerRNA *ptr,
                            const char *name,
                            char *fixedbuf,

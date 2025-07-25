@@ -278,7 +278,22 @@ struct SceneResources {
 
 class MeshPass : public PassMain {
  private:
-  using TextureSubPassKey = std::pair<GPUTexture *, eGeometryType>;
+  struct TextureSubPassKey {
+    gpu::Texture *texture;
+    GPUSamplerState sampler_state;
+    eGeometryType geom_type;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(texture, sampler_state.as_uint(), geom_type);
+    }
+
+    bool operator==(TextureSubPassKey const &rhs) const
+    {
+      return this->texture == rhs.texture && this->sampler_state == rhs.sampler_state &&
+             this->geom_type == rhs.geom_type;
+    }
+  };
 
   Map<TextureSubPassKey, PassMain::Sub *> texture_subpass_map_;
 
@@ -317,7 +332,7 @@ class OpaquePass {
   TextureFromPool gbuffer_material_tx = {"gbuffer_material_tx"};
 
   Texture shadow_depth_stencil_tx = {"shadow_depth_stencil_tx"};
-  GPUTexture *deferred_ps_stencil_tx = nullptr;
+  gpu::Texture *deferred_ps_stencil_tx = nullptr;
 
   MeshPass gbuffer_ps_ = {"Opaque.Gbuffer"};
   MeshPass gbuffer_in_front_ps_ = {"Opaque.GbufferInFront"};
@@ -426,7 +441,7 @@ class ShadowPass {
   void draw(Manager &manager,
             View &view,
             SceneResources &resources,
-            GPUTexture &depth_stencil_tx,
+            gpu::Texture &depth_stencil_tx,
             /* Needed when there are opaque "In Front" objects in the scene */
             bool force_fail_method);
 
@@ -443,7 +458,7 @@ class VolumePass {
   Texture dummy_volume_tx_ = {"Volume.Dummy Volume Tx"};
   Texture dummy_coba_tx_ = {"Volume.Dummy Coba Tx"};
 
-  GPUTexture *stencil_tx_ = nullptr;
+  gpu::Texture *stencil_tx_ = nullptr;
 
  public:
   void sync(SceneResources &resources);
@@ -585,7 +600,7 @@ class AntiAliasingPass {
       SceneResources &resources,
       /** Passed directly since we may need to copy back the results from the first sample,
        * and resources.depth_in_front_tx is only valid when mesh passes have to draw to it. */
-      GPUTexture *depth_in_front_tx);
+      gpu::Texture *depth_in_front_tx);
 };
 
 }  // namespace blender::workbench

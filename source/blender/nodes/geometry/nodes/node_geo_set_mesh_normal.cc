@@ -26,7 +26,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to set the custom normals on");
   b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   if (const bNode *node = b.node_or_null()) {
     switch (Mode(node->custom1)) {
@@ -149,6 +151,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           Array<float3> corner_normals(mesh->corners_num);
           evaluator.add_with_destination<float3>(custom_normal, corner_normals);
           evaluator.evaluate();
+          mesh->attributes_for_write().remove("custom_normal");
           bke::mesh_set_custom_normals(*mesh, corner_normals);
         }
       });
