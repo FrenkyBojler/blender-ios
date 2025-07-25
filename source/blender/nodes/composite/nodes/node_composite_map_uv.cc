@@ -73,6 +73,12 @@ class MapUVOperation : public NodeOperation {
       return;
     }
 
+    const Result &input_uv = get_input("UV");
+    if (input_uv.is_single_value()) {
+      this->execute_single();
+      return;
+    }
+
     if (this->context().use_gpu()) {
       this->execute_gpu();
     }
@@ -84,8 +90,11 @@ class MapUVOperation : public NodeOperation {
   void execute_gpu()
   {
     const Interpolation interpolation = this->get_interpolation();
-    GPUShader *shader = context().get_shader(this->get_shader_name(interpolation));
+    GPUShader *shader = context().get_shader(get_pixel_sampler_shader_name(interpolation));
     GPU_shader_bind(shader);
+
+    GPU_shader_uniform_1b(shader, "is_single_value_uv_coordinates", false);
+    GPU_shader_uniform_2fv(shader, "single_value_uv_coordinates", float2(0.0, 0.0));
 
     const Result &input_image = get_input("Image");
     if (interpolation == Interpolation::Anisotropic) {
@@ -106,12 +115,7 @@ class MapUVOperation : public NodeOperation {
 
     const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
-    if (input_uv.is_single_value()) {
-      output_image.allocate_single_value();
-    }
-    else {
-      output_image.allocate_texture(domain);
-    }
+    output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
     compute_dispatch_threads_at_least(shader, domain.size);
@@ -120,36 +124,11 @@ class MapUVOperation : public NodeOperation {
     input_uv.unbind_as_texture();
     output_image.unbind_as_image();
     GPU_shader_unbind();
-
-    if (input_uv.is_single_value()) {
-      float4 output_single_value = sample_pixel<float4>(context(), output_image, int2(0, 0));
-      output_image.set_single_value(output_single_value);
-    }
-  }
-
-  char const *get_shader_name(const Interpolation &interpolation)
-  {
-    switch (interpolation) {
-      case Interpolation::Anisotropic:
-        return "compositor_map_uv_anisotropic";
-      case Interpolation::Bicubic:
-        return "compositor_map_uv_bicubic";
-      case Interpolation::Bilinear:
-      case Interpolation::Nearest:
-        return "compositor_map_uv";
-    }
-    BLI_assert_unreachable();
-    return "compositor_map_uv";
   }
 
   void execute_cpu()
   {
     const Interpolation interpolation = this->get_interpolation();
-    const Result &input_uv = get_input("UV");
-    if (input_uv.is_single_value()) {
-      this->execute_single_cpu(interpolation);
-      return;
-    }
     if (interpolation == Interpolation::Anisotropic) {
       this->execute_cpu_anisotropic();
     }
@@ -158,26 +137,14 @@ class MapUVOperation : public NodeOperation {
     }
   }
 
-  void execute_single_cpu(const Interpolation &interpolation)
+  void execute_single()
   {
+    const Interpolation interpolation = this->get_interpolation();
     const Result &input_uv = get_input("UV");
     const Result &input_image = get_input("Image");
 
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
-    float4 sampled_color{0.0f};
-    switch (interpolation) {
-      case Interpolation::Nearest:
-        sampled_color = input_image.sample_nearest_zero(uv_coordinates);
-        break;
-      case Interpolation::Bilinear:
-        sampled_color = input_image.sample_bilinear_zero(uv_coordinates);
-        break;
-      /* NOTE: The anisotropic case should be handled after reimplementation of EWA. */
-      case Interpolation::Anisotropic:
-      case Interpolation::Bicubic:
-        sampled_color = input_image.sample_cubic_wrap(uv_coordinates, false, false);
-        break;
-    }
+    float4 sampled_color = sample_pixel(context(), input_image, interpolation, uv_coordinates);
 
     /* The UV input is assumed to contain an alpha channel as its third channel, since the
      * UV coordinates might be defined in only a subset area of the UV texture as mentioned.

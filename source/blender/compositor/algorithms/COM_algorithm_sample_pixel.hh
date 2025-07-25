@@ -11,8 +11,12 @@
 
 namespace blender::compositor {
 
-/* Samples a pixel from a GPU texture. */
-template<typename T>
-T sample_pixel(Context &context, const Result &result, const int2 texel);
+char const *get_pixel_sampler_shader_name(const Interpolation &interpolation);
+
+/* Samples a pixel from a texture. */
+float4 sample_pixel(Context &context,
+                    const Result &result,
+                    const Interpolation &interpolation,
+                    const float2 uv_coordinates);
 
 }  // namespace blender::compositor

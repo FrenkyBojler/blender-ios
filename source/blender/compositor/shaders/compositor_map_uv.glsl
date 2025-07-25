@@ -9,16 +9,24 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  float2 uv_coordinates = texture_load(uv_tx, texel).xy;
+  float2 uv_coordinates;
+  float alpha;
+  if (is_single_value_uv_coordinates) {
+    uv_coordinates = single_value_uv_coordinates;
+    /* For single value UV coordinates, the alpha is not pre-multiplied in the shader. */
+    alpha = 1.0;
+  }
+  else {
+    uv_coordinates = texture_load(uv_tx, texel).xy;
+    /* The UV texture is assumed to contain an alpha channel as its third channel, since the UV
+     * coordinates might be defined in only a subset area of the UV texture as mentioned. In that
+     * case, the alpha is typically opaque at the subset area and transparent everywhere else, and
+     * alpha pre-multiplication is then performed. This format of having an alpha channel in the UV
+     * coordinates is the format used by UV passes in render engines, hence the mentioned logic. */
+    alpha = texture_load(uv_tx, texel).z;
+  }
 
   float4 sampled_color = SAMPLER_FUNCTION(input_tx, uv_coordinates);
-
-  /* The UV texture is assumed to contain an alpha channel as its third channel, since the UV
-   * coordinates might be defined in only a subset area of the UV texture as mentioned. In that
-   * case, the alpha is typically opaque at the subset area and transparent everywhere else, and
-   * alpha pre-multiplication is then performed. This format of having an alpha channel in the UV
-   * coordinates is the format used by UV passes in render engines, hence the mentioned logic. */
-  float alpha = texture_load(uv_tx, texel).z;
 
   float4 result = sampled_color * alpha;
 
