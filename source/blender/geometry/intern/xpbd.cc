@@ -896,7 +896,7 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
         bke::SpanAttributeWriter<float3> positions =
             attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
         for (const int i : velocities.span.index_range()) {
-          acceleration[i] += force[i] * sub_delta_time / masses[i];
+          acceleration[i] += force[i] / masses[i];
           velocities.span[i] += acceleration[i] * sub_delta_time;
           positions.span[i] += velocities.span[i] * sub_delta_time;
         }
