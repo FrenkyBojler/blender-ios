@@ -27,7 +27,6 @@
 #include "kernel/osl/types.h"
 
 #include "kernel/integrator/state.h"
-#include "kernel/integrator/state_util.h"
 
 #include "kernel/geom/primitive.h"
 #include "kernel/geom/shader_data.h"
@@ -40,6 +39,7 @@
 #include "kernel/svm/bevel.h"
 
 #include "kernel/util/ies.h"
+#include "kernel/util/texture_3d.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -75,7 +75,6 @@ ustring OSLRenderServices::u_geom_dupli_generated("geom:dupli_generated");
 ustring OSLRenderServices::u_geom_dupli_uv("geom:dupli_uv");
 ustring OSLRenderServices::u_material_index("material:index");
 ustring OSLRenderServices::u_object_random("object:random");
-ustring OSLRenderServices::u_light_random("light:random");
 ustring OSLRenderServices::u_particle_index("particle:index");
 ustring OSLRenderServices::u_particle_random("particle:random");
 ustring OSLRenderServices::u_particle_age("particle:age");
@@ -107,6 +106,7 @@ ustring OSLRenderServices::u_path_diffuse_depth("path:diffuse_depth");
 ustring OSLRenderServices::u_path_glossy_depth("path:glossy_depth");
 ustring OSLRenderServices::u_path_transparent_depth("path:transparent_depth");
 ustring OSLRenderServices::u_path_transmission_depth("path:transmission_depth");
+ustring OSLRenderServices::u_path_portal_depth("path:portal_depth");
 ustring OSLRenderServices::u_trace("trace");
 ustring OSLRenderServices::u_hit("hit");
 ustring OSLRenderServices::u_hitdist("hitdist");
@@ -118,6 +118,13 @@ ustring OSLRenderServices::u_u("u");
 ustring OSLRenderServices::u_v("v");
 ustring OSLRenderServices::u_empty;
 
+ustring OSLRenderServices::u_sensor_size("cam:sensor_size");
+ustring OSLRenderServices::u_image_resolution("cam:image_resolution");
+ustring OSLRenderServices::u_aperture_aspect_ratio("cam:aperture_aspect_ratio");
+ustring OSLRenderServices::u_aperture_size("cam:aperture_size");
+ustring OSLRenderServices::u_aperture_position("cam:aperture_position");
+ustring OSLRenderServices::u_focal_distance("cam:focal_distance");
+
 ImageManager *OSLRenderServices::image_manager = nullptr;
 
 OSLRenderServices::OSLRenderServices(OSL::TextureSystem *texture_system, const int device_type)
@@ -128,7 +135,7 @@ OSLRenderServices::OSLRenderServices(OSL::TextureSystem *texture_system, const i
 OSLRenderServices::~OSLRenderServices()
 {
   if (m_texturesys) {
-    VLOG_INFO << "OSL texture system stats:\n" << m_texturesys->getstats();
+    LOG_INFO << "OSL texture system stats:\n" << m_texturesys->getstats();
   }
 }
 
@@ -138,6 +145,8 @@ int OSLRenderServices::supports(string_view feature) const
   if (feature == "OptiX") {
     return device_type_ == DEVICE_OPTIX;
   }
+#else
+  (void)feature;
 #endif
 
   return false;
@@ -145,7 +154,7 @@ int OSLRenderServices::supports(string_view feature) const
 
 bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
                                    OSL::Matrix44 &result,
-                                   OSL::TransformationPtr xform,
+                                   OSL::TransformationPtr /*xform*/,
                                    const float time)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
@@ -177,19 +186,13 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
 
     return true;
   }
-  if (sd->type == PRIMITIVE_LAMP) {
-    const Transform tfm = lamp_fetch_transform(kg, sd->lamp, false);
-    copy_matrix(result, tfm);
-
-    return true;
-  }
 
   return false;
 }
 
 bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
                                            OSL::Matrix44 &result,
-                                           OSL::TransformationPtr xform,
+                                           OSL::TransformationPtr /*xform*/,
                                            const float time)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
@@ -221,12 +224,6 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
 
     return true;
   }
-  if (sd->type == PRIMITIVE_LAMP) {
-    const Transform itfm = lamp_fetch_transform(kg, sd->lamp, true);
-    copy_matrix(result, itfm);
-
-    return true;
-  }
 
   return false;
 }
@@ -234,7 +231,7 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
 bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
                                    OSL::Matrix44 &result,
                                    OSLUStringHash from,
-                                   const float time)
+                                   const float /*time*/)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
   const ThreadKernelGlobalsCPU *kg = globals->kg;
@@ -266,7 +263,7 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
 bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
                                            OSL::Matrix44 &result,
                                            OSLUStringHash to,
-                                           const float time)
+                                           const float /*time*/)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
   const ThreadKernelGlobalsCPU *kg = globals->kg;
@@ -297,7 +294,7 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
 
 bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
                                    OSL::Matrix44 &result,
-                                   OSL::TransformationPtr xform)
+                                   OSL::TransformationPtr /*xform*/)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
 
@@ -317,19 +314,13 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
 
     return true;
   }
-  if (sd->type == PRIMITIVE_LAMP) {
-    const Transform tfm = lamp_fetch_transform(kg, sd->lamp, false);
-    copy_matrix(result, tfm);
-
-    return true;
-  }
 
   return false;
 }
 
 bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
                                            OSL::Matrix44 &result,
-                                           OSL::TransformationPtr xform)
+                                           OSL::TransformationPtr /*xform*/)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
 
@@ -346,12 +337,6 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
   if (object != OBJECT_NONE) {
     const Transform tfm = object_get_inverse_transform(kg, sd);
     copy_matrix(result, tfm);
-
-    return true;
-  }
-  if (sd->type == PRIMITIVE_LAMP) {
-    const Transform itfm = lamp_fetch_transform(kg, sd->lamp, true);
-    copy_matrix(result, itfm);
 
     return true;
   }
@@ -413,13 +398,13 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
   return false;
 }
 
-bool OSLRenderServices::get_array_attribute(OSL::ShaderGlobals *sg,
-                                            bool derivatives,
-                                            OSLUStringHash object,
-                                            const TypeDesc type,
-                                            OSLUStringHash name,
-                                            const int index,
-                                            void *val)
+bool OSLRenderServices::get_array_attribute(OSL::ShaderGlobals * /*sg*/,
+                                            bool /* derivatives*/,
+                                            OSLUStringHash /* object*/,
+                                            const TypeDesc /* type*/,
+                                            OSLUStringHash /* name*/,
+                                            const int /* index*/,
+                                            void * /*val*/)
 {
   return false;
 }
@@ -672,8 +657,8 @@ inline bool get_object_attribute_impl(const ThreadKernelGlobalsCPU *kg,
   T dx = make_zero<T>();
   T dy = make_zero<T>();
 #ifdef __VOLUME__
-  if (primitive_is_volume_attribute(sd, desc)) {
-    v = primitive_volume_attribute<T>(kg, sd, desc);
+  if (primitive_is_volume_attribute(sd)) {
+    v = primitive_volume_attribute<T>(kg, sd, desc, true);
   }
   else
 #endif
@@ -694,16 +679,16 @@ static bool get_object_attribute(const ThreadKernelGlobalsCPU *kg,
   if (desc.type == NODE_ATTR_FLOAT) {
     return get_object_attribute_impl<float>(kg, sd, desc, type, derivatives, val);
   }
-  else if (desc.type == NODE_ATTR_FLOAT2) {
+  if (desc.type == NODE_ATTR_FLOAT2) {
     return get_object_attribute_impl<float2>(kg, sd, desc, type, derivatives, val);
   }
-  else if (desc.type == NODE_ATTR_FLOAT3) {
+  if (desc.type == NODE_ATTR_FLOAT3) {
     return get_object_attribute_impl<float3>(kg, sd, desc, type, derivatives, val);
   }
-  else if (desc.type == NODE_ATTR_FLOAT4 || desc.type == NODE_ATTR_RGBA) {
+  if (desc.type == NODE_ATTR_FLOAT4 || desc.type == NODE_ATTR_RGBA) {
     return get_object_attribute_impl<float4>(kg, sd, desc, type, derivatives, val);
   }
-  else if (desc.type == NODE_ATTR_MATRIX) {
+  if (desc.type == NODE_ATTR_MATRIX) {
     const Transform tfm = primitive_attribute_matrix(kg, desc);
     return set_attribute_matrix(tfm, type, val);
   }
@@ -752,10 +737,6 @@ bool OSLRenderServices::get_object_standard_attribute(
   }
   if (name == u_object_random) {
     const float f = object_random_number(kg, sd->object);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_light_random) {
-    const float f = lamp_random_number(kg, sd->lamp);
     return set_attribute(f, type, derivatives, val);
   }
 
@@ -851,7 +832,7 @@ bool OSLRenderServices::get_object_standard_attribute(
     return set_attribute(f, type, derivatives, val);
   }
   if (name == u_curve_tangent_normal) {
-    const float3 f = curve_tangent_normal(kg, sd);
+    const float3 f = curve_tangent_normal(sd);
     return set_attribute(f, type, derivatives, val);
   }
   if (name == u_curve_random) {
@@ -946,6 +927,11 @@ bool OSLRenderServices::get_background_attribute(
     const int f = READ_PATH_STATE(transparent_bounce);
     return set_attribute(f, type, derivatives, val);
   }
+  if (name == u_path_portal_depth) {
+    /* Portal Ray Depth */
+    const int f = READ_PATH_STATE(portal_bounce);
+    return set_attribute(f, type, derivatives, val);
+  }
 #undef READ_PATH_STATE
 
   if (name == u_ndc) {
@@ -978,6 +964,36 @@ bool OSLRenderServices::get_background_attribute(
   return false;
 }
 
+bool OSLRenderServices::get_camera_attribute(
+    ShaderGlobals *globals, OSLUStringHash name, TypeDesc type, bool derivatives, void *val)
+{
+  const ThreadKernelGlobalsCPU *kg = globals->kg;
+  if (name == u_sensor_size) {
+    const float2 sensor = make_float2(kernel_data.cam.sensorwidth, kernel_data.cam.sensorheight);
+    return set_attribute(sensor, type, derivatives, val);
+  }
+  if (name == u_image_resolution) {
+    const float2 image = make_float2(kernel_data.cam.width, kernel_data.cam.height);
+    return set_attribute(image, type, derivatives, val);
+  }
+  if (name == u_aperture_aspect_ratio) {
+    return set_attribute(1.0f / kernel_data.cam.inv_aperture_ratio, type, derivatives, val);
+  }
+  if (name == u_aperture_size) {
+    return set_attribute(kernel_data.cam.aperturesize, type, derivatives, val);
+  }
+  if (name == u_aperture_position) {
+    /* The random numbers for aperture sampling are packed into N. */
+    const float2 rand_lens = make_float2(globals->N.x, globals->N.y);
+    const float2 pos = camera_sample_aperture(&kernel_data.cam, rand_lens);
+    return set_attribute(pos * kernel_data.cam.aperturesize, type, derivatives, val);
+  }
+  if (name == u_focal_distance) {
+    return set_attribute(kernel_data.cam.focaldistance, type, derivatives, val);
+  }
+  return false;
+}
+
 bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
                                       bool derivatives,
                                       OSLUStringHash object_name,
@@ -986,16 +1002,19 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
                                       void *val)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-
-  if (globals == nullptr || globals->sd == nullptr) {
+  if (globals == nullptr) {
     return false;
   }
 
   ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
-  int object;
+  if (sd == nullptr) {
+    /* Camera shader. */
+    return get_camera_attribute(globals, name, type, derivatives, val);
+  }
 
   /* lookup of attribute on another object */
+  int object;
   if (object_name != u_empty) {
     const OSLGlobals::ObjectNameMap::iterator it = kg->osl.globals->object_name_map.find(
         object_name);
@@ -1011,8 +1030,7 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
   }
 
   /* find attribute on object */
-  const AttributeDescriptor desc = find_attribute(
-      kg, object, sd->prim, object == sd->object ? sd->type : PRIMITIVE_NONE, name.hash());
+  const AttributeDescriptor desc = find_attribute(kg, object, sd->prim, name.hash());
   if (desc.offset != ATTR_STD_NOT_FOUND) {
     return get_object_attribute(kg, sd, desc, type, derivatives, val);
   }
@@ -1021,8 +1039,11 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
   return get_object_standard_attribute(globals, name, type, derivatives, val);
 }
 
-bool OSLRenderServices::get_userdata(
-    bool derivatives, OSLUStringHash name, const TypeDesc type, OSL::ShaderGlobals *sg, void *val)
+bool OSLRenderServices::get_userdata(bool /*derivatives*/,
+                                     OSLUStringHash /* name*/,
+                                     const TypeDesc /* type*/,
+                                     OSL::ShaderGlobals * /*sg*/,
+                                     void * /*val*/)
 {
   return false; /* disabled by lockgeom */
 }
@@ -1138,7 +1159,7 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
                                 float *result,
                                 float *dresultds,
                                 float *dresultdt,
-                                OSLUStringHash *errormessage)
+                                OSLUStringHash * /*errormessage*/)
 {
   OSLTextureHandle *handle = (OSLTextureHandle *)texture_handle;
   const OSLTextureHandle::Type texture_type = (handle) ? handle->type : OSLTextureHandle::OIIO;
@@ -1319,7 +1340,7 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
                                   float *dresultds,
                                   float *dresultdt,
                                   float *dresultdr,
-                                  OSLUStringHash *errormessage)
+                                  OSLUStringHash * /*errormessage*/)
 {
   OSLTextureHandle *handle = (OSLTextureHandle *)texture_handle;
   const OSLTextureHandle::Type texture_type = (handle) ? handle->type : OSLTextureHandle::OIIO;
@@ -1332,7 +1353,8 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
       /* Packed texture. */
       const int slot = handle->svm_slots[0].y;
       const float3 P_float3 = make_float3(P.x, P.y, P.z);
-      float4 rgba = kernel_tex_image_interp_3d(kernel_globals, slot, P_float3, INTERPOLATION_NONE);
+      float4 rgba = kernel_tex_image_interp_3d(
+          kernel_globals, slot, P_float3, INTERPOLATION_NONE, -1.0f);
 
       result[0] = rgba[0];
       if (nchannels > 1) {
@@ -1428,7 +1450,7 @@ bool OSLRenderServices::environment(OSLUStringHash filename,
                                     float *result,
                                     float *dresultds,
                                     float *dresultdt,
-                                    OSLUStringHash *errormessage)
+                                    OSLUStringHash * /*errormessage*/)
 {
   OSLTextureHandle *handle = (OSLTextureHandle *)texture_handle;
   OSL::TextureSystem *ts = m_texturesys;
@@ -1485,62 +1507,70 @@ bool OSLRenderServices::get_texture_info(OSLUStringHash filename,
                                          OSLUStringHash * /*errormessage*/)
 {
   OSLTextureHandle *handle = (OSLTextureHandle *)texture_handle;
-
-  /* No texture info for other texture types. */
-  if (handle && handle->type != OSLTextureHandle::OIIO) {
-    return false;
-  }
-
-  /* Get texture info from OpenImageIO. */
   OSL::TextureSystem *ts = m_texturesys;
-  if (handle->oiio_handle) {
-    return ts->get_texture_info(
-        handle->oiio_handle, texture_thread_info, subimage, to_ustring(dataname), datatype, data);
+
+  if (handle) {
+    /* No texture info for other texture types. */
+    if (handle->type != OSLTextureHandle::OIIO) {
+      return false;
+    }
+
+    if (handle->oiio_handle) {
+      /* Get texture info from OpenImageIO. */
+      return ts->get_texture_info(handle->oiio_handle,
+                                  texture_thread_info,
+                                  subimage,
+                                  to_ustring(dataname),
+                                  datatype,
+                                  data);
+    }
   }
 
+  /* Get texture info from OpenImageIO, slower using filename. */
   return ts->get_texture_info(
       to_ustring(filename), subimage, to_ustring(dataname), datatype, data);
 }
 
-int OSLRenderServices::pointcloud_search(OSL::ShaderGlobals *sg,
-                                         OSLUStringHash filename,
-                                         const OSL::Vec3 &center,
-                                         const float radius,
-                                         const int max_points,
-                                         bool sort,
+int OSLRenderServices::pointcloud_search(OSL::ShaderGlobals * /*sg*/,
+                                         OSLUStringHash /*filename*/,
+                                         const OSL::Vec3 & /*center*/,
+                                         const float /*radius*/,
+                                         const int /*max_points*/,
+                                         bool /*sort*/,
 #if OSL_LIBRARY_VERSION_CODE >= 11400
-                                         int *indices,
+                                         int * /*indices*/,
 #else
-                                         size_t *out_indices,
+                                         size_t * /*out_indices*/,
 #endif
-                                         float *out_distances,
-                                         const int derivs_offset)
+                                         float * /*out_distances*/,
+                                         const int /*derivs_offset*/)
 {
   return 0;
 }
 
-int OSLRenderServices::pointcloud_get(OSL::ShaderGlobals *sg,
-                                      OSLUStringHash filename,
+int OSLRenderServices::pointcloud_get(OSL::ShaderGlobals * /*sg*/
+                                      ,
+                                      OSLUStringHash /*filename*/,
 #if OSL_LIBRARY_VERSION_CODE >= 11400
-                                      const int *indices,
+                                      const int * /*indices*/,
 #else
-                                      size_t *indices,
+                                      size_t * /*indices*/,
 #endif
-                                      const int count,
-                                      OSLUStringHash attr_name,
-                                      const TypeDesc attr_type,
-                                      void *out_data)
+                                      const int /*count*/,
+                                      OSLUStringHash /*attr_name*/,
+                                      const TypeDesc /*attr_type*/,
+                                      void * /*out_data*/)
 {
   return 0;
 }
 
-bool OSLRenderServices::pointcloud_write(OSL::ShaderGlobals *sg,
-                                         OSLUStringHash filename,
-                                         const OSL::Vec3 &pos,
-                                         const int nattribs,
-                                         const OSLUStringRep *names,
-                                         const TypeDesc *types,
-                                         const void **data)
+bool OSLRenderServices::pointcloud_write(OSL::ShaderGlobals * /*sg*/,
+                                         OSLUStringHash /*filename*/,
+                                         const OSL::Vec3 & /*pos*/,
+                                         const int /*nattribs*/,
+                                         const OSLUStringRep * /*names*/,
+                                         const TypeDesc * /*types*/,
+                                         const void ** /*data*/)
 {
   return false;
 }
@@ -1559,6 +1589,10 @@ bool OSLRenderServices::trace(TraceOpt &options,
   ShaderData *sd = globals->sd;
   const ThreadKernelGlobalsCPU *kg = globals->kg;
 
+  if (sd == nullptr) {
+    return false;
+  }
+
   /* setup ray */
   Ray ray;
 
@@ -1571,7 +1605,6 @@ bool OSLRenderServices::trace(TraceOpt &options,
   ray.self.prim = PRIM_NONE;
   ray.self.light_object = OBJECT_NONE;
   ray.self.light_prim = PRIM_NONE;
-  ray.self.light = LAMP_NONE;
 
   if (options.mindist == 0.0f) {
     /* avoid self-intersections */

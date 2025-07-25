@@ -85,9 +85,8 @@ ccl_device T curve_attribute(KernelGlobals kg,
   }
 #  endif
 
-  if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
-    const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim : desc.offset;
-    return attribute_data_fetch<T>(kg, offset);
+  if (desc.element == ATTR_ELEMENT_CURVE) {
+    return attribute_data_fetch<T>(kg, desc.offset + sd->prim);
   }
   return make_zero<T>();
 }
@@ -154,7 +153,7 @@ ccl_device float3 curve_motion_center_location(KernelGlobals kg, const ccl_priva
 
 /* Curve tangent normal */
 
-ccl_device float3 curve_tangent_normal(KernelGlobals kg, const ccl_private ShaderData *sd)
+ccl_device float3 curve_tangent_normal(const ccl_private ShaderData *sd)
 {
   float3 tgN = make_float3(0.0f, 0.0f, 0.0f);
 

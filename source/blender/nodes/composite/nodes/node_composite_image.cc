@@ -35,6 +35,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -48,7 +49,7 @@
 static blender::bke::bNodeSocketTemplate cmp_node_rlayers_out[] = {
     {SOCK_RGBA, N_("Image"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_FLOAT, N_("Alpha"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT, N_(RE_PASSNAME_Z), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_(RE_PASSNAME_DEPTH), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_NORMAL), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_UV), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_VECTOR), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
@@ -111,7 +112,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
           *ntree, *node, SOCK_OUT, type, PROP_NONE, name, name);
     }
     /* extra socket info */
-    NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
+    NodeImageLayer *sockdata = MEM_callocN<NodeImageLayer>(__func__);
     sock->storage = sockdata;
   }
 
@@ -136,13 +137,18 @@ static eNodeSocketDatatype socket_type_from_pass(const RenderPass *pass)
       return SOCK_FLOAT;
     case 2:
     case 3:
-      return SOCK_VECTOR;
-    case 4:
-      if (blender::StringRef(pass->chan_id) == "XYZW") {
-        return SOCK_VECTOR;
+      if (STR_ELEM(pass->chan_id, "RGB", "rgb")) {
+        return SOCK_RGBA;
       }
       else {
+        return SOCK_VECTOR;
+      }
+    case 4:
+      if (STR_ELEM(pass->chan_id, "RGBA", "rgba")) {
         return SOCK_RGBA;
+      }
+      else {
+        return SOCK_VECTOR;
       }
     default:
       break;
@@ -305,8 +311,7 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
     if (engine_type && engine_type->update_render_passes) {
       ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&scene->view_layers, node->custom1);
       if (view_layer) {
-        RLayerUpdateData *data = (RLayerUpdateData *)MEM_mallocN(sizeof(RLayerUpdateData),
-                                                                 "render layer update data");
+        RLayerUpdateData *data = MEM_mallocN<RLayerUpdateData>("render layer update data");
         data->available_sockets = available_sockets;
         data->prev_index = -1;
         node->storage = data;
@@ -323,6 +328,11 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
         {
           node_cmp_rlayers_register_pass(
               ntree, node, scene, view_layer, RE_PASSNAME_FREESTYLE, SOCK_RGBA);
+        }
+
+        if (view_layer->grease_pencil_flags & GREASE_PENCIL_AS_SEPARATE_PASS) {
+          node_cmp_rlayers_register_pass(
+              ntree, node, scene, view_layer, RE_PASSNAME_GREASE_PENCIL, SOCK_RGBA);
         }
 
         MEM_freeN(data);
@@ -394,7 +404,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
         }
       }
       if (!link && (!rlayer || sock_index >= NUM_LEGACY_SOCKETS)) {
-        MEM_freeN(sock->storage);
+        MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
         blender::bke::node_remove_socket(*ntree, *node, *sock);
       }
       else {
@@ -420,7 +430,7 @@ static void cmp_node_image_update(bNodeTree *ntree, bNode *node)
 
 static void node_composit_init_image(bNodeTree *ntree, bNode *node)
 {
-  ImageUser *iuser = MEM_cnew<ImageUser>(__func__);
+  ImageUser *iuser = MEM_callocN<ImageUser>(__func__);
   node->storage = iuser;
   iuser->frames = 1;
   iuser->sfra = 1;
@@ -434,10 +444,10 @@ static void node_composit_free_image(bNode *node)
 {
   /* free extra socket info */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    MEM_freeN(sock->storage);
+    MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
   }
 
-  MEM_freeN(node->storage);
+  MEM_freeN(reinterpret_cast<ImageUser *>(node->storage));
 }
 
 static void node_composit_copy_image(bNodeTree * /*dst_ntree*/,
@@ -465,6 +475,10 @@ class ImageOperation : public NodeOperation {
   void execute() override
   {
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!is_socket_available(output)) {
+        continue;
+      }
+
       compute_output(output->identifier);
     }
   }
@@ -520,7 +534,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_image_cc
 
-void register_node_type_cmp_image()
+static void register_node_type_cmp_image()
 {
   namespace file_ns = blender::nodes::node_composite_image_cc;
 
@@ -541,6 +555,7 @@ void register_node_type_cmp_image()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_image)
 
 /* **************** RENDER RESULT ******************** */
 
@@ -573,7 +588,7 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
   for (bNodeSocket *sock = (bNodeSocket *)node->outputs.first; sock;
        sock = sock->next, sock_index++)
   {
-    NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
+    NodeImageLayer *sockdata = MEM_callocN<NodeImageLayer>(__func__);
     sock->storage = sockdata;
 
     STRNCPY(sockdata->pass_name, node_cmp_rlayers_sock_to_pass(sock_index));
@@ -589,23 +604,6 @@ static bool node_composit_poll_rlayers(const blender::bke::bNodeType * /*ntype*/
     return false;
   }
 
-  Scene *scene;
-
-  /* XXX ugly: check if ntree is a local scene node tree.
-   * Render layers node can only be used in local `scene->nodetree`,
-   * since it directly links to the scene.
-   */
-  for (scene = (Scene *)G.main->scenes.first; scene; scene = (Scene *)scene->id.next) {
-    if (scene->nodetree == ntree) {
-      break;
-    }
-  }
-
-  if (scene == nullptr) {
-    *r_disabled_hint = RPT_(
-        "The node tree must be the compositing node tree of any scene in the file");
-    return false;
-  }
   return true;
 }
 
@@ -614,7 +612,7 @@ static void node_composit_free_rlayers(bNode *node)
   /* free extra socket info */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
     if (sock->storage) {
-      MEM_freeN(sock->storage);
+      MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
     }
   }
 }
@@ -652,9 +650,9 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
     return;
   }
 
-  col = uiLayoutColumn(layout, false);
-  row = uiLayoutRow(col, true);
-  uiItemR(row, ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  col = &layout->column(false);
+  row = &col->row(true);
+  row->prop(ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "layer");
   const char *layer_name;
@@ -667,15 +665,8 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   scn_ptr = RNA_pointer_get(ptr, "scene");
   RNA_string_get(&scn_ptr, "name", scene_name);
 
-  PointerRNA op_ptr;
-  uiItemFullO(row,
-              "RENDER_OT_render",
-              "",
-              ICON_RENDER_STILL,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  PointerRNA op_ptr = row->op(
+      "RENDER_OT_render", "", ICON_RENDER_STILL, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_string_set(&op_ptr, "layer", layer_name);
   RNA_string_set(&op_ptr, "scene", scene_name);
 }
@@ -695,7 +686,7 @@ class RenderLayerOperation : public NodeOperation {
     Result &alpha_result = this->get_result("Alpha");
 
     if (image_result.should_compute() || alpha_result.should_compute()) {
-      const Result combined_pass = this->context().get_pass(
+      const Result combined_pass = this->context().get_input(
           scene, view_layer, RE_PASSNAME_COMBINED);
       if (image_result.should_compute()) {
         this->execute_pass(combined_pass, image_result);
@@ -706,6 +697,10 @@ class RenderLayerOperation : public NodeOperation {
     }
 
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!is_socket_available(output)) {
+        continue;
+      }
+
       if (STR_ELEM(output->identifier, "Image", "Alpha")) {
         continue;
       }
@@ -718,7 +713,7 @@ class RenderLayerOperation : public NodeOperation {
       const char *pass_name = this->get_pass_name(output->identifier);
       this->context().populate_meta_data_for_pass(scene, view_layer, pass_name, result.meta_data);
 
-      const Result pass = this->context().get_pass(scene, view_layer, pass_name);
+      const Result pass = this->context().get_input(scene, view_layer, pass_name);
       this->execute_pass(pass, result);
     }
   }
@@ -760,8 +755,7 @@ class RenderLayerOperation : public NodeOperation {
 
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const rcti compositing_region = this->context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 lower_bound = this->context().get_compositing_region().min;
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
 
     pass.bind_as_texture(shader, "input_tx");
@@ -793,7 +787,13 @@ class RenderLayerOperation : public NodeOperation {
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Float2:
+      case ResultType::Bool:
         /* Not supported. */
+        break;
+      case ResultType::Menu:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(pass.type()));
+        BLI_assert_unreachable();
         break;
     }
 
@@ -805,8 +805,7 @@ class RenderLayerOperation : public NodeOperation {
   {
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const rcti compositing_region = this->context().get_compositing_region();
-    const int2 lower_bound = int2(compositing_region.xmin, compositing_region.ymin);
+    const int2 lower_bound = this->context().get_compositing_region().min;
 
     result.allocate_texture(Domain(this->context().get_compositing_region_size()));
 
@@ -838,7 +837,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_render_layer_cc
 
-void register_node_type_cmp_rlayers()
+static void register_node_type_cmp_rlayers()
 {
   namespace file_ns = blender::nodes::node_composite_render_layer_cc;
 
@@ -867,3 +866,4 @@ void register_node_type_cmp_rlayers()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_rlayers)
