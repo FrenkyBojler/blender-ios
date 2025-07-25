@@ -2229,6 +2229,21 @@ static bool WIDGETGROUP_gizmo_poll_tool(const bContext *C, wmGizmoGroupType *gzg
     return false;
   }
 
+  /* Hide the transform gizmo when in camera view and the active object is the scene camera */
+  ARegion *region = CTX_wm_region(C);
+  if (region && region->regiondata) {
+    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+    if (rv3d->persp == RV3D_CAMOB) {
+      Scene *scene = CTX_data_scene(C);
+      ViewLayer *view_layer = CTX_data_view_layer(C);
+      Object *ob = BKE_view_layer_active_object_get(view_layer);
+      if (ob && ob->type == OB_CAMERA && scene->camera == ob) {
+        /* In camera view, with the active object being the scene camera : hide the gizmo. */
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
