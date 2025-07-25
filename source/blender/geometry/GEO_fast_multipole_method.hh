@@ -79,20 +79,28 @@ void transpose(const Span<float3> src, Span<MutableSpan<float>> dst);
 
 void transpose(const Span<Span<float>> src, MutableSpan<float3> dst);
 
-void transpose_gather(const Span<float3> src, const Span<int> indices, Span<MutableSpan<float>> dst);
+void transpose_gather(const Span<float3> src,
+                      const Span<int> indices,
+                      Span<MutableSpan<float>> dst);
 
-void transpose_gather(const Span<Span<float>> src, const Span<int> indices, MutableSpan<float3> dst);
+void transpose_gather(const Span<Span<float>> src,
+                      const Span<int> indices,
+                      MutableSpan<float3> dst);
 
 void transpose_gather(const Span<float3> src, const IndexMask mask, Span<MutableSpan<float>> dst);
 
 void transpose_gather(const Span<Span<float>> src, const IndexMask mask, MutableSpan<float3> dst);
 
-void transpose_scatter(const Span<float3> src, const Span<int> indices, Span<MutableSpan<float>> dst);
+void transpose_scatter(const Span<float3> src,
+                       const Span<int> indices,
+                       Span<MutableSpan<float>> dst);
 
-void transpose_scatter(const Span<Span<float>> src, const Span<int> indices, MutableSpan<float3> dst);
+void transpose_scatter(const Span<Span<float>> src,
+                       const Span<int> indices,
+                       MutableSpan<float3> dst);
 
 void transpose_scatter(const Span<float3> src, const IndexMask mask, Span<MutableSpan<float>> dst);
 
 void transpose_scatter(const Span<Span<float>> src, const IndexMask mask, MutableSpan<float3> dst);
 
-}
+}  // namespace blender

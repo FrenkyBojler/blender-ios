@@ -190,9 +190,10 @@ static BLI_NOINLINE void chunked_zero_if_index_in_range_row_major(
                                                  rows_and_cols.data());
 }
 
-static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(const Span<int> row_indices,
-                                                                  const ShiftedRange col_range,
-                                                                  MutableSpan<float[programCount]> rows_and_cols)
+static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(
+    const Span<int> row_indices,
+    const ShiftedRange col_range,
+    MutableSpan<float[programCount]> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -631,7 +632,6 @@ static BLI_NOINLINE void distance_to_n_squared(const Span<float> src_a_x,
   }
 }
 
-
 static BLI_NOINLINE void chunked_squared_distances_row_major(
     const Span<float[programCount]> row_x,
     const Span<float[programCount]> row_y,
@@ -739,9 +739,10 @@ static BLI_NOINLINE void chunked_zero_if_index_in_range_row_major(
   }
 }
 
-static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(const Span<int> col_indices,
-                                                                  const ShiftedRange row_range,
-                                                                  MutableSpan<float[programCount]> cols_and_rows)
+static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(
+    const Span<int> col_indices,
+    const ShiftedRange row_range,
+    MutableSpan<float[programCount]> cols_and_rows)
 {
   BLI_assert(row_range.size * col_indices.size() == cols_and_rows.size());
 
@@ -783,7 +784,8 @@ static BLI_NOINLINE void chunked_table_product_reduce_row_major(
   for (const int row_index : row_values.index_range()) {
     float row_accum = 0.0f;
     for (const int col_index : col_values.index_range()) {
-      row_accum += rows_and_cols[row_index * col_values.size() + col_index][0] * col_values[col_index];
+      row_accum += rows_and_cols[row_index * col_values.size() + col_index][0] *
+                   col_values[col_index];
     }
     row_values[row_index][0] += row_accum;
   }
@@ -799,7 +801,8 @@ static BLI_NOINLINE void chunked_table_product_reduce_col_major(
   for (const int row_index : row_values.index_range()) {
     float row_accum = 0.0f;
     for (const int col_index : col_values.index_range()) {
-      row_accum += rows_and_cols[row_index * col_values.size() + col_index][0] * col_values[col_index][0];
+      row_accum += rows_and_cols[row_index * col_values.size() + col_index][0] *
+                   col_values[col_index][0];
     }
     row_values[row_index] += row_accum;
   }
@@ -822,7 +825,6 @@ static BLI_NOINLINE void table_product_reduce_col_major(const Span<float> rows_a
 
   BLI_assert(rows_and_cols.is_empty());
 }
-
 
 template<typename T>
 static BLI_NOINLINE void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
@@ -1630,7 +1632,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           const Span<int[chunk_size]> chunked_batch_indices =
               batch_indices.take_front(chunked_batch_size).cast<int[chunk_size]>();
           const Span<int> rest_batch_indices = batch_indices.drop_front(chunked_batch_size);
-      
+
           const int from_bucket_to_sampler_offset = joint_bucket.start() -
                                                     range_of_samplers.start();
           fast_math::chunked_zero_if_index_in_range_row_major(
@@ -1719,19 +1721,20 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         const IndexRange range_of_samplers = *sampler_to_bucket_range;
         if (!range_of_samplers.intersect(joint_bucket).is_empty()) {
           const Span<int> batch_indices = batch_indices_data.take_front(batch_size);
-      
+
           const int from_bucket_to_sampler_offset = joint_bucket.start() -
                                                     range_of_samplers.start();
-      
+
           const int rest_bucket_start = chunked_bucket_size;
-      
+
           fast_math::chunked_zero_if_index_in_range_col_major(
               batch_indices,
               ShiftedRange{from_bucket_to_sampler_offset, int(chunked_bucket_x.size())},
               chunked_distances);
           fast_math::zero_if_index_in_range_col_major(
               batch_indices,
-              ShiftedRange{from_bucket_to_sampler_offset + rest_bucket_start, int(rest_bucket_x.size())},
+              ShiftedRange{from_bucket_to_sampler_offset + rest_bucket_start,
+                           int(rest_bucket_x.size())},
               rest_distances);
         }
       }
@@ -1766,8 +1769,10 @@ namespace blender {
 void transpose(const Span<float3> src, Span<MutableSpan<float>> dst)
 {
   BLI_assert(dst.size() == decltype(src)::value_type::type_length);
-  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == src.size(); }));
-  
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) {
+    return span.size() == src.size();
+  }));
+
   threading::parallel_for(src.index_range(), 4096, [&](const IndexRange range) {
     for (const int i : range) {
       dst[0][i] = src[i].x;
@@ -1780,7 +1785,8 @@ void transpose(const Span<float3> src, Span<MutableSpan<float>> dst)
 void transpose(const Span<Span<float>> src, MutableSpan<float3> dst)
 {
   BLI_assert(src.size() == decltype(dst)::value_type::type_length);
-  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == dst.size(); }));
+  BLI_assert(std::all_of(
+      src.begin(), src.end(), [&](const Span<float> span) { return span.size() == dst.size(); }));
 
   threading::parallel_for(dst.index_range(), 4096, [&](const IndexRange range) {
     for (const int i : range) {
@@ -1791,10 +1797,14 @@ void transpose(const Span<Span<float>> src, MutableSpan<float3> dst)
   });
 }
 
-void transpose_gather(const Span<float3> src, const Span<int> indices, Span<MutableSpan<float>> dst)
+void transpose_gather(const Span<float3> src,
+                      const Span<int> indices,
+                      Span<MutableSpan<float>> dst)
 {
   BLI_assert(dst.size() == decltype(src)::value_type::type_length);
-  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == indices.size(); }));
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) {
+    return span.size() == indices.size();
+  }));
 
   threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
     for (const int i : range) {
@@ -1805,7 +1815,9 @@ void transpose_gather(const Span<float3> src, const Span<int> indices, Span<Muta
   });
 }
 
-void transpose_gather(const Span<Span<float>> src, const Span<int> indices, MutableSpan<float3> dst)
+void transpose_gather(const Span<Span<float>> src,
+                      const Span<int> indices,
+                      MutableSpan<float3> dst)
 {
   BLI_assert(src.size() == decltype(dst)::value_type::type_length);
   BLI_assert(dst.size() == indices.size());
@@ -1822,7 +1834,9 @@ void transpose_gather(const Span<Span<float>> src, const Span<int> indices, Muta
 void transpose_gather(const Span<float3> src, const IndexMask mask, Span<MutableSpan<float>> dst)
 {
   BLI_assert(dst.size() == decltype(src)::value_type::type_length);
-  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == mask.size(); }));
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) {
+    return span.size() == mask.size();
+  }));
 
   mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
     dst[0][pos] = src[i].x;
@@ -1843,7 +1857,9 @@ void transpose_gather(const Span<Span<float>> src, const IndexMask mask, Mutable
   });
 }
 
-void transpose_scatter(const Span<float3> src, const Span<int> indices, Span<MutableSpan<float>> dst)
+void transpose_scatter(const Span<float3> src,
+                       const Span<int> indices,
+                       Span<MutableSpan<float>> dst)
 {
   BLI_assert(dst.size() == decltype(src)::value_type::type_length);
   BLI_assert(src.size() == indices.size());
@@ -1857,10 +1873,14 @@ void transpose_scatter(const Span<float3> src, const Span<int> indices, Span<Mut
   });
 }
 
-void transpose_scatter(const Span<Span<float>> src, const Span<int> indices, MutableSpan<float3> dst)
+void transpose_scatter(const Span<Span<float>> src,
+                       const Span<int> indices,
+                       MutableSpan<float3> dst)
 {
   BLI_assert(src.size() == decltype(dst)::value_type::type_length);
-  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == indices.size(); }));
+  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) {
+    return span.size() == indices.size();
+  }));
 
   threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
     for (const int i : range) {
@@ -1886,7 +1906,8 @@ void transpose_scatter(const Span<float3> src, const IndexMask mask, Span<Mutabl
 void transpose_scatter(const Span<Span<float>> src, const IndexMask mask, MutableSpan<float3> dst)
 {
   BLI_assert(src.size() == decltype(dst)::value_type::type_length);
-  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == mask.size(); }));
+  BLI_assert(std::all_of(
+      src.begin(), src.end(), [&](const Span<float> span) { return span.size() == mask.size(); }));
 
   mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
     dst[i].x = src[0][pos];
@@ -1895,4 +1916,4 @@ void transpose_scatter(const Span<Span<float>> src, const IndexMask mask, Mutabl
   });
 }
 
-}
+}  // namespace blender

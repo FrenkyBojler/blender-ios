@@ -349,7 +349,8 @@ template<typename T, int Size>
 inline void vector_split(const Span<VecBase<T, Size>> src, Span<MutableSpan<T>> dst)
 {
   BLI_assert(dst.size() == Size);
-  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const auto dst_item) { return dst_item.size() == src.size(); }));
+  BLI_assert(std::all_of(
+      dst.begin(), dst.end(), [&](const auto dst_item) { return dst_item.size() == src.size(); }));
   threading::parallel_for(src.index_range(), 4096, [&](const IndexRange range) {
     for (const int i : range) {
       for (const int axis_i : IndexRange(Size)) {
@@ -359,4 +360,4 @@ inline void vector_split(const Span<VecBase<T, Size>> src, Span<MutableSpan<T>> 
   });
 }
 
-}
+}  // namespace blender::array_utils

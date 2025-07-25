@@ -165,7 +165,8 @@ class GradientSumFunction : public mf::MultiFunction {
     const int total_joints = akdbh::total_joints_for_depth(total_depth_);
 
     offset_indices_.reinitialize(total_buckets + 1);
-    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size, offset_indices_);
+    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size,
+                                                                               offset_indices_);
 
     bucket_positions_[0].reinitialize(domain_size);
     bucket_positions_[1].reinitialize(domain_size);
@@ -176,9 +177,10 @@ class GradientSumFunction : public mf::MultiFunction {
     Array<int> indices(domain_size);
     akdbh::from_positions(positions, base_offsets, total_depth_, indices);
     array_utils::gather(Span(positions), indices.as_span(), bucket_positions.as_mutable_span());
-    transpose(bucket_positions.as_span(), {bucket_positions_[0].as_mutable_span(),
-                                           bucket_positions_[1].as_mutable_span(),
-                                           bucket_positions_[2].as_mutable_span()});
+    transpose(bucket_positions.as_span(),
+              {bucket_positions_[0].as_mutable_span(),
+               bucket_positions_[1].as_mutable_span(),
+               bucket_positions_[2].as_mutable_span()});
 
     BLI_assert(data_type.is<float>() || data_type.is<float3>());
 
@@ -189,17 +191,24 @@ class GradientSumFunction : public mf::MultiFunction {
     }
 
     if (data_type.is<float>()) {
-      array_utils::gather<float>(src_values.typed<float>(), indices.as_span(), bucket_values_.first().as_mutable_span());
-    } else {
-      transpose_gather(src_values.typed<float3>(), indices.as_span(), {bucket_values_[0].as_mutable_span(),
-                                                                                 bucket_values_[1].as_mutable_span(),
-                                                                                 bucket_values_[2].as_mutable_span()});
+      array_utils::gather<float>(
+          src_values.typed<float>(), indices.as_span(), bucket_values_.first().as_mutable_span());
+    }
+    else {
+      transpose_gather(src_values.typed<float3>(),
+                       indices.as_span(),
+                       {bucket_values_[0].as_mutable_span(),
+                        bucket_values_[1].as_mutable_span(),
+                        bucket_values_[2].as_mutable_span()});
     }
 
     joints_values_.reinitialize(data_axes_count);
     for (const int axis_i : IndexRange(data_axes_count)) {
       joints_values_[axis_i].reinitialize(total_joints);
-      akdbh::mean_sums(base_offsets, total_depth_, bucket_values_[axis_i].as_span(), joints_values_[axis_i].as_mutable_span());
+      akdbh::mean_sums(base_offsets,
+                       total_depth_,
+                       bucket_values_[axis_i].as_span(),
+                       joints_values_[axis_i].as_mutable_span());
     }
 
     joints_positions_.reinitialize(total_joints);
@@ -224,16 +233,17 @@ class GradientSumFunction : public mf::MultiFunction {
     const CPPType &data_type = results.type();
     BLI_assert(data_type.is<float>() || data_type.is<float3>());
     const int data_axes_count = data_type.is<float3>() ? 3 : 1;
-    
 
     std::array<Array<float, 0>, 3> position_components;
     position_components[0].reinitialize(mask.size());
     position_components[1].reinitialize(mask.size());
     position_components[2].reinitialize(mask.size());
 
-    transpose_gather(Span(positions), mask, {position_components[0].as_mutable_span(),
-                                              position_components[1].as_mutable_span(),
-                                              position_components[2].as_mutable_span()});
+    transpose_gather(Span(positions),
+                     mask,
+                     {position_components[0].as_mutable_span(),
+                      position_components[1].as_mutable_span(),
+                      position_components[2].as_mutable_span()});
 
     BLI_assert(joints_values_.size() == data_axes_count);
     Array<Array<float, 0>> masked_results_data(data_axes_count);
@@ -247,46 +257,50 @@ class GradientSumFunction : public mf::MultiFunction {
       masked_results_data[axis_i].reinitialize(mask.size());
       masked_results_data[axis_i].as_mutable_span().fill(0.0f);
       masked_results[axis_i] = masked_results_data[axis_i].as_mutable_span();
-      
+
       joints_values[axis_i] = joints_values_[axis_i].as_span();
       bucket_values[axis_i] = bucket_values_[axis_i].as_span();
     }
 
-// void akdbh_accumulate_in(OffsetIndices<int> buckets_offsets,
-//                          int total_depth,
-//                          Span<float> src_joints_min_distance,
-//                          Span<float3> src_joints_centre,
-//                          Span<Span<float>> src_joints_value,
-//                          std::array<Span<float>, 3> src_bucket_position,
-//                          Span<Span<float>> src_bucket_value,
-//                          int power_value,
-//                          float offset_value,
-//                          std::array<Span<float>, 3> sample_position,
-//                          Span<MutableSpan<float>> dst_buckets_data,
-//                          std::optional<IndexRange> sampler_to_bucket_range = std::nullopt);
-// 
+    // void akdbh_accumulate_in(OffsetIndices<int> buckets_offsets,
+    //                          int total_depth,
+    //                          Span<float> src_joints_min_distance,
+    //                          Span<float3> src_joints_centre,
+    //                          Span<Span<float>> src_joints_value,
+    //                          std::array<Span<float>, 3> src_bucket_position,
+    //                          Span<Span<float>> src_bucket_value,
+    //                          int power_value,
+    //                          float offset_value,
+    //                          std::array<Span<float>, 3> sample_position,
+    //                          Span<MutableSpan<float>> dst_buckets_data,
+    //                          std::optional<IndexRange> sampler_to_bucket_range = std::nullopt);
+    //
     using namespace blender::geometry;
     fmm::akdbh_accumulate_in(OffsetIndices<int>(offset_indices_),
                              total_depth_,
                              joints_min_distance_,
                              joints_positions_,
                              joints_values.as_span(),
-                             {bucket_positions_[0].as_span(), bucket_positions_[1].as_span(), bucket_positions_[2].as_span()},
+                             {bucket_positions_[0].as_span(),
+                              bucket_positions_[1].as_span(),
+                              bucket_positions_[2].as_span()},
                              bucket_values,
                              power_value_,
                              offset_value_,
-                             {position_components[0].as_span(), position_components[1].as_span(), position_components[2].as_span()},
+                             {position_components[0].as_span(),
+                              position_components[1].as_span(),
+                              position_components[2].as_span()},
                              masked_results,
                              std::nullopt);
 
     if (data_type.is<float>()) {
       array_utils::scatter<float>(masked_results.first().as_span(), mask, results.typed<float>());
-    } else {
-      transpose_scatter({masked_results[0].as_span(),
-                         masked_results[1].as_span(),
-                         masked_results[2].as_span()},
-                         mask,
-                         results.typed<float3>());
+    }
+    else {
+      transpose_scatter(
+          {masked_results[0].as_span(), masked_results[1].as_span(), masked_results[2].as_span()},
+          mask,
+          results.typed<float3>());
     }
   }
 
@@ -361,7 +375,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  
+
   geo_node_type_base(&ntype, "GeometryNodeSampleInSpace");
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.ui_name = "Sample in Space";
@@ -370,7 +384,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(ntype);
-  
+
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

@@ -100,17 +100,17 @@ OffsetIndices<int> fill_bucket_offsets_trivial(const int total_elements,
 //                               MutableSpan<int> elements,
 //                               const Func func)
 // {
-//   
+//
 //   using CountsAndHeaders = std::pair<std::array<int, 257>, std::array<int, 256>>;
-//   
+//
 //   constexpr int start_index = -1;
-//   
+//
 //   CountsAndHeaders statistic;
 //   MutableSpan<int>(statistic.first).fill(0);
 //   MutableSpan<int>(statistic.second).fill(start_index);
-// 
+//
 //   Array<int, 0> linked_list(elements.size());
-// 
+//
 //   statistic = threading::parallel_reduce<CountsAndHeaders>(elements.index_range(),
 //                              4096 * 2,
 //                              statistic,
@@ -135,27 +135,28 @@ OffsetIndices<int> fill_bucket_offsets_trivial(const int total_elements,
 //                                    statistic.second[i] = start_index;
 //                                    continue;
 //                                  }
-//                                  
+//
 //                                  statistic.second[i] = std::max(a.second[i], b.second[i]);
-//                                  
+//
 //                                  const int other_header = std::min(a.second[i], b.second[i]);
 //                                  if (other_header != start_index) {
-//                                    
+//
 //                                  }
-//                                  
+//
 //                                  statistic.second[i] = a.second[i] + b.second[i];
 //                                }
 //                              });
-//   
-//   const OffsetIndices<int> radix_sizes = offset_indices::accumulate_counts_to_offsets(statistic.first);
-//   
+//
+//   const OffsetIndices<int> radix_sizes =
+//   offset_indices::accumulate_counts_to_offsets(statistic.first);
+//
 //   const int radix = first_if(statistic.first, [&](const int start) { return start <= middle; });
-//   
+//
 //   if (radix > 255) {
 //     BLI_assert(false);
 //     return;
 //   }
-// 
+//
 //   Array<int> radix_elements(radix_sizes[radix].size());
 //   int list_iter = statistic.second[radix];
 //   radix_elements[0] = list_iter;
@@ -163,14 +164,14 @@ OffsetIndices<int> fill_bucket_offsets_trivial(const int total_elements,
 //     radix_elements[i] = list_iter;
 //     list_iter = linked_list[list_iter];
 //   }
-//   
+//
 //   const int middle_i = *std::nth_element(radix_elements.begin(),
 //                    radix_elements.begin() + middle - radix_sizes[radix].start(),
 //                    radix_elements.end(),
 //                    [&](const int a, const int b) {
 //     return func(a) < func(b);
 //   });
-//   
+//
 //   std::partition(elements.begin(), elements.end(), [&](const int elem) {
 //     return func(elem) < func(middle_i);
 //   });
@@ -190,7 +191,7 @@ void from_positions(const Span<float3> positions,
       [&](const IndexRange bucket_range, const int /*joint_index*/, const int depth_i) {
         const int axis_index = math::mod_periodic(depth_i, 3);
         MutableSpan<int> segment = indices.slice(bucket_range);
-        
+
         // redix_nth_element(segment.size() / 2,
         //                   segment,
         //                   [&](const int index) -> uint8_t {
@@ -199,7 +200,7 @@ void from_positions(const Span<float3> positions,
         //                     std::memcpy(&top_radix, &value, 1);
         //                     return value;
         //                   });
-        
+
         std::nth_element(segment.begin(),
                          segment.begin() + segment.size() / 2,
                          segment.end(),
@@ -224,7 +225,7 @@ void from_positions_non_uniform(const Span<float3> positions,
 
 #ifndef NDEBUG
   buckets_offsets.fill(-1);
-  
+
   std::atomic<int> counter = 2;
 #endif
 
@@ -235,76 +236,93 @@ void from_positions_non_uniform(const Span<float3> positions,
   for (const int depth_i : IndexRange(total_depth).drop_back(1)) {
     const int axis_index = math::mod_periodic(depth_i, 3);
     const IndexRange joints_range = joints_range_at_depth(depth_i);
-    threading::parallel_for(joints_range.index_range(), 1024, [&](const IndexRange range) {
-    for (const int joint_i : range) {
-      const IndexRange joint_buckets = joint_buckets_range_at_depth(total_depth, depth_i, joint_i);
+    threading::parallel_for(
+        joints_range.index_range(),
+        1024,
+        [&](const IndexRange range) {
+          for (const int joint_i : range) {
+            const IndexRange joint_buckets = joint_buckets_range_at_depth(
+                total_depth, depth_i, joint_i);
 
-      const int first_offset = buckets_offsets[joint_buckets.start()];
-      const int end_offset = buckets_offsets[joint_buckets.one_after_last()];
-      BLI_assert(first_offset != -1);
-      BLI_assert(end_offset != -1);
-      BLI_assert(first_offset <= end_offset);
+            const int first_offset = buckets_offsets[joint_buckets.start()];
+            const int end_offset = buckets_offsets[joint_buckets.one_after_last()];
+            BLI_assert(first_offset != -1);
+            BLI_assert(end_offset != -1);
+            BLI_assert(first_offset <= end_offset);
 
-      BLI_assert(joint_buckets.start() == joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 0).start());
-      BLI_assert(joint_buckets.one_after_last() == joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 1).one_after_last());
+            BLI_assert(
+                joint_buckets.start() ==
+                joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 0).start());
+            BLI_assert(joint_buckets.one_after_last() ==
+                       joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 1)
+                           .one_after_last());
 
-      const int child_offset = joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 0).one_after_last();
-      BLI_assert(joint_buckets.start() <= child_offset);
-      BLI_assert(child_offset <= joint_buckets.one_after_last());
-      BLI_assert(buckets_offsets[child_offset] == -1);
+            const int child_offset = joint_buckets_range_at_depth(
+                                         total_depth, depth_i + 1, joint_i * 2 + 0)
+                                         .one_after_last();
+            BLI_assert(joint_buckets.start() <= child_offset);
+            BLI_assert(child_offset <= joint_buckets.one_after_last());
+            BLI_assert(buckets_offsets[child_offset] == -1);
 
-      MutableSpan<int> joint_buckets_indices = indices.slice(IndexRange::from_begin_end(first_offset, end_offset));
-      if (joint_buckets_indices.is_empty()) {
-        buckets_offsets[child_offset] = end_offset;
+            MutableSpan<int> joint_buckets_indices = indices.slice(
+                IndexRange::from_begin_end(first_offset, end_offset));
+            if (joint_buckets_indices.is_empty()) {
+              buckets_offsets[child_offset] = end_offset;
 #ifndef NDEBUG
-        counter++;
+              counter++;
 #endif
-        continue;
-      }
+              continue;
+            }
 
-      parallel_sort(joint_buckets_indices.begin(),
-                    joint_buckets_indices.end(),
-                    [&](const int a, const int b) {
-                      if (UNLIKELY(positions[a][axis_index] == positions[b][axis_index])) {
-                        return a < b;
-                      }
-                      return positions[a][axis_index] < positions[b][axis_index];
-                    });
+            parallel_sort(joint_buckets_indices.begin(),
+                          joint_buckets_indices.end(),
+                          [&](const int a, const int b) {
+                            if (UNLIKELY(positions[a][axis_index] == positions[b][axis_index])) {
+                              return a < b;
+                            }
+                            return positions[a][axis_index] < positions[b][axis_index];
+                          });
 
-      BLI_assert(!joint_buckets_indices.is_empty());
-      const int *centre = std::max_element(
-          joint_buckets_indices.begin(),
-          joint_buckets_indices.end() - 1,
-          [&](const int &a, const int &b) {
-            const int a_index = std::distance(joint_buckets_indices.as_span().data(), &a);
-            const int b_index = std::distance(joint_buckets_indices.as_span().data(), &b);
+            BLI_assert(!joint_buckets_indices.is_empty());
+            const int *centre = std::max_element(
+                joint_buckets_indices.begin(),
+                joint_buckets_indices.end() - 1,
+                [&](const int &a, const int &b) {
+                  const int a_index = std::distance(joint_buckets_indices.as_span().data(), &a);
+                  const int b_index = std::distance(joint_buckets_indices.as_span().data(), &b);
 
-            const float a_segment =
-                positions[joint_buckets_indices[a_index + 1]][axis_index] -
-                positions[a][axis_index];
-            const float b_segment =
-                positions[joint_buckets_indices[b_index + 1]][axis_index] -
-                positions[b][axis_index];
+                  const float a_segment =
+                      positions[joint_buckets_indices[a_index + 1]][axis_index] -
+                      positions[a][axis_index];
+                  const float b_segment =
+                      positions[joint_buckets_indices[b_index + 1]][axis_index] -
+                      positions[b][axis_index];
 
-            const double a_factor =
-                0.5 -
-                math::abs<double>((a_index / double(joint_buckets_indices.size())) - 0.5);
-            const double b_factor =
-                0.5 -
-                math::abs<double>((b_index / double(joint_buckets_indices.size())) - 0.5);
+                  const double a_factor =
+                      0.5 -
+                      math::abs<double>((a_index / double(joint_buckets_indices.size())) - 0.5);
+                  const double b_factor =
+                      0.5 -
+                      math::abs<double>((b_index / double(joint_buckets_indices.size())) - 0.5);
 
-            return math::pow<double>(a_factor, 1.0f) * math::pow(a_segment, 1.0f)  < math::pow<double>(b_factor, 1.0f) * math::pow(b_segment, 1.0f);
-          });
+                  return math::pow<double>(a_factor, 1.0f) * math::pow(a_segment, 1.0f) <
+                         math::pow<double>(b_factor, 1.0f) * math::pow(b_segment, 1.0f);
+                });
 
-      const int64_t middle_index = std::distance(joint_buckets_indices.as_span().data(), centre);
-      BLI_assert(middle_index >= 0);
-      const int safe_middle_index = math::clamp(middle_index, joint_buckets_indices.size() / 4, joint_buckets_indices.size() / 4 * 3);
-      buckets_offsets[child_offset] = first_offset + safe_middle_index;
+            const int64_t middle_index = std::distance(joint_buckets_indices.as_span().data(),
+                                                       centre);
+            BLI_assert(middle_index >= 0);
+            const int safe_middle_index = math::clamp(middle_index,
+                                                      joint_buckets_indices.size() / 4,
+                                                      joint_buckets_indices.size() / 4 * 3);
+            buckets_offsets[child_offset] = first_offset + safe_middle_index;
 #ifndef NDEBUG
-      counter++;
+            counter++;
 #endif
-    }
-    }, threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) * min_bucket_size));
+          }
+        },
+        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) *
+                                                min_bucket_size));
   }
 
   BLI_assert(*std::max_element(buckets_offsets.begin(), buckets_offsets.end()) <= indices.size());
