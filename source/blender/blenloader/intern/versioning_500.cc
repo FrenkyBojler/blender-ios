@@ -1218,6 +1218,23 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
   version_node_remove(node_tree, node);
 }
 
+/* Updates the media type of the given format to match its imtype. */
+static void update_format_media_type(ImageFormatData *format)
+{
+  if (BKE_imtype_is_image(format->imtype)) {
+    format->media_type = MEDIA_TYPE_IMAGE;
+  }
+  else if (BKE_imtype_is_multi_layer_image(format->imtype)) {
+    format->media_type = MEDIA_TYPE_MULTI_LAYER_IMAGE;
+  }
+  else if (BKE_imtype_is_movie(format->imtype)) {
+    format->media_type = MEDIA_TYPE_VIDEO;
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -1644,12 +1661,11 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /* ImageFormatData gained a new media type which we need to set according to the existing imtype.
-   * We do that by calling BKE_image_format_set with the existing imtype, since it internally
-   * corrects the media type. */
+  /* ImageFormatData gained a new media type which we need to be set according to the existing
+   * imtype. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 42)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      BKE_image_format_set(&scene->r.im_format, &scene->id, scene->r.im_format.imtype);
+      update_format_media_type(&scene->r.im_format);
     }
 
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
@@ -1663,12 +1679,12 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
 
         NodeImageMultiFile *storage = static_cast<NodeImageMultiFile *>(node->storage);
-        BKE_image_format_set(&storage->format, id, storage->format.imtype);
+        update_format_media_type(&storage->format);
 
         LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
           NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
               input->storage);
-          BKE_image_format_set(&input_storage->format, id, input_storage->format.imtype);
+          update_format_media_type(&input_storage->format);
         }
       }
     }
