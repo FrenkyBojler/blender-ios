@@ -159,20 +159,17 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
       for (const int axis_i : IndexRange(data_axes_count)) {
         bucket_values_splited[axis_i].reinitialize(domain_size);
       }
-      threading::parallel_for(IndexRange(domain_size), 4096, [&](const IndexRange range) {
-        if (bucket_values.type().is<float3>()) {
-          for (const int i : range) {
-            bucket_values_splited[0][i] = bucket_values.as_span().typed<float3>()[i].x;
-            bucket_values_splited[1][i] = bucket_values.as_span().typed<float3>()[i].y;
-            bucket_values_splited[2][i] = bucket_values.as_span().typed<float3>()[i].z;
-          }
-        }
-        else {
-          for (const int i : range) {
-            bucket_values_splited[0][i] = bucket_values.as_span().typed<float>()[i];
-          }
-        }
-      });
+
+      if (bucket_values.type().is<float3>()) {
+        transpose(bucket_values.as_span().typed<float3>(),
+                  {bucket_values_splited[0].as_mutable_span(),
+                   bucket_values_splited[1].as_mutable_span(),
+                   bucket_values_splited[2].as_mutable_span()});
+      }
+      else {
+        array_utils::copy(bucket_values.as_span().typed<float>(),
+                          bucket_values_splited[0].as_mutable_span());
+      }
     }
 
     Array<Array<float, 0>, 3> joints_values_splited(data_axes_count);
@@ -181,20 +178,16 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
       for (const int axis_i : IndexRange(data_axes_count)) {
         joints_values_splited[axis_i].reinitialize(total_joints);
       }
-      threading::parallel_for(IndexRange(total_joints), 4096, [&](const IndexRange range) {
-        if (joints_values.type().is<float3>()) {
-          for (const int i : range) {
-            joints_values_splited[0][i] = joints_values.as_span().typed<float3>()[i].x;
-            joints_values_splited[1][i] = joints_values.as_span().typed<float3>()[i].y;
-            joints_values_splited[2][i] = joints_values.as_span().typed<float3>()[i].z;
-          }
-        }
-        else {
-          for (const int i : range) {
-            joints_values_splited[0][i] = joints_values.as_span().typed<float>()[i];
-          }
-        }
-      });
+      if (bucket_values.type().is<float3>()) {
+        transpose(joints_values.as_span().typed<float3>(),
+                  {joints_values_splited[0].as_mutable_span(),
+                   joints_values_splited[1].as_mutable_span(),
+                   joints_values_splited[2].as_mutable_span()});
+      }
+      else {
+        array_utils::copy(joints_values.as_span().typed<float>(),
+                          joints_values_splited[0].as_mutable_span());
+      }
     }
 
     Array<float3, 0> joints_positions(total_joints);
@@ -221,13 +214,11 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
       bucket_positions_splited[0].reinitialize(bucket_positions.size());
       bucket_positions_splited[1].reinitialize(bucket_positions.size());
       bucket_positions_splited[2].reinitialize(bucket_positions.size());
-      threading::parallel_for(bucket_positions.index_range(), 4096, [&](const IndexRange range) {
-        for (const int i : range) {
-          bucket_positions_splited[0][i] = bucket_positions[i].x;
-          bucket_positions_splited[1][i] = bucket_positions[i].y;
-          bucket_positions_splited[2][i] = bucket_positions[i].z;
-        }
-      });
+
+      transpose(bucket_positions.as_span(),
+                {bucket_positions_splited[0].as_mutable_span(),
+                 bucket_positions_splited[1].as_mutable_span(),
+                 bucket_positions_splited[2].as_mutable_span()});
     }
 
     Array<Array<float, 0>, 3> sampled_bucket_values_splitted(data_axes_count);
@@ -285,34 +276,21 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     GArray<> sampled_bucket_values(data_type, domain_size);
     data_type.value_initialize_n(sampled_bucket_values.data(), sampled_bucket_values.size());
 
-    threading::parallel_for(IndexRange(domain_size), 4096, [&](const IndexRange range) {
-      if (sampled_bucket_values.type().is<float3>()) {
-        for (const int i : range) {
-          sampled_bucket_values.as_mutable_span().typed<float3>()[i].x =
-              sampled_bucket_values_splitted[0][i];
-          sampled_bucket_values.as_mutable_span().typed<float3>()[i].y =
-              sampled_bucket_values_splitted[1][i];
-          sampled_bucket_values.as_mutable_span().typed<float3>()[i].z =
-              sampled_bucket_values_splitted[2][i];
-        }
-      }
-      else {
-        for (const int i : range) {
-          sampled_bucket_values.as_mutable_span().typed<float>()[i] =
-              sampled_bucket_values_splitted[0][i];
-        }
-      }
-    });
-
     GArray<> dst_values(data_type, domain_size);
     {
-      SCOPED_TIMER_AVERAGED("scatter");
-      geometry::akdbh::to_static_type(data_type, [&](auto dummy) {
-        using T = decltype(dummy);
-        array_utils::scatter<T>(sampled_bucket_values.as_span().typed<T>(),
-                                indices.as_span(),
-                                dst_values.as_mutable_span().typed<T>());
-      });
+      SCOPED_TIMER_AVERAGED("transpose_scatter");
+      if (data_type.is<float3>()) {
+        transpose_scatter({sampled_bucket_values_splitted[0].as_span(),
+                           sampled_bucket_values_splitted[1].as_span(),
+                           sampled_bucket_values_splitted[2].as_span()},
+                          indices.as_span(),
+                          dst_values.as_mutable_span().typed<float3>());
+      }
+      else {
+        array_utils::scatter(sampled_bucket_values_splitted[0].as_span(),
+                             indices.as_span(),
+                             dst_values.as_mutable_span().typed<float>());
+      }
     }
 
     return GVArray::from_garray(std::move(dst_values));
