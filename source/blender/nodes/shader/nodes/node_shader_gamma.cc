@@ -9,7 +9,6 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-
 namespace blender::nodes::node_shader_gamma_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
