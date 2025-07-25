@@ -188,8 +188,11 @@ extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
                 " " + build_commit_time + ", hash: `" + build_hash + "`";
 #    endif
 
-      BLI_windows_exception_show_dialog(
-          filepath_crashlog, G.filepath_last_blend, GPU_platform_gpu_name(), version.c_str());
+      BLI_windows_exception_show_dialog(filepath_crashlog,
+                                        G.filepath_last_blend,
+                                        GPU_platform_gpu_name(),
+                                        version.c_str(),
+                                        G.loading_progress >= G_LOADING_END);
     }
     sig_cleanup_and_terminate(SIGSEGV);
   }

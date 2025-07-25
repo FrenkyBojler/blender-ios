@@ -179,6 +179,8 @@ struct Global {
    */
   char gpu_debug_scope_name[200];
 
+  int loading_progress;
+
   bool profile_gpu;
 };
 
@@ -361,6 +363,18 @@ enum {
    * Otherwise it's not possible to see what's being transformed.
    */
   G_TRANSFORM_CURSOR = (1 << 5),
+};
+
+/** #Global.loading_progress */
+enum {
+  G_LOADING_BEFORE_START = 0,
+  G_LOADING_START,
+  G_LOADING_GLOBAL_EXISTS = 100,
+
+  G_LOADING_WM_INIT_START = 1000,
+  G_LOADING_WM_INIT_END = 2000,
+
+  G_LOADING_END = 10000, /* Now in main event loop. */
 };
 
 /** Defined in `blender.cc` */

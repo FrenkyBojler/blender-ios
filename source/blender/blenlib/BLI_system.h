@@ -55,7 +55,8 @@ void BLI_windows_exception_print_message(const void *os_info);
 void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
                                        const char *filepath_relaunch,
                                        const char *gpu_name,
-                                       const char *build_version);
+                                       const char *build_version,
+                                       const bool is_loading);
 
 #else
 #  define BLI_SYSTEM_PID_H <unistd.h>

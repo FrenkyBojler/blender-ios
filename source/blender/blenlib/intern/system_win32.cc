@@ -577,7 +577,8 @@ static std::wstring url_encode_wstring(const std::string &str)
 void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
                                        const char *filepath_relaunch,
                                        const char *gpu_name,
-                                       const char *build_version)
+                                       const char *build_version,
+                                       const bool is_loading)
 {
   /* Redundant: #InitCommonControls is already called during GHOST System initialization. */
   // InitCommonControls();
@@ -588,25 +589,27 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
                                          alloc_utf16_from_8(filepath_relaunch, 0) :
                                          nullptr;
 
-  std::wstring full_message_16 =
-      L"A problem has caused the program to stop functioning correctly. If you know the steps to "
-      L"reproduce this issue, please submit a bug report.\n"
+  std::wstring full_message_16 = L"A problem has caused Blender to stop functioning correctly.\n";
+
+  if (!is_loading) {
+    full_message_16 +=
+        "\n"
+        L"If you are able to carefully describe the steps that led up to this issue, "
+        L"then submit a bug report. Otherwise restart or close.\n";
+  }
+
+  full_message_16 +=
       "\n"
       L"The crash log can be found at:\n" +
       std::wstring(filepath_crashlog_utf16);
 
   TASKDIALOGCONFIG config = {0};
-  const TASKDIALOG_BUTTON buttons[] = {
-    {IDRETRY, L"Restart"},
-#if 0
-    /* This lead to a large influx of low quality reports on the tracker,
-     * and has been disabled for that reason, we can re-enable this when
-     * a better workflow has been established. */
-    {IDOK, L"Report a Bug"},
-#endif
-    {IDHELP, L"View Crash Log"},
-    {IDCLOSE, L"Close"}
-  };
+  const TASKDIALOG_BUTTON buttons_loading[] = {
+      {IDRETRY, L"Restart"}, {IDHELP, L"View Crash Log"}, {IDCLOSE, L"Close"}};
+  const TASKDIALOG_BUTTON buttons_report[] = {{IDRETRY, L"Restart"},
+                                              {IDOK, L"Report a Bug"},
+                                              {IDHELP, L"View Crash Log"},
+                                              {IDCLOSE, L"Close"}};
 
   config.cbSize = sizeof(config);
   config.hwndParent = GetActiveWindow();
@@ -616,8 +619,8 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
   config.pszWindowTitle = L"Blender";
   config.pszMainInstruction = L"Blender has stopped working";
   config.pszContent = full_message_16.c_str();
-  config.pButtons = buttons;
-  config.cButtons = ARRAY_SIZE(buttons);
+  config.pButtons = is_loading ? buttons_loading : buttons_report;
+  config.cButtons = is_loading ? ARRAY_SIZE(buttons_loading) : ARRAY_SIZE(buttons_report);
 
   /* Data passed to the callback function for handling button events. */
   const struct Data {

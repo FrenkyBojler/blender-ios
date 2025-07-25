@@ -446,6 +446,8 @@ int main(int argc,
 
   BKE_blender_globals_init(); /* `blender.cc` */
 
+  G.loading_progress = G_LOADING_GLOBAL_EXISTS;
+
   BKE_cpp_types_init();
   BKE_idtype_init();
   BKE_modifier_init();
@@ -547,7 +549,9 @@ int main(int argc,
   BLI_args_parse(ba, ARG_PASS_SETTINGS_FORCE, nullptr, nullptr);
 #endif
 
+  G.loading_progress = G_LOADING_WM_INIT_START;
   WM_init(C, argc, argv);
+  G.loading_progress = G_LOADING_WM_INIT_END;
 
 #ifndef WITH_PYTHON
   printf(
@@ -605,6 +609,7 @@ int main(int argc,
     /* Shows the splash as needed. */
     WM_init_splash_on_startup(C);
 
+    G.loading_progress = G_LOADING_END;
     WM_main(C);
   }
   /* Neither #WM_exit, #WM_main return, this quiets CLANG's `unreachable-code-return` warning. */
