@@ -993,7 +993,13 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
   col->use_property_split_set(true);
   col->use_property_decorate_set(false);
 
-  col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(imfptr, "media_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  /* Multi layer images and video media types only have a single supported format, so we needn't
+   * draw the format format enum. */
+  if (imf->media_type == MEDIA_TYPE_IMAGE) {
+    col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   /* Multi-layer always saves raw unmodified channels. */
   if (imf->imtype != R_IMF_IMTYPE_MULTILAYER) {
@@ -1233,7 +1239,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
       }
     }
 
-    eGPUTextureFormat texture_format = IMB_gpu_get_texture_format(
+    blender::gpu::TextureFormat texture_format = IMB_gpu_get_texture_format(
         ibuf, ima->flag & IMA_HIGH_BITDEPTH, ibuf->planes >= 8);
     const char *texture_format_description = GPU_texture_format_name(texture_format);
     ofs += BLI_snprintf_rlen(str + ofs, len - ofs, RPT_(", %s"), texture_format_description);
