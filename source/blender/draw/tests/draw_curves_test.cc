@@ -268,4 +268,91 @@ static void test_draw_curves_lib()
 }
 DRAW_TEST(draw_curves_lib)
 
+static void test_draw_curves_topology()
+{
+  Manager manager;
+
+  GPUShader *sh = GPU_shader_create_from_info_name("draw_curves_topology");
+
+  struct IntBuf {
+    int data;
+    GPU_VERTEX_FORMAT_FUNC(IntBuf, data);
+  };
+  gpu::VertBuf *curve_offsets_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curve_offsets_buf->allocate(4);
+  curve_offsets_buf->data<int>().copy_from({0, 5, 8, 10});
+
+  {
+    StorageArrayBuffer<int, 512> indirection_buf;
+    indirection_buf.clear_to_zero();
+
+    PassSimple pass("Ribbon Curves");
+    pass.shader_set(sh);
+    pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
+    pass.bind_ssbo("indirection_buf", indirection_buf);
+    pass.push_constant("curves_count", 3);
+    pass.push_constant("is_ribbon_topology", true);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+    manager.submit(pass);
+
+    /* Note: Expected values follows diagram shown in #142969. */
+    indirection_buf.read();
+
+    EXPECT_EQ(indirection_buf[0], 0);
+    EXPECT_EQ(indirection_buf[1], -1);
+    EXPECT_EQ(indirection_buf[2], -2);
+    EXPECT_EQ(indirection_buf[3], -3);
+    EXPECT_EQ(indirection_buf[4], -4);
+    EXPECT_EQ(indirection_buf[5], 0x7FFFFFFF);
+    EXPECT_EQ(indirection_buf[6], 1);
+    EXPECT_EQ(indirection_buf[7], -1);
+    EXPECT_EQ(indirection_buf[8], -2);
+    EXPECT_EQ(indirection_buf[9], 0x7FFFFFFF);
+    EXPECT_EQ(indirection_buf[10], 2);
+    EXPECT_EQ(indirection_buf[11], -1);
+    EXPECT_EQ(indirection_buf[12], 0x7FFFFFFF);
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(indirection_buf[13], 0);
+    EXPECT_EQ(indirection_buf[14], 0);
+  }
+
+  {
+    StorageArrayBuffer<int, 512> indirection_buf;
+    indirection_buf.clear_to_zero();
+
+    PassSimple pass("Cylinder Curves");
+    pass.shader_set(sh);
+    pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
+    pass.bind_ssbo("indirection_buf", indirection_buf);
+    pass.push_constant("curves_count", 3);
+    pass.push_constant("is_ribbon_topology", false);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+    manager.submit(pass);
+
+    /* Note: Expected values follows diagram shown in #142969. */
+    indirection_buf.read();
+
+    EXPECT_EQ(indirection_buf[0], 0);
+    EXPECT_EQ(indirection_buf[1], -1);
+    EXPECT_EQ(indirection_buf[2], -2);
+    EXPECT_EQ(indirection_buf[3], -3);
+    EXPECT_EQ(indirection_buf[4], 1);
+    EXPECT_EQ(indirection_buf[5], -1);
+    EXPECT_EQ(indirection_buf[6], 2);
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(indirection_buf[7], 0);
+    EXPECT_EQ(indirection_buf[8], 0);
+  }
+
+  GPU_shader_unbind();
+
+  GPU_SHADER_FREE_SAFE(sh);
+  GPU_VERTBUF_DISCARD_SAFE(curve_offsets_buf);
+}
+DRAW_TEST(draw_curves_topology)
+
 }  // namespace blender::draw
