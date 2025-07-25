@@ -138,7 +138,25 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
 
   if (nurb->flagu & CU_NURB_CUSTOM) {
     BKE_nurb_knot_alloc_u(nurb);
-    array_utils::copy<float>(nurbs_geometry.parm, MutableSpan<float>{nurb->knotsu, KNOTSU(nurb)});
+    MutableSpan<float> knots_dst_u{nurb->knotsu, KNOTSU(nurb)};
+    /* Data needs to be padded in some cases. */
+    if (knots_dst_u.size() != nurbs_geometry.parm.size()) {
+      if (nurb->flagu & CU_NURB_CYCLIC && nurb->flagu & CU_NURB_ENDPOINT) {
+        MutableSpan<float> copy_dst = knots_dst_u.slice(0, nurbs_geometry.parm.size());
+        array_utils::copy<float>(nurbs_geometry.parm, copy_dst);
+        std::fill(copy_dst.end(), knots_dst_u.end(), nurbs_geometry.parm.last());
+      }
+      else {
+        /* Fallback should display warning in UI, .obj logging needs to be standardized first...*/
+        BLI_assert_msg(false,
+                       "Detected CUSTOM knot mode was invalid. Generating knots as a fallback.");
+        SET_FLAG_FROM_TEST(nurb->flagu, false, CU_NURB_CUSTOM);
+        BKE_nurb_knot_calc_u(nurb);
+      }
+    }
+    else {
+      array_utils::copy<float>(nurbs_geometry.parm, knots_dst_u);
+    }
   }
   else {
     BKE_nurb_knot_calc_u(nurb);
@@ -156,7 +174,7 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
                                     const Span<float> knots,
                                     const Span<int> multiplicity)
 {
-  constexpr float epsilon = 1e-7;
+  constexpr float epsilon = 1e-6;
   const int8_t order = degree + 1;
 
   const int repeated_points = repeating_cyclic_point_num(order, knots);
@@ -186,19 +204,16 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
   }
 
   /* Ensure it matches on both of the knot spans adjacent to the start/end of the parameter range.
-   * Ignore first and last superfluous knots.
    */
-  const Span<float> real_knots = knots.drop_front(1).drop_back(1);
-  const Span<float> knots_tail = real_knots.take_back(2 * degree);
-  for (const int64_t i : knots_tail.index_range().drop_back(1)) {
-    const float head_span = real_knots[i + 1] - real_knots[i];
+  const Span<float> knots_tail = knots.take_back(2 * degree + 1);
+  for (const int64_t i : knots_tail.index_range().drop_back(2)) {
+    const float head_span = knots[i + 1] - knots[i];
     const float tail_span = knots_tail[i + 1] - knots_tail[i];
-    if (abs(head_span - tail_span) > epsilon) {
+    if (abs(head_span - tail_span) > head_span * epsilon) {
       return false;
     }
   }
-  /* Check superfluous first/last knot to also be 'symmetric' */
-  return abs((knots[1] - knots[0]) - (knots.last() - knots.last(1))) <= epsilon;
+  return true;
 }
 
 static bool detect_knot_mode_bezier_clamped(const int8_t degree,
