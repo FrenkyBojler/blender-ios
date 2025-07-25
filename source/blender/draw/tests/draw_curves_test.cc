@@ -214,6 +214,7 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_idx[4], int4(0, 0, 0, 1));
     EXPECT_EQ(result_idx[5], int4(1, 0, 1, 1));
     EXPECT_EQ(result_idx[6], int4(0, 0, 0, 2));
+
     EXPECT_EQ(result_idx[7], int4(1, 0, 1, -1));
     EXPECT_EQ(result_idx[8], int4(2, 0, 2, -1));
     EXPECT_EQ(result_idx[9], int4(1, 0, 1, 0));
@@ -221,6 +222,7 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_idx[11], int4(1, 0, 1, 1));
     EXPECT_EQ(result_idx[12], int4(2, 0, 2, 1));
     EXPECT_EQ(result_idx[13], int4(1, 0, 1, 2));
+
     EXPECT_EQ(result_idx[14], int4(2, 0, 2, -1));
     EXPECT_EQ(result_idx[15], int4(3, 0, 3, -1));
     EXPECT_EQ(result_idx[16], int4(2, 0, 2, 0));
@@ -228,6 +230,7 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_idx[18], int4(2, 0, 2, 1));
     EXPECT_EQ(result_idx[19], int4(3, 0, 3, 1));
     EXPECT_EQ(result_idx[20], int4(2, 0, 2, 2));
+
     EXPECT_EQ(result_idx[21], int4(3, 0, 3, -1));
     EXPECT_EQ(result_idx[22], int4(4, 0, 4, -1));
     EXPECT_EQ(result_idx[23], int4(3, 0, 3, 0));
@@ -235,20 +238,22 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_idx[25], int4(3, 0, 3, 1));
     EXPECT_EQ(result_idx[26], int4(4, 0, 4, 1));
     EXPECT_EQ(result_idx[27], int4(3, 0, 3, 2));
-    EXPECT_EQ(result_idx[28], int4(5, 1, 5, -1));
-    EXPECT_EQ(result_idx[29], int4(6, 1, 6, -1));
-    EXPECT_EQ(result_idx[30], int4(5, 1, 5, 0));
-    EXPECT_EQ(result_idx[31], int4(6, 1, 6, 0));
-    EXPECT_EQ(result_idx[32], int4(5, 1, 5, 1));
-    EXPECT_EQ(result_idx[33], int4(6, 1, 6, 1));
-    EXPECT_EQ(result_idx[34], int4(5, 1, 5, 2));
-    EXPECT_EQ(result_idx[35], int4(6, 1, 6, -1));
-    EXPECT_EQ(result_idx[36], int4(7, 1, 7, -1));
-    EXPECT_EQ(result_idx[37], int4(6, 1, 6, 0));
-    EXPECT_EQ(result_idx[38], int4(7, 1, 7, 0));
-    EXPECT_EQ(result_idx[39], int4(6, 1, 6, 1));
-    EXPECT_EQ(result_idx[40], int4(7, 1, 7, 1));
-    EXPECT_EQ(result_idx[41], int4(6, 1, 6, 2));
+
+    EXPECT_EQ(result_idx[28], int4(5, 1, 0, -1));
+    EXPECT_EQ(result_idx[29], int4(6, 1, 1, -1));
+    EXPECT_EQ(result_idx[30], int4(5, 1, 0, 0));
+    EXPECT_EQ(result_idx[31], int4(6, 1, 1, 0));
+    EXPECT_EQ(result_idx[32], int4(5, 1, 0, 1));
+    EXPECT_EQ(result_idx[33], int4(6, 1, 1, 1));
+    EXPECT_EQ(result_idx[34], int4(5, 1, 0, 2));
+
+    EXPECT_EQ(result_idx[35], int4(6, 1, 1, -1));
+    EXPECT_EQ(result_idx[36], int4(7, 1, 2, -1));
+    EXPECT_EQ(result_idx[37], int4(6, 1, 1, 0));
+    EXPECT_EQ(result_idx[38], int4(7, 1, 2, 0));
+    EXPECT_EQ(result_idx[39], int4(6, 1, 1, 1));
+    EXPECT_EQ(result_idx[40], int4(7, 1, 2, 1));
+    EXPECT_EQ(result_idx[41], int4(6, 1, 1, 2));
   }
 
   GPU_shader_unbind();

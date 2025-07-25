@@ -29,58 +29,77 @@ SHADER_LIBRARY_CREATE_INFO(draw_curves)
 
 namespace curves {
 
+struct Segment {
+  /* Index of this segment. Used to load indirection buffer. */
+  uint id;
+  /* Vertex index inside this segment. */
+  uint v_idx;
+  /* Restart triangle strip if true. Only for cylinder topology. */
+  bool end_of_segment;
+};
+
 /* Indirection buffer indexing. */
-int segment_id_get(uint vertex_id)
+Segment segment_get(uint vertex_id)
 {
-  uint id = vertex_id / drw_curves.vertex_per_segment;
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
-  if (is_cylinder) {
-    id += vertex_id & 1u;
-  }
-  return int(id);
+  Segment segment;
+  segment.id = vertex_id / drw_curves.vertex_per_segment;
+  segment.v_idx = vertex_id % drw_curves.vertex_per_segment;
+  segment.end_of_segment = is_cylinder && (segment.v_idx == drw_curves.vertex_per_segment - 1);
+  return segment;
 }
 
-#  define END_OF_CURVE 0x7FFFFFFF
-
 struct Indirection {
-  /* Can be equal to END_OF_CURVE with ribbon draw type. */
+  /* Can be equal to 0x7FFFFFFF with ribbon draw type. */
   int curve_id;
   /* Segment ID starting at 0 at curve start. */
   int curve_segment;
+  /* Restart triangle strip if true. Only for ribbon topology. */
+  bool end_of_curve;
 };
 
-Indirection indirection_get(int segment_id)
+Indirection indirection_get(Segment segment)
 {
-  Indirection res;
-  res.curve_id = texelFetch(curves_indirection_buf, segment_id).r;
+  Indirection ind;
+  ind.curve_id = texelFetch(curves_indirection_buf, int(segment.id)).r;
 
-  if (res.curve_id > 0) {
+  if (ind.curve_id > 0) {
     /* This is start or end of curve. */
-    res.curve_segment = 0;
+    ind.curve_segment = 0;
   }
   else {
-    res.curve_segment = -res.curve_id;
-    res.curve_id = texelFetch(curves_indirection_buf, segment_id + res.curve_id).r;
+    ind.curve_segment = -ind.curve_id;
+    ind.curve_id = texelFetch(curves_indirection_buf, int(segment.id) + ind.curve_id).r;
   }
-  return res;
+
+  constexpr int end_of_curve = 0x7FFFFFFF;
+  ind.end_of_curve = ind.curve_id == end_of_curve;
+
+  const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
+  if (is_cylinder) {
+    ind.curve_segment += int(segment.v_idx & 1u);
+  }
+  return ind;
 }
 
-int point_id_get(int segment_id, int curve_id)
+int point_id_get(Segment segment, Indirection indirection)
 {
-  const bool is_ribbon = drw_curves.half_cylinder_face_count == 1u;
-  return segment_id + (is_ribbon ? -curve_id : curve_id);
+  const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
+  if (is_cylinder) {
+    return int(segment.id) + indirection.curve_id + int(segment.v_idx & 1u);
+  }
+  return int(segment.id) - indirection.curve_id;
 }
 
-float azimuthal_offset_get(uint vertex_id)
+float azimuthal_offset_get(Segment segment)
 {
   float time;
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
   if (is_cylinder) {
-    uint cylinder_vert_id = vertex_id % drw_curves.vertex_per_segment;
-    time = float(cylinder_vert_id >> 1) / float(drw_curves.half_cylinder_face_count);
+    time = float(segment.v_idx >> 1) / float(drw_curves.half_cylinder_face_count);
   }
   else {
-    time = vertex_id & 1u;
+    time = float(segment.v_idx);
   }
   return time * 2.0f - 1.0f;
 }
@@ -113,21 +132,18 @@ struct Point {
 /* Return data about the curve point. */
 Point point_get(uint vertex_id)
 {
-  int segment_id = segment_id_get(vertex_id);
-  Indirection indirection = indirection_get(segment_id);
-
-  const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
-  bool restart_strip = (indirection.curve_id == END_OF_CURVE) ||
-                       (is_cylinder && ((vertex_id + 1u) % drw_curves.vertex_per_segment) == 0u);
+  Segment segment = segment_get(vertex_id);
+  Indirection indirection = indirection_get(segment);
 
   Point pt;
+  pt.point_id = point_id_get(segment, indirection);
   pt.curve_id = indirection.curve_id;
   pt.curve_segment = indirection.curve_segment;
-  pt.point_id = point_id_get(segment_id, indirection.curve_id);
 
+  bool restart_strip = indirection.end_of_curve || segment.end_of_segment;
   pt.P = (restart_strip) ? float3(NAN_FLT) : point_position_get(pt.point_id);
   pt.radius = point_radius(pt.point_id);
-  pt.azimuthal_offset = azimuthal_offset_get(vertex_id);
+  pt.azimuthal_offset = azimuthal_offset_get(segment);
 
   if (pt.curve_segment == 0) {
     /* Hair root. */
