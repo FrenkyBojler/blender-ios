@@ -227,6 +227,11 @@ bool has_anything_selected(const VArray<bool> &varray, const IndexMask &indices_
  */
 IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
 IndexMask retrieve_selected_curves(const Curves &curves_id, IndexMaskMemory &memory);
+/**
+ * Find curves that have any point or Bezier handle selected (a selection factor greater than
+ * zero), or curves that have their own selection factor greater than zero.
+ */
+IndexMask retrieve_all_selected_curves(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
 
 /**
  * Find points that are selected (a selection factor greater than zero),

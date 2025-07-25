@@ -23,6 +23,30 @@
 
 namespace blender::ed::curves {
 
+static IndexMask retrieve_selected_curves_from_point_domain(
+    const bke::CurvesGeometry &curves,
+    const bke::AttributeAccessor &attributes,
+    const IndexRange curves_range,
+    IndexMaskMemory &memory,
+    StringRef attribute_name)
+{
+  /* Avoid the interpolation from interpolating the attribute to the
+   * curve domain by retrieving the point domain values directly. */
+  const VArray<bool> selection = *attributes.lookup_or_default<bool>(
+      attribute_name, bke::AttrDomain::Point, true);
+  if (selection.is_single()) {
+    return selection.get_internal_single() ? IndexMask(curves_range) : IndexMask();
+  }
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  return IndexMask::from_predicate(curves_range, GrainSize(512), memory, [&](const int64_t curve) {
+    const IndexRange points = points_by_curve[curve];
+    /* The curve is selected if any of its points are selected. */
+    Array<bool, 32> point_selection(points.size());
+    selection.materialize_compressed(points, point_selection);
+    return point_selection.as_span().contains(true);
+  });
+}
+
 IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
 {
   const IndexRange curves_range = curves.curves_range();
@@ -33,22 +57,31 @@ IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, IndexMaskM
    * #lookup_or_default from the attribute API doesn't give the domain of the attribute. */
   std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(".selection");
   if (meta_data && meta_data->domain == bke::AttrDomain::Point) {
-    /* Avoid the interpolation from interpolating the attribute to the
-     * curve domain by retrieving the point domain values directly. */
-    const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
-    if (selection.is_single()) {
-      return selection.get_internal_single() ? IndexMask(curves_range) : IndexMask();
+    return retrieve_selected_curves_from_point_domain(
+        curves, attributes, curves_range, memory, ".selection");
+  }
+  const VArray<bool> selection = *attributes.lookup_or_default<bool>(
+      ".selection", bke::AttrDomain::Curve, true);
+  return IndexMask::from_bools(curves_range, selection, memory);
+}
+
+IndexMask retrieve_all_selected_curves(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
+{
+  const IndexRange curves_range = curves.curves_range();
+  const bke::AttributeAccessor attributes = curves.attributes();
+
+  /* Interpolate from points to curves manually as a performance improvement, since we are only
+   * interested in whether any point in each curve is selected. Retrieve meta data since
+   * #lookup_or_default from the attribute API doesn't give the domain of the attribute. */
+  std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(".selection");
+  if (meta_data && meta_data->domain == bke::AttrDomain::Point) {
+    Vector<IndexMask> selection_by_attribute;
+    for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves))
+    {
+      selection_by_attribute.append(retrieve_selected_curves_from_point_domain(
+          curves, attributes, curves_range, memory, selection_name));
     }
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-    return IndexMask::from_predicate(
-        curves_range, GrainSize(512), memory, [&](const int64_t curve) {
-          const IndexRange points = points_by_curve[curve];
-          /* The curve is selected if any of its points are selected. */
-          Array<bool, 32> point_selection(points.size());
-          selection.materialize_compressed(points, point_selection);
-          return point_selection.as_span().contains(true);
-        });
+    return IndexMask::from_union(selection_by_attribute, memory);
   }
   const VArray<bool> selection = *attributes.lookup_or_default<bool>(
       ".selection", bke::AttrDomain::Curve, true);

@@ -530,7 +530,7 @@ static CurvesSelectionStatus init_curves_selection_status(
   const VArray<int> resolution = curves.resolution();
 
   IndexMaskMemory memory;
-  const IndexMask selection = retrieve_selected_curves(curves, memory);
+  const IndexMask selection = retrieve_all_selected_curves(curves, memory);
 
   return threading::parallel_reduce(
       curves.curves_range(),
@@ -586,7 +586,7 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
   }
 
   IndexMaskMemory memory;
-  const IndexMask selection = retrieve_selected_curves(curves, memory);
+  const IndexMask selection = retrieve_all_selected_curves(curves, memory);
   if (selection.is_empty()) {
     return false;
   }
