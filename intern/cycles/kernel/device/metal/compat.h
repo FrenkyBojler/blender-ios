@@ -324,23 +324,28 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #    define METALRT_BLAS_TAGS
 #  endif /* __METALRT_MOTION__ */
 
+#  if defined(__METALRT_EXTENDED_LIMITS__)
+#    define METALRT_LIMITS , extended_limits
+#  else
+#    define METALRT_LIMITS
+#  endif /* __METALRT_MOTION__ */
+
 typedef acceleration_structure<METALRT_TAGS> metalrt_as_type;
-typedef intersection_function_table<triangle_data, curve_data, METALRT_TAGS, extended_limits>
+typedef intersection_function_table<triangle_data, curve_data, METALRT_TAGS METALRT_LIMITS>
     metalrt_ift_type;
-typedef metal::raytracing::intersector<triangle_data, curve_data, METALRT_TAGS, extended_limits>
+typedef metal::raytracing::intersector<triangle_data, curve_data, METALRT_TAGS METALRT_LIMITS>
     metalrt_intersector_type;
 #  if defined(__METALRT_MOTION__)
 typedef acceleration_structure<primitive_motion> metalrt_blas_as_type;
-typedef intersection_function_table<triangle_data, curve_data, primitive_motion, extended_limits>
+typedef intersection_function_table<triangle_data, curve_data, primitive_motion METALRT_LIMITS>
     metalrt_blas_ift_type;
-typedef metal::raytracing::
-    intersector<triangle_data, curve_data, primitive_motion, extended_limits>
-        metalrt_blas_intersector_type;
+typedef metal::raytracing::intersector<triangle_data, curve_data, primitive_motion METALRT_LIMITS>
+    metalrt_blas_intersector_type;
 #  else
 typedef acceleration_structure<> metalrt_blas_as_type;
-typedef intersection_function_table<triangle_data, curve_data, extended_limits>
+typedef intersection_function_table<triangle_data, curve_data METALRT_LIMITS>
     metalrt_blas_ift_type;
-typedef metal::raytracing::intersector<triangle_data, curve_data, extended_limits>
+typedef metal::raytracing::intersector<triangle_data, curve_data METALRT_LIMITS>
     metalrt_blas_intersector_type;
 #  endif
 
@@ -348,16 +353,12 @@ typedef metal::raytracing::intersector<triangle_data, curve_data, extended_limit
 
 /* texture bindings and sampler setup */
 
-/* TextureParamsMetal is reinterpreted as either Texture2DParamsMetal or Texture3DParamsMetal
- * depending on context. */
+/* TextureParamsMetal is reinterpreted as Texture2DParamsMetal. */
 struct TextureParamsMetal {
   uint64_t tex;
 };
 struct Texture2DParamsMetal {
   texture2d<float, access::sample> tex;
-};
-struct Texture3DParamsMetal {
-  texture3d<float, access::sample> tex;
 };
 
 #ifdef __METALRT__

@@ -395,8 +395,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
   }
 
   col = &row->column(true);
-  col->op("NODE_OT_output_file_add_socket", "", ICON_ADD);
-  col->op("NODE_OT_output_file_remove_active_socket", "", ICON_REMOVE);
+  col->op("NODE_OT_output_file_add_socket", "", ICON_ADD, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
+  col->op("NODE_OT_output_file_remove_active_socket", "", ICON_REMOVE, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
   col->separator();
 
   /* XXX collection lookup does not return the ID part of the pointer,
@@ -404,9 +404,9 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
   active_input_ptr.owner_id = ptr->owner_id;
 
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
-  op_ptr = col->op(ot, "", ICON_TRIA_UP, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+  op_ptr = col->op(ot, "", ICON_TRIA_UP, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 1);
-  op_ptr = col->op(ot, "", ICON_TRIA_DOWN, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+  op_ptr = col->op(ot, "", ICON_TRIA_DOWN, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 2);
 
   if (active_input_ptr.data) {
@@ -692,6 +692,9 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Bool:
         file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
+      case ResultType::Menu:
+        file_output.add_pass(pass_name, view_name, "V", buffer);
+        break;
     }
   }
 
@@ -727,6 +730,11 @@ class FileOutputOperation : public NodeOperation {
       }
       case ResultType::Bool: {
         const float value = float(result.get_single_value<bool>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Menu: {
+        const float value = float(result.get_single_value<int32_t>());
         CPPType::get<float>().fill_assign_n(&value, buffer, length);
         return buffer;
       }
@@ -776,6 +784,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int2:
       case ResultType::Int:
       case ResultType::Bool:
+      case ResultType::Menu:
         /* Not supported. */
         BLI_assert_unreachable();
         break;
@@ -917,7 +926,7 @@ class FileOutputOperation : public NodeOperation {
    * If there are any errors processing the path, the resulting path will be
    * empty.
    *
-   * \param apply_template Whether to run templating on the path or not. This is
+   * \param apply_template: Whether to run templating on the path or not. This is
    * needed because this function is called from more than one place, some of
    * which have already applied templating to the path and some of which
    * haven't. Double-applying templating can give incorrect results.

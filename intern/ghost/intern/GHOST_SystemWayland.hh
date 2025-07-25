@@ -233,11 +233,7 @@ class GHOST_SystemWayland : public GHOST_System {
 
   GHOST_TSuccess cursor_shape_check(GHOST_TStandardCursor cursorShape);
 
-  GHOST_TSuccess cursor_shape_custom_set(const uint8_t *bitmap,
-                                         const uint8_t *mask,
-                                         const int size[2],
-                                         const int hot_spot[2],
-                                         bool canInvertColor);
+  GHOST_TSuccess cursor_shape_custom_set(const GHOST_CursorGenerator &cg);
 
   GHOST_TSuccess cursor_bitmap_get(GHOST_CursorBitmapRef *bitmap);
 
@@ -264,7 +260,6 @@ class GHOST_SystemWayland : public GHOST_System {
   struct zwp_pointer_gestures_v1 *wp_pointer_gestures_get();
   struct wp_fractional_scale_manager_v1 *wp_fractional_scale_manager_get();
   struct wp_viewporter *wp_viewporter_get();
-  struct wp_color_manager_v1 *wp_color_manager_get();
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   libdecor *libdecor_context_get();
