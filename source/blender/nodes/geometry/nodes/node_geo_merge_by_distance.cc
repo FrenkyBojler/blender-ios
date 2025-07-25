@@ -100,8 +100,7 @@ static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const GeometryNodeMergeByDistanceMode mode = params.get_input<GeometryNodeMergeByDistanceMode>(
-      "Mode");
+  const auto mode = params.get_input<GeometryNodeMergeByDistanceMode>("Mode");
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const float merge_distance = params.extract_input<float>("Distance");
 
