@@ -145,40 +145,20 @@ static void parse_behavior__global_volume(ParseBehaviorParams &params)
       params.scope, std::move(*rest_volume_name), overpressure));
 }
 
-static void parse_behavior(const StringRef type, ParseBehaviorParams &params)
+using BehaviorParserFn = std::function<void(ParseBehaviorParams &)>;
+
+static Map<std::string, BehaviorParserFn> build_behavior_parsers()
 {
-  if (type == "Geometry") {
-    parse_behavior__geometry(params);
-    return;
-  }
-  if (type == "Force") {
-    parse_behavior__force(params);
-    return;
-  }
-  if (type == "Acceleration") {
-    parse_behavior__acceleration(params);
-    return;
-  }
-  if (type == "Edge Length Constraint") {
-    parse_behavior__edge_lengths(params);
-    return;
-  }
-  if (type == "Curve Length Constraint") {
-    parse_behavior__curve_lengths(params);
-    return;
-  }
-  if (type == "Fixed Position Constraint") {
-    parse_behavior__fixed_positions(params);
-    return;
-  }
-  if (type == "Infinite Collision Plane") {
-    parse_behavior__infinite_collision_plane(params);
-    return;
-  }
-  if (type == "Global Volume Constraint") {
-    parse_behavior__global_volume(params);
-    return;
-  }
+  Map<std::string, BehaviorParserFn> behavior_parsers;
+  behavior_parsers.add_new("Geometry", parse_behavior__geometry);
+  behavior_parsers.add_new("Force", parse_behavior__force);
+  behavior_parsers.add_new("Acceleration", parse_behavior__acceleration);
+  behavior_parsers.add_new("Edge Length Constraint", parse_behavior__edge_lengths);
+  behavior_parsers.add_new("Curve Length Constraint", parse_behavior__curve_lengths);
+  behavior_parsers.add_new("Fixed Position Constraint", parse_behavior__fixed_positions);
+  behavior_parsers.add_new("Infinite Collision Plane", parse_behavior__infinite_collision_plane);
+  behavior_parsers.add_new("Global Volume Constraint", parse_behavior__global_volume);
+  return behavior_parsers;
 }
 
 static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bundle,
@@ -188,11 +168,14 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
     return {};
   }
   geometry::xpbd::Behaviors behaviors;
+  static const Map<std::string, BehaviorParserFn> behavior_parsers = build_behavior_parsers();
   foreach_behavior_in_bundle(
       *behaviors_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path_stack) {
         ParseBehaviorParams params{path_stack, behavior_bundle, scope, behaviors};
-        parse_behavior(type, params);
+        if (const auto *parser = behavior_parsers.lookup_ptr(type)) {
+          (*parser)(params);
+        }
       });
   return behaviors;
 }
