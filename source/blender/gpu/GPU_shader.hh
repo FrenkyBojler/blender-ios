@@ -535,6 +535,7 @@ class StaticShader : NonCopyable {
     }
 
     if (failed_) {
+      BLI_assert_unreachable();
       if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
         /* This should never happen in main.
          * Assume it's a driver issue and tell the user. */
