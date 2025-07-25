@@ -359,7 +359,8 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   Vector<int> dst_to_src_points(old_points_num);
   array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
 
-  Vector<bool> dst_selected(old_points_num, false);
+  Vector<bool> dst_selected_start(old_points_num, false);
+  Vector<bool> dst_selected_end(old_points_num, false);
 
   Vector<int> dst_curve_counts(src.curves_num());
   offset_indices::copy_group_sizes(
@@ -378,7 +379,8 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
     if (point_selection[curve_points.first()] && curve_points.size() != 1) {
       /* Start-point extruded, we insert a new point at the beginning of the curve. */
       dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
-      dst_selected.insert(curve_points.first() + point_offset, true);
+      dst_selected_start.insert(curve_points.first() + point_offset, true);
+      dst_selected_end.insert(curve_points.first() + point_offset, false);
       dst_curve_counts[curve_index]++;
       point_offset++;
     }
@@ -386,7 +388,8 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
     if (point_selection[curve_points.last()]) {
       /* End-point extruded, we insert a new point at the end of the curve. */
       dst_to_src_points.insert(curve_points.last() + point_offset + 1, curve_points.last());
-      dst_selected.insert(curve_points.last() + point_offset + 1, true);
+      dst_selected_end.insert(curve_points.last() + point_offset + 1, true);
+      dst_selected_start.insert(curve_points.last() + point_offset + 1, false);
       dst_curve_counts[curve_index]++;
       point_offset++;
     }
@@ -409,19 +412,18 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
   /* Selection attribute. */
-  /* Copy the value of control point selections to all selection attributes.
-   *
-   * This will lead to the extruded control point always having both handles selected, if it's a
-   * bezier type stroke. This is to circumvent the issue of source curves handles not being
-   * deselected when the user extrudes a bezier control point with both handles selected. */
-  for (const StringRef selection_attribute_name :
-       ed::curves::get_curves_selection_attribute_names(src))
-  {
-    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-        dst, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-    selection.span.copy_from(dst_selected.as_span());
-    selection.finish();
-  }
+  bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+      dst, bke::AttrDomain::Point, bke::AttrType::Bool);
+  bke::GSpanAttributeWriter selection_left = ed::curves::ensure_selection_attribute(
+      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_left");
+  bke::GSpanAttributeWriter selection_right = ed::curves::ensure_selection_attribute(
+      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_right");
+  ed::curves::fill_selection_false(selection.span);
+  selection_left.span.copy_from(dst_selected_start.as_span());
+  selection_right.span.copy_from(dst_selected_end.as_span());
+  selection.finish();
+  selection_left.finish();
+  selection_right.finish();
 
   bke::copy_attributes(
       src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
@@ -438,8 +440,8 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   MutableSpan<float3> dst_positions = dst.positions_for_write();
   MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
   MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
-  for (const int i : dst_selected.index_range()) {
-    if (!dst_selected[i]) {
+  for (const int i : dst_to_src_points.index_range()) {
+    if (!(dst_selected_end[i] || dst_selected_start[i])) {
       continue;
     }
     const float3 depth_point = src_positions[dst_to_src_points[i]];
