@@ -2330,7 +2330,7 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
 
   if (status.curve_count == 0) {
     uiDefBut(
-        block, UI_BTYPE_LABEL, 0, IFACE_("Nothing selected"), 0, 130, 200, 20, nullptr, 0, 0, "");
+        block, ButType::Label, 0, IFACE_("Nothing selected"), 0, 130, 200, 20, nullptr, 0, 0, "");
     return;
   }
 
