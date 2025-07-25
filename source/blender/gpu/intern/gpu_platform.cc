@@ -10,6 +10,7 @@
  */
 
 #include <cstdint>
+#include <stdexcept>
 
 #include "MEM_guardedalloc.h"
 
@@ -224,8 +225,7 @@ void GPU_platform_show_shader_error_popup()
         GHOST_DialogError);
   }
 
-  BLI_system_backtrace(stderr);
-  abort();
+  throw std::exception("Shader Error");
 }
 
 const char *GPU_platform_support_link()
