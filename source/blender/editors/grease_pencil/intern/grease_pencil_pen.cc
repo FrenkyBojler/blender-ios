@@ -72,7 +72,7 @@ enum class ElementMode : int8_t {
   Point = 1,
   Edge = 2,
   HandleLeft = 3,
-  handleRight = 4,
+  HandleRight = 4,
 };
 
 struct ClosestElement {
@@ -202,7 +202,7 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
       closest_point = i;
       const Array<int> point_to_curve_map = curves.point_to_curve_map();
       *r_closest_curve = point_to_curve_map[i];
-      *r_element_mode = ElementMode::handleRight;
+      *r_element_mode = ElementMode::HandleRight;
       closest_distance_squared = distance_squared;
     }
   }
@@ -756,8 +756,16 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       }
 
       if (ptd.select_point) {
-        selection[ptd.closest_element.point_index] = true;
-        add_single.store(false, std::memory_order_relaxed);
+        if ((selection_attribute_name == ".selection" &&
+             ptd.closest_element.element_mode == ElementMode::Point) ||
+            (selection_attribute_name == ".selection_handle_left" &&
+             ptd.closest_element.element_mode == ElementMode::HandleLeft) ||
+            (selection_attribute_name == ".selection_handle_right" &&
+             ptd.closest_element.element_mode == ElementMode::HandleRight))
+        {
+          selection[ptd.closest_element.point_index] = true;
+          add_single.store(false, std::memory_order_relaxed);
+        }
       }
 
       selection_writer.finish();
