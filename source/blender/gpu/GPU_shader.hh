@@ -18,6 +18,7 @@
 #include "BLI_vector.hh"
 
 #include "GPU_common_types.hh"
+#include "GPU_context.hh"
 #include "GPU_platform.hh"
 #include "GPU_shader_builtin.hh"
 
@@ -534,11 +535,11 @@ class StaticShader : NonCopyable {
     }
 
     if (failed_) {
-      /*
-       * This should never happen on a release build. Assume it's a driver issue and tell the user
-       * to update their drivers, so the triaging team doesn't get drowned in low quality reports.
-       */
-      GPU_platform_show_driver_error_popup();
+      if (GPU_backend_get_type() == GPU_BACKEND_OPENGL) {
+        /* This should never happen in main.
+         * Assume it's a driver issue and tell the user. */
+        GPU_platform_show_driver_error_popup();
+      }
     }
 
     return shader_;
