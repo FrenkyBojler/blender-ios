@@ -80,11 +80,6 @@ class Context : public compositor::Context {
     return true;
   }
 
-  const RenderData &get_render_data() const override
-  {
-    return scene_->r;
-  }
-
   /* We limit the compositing region to the camera region if in camera view, while we use the
    * entire viewport otherwise. We also use the entire viewport when doing viewport rendering since
    * the viewport is already the camera region in that case. */
@@ -201,11 +196,11 @@ class Instance : public DrawEngine {
     return "Compositor";
   }
 
-  void init() final{};
-  void begin_sync() final{};
+  void init() final {};
+  void begin_sync() final {};
   void object_sync(blender::draw::ObjectRef & /*ob_ref*/,
-                   blender::draw::Manager & /*manager*/) final{};
-  void end_sync() final{};
+                   blender::draw::Manager & /*manager*/) final {};
+  void end_sync() final {};
 
   void draw(Manager & /*manager*/) final
   {
