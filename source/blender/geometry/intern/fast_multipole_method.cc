@@ -1700,3 +1700,139 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 }
 
 }  // namespace blender::geometry::fmm
+
+namespace blender {
+
+void transpose(const Span<float3> src, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == src.size(); }));
+  
+  threading::parallel_for(src.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[0][i] = src[i].x;
+      dst[1][i] = src[i].y;
+      dst[2][i] = src[i].z;
+    }
+  });
+}
+
+void transpose(const Span<Span<float>> src, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == dst.size(); }));
+
+  threading::parallel_for(dst.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[i].x = src[0][i];
+      dst[i].y = src[1][i];
+      dst[i].z = src[2][i];
+    }
+  });
+}
+
+void transpose_gather(const Span<float3> src, const Span<int> indices, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == indices.size(); }));
+
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[0][i] = src[indices[i]].x;
+      dst[1][i] = src[indices[i]].y;
+      dst[2][i] = src[indices[i]].z;
+    }
+  });
+}
+
+void transpose_gather(const Span<Span<float>> src, const Span<int> indices, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(dst.size() == indices.size());
+
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[i].x = src[0][indices[i]];
+      dst[i].y = src[1][indices[i]];
+      dst[i].z = src[2][indices[i]];
+    }
+  });
+}
+
+void transpose_gather(const Span<float3> src, const IndexMask mask, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == mask.size(); }));
+
+  mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
+    dst[0][pos] = src[i].x;
+    dst[1][pos] = src[i].y;
+    dst[2][pos] = src[i].z;
+  });
+}
+
+void transpose_gather(const Span<Span<float>> src, const IndexMask mask, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(dst.size() == mask.size());
+
+  mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
+    dst[pos].x = src[0][i];
+    dst[pos].y = src[1][i];
+    dst[pos].z = src[2][i];
+  });
+}
+
+void transpose_scatter(const Span<float3> src, const Span<int> indices, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(src.size() == indices.size());
+
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[0][indices[i]] = src[i].x;
+      dst[1][indices[i]] = src[i].y;
+      dst[2][indices[i]] = src[i].z;
+    }
+  });
+}
+
+void transpose_scatter(const Span<Span<float>> src, const Span<int> indices, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == indices.size(); }));
+
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[indices[i]].x = src[0][i];
+      dst[indices[i]].y = src[1][i];
+      dst[indices[i]].z = src[2][i];
+    }
+  });
+}
+
+void transpose_scatter(const Span<float3> src, const IndexMask mask, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(src.size() == mask.size());
+
+  mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
+    dst[0][i] = src[pos].x;
+    dst[1][i] = src[pos].y;
+    dst[2][i] = src[pos].z;
+  });
+}
+
+void transpose_scatter(const Span<Span<float>> src, const IndexMask mask, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == mask.size(); }));
+
+  mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
+    dst[i].x = src[0][pos];
+    dst[i].y = src[1][pos];
+    dst[i].z = src[2][pos];
+  });
+}
+
+}
