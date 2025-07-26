@@ -156,7 +156,7 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
   float closest_distance_squared = std::numeric_limits<float>::max();
   int closest_point = -1;
 
-  const bke::CurvesGeometry curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.strokes();
   const Span<float3> positions = curves.positions();
 
   IndexMaskMemory memory;
@@ -334,7 +334,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
   const int closest_point = pen_find_closest_point_or_handle(
       ptd, drawing, layer_index, mouse_co, &closest_curve, &element_mode);
 
-  const bke::CurvesGeometry curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.strokes();
 
   if (closest_point != -1) {
     closest_element.element_mode = element_mode;
