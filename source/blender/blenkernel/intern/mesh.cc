@@ -36,7 +36,6 @@
 #include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_time.h"
-#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
@@ -2040,10 +2039,9 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
 {
   DEG_debug_print_eval(depsgraph, __func__, mesh->id.name, mesh);
   BKE_mesh_texspace_calc(mesh);
-  /* We are here because something did change in the mesh. This means we can not trust the
-   * existing evaluated mesh, and we don't know what parts of the mesh did change. So we
-   * simply delete the evaluated mesh and let objects to re-create it with updated
-   * settings. */
+  /* We are here because something did change in the mesh. This means we can not trust the existing
+   * evaluated mesh, and we don't know what parts of the mesh did change. So we simply delete the
+   * evaluated mesh and let objects to re-create it with updated settings. */
   if (mesh->runtime->mesh_eval != nullptr) {
     BKE_id_free(nullptr, mesh->runtime->mesh_eval);
     mesh->runtime->mesh_eval = nullptr;
