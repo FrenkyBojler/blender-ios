@@ -158,26 +158,32 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
 
   const bke::CurvesGeometry curves = drawing.strokes();
   const Span<float3> positions = curves.positions();
-  const Span<float3> handle_left = curves.handle_positions_left();
-  const Span<float3> handle_right = curves.handle_positions_right();
 
-  for (const int i : curves.points_range()) {
-    const float2 pos_proj = pen_global_to_screen(ptd, positions[i]);
+  IndexMaskMemory memory;
+  const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+      *ptd.vc.obact, drawing, layer_index, memory);
+  editable_points.foreach_index([&](const int point_i) {
+    const float2 pos_proj = pen_global_to_screen(ptd, positions[point_i]);
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
     if (distance_squared < closest_distance_squared &&
         distance_squared < ptd.threshold_distance * ptd.threshold_distance)
     {
-      closest_point = i;
+      closest_point = point_i;
       const Array<int> point_to_curve_map = curves.point_to_curve_map();
-      *r_closest_curve = point_to_curve_map[i];
+      *r_closest_curve = point_to_curve_map[point_i];
       *r_element_mode = ElementMode::Point;
       closest_distance_squared = distance_squared;
     }
+  });
+
+  if (closest_point != -1) {
+    return closest_point;
   }
 
-  IndexMaskMemory memory;
+  const Span<float3> handle_left = curves.handle_positions_left();
+  const Span<float3> handle_right = curves.handle_positions_right();
   const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
       *ptd.vc.obact, drawing, layer_index, memory);
 
