@@ -9,7 +9,6 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_rand.hh"
 #include "BLI_task.hh"
 
 #include "GEO_abstract_kd_bucket_hierarchy.hh"
@@ -315,14 +314,12 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   Vector<int, 32> joint_stack({0});
   Vector<int, 32> prefix_to_visit_stack({batch_size});
 
-  RandomNumberGenerator unbiased_order_generator({0});
   const auto push_childs_of = [&](const int depth_i, const int joint_i, const int prefix_size) {
     BLI_assert(depth_i < total_depth - 1);
 
-    bool first_on_top = true;
-    if ((depth_i < total_depth / 2) && (total_depth > 10)) {
-      first_on_top = (unbiased_order_generator.get_int32() & 1) == 1;
-    }
+    /* Reordering of top level nodes to visit in order to mix floats in accumulation and avoid asymmetric result. */
+    const bool first_on_top = (depth_i < total_depth / 2) && (total_depth > 10);
+
     const int first_child_i = joint_i * 2 + (first_on_top ? 1 : 0);
     const int second_child_i = joint_i * 2 + (first_on_top ? 0 : 1);
 
