@@ -1061,7 +1061,6 @@ if(TEST_SRC_DIR_EXISTS)
     points
     texture
     utilities
-  utilities/field_in_space
     vector
   )
 
