@@ -18,6 +18,7 @@
 #include "BLI_listbase.h"
 #include "BLI_rand.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -1061,7 +1062,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
 
 static void fullscreen_azone_init(ScrArea *area, ARegion *region)
 {
-  if (ED_area_is_global(area) || (region->regiontype != RGN_TYPE_WINDOW)) {
+  if (ED_area_is_global(area) || !ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_PREVIEW)) {
     return;
   }
 
@@ -2614,6 +2615,16 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
   BKE_screen_area_free(tmp);
   MEM_delete(tmp);
 
+  /* The areas being swapped could be between different windows,
+   * so clear screen active region pointers. This is set later
+   * through regular operations. #141313. */
+  wmWindowManager *wm = CTX_wm_manager(C);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    if (bScreen *screen = WM_window_get_active_screen(win)) {
+      screen->active_region = nullptr;
+    }
+  }
+
   /* tell WM to refresh, cursor types etc */
   WM_event_add_mousemove(win);
 
@@ -2825,7 +2836,7 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
   PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
 
   uiDefButR(block,
-            UI_BTYPE_MENU,
+            ButType::Menu,
             0,
             "",
             xco,
@@ -2919,7 +2930,7 @@ static void ed_panel_draw(const bContext *C,
     BLI_string_join(block_name, sizeof(block_name), pt->idname, unique_panel_str);
   }
   else {
-    STRNCPY(block_name, pt->idname);
+    STRNCPY_UTF8(block_name, pt->idname);
   }
   uiBlock *block = UI_block_begin(C, region, block_name, blender::ui::EmbossType::Emboss);
 
@@ -3505,7 +3516,7 @@ static bool panel_property_search(const bContext *C,
     panel_type->draw(C, panel);
   }
 
-  UI_block_layout_free(block);
+  blender::ui::block_layout_free(block);
 
   /* We could check after each layout to increase the likelihood of returning early,
    * but that probably wouldn't make much of a difference anyway. */

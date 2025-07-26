@@ -134,10 +134,10 @@ static void change_node_socket_name(ListBase *sockets, const char *old_name, con
 {
   LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {
     if (STREQ(socket->name, old_name)) {
-      STRNCPY(socket->name, new_name);
+      STRNCPY_UTF8(socket->name, new_name);
     }
     if (STREQ(socket->identifier, old_name)) {
-      STRNCPY(socket->identifier, new_name);
+      STRNCPY_UTF8(socket->identifier, new_name);
     }
   }
 }
@@ -281,9 +281,9 @@ bNodeSocket &version_node_add_socket(bNodeTree &ntree,
   socket->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
   socket->type = stype->type;
 
-  STRNCPY(socket->idname, idname);
-  STRNCPY(socket->identifier, identifier);
-  STRNCPY(socket->name, identifier);
+  STRNCPY_UTF8(socket->idname, idname);
+  STRNCPY_UTF8(socket->identifier, identifier);
+  STRNCPY_UTF8(socket->name, identifier);
 
   if (in_out == SOCK_IN) {
     BLI_addtail(&node.inputs, socket);
@@ -656,6 +656,15 @@ bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines)
   }
 
   return true;
+}
+
+bNodeTree *version_get_scene_compositor_node_tree(Main *bmain, Scene *scene)
+{
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 4)) {
+    return scene->nodetree;
+  }
+
+  return scene->compositing_node_group;
 }
 
 static bool blendfile_or_libraries_versions_atleast(Main *bmain,

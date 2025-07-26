@@ -690,11 +690,11 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         MenuType *mt_from_but = nullptr;
         /* Support menu titles with dynamic from initial labels
          * (used by edit-mesh context menu). */
-        if (but->type == UI_BTYPE_LABEL) {
+        if (but->type == ButType::Label) {
 
           /* Check if the label is the title. */
           const std::unique_ptr<uiBut> *but_test = block->buttons.begin() + i - 1;
-          while (but_test >= block->buttons.begin() && (*but_test)->type == UI_BTYPE_SEPR) {
+          while (but_test >= block->buttons.begin() && (*but_test)->type == ButType::Sepr) {
             but_test--;
           }
 
@@ -1151,7 +1151,7 @@ void uiTemplateMenuSearch(uiLayout *layout)
   static char search[256] = "";
 
   block = layout->block();
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
 
   but = uiDefSearchBut(
       block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_UNIT_X * 6, UI_UNIT_Y, "");

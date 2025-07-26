@@ -203,6 +203,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_KEYBOARD_HYPER_KEY = (1 << 9),
   /** Support for RGBA Cursors. */
   WM_CAPABILITY_CURSOR_RGBA = (1 << 10),
+  /** Support on demand cursor generation. */
+  WM_CAPABILITY_CURSOR_GENERATOR = (1 << 11),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -489,6 +491,16 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 void WM_cursor_set(wmWindow *win, int curs);
 bool WM_cursor_set_from_tool(wmWindow *win, const ScrArea *area, const ARegion *region);
+/**
+ * Check the cursor isn't set elsewhere.
+ * When false setting the modal cursor can be done but may overwrite an existing cursor.
+ *
+ * Use this check for modal navigation operators that may be activated while other modal operators
+ * are running.
+ *
+ * \note A cursor "stack" would remove the need for this.
+ */
+bool WM_cursor_modal_is_set_ok(const wmWindow *win);
 void WM_cursor_modal_set(wmWindow *win, int val);
 void WM_cursor_modal_restore(wmWindow *win);
 /**

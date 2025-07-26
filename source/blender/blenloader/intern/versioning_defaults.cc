@@ -23,6 +23,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_camera_types.h"
@@ -383,7 +384,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
 
-  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
+  STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 
   scene->r.cfra = 1.0f;
 
@@ -401,7 +402,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Disable Z pass by default. */
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-    view_layer->passflag &= ~SCE_PASS_Z;
+    view_layer->passflag &= ~SCE_PASS_DEPTH;
     view_layer->eevee.ambient_occlusion_distance = 10.0f;
   }
 

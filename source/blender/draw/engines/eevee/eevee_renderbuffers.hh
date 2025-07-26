@@ -24,8 +24,8 @@ class RenderBuffers {
  public:
   RenderBuffersInfoData &data;
 
-  static constexpr eGPUTextureFormat color_format = GPU_RGBA16F;
-  static constexpr eGPUTextureFormat float_format = GPU_R16F;
+  static constexpr gpu::TextureFormat color_format = gpu::TextureFormat::SFLOAT_16_16_16_16;
+  static constexpr gpu::TextureFormat float_format = gpu::TextureFormat::SFLOAT_16;
 
   Texture depth_tx;
   TextureFromPool combined_tx;
@@ -49,7 +49,7 @@ class RenderBuffers {
   static ePassStorageType pass_storage_type(eViewLayerEEVEEPassType pass_type)
   {
     switch (pass_type) {
-      case EEVEE_RENDER_PASS_Z:
+      case EEVEE_RENDER_PASS_DEPTH:
       case EEVEE_RENDER_PASS_MIST:
       case EEVEE_RENDER_PASS_SHADOW:
       case EEVEE_RENDER_PASS_AO:
@@ -75,7 +75,7 @@ class RenderBuffers {
     return extent_;
   }
 
-  eGPUTextureFormat vector_tx_format();
+  gpu::TextureFormat vector_tx_format();
 };
 
 }  // namespace blender::eevee

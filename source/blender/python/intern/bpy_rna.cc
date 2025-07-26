@@ -53,6 +53,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_windowmanager_types.h"
+
 #include "BKE_context.hh"
 #include "BKE_global.hh" /* evil G.* */
 #include "BKE_idprop.hh"
@@ -340,6 +342,46 @@ static void id_release_weakref(struct ID *id)
 }
 
 #endif /* USE_PYRNA_INVALIDATE_WEAKREF */
+
+struct BPy_NamePropAsPyObject_Cache {
+  PyObject *(*nameprop_as_py_object_fn)(const char *, Py_ssize_t);
+  PropertyRNA *nameprop;
+};
+
+/**
+ * Wrapper for #RNA_struct_name_get_alloc_ex that handles non UTF8 names, see #142909.
+ */
+static PyObject *pyrna_struct_get_nameprop_as_pyobject(
+    PointerRNA *ptr, BPy_NamePropAsPyObject_Cache &nameprop_cache)
+{
+  char fixedbuf[256];
+  int name_len;
+  PropertyRNA *nameprop;
+  char *name_ptr = RNA_struct_name_get_alloc_ex(
+      ptr, fixedbuf, sizeof(fixedbuf), &name_len, &nameprop);
+  if (LIKELY(name_ptr)) {
+    /* In most cases this only runs once. */
+    if (UNLIKELY(nameprop != nameprop_cache.nameprop)) {
+      nameprop_cache.nameprop = nameprop;
+      const PropertySubType subtype = RNA_property_subtype(nameprop);
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
+        nameprop_cache.nameprop_as_py_object_fn = PyC_UnicodeFromBytesAndSize;
+      }
+      else {
+        nameprop_cache.nameprop_as_py_object_fn = PyUnicode_FromStringAndSize;
+      }
+    }
+    PyObject *result = nameprop_cache.nameprop_as_py_object_fn(name_ptr, name_len);
+    /* The string data may be corrupt if this asserts,
+     * or not using a file-path sub-type when it should.. */
+    BLI_assert(result != nullptr);
+    if (name_ptr != fixedbuf) {
+      MEM_freeN(name_ptr);
+    }
+    return result;
+  }
+  return nullptr;
+}
 
 void BPY_id_release(ID *id)
 {
@@ -4308,24 +4350,16 @@ static void pyrna_dir_members_rna(PyObject *list, PointerRNA *ptr)
     /*
      * Collect RNA attributes
      */
-    char name[256], *name_ptr;
-    int name_len;
-
     iterprop = RNA_struct_iterator_property(ptr->type);
 
+    BPy_NamePropAsPyObject_Cache nameprop_cache = {nullptr};
     RNA_PROP_BEGIN (ptr, itemptr, iterprop) {
       /* Custom-properties are exposed using `__getitem__`, exclude from `__dir__`. */
       if (RNA_property_is_idprop(static_cast<const PropertyRNA *>(itemptr.data))) {
         continue;
       }
-      name_ptr = RNA_struct_name_get_alloc(&itemptr, name, sizeof(name), &name_len);
-
-      if (name_ptr) {
-        PyList_APPEND(list, PyUnicode_FromStringAndSize(name_ptr, name_len));
-
-        if (name != name_ptr) {
-          MEM_freeN(name_ptr);
-        }
+      if (PyObject *name_py = pyrna_struct_get_nameprop_as_pyobject(&itemptr, nameprop_cache)) {
+        PyList_APPEND(list, name_py);
       }
     }
     RNA_PROP_END;
@@ -5179,18 +5213,11 @@ PyDoc_STRVAR(
 static PyObject *pyrna_prop_collection_keys(BPy_PropertyRNA *self)
 {
   PyObject *ret = PyList_New(0);
-  char name[256], *name_ptr;
-  int name_len;
 
+  BPy_NamePropAsPyObject_Cache nameprop_cache = {nullptr};
   RNA_PROP_BEGIN (&self->ptr.value(), itemptr, self->prop) {
-    name_ptr = RNA_struct_name_get_alloc(&itemptr, name, sizeof(name), &name_len);
-
-    if (name_ptr) {
-      PyList_APPEND(ret, PyUnicode_FromStringAndSize(name_ptr, name_len));
-
-      if (name != name_ptr) {
-        MEM_freeN(name_ptr);
-      }
+    if (PyObject *name_py = pyrna_struct_get_nameprop_as_pyobject(&itemptr, nameprop_cache)) {
+      PyList_APPEND(ret, name_py);
     }
   }
   RNA_PROP_END;
@@ -5211,32 +5238,24 @@ PyDoc_STRVAR(
 static PyObject *pyrna_prop_collection_items(BPy_PropertyRNA *self)
 {
   PyObject *ret = PyList_New(0);
-  PyObject *item;
-  char name[256], *name_ptr;
-  int name_len;
   int i = 0;
 
+  BPy_NamePropAsPyObject_Cache nameprop_cache = {nullptr};
   RNA_PROP_BEGIN (&self->ptr.value(), itemptr, self->prop) {
-    if (itemptr.data) {
-      /* Add to Python list. */
-      item = PyTuple_New(2);
-      name_ptr = RNA_struct_name_get_alloc(&itemptr, name, sizeof(name), &name_len);
-      if (name_ptr) {
-        PyTuple_SET_ITEM(item, 0, PyUnicode_FromStringAndSize(name_ptr, name_len));
-        if (name != name_ptr) {
-          MEM_freeN(name_ptr);
-        }
-      }
-      else {
-        /* A bit strange, but better than returning an empty list. */
-        PyTuple_SET_ITEM(item, 0, PyLong_FromLong(i));
-      }
-      PyTuple_SET_ITEM(item, 1, pyrna_struct_CreatePyObject(&itemptr));
-
-      PyList_APPEND(ret, item);
-
-      i++;
+    if (UNLIKELY(itemptr.data == nullptr)) {
+      continue;
     }
+    /* Add to Python list. */
+    PyObject *item = PyTuple_New(2);
+    PyObject *name_py = pyrna_struct_get_nameprop_as_pyobject(&itemptr, nameprop_cache);
+    /* Strange to use an index `i` when `name_py` is null, better than excluding it's value.
+     * In practice this should not happen. */
+    PyTuple_SET_ITEM(item, 0, name_py ? name_py : PyLong_FromLong(i));
+    PyTuple_SET_ITEM(item, 1, pyrna_struct_CreatePyObject(&itemptr));
+
+    PyList_APPEND(ret, item);
+
+    i++;
   }
   RNA_PROP_END;
 
@@ -10053,7 +10072,21 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
     return nullptr;
   }
 
-  if (G.debug & G_DEBUG_PYTHON) {
+  if (!pyrna_write_check()) {
+    PyErr_Format(PyExc_RuntimeError,
+                 "%s can't run in readonly state '%.200s'",
+                 error_prefix,
+                 ((PyTypeObject *)py_class)->tp_name);
+    return nullptr;
+  }
+
+  /* WARNING: gets parent classes srna, only for the register function. */
+  srna = pyrna_struct_as_srna(py_class, true, "register_class(...):");
+  if (srna == nullptr) {
+    return nullptr;
+  }
+
+  if (UNLIKELY(G.debug & G_DEBUG_PYTHON)) {
     /* Warn if a class being registered uses an already registered base-class or sub-class,
      * both checks are needed otherwise the order of registering could suppress the warning.
      *
@@ -10079,20 +10112,21 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
               ((PyTypeObject *)py_class)->tp_name,
               sub_cls_test->tp_name);
     }
-  }
 
-  if (!pyrna_write_check()) {
-    PyErr_Format(PyExc_RuntimeError,
-                 "%s can't run in readonly state '%.200s'",
-                 error_prefix,
-                 ((PyTypeObject *)py_class)->tp_name);
-    return nullptr;
-  }
-
-  /* WARNING: gets parent classes srna, only for the register function. */
-  srna = pyrna_struct_as_srna(py_class, true, "register_class(...):");
-  if (srna == nullptr) {
-    return nullptr;
+    /* In practice it isn't useful to manipulate Python properties for `PropertyGroup`
+     * instances since the Python objects themselves are not shared,
+     * meaning a new Python instance is returned on each attribute access.
+     * It may be useful to include other classes in this check - extend as needed.
+     * See #141948. */
+    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+      if (!PyDict_GetItem(((PyTypeObject *)py_class)->tp_dict, bpy_intern_str___slots__)) {
+        fprintf(stderr,
+                "%s warning, %.200s: is expected to contain a \"__slots__\" member "
+                "to prevent arbitrary assignments.\n",
+                error_prefix,
+                ((PyTypeObject *)py_class)->tp_name);
+      }
+    }
   }
 
 /* Fails in some cases, so can't use this check, but would like to :| */
