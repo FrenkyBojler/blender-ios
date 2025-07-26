@@ -289,6 +289,100 @@ class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
     input_node_type = "GeometryNodeClosureInput"
     output_node_type = "GeometryNodeClosureOutput"
     add_default_geometry_link = False
+    
+    
+class NODE_OT_swap_node(NodeAddOperator, Operator):
+    bl_idname = "node.swap_node"
+    bl_label = "Swap Node" 
+    bl_options = {"REGISTER", "UNDO"}
+    
+    type: StringProperty(
+        name="Node Type",
+        description="Node type",
+    )
+    
+    visible_output: StringProperty(
+        name="Output Name",
+        description="If provided, all outputs that are named differently will be hidden",
+        options={'SKIP_SAVE'},
+    )
+
+    @classmethod
+    def description(cls, _context, properties):
+        from nodeitems_builtins import node_tree_group_type
+
+        nodetype = properties["type"]
+        if nodetype in node_tree_group_type.values():
+            for setting in properties.settings:
+                if setting.name == "node_tree":
+                    node_group = eval(setting.value)
+                    if node_group.description:
+                        return node_group.description
+        bl_rna = bpy.types.Node.bl_rna_get_subclass(nodetype)
+        if bl_rna is not None:
+            return tip_(bl_rna.description)
+        else:
+            return ""
+
+    @classmethod
+    def poll(cls, context):
+        return (
+            (context.area is not None)
+            and (context.area.type == "NODE_EDITOR")
+            and (context.active_node is not None)
+        )
+    
+    def execute(self, context):
+        old_node = context.active_node
+        
+        node_new = self.create_node(context, self.type)
+        if self.visible_output:
+            for socket in node_new.outputs:
+                if socket.name != self.visible_output:
+                    socket.hide = True
+        
+        tree = old_node.id_data
+        # capture all of the existing links and default attributes for the current node
+        # to rebuild the connections we can capture the sockets that are connected to and
+        # from other nodes, but on the node itself we have to use the name instead
+        input_links = []
+        output_links = []
+        default_inputs = {}
+        for input in old_node.inputs:
+            try:
+                default_inputs[input.name] = input.default_value
+            except AttributeError:
+                pass
+            for link in input.links:
+                input_links.append((link.from_socket, input.name))
+                tree.links.remove(link)
+        for output in old_node.outputs:
+            for link in output.links:
+                output_links.append((output.name, link.to_socket))
+                tree.links.remove(link)
+        node_new.location = old_node.location
+        tree.nodes.remove(old_node)
+        # try to restore default values based on name, but if there isn't a socket
+        # with that name or it doesn't take a default value then we move on
+        for name, value in default_inputs.items():
+            try:
+                node_new.inputs[name].default_value = value
+            except (AttributeError, KeyError):
+                pass
+        
+        # restore the links into and out of the node. Other sockets are referenced
+        # by their socket, but sockets on the new node are reference by name and looked up
+        for link in input_links:
+            try:
+                tree.links.new(link[0], node_new.inputs[link[1]])
+            except KeyError:
+                pass
+        for link in output_links:
+            try:
+                tree.links.new(node_new.outputs[link[0]], link[1])
+            except KeyError:
+                pass
+        return {'FINISHED'}
 
 
 class NODE_OT_collapse_hide_unused_toggle(Operator):
@@ -745,6 +839,7 @@ classes = (
     NODE_OT_add_repeat_zone,
     NODE_OT_add_foreach_geometry_element_zone,
     NODE_OT_add_closure_zone,
+    NODE_OT_swap_node,
     NODE_OT_collapse_hide_unused_toggle,
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_duplicate,
