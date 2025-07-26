@@ -55,14 +55,13 @@ static BLI_NOINLINE void distance_to_n_squared(const Span<float> src_a_x,
   }
 }
 
-static BLI_NOINLINE void squared_distances_row_major(
-    const Span<float> row_x,
-    const Span<float> row_y,
-    const Span<float> row_z,
-    const Span<float> col_x,
-    const Span<float> col_y,
-    const Span<float> col_z,
-    MutableSpan<float> distances)
+static BLI_NOINLINE void squared_distances_row_major(const Span<float> row_x,
+                                                     const Span<float> row_y,
+                                                     const Span<float> row_z,
+                                                     const Span<float> col_x,
+                                                     const Span<float> col_y,
+                                                     const Span<float> col_z,
+                                                     MutableSpan<float> distances)
 {
   BLI_assert(row_x.size() == row_y.size());
   BLI_assert(row_x.size() == row_z.size());
@@ -82,10 +81,9 @@ static BLI_NOINLINE void squared_distances_row_major(
   }
 }
 
-static BLI_NOINLINE void zero_if_index_in_range_row_major(
-    const Span<int> row_indices,
-    const ShiftedRange col_range,
-    MutableSpan<float> rows_and_cols)
+static BLI_NOINLINE void zero_if_index_in_range_row_major(const Span<int> row_indices,
+                                                          const ShiftedRange col_range,
+                                                          MutableSpan<float> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -97,10 +95,9 @@ static BLI_NOINLINE void zero_if_index_in_range_row_major(
   }
 }
 
-static BLI_NOINLINE void product_reduce_row_major(
-    const Span<float> rows_and_cols,
-    const Span<float> col_values,
-    MutableSpan<float> row_values)
+static BLI_NOINLINE void product_reduce_row_major(const Span<float> rows_and_cols,
+                                                  const Span<float> col_values,
+                                                  MutableSpan<float> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
 
@@ -286,22 +283,27 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   Array<float, 0> sampler_position_data(batch_size * 3);
   std::array<MutableSpan<float>, 3> batch_positions_data;
   for (const int axis_i : IndexRange(3)) {
-    batch_positions_data[axis_i] = sampler_position_data.as_mutable_span().slice(batch_size * axis_i, batch_size);
+    batch_positions_data[axis_i] = sampler_position_data.as_mutable_span().slice(
+        batch_size * axis_i, batch_size);
     batch_positions_data[axis_i].copy_from(sample_position[axis_i]);
   }
 
   Array<float, 0> sampler_value_data(batch_size * data_axes_num);
   Array<MutableSpan<float>, 3> batch_values_data(data_axes_num);
   for (const int axis_i : IndexRange(data_axes_num)) {
-    batch_values_data[axis_i] = sampler_value_data.as_mutable_span().slice(batch_size * axis_i, batch_size);
+    batch_values_data[axis_i] = sampler_value_data.as_mutable_span().slice(batch_size * axis_i,
+                                                                           batch_size);
     batch_values_data[axis_i].fill(0);
   }
 
   Array<int, 0> sampler_mapping_data(batch_size * 3);
 
-  MutableSpan<int> batch_indices_data = sampler_mapping_data.as_mutable_span().slice(batch_size * 0, batch_size);
-  MutableSpan<int> partition_indices_buffer = sampler_mapping_data.as_mutable_span().slice(batch_size * 1, batch_size);
-  MutableSpan<int> partition_buffer_data = sampler_mapping_data.as_mutable_span().slice(batch_size * 2, batch_size);
+  MutableSpan<int> batch_indices_data = sampler_mapping_data.as_mutable_span().slice(
+      batch_size * 0, batch_size);
+  MutableSpan<int> partition_indices_buffer = sampler_mapping_data.as_mutable_span().slice(
+      batch_size * 1, batch_size);
+  MutableSpan<int> partition_buffer_data = sampler_mapping_data.as_mutable_span().slice(
+      batch_size * 2, batch_size);
 
   array_utils::fill_index_range<int>(batch_indices_data, 0);
 
@@ -411,12 +413,14 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       }
 
       {
-        MutableSpan<float> values = batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit - total_to_pass_to_childs);
+        MutableSpan<float> values = batch_distances_buffer.as_mutable_span().take_front(
+            prefix_to_visit - total_to_pass_to_childs);
         if (has_offset) {
           std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
             return math::rcp(math::pow<float>(value, power_value));
           });
-        } else {
+        }
+        else {
           std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
             return math::rcp(math::pow<float>(value, power_value * 0.5f));
           });
@@ -481,12 +485,17 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const int bucket_size = joint_bucket.size();
     bucket_position_data.reinitialize(bucket_size * 3);
     for (const int axis_i : IndexRange(3)) {
-      bucket_position_data.as_mutable_span().slice(bucket_size * axis_i, bucket_size).copy_from(src_bucket_position[axis_i].slice(joint_bucket));
+      bucket_position_data.as_mutable_span()
+          .slice(bucket_size * axis_i, bucket_size)
+          .copy_from(src_bucket_position[axis_i].slice(joint_bucket));
     }
 
-    const Span<float> bucket_positions_x = bucket_position_data.as_mutable_span().slice(bucket_size * 0, bucket_size);
-    const Span<float> bucket_positions_y = bucket_position_data.as_mutable_span().slice(bucket_size * 1, bucket_size);
-    const Span<float> bucket_positions_z = bucket_position_data.as_mutable_span().slice(bucket_size * 2, bucket_size);
+    const Span<float> bucket_positions_x = bucket_position_data.as_mutable_span().slice(
+        bucket_size * 0, bucket_size);
+    const Span<float> bucket_positions_y = bucket_position_data.as_mutable_span().slice(
+        bucket_size * 1, bucket_size);
+    const Span<float> bucket_positions_z = bucket_position_data.as_mutable_span().slice(
+        bucket_size * 2, bucket_size);
 
     const Span<float> batch_x = batch_positions_x.take_front(total_to_pass_to_childs);
     const Span<float> batch_y = batch_positions_y.take_front(total_to_pass_to_childs);
@@ -500,24 +509,30 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 #endif
 
     fast_math::squared_distances_row_major(batch_x,
-                                                   batch_y,
-                                                   batch_z,
-                                                   bucket_positions_x,
-                                                   bucket_positions_y,
-                                                   bucket_positions_z,
-                                                   distance_table);
+                                           batch_y,
+                                           batch_z,
+                                           bucket_positions_x,
+                                           bucket_positions_y,
+                                           bucket_positions_z,
+                                           distance_table);
 
     BLI_assert(!distance_table.as_span().contains(-1.0f));
 
     if (has_offset) {
       fast_math::sqrt_n_add_single(distance_table, offset_value);
-      std::transform(distance_table.begin(), distance_table.end(), distance_table.begin(), [&](const float value) {
-        return math::safe_rcp(math::pow<float>(value, power_value));
-      });
-    } else {
-      std::transform(distance_table.begin(), distance_table.end(), distance_table.begin(), [&](const float value) {
-        return math::safe_rcp(math::pow<float>(value, power_value * 0.5f));
-      });
+      std::transform(
+          distance_table.begin(),
+          distance_table.end(),
+          distance_table.begin(),
+          [&](const float value) { return math::safe_rcp(math::pow<float>(value, power_value)); });
+    }
+    else {
+      std::transform(distance_table.begin(),
+                     distance_table.end(),
+                     distance_table.begin(),
+                     [&](const float value) {
+                       return math::safe_rcp(math::pow<float>(value, power_value * 0.5f));
+                     });
     }
 
     if (sampler_to_bucket_range.has_value()) {
@@ -535,7 +550,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     for (const int data_i : IndexRange(data_axes_num)) {
       const Span<float> bucket_values = src_bucket_value[data_i].slice(joint_bucket);
-      const MutableSpan<float> batch_values = batch_values_data[data_i].take_front(total_to_pass_to_childs);
+      const MutableSpan<float> batch_values = batch_values_data[data_i].take_front(
+          total_to_pass_to_childs);
       fast_math::product_reduce_row_major(distance_table, bucket_values, batch_values);
     }
   }
