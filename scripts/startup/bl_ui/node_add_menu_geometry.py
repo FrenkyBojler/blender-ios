@@ -923,6 +923,35 @@ class NODE_MT_geometry_node_add_all(Menu):
         node_add_menu.draw_root_assets(layout)
 
 
+class NODE_MT_geometry_node_swap_all(Menu):
+    bl_label = ""
+
+    def draw(self, context):
+        layout = self.layout
+        layout.menu("NODE_MT_geometry_node_GEO_ATTRIBUTE")
+        layout.menu("NODE_MT_geometry_node_GEO_INPUT")
+        layout.menu("NODE_MT_category_GEO_OUTPUT")
+        layout.separator()
+        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY")
+        layout.separator()
+        layout.menu("NODE_MT_geometry_node_GEO_CURVE")
+        layout.menu("NODE_MT_geometry_node_grease_pencil")
+        layout.menu("NODE_MT_geometry_node_GEO_INSTANCE")
+        layout.menu("NODE_MT_geometry_node_GEO_MESH")
+        layout.menu("NODE_MT_category_GEO_POINT")
+        layout.menu("NODE_MT_category_GEO_VOLUME")
+        layout.separator()
+        layout.menu("NODE_MT_category_simulation")
+        layout.separator()
+        layout.menu("NODE_MT_geometry_node_GEO_MATERIAL")
+        layout.menu("NODE_MT_category_GEO_TEXTURE")
+        layout.menu("NODE_MT_category_GEO_UTILITIES")
+        layout.separator()
+        layout.menu("NODE_MT_category_GEO_GROUP")
+        layout.menu("NODE_MT_category_layout")
+        #node_add_menu.draw_root_assets(layout)
+
+
 classes = (
     NODE_MT_geometry_node_add_all,
     NODE_MT_geometry_node_GEO_ATTRIBUTE,
@@ -979,6 +1008,7 @@ classes = (
     NODE_MT_category_utilities_matrix,
     NODE_MT_category_GEO_UTILITIES_DEPRECATED,
     NODE_MT_category_GEO_GROUP,
+    NODE_MT_geometry_node_swap_all
 )
 
 if __name__ == "__main__":  # only for live edit.

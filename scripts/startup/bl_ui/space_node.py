@@ -296,6 +296,33 @@ class NODE_MT_add(Menu):
             nodeitems_utils.draw_node_categories_menu(self, context)
 
 
+class NODE_MT_swap(Menu):
+    bl_space_type = 'NODE_EDITOR'
+    bl_label = "Swap"
+    bl_translation_context = i18n_contexts.operator_default
+    bl_options = {'SEARCH_ON_KEY_PRESS'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        if layout.operator_context == 'EXEC_REGION_WIN':
+            layout.operator_context = 'INVOKE_REGION_WIN'
+            layout.operator("WM_OT_search_single_menu", text="Search...", icon='VIEWZOOM').menu_idname = "NODE_MT_switch"
+            layout.separator()
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+
+        snode = context.space_data
+        if snode.tree_type == 'GeometryNodeTree':
+            layout.menu_contents("NODE_MT_geometry_node_swap_all")
+        elif snode.tree_type == 'CompositorNodeTree':
+            layout.menu_contents("NODE_MT_compositor_node_swap_all")
+        elif snode.tree_type == 'ShaderNodeTree':
+            layout.menu_contents("NODE_MT_shader_node_swap_all")
+        elif snode.tree_type == 'TextureNodeTree':
+            layout.label(text="This feature is not implemented as the Texture Node Editor is deprecated.", icon='WARNING')
+
+
 class NODE_MT_view(Menu):
     bl_label = "View"
 
@@ -1187,7 +1214,7 @@ classes = (
     NODE_HT_header,
     NODE_MT_editor_menus,
     NODE_MT_add,
-    NODE_MT_view,
+    NODE_MT_swap,
     NODE_MT_select,
     NODE_MT_node,
     NODE_MT_node_color_context_menu,

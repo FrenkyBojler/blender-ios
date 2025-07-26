@@ -430,6 +430,29 @@ class NODE_MT_shader_node_add_all(Menu):
         node_add_menu.draw_root_assets(layout)
 
 
+class NODE_MT_shader_node_swap_all(Menu):
+    bl_label = ""
+    bl_translation_context = i18n_contexts.operator_default
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.menu("NODE_MT_category_shader_input")
+        layout.menu("NODE_MT_category_shader_output")
+        layout.separator()
+        layout.menu("NODE_MT_category_shader_color")
+        layout.menu("NODE_MT_category_shader_converter")
+        layout.menu("NODE_MT_category_shader_shader")
+        layout.menu("NODE_MT_category_shader_texture")
+        layout.menu("NODE_MT_category_shader_vector")
+        layout.separator()
+        layout.menu("NODE_MT_category_shader_script")
+        layout.separator()
+        layout.menu("NODE_MT_category_shader_group")
+        layout.menu("NODE_MT_category_layout")
+
+        #node_add_menu.draw_root_assets(layout)
+
+
 classes = (
     NODE_MT_shader_node_add_all,
     NODE_MT_category_shader_input,
@@ -441,6 +464,7 @@ classes = (
     NODE_MT_category_shader_vector,
     NODE_MT_category_shader_script,
     NODE_MT_category_shader_group,
+    NODE_MT_shader_node_swap_all,
 )
 
 

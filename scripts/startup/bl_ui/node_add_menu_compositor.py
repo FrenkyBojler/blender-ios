@@ -355,6 +355,33 @@ class NODE_MT_compositor_node_add_all(Menu):
         node_add_menu.draw_root_assets(layout)
 
 
+class NODE_MT_compositor_node_swap_all(Menu):
+    bl_label = ""
+
+    def draw(self, context):
+        layout = self.layout
+        layout.menu("NODE_MT_category_compositor_input")
+        layout.menu("NODE_MT_category_compositor_output")
+        layout.separator()
+        layout.menu("NODE_MT_category_compositor_color")
+        layout.menu("NODE_MT_category_compositor_filter")
+        layout.separator()
+        layout.menu("NODE_MT_category_compositor_keying")
+        layout.menu("NODE_MT_category_compositor_mask")
+        layout.separator()
+        layout.menu("NODE_MT_category_compositor_tracking")
+        layout.separator()
+        layout.menu("NODE_MT_category_compositor_texture")
+        layout.menu("NODE_MT_category_compositor_transform")
+        layout.menu("NODE_MT_category_compositor_utilities")
+        layout.menu("NODE_MT_category_compositor_vector")
+        layout.separator()
+        layout.menu("NODE_MT_category_compositor_group")
+        layout.menu("NODE_MT_category_layout")
+
+        #node_add_menu.draw_root_assets(layout)
+
+
 classes = (
     NODE_MT_compositor_node_add_all,
     NODE_MT_category_compositor_input,
@@ -374,6 +401,7 @@ classes = (
     NODE_MT_category_compositor_utilities,
     NODE_MT_category_compositor_vector,
     NODE_MT_category_compositor_group,
+    NODE_MT_compositor_node_swap_all,
 )
 
 if __name__ == "__main__":  # only for live edit.
