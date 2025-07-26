@@ -301,6 +301,26 @@ class NODE_MT_compositor_node_vector_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
+add_menus = (
+    node_add_menu.generate_menu("NODE_MT_category_compositor_input", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_input_constant", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_constant_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_input_scene", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_scene_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_output", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_output_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_color", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_color_adjust", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_adjust_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_color_mix", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_mix_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_filter", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_filter_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_filter_blur", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_filter_blur_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_texture", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_texture_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_keying", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_keying_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_mask", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_mask_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_tracking", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_tracking_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_transform", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_transform_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_utilities", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_utilities_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_vector", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_vector_base),
+)
+
+
 class NODE_MT_compositor_node_add_all(Menu):
     bl_label = ""
 
@@ -328,70 +348,26 @@ class NODE_MT_compositor_node_add_all(Menu):
         node_add_menu.draw_root_assets(layout)
 
 
-class NODE_MT_category_compositor_input(NODE_MT_compositor_node_input_base, node_add_menu.AddNodeMenu):
-    ...
+swap_menus = (
+    node_add_menu.generate_menu("NODE_MT_compositor_node_input_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_input_constant_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_constant_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_input_scene_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_scene_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_output_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_output_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_color_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_color_adjust_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_adjust_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_color_mix_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_mix_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_filter_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_filter_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_filter_blur_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_filter_blur_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_texture_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_texture_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_keying_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_keying_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_mask_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_mask_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_tracking_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_tracking_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_transform_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_transform_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_utilities_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_utilities_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_vector_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_vector_base),
+)
 
 
-class NODE_MT_category_compositor_input_constant(NODE_MT_compositor_node_input_constant_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_input_scene(NODE_MT_compositor_node_input_scene_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_output(NODE_MT_compositor_node_output_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_color(NODE_MT_compositor_node_color_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_color_adjust(NODE_MT_compositor_node_color_adjust_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_color_mix(NODE_MT_compositor_node_color_mix_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_filter(NODE_MT_compositor_node_filter_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_filter_blur(NODE_MT_compositor_node_filter_blur_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_texture(NODE_MT_compositor_node_texture_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_keying(NODE_MT_compositor_node_keying_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_mask(NODE_MT_compositor_node_mask_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_tracking(NODE_MT_compositor_node_tracking_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_transform(NODE_MT_compositor_node_transform_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_utilities(NODE_MT_compositor_node_utilities_base, node_add_menu.AddNodeMenu):
-    ...
-
-
-class NODE_MT_category_compositor_vector(NODE_MT_compositor_node_vector_base, node_add_menu.AddNodeMenu):
-    ...
-
-    
 class NODE_MT_compositor_node_swap_all(Menu):
     bl_label = ""
     def draw(self, context):
@@ -418,105 +394,11 @@ class NODE_MT_compositor_node_swap_all(Menu):
         #node_add_menu.draw_root_assets(layout)
 
 
-class NODE_MT_compositor_node_input_swap(NODE_MT_compositor_node_input_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_input_constant_swap(NODE_MT_compositor_node_input_constant_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_input_scene_swap(NODE_MT_compositor_node_input_scene_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_output_swap(NODE_MT_compositor_node_output_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_color_swap(NODE_MT_compositor_node_color_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_color_adjust_swap(NODE_MT_compositor_node_color_adjust_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_color_mix_swap(NODE_MT_compositor_node_color_mix_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_filter_swap(NODE_MT_compositor_node_filter_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_filter_blur_swap(NODE_MT_compositor_node_filter_blur_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_texture_swap(NODE_MT_compositor_node_texture_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_keying_swap(NODE_MT_compositor_node_keying_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_mask_swap(NODE_MT_compositor_node_mask_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_tracking_swap(NODE_MT_compositor_node_tracking_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_transform_swap(NODE_MT_compositor_node_transform_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_utilities_swap(NODE_MT_compositor_node_utilities_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
-class NODE_MT_compositor_node_vector_swap(NODE_MT_compositor_node_vector_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
 classes = (
     NODE_MT_compositor_node_add_all,
-    NODE_MT_category_compositor_input,
-    NODE_MT_category_compositor_input_constant,
-    NODE_MT_category_compositor_input_scene,
-    NODE_MT_category_compositor_output,
-    NODE_MT_category_compositor_color,
-    NODE_MT_category_compositor_color_adjust,
-    NODE_MT_category_compositor_color_mix,
-    NODE_MT_category_compositor_filter,
-    NODE_MT_category_compositor_filter_blur,
-    NODE_MT_category_compositor_texture,
-    NODE_MT_category_compositor_keying,
-    NODE_MT_category_compositor_mask,
-    NODE_MT_category_compositor_tracking,
-    NODE_MT_category_compositor_transform,
-    NODE_MT_category_compositor_utilities,
-    NODE_MT_category_compositor_vector,
+    *add_menus,
     NODE_MT_compositor_node_swap_all,
-    NODE_MT_compositor_node_input_swap,
-    NODE_MT_compositor_node_input_constant_swap,
-    NODE_MT_compositor_node_input_scene_swap,
-    NODE_MT_compositor_node_output_swap,
-    NODE_MT_compositor_node_color_swap,
-    NODE_MT_compositor_node_color_adjust_swap,
-    NODE_MT_compositor_node_color_mix_swap,
-    NODE_MT_compositor_node_filter_swap,
-    NODE_MT_compositor_node_filter_blur_swap,
-    NODE_MT_compositor_node_texture_swap,
-    NODE_MT_compositor_node_keying_swap,
-    NODE_MT_compositor_node_mask_swap,
-    NODE_MT_compositor_node_tracking_swap,
-    NODE_MT_compositor_node_transform_swap,
-    NODE_MT_compositor_node_utilities_swap,
-    NODE_MT_compositor_node_vector_swap,
+    *swap_menus,
 )
 
 if __name__ == "__main__":  # only for live edit.

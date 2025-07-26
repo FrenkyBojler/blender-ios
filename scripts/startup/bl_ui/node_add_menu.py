@@ -197,14 +197,6 @@ class NODE_MT_group_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_group_add(NODE_MT_group_base, AddNodeMenu):
-    ...
-
-
-class NODE_MT_group_swap(NODE_MT_group_base, SwapNodeMenu):
-    ...
-
-
 class NODE_MT_layout_base(Menu):
     bl_label = "Layout"
 
@@ -216,19 +208,15 @@ class NODE_MT_layout_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_category_layout(NODE_MT_layout_base, AddNodeMenu):
-    ...
-
-
-class NODE_MT_layout_swap(NODE_MT_layout_base, SwapNodeMenu):
-    ...
+def generate_menu(bl_idname: str, template: Menu, layout_base: Menu):
+    return type(bl_idname, (template, layout_base), {"bl_idname" : bl_idname})
 
 
 classes = (
-    NODE_MT_category_layout,
-    NODE_MT_layout_swap,
-    NODE_MT_group_add,
-    NODE_MT_group_swap,
+    generate_menu("NODE_MT_group_add", template=AddNodeMenu, layout_base=NODE_MT_group_base),
+    generate_menu("NODE_MT_group_swap", template=SwapNodeMenu, layout_base=NODE_MT_group_base),
+    generate_menu("NODE_MT_category_layout", template=AddNodeMenu, layout_base=NODE_MT_layout_base),
+    generate_menu("NODE_MT_layout_swap", template=SwapNodeMenu, layout_base=NODE_MT_layout_base),
 )
 
 if __name__ == "__main__":  # only for live edit.
