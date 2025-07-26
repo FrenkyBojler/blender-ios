@@ -913,6 +913,16 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
         handles_right[point_i1] = P1;
         handles_left[point_i2] = P2;
+        handle_types_right[point_i1] = BEZIER_HANDLE_FREE;
+        handle_types_left[point_i2] = BEZIER_HANDLE_FREE;
+
+        /* Only change `Align`, Keep `Vector` and `Auto` the same. */
+        if (handle_types_left[point_i1] == BEZIER_HANDLE_ALIGN) {
+          handle_types_left[point_i1] = BEZIER_HANDLE_FREE;
+        }
+        if (handle_types_right[point_i2] == BEZIER_HANDLE_ALIGN) {
+          handle_types_right[point_i2] = BEZIER_HANDLE_FREE;
+        }
 
         curves.calculate_bezier_auto_handles();
 
