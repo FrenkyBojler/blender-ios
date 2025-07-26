@@ -136,12 +136,6 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
       akdbh::from_positions(positions, base_offsets, total_depth, indices);
     }
 
-    // {
-    //   SCOPED_TIMER_AVERAGED("from_positions_non_uniform");
-    //   akdbh::from_positions_non_uniform(positions, total_depth, start_indices, indices);
-    //   base_offsets = OffsetIndices<int>(start_indices.as_span());
-    // }
-
     Array<float3, 0> bucket_positions(domain_size);
     GArray<> bucket_values(data_type, domain_size);
 
