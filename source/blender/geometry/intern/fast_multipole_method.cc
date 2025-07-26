@@ -256,344 +256,6 @@ static BLI_NOINLINE void sqrt_n_add_single(MutableSpan<float> values, const floa
   }
 }
 
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(
-    const int power_value)
-{
-  constexpr auto rpow = [&](auto pow_i, float value) -> float {
-    float accum = value;
-    for (int i = 1; i < pow_i; i++) {
-      accum *= value;
-    }
-    return accum;
-  };
-
-  switch (power_value) {
-    case 0:
-      return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
-    case 1:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), math::safe_rcp<float>);
-      };
-    case 2:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 2>(), value));
-        });
-      };
-    case 3:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 3>(), value));
-        });
-      };
-    case 4:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 4>(), value));
-        });
-      };
-    case 5:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 5>(), value));
-        });
-      };
-    case 6:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 6>(), value));
-        });
-      };
-    case 7:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 7>(), value));
-        });
-      };
-    case 8:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 8>(), value));
-        });
-      };
-    case 9:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 9>(), value));
-        });
-      };
-    case 10:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 10>(), value));
-        });
-      };
-    default:
-      return [](const int power_value, MutableSpan<float> values) {
-        const float power_factor = float(power_value);
-        std::transform(
-            values.begin(), values.end(), values.begin(), [power_factor](const float value) {
-              return math::safe_rcp(math::pow(value, power_factor));
-            });
-      };
-  }
-}
-
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_half_rcp_for_values(
-    const int power_value)
-{
-  constexpr auto rpow = [&](auto pow_i, float value) -> float {
-    float accum = value;
-    for (int i = 1; i < pow_i; i++) {
-      accum *= value;
-    }
-    if (pow_i % 2 == 1) {
-      accum *= math::sqrt(value);
-    }
-    return accum;
-  };
-
-  switch (power_value) {
-    case 0:
-      return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
-    case 1:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), math::safe_rcp<float>);
-      };
-    case 2:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 2>(), value));
-        });
-      };
-    case 3:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 3>(), value));
-        });
-      };
-    case 4:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 4>(), value));
-        });
-      };
-    case 5:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 5>(), value));
-        });
-      };
-    case 6:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 6>(), value));
-        });
-      };
-    case 7:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 7>(), value));
-        });
-      };
-    case 8:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 8>(), value));
-        });
-      };
-    case 9:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 9>(), value));
-        });
-      };
-    case 10:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(rpow(std::integral_constant<std::size_t, 10>(), value));
-        });
-      };
-    default:
-      return [](const int power_value, MutableSpan<float> values) {
-        const float power_factor = float(power_value);
-        std::transform(
-            values.begin(), values.end(), values.begin(), [power_factor](const float value) {
-              return math::safe_rcp(math::pow(value, power_factor));
-            });
-      };
-  }
-}
-
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_rcp_for_values(
-    const int power_value)
-{
-  constexpr auto rpow = [&](auto pow_i, float value) -> float {
-    float accum = value;
-    for (int i = 1; i < pow_i; i++) {
-      accum *= value;
-    }
-    return accum;
-  };
-
-  switch (power_value) {
-    case 0:
-      return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
-    case 1:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), math::rcp<float>);
-      };
-    case 2:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 2>(), value));
-        });
-      };
-    case 3:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 3>(), value));
-        });
-      };
-    case 4:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 4>(), value));
-        });
-      };
-    case 5:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 5>(), value));
-        });
-      };
-    case 6:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 6>(), value));
-        });
-      };
-    case 7:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 7>(), value));
-        });
-      };
-    case 8:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 8>(), value));
-        });
-      };
-    case 9:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 9>(), value));
-        });
-      };
-    case 10:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 10>(), value));
-        });
-      };
-    default:
-      return [](const int power_value, MutableSpan<float> values) {
-        const float power_factor = float(power_value);
-        std::transform(
-            values.begin(), values.end(), values.begin(), [power_factor](const float value) {
-              return math::rcp(math::pow(value, power_factor));
-            });
-      };
-  }
-}
-
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_half_rcp_for_values(
-    const int power_value)
-{
-  constexpr auto rpow = [&](auto pow_i, float value) -> float {
-    float accum = value;
-    for (int i = 1; i < pow_i; i++) {
-      accum *= value;
-    }
-    if (pow_i % 2 == 1) {
-      accum *= math::sqrt(value);
-    }
-    return accum;
-  };
-
-  switch (power_value) {
-    case 0:
-      return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
-    case 1:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), math::rcp<float>);
-      };
-    case 2:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 2>(), value));
-        });
-      };
-    case 3:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 3>(), value));
-        });
-      };
-    case 4:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 4>(), value));
-        });
-      };
-    case 5:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 5>(), value));
-        });
-      };
-    case 6:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 6>(), value));
-        });
-      };
-    case 7:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 7>(), value));
-        });
-      };
-    case 8:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 8>(), value));
-        });
-      };
-    case 9:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 9>(), value));
-        });
-      };
-    case 10:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::rcp(rpow(std::integral_constant<std::size_t, 10>(), value));
-        });
-      };
-    default:
-      return [](const int power_value, MutableSpan<float> values) {
-        const float power_factor = float(power_value);
-        std::transform(
-            values.begin(), values.end(), values.begin(), [power_factor](const float value) {
-              return math::rcp(math::pow(value, power_factor));
-            });
-      };
-  }
-}
-
 }  // namespace blender::fast_math
 
 namespace blender::geometry::fmm {
@@ -658,13 +320,6 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   }
 
   const bool has_offset = offset_value != 0.0f;
-
-  const FunctionRef<void(int, MutableSpan<float>)> distance_invertion =
-      has_offset ? fast_math::powered_rcp_for_values(power_value) :
-                   fast_math::powered_half_rcp_for_values(power_value);
-  const FunctionRef<void(int, MutableSpan<float>)> fast_distance_invertion =
-      has_offset ? fast_math::powered_unsafe_rcp_for_values(power_value) :
-                   fast_math::powered_unsafe_half_rcp_for_values(power_value);
 
   const int batch_size = sample_position[0].size();
   static_assert(sizeof(float) == sizeof(int));
@@ -811,9 +466,18 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                   batch_distances_buffer.begin());
       }
 
-      fast_distance_invertion(power_value,
-                              batch_distances_buffer.as_mutable_span().take_front(
-                                  prefix_to_visit - total_to_pass_to_childs));
+      {
+        MutableSpan<float> values = batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit - total_to_pass_to_childs);
+        if (has_offset) {
+          std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+            return math::rcp(math::pow<float>(value, power_value));
+          });
+        } else {
+          std::transform(values.begin(), values.end(), values.begin(), [&](const float value) {
+            return math::rcp(math::pow<float>(value, power_value * 0.5f));
+          });
+        }
+      }
 
       if (!all_end_on_joint) {
         for (const int data_i : IndexRange(data_axes_num)) {
@@ -945,9 +609,14 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     if (has_offset) {
       fast_math::sqrt_n_add_single(batch_distances_buffer.as_mutable_span(), offset_value);
+      std::transform(batch_distances_buffer.begin(), batch_distances_buffer.end(), batch_distances_buffer.begin(), [&](const float value) {
+        return math::safe_rcp(math::pow<float>(value, power_value));
+      });
+    } else {
+      std::transform(batch_distances_buffer.begin(), batch_distances_buffer.end(), batch_distances_buffer.begin(), [&](const float value) {
+        return math::safe_rcp(math::pow<float>(value, power_value * 0.5f));
+      });
     }
-
-    distance_invertion(power_value, batch_distances_buffer.as_mutable_span());
 
     if (sampler_to_bucket_range.has_value()) {
       const IndexRange range_of_samplers = *sampler_to_bucket_range;
