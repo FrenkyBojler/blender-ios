@@ -830,15 +830,6 @@ class NODE_MT_gn_volume_primitives_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Volume/Primitives")
 
 
-class NODE_MT_gn_group_base(Menu):
-    bl_label = "Group"
-
-    def draw(self, context):
-        layout = self.layout
-        node_add_menu.draw_node_group_add_menu(context, layout)
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
-
-
 class NODE_MT_geometry_node_add_all(Menu):
     bl_label = ""
 
@@ -863,7 +854,7 @@ class NODE_MT_geometry_node_add_all(Menu):
         layout.menu("NODE_MT_category_GEO_TEXTURE")
         layout.menu("NODE_MT_category_GEO_UTILITIES")
         layout.separator()
-        layout.menu("NODE_MT_category_GEO_GROUP")
+        layout.menu("NODE_MT_group_add")
         layout.menu("NODE_MT_category_layout")
         node_add_menu.draw_root_assets(layout)
 
@@ -1080,10 +1071,6 @@ class NODE_MT_category_GEO_UTILITIES_DEPRECATED(NODE_MT_gn_utilities_deprecated_
     ...
 
 
-class NODE_MT_category_GEO_GROUP(NODE_MT_gn_group_base, node_add_menu.AddNodeMenu):
-    ...
-
-
 class NODE_MT_geometry_node_swap_all(Menu):
     bl_label = ""
 
@@ -1108,7 +1095,7 @@ class NODE_MT_geometry_node_swap_all(Menu):
         layout.menu("NODE_MT_gn_texture_swap")
         layout.menu("NODE_MT_gn_utilities_swap")
         layout.separator()
-        layout.menu("NODE_MT_gn_group_swap")
+        layout.menu("NODE_MT_group_swap")
         layout.menu("NODE_MT_layout_swap")
         #node_add_menu.draw_root_assets(layout)
 
@@ -1325,10 +1312,6 @@ class NODE_MT_gn_utilities_deprecated_swap(NODE_MT_gn_utilities_deprecated_base,
     ...
 
 
-class NODE_MT_gn_group_swap(NODE_MT_gn_group_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
 classes = (
     NODE_MT_geometry_node_add_all,
     NODE_MT_geometry_node_GEO_ATTRIBUTE,
@@ -1384,7 +1367,6 @@ classes = (
     NODE_MT_category_utilities_list,
     NODE_MT_category_utilities_matrix,
     NODE_MT_category_GEO_UTILITIES_DEPRECATED,
-    NODE_MT_category_GEO_GROUP,
     NODE_MT_geometry_node_swap_all,
     NODE_MT_gn_attribute_swap,
     NODE_MT_gn_input_swap,
@@ -1439,7 +1421,6 @@ classes = (
     NODE_MT_gn_utilities_list_swap,
     NODE_MT_gn_utilities_matrix_swap,
     NODE_MT_gn_utilities_deprecated_swap,
-    NODE_MT_gn_group_swap,
 )
 
 if __name__ == "__main__":  # only for live edit.

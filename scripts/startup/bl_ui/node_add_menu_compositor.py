@@ -166,15 +166,6 @@ class NODE_MT_compositor_node_filter_blur_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Filter/Blur")
 
 
-class NODE_MT_compositor_node_group_base(Menu):
-    bl_label = "Group"
-
-    def draw(self, context):
-        layout = self.layout
-        node_add_menu.draw_node_group_add_menu(context, layout)
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
-
-
 class NODE_MT_compositor_node_keying_base(Menu):
     bl_label = "Keying"
 
@@ -331,7 +322,7 @@ class NODE_MT_compositor_node_add_all(Menu):
         layout.menu("NODE_MT_category_compositor_utilities")
         layout.menu("NODE_MT_category_compositor_vector")
         layout.separator()
-        layout.menu("NODE_MT_category_compositor_group")
+        layout.menu("NODE_MT_group_add")
         layout.menu("NODE_MT_category_layout")
 
         node_add_menu.draw_root_assets(layout)
@@ -400,11 +391,6 @@ class NODE_MT_category_compositor_utilities(NODE_MT_compositor_node_utilities_ba
 class NODE_MT_category_compositor_vector(NODE_MT_compositor_node_vector_base, node_add_menu.AddNodeMenu):
     ...
 
-
-class NODE_MT_category_compositor_group(NODE_MT_compositor_node_group_base, node_add_menu.AddNodeMenu):
-    ...
-
-
     
 class NODE_MT_compositor_node_swap_all(Menu):
     bl_label = ""
@@ -426,7 +412,7 @@ class NODE_MT_compositor_node_swap_all(Menu):
         layout.menu("NODE_MT_compositor_node_utilities_swap")
         layout.menu("NODE_MT_compositor_node_vector_swap")
         layout.separator()
-        layout.menu("NODE_MT_compositor_node_group_swap")
+        layout.menu("NODE_MT_group_swap")
         layout.menu("NODE_MT_layout_swap")
 
         #node_add_menu.draw_root_assets(layout)
@@ -496,10 +482,6 @@ class NODE_MT_compositor_node_vector_swap(NODE_MT_compositor_node_vector_base, n
     ...
 
 
-class NODE_MT_compositor_node_group_swap(NODE_MT_compositor_node_group_base, node_add_menu.SwapNodeMenu):
-    ...
-
-
 classes = (
     NODE_MT_compositor_node_add_all,
     NODE_MT_category_compositor_input,
@@ -518,7 +500,6 @@ classes = (
     NODE_MT_category_compositor_transform,
     NODE_MT_category_compositor_utilities,
     NODE_MT_category_compositor_vector,
-    NODE_MT_category_compositor_group,
     NODE_MT_compositor_node_swap_all,
     NODE_MT_compositor_node_input_swap,
     NODE_MT_compositor_node_input_constant_swap,
@@ -536,7 +517,6 @@ classes = (
     NODE_MT_compositor_node_transform_swap,
     NODE_MT_compositor_node_utilities_swap,
     NODE_MT_compositor_node_vector_swap,
-    NODE_MT_compositor_node_group_swap,
 )
 
 if __name__ == "__main__":  # only for live edit.
