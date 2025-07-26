@@ -490,7 +490,7 @@ static PyObject *Vector_normalized(VectorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Vector_resize_doc,
-    ".. method:: resize(size=3)\n"
+    ".. method:: resize(size, /)\n"
     "\n"
     "   Resize the vector to have size number of elements.\n");
 static PyObject *Vector_resize(VectorObject *self, PyObject *value)
@@ -542,7 +542,7 @@ static PyObject *Vector_resize(VectorObject *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     Vector_resized_doc,
-    ".. method:: resized(size=3)\n"
+    ".. method:: resized(size, /)\n"
     "\n"
     "   Return a resized copy of the vector with size number of elements.\n"
     "\n"
