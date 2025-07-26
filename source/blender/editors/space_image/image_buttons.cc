@@ -188,7 +188,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
     return;
   }
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   const char *fake_name = ui_imageuser_layer_fake_name(rr);
@@ -263,7 +263,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
 
   rl = static_cast<RenderLayer *>(BLI_findlink(&rr->layers, rpass_index));
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   nr = (rl == nullptr) ? 1 : 0;
@@ -334,7 +334,7 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
     return;
   }
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   uiDefBut(block,
@@ -382,7 +382,7 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
   int nr;
   ImageView *iv;
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   uiDefBut(block,
@@ -993,7 +993,13 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
   col->use_property_split_set(true);
   col->use_property_decorate_set(false);
 
-  col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(imfptr, "media_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  /* Multi layer images and video media types only have a single supported format, so we needn't
+   * draw the format format enum. */
+  if (imf->media_type == MEDIA_TYPE_IMAGE) {
+    col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   /* Multi-layer always saves raw unmodified channels. */
   if (imf->imtype != R_IMF_IMTYPE_MULTILAYER) {
@@ -1301,10 +1307,10 @@ void image_buttons_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype image panel metadata");
-  STRNCPY(pt->idname, "IMAGE_PT_metadata");
-  STRNCPY(pt->label, N_("Metadata"));
-  STRNCPY(pt->category, "Image");
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "IMAGE_PT_metadata");
+  STRNCPY_UTF8(pt->label, N_("Metadata"));
+  STRNCPY_UTF8(pt->category, "Image");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->order = 10;
   pt->poll = metadata_panel_context_poll;
   pt->draw = metadata_panel_context_draw;
