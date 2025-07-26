@@ -760,12 +760,12 @@ static PyObject *Vector_to_4d(VectorObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Vector_to_tuple_doc,
-    ".. method:: to_tuple(precision=-1)\n"
+    ".. method:: to_tuple(precision=-1, /)\n"
     "\n"
-    "   Return this vector as a tuple with.\n"
+    "   Return this vector as a tuple with a given precision.\n"
     "\n"
     "   :arg precision: The number to round the value to in [-1, 21].\n"
-    "   :type precision: int\n"
+    "   :type precision: int, (optional)\n"
     "   :return: the values of the vector rounded by *precision*\n"
     "   :rtype: tuple[float, ...]\n");
 static PyObject *Vector_to_tuple(VectorObject *self, PyObject *args)
@@ -776,10 +776,10 @@ static PyObject *Vector_to_tuple(VectorObject *self, PyObject *args)
     return nullptr;
   }
 
-  if (ndigits > 22 || ndigits < 0) {
+  if (ndigits > 22 || ndigits < -1) {
     PyErr_SetString(PyExc_ValueError,
-                    "Vector.to_tuple(ndigits): "
-                    "ndigits must be between 0 and 21");
+                    "Vector.to_tuple(precision): "
+                    "precision must be between -1 and 21");
     return nullptr;
   }
 
