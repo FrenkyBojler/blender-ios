@@ -17,7 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_mutex.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
@@ -232,7 +232,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
       if (rv == nullptr) {
         rv = MEM_callocN<RenderView>("new opengl render view");
-        STRNCPY(rv->name, srv->name);
+        STRNCPY_UTF8(rv->name, srv->name);
         BLI_addtail(&rr->views, rv);
       }
     }
@@ -334,6 +334,8 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 
     BKE_scene_graph_evaluated_ensure(depsgraph, oglrender->bmain);
 
+    GPU_viewport_force_hdr(oglrender->viewport);
+
     if (v3d != nullptr) {
       ARegion *region = oglrender->region;
       ibuf_view = ED_view3d_draw_offscreen_imbuf(depsgraph,
@@ -417,9 +419,11 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 
   rr = RE_AcquireResultRead(oglrender->re);
 
+  path_templates::VariableMap template_variables;
+  BKE_add_template_variables_general(template_variables, &scene->id);
+  BKE_add_template_variables_for_render_path(template_variables, *scene);
+
   const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-  const path_templates::VariableMap template_variables =
-      BKE_build_template_variables_for_render_path(&scene->r);
   const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
       filepath,
       scene->r.pic,
@@ -707,7 +711,9 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   wmWindow *win = CTX_wm_window(C);
   WorkSpace *workspace = CTX_wm_workspace(C);
 
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = RNA_boolean_get(op->ptr, "sequencer");
+
+  Scene *scene = !is_sequencer ? CTX_data_scene(C) : CTX_data_sequencer_scene(C);
   ScrArea *prev_area = CTX_wm_area(C);
   ARegion *prev_region = CTX_wm_region(C);
   GPUOffScreen *ofs;
@@ -716,7 +722,6 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   bool is_view_context = RNA_boolean_get(op->ptr, "view_context");
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_render_keyed_only = RNA_boolean_get(op->ptr, "render_keyed_only");
-  const bool is_sequencer = RNA_boolean_get(op->ptr, "sequencer");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
   const eImageFormatDepth color_depth = static_cast<eImageFormatDepth>(
       (is_animation) ? (eImageFormatDepth)scene->r.im_format.depth : R_IMF_CHAN_DEPTH_32);
@@ -766,7 +771,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   ofs = GPU_offscreen_create(sizex,
                              sizey,
                              true,
-                             GPU_RGBA16F,
+                             blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
                              GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
                              false,
                              err_out);
@@ -1047,9 +1052,11 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
      * calculate file name again here.
      */
     char filepath[FILE_MAX];
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &scene->id);
+    BKE_add_template_variables_for_render_path(template_variables, *scene);
+
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const path_templates::VariableMap template_variables =
-        BKE_build_template_variables_for_render_path(&scene->r);
     const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
@@ -1148,9 +1155,11 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
   is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
 
   if (!is_movie) {
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &scene->id);
+    BKE_add_template_variables_for_render_path(template_variables, *scene);
+
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const path_templates::VariableMap template_variables =
-        BKE_build_template_variables_for_render_path(&scene->r);
     const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,

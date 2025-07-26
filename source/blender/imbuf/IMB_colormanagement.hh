@@ -47,9 +47,21 @@ void IMB_colormanagegent_copy_settings(ImBuf *ibuf_src, ImBuf *ibuf_dst);
 void IMB_colormanagement_assign_float_colorspace(ImBuf *ibuf, const char *name);
 void IMB_colormanagement_assign_byte_colorspace(ImBuf *ibuf, const char *name);
 
-const char *IMB_colormanagement_get_float_colorspace(ImBuf *ibuf);
-const char *IMB_colormanagement_get_rect_colorspace(ImBuf *ibuf);
+const char *IMB_colormanagement_get_float_colorspace(const ImBuf *ibuf);
+const char *IMB_colormanagement_get_rect_colorspace(const ImBuf *ibuf);
 const char *IMB_colormanagement_space_from_filepath_rules(const char *filepath);
+
+/* Get colorspace name used for Rec.2100 PQ Display conversion.
+ *
+ * Searches for one of the color spaces or aliases: Rec.2100-PQ, Rec.2100-PQ - Display, rec2100_pq,
+ * rec2100_pq_display. If none found returns nullptr. */
+const char *IMB_colormanagement_get_rec2100_pq_display_colorspace();
+
+/* Get colorspace name used for Rec.2100 HLG Display conversion.
+ *
+ * Searches for one of the color spaces or aliases: Rec.2100-HLG, Rec.2100-HLG - Display,
+ * rec2100_hlg, rec2100_hlg_display. If none found returns nullptr. */
+const char *IMB_colormanagement_get_rec2100_hlg_display_colorspace();
 
 const ColorSpace *IMB_colormanagement_space_get_named(const char *name);
 bool IMB_colormanagement_space_is_data(const ColorSpace *colorspace);
@@ -334,8 +346,8 @@ const char *IMB_colormanagement_display_get_default_view_transform_name(
 /** \name View Functions
  * \{ */
 
-int IMB_colormanagement_view_get_named_index(const char *display, const char *name);
-const char *IMB_colormanagement_view_get_indexed_name(const char *display, int index);
+int IMB_colormanagement_view_get_id_by_name(const char *name);
+const char *IMB_colormanagement_view_get_name_by_id(int index);
 
 /** \} */
 

@@ -37,7 +37,6 @@ set(SRC
   nodes/node_composite_colorbalance.cc
   nodes/node_composite_colorcorrection.cc
   nodes/node_composite_common.cc
-  nodes/node_composite_composite.cc
   nodes/node_composite_convert_color_space.cc
   nodes/node_composite_cornerpin.cc
   nodes/node_composite_crop.cc
@@ -45,6 +44,7 @@ set(SRC
   nodes/node_composite_curves.cc
   nodes/node_composite_defocus.cc
   nodes/node_composite_denoise.cc
+  nodes/node_composite_depth_combine.cc
   nodes/node_composite_despeckle.cc
   nodes/node_composite_diff_matte.cc
   nodes/node_composite_dilate.cc
@@ -60,6 +60,7 @@ set(SRC
   nodes/node_composite_gamma.cc
   nodes/node_composite_glare.cc
   nodes/node_composite_group_input.cc
+  nodes/node_composite_group_output.cc
   nodes/node_composite_hue_sat_val.cc
   nodes/node_composite_huecorrect.cc
   nodes/node_composite_id_mask.cc
@@ -96,7 +97,6 @@ set(SRC
   nodes/node_composite_sunbeams.cc
   nodes/node_composite_switch.cc
   nodes/node_composite_switchview.cc
-  nodes/node_composite_texture.cc
   nodes/node_composite_tonemap.cc
   nodes/node_composite_trackpos.cc
   nodes/node_composite_transform.cc
@@ -104,7 +104,6 @@ set(SRC
   nodes/node_composite_val_to_rgb.cc
   nodes/node_composite_vec_blur.cc
   nodes/node_composite_viewer.cc
-  nodes/node_composite_zcombine.cc
 
   node_composite_tree.cc
   node_composite_util.cc

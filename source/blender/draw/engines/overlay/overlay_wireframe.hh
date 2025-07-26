@@ -62,7 +62,7 @@ class Wireframe : Overlay {
     const bool is_transform = (G.moving & G_TRANSFORM_OBJ) != 0;
     const float wire_threshold = wire_discard_threshold_get(state.overlay.wireframe_threshold);
 
-    GPUTexture **depth_tex = (state.xray_enabled) ? &res.depth_tx : &tmp_depth_tx_;
+    gpu::Texture **depth_tex = (state.xray_enabled) ? &res.depth_tx : &tmp_depth_tx_;
     if (is_selection) {
       depth_tex = &res.dummy_depth_tx;
     }
@@ -177,7 +177,7 @@ class Wireframe : Overlay {
 
         if (show_surface_wire) {
           if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
-            ResourceHandle handle = manager.unique_handle(ob_ref);
+            ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
             for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_WIREFRAME)) {
               coloring.mesh_all_edges_ps_->draw(batch.batch, handle);
@@ -260,7 +260,7 @@ class Wireframe : Overlay {
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
     int2 render_size = int2(depth_tx.size());
-    tmp_depth_tx_.acquire(render_size, GPU_DEPTH32F_STENCIL8, usage);
+    tmp_depth_tx_.acquire(render_size, gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8, usage);
 
     /* WORKAROUND: Nasty framebuffer copy.
      * We should find a way to have nice wireframe without this. */

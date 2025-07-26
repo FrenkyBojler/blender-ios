@@ -29,6 +29,7 @@ from bpy.props import (
     BoolProperty,
     EnumProperty,
     PointerProperty,
+    CollectionProperty,
     StringProperty,
 )
 
@@ -675,8 +676,10 @@ def cli_extension(argv):
 
 
 class BlExtDummyGroup(bpy.types.PropertyGroup):
-    # Dummy.
-    pass
+    __slots__ = ()
+
+    name: StringProperty()
+    show_tag: BoolProperty()
 
 
 # -----------------------------------------------------------------------------
@@ -711,11 +714,11 @@ def register():
     bl_extension_ops.register()
     bl_extension_ui.register()
 
-    WindowManager.addon_tags = PointerProperty(
+    WindowManager.addon_tags = CollectionProperty(
         name="Addon Tags",
         type=BlExtDummyGroup,
     )
-    WindowManager.extension_tags = PointerProperty(
+    WindowManager.extension_tags = CollectionProperty(
         name="Extension Tags",
         type=BlExtDummyGroup,
     )

@@ -14,6 +14,7 @@
 #include "BKE_node.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 struct ARegion;
@@ -128,7 +129,7 @@ enum NodeResizeDirection {
 ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
 
 /* Nodes draw without DPI - the view zoom is flexible. */
-#define HIDDEN_RAD (0.75f * U.widget_unit)
+#define COLLAPSED_RAD (0.75f * U.widget_unit)
 #define BASIS_RAD (0.2f * U.widget_unit)
 #define NODE_DYS (U.widget_unit / 2)
 #define NODE_DY U.widget_unit
@@ -370,7 +371,7 @@ void NODE_OT_delete_reconnect(wmOperatorType *ot);
 void NODE_OT_resize(wmOperatorType *ot);
 
 void NODE_OT_mute_toggle(wmOperatorType *ot);
-void NODE_OT_hide_toggle(wmOperatorType *ot);
+void NODE_OT_collapse_toggle(wmOperatorType *ot);
 void NODE_OT_hide_socket_toggle(wmOperatorType *ot);
 void NODE_OT_preview_toggle(wmOperatorType *ot);
 void NODE_OT_options_toggle(wmOperatorType *ot);
@@ -403,7 +404,7 @@ void NODE_OT_cryptomatte_layer_remove(wmOperatorType *ot);
 
 void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt);
-void NODE_GGT_backdrop_sun_beams(wmGizmoGroupType *gzgt);
+void NODE_GGT_backdrop_glare(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt);
@@ -445,5 +446,13 @@ MenuType add_root_catalogs_menu_type();
 /* `node_sync_sockets.cc` */
 
 void NODE_OT_sockets_sync(wmOperatorType *ot);
+
+/* node_socket_tooltip.cc */
+
+void build_socket_tooltip(uiTooltipData &tip_data,
+                          bContext &C,
+                          uiBut *but,
+                          const bNodeTree &tree,
+                          const bNodeSocket &socket);
 
 }  // namespace blender::ed::space_node

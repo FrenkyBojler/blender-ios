@@ -24,7 +24,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "WM_api.hh"
@@ -1090,7 +1090,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
 
   uiLayout *layout = panel->layout;
   uiBlock *block = layout->block();
-  UI_block_layout_set_current(block, layout);
+  ui::block_layout_set_current(block, layout);
 
   draw_context_panel(*C, *layout);
 

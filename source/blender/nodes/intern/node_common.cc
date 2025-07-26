@@ -83,8 +83,10 @@ void node_group_label(const bNodeTree * /*ntree*/,
                       char *label,
                       int label_maxncpy)
 {
-  BLI_strncpy(
-      label, (node->id) ? node->id->name + 2 : IFACE_("Missing Data-Block"), label_maxncpy);
+  BLI_strncpy(label,
+              (node->id) ? node->id->name + 2 :
+                           CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Missing Data-Block"),
+              label_maxncpy);
 }
 
 int node_group_ui_class(const bNode *node)
@@ -467,7 +469,7 @@ void node_group_declare(NodeDeclarationBuilder &b)
   group->ensure_interface_cache();
 
   Map<const bNodeTreeInterfaceSocket *, StructureType> structure_type_by_socket;
-  if (group->type == NTREE_GEOMETRY) {
+  if (ELEM(group->type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
     structure_type_by_socket.reserve(group->interface_items().size());
 
     const Span<const bNodeTreeInterfaceSocket *> inputs = group->interface_inputs();
@@ -784,7 +786,7 @@ static void group_input_declare(NodeDeclarationBuilder &b)
            * "dependency cycle" between this and the structure type inferencing which uses node
            * declarations. The compromise is to not use the proper structure type in the group
            * input/output declarations and instead use a special case for the choice of socket
-           * shapes.*/
+           * shapes. */
           build_interface_socket_declaration(*node_tree, socket, std::nullopt, SOCK_OUT, b);
         }
         break;
@@ -899,6 +901,7 @@ bNodeSocket *node_group_output_find_socket(bNode *node, const StringRef identifi
 
 static void node_group_output_extra_info(blender::nodes::NodeExtraInfoParams &params)
 {
+  get_compositor_group_output_extra_info(params);
   const blender::Span<const bNode *> group_output_nodes = params.tree.nodes_by_type(
       "NodeGroupOutput");
   if (group_output_nodes.size() <= 1) {
@@ -929,6 +932,7 @@ void register_node_type_group_output()
   ntype->declare = blender::nodes::group_output_declare;
   ntype->insert_link = blender::nodes::group_output_insert_link;
   ntype->get_extra_info = node_group_output_extra_info;
+  ntype->get_compositor_operation = blender::nodes::get_group_output_compositor_operation;
 
   ntype->no_muting = true;
 

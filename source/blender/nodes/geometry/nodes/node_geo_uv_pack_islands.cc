@@ -11,7 +11,8 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_uv_pack_islands_cc {
 
@@ -42,6 +43,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
   b.add_input<decl::Vector>("UV").hide_value().supports_field();
+  b.add_output<decl::Vector>("UV").field_source_reference_all().align_with_previous();
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
       .hide_value()
@@ -50,7 +52,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Margin").default_value(0.001f).min(0.0f).max(1.0f).description(
       "Space between islands");
   b.add_input<decl::Bool>("Rotate").default_value(true).description("Rotate islands for best fit");
-  b.add_output<decl::Vector>("UV").field_source_reference_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -129,7 +130,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   delete (handle);
 
   return mesh.attributes().adapt_domain<float3>(
-      VArray<float3>::ForContainer(std::move(uv)), AttrDomain::Corner, domain);
+      VArray<float3>::from_container(std::move(uv)), AttrDomain::Corner, domain);
 }
 
 class PackIslandsFieldInput final : public bke::MeshFieldInput {

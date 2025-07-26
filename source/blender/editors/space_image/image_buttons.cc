@@ -17,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -46,6 +47,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "image_intern.hh"
@@ -84,10 +86,10 @@ static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
   LISTBASE_FOREACH_INDEX (RenderSlot *, slot, &image->renderslots, slot_id) {
     char str[64];
     if (slot->name[0] != '\0') {
-      STRNCPY(str, slot->name);
+      STRNCPY_UTF8(str, slot->name);
     }
     else {
-      SNPRINTF(str, IFACE_("Slot %d"), slot_id + 1);
+      SNPRINTF_UTF8(str, IFACE_("Slot %d"), slot_id + 1);
     }
     /* Default to "blank" for nicer alignment. */
     int icon = ICON_BLANK1;
@@ -100,7 +102,7 @@ static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
       icon = ICON_DOT;
     }
     uiDefIconTextButS(block,
-                      UI_BTYPE_BUT_MENU,
+                      ButType::ButMenu,
                       B_NOP,
                       icon,
                       str,
@@ -116,7 +118,7 @@ static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
 
   layout->separator();
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("Slot"),
            0,
@@ -186,13 +188,13 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
     return;
   }
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   const char *fake_name = ui_imageuser_layer_fake_name(rr);
   if (fake_name) {
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               fake_name,
               0,
@@ -208,7 +210,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
   int nr = fake_name ? 1 : 0;
   for (RenderLayer *rl = static_cast<RenderLayer *>(rr->layers.first); rl; rl = rl->next, nr++) {
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               rl->name,
               0,
@@ -223,7 +225,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
 
   layout->separator();
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("Layer"),
            0,
@@ -261,7 +263,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
 
   rl = static_cast<RenderLayer *>(BLI_findlink(&rr->layers, rpass_index));
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   nr = (rl == nullptr) ? 1 : 0;
@@ -281,7 +283,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
     BLI_addtail(&added_passes, BLI_genericNodeN(rpass->name));
 
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               IFACE_(rpass->name),
               0,
@@ -296,7 +298,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
 
   layout->separator();
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("Pass"),
            0,
@@ -332,11 +334,11 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
     return;
   }
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("View"),
            0,
@@ -355,7 +357,7 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
        rview = rview->prev, nr--)
   {
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               IFACE_(rview->name),
               0,
@@ -380,11 +382,11 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
   int nr;
   ImageView *iv;
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("View"),
            0,
@@ -401,7 +403,7 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
   nr = BLI_listbase_count(&image->views) - 1;
   for (iv = static_cast<ImageView *>(image->views.last); iv; iv = iv->prev, nr--) {
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               IFACE_(iv->name),
               0,
@@ -594,13 +596,13 @@ static void uiblock_layer_pass_buttons(uiLayout *layout,
 
   /* menu buts */
   if (render_slot) {
-    char str[64];
     RenderSlot *slot = BKE_image_get_renderslot(image, *render_slot);
+    char str[sizeof(slot->name)];
     if (slot && slot->name[0] != '\0') {
-      STRNCPY(str, slot->name);
+      STRNCPY_UTF8(str, slot->name);
     }
     else {
-      SNPRINTF(str, IFACE_("Slot %d"), *render_slot + 1);
+      SNPRINTF_UTF8(str, IFACE_("Slot %d"), *render_slot + 1);
     }
 
     rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
@@ -833,12 +835,12 @@ void uiTemplateImage(uiLayout *layout,
 
   layout = &layout->column(false);
   layout->enabled_set(!is_dirty);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   /* Image source */
   {
     uiLayout *col = &layout->column(false);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
     col->prop(&imaptr, "source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
@@ -872,7 +874,7 @@ void uiTemplateImage(uiLayout *layout,
 
     /* Generated */
     uiLayout *col = &layout->column(false);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
 
     uiLayout *sub = &col->column(true);
     sub->prop(&imaptr, "generated_width", UI_ITEM_NONE, "X", ICON_NONE);
@@ -903,7 +905,7 @@ void uiTemplateImage(uiLayout *layout,
     layout->separator();
 
     uiLayout *col = &layout->column(true);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
 
     uiLayout *sub = &col->column(true);
     uiLayout *row = &sub->row(true);
@@ -927,7 +929,7 @@ void uiTemplateImage(uiLayout *layout,
       layout->separator();
 
       uiLayout *col = &layout->column(false);
-      uiLayoutSetPropSep(col, true);
+      col->use_property_split_set(true);
       col->prop(&imaptr, "use_multiview", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       if (RNA_boolean_get(&imaptr, "use_multiview")) {
@@ -941,7 +943,7 @@ void uiTemplateImage(uiLayout *layout,
     layout->separator();
 
     uiLayout *col = &layout->column(false);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
     uiTemplateColorspaceSettings(col, &imaptr, "colorspace_settings");
 
     if (compact == 0) {
@@ -988,10 +990,16 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
 
   col = &layout->column(false);
 
-  uiLayoutSetPropSep(col, true);
-  uiLayoutSetPropDecorate(col, false);
+  col->use_property_split_set(true);
+  col->use_property_decorate_set(false);
 
-  col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(imfptr, "media_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  /* Multi layer images and video media types only have a single supported format, so we needn't
+   * draw the format format enum. */
+  if (imf->media_type == MEDIA_TYPE_IMAGE) {
+    col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   /* Multi-layer always saves raw unmodified channels. */
   if (imf->imtype != R_IMF_IMTYPE_MULTILAYER) {
@@ -1115,8 +1123,8 @@ static void uiTemplateViewsFormat(uiLayout *layout,
 
   col = &layout->column(false);
 
-  uiLayoutSetPropSep(col, true);
-  uiLayoutSetPropDecorate(col, false);
+  col->use_property_split_set(true);
+  col->use_property_decorate_set(false);
 
   col->prop(ptr, "views_format", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
@@ -1231,7 +1239,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
       }
     }
 
-    eGPUTextureFormat texture_format = IMB_gpu_get_texture_format(
+    blender::gpu::TextureFormat texture_format = IMB_gpu_get_texture_format(
         ibuf, ima->flag & IMA_HIGH_BITDEPTH, ibuf->planes >= 8);
     const char *texture_format_description = GPU_texture_format_name(texture_format);
     ofs += BLI_snprintf_rlen(str + ofs, len - ofs, RPT_(", %s"), texture_format_description);

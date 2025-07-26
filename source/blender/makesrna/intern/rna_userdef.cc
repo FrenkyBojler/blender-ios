@@ -1982,6 +1982,16 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Panel Header", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "panel_title", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Panel Title", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_text", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Panel Text", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "panel_back", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_ui_text(prop, "Panel Background", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
@@ -2216,21 +2226,6 @@ static void rna_def_userdef_theme_space_region_generic(BlenderRNA *brna)
   prop = RNA_def_property(srna, "button", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Region Background", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "button_title", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Region Text Titles", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "button_text", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Region Text", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "button_text_hi", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Region Text Highlight", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* tabs */
@@ -2778,7 +2773,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   prop = RNA_def_property(srna, "split_normal", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "loop_normal");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Split Normal", "");
+  RNA_def_property_ui_text(prop, "Custom Normal", "");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Armature Object specific. */
@@ -3506,6 +3501,7 @@ static void rna_def_userdef_theme_space_buts(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_spaces_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 }
 
 static void rna_def_userdef_theme_space_image(BlenderRNA *brna)
@@ -4859,7 +4855,7 @@ static void rna_def_userdef_addon_pref(BlenderRNA *brna)
   RNA_def_struct_refine_func(srna, "rna_AddonPref_refine");
   RNA_def_struct_register_funcs(
       srna, "rna_AddonPref_register", "rna_AddonPref_unregister", nullptr);
-  RNA_def_struct_idprops_func(srna, "rna_AddonPref_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_AddonPref_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES); /* Mandatory! */
 
   USERDEF_TAG_DIRTY_PROPERTY_UPDATE_DISABLE;
@@ -5447,7 +5443,8 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "lookdev_sphere_size", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, nullptr, "lookdev_sphere_size");
   RNA_def_property_range(prop, 50, 400);
-  RNA_def_property_ui_text(prop, "HDRI Preview Size", "Diameter of the HDRI preview spheres");
+  RNA_def_property_ui_text(
+      prop, "Reference Sphere Size", "Diameter of the HDRI reference spheres");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* View2D Grid Displays */
@@ -6497,7 +6494,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
        0,
        "Forward/Backward",
        "Zoom by pulling the 3D Mouse cap upwards or pushing the cap downwards"},
-      {NDOF_PAN_YZ_SWAP_AXIS,
+      {NDOF_SWAP_YZ_AXIS,
        "NDOF_ZOOM_UP",
        0,
        "Up/Down",
@@ -7600,6 +7597,9 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop,
       "Node Structure Types",
       "Enables new visualization of socket data compatibility in Geometry Nodes");
+
+  prop = RNA_def_property(srna, "use_geometry_nodes_lists", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Geometry Nodes Lists", "Enable new list types and nodes");
 
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

@@ -10,7 +10,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_merge_layers_cc {
@@ -28,7 +28,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
   b.add_input<decl::Geometry>("Grease Pencil")
-      .supported_type(GeometryComponent::Type::GreasePencil);
+      .supported_type(GeometryComponent::Type::GreasePencil)
+      .description("Grease Pencil data to merge layers of");
   b.add_output<decl::Geometry>("Grease Pencil").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   auto &group_id = b.add_input<decl::Int>("Group ID")

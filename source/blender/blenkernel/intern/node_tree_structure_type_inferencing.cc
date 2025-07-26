@@ -15,6 +15,7 @@
 #include "DNA_node_types.h"
 
 #include "NOD_node_declaration.hh"
+#include "NOD_socket.hh"
 
 namespace blender::bke::node_structure_type_inferencing {
 
@@ -86,7 +87,7 @@ static Array<nodes::StructureTypeInterface> calc_node_interfaces(const bNodeTree
   return interfaces;
 }
 
-enum class DataRequirement : int8_t { None, Field, Single, Grid, Invalid };
+enum class DataRequirement : int8_t { None, Field, Single, Grid, List, Invalid };
 
 static DataRequirement merge(const DataRequirement a, const DataRequirement b)
 {
@@ -119,6 +120,8 @@ static StructureType data_requirement_to_auto_structure_type(const DataRequireme
       return StructureType::Single;
     case DataRequirement::Grid:
       return StructureType::Grid;
+    case DataRequirement::List:
+      return StructureType::List;
     case DataRequirement::Invalid:
       return StructureType::Dynamic;
   }
@@ -144,6 +147,10 @@ static void init_input_requirements(const bNodeTree &tree,
         requirement = DataRequirement::None;
         continue;
       }
+      if (nodes::socket_type_always_single(eNodeSocketDatatype(socket->type))) {
+        requirement = DataRequirement::Single;
+        continue;
+      }
       switch (declaration->structure_type) {
         case StructureType::Dynamic: {
           requirement = DataRequirement::None;
@@ -159,6 +166,10 @@ static void init_input_requirements(const bNodeTree &tree,
         }
         case StructureType::Field: {
           requirement = DataRequirement::Field;
+          break;
+        }
+        case StructureType::List: {
+          requirement = DataRequirement::List;
           break;
         }
       }
@@ -398,7 +409,8 @@ static void propagate_right_to_left(const bNodeTree &tree,
             break;
           }
           case DataRequirement::Field:
-          case DataRequirement::Grid: {
+          case DataRequirement::Grid:
+          case DataRequirement::List: {
             /* When a data requirement could be provided by multiple node inputs (i.e. only a
              * single node input involved in a math operation has to be a volume grid for the
              * output to be a grid), it's better to not propagate the data requirement than
@@ -799,6 +811,14 @@ static StructureTypeInferenceResult calc_structure_type_interface(const bNodeTre
       tree, node_interfaces, result.group_interface.inputs, result.socket_structure_types);
   store_group_output_structure_types(
       tree, node_interfaces, result.socket_structure_types, result.group_interface);
+
+  /* Ensure that the structure type is never invalid. */
+  for (const int i : tree.all_sockets().index_range()) {
+    const bNodeSocket &socket = *tree.all_sockets()[i];
+    if (nodes::socket_type_always_single(eNodeSocketDatatype(socket.type))) {
+      result.socket_structure_types[i] = StructureType::Single;
+    }
+  }
 
   return result;
 }

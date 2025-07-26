@@ -17,6 +17,7 @@
 
 #include "kernel/util/differential.h"
 #include "kernel/util/ies.h"
+#include "kernel/util/texture_3d.h"
 
 #include "util/hash.h"
 #include "util/transform.h"
@@ -128,6 +129,8 @@ ccl_device_constant DeviceString u_path_glossy_depth = 15717768399057252940ull;
 ccl_device_constant DeviceString u_path_transparent_depth = 7821650266475578543ull;
 /* "path:transmission_depth" */
 ccl_device_constant DeviceString u_path_transmission_depth = 15113408892323917624ull;
+/* "path:portal_depth" */
+ccl_device_constant DeviceString u_path_portal_depth = 13191651286699118408ull;
 /* "cam:sensor_size" */
 ccl_device_constant DeviceString u_sensor_size = 7525693591727141378ull;
 /* "cam:image_resolution" */
@@ -718,6 +721,11 @@ ccl_device_inline bool get_background_attribute(KernelGlobals kg,
     const int f = READ_PATH_STATE(transparent_bounce);
     return set_attribute(f, type, derivatives, val);
   }
+  if (name == DeviceStrings::u_path_portal_depth) {
+    /* Portal Ray Depth */
+    const int f = READ_PATH_STATE(portal_bounce);
+    return set_attribute(f, type, derivatives, val);
+  }
 #undef READ_PATH_STATE
 
   else if (name == DeviceStrings::u_ndc) {
@@ -763,7 +771,7 @@ ccl_device_inline bool get_object_attribute_impl(KernelGlobals kg,
   T dy = make_zero<T>();
 #ifdef __VOLUME__
   if (primitive_is_volume_attribute(sd)) {
-    v = primitive_volume_attribute<T>(kg, sd, desc);
+    v = primitive_volume_attribute<T>(kg, sd, desc, true);
   }
   else
 #endif
@@ -1146,7 +1154,7 @@ ccl_device_extern bool rs_texture3d(ccl_private ShaderGlobals *sg,
 
   switch (type) {
     case OSL_TEXTURE_HANDLE_TYPE_SVM: {
-      const float4 rgba = kernel_tex_image_interp_3d(nullptr, slot, *P, INTERPOLATION_NONE);
+      const float4 rgba = kernel_tex_image_interp_3d(nullptr, slot, *P, INTERPOLATION_NONE, -1.0f);
       if (nchannels > 0) {
         result[0] = rgba.x;
       }

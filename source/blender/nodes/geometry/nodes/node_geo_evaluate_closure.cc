@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geo_closure.hh"
@@ -40,8 +40,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       const std::string identifier =
           EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item);
       b.add_output(socket_type, item.name, identifier)
-          .propagate_all()
-          .reference_pass_all()
           .structure_type(StructureType(item.structure_type));
     }
   }
@@ -88,8 +86,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
 
@@ -220,11 +218,11 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
   }
   const NodeGeometryEvaluateClosureOutputItem &output_item =
       storage.output_items.items[output_socket.index()];
-  const SocketInterfaceKey output_key{output_item.name};
+  const StringRef output_key = output_item.name;
   for (const int i : IndexRange(storage.input_items.items_num)) {
     const NodeGeometryEvaluateClosureInputItem &input_item = storage.input_items.items[i];
-    const SocketInterfaceKey input_key{input_item.name};
-    if (output_key.matches(input_key)) {
+    const StringRef input_key = input_item.name;
+    if (output_key == input_key) {
       if (!tree.typeinfo->validate_link ||
           tree.typeinfo->validate_link(eNodeSocketDatatype(input_item.socket_type),
                                        eNodeSocketDatatype(output_item.socket_type)))

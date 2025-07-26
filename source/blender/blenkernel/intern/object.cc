@@ -153,7 +153,7 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::Vector;
 
-static CLG_LogRef LOG = {"bke.object"};
+static CLG_LogRef LOG = {"object"};
 
 /**
  * NOTE(@sergey): Vertex parent modifies original #BMesh which is not safe for threading.
@@ -2657,7 +2657,13 @@ Object *BKE_object_duplicate(Main *bmain,
 
   if (!is_subprocess) {
     /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-    BKE_libblock_relink_to_newid(bmain, &obn->id, 0);
+    /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if its
+     * obdata contains edit mode runtime data. This can be the case of all newly duplicated
+     * objects, as even though duplicate code move the object back in Object mode, they are still
+     * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
+     * and therefore not remapping their obdata to the newly duplicated one.
+     * See #139715. */
+    BKE_libblock_relink_to_newid(bmain, &obn->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
@@ -3547,7 +3553,8 @@ std::optional<Bounds<float3>> BKE_object_evaluated_geometry_bounds(const Object 
 {
   if (const blender::bke::GeometrySet *geometry = ob->runtime->geometry_set_eval) {
     const bool use_radius = ob->type != OB_CURVES_LEGACY;
-    return geometry->compute_boundbox_without_instances(use_radius);
+    const bool use_subdiv = true;
+    return geometry->compute_boundbox_without_instances(use_radius, use_subdiv);
   }
   if (const CurveCache *curve_cache = ob->runtime->curve_cache) {
     float3 min(std::numeric_limits<float>::max());

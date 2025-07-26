@@ -295,17 +295,21 @@ GHOST_TSuccess GHOST_HasCursorShape(GHOST_WindowHandle windowhandle,
 }
 
 GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle,
-                                          uint8_t *bitmap,
-                                          uint8_t *mask,
-                                          int sizex,
-                                          int sizey,
-                                          int hotX,
-                                          int hotY,
-                                          bool canInvertColor)
+                                          const uint8_t *bitmap,
+                                          const uint8_t *mask,
+                                          const int size[2],
+                                          const int hot_spot[2],
+                                          bool can_invert_color)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->setCustomCursorShape(bitmap, mask, size, hot_spot, can_invert_color);
+}
 
-  return window->setCustomCursorShape(bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor);
+GHOST_TSuccess GHOST_SetCustomCursorGenerator(GHOST_WindowHandle windowhandle,
+                                              GHOST_CursorGenerator *cursor_generator)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->setCustomCursorGenerator(cursor_generator);
 }
 
 GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
@@ -314,6 +318,13 @@ GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
   return window->getCursorBitmap(bitmap);
+}
+
+uint32_t GHOST_GetCursorPreferredLogicalSize(const GHOST_SystemHandle systemhandle)
+{
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
+
+  return system->getCursorPreferredLogicalSize();
 }
 
 bool GHOST_GetCursorVisibility(GHOST_WindowHandle windowhandle)
