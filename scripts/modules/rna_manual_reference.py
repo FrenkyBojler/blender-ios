@@ -563,7 +563,6 @@ url_manual_mapping = (
     ("bpy.types.nodetreeinterfacesocket.menu_expanded*", "interface/controls/nodes/groups.html#bpy-types-nodetreeinterfacesocket-menu-expanded"),
     ("bpy.types.particlesettings.use_parent_particles*", "physics/particles/emitter/render.html#bpy-types-particlesettings-use-parent-particles"),
     ("bpy.types.preferencesfilepaths.text_editor_args*", "editors/preferences/file_paths.html#bpy-types-preferencesfilepaths-text-editor-args"),
-    ("bpy.types.preferencesfilepaths.use_filter_files*", "editors/preferences/save_load.html#bpy-types-preferencesfilepaths-use-filter-files"),
     ("bpy.types.preferencesinput.drag_threshold_mouse*", "editors/preferences/input.html#bpy-types-preferencesinput-drag-threshold-mouse"),
     ("bpy.types.preferencesinput.ndof_navigation_mode*", "editors/preferences/input.html#bpy-types-preferencesinput-ndof-navigation-mode"),
     ("bpy.types.preferencesinput.use_auto_perspective*", "editors/preferences/navigation.html#bpy-types-preferencesinput-use-auto-perspective"),

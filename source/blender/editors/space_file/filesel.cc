@@ -291,15 +291,6 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
       params->filter_glob[0] = '\0';
     }
 
-    if (params->filter != 0) {
-      if (U.uiflag & USER_FILTERFILEEXTS) {
-        params->flag |= FILE_FILTER;
-      }
-      else {
-        params->flag &= ~FILE_FILTER;
-      }
-    }
-
     if (U.uiflag & USER_HIDE_DOT) {
       params->flag |= FILE_HIDE_DOT;
     }
@@ -625,7 +616,7 @@ void ED_fileselect_deselect_all(SpaceFile *sfile)
 
 /* The subset of FileSelectParams.flag items we store into preferences. Note that FILE_SORT_ALPHA
  * may also be remembered, but only conditionally. */
-#define PARAMS_FLAGS_REMEMBERED (FILE_HIDE_DOT)
+#define PARAMS_FLAGS_REMEMBERED (FILE_HIDE_DOT | FILE_FILTER)
 
 void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized)
 {

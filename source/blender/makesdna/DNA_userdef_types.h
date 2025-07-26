@@ -756,7 +756,7 @@ typedef enum eUserpref_UI_Flag {
   USER_NO_MULTITOUCH_GESTURES = (1 << 0),
   USER_UIFLAG_UNUSED_1 = (1 << 1), /* cleared */
   USER_WHEELZOOMDIR = (1 << 2),
-  USER_FILTERFILEEXTS = (1 << 3),
+  USER_UIFLAG_UNUSED_2 = (1 << 3), /* Cleared. */
   USER_DRAWVIEWINFO = (1 << 4),
   USER_PLAINMENUS = (1 << 5),
   USER_LOCK_CURSOR_ADJUST = (1 << 6),
