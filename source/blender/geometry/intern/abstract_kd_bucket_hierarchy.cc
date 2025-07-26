@@ -104,15 +104,6 @@ void from_positions(const Span<float3> positions,
         const int axis_index = math::mod_periodic(depth_i, 3);
         MutableSpan<int> segment = indices.slice(bucket_range);
 
-        // redix_nth_element(segment.size() / 2,
-        //                   segment,
-        //                   [&](const int index) -> uint8_t {
-        //                     const float value = positions[index][axis_index];
-        //                     uint8_t top_radix;
-        //                     std::memcpy(&top_radix, &value, 1);
-        //                     return value;
-        //                   });
-
         std::nth_element(segment.begin(),
                          segment.begin() + segment.size() / 2,
                          segment.end(),
