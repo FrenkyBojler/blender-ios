@@ -66,17 +66,17 @@ struct PanelLayout {
  * Meanwhile keep using `uiLayout*` functions to read/write this properties.
  */
 struct uiItem {
- private:
-  blender::ui::ItemType type_ = {};
-
- public:
-  blender::ui::ItemInternalFlag flag_ = {};
 
   uiItem(blender::ui::ItemType type);
   uiItem(const uiItem &) = default;
   virtual ~uiItem() = default;
 
   [[nodiscard]] blender::ui::ItemType type() const;
+
+  blender::ui::ItemInternalFlag flag_ = {};
+
+ private:
+  blender::ui::ItemType type_ = {};
 };
 
 enum eUI_Item_Flag : uint16_t;
