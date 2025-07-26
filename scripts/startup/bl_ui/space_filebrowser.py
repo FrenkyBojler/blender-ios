@@ -101,6 +101,7 @@ class FILEBROWSER_PT_display(FileBrowserPanel, Panel):
 
         space = context.space_data
         params = space.params
+        filepaths = context.preferences.filepaths
 
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
@@ -116,6 +117,10 @@ class FILEBROWSER_PT_display(FileBrowserPanel, Panel):
 
         layout.column().prop(params, "sort_method", text="Sort By", expand=True)
         layout.prop(params, "use_sort_invert")
+
+        col = layout.column(heading="Sidebar", align=True)
+        col.prop(filepaths, "show_recent_locations", text="Recent Locations")
+        col.prop(filepaths, "show_system_bookmarks", text="System Locations")
 
 
 class FILEBROWSER_PT_filter(FileBrowserPanel, Panel):
@@ -503,10 +508,16 @@ class FILEBROWSER_MT_view(FileBrowserMenu, Menu):
         layout = self.layout
         st = context.space_data
         params = st.params
+        filepaths = context.preferences.filepaths
 
         layout.prop(st, "show_region_toolbar", text="Source List")
         layout.prop(st, "show_region_ui", text="File Path")
         layout.operator("file.view_selected")
+
+        layout.separator()
+
+        layout.prop(filepaths, "show_recent_locations")
+        layout.prop(filepaths, "show_system_bookmarks")
 
         layout.separator()
 

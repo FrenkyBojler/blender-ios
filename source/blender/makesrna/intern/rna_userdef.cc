@@ -7237,11 +7237,13 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Filter Files", "Enable filtering of files in the File Browser");
 
   prop = RNA_def_property(srna, "show_recent_locations", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "uiflag", USER_HIDE_RECENT);
   RNA_def_property_ui_text(
       prop, "Show Recent Locations", "Show Recent locations list in the File Browser");
 
   prop = RNA_def_property(srna, "show_system_bookmarks", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "uiflag", USER_HIDE_SYSTEM_BOOKMARKS);
   RNA_def_property_ui_text(
       prop, "Show System Locations", "Show System locations list in the File Browser");
