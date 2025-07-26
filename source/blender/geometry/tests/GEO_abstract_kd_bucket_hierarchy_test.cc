@@ -13,7 +13,7 @@
 
 namespace blender::geometry::akdbh::tests {
 
-static void test()
+TEST(AbstractKDimensionalHierarchy, BasicMath)
 {
   BLI_assert(total_depth_from_total(100) == 4);
 
@@ -61,7 +61,7 @@ static void test()
   BLI_assert(joint_buckets_range_at_depth(4, 3, 7) == IndexRange::from_begin_size(7, 1));
 }
 
-static void test2()
+TEST(AbstractKDimensionalHierarchy, BasicLoops)
 {
   const int total_elements = 100;
   const int total_depth = total_depth_from_total(total_elements);
@@ -159,123 +159,5 @@ static void test2()
 
   BLI_assert(joints_to_top == test_joints_to_top);
 }
-
-static void test3()
-{
-  BLI_assert(joint_i_to_stack(1, 0) == 0b00000000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(1, 1) == 0b10000000'00000000'00000000'00000000);
-
-  BLI_assert(joint_i_to_stack(2, 0) == 0b00000000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(2, 1) == 0b01000000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(2, 2) == 0b10000000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(2, 3) == 0b11000000'00000000'00000000'00000000);
-
-  BLI_assert(joint_i_to_stack(3, 0) == 0b00000000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(3, 1) == 0b00100000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(3, 2) == 0b01000000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(3, 3) == 0b01100000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(3, 4) == 0b10000000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(3, 5) == 0b10100000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(3, 6) == 0b11000000'00000000'00000000'00000000);
-  BLI_assert(joint_i_to_stack(3, 7) == 0b11100000'00000000'00000000'00000000);
-
-  BLI_assert(stack_mask(1) == 0b10000000'00000000'00000000'00000000);
-  BLI_assert(stack_mask(2) == 0b11000000'00000000'00000000'00000000);
-  BLI_assert(stack_mask(3) == 0b11100000'00000000'00000000'00000000);
-
-  BLI_assert(stack_to_i(1, joint_i_to_stack(1, 0)) == 0);
-  BLI_assert(stack_to_i(1, joint_i_to_stack(1, 1)) == 1);
-
-  BLI_assert(stack_to_i(2, joint_i_to_stack(2, 0)) == 0);
-  BLI_assert(stack_to_i(2, joint_i_to_stack(2, 1)) == 1);
-  BLI_assert(stack_to_i(2, joint_i_to_stack(2, 2)) == 2);
-  BLI_assert(stack_to_i(2, joint_i_to_stack(2, 3)) == 3);
-
-  BLI_assert(stack_to_i(3, joint_i_to_stack(3, 0)) == 0);
-  BLI_assert(stack_to_i(3, joint_i_to_stack(3, 1)) == 1);
-  BLI_assert(stack_to_i(3, joint_i_to_stack(3, 2)) == 2);
-  BLI_assert(stack_to_i(3, joint_i_to_stack(3, 3)) == 3);
-  BLI_assert(stack_to_i(3, joint_i_to_stack(3, 4)) == 4);
-  BLI_assert(stack_to_i(3, joint_i_to_stack(3, 5)) == 5);
-  BLI_assert(stack_to_i(3, joint_i_to_stack(3, 6)) == 6);
-  BLI_assert(stack_to_i(3, joint_i_to_stack(3, 7)) == 7);
-
-  BLI_assert(stack_switch_branch(0b00000000'00000000'00000000'00000000, 1) ==
-             0b10000000'00000000'00000000'00000000);
-  BLI_assert(stack_switch_branch(0b00100000'00000000'00000000'00000000, 1) ==
-             0b10100000'00000000'00000000'00000000);
-  BLI_assert(stack_switch_branch(0b01000000'00000000'00000000'00000000, 1) ==
-             0b11000000'00000000'00000000'00000000);
-  BLI_assert(stack_switch_branch(0b01100000'00000000'00000000'00000000, 1) ==
-             0b11100000'00000000'00000000'00000000);
-  BLI_assert(stack_switch_branch(0b10000000'00000000'00000000'00000000, 2) ==
-             0b11000000'00000000'00000000'00000000);
-  BLI_assert(stack_switch_branch(0b10100000'00000000'00000000'00000000, 2) ==
-             0b11100000'00000000'00000000'00000000);
-  BLI_assert(stack_switch_branch(0b11000000'00000000'00000000'00000000, 2) ==
-             0b10000000'00000000'00000000'00000000);
-  BLI_assert(stack_switch_branch(0b11100000'00000000'00000000'00000000, 3) ==
-             0b11000000'00000000'00000000'00000000);
-}
-
-/*
-static void test5(const OffsetIndices<int> base_offsets,
-                                   const int total_depth,
-                                   const Span<float> joints_min_radii,
-                                   const Span<float> joints_min_distance,
-                                   const Span<float3> joints_min_distance)
-{
-  Array<int64_t> src_bucket_values(base_offsets.total_size());
-
-  RandomNumberGenerator generator;
-  std::generate(
-      src_bucket_values.begin(), src_bucket_values.end(), [&] { return generator.get_int32(); });
-
-  const int64_t total_value = std::accumulate(
-      src_bucket_values.begin(), src_bucket_values.end(), 0);
-
-  Array<int64_t> joint_value(joints_min_radii.size());
-  mean_sums<int64_t>(const OffsetIndices<int> base_offsets,
-                     const int total_depth,
-                     src_bucket_values,
-                     joint_value);
-
-  Array<int64_t> dst_bucket_values(base_offsets.total_size(), 0);
-  for_each_to_bottom_latest(
-      base_offsets,
-      total_depth,
-      [&](const int joint_a, const int joint_b) -> bool {
-        BLI_assert(joints_min_radii[joint_a] >= 0.0f);
-        BLI_assert(joints_min_distance[joint_b] >= 0.0f);
-        const float dist = math::distance(joints_positions[joint_a], joints_positions[joint_b]);
-        const float min_dist = joints_min_radii[joint_a] + joints_min_distance[joint_b];
-        return dist > min_dist;
-      },
-      [&](const IndexRange range_to_pass, const int joint_to_sample) {
-        // [&](const int joint_to_pass, const int joint_to_sample) {
-        for (int64_t &value : dst_bucket_values.as_mutable_span().slice(range_to_pass)) {
-          value += joint_value[joint_to_sample];
-        }
-      },
-      [&](const IndexRange range_to_pass, const IndexRange range_to_sample) {
-        // [&](const int bucket_to_pass, const int bucket_to_sample) {
-        for (int64_t &value : dst_bucket_values.as_mutable_span().slice(range_to_pass)) {
-          for (const int64_t other : src_bucket_values.as_span().slice(range_to_sample)) {
-            value += other;
-          }
-        }
-      });
-
-  akdbt::for_each_leaf(
-      base_offsets,
-      total_depth,
-      GrainSize(10'000'000'000),
-      [&](const IndexRange bucket_range, const int joint_index, const int depth_i) {});
-
-  for (const int value_i : IndexRange(base_offsets.total_size())) {
-    BLI_assert(dst_bucket_values[value_i] == total_value - src_bucket_values[value_i]);
-  }
-}
-*/
 
 }  // namespace blender::geometry::akdbh::tests

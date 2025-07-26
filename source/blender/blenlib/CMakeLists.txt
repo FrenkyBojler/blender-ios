@@ -430,8 +430,6 @@ set(LIB
   ${ZSTD_LIBRARIES}
 )
 
-list(APPEND LIB C:/Users/rfnei/Downloads/fast_math_ispc.obj)
-
 if(NOT WITH_PYTHON_MODULE)
   list(APPEND SRC
     intern/BLI_args.cc
