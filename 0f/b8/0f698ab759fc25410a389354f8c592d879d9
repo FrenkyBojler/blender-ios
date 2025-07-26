@@ -1,1 +1,2 @@
 Referenced by issue #143277, bpy.ops documentation - enum properties default values not documented as strings anymore
+Referenced by issue #141853, enum values are not correctly generated
