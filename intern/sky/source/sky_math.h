@@ -34,6 +34,9 @@
 #ifndef M_4PI_F
 #  define M_4PI_F (12.566370614359172f) /* 4*pi */
 #endif
+#ifndef M_1_4PI_F
+#  define M_1_4PI_F (0.0795774715459476f) /* 1/(4*pi) */
+#endif
 
 /* float2 */
 struct float2 {
@@ -410,6 +413,16 @@ inline float len(float4 f)
 inline float reduce_add(float4 f)
 {
   return f.x + f.y + f.z + f.w;
+}
+
+inline float4 exp(float4 a)
+{
+  return make_float4(expf(a.x), expf(a.y), expf(a.z), expf(a.w));
+}
+
+inline float4 max(float4 a, float b)
+{
+  return make_float4(fmax(a.x, b), fmax(a.y, b), fmax(a.z, b), fmax(a.w, b));
 }
 
 inline float clamp(float x, float min, float max)
