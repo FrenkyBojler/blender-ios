@@ -3,13 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <iostream>
-#include <sstream>
-
-#include "BLI_timeit.hh"
 
 #include "BLI_allocator.hh"
-
-#include "BLI_function_ref.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"

@@ -5,7 +5,6 @@
 #include "BLI_array.hh"
 #include "BLI_assert.h"
 #include "BLI_map.hh"
-#include "BLI_task.hh"
 
 #include "GEO_abstract_kd_bucket_hierarchy.hh"
 

@@ -6,16 +6,10 @@
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
-#include "BLI_binary_search.hh"
-#include "BLI_function_ref.hh"
 #include "BLI_generic_span.hh"
-#include "BLI_index_mask.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_bits.h"
-#include "BLI_sort.hh"
 #include "BLI_task.hh"
 #include "BLI_task_size_hints.hh"
-#include "BLI_virtual_array.hh"
 
 #include "GEO_abstract_kd_bucket_hierarchy.hh"
 

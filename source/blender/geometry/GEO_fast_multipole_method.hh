@@ -6,7 +6,6 @@
 
 #include <optional>
 
-#include "BLI_generic_span.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"

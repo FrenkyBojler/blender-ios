@@ -6,16 +6,11 @@
 
 #include "BLI_cpp_type.hh"
 
-#include "BLI_array_utils.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_task.hh"
 #include "BLI_task_size_hints.hh"
-
-#include "BLI_bit_group_vector.hh"
-#include "BLI_bit_span.hh"
-#include "BLI_bit_span_ops.hh"
-#include "BLI_bit_vector.hh"
 
 namespace blender::geometry::akdbh {
 

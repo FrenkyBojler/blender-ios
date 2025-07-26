@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_timeit.hh"
-#include <iostream>
 
 #include "BKE_attribute_math.hh"
 
@@ -22,7 +21,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -105,7 +104,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask & /*mask*/) const final
   {
-    std::cout << "\n";
+    // std::cout << "\n";
     if (!context.attributes()) {
       return {};
     }
