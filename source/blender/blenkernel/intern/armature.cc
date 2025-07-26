@@ -887,15 +887,11 @@ bool BKE_armature_bone_flag_test_recursive(const Bone *bone, int flag)
 bool bone_autoside_name(
     char name[MAXBONENAME], int /*strip_number*/, short axis, float head, float tail)
 {
-  uint len;
-  char basename[MAXBONENAME] = "";
-  const char *extension = nullptr;
-
-  len = strlen(name);
+  char basename[MAXBONENAME];
+  uint len = STRNCPY_RLEN(basename, name);
   if (len == 0) {
     return false;
   }
-  STRNCPY(basename, name);
 
   /* Figure out extension to append:
    * - The extension to append is based upon the axis that we are working on.
@@ -905,6 +901,7 @@ bool bone_autoside_name(
    *   -> Otherwise, extension is added from perspective of object based on which side tail goes to
    * - If head is non-zero, extension is added from perspective of object based on side head is on
    */
+  const char *extension = nullptr;
   if (axis == 2) {
     /* z-axis - vertical (top/bottom) */
     if (IS_EQF(head, 0.0f)) {
