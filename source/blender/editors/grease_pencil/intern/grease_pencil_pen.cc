@@ -131,9 +131,12 @@ static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
   ED_region_tag_redraw(ptd.vc.region);
 }
 
-static float2 pen_global_to_screen(const PenToolOperation &ptd, const float3 &point)
+static float2 pen_layer_to_screen(const PenToolOperation &ptd,
+                                  const float4x4 &layer_to_object,
+                                  const float3 &point)
 {
-  return ED_view3d_project_float_v2_m4(ptd.vc.region, point, ptd.projection);
+  return ED_view3d_project_float_v2_m4(
+      ptd.vc.region, math::transform_point(layer_to_object, point), ptd.projection);
 }
 
 static float3 pen_screen_to_global(const PenToolOperation &ptd,
@@ -159,11 +162,14 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
   const bke::CurvesGeometry &curves = drawing.strokes();
   const Span<float3> positions = curves.positions();
 
+  const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(layer_index);
+  const float4x4 layer_to_object = layer.local_transform();
+
   IndexMaskMemory memory;
   const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
       *ptd.vc.obact, drawing, layer_index, memory);
   editable_points.foreach_index([&](const int point_i) {
-    const float2 pos_proj = pen_global_to_screen(ptd, positions[point_i]);
+    const float2 pos_proj = pen_layer_to_screen(ptd, layer_to_object, positions[point_i]);
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
@@ -188,7 +194,7 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
       *ptd.vc.obact, drawing, layer_index, memory);
 
   bezier_points.foreach_index([&](const int point_i) {
-    const float2 pos_proj = pen_global_to_screen(ptd, handle_left[point_i]);
+    const float2 pos_proj = pen_layer_to_screen(ptd, layer_to_object, handle_left[point_i]);
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
@@ -204,7 +210,7 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
   });
 
   bezier_points.foreach_index([&](const int point_i) {
-    const float2 pos_proj = pen_global_to_screen(ptd, handle_right[point_i]);
+    const float2 pos_proj = pen_layer_to_screen(ptd, layer_to_object, handle_right[point_i]);
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
@@ -257,6 +263,8 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
   IndexMaskMemory memory;
   const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
       *ptd.vc.obact, drawing, layer_index, memory);
+  const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(layer_index);
+  const float4x4 layer_to_object = layer.local_transform();
 
   editable_curves.foreach_index([&](const int curve_i) {
     const IndexRange src_points = points_by_curve[curve_i];
@@ -268,8 +276,8 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
       if (types[curve_i] != CURVE_TYPE_BEZIER) {
         const int src_i_1 = src_i + src_points.first();
         const int src_i_2 = (src_i + 1) % src_points.size() + src_points.first();
-        const float2 pos_1_proj = pen_global_to_screen(ptd, positions[src_i_1]);
-        const float2 pos_2_proj = pen_global_to_screen(ptd, positions[src_i_2]);
+        const float2 pos_1_proj = pen_layer_to_screen(ptd, layer_to_object, positions[src_i_1]);
+        const float2 pos_2_proj = pen_layer_to_screen(ptd, layer_to_object, positions[src_i_2]);
         float local_t;
         const float2 closest_pos = line_segment_closest_point(
             pos_1_proj, pos_2_proj, mouse_co, &local_t);
@@ -298,8 +306,10 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
           const int eval_point_i_2 = (eval_range.first() + eval_i + 1 - eval_points.first()) %
                                          eval_points.size() +
                                      eval_points.first();
-          const float2 pos_1_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_1]);
-          const float2 pos_2_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_2]);
+          const float2 pos_1_proj = pen_layer_to_screen(
+              ptd, layer_to_object, evaluated_positions[eval_point_i_1]);
+          const float2 pos_2_proj = pen_layer_to_screen(
+              ptd, layer_to_object, evaluated_positions[eval_point_i_2]);
           float local_t;
           const float2 closest_pos = line_segment_closest_point(
               pos_1_proj, pos_2_proj, mouse_co, &local_t);
@@ -365,6 +375,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
 
 static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
                                               const bke::CurvesGeometry &src,
+                                              const float4x4 &layer_to_object,
                                               bool *r_extruded)
 {
   const bke::AttributeAccessor src_attributes = src.attributes();
@@ -474,8 +485,8 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
       continue;
     }
     const float3 depth_point = src_positions[dst_to_src_points[i]];
-    const float2 pos = pen_global_to_screen(ptd, depth_point) - ptd.center_of_mass_co +
-                       ptd.mouse_co;
+    const float2 pos = pen_layer_to_screen(ptd, layer_to_object, depth_point) -
+                       ptd.center_of_mass_co + ptd.mouse_co;
     dst_positions[i] = pen_screen_to_global(ptd, pos, depth_point);
     handle_types_left[i] = ptd.extrude_handle;
     handle_types_right[i] = ptd.extrude_handle;
@@ -607,8 +618,12 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd,
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
         *ptd.vc.obact, info.drawing, info.layer_index, memory);
 
-    bezier_points.foreach_index(
-        [&](const int64_t point_i) { pos += pen_global_to_screen(ptd, positions[point_i]); });
+    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+    const float4x4 layer_to_object = layer.local_transform();
+
+    bezier_points.foreach_index([&](const int64_t point_i) {
+      pos += pen_layer_to_screen(ptd, layer_to_object, positions[point_i]);
+    });
     num += bezier_points.size();
   });
 
@@ -699,8 +714,11 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
     if (ptd.closest_element.element_mode == ElementMode::None) {
       if (ptd.extrude_point) {
+        const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+        const float4x4 layer_to_object = layer.local_transform();
+
         bool extruded = false;
-        curves = pen_extrude_curves(ptd, curves, &extruded);
+        curves = pen_extrude_curves(ptd, curves, layer_to_object, &extruded);
         if (!extruded) {
           for (const StringRef selection_attribute_name :
                ed::curves::get_curves_selection_attribute_names(curves))
@@ -859,6 +877,8 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
+    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+    const float4x4 layer_to_object = layer.local_transform();
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
     MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
@@ -963,11 +983,17 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
           !(left_selected[point_i] || right_selected[point_i]))
       {
         positions[point_i] = pen_screen_to_global(
-            ptd, pen_global_to_screen(ptd, positions[point_i]) + offset, depth_point);
+            ptd,
+            pen_layer_to_screen(ptd, layer_to_object, positions[point_i]) + offset,
+            depth_point);
         handles_left[point_i] = pen_screen_to_global(
-            ptd, pen_global_to_screen(ptd, handles_left[point_i]) + offset, depth_point);
+            ptd,
+            pen_layer_to_screen(ptd, layer_to_object, handles_left[point_i]) + offset,
+            depth_point);
         handles_right[point_i] = pen_screen_to_global(
-            ptd, pen_global_to_screen(ptd, handles_right[point_i]) + offset, depth_point);
+            ptd,
+            pen_layer_to_screen(ptd, layer_to_object, handles_right[point_i]) + offset,
+            depth_point);
         return;
       }
 
@@ -975,7 +1001,9 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         handle_types_left[point_i] = BEZIER_HANDLE_FREE;
         handle_types_right[point_i] = BEZIER_HANDLE_FREE;
         handles_left[point_i] = pen_screen_to_global(
-            ptd, pen_global_to_screen(ptd, handles_left[point_i]) + offset, depth_point);
+            ptd,
+            pen_layer_to_screen(ptd, layer_to_object, handles_left[point_i]) + offset,
+            depth_point);
 
         const int curve_i = point_to_curve_map[point_i];
         const IndexRange points = points_by_curve[curve_i];
@@ -983,13 +1011,15 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
           handle_types_left[point_i - 1] = BEZIER_HANDLE_FREE;
           handle_types_right[point_i - 1] = BEZIER_HANDLE_FREE;
           handles_right[point_i - 1] = pen_screen_to_global(
-              ptd, pen_global_to_screen(ptd, handles_right[point_i - 1]) + offset, depth_point);
+              ptd,
+              pen_layer_to_screen(ptd, layer_to_object, handles_right[point_i - 1]) + offset,
+              depth_point);
         }
       }
       else {
         handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
         handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
-        const float2 center_point = pen_global_to_screen(ptd, depth_point);
+        const float2 center_point = pen_layer_to_screen(ptd, layer_to_object, depth_point);
         offset = ptd.mouse_co - ptd.center_of_mass_co;
 
         if (event->modifier & KM_SHIFT) {
