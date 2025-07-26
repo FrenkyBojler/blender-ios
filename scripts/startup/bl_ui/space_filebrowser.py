@@ -118,9 +118,9 @@ class FILEBROWSER_PT_display(FileBrowserPanel, Panel):
         layout.column().prop(params, "sort_method", text="Sort By", expand=True)
         layout.prop(params, "use_sort_invert")
 
-        col = layout.column(heading="Sidebar", align=True)
-        col.prop(filepaths, "show_recent_locations", text="Recent Locations")
-        col.prop(filepaths, "show_system_bookmarks", text="System Locations")
+        col = layout.column(heading="Locations", align=True)
+        col.prop(filepaths, "show_recent_locations", text="Recent")
+        col.prop(filepaths, "show_system_bookmarks", text="System")
 
 
 class FILEBROWSER_PT_filter(FileBrowserPanel, Panel):
