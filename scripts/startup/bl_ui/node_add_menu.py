@@ -11,8 +11,8 @@ from bpy.app.translations import (
 )
 
 
-def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
-    """Add a node type to a menu."""
+def node_operator(layout, operator_id, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
+    """Generic function template for the node editor menus."""
     bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
     if not label:
         label = bl_rna.name if bl_rna else iface_("Unknown")
@@ -20,7 +20,7 @@ def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0
     if poll is True or poll is None:
         translation_context = bl_rna.translation_context if bl_rna else i18n_contexts.default
         props = layout.operator(
-            "node.add_node",
+            operator_id,
             text=label,
             text_ctxt=translation_context,
             translate=translate,
@@ -30,6 +30,12 @@ def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0
         return props
 
     return None
+
+
+# NOTE: This is kept for compatibility's sake, as some scripts import node_add_menu.add_node_type
+def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
+    """Add a node type to a menu."""
+    return node_operator(layout, "node.add_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
 
 
 def add_node_type_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
@@ -170,20 +176,40 @@ def add_empty_group(layout):
     return props
 
 
-class NODE_MT_category_layout(Menu):
-    bl_idname = "NODE_MT_category_layout"
+class AddNodeMenu:
+    @staticmethod
+    def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
+        return node_add_menu.node_operator(layout, "node.add_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
+
+
+class SwapNodeMenu:
+    @staticmethod
+    def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
+        return node_add_menu.node_operator(layout, "node.swap_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
+
+
+class NODE_MT_layout_base(Menu):
     bl_label = "Layout"
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "NodeFrame", search_weight=-1)
-        node_add_menu.add_node_type(layout, "NodeReroute")
+        self.node_operator(layout, "NodeFrame", search_weight=-1)
+        self.node_operator(layout, "NodeReroute")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
+class NODE_MT_category_layout(NODE_MT_layout_base, AddNodeMenu):
+    ...
+
+
+class NODE_MT_layout_swap(NODE_MT_layout_base, SwapNodeMenu):
+    ...
+
+
 classes = (
     NODE_MT_category_layout,
+    NODE_MT_layout_swap,
 )
 
 if __name__ == "__main__":  # only for live edit.
