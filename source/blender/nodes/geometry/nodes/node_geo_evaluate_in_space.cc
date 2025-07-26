@@ -40,13 +40,19 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_input(data_type, "Value").supports_field().hide_value();
   }
 
-  b.add_input<decl::Int>("Power").default_value(2).min(0).hide_value();
-  b.add_input<decl::Float>("Error").min(1.0f).default_value(2.0f);
-  b.add_input<decl::Float>("Offset");
+  b.add_input<decl::Int>("Power").default_value(2).min(0).description(
+      "Degree of decrease of the value impact from each other domain");
+  b.add_input<decl::Float>("Error").min(1.0f).default_value(2.0f).description(
+      "Maximum factor of deviation of result value");
+  b.add_input<decl::Float>("Offset").description(
+      "Additional dimension add to the distance right before exponentiate and use as value "
+      "divisor");
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_output(data_type, "Value").field_source_reference_all();
+    b.add_output(data_type, "Value")
+        .field_source_reference_all()
+        .description("Sum of all other element values divided by the distance to them");
   }
 }
 

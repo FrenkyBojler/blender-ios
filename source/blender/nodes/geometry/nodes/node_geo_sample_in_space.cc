@@ -32,7 +32,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Source");
+  b.add_input<decl::Geometry>("Source").supported_type({GeometryComponent::Type::Mesh,
+                                                        GeometryComponent::Type::PointCloud,
+                                                        GeometryComponent::Type::Curve,
+                                                        GeometryComponent::Type::Instance});
   b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
 
   if (node != nullptr) {
@@ -44,13 +47,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supports_field()
       .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
 
-  b.add_input<decl::Int>("Power").default_value(2).min(0).hide_value();
-  b.add_input<decl::Float>("Error").min(1.0f).default_value(2.0f);
-  b.add_input<decl::Float>("Offset");
+  b.add_input<decl::Int>("Power").default_value(2).min(0).description(
+      "Degree of decrease of the value impact from each other domain");
+  b.add_input<decl::Float>("Error").min(1.0f).default_value(2.0f).description(
+      "Maximum factor of deviation of result value");
+  b.add_input<decl::Float>("Offset").description(
+      "Additional dimension add to the distance right before exponentiate and use as value "
+      "divisor");
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_output(data_type, "Value").dependent_field({3});
+    b.add_output(data_type, "Value")
+        .dependent_field({3})
+        .description("Sum of all sampling domains divided by the distance to them");
   }
 }
 
@@ -262,19 +271,6 @@ class GradientSumFunction : public mf::MultiFunction {
       bucket_values[axis_i] = bucket_values_[axis_i].as_span();
     }
 
-    // void akdbh_accumulate_in(OffsetIndices<int> buckets_offsets,
-    //                          int total_depth,
-    //                          Span<float> src_joints_min_distance,
-    //                          Span<float3> src_joints_centre,
-    //                          Span<Span<float>> src_joints_value,
-    //                          std::array<Span<float>, 3> src_bucket_position,
-    //                          Span<Span<float>> src_bucket_value,
-    //                          int power_value,
-    //                          float offset_value,
-    //                          std::array<Span<float>, 3> sample_position,
-    //                          Span<MutableSpan<float>> dst_buckets_data,
-    //                          std::optional<IndexRange> sampler_to_bucket_range = std::nullopt);
-    //
     using namespace blender::geometry;
     fmm::akdbh_accumulate_in(OffsetIndices<int>(offset_indices_),
                              total_depth_,
