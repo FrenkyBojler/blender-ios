@@ -28,6 +28,7 @@
 #include "BKE_node_tree_update.hh"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_span.hh"
@@ -235,16 +236,19 @@ void world_material_to_dome_light(const USDExportParams &params,
 
   if (scene->world->use_nodes && scene->world->nodetree) {
     /* Find the world output. */
+    bNode *output = nullptr;
     const bNodeTree *ntree = scene->world->nodetree;
-    ntree->ensure_topology_cache();
-    const Span<const bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeOutputWorld");
-    const bNode *output = bsdf_nodes.is_empty() ? nullptr : bsdf_nodes.first();
+    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+      if (STREQ(node->idname, "ShaderNodeOutputWorld") && (node->flag & NODE_DO_OUTPUT)) {
+        output = node;
+        break;
+      }
+    }
 
     if (!output) {
       /* No output, no valid network to convert. */
       return;
     }
-
     bke::node_chain_iterator(scene->world->nodetree, output, node_search, &res, true);
   }
   else {
