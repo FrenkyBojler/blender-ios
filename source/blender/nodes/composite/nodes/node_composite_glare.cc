@@ -224,6 +224,40 @@ static void node_update(bNodeTree *ntree, bNode *node)
       *ntree, *source_input, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 }
 
+//updates the glare node label to be the same as the current glare mode.
+static void node_update_glare_label(const bNodeTree * /*ntree*/, const bNode *node, char *label, int maxlen)
+{
+  const CMPNodeGlareType glare_type = static_cast<CMPNodeGlareType>(node_storage(*node).type);
+  const char *glare_name = "Glare";
+
+  switch (glare_type) {
+    case CMP_NODE_GLARE_SIMPLE_STAR:
+      glare_name = "Simple Star";
+      break;
+    case CMP_NODE_GLARE_FOG_GLOW:
+      glare_name = "Fog Glow";
+      break;
+    case CMP_NODE_GLARE_GHOST:
+      glare_name = "Ghosts";
+      break;
+    case CMP_NODE_GLARE_STREAKS:
+      glare_name = "Streaks";
+      break;
+    case CMP_NODE_GLARE_BLOOM:
+      glare_name = "Bloom";
+      break;
+    case CMP_NODE_GLARE_SUN_BEAMS:
+      glare_name = "Sun Beams";
+      break;
+    default:
+      glare_name = "Glare";
+      break;
+  }
+
+  strncpy_s(label, maxlen, glare_name, _TRUNCATE);
+}
+
+
 class SocketSearchOp {
  public:
   CMPNodeGlareType type = CMP_NODE_GLARE_SIMPLE_STAR;
@@ -2584,6 +2618,7 @@ static void register_node_type_cmp_glare()
   ntype.declare = file_ns::cmp_node_glare_declare;
   ntype.updatefunc = file_ns::node_update;
   ntype.initfunc = file_ns::node_composit_init_glare;
+  ntype.labelfunc = file_ns::node_update_glare_label;
   ntype.gather_link_search_ops = file_ns::gather_link_searches;
   blender::bke::node_type_storage(
       ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
