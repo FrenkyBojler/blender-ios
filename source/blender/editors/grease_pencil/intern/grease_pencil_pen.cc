@@ -237,7 +237,8 @@ static float2 line_segment_closest_point(const float2 pos_1,
 
 /* Will return -1 if no points are near. */
 static int pen_find_closest_edge_point(const PenToolOperation &ptd,
-                                       const bke::CurvesGeometry &curves,
+                                       const bke::greasepencil::Drawing &drawing,
+                                       const int layer_index,
                                        const float2 mouse_co,
                                        int *r_closest_curve,
                                        float *r_closest_t)
@@ -245,6 +246,7 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
   float closest_distance_squared = std::numeric_limits<float>::max();
   int closest_point = -1;
 
+  const bke::CurvesGeometry &curves = drawing.strokes();
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const OffsetIndices evaluated_points_by_curve = curves.evaluated_points_by_curve();
   const Span<float3> positions = curves.positions();
@@ -252,7 +254,11 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
   const VArray<bool> curve_cyclic = curves.cyclic();
   const VArray<int8_t> types = curves.curve_types();
 
-  for (const int curve_i : curves.curves_range()) {
+  IndexMaskMemory memory;
+  const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
+      *ptd.vc.obact, drawing, layer_index, memory);
+
+  editable_curves.foreach_index([&](const int curve_i) {
     const IndexRange src_points = points_by_curve[curve_i];
     const IndexRange eval_points = evaluated_points_by_curve[curve_i];
 
@@ -313,7 +319,7 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
         }
       }
     }
-  }
+  });
 
   if (closest_point == -1) {
     *r_closest_t = -1.0f;
@@ -334,8 +340,6 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
   const int closest_point = pen_find_closest_point_or_handle(
       ptd, drawing, layer_index, mouse_co, &closest_curve, &element_mode);
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
-
   if (closest_point != -1) {
     closest_element.element_mode = element_mode;
     closest_element.curve_index = closest_curve;
@@ -345,7 +349,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
 
   float edge_t;
   const int closest_edge_point = pen_find_closest_edge_point(
-      ptd, curves, ptd.mouse_co, &closest_curve, &edge_t);
+      ptd, drawing, layer_index, ptd.mouse_co, &closest_curve, &edge_t);
 
   if (closest_edge_point != -1) {
     closest_element.element_mode = ElementMode::Edge;
