@@ -654,7 +654,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
 
   const Scene *scene = ptd.vc.scene;
-  Object *object = ptd.vc.obact;
 
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
