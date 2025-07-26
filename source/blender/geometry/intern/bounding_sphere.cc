@@ -40,21 +40,10 @@ std::pair<float3, float> min_packing_sphere(const Span<float3> points)
     }
 
     centre = math::midpoint(centre + math::normalize(centre - point) * radius, point);
-    radius = (radius + new_radius) * 0.5f;
+    radius = math::midpoint(radius, new_radius);
   }
 
   return std::pair<float3, float>(centre, radius);
-}
-
-std::pair<float3, float> concatenate_spheres(const float3 a_centre,
-                                             const float a_radius,
-                                             const float3 b_centre,
-                                             const float b_radius)
-{
-  const float3 segment = math::normalize(a_centre - b_centre);
-  const float3 a_extremum = a_centre + segment * a_radius;
-  const float3 b_extremum = b_centre - segment * b_radius;
-  return {math::midpoint(a_extremum, b_extremum), math::distance(a_extremum, b_extremum) * 0.5f};
 }
 
 void joints_packing_spheres(const OffsetIndices<int> buckets_offsets,
@@ -92,39 +81,6 @@ void joints_packing_spheres(const OffsetIndices<int> buckets_offsets,
                                      }
                                      const auto [centre, radius] = min_packing_sphere(
                                          src_bucket_points.slice(buckets_range));
-                                     dst_joints_centre[joint_index] = centre;
-                                     dst_joints_radii[joint_index] = radius;
-                                   });
-}
-
-void joints_packing_spheres_fast(const OffsetIndices<int> buckets_offsets,
-                                 const int total_depth,
-                                 const Span<float3> src_bucket_points,
-                                 MutableSpan<float3> dst_joints_centre,
-                                 MutableSpan<float> dst_joints_radii)
-{
-  geometry::akdbh::for_each_leaf(
-      buckets_offsets,
-      total_depth,
-      GrainSize(4096),
-      [&](const IndexRange bucket_range, const int joint_index, const int /*depth_i*/) {
-        const auto [centre, radius] = min_packing_sphere(src_bucket_points.slice(bucket_range));
-        dst_joints_centre[joint_index] = centre;
-        dst_joints_radii[joint_index] = radius;
-      });
-
-  geometry::akdbh::for_each_to_top(buckets_offsets,
-                                   total_depth,
-                                   GrainSize(4096),
-                                   [&](const IndexRange /*buckets_range*/,
-                                       const int joint_index,
-                                       const int2 sub_joints,
-                                       const int /*depth_i*/) {
-                                     const auto [centre, radius] = concatenate_spheres(
-                                         dst_joints_centre[sub_joints[0]],
-                                         dst_joints_radii[sub_joints[0]],
-                                         dst_joints_centre[sub_joints[1]],
-                                         dst_joints_radii[sub_joints[1]]);
                                      dst_joints_centre[joint_index] = centre;
                                      dst_joints_radii[joint_index] = radius;
                                    });
