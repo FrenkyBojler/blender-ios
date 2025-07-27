@@ -8184,7 +8184,7 @@ def km_3d_view_tool_edit_grease_pencil_pen(params):
             ("grease_pencil.pen", {"type": params.tool_mouse, "value": 'PRESS', "ctrl": True},
              {"properties": [("insert_point", True), ("delete_point", True)]}),
             ("grease_pencil.pen", {"type": params.tool_mouse, "value": 'DOUBLE_CLICK'},
-             {"properties": [("toggle_vector", True), ("cycle_handle_type", True), ]}),
+             {"properties": [("cycle_handle_type", True)]}),
         ]},
     )
 
