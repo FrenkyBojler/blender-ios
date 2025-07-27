@@ -177,6 +177,56 @@ static std::shared_ptr<btCollisionShape> create_collision_shape(
   return {};
 }
 
+static void update_body_mode_if_necessary(BulletState &state,
+                                          btRigidBody &body,
+                                          const RigidBodyMode new_mode,
+                                          const float new_mass)
+{
+  const float old_mass = body.getMass();
+  const int collision_flags = body.getCollisionFlags();
+  const bool has_kinematic_flag = (collision_flags & btCollisionObject::CF_KINEMATIC_OBJECT) != 0;
+  const bool has_static_flag = (collision_flags & btCollisionObject::CF_STATIC_OBJECT) != 0;
+  switch (new_mode) {
+    case RigidBodyMode::Dynamic: {
+      if (old_mass > 0.0f && !has_kinematic_flag && !has_static_flag) {
+        return;
+      }
+      state.dynamics_world->removeRigidBody(&body);
+      btVector3 inertia(0, 0, 0);
+      BLI_assert(new_mass > 0.0f);
+      body.getCollisionShape()->calculateLocalInertia(new_mass, inertia);
+      body.setMassProps(new_mass, inertia);
+      body.setCollisionFlags(collision_flags & ~(btCollisionObject::CF_KINEMATIC_OBJECT |
+                                                 btCollisionObject::CF_STATIC_OBJECT));
+      body.setActivationState(ACTIVE_TAG);
+      state.dynamics_world->addRigidBody(&body);
+      break;
+    }
+    case RigidBodyMode::Static: {
+      if (old_mass == 0.0f && !has_kinematic_flag && has_static_flag) {
+        return;
+      }
+      state.dynamics_world->removeRigidBody(&body);
+      body.setMassProps(0.0f, btVector3(0, 0, 0));
+      body.setCollisionFlags((collision_flags & ~btCollisionObject::CF_KINEMATIC_OBJECT) |
+                             btCollisionObject::CF_STATIC_OBJECT);
+      state.dynamics_world->addRigidBody(&body);
+      break;
+    }
+    case RigidBodyMode::Animated: {
+      if (old_mass == 0.0f && has_kinematic_flag && !has_static_flag) {
+        return;
+      }
+      state.dynamics_world->removeRigidBody(&body);
+      body.setMassProps(0.0f, btVector3(0, 0, 0));
+      body.setCollisionFlags((collision_flags & ~btCollisionObject::CF_STATIC_OBJECT) |
+                             btCollisionObject::CF_KINEMATIC_OBJECT);
+      state.dynamics_world->addRigidBody(&body);
+      break;
+    }
+  }
+}
+
 static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
 {
   std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
@@ -270,7 +320,23 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       old_body = old_rigid_body_instances->rigid_body_by_id.pop_try(instance_id);
     }
 
-    float mass = std::max(masses[instance_i], 0.0f);
+    float mass = masses[instance_i];
+    switch (*mode) {
+      case RigidBodyMode::Dynamic: {
+        mass = std::max(mass, 0.0f);
+        if (mass == 0.0f) {
+          mass = 1.0f;
+        }
+        break;
+      }
+      case RigidBodyMode::Static:
+      case RigidBodyMode::Animated: {
+        mass = 0.0f;
+        break;
+      }
+    }
+    btVector3 inertia(0, 0, 0);
+    collision_shape->calculateLocalInertia(mass, inertia);
 
     SingleRigidBody body;
     if (old_body) {
@@ -280,12 +346,12 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       if (ELEM(mode, RigidBodyMode::Dynamic, RigidBodyMode::Animated)) {
         params.state.dynamics_world->removeRigidBody(body.body.get());
         body.shape = collision_shape;
-        btVector3 inertia(0, 0, 0);
-        body.shape->calculateLocalInertia(mass, inertia);
-        body.body->setMassProps(mass, inertia);
         body.body->setCollisionShape(body.shape.get());
         params.state.dynamics_world->addRigidBody(body.body.get());
       }
+
+      /* Update mode. */
+      update_body_mode_if_necessary(params.state, *body.body, *mode, mass);
 
       /* Update transform. */
       if (mode == RigidBodyMode::Animated) {
@@ -298,18 +364,6 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       body.shape = collision_shape;
       body.motion_state = std::make_unique<btDefaultMotionState>(
           float4x4_to_btTransform(transform));
-      btVector3 inertia(0, 0, 0);
-      switch (*mode) {
-        case RigidBodyMode::Dynamic: {
-          body.shape->calculateLocalInertia(masses[instance_i], inertia);
-          break;
-        }
-        case RigidBodyMode::Static:
-        case RigidBodyMode::Animated: {
-          mass = 0.0f;
-          break;
-        }
-      }
       btRigidBody::btRigidBodyConstructionInfo body_info(
           mass, &*body.motion_state, &*body.shape, inertia);
       body.body = std::make_unique<btRigidBody>(body_info);
@@ -328,6 +382,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     if (body.body->getRestitution() != bounciness) {
       body.body->setRestitution(bounciness);
     }
+    body.body->setMassProps(mass, inertia);
 
     new_rigid_body_by_id.add_new(instance_id, std::move(body));
   }
