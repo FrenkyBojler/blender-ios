@@ -328,30 +328,6 @@ static void polar_decompose(const MatBase<T, 3, 3> &mat3,
 
 /** \} */
 
-template<typename T> bool contains_shear(const MatBase<T, 3, 3> &matrix, const T &epsilon = 1e-6)
-{
-  MatBase<T, 3, 3> U;
-  MatBase<T, 3, 3> P;
-  polar_decompose(matrix, U, P);
-
-  // Shear is present if the P matrix has significant non-zero off-diagonal elements.
-  // P is symmetric, so we only need to check the upper or lower triangle.
-  // We check the elements (0,1), (0,2), and (1,2) (and their symmetric counterparts).
-
-  if (math::abs(P[0][1]) > epsilon) {
-    return true;
-  }
-  if (math::abs(P[0][2]) > epsilon) {
-    return true;
-  }
-  if (math::abs(P[1][2]) > epsilon) {
-    return true;
-  }
-
-  // If all off-diagonal elements are close to zero, there's no significant shear.
-  return false;
-}
-
 /* -------------------------------------------------------------------- */
 /** \name Interpolate
  * \{ */
@@ -542,10 +518,41 @@ template float4x4 perspective_infinite(
 
 /** \} */
 
+/**
+ * Check that each column is orthogonal to the others, and that each column is the same length.
+ * In other words, there is no shear, and any scaling is uniform.
+ */
+template<typename T>
+bool is_similarity_transform(const MatBase<T, 3, 3> &matrix, const T &epsilon = 1e-6)
+{
+  if (math::dot(matrix[0], matrix[1]) > epsilon) {
+    return true;
+  }
+  if (math::dot(matrix[0], matrix[2]) > epsilon) {
+    return true;
+  }
+  if (math::dot(matrix[1], matrix[2]) > epsilon) {
+    return true;
+  }
+  const float length_0 = math::length_squared(matrix[0]);
+  const float length_1 = math::length_squared(matrix[1]);
+  const float length_2 = math::length_squared(matrix[2]);
+  if (math::abs(length_0 - length_1) > epsilon) {
+    return true;
+  }
+  if (math::abs(length_0 - length_2) > epsilon) {
+    return true;
+  }
+  if (math::abs(length_1 - length_2) > epsilon) {
+    return true;
+  }
+  return false;
+}
+
 void transform_normals(const float3x3 &transform, MutableSpan<float3> normals)
 {
   const float3x3 normal_transform = math::transpose(math::invert(transform));
-  if (contains_shear(normal_transform)) {
+  if (is_similarity_transform(normal_transform)) {
     threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
       for (float3 &normal : normals.slice(range)) {
         normal = math::normalize(normal_transform * normal);
@@ -569,7 +576,7 @@ void transform_normals(Span<float3> src, const float3x3 &transform, MutableSpan<
     dst.copy_from(src);
   }
   else {
-    if (contains_shear(normal_transform)) {
+    if (is_similarity_transform(normal_transform)) {
       threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
         for (const int i : range) {
           dst[i] = math::normalize(normal_transform * src[i]);
