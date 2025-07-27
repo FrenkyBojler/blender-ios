@@ -6,10 +6,20 @@
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
+/* Returns a random position along the path between the texel and the source, which is
+ * essentially a random value in the [0, steps] range to perform a quasi-monte carlo sampling.
+ * The random values are generated using a low discrepancy quasirandom sequence based on the
+ * following article:
+ *
+ *   "The Unreasonable Effectiveness of Quasirandom Sequences." Extreme Learning, 2021.
+ *   https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences.
+ *
+ * If jitter is not enabled, returns the i value instead. */
 float get_position(int2 texel, int i, int steps)
 {
 #if defined(JITTER)
-  return float (hash_uint3_to_float(texel.x, texel.y, i) * steps);
+  double golden_ratio = 1.6180339887498948482;
+  return float(fract(hash_uint2_to_float(texel.x, texel.y) + 1.0 / golden_ratio * i) * steps);
 #else
   return i;
 #endif
@@ -38,7 +48,7 @@ void main()
   float4 accumulated_color = float4(0.0f);
 
 #if defined(JITTER)
-  int number_of_steps = int(sqrt(steps));
+  int number_of_steps = int(jitter_steps_ratio * steps);
 #else
   int number_of_steps = steps;
 #endif
@@ -47,9 +57,13 @@ void main()
     float position_index = get_position(texel, i, steps);
     float2 position = coordinates + position_index * step_vector;
 
-    /* We are already past the image boundaries, and any future steps are also past the image
-     * boundaries, so break. */
+    /* We are already past the image boundaries, if the jetter was activated then we have to
+     * continue since we are sampling at random positions, on the  other hand if jetter wasn't
+     * activated then any further steps are past the image so we break. */
     if (any(lessThan(position, float2(0.0f))) || any(greaterThan(position, float2(1.0f)))) {
+#if defined(JITTER)
+      continue;
+#endif
       break;
     }
 

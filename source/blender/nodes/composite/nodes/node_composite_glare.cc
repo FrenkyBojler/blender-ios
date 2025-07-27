@@ -172,11 +172,21 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
-  glare_panel.add_input<decl::Bool>("Jitter", "Sun Beams Jitter")
+  PanelDeclarationBuilder &jitter_panel = glare_panel.add_panel("Jitter").default_closed(true);
+  jitter_panel.add_input<decl::Bool>("Jitter", "Sun Beams Jitter")
       .default_value(false)
+      .panel_toggle()
       .description(
           "Introduces jitter for a faster approximation at the expense a more grainy or noisy "
           "result");
+  jitter_panel.add_input<decl::Float>("Jitter Steps Ratio", "Jitter Ratio Of Steps")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0)
+      .subtype(PROP_FACTOR)
+      .description(
+          "Defines the ratio of steps wrt the number of original steps to be used to generate the "
+          "jitter effect");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -232,6 +242,10 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *jitter = bke::node_find_socket(*node, SOCK_IN, "Sun Beams Jitter");
   blender::bke::node_set_socket_availability(
       *ntree, *jitter, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
+
+  bNodeSocket *jitter_steps = bke::node_find_socket(*node, SOCK_IN, "Jitter Ratio Of Steps");
+  blender::bke::node_set_socket_availability(
+      *ntree, *jitter_steps, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 }
 
 class SocketSearchOp {
@@ -1392,7 +1406,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_4fv_array(shader,
                                  "color_modulators",
                                  color_modulators.size(),
-                                 (const float (*)[4])color_modulators.data());
+                                 (const float(*)[4])color_modulators.data());
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
@@ -2261,6 +2275,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2fv(shader, "source", this->get_sun_position());
+    GPU_shader_uniform_1f(shader, "jitter_steps_ratio", this->get_jitter_steps_ratio());
     GPU_shader_uniform_1i(shader, "max_steps", max_steps);
 
     GPU_texture_filter_mode(highlights, true);
@@ -2315,14 +2330,19 @@ class GlareOperation : public NodeOperation {
       float accumulated_weight = 0.0f;
       float4 accumulated_color = float4(0.0f);
 
-      int number_of_steps = this->get_use_jitter() ? math::sqrt(steps) : steps;
+      int number_of_steps = this->get_use_jitter() ? this->get_jitter_steps_ratio() * steps :
+                                                     steps;
       for (int i = 0; i <= number_of_steps; i++) {
         float position_index = this->get_position(texel, i, this->get_use_jitter(), steps);
         float2 position = coordinates + position_index * step_vector;
 
-        /* We are already past the image boundaries, and any future steps are also past the image
-         * boundaries, so break. */
+        /* We are already past the image boundaries, if the jetter was activated then we have to
+         * continue since we are sampling at random positions, on the  other hand if jetter wasn't
+         * activated then any further steps are past the image so we break. */
         if (position.x < 0.0f || position.y < 0.0f || position.x > 1.0f || position.y > 1.0f) {
+          if (this->get_use_jitter()) {
+            continue;
+          }
           break;
         }
 
@@ -2343,12 +2363,19 @@ class GlareOperation : public NodeOperation {
   }
 
   /* Returns a random position along the path between the texel and the source, which is
-   * essentially a random value in the [0, steps] range to perform Monte Carlo sampling. If jitter
-   * is not enabled, returns the i value instead. */
+   * essentially a random value in the [0, steps] range to perform a quasi-monte carlo sampling.
+   * The random values are generated using a low discrepancy quasirandom sequence based on the
+   * following article:
+   *
+   *   "The Unreasonable Effectiveness of Quasirandom Sequences." Extreme Learning, 2021.
+   *   https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences.
+   *
+   * If jitter is not enabled, returns the i value instead. */
   float get_position(const int2 texel, const int i, const bool use_jitter, const int steps)
   {
     if (use_jitter) {
-      return noise::hash_to_float(texel.x, texel.y, i) * steps;
+      double golden_ratio = 1.6180339887498948482;
+      return math::fract(noise::hash_to_float(texel.x, texel.y) + 1.0 / golden_ratio * i) * steps;
     }
     return i;
   }
@@ -2597,6 +2624,11 @@ class GlareOperation : public NodeOperation {
   bool get_use_jitter()
   {
     return this->get_input("Sun Beams Jitter").get_single_value_default(false);
+  }
+
+  float get_jitter_steps_ratio()
+  {
+    return this->get_input("Jitter Ratio Of Steps").get_single_value_default(0.5f);
   }
 };
 
