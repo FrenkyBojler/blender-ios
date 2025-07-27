@@ -51,4 +51,32 @@ void foreach_behavior_in_bundle(
   foreach_behavior_recursive(behaviors_bundle, path_stack, fn);
 }
 
+bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef other)
+{
+  if (filter.is_empty()) {
+    return true;
+  }
+  std::string absolute_filter;
+  if (filter.startswith("./")) {
+    const int sep = self_path.find_last_of('/');
+    StringRef base_path;
+    if (sep == StringRef::not_found) {
+      base_path = "";
+    }
+    else {
+      base_path = self_path.drop_suffix(self_path.size() - sep - 1);
+    }
+    absolute_filter = base_path + filter.drop_known_prefix("./");
+  }
+  else {
+    absolute_filter = filter;
+  }
+  if (!other.startswith(absolute_filter)) {
+    return false;
+  }
+  const StringRef remaining_other = other.drop_known_prefix(absolute_filter);
+  return remaining_other.is_empty() || StringRef(absolute_filter).endswith("/") ||
+         remaining_other.startswith("/");
+}
+
 }  // namespace blender::nodes

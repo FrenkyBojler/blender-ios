@@ -322,6 +322,11 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   if (!margin_field) {
     margin_field = fn::make_constant_field<float>(0.0f);
   }
+  std::optional<Field<float3>> initial_velocity_field = params.bundle.lookup<Field<float3>>(
+      "Initial Velocity");
+  if (!initial_velocity_field) {
+    initial_velocity_field = fn::make_constant_field<float3>(float3(0.0f));
+  }
   bke::Instances *instances = geometry->get_instances_for_write();
   if (!instances) {
     return;
@@ -338,6 +343,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   field_evaluator.add(*friction_field);
   field_evaluator.add(*bounciness_field);
   field_evaluator.add(*margin_field);
+  field_evaluator.add(*initial_velocity_field);
   field_evaluator.evaluate();
   const VArray<int> modes = field_evaluator.get_evaluated<int>(0);
   const VArray<int> shapes = field_evaluator.get_evaluated<int>(1);
@@ -345,6 +351,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   const VArray<float> frictions = field_evaluator.get_evaluated<float>(3);
   const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(4);
   const VArray<float> margins = field_evaluator.get_evaluated<float>(5);
+  const VArray<float3> initial_velocities = field_evaluator.get_evaluated<float3>(6);
 
   const Span<int> instance_ids = instances->almost_unique_ids();
   const Span<float4x4> transforms = instances->transforms();
@@ -412,6 +419,8 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     btVector3 inertia(0, 0, 0);
     collision_shape->calculateLocalInertia(mass, inertia);
 
+    const float3 initial_velocity = initial_velocities[instance_i];
+
     SingleRigidBody body;
     if (old_body) {
       body = std::move(*old_body);
@@ -446,6 +455,10 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       if (*mode == RigidBodyMode::Animated) {
         body.body->setCollisionFlags(body.body->getCollisionFlags() |
                                      btCollisionObject::CF_KINEMATIC_OBJECT);
+      }
+      if (*mode == RigidBodyMode::Dynamic) {
+        body.body->setLinearVelocity(
+            btVector3(initial_velocity.x, initial_velocity.y, initial_velocity.z));
       }
     }
     const float friction = frictions[instance_i];

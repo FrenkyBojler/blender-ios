@@ -15,4 +15,6 @@ void foreach_behavior_in_bundle(
     const Bundle &behaviors_bundle,
     FunctionRef<void(StringRef type, const Bundle &behavior_bundle, Span<StringRef> path)> fn);
 
-}
+bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef other);
+
+}  // namespace blender::nodes

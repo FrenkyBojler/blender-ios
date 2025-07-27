@@ -8,6 +8,7 @@
 #include "DNA_pointcloud_types.h"
 #include "GEO_xpbd.hh"
 
+#include "NOD_geometry_nodes_behaviors_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
 namespace blender::geometry::xpbd {
@@ -97,36 +98,6 @@ template<typename T> std::optional<T> SimGeometrySet::get_extra(const StringRef 
     return std::nullopt;
   }
   return this->extra->lookup<T>(key);
-}
-
-static bool is_path_selected(const StringRef self_path,
-                             const StringRef filter,
-                             const StringRef other)
-{
-  if (filter.is_empty()) {
-    return true;
-  }
-  std::string absolute_filter;
-  if (filter.startswith("./")) {
-    const int sep = self_path.find_last_of('/');
-    StringRef base_path;
-    if (sep == StringRef::not_found) {
-      base_path = "";
-    }
-    else {
-      base_path = self_path.drop_suffix(self_path.size() - sep - 1);
-    }
-    absolute_filter = base_path + filter.drop_known_prefix("./");
-  }
-  else {
-    absolute_filter = filter;
-  }
-  if (!other.startswith(absolute_filter)) {
-    return false;
-  }
-  const StringRef remaining_other = other.drop_known_prefix(absolute_filter);
-  return remaining_other.is_empty() || StringRef(absolute_filter).endswith("/") ||
-         remaining_other.startswith("/");
 }
 
 void ConstraintSet::ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
@@ -240,7 +211,7 @@ class EdgeLengthConstraintSet : public ConstraintSet {
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -277,7 +248,7 @@ class EdgeLengthConstraintSet : public ConstraintSet {
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -343,7 +314,7 @@ class CurveLengthConstraintSet : public ConstraintSet {
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
@@ -390,7 +361,7 @@ class CurveLengthConstraintSet : public ConstraintSet {
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       const Curves *const *curves_id = std::get_if<Curves *>(&sim_geometry.data);
@@ -517,7 +488,7 @@ class FixedPositionsConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = sim_geometries[geometry_i];
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       std::optional<bke::GeometryFieldContext> field_context;
@@ -562,7 +533,7 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       std::optional<bke::AttributeAccessor> attributes = sim_geometry.attributes();
@@ -588,7 +559,7 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       SimGeometry &sim_geometry = sim_geometries[geometry_i];
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       std::optional<bke::MutableAttributeAccessor> attributes =
@@ -635,7 +606,7 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -655,7 +626,7 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!is_path_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nodes::behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -851,13 +822,15 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
 
         Vector<const ForceField *> filtered_force_fields;
         for (const ForceField &sim_force : behaviors.force_fields) {
-          if (is_path_selected(sim_force.self_path, sim_force.filter, sim_geometry.src.path)) {
+          if (nodes::behavior_path_is_selected(
+                  sim_force.self_path, sim_force.filter, sim_geometry.src.path))
+          {
             filtered_force_fields.append(&sim_force);
           }
         }
         Vector<const AccelerationField *> filtered_acceleration_fields;
         for (const AccelerationField &sim_acceleration : behaviors.acceleration_fields) {
-          if (is_path_selected(
+          if (nodes::behavior_path_is_selected(
                   sim_acceleration.self_path, sim_acceleration.filter, sim_geometry.src.path))
           {
             filtered_acceleration_fields.append(&sim_acceleration);
