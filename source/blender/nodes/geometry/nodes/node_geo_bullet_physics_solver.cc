@@ -230,9 +230,13 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
         case RigidBodyMode::Dynamic: {
           break;
         }
-        case RigidBodyMode::Static:
+        case RigidBodyMode::Static: {
+          break;
+        }
         case RigidBodyMode::Animated: {
-          body.motion_state->setWorldTransform(float4x4_to_btTransform(transform));
+          const btTransform bt_transform = float4x4_to_btTransform(transform);
+          body.motion_state->setWorldTransform(bt_transform);
+          body.body->setWorldTransform(bt_transform);
           break;
         }
       }
@@ -258,6 +262,11 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
           mass, &*body.motion_state, &*body.shape, inertia);
       body.body = std::make_unique<btRigidBody>(body_info);
       params.state.dynamics_world->addRigidBody(body.body.get());
+
+      if (*mode == RigidBodyMode::Animated) {
+        body.body->setCollisionFlags(body.body->getCollisionFlags() |
+                                     btCollisionObject::CF_KINEMATIC_OBJECT);
+      }
     }
     const float friction = frictions[instance_i];
     const float bounciness = bouncinesses[instance_i];
