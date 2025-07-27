@@ -1076,6 +1076,10 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
   ptd.mouse_co = float2(event->mval);
 
+  if (event->type == EVENT_NONE) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
     grease_pencil_pen_exit(C, op);
     return OPERATOR_FINISHED;
