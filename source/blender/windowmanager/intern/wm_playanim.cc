@@ -36,6 +36,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -722,13 +723,14 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
     float fsizex_inv, fsizey_inv;
     char label[32 + FILE_MAX];
     if (ibuf) {
-      SNPRINTF(label, "%s | %.2f frames/s", picture->filepath, frame_step / g_playanim.swap_time);
+      SNPRINTF_UTF8(
+          label, "%s | %.2f frames/s", picture->filepath, frame_step / g_playanim.swap_time);
     }
     else {
-      SNPRINTF(label,
-               "%s | %s",
-               picture->filepath,
-               picture->error_message ? picture->error_message : "<unknown error>");
+      SNPRINTF_UTF8(label,
+                    "%s | %s",
+                    picture->filepath,
+                    picture->error_message ? picture->error_message : "<unknown error>");
     }
 
     const blender::int2 window_size = playanim_window_size_get(ghost_data.window);
@@ -1729,8 +1731,8 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   IMB_init();
   MOV_init();
 
-  STRNCPY(ps.display_ctx.display_settings.display_device,
-          IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
+  STRNCPY_UTF8(ps.display_ctx.display_settings.display_device,
+               IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
   IMB_colormanagement_init_default_view_settings(&ps.display_ctx.view_settings,
                                                  &ps.display_ctx.display_settings);
   ps.display_ctx.ui_scale = 1.0f;
