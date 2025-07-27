@@ -19,17 +19,46 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Substeps").default_value(0).min(0);
 }
 
+struct BulletState {
+  std::unique_ptr<btDefaultCollisionConfiguration> collision_configuration;
+  std::unique_ptr<btCollisionDispatcher> collision_dispatcher;
+  std::unique_ptr<btDbvtBroadphase> broadphase;
+  std::unique_ptr<btSequentialImpulseConstraintSolver> solver;
+  std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world;
+};
+
+class BulletStateReference : public ImplicitSharingMixin {
+ public:
+  Mutex mutex;
+  std::unique_ptr<BulletState> state;
+
+  void delete_self() override
+  {
+    MEM_delete(this);
+  }
+};
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  auto collision_configuration = std::make_unique<btDefaultCollisionConfiguration>();
-  auto collision_dispatcher = std::make_unique<btCollisionDispatcher>(
-      collision_configuration.get());
-  auto broadphase = std::make_unique<btDbvtBroadphase>();
-  auto solver = std::make_unique<btSequentialImpulseConstraintSolver>();
-  auto dynamics_world = std::make_unique<btDiscreteDynamicsWorld>(
-      collision_dispatcher.get(), broadphase.get(), solver.get(), collision_configuration.get());
 
-  dynamics_world->setGravity(btVector3(0.0f, -9.8f, 0.0f));
+  auto *state_ref = MEM_new<BulletStateReference>(__func__);
+  ImplicitSharingPtr<BulletStateReference> state_ref_ptr{state_ref};
+  state_ref->state = std::make_unique<BulletState>();
+
+  {
+    std::lock_guard lock{state_ref->mutex};
+    BulletState &state = *state_ref->state;
+    state.collision_configuration = std::make_unique<btDefaultCollisionConfiguration>();
+    state.collision_dispatcher = std::make_unique<btCollisionDispatcher>(
+        state.collision_configuration.get());
+    state.broadphase = std::make_unique<btDbvtBroadphase>();
+    state.solver = std::make_unique<btSequentialImpulseConstraintSolver>();
+    state.dynamics_world = std::make_unique<btDiscreteDynamicsWorld>(
+        state.collision_dispatcher.get(),
+        state.broadphase.get(),
+        state.solver.get(),
+        state.collision_configuration.get());
+  }
 
   params.set_default_remaining_outputs();
 }
