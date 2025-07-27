@@ -736,12 +736,12 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd,
   return pos / num;
 }
 
-static void pen_status_indicators(bContext *C,
-                                  wmOperator * /*op*/,
-                                  const PenToolOperation & /*ptd*/)
+static void pen_status_indicators(bContext *C, wmOperator *op, const PenToolOperation & /*ptd*/)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_("Align"), ICON_EVENT_SHIFT);
+  status.item(IFACE_("Align Angle"), ICON_EVENT_SHIFT);
+  status.item(IFACE_("Move Adjacent Handles"), ICON_EVENT_CTRL);
+  status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
 }
 
 /* Invoke handler: Initialize the operator. */
