@@ -55,6 +55,7 @@ struct SingleRigidBody {
   std::shared_ptr<btCollisionShape> shape;
   std::unique_ptr<btDefaultMotionState> motion_state;
   std::unique_ptr<btRigidBody> body;
+  float4x4 prev_kinematic_transform;
 
   float4x4 get_transform() const
   {
@@ -114,6 +115,7 @@ struct ParseBehaviorParams {
   const Bundle &bundle;
   BulletState &state;
   Behaviors &behaviors;
+  const float delta_time;
 
   std::string self_path() const
   {
@@ -230,12 +232,15 @@ static std::shared_ptr<btCollisionShape> create_collision_shape(
 }
 
 static void update_body_mode_if_necessary(BulletState &state,
-                                          btRigidBody &body,
+                                          SingleRigidBody &body,
                                           const RigidBodyMode new_mode,
-                                          const float new_mass)
+                                          const float new_mass,
+                                          const float4x4 &new_transform,
+                                          const float delta_time)
 {
-  const float old_mass = body.getMass();
-  const int collision_flags = body.getCollisionFlags();
+  btRigidBody &rbody = *body.body;
+  const float old_mass = rbody.getMass();
+  const int collision_flags = rbody.getCollisionFlags();
   const bool has_kinematic_flag = (collision_flags & btCollisionObject::CF_KINEMATIC_OBJECT) != 0;
   const bool has_static_flag = (collision_flags & btCollisionObject::CF_STATIC_OBJECT) != 0;
   switch (new_mode) {
@@ -243,37 +248,52 @@ static void update_body_mode_if_necessary(BulletState &state,
       if (old_mass > 0.0f && !has_kinematic_flag && !has_static_flag) {
         return;
       }
-      state.dynamics_world->removeRigidBody(&body);
+      state.dynamics_world->removeRigidBody(&rbody);
       btVector3 inertia(0, 0, 0);
       BLI_assert(new_mass > 0.0f);
-      body.getCollisionShape()->calculateLocalInertia(new_mass, inertia);
-      body.setMassProps(new_mass, inertia);
-      body.setCollisionFlags(collision_flags & ~(btCollisionObject::CF_KINEMATIC_OBJECT |
-                                                 btCollisionObject::CF_STATIC_OBJECT));
-      body.setActivationState(ACTIVE_TAG);
-      state.dynamics_world->addRigidBody(&body);
+      rbody.getCollisionShape()->calculateLocalInertia(new_mass, inertia);
+      rbody.setMassProps(new_mass, inertia);
+      rbody.setCollisionFlags(collision_flags & ~(btCollisionObject::CF_KINEMATIC_OBJECT |
+                                                  btCollisionObject::CF_STATIC_OBJECT));
+      rbody.setActivationState(ACTIVE_TAG);
+
+      float3 old_pos;
+      math::EulerXYZ old_rot;
+      float3 old_scale;
+      math::to_loc_rot_scale_safe<true>(
+          body.prev_kinematic_transform, old_pos, old_rot, old_scale);
+
+      float3 new_pos;
+      math::EulerXYZ new_rot;
+      float3 new_scale;
+      math::to_loc_rot_scale_safe<true>(new_transform, new_pos, new_rot, new_scale);
+
+      const float3 velocity = (new_pos - old_pos) / delta_time;
+      rbody.setLinearVelocity(btVector3(velocity.x, velocity.y, velocity.z));
+
+      state.dynamics_world->addRigidBody(&rbody);
       break;
     }
     case RigidBodyMode::Static: {
       if (old_mass == 0.0f && !has_kinematic_flag && has_static_flag) {
         return;
       }
-      state.dynamics_world->removeRigidBody(&body);
-      body.setMassProps(0.0f, btVector3(0, 0, 0));
-      body.setCollisionFlags((collision_flags & ~btCollisionObject::CF_KINEMATIC_OBJECT) |
-                             btCollisionObject::CF_STATIC_OBJECT);
-      state.dynamics_world->addRigidBody(&body);
+      state.dynamics_world->removeRigidBody(&rbody);
+      rbody.setMassProps(0.0f, btVector3(0, 0, 0));
+      rbody.setCollisionFlags((collision_flags & ~btCollisionObject::CF_KINEMATIC_OBJECT) |
+                              btCollisionObject::CF_STATIC_OBJECT);
+      state.dynamics_world->addRigidBody(&rbody);
       break;
     }
     case RigidBodyMode::Animated: {
       if (old_mass == 0.0f && has_kinematic_flag && !has_static_flag) {
         return;
       }
-      state.dynamics_world->removeRigidBody(&body);
-      body.setMassProps(0.0f, btVector3(0, 0, 0));
-      body.setCollisionFlags((collision_flags & ~btCollisionObject::CF_STATIC_OBJECT) |
-                             btCollisionObject::CF_KINEMATIC_OBJECT);
-      state.dynamics_world->addRigidBody(&body);
+      state.dynamics_world->removeRigidBody(&rbody);
+      rbody.setMassProps(0.0f, btVector3(0, 0, 0));
+      rbody.setCollisionFlags((collision_flags & ~btCollisionObject::CF_STATIC_OBJECT) |
+                              btCollisionObject::CF_KINEMATIC_OBJECT);
+      state.dynamics_world->addRigidBody(&rbody);
       break;
     }
   }
@@ -434,13 +454,14 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       }
 
       /* Update mode. */
-      update_body_mode_if_necessary(params.state, *body.body, *mode, mass);
+      update_body_mode_if_necessary(params.state, body, *mode, mass, transform, params.delta_time);
 
       /* Update transform. */
       if (mode == RigidBodyMode::Animated) {
         const btTransform bt_transform = float4x4_to_btTransform(transform);
         body.motion_state->setWorldTransform(bt_transform);
         body.body->setWorldTransform(bt_transform);
+        body.prev_kinematic_transform = transform;
       }
     }
     else {
@@ -499,12 +520,13 @@ static Map<std::string, BehaviorParseFn> build_behavior_parsers()
 
 static void update_state_from_behaviors(BulletState &state,
                                         const Bundle &behavior_bundle,
+                                        const float delta_time,
                                         Behaviors &r_behaviors)
 {
   foreach_behavior_in_bundle(
       behavior_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
-        ParseBehaviorParams params{path, behavior_bundle, state, r_behaviors};
+        ParseBehaviorParams params{path, behavior_bundle, state, r_behaviors, delta_time};
         if (const auto *behavior_parse = build_behavior_parsers().lookup_ptr(type)) {
           (*behavior_parse)(params);
         }
@@ -642,7 +664,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   update_counter++;
   if (!is_resimulating) {
     Behaviors behaviors;
-    update_state_from_behaviors(state, *behaviors_bundle, behaviors);
+    update_state_from_behaviors(state, *behaviors_bundle, delta_time, behaviors);
 
     apply_forces(state, behaviors);
 
