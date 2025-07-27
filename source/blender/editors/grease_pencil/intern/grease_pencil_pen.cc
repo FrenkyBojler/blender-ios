@@ -1063,25 +1063,23 @@ static void move_segment(const PenToolOperation &ptd,
   const float one_minus_t_cu = one_minus_t_sq * one_minus_t;
 
   /**
-   * Equation of Bezier Curve
+   * Equation of the starting Bezier Curve:
+   *      => b(t) = (1-t)^3 * p0 + 3(1-t)^2 * t * p1 + 3(1-t) * t^2 * p2 + t^3 * p3
+   *
+   * Equation of the moved Bezier Curve:
    *      => B(t) = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
    *
-   * Mouse location (Pm) should satisfy this equation.
-   * Therefore => Pm = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
+   * The moved Bezier curve has four unknowns: P0, P1, P2 and P3
+   * We want the end points to stay the same so: P0 = p0 and P3 = p3
    *
-   * k2 = P1 - P2
-   * P2 = P1 - k2
+   * Mouse location (Pm) should satisfy the equation Pm = B(t).
+   * The last constraint used is that the vector between P1 and P2 doesn't change after moving.
+   * Therefore: => k2 = p1 - p2 = P1 - P2
    *
-   * Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2 = (3(1-t)^2 * t + 3(1-t) * t^2) * P1
-   *
-   * (Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2) / (3(1-t)^2 * t + 3(1-t) * t^2) = P1
-   *
-   *
-   * Another constraint is required to identify P1 and P2.
-   * The constraint used is that the vector between P1 and P2 doesn't change.
-   * Therefore => P1 - P2 = k2
-   *
-   * From the two equations => P1 = t(k1 + k2) and P2 = P1 - K2
+   * Using all four equations we can solve for P1 as:
+   *      => P1 = (Pm - (1-t)^3 * P0 - t^3 * P3) / (3(1-t) * t) + k2 * t
+   * And P2 as:
+   *      => P2 = P1 - k2
    */
 
   const float denom = 3.0f * one_minus_t * t;
@@ -1089,8 +1087,7 @@ static void move_segment(const PenToolOperation &ptd,
     return;
   }
 
-  const float3 P1 = (Pm - one_minus_t_cu * P0 - t_cu * P3 + 3.0f * one_minus_t * t_sq * k2) /
-                    denom;
+  const float3 P1 = (Pm - one_minus_t_cu * P0 - t_cu * P3) / denom + k2 * t;
   const float3 P2 = P1 - k2;
 
   handles_right[point_i1] = P1;
