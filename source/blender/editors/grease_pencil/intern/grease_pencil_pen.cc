@@ -47,11 +47,9 @@ static const EnumPropertyItem prop_handle_types[] = {
 };
 
 enum class PenModal : int8_t {
-  FreeAlignToggle = 0,
-  MoveAdjacent = 1,
-  MoveEntire = 2,
-  LinkHandles = 3,
-  SnapAngle = 4,
+  MoveAdjacent = 0,
+  MoveEntire = 1,
+  SnapAngle = 2,
 };
 
 enum class ElementMode : int8_t {
@@ -1336,11 +1334,6 @@ void ED_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
   using namespace blender::ed::greasepencil;
   static const EnumPropertyItem modal_items[] = {
-      {int(PenModal::FreeAlignToggle),
-       "FREE_ALIGN_TOGGLE",
-       0,
-       "Free-Align Toggle",
-       "Move handle of newly added point freely"},
       {int(PenModal::MoveAdjacent),
        "MOVE_ADJACENT",
        0,
@@ -1351,11 +1344,6 @@ void ED_pentool_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Move Entire Point",
        "Move the entire point using its handles"},
-      {int(PenModal::LinkHandles),
-       "LINK_HANDLES",
-       0,
-       "Link Handles",
-       "Mirror the movement of one handle onto the other"},
       {int(PenModal::SnapAngle),
        "SNAP_ANGLE",
        0,

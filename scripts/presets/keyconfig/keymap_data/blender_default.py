@@ -8159,11 +8159,9 @@ def km_grease_pencil_pen_tool_modal_map(_params):
     )
 
     items.extend([
-        ("FREE_ALIGN_TOGGLE", {"type": 'RIGHT_ALT', "value": 'ANY', "any": True}, None),
         ("MOVE_ADJACENT", {"type": 'LEFT_CTRL', "value": 'ANY', "any": True}, None),
         ("MOVE_ENTIRE", {"type": 'LEFT_ALT', "value": 'ANY', "any": True}, None),
         ("SNAP_ANGLE", {"type": 'LEFT_SHIFT', "value": 'ANY', "any": True}, None),
-        ("LINK_HANDLES", {"type": 'RIGHT_CTRL', "value": 'PRESS', "any": True}, None),
     ])
 
     return keymap
