@@ -269,7 +269,7 @@ static VChar *vfont_char_find_or_placeholder(const VFontData *vfd,
                                              VCharPlaceHolder &che_placeholder)
 {
   VChar *che = vfd ? vfont_char_find(vfd, charcode) : nullptr;
-  if (UNLIKELY(che == nullptr)) {
+  if (UNLIKELY(che == nullptr) || charcode == 0) {
     che = vfont_placeholder_ensure(che_placeholder, charcode);
   }
   return che;

@@ -117,17 +117,33 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
     return nullptr;
   }
 
+  if (!use_fallback) {
+    if (!BLF_has_glyph(font_id, character)) {
+      BLF_unload_id(font_id);
+      return nullptr; /* No fallback, so no character found. */
+    }
+  }
+
   VChar *che = MEM_callocN<VChar>("objfnt_char");
 
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);
 
-  che->width = BLF_character_to_curves(
-      font_id, character, &che->nurbsbase, vfont->data->metrics.scale, use_fallback);
+  if (BLF_character_to_curves(font_id,
+                              character,
+                              &che->nurbsbase,
+                              vfont->data->metrics.scale,
+                              use_fallback,
+                              &che->width))
+  {
+    BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
+    BLF_unload_id(font_id);
+    return che;
+  }
 
-  BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
+  MEM_freeN(che);
   BLF_unload_id(font_id);
-  return che;
+  return nullptr;
 }
 
 VChar *BKE_vfontdata_char_copy(const VChar *vchar_src)
