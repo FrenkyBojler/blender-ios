@@ -77,6 +77,7 @@ struct PenToolOperation {
   ViewContext vc;
 
   GreasePencil *grease_pencil;
+  Vector<MutableDrawingInfo> drawings;
 
   float threshold_distance;
   float threshold_distance_edge;
@@ -708,13 +709,12 @@ static bke::CurvesGeometry pen_insert_point(const PenToolOperation &ptd,
   return dst;
 }
 
-static float2 calculate_center_of_mass(const PenToolOperation &ptd,
-                                       const Span<MutableDrawingInfo> &drawings)
+static float2 calculate_center_of_mass(const PenToolOperation &ptd)
 {
   float2 pos = float2(0.0f, 0.0f);
   int num = 0;
 
-  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+  threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
     const bke::CurvesGeometry &curves = info.drawing.strokes();
     const Span<float3> positions = curves.positions();
 
@@ -801,12 +801,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   std::atomic<bool> changed = false;
   std::atomic<bool> point_added = false;
   std::atomic<bool> point_removed = false;
-  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
-                                                                         *ptd.grease_pencil);
+  ptd.drawings = retrieve_editable_drawings(*scene, *ptd.grease_pencil);
+  ptd.center_of_mass_co = calculate_center_of_mass(ptd);
 
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd, drawings);
-
-  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+  threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
     if (curves.is_empty()) {
@@ -1047,10 +1045,7 @@ static void move_segment(const PenToolOperation &ptd,
 static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PenToolOperation &ptd = *reinterpret_cast<PenToolOperation *>(op->customdata);
-
-  const Scene *scene = ptd.vc.scene;
   Object *object = ptd.vc.obact;
-  GreasePencil &grease_pencil = *ptd.grease_pencil;
 
   ptd.mouse_co = float2(event->mval);
 
@@ -1064,9 +1059,8 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   }
 
   std::atomic<bool> changed = false;
-  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd, drawings);
-  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+  ptd.center_of_mass_co = calculate_center_of_mass(ptd);
+  threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     MutableSpan<float3> positions = curves.positions_for_write();
     const OffsetIndices points_by_curve = curves.points_by_curve();
