@@ -8180,7 +8180,6 @@ def km_3d_view_tool_edit_grease_pencil_pen(params):
                  ("move_segment", True),
                  ("select_point", True),
                  ("move_point", True),
-                 ("close_spline_method", "ON_CLICK"),
              ]}),
             ("grease_pencil.pen", {"type": params.tool_mouse, "value": 'PRESS', "ctrl": True},
              {"properties": [("insert_point", True), ("delete_point", True)]}),

@@ -38,27 +38,6 @@ static const EnumPropertyItem prop_handle_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-enum class CloseMethod : int8_t {
-  Off = 0,
-  OnPress = 1,
-  OnClick = 2,
-};
-
-static const EnumPropertyItem prop_close_method[] = {
-    {int(CloseMethod::Off), "OFF", 0, "None", ""},
-    {int(CloseMethod::OnPress),
-     "ON_PRESS",
-     0,
-     "On Press",
-     "Move handles after closing the spline"},
-    {int(CloseMethod::OnClick),
-     "ON_CLICK",
-     0,
-     "On Click",
-     "Spline closes on release if not dragged"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 enum class PenModal : int8_t {
   FreeAlignToggle = 0,
   MoveAdjacent = 1,
@@ -106,7 +85,6 @@ struct PenToolOperation {
   bool toggle_vector;
   bool close_spline;
   bool cycle_handle_type;
-  CloseMethod close_spline_method;
   int extrude_handle;
 
   bool point_added;
@@ -797,7 +775,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.toggle_vector = RNA_boolean_get(op->ptr, "toggle_vector");
   ptd.close_spline = RNA_boolean_get(op->ptr, "close_spline");
   ptd.cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
-  ptd.close_spline_method = CloseMethod(RNA_enum_get(op->ptr, "close_spline_method"));
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
 
   const Scene *scene = ptd.vc.scene;
@@ -1252,12 +1229,6 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
                   true,
                   "Close Spline",
                   "Make a spline cyclic by clicking endpoints");
-  RNA_def_enum(ot->srna,
-               "close_spline_method",
-               prop_close_method,
-               int(CloseMethod::Off),
-               "Close Spline Method",
-               "The condition for close spline to activate");
   RNA_def_boolean(
       ot->srna, "toggle_vector", false, "Toggle Vector", "Toggle between Vector and Auto handles");
   RNA_def_boolean(ot->srna,
