@@ -23,10 +23,16 @@ static void foreach_behavior_recursive(
     return;
   }
   for (const Bundle::StoredItem &item : behaviors_bundle.items()) {
-    if (item.type->type != SOCK_BUNDLE) {
+    const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
+        &item.value.value);
+    if (!socket_value) {
       continue;
     }
-    BundlePtr child_bundle = static_cast<bke::SocketValueVariant *>(item.value)->get<BundlePtr>();
+    if (socket_value->type->type != SOCK_BUNDLE) {
+      continue;
+    }
+    BundlePtr child_bundle =
+        static_cast<bke::SocketValueVariant *>(socket_value->value)->get<BundlePtr>();
     if (!child_bundle) {
       continue;
     }

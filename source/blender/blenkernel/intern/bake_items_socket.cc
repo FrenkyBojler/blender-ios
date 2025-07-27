@@ -92,11 +92,15 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
       if (bundle_ptr) {
         const nodes::Bundle &bundle = *bundle_ptr;
         for (const nodes::Bundle::StoredItem &bundle_item : bundle.items()) {
-          if (std::unique_ptr<BakeItem> bake_item = move_common_socket_value_to_bake_item(
-                  *bundle_item.type, bundle_item.value, std::nullopt, r_geometry_bake_items))
+          if (const nodes::BundleItemSocketValue *socket_value =
+                  std::get_if<nodes::BundleItemSocketValue>(&bundle_item.value.value))
           {
-            bundle_bake_item->items.append(BundleBakeItem::Item{
-                bundle_item.key, bundle_item.type->idname, std::move(bake_item)});
+            if (std::unique_ptr<BakeItem> bake_item = move_common_socket_value_to_bake_item(
+                    *socket_value->type, socket_value->value, std::nullopt, r_geometry_bake_items))
+            {
+              bundle_bake_item->items.append(BundleBakeItem::Item{
+                  bundle_item.key, socket_value->type->idname, std::move(bake_item)});
+            }
           }
         }
       }
@@ -284,7 +288,7 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(const Span<voi
           {
             return false;
           }
-          bundle.add(item.key, *stype, buffer);
+          bundle.add(item.key, nodes::BundleItemSocketValue{stype, buffer});
           stype->geometry_nodes_cpp_type->destruct(buffer);
         }
         bke::SocketValueVariant::ConstructIn(r_value, std::move(bundle_ptr));
