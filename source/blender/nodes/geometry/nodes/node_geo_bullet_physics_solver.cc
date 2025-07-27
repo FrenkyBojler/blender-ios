@@ -99,9 +99,14 @@ class BulletStateOwner : public BundleItemInternalValueMixin {
 
 using BulletStateOwnerPtr = ImplicitSharingPtr<BulletStateOwner>;
 
+struct Force {
+  Field<float3> force_field;
+};
+
 struct Behaviors {
   btVector3 gravity{};
   Map<std::string, RigidBodyInstances> new_rigid_body_instances_by_path;
+  Vector<Force> forces;
 };
 
 struct ParseBehaviorParams {
@@ -125,6 +130,16 @@ static void parse_behavior__gravity(ParseBehaviorParams &params)
     return;
   }
   params.behaviors.gravity = btVector3(gravity->x, gravity->y, gravity->z);
+}
+
+static void parse_behavior__force(ParseBehaviorParams &params)
+{
+  const std::optional<Field<float3>> force_field = params.bundle.lookup<Field<float3>>(
+      "Force Field");
+  if (!force_field) {
+    return;
+  }
+  params.behaviors.forces.append({*force_field});
 }
 
 enum class RigidBodyMode {
@@ -464,23 +479,25 @@ static Map<std::string, BehaviorParseFn> build_behavior_parsers()
 {
   Map<std::string, BehaviorParseFn> behavior_parsers;
   behavior_parsers.add_new("Gravity", parse_behavior__gravity);
+  behavior_parsers.add_new("Force", parse_behavior__force);
   behavior_parsers.add_new("Rigid Body Instances", parse_behavior__rigid_body_instances);
   return behavior_parsers;
 }
 
-static void update_state_from_behaviors(BulletState &state, const Bundle &behavior_bundle)
+static void update_state_from_behaviors(BulletState &state,
+                                        const Bundle &behavior_bundle,
+                                        Behaviors &r_behaviors)
 {
-  Behaviors behaviors;
   foreach_behavior_in_bundle(
       behavior_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
-        ParseBehaviorParams params{path, behavior_bundle, state, behaviors};
+        ParseBehaviorParams params{path, behavior_bundle, state, r_behaviors};
         if (const auto *behavior_parse = build_behavior_parsers().lookup_ptr(type)) {
           (*behavior_parse)(params);
         }
       });
 
-  state.dynamics_world->setGravity(behaviors.gravity);
+  state.dynamics_world->setGravity(r_behaviors.gravity);
 
   /* Remove now unused rigid bodies. */
   for (const RigidBodyInstances &rigid_body_instances :
@@ -492,10 +509,10 @@ static void update_state_from_behaviors(BulletState &state, const Bundle &behavi
     }
   }
 
-  state.rigid_body_instances_by_path = std::move(behaviors.new_rigid_body_instances_by_path);
+  state.rigid_body_instances_by_path = std::move(r_behaviors.new_rigid_body_instances_by_path);
 }
 
-static void write_simulated_data_to_output(BulletState &state)
+static void write_simulated_data_to_geometry_sets(BulletState &state)
 {
   for (RigidBodyInstances &rigid_body_instances : state.rigid_body_instances_by_path.values()) {
     bke::Instances *instances = rigid_body_instances.geometry_set.get_instances_for_write();
@@ -512,6 +529,47 @@ static void write_simulated_data_to_output(BulletState &state)
         continue;
       }
       transforms[instance_i] = body->get_transform();
+    }
+  }
+}
+
+static void apply_forces(BulletState &state, const Behaviors &behaviors)
+{
+  write_simulated_data_to_geometry_sets(state);
+  for (auto &&item : state.rigid_body_instances_by_path.items()) {
+    RigidBodyInstances &rigid_body_instances = item.value;
+    const bke::Instances *instances = rigid_body_instances.geometry_set.get_instances();
+    if (!instances) {
+      continue;
+    }
+    const int instances_num = instances->instances_num();
+    const Span<int> instance_ids = instances->almost_unique_ids();
+    bke::InstancesFieldContext field_context{*instances};
+    fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
+    for (const Force &force : behaviors.forces) {
+      field_evaluator.add(force.force_field);
+    }
+    field_evaluator.evaluate();
+    Array<float3> force_sum(instances_num, float3(0.0f));
+    for (const int force_i : behaviors.forces.index_range()) {
+      const VArray<float3> force = field_evaluator.get_evaluated<float3>(force_i);
+      for (const int i : IndexRange(instances_num)) {
+        force_sum[i] += force[i];
+      }
+    }
+    for (SingleRigidBody &body : rigid_body_instances.rigid_body_by_id.values()) {
+      body.body->clearForces();
+    }
+    for (const int instance_i : IndexRange(instances_num)) {
+      const int instance_id = instance_ids[instance_i];
+      const float3 &force = force_sum[instance_i];
+      if (math::is_zero(force)) {
+        continue;
+      }
+      if (SingleRigidBody *body = rigid_body_instances.rigid_body_by_id.lookup_ptr(instance_id)) {
+        body->body->applyCentralForce(btVector3(force.x, force.y, force.z));
+        body->body->activate();
+      }
     }
   }
 }
@@ -565,13 +623,16 @@ static void node_geo_exec(GeoNodeExecParams params)
     state.is_initialized = true;
   }
 
-  update_state_from_behaviors(state, *behaviors_bundle);
+  Behaviors behaviors;
+  update_state_from_behaviors(state, *behaviors_bundle, behaviors);
 
   /* The Bullet state can't easily be reset to an older state. So better just don't do simulation
    * in this case. */
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
+    apply_forces(state, behaviors);
+
     const float time_per_step = delta_time / sub_steps;
     state.dynamics_world->getSolverInfo().m_numIterations = solver_steps;
     for ([[maybe_unused]] const int i : IndexRange(sub_steps)) {
@@ -579,7 +640,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     state.update_counter = update_counter;
   }
-  write_simulated_data_to_output(state);
+  write_simulated_data_to_geometry_sets(state);
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
