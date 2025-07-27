@@ -531,8 +531,6 @@ static void pen_add_single(const PenToolOperation &ptd)
 
   ed::greasepencil::add_single_curve(curves, true);
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  const float4x4 layer_to_object = layer.local_transform();
   const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
 
   curves.positions_for_write().last() = pen_screen_to_layer(
