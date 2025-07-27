@@ -180,12 +180,26 @@ class AddNodeMenu:
     @staticmethod
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
         return node_add_menu.node_operator(layout, "node.add_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
+    
+    @classmethod
+    def draw_menu(cls, layout, path):
+        if cls.pathing_dict is None:
+            raise ValueError("`pathing_dict` was not set for {}".format(cls))
+
+        layout.menu(cls.pathing_dict[path])
 
 
 class SwapNodeMenu:
     @staticmethod
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
         return node_add_menu.node_operator(layout, "node.swap_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
+    
+    @classmethod
+    def draw_menu(cls, layout, path):
+        if cls.pathing_dict is None:
+            raise ValueError("`pathing_dict` was not set for {}".format(cls))
+
+        layout.menu(cls.pathing_dict[path])
 
 
 class NODE_MT_group_base(Menu):
@@ -208,8 +222,18 @@ class NODE_MT_layout_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-def generate_menu(bl_idname: str, template: Menu, layout_base: Menu):
-    return type(bl_idname, (template, layout_base), {"bl_idname" : bl_idname})
+def generate_menu(bl_idname: str, template: Menu, layout_base: Menu, pathing_dict: dict = None):
+    return type(bl_idname, (template, layout_base), {"bl_idname" : bl_idname, "pathing_dict" : pathing_dict})
+
+
+def generate_pathing_dict(pathing_dict, menus):
+    for menu in menus:
+        if hasattr(menu, "menu_path"):
+            menu_path = menu.menu_path
+        else:
+            menu_path = menu.bl_label
+
+        pathing_dict[menu_path] = menu.bl_idname
 
 
 classes = (

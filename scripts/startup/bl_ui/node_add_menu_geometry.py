@@ -27,6 +27,7 @@ class NODE_MT_gn_attribute_base(Menu):
 
 class NODE_MT_gn_utilities_color_base(Menu):
     bl_label = "Color"
+    menu_path = "Utilities/Color"
 
     def draw(self, context):
         layout = self.layout
@@ -37,7 +38,7 @@ class NODE_MT_gn_utilities_color_base(Menu):
         self.node_operator(layout, "FunctionNodeCombineColor")
         node_add_menu.add_color_mix_node(context, layout)
         self.node_operator(layout, "FunctionNodeSeparateColor")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Color")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_base(Menu):
@@ -45,18 +46,19 @@ class NODE_MT_gn_curve_base(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE_READ")
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE_SAMPLE")
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE_WRITE")
+        self.draw_menu(layout, path="Curve/Read")
+        self.draw_menu(layout, path="Curve/Sample")
+        self.draw_menu(layout, path="Curve/Write")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE_OPERATIONS")
-        layout.menu("NODE_MT_geometry_node_GEO_PRIMITIVES_CURVE")
-        layout.menu("NODE_MT_geometry_node_curve_topology")
+        self.draw_menu(layout, path="Curve/Operations")
+        self.draw_menu(layout, path="Curve/Primitives")
+        self.draw_menu(layout, path="Curve/Topology")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_curve_read_base(Menu):
     bl_label = "Read"
+    menu_path = "Curve/Read"
 
     def draw(self, _context):
         layout = self.layout
@@ -70,20 +72,22 @@ class NODE_MT_gn_curve_read_base(Menu):
         self.node_operator(layout, "GeometryNodeSplineLength")
         self.node_operator(layout, "GeometryNodeSplineParameter")
         self.node_operator(layout, "GeometryNodeInputSplineResolution")
-        node_add_menu.draw_assets_for_catalog(layout, "Curve/Read")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_sample_base(Menu):
     bl_label = "Sample"
+    menu_path = "Curve/Sample"
 
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleCurve")
-        node_add_menu.draw_assets_for_catalog(layout, "Curve/Sample")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_write_base(Menu):
     bl_label = "Write"
+    menu_path = "Curve/Write"
 
     def draw(self, _context):
         layout = self.layout
@@ -95,11 +99,12 @@ class NODE_MT_gn_curve_write_base(Menu):
         self.node_operator(layout, "GeometryNodeSetSplineCyclic")
         self.node_operator(layout, "GeometryNodeSetSplineResolution")
         self.node_operator(layout, "GeometryNodeCurveSplineType")
-        node_add_menu.draw_assets_for_catalog(layout, "Curve/Write")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_operations_base(Menu):
     bl_label = "Operations"
+    menu_path = "Curve/Operations"
 
     def draw(self, _context):
         layout = self.layout
@@ -114,11 +119,12 @@ class NODE_MT_gn_curve_operations_base(Menu):
         self.node_operator(layout, "GeometryNodeReverseCurve")
         self.node_operator(layout, "GeometryNodeSubdivideCurve")
         self.node_operator(layout, "GeometryNodeTrimCurve")
-        node_add_menu.draw_assets_for_catalog(layout, "Curve/Operations")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_primitives_base(Menu):
     bl_label = "Primitives"
+    menu_path = "Curve/Primitives"
 
     def draw(self, _context):
         layout = self.layout
@@ -130,48 +136,56 @@ class NODE_MT_gn_curve_primitives_base(Menu):
         self.node_operator(layout, "GeometryNodeCurveQuadraticBezier")
         self.node_operator(layout, "GeometryNodeCurvePrimitiveQuadrilateral")
         self.node_operator(layout, "GeometryNodeCurveStar")
-        node_add_menu.draw_assets_for_catalog(layout, "Curve/Primitives")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_topology_base(Menu):
     bl_label = "Topology"
+    menu_path = "Curve/Topology"
 
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeCurveOfPoint")
         self.node_operator(layout, "GeometryNodeOffsetPointInCurve")
         self.node_operator(layout, "GeometryNodePointsOfCurve")
-        node_add_menu.draw_assets_for_catalog(layout, "Curve/Topology")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_grease_pencil_read_base(Menu):
     bl_label = "Read"
-
+    menu_path = "Grease Pencil/Read"
+    
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeInputNamedLayerSelection")
-        node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Read")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_grease_pencil_write_base(Menu):
     bl_label = "Write"
+    menu_path = "Grease Pencil/Write"
 
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSetGreasePencilColor")
         self.node_operator(layout, "GeometryNodeSetGreasePencilDepth")
         self.node_operator(layout, "GeometryNodeSetGreasePencilSoftness")
-        node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Write")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_grease_pencil_operations_base(Menu):
     bl_label = "Operations"
+    menu_path = "Grease Pencil/Operations"
 
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeGreasePencilToCurves")
         self.node_operator(layout, "GeometryNodeMergeLayers")
-        node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Operations")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_grease_pencil_base(Menu):
@@ -179,10 +193,10 @@ class NODE_MT_gn_grease_pencil_base(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_grease_pencil_read")
-        layout.menu("NODE_MT_geometry_node_grease_pencil_write")
+        self.draw_menu(layout, path="Grease Pencil/Read")
+        self.draw_menu(layout, path="Grease Pencil/Write")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_grease_pencil_operations")
+        self.draw_menu(layout, path="Grease Pencil/Operations")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -191,11 +205,11 @@ class NODE_MT_gn_geometry_base(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY_READ")
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE")
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY_WRITE")
+        self.draw_menu(layout, path="Geometry/Read")
+        self.draw_menu(layout, path="Geometry/Sample")
+        self.draw_menu(layout, path="Geometry/Write")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS")
+        self.draw_menu(layout, path="Geometry/Operations")
         layout.separator()
         self.node_operator(layout, "GeometryNodeGeometryToInstance")
         self.node_operator(layout, "GeometryNodeJoinGeometry", search_weight=1.0)
@@ -204,6 +218,7 @@ class NODE_MT_gn_geometry_base(Menu):
 
 class NODE_MT_gn_geometry_read_base(Menu):
     bl_label = "Read"
+    menu_path = "Geometry/Read"
 
     def draw(self, context):
         layout = self.layout
@@ -216,11 +231,13 @@ class NODE_MT_gn_geometry_read_base(Menu):
         if context.space_data.geometry_nodes_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolSelection")
             self.node_operator(layout, "GeometryNodeToolActiveElement")
-        node_add_menu.draw_assets_for_catalog(layout, "Geometry/Read")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_geometry_write_base(Menu):
     bl_label = "Write"
+    menu_path = "Geometry/Write"
 
     def draw(self, context):
         layout = self.layout
@@ -229,11 +246,13 @@ class NODE_MT_gn_geometry_write_base(Menu):
         self.node_operator(layout, "GeometryNodeSetPosition", search_weight=1.0)
         if context.space_data.geometry_nodes_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolSetSelection")
-        node_add_menu.draw_assets_for_catalog(layout, "Geometry/Write")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_geometry_operations_base(Menu):
     bl_label = "Operations"
+    menu_path = "Geometry/Operations"
 
     def draw(self, _context):
         layout = self.layout
@@ -249,11 +268,13 @@ class NODE_MT_gn_geometry_operations_base(Menu):
         self.node_operator(layout, "GeometryNodeSeparateComponents")
         self.node_operator(layout, "GeometryNodeSeparateGeometry")
         self.node_operator(layout, "GeometryNodeSplitToInstances")
-        node_add_menu.draw_assets_for_catalog(layout, "Geometry/Operations")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_geometry_sample_base(Menu):
     bl_label = "Sample"
+    menu_path = "Geometry/Sample"
 
     def draw(self, _context):
         layout = self.layout
@@ -262,7 +283,8 @@ class NODE_MT_gn_geometry_sample_base(Menu):
         self.node_operator(layout, "GeometryNodeRaycast")
         self.node_operator(layout, "GeometryNodeSampleIndex")
         self.node_operator(layout, "GeometryNodeSampleNearest")
-        node_add_menu.draw_assets_for_catalog(layout, "Geometry/Sample")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_base(Menu):
@@ -270,18 +292,19 @@ class NODE_MT_gn_input_base(Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT_CONSTANT")
+        self.draw_menu(layout, path="Input/Constant")
         if context.space_data.geometry_nodes_type != 'TOOL':
-            layout.menu("NODE_MT_geometry_node_GEO_INPUT_GIZMO")
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT_GROUP")
-        layout.menu("NODE_MT_category_import")
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT_SCENE")
+            self.draw_menu(layout, path="Input/Gizmo")
+        self.draw_menu(layout, path="Input/Group")
+        self.draw_menu(layout, path="Input/Import")
+        self.draw_menu(layout, path="Input/Scene")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_input_constant_base(Menu):
     bl_label = "Constant"
     bl_translation_context = i18n_contexts.id_nodetree
+    menu_path = "Input/Constant"
 
     def draw(self, _context):
         layout = self.layout
@@ -296,20 +319,24 @@ class NODE_MT_gn_input_constant_base(Menu):
         self.node_operator(layout, "FunctionNodeInputString")
         self.node_operator(layout, "ShaderNodeValue")
         self.node_operator(layout, "FunctionNodeInputVector")
-        node_add_menu.draw_assets_for_catalog(layout, "Input/Constant")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_group_base(Menu):
     bl_label = "Group"
+    menu_path = "Input/Group"
 
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "NodeGroupInput")
-        node_add_menu.draw_assets_for_catalog(layout, "Input/Group")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_scene_base(Menu):
     bl_label = "Scene"
+    menu_path = "Input/Scene"
 
     def draw(self, context):
         layout = self.layout
@@ -348,18 +375,21 @@ class NODE_MT_gn_input_scene_base(Menu):
                 context, layout, "GeometryNodeViewportTransform",
                 ["Projection", "View", "Is Orthographic"],
             )
-        node_add_menu.draw_assets_for_catalog(layout, "Input/Scene")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_gizmo_base(Menu):
     bl_label = "Gizmo"
+    menu_path = "Input/Gizmo"
 
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeGizmoDial")
         self.node_operator(layout, "GeometryNodeGizmoLinear")
         self.node_operator(layout, "GeometryNodeGizmoTransform")
-        node_add_menu.draw_assets_for_catalog(layout, "Input/Gizmo")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_instance_base(Menu):
@@ -403,19 +433,20 @@ class NODE_MT_gn_mesh_base(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_MESH_READ")
-        layout.menu("NODE_MT_geometry_node_GEO_MESH_SAMPLE")
-        layout.menu("NODE_MT_geometry_node_GEO_MESH_WRITE")
+        self.draw_menu(layout, path="Geometry/Read")
+        self.draw_menu(layout, path="Geometry/Sample")
+        self.draw_menu(layout, path="Geometry/Write")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_MESH_OPERATIONS")
-        layout.menu("NODE_MT_category_PRIMITIVES_MESH")
-        layout.menu("NODE_MT_geometry_node_mesh_topology")
-        layout.menu("NODE_MT_category_GEO_UV")
+        self.draw_menu(layout, path="Geometry/Operations")
+        self.draw_menu(layout, path="Geometry/Mesh")
+        self.draw_menu(layout, path="Geometry/Topology")
+        self.draw_menu(layout, path="Geometry/UV")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_mesh_read_base(Menu):
     bl_label = "Read"
+    menu_path = "Mesh/Read"
 
     def draw(self, context):
         layout = self.layout
@@ -434,21 +465,25 @@ class NODE_MT_gn_mesh_read_base(Menu):
         self.node_operator(layout, "GeometryNodeInputMeshIsland")
         self.node_operator(layout, "GeometryNodeInputShortestEdgePaths")
         self.node_operator(layout, "GeometryNodeInputMeshVertexNeighbors")
-        node_add_menu.draw_assets_for_catalog(layout, "Mesh/Read")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_sample_base(Menu):
     bl_label = "Sample"
+    menu_path = "Mesh/Sample"
 
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleNearestSurface")
         self.node_operator(layout, "GeometryNodeSampleUVSurface")
-        node_add_menu.draw_assets_for_catalog(layout, "Mesh/Sample")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_write_base(Menu):
     bl_label = "Write"
+    menu_path = "Mesh/Write"
 
     def draw(self, context):
         layout = self.layout
@@ -456,11 +491,13 @@ class NODE_MT_gn_mesh_write_base(Menu):
             self.node_operator(layout, "GeometryNodeToolSetFaceSet")
         self.node_operator(layout, "GeometryNodeSetMeshNormal")
         self.node_operator(layout, "GeometryNodeSetShadeSmooth")
-        node_add_menu.draw_assets_for_catalog(layout, "Mesh/Write")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_operations_base(Menu):
     bl_label = "Operations"
+    menu_path = "Mesh/Operations"
 
     def draw(self, context):
         layout = self.layout
@@ -482,11 +519,13 @@ class NODE_MT_gn_mesh_operations_base(Menu):
         self.node_operator(layout, "GeometryNodeSubdivideMesh")
         self.node_operator(layout, "GeometryNodeSubdivisionSurface")
         self.node_operator(layout, "GeometryNodeTriangulate")
-        node_add_menu.draw_assets_for_catalog(layout, "Mesh/Operations")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_primitives_base(Menu):
     bl_label = "Primitives"
+    menu_path = "Mesh/Primitives"
 
     def draw(self, _context):
         layout = self.layout
@@ -498,11 +537,13 @@ class NODE_MT_gn_mesh_primitives_base(Menu):
         self.node_operator(layout, "GeometryNodeMeshCircle")
         self.node_operator(layout, "GeometryNodeMeshLine")
         self.node_operator(layout, "GeometryNodeMeshUVSphere")
-        node_add_menu.draw_assets_for_catalog(layout, "Mesh/Primitives")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_input_import_base(Menu):
     bl_label = "Import"
+    menu_path = "Input/Import"
 
     def draw(self, _context):
         layout = self.layout
@@ -512,11 +553,13 @@ class NODE_MT_gn_input_import_base(Menu):
         self.node_operator(layout, "GeometryNodeImportSTL", label="STL (.stl)")
         self.node_operator(layout, "GeometryNodeImportText", label="Text (.txt)")
         self.node_operator(layout, "GeometryNodeImportVDB", label="OpenVDB (.vdb)")
-        node_add_menu.draw_assets_for_catalog(layout, "Input/Import")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_topology_base(Menu):
     bl_label = "Topology"
+    menu_path = "Mesh/Topology"
 
     def draw(self, _context):
         layout = self.layout
@@ -528,7 +571,8 @@ class NODE_MT_gn_mesh_topology_base(Menu):
         self.node_operator(layout, "GeometryNodeFaceOfCorner")
         self.node_operator(layout, "GeometryNodeOffsetCornerInFace")
         self.node_operator(layout, "GeometryNodeVertexOfCorner")
-        node_add_menu.draw_assets_for_catalog(layout, "Mesh/Topology")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_output_base(Menu):
@@ -574,6 +618,7 @@ class NODE_MT_gn_simulation_base(Menu):
 
 class NODE_MT_gn_utilities_text_base(Menu):
     bl_label = "Text"
+    menu_path = "Utilities/Text"
 
     def draw(self, _context):
         layout = self.layout
@@ -589,7 +634,8 @@ class NODE_MT_gn_utilities_text_base(Menu):
         self.node_operator(layout, "FunctionNodeValueToString")
         layout.separator()
         self.node_operator(layout, "FunctionNodeInputSpecialCharacters")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Text")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_texture_base(Menu):
@@ -615,17 +661,17 @@ class NODE_MT_gn_utilities_base(Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_COLOR")
-        layout.menu("NODE_MT_category_GEO_TEXT")
-        layout.menu("NODE_MT_category_GEO_VECTOR")
+        self.draw_menu(layout, path="Utilities/Color")
+        self.draw_menu(layout, path="Utilities/Text")
+        self.draw_menu(layout, path="Utilities/Vector")
         layout.separator()
-        layout.menu("NODE_MT_category_GEO_UTILITIES_FIELD")
-        layout.menu("NODE_MT_category_GEO_UTILITIES_MATH")
+        self.draw_menu(layout, path="Utilities/Field")
+        self.draw_menu(layout, path="Utilities/Math")
         if context.preferences.experimental.use_geometry_nodes_lists:
-            layout.menu("NODE_MT_category_utilities_list")
-        layout.menu("NODE_MT_category_utilities_matrix")
-        layout.menu("NODE_MT_category_GEO_UTILITIES_ROTATION")
-        layout.menu("NODE_MT_category_GEO_UTILITIES_DEPRECATED")
+            self.draw_menu(layout, path="Utilities/List")
+        self.draw_menu(layout, path="Utilities/Matrix")
+        self.draw_menu(layout, path="Utilities/Rotation")
+        self.draw_menu(layout, path="Utilities/Deprecated")
         layout.separator()
         if context.preferences.experimental.use_bundle_and_closure_nodes:
             node_add_menu.add_closure_zone(layout, label="Closure")
@@ -644,16 +690,19 @@ class NODE_MT_gn_utilities_base(Menu):
 
 class NODE_MT_gn_utilities_deprecated_base(Menu):
     bl_label = "Deprecated"
+    menu_path = "Utilities/Deprecated"
 
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "FunctionNodeAlignEulerToVector")
         self.node_operator(layout, "FunctionNodeRotateEuler")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Deprecated")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_field_base(Menu):
     bl_label = "Field"
+    menu_path = "Utilities/Field"
 
     def draw(self, _context):
         layout = self.layout
@@ -663,11 +712,13 @@ class NODE_MT_gn_utilities_field_base(Menu):
         self.node_operator(layout, "GeometryNodeFieldAverage")
         self.node_operator(layout, "GeometryNodeFieldMinAndMax")
         self.node_operator(layout, "GeometryNodeFieldVariance")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Field")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_rotation_base(Menu):
     bl_label = "Rotation"
+    menu_path = "Utilities/Rotation"
 
     def draw(self, _context):
         layout = self.layout
@@ -682,11 +733,13 @@ class NODE_MT_gn_utilities_rotation_base(Menu):
         self.node_operator(layout, "FunctionNodeRotationToEuler")
         self.node_operator(layout, "FunctionNodeRotationToQuaternion")
         self.node_operator(layout, "FunctionNodeQuaternionToRotation")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Rotation")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_matrix_base(Menu):
     bl_label = "Matrix"
+    menu_path = "Utilities/Matrix"
 
     def draw(self, _context):
         layout = self.layout
@@ -701,22 +754,26 @@ class NODE_MT_gn_utilities_matrix_base(Menu):
         self.node_operator(layout, "FunctionNodeTransformDirection")
         self.node_operator(layout, "FunctionNodeTransformPoint")
         self.node_operator(layout, "FunctionNodeTransposeMatrix")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Matrix")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_list_base(Menu):
     bl_label = "List"
+    menu_path = "Utilities/List"
 
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeList")
         self.node_operator(layout, "GeometryNodeListGetItem")
         self.node_operator(layout, "GeometryNodeListLength")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/List")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_math_base(Menu):
     bl_label = "Math"
+    menu_path = "Utilities/Math"
 
     def draw(self, context):
         layout = self.layout
@@ -733,21 +790,25 @@ class NODE_MT_gn_utilities_math_base(Menu):
         self.node_operator(layout, "ShaderNodeMapRange")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Math")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_mesh_uv_base(Menu):
     bl_label = "UV"
+    menu_path = "Mesh/UV"
 
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeUVPackIslands")
         self.node_operator(layout, "GeometryNodeUVUnwrap")
-        node_add_menu.draw_assets_for_catalog(layout, "Mesh/UV")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_utilities_vector_base(Menu):
     bl_label = "Vector"
+    menu_path = "Utilities/Vector"
 
     def draw(self, context):
         layout = self.layout
@@ -761,7 +822,8 @@ class NODE_MT_gn_utilities_vector_base(Menu):
         ops.name = "data_type"
         ops.value = "'VECTOR'"
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
-        node_add_menu.draw_assets_for_catalog(layout, "Utilities/Vector")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_base(Menu):
@@ -771,46 +833,53 @@ class NODE_MT_gn_volume_base(Menu):
     def draw(self, context):
         layout = self.layout
         if context.preferences.experimental.use_new_volume_nodes:
-            layout.menu("NODE_MT_gn_GEO_VOLUME_READ")
-            layout.menu("NODE_MT_gn_volume_sample_base")
-            layout.menu("NODE_MT_gn_GEO_VOLUME_WRITE")
+            self.draw_menu(layout, path="Volume/Read")
+            self.draw_menu(layout, path="Volume/Sample")
+            self.draw_menu(layout, path="Volume/Write")
             layout.separator()
-        layout.menu("NODE_MT_gn_GEO_VOLUME_OPERATIONS")
-        layout.menu("NODE_MT_gn_GEO_VOLUME_PRIMITIVES")
+        self.draw_menu(layout, path="Volume/Operations")
+        self.draw_menu(layout, path="Volume/Primitives")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_volume_read_base(Menu):
     bl_label = "Read"
+    menu_path = "Volume/Read"
 
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeGetNamedGrid")
         self.node_operator(layout, "GeometryNodeGridInfo")
-        node_add_menu.draw_assets_for_catalog(layout, "Volume/Read")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_write_base(Menu):
     bl_label = "Write"
+    menu_path = "Volume/Write"
 
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeStoreNamedGrid")
-        node_add_menu.draw_assets_for_catalog(layout, "Volume/Write")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_sample_base(Menu):
     bl_label = "Sample"
+    menu_path = "Volume/Sample"
 
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleGrid")
         self.node_operator(layout, "GeometryNodeSampleGridIndex")
-        node_add_menu.draw_assets_for_catalog(layout, "Volume/Sample")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_operations_base(Menu):
     bl_label = "Operations"
+    menu_path = "Volume/Operations"
 
     def draw(self, context):
         layout = self.layout
@@ -818,73 +887,78 @@ class NODE_MT_gn_volume_operations_base(Menu):
         if context.preferences.experimental.use_new_volume_nodes:
             self.node_operator(layout, "GeometryNodeGridToMesh")
             self.node_operator(layout, "GeometryNodeSDFGridBoolean")
-        node_add_menu.draw_assets_for_catalog(layout, "Volume/Operations")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_volume_primitives_base(Menu):
     bl_label = "Primitives"
+    menu_path = "Volume/Primitives"
 
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeVolumeCube")
-        node_add_menu.draw_assets_for_catalog(layout, "Volume/Primitives")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
+add_menu_pathing_dict = {}
 add_menus = (
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_ATTRIBUTE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_attribute_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT_CONSTANT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_constant_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT_GIZMO", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_gizmo_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT_GROUP", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_group_base),
-    node_add_menu.generate_menu("NODE_MT_category_import", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_import_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT_SCENE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_scene_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_OUTPUT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_output_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE_READ", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_read_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE_SAMPLE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_sample_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE_WRITE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_write_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE_OPERATIONS", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_operations_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_PRIMITIVES_CURVE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_primitives_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_curve_topology", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_topology_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_grease_pencil", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_grease_pencil_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_grease_pencil_read", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_grease_pencil_read_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_grease_pencil_write", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_grease_pencil_write_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_grease_pencil_operations", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_grease_pencil_operations_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY_READ", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_read_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY_WRITE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_write_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_operations_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_sample_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INSTANCE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_instance_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH_READ", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_read_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH_SAMPLE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_sample_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH_WRITE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_write_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH_OPERATIONS", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_operations_base),
-    node_add_menu.generate_menu("NODE_MT_category_PRIMITIVES_MESH", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_uv_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_mesh_topology", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_topology_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_UV", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_primitives_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_POINT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_point_base),
-    node_add_menu.generate_menu("NODE_MT_category_simulation", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_simulation_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_VOLUME", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_VOLUME_READ", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_read_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_volume_sample", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_sample_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_VOLUME_WRITE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_write_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_VOLUME_OPERATIONS", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_operations_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_VOLUME_PRIMITIVES", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_primitives_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MATERIAL", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_material_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_TEXTURE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_texture_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_base),
-    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_COLOR", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_color_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_TEXT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_text_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_VECTOR", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_vector_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES_FIELD", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_field_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES_MATH", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_math_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES_ROTATION", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_rotation_base),
-    node_add_menu.generate_menu("NODE_MT_category_utilities_list", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_list_base),
-    node_add_menu.generate_menu("NODE_MT_category_utilities_matrix", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_matrix_base),
-    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES_DEPRECATED", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_deprecated_base),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_ATTRIBUTE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_attribute_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT_CONSTANT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_constant_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT_GIZMO", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_gizmo_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT_GROUP", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_group_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_import", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_import_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INPUT_SCENE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_input_scene_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_OUTPUT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_output_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE_READ", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_read_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE_SAMPLE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_sample_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE_WRITE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_write_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_CURVE_OPERATIONS", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_operations_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_PRIMITIVES_CURVE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_primitives_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_curve_topology", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_curve_topology_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_grease_pencil", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_grease_pencil_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_grease_pencil_read", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_grease_pencil_read_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_grease_pencil_write", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_grease_pencil_write_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_grease_pencil_operations", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_grease_pencil_operations_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY_READ", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_read_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY_WRITE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_write_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_operations_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_geometry_sample_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_INSTANCE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_instance_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH_READ", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_read_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH_SAMPLE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_sample_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH_WRITE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_write_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MESH_OPERATIONS", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_operations_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_PRIMITIVES_MESH", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_uv_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_mesh_topology", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_topology_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_UV", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_mesh_primitives_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_POINT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_point_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_simulation", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_simulation_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_VOLUME", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_VOLUME_READ", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_read_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_volume_sample", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_sample_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_VOLUME_WRITE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_write_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_VOLUME_OPERATIONS", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_operations_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_VOLUME_PRIMITIVES", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_volume_primitives_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_MATERIAL", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_material_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_TEXTURE", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_texture_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_geometry_node_GEO_COLOR", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_color_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_TEXT", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_text_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_VECTOR", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_vector_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES_FIELD", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_field_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES_MATH", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_math_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES_ROTATION", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_rotation_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_utilities_list", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_list_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_utilities_matrix", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_matrix_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_GEO_UTILITIES_DEPRECATED", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_gn_utilities_deprecated_base, pathing_dict=add_menu_pathing_dict),
 )
+node_add_menu.generate_pathing_dict(add_menu_pathing_dict, add_menus)
 
 
 class NODE_MT_geometry_node_add_all(Menu):
@@ -916,61 +990,63 @@ class NODE_MT_geometry_node_add_all(Menu):
         node_add_menu.draw_root_assets(layout)
 
 
+swap_menu_pathing_dict = {}
 swap_menus = (
-    node_add_menu.generate_menu("NODE_MT_gn_attribute_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_attribute_base),
-    node_add_menu.generate_menu("NODE_MT_gn_input_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_base),
-    node_add_menu.generate_menu("NODE_MT_gn_input_constant_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_constant_base),
-    node_add_menu.generate_menu("NODE_MT_gn_input_gizmo_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_gizmo_base),
-    node_add_menu.generate_menu("NODE_MT_gn_input_group_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_group_base),
-    node_add_menu.generate_menu("NODE_MT_gn_input_import_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_import_base),
-    node_add_menu.generate_menu("NODE_MT_gn_input_scene_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_scene_base),
-    node_add_menu.generate_menu("NODE_MT_gn_output_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_output_base),
-    node_add_menu.generate_menu("NODE_MT_gn_curve_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_base),
-    node_add_menu.generate_menu("NODE_MT_gn_curve_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_read_base),
-    node_add_menu.generate_menu("NODE_MT_gn_curve_sample_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_sample_base),
-    node_add_menu.generate_menu("NODE_MT_gn_curve_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_write_base),
-    node_add_menu.generate_menu("NODE_MT_gn_curve_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_operations_base),
-    node_add_menu.generate_menu("NODE_MT_gn_curve_primitives_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_primitives_base),
-    node_add_menu.generate_menu("NODE_MT_gn_curve_topology_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_topology_base),
-    node_add_menu.generate_menu("NODE_MT_gn_grease_pencil_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_grease_pencil_base),
-    node_add_menu.generate_menu("NODE_MT_gn_grease_pencil_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_grease_pencil_read_base),
-    node_add_menu.generate_menu("NODE_MT_gn_grease_pencil_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_grease_pencil_write_base),
-    node_add_menu.generate_menu("NODE_MT_gn_grease_pencil_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_grease_pencil_operations_base),
-    node_add_menu.generate_menu("NODE_MT_gn_geometry_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_base),
-    node_add_menu.generate_menu("NODE_MT_gn_geometry_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_read_base),
-    node_add_menu.generate_menu("NODE_MT_gn_geometry_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_write_base),
-    node_add_menu.generate_menu("NODE_MT_gn_geometry_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_operations_base),
-    node_add_menu.generate_menu("NODE_MT_gn_geometry_sample_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_sample_base),
-    node_add_menu.generate_menu("NODE_MT_gn_instance_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_instance_base),
-    node_add_menu.generate_menu("NODE_MT_gn_mesh_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_base),
-    node_add_menu.generate_menu("NODE_MT_gn_mesh_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_read_base),
-    node_add_menu.generate_menu("NODE_MT_gn_mesh_sample_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_sample_base),
-    node_add_menu.generate_menu("NODE_MT_gn_mesh_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_write_base),
-    node_add_menu.generate_menu("NODE_MT_gn_mesh_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_operations_base),
-    node_add_menu.generate_menu("NODE_MT_gn_mesh_uv_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_uv_base),
-    node_add_menu.generate_menu("NODE_MT_gn_mesh_topology_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_topology_base),
-    node_add_menu.generate_menu("NODE_MT_gn_mesh_primitives_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_primitives_base),
-    node_add_menu.generate_menu("NODE_MT_gn_point_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_point_base),
-    node_add_menu.generate_menu("NODE_MT_gn_simulation_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_simulation_base),
-    node_add_menu.generate_menu("NODE_MT_gn_volume_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_base),
-    node_add_menu.generate_menu("NODE_MT_gn_volume_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_read_base),
-    node_add_menu.generate_menu("NODE_MT_gn_volume_sample_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_sample_base),
-    node_add_menu.generate_menu("NODE_MT_gn_volume_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_write_base),
-    node_add_menu.generate_menu("NODE_MT_gn_volume_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_operations_base),
-    node_add_menu.generate_menu("NODE_MT_gn_volume_primitives_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_primitives_base),
-    node_add_menu.generate_menu("NODE_MT_gn_material_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_material_base),
-    node_add_menu.generate_menu("NODE_MT_gn_texture_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_texture_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_color_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_color_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_text_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_text_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_vector_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_vector_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_field_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_field_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_math_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_math_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_rotation_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_rotation_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_list_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_list_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_matrix_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_matrix_base),
-    node_add_menu.generate_menu("NODE_MT_gn_utilities_deprecated_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_deprecated_base),
+    node_add_menu.generate_menu("NODE_MT_gn_attribute_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_attribute_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_input_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_input_constant_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_constant_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_input_gizmo_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_gizmo_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_input_group_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_group_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_input_import_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_import_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_input_scene_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_input_scene_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_output_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_output_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_curve_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_curve_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_read_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_curve_sample_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_sample_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_curve_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_write_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_curve_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_operations_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_curve_primitives_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_primitives_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_curve_topology_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_curve_topology_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_grease_pencil_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_grease_pencil_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_grease_pencil_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_grease_pencil_read_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_grease_pencil_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_grease_pencil_write_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_grease_pencil_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_grease_pencil_operations_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_geometry_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_geometry_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_read_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_geometry_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_write_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_geometry_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_operations_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_geometry_sample_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_geometry_sample_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_instance_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_instance_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_mesh_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_mesh_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_read_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_mesh_sample_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_sample_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_mesh_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_write_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_mesh_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_operations_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_mesh_uv_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_uv_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_mesh_topology_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_topology_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_mesh_primitives_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_mesh_primitives_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_point_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_point_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_simulation_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_simulation_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_volume_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_volume_read_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_read_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_volume_sample_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_sample_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_volume_write_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_write_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_volume_operations_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_operations_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_volume_primitives_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_volume_primitives_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_material_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_material_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_texture_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_texture_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_color_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_color_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_text_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_text_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_vector_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_vector_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_field_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_field_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_math_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_math_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_rotation_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_rotation_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_list_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_list_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_matrix_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_matrix_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_gn_utilities_deprecated_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_gn_utilities_deprecated_base, pathing_dict=swap_menu_pathing_dict),
 )
+node_add_menu.generate_pathing_dict(swap_menu_pathing_dict, swap_menus)
 
 
 class NODE_MT_geometry_node_swap_all(Menu):

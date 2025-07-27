@@ -17,7 +17,7 @@ class NODE_MT_compositor_node_input_base(Menu):
         is_group = (len(snode.path) > 1)
 
         layout = self.layout
-        layout.menu("NODE_MT_category_compositor_input_constant")
+        self.draw_menu(layout, path="Input/Constant")
         layout.separator()
         self.node_operator(layout, "NodeGroupInput")
         self.node_operator(layout, "CompositorNodeBokehImage")
@@ -28,13 +28,14 @@ class NODE_MT_compositor_node_input_base(Menu):
         self.node_operator(layout, "CompositorNodeMovieClip")
 
         layout.separator()
-        layout.menu("NODE_MT_category_compositor_input_scene")
+        self.draw_menu(layout, path="Input/Scene")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_compositor_node_input_constant_base(Menu):
     bl_label = "Constant"
+    menu_path = "Input/Constant"
 
     def draw(self, _context):
         layout = self.layout
@@ -42,11 +43,12 @@ class NODE_MT_compositor_node_input_constant_base(Menu):
         self.node_operator(layout, "ShaderNodeValue")
         self.node_operator(layout, "CompositorNodeNormal")
 
-        node_add_menu.draw_assets_for_catalog(layout, "Input/Constant")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_input_scene_base(Menu):
     bl_label = "Scene"
+    menu_path = "Input/Scene"
 
     def draw(self, context):
         layout = self.layout
@@ -54,7 +56,7 @@ class NODE_MT_compositor_node_input_scene_base(Menu):
         node_add_menu.add_node_type_with_outputs(context, layout, "CompositorNodeSceneTime", ["Frame", "Seconds"])
         self.node_operator(layout, "CompositorNodeTime")
 
-        node_add_menu.draw_assets_for_catalog(layout, "Input/Scene")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_output_base(Menu):
@@ -78,9 +80,9 @@ class NODE_MT_compositor_node_color_base(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_category_compositor_color_adjust")
+        self.draw_menu(layout, path="Color/Adjust")
         layout.separator()
-        layout.menu("NODE_MT_category_compositor_color_mix")
+        self.draw_menu(layout, path="Color/Mix")
         layout.separator()
         self.node_operator(layout, "CompositorNodePremulKey")
         self.node_operator(layout, "ShaderNodeBlackbody")
@@ -96,6 +98,7 @@ class NODE_MT_compositor_node_color_base(Menu):
 
 class NODE_MT_compositor_node_color_adjust_base(Menu):
     bl_label = "Adjust"
+    menu_path = "Color/Adjust"
 
     def draw(self, _context):
         layout = self.layout
@@ -109,11 +112,12 @@ class NODE_MT_compositor_node_color_adjust_base(Menu):
         self.node_operator(layout, "CompositorNodeCurveRGB")
         self.node_operator(layout, "CompositorNodeTonemap")
 
-        node_add_menu.draw_assets_for_catalog(layout, "Color/Adjust")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_color_mix_base(Menu):
     bl_label = "Mix"
+    menu_path = "Color/Mix"
 
     def draw(self, context):
         layout = self.layout
@@ -124,7 +128,7 @@ class NODE_MT_compositor_node_color_mix_base(Menu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeZcombine")
         node_add_menu.add_color_mix_node(context, layout)
-        node_add_menu.draw_assets_for_catalog(layout, "Color/Mix")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_filter_base(Menu):
@@ -132,7 +136,7 @@ class NODE_MT_compositor_node_filter_base(Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.menu("NODE_MT_category_compositor_filter_blur")
+        self.draw_menu(layout, path="Filter/Blur")
         layout.separator()
         self.node_operator(layout, "CompositorNodeAntiAliasing")
         self.node_operator(layout, "CompositorNodeDenoise")
@@ -153,6 +157,7 @@ class NODE_MT_compositor_node_filter_base(Menu):
 
 class NODE_MT_compositor_node_filter_blur_base(Menu):
     bl_label = "Blur"
+    menu_path = "Filter/Blur"
 
     def draw(self, _context):
         layout = self.layout
@@ -163,7 +168,7 @@ class NODE_MT_compositor_node_filter_blur_base(Menu):
         self.node_operator(layout, "CompositorNodeDBlur")
         self.node_operator(layout, "CompositorNodeVecBlur")
 
-        node_add_menu.draw_assets_for_catalog(layout, "Filter/Blur")
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_compositor_node_keying_base(Menu):
@@ -301,24 +306,26 @@ class NODE_MT_compositor_node_vector_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
+add_menu_pathing_dict = {}
 add_menus = (
-    node_add_menu.generate_menu("NODE_MT_category_compositor_input", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_input_constant", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_constant_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_input_scene", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_scene_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_output", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_output_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_color", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_color_adjust", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_adjust_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_color_mix", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_mix_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_filter", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_filter_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_filter_blur", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_filter_blur_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_texture", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_texture_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_keying", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_keying_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_mask", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_mask_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_tracking", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_tracking_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_transform", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_transform_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_utilities", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_utilities_base),
-    node_add_menu.generate_menu("NODE_MT_category_compositor_vector", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_vector_base),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_input", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_input_constant", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_constant_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_input_scene", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_input_scene_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_output", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_output_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_color", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_color_adjust", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_adjust_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_color_mix", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_color_mix_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_filter", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_filter_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_filter_blur", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_filter_blur_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_texture", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_texture_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_keying", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_keying_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_mask", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_mask_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_tracking", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_tracking_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_transform", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_transform_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_utilities", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_utilities_base, pathing_dict=add_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_category_compositor_vector", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_compositor_node_vector_base, pathing_dict=add_menu_pathing_dict),
 )
+node_add_menu.generate_pathing_dict(add_menu_pathing_dict, add_menus)
 
 
 class NODE_MT_compositor_node_add_all(Menu):
@@ -348,24 +355,26 @@ class NODE_MT_compositor_node_add_all(Menu):
         node_add_menu.draw_root_assets(layout)
 
 
+swap_menu_pathing_dict = {}
 swap_menus = (
-    node_add_menu.generate_menu("NODE_MT_compositor_node_input_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_input_constant_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_constant_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_input_scene_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_scene_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_output_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_output_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_color_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_color_adjust_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_adjust_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_color_mix_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_mix_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_filter_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_filter_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_filter_blur_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_filter_blur_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_texture_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_texture_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_keying_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_keying_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_mask_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_mask_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_tracking_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_tracking_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_transform_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_transform_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_utilities_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_utilities_base),
-    node_add_menu.generate_menu("NODE_MT_compositor_node_vector_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_vector_base),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_input_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_input_constant_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_constant_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_input_scene_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_input_scene_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_output_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_output_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_color_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_color_adjust_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_adjust_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_color_mix_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_color_mix_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_filter_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_filter_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_filter_blur_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_filter_blur_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_texture_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_texture_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_keying_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_keying_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_mask_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_mask_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_tracking_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_tracking_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_transform_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_transform_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_utilities_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_utilities_base, pathing_dict=swap_menu_pathing_dict),
+    node_add_menu.generate_menu("NODE_MT_compositor_node_vector_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_compositor_node_vector_base, pathing_dict=swap_menu_pathing_dict),
 )
+node_add_menu.generate_pathing_dict(swap_menu_pathing_dict, swap_menus)
 
 
 class NODE_MT_compositor_node_swap_all(Menu):
