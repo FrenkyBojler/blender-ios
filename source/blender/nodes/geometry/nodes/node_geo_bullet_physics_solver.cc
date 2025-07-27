@@ -188,9 +188,43 @@ static std::optional<RigidBodyCollisionShape> parse_ridig_body_collision_shape(c
   }
 }
 
+static std::optional<Bounds<float3>> gather_full_bounding_box(const GeometrySet &geometry)
+{
+  std::optional<Bounds<float3>> final_bounds;
+  final_bounds = geometry.compute_boundbox_without_instances(true);
+  const bke::Instances *instances = geometry.get_instances();
+  if (!instances) {
+    return final_bounds;
+  }
+  const int references_num = instances->references_num();
+  const Span<bke::InstanceReference> references = instances->references();
+  Array<std::optional<Bounds<float3>>> reference_bounds(references_num);
+  for (const int i : IndexRange(references_num)) {
+    const bke::InstanceReference &reference = references[i];
+    bke::GeometrySet reference_geometry;
+    reference.to_geometry_set(reference_geometry);
+    reference_bounds[i] = gather_full_bounding_box(reference_geometry);
+  }
+  const int instances_num = instances->instances_num();
+  const Span<int> handles = instances->reference_handles();
+  const Span<float4x4> transforms = instances->transforms();
+  for (const int i : IndexRange(instances_num)) {
+    const int handle = handles[i];
+    const std::optional<Bounds<float3>> &reference_bound = reference_bounds[handle];
+    if (!reference_bound) {
+      continue;
+    }
+    const Bounds<float3> transformed_bounds = bounds::transform_bounds(transforms[i],
+                                                                       *reference_bound);
+    final_bounds = bounds::merge(final_bounds, transformed_bounds);
+  }
+  return final_bounds;
+}
+
 static std::shared_ptr<btConvexHullShape> create_convex_hull_shape(const GeometrySet &geometry,
                                                                    const float margin)
 {
+  // TODO: Take instance into account.
   Vector<float3> positions;
   if (const Mesh *mesh = geometry.get_mesh()) {
     positions.extend(mesh->vert_positions());
@@ -214,19 +248,21 @@ static std::shared_ptr<btConvexHullShape> create_convex_hull_shape(const Geometr
 static std::shared_ptr<btCollisionShape> create_collision_shape(
     const RigidBodyCollisionShape shape, const GeometrySet &geometry, const float margin)
 {
-  const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(true);
-  if (!bounds) {
-    return {};
-  }
-  const float3 size = bounds->size();
-  const float max_dimension = std::max({size.x, size.y, size.z});
-
   switch (shape) {
     case RigidBodyCollisionShape::Box: {
-      return std::make_shared<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
+      if (const std::optional<Bounds<float3>> bounds = gather_full_bounding_box(geometry)) {
+        const float3 size = bounds->size();
+        return std::make_shared<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
+      }
+      return {};
     }
     case RigidBodyCollisionShape::Sphere: {
-      return std::make_shared<btSphereShape>(max_dimension / 2.0f);
+      if (const std::optional<Bounds<float3>> bounds = gather_full_bounding_box(geometry)) {
+        const float3 size = bounds->size();
+        const float max_dimension = std::max({size.x, size.y, size.z});
+        return std::make_shared<btSphereShape>(max_dimension / 2.0f);
+      }
+      return {};
     }
     case RigidBodyCollisionShape::ConvexHull: {
       return create_convex_hull_shape(geometry, margin);
