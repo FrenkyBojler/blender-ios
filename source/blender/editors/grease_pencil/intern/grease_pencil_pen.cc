@@ -736,7 +736,9 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd,
   return pos / num;
 }
 
-static void pen_status_indicators(bContext *C, wmOperator *op, const PenToolOperation &ptd)
+static void pen_status_indicators(bContext *C,
+                                  wmOperator * /*op*/,
+                                  const PenToolOperation & /*ptd*/)
 {
   WorkspaceStatus status(C);
   status.item(IFACE_("Align"), ICON_EVENT_SHIFT);
