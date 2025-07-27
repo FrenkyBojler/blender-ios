@@ -45,7 +45,7 @@ static btTransform float4x4_to_btTransform(const float4x4 &matrix)
 }
 
 struct SingleRigidBody {
-  std::unique_ptr<btCollisionShape> shape;
+  std::shared_ptr<btCollisionShape> shape;
   std::unique_ptr<btDefaultMotionState> motion_state;
   std::unique_ptr<btRigidBody> body;
 
@@ -157,6 +157,26 @@ static std::optional<RigidBodyCollisionShape> parse_ridig_body_collision_shape(c
   }
 }
 
+static std::shared_ptr<btCollisionShape> create_collision_shape(
+    const RigidBodyCollisionShape shape, const GeometrySet &geometry)
+{
+  const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(true);
+  if (!bounds) {
+    return {};
+  }
+  const float3 size = bounds->size();
+
+  switch (shape) {
+    case RigidBodyCollisionShape::Box: {
+      return std::make_shared<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
+    }
+    case RigidBodyCollisionShape::Sphere: {
+      return std::make_shared<btSphereShape>(std::max({size.x, size.y, size.z}) / 2.0f);
+    }
+  }
+  return {};
+}
+
 static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
 {
   std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
@@ -211,13 +231,13 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   const Span<int> handles = instances->reference_handles();
 
   Array<GeometrySet> reference_geometry_sets(references_num);
-  Array<std::optional<Bounds<float3>>> reference_bounds(references_num);
+  using CollisionShapeKey = std::pair<int, RigidBodyCollisionShape>;
+  Map<CollisionShapeKey, std::shared_ptr<btCollisionShape>> collision_shapes;
   for (const int i : references.index_range()) {
     const bke::InstanceReference &reference = references[i];
     GeometrySet reference_geometry;
     reference.to_geometry_set(reference_geometry);
     reference_geometry_sets[i] = reference_geometry;
-    reference_bounds[i] = reference_geometry.compute_boundbox_without_instances();
   }
 
   std::optional<RigidBodyInstances> old_rigid_body_instances =
@@ -230,10 +250,6 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   rigid_body_instances.rigid_body_by_id.reserve(instances_num);
   for (const int instance_i : IndexRange(instances_num)) {
     const int handle = handles[instance_i];
-    const std::optional<Bounds<float3>> &bounds = reference_bounds[handle];
-    if (!bounds) {
-      continue;
-    }
     const std::optional<RigidBodyMode> mode = parse_ridig_body_mode(modes[instance_i]);
     if (!mode) {
       continue;
@@ -243,47 +259,46 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     if (!shape) {
       continue;
     }
+    const std::shared_ptr<btCollisionShape> &collision_shape = collision_shapes.lookup_or_add_cb(
+        {handle, *shape},
+        [&]() { return create_collision_shape(*shape, reference_geometry_sets[handle]); });
+
     const int instance_id = instance_ids[instance_i];
     const float4x4 &transform = transforms[instance_i];
-    const float3 size = bounds->size();
     std::optional<SingleRigidBody> old_body;
     if (old_rigid_body_instances) {
       old_body = old_rigid_body_instances->rigid_body_by_id.pop_try(instance_id);
     }
 
+    float mass = std::max(masses[instance_i], 0.0f);
+
     SingleRigidBody body;
     if (old_body) {
       body = std::move(*old_body);
-      switch (*mode) {
-        case RigidBodyMode::Dynamic: {
-          break;
-        }
-        case RigidBodyMode::Static: {
-          break;
-        }
-        case RigidBodyMode::Animated: {
-          const btTransform bt_transform = float4x4_to_btTransform(transform);
-          body.motion_state->setWorldTransform(bt_transform);
-          body.body->setWorldTransform(bt_transform);
-          break;
-        }
+
+      /* Update collision shape.*/
+      if (ELEM(mode, RigidBodyMode::Dynamic, RigidBodyMode::Animated)) {
+        params.state.dynamics_world->removeRigidBody(body.body.get());
+        body.shape = collision_shape;
+        btVector3 inertia(0, 0, 0);
+        body.shape->calculateLocalInertia(mass, inertia);
+        body.body->setMassProps(mass, inertia);
+        body.body->setCollisionShape(body.shape.get());
+        params.state.dynamics_world->addRigidBody(body.body.get());
+      }
+
+      /* Update transform. */
+      if (mode == RigidBodyMode::Animated) {
+        const btTransform bt_transform = float4x4_to_btTransform(transform);
+        body.motion_state->setWorldTransform(bt_transform);
+        body.body->setWorldTransform(bt_transform);
       }
     }
     else {
-      switch (*shape) {
-        case RigidBodyCollisionShape::Box: {
-          body.shape = std::make_unique<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
-          break;
-        }
-        case RigidBodyCollisionShape::Sphere: {
-          body.shape = std::make_unique<btSphereShape>(std::max({size.x, size.y, size.z}) / 2.0f);
-          break;
-        }
-      }
+      body.shape = collision_shape;
       body.motion_state = std::make_unique<btDefaultMotionState>(
           float4x4_to_btTransform(transform));
       btVector3 inertia(0, 0, 0);
-      float mass = std::max(masses[instance_i], 0.0f);
       switch (*mode) {
         case RigidBodyMode::Dynamic: {
           body.shape->calculateLocalInertia(masses[instance_i], inertia);
