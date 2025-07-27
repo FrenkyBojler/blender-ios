@@ -57,7 +57,7 @@ PyDoc_STRVAR(
     "   :type orig: :class:`mathutils.Vector`\n"
     "   :arg clip: When False, don't restrict the intersection to the area of the "
     "triangle, use the infinite plane defined by the triangle.\n"
-    "   :type clip: bool, (optional)\n"
+    "   :type clip: bool\n"
     "   :return: The point of intersection or None if no intersection is found\n"
     "   :rtype: :class:`mathutils.Vector` | None\n");
 static PyObject *M_Geometry_intersect_ray_tri(PyObject * /*self*/, PyObject *args)
@@ -649,7 +649,7 @@ PyDoc_STRVAR(
     "   :type sphere_radius: float\n"
     "   :arg clip: When False, don't restrict the intersection to the area of the "
     "sphere.\n"
-    "   :type clip: bool, (optional)\n"
+    "   :type clip: bool\n"
     "   :return: The intersection points as a pair of vectors or None when there is no "
     "intersection\n"
     "   :rtype: tuple[:class:`mathutils.Vector` | None, :class:`mathutils.Vector` | None]\n");
@@ -744,7 +744,7 @@ PyDoc_STRVAR(
     "   :type sphere_radius: float\n"
     "   :arg clip: When False, don't restrict the intersection to the area of the "
     "sphere.\n"
-    "   :type clip: bool, (optional)\n"
+    "   :type clip: bool\n"
     "   :return: The intersection points as a pair of vectors or None when there is no "
     "intersection\n"
     "   :rtype: tuple[:class:`mathutils.Vector` | None, :class:`mathutils.Vector` | None]\n");
@@ -1168,9 +1168,9 @@ PyDoc_STRVAR(
     "   :arg planes: List of planes (4D vectors).\n"
     "   :type planes: list[:class:`mathutils.Vector`]\n"
     "   :arg epsilon_coplanar: Epsilon value for interpreting plane pairs as co-plannar.\n"
-    "   :type epsilon_coplanar: float, (optional)\n"
+    "   :type epsilon_coplanar: float\n"
     "   :arg epsilon_isect: Epsilon value for intersection.\n"
-    "   :type epsilon_isect: float, (optional)\n"
+    "   :type epsilon_isect: float\n"
     "   :return: Two lists, once containing the 3D coordinates inside the planes, "
     "another containing the plane indices used.\n"
     "   :rtype: tuple[list[:class:`mathutils.Vector`], list[int]]\n");
@@ -1650,7 +1650,7 @@ PyDoc_STRVAR(
     "   :arg epsilon: For nearness tests; should not be zero\n"
     "   :type epsilon: float\n"
     "   :arg need_ids: are the orig output arrays needed?\n"
-    "   :type need_ids: bool, (optional)\n"
+    "   :type need_ids: bool\n"
     "   :return: Output tuple, (vert_coords, edges, faces, orig_verts, orig_edges, orig_faces)\n"
     "   :rtype: tuple["
     "list[:class:`mathutils.Vector`], "

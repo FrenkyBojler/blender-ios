@@ -240,7 +240,7 @@ PyDoc_STRVAR(
     "   :arg stop: The end of the range used to fill the vector.\n"
     "   :type stop: int, (optional)\n"
     "   :arg step: The step between successive values in the vector.\n"
-    "   :type step: int, (optional)\n");
+    "   :type step: int\n");
 static PyObject *C_Vector_Range(PyObject *cls, PyObject *args)
 {
   float *vec;
@@ -765,7 +765,7 @@ PyDoc_STRVAR(
     "   Return this vector as a tuple with a given precision.\n"
     "\n"
     "   :arg precision: The number to round the value to in [-1, 21].\n"
-    "   :type precision: int, (optional)\n"
+    "   :type precision: int\n"
     "   :return: the values of the vector rounded by *precision*\n"
     "   :rtype: tuple[float, ...]\n");
 static PyObject *Vector_to_tuple(VectorObject *self, PyObject *args)
@@ -3427,7 +3427,7 @@ PyDoc_STRVAR(
     "   This object gives access to Vectors in Blender.\n"
     "\n"
     "   :arg seq: Components of the vector, must be a sequence of at least two.\n"
-    "   :type seq: Sequence[float], (optional)\n");
+    "   :type seq: Sequence[float]\n");
 PyTypeObject vector_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Vector",

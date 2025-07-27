@@ -1298,7 +1298,7 @@ PyDoc_STRVAR(
     "   (3x3 or 4x4 matrix only).\n"
     "\n"
     "   :arg order: A rotation order string."
-    "   :type order: Literal['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX'], (optional)\n"
+    "   :type order: Literal['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX']\n"
     "   :arg euler_compat: Optional euler argument the new euler will be made\n"
     "      compatible with (no axis flipping between them).\n"
     "      Useful for converting a series of matrices to animation curves.\n"
@@ -3466,7 +3466,7 @@ PyDoc_STRVAR(
     "   matrices from 2x2 up to 4x4.\n"
     "\n"
     "   :arg rows: Sequence of rows.\n"
-    "   :type rows: Sequence[Sequence[float]], (optional)\n");
+    "   :type rows: Sequence[Sequence[float]]\n");
 PyTypeObject matrix_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "Matrix",
