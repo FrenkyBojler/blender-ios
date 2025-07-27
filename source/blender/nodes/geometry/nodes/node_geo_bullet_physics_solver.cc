@@ -62,22 +62,27 @@ static void node_geo_exec(GeoNodeExecParams params)
     bullet_state_owner = BulletStateOwnerPtr{MEM_new<BulletStateOwner>(__func__)};
   }
 
-  {
-    std::lock_guard lock{bullet_state_owner->mutex};
-    BulletState &state = bullet_state_owner->state;
-    if (!state.is_initialized) {
-      state.collision_configuration = std::make_unique<btDefaultCollisionConfiguration>();
-      state.collision_dispatcher = std::make_unique<btCollisionDispatcher>(
-          state.collision_configuration.get());
-      state.broadphase = std::make_unique<btDbvtBroadphase>();
-      state.solver = std::make_unique<btSequentialImpulseConstraintSolver>();
-      state.dynamics_world = std::make_unique<btDiscreteDynamicsWorld>(
-          state.collision_dispatcher.get(),
-          state.broadphase.get(),
-          state.solver.get(),
-          state.collision_configuration.get());
-      state.is_initialized = true;
-    }
+  if (!bullet_state_owner->mutex.try_lock()) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Bullet physics state cannot be used by multiple nodes"));
+    params.set_default_remaining_outputs();
+    return;
+  }
+  BLI_SCOPED_DEFER([&]() { bullet_state_owner->mutex.unlock(); });
+
+  BulletState &state = bullet_state_owner->state;
+  if (!state.is_initialized) {
+    state.collision_configuration = std::make_unique<btDefaultCollisionConfiguration>();
+    state.collision_dispatcher = std::make_unique<btCollisionDispatcher>(
+        state.collision_configuration.get());
+    state.broadphase = std::make_unique<btDbvtBroadphase>();
+    state.solver = std::make_unique<btSequentialImpulseConstraintSolver>();
+    state.dynamics_world = std::make_unique<btDiscreteDynamicsWorld>(
+        state.collision_dispatcher.get(),
+        state.broadphase.get(),
+        state.solver.get(),
+        state.collision_configuration.get());
+    state.is_initialized = true;
   }
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
