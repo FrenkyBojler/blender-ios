@@ -2422,7 +2422,6 @@ class _defs_grease_pencil_edit:
             keymap=(),
         )
 
-
     @ToolDef.from_fn
     def pen():
         def draw_settings(_context, layout, tool):
