@@ -404,7 +404,7 @@ void NODE_OT_cryptomatte_layer_remove(wmOperatorType *ot);
 
 void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt);
-void NODE_GGT_backdrop_sun_beams(wmGizmoGroupType *gzgt);
+void NODE_GGT_backdrop_glare(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt);
@@ -446,5 +446,13 @@ MenuType add_root_catalogs_menu_type();
 /* `node_sync_sockets.cc` */
 
 void NODE_OT_sockets_sync(wmOperatorType *ot);
+
+/* node_socket_tooltip.cc */
+
+void build_socket_tooltip(uiTooltipData &tip_data,
+                          bContext &C,
+                          uiBut *but,
+                          const bNodeTree &tree,
+                          const bNodeSocket &socket);
 
 }  // namespace blender::ed::space_node

@@ -1072,7 +1072,7 @@ static VArray<T> attribute_interpolate(const VArray<T> &input, const bke::Curves
 
   Array<T> out(curves.evaluated_points_num());
   curves.interpolate_to_evaluated(VArraySpan(input), out.as_mutable_span());
-  return VArray<T>::ForContainer(std::move(out));
+  return VArray<T>::from_container(std::move(out));
 };
 
 static float segment_radius_length(const float l, const float r1, const float r2)
