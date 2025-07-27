@@ -63,6 +63,7 @@ struct ClosestElement {
   int point_index = -1;
   int curve_index = -1;
   float edge_t = -1.0f;
+  int layer_index = -1;
 };
 
 /* Used to scale the default select distance. */
@@ -96,8 +97,6 @@ struct PenToolOperation {
   float4x4 projection;
   float2 mouse_co;
   float2 center_of_mass_co;
-
-  int layer_index = -1;
 
   ClosestElement closest_element;
 };
@@ -333,6 +332,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
     closest_element.element_mode = element_mode;
     closest_element.curve_index = closest_curve;
     closest_element.point_index = closest_point;
+    closest_element.layer_index = layer_index;
     return closest_element;
   }
 
@@ -345,6 +345,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
     closest_element.point_index = closest_edge_point;
     closest_element.curve_index = closest_curve;
     closest_element.edge_t = edge_t;
+    closest_element.layer_index = layer_index;
     return closest_element;
   }
 
@@ -816,7 +817,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         ptd, info.drawing, info.layer_index, ptd.mouse_co);
 
     if (ptd.closest_element.element_mode == ElementMode::Edge) {
-      ptd.layer_index = info.layer_index;
       add_single.store(false, std::memory_order_relaxed);
       if (ptd.insert_point) {
         curves = pen_insert_point(ptd, curves);
@@ -1082,7 +1082,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
 
     if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
-      if (ptd.layer_index == info.layer_index) {
+      if (ptd.closest_element.layer_index == info.layer_index) {
         move_segment(ptd, curves, layer_to_world);
         info.drawing.tag_topology_changed();
         changed.store(true, std::memory_order_relaxed);
