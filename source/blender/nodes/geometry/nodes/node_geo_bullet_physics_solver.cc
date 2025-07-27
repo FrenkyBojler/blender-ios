@@ -483,11 +483,14 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     const float margin = std::max(margins[instance_i], 0.0f);
 
     const std::shared_ptr<btCollisionShape> &collision_shape = collision_shapes.lookup_or_add_cb(
-        {handle, *shape, margin, scale}, [&]() {
-          std::shared_ptr<btCollisionShape> collision_shape = create_collision_shape(
-              *shape, reference_geometry_sets[handle], margin);
-          collision_shape->setLocalScaling(btVector3(scale.x, scale.y, scale.z));
-          return collision_shape;
+        {handle, *shape, margin, scale}, [&]() -> std::shared_ptr<btCollisionShape> {
+          if (std::shared_ptr<btCollisionShape> new_shape = create_collision_shape(
+                  *shape, reference_geometry_sets[handle], margin))
+          {
+            new_shape->setLocalScaling(btVector3(scale.x, scale.y, scale.z));
+            return new_shape;
+          }
+          return {};
         });
     if (!collision_shape) {
       continue;
