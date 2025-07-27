@@ -96,6 +96,8 @@ struct PenToolOperation {
   bool cycle_handle_type;
   int extrude_handle;
 
+  bool move_entire;
+
   bool point_added;
   bool point_removed;
 
@@ -829,6 +831,8 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
 
+  ptd.move_entire = false;
+
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
 
@@ -1118,6 +1122,12 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     return OPERATOR_FINISHED;
   }
 
+  if (event->type == EVT_MODAL_MAP) {
+    if (event->val == int(PenModal::MoveEntire)) {
+      ptd.move_entire = !ptd.move_entire;
+    }
+  }
+
   std::atomic<bool> changed = false;
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
   threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
@@ -1162,8 +1172,9 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
       const float3 depth_point = positions[point_i];
       float2 offset = float2(event->xy) - float2(event->prev_xy);
 
-      if (ptd.move_point && !ptd.point_added &&
-          !(left_selected[point_i] || right_selected[point_i]))
+      if ((ptd.move_point && !ptd.point_added &&
+           !(left_selected[point_i] || right_selected[point_i])) ||
+          ptd.move_entire)
       {
         const float2 pos = pen_layer_to_screen(ptd, layer_to_object, positions[point_i]);
         const float2 pos_left = pen_layer_to_screen(ptd, layer_to_object, handles_left[point_i]);
