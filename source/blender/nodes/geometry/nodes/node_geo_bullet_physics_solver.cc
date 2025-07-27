@@ -71,7 +71,6 @@ struct BulletState {
   std::unique_ptr<btSequentialImpulseConstraintSolver> solver;
   std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world;
 
-  Map<std::string, SingleRigidBody> single_rigid_bodies;
   Map<std::string, RigidBodyInstances> rigid_body_instances_by_path;
 };
 
@@ -95,7 +94,6 @@ using BulletStateOwnerPtr = ImplicitSharingPtr<BulletStateOwner>;
 
 struct Behaviors {
   btVector3 gravity{};
-  Map<std::string, SingleRigidBody> new_single_rigid_bodies;
   Map<std::string, RigidBodyInstances> new_rigid_body_instances_by_path;
 };
 
@@ -140,89 +138,6 @@ static std::optional<RigidBodyMode> parse_ridig_body_mode(const int mode)
     default:
       return std::nullopt;
   }
-}
-
-static void parse_behavior__single_rigid_body(ParseBehaviorParams &params)
-{
-  std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Mesh");
-  if (!geometry) {
-    return;
-  }
-  std::optional<float4x4> transform = params.bundle.lookup<float4x4>("Transform");
-  if (!transform) {
-    return;
-  }
-  const std::optional<RigidBodyMode> mode = parse_ridig_body_mode(
-      params.bundle.lookup<int>("Mode").value_or(-1));
-  if (!mode) {
-    return;
-  }
-  const float friction = params.bundle.lookup<float>("Friction").value_or(0.0f);
-  const float bounciness = params.bundle.lookup<float>("Bounciness").value_or(0.0f);
-  float mass = params.bundle.lookup<float>("Mass").value_or(0.0f);
-  std::string self_path = params.self_path();
-
-  if (mode != RigidBodyMode::Dynamic) {
-    /* This makes the object non-dynamic in Bullet. */
-    mass = 0.0f;
-  }
-
-  std::optional<SingleRigidBody> old_rigid_body = params.state.single_rigid_bodies.pop_try(
-      self_path);
-  SingleRigidBody rigid_body;
-  if (old_rigid_body) {
-    rigid_body = std::move(*old_rigid_body);
-    switch (*mode) {
-      case RigidBodyMode::Dynamic: {
-        break;
-      }
-      case RigidBodyMode::Static:
-      case RigidBodyMode::Animated: {
-        rigid_body.motion_state->setWorldTransform(float4x4_to_btTransform(*transform));
-        break;
-      }
-    }
-    if (rigid_body.body->getFriction() != friction) {
-      rigid_body.body->setFriction(friction);
-    }
-    if (rigid_body.body->getRestitution() != bounciness) {
-      rigid_body.body->setRestitution(bounciness);
-    }
-  }
-  else {
-    const Mesh *mesh = geometry->get_mesh();
-    if (!mesh) {
-      return;
-    }
-    std::optional<Bounds<float3>> bounds = mesh->bounds_min_max();
-    if (!bounds) {
-      return;
-    }
-    const float3 size = bounds->size();
-
-    rigid_body.shape = std::make_unique<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
-    rigid_body.motion_state = std::make_unique<btDefaultMotionState>(
-        float4x4_to_btTransform(*transform));
-
-    btVector3 inertia(0, 0, 0);
-    switch (*mode) {
-      case RigidBodyMode::Dynamic: {
-        rigid_body.shape->calculateLocalInertia(mass, inertia);
-        break;
-      }
-      case RigidBodyMode::Static:
-      case RigidBodyMode::Animated: {
-        break;
-      }
-    }
-    btRigidBody::btRigidBodyConstructionInfo body_info(
-        mass, &*rigid_body.motion_state, &*rigid_body.shape, inertia);
-    rigid_body.body = std::make_unique<btRigidBody>(body_info);
-    params.state.dynamics_world->addRigidBody(&*rigid_body.body);
-    rigid_body.body->setFriction(friction);
-    rigid_body.body->setRestitution(bounciness);
-  }
-  params.behaviors.new_single_rigid_bodies.add(self_path, std::move(rigid_body));
 }
 
 static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
@@ -374,7 +289,6 @@ static Map<std::string, BehaviorParseFn> build_behavior_parsers()
 {
   Map<std::string, BehaviorParseFn> behavior_parsers;
   behavior_parsers.add_new("Gravity", parse_behavior__gravity);
-  behavior_parsers.add_new("Single Rigid Body", parse_behavior__single_rigid_body);
   behavior_parsers.add_new("Rigid Body Instances", parse_behavior__rigid_body_instances);
   return behavior_parsers;
 }
@@ -394,9 +308,6 @@ static void update_state_from_behaviors(BulletState &state, const Bundle &behavi
   state.dynamics_world->setGravity(behaviors.gravity);
 
   /* Remove now unused rigid bodies. */
-  for (const SingleRigidBody &single_rigid_body : state.single_rigid_bodies.values()) {
-    state.dynamics_world->removeRigidBody(single_rigid_body.body.get());
-  }
   for (const RigidBodyInstances &rigid_body_instances :
        state.rigid_body_instances_by_path.values())
   {
@@ -406,7 +317,6 @@ static void update_state_from_behaviors(BulletState &state, const Bundle &behavi
     }
   }
 
-  state.single_rigid_bodies = std::move(behaviors.new_single_rigid_bodies);
   state.rigid_body_instances_by_path = std::move(behaviors.new_rigid_body_instances_by_path);
 }
 
@@ -496,11 +406,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   new_data_bundle.add("_state", bullet_state_owner);
   new_data_bundle.add("_counter", update_counter);
 
-  for (const auto &item : state.single_rigid_bodies.items()) {
-    const StringRef self_path = item.key;
-    const SingleRigidBody &single_rigid_body = item.value;
-    new_data_bundle.add_path(self_path + "/Transform", single_rigid_body.get_transform());
-  }
   for (const auto &item : state.rigid_body_instances_by_path.items()) {
     const StringRef self_path = item.key;
     const RigidBodyInstances &rigid_body_instances = item.value;
