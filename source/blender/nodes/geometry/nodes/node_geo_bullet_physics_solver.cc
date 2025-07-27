@@ -6,6 +6,8 @@
 
 #include <btBulletDynamicsCommon.h>
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 namespace blender::nodes::node_geo_bullet_physics_solver_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -20,6 +22,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 }
 
 struct BulletState {
+  bool is_initialized = false;
   std::unique_ptr<btDefaultCollisionConfiguration> collision_configuration;
   std::unique_ptr<btCollisionDispatcher> collision_dispatcher;
   std::unique_ptr<btDbvtBroadphase> broadphase;
@@ -27,10 +30,10 @@ struct BulletState {
   std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world;
 };
 
-class BulletStateReference : public ImplicitSharingMixin {
+class BulletStateOwner : public BundleItemInternalValueMixin {
  public:
-  Mutex mutex;
-  std::unique_ptr<BulletState> state;
+  mutable Mutex mutex;
+  mutable BulletState state;
 
   void delete_self() override
   {
@@ -38,29 +41,45 @@ class BulletStateReference : public ImplicitSharingMixin {
   }
 };
 
+using BulletStateOwnerPtr = ImplicitSharingPtr<BulletStateOwner>;
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  BundlePtr old_data_bundle = params.extract_input<BundlePtr>("Data");
+  BundlePtr behaviors_bundle = params.extract_input<BundlePtr>("Behavior");
 
-  auto *state_ref = MEM_new<BulletStateReference>(__func__);
-  ImplicitSharingPtr<BulletStateReference> state_ref_ptr{state_ref};
-  state_ref->state = std::make_unique<BulletState>();
-
-  {
-    std::lock_guard lock{state_ref->mutex};
-    BulletState &state = *state_ref->state;
-    state.collision_configuration = std::make_unique<btDefaultCollisionConfiguration>();
-    state.collision_dispatcher = std::make_unique<btCollisionDispatcher>(
-        state.collision_configuration.get());
-    state.broadphase = std::make_unique<btDbvtBroadphase>();
-    state.solver = std::make_unique<btSequentialImpulseConstraintSolver>();
-    state.dynamics_world = std::make_unique<btDiscreteDynamicsWorld>(
-        state.collision_dispatcher.get(),
-        state.broadphase.get(),
-        state.solver.get(),
-        state.collision_configuration.get());
+  auto bullet_state_owner = BulletStateOwnerPtr{};
+  if (old_data_bundle) {
+    bullet_state_owner =
+        old_data_bundle->lookup<BulletStateOwnerPtr>("Bullet State").value_or(nullptr);
+  }
+  if (!bullet_state_owner) {
+    bullet_state_owner = BulletStateOwnerPtr{MEM_new<BulletStateOwner>(__func__)};
   }
 
-  params.set_default_remaining_outputs();
+  {
+    std::lock_guard lock{bullet_state_owner->mutex};
+    BulletState &state = bullet_state_owner->state;
+    if (!state.is_initialized) {
+      state.collision_configuration = std::make_unique<btDefaultCollisionConfiguration>();
+      state.collision_dispatcher = std::make_unique<btCollisionDispatcher>(
+          state.collision_configuration.get());
+      state.broadphase = std::make_unique<btDbvtBroadphase>();
+      state.solver = std::make_unique<btSequentialImpulseConstraintSolver>();
+      state.dynamics_world = std::make_unique<btDiscreteDynamicsWorld>(
+          state.collision_dispatcher.get(),
+          state.broadphase.get(),
+          state.solver.get(),
+          state.collision_configuration.get());
+      state.is_initialized = true;
+    }
+  }
+
+  BundlePtr new_data_bundle_ptr = Bundle::create();
+  Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
+  new_data_bundle.add("Bullet State", bullet_state_owner);
+
+  params.set_output("Data", std::move(new_data_bundle_ptr));
 }
 
 static void node_register()

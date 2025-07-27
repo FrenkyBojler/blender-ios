@@ -19,8 +19,10 @@ struct BundleItemSocketValue {
   void *value;
 };
 
+class BundleItemInternalValueMixin : public ImplicitSharingMixin {};
+
 struct BundleItemInternalValue {
-  ImplicitSharingPtr<> data;
+  ImplicitSharingPtr<BundleItemInternalValueMixin> value;
 };
 
 struct BundleItemValue {
@@ -29,7 +31,8 @@ struct BundleItemValue {
   /**
    * Attempts to cast the stored value to the given type. This may do implicit conversions.
    */
-  template<typename T> std::optional<T> as(const bke::bNodeSocketType &socket_type) const;
+  template<typename T>
+  std::optional<T> as_socket_value(const bke::bNodeSocketType &socket_type) const;
   template<typename T> std::optional<T> as() const;
 };
 
@@ -93,7 +96,8 @@ class Bundle : public ImplicitSharingMixin {
 };
 
 template<typename T>
-inline std::optional<T> BundleItemValue::as(const bke::bNodeSocketType &dst_socket_type) const
+inline std::optional<T> BundleItemValue::as_socket_value(
+    const bke::bNodeSocketType &dst_socket_type) const
 {
   const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&this->value);
   if (!socket_value) {
@@ -157,11 +161,35 @@ template<typename T> inline const bke::bNodeSocketType *socket_type_info_by_stat
   return bke::node_socket_type_find_static(*socket_type);
 }
 
+template<typename T> constexpr bool is_valid_internal_bundle_item_type()
+{
+  if constexpr (is_ImplicitSharingPtr_strong_v<T>) {
+    if constexpr (std::is_base_of_v<BundleItemInternalValueMixin, typename T::element_type>) {
+      return true;
+    }
+  }
+  return false;
+}
+
 template<typename T> inline std::optional<T> BundleItemValue::as() const
 {
-  static_assert(is_valid_static_bundle_item_type<T>());
-  if (const bke::bNodeSocketType *dst_socket_type = socket_type_info_by_static_type<T>()) {
-    return this->as<T>(*dst_socket_type);
+  static_assert(is_valid_static_bundle_item_type<T>() || is_valid_internal_bundle_item_type<T>());
+  if constexpr (is_valid_internal_bundle_item_type<T>()) {
+    using SharingInfoT = typename T::element_type;
+    const auto *internal_value = std::get_if<BundleItemInternalValue>(&this->value);
+    if (!internal_value) {
+      return std::nullopt;
+    }
+    const BundleItemInternalValueMixin *sharing_info = internal_value->value.get();
+    const SharingInfoT *converted_value = dynamic_cast<const SharingInfoT *>(sharing_info);
+    if (!converted_value) {
+      return std::nullopt;
+    }
+    sharing_info->add_user();
+    return ImplicitSharingPtr<SharingInfoT>{converted_value};
+  }
+  else if (const bke::bNodeSocketType *dst_socket_type = socket_type_info_by_static_type<T>()) {
+    return this->as_socket_value<T>(*dst_socket_type);
   }
   /* Can't lookup this type directly currently. */
   BLI_assert_unreachable();
@@ -189,6 +217,9 @@ template<typename T> inline std::optional<T> Bundle::lookup_path(const StringRef
 template<typename T, typename Fn> inline void to_stored_type(T &&value, Fn &&fn)
 {
   using DecayT = std::decay_t<T>;
+  static_assert(
+      is_valid_static_bundle_item_type<DecayT>() || is_valid_internal_bundle_item_type<DecayT>() ||
+      is_same_any_v<DecayT, BundleItemValue, BundleItemSocketValue, BundleItemInternalValue>);
   if constexpr (std::is_same_v<DecayT, BundleItemValue>) {
     fn(std::forward<T>(value));
   }
@@ -198,10 +229,14 @@ template<typename T, typename Fn> inline void to_stored_type(T &&value, Fn &&fn)
   else if constexpr (std::is_same_v<DecayT, BundleItemInternalValue>) {
     fn(BundleItemValue{std::forward<T>(value)});
   }
-  else {
-    static_assert(is_valid_static_bundle_item_type<DecayT>());
-    const bke::bNodeSocketType *socket_type = socket_type_info_by_static_type<DecayT>();
-    BLI_assert(socket_type);
+  else if constexpr (is_valid_internal_bundle_item_type<DecayT>()) {
+    const BundleItemInternalValueMixin *sharing_info = value.get();
+    if (sharing_info) {
+      sharing_info->add_user();
+    }
+    fn(BundleItemValue{BundleItemInternalValue{ImplicitSharingPtr{sharing_info}}});
+  }
+  else if (const bke::bNodeSocketType *socket_type = socket_type_info_by_static_type<DecayT>()) {
     if constexpr (geo_nodes_type_stored_as_SocketValueVariant_v<DecayT>) {
       auto value_variant = bke::SocketValueVariant::From(std::forward<T>(value));
       fn(BundleItemValue{BundleItemSocketValue{socket_type, &value_variant}});
@@ -209,6 +244,10 @@ template<typename T, typename Fn> inline void to_stored_type(T &&value, Fn &&fn)
     else {
       fn(BundleItemValue{BundleItemSocketValue{socket_type, &value}});
     }
+  }
+  else {
+    /* All allowed types should be handled above already. */
+    BLI_assert_unreachable();
   }
 }
 
