@@ -1037,8 +1037,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         return;
       }
 
-      handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
-      handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+      const bool is_left = !right_selected[point_i];
       const float2 center_point = pen_layer_to_screen(ptd, layer_to_object, depth_point);
       offset = ptd.mouse_co - ptd.center_of_mass_co;
 
@@ -1046,12 +1045,36 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         offset = snap_8_angles(offset);
       }
 
-      handles_right[point_i] = pen_screen_to_layer(
-          ptd, layer_to_world, center_point + offset, depth_point);
-      handles_left[point_i] = depth_point - (handles_right[point_i] - depth_point);
+      if (is_left) {
+        if (handle_types_right[point_i] == BEZIER_HANDLE_AUTO) {
+          handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+        }
+        handle_types_left[point_i] = handle_types_right[point_i];
+        if (handle_types_right[point_i] == BEZIER_HANDLE_VECTOR) {
+          handle_types_left[point_i] = BEZIER_HANDLE_FREE;
+        }
 
-      if (!right_selected[point_i]) {
-        std::swap(handles_right[point_i], handles_left[point_i]);
+        handles_left[point_i] = pen_screen_to_layer(
+            ptd, layer_to_world, center_point + offset, depth_point);
+
+        if (handle_types_right[point_i] == BEZIER_HANDLE_ALIGN) {
+          handles_right[point_i] = 2.0f * depth_point - handles_left[point_i];
+        }
+      }
+      else {
+        if (handle_types_left[point_i] == BEZIER_HANDLE_AUTO) {
+          handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+        }
+        handle_types_right[point_i] = handle_types_left[point_i];
+        if (handle_types_left[point_i] == BEZIER_HANDLE_VECTOR) {
+          handle_types_right[point_i] = BEZIER_HANDLE_FREE;
+        }
+
+        handles_right[point_i] = pen_screen_to_layer(
+            ptd, layer_to_world, center_point + offset, depth_point);
+        if (handle_types_left[point_i] == BEZIER_HANDLE_ALIGN) {
+          handles_left[point_i] = 2.0f * depth_point - handles_right[point_i];
+        }
       }
     });
 
