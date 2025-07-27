@@ -261,13 +261,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   int update_counter = 0;
   if (old_data_bundle) {
-    update_counter = old_data_bundle->lookup<int>("Update Counter").value_or(0);
+    update_counter = old_data_bundle->lookup<int>("_counter").value_or(0);
   }
 
   auto bullet_state_owner = BulletStateOwnerPtr{};
   if (old_data_bundle) {
-    bullet_state_owner =
-        old_data_bundle->lookup<BulletStateOwnerPtr>("Bullet State").value_or(nullptr);
+    bullet_state_owner = old_data_bundle->lookup<BulletStateOwnerPtr>("_state").value_or(nullptr);
   }
   if (!bullet_state_owner) {
     bullet_state_owner = BulletStateOwnerPtr{MEM_new<BulletStateOwner>(__func__)};
@@ -309,8 +308,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
-  new_data_bundle.add("Bullet State", bullet_state_owner);
-  new_data_bundle.add("Update Counter", update_counter);
+  new_data_bundle.add("_state", bullet_state_owner);
+  new_data_bundle.add("_counter", update_counter);
 
   for (const auto &item : state.single_rigid_bodies.items()) {
     const StringRef self_path = item.key;
