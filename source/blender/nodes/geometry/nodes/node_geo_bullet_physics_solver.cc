@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "BKE_instances.hh"
 #include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
@@ -54,6 +55,11 @@ struct SingleRigidBody {
   }
 };
 
+struct RigidBodyInstances {
+  GeometrySet geometry_set;
+  Map<int, SingleRigidBody> rigid_body_by_id;
+};
+
 struct BulletState {
   bool is_initialized = false;
   int update_counter = 0;
@@ -64,6 +70,7 @@ struct BulletState {
   std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world;
 
   Map<std::string, SingleRigidBody> single_rigid_bodies;
+  Map<std::string, RigidBodyInstances> rigid_body_instances_by_path;
 };
 
 class BulletStateOwner : public BundleItemInternalValueMixin {
@@ -87,6 +94,7 @@ using BulletStateOwnerPtr = ImplicitSharingPtr<BulletStateOwner>;
 struct Behaviors {
   btVector3 gravity{};
   Map<std::string, SingleRigidBody> new_single_rigid_bodies;
+  Map<std::string, RigidBodyInstances> new_rigid_body_instances_by_path;
 };
 
 struct ParseBehaviorParams {
@@ -118,13 +126,9 @@ enum class RigidBodyMode {
   Animated,
 };
 
-static std::optional<RigidBodyMode> parse_ridig_body_mode(const Bundle &bundle)
+static std::optional<RigidBodyMode> parse_ridig_body_mode(const int mode)
 {
-  const std::optional<int> mode = bundle.lookup<int>("Mode");
-  if (!mode) {
-    return std::nullopt;
-  }
-  switch (*mode) {
+  switch (mode) {
     case 0:
       return RigidBodyMode::Dynamic;
     case 1:
@@ -146,14 +150,15 @@ static void parse_behavior__single_rigid_body(ParseBehaviorParams &params)
   if (!transform) {
     return;
   }
+  const std::optional<RigidBodyMode> mode = parse_ridig_body_mode(
+      params.bundle.lookup<int>("Mode").value_or(-1));
+  if (!mode) {
+    return;
+  }
   const float friction = params.bundle.lookup<float>("Friction").value_or(0.0f);
   const float bounciness = params.bundle.lookup<float>("Bounciness").value_or(0.0f);
   float mass = params.bundle.lookup<float>("Mass").value_or(0.0f);
   std::string self_path = params.self_path();
-  const std::optional<RigidBodyMode> mode = parse_ridig_body_mode(params.bundle);
-  if (!mode) {
-    return;
-  }
 
   if (mode != RigidBodyMode::Dynamic) {
     /* This makes the object non-dynamic in Bullet. */
@@ -218,12 +223,158 @@ static void parse_behavior__single_rigid_body(ParseBehaviorParams &params)
   params.behaviors.new_single_rigid_bodies.add(self_path, std::move(rigid_body));
 }
 
+static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
+{
+  std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
+  if (!geometry) {
+    return;
+  }
+  std::optional<Field<int>> mode_field = params.bundle.lookup<Field<int>>("Mode");
+  if (!mode_field) {
+    return;
+  }
+  std::optional<Field<float>> mass_field = params.bundle.lookup<Field<float>>("Mass");
+  if (!mass_field) {
+    mass_field = fn::make_constant_field<float>(1.0f);
+  }
+  std::optional<Field<float>> friction_field = params.bundle.lookup<Field<float>>("Friction");
+  if (!friction_field) {
+    friction_field = fn::make_constant_field<float>(0.0f);
+  }
+  std::optional<Field<float>> bounciness_field = params.bundle.lookup<Field<float>>("Bounciness");
+  if (!bounciness_field) {
+    bounciness_field = fn::make_constant_field<float>(0.0f);
+  }
+  bke::Instances *instances = geometry->get_instances_for_write();
+  if (!instances) {
+    return;
+  }
+  const std::string self_path = params.self_path();
+  const int instances_num = instances->instances_num();
+  const int references_num = instances->references_num();
+
+  bke::InstancesFieldContext field_context{*instances};
+  fn::FieldEvaluator field_evaluator{field_context, instances_num};
+  field_evaluator.add(*mode_field);
+  field_evaluator.add(*mass_field);
+  field_evaluator.add(*friction_field);
+  field_evaluator.add(*bounciness_field);
+  field_evaluator.evaluate();
+  const VArray<int> modes = field_evaluator.get_evaluated<int>(0);
+  const VArray<float> masses = field_evaluator.get_evaluated<float>(1);
+  const VArray<float> frictions = field_evaluator.get_evaluated<float>(2);
+  const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(3);
+
+  const Span<int> instance_ids = instances->almost_unique_ids();
+  const Span<float4x4> transforms = instances->transforms();
+  const Span<bke::InstanceReference> references = instances->references();
+  const Span<int> handles = instances->reference_handles();
+
+  Array<GeometrySet> reference_geometry_sets(references_num);
+  Array<std::optional<Bounds<float3>>> reference_bounds(references_num);
+  for (const int i : references.index_range()) {
+    const bke::InstanceReference &reference = references[i];
+    GeometrySet reference_geometry;
+    reference.to_geometry_set(reference_geometry);
+    reference_geometry_sets[i] = reference_geometry;
+    reference_bounds[i] = reference_geometry.compute_boundbox_without_instances();
+  }
+
+  std::optional<RigidBodyInstances> old_rigid_body_instances =
+      params.state.rigid_body_instances_by_path.pop_try(self_path);
+
+  RigidBodyInstances rigid_body_instances;
+  rigid_body_instances.geometry_set = *geometry;
+  Map<int, SingleRigidBody> new_rigid_body_by_id;
+
+  rigid_body_instances.rigid_body_by_id.reserve(instances_num);
+  for (const int instance_i : IndexRange(instances_num)) {
+    const int handle = handles[instance_i];
+    const std::optional<Bounds<float3>> &bounds = reference_bounds[handle];
+    if (!bounds) {
+      continue;
+    }
+    std::optional<RigidBodyMode> mode = parse_ridig_body_mode(modes[instance_i]);
+    if (!mode) {
+      continue;
+    }
+    const int instance_id = instance_ids[instance_i];
+    const float4x4 &transform = transforms[instance_i];
+    const float3 size = bounds->size();
+    std::optional<SingleRigidBody> old_body;
+    if (old_rigid_body_instances) {
+      old_body = old_rigid_body_instances->rigid_body_by_id.pop_try(instance_id);
+    }
+
+    SingleRigidBody body;
+    if (old_body) {
+      body = std::move(*old_body);
+      switch (*mode) {
+        case RigidBodyMode::Dynamic: {
+          break;
+        }
+        case RigidBodyMode::Static:
+        case RigidBodyMode::Animated: {
+          body.motion_state->setWorldTransform(float4x4_to_btTransform(transform));
+          break;
+        }
+      }
+    }
+    else {
+      body.shape = std::make_unique<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
+      body.motion_state = std::make_unique<btDefaultMotionState>(
+          float4x4_to_btTransform(transform));
+      btVector3 inertia(0, 0, 0);
+      float mass = std::max(masses[instance_i], 0.0f);
+      switch (*mode) {
+        case RigidBodyMode::Dynamic: {
+          body.shape->calculateLocalInertia(masses[instance_i], inertia);
+          break;
+        }
+        case RigidBodyMode::Static:
+        case RigidBodyMode::Animated: {
+          mass = 0.0f;
+          break;
+        }
+      }
+      btRigidBody::btRigidBodyConstructionInfo body_info(
+          mass, &*body.motion_state, &*body.shape, inertia);
+      body.body = std::make_unique<btRigidBody>(body_info);
+      params.state.dynamics_world->addRigidBody(body.body.get());
+    }
+    const float friction = frictions[instance_i];
+    const float bounciness = bouncinesses[instance_i];
+    if (body.body->getFriction() != friction) {
+      body.body->setFriction(friction);
+    }
+    if (body.body->getRestitution() != bounciness) {
+      body.body->setRestitution(bounciness);
+    }
+
+    new_rigid_body_by_id.add_new(instance_id, std::move(body));
+  }
+
+  /* Remove unused rigid bodies from world. */
+  if (old_rigid_body_instances) {
+    for (const SingleRigidBody &old_rigid_body :
+         old_rigid_body_instances->rigid_body_by_id.values())
+    {
+      params.state.dynamics_world->removeRigidBody(old_rigid_body.body.get());
+    }
+  }
+
+  rigid_body_instances.rigid_body_by_id = std::move(new_rigid_body_by_id);
+  params.behaviors.new_rigid_body_instances_by_path.add(self_path,
+                                                        std::move(rigid_body_instances));
+}
+
 static Map<std::string, BehaviorParseFn> build_behavior_parsers()
 {
-  Map<std::string, BehaviorParseFn> behavior_parses;
-  behavior_parses.add_new("Gravity", parse_behavior__gravity);
-  behavior_parses.add_new("Single Rigid Body", parse_behavior__single_rigid_body);
-  return behavior_parses;
+  Map<std::string, BehaviorParseFn> behavior_parsers;
+  behavior_parsers.add_new("Gravity", parse_behavior__gravity);
+  behavior_parsers.add_new("Single Rigid Body", parse_behavior__single_rigid_body);
+  behavior_parsers.add_new("Rigid Body Instances", parse_behavior__rigid_body_instances);
+  return behavior_parsers;
 }
 
 static void update_state_from_behaviors(BulletState &state, const Bundle &behavior_bundle)
@@ -244,7 +395,38 @@ static void update_state_from_behaviors(BulletState &state, const Bundle &behavi
   for (const SingleRigidBody &single_rigid_body : state.single_rigid_bodies.values()) {
     state.dynamics_world->removeRigidBody(single_rigid_body.body.get());
   }
+  for (const RigidBodyInstances &rigid_body_instances :
+       state.rigid_body_instances_by_path.values())
+  {
+    for (const SingleRigidBody &single_rigid_body : rigid_body_instances.rigid_body_by_id.values())
+    {
+      state.dynamics_world->removeRigidBody(single_rigid_body.body.get());
+    }
+  }
+
   state.single_rigid_bodies = std::move(behaviors.new_single_rigid_bodies);
+  state.rigid_body_instances_by_path = std::move(behaviors.new_rigid_body_instances_by_path);
+}
+
+static void write_simulated_data_to_output(BulletState &state)
+{
+  for (RigidBodyInstances &rigid_body_instances : state.rigid_body_instances_by_path.values()) {
+    bke::Instances *instances = rigid_body_instances.geometry_set.get_instances_for_write();
+    if (!instances) {
+      continue;
+    }
+    const int instances_num = instances->instances_num();
+    const Span<int> instance_ids = instances->almost_unique_ids();
+    const MutableSpan<float4x4> transforms = instances->transforms_for_write();
+    for (const int instance_i : IndexRange(instances_num)) {
+      const int instance_id = instance_ids[instance_i];
+      const SingleRigidBody *body = rigid_body_instances.rigid_body_by_id.lookup_ptr(instance_id);
+      if (!body) {
+        continue;
+      }
+      transforms[instance_i] = body->get_transform();
+    }
+  }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -305,6 +487,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     state.dynamics_world->stepSimulation(delta_time, substeps);
     state.update_counter = update_counter;
   }
+  write_simulated_data_to_output(state);
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
@@ -315,6 +498,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     const StringRef self_path = item.key;
     const SingleRigidBody &single_rigid_body = item.value;
     new_data_bundle.add_path(self_path + "/Transform", single_rigid_body.get_transform());
+  }
+  for (const auto &item : state.rigid_body_instances_by_path.items()) {
+    const StringRef self_path = item.key;
+    const RigidBodyInstances &rigid_body_instances = item.value;
+    new_data_bundle.add_path(self_path + "/Instances", rigid_body_instances.geometry_set);
   }
 
   params.set_output("Data", std::move(new_data_bundle_ptr));
