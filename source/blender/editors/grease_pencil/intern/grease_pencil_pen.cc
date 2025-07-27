@@ -318,39 +318,39 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
   return closest_point;
 }
 
-static ClosestElement pen_find_closest_element(const PenToolOperation &ptd,
-                                               const bke::greasepencil::Drawing &drawing,
-                                               const int layer_index,
-                                               const float2 mouse_co)
+static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, const float2 mouse_co)
 {
   ClosestElement closest_element;
-  int closest_curve;
-  ElementMode element_mode;
-  const int closest_point = pen_find_closest_point_or_handle(
-      ptd, drawing, layer_index, mouse_co, &closest_curve, &element_mode);
-
-  if (closest_point != -1) {
-    closest_element.element_mode = element_mode;
-    closest_element.curve_index = closest_curve;
-    closest_element.point_index = closest_point;
-    closest_element.layer_index = layer_index;
-    return closest_element;
-  }
-
-  float edge_t;
-  const int closest_edge_point = pen_find_closest_edge_point(
-      ptd, drawing, layer_index, ptd.mouse_co, &closest_curve, &edge_t);
-
-  if (closest_edge_point != -1) {
-    closest_element.element_mode = ElementMode::Edge;
-    closest_element.point_index = closest_edge_point;
-    closest_element.curve_index = closest_curve;
-    closest_element.edge_t = edge_t;
-    closest_element.layer_index = layer_index;
-    return closest_element;
-  }
-
   closest_element.element_mode = ElementMode::None;
+
+  threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
+    // const int drawing_index = (&info - drawings_.data());
+
+    int closest_curve;
+    ElementMode element_mode;
+    const int closest_point = pen_find_closest_point_or_handle(
+        ptd, info.drawing, info.layer_index, mouse_co, &closest_curve, &element_mode);
+
+    if (closest_point != -1) {
+      closest_element.element_mode = element_mode;
+      closest_element.curve_index = closest_curve;
+      closest_element.point_index = closest_point;
+      closest_element.layer_index = info.layer_index;
+      return;
+    }
+
+    float edge_t;
+    const int closest_edge_point = pen_find_closest_edge_point(
+        ptd, info.drawing, info.layer_index, ptd.mouse_co, &closest_curve, &edge_t);
+
+    if (closest_edge_point != -1) {
+      closest_element.element_mode = ElementMode::Edge;
+      closest_element.point_index = closest_edge_point;
+      closest_element.curve_index = closest_curve;
+      closest_element.edge_t = edge_t;
+      closest_element.layer_index = info.layer_index;
+    }
+  });
   return closest_element;
 }
 
@@ -799,6 +799,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   std::atomic<bool> point_removed = false;
   ptd.drawings = retrieve_editable_drawings(*scene, *ptd.grease_pencil);
   ptd.center_of_mass_co = calculate_center_of_mass(ptd);
+  ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
   threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
@@ -806,9 +807,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     if (curves.is_empty()) {
       return;
     }
-
-    ptd.closest_element = pen_find_closest_element(
-        ptd, info.drawing, info.layer_index, ptd.mouse_co);
 
     if (ptd.closest_element.element_mode == ElementMode::Edge) {
       add_single.store(false, std::memory_order_relaxed);
