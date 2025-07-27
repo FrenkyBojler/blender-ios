@@ -2,7 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "DNA_mesh_types.h"
+
 #include "node_geometry_util.hh"
 
 #include <btBulletDynamicsCommon.h>
@@ -53,6 +56,7 @@ struct SingleRigidBody {
 
 struct BulletState {
   bool is_initialized = false;
+  int update_counter = 0;
   std::unique_ptr<btDefaultCollisionConfiguration> collision_configuration;
   std::unique_ptr<btCollisionDispatcher> collision_dispatcher;
   std::unique_ptr<btDbvtBroadphase> broadphase;
@@ -255,6 +259,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  int update_counter = 0;
+  if (old_data_bundle) {
+    update_counter = old_data_bundle->lookup<int>("Update Counter").value_or(0);
+  }
+
   auto bullet_state_owner = BulletStateOwnerPtr{};
   if (old_data_bundle) {
     bullet_state_owner =
@@ -289,11 +298,19 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   update_state_from_behaviors(state, *behaviors_bundle);
 
-  state.dynamics_world->stepSimulation(delta_time, substeps);
+  /* The Bullet state can't easily be reset to an older state. So better just don't do simulation
+   * in this case. */
+  const bool is_resimulating = update_counter < state.update_counter;
+  update_counter++;
+  if (!is_resimulating) {
+    state.dynamics_world->stepSimulation(delta_time, substeps);
+    state.update_counter = update_counter;
+  }
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
   new_data_bundle.add("Bullet State", bullet_state_owner);
+  new_data_bundle.add("Update Counter", update_counter);
 
   for (const auto &item : state.single_rigid_bodies.items()) {
     const StringRef self_path = item.key;
