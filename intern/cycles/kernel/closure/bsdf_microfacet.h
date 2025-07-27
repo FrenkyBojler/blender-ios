@@ -497,7 +497,6 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
        * reflection approximation from the microfacet_fresnel call above in that case. */
     }
     else {
-      ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)bsdf->fresnel;
       const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
       const float s = lookup_table_read_3D(
           kg, rough, cos_NI, 0.5f, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
