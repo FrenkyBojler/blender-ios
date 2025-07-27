@@ -14,6 +14,10 @@
 #include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "BLI_array_utils.hh"
+
+#include "BLT_translation.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -28,7 +32,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "BLI_array_utils.hh"
+#include "UI_resources.hh"
 
 namespace blender::ed::greasepencil {
 
@@ -732,6 +736,12 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd,
   return pos / num;
 }
 
+static void pen_status_indicators(bContext *C, wmOperator *op, const PenToolOperation &ptd)
+{
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Align"), ICON_EVENT_SHIFT);
+}
+
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -915,6 +925,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     point_added = true;
   }
 
+  pen_status_indicators(C, op, ptd);
   if (changed) {
     grease_pencil_pen_update_view(C, ptd);
   }
@@ -1179,6 +1190,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     changed.store(true, std::memory_order_relaxed);
   });
 
+  pen_status_indicators(C, op, ptd);
   if (changed) {
     grease_pencil_pen_update_view(C, ptd);
   }
