@@ -940,6 +940,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       curves.remove_points(IndexRange::from_single(ptd.closest_element.point_index), {});
       add_single.store(false, std::memory_order_relaxed);
       point_removed.store(true, std::memory_order_relaxed);
+      info.drawing.tag_topology_changed();
       return;
     }
 
