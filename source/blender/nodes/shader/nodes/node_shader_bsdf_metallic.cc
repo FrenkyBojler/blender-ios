@@ -11,6 +11,10 @@ namespace blender::nodes::node_shader_bsdf_metallic_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+
+  b.add_output<decl::Shader>("BSDF");
+
   b.add_input<decl::Color>("Base Color")
       .default_value({0.617f, 0.577f, 0.540f, 1.0f})
       .description("Color of the material");
@@ -36,7 +40,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Microfacet roughness of the surface (0.0 is a perfect mirror reflection, 1.0 is "
           "completely rough)");
-  ;
   b.add_input<decl::Float>("Anisotropy")
       .default_value(0.0f)
       .min(0.0f)
@@ -51,21 +54,22 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .description("Rotates the direction of anisotropy, with 1.0 going full circle");
-  b.add_input<decl::Float>("Thin Film Thickness")
+  b.add_input<decl::Vector>("Normal").hide_value();
+  b.add_input<decl::Vector>("Tangent").hide_value();
+  b.add_input<decl::Float>("Weight").available(false);
+
+  PanelDeclarationBuilder &film = b.add_panel("Thin Film").default_closed(true);
+  film.add_input<decl::Float>("Thin Film Thickness")
       .default_value(0.0)
       .min(0.0f)
       .max(100000.0f)
       .subtype(PROP_WAVELENGTH)
       .description("Thickness in nanometers of the thin film layer");
-  b.add_input<decl::Float>("Thin Film IOR")
+  film.add_input<decl::Float>("Thin Film IOR")
       .default_value(1.33f)
       .min(1.0f)
       .max(1000.0f)
       .description("Refractive index of the thin film layer");
-  b.add_input<decl::Vector>("Normal").hide_value();
-  b.add_input<decl::Vector>("Tangent").hide_value();
-  b.add_input<decl::Float>("Weight").available(false);
-  b.add_output<decl::Shader>("BSDF");
 }
 
 static void node_shader_buts_metallic(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
