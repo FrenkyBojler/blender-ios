@@ -13,6 +13,8 @@
 #include "BKE_curves_utils.hh"
 #include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_material.hh"
+#include "BKE_report.hh"
 
 #include "BLI_array_utils.hh"
 
@@ -26,6 +28,8 @@
 #include "RNA_enum_types.hh"
 
 #include "DEG_depsgraph.hh"
+
+#include "DNA_material_types.h"
 
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
@@ -505,15 +509,42 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   return dst;
 }
 
-static void pen_add_single(const PenToolOperation &ptd)
+static bool pen_add_single(const PenToolOperation &ptd, wmOperator *op)
 {
-  BLI_assert(ptd.grease_pencil->has_active_layer());
-  const bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
+  if (!ptd.grease_pencil->has_active_layer()) {
+    BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
+    return false;
+  }
+
+  bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
+  if (!layer.is_editable()) {
+    BKE_report(op->reports, RPT_ERROR, "Active layer is locked or hidden");
+    return false;
+  }
+
+  const int material_index = ptd.vc.obact->actcol - 1;
+  Material *material = BKE_object_material_get(ptd.vc.obact, material_index + 1);
+  /* The editable materials are unlocked and not hidden. */
+  if (material != nullptr && material->gp_style != nullptr &&
+      ((material->gp_style->flag & GP_MATERIAL_LOCKED) != 0 ||
+       (material->gp_style->flag & GP_MATERIAL_HIDE) != 0))
+  {
+    BKE_report(op->reports, RPT_ERROR, "Active Material is locked or hidden");
+    return false;
+  }
+
+  /* Ensure a drawing at the current keyframe. */
+  bool inserted_keyframe = false;
+  if (!ed::greasepencil::ensure_active_keyframe(
+          *ptd.vc.scene, *ptd.grease_pencil, layer, false, inserted_keyframe))
+  {
+    BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
+    return false;
+  }
+
   bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
       layer, ptd.vc.scene->r.cfra);
-
   bke::CurvesGeometry &curves = drawing->strokes_for_write();
-
   const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
 
   ed::greasepencil::add_single_curve(curves, true);
@@ -533,7 +564,6 @@ static void pen_add_single(const PenToolOperation &ptd)
       bke::AttrDomain::Curve,
       bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
 
-  const int material_index = ptd.vc.obact->actcol - 1;
   material_indexes.span.last() = material_index;
   material_indexes.finish();
 
@@ -601,6 +631,8 @@ static void pen_add_single(const PenToolOperation &ptd)
       curves.curves_range().take_back(1));
 
   drawing->tag_topology_changed();
+
+  return true;
 }
 
 static bke::CurvesGeometry pen_insert_point(const PenToolOperation &ptd,
@@ -953,8 +985,11 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   });
 
   if (add_single) {
-    pen_add_single(ptd);
-    point_added = true;
+    const bool successful = pen_add_single(ptd, op);
+    if (successful) {
+      changed.store(true, std::memory_order_relaxed);
+      point_added = true;
+    }
   }
 
   pen_status_indicators(C, op, ptd);
