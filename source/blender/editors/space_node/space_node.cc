@@ -12,6 +12,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_ID.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -91,7 +92,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
     }
 
     if (id) {
-      STRNCPY(path->display_name, id->name + 2);
+      STRNCPY_UTF8(path->display_name, id->name + 2);
     }
 
     BLI_addtail(&snode->treepath, path);
@@ -128,8 +129,8 @@ void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNod
       path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
     }
 
-    STRNCPY(path->node_name, gnode->name);
-    STRNCPY(path->display_name, gnode->name);
+    STRNCPY_UTF8(path->node_name, gnode->name);
+    STRNCPY_UTF8(path->display_name, gnode->name);
   }
   else {
     path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
@@ -1036,7 +1037,7 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 
   /* select the first tree type for valid type */
   for (const bke::bNodeTreeType *treetype : bke::node_tree_types_get()) {
-    STRNCPY(snode->tree_idname, treetype->idname.c_str());
+    STRNCPY_UTF8(snode->tree_idname, treetype->idname.c_str());
     break;
   }
 
@@ -1938,7 +1939,7 @@ static void node_widgets()
   wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(&params);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_transform);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_crop);
-  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_sun_beams);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_glare);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_corner_pin);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
@@ -2221,7 +2222,7 @@ void ED_spacetype_node()
   ARegionType *art;
 
   st->spaceid = SPACE_NODE;
-  STRNCPY(st->name, "Node");
+  STRNCPY_UTF8(st->name, "Node");
 
   st->create = node_create;
   st->free = node_free;

@@ -2605,7 +2605,7 @@ static void make_object_duplilist_real(bContext *C,
       if (ob_dst_par) {
         /* allow for all possible parent types */
         ob_dst->partype = ob_src->partype;
-        STRNCPY(ob_dst->parsubstr, ob_src->parsubstr);
+        STRNCPY_UTF8(ob_dst->parsubstr, ob_src->parsubstr);
         ob_dst->par1 = ob_src->par1;
         ob_dst->par2 = ob_src->par2;
         ob_dst->par3 = ob_src->par3;
@@ -2821,14 +2821,14 @@ static bool object_convert_poll(bContext *C)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   /* Don't use `active_object` in the context, it's important this value
-   * is from the view-layer as it's used to check if Blender is in edit-mode. */
+   * is from the view-layer as it's used to check if Blender is in object mode. */
   Object *obact = BKE_view_layer_active_object_get(view_layer);
-  if (obact && BKE_object_is_in_editmode(obact)) {
+  if (obact && obact->mode != OB_MODE_OBJECT) {
     return false;
   }
 
   /* Note that `obact` may not be editable,
-   * only check the active object to ensure Blender is not in edit-mode. */
+   * only check the active object to ensure Blender is in object mode. */
   return true;
 }
 
