@@ -53,7 +53,7 @@ class NODE_MT_compositor_node_input_scene_base(Menu):
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "CompositorNodeRLayers")
-        node_add_menu.add_node_type_with_outputs(context, layout, "CompositorNodeSceneTime", ["Frame", "Seconds"])
+        self.node_operator_with_outputs(context, layout, "CompositorNodeSceneTime", ["Frame", "Seconds"])
         self.node_operator(layout, "CompositorNodeTime")
 
         node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
@@ -127,7 +127,7 @@ class NODE_MT_compositor_node_color_mix_base(Menu):
         self.node_operator(layout, "CompositorNodeSeparateColor")
         layout.separator()
         self.node_operator(layout, "CompositorNodeZcombine")
-        node_add_menu.add_color_mix_node(context, layout)
+        self.color_mix_node(context, layout)
         node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
@@ -145,8 +145,8 @@ class NODE_MT_compositor_node_filter_base(Menu):
         self.node_operator(layout, "CompositorNodeDilateErode")
         self.node_operator(layout, "CompositorNodeInpaint")
         layout.separator()
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "CompositorNodeFilter", "filter_type")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "CompositorNodeGlare", "glare_type")
+        self.node_operator_with_searchable_enum(context, layout, "CompositorNodeFilter", "filter_type")
+        self.node_operator_with_searchable_enum(context, layout, "CompositorNodeGlare", "glare_type")
         self.node_operator(layout, "CompositorNodeKuwahara")
         self.node_operator(layout, "CompositorNodePixelate")
         self.node_operator(layout, "CompositorNodePosterize")
@@ -267,7 +267,7 @@ class NODE_MT_compositor_node_utilities_base(Menu):
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "ShaderNodeMapRange")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
         self.node_operator(layout, "ShaderNodeClamp")
         self.node_operator(layout, "ShaderNodeFloatCurve")
@@ -300,7 +300,7 @@ class NODE_MT_compositor_node_vector_base(Menu):
         ops.name = "data_type"
         ops.value = "'VECTOR'"
         self.node_operator(layout, "ShaderNodeVectorCurve")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeVectorRotate")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)

@@ -38,17 +38,29 @@ def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0
     return node_operator(layout, "node.add_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
 
 
+def add_node_type_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
+    return node_operator_with_searchable_enum(context, layout, "node.add_node", node_idname, property_name, search_weight)
+
+
 def add_node_type_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
+    return node_operator_with_outputs(context, layout, "node.add_node", node_type, subnames, label=label, search_weight=search_weight)
+
+
+def add_color_mix_node(context, layout):
+    return color_mix_node(context, layout, "node.add_node")
+
+
+def node_operator_with_outputs(context, layout, operator_id, node_type, subnames, *, label=None, search_weight=0.0):
     bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
     if not label:
         label = bl_rna.name if bl_rna else "Unknown"
 
     props = []
-    props.append(add_node_type(layout, node_type, label=label, search_weight=search_weight))
+    props.append(node_operator(layout, operator_id, node_type, label=label, search_weight=search_weight))
     if getattr(context, "is_menu_search", False):
         for subname in subnames:
             sublabel = "{} ▸ {}".format(iface_(label), iface_(subname))
-            item_props = add_node_type(layout, node_type, label=sublabel, search_weight=search_weight, translate=False)
+            item_props = node_operator(layout, operator_id, node_type, label=sublabel, search_weight=search_weight, translate=False)
             item_props.visible_output = subname
             props.append(item_props)
     return props
@@ -102,15 +114,17 @@ def draw_root_assets(layout):
     layout.menu_contents("NODE_MT_node_add_root_catalogs")
 
 
-def add_node_type_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
-    add_node_type(layout, node_idname, search_weight=search_weight)
+def node_operator_with_searchable_enum(context, layout, operator_id, node_idname, property_name, search_weight=0.0):
+    node_operator(layout, operator_id, node_idname, search_weight=search_weight)
+
     if getattr(context, "is_menu_search", False):
         node_type = getattr(bpy.types, node_idname)
         translation_context = node_type.bl_rna.properties[property_name].translation_context
         for item in node_type.bl_rna.properties[property_name].enum_items_static:
             label = "{} ▸ {}".format(iface_(node_type.bl_rna.name), iface_(item.name, translation_context))
-            props = add_node_type(
+            props = node_operator(
                 layout,
+                operator_id,
                 node_idname,
                 label=label,
                 translate=False,
@@ -120,9 +134,9 @@ def add_node_type_with_searchable_enum(context, layout, node_idname, property_na
             prop.value = repr(item.identifier)
 
 
-def add_color_mix_node(context, layout):
+def color_mix_node(context, layout, operator_id):
     label = iface_("Mix Color")
-    props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=label, translate=False)
+    props = node_operator(layout, operator_id, "ShaderNodeMix", label=label, translate=False)
     ops = props.settings.add()
     ops.name = "data_type"
     ops.value = "'RGBA'"
@@ -131,7 +145,7 @@ def add_color_mix_node(context, layout):
         translation_context = bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].translation_context
         for item in bpy.types.ShaderNodeMix.bl_rna.properties["blend_type"].enum_items_static:
             sublabel = "{} ▸ {}".format(label, iface_(item.name, translation_context))
-            props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=sublabel, translate=False)
+            props = node_operator(layout, operator_id, "ShaderNodeMix", label=sublabel, translate=False)
             prop = props.settings.add()
             prop.name = "data_type"
             prop.value = "'RGBA'"
@@ -181,6 +195,18 @@ class AddNodeMenu:
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
         return node_add_menu.node_operator(layout, "node.add_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
     
+    @staticmethod
+    def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
+        return node_add_menu.node_operator_with_searchable_enum(context, layout, "node.add_node", node_idname, property_name, search_weight)
+
+    @staticmethod
+    def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
+        return node_add_menu.node_operator_with_outputs(context, layout, "node.add_node", node_type, subnames, label=label, search_weight=search_weight)
+
+    @staticmethod
+    def color_mix_node(context, layout):
+        return color_mix_node(context, layout, "node.add_node")
+    
     @classmethod
     def draw_menu(cls, layout, path):
         if cls.pathing_dict is None:
@@ -193,6 +219,18 @@ class SwapNodeMenu:
     @staticmethod
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
         return node_add_menu.node_operator(layout, "node.swap_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
+    
+    @staticmethod
+    def node_operator_with_searchable_enum(context, layout, node_idname, property_name, search_weight=0.0):
+        return node_add_menu.node_operator_with_searchable_enum(context, layout, "node.swap_node", node_idname, property_name, search_weight)
+
+    @staticmethod
+    def node_operator_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
+        return node_add_menu.node_operator_with_outputs(context, layout, "node.swap_node", node_type, subnames, label=label, search_weight=search_weight)
+
+    @staticmethod
+    def color_mix_node(context, layout):
+        return color_mix_node(context, layout, "node.swap_node")
     
     @classmethod
     def draw_menu(cls, layout, path):

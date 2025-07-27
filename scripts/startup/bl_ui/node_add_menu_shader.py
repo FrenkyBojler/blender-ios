@@ -57,17 +57,17 @@ class NODE_MT_shader_node_input_base(Menu):
         self.node_operator(layout, "ShaderNodeAmbientOcclusion")
         self.node_operator(layout, "ShaderNodeAttribute")
         self.node_operator(layout, "ShaderNodeBevel")
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context, layout, "ShaderNodeCameraData",
             ["View Vector", "View Z Depth", "View Distance"],
         )
         self.node_operator(layout, "ShaderNodeVertexColor")
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context, layout, "ShaderNodeHairInfo",
             ["Is Strand", "Intercept", "Length", "Thickness", "Tangent Normal", "Random"],
         )
         self.node_operator(layout, "ShaderNodeFresnel")
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context,
             layout,
             "ShaderNodeNewGeometry",
@@ -84,7 +84,7 @@ class NODE_MT_shader_node_input_base(Menu):
             ],
         )
         self.node_operator(layout, "ShaderNodeLayerWeight")
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context,
             layout,
             "ShaderNodeLightPath",
@@ -106,28 +106,28 @@ class NODE_MT_shader_node_input_base(Menu):
                 "Portal Depth"
             ],
         )
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context, layout, "ShaderNodeObjectInfo",
             ["Location", "Color", "Alpha", "Object Index", "Material Index", "Random"],
         )
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context, layout, "ShaderNodeParticleInfo",
             ["Index", "Random", "Age", "Lifetime", "Location", "Size", "Velocity", "Angular Velocity"],
         )
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context, layout, "ShaderNodePointInfo",
             ["Position", "Radius", "Random"],
         )
         self.node_operator(layout, "ShaderNodeRGB")
         self.node_operator(layout, "ShaderNodeTangent")
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context, layout, "ShaderNodeTexCoord",
             ["Normal", "UV", "Object", "Camera", "Window", "Reflection"],
         )
         self.node_operator(layout, "ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeUVMap")
         self.node_operator(layout, "ShaderNodeValue")
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context, layout, "ShaderNodeVolumeInfo",
             ["Color", "Density", "Flame", "Temperature"],
         )
@@ -304,7 +304,7 @@ class NODE_MT_shader_node_color_base(Menu):
         self.node_operator(layout, "ShaderNodeHueSaturation")
         self.node_operator(layout, "ShaderNodeInvert")
         self.node_operator(layout, "ShaderNodeLightFalloff")
-        node_add_menu.add_color_mix_node(context, layout)
+        self.color_mix_node(context, layout)
         self.node_operator(layout, "ShaderNodeRGBCurve")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
@@ -323,13 +323,13 @@ class NODE_MT_shader_node_converter_base(Menu):
         self.node_operator(layout, "ShaderNodeCombineXYZ")
         self.node_operator(layout, "ShaderNodeFloatCurve")
         self.node_operator(layout, "ShaderNodeMapRange")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
         self.node_operator(layout, "ShaderNodeRGBToBW")
         self.node_operator(layout, "ShaderNodeSeparateColor")
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
         self.node_operator(layout, "ShaderNodeShaderToRGB", poll=object_eevee_shader_nodes_poll(context))
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeWavelength")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)

@@ -36,7 +36,7 @@ class NODE_MT_gn_utilities_color_base(Menu):
         self.node_operator(layout, "ShaderNodeRGBCurve")
         layout.separator()
         self.node_operator(layout, "FunctionNodeCombineColor")
-        node_add_menu.add_color_mix_node(context, layout)
+        self.color_mix_node(context, layout)
         self.node_operator(layout, "FunctionNodeSeparateColor")
         node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -343,7 +343,7 @@ class NODE_MT_gn_input_scene_base(Menu):
         if context.space_data.geometry_nodes_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeTool3DCursor")
         self.node_operator(layout, "GeometryNodeInputActiveCamera")
-        node_add_menu.add_node_type_with_outputs(
+        self.node_operator_with_outputs(
             context,
             layout,
             "GeometryNodeCameraInfo",
@@ -363,15 +363,15 @@ class NODE_MT_gn_input_scene_base(Menu):
         self.node_operator(layout, "GeometryNodeImageInfo")
         self.node_operator(layout, "GeometryNodeIsViewport")
         if context.space_data.geometry_nodes_type == 'TOOL':
-            node_add_menu.add_node_type_with_outputs(
+            self.node_operator_with_outputs(
                 context, layout, "GeometryNodeToolMousePosition",
                 ["Mouse X", "Mouse Y", "Region Width", "Region Height"],
             )
         self.node_operator(layout, "GeometryNodeObjectInfo")
-        node_add_menu.add_node_type_with_outputs(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
+        self.node_operator_with_outputs(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
         self.node_operator(layout, "GeometryNodeSelfObject")
         if context.space_data.geometry_nodes_type == 'TOOL':
-            node_add_menu.add_node_type_with_outputs(
+            self.node_operator_with_outputs(
                 context, layout, "GeometryNodeViewportTransform",
                 ["Projection", "View", "Is Orthographic"],
             )
@@ -582,7 +582,7 @@ class NODE_MT_gn_output_base(Menu):
         layout = self.layout
         self.node_operator(layout, "NodeGroupOutput")
         self.node_operator(layout, "GeometryNodeViewer")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
+        self.node_operator_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -777,18 +777,18 @@ class NODE_MT_gn_utilities_math_base(Menu):
 
     def draw(self, context):
         layout = self.layout
-        node_add_menu.add_node_type_with_searchable_enum(
+        self.node_operator_with_searchable_enum(
             context, layout, "FunctionNodeBitMath", "operation", search_weight=-1.0,
         )
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeBooleanMath", "operation")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeIntegerMath", "operation")
+        self.node_operator_with_searchable_enum(context, layout, "FunctionNodeBooleanMath", "operation")
+        self.node_operator_with_searchable_enum(context, layout, "FunctionNodeIntegerMath", "operation")
         self.node_operator(layout, "ShaderNodeClamp")
         self.node_operator(layout, "FunctionNodeCompare")
         self.node_operator(layout, "ShaderNodeFloatCurve")
         self.node_operator(layout, "FunctionNodeFloatToInt")
         self.node_operator(layout, "FunctionNodeHashValue")
         self.node_operator(layout, "ShaderNodeMapRange")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
 
         node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
@@ -813,7 +813,7 @@ class NODE_MT_gn_utilities_vector_base(Menu):
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "ShaderNodeVectorCurve")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeVectorRotate")
         layout.separator()
         self.node_operator(layout, "ShaderNodeCombineXYZ")
