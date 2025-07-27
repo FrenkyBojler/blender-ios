@@ -36,6 +36,7 @@ set(SRC
   nodes/node_geo_blur_attribute.cc
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
+  nodes/node_geo_bullet_physics_solver.cc
   nodes/node_geo_camera_info.cc
   nodes/node_geo_closure.cc
   nodes/node_geo_collection_info.cc
@@ -321,6 +322,7 @@ if(WITH_BULLET)
     ${BULLET_LIBRARIES}
   )
   add_definitions(-DWITH_BULLET)
+  add_definitions(-DBT_USE_DOUBLE_PRECISION)
 endif()
 
 if(WITH_TBB)
