@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "BKE_node_socket_value.hh"
 #include "BLI_cpp_type.hh"
 
@@ -264,6 +266,11 @@ bool Bundle::contains(const StringRef key) const
 bool Bundle::contains_path(const StringRef path) const
 {
   return this->lookup_path(path) != nullptr;
+}
+
+std::string Bundle::combine_path(const Span<StringRef> path)
+{
+  return fmt::format("{}", fmt::join(path, "/"));
 }
 
 void Bundle::delete_self()

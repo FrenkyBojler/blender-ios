@@ -96,6 +96,8 @@ class Bundle : public ImplicitSharingMixin {
   BundlePtr copy() const;
 
   void delete_self() override;
+
+  static std::string combine_path(const Span<StringRef> path);
 };
 
 template<typename T>

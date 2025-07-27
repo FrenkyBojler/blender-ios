@@ -22,6 +22,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Substeps").default_value(0).min(0);
 }
 
+struct SingleRigidBody {
+  std::unique_ptr<btCollisionShape> shape;
+  std::unique_ptr<btDefaultMotionState> motion_state;
+  std::unique_ptr<btRigidBody> body;
+};
+
 struct BulletState {
   bool is_initialized = false;
   std::unique_ptr<btDefaultCollisionConfiguration> collision_configuration;
@@ -29,6 +35,8 @@ struct BulletState {
   std::unique_ptr<btDbvtBroadphase> broadphase;
   std::unique_ptr<btSequentialImpulseConstraintSolver> solver;
   std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world;
+
+  Map<std::string, SingleRigidBody> single_rigid_bodies;
 
   std::unique_ptr<btCollisionShape> my_box_shape;
   std::unique_ptr<btDefaultMotionState> my_box_motion_state;
@@ -62,6 +70,55 @@ static float4x4 btTransform_to_float4x4(const btTransform &transform)
   MatBase<btScalar, 4, 4> result;
   transform.getOpenGLMatrix(&result[0][0]);
   return float4x4(result);
+}
+
+struct Behaviors {
+  btVector3 gravity{};
+};
+
+struct ParseBehaviorParams {
+  const Span<StringRef> path_elems;
+  const Bundle &bundle;
+  BulletState &state;
+  Behaviors &behaviors;
+
+  std::string self_path() const
+  {
+    return Bundle::combine_path(this->path_elems);
+  }
+};
+
+using BehaviorParseFn = std::function<void(ParseBehaviorParams &params)>;
+
+static void parse_behavior__gravity(ParseBehaviorParams &params)
+{
+  const std::optional<float3> gravity = params.bundle.lookup<float3>("Gravity");
+  if (!gravity) {
+    return;
+  }
+  params.behaviors.gravity = btVector3(gravity->x, gravity->y, gravity->z);
+}
+
+static Map<std::string, BehaviorParseFn> build_behavior_parses()
+{
+  Map<std::string, BehaviorParseFn> behavior_parses;
+  behavior_parses.add_new("Gravity", parse_behavior__gravity);
+  return behavior_parses;
+}
+
+static void update_state_from_behaviors(BulletState &state, const Bundle &behavior_bundle)
+{
+  Behaviors behaviors;
+  foreach_behavior_in_bundle(
+      behavior_bundle,
+      [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
+        ParseBehaviorParams params{path, behavior_bundle, state, behaviors};
+        if (const auto *behavior_parse = build_behavior_parses().lookup_ptr(type)) {
+          (*behavior_parse)(params);
+        }
+      });
+
+  state.dynamics_world->setGravity(behaviors.gravity);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -135,7 +192,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  state.dynamics_world->setGravity(btVector3(0.0f, 0.0f, -9.8f));
+  update_state_from_behaviors(state, *behaviors_bundle);
 
   state.dynamics_world->stepSimulation(delta_time, substeps);
 

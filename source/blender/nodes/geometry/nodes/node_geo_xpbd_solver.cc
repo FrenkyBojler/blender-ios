@@ -29,11 +29,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Substeps").default_value(0).min(0);
 }
 
-static std::string combine_bundle_path(const Span<StringRef> &path)
-{
-  return fmt::format("{}", fmt::join(path, "/"));
-}
-
 struct ParseBehaviorParams {
   const Span<StringRef> path_elems;
   const Bundle &bundle;
@@ -42,7 +37,7 @@ struct ParseBehaviorParams {
 
   std::string self_path() const
   {
-    return combine_bundle_path(this->path_elems);
+    return Bundle::combine_path(this->path_elems);
   }
 };
 
@@ -53,7 +48,7 @@ static void parse_behavior__geometry(ParseBehaviorParams &params)
     return;
   }
   auto &sim_geometry_set = params.scope.construct<geometry::xpbd::SimGeometrySet>();
-  sim_geometry_set.path = combine_bundle_path(params.path_elems);
+  sim_geometry_set.path = params.self_path();
   sim_geometry_set.geometry = *geometry;
   sim_geometry_set.mass_attribute =
       params.bundle.lookup<std::string>("Mass Attribute").value_or("mass");
