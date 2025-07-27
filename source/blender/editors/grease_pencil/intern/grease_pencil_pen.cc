@@ -1045,6 +1045,11 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         offset = snap_8_angles(offset);
       }
 
+      if (ptd.point_added) {
+        handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+        handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+      }
+
       if (is_left) {
         if (handle_types_right[point_i] == BEZIER_HANDLE_AUTO) {
           handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
