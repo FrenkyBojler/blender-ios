@@ -449,12 +449,23 @@ ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
   return R;
 }
 
+/* Template meta-programming helper to be able to have an if-constexpr expression
+ * to switch between conductive (for Spectrum) or dielectric (for float) Fresnel.
+ * Essentially std::is_same<T, Spectrum>, but also works on GPU. */
+template<class T> struct fresnel_info {
+  static constexpr bool conductive = false;
+};
+template<> struct fresnel_info<Spectrum> {
+  static constexpr bool conductive = true;
+};
+
+template<typename SpectrumOrFloat>
 ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
                                         const float eta1,
                                         float eta2,
-                                        const Spectrum eta3,
-                                        const Spectrum k3,
-                                        const Spectrum R23,
+                                        const SpectrumOrFloat eta3,
+                                        const SpectrumOrFloat k3,
+                                        ccl_private const SpectrumOrFloat *R23,
                                         const float cos_theta_1,
                                         const float thickness,
                                         ccl_private float *r_cos_theta_3)
@@ -475,41 +486,27 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
     return one_spectrum();
   }
 
-  /* Compute optical path difference inside the thin film. */
-  const float OPD = -2.0f * eta2 * thickness * cos_theta_2;
-
-  Spectrum R;
-
   /* Compute reflection at the bottom interface (film to medium). */
-  if (reduce_min(k3) >= 0.0f) {
+  SpectrumOrFloat R23_s, R23_p, phi23_s, phi23_p;
+  if constexpr (fresnel_info<SpectrumOrFloat>::conductive) {
     /* Material is a conductor. */
-    Spectrum R23_s, R23_p, phi23_s, phi23_p;
-
-    if (reduce_min(R23) >= 0.0f) {
+    if (R23 != nullptr) {
       /* If reflectances were provided by the caller, only calculate phase shifts. */
       fresnel_conductor_polarized(
           -cos_theta_2, eta2, eta3, k3, nullptr, nullptr, &phi23_s, &phi23_p);
-      R23_s = R23;
-      R23_p = R23;
+      R23_s = *R23;
+      R23_p = *R23;
     }
     else {
       fresnel_conductor_polarized(
           -cos_theta_2, eta2, eta3, k3, &R23_s, &R23_p, &phi23_s, &phi23_p);
     }
-
-    const Spectrum phi_s = phi23_s + (M_PI_F - phi12.x);
-    const Spectrum phi_p = phi23_p + (M_PI_F - phi12.y);
-
-    /* Perform Airy summation and average the polarizations. */
-    R = mix(iridescence_airy_summation(kg, R12.x, R23_s, OPD, phi_s),
-            iridescence_airy_summation(kg, R12.y, R23_p, OPD, phi_p),
-            0.5f);
   }
   else {
     /* Material is a dielectric. */
     float2 phi23;
     const float2 R23 = fresnel_dielectric_polarized(
-        -cos_theta_2, eta3.x / eta2, r_cos_theta_3, &phi23);
+        -cos_theta_2, eta3 / eta2, r_cos_theta_3, &phi23);
 
     if (isequal(R23, one_float2())) {
       /* TIR at the bottom interface.
@@ -517,15 +514,24 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
       return one_spectrum();
     }
 
-    const float2 phi = phi23 + M_PI_F - phi12;
-
-    /* Perform Airy summation and average the polarizations. */
-    R = mix(iridescence_airy_summation(kg, R12.x, R23.x, OPD, phi.x),
-            iridescence_airy_summation(kg, R12.y, R23.y, OPD, phi.y),
-            0.5f);
+    R23_s = R23.x;
+    R23_p = R23.y;
+    phi23_s = phi23.x;
+    phi23_p = phi23.y;
   }
 
-  return saturate(R);
+  /* Compute optical path difference inside the thin film. */
+  const float OPD = -2.0f * eta2 * thickness * cos_theta_2;
+
+  /* Compute full phase shift. */
+  const SpectrumOrFloat phi_s = phi23_s + (M_PI_F - phi12.x);
+  const SpectrumOrFloat phi_p = phi23_p + (M_PI_F - phi12.y);
+
+  /* Perform Airy summation and average the polarizations. */
+  const Spectrum R_s = iridescence_airy_summation(kg, R12.x, R23_s, OPD, phi_s);
+  const Spectrum R_p = iridescence_airy_summation(kg, R12.y, R23_p, OPD, phi_p);
+
+  return saturate(mix(R_s, R_p, 0.5f));
 }
 
 CCL_NAMESPACE_END
