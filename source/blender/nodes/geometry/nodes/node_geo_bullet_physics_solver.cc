@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_mesh_types.h"
 #include "node_geometry_util.hh"
 
 #include <btBulletDynamicsCommon.h>
@@ -22,10 +23,32 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Substeps").default_value(0).min(0);
 }
 
+static float4x4 btTransform_to_float4x4(const btTransform &transform)
+{
+  MatBase<btScalar, 4, 4> result;
+  transform.getOpenGLMatrix(&result[0][0]);
+  return float4x4(result);
+}
+
+static btTransform float4x4_to_btTransform(const float4x4 &matrix)
+{
+  MatBase<btScalar, 4, 4> converted{matrix};
+  btTransform result;
+  result.setFromOpenGLMatrix(&converted[0][0]);
+  return result;
+}
+
 struct SingleRigidBody {
   std::unique_ptr<btCollisionShape> shape;
   std::unique_ptr<btDefaultMotionState> motion_state;
   std::unique_ptr<btRigidBody> body;
+
+  float4x4 get_transform() const
+  {
+    btTransform result;
+    motion_state->getWorldTransform(result);
+    return btTransform_to_float4x4(result);
+  }
 };
 
 struct BulletState {
@@ -37,14 +60,6 @@ struct BulletState {
   std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world;
 
   Map<std::string, SingleRigidBody> single_rigid_bodies;
-
-  std::unique_ptr<btCollisionShape> my_box_shape;
-  std::unique_ptr<btDefaultMotionState> my_box_motion_state;
-  std::unique_ptr<btRigidBody> my_box;
-
-  std::unique_ptr<btCollisionShape> my_plane_shape;
-  std::unique_ptr<btDefaultMotionState> my_plane_motion_state;
-  std::unique_ptr<btRigidBody> my_plane;
 };
 
 class BulletStateOwner : public BundleItemInternalValueMixin {
@@ -65,15 +80,9 @@ class BulletStateOwner : public BundleItemInternalValueMixin {
 
 using BulletStateOwnerPtr = ImplicitSharingPtr<BulletStateOwner>;
 
-static float4x4 btTransform_to_float4x4(const btTransform &transform)
-{
-  MatBase<btScalar, 4, 4> result;
-  transform.getOpenGLMatrix(&result[0][0]);
-  return float4x4(result);
-}
-
 struct Behaviors {
   btVector3 gravity{};
+  Map<std::string, SingleRigidBody> new_single_rigid_bodies;
 };
 
 struct ParseBehaviorParams {
@@ -99,10 +108,107 @@ static void parse_behavior__gravity(ParseBehaviorParams &params)
   params.behaviors.gravity = btVector3(gravity->x, gravity->y, gravity->z);
 }
 
-static Map<std::string, BehaviorParseFn> build_behavior_parses()
+enum class RigidBodyMode {
+  Dynamic,
+  Static,
+  Animated,
+};
+
+static std::optional<RigidBodyMode> parse_ridig_body_mode(const Bundle &bundle)
+{
+  const std::optional<int> mode = bundle.lookup<int>("Mode");
+  if (!mode) {
+    return std::nullopt;
+  }
+  switch (*mode) {
+    case 0:
+      return RigidBodyMode::Dynamic;
+    case 1:
+      return RigidBodyMode::Static;
+    case 2:
+      return RigidBodyMode::Animated;
+    default:
+      return std::nullopt;
+  }
+}
+
+static void parse_behavior__single_rigid_body(ParseBehaviorParams &params)
+{
+  std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Mesh");
+  if (!geometry) {
+    return;
+  }
+  std::optional<float4x4> transform = params.bundle.lookup<float4x4>("Transform");
+  if (!transform) {
+    return;
+  }
+  float mass = params.bundle.lookup<float>("Mass").value_or(0.0f);
+  std::string self_path = params.self_path();
+  const std::optional<RigidBodyMode> mode = parse_ridig_body_mode(params.bundle);
+  if (!mode) {
+    return;
+  }
+
+  if (mode != RigidBodyMode::Dynamic) {
+    /* This makes the object non-dynamic in Bullet. */
+    mass = 0.0f;
+  }
+
+  std::optional<SingleRigidBody> old_rigid_body = params.state.single_rigid_bodies.pop_try(
+      self_path);
+  SingleRigidBody rigid_body;
+  if (old_rigid_body) {
+    rigid_body = std::move(*old_rigid_body);
+    switch (*mode) {
+      case RigidBodyMode::Dynamic: {
+        break;
+      }
+      case RigidBodyMode::Static:
+      case RigidBodyMode::Animated: {
+        rigid_body.motion_state->setWorldTransform(float4x4_to_btTransform(*transform));
+        break;
+      }
+    }
+  }
+  else {
+    const Mesh *mesh = geometry->get_mesh();
+    if (!mesh) {
+      return;
+    }
+    std::optional<Bounds<float3>> bounds = mesh->bounds_min_max();
+    if (!bounds) {
+      return;
+    }
+    const float3 size = bounds->size();
+
+    rigid_body.shape = std::make_unique<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
+    rigid_body.motion_state = std::make_unique<btDefaultMotionState>(
+        float4x4_to_btTransform(*transform));
+
+    btVector3 inertia(0, 0, 0);
+    switch (*mode) {
+      case RigidBodyMode::Dynamic: {
+        rigid_body.shape->calculateLocalInertia(mass, inertia);
+        break;
+      }
+      case RigidBodyMode::Static:
+      case RigidBodyMode::Animated: {
+        break;
+      }
+    }
+    btRigidBody::btRigidBodyConstructionInfo body_info(
+        mass, &*rigid_body.motion_state, &*rigid_body.shape, inertia);
+    rigid_body.body = std::make_unique<btRigidBody>(body_info);
+    params.state.dynamics_world->addRigidBody(&*rigid_body.body);
+  }
+  params.behaviors.new_single_rigid_bodies.add(self_path, std::move(rigid_body));
+}
+
+static Map<std::string, BehaviorParseFn> build_behavior_parsers()
 {
   Map<std::string, BehaviorParseFn> behavior_parses;
   behavior_parses.add_new("Gravity", parse_behavior__gravity);
+  behavior_parses.add_new("Single Rigid Body", parse_behavior__single_rigid_body);
   return behavior_parses;
 }
 
@@ -113,12 +219,18 @@ static void update_state_from_behaviors(BulletState &state, const Bundle &behavi
       behavior_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
         ParseBehaviorParams params{path, behavior_bundle, state, behaviors};
-        if (const auto *behavior_parse = build_behavior_parses().lookup_ptr(type)) {
+        if (const auto *behavior_parse = build_behavior_parsers().lookup_ptr(type)) {
           (*behavior_parse)(params);
         }
       });
 
   state.dynamics_world->setGravity(behaviors.gravity);
+
+  /* Remove now unused rigid bodies. */
+  for (const SingleRigidBody &single_rigid_body : state.single_rigid_bodies.values()) {
+    state.dynamics_world->removeRigidBody(single_rigid_body.body.get());
+  }
+  state.single_rigid_bodies = std::move(behaviors.new_single_rigid_bodies);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -163,33 +275,6 @@ static void node_geo_exec(GeoNodeExecParams params)
         state.solver.get(),
         state.collision_configuration.get());
     state.is_initialized = true;
-
-    /* Create a box. */
-    {
-      state.my_box_shape = std::make_unique<btBoxShape>(btVector3(1, 1, 1));
-      btScalar mass = 1.0f;
-      btVector3 inertia(0, 0, 0);
-      state.my_box_shape->calculateLocalInertia(mass, inertia);
-      state.my_box_motion_state = std::make_unique<btDefaultMotionState>(
-          btTransform(btQuaternion(1, 2, 3), btVector3(0, 0, 10)));
-      btRigidBody::btRigidBodyConstructionInfo my_box_info(
-          mass, &*state.my_box_motion_state, &*state.my_box_shape, inertia);
-      state.my_box = std::make_unique<btRigidBody>(my_box_info);
-      state.dynamics_world->addRigidBody(&*state.my_box);
-    }
-
-    /* Create a plane. */
-    {
-      state.my_plane_shape = std::make_unique<btBoxShape>(btVector3(10.0f, 10.0f, 0.1f));
-      /* Setting the mass to 0 makes the plane static. */
-      const btScalar mass = 0.0f;
-      state.my_plane_motion_state = std::make_unique<btDefaultMotionState>(
-          btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-      btRigidBody::btRigidBodyConstructionInfo my_plane_info(
-          mass, &*state.my_plane_motion_state, &*state.my_plane_shape, btVector3(0, 0, 0));
-      state.my_plane = std::make_unique<btRigidBody>(my_plane_info);
-      state.dynamics_world->addRigidBody(&*state.my_plane);
-    }
   }
 
   update_state_from_behaviors(state, *behaviors_bundle);
@@ -200,10 +285,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
   new_data_bundle.add("Bullet State", bullet_state_owner);
 
-  btTransform transform;
-  state.my_box->getMotionState()->getWorldTransform(transform);
-  float4x4 matrix = btTransform_to_float4x4(transform);
-  new_data_bundle.add("Transform", matrix);
+  for (const auto &item : state.single_rigid_bodies.items()) {
+    const StringRef self_path = item.key;
+    const SingleRigidBody &single_rigid_body = item.value;
+    new_data_bundle.add_path(self_path + "/Transform", single_rigid_body.get_transform());
+  }
 
   params.set_output("Data", std::move(new_data_bundle_ptr));
 }

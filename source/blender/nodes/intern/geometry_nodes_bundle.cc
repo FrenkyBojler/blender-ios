@@ -96,9 +96,15 @@ Bundle &Bundle::operator=(Bundle &&other) noexcept
   return *this;
 }
 
+static bool is_valid_key(const StringRef key)
+{
+  return key.find('/') == StringRef::not_found;
+}
+
 void Bundle::add_new(const StringRef key, const BundleItemValue &value)
 {
-  BLI_assert(!this->contains(key));
+  BLI_assert(is_valid_key(key));
+  BLI_assert(key.find('/') == StringRef::not_found);
   if (const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&value.value))
   {
     const bke::bNodeSocketType &type = *socket_value->type;
@@ -239,6 +245,7 @@ BundlePtr Bundle::copy() const
 
 bool Bundle::remove(const StringRef key)
 {
+  BLI_assert(is_valid_key(key));
   const int removed_num = items_.remove_if([&key](StoredItem &item) {
     if (item.key == key) {
       if (BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
@@ -255,6 +262,7 @@ bool Bundle::remove(const StringRef key)
 
 bool Bundle::contains(const StringRef key) const
 {
+  BLI_assert(is_valid_key(key));
   for (const StoredItem &item : items_) {
     if (item.key == key) {
       return true;
