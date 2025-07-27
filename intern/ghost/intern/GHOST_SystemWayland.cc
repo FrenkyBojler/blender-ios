@@ -1153,6 +1153,13 @@ struct GWL_Seat {
 
   GWL_SeatStateKeyboard keyboard;
 
+  /**touch state, to handle touchscreen interactions.**/
+  struct {
+    bool is_touching = false;
+    uint32_t latest_touch_id = 0;
+  } touch_state;
+
+
 #ifdef USE_GNOME_CONFINE_HACK
   bool use_pointer_software_confine = false;
 #endif
@@ -4504,45 +4511,77 @@ static const zwp_pointer_gesture_swipe_v1_listener gesture_swipe_listener = {
  * NOTE(@ideasman42): It's not clear if this interface is used by popular compositors.
  * It looks like GNOME/KDE only support `zwp_pointer_gestures_v1_interface`.
  * If this isn't used anywhere, it could be removed.
+ * NOTE(@guarapicci): Wayland compositors report touchscreen interaction as touch events.
+ * While X11 provided a virtual "touchscreen mouse" device, wayland does not do that, so
+ * touchscreen events must be explicitly handled by the client.
  * \{ */
 
 static CLG_LogRef LOG_WL_TOUCH = {"ghost.wl.handle.touch"};
 #define LOG (&LOG_WL_TOUCH)
 
-static void touch_seat_handle_down(void * /*data*/,
-                                   wl_touch * /*wl_touch*/,
-                                   uint32_t /*serial*/,
-                                   uint32_t /*time*/,
-                                   wl_surface * /*wl_surface*/,
-                                   int32_t /*id*/,
-                                   wl_fixed_t /*x*/,
-                                   wl_fixed_t /*y*/)
+//touching down is equivalent to pointing the cursor somewhere and holding Mouse0.
+static void touch_seat_handle_down(void *data /*data*/,
+                                   wl_touch *touch /*wl_touch*/,
+                                   uint32_t event_serial /*serial*/,
+                                   uint32_t contact_timestamp /*time*/,
+                                   wl_surface *touched_surface /*wl_surface*/,
+                                   int32_t touch_id /*id*/,
+                                   wl_fixed_t location_x /*x*/,
+                                   wl_fixed_t location_y /*y*/)
 {
   CLOG_DEBUG(LOG, "down");
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  const uint64_t event_ms = seat->system->ms_from_input_time(contact_timestamp);
+
+  if (seat->touch_state.is_touching == false) { //only track one contact point at a time.
+    seat->touch_state.is_touching = true;
+    seat->touch_state.latest_touch_id = touch_id;
+    seat->pointer.xy[0] = location_x;
+    seat->pointer.xy[1] = location_y;
+    gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Motion, event_ms);
+    gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Button0_Down , event_ms);
+  }
 }
 
-static void touch_seat_handle_up(void * /*data*/,
-                                 wl_touch * /*wl_touch*/,
-                                 uint32_t /*serial*/,
-                                 uint32_t /*time*/,
-                                 int32_t /*id*/)
+static void touch_seat_handle_up(void * data /*data*/,
+                                 wl_touch *touch /*wl_touch*/,
+                                 uint32_t event_serial /*serial*/,
+                                 uint32_t contact_timestamp /*time*/,
+                                 int32_t touch_id /*id*/)
 {
   CLOG_DEBUG(LOG, "up");
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  const uint64_t event_ms = seat->system->ms_from_input_time(contact_timestamp);
+
+  if (seat->touch_state.latest_touch_id == touch_id) { //only track one contact point at a time.
+    seat->touch_state.is_touching = false;
+    gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Button0_Up , event_ms);
+  }
+
 }
 
-static void touch_seat_handle_motion(void * /*data*/,
-                                     wl_touch * /*wl_touch*/,
-                                     uint32_t /*time*/,
-                                     int32_t /*id*/,
-                                     wl_fixed_t /*x*/,
-                                     wl_fixed_t /*y*/)
+static void touch_seat_handle_motion(void * data /*data*/,
+                                     wl_touch *touch /*wl_touch*/,
+                                     uint32_t contact_timestamp /*time*/,
+                                     int32_t touch_id /*id*/,
+                                     wl_fixed_t location_x /*x*/,
+                                     wl_fixed_t location_y /*y*/)
 {
   CLOG_DEBUG(LOG, "motion");
+  GWL_Seat *seat = static_cast<GWL_Seat *>(data);
+  const uint64_t event_ms = seat->system->ms_from_input_time(contact_timestamp);
+  if ((seat->touch_state.latest_touch_id == touch_id) && (seat->touch_state.is_touching == true) ) { //only track one contact point at a time.
+    seat->pointer.xy[0] = location_x;
+    seat->pointer.xy[1] = location_y;
+    gwl_pointer_handle_frame_event_add(&seat->pointer_events, GWL_Pointer_EventTypes::Motion , event_ms);
+  }
+
 }
 
-static void touch_seat_handle_frame(void * /*data*/, wl_touch * /*wl_touch*/)
+static void touch_seat_handle_frame(void *data /*data*/, wl_touch *touch /*wl_touch*/)
 {
   CLOG_DEBUG(LOG, "frame");
+  pointer_handle_frame(data, nullptr);
 }
 
 static void touch_seat_handle_cancel(void * /*data*/, wl_touch * /*wl_touch*/)
