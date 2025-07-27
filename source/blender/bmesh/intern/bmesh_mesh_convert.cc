@@ -261,7 +261,13 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   CustomData_MeshMasks mask = CD_MASK_BMESH;
   CustomData_MeshMasks_update(&mask, &params->cd_mask_extra);
 
-  // TODO_MESH_ATTR
+  mesh->attribute_storage.wrap().foreach([&](const bke::Attribute &attr) {
+    const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr.data_type());
+    CustomData &custom_data = get_bmesh_custom_data(*bm, attr.domain());
+    // TODO_MESH_ATTR CHECK IF LAYER ALREADY EXISTS
+    BLI_assert(is_new);
+    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, attr.name());
+  });
 
   if (mesh->verts_num == 0) {
     if (is_new) {
@@ -283,14 +289,6 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   if (params->calc_vert_normal) {
     vert_normals = mesh->vert_normals();
   }
-
-  mesh->attribute_storage.wrap().foreach([&](const bke::Attribute &attr) {
-    const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr.data_type());
-    CustomData &custom_data = get_bmesh_custom_data(*bm, attr.domain());
-    // TODO_MESH_ATTR CHECK IF LAYER ALREADY EXISTS
-    BLI_assert(is_new);
-    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, attr.name());
-  });
 
   if (is_new) {
     CustomData_init_layout_from(&mesh->vert_data, &bm->vdata, mask.vmask, CD_SET_DEFAULT, 0);

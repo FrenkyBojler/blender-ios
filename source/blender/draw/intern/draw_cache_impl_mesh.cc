@@ -698,6 +698,8 @@ static void request_active_and_default_color_attributes(const Object &object,
     if (!name.is_empty()) {
       // TODO_MESH_ATTR
       if (me_final.runtime->edit_mesh) {
+        if (BMeshAttributeLookup = lookup_bmesh_attribute(me_final.runtime->edit_mesh->bm, name)) {
+        }
       }
       else {
         int layer_index;
