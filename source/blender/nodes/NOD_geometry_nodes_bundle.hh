@@ -19,7 +19,10 @@ struct BundleItemSocketValue {
   void *value;
 };
 
-class BundleItemInternalValueMixin : public ImplicitSharingMixin {};
+class BundleItemInternalValueMixin : public ImplicitSharingMixin {
+ public:
+  virtual StringRefNull type_name() const = 0;
+};
 
 struct BundleItemInternalValue {
   ImplicitSharingPtr<BundleItemInternalValueMixin> value;

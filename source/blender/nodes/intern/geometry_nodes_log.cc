@@ -331,11 +331,15 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
       Vector<BundleValueLog::Item> items;
       if (const BundlePtr bundle = value_variant.extract<BundlePtr>()) {
         for (const Bundle::StoredItem &item : bundle->items()) {
-          // TODO: Handle internal values.
           if (const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
                   &item.value.value))
           {
-            items.append({item.key, socket_value->type});
+            items.append({item.key, {socket_value->type}});
+          }
+          if (const BundleItemInternalValue *internal_value = std::get_if<BundleItemInternalValue>(
+                  &item.value.value))
+          {
+            items.append({item.key, {internal_value->value->type_name()}});
           }
         }
       }

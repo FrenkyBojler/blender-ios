@@ -39,6 +39,11 @@ class BulletStateOwner : public BundleItemInternalValueMixin {
   {
     MEM_delete(this);
   }
+
+  StringRefNull type_name() const override
+  {
+    return TIP_("Bullet Physics State");
+  }
 };
 
 using BulletStateOwnerPtr = ImplicitSharingPtr<BulletStateOwner>;
