@@ -3064,6 +3064,22 @@ class _defs_sequencer_select:
         )
 
 
+    @ToolDef.from_fn
+    def lasso_preview():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sequencer.select_lasso")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+        return dict(
+            idname="sequencer.select_lasso",
+            label="Select Lasso",
+            icon="ops.generic.select_lasso",
+            widget=None,
+            keymap="Preview Tool: Select Lasso",
+            draw_settings=draw_settings,
+        )
+
 class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOLS'
@@ -3716,6 +3732,7 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             (
                 _defs_sequencer_select.select_preview,
                 _defs_sequencer_select.box_preview,
+                _defs_sequencer_select.lasso_preview,
             ),
             _defs_sequencer_generic.cursor,
             None,

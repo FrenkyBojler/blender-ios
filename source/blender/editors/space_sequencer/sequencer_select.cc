@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_lasso_2d.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
@@ -2322,6 +2323,102 @@ void SEQUENCER_OT_select_box(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+static bool do_lasso_select_strip_is_origin_inside(const ARegion *region,
+                                                   const rcti *clip_rect,
+                                                   const Span<int2> mcoords,
+                                                   const float co_test[2])
+{
+  int co_screen[2];
+  if (UI_view2d_view_to_region_clip(
+          &region->v2d, co_test[0], co_test[1], &co_screen[0], &co_screen[1]) &&
+      BLI_rcti_isect_pt_v(clip_rect, co_screen) &&
+      BLI_lasso_is_point_inside(mcoords, co_screen[0], co_screen[1], V2D_IS_CLIPPED))
+  {
+    return true;
+  }
+  return false;
+}
+
+static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSelectOp sel_op)
+{
+  Scene *scene = CTX_data_scene(C);
+  View2D *v2d = UI_view2d_fromcontext(C);
+  Editing *ed = seq::editing_get(scene);
+
+  if (ed == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const ARegion *region = CTX_wm_region(C);
+  const ToolSettings *ts = scene->toolsettings;
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  const bool select = (sel_op != SEL_OP_SUB);
+  const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
+
+  bool changed_multi = false;
+  rcti rect;
+  BLI_lasso_boundbox(&rect, mcoords);
+
+  if (use_pre_deselect) {
+    /* Deselect all strips here. */
+  }
+
+  ListBase *seqbase = seq::active_seqbase_get(ed);
+  ListBase *channels = seq::channels_displayed_get(ed);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+
+  blender::VectorSet strips = seq::query_rendered_strips(
+      scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
+  for (Strip *strip : strips) {
+    blender::float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
+    if (do_lasso_select_strip_is_origin_inside(region, &rect, mcoords, origin)) {
+      if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
+        strip->flag |= SELECT;
+      }
+      else {
+        BLI_assert(mode == SEL_OP_SUB);
+        strip->flag &= ~SELECT;
+      }
+    }
+  }
+
+  return changed_multi;
+}
+
+static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
+{
+  Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
+  if (mcoords.is_empty()) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  bool changed = do_lasso_select_vse(C, mcoords, sel_op);
+
+  return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+}
+
+void SEQUENCER_OT_select_lasso(wmOperatorType *ot)
+{
+  ot->name = "Lasso Select";
+  ot->description = "Select items using lasso selection";
+  ot->idname = "SEQUENCER_OT_select_lasso";
+
+  ot->invoke = WM_gesture_lasso_invoke;
+  ot->modal = WM_gesture_lasso_modal;
+  ot->exec = vse_lasso_select_exec;
+  ot->poll = ED_operator_sequencer_active;
+  ot->cancel = WM_gesture_lasso_cancel;
+
+  /* flags */
+  ot->flag = OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
+
+  /* properties */
+  WM_operator_properties_gesture_lasso(ot);
+  WM_operator_properties_select_operation_simple(ot);
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
