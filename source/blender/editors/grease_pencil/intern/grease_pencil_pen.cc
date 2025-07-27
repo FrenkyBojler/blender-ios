@@ -67,7 +67,7 @@ struct ClosestElement {
 
 /* Used to scale the default select distance. */
 constexpr float selection_distance_factor = 0.9f;
-constexpr float selection_distance_factor_edge = 0.7f;
+constexpr float selection_distance_factor_edge = 0.5f;
 /* Used when creating a single curve from nothing. */
 constexpr float default_handle_px_distance = 16.0f;
 constexpr float default_radius_factor = 0.25f;
