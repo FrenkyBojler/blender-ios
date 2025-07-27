@@ -189,7 +189,7 @@ elseif(APPLE AND NOT WITH_GHOST_X11)
   if(WITH_APPLE_CROSSPLATFORM)
     message(STATUS "Configure Ghost for Apple Cross platform: iOS")
     
-    if(APPLE_TARGET_DEVICE STREQUAL ios)
+    if(APPLE_TARGET_DEVICE STREQUAL "ios" OR APPLE_TARGET_DEVICE STREQUAL "ios-simulator")
       # GHOST modules for iPadOS.
       list(APPEND SRC
         intern/GHOST_SystemIOS.h

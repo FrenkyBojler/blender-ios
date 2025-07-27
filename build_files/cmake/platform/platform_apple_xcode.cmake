@@ -19,6 +19,14 @@ if(WITH_APPLE_CROSSPLATFORM)
     set(OSX_MIN_DEPLOYMENT_TARGET 15.00)
     set(APPLE_OS_MINVERSION_CFLAG "-miphoneos-version-min=${OSX_MIN_DEPLOYMENT_TARGET}")
 
+  elseif(APPLE_TARGET_DEVICE STREQUAL ios-simulator)
+    set(CMAKE_SYSTEM_NAME "iOS" CACHE INTERNAL "" FORCE)
+    set(APPLE_SDK_CROSSPLATFORM_NAME "iPhoneSimulator")
+    set(APPLE_SDK_CROSSPLATFORM_NAME_LOWER "iphonesimulator")
+
+    set(OSX_MIN_DEPLOYMENT_TARGET 15.00)
+    set(APPLE_OS_MINVERSION_CFLAG "-miphonesimulator-version-min=${OSX_MIN_DEPLOYMENT_TARGET}")
+
   else()
     message(FATAL_ERROR "Unsupported APPLE_TARGET_DEVICE = ${APPLE_TARGET_DEVICE}. To add support, ensure setup parameters in platform_apple_xcode.cmake are configured. ")
     set(APPLE_SDK_CROSSPLATFORM_NAME)
