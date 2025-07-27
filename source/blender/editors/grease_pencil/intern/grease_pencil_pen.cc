@@ -768,7 +768,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       curves.handle_types_right_for_write()[ptd.closest_element.point_index] = new_handle_type;
       curves.update_curve_types();
       curves.calculate_bezier_auto_handles();
-      curves.tag_topology_changed();
+      info.drawing.tag_topology_changed();
       add_single.store(false, std::memory_order_relaxed);
     }
 
