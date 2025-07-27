@@ -355,14 +355,16 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
 }
 
 static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
-                                              const bke::CurvesGeometry &src,
+                                              const bke::greasepencil::Drawing &drawing,
+                                              const int layer_index,
                                               const float4x4 &layer_to_object,
                                               const float4x4 &layer_to_world,
                                               bool *r_extruded)
 {
+  const bke::CurvesGeometry &src = drawing.strokes();
   const bke::AttributeAccessor src_attributes = src.attributes();
   const OffsetIndices<int> points_by_curve = src.points_by_curve();
-
+  const VArray<bool> &src_cyclic = src.cyclic();
   const int old_points_num = src.points_num();
 
   const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
@@ -382,15 +384,17 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   offset_indices::copy_group_sizes(
       points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
 
-  const VArray<bool> &src_cyclic = src.cyclic();
+  IndexMaskMemory memory;
+  const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
+      *ptd.vc.obact, drawing, layer_index, memory);
 
   /* Point offset keeps track of the points inserted. */
   int point_offset = 0;
-  for (const int curve_index : src.curves_range()) {
+  editable_curves.foreach_index([&](const int curve_index) {
     const IndexRange curve_points = points_by_curve[curve_index];
     /* Skip cyclic curves unless they only have one point. */
     if (src_cyclic[curve_index] && curve_points.size() != 1) {
-      continue;
+      return;
     }
 
     if (point_selection[curve_points.first()] || left_selected[curve_points.first()] ||
@@ -416,7 +420,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
       dst_curve_counts[curve_index]++;
       point_offset++;
     }
-  }
+  });
 
   if (point_offset == 0) {
     *r_extruded = false;
@@ -842,7 +846,8 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
 
         bool extruded = false;
-        curves = pen_extrude_curves(ptd, curves, layer_to_object, layer_to_world, &extruded);
+        curves = pen_extrude_curves(
+            ptd, info.drawing, info.layer_index, layer_to_object, layer_to_world, &extruded);
         if (!extruded) {
           for (const StringRef selection_attribute_name :
                ed::curves::get_curves_selection_attribute_names(curves))
