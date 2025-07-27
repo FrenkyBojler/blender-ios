@@ -187,7 +187,7 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
 
   /* Multiplicity m is continuous to the `degree - m` derivative and as such
    * `multiplicity == degree` is discontinuous. Due to the superfluous knots
-   * the first/last entry can be `order`.
+   * the first/last entry can be up to `order`, remaining up to `degree`.
    */
   if (multiplicity.first() > order || multiplicity.last() > order) {
     return false;
@@ -249,7 +249,7 @@ static bool detect_knot_mode_bezier_clamped(const int8_t degree,
     }
   }
   else if (multiplicity.size() == 2) {
-    /* Single non-cyclic segment, allow patterns:
+    /* Single segment, allow patterns:
      * O a
      * where a > 0
      */
@@ -258,10 +258,9 @@ static bool detect_knot_mode_bezier_clamped(const int8_t degree,
     }
   }
   else {
-    /* Non-cyclic, allow patterns:
+    /* Allow patterns:
       .. d O+
       .. d d 1
-      k
     */
     const int remainder = (num_points - 1) % degree;
     if (multiplicity.last() != order + remainder &&
