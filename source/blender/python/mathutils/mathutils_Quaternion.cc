@@ -176,7 +176,7 @@ PyDoc_STRVAR(
     "   :arg euler_compat: Euler the new euler will be made\n"
     "      compatible with (no axis flipping between them).\n"
     "      Useful for converting a series of matrices to animation curves.\n"
-    "   :type euler_compat: :class:`Euler`, (optional)\n"
+    "   :type euler_compat: :class:`Euler`\n"
     "   :return: Euler representation of the quaternion.\n"
     "   :rtype: :class:`Euler`\n");
 static PyObject *Quaternion_to_euler(QuaternionObject *self, PyObject *args)
@@ -1766,7 +1766,7 @@ PyDoc_STRVAR(
     "   :arg seq: size 3 or 4\n"
     "   :type seq: :class:`Vector`\n"
     "   :arg angle: rotation angle, in radians\n"
-    "   :type angle: float, (optional)\n"
+    "   :type angle: float\n"
     "\n"
     "   The constructor takes arguments in various forms:\n"
     "\n"

@@ -1302,7 +1302,7 @@ PyDoc_STRVAR(
     "   :arg euler_compat: Optional euler argument the new euler will be made\n"
     "      compatible with (no axis flipping between them).\n"
     "      Useful for converting a series of matrices to animation curves.\n"
-    "   :type euler_compat: :class:`Euler`, (optional)\n"
+    "   :type euler_compat: :class:`Euler`\n"
     "   :return: Euler representation of the matrix.\n"
     "   :rtype: :class:`Euler`\n");
 static PyObject *Matrix_to_euler(MatrixObject *self, PyObject *args)
@@ -1644,7 +1644,7 @@ PyDoc_STRVAR(
     "\n"
     "   :arg fallback: Set the matrix to this value when the inverse cannot be calculated\n"
     "      (instead of raising a :exc:`ValueError` exception).\n"
-    "   :type fallback: :class:`Matrix`, (optional)\n"
+    "   :type fallback: :class:`Matrix`\n"
     "\n"
     "   .. seealso:: `Inverse matrix <https://en.wikipedia.org/wiki/Inverse_matrix>`__ on "
     "Wikipedia.\n");
@@ -1696,7 +1696,7 @@ PyDoc_STRVAR(
     "\n"
     "   :arg fallback: return this when the inverse can't be calculated\n"
     "      (instead of raising a :exc:`ValueError`).\n"
-    "   :type fallback: Any, (optional)\n"
+    "   :type fallback: Any\n"
     "   :return: The inverted matrix or fallback when given.\n"
     "   :rtype: :class:`Matrix` | Any\n");
 static PyObject *Matrix_inverted(MatrixObject *self, PyObject *args)
