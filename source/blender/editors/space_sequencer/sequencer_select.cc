@@ -2357,12 +2357,12 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
   const bool select = (sel_op != SEL_OP_SUB);
   const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
 
-  bool changed_multi = false;
+  bool changed = false;
   rcti rect;
   BLI_lasso_boundbox(&rect, mcoords);
 
   if (use_pre_deselect) {
-    changed_multi |= deselect_all_strips(scene);
+    changed |= deselect_all_strips(scene);
   }
 
   ListBase *seqbase = seq::active_seqbase_get(ed);
@@ -2374,7 +2374,7 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
   for (Strip *strip : strips) {
     blender::float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
     if (do_lasso_select_strip_is_origin_inside(region, &rect, mcoords, origin)) {
-      changed_multi = true;
+      changed = true;
       if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
         strip->flag |= SELECT;
       }
@@ -2385,7 +2385,7 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
     }
   }
 
-  return changed_multi;
+  return changed;
 }
 
 static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
@@ -2404,7 +2404,6 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  // sequencer_select_do_updates(C, scene);
   return OPERATOR_CANCELLED;
 }
 
