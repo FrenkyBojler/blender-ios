@@ -11,6 +11,8 @@
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
+#include "BLI_math_euler.hh"
+#include "BLI_math_quaternion.hh"
 #include "BLI_struct_equality_utils.hh"
 
 #include "node_geometry_util.hh"
@@ -60,8 +62,13 @@ struct SingleRigidBody {
   float4x4 get_transform() const
   {
     btTransform result;
-    motion_state->getWorldTransform(result);
-    return btTransform_to_float4x4(result);
+    this->motion_state->getWorldTransform(result);
+    const btVector3 scale = this->body->getCollisionShape()->getLocalScaling();
+    float4x4 result_transform = btTransform_to_float4x4(result);
+    result_transform.x_axis() *= scale.x();
+    result_transform.y_axis() *= scale.y();
+    result_transform.z_axis() *= scale.z();
+    return result_transform;
   }
 };
 
@@ -351,13 +358,14 @@ struct CollisionShapeKey {
   int instance_id;
   RigidBodyCollisionShape shape;
   float margin;
+  float3 scale;
 
   uint64_t hash() const
   {
-    return get_default_hash(instance_id, shape, margin);
+    return get_default_hash(instance_id, shape, margin, scale);
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_3(CollisionShapeKey, instance_id, shape, margin)
+  BLI_STRUCT_EQUALITY_OPERATORS_4(CollisionShapeKey, instance_id, shape, margin, scale)
 };
 
 static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
@@ -461,16 +469,32 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     if (!shape) {
       continue;
     }
+    const float4x4 &raw_transform = transforms[instance_i];
+    float3 location;
+    math::Quaternion rotation;
+    float3 scale;
+    math::to_loc_rot_scale_safe<true>(raw_transform, location, rotation, scale);
+
+    btTransform bt_transform;
+    bt_transform.setIdentity();
+    bt_transform.setOrigin(btVector3(location.x, location.y, location.z));
+    bt_transform.setRotation(btQuaternion(rotation.x, rotation.y, rotation.z, rotation.w));
+
     const float margin = std::max(margins[instance_i], 0.0f);
+
     const std::shared_ptr<btCollisionShape> &collision_shape = collision_shapes.lookup_or_add_cb(
-        {handle, *shape, margin},
-        [&]() { return create_collision_shape(*shape, reference_geometry_sets[handle], margin); });
+        {handle, *shape, margin, scale}, [&]() {
+          std::shared_ptr<btCollisionShape> collision_shape = create_collision_shape(
+              *shape, reference_geometry_sets[handle], margin);
+          collision_shape->setLocalScaling(btVector3(scale.x, scale.y, scale.z));
+          return collision_shape;
+        });
     if (!collision_shape) {
       continue;
     }
 
     const int instance_id = instance_ids[instance_i];
-    const float4x4 &transform = transforms[instance_i];
+
     std::optional<SingleRigidBody> old_body;
     if (old_rigid_body_instances) {
       old_body = old_rigid_body_instances->rigid_body_by_id.pop_try(instance_id);
@@ -514,23 +538,21 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
                                     body,
                                     *mode,
                                     mass,
-                                    transform,
+                                    raw_transform,
                                     params.delta_time,
                                     persist_velocity,
                                     initial_velocity);
 
       /* Update transform. */
       if (mode == RigidBodyMode::Animated) {
-        const btTransform bt_transform = float4x4_to_btTransform(transform);
         body.motion_state->setWorldTransform(bt_transform);
         body.body->setWorldTransform(bt_transform);
-        body.prev_kinematic_transform = transform;
+        body.prev_kinematic_transform = raw_transform;
       }
     }
     else {
       body.shape = collision_shape;
-      body.motion_state = std::make_unique<btDefaultMotionState>(
-          float4x4_to_btTransform(transform));
+      body.motion_state = std::make_unique<btDefaultMotionState>(bt_transform);
       btRigidBody::btRigidBodyConstructionInfo body_info(
           mass, &*body.motion_state, &*body.shape, inertia);
       body.body = std::make_unique<btRigidBody>(body_info);
