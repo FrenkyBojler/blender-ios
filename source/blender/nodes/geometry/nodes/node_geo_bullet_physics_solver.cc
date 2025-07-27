@@ -236,7 +236,9 @@ static void update_body_mode_if_necessary(BulletState &state,
                                           const RigidBodyMode new_mode,
                                           const float new_mass,
                                           const float4x4 &new_transform,
-                                          const float delta_time)
+                                          const float delta_time,
+                                          const bool persist_velocity,
+                                          const float3 &initial_velocity)
 {
   btRigidBody &rbody = *body.body;
   const float old_mass = rbody.getMass();
@@ -257,19 +259,25 @@ static void update_body_mode_if_necessary(BulletState &state,
                                                   btCollisionObject::CF_STATIC_OBJECT));
       rbody.setActivationState(ACTIVE_TAG);
 
-      float3 old_pos;
-      math::EulerXYZ old_rot;
-      float3 old_scale;
-      math::to_loc_rot_scale_safe<true>(
-          body.prev_kinematic_transform, old_pos, old_rot, old_scale);
+      if (persist_velocity) {
+        float3 old_pos;
+        math::EulerXYZ old_rot;
+        float3 old_scale;
+        math::to_loc_rot_scale_safe<true>(
+            body.prev_kinematic_transform, old_pos, old_rot, old_scale);
 
-      float3 new_pos;
-      math::EulerXYZ new_rot;
-      float3 new_scale;
-      math::to_loc_rot_scale_safe<true>(new_transform, new_pos, new_rot, new_scale);
+        float3 new_pos;
+        math::EulerXYZ new_rot;
+        float3 new_scale;
+        math::to_loc_rot_scale_safe<true>(new_transform, new_pos, new_rot, new_scale);
 
-      const float3 velocity = (new_pos - old_pos) / delta_time;
-      rbody.setLinearVelocity(btVector3(velocity.x, velocity.y, velocity.z));
+        const float3 velocity = (new_pos - old_pos) / delta_time;
+        rbody.setLinearVelocity(btVector3(velocity.x, velocity.y, velocity.z));
+      }
+      else {
+        rbody.setLinearVelocity(
+            btVector3(initial_velocity.x, initial_velocity.y, initial_velocity.z));
+      }
 
       state.dynamics_world->addRigidBody(&rbody);
       break;
@@ -347,6 +355,11 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   if (!initial_velocity_field) {
     initial_velocity_field = fn::make_constant_field<float3>(float3(0.0f));
   }
+  std::optional<Field<bool>> persist_velocity_field = params.bundle.lookup<Field<bool>>(
+      "Persist Velocity");
+  if (!persist_velocity_field) {
+    persist_velocity_field = fn::make_constant_field<bool>(false);
+  }
   bke::Instances *instances = geometry->get_instances_for_write();
   if (!instances) {
     return;
@@ -364,6 +377,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   field_evaluator.add(*bounciness_field);
   field_evaluator.add(*margin_field);
   field_evaluator.add(*initial_velocity_field);
+  field_evaluator.add(*persist_velocity_field);
   field_evaluator.evaluate();
   const VArray<int> modes = field_evaluator.get_evaluated<int>(0);
   const VArray<int> shapes = field_evaluator.get_evaluated<int>(1);
@@ -372,6 +386,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(4);
   const VArray<float> margins = field_evaluator.get_evaluated<float>(5);
   const VArray<float3> initial_velocities = field_evaluator.get_evaluated<float3>(6);
+  const VArray<bool> persist_velocities = field_evaluator.get_evaluated<bool>(7);
 
   const Span<int> instance_ids = instances->almost_unique_ids();
   const Span<float4x4> transforms = instances->transforms();
@@ -440,6 +455,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     collision_shape->calculateLocalInertia(mass, inertia);
 
     const float3 initial_velocity = initial_velocities[instance_i];
+    const bool persist_velocity = persist_velocities[instance_i];
 
     SingleRigidBody body;
     if (old_body) {
@@ -454,7 +470,14 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       }
 
       /* Update mode. */
-      update_body_mode_if_necessary(params.state, body, *mode, mass, transform, params.delta_time);
+      update_body_mode_if_necessary(params.state,
+                                    body,
+                                    *mode,
+                                    mass,
+                                    transform,
+                                    params.delta_time,
+                                    persist_velocity,
+                                    initial_velocity);
 
       /* Update transform. */
       if (mode == RigidBodyMode::Animated) {
