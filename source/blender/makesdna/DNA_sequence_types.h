@@ -261,7 +261,7 @@ typedef struct Strip {
   float strobe;
 
   float sound_offset;
-  char _pad4[4];
+  int sound_flags;
 
   /** Struct pointer for effect settings. */
   void *effectdata;
@@ -711,6 +711,10 @@ enum {
   SEQ_SCENE_STRIPS = (1 << 30),
 
   SEQ_UNUSED_31 = (1u << 31),
+};
+
+enum {
+  SEQ_AUDIO_PITCH_CORRECTION = (1 << 0),
 };
 
 /** #StripProxy.storage */
