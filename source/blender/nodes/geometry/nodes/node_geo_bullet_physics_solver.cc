@@ -368,6 +368,9 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     const std::shared_ptr<btCollisionShape> &collision_shape = collision_shapes.lookup_or_add_cb(
         {handle, *shape, margin},
         [&]() { return create_collision_shape(*shape, reference_geometry_sets[handle], margin); });
+    if (!collision_shape) {
+      continue;
+    }
 
     const int instance_id = instance_ids[instance_i];
     const float4x4 &transform = transforms[instance_i];
