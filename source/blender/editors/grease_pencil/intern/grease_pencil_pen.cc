@@ -709,7 +709,7 @@ static bke::CurvesGeometry pen_insert_point(const PenToolOperation &ptd,
   return dst;
 }
 
-static float2 calculate_center_of_mass(const PenToolOperation &ptd)
+static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool ends_only)
 {
   float2 pos = float2(0.0f, 0.0f);
   int num = 0;
@@ -717,6 +717,9 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd)
   threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
     const bke::CurvesGeometry &curves = info.drawing.strokes();
     const Span<float3> positions = curves.positions();
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const Array<int> point_to_curve_map = curves.point_to_curve_map();
+    const VArray<bool> &cyclic = curves.cyclic();
 
     IndexMaskMemory memory;
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
@@ -726,9 +729,22 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd)
     const float4x4 layer_to_object = layer.local_transform();
 
     bezier_points.foreach_index([&](const int64_t point_i) {
+      if (ends_only) {
+        const int curve_i = point_to_curve_map[point_i];
+        const IndexRange points = points_by_curve[curve_i];
+
+        /* Skip cyclic curves unless they only have one point. */
+        if (cyclic[curve_i] && points.size() != 1) {
+          return;
+        }
+
+        if (!(point_i == points.last() || point_i == points.first())) {
+          return;
+        }
+      }
       pos += pen_layer_to_screen(ptd, layer_to_object, positions[point_i]);
+      num++;
     });
-    num += bezier_points.size();
   });
 
   if (num == 0) {
@@ -798,7 +814,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   std::atomic<bool> point_added = false;
   std::atomic<bool> point_removed = false;
   ptd.drawings = retrieve_editable_drawings(*scene, *ptd.grease_pencil);
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd);
+  ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
   threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
@@ -1070,7 +1086,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   }
 
   std::atomic<bool> changed = false;
-  ptd.center_of_mass_co = calculate_center_of_mass(ptd);
+  ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
   threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
     const int drawing_index = (&info - ptd.drawings.data());
 
