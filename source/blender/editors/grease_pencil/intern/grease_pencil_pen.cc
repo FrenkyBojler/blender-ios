@@ -758,19 +758,15 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
   ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+  ptd.vc = vc;
 
   /* Allocate new data. */
   PenToolOperation *ptd_pointer = MEM_new<PenToolOperation>(__func__);
   op->customdata = ptd_pointer;
-
   PenToolOperation &ptd = *ptd_pointer;
 
-  ptd.vc = vc;
-
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(vc.obact->data);
-
   ptd.grease_pencil = grease_pencil;
-
   ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
 
   /* Distance threshold for mouse clicks to affect the spline or its points */
