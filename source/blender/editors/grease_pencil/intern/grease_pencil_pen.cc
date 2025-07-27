@@ -186,10 +186,6 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
     }
   });
 
-  if (closest_point != -1) {
-    return closest_point;
-  }
-
   const Span<float3> handle_left = curves.handle_positions_left();
   const Span<float3> handle_right = curves.handle_positions_right();
   const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
