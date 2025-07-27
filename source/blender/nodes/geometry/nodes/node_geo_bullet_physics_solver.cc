@@ -142,6 +142,8 @@ static void parse_behavior__single_rigid_body(ParseBehaviorParams &params)
   if (!transform) {
     return;
   }
+  const float friction = params.bundle.lookup<float>("Friction").value_or(0.0f);
+  const float bounciness = params.bundle.lookup<float>("Bounciness").value_or(0.0f);
   float mass = params.bundle.lookup<float>("Mass").value_or(0.0f);
   std::string self_path = params.self_path();
   const std::optional<RigidBodyMode> mode = parse_ridig_body_mode(params.bundle);
@@ -168,6 +170,12 @@ static void parse_behavior__single_rigid_body(ParseBehaviorParams &params)
         rigid_body.motion_state->setWorldTransform(float4x4_to_btTransform(*transform));
         break;
       }
+    }
+    if (rigid_body.body->getFriction() != friction) {
+      rigid_body.body->setFriction(friction);
+    }
+    if (rigid_body.body->getRestitution() != bounciness) {
+      rigid_body.body->setRestitution(bounciness);
     }
   }
   else {
@@ -200,6 +208,8 @@ static void parse_behavior__single_rigid_body(ParseBehaviorParams &params)
         mass, &*rigid_body.motion_state, &*rigid_body.shape, inertia);
     rigid_body.body = std::make_unique<btRigidBody>(body_info);
     params.state.dynamics_world->addRigidBody(&*rigid_body.body);
+    rigid_body.body->setFriction(friction);
+    rigid_body.body->setRestitution(bounciness);
   }
   params.behaviors.new_single_rigid_bodies.add(self_path, std::move(rigid_body));
 }
