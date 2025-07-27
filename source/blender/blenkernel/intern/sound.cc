@@ -45,6 +45,7 @@
 #  include <AUD_Sequence.h>
 #  include <AUD_Sound.h>
 #  include <AUD_Special.h>
+#  include <AUD_Types.h>
 #endif
 
 #include "BKE_bpath.hh"
@@ -1513,6 +1514,15 @@ bool BKE_sound_stream_info_get(Main *main,
   return true;
 }
 
+/* Should probably make this like a modifier & move this with the equalizer code?
+ * Also add ifdef for Rubber Band Library later.
+ */
+void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float timeStretch)
+{
+  return AUD_Sound_timeStretchPitchScale(
+      sound_handle, timeStretch, 1.0, AUD_STRETCHER_QUALITY_HIGH, false);
+}
+
 #else /* WITH_AUDASPACE */
 
 #  include "BLI_utildefines.h"
@@ -1581,6 +1591,11 @@ void BKE_sound_read_waveform(Main *bmain,
 {
   UNUSED_VARS(sound, stop, bmain);
 }
+void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float timeStretch)
+{
+  return nullptr;
+}
+
 void BKE_sound_update_sequencer(Main * /*main*/, bSound * /*sound*/) {}
 void BKE_sound_update_scene(Depsgraph * /*depsgraph*/, Scene * /*scene*/) {}
 void BKE_sound_update_scene_sound(void * /*handle*/, bSound * /*sound*/) {}

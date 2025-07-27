@@ -204,3 +204,5 @@ void BKE_sound_jack_scene_update(struct Scene *scene, int mode, double time);
 struct Depsgraph;
 
 void BKE_sound_evaluate(struct Depsgraph *depsgraph, struct Main *bmain, struct bSound *sound);
+
+void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float timeStretch);

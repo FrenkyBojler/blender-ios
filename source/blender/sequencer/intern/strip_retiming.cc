@@ -12,6 +12,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_sound_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -1059,20 +1060,40 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
   const int sound_offset = time_get_rounded_sound_offset(strip, scene_fps);
 
   RetimingRangeData retiming_data = strip_retiming_range_data_get(scene, strip);
-  for (int i = 0; i < retiming_data.ranges.size(); i++) {
-    RetimingRange range = retiming_data.ranges[i];
-    if (range.type == TRANSITION) {
 
-      const int range_length = range.end - range.start;
-      for (int i = 0; i <= range_length; i++) {
-        const int frame = range.start + i;
-        BKE_sound_set_scene_sound_pitch_at_frame(
-            strip->scene_sound, frame + sound_offset, range.speed_table[i], true);
+  /* TODO: When animating time-stretch factor functionality
+   * is not currently finished in Audaspace. For now handle only 1 retiming
+   * range only if it's linear.
+   */
+  int64_t range_count = retiming_data.ranges.size();
+
+  if (range_count == 1 && retiming_data.ranges[0].type == LINEAR &&
+      strip->sound_flags & SEQ_AUDIO_PITCH_CORRECTION)
+  {
+    void *sound_handle = strip->sound->playback_handle;
+    RetimingRange range = retiming_data.ranges[0];
+    sound_handle = BKE_sound_add_time_stretch_modifier(sound_handle, 1.0 / range.speed);
+    BKE_sound_set_scene_sound_pitch_constant_range(
+        strip->scene_sound, range.start + sound_offset, range.end + sound_offset, 1.0);
+    BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
+  }
+  else {
+    for (int i = 0; i < retiming_data.ranges.size(); i++) {
+      RetimingRange range = retiming_data.ranges[i];
+      if (range.type == TRANSITION) {
+
+        const int range_length = range.end - range.start;
+        for (int i = 0; i <= range_length; i++) {
+          const int frame = range.start + i;
+
+          BKE_sound_set_scene_sound_pitch_at_frame(
+              strip->scene_sound, frame + sound_offset, range.speed_table[i], true);
+        }
       }
-    }
-    else {
-      BKE_sound_set_scene_sound_pitch_constant_range(
-          strip->scene_sound, range.start + sound_offset, range.end + sound_offset, range.speed);
+      else {
+        BKE_sound_set_scene_sound_pitch_constant_range(
+            strip->scene_sound, range.start + sound_offset, range.end + sound_offset, range.speed);
+      }
     }
   }
 }
