@@ -126,6 +126,11 @@ enum class RigidBodyMode {
   Animated,
 };
 
+enum class RigidBodyCollisionShape {
+  Box,
+  Sphere,
+};
+
 static std::optional<RigidBodyMode> parse_ridig_body_mode(const int mode)
 {
   switch (mode) {
@@ -140,6 +145,18 @@ static std::optional<RigidBodyMode> parse_ridig_body_mode(const int mode)
   }
 }
 
+static std::optional<RigidBodyCollisionShape> parse_ridig_body_collision_shape(const int shape)
+{
+  switch (shape) {
+    case 0:
+      return RigidBodyCollisionShape::Box;
+    case 1:
+      return RigidBodyCollisionShape::Sphere;
+    default:
+      return std::nullopt;
+  }
+}
+
 static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
 {
   std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
@@ -148,6 +165,10 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   }
   std::optional<Field<int>> mode_field = params.bundle.lookup<Field<int>>("Mode");
   if (!mode_field) {
+    return;
+  }
+  std::optional<Field<int>> shape_field = params.bundle.lookup<Field<int>>("Collision Shape");
+  if (!shape_field) {
     return;
   }
   std::optional<Field<float>> mass_field = params.bundle.lookup<Field<float>>("Mass");
@@ -173,14 +194,16 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   bke::InstancesFieldContext field_context{*instances};
   fn::FieldEvaluator field_evaluator{field_context, instances_num};
   field_evaluator.add(*mode_field);
+  field_evaluator.add(*shape_field);
   field_evaluator.add(*mass_field);
   field_evaluator.add(*friction_field);
   field_evaluator.add(*bounciness_field);
   field_evaluator.evaluate();
   const VArray<int> modes = field_evaluator.get_evaluated<int>(0);
-  const VArray<float> masses = field_evaluator.get_evaluated<float>(1);
-  const VArray<float> frictions = field_evaluator.get_evaluated<float>(2);
-  const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(3);
+  const VArray<int> shapes = field_evaluator.get_evaluated<int>(1);
+  const VArray<float> masses = field_evaluator.get_evaluated<float>(2);
+  const VArray<float> frictions = field_evaluator.get_evaluated<float>(3);
+  const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(4);
 
   const Span<int> instance_ids = instances->almost_unique_ids();
   const Span<float4x4> transforms = instances->transforms();
@@ -211,8 +234,13 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     if (!bounds) {
       continue;
     }
-    std::optional<RigidBodyMode> mode = parse_ridig_body_mode(modes[instance_i]);
+    const std::optional<RigidBodyMode> mode = parse_ridig_body_mode(modes[instance_i]);
     if (!mode) {
+      continue;
+    }
+    const std::optional<RigidBodyCollisionShape> shape = parse_ridig_body_collision_shape(
+        shapes[instance_i]);
+    if (!shape) {
       continue;
     }
     const int instance_id = instance_ids[instance_i];
@@ -242,7 +270,16 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       }
     }
     else {
-      body.shape = std::make_unique<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
+      switch (*shape) {
+        case RigidBodyCollisionShape::Box: {
+          body.shape = std::make_unique<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
+          break;
+        }
+        case RigidBodyCollisionShape::Sphere: {
+          body.shape = std::make_unique<btSphereShape>(std::max({size.x, size.y, size.z}) / 2.0f);
+          break;
+        }
+      }
       body.motion_state = std::make_unique<btDefaultMotionState>(
           float4x4_to_btTransform(transform));
       btVector3 inertia(0, 0, 0);
