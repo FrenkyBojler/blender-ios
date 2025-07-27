@@ -213,6 +213,40 @@ class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
         return group
 
 
+class NODE_OT_swap_empty_group(NodeAddOperator, bpy.types.Operator):
+    bl_idname = "node.swap_empty_group"
+    bl_label = "Swap Empty Group"
+    bl_description = "Replace active node with an empty group"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        old_node = context.active_node
+
+        from nodeitems_builtins import node_tree_group_type
+        tree = context.space_data.edit_tree
+        group = self.create_empty_group(tree.bl_idname)
+        self.deselect_nodes(context)
+        new_node = self.create_node(context, node_tree_group_type[tree.bl_idname])
+        new_node.node_tree = group
+        new_node.location = old_node.location
+        
+        tree.nodes.remove(old_node)
+        return {"FINISHED"}
+
+    @staticmethod
+    def create_empty_group(idname):
+        group = bpy.data.node_groups.new(name="NodeGroup", type=idname)
+        input_node = group.nodes.new('NodeGroupInput')
+        input_node.select = False
+        input_node.location.x = -200 - input_node.width
+
+        output_node = group.nodes.new('NodeGroupOutput')
+        output_node.is_active_output = True
+        output_node.select = False
+        output_node.location.x = 200
+        return group
+
+
 class NodeAddZoneOperator(NodeAddOperator):
     offset: FloatVectorProperty(
         name="Offset",
@@ -840,6 +874,7 @@ classes = (
     NODE_OT_add_foreach_geometry_element_zone,
     NODE_OT_add_closure_zone,
     NODE_OT_swap_node,
+    NODE_OT_swap_empty_group,
     NODE_OT_collapse_hide_unused_toggle,
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_duplicate,

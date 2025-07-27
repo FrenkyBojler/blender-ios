@@ -50,6 +50,10 @@ def add_color_mix_node(context, layout):
     return color_mix_node(context, layout, "node.add_node")
 
 
+def add_empty_group(layout):
+    return new_empty_group(layout, "node.add_empty_group")
+
+
 def node_operator_with_outputs(context, layout, operator_id, node_type, subnames, *, label=None, search_weight=0.0):
     bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
     if not label:
@@ -67,6 +71,10 @@ def node_operator_with_outputs(context, layout, operator_id, node_type, subnames
 
 
 def draw_node_group_add_menu(context, layout):
+    return draw_group_menu(context, layout, group_operator="node.add_node", empty_group_operator="node.add_empty_group")
+
+
+def draw_group_menu(context, layout, group_operator, empty_group_operator):
     """Add items to the layout used for interacting with node groups."""
     space_node = context.space_data
     node_tree = space_node.edit_tree
@@ -74,10 +82,10 @@ def draw_node_group_add_menu(context, layout):
 
     if node_tree in all_node_groups.values():
         layout.separator()
-        add_node_type(layout, "NodeGroupInput")
-        add_node_type(layout, "NodeGroupOutput")
+        node_operator(layout, group_operator, "NodeGroupInput")
+        node_operator(layout, group_operator, "NodeGroupOutput")
 
-    add_empty_group(layout)
+    new_empty_group(layout, empty_group_operator)
 
     if node_tree:
         from nodeitems_builtins import node_tree_group_type
@@ -94,7 +102,7 @@ def draw_node_group_add_menu(context, layout):
         if groups:
             layout.separator()
             for group in groups:
-                props = add_node_type(layout, node_tree_group_type[group.bl_idname], label=group.name)
+                props = node_operator(layout, group_operator, node_tree_group_type[group.bl_idname], label=group.name)
                 ops = props.settings.add()
                 ops.name = "node_tree"
                 ops.value = "bpy.data.node_groups[{!r}]".format(group.name)
@@ -184,8 +192,8 @@ def add_closure_zone(layout, label):
     return props
 
 
-def add_empty_group(layout):
-    props = layout.operator("node.add_empty_group", text="New Group", text_ctxt=i18n_contexts.default)
+def new_empty_group(layout, operator_id):
+    props = layout.operator(operator_id, text="New Group", text_ctxt=i18n_contexts.default)
     props.use_transform = True
     return props
 
@@ -206,6 +214,14 @@ class AddNodeMenu:
     @staticmethod
     def color_mix_node(context, layout):
         return color_mix_node(context, layout, "node.add_node")
+
+    @staticmethod
+    def new_empty_group(layout):
+        return new_empty_group(layout, "node.add_empty_group")
+
+    @staticmethod
+    def draw_group_menu(context, layout):
+        return draw_group_menu(context, layout, group_operator="node.add_node", empty_group_operator="node.add_empty_group")
     
     @classmethod
     def draw_menu(cls, layout, path):
@@ -231,6 +247,14 @@ class SwapNodeMenu:
     @staticmethod
     def color_mix_node(context, layout):
         return color_mix_node(context, layout, "node.swap_node")
+
+    @staticmethod
+    def new_empty_group(layout):
+        return new_empty_group(layout, "node.swap_empty_group")
+
+    @staticmethod
+    def draw_group_menu(context, layout):
+        return draw_group_menu(context, layout, group_operator="node.swap_node", empty_group_operator="node.swap_empty_group")
     
     @classmethod
     def draw_menu(cls, layout, path):
@@ -245,7 +269,7 @@ class NODE_MT_group_base(Menu):
 
     def draw(self, context):
         layout = self.layout
-        node_add_menu.draw_node_group_add_menu(context, layout)
+        self.draw_group_menu(context, layout)
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
