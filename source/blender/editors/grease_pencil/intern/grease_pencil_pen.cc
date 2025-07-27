@@ -964,6 +964,85 @@ static float2 snap_8_angles(float2 p)
   return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
 }
 
+static void move_segment(const PenToolOperation &ptd,
+                         bke::CurvesGeometry &curves,
+                         const float4x4 layer_to_world)
+{
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  MutableSpan<float3> positions = curves.positions_for_write();
+  MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
+  MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
+  MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+  MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+
+  const int curve_i = ptd.closest_element.curve_index;
+  const IndexRange points = points_by_curve[curve_i];
+  const int point_i1 = ptd.closest_element.point_index;
+  const int point_i2 = (ptd.closest_element.point_index + 1 - points.first()) % points.size() +
+                       points.first();
+
+  const float3 depth_point = positions[point_i1];
+  const float3 Pm = pen_screen_to_layer(ptd, layer_to_world, ptd.mouse_co, depth_point);
+  const float3 P0 = positions[point_i1];
+  const float3 P3 = positions[point_i2];
+  const float3 p1 = handles_right[point_i1];
+  const float3 p2 = handles_left[point_i2];
+  const float3 k2 = p1 - p2;
+
+  const float t = ptd.closest_element.edge_t;
+  const float t_sq = t * t;
+  const float t_cu = t_sq * t;
+  const float one_minus_t = 1.0f - t;
+  const float one_minus_t_sq = one_minus_t * one_minus_t;
+  const float one_minus_t_cu = one_minus_t_sq * one_minus_t;
+
+  /**
+   * Equation of Bezier Curve
+   *      => B(t) = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
+   *
+   * Mouse location (Pm) should satisfy this equation.
+   * Therefore => Pm = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
+   *
+   * k2 = P1 - P2
+   * P2 = P1 - k2
+   *
+   * Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2 = (3(1-t)^2 * t + 3(1-t) * t^2) * P1
+   *
+   * (Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2) / (3(1-t)^2 * t + 3(1-t) * t^2) = P1
+   *
+   *
+   * Another constraint is required to identify P1 and P2.
+   * The constraint used is that the vector between P1 and P2 doesn't change.
+   * Therefore => P1 - P2 = k2
+   *
+   * From the two equations => P1 = t(k1 + k2) and P2 = P1 - K2
+   */
+
+  const float denom = 3.0f * one_minus_t * t;
+  if (denom == 0.0f) {
+    return;
+  }
+
+  const float3 P1 = (Pm - one_minus_t_cu * P0 - t_cu * P3 + 3.0f * one_minus_t * t_sq * k2) /
+                    denom;
+  const float3 P2 = P1 - k2;
+
+  handles_right[point_i1] = P1;
+  handles_left[point_i2] = P2;
+  handle_types_right[point_i1] = BEZIER_HANDLE_FREE;
+  handle_types_left[point_i2] = BEZIER_HANDLE_FREE;
+
+  /* Only change `Align`, Keep `Vector` and `Auto` the same. */
+  if (handle_types_left[point_i1] == BEZIER_HANDLE_ALIGN) {
+    handle_types_left[point_i1] = BEZIER_HANDLE_FREE;
+  }
+  if (handle_types_right[point_i2] == BEZIER_HANDLE_ALIGN) {
+    handle_types_right[point_i2] = BEZIER_HANDLE_FREE;
+  }
+
+  curves.calculate_bezier_auto_handles();
+}
+
 /* Modal handler: Events handling during interactive part. */
 static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -1002,79 +1081,11 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
     MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
 
-    if (ptd.move_seg) {
-      if (ptd.closest_element.point_index != -1 && ptd.layer_index == info.layer_index) {
-        const int curve_i = ptd.closest_element.curve_index;
-        const IndexRange points = points_by_curve[curve_i];
-        const int point_i1 = ptd.closest_element.point_index;
-        const int point_i2 = (ptd.closest_element.point_index + 1 - points.first()) %
-                                 points.size() +
-                             points.first();
-
-        const float3 depth_point = positions[point_i1];
-        const float3 Pm = pen_screen_to_layer(ptd, layer_to_world, ptd.mouse_co, depth_point);
-        const float3 P0 = positions[point_i1];
-        const float3 P3 = positions[point_i2];
-        const float3 p1 = handles_right[point_i1];
-        const float3 p2 = handles_left[point_i2];
-        const float3 k2 = p1 - p2;
-
-        const float t = ptd.closest_element.edge_t;
-        const float t_sq = t * t;
-        const float t_cu = t_sq * t;
-        const float one_minus_t = 1.0f - t;
-        const float one_minus_t_sq = one_minus_t * one_minus_t;
-        const float one_minus_t_cu = one_minus_t_sq * one_minus_t;
-
-        /**
-         * Equation of Bezier Curve
-         *      => B(t) = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
-         *
-         * Mouse location (Pm) should satisfy this equation.
-         * Therefore => Pm = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
-         *
-         * k2 = P1 - P2
-         * P2 = P1 - k2
-         *
-         * Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2 = (3(1-t)^2 * t + 3(1-t) * t^2) * P1
-         *
-         * (Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2) / (3(1-t)^2 * t + 3(1-t) * t^2) = P1
-         *
-         *
-         * Another constraint is required to identify P1 and P2.
-         * The constraint used is that the vector between P1 and P2 doesn't change.
-         * Therefore => P1 - P2 = k2
-         *
-         * From the two equations => P1 = t(k1 + k2) and P2 = P1 - K2
-         */
-
-        const float denom = 3.0f * one_minus_t * t;
-        if (denom == 0.0f) {
-          return;
-        }
-
-        const float3 P1 = (Pm - one_minus_t_cu * P0 - t_cu * P3 + 3.0f * one_minus_t * t_sq * k2) /
-                          denom;
-        const float3 P2 = P1 - k2;
-
-        handles_right[point_i1] = P1;
-        handles_left[point_i2] = P2;
-        handle_types_right[point_i1] = BEZIER_HANDLE_FREE;
-        handle_types_left[point_i2] = BEZIER_HANDLE_FREE;
-
-        /* Only change `Align`, Keep `Vector` and `Auto` the same. */
-        if (handle_types_left[point_i1] == BEZIER_HANDLE_ALIGN) {
-          handle_types_left[point_i1] = BEZIER_HANDLE_FREE;
-        }
-        if (handle_types_right[point_i2] == BEZIER_HANDLE_ALIGN) {
-          handle_types_right[point_i2] = BEZIER_HANDLE_FREE;
-        }
-
-        curves.calculate_bezier_auto_handles();
-
+    if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
+      if (ptd.layer_index == info.layer_index) {
+        move_segment(ptd, curves, layer_to_world);
         info.drawing.tag_topology_changed();
         changed.store(true, std::memory_order_relaxed);
-
         return;
       }
     }
