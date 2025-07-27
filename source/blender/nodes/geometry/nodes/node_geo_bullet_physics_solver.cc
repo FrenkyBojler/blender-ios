@@ -2,9 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <LinearMath/btConvexHullComputer.h>
 #include <fmt/format.h>
 
+#include "BKE_curves.hh"
 #include "BKE_instances.hh"
+#include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
@@ -129,6 +132,7 @@ enum class RigidBodyMode {
 enum class RigidBodyCollisionShape {
   Box,
   Sphere,
+  ConvexHull,
 };
 
 static std::optional<RigidBodyMode> parse_ridig_body_mode(const int mode)
@@ -152,9 +156,32 @@ static std::optional<RigidBodyCollisionShape> parse_ridig_body_collision_shape(c
       return RigidBodyCollisionShape::Box;
     case 1:
       return RigidBodyCollisionShape::Sphere;
+    case 2:
+      return RigidBodyCollisionShape::ConvexHull;
     default:
       return std::nullopt;
   }
+}
+
+static std::shared_ptr<btConvexHullShape> create_convex_hull_shape(const GeometrySet &geometry,
+                                                                   const float hull_margin)
+{
+  Vector<float3> positions;
+  if (const Mesh *mesh = geometry.get_mesh()) {
+    positions.extend(mesh->vert_positions());
+  }
+  if (const Curves *curves = geometry.get_curves()) {
+    positions.extend(curves->geometry.wrap().evaluated_positions());
+  }
+  btConvexHullComputer hull_computer;
+
+  const Span<float> data = positions.as_span().cast<float>();
+  hull_computer.compute(data.data(), sizeof(float3), positions.size(), hull_margin, 0.0f);
+  if (hull_computer.vertices.size() == 0) {
+    return {};
+  }
+  return std::make_shared<btConvexHullShape>(&hull_computer.vertices[0].getX(),
+                                             hull_computer.vertices.size());
 }
 
 static std::shared_ptr<btCollisionShape> create_collision_shape(
@@ -172,6 +199,9 @@ static std::shared_ptr<btCollisionShape> create_collision_shape(
     }
     case RigidBodyCollisionShape::Sphere: {
       return std::make_shared<btSphereShape>(std::max({size.x, size.y, size.z}) / 2.0f);
+    }
+    case RigidBodyCollisionShape::ConvexHull: {
+      return create_convex_hull_shape(geometry, 0.0f);
     }
   }
   return {};
