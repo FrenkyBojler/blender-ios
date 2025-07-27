@@ -101,6 +101,8 @@ class BulletStateOwner : public BundleItemInternalValueMixin {
 using BulletStateOwnerPtr = ImplicitSharingPtr<BulletStateOwner>;
 
 struct Force {
+  std::string self_path;
+  std::string filter;
   Field<float3> force_field;
 };
 
@@ -141,7 +143,9 @@ static void parse_behavior__force(ParseBehaviorParams &params)
   if (!force_field) {
     return;
   }
-  params.behaviors.forces.append({*force_field});
+  params.behaviors.forces.append({params.self_path(),
+                                  params.bundle.lookup<std::string>("Filter").value_or(""),
+                                  *force_field});
 }
 
 enum class RigidBodyMode {
@@ -595,21 +599,30 @@ static void apply_forces(BulletState &state, const Behaviors &behaviors)
 {
   write_simulated_data_to_geometry_sets(state);
   for (auto &&item : state.rigid_body_instances_by_path.items()) {
+    const StringRef instances_path = item.key;
     RigidBodyInstances &rigid_body_instances = item.value;
     const bke::Instances *instances = rigid_body_instances.geometry_set.get_instances();
     if (!instances) {
       continue;
     }
+
+    Vector<const Force *> filtered_forces;
+    for (const Force &force : behaviors.forces) {
+      if (nodes::behavior_path_is_selected(force.self_path, force.filter, instances_path)) {
+        filtered_forces.append(&force);
+      }
+    }
+
     const int instances_num = instances->instances_num();
     const Span<int> instance_ids = instances->almost_unique_ids();
     bke::InstancesFieldContext field_context{*instances};
     fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
-    for (const Force &force : behaviors.forces) {
-      field_evaluator.add(force.force_field);
+    for (const Force *force : filtered_forces) {
+      field_evaluator.add(force->force_field);
     }
     field_evaluator.evaluate();
     Array<float3> force_sum(instances_num, float3(0.0f));
-    for (const int force_i : behaviors.forces.index_range()) {
+    for (const int force_i : filtered_forces.index_range()) {
       const VArray<float3> force = field_evaluator.get_evaluated<float3>(force_i);
       for (const int i : IndexRange(instances_num)) {
         force_sum[i] += force[i];

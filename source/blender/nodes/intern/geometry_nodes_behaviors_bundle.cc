@@ -75,8 +75,8 @@ bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef 
     return false;
   }
   const StringRef remaining_other = other.drop_known_prefix(absolute_filter);
-  return remaining_other.is_empty() || StringRef(absolute_filter).endswith("/") ||
-         remaining_other.startswith("/");
+  return remaining_other.is_empty() || absolute_filter.empty() ||
+         StringRef(absolute_filter).endswith("/") || remaining_other.startswith("/");
 }
 
 }  // namespace blender::nodes
