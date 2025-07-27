@@ -636,14 +636,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     state.is_initialized = true;
   }
 
-  Behaviors behaviors;
-  update_state_from_behaviors(state, *behaviors_bundle, behaviors);
-
   /* The Bullet state can't easily be reset to an older state. So better just don't do simulation
    * in this case. */
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
+    Behaviors behaviors;
+    update_state_from_behaviors(state, *behaviors_bundle, behaviors);
+
     apply_forces(state, behaviors);
 
     const float time_per_step = delta_time / sub_steps;
