@@ -7,8 +7,11 @@
 
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
+
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
+
+#include "BLI_struct_equality_utils.hh"
 
 #include "node_geometry_util.hh"
 
@@ -29,7 +32,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bundle>("Data").align_with_previous();
   b.add_input<decl::Bundle>("Behavior");
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
-  b.add_input<decl::Int>("Substeps").default_value(0).min(0);
+  b.add_input<decl::Int>("Substeps").default_value(10).min(1);
+  b.add_input<decl::Int>("Solver Steps").default_value(10).min(1);
 }
 
 static float4x4 btTransform_to_float4x4(const btTransform &transform)
@@ -164,7 +168,7 @@ static std::optional<RigidBodyCollisionShape> parse_ridig_body_collision_shape(c
 }
 
 static std::shared_ptr<btConvexHullShape> create_convex_hull_shape(const GeometrySet &geometry,
-                                                                   const float hull_margin)
+                                                                   const float margin)
 {
   Vector<float3> positions;
   if (const Mesh *mesh = geometry.get_mesh()) {
@@ -176,32 +180,35 @@ static std::shared_ptr<btConvexHullShape> create_convex_hull_shape(const Geometr
   btConvexHullComputer hull_computer;
 
   const Span<float> data = positions.as_span().cast<float>();
-  hull_computer.compute(data.data(), sizeof(float3), positions.size(), hull_margin, 0.0f);
+  hull_computer.compute(data.data(), sizeof(float3), positions.size(), 0.0f, 0.0f);
   if (hull_computer.vertices.size() == 0) {
     return {};
   }
-  return std::make_shared<btConvexHullShape>(&hull_computer.vertices[0].getX(),
-                                             hull_computer.vertices.size());
+  auto shape = std::make_shared<btConvexHullShape>(&hull_computer.vertices[0].getX(),
+                                                   hull_computer.vertices.size());
+  shape->setMargin(margin);
+  return shape;
 }
 
 static std::shared_ptr<btCollisionShape> create_collision_shape(
-    const RigidBodyCollisionShape shape, const GeometrySet &geometry)
+    const RigidBodyCollisionShape shape, const GeometrySet &geometry, const float margin)
 {
   const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(true);
   if (!bounds) {
     return {};
   }
   const float3 size = bounds->size();
+  const float max_dimension = std::max({size.x, size.y, size.z});
 
   switch (shape) {
     case RigidBodyCollisionShape::Box: {
       return std::make_shared<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
     }
     case RigidBodyCollisionShape::Sphere: {
-      return std::make_shared<btSphereShape>(std::max({size.x, size.y, size.z}) / 2.0f);
+      return std::make_shared<btSphereShape>(max_dimension / 2.0f);
     }
     case RigidBodyCollisionShape::ConvexHull: {
-      return create_convex_hull_shape(geometry, 0.0f);
+      return create_convex_hull_shape(geometry, margin);
     }
   }
   return {};
@@ -257,6 +264,19 @@ static void update_body_mode_if_necessary(BulletState &state,
   }
 }
 
+struct CollisionShapeKey {
+  int instance_id;
+  RigidBodyCollisionShape shape;
+  float margin;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(instance_id, shape, margin);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_3(CollisionShapeKey, instance_id, shape, margin)
+};
+
 static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
 {
   std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
@@ -283,6 +303,10 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   if (!bounciness_field) {
     bounciness_field = fn::make_constant_field<float>(0.0f);
   }
+  std::optional<Field<float>> margin_field = params.bundle.lookup<Field<float>>("Margin");
+  if (!margin_field) {
+    margin_field = fn::make_constant_field<float>(0.0f);
+  }
   bke::Instances *instances = geometry->get_instances_for_write();
   if (!instances) {
     return;
@@ -298,12 +322,14 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   field_evaluator.add(*mass_field);
   field_evaluator.add(*friction_field);
   field_evaluator.add(*bounciness_field);
+  field_evaluator.add(*margin_field);
   field_evaluator.evaluate();
   const VArray<int> modes = field_evaluator.get_evaluated<int>(0);
   const VArray<int> shapes = field_evaluator.get_evaluated<int>(1);
   const VArray<float> masses = field_evaluator.get_evaluated<float>(2);
   const VArray<float> frictions = field_evaluator.get_evaluated<float>(3);
   const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(4);
+  const VArray<float> margins = field_evaluator.get_evaluated<float>(5);
 
   const Span<int> instance_ids = instances->almost_unique_ids();
   const Span<float4x4> transforms = instances->transforms();
@@ -311,7 +337,6 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   const Span<int> handles = instances->reference_handles();
 
   Array<GeometrySet> reference_geometry_sets(references_num);
-  using CollisionShapeKey = std::pair<int, RigidBodyCollisionShape>;
   Map<CollisionShapeKey, std::shared_ptr<btCollisionShape>> collision_shapes;
   for (const int i : references.index_range()) {
     const bke::InstanceReference &reference = references[i];
@@ -339,9 +364,10 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
     if (!shape) {
       continue;
     }
+    const float margin = std::max(margins[instance_i], 0.0f);
     const std::shared_ptr<btCollisionShape> &collision_shape = collision_shapes.lookup_or_add_cb(
-        {handle, *shape},
-        [&]() { return create_collision_shape(*shape, reference_geometry_sets[handle]); });
+        {handle, *shape, margin},
+        [&]() { return create_collision_shape(*shape, reference_geometry_sets[handle], margin); });
 
     const int instance_id = instance_ids[instance_i];
     const float4x4 &transform = transforms[instance_i];
@@ -492,7 +518,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   BundlePtr old_data_bundle = params.extract_input<BundlePtr>("Data");
   BundlePtr behaviors_bundle = params.extract_input<BundlePtr>("Behavior");
   const float delta_time = params.extract_input<float>("Delta Time");
-  const int substeps = params.extract_input<int>("Substeps");
+  const int sub_steps = std::max(params.extract_input<int>("Substeps"), 1);
+  const int solver_steps = std::max(params.extract_input<int>("Solver Steps"), 1);
 
   if (!behaviors_bundle) {
     params.set_default_remaining_outputs();
@@ -542,7 +569,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
-    state.dynamics_world->stepSimulation(delta_time, substeps);
+    const float time_per_step = delta_time / sub_steps;
+    state.dynamics_world->getSolverInfo().m_numIterations = solver_steps;
+    for ([[maybe_unused]] const int i : IndexRange(sub_steps)) {
+      state.dynamics_world->stepSimulation(time_per_step, 0, time_per_step);
+    }
     state.update_counter = update_counter;
   }
   write_simulated_data_to_output(state);
