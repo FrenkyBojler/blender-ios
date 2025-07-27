@@ -1650,7 +1650,7 @@ PyDoc_STRVAR(
     "   :arg epsilon: For nearness tests; should not be zero\n"
     "   :type epsilon: float\n"
     "   :arg need_ids: are the orig output arrays needed?\n"
-    "   :type need_args: bool, (optional)\n"
+    "   :type need_ids: bool, (optional)\n"
     "   :return: Output tuple, (vert_coords, edges, faces, orig_verts, orig_edges, orig_faces)\n"
     "   :rtype: tuple["
     "list[:class:`mathutils.Vector`], "
