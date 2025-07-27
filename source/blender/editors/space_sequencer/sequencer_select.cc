@@ -2362,7 +2362,7 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
   BLI_lasso_boundbox(&rect, mcoords);
 
   if (use_pre_deselect) {
-    /* Deselect all strips here. */
+    changed_multi |= deselect_all_strips(scene);
   }
 
   ListBase *seqbase = seq::active_seqbase_get(ed);
@@ -2374,6 +2374,7 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
   for (Strip *strip : strips) {
     blender::float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, strip);
     if (do_lasso_select_strip_is_origin_inside(region, &rect, mcoords, origin)) {
+      changed_multi = true;
       if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
         strip->flag |= SELECT;
       }
@@ -2389,6 +2390,7 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
 
 static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
 {
+  Scene *scene = CTX_data_scene(C);
   Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
   if (mcoords.is_empty()) {
     return OPERATOR_PASS_THROUGH;
@@ -2397,7 +2399,13 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
   bool changed = do_lasso_select_vse(C, mcoords, sel_op);
 
-  return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  if (changed) {
+    sequencer_select_do_updates(C, scene);
+    return OPERATOR_FINISHED;
+  }
+
+  // sequencer_select_do_updates(C, scene);
+  return OPERATOR_CANCELLED;
 }
 
 void SEQUENCER_OT_select_lasso(wmOperatorType *ot)
