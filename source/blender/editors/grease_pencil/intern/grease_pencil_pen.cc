@@ -51,7 +51,7 @@ enum class PenModal : int8_t {
   MoveAdjacent = 1,
   MoveEntire = 2,
   LinkHandles = 3,
-  LockAngle = 4,
+  SnapAngle = 4,
 };
 
 enum class ElementMode : int8_t {
@@ -97,6 +97,7 @@ struct PenToolOperation {
   int extrude_handle;
 
   bool move_entire;
+  bool snap_angle;
 
   bool point_added;
   bool point_removed;
@@ -787,7 +788,7 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
 static void pen_status_indicators(bContext *C, wmOperator *op, const PenToolOperation & /*ptd*/)
 {
   WorkspaceStatus status(C);
-  status.item(IFACE_("Align Angle"), ICON_EVENT_SHIFT);
+  status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
   status.item(IFACE_("Move Adjacent Handles"), ICON_EVENT_CTRL);
   status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
 }
@@ -832,6 +833,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
 
   ptd.move_entire = false;
+  ptd.snap_angle = false;
 
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
@@ -1126,6 +1128,9 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     if (event->val == int(PenModal::MoveEntire)) {
       ptd.move_entire = !ptd.move_entire;
     }
+    else if (event->val == int(PenModal::SnapAngle)) {
+      ptd.snap_angle = !ptd.snap_angle;
+    }
   }
 
   std::atomic<bool> changed = false;
@@ -1211,7 +1216,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
       const float2 center_point = pen_layer_to_screen(ptd, layer_to_object, depth_point);
       offset = ptd.mouse_co - ptd.center_of_mass_co;
 
-      if (event->modifier & KM_SHIFT) {
+      if (ptd.snap_angle) {
         offset = snap_8_angles(offset);
       }
 
@@ -1326,7 +1331,6 @@ void ED_operatortypes_grease_pencil_pen()
 void ED_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
   using namespace blender::ed::greasepencil;
-
   static const EnumPropertyItem modal_items[] = {
       {int(PenModal::FreeAlignToggle),
        "FREE_ALIGN_TOGGLE",
@@ -1348,11 +1352,11 @@ void ED_pentool_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Link Handles",
        "Mirror the movement of one handle onto the other"},
-      {int(PenModal::LockAngle),
-       "LOCK_ANGLE",
+      {int(PenModal::SnapAngle),
+       "SNAP_ANGLE",
        0,
-       "Lock Angle",
-       "Move the handle along its current angle"},
+       "Snap Angle",
+       "Snap the handle angle to 45 degrees"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
