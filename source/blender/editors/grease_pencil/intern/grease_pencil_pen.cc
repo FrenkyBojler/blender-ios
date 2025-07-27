@@ -63,7 +63,7 @@ struct ClosestElement {
   int point_index = -1;
   int curve_index = -1;
   float edge_t = -1.0f;
-  int layer_index = -1;
+  int drawing_index = -1;
 };
 
 /* Used to scale the default select distance. */
@@ -324,7 +324,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
   closest_element.element_mode = ElementMode::None;
 
   threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
-    // const int drawing_index = (&info - drawings_.data());
+    const int drawing_index = (&info - ptd.drawings.data());
 
     int closest_curve;
     ElementMode element_mode;
@@ -335,7 +335,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
       closest_element.element_mode = element_mode;
       closest_element.curve_index = closest_curve;
       closest_element.point_index = closest_point;
-      closest_element.layer_index = info.layer_index;
+      closest_element.drawing_index = drawing_index;
       return;
     }
 
@@ -348,7 +348,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
       closest_element.point_index = closest_edge_point;
       closest_element.curve_index = closest_curve;
       closest_element.edge_t = edge_t;
-      closest_element.layer_index = info.layer_index;
+      closest_element.drawing_index = drawing_index;
     }
   });
   return closest_element;
@@ -802,6 +802,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
   threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
+    const int drawing_index = (&info - ptd.drawings.data());
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
     if (curves.is_empty()) {
@@ -846,6 +847,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         return;
       }
 
+      return;
+    }
+
+    if (drawing_index != ptd.closest_element.drawing_index) {
       return;
     }
 
@@ -1055,6 +1060,8 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   std::atomic<bool> changed = false;
   ptd.center_of_mass_co = calculate_center_of_mass(ptd);
   threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
+    const int drawing_index = (&info - ptd.drawings.data());
+
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     MutableSpan<float3> positions = curves.positions_for_write();
     const OffsetIndices points_by_curve = curves.points_by_curve();
@@ -1070,7 +1077,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
 
     if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
-      if (ptd.closest_element.layer_index == info.layer_index) {
+      if (ptd.closest_element.drawing_index == drawing_index) {
         move_segment(ptd, curves, layer_to_world);
         info.drawing.tag_topology_changed();
         changed.store(true, std::memory_order_relaxed);
