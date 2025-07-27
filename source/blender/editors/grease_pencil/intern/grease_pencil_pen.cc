@@ -1345,13 +1345,13 @@ void ED_pentool_modal_keymap(wmKeyConfig *keyconf)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Grease Pencil Pen Modal Map");
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Pen Tool Modal Map");
 
   /* This function is called for each space-type, only needs to add map once. */
   if (keymap && keymap->modal_items) {
     return;
   }
 
-  keymap = WM_modalkeymap_ensure(keyconf, "Grease Pencil Pen Modal Map", modal_items);
+  keymap = WM_modalkeymap_ensure(keyconf, "Pen Tool Modal Map", modal_items);
   WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_pen");
 }
