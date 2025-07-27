@@ -98,6 +98,7 @@ struct PenToolOperation {
 
   bool move_entire;
   bool snap_angle;
+  bool move_adjacent;
 
   bool point_added;
   bool point_removed;
@@ -789,7 +790,7 @@ static void pen_status_indicators(bContext *C, wmOperator *op, const PenToolOper
 {
   WorkspaceStatus status(C);
   status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
-  status.item(IFACE_("Move Adjacent Handles"), ICON_EVENT_CTRL);
+  status.opmodal(IFACE_("Move Adjacent Handles"), op->type, int(PenModal::MoveAdjacent));
   status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
 }
 
@@ -1131,6 +1132,9 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     else if (event->val == int(PenModal::SnapAngle)) {
       ptd.snap_angle = !ptd.snap_angle;
     }
+    else if (event->val == int(PenModal::MoveAdjacent)) {
+      ptd.move_adjacent = !ptd.move_adjacent;
+    }
   }
 
   std::atomic<bool> changed = false;
@@ -1192,7 +1196,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         return;
       }
 
-      if (event->modifier & KM_CTRL) {
+      if (ptd.move_adjacent) {
         handle_types_left[point_i] = BEZIER_HANDLE_FREE;
         handle_types_right[point_i] = BEZIER_HANDLE_FREE;
         const float2 pos_left = pen_layer_to_screen(ptd, layer_to_object, handles_left[point_i]);
