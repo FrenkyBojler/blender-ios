@@ -8,3 +8,4 @@ Referenced by issue #136837, Objects with a GPU subdivision surface modifier alw
 Referenced by pull request #137000, Fix #136837: Mesh incorrectly renders smooth with GPU subdivision in some cases
 Referenced by issue #141481, 4.5 Eevee Motion Blur Cloth Simulation inconsistency
 Referenced by issue #142772, No EEVEE Motion Blur for 1 Step
+Referenced by issue #143317, Vertex/Weight Paint Mask issues with subdivision
