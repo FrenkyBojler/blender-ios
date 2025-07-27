@@ -96,7 +96,7 @@ Bundle &Bundle::operator=(Bundle &&other) noexcept
   return *this;
 }
 
-static bool is_valid_key(const StringRef key)
+[[maybe_unused]] static bool is_valid_key(const StringRef key)
 {
   return key.find('/') == StringRef::not_found;
 }

@@ -14,6 +14,8 @@
 #include "NOD_geometry_nodes_behaviors_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
+#include "BLI_bounds.hh"
+
 namespace blender::nodes::node_geo_bullet_physics_solver_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
