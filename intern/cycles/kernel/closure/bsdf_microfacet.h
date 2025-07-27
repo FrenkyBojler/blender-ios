@@ -491,11 +491,19 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
   }
   else if (bsdf->fresnel_type == MicrofacetFresnel::F82_TINT) {
     ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)bsdf->fresnel;
-    const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
-    const float s = lookup_table_read_3D(
-        kg, rough, cos_NI, 0.5f, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
-    /* TODO: Precompute B factor term and account for it here. */
-    reflectance = mix(fresnel->f0, one_spectrum(), s);
+
+    if (fresnel->thin_film.thickness > 0.1f) {
+      /* Precomputing LUTs for thin-film iridescence isn't viable, so fall back to the specular
+       * reflection approximation from the microfacet_fresnel call above in that case. */
+    }
+    else {
+      ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)bsdf->fresnel;
+      const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
+      const float s = lookup_table_read_3D(
+          kg, rough, cos_NI, 0.5f, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
+      /* TODO: Precompute B factor term and account for it here. */
+      reflectance = mix(fresnel->f0, one_spectrum(), s);
+    }
   }
   else if ((bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC ||
             bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC_TINT) &&
