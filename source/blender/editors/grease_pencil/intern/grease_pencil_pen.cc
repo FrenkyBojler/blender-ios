@@ -1034,24 +1034,24 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
               pen_layer_to_screen(ptd, layer_to_object, handles_right[point_i - 1]) + offset,
               depth_point);
         }
+        return;
       }
-      else {
-        handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
-        handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
-        const float2 center_point = pen_layer_to_screen(ptd, layer_to_object, depth_point);
-        offset = ptd.mouse_co - ptd.center_of_mass_co;
 
-        if (event->modifier & KM_SHIFT) {
-          offset = snap_8_angles(offset);
-        }
+      handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+      handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+      const float2 center_point = pen_layer_to_screen(ptd, layer_to_object, depth_point);
+      offset = ptd.mouse_co - ptd.center_of_mass_co;
 
-        handles_right[point_i] = pen_screen_to_layer(
-            ptd, layer_to_world, center_point + offset, depth_point);
-        handles_left[point_i] = depth_point - (handles_right[point_i] - depth_point);
+      if (event->modifier & KM_SHIFT) {
+        offset = snap_8_angles(offset);
+      }
 
-        if (!right_selected[point_i]) {
-          std::swap(handles_right[point_i], handles_left[point_i]);
-        }
+      handles_right[point_i] = pen_screen_to_layer(
+          ptd, layer_to_world, center_point + offset, depth_point);
+      handles_left[point_i] = depth_point - (handles_right[point_i] - depth_point);
+
+      if (!right_selected[point_i]) {
+        std::swap(handles_right[point_i], handles_left[point_i]);
       }
     });
 
