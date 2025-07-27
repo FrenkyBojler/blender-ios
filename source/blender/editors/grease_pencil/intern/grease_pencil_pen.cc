@@ -616,6 +616,116 @@ static void pen_add_single(const PenToolOperation &ptd)
   drawing->tag_topology_changed();
 }
 
+static bke::CurvesGeometry pen_insert_point(const PenToolOperation &ptd,
+                                            const bke::CurvesGeometry &src)
+{
+  const bke::AttributeAccessor src_attributes = src.attributes();
+  const OffsetIndices<int> points_by_curve = src.points_by_curve();
+
+  const int old_points_num = src.points_num();
+
+  const int src_point_index = ptd.closest_element.point_index;
+  const int dst_point_index = src_point_index + 1;
+  const int curve_index = ptd.closest_element.curve_index;
+
+  Vector<int> dst_to_src_points(old_points_num);
+  array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
+
+  Vector<int> dst_curve_counts(src.curves_num());
+  offset_indices::copy_group_sizes(
+      points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
+
+  dst_to_src_points.insert(src_point_index + 1, src_point_index);
+  dst_curve_counts[curve_index]++;
+
+  bke::CurvesGeometry dst(dst_to_src_points.size(), src.curves_num());
+  BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
+
+  /* Setup curve offsets, based on the number of points in each curve. */
+  MutableSpan<int> new_curve_offsets = dst.offsets_for_write();
+  array_utils::copy(dst_curve_counts.as_span(), new_curve_offsets.drop_back(1));
+  offset_indices::accumulate_counts_to_offsets(new_curve_offsets);
+
+  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+  /* Selection attribute. */
+  for (const StringRef selection_attribute_name :
+       ed::curves::get_curves_selection_attribute_names(src))
+  {
+    bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+        dst, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+    MutableSpan<bool> selection = selection_writer.span.typed<bool>();
+    selection.fill(false);
+    selection[dst_point_index] = true;
+    selection_writer.finish();
+  }
+
+  bke::copy_attributes(
+      src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Point,
+                         bke::AttrDomain::Point,
+                         bke::attribute_filter_from_skip_ref(
+                             {".selection", ".selection_handle_left", ".selection_handle_right"}),
+                         dst_to_src_points,
+                         dst_attributes);
+
+  Span<float3> src_positions = src.positions();
+  MutableSpan<float3> dst_positions = dst.positions_for_write();
+  MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
+  MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
+  const Span<float3> src_handles_left = src.handle_positions_left();
+  const Span<float3> src_handles_right = src.handle_positions_right();
+  MutableSpan<float3> dst_handles_left = dst.handle_positions_left_for_write();
+  MutableSpan<float3> dst_handles_right = dst.handle_positions_right_for_write();
+  handle_types_left[dst_point_index] = BEZIER_HANDLE_ALIGN;
+  handle_types_right[dst_point_index] = BEZIER_HANDLE_ALIGN;
+
+  const IndexRange points = points_by_curve[curve_index];
+  const int src_point_index_2 = (src_point_index + 1 - points.first()) % points.size() +
+                                points.first();
+  const bke::curves::bezier::Insertion inserted_point = bke::curves::bezier::insert(
+      src_positions[src_point_index],
+      src_handles_right[src_point_index],
+      src_handles_left[src_point_index_2],
+      src_positions[src_point_index_2],
+      ptd.closest_element.edge_t);
+
+  const int dst_point_index_2 = (dst_point_index - points.first() + 1) % (points.size() + 1) +
+                                points.first();
+
+  dst_positions[dst_point_index] = inserted_point.position;
+  dst_handles_left[dst_point_index] = inserted_point.left_handle;
+  dst_handles_right[dst_point_index] = inserted_point.right_handle;
+  dst_handles_right[dst_point_index - 1] = inserted_point.handle_prev;
+  dst_handles_left[dst_point_index_2] = inserted_point.handle_next;
+  handle_types_right[dst_point_index - 1] = BEZIER_HANDLE_FREE;
+  handle_types_left[dst_point_index_2] = BEZIER_HANDLE_FREE;
+
+  dst.update_curve_types();
+  dst.calculate_bezier_auto_handles();
+  if (src.nurbs_has_custom_knots()) {
+    IndexMaskMemory memory;
+    const VArray<int8_t> curve_types = src.curve_types();
+    const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
+    const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
+    const IndexMask include_curves = IndexMask::from_predicate(
+        src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
+          return curve_types[curve_index] == CURVE_TYPE_NURBS &&
+                 knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
+                 points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();
+        });
+    bke::curves::nurbs::update_custom_knot_modes(
+        include_curves.complement(dst.curves_range(), memory),
+        NURBS_KNOT_MODE_ENDPOINT,
+        NURBS_KNOT_MODE_NORMAL,
+        dst);
+    bke::curves::nurbs::gather_custom_knots(src, include_curves, 0, dst);
+  }
+  return dst;
+}
+
 static float2 calculate_center_of_mass(const PenToolOperation &ptd,
                                        const Span<MutableDrawingInfo> &drawings)
 {
@@ -721,6 +831,11 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     if (ptd.closest_element.element_mode == ElementMode::Edge) {
       ptd.layer_index = info.layer_index;
       add_single.store(false, std::memory_order_relaxed);
+      if (ptd.insert_point) {
+        curves = pen_insert_point(ptd, curves);
+        info.drawing.tag_topology_changed();
+        changed.store(true, std::memory_order_relaxed);
+      }
       return;
     }
 
