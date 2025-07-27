@@ -405,7 +405,8 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   int point_offset = 0;
   for (const int curve_index : src.curves_range()) {
     const IndexRange curve_points = points_by_curve[curve_index];
-    if (src_cyclic[curve_index]) {
+    /* Skip cyclic curves unless they only have one point. */
+    if (src_cyclic[curve_index] && curve_points.size() != 1) {
       continue;
     }
 
@@ -477,6 +478,8 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
 
   Span<float3> src_positions = src.positions();
   MutableSpan<float3> dst_positions = dst.positions_for_write();
+  MutableSpan<bool> dst_cyclic = dst.cyclic_for_write();
+  const Array<int> dst_point_to_curve_map = dst.point_to_curve_map();
   MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
   MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
   for (const int i : dst_to_src_points.index_range()) {
@@ -489,6 +492,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
     dst_positions[i] = pen_screen_to_layer(ptd, layer_to_world, pos, depth_point);
     handle_types_left[i] = ptd.extrude_handle;
     handle_types_right[i] = ptd.extrude_handle;
+    dst_cyclic[dst_point_to_curve_map[i]] = false;
   }
 
   dst.update_curve_types();
