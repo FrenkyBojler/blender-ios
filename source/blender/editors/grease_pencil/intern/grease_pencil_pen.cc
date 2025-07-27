@@ -851,6 +851,20 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     }
 
     if (drawing_index != ptd.closest_element.drawing_index) {
+      if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
+        for (const StringRef selection_attribute_name :
+             ed::curves::get_curves_selection_attribute_names(curves))
+        {
+          bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+              curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+          MutableSpan<bool> selection = selection_writer.span.typed<bool>();
+
+          selection.fill(false);
+
+          selection_writer.finish();
+        }
+      }
+
       return;
     }
 
