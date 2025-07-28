@@ -9,7 +9,7 @@
 
 #include "NOD_geometry_nodes_bundle_fwd.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::behaviors {
 
 void foreach_behavior_in_bundle(
     const Bundle &behaviors_bundle,
@@ -17,4 +17,4 @@ void foreach_behavior_in_bundle(
 
 bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef other);
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::behaviors

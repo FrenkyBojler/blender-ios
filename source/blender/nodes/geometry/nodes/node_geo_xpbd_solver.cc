@@ -190,7 +190,7 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
   }
   geometry::xpbd::Behaviors behaviors;
   static const Map<std::string, BehaviorParserFn> behavior_parsers = build_behavior_parsers();
-  foreach_behavior_in_bundle(
+  behaviors::foreach_behavior_in_bundle(
       *behaviors_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path_stack) {
         ParseBehaviorParams params{path_stack, behavior_bundle, scope, behaviors};

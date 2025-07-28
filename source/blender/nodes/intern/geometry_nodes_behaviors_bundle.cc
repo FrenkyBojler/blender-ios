@@ -7,7 +7,7 @@
 
 #include "BKE_node_socket_value.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::behaviors {
 
 static void foreach_behavior_recursive(
     const Bundle &behaviors_bundle,
@@ -79,4 +79,4 @@ bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef 
          StringRef(absolute_filter).endswith("/") || remaining_other.startswith("/");
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::behaviors

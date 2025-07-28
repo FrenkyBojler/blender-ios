@@ -732,7 +732,7 @@ static void update_state_from_behaviors(BulletState &state,
   }
   state.constraints.clear();
 
-  foreach_behavior_in_bundle(
+  behaviors::foreach_behavior_in_bundle(
       behavior_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
         ParseBehaviorParams params{path, behavior_bundle, state, r_behaviors, delta_time};
@@ -821,7 +821,7 @@ static void apply_forces(BulletState &state, const Behaviors &behaviors)
 
     Vector<const Force *> filtered_forces;
     for (const Force &force : behaviors.forces) {
-      if (nodes::behavior_path_is_selected(force.self_path, force.filter, instances_path)) {
+      if (behaviors::behavior_path_is_selected(force.self_path, force.filter, instances_path)) {
         filtered_forces.append(&force);
       }
     }
