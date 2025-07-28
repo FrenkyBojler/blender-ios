@@ -201,6 +201,78 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
   return behaviors;
 }
 
+static void copy_attribute_data(const bke::AttributeAccessor src,
+                                bke::MutableAttributeAccessor dst,
+                                const StringRef name)
+{
+  const bke::GAttributeReader src_attribute = src.lookup(name);
+  if (!src_attribute) {
+    return;
+  }
+  if (src_attribute.varray.size() != dst.domain_size(src_attribute.domain)) {
+    return;
+  }
+  const bke::AttrType attr_type = bke::cpp_type_to_attribute_type(src_attribute.varray.type());
+  dst.remove(name);
+  bke::GSpanAttributeWriter dst_attribute = dst.lookup_or_add_for_write_only_span(
+      name, src_attribute.domain, attr_type);
+  src_attribute.varray.materialize(dst_attribute.span.data());
+  dst_attribute.finish();
+}
+
+static void copy_xpbd_simulated_attributes(
+    const bke::AttributeAccessor src,
+    bke::MutableAttributeAccessor dst,
+    const geometry::xpbd::SimGeometrySet &sim_geometry_params)
+{
+  Vector<std::string> attributes_to_copy;
+  attributes_to_copy.append("position");
+  attributes_to_copy.append(sim_geometry_params.velocity_attribute);
+  src.foreach_attribute([&](const AttributeIter &iter) {
+    if (!dst.contains(iter.name)) {
+      attributes_to_copy.append(iter.name);
+    }
+  });
+  for (const StringRef name : attributes_to_copy) {
+    copy_attribute_data(src, dst, name);
+  }
+}
+
+static GeometrySet merge_behavior_with_sim_geometry(
+    const GeometrySet &behavior_geometry,
+    const GeometrySet &sim_geometry,
+    const geometry::xpbd::SimGeometrySet &sim_geometry_params)
+{
+  GeometrySet merged_geometry = behavior_geometry;
+  if (Mesh *mesh = merged_geometry.get_mesh_for_write()) {
+    if (const Mesh *sim_mesh = sim_geometry.get_mesh()) {
+      if (mesh->verts_num == sim_mesh->verts_num) {
+        copy_xpbd_simulated_attributes(
+            sim_mesh->attributes(), mesh->attributes_for_write(), sim_geometry_params);
+      }
+    }
+  }
+  if (Curves *curves_id = merged_geometry.get_curves_for_write()) {
+    if (const Curves *sim_curves_id = sim_geometry.get_curves()) {
+      bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+      const bke::CurvesGeometry &sim_curves = sim_curves_id->geometry.wrap();
+      if (curves.points_num() == sim_curves.points_num()) {
+        copy_xpbd_simulated_attributes(
+            sim_curves.attributes(), curves.attributes_for_write(), sim_geometry_params);
+      }
+    }
+  }
+  if (PointCloud *pointcloud = merged_geometry.get_pointcloud_for_write()) {
+    if (const PointCloud *sim_pointcloud = sim_geometry.get_pointcloud()) {
+      if (pointcloud->totpoint == sim_pointcloud->totpoint) {
+        copy_xpbd_simulated_attributes(
+            sim_pointcloud->attributes(), pointcloud->attributes_for_write(), sim_geometry_params);
+      }
+    }
+  }
+  return merged_geometry;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr old_data_bundle = params.extract_input<BundlePtr>("Data");
@@ -212,18 +284,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::xpbd::Behaviors behaviors = parse_behaviors(behaviors_bundle, scope);
   if (old_data_bundle) {
     for (geometry::xpbd::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
-      std::optional<BundlePtr> item_ptr = old_data_bundle->lookup_path<BundlePtr>(
-          sim_geometry->path);
-      if (!item_ptr || !*item_ptr) {
+      BundlePtr item =
+          old_data_bundle->lookup_path<BundlePtr>(sim_geometry->path).value_or(nullptr);
+      if (!item) {
         continue;
       }
-      const Bundle &item = **item_ptr;
-      if (std::optional<GeometrySet> geometry = item.lookup<GeometrySet>("Geometry")) {
-        sim_geometry->geometry = std::move(*geometry);
-      }
-      if (std::optional<BundlePtr> extra = item.lookup<BundlePtr>("Extra")) {
-        sim_geometry->extra = std::move(*extra);
-      }
+      GeometrySet behavior_geometry = sim_geometry->geometry;
+      GeometrySet old_sim_geometry = item->lookup<GeometrySet>("Geometry").value_or(GeometrySet());
+
+      sim_geometry->geometry = merge_behavior_with_sim_geometry(
+          behavior_geometry, old_sim_geometry, *sim_geometry);
+      sim_geometry->extra = item->lookup<BundlePtr>("Extra").value_or(nullptr);
     }
   }
 
