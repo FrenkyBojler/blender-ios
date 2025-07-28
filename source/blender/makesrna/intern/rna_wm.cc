@@ -30,6 +30,7 @@
 
 #  include "DNA_userdef_types.h"
 
+#  include "BLI_math_vector.h"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
 
@@ -810,8 +811,8 @@ static void rna_Event_tilt_get(PointerRNA *ptr, float *values)
 static void rna_NDOFMotionEventData_translation_get(PointerRNA *ptr, float *values)
 {
 #  ifdef WITH_INPUT_NDOF
-  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(ptr->data);
-  WM_event_ndof_pan_get(ndof, values);
+  const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(ptr->data);
+  copy_v3_v3(values, WM_event_ndof_translation_get(ndof));
 #  else
   UNUSED_VARS(ptr);
   ARRAY_SET_ITEMS(values, 0, 0, 0);
@@ -821,8 +822,8 @@ static void rna_NDOFMotionEventData_translation_get(PointerRNA *ptr, float *valu
 static void rna_NDOFMotionEventData_rotation_get(PointerRNA *ptr, float *values)
 {
 #  ifdef WITH_INPUT_NDOF
-  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(ptr->data);
-  WM_event_ndof_rotate_get(ndof, values);
+  const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(ptr->data);
+  copy_v3_v3(values, WM_event_ndof_rotation_get(ndof));
 #  else
   UNUSED_VARS(ptr);
   ARRAY_SET_ITEMS(values, 0, 0, 0);
@@ -832,8 +833,8 @@ static void rna_NDOFMotionEventData_rotation_get(PointerRNA *ptr, float *values)
 static float rna_NDOFMotionEventData_time_delta_get(PointerRNA *ptr)
 {
 #  ifdef WITH_INPUT_NDOF
-  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(ptr->data);
-  return ndof->dt;
+  const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(ptr->data);
+  return ndof.time_delta;
 #  else
   UNUSED_VARS(ptr);
   return 0.0f;
@@ -843,8 +844,8 @@ static float rna_NDOFMotionEventData_time_delta_get(PointerRNA *ptr)
 static int rna_NDOFMotionEventData_progress_get(PointerRNA *ptr)
 {
 #  ifdef WITH_INPUT_NDOF
-  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(ptr->data);
-  return static_cast<int>(ndof->progress);
+  const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(ptr->data);
+  return static_cast<int>(ndof.progress);
 #  else
   UNUSED_VARS(ptr);
   return 0;
@@ -2255,7 +2256,10 @@ static void rna_def_operator(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "OperatorProperties", nullptr);
   RNA_def_struct_ui_text(srna, "Operator Properties", "Input properties of an operator");
   RNA_def_struct_refine_func(srna, "rna_OperatorProperties_refine");
+  /* NOTE: `RNA_def_struct_idprops_func` should be removed once #132129 is implemented.
+   * Similar to the issue with the nodes modifiers, see #rna_def_modifier_nodes. */
   RNA_def_struct_idprops_func(srna, "rna_OperatorProperties_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_OperatorProperties_idprops");
   RNA_def_struct_property_tags(srna, rna_enum_operator_property_tag_items);
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES | STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID);
 }
@@ -2900,7 +2904,7 @@ static void rna_def_keyconfig_prefs(BlenderRNA *brna)
   RNA_def_struct_refine_func(srna, "rna_wmKeyConfigPref_refine");
   RNA_def_struct_register_funcs(
       srna, "rna_wmKeyConfigPref_register", "rna_wmKeyConfigPref_unregister", nullptr);
-  RNA_def_struct_idprops_func(srna, "rna_wmKeyConfigPref_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_wmKeyConfigPref_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES); /* Mandatory! */
 
   /* registration */

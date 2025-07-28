@@ -11,8 +11,11 @@
  */
 
 #include <Python.h>
+
 /* XXX Why bloody hell isn't that included in Python.h???? */
 #include <structmember.h>
+
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BLI_utildefines.h"
 
@@ -29,8 +32,8 @@
 #ifdef WITH_INTERNATIONAL
 
 #  include "BLI_map.hh"
-#  include "BLI_string.h"
 #  include "BLI_string_ref.hh"
+#  include "BLI_string_utf8.h"
 
 using blender::StringRef;
 using blender::StringRefNull;
@@ -272,7 +275,7 @@ std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef ms
     /* This function may be called from C (i.e. outside of python interpreter 'context'). */
     PyGILState_STATE _py_state = PyGILState_Ensure();
 
-    STRNCPY(locale, tmp);
+    STRNCPY_UTF8(locale, tmp);
 
     /* Locale changed or cache does not exist, refresh the whole cache! */
     _build_translations_cache(_translations->py_messages, locale);
@@ -982,7 +985,7 @@ PyObject *BPY_app_translations_struct()
   /* prevent user from creating new instances */
   BlenderAppTranslationsType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppTranslationsType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppTranslationsType.tp_hash = (hashfunc)Py_HashPointer;
 
   return ret;
 }

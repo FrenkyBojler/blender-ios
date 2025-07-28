@@ -12,7 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -47,6 +47,7 @@
 #include "ED_view3d.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -371,7 +372,8 @@ void unpack_menu(bContext *C,
   pup = UI_popup_menu_begin(C, IFACE_("Unpack File"), ICON_NONE);
   layout = UI_popup_menu_layout(pup);
 
-  props_ptr = layout->op(ot, IFACE_("Remove Pack"), ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+  props_ptr = layout->op(
+      ot, IFACE_("Remove Pack"), ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
   RNA_enum_set(&props_ptr, "method", PF_REMOVE);
   RNA_string_set(&props_ptr, "id", id_name);
 
@@ -383,30 +385,31 @@ void unpack_menu(bContext *C,
     if (!STREQ(abs_name, local_name)) {
       switch (BKE_packedfile_compare_to_file(blendfile_path, local_name, pf)) {
         case PF_CMP_NOFILE:
-          SNPRINTF(line, IFACE_("Create %s"), local_name);
-          props_ptr = layout->op(ot, line, ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+          SNPRINTF_UTF8(line, IFACE_("Create %s"), local_name);
+          props_ptr = layout->op(
+              ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
           RNA_enum_set(&props_ptr, "method", PF_WRITE_LOCAL);
           RNA_string_set(&props_ptr, "id", id_name);
 
           break;
         case PF_CMP_EQUAL:
-          SNPRINTF(line, IFACE_("Use %s (identical)"), local_name);
-          // uiItemEnumO_ptr(layout, ot, line, ICON_NONE, "method", PF_USE_LOCAL);
-          props_ptr = layout->op(ot, line, ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+          SNPRINTF_UTF8(line, IFACE_("Use %s (identical)"), local_name);
+          props_ptr = layout->op(
+              ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
           RNA_enum_set(&props_ptr, "method", PF_USE_LOCAL);
           RNA_string_set(&props_ptr, "id", id_name);
 
           break;
         case PF_CMP_DIFFERS:
-          SNPRINTF(line, IFACE_("Use %s (differs)"), local_name);
-          // uiItemEnumO_ptr(layout, ot, line, ICON_NONE, "method", PF_USE_LOCAL);
-          props_ptr = layout->op(ot, line, ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+          SNPRINTF_UTF8(line, IFACE_("Use %s (differs)"), local_name);
+          props_ptr = layout->op(
+              ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
           RNA_enum_set(&props_ptr, "method", PF_USE_LOCAL);
           RNA_string_set(&props_ptr, "id", id_name);
 
-          SNPRINTF(line, IFACE_("Overwrite %s"), local_name);
-          // uiItemEnumO_ptr(layout, ot, line, ICON_NONE, "method", PF_WRITE_LOCAL);
-          props_ptr = layout->op(ot, line, ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+          SNPRINTF_UTF8(line, IFACE_("Overwrite %s"), local_name);
+          props_ptr = layout->op(
+              ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
           RNA_enum_set(&props_ptr, "method", PF_WRITE_LOCAL);
           RNA_string_set(&props_ptr, "id", id_name);
           break;
@@ -416,29 +419,29 @@ void unpack_menu(bContext *C,
 
   switch (BKE_packedfile_compare_to_file(blendfile_path, abs_name, pf)) {
     case PF_CMP_NOFILE:
-      SNPRINTF(line, IFACE_("Create %s"), abs_name);
-      // uiItemEnumO_ptr(layout, ot, line, ICON_NONE, "method", PF_WRITE_ORIGINAL);
-      props_ptr = layout->op(ot, line, ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+      SNPRINTF_UTF8(line, IFACE_("Create %s"), abs_name);
+      props_ptr = layout->op(
+          ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
       RNA_enum_set(&props_ptr, "method", PF_WRITE_ORIGINAL);
       RNA_string_set(&props_ptr, "id", id_name);
       break;
     case PF_CMP_EQUAL:
-      SNPRINTF(line, IFACE_("Use %s (identical)"), abs_name);
-      // uiItemEnumO_ptr(layout, ot, line, ICON_NONE, "method", PF_USE_ORIGINAL);
-      props_ptr = layout->op(ot, line, ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+      SNPRINTF_UTF8(line, IFACE_("Use %s (identical)"), abs_name);
+      props_ptr = layout->op(
+          ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
       RNA_enum_set(&props_ptr, "method", PF_USE_ORIGINAL);
       RNA_string_set(&props_ptr, "id", id_name);
       break;
     case PF_CMP_DIFFERS:
-      SNPRINTF(line, IFACE_("Use %s (differs)"), abs_name);
-      // uiItemEnumO_ptr(layout, ot, line, ICON_NONE, "method", PF_USE_ORIGINAL);
-      props_ptr = layout->op(ot, line, ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+      SNPRINTF_UTF8(line, IFACE_("Use %s (differs)"), abs_name);
+      props_ptr = layout->op(
+          ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
       RNA_enum_set(&props_ptr, "method", PF_USE_ORIGINAL);
       RNA_string_set(&props_ptr, "id", id_name);
 
-      SNPRINTF(line, IFACE_("Overwrite %s"), abs_name);
-      // uiItemEnumO_ptr(layout, ot, line, ICON_NONE, "method", PF_WRITE_ORIGINAL);
-      props_ptr = layout->op(ot, line, ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+      SNPRINTF_UTF8(line, IFACE_("Overwrite %s"), abs_name);
+      props_ptr = layout->op(
+          ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
       RNA_enum_set(&props_ptr, "method", PF_WRITE_ORIGINAL);
       RNA_string_set(&props_ptr, "id", id_name);
       break;

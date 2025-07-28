@@ -85,6 +85,7 @@
 #include "BLI_mmap.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 
 #include "BKE_idprop.hh"
@@ -2032,14 +2033,14 @@ static void imb_exr_set_known_colorspace(const Header &header, ImFileColorSpace 
     const char *known_colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_ACES_INTERCHANGE);
     if (known_colorspace) {
-      STRNCPY(r_colorspace.metadata_colorspace, known_colorspace);
+      STRNCPY_UTF8(r_colorspace.metadata_colorspace, known_colorspace);
     }
   }
   else if (header_chromaticities &&
            (imb_check_chromaticity_matches(header_chromaticities->value(), CHROMATICITIES_XYZ_E)))
   {
     /* Only works for the Blender default configuration due to fixed name. */
-    STRNCPY(r_colorspace.metadata_colorspace, "Linear CIE-XYZ E");
+    STRNCPY_UTF8(r_colorspace.metadata_colorspace, "Linear CIE-XYZ E");
   }
 }
 
@@ -2265,6 +2266,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
                                            size_t *r_width,
                                            size_t *r_height)
 {
+  ImBuf *ibuf = nullptr;
   IStream *stream = nullptr;
   Imf::RgbaInputFile *file = nullptr;
 
@@ -2287,6 +2289,8 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     file = new RgbaInputFile(*stream, 1);
 
     if (!file->isComplete()) {
+      delete file;
+      delete stream;
       return nullptr;
     }
 
@@ -2318,7 +2322,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     int dest_w = std::max(int(source_w * scale_factor), 1);
     int dest_h = std::max(int(source_h * scale_factor), 1);
 
-    ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_float_data);
+    ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_float_data);
 
     /* A single row of source pixels. */
     Imf::Array<Imf::Rgba> pixels(source_w);
@@ -2354,12 +2358,20 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
 
   catch (const std::exception &exc) {
     std::cerr << exc.what() << std::endl;
+    if (ibuf) {
+      IMB_freeImBuf(ibuf);
+    }
+
     delete file;
     delete stream;
     return nullptr;
   }
   catch (...) { /* Catch-all for edge cases or compiler bugs. */
     std::cerr << "OpenEXR-Thumbnail: UNKNOWN ERROR" << std::endl;
+    if (ibuf) {
+      IMB_freeImBuf(ibuf);
+    }
+
     delete file;
     delete stream;
     return nullptr;

@@ -31,6 +31,8 @@ namespace blender::nodes::socket_usage_inference {
 /** Utility class to simplify passing global state into all the functions during inferencing. */
 struct SocketUsageInferencer {
  private:
+  friend InputSocketUsageParams;
+
   /** Owns e.g. intermediate evaluated values. */
   ResourceScope scope_;
   bke::ComputeContextCache compute_context_cache_;
@@ -51,10 +53,10 @@ struct SocketUsageInferencer {
   Map<SocketInContext, bool> all_socket_usages_;
 
   /**
-   * If the value of a socket is known, it is added to this map. The value may be null, which means
-   * that the value can be anything. Sockets not in this map have not been evaluated yet.
+   * Once a socket value has been determined, it is added to this map. Note that a socket value may
+   * be determined to be unknown because it depends on values that are not known statically.
    */
-  Map<SocketInContext, const void *> all_socket_values_;
+  Map<SocketInContext, InferenceValue> all_socket_values_;
 
   /**
    * All sockets that have animation data and thus their value is not fixed statically. This can
@@ -89,7 +91,7 @@ struct SocketUsageInferencer {
             input_value = (*tree_input_values)[i].get();
           }
         }
-        all_socket_values_.add_new(socket_in_context, input_value);
+        all_socket_values_.add_new(socket_in_context, InferenceValue(input_value));
       }
     }
   }
@@ -137,14 +139,14 @@ struct SocketUsageInferencer {
     return all_socket_usages_.lookup(socket);
   }
 
-  const void *get_socket_value(const SocketInContext &socket)
+  InferenceValue get_socket_value(const SocketInContext &socket)
   {
-    const std::optional<const void *> value = all_socket_values_.lookup_try(socket);
+    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(socket);
     if (value.has_value()) {
       return *value;
     }
     if (socket->owner_tree().has_available_link_cycle()) {
-      return nullptr;
+      return InferenceValue::Unknown();
     }
 
     BLI_assert(value_tasks_.is_empty());
@@ -250,7 +252,6 @@ struct SocketUsageInferencer {
       case SH_NODE_OUTPUT_LINESTYLE:
       case SH_NODE_OUTPUT_MATERIAL:
       case CMP_NODE_OUTPUT_FILE:
-      case CMP_NODE_COMPOSITE:
       case TEX_NODE_OUTPUT: {
         this->usage_task__input__output_node(socket);
         break;
@@ -273,7 +274,7 @@ struct SocketUsageInferencer {
    */
   void usage_task__input__generic_switch(
       const SocketInContext &socket,
-      const FunctionRef<bool(const SocketInContext &socket, const void *condition)>
+      const FunctionRef<bool(const SocketInContext &socket, const InferenceValue &condition)>
           is_selected_socket)
   {
     const NodeInContext node = socket.owner_node();
@@ -301,8 +302,8 @@ struct SocketUsageInferencer {
       all_socket_usages_.add_new(socket, true);
       return;
     }
-    const void *condition_value = this->get_socket_value(condition_socket);
-    if (condition_value == nullptr) {
+    const InferenceValue condition_value = this->get_socket_value(condition_socket);
+    if (condition_value.is_unknown()) {
       /* The exact condition value is unknown, so any input may be used. */
       all_socket_usages_.add_new(socket, true);
       return;
@@ -430,23 +431,24 @@ struct SocketUsageInferencer {
 
   void usage_task__input__fallback(const SocketInContext &socket)
   {
-    Vector<const bNodeSocket *> dependent_boolean_inputs;
-    /* For built-in nodes we assume that sockets in a panel with a panel-toggle are disabled when
-     * the panel is disabled. */
-    if (const SocketDeclaration *socket_decl = socket->runtime->declaration) {
-      for (const PanelDeclaration *panel_decl = socket_decl->parent; panel_decl;
-           panel_decl = panel_decl->parent)
-      {
-        if (const SocketDeclaration *panel_toggle_decl = panel_decl->panel_input_decl()) {
-          if (panel_toggle_decl != socket_decl) {
-            dependent_boolean_inputs.append(
-                &socket->owner_node().socket_by_decl(*panel_toggle_decl));
-          }
-        }
-      }
+    const SocketDeclaration *socket_decl = socket->runtime->declaration;
+    if (!socket_decl) {
+      all_socket_usages_.add_new(socket, true);
+      return;
     }
-    this->usage_task__with_dependent_sockets(
-        socket, socket->owner_node().output_sockets(), dependent_boolean_inputs, socket.context);
+    if (!socket_decl->usage_inference_fn) {
+      this->usage_task__with_dependent_sockets(
+          socket, socket->owner_node().output_sockets(), {}, socket.context);
+      return;
+    }
+    InputSocketUsageParams params{
+        *this, socket.context, socket->owner_tree(), socket->owner_node(), *socket};
+    const std::optional<bool> is_used = (*socket_decl->usage_inference_fn)(params);
+    if (!is_used.has_value()) {
+      /* Some value was requested, come back later when that value is available. */
+      return;
+    }
+    all_socket_usages_.add_new(socket, *is_used);
   }
 
   void usage_task__input__foreach_element_input_node(const SocketInContext &socket)
@@ -524,14 +526,13 @@ struct SocketUsageInferencer {
     bool all_condition_inputs_true = true;
     for (const bNodeSocket *condition_input_ptr : condition_inputs) {
       const SocketInContext condition_input{dependent_socket_context, condition_input_ptr};
-      const void *condition_value = this->get_socket_value(condition_input);
-      if (condition_value == nullptr) {
+      const InferenceValue condition_value = this->get_socket_value(condition_input);
+      if (condition_value.is_unknown()) {
         /* The condition is not known, so it may be true. */
         continue;
       }
       BLI_assert(condition_input_ptr->type == SOCK_BOOLEAN);
-      const bool condition = *static_cast<const bool *>(condition_value);
-      if (!condition) {
+      if (!condition_value.get_known<bool>()) {
         all_condition_inputs_true = false;
         break;
       }
@@ -547,13 +548,13 @@ struct SocketUsageInferencer {
     }
     const bNode &node = socket->owner_node();
     if (node.is_undefined() && !node.is_custom_group()) {
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     const CPPType *base_type = socket->typeinfo->base_cpp_type;
     if (!base_type) {
       /* The socket type is unknown for some reason (maybe a socket type from the future?). */
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     if (socket->is_input()) {
@@ -631,7 +632,7 @@ struct SocketUsageInferencer {
     }
     /* If none of the above cases work, the socket value is set to null which means that it is
      * unknown/dynamic. */
-    all_socket_values_.add_new(socket, nullptr);
+    all_socket_values_.add_new(socket, InferenceValue::Unknown());
   }
 
   void value_task__output__group_node(const SocketInContext &socket)
@@ -639,26 +640,26 @@ struct SocketUsageInferencer {
     const NodeInContext node = socket.owner_node();
     const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
     if (!group || ID_MISSING(&group->id)) {
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     group->ensure_topology_cache();
     if (group->has_available_link_cycle()) {
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     this->ensure_animation_data_processed(*group);
     const bNode *group_output_node = group->group_output_node();
     if (!group_output_node) {
       /* Can't compute the value if the group does not have an output node. */
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     const ComputeContext &group_context = compute_context_cache_.for_group_node(
         socket.context, node->identifier, &node->owner_tree());
     const SocketInContext socket_in_group{&group_context,
                                           &group_output_node->input_socket(socket->index())};
-    const std::optional<const void *> value = all_socket_values_.lookup_try(socket_in_group);
+    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(socket_in_group);
     if (!value.has_value()) {
       this->push_value_task(socket_in_group);
       return;
@@ -675,7 +676,7 @@ struct SocketUsageInferencer {
         *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
     const SocketInContext group_node_input{group_context.parent(),
                                            &group_context.node()->input_socket(socket->index())};
-    const std::optional<const void *> value = all_socket_values_.lookup_try(group_node_input);
+    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(group_node_input);
     if (!value.has_value()) {
       this->push_value_task(group_node_input);
       return;
@@ -686,7 +687,7 @@ struct SocketUsageInferencer {
   void value_task__output__reroute_node(const SocketInContext &socket)
   {
     const SocketInContext input_socket = socket.owner_node().input_socket(0);
-    const std::optional<const void *> value = all_socket_values_.lookup_try(input_socket);
+    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(input_socket);
     if (!value.has_value()) {
       this->push_value_task(input_socket);
       return;
@@ -701,18 +702,14 @@ struct SocketUsageInferencer {
     switch (operation) {
       case NODE_MATH_MULTIPLY: {
         this->value_task__output__generic_eval(
-            socket, [&](const Span<const void *> inputs) -> std::optional<const void *> {
-              const std::optional<float> a = inputs[0] ? std::optional(*static_cast<const float *>(
-                                                             inputs[0])) :
-                                                         std::nullopt;
-              const std::optional<float> b = inputs[1] ? std::optional(*static_cast<const float *>(
-                                                             inputs[1])) :
-                                                         std::nullopt;
+            socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
+              const std::optional<float> a = inputs[0].get<float>();
+              const std::optional<float> b = inputs[1].get<float>();
               if (a == 0.0f || b == 0.0f) {
-                return &scope_.construct<float>(0.0f);
+                return InferenceValue(&scope_.construct<float>(0.0f));
               }
               if (a.has_value() && b.has_value()) {
-                return &scope_.construct<float>(*a * *b);
+                return InferenceValue(&scope_.construct<float>(*a * *b));
               }
               return std::nullopt;
             });
@@ -732,20 +729,14 @@ struct SocketUsageInferencer {
     switch (operation) {
       case NODE_VECTOR_MATH_MULTIPLY: {
         this->value_task__output__generic_eval(
-            socket, [&](const Span<const void *> inputs) -> std::optional<const void *> {
-              const std::optional<float3> a = inputs[0] ?
-                                                  std::optional(
-                                                      *static_cast<const float3 *>(inputs[0])) :
-                                                  std::nullopt;
-              const std::optional<float3> b = inputs[1] ?
-                                                  std::optional(
-                                                      *static_cast<const float3 *>(inputs[1])) :
-                                                  std::nullopt;
+            socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
+              const std::optional<float3> a = inputs[0].get<float3>();
+              const std::optional<float3> b = inputs[1].get<float3>();
               if (a == float3(0.0f) || b == float3(0.0f)) {
-                return &scope_.construct<float3>(0.0f);
+                return InferenceValue(&scope_.construct<float3>(0.0f));
               }
               if (a.has_value() && b.has_value()) {
-                return &scope_.construct<float3>(*a * *b);
+                return InferenceValue(&scope_.construct<float3>(*a * *b));
               }
               return std::nullopt;
             });
@@ -753,20 +744,14 @@ struct SocketUsageInferencer {
       }
       case NODE_VECTOR_MATH_SCALE: {
         this->value_task__output__generic_eval(
-            socket, [&](const Span<const void *> inputs) -> std::optional<const void *> {
-              const std::optional<float3> a = inputs[0] ?
-                                                  std::optional(
-                                                      *static_cast<const float3 *>(inputs[0])) :
-                                                  std::nullopt;
-              const std::optional<float> scale = inputs[3] ?
-                                                     std::optional(
-                                                         *static_cast<const float *>(inputs[3])) :
-                                                     std::nullopt;
+            socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
+              const std::optional<float3> a = inputs[0].get<float3>();
+              const std::optional<float> scale = inputs[3].get<float>();
               if (a == float3(0.0f) || scale == 0.0f) {
-                return &scope_.construct<float3>(0.0f);
+                return InferenceValue(&scope_.construct<float3>(0.0f));
               }
               if (a.has_value() && scale.has_value()) {
-                return &scope_.construct<float3>(*a * *scale);
+                return InferenceValue(&scope_.construct<float3>(*a * *scale));
               }
               return std::nullopt;
             });
@@ -786,18 +771,14 @@ struct SocketUsageInferencer {
     switch (operation) {
       case NODE_INTEGER_MATH_MULTIPLY: {
         this->value_task__output__generic_eval(
-            socket, [&](const Span<const void *> inputs) -> std::optional<const void *> {
-              const std::optional<int> a = inputs[0] ? std::optional(
-                                                           *static_cast<const int *>(inputs[0])) :
-                                                       std::nullopt;
-              const std::optional<int> b = inputs[1] ? std::optional(
-                                                           *static_cast<const int *>(inputs[1])) :
-                                                       std::nullopt;
+            socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
+              const std::optional<int> a = inputs[0].get<int>();
+              const std::optional<int> b = inputs[1].get<int>();
               if (a == 0 || b == 0) {
-                return &scope_.construct<int>(0);
+                return InferenceValue(&scope_.construct<int>(0));
               }
               if (a.has_value() && b.has_value()) {
-                return &scope_.construct<int>(*a * *b);
+                return InferenceValue(&scope_.construct<int>(*a * *b));
               }
               return std::nullopt;
             });
@@ -818,16 +799,12 @@ struct SocketUsageInferencer {
     const auto handle_binary_op =
         [&](FunctionRef<std::optional<bool>(std::optional<bool>, std::optional<bool>)> fn) {
           this->value_task__output__generic_eval(
-              socket, [&](const Span<const void *> inputs) -> std::optional<const void *> {
-                const std::optional<bool> a = inputs[0] ? std::optional(*static_cast<const bool *>(
-                                                              inputs[0])) :
-                                                          std::nullopt;
-                const std::optional<bool> b = inputs[1] ? std::optional(*static_cast<const bool *>(
-                                                              inputs[1])) :
-                                                          std::nullopt;
+              socket, [&](const Span<InferenceValue> inputs) -> std::optional<InferenceValue> {
+                const std::optional<bool> a = inputs[0].get<bool>();
+                const std::optional<bool> b = inputs[1].get<bool>();
                 const std::optional<bool> result = fn(a, b);
                 if (result.has_value()) {
-                  return &scope_.construct<bool>(*result);
+                  return InferenceValue(&scope_.construct<bool>(*result));
                 }
                 return std::nullopt;
               });
@@ -924,7 +901,7 @@ struct SocketUsageInferencer {
    */
   void value_task__output__generic_switch(
       const SocketInContext &socket,
-      const FunctionRef<bool(const SocketInContext &socket, const void *condition)>
+      const FunctionRef<bool(const SocketInContext &socket, InferenceValue condition)>
           is_selected_socket)
   {
     const NodeInContext node = socket.owner_node();
@@ -933,15 +910,15 @@ struct SocketUsageInferencer {
 
     const SocketInContext condition_socket{
         socket.context, this->get_first_available_bsocket(node->input_sockets())};
-    const std::optional<const void *> condition_value = all_socket_values_.lookup_try(
+    const std::optional<InferenceValue> condition_value = all_socket_values_.lookup_try(
         condition_socket);
     if (!condition_value.has_value()) {
       this->push_value_task(condition_socket);
       return;
     }
-    if (!*condition_value) {
+    if (condition_value->is_unknown()) {
       /* The condition value is not a simple static value, so the output is unknown. */
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     Vector<const bNodeSocket *> selected_inputs;
@@ -961,13 +938,13 @@ struct SocketUsageInferencer {
       }
     }
     if (selected_inputs.is_empty()) {
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     if (selected_inputs.size() == 1) {
       /* A single input is selected, so just pass through this value without regarding others. */
       const SocketInContext selected_input{socket.context, selected_inputs[0]};
-      const std::optional<const void *> input_value = all_socket_values_.lookup_try(
+      const std::optional<InferenceValue> input_value = all_socket_values_.lookup_try(
           selected_input);
       if (!input_value.has_value()) {
         this->push_value_task(selected_input);
@@ -984,31 +961,32 @@ struct SocketUsageInferencer {
       return;
     }
     /* Can't compute the output value, so set it to be unknown. */
-    all_socket_values_.add_new(socket, nullptr);
+    all_socket_values_.add_new(socket, InferenceValue::Unknown());
   }
 
   void value_task__output__generic_eval(
       const SocketInContext &socket,
-      const FunctionRef<std::optional<const void *>(Span<const void *> inputs)> eval_fn)
+      const FunctionRef<std::optional<InferenceValue>(Span<InferenceValue> inputs)> eval_fn)
   {
     const NodeInContext node = socket.owner_node();
     const int inputs_num = node->input_sockets().size();
 
-    Array<const void *, 16> input_values(inputs_num, nullptr);
+    Array<InferenceValue, 16> input_values(inputs_num, InferenceValue::Unknown());
     std::optional<int> next_unknown_input_index;
     for (const int input_i : IndexRange(inputs_num)) {
       const SocketInContext input_socket = node.input_socket(input_i);
       if (!input_socket->is_available()) {
         continue;
       }
-      const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
+      const std::optional<InferenceValue> input_value = all_socket_values_.lookup_try(
+          input_socket);
       if (!input_value.has_value()) {
         next_unknown_input_index = input_i;
         break;
       }
       input_values[input_i] = *input_value;
     }
-    const std::optional<const void *> output_value = eval_fn(input_values);
+    const std::optional<InferenceValue> output_value = eval_fn(input_values);
     if (output_value.has_value()) {
       /* Was able to compute the output value. */
       all_socket_values_.add_new(socket, *output_value);
@@ -1017,7 +995,7 @@ struct SocketUsageInferencer {
     if (!next_unknown_input_index.has_value()) {
       /* The output is still unknown even though we know as much about the inputs as possible
        * already. */
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     /* Request the next input socket. */
@@ -1034,16 +1012,17 @@ struct SocketUsageInferencer {
     Vector<const void *> input_values(inputs_num);
     for (const int input_i : IndexRange(inputs_num)) {
       const SocketInContext input_socket = node.input_socket(input_i);
-      const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
+      const std::optional<InferenceValue> input_value = all_socket_values_.lookup_try(
+          input_socket);
       if (!input_value.has_value()) {
         this->push_value_task(input_socket);
         return;
       }
-      if (*input_value == nullptr) {
-        all_socket_values_.add_new(socket, nullptr);
+      if (input_value->is_unknown()) {
+        all_socket_values_.add_new(socket, InferenceValue::Unknown());
         return;
       }
-      input_values[input_i] = *input_value;
+      input_values[input_i] = input_value->data();
     }
 
     /* Get the multi-function for the node. */
@@ -1073,7 +1052,7 @@ struct SocketUsageInferencer {
       const CPPType &base_type = *output_socket->typeinfo->base_cpp_type;
       void *value = scope_.allocate_owned(base_type);
       params.add_uninitialized_single_output(GMutableSpan(base_type, value, 1));
-      all_socket_values_.add_new(output_socket, value);
+      all_socket_values_.add_new(output_socket, InferenceValue(value));
     }
     mf::ContextBuilder context;
     /* Actually evaluate the multi-function. The outputs will be written into the memory allocated
@@ -1094,24 +1073,24 @@ struct SocketUsageInferencer {
     }
     if (!input_socket) {
       /* The output does not have an internal link to an input. */
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
-    const std::optional<const void *> input_value = all_socket_values_.lookup_try(input_socket);
+    const std::optional<InferenceValue> input_value = all_socket_values_.lookup_try(input_socket);
     if (!input_value.has_value()) {
       this->push_value_task(input_socket);
       return;
     }
     const void *converted_value = this->convert_type_if_necessary(
-        *input_value, *input_socket.socket, *socket.socket);
-    all_socket_values_.add_new(socket, converted_value);
+        input_value->data(), *input_socket.socket, *socket.socket);
+    all_socket_values_.add_new(socket, InferenceValue(converted_value));
   }
 
   void value_task__input(const SocketInContext &socket)
   {
     if (socket->is_multi_input()) {
       /* Can't know the single value of a multi-input. */
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     const bNodeLink *source_link = nullptr;
@@ -1136,38 +1115,38 @@ struct SocketUsageInferencer {
   void value_task__input__unlinked(const SocketInContext &socket)
   {
     if (this->treat_socket_as_unknown(socket)) {
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     if (animated_sockets_.contains(socket.socket)) {
       /* The value of animated sockets is not known statically. */
-      all_socket_values_.add_new(socket, nullptr);
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
       return;
     }
     if (const SocketDeclaration *socket_decl = socket.socket->runtime->declaration) {
       if (socket_decl->input_field_type == InputSocketFieldType::Implicit) {
         /* Implicit fields inputs don't have a single static value. */
-        all_socket_values_.add_new(socket, nullptr);
+        all_socket_values_.add_new(socket, InferenceValue::Unknown());
         return;
       }
     }
 
     void *value_buffer = scope_.allocate_owned(*socket->typeinfo->base_cpp_type);
     socket->typeinfo->get_base_cpp_value(socket->default_value, value_buffer);
-    all_socket_values_.add_new(socket, value_buffer);
+    all_socket_values_.add_new(socket, InferenceValue(value_buffer));
   }
 
   void value_task__input__linked(const SocketInContext &from_socket,
                                  const SocketInContext &to_socket)
   {
-    const std::optional<const void *> from_value = all_socket_values_.lookup_try(from_socket);
+    const std::optional<InferenceValue> from_value = all_socket_values_.lookup_try(from_socket);
     if (!from_value.has_value()) {
       this->push_value_task(from_socket);
       return;
     }
     const void *converted_value = this->convert_type_if_necessary(
-        *from_value, *from_socket.socket, *to_socket.socket);
-    all_socket_values_.add_new(to_socket, converted_value);
+        from_value->data(), *from_socket.socket, *to_socket.socket);
+    all_socket_values_.add_new(to_socket, InferenceValue(converted_value));
   }
 
   const void *convert_type_if_necessary(const void *src,
@@ -1194,30 +1173,33 @@ struct SocketUsageInferencer {
     return dst;
   }
 
-  static bool switch__is_socket_selected(const SocketInContext &socket, const void *condition)
+  static bool switch__is_socket_selected(const SocketInContext &socket,
+                                         const InferenceValue &condition)
   {
-    const bool is_true = *static_cast<const bool *>(condition);
+    const bool is_true = condition.get_known<bool>();
     const int selected_index = is_true ? 2 : 1;
     return socket->index() == selected_index;
   }
 
   static bool index_switch__is_socket_selected(const SocketInContext &socket,
-                                               const void *condition)
+                                               const InferenceValue &condition)
   {
-    const int index = *static_cast<const int *>(condition);
+    const int index = condition.get_known<int>();
     return socket->index() == index + 1;
   }
 
-  static bool menu_switch__is_socket_selected(const SocketInContext &socket, const void *condition)
+  static bool menu_switch__is_socket_selected(const SocketInContext &socket,
+                                              const InferenceValue &condition)
   {
     const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(
         socket->owner_node().storage);
-    const int menu_value = *static_cast<const int *>(condition);
+    const int menu_value = condition.get_known<int>();
     const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
     return menu_value == item.identifier;
   }
 
-  static bool mix_node__is_socket_selected(const SocketInContext &socket, const void *condition)
+  static bool mix_node__is_socket_selected(const SocketInContext &socket,
+                                           const InferenceValue &condition)
   {
     const NodeShaderMix &storage = *static_cast<const NodeShaderMix *>(
         socket.owner_node()->storage);
@@ -1229,7 +1211,7 @@ struct SocketUsageInferencer {
     bool only_a = false;
     bool only_b = false;
     if (storage.data_type == SOCK_VECTOR && storage.factor_mode == NODE_MIX_MODE_NON_UNIFORM) {
-      const float3 mix_factor = *static_cast<const float3 *>(condition);
+      const float3 mix_factor = condition.get_known<float3>();
       if (clamp_factor) {
         only_a = mix_factor.x <= 0.0f && mix_factor.y <= 0.0f && mix_factor.z <= 0.0f;
         only_b = mix_factor.x >= 1.0f && mix_factor.y >= 1.0f && mix_factor.z >= 1.0f;
@@ -1240,7 +1222,7 @@ struct SocketUsageInferencer {
       }
     }
     else {
-      const float mix_factor = *static_cast<const float *>(condition);
+      const float mix_factor = condition.get_known<float>();
       if (clamp_factor) {
         only_a = mix_factor <= 0.0f;
         only_b = mix_factor >= 1.0f;
@@ -1264,9 +1246,9 @@ struct SocketUsageInferencer {
   }
 
   static bool shader_mix_node__is_socket_selected(const SocketInContext &socket,
-                                                  const void *condition)
+                                                  const InferenceValue &condition)
   {
-    const float mix_factor = *static_cast<const float *>(condition);
+    const float mix_factor = condition.get_known<float>();
     if (mix_factor == 0.0f) {
       if (STREQ(socket->identifier, "Shader_001")) {
         return false;
@@ -1528,6 +1510,38 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
   nodes::get_geometry_nodes_input_base_values(group, properties, scope, input_values);
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
       group, input_values, r_input_usages);
+}
+
+InputSocketUsageParams::InputSocketUsageParams(SocketUsageInferencer &inferencer,
+                                               const ComputeContext *compute_context,
+                                               const bNodeTree &tree,
+                                               const bNode &node,
+                                               const bNodeSocket &socket)
+    : inferencer_(inferencer),
+      compute_context_(compute_context),
+      tree(tree),
+      node(node),
+      socket(socket)
+{
+}
+
+InferenceValue InputSocketUsageParams::get_input(const StringRef identifier) const
+{
+  const SocketInContext input_socket{compute_context_,
+                                     &this->node.input_by_identifier(identifier)};
+  return inferencer_.get_socket_value(input_socket);
+}
+
+bool InputSocketUsageParams::menu_input_may_be(const StringRef identifier,
+                                               const int enum_value) const
+{
+  BLI_assert(this->node.input_by_identifier(identifier).type == SOCK_MENU);
+  const InferenceValue value = this->get_input(identifier);
+  if (value.is_unknown()) {
+    /* The value is unknown, so it may be the requested enum value. */
+    return true;
+  }
+  return value.get_known<int>() == enum_value;
 }
 
 }  // namespace blender::nodes::socket_usage_inference

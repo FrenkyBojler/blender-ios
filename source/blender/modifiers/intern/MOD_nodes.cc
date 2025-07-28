@@ -59,7 +59,7 @@
 #include "BLO_read_write.hh"
 
 #include "NOD_geometry_nodes_caller_ui.hh"
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -922,7 +922,7 @@ static void check_property_socket_sync(const Object *ob,
     if (i == 0 && type == SOCK_GEOMETRY) {
       continue;
     }
-    if (input_structure_types[i] == nodes::StructureType::Grid) {
+    if (ELEM(input_structure_types[i], nodes::StructureType::Grid, nodes::StructureType::List)) {
       continue;
     }
 
@@ -1819,6 +1819,9 @@ static void modifyGeometry(ModifierData *md,
   }
   NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(
       BKE_modifier_get_original(ctx->object, &nmd->modifier));
+  if (ID_MISSING(nmd_orig->node_group)) {
+    return;
+  }
 
   nodes::PropertiesVectorSet properties = nodes::build_properties_vector_set(
       nmd->settings.properties);
