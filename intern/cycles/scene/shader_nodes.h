@@ -266,7 +266,7 @@ class VoronoiTextureNode : public TextureNode {
  public:
   SHADER_NODE_CLASS(VoronoiTextureNode)
 
-  int get_feature() override
+  uint get_feature() override
   {
     int result = ShaderNode::get_feature();
     if (dimensions == 4) {
@@ -462,7 +462,7 @@ class BsdfBaseNode : public ShaderNode {
     return false;
   }
 
-  int get_feature() override
+  uint get_feature() override
   {
     return ShaderNode::get_feature() | KERNEL_FEATURE_NODE_BSDF;
   }
@@ -577,6 +577,11 @@ class RayPortalBsdfNode : public BsdfNode {
   bool has_surface_transparent() override
   {
     return true;
+  }
+
+  uint get_feature() override
+  {
+    return BsdfNode::get_feature() | KERNEL_FEATURE_NODE_PORTAL;
   }
 };
 
@@ -727,7 +732,7 @@ class EmissionNode : public ShaderNode {
     return true;
   }
 
-  int get_feature() override
+  uint get_feature() override
   {
     return ShaderNode::get_feature() | KERNEL_FEATURE_NODE_EMISSION;
   }
@@ -749,7 +754,7 @@ class BackgroundNode : public ShaderNode {
     return true;
   }
 
-  int get_feature() override
+  uint get_feature() override
   {
     return ShaderNode::get_feature() | KERNEL_FEATURE_NODE_EMISSION;
   }
@@ -783,7 +788,7 @@ class AmbientOcclusionNode : public ShaderNode {
   {
     return true;
   }
-  int get_feature() override
+  uint get_feature() override
   {
     return KERNEL_FEATURE_NODE_RAYTRACE;
   }
@@ -810,7 +815,7 @@ class VolumeNode : public ShaderNode {
                ShaderInput *density,
                ShaderInput *param1 = nullptr,
                ShaderInput *param2 = nullptr);
-  int get_feature() override
+  uint get_feature() override
   {
     return ShaderNode::get_feature() | KERNEL_FEATURE_NODE_VOLUME;
   }
@@ -935,7 +940,7 @@ class PrincipledHairBsdfNode : public BsdfBaseNode {
   /* Selected scattering model (chiang/huang). */
   NODE_SOCKET_API(NodePrincipledHairModel, model)
 
-  int get_feature() override
+  uint get_feature() override
   {
     return ccl::BsdfBaseNode::get_feature() | KERNEL_FEATURE_NODE_PRINCIPLED_HAIR;
   }
@@ -1512,7 +1517,7 @@ class BumpNode : public ShaderNode {
   {
     return true;
   }
-  int get_feature() override
+  uint get_feature() override
   {
     return KERNEL_FEATURE_NODE_BUMP;
   }
@@ -1636,7 +1641,7 @@ class OSLNode final : public ShaderNode {
   {
     return true;
   }
-  int get_feature() override
+  uint get_feature() override
   {
     return ShaderNode::get_feature() | KERNEL_FEATURE_NODE_RAYTRACE;
   }
@@ -1695,7 +1700,7 @@ class BevelNode : public ShaderNode {
   {
     return true;
   }
-  int get_feature() override
+  uint get_feature() override
   {
     return KERNEL_FEATURE_NODE_RAYTRACE;
   }
@@ -1709,7 +1714,7 @@ class DisplacementNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(DisplacementNode)
   void constant_fold(const ConstantFolder &folder) override;
-  int get_feature() override
+  uint get_feature() override
   {
     return KERNEL_FEATURE_NODE_BUMP;
   }
@@ -1730,7 +1735,7 @@ class VectorDisplacementNode : public ShaderNode {
     return true;
   }
   void constant_fold(const ConstantFolder &folder) override;
-  int get_feature() override
+  uint get_feature() override
   {
     return KERNEL_FEATURE_NODE_BUMP;
   }

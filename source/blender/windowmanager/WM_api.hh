@@ -203,6 +203,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_KEYBOARD_HYPER_KEY = (1 << 9),
   /** Support for RGBA Cursors. */
   WM_CAPABILITY_CURSOR_RGBA = (1 << 10),
+  /** Support on demand cursor generation. */
+  WM_CAPABILITY_CURSOR_GENERATOR = (1 << 11),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -489,6 +491,16 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 void WM_cursor_set(wmWindow *win, int curs);
 bool WM_cursor_set_from_tool(wmWindow *win, const ScrArea *area, const ARegion *region);
+/**
+ * Check the cursor isn't set elsewhere.
+ * When false setting the modal cursor can be done but may overwrite an existing cursor.
+ *
+ * Use this check for modal navigation operators that may be activated while other modal operators
+ * are running.
+ *
+ * \note A cursor "stack" would remove the need for this.
+ */
+bool WM_cursor_modal_is_set_ok(const wmWindow *win);
 void WM_cursor_modal_set(wmWindow *win, int val);
 void WM_cursor_modal_restore(wmWindow *win);
 /**
@@ -514,6 +526,11 @@ void WM_cursor_grab_disable(wmWindow *win, const int mouse_ungrab_xy[2]);
  * After this you can call restore too.
  */
 void WM_cursor_time(wmWindow *win, int nr);
+
+/**
+ * Show progress in the cursor (0.0..1.0 when complete).
+ */
+void WM_cursor_progress(wmWindow *win, float progress_factor);
 
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
@@ -844,12 +861,14 @@ int WM_operator_smooth_viewtx_get(const wmOperator *op);
 /**
  * Invoke callback, uses enum property named "type".
  */
-wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallContext opcontext);
+wmOperatorStatus WM_menu_invoke_ex(bContext *C,
+                                   wmOperator *op,
+                                   blender::wm::OpCallContext opcontext);
 wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 /**
  * Call an existent menu. The menu can be created in C or Python.
  */
-void WM_menu_name_call(bContext *C, const char *menu_name, short context);
+void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context);
 
 wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 
@@ -924,7 +943,7 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
                                                 const char *title,
                                                 int icon,
                                                 const char *message,
-                                                wmOperatorCallContext opcontext);
+                                                blender::wm::OpCallContext opcontext);
 wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message);
 
 /* Operator API. */
@@ -947,7 +966,7 @@ void WM_operator_stack_clear(wmWindowManager *wm);
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
-bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context);
+bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
 /**
  * For running operators with frozen context (modal handlers, menus).
  *
@@ -990,22 +1009,23 @@ bool WM_operator_name_poll(bContext *C, const char *opstring);
  */
 wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
                                            wmOperatorType *ot,
-                                           wmOperatorCallContext context,
+                                           blender::wm::OpCallContext context,
                                            PointerRNA *properties,
                                            const wmEvent *event);
 /** See #WM_operator_name_call_ptr. */
 wmOperatorStatus WM_operator_name_call(bContext *C,
                                        const char *opstring,
-                                       wmOperatorCallContext context,
+                                       blender::wm::OpCallContext context,
                                        PointerRNA *properties,
                                        const wmEvent *event);
 wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
                                                        const char *opstring,
-                                                       wmOperatorCallContext context,
+                                                       blender::wm::OpCallContext context,
                                                        IDProperty *properties,
                                                        const wmEvent *event);
 /**
- * Similar to #WM_operator_name_call called with #WM_OP_EXEC_DEFAULT context.
+ * Similar to #WM_operator_name_call called with #blender::wm::OpCallContext::ExecDefault
+ * context.
  *
  * - #wmOperatorType is used instead of operator name since python already has the operator type.
  * - `poll()` must be called by python before this runs.
@@ -1013,14 +1033,14 @@ wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
  */
 wmOperatorStatus WM_operator_call_py(bContext *C,
                                      wmOperatorType *ot,
-                                     wmOperatorCallContext context,
+                                     blender::wm::OpCallContext context,
                                      PointerRNA *properties,
                                      ReportList *reports,
                                      bool is_undo);
 
 void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
                                                       wmOperatorType *ot,
-                                                      wmOperatorCallContext opcontext,
+                                                      blender::wm::OpCallContext opcontext,
                                                       PointerRNA *properties,
                                                       const wmEvent *event,
                                                       blender::StringRef drawstr);
@@ -1954,8 +1974,10 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain);
 
 /**
  * Lock the interface for any communication.
+ * For #WM_set_locked_interface_with_flags, #lock_flags is #ARegionDrawLockFlags
  */
 void WM_set_locked_interface(wmWindowManager *wm, bool lock);
+void WM_set_locked_interface_with_flags(wmWindowManager *wm, short lock_flags);
 
 void WM_event_tablet_data_default_set(wmTabletData *tablet_data);
 
