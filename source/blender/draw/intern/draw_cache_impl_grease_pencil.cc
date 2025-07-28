@@ -12,6 +12,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
+#include "BKE_material.hh"
 
 #include "BLI_array_utils.hh"
 #include "BLI_listbase.h"
@@ -19,6 +20,7 @@
 #include "BLI_task.hh"
 
 #include "DNA_grease_pencil_types.h"
+#include "DNA_material_types.h"
 
 #include "DRW_engine.hh"
 #include "DRW_render.hh"

@@ -31,21 +31,24 @@
 /** \name GPencil Object rendering
  * \{ */
 
-GPU_SHADER_INTERFACE_INFO(gpencil_geometry_iface, "gp_interp")
-    .smooth(Type::VEC4, "color_mul")
-    .smooth(Type::VEC4, "color_add")
-    .smooth(Type::VEC3, "pos")
-    .smooth(Type::VEC2, "uv");
-GPU_SHADER_INTERFACE_INFO(gpencil_geometry_flat_iface, "gp_interp_flat")
-    .flat(Type::VEC2, "aspect")
-    .flat(Type::VEC4, "sspos1")
-    .flat(Type::VEC4, "sspos2")
-    .flat(Type::VEC3, "point_length")
-    .flat(Type::UINT, "mat_flag")
-    .flat(Type::FLOAT, "depth");
-GPU_SHADER_INTERFACE_INFO(gpencil_geometry_noperspective_iface, "gp_interp_noperspective")
-    .no_perspective(Type::VEC2, "thickness")
-    .no_perspective(Type::FLOAT, "hardness");
+GPU_SHADER_NAMED_INTERFACE_INFO(gpencil_geometry_iface, gp_interp)
+SMOOTH(float4, color_mul)
+SMOOTH(float4, color_add)
+SMOOTH(float3, pos)
+SMOOTH(float2, uv)
+GPU_SHADER_NAMED_INTERFACE_END(gp_interp)
+GPU_SHADER_NAMED_INTERFACE_INFO(gpencil_geometry_flat_iface, gp_interp_flat)
+FLAT(float2, aspect)
+FLAT(float4, sspos1)
+FLAT(float4, sspos2)
+FLAT(float3, point_length)
+FLAT(uint, mat_flag)
+FLAT(float, depth)
+GPU_SHADER_NAMED_INTERFACE_END(gp_interp_flat)
+GPU_SHADER_NAMED_INTERFACE_INFO(gpencil_geometry_noperspective_iface, gp_interp_noperspective)
+NO_PERSPECTIVE(float2, thickness)
+NO_PERSPECTIVE(float, hardness)
+GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 
 GPU_SHADER_CREATE_INFO(gpencil_geometry)
 DO_STATIC_COMPILATION()

@@ -19,6 +19,20 @@ SHADER_LIBRARY_CREATE_INFO(draw_gpencil)
 #endif
 
 #ifdef GPU_FRAGMENT_SHADER
+float gpencil_stroke_round_mask(float dist, float hardfac)
+{
+  dist = clamp(1.0 - dist, 0.0, 1.0);
+  if (hardfac > 0.999) {
+    return step(1e-8, dist);
+  }
+  else {
+    /* Modulate the falloff profile */
+    float hardness = 1.0 - hardfac;
+    dist = pow(dist, mix(0.01, 10.0, hardness));
+    return smoothstep(0.0, 1.0, dist);
+  }
+}
+
 float gpencil_stroke_round_cap_mask(
     float2 p1, float2 p2, float2 aspect, float thickness, float hardfac)
 {
@@ -38,18 +52,25 @@ float gpencil_stroke_round_cap_mask(
   uv_end /= thickness;
   uv_end *= aspect;
 
-  float dist = clamp(1.0f - length(uv_end) * 2.0f, 0.0f, 1.0f);
-  if (hardfac > 0.999f) {
-    return step(1e-8f, dist);
-  }
-  else {
-    /* Modulate the falloff profile */
-    float hardness = 1.0f - hardfac;
-    dist = pow(dist, mix(0.01f, 10.0f, hardness));
-    return smoothstep(0.0f, 1.0f, dist);
-  }
+  return gpencil_stroke_round_mask(length(uv_end) * 2.0, hardfac);
 }
 #endif
+
+float4 ndc_and_radius_to_screen_space(float4 ndc, float radius, float2 viewport_res)
+{
+  return float4(((ndc.xy / ndc.w) * 0.5 + 0.5) * viewport_res, ndc.w, radius / ndc.w);
+}
+
+float4 screen_space_to_ndc(float4 ss, float2 viewport_res)
+{
+  return float4((ss.xy / viewport_res - 0.5) * 2.0 * ss.z, 0, ss.z);
+}
+
+float4 screen_space_to_ndc_and_radius(float4 ss, out float radius, float2 viewport_res)
+{
+  radius = ss.w * ss.z;
+  return screen_space_to_ndc(ss, viewport_res);
+}
 
 float2 gpencil_decode_aspect(int packed_data)
 {
@@ -97,6 +118,82 @@ bool gpencil_is_stroke_vertex()
   return flag_test(gl_VertexID, GP_IS_STROKE_VERTEX_BIT);
 }
 
+float4 discard_ndc()
+{
+  /* We set the vertex at the camera origin to generate 0 fragments. */
+  return float4(0.0, 0.0, -3e36, 0.0);
+}
+
+float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 viewport_res)
+{
+  float2 local_x = safe_normalize(ss2.xy - ss1.xy);
+  /* Rotate 90 degrees counter-clockwise. */
+  float2 local_y = float2(-local_x.y, local_x.x);
+
+  float r1 = ss1.w;
+  float r2 = ss2.w;
+  float l = length(ss1.xy - ss2.xy);
+
+  if (is_squares) {
+    r1 *= M_SQRT2;
+    r2 *= M_SQRT2;
+  }
+
+  float x = xy.x;
+  float y = xy.y;
+
+  float max_r = max(r1, r2);
+  float a = r2 - r1;
+  float cos_theta = -a / l;
+  float sin_theta = sqrt(1 - cos_theta * cos_theta);
+  float tan_half_theta = (1.0 - cos_theta) / sin_theta;
+
+  if (ss1.z < 0 || ss1.z < 0) {
+    return discard_ndc();
+  }
+
+  float2 local = float2(0.0, 0.0);
+
+  if (abs(cos_theta) > 1.0) {
+    if (r1 > r2) {
+      local = xy * r1;
+    }
+    else {
+      local = xy * r2 + float2(l, 0.0);
+    }
+  }
+  else {
+    float area_tan_per_width = 0.5 * (r1 / tan_half_theta + r2 * tan_half_theta);
+    float area_non_per_width = max_r;
+
+    if (area_tan_per_width < area_non_per_width) {
+      if (x == -1.0) {
+        local.x += -r1;
+        local.y += y * r1 / tan_half_theta;
+      }
+      else {
+        local.x += l + r2;
+        local.y += y * r2 * tan_half_theta;
+      }
+    }
+    else {
+      if (x == -1.0) {
+        local.x -= r1;
+        local.y += y * max_r;
+      }
+      else {
+        local.x += l + r2;
+        local.y += y * max_r;
+      }
+    }
+  }
+
+  float2 ssp = ss1.xy + local.x * local_x + local.y * local_y;
+
+  float t = local.x / l;
+  return screen_space_to_ndc(float4(ssp, mix(ss1.z, ss2.z, t), 0.0), viewport_res.xy);
+}
+
 /**
  * Returns value of gl_Position.
  *
@@ -135,8 +232,13 @@ float4 gpencil_vertex(float4 viewport_res,
                       out float out_strength,
                       /* UV coordinates. */
                       out float2 out_uv,
-                      /* Screen-Space segment endpoints. */
-                      out float4 out_sspos,
+                      /* Screen-Space segment start point (x: x, y: y, z: depth, w: radius). */
+                      out float4 out_sspos1,
+                      /* Screen-Space segment end point (x: x, y: y, z: depth, w: radius). */
+                      out float4 out_sspos2,
+                      /* Object-space accumulated length from the start of the stroke
+                        (x: point 1, y: point 2, z: point density). */
+                      out float3 out_point_length,
                       /* Stroke aspect ratio. */
                       out float2 out_aspect,
                       /* Stroke thickness (x: clamped, y: unclamped). */
@@ -175,6 +277,8 @@ float4 gpencil_vertex(float4 viewport_res,
   float4 out_ndc;
 
   if (gpencil_is_stroke_vertex()) {
+    uint placement_mode = material_flags & GP_DOTS_PLACEMENT_MODE;
+    bool is_multi_dot = placement_mode != GP_DOTS_PLACEMENT_MODE_SINGLE;
     bool is_dot = flag_test(material_flags, GP_STROKE_ALIGNMENT);
     bool is_squares = !flag_test(material_flags, GP_STROKE_DOTS);
 
@@ -182,27 +286,26 @@ float4 gpencil_vertex(float4 viewport_res,
     if (!is_dot && ma.x == -1 && ma2.x == -1) {
       is_dot = true;
       is_squares = false;
+      is_multi_dot = false;
     }
 
     /* Endpoints, we discard the vertices. */
-    if (!is_dot && ma2.x == -1) {
-      /* We set the vertex at the camera origin to generate 0 fragments. */
-      out_ndc = float4(0.0f, 0.0f, -3e36f, 0.0f);
-      return out_ndc;
+    if (!(is_dot && !is_multi_dot) && ma2.x == -1) {
+      return discard_ndc();
     }
 
     /* Avoid using a vertex attribute for quad positioning. */
     float x = float(gl_VertexID & 1) * 2.0f - 1.0f; /* [-1..1] */
     float y = float(gl_VertexID & 2) - 1.0f;        /* [-1..1] */
 
-    bool use_curr = is_dot || (x == -1.0f);
+    bool use_curr = (is_dot && !is_multi_dot) || (x == -1.0);
 
     float3 wpos_adj = transform_point(drw_modelmat(), (use_curr) ? pos.xyz : pos3.xyz);
     float3 wpos1 = transform_point(drw_modelmat(), pos1.xyz);
     float3 wpos2 = transform_point(drw_modelmat(), pos2.xyz);
 
     float3 T;
-    if (is_dot) {
+    if (is_dot && !is_multi_dot) {
       /* Shade as facing billboards. */
       T = drw_view().viewinv[0].xyz;
     }
@@ -242,7 +345,25 @@ float4 gpencil_vertex(float4 viewport_res,
     out_uv = float2(x, y) * 0.5f + 0.5f;
     out_hardness = gpencil_decode_hardness(use_curr ? hardness1 : hardness2);
 
-    if (is_dot) {
+    float radius1 = gpencil_stroke_thickness_modulate(thickness1, ndc1, viewport_res) / 2.0;
+    float radius2 = gpencil_stroke_thickness_modulate(thickness2, ndc2, viewport_res) / 2.0;
+
+    out_sspos1 = ndc_and_radius_to_screen_space(ndc1, radius1, viewport_res.xy);
+    out_sspos2 = ndc_and_radius_to_screen_space(ndc2, radius2, viewport_res.xy);
+
+    /* z is calculated later. */
+    out_point_length = float3(uv1.z, uv2.z, 1.0);
+
+    if (is_dot && is_multi_dot) {
+      out_thickness.x = clamped_thickness / out_ndc.w;
+      out_thickness.y = thickness / out_ndc.w;
+      out_aspect = float2(1.0);
+
+      out_ndc = dot_segment(float2(x, y), out_sspos1, out_sspos2, is_squares, viewport_res);
+
+      out_uv.x = (use_curr) ? uv1.z : uv2.z;
+    }
+    else if (is_dot && !is_multi_dot) {
       uint alignment_mode = material_flags & GP_STROKE_ALIGNMENT;
 
       /* For one point strokes use object alignment. */
@@ -285,9 +406,8 @@ float4 gpencil_vertex(float4 viewport_res,
       out_aspect = 1.0f / out_aspect;
 
       out_ndc.xy += (x * x_axis + y * y_axis) * viewport_res.zw * clamped_thickness;
+      out_sspos2.xy = ss1 + x_axis * 0.5;
 
-      out_sspos.xy = ss1;
-      out_sspos.zw = ss1 + x_axis * 0.5f;
       out_thickness.x = (is_squares) ? 1e18f : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18f : (thickness / out_ndc.w);
     }
@@ -306,8 +426,6 @@ float4 gpencil_vertex(float4 viewport_res,
       /* Rotate 90 degrees counter-clockwise. */
       float2 miter = float2(-miter_tan.y, miter_tan.x);
 
-      out_sspos.xy = ss1;
-      out_sspos.zw = ss2;
       out_thickness.x = clamped_thickness / out_ndc.w;
       out_thickness.y = thickness / out_ndc.w;
       out_aspect = float2(1.0f);
@@ -336,7 +454,9 @@ float4 gpencil_vertex(float4 viewport_res,
     out_thickness.y = 1e20f;
     out_hardness = 1.0f;
     out_aspect = float2(1.0f);
-    out_sspos = float4(0.0f);
+    out_sspos1 = float4(0.0);
+    out_sspos2 = float4(0.0);
+    out_point_length = float3(0.0);
 
     /* Flat normal following camera and object bounds. */
     float3 V = drw_world_incident_vector(drw_modelmat()[3].xyz);
@@ -370,7 +490,9 @@ float4 gpencil_vertex(float4 viewport_res,
                       out float4 out_color,
                       out float out_strength,
                       out float2 out_uv,
-                      out float4 out_sspos,
+                      out float4 out_sspos1,
+                      out float4 out_sspos2,
+                      out float3 out_point_length,
                       out float2 out_aspect,
                       out float2 out_thickness,
                       out float out_hardness)
@@ -383,7 +505,9 @@ float4 gpencil_vertex(float4 viewport_res,
                         out_color,
                         out_strength,
                         out_uv,
-                        out_sspos,
+                        out_sspos1,
+                        out_sspos2,
+                        out_point_length,
                         out_aspect,
                         out_thickness,
                         out_hardness);

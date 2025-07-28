@@ -25,10 +25,10 @@ void main()
   init_interface();
 
   /* TODO(fclem): Expose through a node? */
-  vec4 sspos1;
-  vec4 sspos2;
-  vec3 point_length;
-  vec2 aspect;
+  float4 sspos1;
+  float4 sspos2;
+  float3 point_length;
+  float2 aspect;
   float strength;
   float hardness;
   float2 thickness;

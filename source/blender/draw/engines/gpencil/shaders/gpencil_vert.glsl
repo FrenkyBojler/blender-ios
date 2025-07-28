@@ -128,7 +128,7 @@ void main()
 
     gp_interp_flat.mat_flag = gp_flag & GP_FILL_FLAGS;
     gp_interp_flat.mat_flag |= GP_FILL;
-    gp_interp_flat.mat_flag |= uint(ma1.x + gpMaterialOffset) << GPENCIl_MATID_SHIFT;
+    gp_interp_flat.mat_flag |= uint(ma1.x + gp_material_offset) << GPENCIl_MATID_SHIFT;
 
     gp_interp.uv = float2x2(gp_mat.fill_uv_rot_scale.xy, gp_mat.fill_uv_rot_scale.zw) * uv1.xy +
                    gp_mat._fill_uv_offset;

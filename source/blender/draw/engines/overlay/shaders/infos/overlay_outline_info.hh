@@ -73,42 +73,30 @@ GPU_SHADER_CREATE_END()
 OVERLAY_INFO_CLIP_VARIATION(overlay_outline_prepass_curves)
 
 GPU_SHADER_CREATE_INFO(overlay_outline_prepass_wire)
-    .do_static_compilation(true)
-    .additional_info("overlay_outline_prepass",
-                     "draw_object_infos",
-                     "draw_mesh",
-                     "draw_resource_handle")
-    .vertex_in(0, Type::VEC3, "pos")
-    .define("USE_GEOM")
-    .vertex_out(overlay_outline_prepass_wire_iface)
-    .geometry_layout(PrimitiveIn::LINES_ADJACENCY, PrimitiveOut::LINE_STRIP, 2)
-    .geometry_out(overlay_outline_prepass_iface)
-    .vertex_source("overlay_outline_prepass_vert.glsl")
-    .geometry_source("overlay_outline_prepass_geom.glsl");
+DO_STATIC_COMPILATION()
+ADDITIONAL_INFO(overlay_outline_prepass)
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_mesh)
+ADDITIONAL_INFO(draw_object_infos)
+ADDITIONAL_INFO(gpu_index_buffer_load)
+STORAGE_BUF_FREQ(0, read, float, pos[], GEOMETRY)
+PUSH_CONSTANT(int2, gpu_attr_0)
+VERTEX_SOURCE("overlay_outline_prepass_wire_vert.glsl")
+GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(overlay_outline_prepass_wire_no_geom)
-    .metal_backend_only(true)
-    .do_static_compilation(true)
-    .vertex_in(0, Type::VEC3, "pos")
-    .additional_info("overlay_outline_prepass",
-                     "draw_object_infos",
-                     "draw_mesh",
-                     "draw_resource_handle")
-    .vertex_source("overlay_outline_prepass_vert_no_geom.glsl");
+OVERLAY_INFO_CLIP_VARIATION(overlay_outline_prepass_wire)
 
-GPU_SHADER_CREATE_INFO(overlay_outline_prepass_wire_clipped)
-    .do_static_compilation(true)
-    .additional_info("overlay_outline_prepass_wire", "drw_clipped");
-
-GPU_SHADER_INTERFACE_INFO(overlay_outline_prepass_gpencil_flat_iface, "gp_interp_flat")
-    .flat(Type::VEC2, "aspect")
-    .flat(Type::VEC4, "sspos1")
-    .flat(Type::VEC4, "sspos2")
-    .flat(Type::VEC3, "point_length");
-GPU_SHADER_INTERFACE_INFO(overlay_outline_prepass_gpencil_noperspective_iface,
-                          "gp_interp_noperspective")
-    .no_perspective(Type::VEC2, "thickness")
-    .no_perspective(Type::FLOAT, "hardness");
+GPU_SHADER_NAMED_INTERFACE_INFO(overlay_outline_prepass_gpencil_flat_iface, gp_interp_flat)
+FLAT(float2, aspect)
+FLAT(float4, sspos1)
+FLAT(float4, sspos2)
+FLAT(float3, point_length)
+GPU_SHADER_NAMED_INTERFACE_END(gp_interp_flat)
+GPU_SHADER_NAMED_INTERFACE_INFO(overlay_outline_prepass_gpencil_noperspective_iface,
+                                gp_interp_noperspective)
+NO_PERSPECTIVE(float2, thickness)
+NO_PERSPECTIVE(float, hardness)
+GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 
 GPU_SHADER_CREATE_INFO(overlay_outline_prepass_gpencil)
 DO_STATIC_COMPILATION()
