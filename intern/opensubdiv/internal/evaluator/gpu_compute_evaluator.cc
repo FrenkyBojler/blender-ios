@@ -9,7 +9,6 @@
 #include <opensubdiv/far/error.h>
 #include <opensubdiv/far/patchDescriptor.h>
 #include <opensubdiv/far/stencilTable.h>
-#include <opensubdiv/osd/glslPatchShaderSource.h>
 
 #include <cassert>
 #include <cmath>
@@ -336,12 +335,6 @@ static GPUShader *compile_eval_stencil_shader(BufferDescriptor const &srcDesc,
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("opensubdiv_compute_eval");
   info.local_group_size(workGroupSize, 1, 1);
-  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-    info.define("OSD_PATCH_BASIS_METAL");
-  }
-  else {
-    info.define("OSD_PATCH_BASIS_GLSL");
-  }
 
   // TODO: use specialization constants for src_stride, dst_stride. Not sure we can use
   // work group size as that requires extensions. This allows us to compile less shaders and
@@ -438,12 +431,6 @@ static GPUShader *compile_eval_patches_shader(BufferDescriptor const &srcDesc,
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("opensubdiv_compute_eval");
   info.local_group_size(workGroupSize, 1, 1);
-  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-    info.define("OSD_PATCH_BASIS_METAL");
-  }
-  else {
-    info.define("OSD_PATCH_BASIS_GLSL");
-  }
 
   // TODO: use specialization constants for src_stride, dst_stride. Not sure we can use
   // work group size as that requires extensions. This allows us to compile less shaders and
