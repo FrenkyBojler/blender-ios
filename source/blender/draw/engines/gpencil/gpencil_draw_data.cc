@@ -250,11 +250,12 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
       mat_data->flag |= GP_FILL_HOLDOUT;
     }
 
-    gp_style = gpencil_viewport_material_overrides(inst, ob, color_type, gp_style, lighting_mode);
-
     /* Dots or Squares rotation. */
     mat_data->alignment_rot[0] = cosf(gp_style->alignment_rotation);
     mat_data->alignment_rot[1] = sinf(gp_style->alignment_rotation);
+    mat_data->stroke_u_scale = 500.0f / gp_style->texture_pixsize;
+
+    gp_style = gpencil_viewport_material_overrides(inst, ob, color_type, gp_style, lighting_mode);
 
     /* Stroke Style */
     if ((gp_style->stroke_style == GP_MATERIAL_STROKE_STYLE_TEXTURE) && (gp_style->sima)) {
@@ -264,7 +265,6 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
       mat_data->flag |= premul ? GP_STROKE_TEXTURE_PREMUL : GP_FLAG_NONE;
       copy_v4_v4(mat_data->stroke_color, gp_style->stroke_rgba);
       mat_data->stroke_texture_mix = 1.0f - gp_style->mix_stroke_factor;
-      mat_data->stroke_u_scale = 500.0f / gp_style->texture_pixsize;
     }
     else /* if (gp_style->stroke_style == GP_MATERIAL_STROKE_STYLE_SOLID) */ {
       pool->tex_stroke[mat_id] = nullptr;
