@@ -26,13 +26,14 @@ namespace blender::io::obj {
  *
  * For example, if a NURBS curve of order 2 has following 5 knots:
  *      [0, 0, 0, 1, 1]
- * associated to two control points, the valid control point range would be the
- * interval [1, 2] as the first point is not included in any valid span.
+ * associated to three control points. Valid control point range would be
+ * the interval [1, 2] and the knot sequence [0, 0, 1, 1] since the first
+ * knot/point does not contribute to any span/segment.
  */
-void valid_nurb_control_point_range(int8_t order,
-                                    bool cyclic,
-                                    Span<float> &knots,
-                                    IndexRange &point_range);
+Span<float> valid_nurb_control_point_range(int8_t order,
+                                           bool cyclic,
+                                           Span<float> knots,
+                                           IndexRange &point_range);
 
 /**
  * Curve object wrapper for curve objects exported by the exporter. Curve objects can contain

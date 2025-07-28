@@ -52,10 +52,10 @@ static int find_rightmost_span(const int8_t order, const Span<int> multiplicity)
   return index;
 }
 
-void valid_nurb_control_point_range(const int8_t order,
-                                    const bool cyclic,
-                                    Span<float> &knots,
-                                    IndexRange &point_range)
+Span<float> valid_nurb_control_point_range(const int8_t order,
+                                           const bool cyclic,
+                                           const Span<float> knots,
+                                           IndexRange &point_range)
 {
   /* No consideration for cyclic, export must expand the knot vector! */
   BLI_assert(knots.size() == bke::curves::nurbs::knots_num(point_range.size(), order, false));

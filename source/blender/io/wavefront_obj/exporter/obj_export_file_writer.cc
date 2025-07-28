@@ -513,7 +513,7 @@ void OBJWriter::write_nurbs_curve(FormatHandler &fh, const IOBJCurve &obj_nurbs_
     Vector<float> knot_buffer;
     Span<float> knots_u = obj_nurbs_data.get_knots_u(spline_idx, knot_buffer);
     IndexRange point_range(0, num_points_u);
-    valid_nurb_control_point_range(degree_u + 1, cyclic_u, knots_u, point_range);
+    knots_u = valid_nurb_control_point_range(degree_u + 1, cyclic_u, knots_u, point_range);
 
     /* Write coords */
     Vector<float3> dynamic_point_buffer;
