@@ -98,14 +98,14 @@
     - (17.115, 0.000, 2.127) w:1.000
 
 - Curve 'PolyCircle' dim:3D resu:12 resv:12 splines:1
-  - spline type:NURBS pts:4x1 order:2x2 cyclic:True,False endp:False,False
+  - spline type:NURBS pts:4x1 order:2x2 cyclic:True,False endp:True,False
     - (3.090, 0.000, -4.488) w:1.000
     - (4.090, 0.000, -5.488) w:1.000
     - (5.090, 0.000, -4.488) w:1.000
     - (4.090, 0.000, -3.488) w:1.000
 
 - Curve 'PolyCurve' dim:3D resu:12 resv:12 splines:1
-  - spline type:NURBS pts:3x1 order:2x2 cyclic:False,False endp:False,False
+  - spline type:NURBS pts:3x1 order:2x2 cyclic:False,False endp:True,False
     - (-1.000, 0.000, -4.488) w:1.000
     - (0.371, 0.000, -5.659) w:1.000
     - (1.000, 0.000, -4.488) w:1.000

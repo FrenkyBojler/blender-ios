@@ -149,7 +149,16 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
 static bool detect_clamped_endpoint(const int8_t degree, const Span<int> multiplicity)
 {
   const int8_t order = degree + 1;
-  return multiplicity.first() == order && multiplicity.last() == order;
+  /* Consider any combination of following patterns as clamped:
+   *
+   * O ..
+   * 1 d ..
+   */
+  const bool begin_clamped = multiplicity.first() == order ||
+                             (multiplicity.first() == 1 && multiplicity[1] == degree);
+  const bool end_clamped = multiplicity.last() == order ||
+                           (multiplicity.last() == 1 && multiplicity.last(1) == degree);
+  return begin_clamped && end_clamped;
 }
 
 static bool almost_equal_relative(const float a, const float b, const float epsilon)
@@ -161,12 +170,14 @@ static bool almost_equal_relative(const float a, const float b, const float epsi
 static bool detect_knot_mode_cyclic(const int8_t degree,
                                     const Span<int> indices,
                                     const Span<float> knots,
-                                    const Span<int> multiplicity)
+                                    const Span<int> multiplicity,
+                                    const bool is_clamped)
 {
   constexpr float epsilon = 1e-4;
   const int8_t order = degree + 1;
 
   const int repeated_points = repeating_cyclic_point_num(order, knots);
+  BLI_assert(repeated_points > 0);
   const Span<int> indices_tail = indices.take_back(repeated_points);
   for (const int64_t i : indices_tail.index_range()) {
     if (indices[i] != indices_tail[i]) {
@@ -187,17 +198,8 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
     }
   }
 
-  /* Check for clamped cyclic curve (e.g. Beziers) as no spans are repeated/shared
-   * for clamped curves. Allow any combination of patterns:
-   *
-   * O ..
-   * 1 d ..
-   */
-  const bool begin_clamped = multiplicity.first() == order ||
-                             (multiplicity.first() == 1 && multiplicity[1] == degree);
-  const bool end_clamped = multiplicity.last() == order ||
-                           (multiplicity.last() == 1 && multiplicity.last(1) == degree);
-  if (begin_clamped && end_clamped) {
+  if (is_clamped) {
+    /* Clamped curves are discontinous at the ends and have no overlapping spans. */
     return true;
   }
 
@@ -258,7 +260,7 @@ static bool detect_knot_mode_bezier_clamped(const int8_t degree,
     if (multiplicity.last() != order + remainder &&
         (multiplicity.last() != 1 || multiplicity.last(1) < degree))
     {
-        return false;
+      return false;
     }
   }
   mdegree_span = mdegree_span.drop_back(1);
@@ -282,8 +284,9 @@ static bool detect_knot_mode_uniform(const int8_t degree,
   /* Check if knot count matches multiplicity adjusted for clamped ends. For a uniform non-clamped
    * curve, all multiplicity entries equals 1 and the array size should match.
    */
-  const int clamped_offset = clamped * degree;
-  if (knots.size() != multiplicity.size() + 2 * clamped_offset) {
+  const int O1_clamps = int(multiplicity.first() == 1) + int(multiplicity.last() == 1);
+  const int clamped_offset = clamped ? 2 * degree - O1_clamps : 0;
+  if (knots.size() != multiplicity.size() + clamped_offset) {
     return false;
   }
 
@@ -316,13 +319,14 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
 {
   short knot_mode = 0;
 
+  const bool is_clamped = detect_clamped_endpoint(degree, multiplicity);
+
   const bool is_bezier = detect_knot_mode_bezier_clamped(degree, indices.size(), multiplicity);
   if (is_bezier) {
     SET_FLAG_FROM_TEST(knot_mode, true, CU_NURB_ENDPOINT);
     SET_FLAG_FROM_TEST(knot_mode, true, CU_NURB_BEZIER);
   }
   else {
-    const bool is_clamped = detect_clamped_endpoint(degree, multiplicity);
     const bool is_uniform = detect_knot_mode_uniform(degree, knots, multiplicity, is_clamped);
     SET_FLAG_FROM_TEST(knot_mode, is_clamped, CU_NURB_ENDPOINT);
     SET_FLAG_FROM_TEST(knot_mode, !is_uniform, CU_NURB_CUSTOM);
@@ -331,7 +335,8 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
   const bool check_cyclic = import_params.close_spline_loops && indices.size() > degree;
   const bool no_custom_cyclic = knot_mode & CU_NURB_CUSTOM;
   if (check_cyclic && !no_custom_cyclic) {
-    const bool is_cyclic = detect_knot_mode_cyclic(degree, indices, knots, multiplicity);
+    const bool is_cyclic = detect_knot_mode_cyclic(
+        degree, indices, knots, multiplicity, is_clamped);
     SET_FLAG_FROM_TEST(knot_mode, is_cyclic, CU_NURB_CYCLIC);
   }
 

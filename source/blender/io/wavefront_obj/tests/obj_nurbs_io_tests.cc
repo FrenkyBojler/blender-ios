@@ -187,6 +187,10 @@ const std::array<float3, 13> position_array{float3{1.0f, -1.0f, 2.0f},
                                             float3{1.0f / 2.0f, -7.0f, 3.0f / 9.0f}};
 const Span<float3> position_data = Span<float3>(position_array);
 
+/* -------------------------------------------------------------------- */
+/** \name Knot vector: KnotMode::NURBS_KNOT_MODE_NORMAL
+ * \{ */
+
 TEST_F(OBJCurvesTest, nurbs_io_uniform_polyline)
 {
   const int8_t order = 2;
@@ -194,9 +198,11 @@ TEST_F(OBJCurvesTest, nurbs_io_uniform_polyline)
   const bool cyclic = false;
   const Span<float3> positions = position_data.slice(0, 5);
 
+  const KnotsMode expected_mode = KnotsMode::NURBS_KNOT_MODE_ENDPOINT;
+
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
-  run_nurbs_test(positions, order, mode, cyclic, src, result);
+  run_nurbs_test(positions, order, mode, cyclic, src, result, positions, &expected_mode);
 
   /* Validate uniform, don't generally do it as it only tests
    * `bke::curves::nurbs::calculate_knots`.  */
@@ -260,9 +266,11 @@ TEST_F(OBJCurvesTest, nurbs_io_uniform_cyclic_polyline)
   const KnotsMode mode = KnotsMode::NURBS_KNOT_MODE_NORMAL;
   const Span<float3> positions = position_data.slice(0, 5);
 
+  const KnotsMode expected_mode = KnotsMode::NURBS_KNOT_MODE_ENDPOINT;
+
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
-  run_nurbs_test(positions, order, mode, true, src, result);
+  run_nurbs_test(positions, order, mode, true, src, result, positions, &expected_mode);
 }
 
 TEST_F(OBJCurvesTest, nurbs_io_uniform_cyclic_deg4)
@@ -276,24 +284,18 @@ TEST_F(OBJCurvesTest, nurbs_io_uniform_cyclic_deg4)
   run_nurbs_test(positions, order, mode, true, src, result);
 }
 
-/* TODO: Support clamped cyclic, knot computation add a non-clamped value.
-
-TEST_F(OBJCurvesTest, nurbs_io_uniform_cyclic_clamped_polyline)
+TEST_F(OBJCurvesTest, nurbs_io_uniform_cyclic_clamped_deg4)
 {
-  const int8_t order = 2;
+  const int8_t order = 5;
   const KnotsMode mode = KnotsMode::NURBS_KNOT_MODE_ENDPOINT;
-  std::array<float3, 5> positions{float3{0.0f, -1.0f, 0.0f},
-                                  float3{1.0f, -1.0f, 2.0f},
-                                  float3{1.0f, 1.0f, 4.0f},
-                                  float3{-1.0f, 1.0f, 2.0f},
-                                  float3{-1.0f, -1.0f, 0.0f}};
+  const Span<float3> positions = position_data.slice(0, 12);
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
-  run_nurbs_test(positions, true, order, mode, src, result);
+  run_nurbs_test(positions, order, mode, true, src, result);
 }
 
-*/
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Knot vector: KnotMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER
@@ -462,7 +464,7 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_10)
 TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_9)
 {
   const int8_t order = 5;
-  const KnotsMode mode = KnotsMode::NURBS_KNOT_MODE_ENDPOINT;
+  const KnotsMode mode = KnotsMode::NURBS_KNOT_MODE_ENDPOINT_BEZIER;
   const Span<float3> positions = position_data.slice(0, 9);
 
   Vector<float3> expected(positions);
