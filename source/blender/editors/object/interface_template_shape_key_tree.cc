@@ -235,6 +235,10 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
+    if (shape_key_.index == 0) {
+      /* Prevent basis shape key from dragging. */
+      return nullptr;
+    }
     return std::make_unique<ShapeKeyDragController>(
         static_cast<ShapeKeyTreeView &>(get_tree_view()), shape_key_);
   }
