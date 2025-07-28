@@ -198,6 +198,16 @@ void evaluate_curve(const IndexRange curve_range,
 
 }  // namespace bezier
 
+void copy_curve_data(const IndexRange curve_range, const IndexRange evaluated_range)
+{
+  assert(curve_range.size == evaluated_range.size);
+  for (int i = 0; i < curve_range.size; i++) {
+    float3 position = gpu_attr_load_float3(points_pos_buf, int2(3, 0), curve_range.start + i);
+    float radius = points_rad_buf[curve_range.start + i];
+    points_pos_rad_buf[evaluated_range.start + i] = float4(position, radius);
+  }
+}
+
 void main()
 {
   int curve_id = int(gl_GlobalInvocationID.x);
@@ -222,6 +232,9 @@ void main()
       bezier::evaluate_curve(curve_range, evaluated_range, curve_id);
       break;
     case CURVE_TYPE_POLY:
+      /* Simple copy. */
+      copy_curve_data(curve_range, evaluated_range);
+      break;
     case CURVE_TYPE_NURBS:
       /* Not implemented. */
       break;
