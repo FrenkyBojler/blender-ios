@@ -551,6 +551,9 @@ bool is_similarity_transform(const MatBase<T, 3, 3> &matrix, const T &epsilon = 
 
 void transform_normals(const float3x3 &transform, MutableSpan<float3> normals)
 {
+  if (math::is_equal(transform, float3x3::identity(), 1e-6f)) {
+    return;
+  }
   const float3x3 normal_transform = math::transpose(math::invert(transform));
   if (is_similarity_transform(normal_transform)) {
     const float3x3 normalized_transform = math::normalize(normal_transform);
@@ -571,26 +574,25 @@ void transform_normals(const float3x3 &transform, MutableSpan<float3> normals)
 
 void transform_normals(Span<float3> src, const float3x3 &transform, MutableSpan<float3> dst)
 {
-  const float3x3 normal_transform = math::transpose(math::invert(transform));
-  if (math::is_equal(normal_transform, float3x3::identity(), 1e-6f)) {
+  if (math::is_equal(transform, float3x3::identity(), 1e-6f)) {
     dst.copy_from(src);
+    return;
+  }
+  const float3x3 normal_transform = math::transpose(math::invert(transform));
+  if (is_similarity_transform(normal_transform)) {
+    const float3x3 normalized_transform = math::normalize(normal_transform);
+    threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        dst[i] = normalized_transform * src[i];
+      }
+    });
   }
   else {
-    if (is_similarity_transform(normal_transform)) {
-      const float3x3 normalized_transform = math::normalize(normal_transform);
-      threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
-          dst[i] = normalized_transform * src[i];
-        }
-      });
-    }
-    else {
-      threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
-          dst[i] = math::normalize(normal_transform * src[i]);
-        }
-      });
-    }
+    threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        dst[i] = math::normalize(normal_transform * src[i]);
+      }
+    });
   }
 }
 
