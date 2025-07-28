@@ -1,0 +1,17 @@
+==== Curves: 1
+- Curve 'rhino_curve_elipse_bezier_deg2_cyclic' dim:3D resu:12 resv:12 splines:1
+  - spline type:NURBS pts:8x1 order:3x3 cyclic:True,False endp:True,False
+    - (47.298, 0.000, -17.953) w:1.000
+    - (50.065, 0.000, -23.408) w:0.707
+    - (32.161, 0.000, -32.490) w:1.000
+      ...
+    - (8.722, 0.000, -30.661) w:0.707
+    - (26.626, 0.000, -21.579) w:1.000
+    - (44.530, 0.000, -12.497) w:0.707
+
+==== Objects: 1
+- Obj 'rhino_curve_elipse_bezier_deg2_cyclic' CURVE data:'rhino_curve_elipse_bezier_deg2_cyclic'
+  - pos 0.000, 0.000, 0.000
+  - rot 1.571, 0.000, 0.000 (XYZ)
+  - scl 1.000, 1.000, 1.000
+
