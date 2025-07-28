@@ -597,6 +597,7 @@ enum {
 
 typedef struct SequencerCompositorModifierData {
   StripModifierData modifier;
+  struct bNodeTree *node_group;
 } SequencerCompositorModifierData;
 
 /** \} */

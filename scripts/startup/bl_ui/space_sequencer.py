@@ -2986,6 +2986,8 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                             col.prop(mod, "key")
                             col.prop(mod, "offset")
                             col.prop(mod, "gamma")
+                    elif mod.type == 'COMPOSITOR':
+                        box.template_ID(mod, "node_group", new="node.new_compositing_node_group")
 
                     box.separator(type='LINE')
 

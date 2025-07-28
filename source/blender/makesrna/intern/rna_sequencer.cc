@@ -1665,6 +1665,15 @@ static void rna_Strip_SoundEqualizer_Curve_clear(SoundEqualizerModifierData *sem
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
 }
 
+static bool rna_CompositorModifier_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  const bNodeTree *node_tree = value.data_as<bNodeTree>();
+  if (node_tree->type != NTREE_COMPOSIT) {
+    return false;
+  }
+  return true;
+}
+
 #else
 
 static void rna_def_strip_element(BlenderRNA *brna)
@@ -3957,6 +3966,13 @@ static void rna_def_compositor_modifier(BlenderRNA *brna)
   StructRNA *srna = RNA_def_struct(brna, "SequencerCompositorModifierData", "StripModifier");
   RNA_def_struct_sdna(srna, "SequencerCompositorModifierData");
   RNA_def_struct_ui_text(srna, "SequencerCompositorModifierData", "Compositor Modifier");
+
+  PropertyRNA *prop = RNA_def_property(srna, "node_group", PROP_POINTER, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Node Group", "Node group that controls what this modifier does");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_CompositorModifier_node_group_poll");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 }
 
 static void rna_def_modifiers(BlenderRNA *brna)

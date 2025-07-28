@@ -1176,12 +1176,18 @@ static void tonemapmodifier_apply(const RenderData * /*render_data*/,
 class CompositorContext : public compositor::Context {
  private:
   const RenderData &render_data_;
+  const SequencerCompositorModifierData *modifier_data_;
 
   ImBuf *image_buffer_;
 
  public:
-  CompositorContext(const RenderData &render_data, ImBuf *image_buffer)
-      : compositor::Context(), render_data_(render_data), image_buffer_(image_buffer)
+  CompositorContext(const RenderData &render_data,
+                    const SequencerCompositorModifierData *modifier_data,
+                    ImBuf *image_buffer)
+      : compositor::Context(),
+        render_data_(render_data),
+        modifier_data_(modifier_data),
+        image_buffer_(image_buffer)
   {
   }
 
@@ -1192,7 +1198,7 @@ class CompositorContext : public compositor::Context {
 
   const bNodeTree &get_node_tree() const override
   {
-    return *render_data_.scene->compositing_node_group;
+    return *modifier_data_->node_group;
   }
 
   compositor::OutputTypes needed_outputs() const override
@@ -1248,7 +1254,7 @@ static void compositor_modifier_init_data(StripModifierData * /*strip_modifier_d
 
 static void compositor_modifier_apply(const RenderData *render_data,
                                       const StripScreenQuad & /*quad*/,
-                                      StripModifierData * /*strip_modifier_data*/,
+                                      StripModifierData *strip_modifier_data,
                                       ImBuf *image_buffer,
                                       ImBuf * /*mask*/)
 {
@@ -1262,7 +1268,13 @@ static void compositor_modifier_apply(const RenderData *render_data,
     IMB_float_from_byte_ex(float_buffer, image_buffer, &buffer_region);
   }
 
-  CompositorContext context(*render_data, float_buffer);
+  const SequencerCompositorModifierData *modifier_data =
+      reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
+  if (!modifier_data->node_group) {
+    return;
+  }
+
+  CompositorContext context(*render_data, modifier_data, float_buffer);
   compositor::Evaluator evaluator(context);
   evaluator.evaluate();
 
