@@ -465,12 +465,6 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
                                         const float thickness,
                                         ccl_private float *r_cos_theta_3)
 {
-  /* For films below 30nm, the wave-optic-based Airy summation approach no longer applies,
-   * so blend towards the case without coating. */
-  if (thickness < 30.0f) {
-    eta2 = mix(eta1, eta2, smoothstep(0.0f, 30.0f, thickness));
-  }
-
   float cos_theta_2;
   float2 phi12;
 
