@@ -53,8 +53,25 @@ static btTransform float4x4_to_btTransform(const float4x4 &matrix)
   return result;
 }
 
-struct SingleRigidBody {
+struct MeshCollisionShapeData {
+  Vector<btVector3> positions;
+  Vector<int3> indices;
+  std::unique_ptr<btTriangleIndexVertexArray> collision_mesh;
+  std::unique_ptr<btBvhTriangleMeshShape> bvh_mesh;
+};
+
+struct CollisionShapeData {
   std::shared_ptr<btCollisionShape> shape;
+  std::shared_ptr<MeshCollisionShapeData> collision_mesh;
+
+  operator bool() const
+  {
+    return this->shape != nullptr;
+  }
+};
+
+struct SingleRigidBody {
+  CollisionShapeData collision_shape;
   std::unique_ptr<btDefaultMotionState> motion_state;
   std::unique_ptr<btRigidBody> body;
   float4x4 prev_kinematic_transform;
@@ -165,6 +182,7 @@ enum class RigidBodyCollisionShape {
   Box,
   Sphere,
   ConvexHull,
+  Mesh,
 };
 
 static std::optional<RigidBodyMode> parse_ridig_body_mode(const int mode)
@@ -190,6 +208,8 @@ static std::optional<RigidBodyCollisionShape> parse_ridig_body_collision_shape(c
       return RigidBodyCollisionShape::Sphere;
     case 2:
       return RigidBodyCollisionShape::ConvexHull;
+    case 3:
+      return RigidBodyCollisionShape::Mesh;
     default:
       return std::nullopt;
   }
@@ -228,20 +248,18 @@ static std::optional<Bounds<float3>> gather_full_bounding_box(const GeometrySet 
   return final_bounds;
 }
 
-static std::shared_ptr<btCollisionShape> create_box_shape(const GeometrySet &geometry,
-                                                          const float margin)
+static CollisionShapeData create_box_shape(const GeometrySet &geometry, const float margin)
 {
   const std::optional<Bounds<float3>> bounds = gather_full_bounding_box(geometry);
   if (!bounds) {
     return {};
   }
   const float3 size = bounds->size();
-  return std::make_shared<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f +
-                                      btVector3(margin, margin, margin));
+  return {std::make_shared<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f +
+                                       btVector3(margin, margin, margin))};
 }
 
-static std::shared_ptr<btCollisionShape> create_sphere_shape(const GeometrySet &geometry,
-                                                             const float margin)
+static CollisionShapeData create_sphere_shape(const GeometrySet &geometry, const float margin)
 {
   const std::optional<Bounds<float3>> bounds = gather_full_bounding_box(geometry);
   if (!bounds) {
@@ -249,11 +267,10 @@ static std::shared_ptr<btCollisionShape> create_sphere_shape(const GeometrySet &
   }
   const float3 size = bounds->size();
   const float max_dimension = std::max({size.x, size.y, size.z});
-  return std::make_shared<btSphereShape>(max_dimension / 2.0f + margin);
+  return {std::make_shared<btSphereShape>(max_dimension / 2.0f + margin)};
 }
 
-static std::shared_ptr<btConvexHullShape> create_convex_hull_shape(const GeometrySet &geometry,
-                                                                   const float margin)
+static CollisionShapeData create_convex_hull_shape(const GeometrySet &geometry, const float margin)
 {
   // TODO: Take instance into account.
   Vector<float3> positions;
@@ -273,11 +290,52 @@ static std::shared_ptr<btConvexHullShape> create_convex_hull_shape(const Geometr
   auto shape = std::make_shared<btConvexHullShape>(&hull_computer.vertices[0].getX(),
                                                    hull_computer.vertices.size());
   shape->setMargin(margin);
-  return shape;
+  return {shape};
 }
 
-static std::shared_ptr<btCollisionShape> create_collision_shape(
-    const RigidBodyCollisionShape shape, const GeometrySet &geometry, const float margin)
+static CollisionShapeData create_mesh_shape(const GeometrySet &geometry, const float margin)
+{
+  const Mesh *mesh = geometry.get_mesh();
+  if (!mesh) {
+    return {};
+  }
+  if (mesh->faces_num == 0) {
+    return {};
+  }
+
+  auto mesh_shape_data = std::make_shared<MeshCollisionShapeData>();
+  for (const float3 &pos : mesh->vert_positions()) {
+    mesh_shape_data->positions.append(btVector3(pos.x, pos.y, pos.z));
+  }
+  const Span<int> corner_verts = mesh->corner_verts();
+  const Span<int3> tris = mesh->corner_tris();
+  for (const int tri_i : tris.index_range()) {
+    const int3 &tri = tris[tri_i];
+    mesh_shape_data->indices.append(
+        {corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]});
+  }
+
+  mesh_shape_data->collision_mesh = std::make_unique<btTriangleIndexVertexArray>(
+      mesh_shape_data->indices.size(),
+      reinterpret_cast<int *>(mesh_shape_data->indices.data()),
+      sizeof(int3),
+      mesh_shape_data->positions.size(),
+      reinterpret_cast<btScalar *>(mesh_shape_data->positions.data()),
+      sizeof(float3));
+
+  mesh_shape_data->bvh_mesh = std::make_unique<btBvhTriangleMeshShape>(
+      mesh_shape_data->collision_mesh.get(), true, true);
+
+  auto shape = std::make_shared<btScaledBvhTriangleMeshShape>(mesh_shape_data->bvh_mesh.get(),
+                                                              btVector3(1.0f, 1.0f, 1.0f));
+  shape->setMargin(margin);
+  return {shape, mesh_shape_data};
+}
+
+static CollisionShapeData create_collision_shape(const RigidBodyCollisionShape shape,
+                                                 const GeometrySet &geometry,
+                                                 const float margin,
+                                                 const RigidBodyMode mode)
 {
   switch (shape) {
     case RigidBodyCollisionShape::Box:
@@ -286,6 +344,15 @@ static std::shared_ptr<btCollisionShape> create_collision_shape(
       return create_sphere_shape(geometry, margin);
     case RigidBodyCollisionShape::ConvexHull:
       return create_convex_hull_shape(geometry, margin);
+    case RigidBodyCollisionShape::Mesh:
+      if (mode == RigidBodyMode::Dynamic) {
+        /* Can't use the mesh shape for dynamic meshes currently. */
+        return create_convex_hull_shape(geometry, margin);
+      }
+      else {
+        /* TODO: This does not appear to be working yet. */
+        return create_mesh_shape(geometry, margin);
+      }
   }
   return {};
 }
@@ -454,7 +521,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   const Span<int> handles = instances->reference_handles();
 
   Array<GeometrySet> reference_geometry_sets(references_num);
-  Map<CollisionShapeKey, std::shared_ptr<btCollisionShape>> collision_shapes;
+  Map<CollisionShapeKey, CollisionShapeData> collision_shapes;
   for (const int i : references.index_range()) {
     const bke::InstanceReference &reference = references[i];
     GeometrySet reference_geometry;
@@ -494,12 +561,12 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
 
     const float margin = std::max(margins[instance_i], 0.0f);
 
-    const std::shared_ptr<btCollisionShape> &collision_shape = collision_shapes.lookup_or_add_cb(
-        {handle, *shape, margin, scale}, [&]() -> std::shared_ptr<btCollisionShape> {
-          if (std::shared_ptr<btCollisionShape> new_shape = create_collision_shape(
-                  *shape, reference_geometry_sets[handle], margin))
+    const CollisionShapeData &collision_shape = collision_shapes.lookup_or_add_cb(
+        {handle, *shape, margin, scale}, [&]() -> CollisionShapeData {
+          if (CollisionShapeData new_shape = create_collision_shape(
+                  *shape, reference_geometry_sets[handle], margin, *mode))
           {
-            new_shape->setLocalScaling(btVector3(scale.x, scale.y, scale.z));
+            new_shape.shape->setLocalScaling(btVector3(scale.x, scale.y, scale.z));
             return new_shape;
           }
           return {};
@@ -531,7 +598,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       }
     }
     btVector3 inertia(0, 0, 0);
-    collision_shape->calculateLocalInertia(mass, inertia);
+    collision_shape.shape->calculateLocalInertia(mass, inertia);
 
     const float3 initial_velocity = initial_velocities[instance_i];
     const bool persist_velocity = persist_velocities[instance_i];
@@ -543,8 +610,8 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       /* Update collision shape.*/
       if (ELEM(mode, RigidBodyMode::Dynamic, RigidBodyMode::Animated)) {
         params.state.dynamics_world->removeRigidBody(body.body.get());
-        body.shape = collision_shape;
-        body.body->setCollisionShape(body.shape.get());
+        body.collision_shape = collision_shape;
+        body.body->setCollisionShape(body.collision_shape.shape.get());
         params.state.dynamics_world->addRigidBody(body.body.get());
       }
 
@@ -566,10 +633,10 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
       }
     }
     else {
-      body.shape = collision_shape;
+      body.collision_shape = collision_shape;
       body.motion_state = std::make_unique<btDefaultMotionState>(bt_transform);
       btRigidBody::btRigidBodyConstructionInfo body_info(
-          mass, &*body.motion_state, &*body.shape, inertia);
+          mass, &*body.motion_state, &*body.collision_shape.shape, inertia);
       body.body = std::make_unique<btRigidBody>(body_info);
       params.state.dynamics_world->addRigidBody(body.body.get());
 
