@@ -1085,13 +1085,13 @@ std::optional<blender::Bounds<float3>> BKE_volume_grid_bounds(openvdb::GridBase:
     using InnerT = typename RootT::ChildNodeType;
     using LeafT = typename InnerT::LeafNodeType;
 
-    const openvdb::Coord real_diagonal = coordbbox.dim();
+    const openvdb::Coord leaf_diagonal = coordbbox.dim();
     const float3 largest_voxel_block(LeafT::DIM * 2);
 
     constexpr float voxels_block_impact_threshold = 0.125f;
-    if ((largest_voxel_block.x / real_diagonal.x() < voxels_block_impact_threshold) ||
-        (largest_voxel_block.y / real_diagonal.y() < voxels_block_impact_threshold) ||
-        (largest_voxel_block.z / real_diagonal.z() < voxels_block_impact_threshold))
+    if ((largest_voxel_block.x / leaf_diagonal.x() < voxels_block_impact_threshold) ||
+        (largest_voxel_block.y / leaf_diagonal.y() < voxels_block_impact_threshold) ||
+        (largest_voxel_block.z / leaf_diagonal.z() < voxels_block_impact_threshold))
     {
       return;
     }
