@@ -188,84 +188,10 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   UNUSED_VARS(node);
 }
 
-template<typename T> struct VariantConverter {
-  static std::optional<T> convert(const SocketValueVariant &variant)
-  {
-    if (!variant.is_single()) {
-      return std::nullopt;
-    }
-
-    std::optional<eNodeSocketDatatype> socket_type = bke::geo_nodes_base_cpp_type_to_socket_type(
-        CPPType::get<T>());
-    if (!socket_type) {
-      return std::nullopt;
-    }
-    if (!variant.valid_for_socket(*socket_type)) {
-      return std::nullopt;
-    }
-    return variant.get<T>();
-  }
-};
-
-template<typename U> struct VariantConverter<Field<U>> {
-  static std::optional<Field<U>> convert(const SocketValueVariant &variant)
-  {
-    if (!variant.is_context_dependent_field()) {
-      std::optional<U> single_value = VariantConverter<U>::convert(variant);
-      if (!single_value) {
-        return std::nullopt;
-      }
-      return Field<U>{std::make_shared<fn::FieldConstant>(CPPType::get<U>(), &(*single_value))};
-    }
-
-    std::optional<eNodeSocketDatatype> socket_type = bke::geo_nodes_base_cpp_type_to_socket_type(
-        CPPType::get<U>());
-    if (!variant.valid_for_socket(*socket_type)) {
-      return std::nullopt;
-    }
-    return variant.get<Field<U>>();
-  }
-};
-
 template<typename T>
-static std::optional<T> get_from_bundle(const BundlePtr &bundle, const StringRef name)
+static bool try_get_from_bundle(const BundlePtr &bundle, const StringRef name, T &result)
 {
-  if (!bundle) {
-    return std::nullopt;
-  }
-
-  BLI_assert(!name.is_empty());
-  const std::optional<Bundle::Item> value = bundle->lookup(SocketInterfaceKey(name));
-  if (!value) {
-    return std::nullopt;
-  }
-
-  if constexpr (GeoNodeExecParams::stored_as_SocketValueVariant_v<T>) {
-    // TODO This does not support implicit conversions yet!
-    // The type of the variant (bundle item) has to match the parameter T exactly.
-    if (value->type->geometry_nodes_cpp_type == &CPPType::get<SocketValueVariant>()) {
-      const SocketValueVariant &variant = *static_cast<const SocketValueVariant *>(value->value);
-      return VariantConverter<T>::convert(variant);
-    }
-    return std::nullopt;
-  }
-  else {
-    if (value->type->geometry_nodes_cpp_type == &CPPType::get<GeometrySet>()) {
-      if constexpr (std::is_same_v<T, GeometrySet>) {
-        return *static_cast<const GeometrySet *>(value->value);
-      }
-    }
-    else if (value->type->geometry_nodes_cpp_type == &CPPType::get<T>()) {
-      return *static_cast<const T *>(value->value);
-    }
-  }
-  return std::nullopt;
-}
-
-template<typename T>
-static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &result)
-{
-  if (std::optional<T> value = get_from_bundle<T>(bundle, name)) {
+  if (std::optional<T> value = bundle->lookup<T>(name)) {
     result = *value;
     return true;
   }
@@ -364,11 +290,11 @@ static ClosurePtr create_closure_for_lazy_function(const LazyFunctionForClosure 
   std::shared_ptr<ClosureSignature> closure_signature = std::make_shared<ClosureSignature>();
   for (const ClosureInputItem &item : inputs) {
     const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.type);
-    closure_signature->inputs.append({SocketInterfaceKey(item.name), stype});
+    closure_signature->inputs.append({item.name, stype});
   }
   for (const ClosureOutputItem &item : outputs) {
     const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.type);
-    closure_signature->outputs.append({SocketInterfaceKey(item.name), stype});
+    closure_signature->outputs.append({item.name, stype});
   }
 
   std::unique_ptr<ResourceScope> closure_scope = std::make_unique<ResourceScope>();
@@ -1155,35 +1081,36 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle,
 {
   Behavior behavior(scope, node_identifier);
 
-  get_from_bundle(bundle, "Gravity", behavior.gravity);
+  try_get_from_bundle(bundle, "Gravity", behavior.gravity);
 
-  get_from_bundle(bundle, "Force", behavior.force);
-  get_from_bundle(bundle, "Torque", behavior.torque);
+  try_get_from_bundle(bundle, "Force", behavior.force);
+  try_get_from_bundle(bundle, "Torque", behavior.torque);
 
-  if (auto material = get_from_bundle<BundlePtr>(bundle, "Material")) {
-    get_from_bundle(*material, "Mass", behavior.material.mass);
-    get_from_bundle(*material, "Inertia", behavior.material.inertia);
-    get_from_bundle(*material, "Density", behavior.material.density);
+  if (auto material = bundle->lookup<BundlePtr>("Material")) {
+    try_get_from_bundle(*material, "Mass", behavior.material.mass);
+    try_get_from_bundle(*material, "Inertia", behavior.material.inertia);
+    try_get_from_bundle(*material, "Density", behavior.material.density);
   }
 
-  if (auto curve_constraints = get_from_bundle<BundlePtr>(bundle, "Curve Constraints")) {
-    get_from_bundle(
+  if (auto curve_constraints = bundle->lookup<BundlePtr>("Curve Constraints")) {
+    try_get_from_bundle(
         *curve_constraints, "Stretch Compliance", behavior.curve_constraints.stretch_compliance);
-    get_from_bundle(
+    try_get_from_bundle(
         *curve_constraints, "Stretch Damping", behavior.curve_constraints.stretch_damping);
-    get_from_bundle(
+    try_get_from_bundle(
         *curve_constraints, "Bend Compliance", behavior.curve_constraints.bend_compliance);
-    get_from_bundle(*curve_constraints, "Bend Damping", behavior.curve_constraints.bend_damping);
+    try_get_from_bundle(
+        *curve_constraints, "Bend Damping", behavior.curve_constraints.bend_damping);
 
-    get_from_bundle(*curve_constraints, "Update", behavior.curve_constraints.update);
+    try_get_from_bundle(*curve_constraints, "Update", behavior.curve_constraints.update);
   }
 
-  if (auto root_constraints = get_from_bundle<BundlePtr>(bundle, "Root Constraints")) {
-    get_from_bundle(
+  if (auto root_constraints = bundle->lookup<BundlePtr>("Root Constraints")) {
+    try_get_from_bundle(
         *root_constraints, "Bend Compliance", behavior.root_constraints.bend_compliance);
-    get_from_bundle(*root_constraints, "Bend Damping", behavior.root_constraints.bend_damping);
+    try_get_from_bundle(*root_constraints, "Bend Damping", behavior.root_constraints.bend_damping);
 
-    get_from_bundle(*root_constraints, "Update", behavior.root_constraints.update);
+    try_get_from_bundle(*root_constraints, "Update", behavior.root_constraints.update);
   }
 
   return behavior;
@@ -1496,15 +1423,11 @@ static void update_constraints(BundlePtr &bundle,
     std::destroy_at(&out_bend_constraints);
 
     ClosureEagerEvalParams params;
-    params.inputs.append({SocketInterfaceKey("Geometry"), stype_geometry, &input_geometry});
-    params.inputs.append(
-        {SocketInterfaceKey("Stretch Constraints"), stype_geometry, &stretch_constraints});
-    params.inputs.append(
-        {SocketInterfaceKey("Bend Constraints"), stype_geometry, &bend_constraints});
-    params.outputs.append(
-        {SocketInterfaceKey("Stretch Constraints"), stype_geometry, &out_stretch_constraints});
-    params.outputs.append(
-        {SocketInterfaceKey("Bend Constraints"), stype_geometry, &out_bend_constraints});
+    params.inputs.append({"Geometry", stype_geometry, &input_geometry});
+    params.inputs.append({"Stretch Constraints", stype_geometry, &stretch_constraints});
+    params.inputs.append({"Bend Constraints", stype_geometry, &bend_constraints});
+    params.outputs.append({"Stretch Constraints", stype_geometry, &out_stretch_constraints});
+    params.outputs.append({"Bend Constraints", stype_geometry, &out_bend_constraints});
     params.user_data = user_data;
     evaluate_closure_eagerly(*behavior.curve_constraints.update, params);
 
@@ -1525,15 +1448,11 @@ static void update_constraints(BundlePtr &bundle,
     std::destroy_at(&out_rotation_constraints);
 
     ClosureEagerEvalParams params;
-    params.inputs.append({SocketInterfaceKey("Geometry"), stype_geometry, &input_geometry});
-    params.inputs.append(
-        {SocketInterfaceKey("Position Constraints"), stype_geometry, &position_constraints});
-    params.inputs.append(
-        {SocketInterfaceKey("Rotation Constraints"), stype_geometry, &rotation_constraints});
-    params.outputs.append(
-        {SocketInterfaceKey("Position Constraints"), stype_geometry, &out_position_constraints});
-    params.outputs.append(
-        {SocketInterfaceKey("Rotation Constraints"), stype_geometry, &out_rotation_constraints});
+    params.inputs.append({"Geometry", stype_geometry, &input_geometry});
+    params.inputs.append({"Position Constraints", stype_geometry, &position_constraints});
+    params.inputs.append({"Rotation Constraints", stype_geometry, &rotation_constraints});
+    params.outputs.append({"Position Constraints", stype_geometry, &out_position_constraints});
+    params.outputs.append({"Rotation Constraints", stype_geometry, &out_rotation_constraints});
     params.user_data = user_data;
     evaluate_closure_eagerly(*behavior.root_constraints.update, params);
 

@@ -19,8 +19,8 @@ using geometry::hair_constraints::ConstraintType;
 /** \name Constraint Bundle Access
  * \{ */
 
-const SocketInterfaceKey &constraint_type_to_socket_key(ConstraintType type);
-ConstraintType socket_key_to_constraint_type(const SocketInterfaceKey &key);
+StringRef constraint_type_to_socket_key(ConstraintType type);
+ConstraintType socket_key_to_constraint_type(const StringRef key);
 
 struct ConstraintBundleItems {
   bke::GeometrySet stretch_constraints;

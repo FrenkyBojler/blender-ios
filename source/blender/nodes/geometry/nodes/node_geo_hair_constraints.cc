@@ -697,13 +697,13 @@ using geometry::hair_solver::ConstraintTypeInfo;
 /** \name Constraint Bundle Access
  * \{ */
 
-static const SocketInterfaceKey stretch_shear_key = SocketInterfaceKey("StretchShear");
-static const SocketInterfaceKey bend_twist_key = SocketInterfaceKey("BendTwist");
-static const SocketInterfaceKey position_goal_key = SocketInterfaceKey("PositionGoal");
-static const SocketInterfaceKey rotation_goal_key = SocketInterfaceKey("RotationGoal");
-static const SocketInterfaceKey contact_key = SocketInterfaceKey("Contact");
+static const std::string stretch_shear_key = "StretchShear";
+static const std::string bend_twist_key = "BendTwist";
+static const std::string position_goal_key = "PositionGoal";
+static const std::string rotation_goal_key = "RotationGoal";
+static const std::string contact_key = "Contact";
 
-const SocketInterfaceKey &constraint_type_to_socket_key(const ConstraintType type)
+StringRef constraint_type_to_socket_key(const ConstraintType type)
 {
   switch (type) {
     case ConstraintType::StretchShear:
@@ -721,21 +721,21 @@ const SocketInterfaceKey &constraint_type_to_socket_key(const ConstraintType typ
   return stretch_shear_key;
 }
 
-ConstraintType socket_key_to_constraint_type(const SocketInterfaceKey &key)
+ConstraintType socket_key_to_constraint_type(const StringRef key)
 {
-  if (key.matches(stretch_shear_key)) {
+  if (key == stretch_shear_key) {
     return ConstraintType::StretchShear;
   }
-  if (key.matches(bend_twist_key)) {
+  if (key == bend_twist_key) {
     return ConstraintType::BendTwist;
   }
-  if (key.matches(position_goal_key)) {
+  if (key == position_goal_key) {
     return ConstraintType::PositionGoal;
   }
-  if (key.matches(rotation_goal_key)) {
+  if (key == rotation_goal_key) {
     return ConstraintType::RotationGoal;
   }
-  if (key.matches(contact_key)) {
+  if (key == contact_key) {
     return ConstraintType::Contact;
   }
 
@@ -754,9 +754,8 @@ void set_constraints(BundlePtr &bundle_ptr,
       SOCK_GEOMETRY);
   BLI_assert(geometry_type != nullptr);
 
-  const SocketInterfaceKey &key = constraint_type_to_socket_key(type);
-  bundle.remove(key);
-  bundle.add(key, *geometry_type, &geometry);
+  const StringRef key = constraint_type_to_socket_key(type);
+  bundle.add_override(key, *geometry_type, &geometry);
 }
 
 bke::GeometrySet lookup_constraints(const Bundle &bundle, const ConstraintType type)
@@ -765,7 +764,7 @@ bke::GeometrySet lookup_constraints(const Bundle &bundle, const ConstraintType t
       SOCK_GEOMETRY);
   BLI_assert(geometry_type != nullptr);
 
-  const SocketInterfaceKey &key = constraint_type_to_socket_key(type);
+  const StringRef key = constraint_type_to_socket_key(type);
   const std::optional<Bundle::Item> value = bundle.lookup(key);
   if (!value) {
     return {};
