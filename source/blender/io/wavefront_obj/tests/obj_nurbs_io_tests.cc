@@ -413,14 +413,14 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_13)
 
   Vector<float3> expected(positions);
   expected.append(positions[0]);
-  const bool expect_not_cyclic = false;
+  const bool expect_cyclic = false;
   const KnotsMode expect_mode = KnotsMode::NURBS_KNOT_MODE_CUSTOM;
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
 
   run_nurbs_test(
-      positions, order, mode, true, src, result, expected, &expect_mode, &expect_not_cyclic);
+      positions, order, mode, true, src, result, expected, &expect_mode, &expect_cyclic);
 }
 
 TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_11)
@@ -431,14 +431,14 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_11)
 
   Vector<float3> expected(positions);
   expected.append(positions[0]);
-  const bool expect_not_cyclic = false;
+  const bool expect_cyclic = false;
   const KnotsMode expect_mode = KnotsMode::NURBS_KNOT_MODE_CUSTOM;
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
 
   run_nurbs_test(
-      positions, order, mode, true, src, result, expected, &expect_mode, &expect_not_cyclic);
+      positions, order, mode, true, src, result, expected, &expect_mode, &expect_cyclic);
 }
 
 TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_10)
@@ -449,14 +449,14 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_10)
 
   Vector<float3> expected(positions);
   expected.append(positions[0]);
-  const bool expect_not_cyclic = false;
+  const bool expect_cyclic = false;
   const KnotsMode expect_mode = KnotsMode::NURBS_KNOT_MODE_CUSTOM;
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
 
   run_nurbs_test(
-      positions, order, mode, true, src, result, expected, &expect_mode, &expect_not_cyclic);
+      positions, order, mode, true, src, result, expected, &expect_mode, &expect_cyclic);
 }
 
 TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_9)
@@ -467,14 +467,14 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_clamped_cyclic_deg4_discontinous_9)
 
   Vector<float3> expected(positions);
   expected.append(positions[0]);
-  const bool expect_not_cyclic = false;
+  const bool expect_cyclic = false;
   const KnotsMode expect_mode = KnotsMode::NURBS_KNOT_MODE_CUSTOM;
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
 
   run_nurbs_test(
-      positions, order, mode, true, src, result, expected, &expect_mode, &expect_not_cyclic);
+      positions, order, mode, true, src, result, expected, &expect_mode, &expect_cyclic);
 }
 
 /** \} */
@@ -511,13 +511,13 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_cyclic_deg4_looped_discontinous_13)
   expected.last(1) = positions.first();
   expected.last() = positions[1];
 
-  const bool expect_not_cyclic = false;
+  const bool expect_cyclic = false;
   const KnotsMode expect_mode = KnotsMode::NURBS_KNOT_MODE_CUSTOM;
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
   run_nurbs_test(
-      positions, order, mode, true, src, result, expected, &expect_mode, &expect_not_cyclic);
+      positions, order, mode, true, src, result, expected, &expect_mode, &expect_cyclic);
 }
 
 TEST_F(OBJCurvesTest, nurbs_io_bezier_cyclic_deg4_looped_discontinous_11)
@@ -531,13 +531,13 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_cyclic_deg4_looped_discontinous_11)
   expected.last(1) = positions.first();
   expected.last() = positions[1];
 
-  const bool expect_not_cyclic = false;
+  const bool expect_cyclic = false;
   const KnotsMode expect_mode = KnotsMode::NURBS_KNOT_MODE_CUSTOM;
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
   run_nurbs_test(
-      positions, order, mode, true, src, result, expected, &expect_mode, &expect_not_cyclic);
+      positions, order, mode, true, src, result, expected, &expect_mode, &expect_cyclic);
 }
 
 TEST_F(OBJCurvesTest, nurbs_io_bezier_cyclic_deg4_looped_discontinous_10)
@@ -551,13 +551,13 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_cyclic_deg4_looped_discontinous_10)
   expected.last(1) = positions.first();
   expected.last() = positions[1];
 
-  const bool expect_not_cyclic = false;
+  const bool expect_cyclic = false;
   const KnotsMode expect_mode = KnotsMode::NURBS_KNOT_MODE_CUSTOM;
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
   run_nurbs_test(
-      positions, order, mode, true, src, result, expected, &expect_mode, &expect_not_cyclic);
+      positions, order, mode, true, src, result, expected, &expect_mode, &expect_cyclic);
 }
 
 TEST_F(OBJCurvesTest, nurbs_io_bezier_cyclic_deg4_looped_discontinous_9)
@@ -571,13 +571,13 @@ TEST_F(OBJCurvesTest, nurbs_io_bezier_cyclic_deg4_looped_discontinous_9)
   expected.last(1) = positions.first();
   expected.last() = positions[1];
 
-  const bool expect_not_cyclic = false;
+  const bool expect_cyclic = false;
   const KnotsMode expect_mode = KnotsMode::NURBS_KNOT_MODE_CUSTOM;
 
   bke::CurvesGeometry src;
   const bke::CurvesGeometry *result;
   run_nurbs_test(
-      positions, order, mode, true, src, result, expected, &expect_mode, &expect_not_cyclic);
+      positions, order, mode, true, src, result, expected, &expect_mode, &expect_cyclic);
 }
 
 TEST_F(OBJCurvesTest, nurbs_io_bezier_cyclic_deg4_looped_8)
