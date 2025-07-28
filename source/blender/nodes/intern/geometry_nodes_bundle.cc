@@ -104,7 +104,6 @@ Bundle &Bundle::operator=(Bundle &&other) noexcept
 void Bundle::add_new(const StringRef key, const BundleItemValue &value)
 {
   BLI_assert(is_valid_key(key));
-  BLI_assert(key.find('/') == StringRef::not_found);
   if (const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&value.value))
   {
     const bke::bNodeSocketType &type = *socket_value->type;

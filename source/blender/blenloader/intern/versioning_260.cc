@@ -1913,7 +1913,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
          * crazy anyway and think it's fair enough to break compatibility in that cases.
          */
 
-        STRNCPY(ima->colorspace_settings.name, "Raw");
+        STRNCPY_UTF8(ima->colorspace_settings.name, "Raw");
       }
     }
   }
@@ -1988,7 +1988,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
                 fmd->domain->flame_vorticity = 0.5f;
                 fmd->domain->flame_ignition = 1.25f;
                 fmd->domain->flame_max_temp = 1.75f;
-                fmd->domain->adapt_threshold = 0.02f;
+                fmd->domain->adapt_threshold = 0.002f;
                 fmd->domain->adapt_margin = 4;
                 fmd->domain->flame_smoke_color[0] = 0.7f;
                 fmd->domain->flame_smoke_color[1] = 0.7f;

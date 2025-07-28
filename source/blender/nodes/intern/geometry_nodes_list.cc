@@ -124,7 +124,7 @@ void List::delete_self()
   MEM_delete(this);
 }
 
-GVArray List::as_gvarray() const
+GVArray List::varray() const
 {
   if (const auto *array_data = std::get_if<ArrayData>(&data_)) {
     return GVArray::from_span(GSpan(cpp_type_, array_data->data, size_));

@@ -57,9 +57,9 @@ class List : public ImplicitSharingMixin {
 
   void delete_self() override;
 
-  GVArray as_gvarray() const;
-
-  template<typename T> VArray<T> as_varray() const;
+  /** Access the list as virtual array. */
+  GVArray varray() const;
+  template<typename T> VArray<T> varray() const;
 };
 
 inline const List::DataVariant &List::data() const
@@ -77,9 +77,9 @@ inline int64_t List::size() const
   return size_;
 }
 
-template<typename T> inline VArray<T> List::as_varray() const
+template<typename T> inline VArray<T> List::varray() const
 {
-  return this->as_gvarray().typed<T>();
+  return this->varray().typed<T>();
 }
 
 }  // namespace blender::nodes

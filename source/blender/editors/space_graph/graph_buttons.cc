@@ -208,7 +208,7 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
       acf->name(ale, name);
     }
     else {
-      STRNCPY(name, IFACE_("<invalid>"));
+      STRNCPY_UTF8(name, IFACE_("<invalid>"));
       icon = ICON_ERROR;
     }
 
@@ -1015,7 +1015,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
     /* value of driver */
     row = &col->row(true);
     row->label(IFACE_("Driver Value:"), ICON_NONE);
-    SNPRINTF(valBuf, "%.3f", driver->curval);
+    SNPRINTF_UTF8(valBuf, "%.3f", driver->curval);
     row->label(valBuf, ICON_NONE);
   }
 
@@ -1110,8 +1110,6 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
       10 * UI_UNIT_X,
       UI_UNIT_Y,
       nullptr,
-      0.0,
-      0.0,
       TIP_("Add a Driver Variable to keep track of an input used by the driver"));
   UI_but_func_set(but, driver_add_var_cb, driver, nullptr);
 
@@ -1239,13 +1237,13 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
                 DTAR_TRANSCHAN_ROTW) &&
            dvar->targets[0].rotation_mode != DTAR_ROTMODE_QUATERNION))
       {
-        SNPRINTF(valBuf,
-                 "%.3f (%4.1f" BLI_STR_UTF8_DEGREE_SIGN ")",
-                 dvar->curval,
-                 RAD2DEGF(dvar->curval));
+        SNPRINTF_UTF8(valBuf,
+                      "%.3f (%4.1f" BLI_STR_UTF8_DEGREE_SIGN ")",
+                      dvar->curval,
+                      RAD2DEGF(dvar->curval));
       }
       else {
-        SNPRINTF(valBuf, "%.3f", dvar->curval);
+        SNPRINTF_UTF8(valBuf, "%.3f", dvar->curval);
       }
 
       row->label(valBuf, ICON_NONE);
@@ -1272,8 +1270,6 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
       10 * UI_UNIT_X,
       UI_UNIT_Y,
       nullptr,
-      0.0,
-      0.0,
       TIP_("Force updates of dependencies - Only use this if drivers are not updating correctly"));
   UI_but_func_set(but, driver_update_flags_cb, fcu, nullptr);
 }
@@ -1390,7 +1386,7 @@ static void graph_fmodifier_panel_id(void *fcm_link, char *r_name)
   FModifier *fcm = (FModifier *)fcm_link;
   eFModifier_Types type = eFModifier_Types(fcm->type);
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
-  BLI_snprintf(r_name, BKE_ST_MAXNAME, "%s_PT_%s", GRAPH_FMODIFIER_PANEL_PREFIX, fmi->name);
+  BLI_snprintf_utf8(r_name, BKE_ST_MAXNAME, "%s_PT_%s", GRAPH_FMODIFIER_PANEL_PREFIX, fmi->name);
 }
 
 static void do_graph_region_modifier_buttons(bContext *C, void * /*arg*/, int event)

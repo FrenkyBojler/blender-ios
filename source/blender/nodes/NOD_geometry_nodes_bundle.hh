@@ -15,12 +15,18 @@
 namespace blender::nodes {
 
 struct BundleItemSocketValue {
+  /** The type of data referenced. It uses #bNodeSocketType::geometry_nodes_cpp_type. */
   const bke::bNodeSocketType *type;
+  /** Non-owning pointer to the value. The memory is owned by the Bundle directly. */
   void *value;
 };
 
+/**
+ * Other classes can derive from this to be able to store custom internal data in a bundle.
+ */
 class BundleItemInternalValueMixin : public ImplicitSharingMixin {
  public:
+  /** UI name for the type. */
   virtual StringRefNull type_name() const = 0;
 };
 
@@ -97,6 +103,7 @@ class Bundle : public ImplicitSharingMixin {
 
   void delete_self() override;
 
+  /** Create the combined path by inserting '/' between each element. */
   static std::string combine_path(const Span<StringRef> path);
 };
 
