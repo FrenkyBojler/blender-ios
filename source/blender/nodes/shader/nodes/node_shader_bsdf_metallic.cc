@@ -135,6 +135,8 @@ NODE_SHADER_MATERIALX_BEGIN
   NodeItem anisotropy = get_input_value("Anisotropy", NodeItem::Type::Color3);
   NodeItem normal = get_input_link("Normal", NodeItem::Type::Vector3);
   NodeItem tangent = get_input_link("Tangent", NodeItem::Type::Vector3);
+  NodeItem thin_film_thickness = get_input_value("Thin Film Thickness", NodeItem::Type::Float);
+  NodeItem thin_film_ior = get_input_value("Thin Film IOR", NodeItem::Type::Float);
 
   NodeItem ior_out, extinction_out;
   if (node_->custom2 == SHD_PHYSICAL_CONDUCTOR) {
@@ -155,7 +157,9 @@ NODE_SHADER_MATERIALX_BEGIN
                       {"tangent", tangent},
                       {"ior", ior_out},
                       {"extinction", extinction_out},
-                      {"roughness", roughness}});
+                      {"roughness", roughness},
+                      {"thinfilm_thickness", thin_film_thickness},
+                      {"thinfilm_ior", thin_film_ior}});
 }
 #endif
 NODE_SHADER_MATERIALX_END
