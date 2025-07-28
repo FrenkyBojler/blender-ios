@@ -1692,7 +1692,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 43)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 44)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_COMPOSIT) {
         continue;
@@ -1705,8 +1705,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           continue;
         }
         NodeDisplaceData *data = static_cast<NodeDisplaceData *>(node->storage);
-        data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-        data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+        data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
+        data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
       }
       FOREACH_NODETREE_END;
     }

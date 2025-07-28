@@ -66,8 +66,8 @@ static void cmp_node_init_displace(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeDisplaceData *data = MEM_callocN<NodeDisplaceData>(__func__);
   data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
-  data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-  data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+  data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
+  data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
   node->storage = data;
 }
 
@@ -324,8 +324,8 @@ class DisplaceOperation : public NodeOperation {
   ExtensionMode get_extension_mode_x()
   {
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
-      case CMP_NODE_EXTENSION_MODE_ZERO:
-        return ExtensionMode::Zero;
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
         return ExtensionMode::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
@@ -333,14 +333,14 @@ class DisplaceOperation : public NodeOperation {
     }
 
     BLI_assert_unreachable();
-    return ExtensionMode::Zero;
+    return ExtensionMode::Clip;
   }
 
   ExtensionMode get_extension_mode_y()
   {
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
-      case CMP_NODE_EXTENSION_MODE_ZERO:
-        return ExtensionMode::Zero;
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
         return ExtensionMode::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
@@ -348,7 +348,7 @@ class DisplaceOperation : public NodeOperation {
     }
 
     BLI_assert_unreachable();
-    return ExtensionMode::Zero;
+    return ExtensionMode::Clip;
   }
 
   bool is_identity()
