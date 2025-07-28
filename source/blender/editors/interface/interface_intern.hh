@@ -351,7 +351,6 @@ struct uiBut {
   virtual ~uiBut() = default;
 };
 
-/** Derived struct for #ButType::TextBox */
 struct TextboxStatus {
 
   static constexpr int minimum_lines = 3;
@@ -365,6 +364,8 @@ struct TextboxStatus {
     return std::max(visible_height / UI_UNIT_Y, minimum_lines);
   }
 };
+
+/** Derived struct for #ButType::TextBox */
 struct uiButTextBox : public uiBut {
   TextboxStatus *status;
   int visible_lines();

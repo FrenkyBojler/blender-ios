@@ -1994,7 +1994,7 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox
     lines.append(text);
   }
   /** Add empty trailing line to put cursor in a new line. */
-  if (lines.last().endswith("\n")) {
+  if (text.endswith("\n")) {
     lines.append(blender::StringRef(text.end(), text.end()));
   }
   textbox->status->total_lines = lines.size();
@@ -2009,17 +2009,16 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   BLI_assert(but->type == ButType::TextBox);
 
   uiButTextBox *textbox_but = static_cast<uiButTextBox *>(but);
-  int visible_lines = textbox_but->visible_lines();
+  const int visible_lines = textbox_but->visible_lines();
 
-  int drawstr_left_len = UI_MAX_DRAW_STR;
   const char *drawstr = but->drawstr.c_str();
-  blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(textbox_but,
-                                                                        BLI_rcti_size_x(rect));
+  const blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
+      textbox_but, BLI_rcti_size_x(rect));
   textbox_but->status->total_lines = lines.size();
 
-  int line_height = BLI_rcti_size_y(rect) / visible_lines;
+  const int line_height = BLI_rcti_size_y(rect) / visible_lines;
 
-  int scroll = textbox_but->line_scroll();
+  const int scroll = textbox_but->line_scroll();
   const char *raw_begin = lines[0].begin();
 
   int line_cursor = 0;
@@ -2059,44 +2058,29 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     align = UI_STYLE_TEXT_CENTER;
   }
 
-  /* Special case: when we're entering text for multiple buttons,
-   * don't draw the text for any of the multi-editing buttons */
-  if (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI)) {
-    uiBut *but_edit = ui_but_drag_multi_edit_get(but);
-    if (but_edit) {
-      drawstr = but_edit->editstr;
-      align = UI_STYLE_TEXT_LEFT;
-    }
-  }
-  else {
-    if (but->editstr) {
-      /* The maximum length isn't used in this case,
-       * we rely on string being null terminated. */
-      drawstr_left_len = INT_MAX;
-
+  if (but->editstr) {
 #ifdef WITH_INPUT_IME
-      /* FIXME: IME is modifying `const char *drawstr`! */
-      ime_data = ui_but_ime_data_get(but);
+    /* FIXME: IME is modifying `const char *drawstr`! */
+    ime_data = ui_but_ime_data_get(but);
 
-      if (ime_data && ime_data->composite.size()) {
-        /* insert composite string into cursor pos */
-        char tmp_drawstr[UI_MAX_DRAW_STR];
-        STRNCPY(tmp_drawstr, drawstr);
-        BLI_snprintf(tmp_drawstr,
-                     sizeof(tmp_drawstr),
-                     "%.*s%s%s",
-                     but->pos,
-                     but->editstr,
-                     ime_data->composite.c_str(),
-                     but->editstr + but->pos);
-        but->drawstr = tmp_drawstr;
-        drawstr = but->drawstr.c_str();
-      }
-      else
+    if (ime_data && ime_data->composite.size()) {
+      /* insert composite string into cursor pos */
+      char tmp_drawstr[UI_MAX_DRAW_STR];
+      STRNCPY(tmp_drawstr, drawstr);
+      BLI_snprintf(tmp_drawstr,
+                   sizeof(tmp_drawstr),
+                   "%.*s%s%s",
+                   but->pos,
+                   but->editstr,
+                   ime_data->composite.c_str(),
+                   but->editstr + but->pos);
+      but->drawstr = tmp_drawstr;
+      drawstr = but->drawstr.c_str();
+    }
+    else
 #endif
-      {
-        drawstr = but->editstr;
-      }
+    {
+      drawstr = but->editstr;
     }
   }
 

@@ -3403,7 +3403,7 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
       }
     }
   }
-  else if (ELEM(but->type, ButType::Text, ButType::TextBox)) {
+  else if (but->type == ButType::Text) {
     /* string */
     if (!but->poin) {
       str = "";
