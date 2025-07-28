@@ -228,6 +228,30 @@ static std::optional<Bounds<float3>> gather_full_bounding_box(const GeometrySet 
   return final_bounds;
 }
 
+static std::shared_ptr<btCollisionShape> create_box_shape(const GeometrySet &geometry,
+                                                          const float margin)
+{
+  const std::optional<Bounds<float3>> bounds = gather_full_bounding_box(geometry);
+  if (!bounds) {
+    return {};
+  }
+  const float3 size = bounds->size();
+  return std::make_shared<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f +
+                                      btVector3(margin, margin, margin));
+}
+
+static std::shared_ptr<btCollisionShape> create_sphere_shape(const GeometrySet &geometry,
+                                                             const float margin)
+{
+  const std::optional<Bounds<float3>> bounds = gather_full_bounding_box(geometry);
+  if (!bounds) {
+    return {};
+  }
+  const float3 size = bounds->size();
+  const float max_dimension = std::max({size.x, size.y, size.z});
+  return std::make_shared<btSphereShape>(max_dimension / 2.0f + margin);
+}
+
 static std::shared_ptr<btConvexHullShape> create_convex_hull_shape(const GeometrySet &geometry,
                                                                    const float margin)
 {
@@ -256,24 +280,12 @@ static std::shared_ptr<btCollisionShape> create_collision_shape(
     const RigidBodyCollisionShape shape, const GeometrySet &geometry, const float margin)
 {
   switch (shape) {
-    case RigidBodyCollisionShape::Box: {
-      if (const std::optional<Bounds<float3>> bounds = gather_full_bounding_box(geometry)) {
-        const float3 size = bounds->size();
-        return std::make_shared<btBoxShape>(btVector3(size.x, size.y, size.z) / 2.0f);
-      }
-      return {};
-    }
-    case RigidBodyCollisionShape::Sphere: {
-      if (const std::optional<Bounds<float3>> bounds = gather_full_bounding_box(geometry)) {
-        const float3 size = bounds->size();
-        const float max_dimension = std::max({size.x, size.y, size.z});
-        return std::make_shared<btSphereShape>(max_dimension / 2.0f);
-      }
-      return {};
-    }
-    case RigidBodyCollisionShape::ConvexHull: {
+    case RigidBodyCollisionShape::Box:
+      return create_box_shape(geometry, margin);
+    case RigidBodyCollisionShape::Sphere:
+      return create_sphere_shape(geometry, margin);
+    case RigidBodyCollisionShape::ConvexHull:
       return create_convex_hull_shape(geometry, margin);
-    }
   }
   return {};
 }
