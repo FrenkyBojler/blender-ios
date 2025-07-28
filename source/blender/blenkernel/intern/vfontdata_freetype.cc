@@ -122,12 +122,21 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);
 
-  che->width = BLF_character_to_curves(
-      font_id, character, &che->nurbsbase, vfont->data->metrics.scale, use_fallback);
+  if (BLF_character_to_curves(font_id,
+                              character,
+                              &che->nurbsbase,
+                              vfont->data->metrics.scale,
+                              use_fallback,
+                              &che->width))
+  {
+    BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
+    BLF_unload_id(font_id);
+    return che;
+  }
 
-  BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
+  MEM_freeN(che);
   BLF_unload_id(font_id);
-  return che;
+  return nullptr;
 }
 
 VChar *BKE_vfontdata_char_copy(const VChar *vchar_src)
