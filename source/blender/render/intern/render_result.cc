@@ -315,7 +315,7 @@ RenderResult *render_result_new(Render *re,
     rl = MEM_callocN<RenderLayer>("new render layer");
     BLI_addtail(&rr->layers, rl);
 
-    STRNCPY(rl->name, view_layer->name);
+    STRNCPY_UTF8(rl->name, view_layer->name);
     rl->layflag = view_layer->layflag;
 
     rl->passflag = view_layer->passflag;
@@ -462,7 +462,7 @@ void RE_pass_set_buffer_data(RenderPass *pass, float *data)
   IMB_assign_float_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
 }
 
-GPUTexture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
+blender::gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
 {
   ImBuf *ibuf = rpass->ibuf;
 
@@ -481,9 +481,11 @@ GPUTexture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
     return nullptr;
   }
 
-  const eGPUTextureFormat format = (rpass->channels == 1) ? GPU_R32F :
-                                   (rpass->channels == 3) ? GPU_RGB32F :
-                                                            GPU_RGBA32F;
+  const blender::gpu::TextureFormat format = (rpass->channels == 1) ?
+                                                 blender::gpu::TextureFormat::SFLOAT_32 :
+                                             (rpass->channels == 3) ?
+                                                 blender::gpu::TextureFormat::SFLOAT_32_32_32 :
+                                                 blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
 
   /* TODO(sergey): Use utility to assign the texture. */
   ibuf->gpu.texture = GPU_texture_create_2d("RenderBuffer.gpu_texture",
