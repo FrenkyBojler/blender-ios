@@ -260,7 +260,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
                                                      fresnel->thin_film.ior,
                                                      fresnel->n,
                                                      fresnel->k,
-                                                     (Spectrum *)nullptr,
+                                                     nullptr,
                                                      cos_theta_i,
                                                      fresnel->thin_film.thickness,
                                                      r_cos_theta_t);

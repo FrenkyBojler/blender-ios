@@ -446,11 +446,12 @@ ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
 /* Template meta-programming helper to be able to have an if-constexpr expression
  * to switch between conductive (for Spectrum) or dielectric (for float) Fresnel.
  * Essentially std::is_same<T, Spectrum>, but also works on GPU. */
-template<class T> struct fresnel_info {
-  static constexpr bool conductive = false;
+template<class T> struct fresnel_info;
+template<> struct fresnel_info<float> {
+  ccl_static_constexpr bool conductive = false;
 };
 template<> struct fresnel_info<Spectrum> {
-  static constexpr bool conductive = true;
+  ccl_static_constexpr bool conductive = true;
 };
 
 template<typename SpectrumOrFloat>
