@@ -1051,6 +1051,7 @@ if(TEST_SRC_DIR_EXISTS)
     grease_pencil
     import
     instance
+    list
     repeat_zone
     mesh_primitives
     mesh
@@ -1295,6 +1296,12 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/sequencer_input_colorspace.py
     --
     --testdir "${TEST_SRC_DIR}/sequence_editing"
+  )
+
+  add_blender_test(
+    sequencer_load_meta_stack
+    ${TEST_SRC_DIR}/sequence_editing/vse_load_meta_stack.blend
+    --python ${TEST_PYTHON_DIR}/sequencer_load_meta_stack.py
   )
 endif()
 
