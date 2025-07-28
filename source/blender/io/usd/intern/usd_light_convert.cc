@@ -150,7 +150,33 @@ void world_material_to_dome_light(const USDExportParams &params,
   WorldToDomeLight res;
   world_material_to_dome_light(scene, res);
 
-  if (!(res.color_found || res.image)) {
+  if (scene->world->use_nodes && scene->world->nodetree) {
+    /* Find the world output. */
+    bNode *output = nullptr;
+    const bNodeTree *ntree = scene->world->nodetree;
+    ntree->ensure_topology_cache();
+    const blender::Span<const bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeOutputWorld");
+    for (const bNode *node : bsdf_nodes) {
+      if (node->flag & NODE_DO_OUTPUT) {
+        output = const_cast<bNode *>(node);
+        break;
+      }
+    }
+
+    if (!output) {
+      /* No output, no valid network to convert. */
+      return;
+    }
+
+    bke::node_chain_iterator(scene->world->nodetree, output, node_search, &res, true);
+  }
+  else {
+    res.world_intensity = 1.0f;
+    copy_v3_v3(res.world_color, &scene->world->horr);
+    res.background_found = !is_zero_v3(res.world_color);
+  }
+
+  if (!(res.background_found || res.env_tex_found)) {
     /* No nodes to convert */
     return;
   }
