@@ -25,7 +25,7 @@ enum class Interpolation : uint8_t {
 
 /* Possible extension modes when computing samples in the domain's exterior. */
 enum class ExtensionMode : uint8_t {
-  /* Areas outside of the image are clipped. */
+  /* Areas outside of the image are filled with zero. */
   Clip,
   /* Areas outside of the image are filled with the closest boundary pixel in the image. */
   Extend,
