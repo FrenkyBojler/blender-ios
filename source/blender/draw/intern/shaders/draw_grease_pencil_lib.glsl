@@ -194,6 +194,48 @@ float4 dot_segment(float2 xy, float4 ss1, float4 ss2, bool is_squares, float4 vi
   return screen_space_to_ndc(float4(ssp, mix(ss1.z, ss2.z, t), 0.0), viewport_res.xy);
 }
 
+float2 get_rot(float4 viewport_res,
+               gpMaterialFlag material_flags,
+               float2 alignment_rot,
+               int4 ma,
+               int4 ma2,
+               float2 line,
+               float2 line_adj,
+               float3 wpos1,
+               float uv_rot,
+               float2 ss1)
+{
+  uint alignment_mode = material_flags & GP_STROKE_ALIGNMENT;
+
+  /* For one point strokes use object alignment. */
+  if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && ma.x == -1 && ma2.x == -1) {
+    alignment_mode = GP_STROKE_ALIGNMENT_OBJECT;
+  }
+
+  float2 x_axis;
+  if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE) {
+    x_axis = (ma2.x == -1) ? line_adj : line;
+  }
+  else if (alignment_mode == GP_STROKE_ALIGNMENT_FIXED) {
+    /* Default for no-material drawing. */
+    x_axis = float2(1.0f, 0.0f);
+  }
+  else { /* GP_STROKE_ALIGNMENT_OBJECT */
+    float4 ndc_x = drw_point_world_to_homogenous(wpos1 + drw_modelmat()[0].xyz);
+    float2 ss_x = gpencil_project_to_screenspace(ndc_x, viewport_res);
+    x_axis = safe_normalize(ss_x - ss1);
+  }
+
+  float rot_sin = sqrt(max(0.0f, 1.0f - uv_rot * uv_rot)) * sign(uv_rot);
+  float rot_cos = abs(uv_rot);
+  /* TODO(@fclem): Optimize these 2 matrix multiply into one by only having one rotation angle
+   * and using a cosine approximation. */
+  x_axis = float2x2(rot_cos, -rot_sin, rot_sin, rot_cos) * x_axis;
+  x_axis = float2x2(alignment_rot.x, -alignment_rot.y, alignment_rot.y, alignment_rot.x) * x_axis;
+
+  return x_axis;
+}
+
 /**
  * Returns value of gl_Position.
  *
@@ -239,8 +281,9 @@ float4 gpencil_vertex(float4 viewport_res,
                       /* Object-space accumulated length from the start of the stroke
                         (x: point 1, y: point 2, z: point density). */
                       out float3 out_point_length,
-                      /* Stroke aspect ratio. */
-                      out float2 out_aspect,
+                      /* Stroke aspect ratio and rotation direction
+                        (xy: aspect ration, zw: rotation direction). */
+                      out float4 out_aspect,
                       /* Stroke thickness (x: clamped, y: unclamped). */
                       out float2 out_thickness,
                       /* Stroke hardness. */
@@ -357,53 +400,52 @@ float4 gpencil_vertex(float4 viewport_res,
     if (is_dot && is_multi_dot) {
       out_thickness.x = clamped_thickness / out_ndc.w;
       out_thickness.y = thickness / out_ndc.w;
-      out_aspect = float2(1.0);
+
+      /* Rotation: Encoded as Cos + Sin sign. */
+      float uv_rot = gpencil_decode_uvrot(uvrot1);
+      float2 x_axis = get_rot(viewport_res,
+                              material_flags,
+                              alignment_rot,
+                              ma,
+                              ma2,
+                              line,
+                              line_adj,
+                              wpos1,
+                              uv_rot,
+                              ss1);
+      out_aspect.xy = gpencil_decode_aspect(aspect1);
+      /* Invert for vertex shader. */
+      out_aspect.xy = 1.0f / out_aspect.xy;
+      out_aspect.zw = x_axis;
 
       out_ndc = dot_segment(float2(x, y), out_sspos1, out_sspos2, is_squares, viewport_res);
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
     else if (is_dot && !is_multi_dot) {
-      uint alignment_mode = material_flags & GP_STROKE_ALIGNMENT;
-
-      /* For one point strokes use object alignment. */
-      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && ma.x == -1 && ma2.x == -1) {
-        alignment_mode = GP_STROKE_ALIGNMENT_OBJECT;
-      }
-
-      float2 x_axis;
-      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE) {
-        x_axis = (ma2.x == -1) ? line_adj : line;
-      }
-      else if (alignment_mode == GP_STROKE_ALIGNMENT_FIXED) {
-        /* Default for no-material drawing. */
-        x_axis = float2(1.0f, 0.0f);
-      }
-      else { /* GP_STROKE_ALIGNMENT_OBJECT */
-        float4 ndc_x = drw_point_world_to_homogenous(wpos1 + drw_modelmat()[0].xyz);
-        float2 ss_x = gpencil_project_to_screenspace(ndc_x, viewport_res);
-        x_axis = safe_normalize(ss_x - ss1);
-      }
-
       /* Rotation: Encoded as Cos + Sin sign. */
       float uv_rot = gpencil_decode_uvrot(uvrot1);
-      float rot_sin = sqrt(max(0.0f, 1.0f - uv_rot * uv_rot)) * sign(uv_rot);
-      float rot_cos = abs(uv_rot);
-      /* TODO(@fclem): Optimize these 2 matrix multiply into one by only having one rotation angle
-       * and using a cosine approximation. */
-      x_axis = float2x2(rot_cos, -rot_sin, rot_sin, rot_cos) * x_axis;
-      x_axis = float2x2(alignment_rot.x, -alignment_rot.y, alignment_rot.y, alignment_rot.x) *
-               x_axis;
+      float2 x_axis = get_rot(viewport_res,
+                              material_flags,
+                              alignment_rot,
+                              ma,
+                              ma2,
+                              line,
+                              line_adj,
+                              wpos1,
+                              uv_rot,
+                              ss1);
       /* Rotate 90 degrees counter-clockwise. */
       float2 y_axis = float2(-x_axis.y, x_axis.x);
 
-      out_aspect = gpencil_decode_aspect(aspect1);
+      out_aspect.xy = gpencil_decode_aspect(aspect1);
+      out_aspect.zw = x_axis;
 
       x *= out_aspect.x;
       y *= out_aspect.y;
 
       /* Invert for vertex shader. */
-      out_aspect = 1.0f / out_aspect;
+      out_aspect.xy = 1.0f / out_aspect.xy;
 
       out_ndc.xy += (x * x_axis + y * y_axis) * viewport_res.zw * clamped_thickness;
       out_sspos2.xy = ss1 + x_axis * 0.5;
@@ -428,7 +470,7 @@ float4 gpencil_vertex(float4 viewport_res,
 
       out_thickness.x = clamped_thickness / out_ndc.w;
       out_thickness.y = thickness / out_ndc.w;
-      out_aspect = float2(1.0f);
+      out_aspect = float4(1.0f, 1.0f, 1.0f, 0.0f);
 
       float2 screen_ofs = miter * y;
 
@@ -453,7 +495,7 @@ float4 gpencil_vertex(float4 viewport_res,
     out_thickness.x = 1e18f;
     out_thickness.y = 1e20f;
     out_hardness = 1.0f;
-    out_aspect = float2(1.0f);
+    out_aspect = float4(1.0f, 1.0f, 1.0f, 0.0f);
     out_sspos1 = float4(0.0);
     out_sspos2 = float4(0.0);
     out_point_length = float3(0.0);
@@ -493,7 +535,7 @@ float4 gpencil_vertex(float4 viewport_res,
                       out float4 out_sspos1,
                       out float4 out_sspos2,
                       out float3 out_point_length,
-                      out float2 out_aspect,
+                      out float4 out_aspect,
                       out float2 out_thickness,
                       out float out_hardness)
 {

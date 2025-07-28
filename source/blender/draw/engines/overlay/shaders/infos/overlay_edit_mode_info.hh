@@ -767,7 +767,7 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_mesh_conservative,
                                  overlay_depth_mesh_conservative_base)
 
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_depth_only_gpencil_flat_iface, gp_interp_flat)
-FLAT(float2, aspect)
+FLAT(float4, aspect)
 FLAT(float4, sspos1)
 FLAT(float4, sspos2)
 FLAT(float3, point_length)

@@ -22,7 +22,7 @@ void main()
 {
   if (gpencil_stroke_round_cap_mask(gp_interp_flat.sspos1.xy,
                                     gp_interp_flat.sspos2.xy,
-                                    gp_interp_flat.aspect,
+                                    gp_interp_flat.aspect.xy,
                                     gp_interp_noperspective.thickness.x,
                                     gp_interp_noperspective.hardness) < 0.001f)
   {

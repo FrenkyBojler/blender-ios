@@ -28,7 +28,7 @@ void main()
   float4 sspos1;
   float4 sspos2;
   float3 point_length;
-  float2 aspect;
+  float4 aspect;
   float strength;
   float hardness;
   float2 thickness;
