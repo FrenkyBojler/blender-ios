@@ -448,7 +448,7 @@ static GPUShader *compile_eval_patches_shader(BufferDescriptor const &srcDesc,
    * does for Metal. Additionally, for Metal OpenSubdiv defines OSD_PATCH_BASIS_METAL as 1, so do
    * the same here to avoid possible warning about value being re-defined. */
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-    info.define("OSD_PATCH_BASIS_METAL");
+    info.define("OSD_PATCH_BASIS_METAL", "1");
   }
   else {
     info.define("OSD_PATCH_BASIS_GLSL");
