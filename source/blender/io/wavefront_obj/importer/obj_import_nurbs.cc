@@ -187,10 +187,10 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
     }
   }
 
-  /* Check for clamped cyclic curve (e.g. Beziers), spans for clamped
-   * curves are not shared. Allow any variation of patterns:
+  /* Check for clamped cyclic curve (e.g. Beziers) as no spans are repeated/shared
+   * for clamped curves. Allow any combination of patterns:
    *
-   * O d ..
+   * O ..
    * 1 d ..
    */
   const bool begin_clamped = multiplicity.first() == order ||
@@ -198,18 +198,16 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
   const bool end_clamped = multiplicity.last() == order ||
                            (multiplicity.last() == 1 && multiplicity.last(1) == degree);
   if (begin_clamped && end_clamped) {
-    /* Beziers are discontinous at the ends and have no overlapping spans. */
     return true;
   }
 
   /* Ensure it matches on both of the knot spans adjacent to the start/end of the parameter range.
    */
   const Span<float> knots_tail = knots.take_back(2 * degree + 1);
-  for (const int64_t i : knots_tail.index_range().drop_back(2)) {
+  for (const int64_t i : knots_tail.index_range().drop_back(1)) {
     const float head_span = knots[i + 1] - knots[i];
     const float tail_span = knots_tail[i + 1] - knots_tail[i];
-    if (!almost_equal_relative(head_span, tail_span, epsilon))
-    {
+    if (!almost_equal_relative(head_span, tail_span, epsilon)) {
       return false;
     }
   }
@@ -303,8 +301,7 @@ static bool detect_knot_mode_uniform(const int8_t degree,
   const float uniform_delta = unclamped_knots[1] - unclamped_knots[0];
   for (const int64_t i : unclamped_knots.index_range().drop_front(2)) {
     const float delta = unclamped_knots[i] - unclamped_knots[i - 1];
-    if (!almost_equal_relative(delta, uniform_delta, epsilon))
-    {
+    if (!almost_equal_relative(delta, uniform_delta, epsilon)) {
       return false;
     }
   }
