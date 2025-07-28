@@ -227,6 +227,15 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     return label_;
   }
 
+  void build_context_menu(bContext& C, uiLayout& layout) const override
+  {
+    MenuType *mt = WM_menutype_find("MESH_MT_shape_key_context_menu", true);
+    if (!mt) {
+      return;
+    }
+    UI_menutype_draw(&C, mt, &layout);
+  }
+
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<ShapeKeyDragController>(
