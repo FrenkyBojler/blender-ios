@@ -258,7 +258,7 @@ static bool detect_knot_mode_bezier_clamped(const int8_t degree,
     if (multiplicity.last() != order + remainder &&
         (multiplicity.last() != 1 || multiplicity.last(1) < degree))
     {
-      return false;
+        return false;
     }
   }
   mdegree_span = mdegree_span.drop_back(1);
