@@ -345,12 +345,12 @@ void main()
         float3 view_dir = ndc_to_view(float4(gl_FragCoord.xy / viewport_size.xy, 0.0, 1.0) * 2.0 - 1.0);
         float2 view_coord = view_dir.xy / view_dir.z;
 
-        float dx = 15.0;
 
+        /* TODO. Calculate without finite deference. */
+        float dx = 15.0;
         float3 dview_dir = ndc_to_view(
             float4((gl_FragCoord.xy + float2(dx, 0.0)) / viewport_size.xy, 0.0, 1.0) * 2.0 - 1.0);
         float2 dview_coord = dview_dir.xy / dview_dir.z;
-
         float2 dv_dx = (dview_coord - view_coord) / dx;
         float scale_fac = length(dv_dx);
 
