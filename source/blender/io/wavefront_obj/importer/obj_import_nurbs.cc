@@ -152,6 +152,12 @@ static bool detect_clamped_endpoint(const int8_t degree, const Span<int> multipl
   return multiplicity.first() == order && multiplicity.last() == order;
 }
 
+static bool almost_equal_relative(const float a, const float b, const float epsilon)
+{
+  const float abs_diff = std::abs(b - a);
+  return abs_diff < a * epsilon;
+}
+
 static bool detect_knot_mode_cyclic(const int8_t degree,
                                     const Span<int> indices,
                                     const Span<float> knots,
@@ -202,7 +208,8 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
   for (const int64_t i : knots_tail.index_range().drop_back(2)) {
     const float head_span = knots[i + 1] - knots[i];
     const float tail_span = knots_tail[i + 1] - knots_tail[i];
-    if (abs(head_span - tail_span) > head_span * epsilon) {
+    if (!almost_equal_relative(head_span, tail_span, epsilon))
+    {
       return false;
     }
   }
@@ -272,7 +279,7 @@ static bool detect_knot_mode_uniform(const int8_t degree,
                                      const Span<int> multiplicity,
                                      const bool clamped)
 {
-  constexpr float epsilon = 1e-7;
+  constexpr float epsilon = 1e-6;
 
   /* Check if knot count matches multiplicity adjusted for clamped ends. For a uniform non-clamped
    * curve, all multiplicity entries equals 1 and the array size should match.
@@ -296,7 +303,8 @@ static bool detect_knot_mode_uniform(const int8_t degree,
   const float uniform_delta = unclamped_knots[1] - unclamped_knots[0];
   for (const int64_t i : unclamped_knots.index_range().drop_front(2)) {
     const float delta = unclamped_knots[i] - unclamped_knots[i - 1];
-    if (abs(delta - uniform_delta) > epsilon) {
+    if (!almost_equal_relative(delta, uniform_delta, epsilon))
+    {
       return false;
     }
   }
