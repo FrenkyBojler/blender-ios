@@ -364,7 +364,8 @@ void main()
         int lower = bounds.x;
         int upper = bounds.y;
 
-        /* Loop thought backwards so we can break early. */
+        frag_color = float4(0.0f);
+        /* Loop through backwards so we can break early. */
         for (int i = upper - 1; i >= lower; i--) {
           float t = i_to_t(i, p1, p2);
 
