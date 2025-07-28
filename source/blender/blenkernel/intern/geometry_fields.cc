@@ -757,7 +757,8 @@ GVArray RadiusFieldInput::get_varray_for_context(const GeometryFieldContext &con
 {
   const AttrDomain domain = context.domain();
   if (auto attributes = context.attributes()) {
-    if (GVArray attribute = *attributes->lookup("radius", domain, eCustomDataType::CD_PROP_FLOAT))
+    const StringRef name("radius");
+    if (GVArray attribute = *attributes->lookup<float>(name, domain))
     {
       return attribute;
     }
@@ -766,10 +767,10 @@ GVArray RadiusFieldInput::get_varray_for_context(const GeometryFieldContext &con
   /* Return default values for the current geometry context. */
   const int dst_domain_size = context.attributes()->domain_size(domain);
   if (context.type() == GeometryComponent::Type::Curve) {
-    return VArray<float>::ForSingle(1.0f, dst_domain_size);
+    return VArray<float>::from_single(1.0f, dst_domain_size);
   }
   if (context.type() == GeometryComponent::Type::PointCloud) {
-    return VArray<float>::ForSingle(0.01f, dst_domain_size);
+    return VArray<float>::from_single(0.01f, dst_domain_size);
   }
   return {};
 }
