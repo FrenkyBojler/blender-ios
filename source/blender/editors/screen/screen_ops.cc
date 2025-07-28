@@ -3359,9 +3359,11 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
 
   if (backward) {
     scene->r.cfra -= delta;
+    scene->r.subframe -= delta - int(delta);
   }
   else {
     scene->r.cfra += delta;
+    scene->r.subframe += delta - int(delta);
   }
 
   ED_areas_do_frame_follow(C, true);
