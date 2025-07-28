@@ -107,8 +107,10 @@ EvaluatedPoint get_evaluated_point(uint segment_id, IndexRange curve_range, floa
   return pt;
 }
 
-void evaluate_curve(IndexRange curve_range, IndexRange evaluated_range, uint curve_resolution)
+void evaluate_curve(IndexRange curve_range, IndexRange evaluated_range, int curve_id)
 {
+  const uint curve_resolution = curves_resolution_buf[curve_id];
+
   for (uint i = 0; i < evaluated_range.size; i++) {
     const uint out_id = evaluated_range.start + i;
     const uint segment_id = i / curve_resolution;
@@ -208,6 +210,53 @@ void copy_curve_data(const IndexRange curve_range, const IndexRange evaluated_ra
   }
 }
 
+namespace nurbs {
+
+void interpolate_to_evaluated_rational(const IndexRange curve_range,
+                                       const IndexRange evaluated_range,
+                                       uint curve_id)
+{
+  /* Buffer aliasing to same bind point. We cannot dispatch with different type of curve. */
+  const auto &curves_order_buf = curves_resolution_buf;
+  const auto &basis_cache_buf = handles_pos_left_buf;
+  const auto &control_weights_buf = handles_pos_right_buf;
+  const auto &basis_cache_offset_buf = bezier_offsets_buf;
+
+  const int order = int(
+      gpu_attr_load_uchar4(curves_order_buf, int2(1, 0), curve_id)[curve_id & 3u]);
+
+  const int basis_cache_start = basis_cache_offset_buf[curve_id];
+  const bool invalid = floatBitsToInt(basis_cache_buf[basis_cache_start]) != 0;
+  const IndexRange start_indices_range = IndexRange(basis_cache_start + 1, evaluated_range.size);
+  const IndexRange weights_range = IndexRange(basis_cache_start + 1 + evaluated_range.size,
+                                              evaluated_range.size * order);
+
+  if (invalid) {
+    copy_curve_data(curve_range, evaluated_range);
+    return;
+  }
+
+  for (int i = 0; i < evaluated_range.size; i++) {
+    points_pos_rad_buf[evaluated_range.start + i] = float4(0.0f);
+
+    const IndexRange point_weights = slice(weights_range, IndexRange(i * order, order));
+    const int start_index = floatBitsToInt(basis_cache_buf[start_indices_range.start + i]);
+
+    for (int j = 0; j < point_weights.size; j++) {
+      const int point_index = (start_index + j) % curve_range.size;
+      const float point_weight = basis_cache_buf[point_weights.start + i];
+      const float weight = point_weight * control_weights_buf[point_index];
+
+      const float3 pos = gpu_attr_load_float3(points_pos_buf, int2(3, 0), point_index);
+      const float rad = points_rad_buf[point_index];
+
+      points_pos_rad_buf[evaluated_range.start + i] += float4(pos, rad) * weight;
+    }
+  }
+}
+
+}  // namespace nurbs
+
 void main()
 {
   int curve_id = int(gl_GlobalInvocationID.x);
@@ -221,12 +270,11 @@ void main()
   IndexRange evaluated_range = from_begin_end(curves_evaluated_offsets_buf[curve_id],
                                               curves_evaluated_offsets_buf[curve_id + 1]);
 
-  const uint curve_resolution = curves_resolution_buf[curve_id];
   const CurveType curve_type = CurveType(curves_type_buf[curve_id]);
 
   switch (curve_type) {
     case CURVE_TYPE_CATMULL_ROM:
-      catmull_rom::evaluate_curve(curve_range, evaluated_range, curve_resolution);
+      catmull_rom::evaluate_curve(curve_range, evaluated_range, curve_id);
       break;
     case CURVE_TYPE_BEZIER:
       bezier::evaluate_curve(curve_range, evaluated_range, curve_id);
@@ -236,7 +284,7 @@ void main()
       copy_curve_data(curve_range, evaluated_range);
       break;
     case CURVE_TYPE_NURBS:
-      /* Not implemented. */
+      nurbs::interpolate_to_evaluated_rational(curve_range, evaluated_range, uint(curve_id));
       break;
   }
 

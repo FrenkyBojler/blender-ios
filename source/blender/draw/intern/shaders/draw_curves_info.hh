@@ -33,12 +33,17 @@ LOCAL_GROUP_SIZE(64)
 /* Offsets giving the start and end of the curve. */
 STORAGE_BUF(0, read, int, curves_offsets_buf[])
 STORAGE_BUF(1, read, int, curves_type_buf[])
-STORAGE_BUF(2, read, int, curves_resolution_buf[])
+STORAGE_BUF(2, read, uint, curves_resolution_buf[])
 STORAGE_BUF(3, read, int, curves_evaluated_offsets_buf[])
 /* Bezier handles (if needed). */
 STORAGE_BUF(4, read, float, handles_pos_left_buf[])
 STORAGE_BUF(5, read, float, handles_pos_right_buf[])
 STORAGE_BUF(6, read, int, bezier_offsets_buf[])
+/* Nurbs (alias of other buffers).  */
+// STORAGE_BUF(2, read, uint, curves_order_buf[])
+// STORAGE_BUF(4, read, float, basis_cache_buf[])
+// STORAGE_BUF(5, read, float, control_weights_buf[])
+// STORAGE_BUF(6, read, int, basis_cache_offset_buf[])
 /* Attributes. */
 STORAGE_BUF(7, read, float, points_pos_buf[])
 STORAGE_BUF(8, read, float, points_rad_buf[])

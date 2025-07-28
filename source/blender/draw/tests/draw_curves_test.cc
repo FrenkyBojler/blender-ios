@@ -632,6 +632,187 @@ static void test_draw_curves_interpolation()
     EXPECT_EQ(points_time_buf[8], 0.0f);
   }
 
+  const bke::curves::nurbs::BasisCache basis_cache_c0 = {
+      {0.1f, 0.2f, 0.2f, 0.5f, 0.5f, 0.3f, 0.3f, 0.2f, 0.8f, 0.5f, 0.1f, 0.2f, 0.2f, 0.2f, 0.5f},
+      {0, 0, 0, 0, 0},
+      false,
+  };
+  const bke::curves::nurbs::BasisCache basis_cache_c1 = {
+      {0.1f, 0.2f, 0.2f, 0.5f, 0.5f, 0.3f},
+      {0, 0, 0},
+      false,
+  };
+
+  Vector<int> basis_cache_offset;
+  Vector<uint32_t> basis_cache_packed;
+  {
+    basis_cache_offset.append(basis_cache_packed.size());
+    basis_cache_packed.append(basis_cache_c0.invalid);
+    basis_cache_packed.extend(
+        Span{reinterpret_cast<const uint32_t *>(basis_cache_c0.start_indices.data()),
+             basis_cache_c0.start_indices.size()});
+    basis_cache_packed.extend(
+        Span{reinterpret_cast<const uint32_t *>(basis_cache_c0.weights.data()),
+             basis_cache_c0.start_indices.size()});
+
+    basis_cache_offset.append(basis_cache_packed.size());
+    basis_cache_packed.append(basis_cache_c1.invalid);
+    basis_cache_packed.extend(
+        Span{reinterpret_cast<const uint32_t *>(basis_cache_c1.start_indices.data()),
+             basis_cache_c1.start_indices.size()});
+    basis_cache_packed.extend(
+        Span{reinterpret_cast<const uint32_t *>(basis_cache_c1.weights.data()),
+             basis_cache_c1.weights.size()});
+  }
+
+  /* Raw data. Shader reinterpret as float or int. */
+  gpu::VertBuf *basis_cache_buf = GPU_vertbuf_create_with_format_ex(
+      IntBuf::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  basis_cache_buf->allocate(basis_cache_packed.size());
+  basis_cache_buf->data<uint>().copy_from(basis_cache_packed);
+
+  gpu::VertBuf *basis_cache_offset_buf = GPU_vertbuf_create_with_format_ex(
+      IntBuf::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  basis_cache_offset_buf->allocate(basis_cache_offset.size());
+  basis_cache_offset_buf->data<int>().copy_from(basis_cache_offset);
+
+  const Vector<int8_t> curves_order = {3, 2, /* Padding. */ 0, 0};
+
+  gpu::VertBuf *curves_order_buf = GPU_vertbuf_create_with_format_ex(
+      IntBuf::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  curves_order_buf->allocate(curves_order.size() / 4);
+  curves_order_buf->data<int>().copy_from(
+      Span<int>(reinterpret_cast<const int *>(curves_order.data()), curves_order.size() / 4));
+
+  const Vector<float> control_weights = {1.0f, 0.5f, 0.0f, 0.0f, 2.0f};
+
+  gpu::VertBuf *control_weights_buf = GPU_vertbuf_create_with_format(Radius::format());
+  control_weights_buf->allocate(control_weights.size());
+  control_weights_buf->data<float>().copy_from(control_weights);
+
+  {
+    StorageArrayBuffer<float4, 512> points_pos_rad_buf;
+    StorageArrayBuffer<float, 512> points_time_buf;
+    StorageArrayBuffer<float, 512> curves_length_buf;
+    points_pos_rad_buf.clear_to_zero();
+    points_time_buf.clear_to_zero();
+    curves_length_buf.clear_to_zero();
+
+    PassSimple pass("Curves Interpolation Bezier");
+    pass.shader_set(sh);
+    pass.bind_ssbo("curves_offsets_buf", curves_offsets_buf);
+    pass.bind_ssbo("curves_type_buf", curves_type_bezier_buf);
+    pass.bind_ssbo("curves_resolution_buf", curves_order_buf);
+    pass.bind_ssbo("curves_evaluated_offsets_buf", curves_evaluated_offsets_buf);
+    pass.bind_ssbo("points_pos_buf", points_pos_buf);
+    pass.bind_ssbo("points_rad_buf", points_rad_buf);
+    pass.bind_ssbo("points_pos_rad_buf", points_pos_rad_buf);
+    pass.bind_ssbo("points_time_buf", points_time_buf);
+    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.bind_ssbo("handles_pos_left_buf", basis_cache_buf);
+    pass.bind_ssbo("handles_pos_right_buf", control_weights_buf);
+    pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
+    pass.push_constant("curves_count", 2);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+    manager.submit(pass);
+
+    points_pos_rad_buf.read();
+    points_time_buf.read();
+    curves_length_buf.read();
+
+    Vector<float3> interp_pos;
+    interp_pos.resize(8);
+
+    Vector<float> interp_rad;
+    interp_rad.resize(8);
+
+    {
+      const int curve_index = 0;
+      const IndexRange points(0, 3);
+      const IndexRange evaluated_points(0, 5);
+
+      bke::curves::nurbs::interpolate_to_evaluated(
+          basis_cache_c0,
+          curves_order[curve_index],
+          control_weights.as_span().slice(points),
+          points_pos.as_span().slice(points),
+          interp_pos.as_mutable_span().slice(evaluated_points));
+
+      bke::curves::nurbs::interpolate_to_evaluated(
+          basis_cache_c0,
+          curves_order[curve_index],
+          control_weights.as_span().slice(points),
+          points_radius.as_span().slice(points),
+          interp_rad.as_mutable_span().slice(evaluated_points));
+    }
+    {
+      const int curve_index = 1;
+      const IndexRange points(3, 2);
+      const IndexRange evaluated_points(5, 3);
+
+      bke::curves::nurbs::interpolate_to_evaluated(
+          basis_cache_c1,
+          curves_order[curve_index],
+          control_weights.as_span().slice(points),
+          points_pos.as_span().slice(points),
+          interp_pos.as_mutable_span().slice(evaluated_points));
+
+      bke::curves::nurbs::interpolate_to_evaluated(
+          basis_cache_c1,
+          curves_order[curve_index],
+          control_weights.as_span().slice(points),
+          points_radius.as_span().slice(points),
+          interp_rad.as_mutable_span().slice(evaluated_points));
+    }
+
+    EXPECT_EQ(points_pos_rad_buf[0], float4(interp_pos[0], interp_rad[0]));
+    EXPECT_EQ(points_pos_rad_buf[1], float4(interp_pos[1], interp_rad[1]));
+    EXPECT_EQ(points_pos_rad_buf[2], float4(interp_pos[2], interp_rad[2]));
+    EXPECT_EQ(points_pos_rad_buf[3], float4(interp_pos[3], interp_rad[3]));
+    EXPECT_EQ(points_pos_rad_buf[4], float4(interp_pos[4], interp_rad[4]));
+    EXPECT_EQ(points_pos_rad_buf[5], float4(interp_pos[5], interp_rad[5]));
+    EXPECT_EQ(points_pos_rad_buf[6], float4(interp_pos[6], interp_rad[6]));
+    EXPECT_EQ(points_pos_rad_buf[7], float4(interp_pos[7], interp_rad[7]));
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(points_pos_rad_buf[8], float4(0.0));
+
+    float curve_len[2] = {0.0f, 0.0f};
+    Vector<float> interp_time{0.0f};
+    interp_time.resize(8);
+    interp_time[0] = 0.0f;
+    for (int i : IndexRange(1, 4)) {
+      curve_len[0] += math::distance(interp_pos[i], interp_pos[i - 1]);
+      interp_time[i] = curve_len[0];
+    }
+    for (int i : IndexRange(1, 4)) {
+      interp_time[i] /= curve_len[0];
+    }
+    interp_time[5] = 0.0f;
+    for (int i : IndexRange(6, 2)) {
+      curve_len[1] += math::distance(interp_pos[i], interp_pos[i - 1]);
+      interp_time[i] = curve_len[1];
+    }
+    for (int i : IndexRange(6, 2)) {
+      interp_time[i] /= curve_len[1];
+    }
+
+    EXPECT_FLOAT_EQ(curves_length_buf[0], curve_len[0]);
+    EXPECT_FLOAT_EQ(curves_length_buf[1], curve_len[1]);
+
+    EXPECT_FLOAT_EQ(points_time_buf[0], interp_time[0]);
+    EXPECT_FLOAT_EQ(points_time_buf[1], interp_time[1]);
+    EXPECT_FLOAT_EQ(points_time_buf[2], interp_time[2]);
+    EXPECT_FLOAT_EQ(points_time_buf[3], interp_time[3]);
+    EXPECT_FLOAT_EQ(points_time_buf[4], interp_time[4]);
+    EXPECT_FLOAT_EQ(points_time_buf[5], interp_time[5]);
+    EXPECT_FLOAT_EQ(points_time_buf[6], interp_time[6]);
+    EXPECT_FLOAT_EQ(points_time_buf[7], interp_time[7]);
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(points_time_buf[8], 0.0f);
+  }
+
   GPU_shader_unbind();
 
   GPU_SHADER_FREE_SAFE(sh);
@@ -645,6 +826,10 @@ static void test_draw_curves_interpolation()
   GPU_VERTBUF_DISCARD_SAFE(handles_pos_left_buf);
   GPU_VERTBUF_DISCARD_SAFE(handles_pos_right_buf);
   GPU_VERTBUF_DISCARD_SAFE(bezier_offsets_buf);
+  GPU_VERTBUF_DISCARD_SAFE(basis_cache_buf);
+  GPU_VERTBUF_DISCARD_SAFE(basis_cache_offset_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_order_buf);
+  GPU_VERTBUF_DISCARD_SAFE(control_weights_buf);
 }
 DRAW_TEST(draw_curves_interpolation)
 
