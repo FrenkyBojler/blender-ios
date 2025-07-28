@@ -1887,7 +1887,7 @@ void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys)
     }
   }
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  transform_normals_attribute(transform, attributes);
+  transform_custom_normal_attribute(transform, attributes);
 
   mesh.tag_positions_changed();
 }

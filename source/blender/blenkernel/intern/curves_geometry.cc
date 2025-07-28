@@ -1315,7 +1315,7 @@ void CurvesGeometry::transform(const float4x4 &matrix)
     transform_positions(this->handle_positions_right_for_write(), matrix);
   }
   MutableAttributeAccessor attributes = this->attributes_for_write();
-  transform_normals_attribute(matrix, attributes);
+  transform_custom_normal_attribute(matrix, attributes);
   this->tag_positions_changed();
 }
 

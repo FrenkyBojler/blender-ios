@@ -1169,7 +1169,8 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
   });
 }
 
-void transform_normals_attribute(const float4x4 &transform, MutableAttributeAccessor &attributes)
+void transform_custom_normal_attribute(const float4x4 &transform,
+                                       MutableAttributeAccessor &attributes)
 {
   const GAttributeReader normals = attributes.lookup("custom_normal");
   if (!normals) {

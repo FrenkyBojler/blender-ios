@@ -988,6 +988,10 @@ void fill_attribute_range_default(MutableAttributeAccessor dst_attributes,
                                   const AttributeFilter &attribute_filter,
                                   IndexRange range);
 
-void transform_normals_attribute(const float4x4 &transform, MutableAttributeAccessor &attributes);
+/**
+ * Apply a transform to the "custom_normal" attribute.
+ */
+void transform_custom_normal_attribute(const float4x4 &transform,
+                                       MutableAttributeAccessor &attributes);
 
 }  // namespace blender::bke
