@@ -45,13 +45,13 @@ static float4x4 btTransform_to_float4x4(const btTransform &transform)
   return float4x4(result);
 }
 
-static btTransform float4x4_to_btTransform(const float4x4 &matrix)
-{
-  MatBase<btScalar, 4, 4> converted{matrix};
-  btTransform result;
-  result.setFromOpenGLMatrix(&converted[0][0]);
-  return result;
-}
+// static btTransform float4x4_to_btTransform(const float4x4 &matrix)
+// {
+//   MatBase<btScalar, 4, 4> converted{matrix};
+//   btTransform result;
+//   result.setFromOpenGLMatrix(&converted[0][0]);
+//   return result;
+// }
 
 struct MeshCollisionShapeData {
   Vector<btVector3> positions;
@@ -104,6 +104,7 @@ struct BulletState {
   std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world;
 
   Map<std::string, RigidBodyInstances> rigid_body_instances_by_path;
+  Vector<std::unique_ptr<btTypedConstraint>> constraints;
 };
 
 class BulletStateOwner : public BundleItemInternalValueMixin {
@@ -130,10 +131,18 @@ struct Force {
   Field<float3> force_field;
 };
 
+struct DistanceConstraintGroup {
+  std::string body_a;
+  std::string body_b;
+  Vector<int> ids_a;
+  Vector<int> ids_b;
+};
+
 struct Behaviors {
   btVector3 gravity{};
   Map<std::string, RigidBodyInstances> new_rigid_body_instances_by_path;
   Vector<Force> forces;
+  Vector<DistanceConstraintGroup> distance_constraint_groups;
 };
 
 struct ParseBehaviorParams {
@@ -676,12 +685,39 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
                                                         std::move(rigid_body_instances));
 }
 
+static void parse_behavior__rigid_body_constraints(ParseBehaviorParams &params)
+{
+  const std::optional<std::string> body_a = params.bundle.lookup<std::string>("Body A");
+  const std::optional<std::string> body_b = params.bundle.lookup<std::string>("Body B");
+  const ListPtr ids_a = params.bundle.lookup<ListPtr>("IDs A").value_or(nullptr);
+  const ListPtr ids_b = params.bundle.lookup<ListPtr>("IDs B").value_or(nullptr);
+
+  if (!body_a || !body_b || !ids_a || !ids_b) {
+    return;
+  }
+  if (ids_a->size() != ids_b->size()) {
+    return;
+  }
+  if (!ids_a->cpp_type().is<int>() || !ids_b->cpp_type().is<int>()) {
+    return;
+  }
+
+  DistanceConstraintGroup group;
+  group.body_a = *body_a;
+  group.body_b = *body_b;
+  group.ids_a.extend(VArraySpan<int>(ids_a->as_varray<int>()));
+  group.ids_b.extend(VArraySpan<int>(ids_b->as_varray<int>()));
+  params.behaviors.distance_constraint_groups.append(std::move(group));
+}
+
 static Map<std::string, BehaviorParseFn> build_behavior_parsers()
 {
   Map<std::string, BehaviorParseFn> behavior_parsers;
   behavior_parsers.add_new("Gravity", parse_behavior__gravity);
   behavior_parsers.add_new("Force", parse_behavior__force);
   behavior_parsers.add_new("Rigid Body Instances", parse_behavior__rigid_body_instances);
+  behavior_parsers.add_new("Rigid Body Distance Constraint",
+                           parse_behavior__rigid_body_constraints);
   return behavior_parsers;
 }
 
@@ -690,6 +726,12 @@ static void update_state_from_behaviors(BulletState &state,
                                         const float delta_time,
                                         Behaviors &r_behaviors)
 {
+  /* Clear all constraints for now. */
+  // while (state.dynamics_world->getNumConstraints() > 0) {
+  //   state.dynamics_world->removeConstraint(state.dynamics_world->getConstraint(0));
+  // }
+  // state.constraints.clear();
+
   foreach_behavior_in_bundle(
       behavior_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
@@ -712,6 +754,37 @@ static void update_state_from_behaviors(BulletState &state,
   }
 
   state.rigid_body_instances_by_path = std::move(r_behaviors.new_rigid_body_instances_by_path);
+
+  for (const DistanceConstraintGroup &group : r_behaviors.distance_constraint_groups) {
+    RigidBodyInstances *bodies_a = state.rigid_body_instances_by_path.lookup_ptr(group.body_a);
+    RigidBodyInstances *bodies_b = state.rigid_body_instances_by_path.lookup_ptr(group.body_b);
+    if (!bodies_a || !bodies_b) {
+      continue;
+    }
+    const int constraints_num = group.ids_a.size();
+    for (const int i : IndexRange(constraints_num)) {
+      const int id_a = group.ids_a[i];
+      const int id_b = group.ids_b[i];
+      SingleRigidBody *body_a = bodies_a->rigid_body_by_id.lookup_ptr(id_a);
+      SingleRigidBody *body_b = bodies_b->rigid_body_by_id.lookup_ptr(id_b);
+      if (!body_a || !body_b) {
+        continue;
+      }
+
+      btTransform object_a_to_world = body_a->body->getWorldTransform();
+      btTransform object_b_to_world = body_b->body->getWorldTransform();
+      btTransform world_to_object_b = object_b_to_world.inverse();
+      btTransform object_a_to_object_b = world_to_object_b * object_a_to_world;
+
+      btVector3 pivot_a{0, 0, 0};
+      btVector3 pivot_b = object_a_to_object_b * pivot_a;
+
+      auto constraint = std::make_unique<btPoint2PointConstraint>(
+          *body_a->body, *body_b->body, pivot_a, pivot_b);
+      state.dynamics_world->addConstraint(constraint.get(), true);
+      state.constraints.append(std::move(constraint));
+    }
+  }
 }
 
 static void write_simulated_data_to_geometry_sets(BulletState &state)

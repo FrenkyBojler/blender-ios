@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "BLI_generic_pointer.hh"
+#include "BLI_generic_virtual_array.hh"
 
 #include "NOD_geometry_nodes_list_fwd.hh"
 
@@ -55,6 +56,10 @@ class List : public ImplicitSharingMixin {
   int64_t size() const;
 
   void delete_self() override;
+
+  GVArray as_gvarray() const;
+
+  template<typename T> VArray<T> as_varray() const;
 };
 
 inline const List::DataVariant &List::data() const
@@ -70,6 +75,11 @@ inline const CPPType &List::cpp_type() const
 inline int64_t List::size() const
 {
   return size_;
+}
+
+template<typename T> inline VArray<T> List::as_varray() const
+{
+  return this->as_gvarray().typed<T>();
 }
 
 }  // namespace blender::nodes

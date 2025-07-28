@@ -108,9 +108,6 @@ inline std::optional<T> BundleItemValue::as_socket_value(
   if (!socket_value) {
     return std::nullopt;
   }
-  if (!socket_value) {
-    return std::nullopt;
-  }
   if (!socket_value->value || !socket_value->type) {
     return std::nullopt;
   }
@@ -139,7 +136,7 @@ template<typename T> constexpr bool is_valid_static_bundle_item_type()
   if constexpr (fn::is_field_v<T>) {
     return geo_nodes_is_field_base_type_v<typename T::base_type>;
   }
-  if constexpr (is_same_any_v<T, BundlePtr, ClosurePtr>) {
+  if constexpr (is_same_any_v<T, BundlePtr, ClosurePtr, ListPtr>) {
     return true;
   }
   return !geo_nodes_type_stored_as_SocketValueVariant_v<T>;
@@ -193,7 +190,24 @@ template<typename T> inline std::optional<T> BundleItemValue::as() const
     sharing_info->add_user();
     return ImplicitSharingPtr<SharingInfoT>{converted_value};
   }
-  else if (const bke::bNodeSocketType *dst_socket_type = socket_type_info_by_static_type<T>()) {
+  if constexpr (std::is_same_v<T, ListPtr>) {
+    const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&this->value);
+    if (!socket_value) {
+      return std::nullopt;
+    }
+    if (!socket_value->value || !socket_value->type) {
+      return std::nullopt;
+    }
+    if (!socket_value->type->geometry_nodes_cpp_type->is<bke::SocketValueVariant>()) {
+      return std::nullopt;
+    }
+    const auto *value = static_cast<const bke::SocketValueVariant *>(socket_value->value);
+    if (value->is_list()) {
+      return value->get<ListPtr>();
+    }
+    return std::nullopt;
+  }
+  if (const bke::bNodeSocketType *dst_socket_type = socket_type_info_by_static_type<T>()) {
     return this->as_socket_value<T>(*dst_socket_type);
   }
   /* Can't lookup this type directly currently. */
