@@ -394,10 +394,8 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                          attribute_search_exec_fn,
                          nullptr);
 
-  char *attribute_name = RNA_string_get_alloc(
-      ctx.properties_ptr, rna_path_attribute_name.c_str(), nullptr, 0, nullptr);
+  std::string attribute_name = RNA_string_get(ctx.properties_ptr, rna_path_attribute_name.c_str());
   const bool access_allowed = bke::allow_procedural_attribute_access(attribute_name);
-  MEM_freeN(attribute_name);
   if (!access_allowed) {
     UI_but_flag_enable(but, UI_BUT_REDALERT);
   }
@@ -512,9 +510,11 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   if (parent_name.has_value()) {
     const StringRefNull prefix_to_remove = *parent_name;
     int pos = name.find(prefix_to_remove);
-    if (pos == 0) {
+    if (pos == 0 && name != prefix_to_remove) {
       /* Needs to trim remainig space characters if any. Use the `trim()` from `StringRefNull`
-       * because std::string doesn't have a built-in `trim()` yet. */
+       * because std::string doesn't have a built-in `trim()` yet. If the property name is the
+       * same as parent panel's name then keep the name, otherwise the name would be an empty
+       * string which messes up the UI. */
       name = StringRefNull(name.substr(prefix_to_remove.size())).trim();
     }
   }
@@ -709,8 +709,10 @@ static void draw_interface_panel_content(
             nullptr,
             nullptr);
         if (panel_layout.body) {
+          const StringRefNull panel_name = sub_interface_panel.name ? sub_interface_panel.name :
+                                                                      "";
           draw_interface_panel_content(
-              ctx, panel_layout.body, sub_interface_panel, skip_first, sub_interface_panel.name);
+              ctx, panel_layout.body, sub_interface_panel, skip_first, panel_name);
         }
         break;
       }
@@ -949,7 +951,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
         PointerRNA props = layout.op("object.geometry_nodes_input_attribute_toggle",
                                      "",
                                      icon,
-                                     WM_OP_INVOKE_DEFAULT,
+                                     wm::OpCallContext::InvokeDefault,
                                      UI_ITEM_NONE);
         RNA_string_set(&props, "modifier_name", nmd.modifier.name);
         RNA_string_set(&props, "input_name", io_socket.identifier);

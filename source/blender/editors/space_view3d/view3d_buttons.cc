@@ -828,7 +828,7 @@ static void v3d_editvertex_buts(
     UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
 
     if (totcurvebweight == tot) {
-      float &weight = (ob->type == OB_CURVES || ob->type == OB_GREASE_PENCIL) ?
+      float &weight = (ELEM(ob->type, OB_CURVES, OB_GREASE_PENCIL)) ?
                           tfp->ve_median.curves.nurbs_weight :
                           tfp->ve_median.curve.b_weight;
       but = uiDefButF(block,
@@ -1666,7 +1666,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           but = uiDefButO_ptr(block,
                               UI_BTYPE_BUT,
                               ot,
-                              WM_OP_EXEC_DEFAULT,
+                              blender::wm::OpCallContext::ExecDefault,
                               dg->name,
                               xco,
                               yco,
@@ -1711,14 +1711,20 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 
           /* The weight group paste function */
           icon = (locked) ? ICON_BLANK1 : ICON_PASTEDOWN;
-          op_ptr = row->op(
-              "OBJECT_OT_vertex_weight_paste", "", icon, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+          op_ptr = row->op("OBJECT_OT_vertex_weight_paste",
+                           "",
+                           icon,
+                           blender::wm::OpCallContext::InvokeDefault,
+                           UI_ITEM_NONE);
           RNA_int_set(&op_ptr, "weight_group", i);
 
           /* The weight entry delete function */
           icon = (locked) ? ICON_LOCKED : ICON_X;
-          op_ptr = row->op(
-              "OBJECT_OT_vertex_weight_delete", "", icon, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+          op_ptr = row->op("OBJECT_OT_vertex_weight_delete",
+                           "",
+                           icon,
+                           blender::wm::OpCallContext::InvokeDefault,
+                           UI_ITEM_NONE);
           RNA_int_set(&op_ptr, "weight_group", i);
 
           yco -= UI_UNIT_Y;
@@ -1737,7 +1743,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
         block,
         UI_BTYPE_BUT,
         ot,
-        WM_OP_EXEC_DEFAULT,
+        blender::wm::OpCallContext::ExecDefault,
         IFACE_("Normalize"),
         0,
         yco,
@@ -1750,7 +1756,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
         block,
         UI_BTYPE_BUT,
         ot,
-        WM_OP_EXEC_DEFAULT,
+        blender::wm::OpCallContext::ExecDefault,
         IFACE_("Copy"),
         UI_UNIT_X * 5,
         yco,

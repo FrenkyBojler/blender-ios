@@ -1104,6 +1104,15 @@ static void rna_SpaceView3D_retopology_update(Main * /*bmain*/, Scene *scene, Po
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
 }
 
+static void rna_SpaceView3D_show_overlay_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  /* If Retopology is enabled, toggling overlays can change the visibility of active object. */
+  const View3D *v3d = static_cast<View3D *>(ptr->data);
+  if (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_RETOPOLOGY) {
+    rna_SpaceView3D_retopology_update(bmain, scene, ptr);
+  }
+}
+
 static void rna_SpaceView3D_region_quadviews_begin(CollectionPropertyIterator *iter,
                                                    PointerRNA *ptr)
 {
@@ -4691,7 +4700,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_overlays", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag2", V3D_HIDE_OVERLAYS);
   RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays like gizmos and outlines");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_show_overlay_update");
 
   prop = RNA_def_property(srna, "show_ortho_grid", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "gridflag", V3D_SHOW_ORTHO_GRID);
@@ -6440,7 +6449,8 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Display Channel",
-      "The channel number shown in the image preview. 0 is the result of all strips combined");
+      "Preview all channels less than or equal to this value. 0 shows every channel, and negative "
+      "values climb that many metastrip levels if applicable, showing every channel there.");
   RNA_def_property_range(prop, -5, blender::seq::MAX_CHANNELS);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
 
@@ -6884,8 +6894,8 @@ static void rna_def_space_graph(BlenderRNA *brna)
        ICON_PIVOT_INDIVIDUAL,
        "Individual Centers",
        ""},
-      /*{V3D_AROUND_CENTER_MEDIAN, "MEDIAN_POINT", 0, "Median Point", ""}, */
-      /*{V3D_AROUND_ACTIVE, "ACTIVE_ELEMENT", 0, "Active Element", ""}, */
+      // {V3D_AROUND_CENTER_MEDIAN, "MEDIAN_POINT", 0, "Median Point", ""},
+      // {V3D_AROUND_ACTIVE, "ACTIVE_ELEMENT", 0, "Active Element", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
