@@ -675,11 +675,10 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
   bool changed = false;
 
   if (type < 0) { /* Moving upwards. */
-    /* Don't move upwards to the position of the basis key, unless the top shapekey is selected. If
-     * the basis key should be moved, it can be selected & moved down instead. */
-    int top_index = (key.type == KEY_RELATIVE) ? 1 : 0;
-
-    for (int index = 0; index < totkey; index++) {
+    /* Don't move above the position of the basis key */
+    int top_index = 1;
+    /* Start from index 1 to ignore basis key from being able to move above. */
+    for (int index = 1; index < totkey; index++) {
       const KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key.block, index));
       if (!shape_key_is_selected(*ob, kb, index)) {
         continue;
@@ -705,8 +704,8 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
   }
   else { /* Moving downwards. */
     int bottom_index = totkey - 1;
-
-    for (int index = totkey - 1; index >= 0; index--) {
+    /* Skip basis key to prevent it from moving downwards. */
+    for (int index = totkey - 1; index >= 1; index--) {
       const KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key.block, index));
       if (!shape_key_is_selected(*ob, kb, index)) {
         continue;
