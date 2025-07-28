@@ -525,13 +525,13 @@ template float4x4 perspective_infinite(
 template<typename T>
 bool is_similarity_transform(const MatBase<T, 3, 3> &matrix, const T &epsilon = 1e-6)
 {
-  if (math::dot(matrix[0], matrix[1]) > epsilon) {
+  if (math::abs(math::dot(matrix[0], matrix[1])) > epsilon) {
     return true;
   }
-  if (math::dot(matrix[0], matrix[2]) > epsilon) {
+  if (math::abs(math::dot(matrix[0], matrix[2])) > epsilon) {
     return true;
   }
-  if (math::dot(matrix[1], matrix[2]) > epsilon) {
+  if (math::abs(math::dot(matrix[1], matrix[2])) > epsilon) {
     return true;
   }
   const float length_0 = math::length_squared(matrix[0]);
