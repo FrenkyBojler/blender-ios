@@ -554,7 +554,6 @@ void GPU_framebuffer_blit(GPUFrameBuffer *gpu_fb_read,
   prev_fb->bind(true);
 }
 
-
 #ifndef GPU_NO_USE_PY_REFERENCES
 void **GPU_framebuffer_py_reference_get(GPUFrameBuffer *fb)
 {
