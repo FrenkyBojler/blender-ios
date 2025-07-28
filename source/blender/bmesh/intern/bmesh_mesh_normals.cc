@@ -1877,14 +1877,71 @@ void BM_lnorspace_rebuild(BMesh *bm, bool preserve_clnor)
 #endif
 }
 
+/**
+ * Make sure the corner fan (tangent space) style custom normals exist on the BMesh. If free vector
+ * custom normals exist, they'll be converted. This is often necessary for BMesh editing tools that
+ * don't (yet) support free normals.
+ */
+static void ensure_corner_fan_normals(BMesh *bm)
+{
+  Array<float3> lnors(bm->totloop, float3(0));
+  const int vert_free_offset = CustomData_get_offset_named(
+      &bm->vdata, CD_PROP_FLOAT3, "custom_normal");
+  if (vert_free_offset != -1) {
+    BM_mesh_elem_index_ensure(bm, BM_LOOP);
+    BMFace *f;
+    BMLoop *l;
+    BMIter fiter, liter;
+    BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        lnors[BM_elem_index_get(l)] = float3(BM_ELEM_CD_GET_FLOAT_P(l->v, vert_free_offset));
+      }
+    }
+    BM_data_layer_free_named(bm, &bm->vdata, "custom_normal");
+  }
+  const int edge_free_offset = CustomData_get_offset_named(
+      &bm->edata, CD_PROP_FLOAT3, "custom_normal");
+  if (edge_free_offset != -1) {
+    BM_data_layer_free_named(bm, &bm->edata, "custom_normal");
+  }
+  const int face_free_offset = CustomData_get_offset_named(
+      &bm->pdata, CD_PROP_FLOAT3, "custom_normal");
+  if (face_free_offset != -1) {
+    BM_mesh_elem_index_ensure(bm, BM_LOOP);
+    BMFace *f;
+    BMLoop *l;
+    BMIter fiter, liter;
+    BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        lnors[BM_elem_index_get(l)] = float3(BM_ELEM_CD_GET_FLOAT_P(f, face_free_offset));
+      }
+    }
+    BM_data_layer_free_named(bm, &bm->pdata, "custom_normal");
+  }
+  const int loop_free_offset = CustomData_get_offset_named(
+      &bm->ldata, CD_PROP_FLOAT3, "custom_normal");
+  if (loop_free_offset != -1) {
+    BM_mesh_elem_index_ensure(bm, BM_LOOP);
+    BMFace *f;
+    BMLoop *l;
+    BMIter fiter, liter;
+    BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        lnors[BM_elem_index_get(l)] = float3(BM_ELEM_CD_GET_FLOAT_P(l, loop_free_offset));
+      }
+    }
+    BM_data_layer_free_named(bm, &bm->ldata, "custom_normal");
+  }
+  BM_lnorspacearr_store(bm, lnors);
+}
+
 void BM_lnorspace_update(BMesh *bm)
 {
   if (bm->lnor_spacearr == nullptr) {
     bm->lnor_spacearr = MEM_callocN<MLoopNorSpaceArray>(__func__);
   }
   if (bm->lnor_spacearr->lspacearr == nullptr) {
-    Array<float3> lnors(bm->totloop, float3(0));
-    BM_lnorspacearr_store(bm, lnors);
+    ensure_corner_fan_normals(bm);
   }
   else if (bm->spacearr_dirty & (BM_SPACEARR_DIRTY | BM_SPACEARR_DIRTY_ALL)) {
     BM_lnorspace_rebuild(bm, false);
