@@ -705,8 +705,8 @@ static void parse_behavior__rigid_body_constraints(ParseBehaviorParams &params)
   DistanceConstraintGroup group;
   group.body_a = *body_a;
   group.body_b = *body_b;
-  group.ids_a.extend(VArraySpan<int>(ids_a->as_varray<int>()));
-  group.ids_b.extend(VArraySpan<int>(ids_b->as_varray<int>()));
+  group.ids_a.extend(VArraySpan<int>(ids_a->varray<int>()));
+  group.ids_b.extend(VArraySpan<int>(ids_b->varray<int>()));
   params.behaviors.distance_constraint_groups.append(std::move(group));
 }
 
@@ -727,10 +727,10 @@ static void update_state_from_behaviors(BulletState &state,
                                         Behaviors &r_behaviors)
 {
   /* Clear all constraints for now. */
-  // while (state.dynamics_world->getNumConstraints() > 0) {
-  //   state.dynamics_world->removeConstraint(state.dynamics_world->getConstraint(0));
-  // }
-  // state.constraints.clear();
+  while (state.dynamics_world->getNumConstraints() > 0) {
+    state.dynamics_world->removeConstraint(state.dynamics_world->getConstraint(0));
+  }
+  state.constraints.clear();
 
   foreach_behavior_in_bundle(
       behavior_bundle,
