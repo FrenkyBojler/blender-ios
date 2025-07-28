@@ -851,7 +851,7 @@ static void test_eevee_shadow_finalize()
   }
 
   Texture tilemap_tx = {"tilemap_tx"};
-  tilemap_tx.ensure_2d(GPU_R32UI,
+  tilemap_tx.ensure_2d(blender::gpu::TextureFormat::UINT_32,
                        int2(SHADOW_TILEMAP_RES),
                        GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
                            GPU_TEXTURE_USAGE_SHADER_WRITE);
@@ -1248,7 +1248,7 @@ static void test_eevee_shadow_tilemap_amend()
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
                            GPU_TEXTURE_USAGE_SHADER_WRITE;
   int2 tilemap_res(SHADOW_TILEMAP_RES * SHADOW_TILEMAP_PER_ROW, SHADOW_TILEMAP_RES);
-  tilemap_tx.ensure_2d(GPU_R32UI, tilemap_res, usage);
+  tilemap_tx.ensure_2d(blender::gpu::TextureFormat::UINT_32, tilemap_res, usage);
   GPU_texture_update_sub(
       tilemap_tx, GPU_DATA_UINT, tilemap_data.data(), 0, 0, 0, tilemap_res.x, tilemap_res.y, 0);
 
@@ -1920,10 +1920,10 @@ static void test_eevee_surfel_list()
   // Span<int>(list_start_buf.data(), expect_list_start.size()).print_as_lines("list_start");
   // link_next.as_span().print_as_lines("link_next");
   // link_prev.as_span().print_as_lines("link_prev");
-  EXPECT_EQ_ARRAY(expect_list_start.data(), list_start_buf.data(), expect_list_start.size());
+  EXPECT_EQ_SPAN(expect_list_start, list_start_buf);
 #endif
-  EXPECT_EQ_ARRAY(expect_link_next.data(), link_next.data(), expect_link_next.size());
-  EXPECT_EQ_ARRAY(expect_link_prev.data(), link_prev.data(), expect_link_prev.size());
+  EXPECT_EQ_SPAN<int>(expect_link_next, link_next);
+  EXPECT_EQ_SPAN<int>(expect_link_prev, link_prev);
 
   GPU_shader_unbind();
 

@@ -90,7 +90,6 @@ static void MaskHandleToTransData(MaskSplinePoint *point,
   memset(td->axismtx, 0, sizeof(td->axismtx));
   td->axismtx[2][2] = 1.0f;
 
-  td->ext = nullptr;
   td->val = nullptr;
 
   if (is_sel_any) {
@@ -155,8 +154,6 @@ static void MaskPointToTransData(Scene *scene,
 
       memset(td->axismtx, 0, sizeof(td->axismtx));
       td->axismtx[2][2] = 1.0f;
-
-      td->ext = nullptr;
 
       if (i == 1) {
         /* Scaling weights. */
@@ -450,7 +447,7 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
     BLI_assert(0);
   }
 
-  if (t->scene->nodetree) {
+  if (t->scene->compositing_node_group) {
     WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
   }
 

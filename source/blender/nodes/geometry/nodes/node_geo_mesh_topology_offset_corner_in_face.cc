@@ -55,13 +55,17 @@ class OffsetCornerInFaceFieldInput final : public bke::MeshFieldInput {
     mask.foreach_index_optimized<int>(GrainSize(2048), [&](const int selection_i) {
       const int corner = corner_indices[selection_i];
       const int offset = offsets[selection_i];
+      if (!corner_to_face.index_range().contains(corner)) {
+        offset_corners[selection_i] = 0;
+        return;
+      }
       const IndexRange face = faces[corner_to_face[corner]];
       const int corner_index_in_face = corner - face.start();
       offset_corners[selection_i] = face.start() + math::mod_periodic<int>(
                                                        corner_index_in_face + offset, face.size());
     });
 
-    return VArray<int>::ForContainer(std::move(offset_corners));
+    return VArray<int>::from_container(std::move(offset_corners));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override

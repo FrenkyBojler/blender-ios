@@ -192,6 +192,8 @@ class GHOST_SystemWin32 : public GHOST_System {
    */
   GHOST_TSuccess getPixelAtCursor(float r_color[3]) const override;
 
+  uint32_t getCursorPreferredLogicalSize() const override;
+
   /***************************************************************************************
    ** Access to mouse button and keyboard states.
    ***************************************************************************************/
@@ -426,7 +428,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    */
   static GHOST_Event *processImeEvent(GHOST_TEventType type,
                                       GHOST_WindowWin32 *window,
-                                      GHOST_TEventImeData *data);
+                                      const GHOST_TEventImeData *data);
 #endif /* WITH_INPUT_IME */
 
   /**
