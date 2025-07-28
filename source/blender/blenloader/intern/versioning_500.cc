@@ -6,6 +6,7 @@
  * \ingroup blenloader
  */
 
+#include "MEM_guardedalloc.h"
 #define DNA_DEPRECATED_ALLOW
 
 #include <fmt/format.h>
@@ -1690,6 +1691,28 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 43)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy != CMP_NODE_MAP_UV) {
+          continue;
+        }
+        if (node->storage != nullptr) {
+          continue;
+        }
+        NodeMapUVData *data = MEM_callocN<NodeMapUVData>(__func__);
+        data->interpolation = node->custom2;
+        data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+        data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+        node->storage = data;
+      }
+      FOREACH_NODETREE_END;
+    }
   }
 
   /**
