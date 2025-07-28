@@ -779,11 +779,13 @@ typedef struct bAction {
   /** ID-serialization for relinking. */
   ID id;
 
-  struct ActionLayer **layer_array; /* Array of 'layer_array_num' layers. */
+  /** Array of `layer_array_num` layers. */
+  struct ActionLayer **layer_array;
   int layer_array_num;
   int layer_active_index; /* Index into layer_array, -1 means 'no active'. */
 
-  struct ActionSlot **slot_array; /* Array of 'slot_array_num` slots. */
+  /** Array of `slot_array_num` slots. */
+  struct ActionSlot **slot_array;
   int slot_array_num;
   int32_t last_slot_handle;
 
@@ -962,6 +964,8 @@ typedef enum eDopeSheet_FilterFlag2 {
 
   /** Include working drivers with variables using their fallback values into Only Show Errors. */
   ADS_FILTER_DRIVER_FALLBACK_AS_ERROR = (1 << 6),
+
+  ADS_FILTER_NOLIGHTPROBE = (1 << 7),
 } eDopeSheet_FilterFlag2;
 
 /* DopeSheet general flags */

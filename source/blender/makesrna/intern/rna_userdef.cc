@@ -5443,7 +5443,8 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "lookdev_sphere_size", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, nullptr, "lookdev_sphere_size");
   RNA_def_property_range(prop, 50, 400);
-  RNA_def_property_ui_text(prop, "HDRI Preview Size", "Diameter of the HDRI preview spheres");
+  RNA_def_property_ui_text(
+      prop, "Reference Sphere Size", "Diameter of the HDRI reference spheres");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* View2D Grid Displays */
@@ -6493,7 +6494,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
        0,
        "Forward/Backward",
        "Zoom by pulling the 3D Mouse cap upwards or pushing the cap downwards"},
-      {NDOF_PAN_YZ_SWAP_AXIS,
+      {NDOF_SWAP_YZ_AXIS,
        "NDOF_ZOOM_UP",
        0,
        "Up/Down",
@@ -7597,6 +7598,9 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       "Node Structure Types",
       "Enables new visualization of socket data compatibility in Geometry Nodes");
 
+  prop = RNA_def_property(srna, "use_geometry_nodes_lists", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Geometry Nodes Lists", "Enable new list types and nodes");
+
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,
@@ -7610,12 +7614,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Recompute all ID usercounts before saving to a blendfile. Allows to "
                            "work around invalid usercount handling in code that may lead to loss "
                            "of data due to wrongly detected unused data-blocks");
-
-  prop = RNA_def_property(srna, "use_vulkan_hdr", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop,
-      "Vulkan HDR support Linux/Wayland",
-      "Enables HDR on Linux/Wayland on HDR capable setups. Requires a restart");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)

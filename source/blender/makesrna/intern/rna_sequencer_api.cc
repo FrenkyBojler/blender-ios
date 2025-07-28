@@ -251,7 +251,7 @@ static Strip *rna_Strips_new_image(ID *id,
   load_data.fit_method = eSeqImageFitMethod(fit_method);
 
   char vt_old[64];
-  STRNCPY(vt_old, scene->view_settings.view_transform);
+  STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
 
   Strip *strip = blender::seq::add_image_strip(bmain, scene, seqbase, &load_data);
 
@@ -321,7 +321,7 @@ static Strip *rna_Strips_new_movie(ID *id,
   load_data.allow_invalid_file = true;
 
   char vt_old[64];
-  STRNCPY(vt_old, scene->view_settings.view_transform);
+  STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
   float fps_old = scene->r.frs_sec / scene->r.frs_sec_base;
 
   Strip *strip = blender::seq::add_movie_strip(bmain, scene, seqbase, &load_data);
@@ -656,6 +656,9 @@ static void rna_Strip_invalidate_cache_rnafunc(ID *id, Strip *self, int type)
     case SEQ_CACHE_STORE_RAW:
       blender::seq::relations_invalidate_cache_raw((Scene *)id, self);
       break;
+    case SEQ_CACHE_STORE_FINAL_OUT:
+      blender::seq::relations_invalidate_cache((Scene *)id, self);
+      break;
   }
 }
 
@@ -689,6 +692,7 @@ void RNA_api_strip(StructRNA *srna)
 
   static const EnumPropertyItem strip_cache_type_items[] = {
       {SEQ_CACHE_STORE_RAW, "RAW", 0, "Raw", ""},
+      {SEQ_CACHE_STORE_FINAL_OUT, "COMPOSITE", 0, "Composite", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

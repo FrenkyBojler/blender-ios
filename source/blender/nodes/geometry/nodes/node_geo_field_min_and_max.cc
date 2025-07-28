@@ -187,7 +187,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               result = math::min(result, values[i]);
             }
-            g_outputs = VArray<T>::ForSingle(result, domain_size);
+            g_outputs = VArray<T>::from_single(result, domain_size);
           }
           else {
             Map<int, T> results;
@@ -199,7 +199,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               outputs[i] = results.lookup(group_indices[i]);
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
         else {
@@ -208,7 +208,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               result = math::max(result, values[i]);
             }
-            g_outputs = VArray<T>::ForSingle(result, domain_size);
+            g_outputs = VArray<T>::from_single(result, domain_size);
           }
           else {
             Map<int, T> results;
@@ -220,13 +220,19 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               outputs[i] = results.lookup(group_indices[i]);
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
       }
     });
 
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
+  }
+
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  {
+    input_.node().for_each_field_input_recursive(fn);
+    group_index_.node().for_each_field_input_recursive(fn);
   }
 
   uint64_t hash() const override
