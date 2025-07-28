@@ -571,11 +571,7 @@ const EnumPropertyItem rna_enum_geometry_nodes_linear_gizmo_draw_style_items[] =
 
 #ifndef RNA_RUNTIME
 static const EnumPropertyItem cmp_extension_mode_items[] = {
-    {CMP_NODE_EXTENSION_MODE_ZERO,
-     "ZERO",
-     0,
-     "Zero",
-     "Areas outside of the image are filled with zero"},
+    {CMP_NODE_EXTENSION_MODE_CLIP, "CLIP", 0, "Clip", "Areas outside of the image are clipped"},
     {CMP_NODE_EXTENSION_MODE_EXTEND,
      "EXTEND",
      0,
