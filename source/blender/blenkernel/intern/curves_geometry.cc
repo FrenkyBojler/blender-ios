@@ -1257,6 +1257,15 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   });
 }
 
+static void transform_positions(MutableSpan<float3> positions, const float4x4 &matrix)
+{
+  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
+    for (float3 &position : positions.slice(range)) {
+      position = math::transform_point(matrix, position);
+    }
+  });
+}
+
 void CurvesGeometry::calculate_bezier_auto_handles()
 {
   if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {

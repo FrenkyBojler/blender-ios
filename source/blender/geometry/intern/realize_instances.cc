@@ -445,6 +445,31 @@ static bool skip_transform(const float4x4 &transform)
   return math::is_equal(transform, float4x4::identity(), 1e-6f);
 }
 
+static void copy_transformed_positions(const Span<float3> src,
+                                       const float4x4 &transform,
+                                       MutableSpan<float3> dst)
+{
+  if (skip_transform(transform)) {
+    dst.copy_from(src);
+  }
+  else {
+    threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        dst[i] = math::transform_point(transform, src[i]);
+      }
+    });
+  }
+}
+
+static void transform_positions(const float4x4 &transform, MutableSpan<float3> positions)
+{
+  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      positions[i] = math::transform_point(transform, positions[i]);
+    }
+  });
+}
+
 static void threaded_copy(const GSpan src, GMutableSpan dst)
 {
   BLI_assert(src.size() == dst.size());
