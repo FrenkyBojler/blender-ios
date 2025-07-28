@@ -266,6 +266,10 @@ PYGETTEXT_KEYWORDS = (() +
     tuple(("{}\\((?:[^\"',]+,){{2}}\\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
           for it in ("BKE_modifier_set_error",)) +
 
+    # Window manager job names.
+    tuple(("{}\\((?:[^\"',]+,){{3}}\\s*" + _msg_re + r"\s*,").format(it)
+          for it in ("WM_jobs_get",)) +
+
     # Compositor and EEVEE messages.
     # Ends either with `)` (function call close), or `,` when there are extra formatting parameters.
     tuple((r"{}\(\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
@@ -289,23 +293,19 @@ PYGETTEXT_KEYWORDS = (() +
     tuple((r"\.{}\(\s*" + _msg_re + r"\s*\)").format(it)
           for it in ("description", "error_message_add")) +
 
-    # Node socket labels from declarations: context-less names
+    # Node socket panels and labels from declarations: context-less names
     tuple((r"\.{}\(\s*" + _msg_re +
            r"\s*\)(?![^;]*\.translation_context\()[^;]*;").format(it)
-          for it in ("short_label",)) +
+          for it in ("short_label", "add_panel",)) +
 
-    # Node socket labels from declarations: names with contexts
+    # Node socket panels and labels from declarations: names with contexts
     tuple((r"\.{}\(\s*" + _msg_re + r"[^;]*\.translation_context\(\s*" +
            _ctxt_re + r"\s*\)").format(it)
-          for it in ("short_label",)) +
+          for it in ("short_label", "add_panel",)) +
 
     # Dynamic node socket labels
     tuple((r"{}\(\s*[^,]+,\s*" + _msg_re + r"\s*\)").format(it)
           for it in ("node_sock_label",)) +
-
-    # Node panel declarations
-    tuple((r"\.{}\(\s*" + _msg_re + r"\s*\)").format(it)
-          for it in ("add_panel",)) +
 
     # Geometry Nodes field inputs
     ((r"FieldInput\(CPPType::get<.*?>\(\),\s*" + _msg_re + r"\s*\)"),) +
@@ -716,7 +716,7 @@ def _check_valid_data(uid, val):
 class I18nSettings:
     """
     Class allowing persistence of our settings!
-    Saved in JSon format, so settings should be JSon'able objects!
+    Saved in JSON format, so settings should be JSON'able objects!
     """
     _settings = None
 
@@ -763,7 +763,7 @@ class I18nSettings:
             return
         if isinstance(fname, str):
             if not os.path.isfile(fname):
-                # Assume it is already real JSon string...
+                # Assume it is already real JSON string.
                 self.from_json(fname)
                 return
             with open(fname, encoding="utf8") as f:

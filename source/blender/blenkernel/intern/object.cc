@@ -56,6 +56,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -153,7 +154,7 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::Vector;
 
-static CLG_LogRef LOG = {"bke.object"};
+static CLG_LogRef LOG = {"object"};
 
 /**
  * NOTE(@sergey): Vertex parent modifies original #BMesh which is not safe for threading.
@@ -1409,7 +1410,7 @@ bool BKE_object_copy_modifier(Main *bmain,
   else {
     md_dst = BKE_modifier_new(md_src->type);
 
-    STRNCPY(md_dst->name, md_src->name);
+    STRNCPY_UTF8(md_dst->name, md_src->name);
 
     if (md_src->type == eModifierType_Multires) {
       /* Has to be done after mod creation, but *before* we actually copy its settings! */
@@ -2657,7 +2658,13 @@ Object *BKE_object_duplicate(Main *bmain,
 
   if (!is_subprocess) {
     /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-    BKE_libblock_relink_to_newid(bmain, &obn->id, 0);
+    /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if its
+     * obdata contains edit mode runtime data. This can be the case of all newly duplicated
+     * objects, as even though duplicate code move the object back in Object mode, they are still
+     * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
+     * and therefore not remapping their obdata to the newly duplicated one.
+     * See #139715. */
+    BKE_libblock_relink_to_newid(bmain, &obn->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
@@ -3395,7 +3402,7 @@ blender::float4x4 BKE_object_calc_parent(Depsgraph *depsgraph, Scene *scene, Obj
    * object's local loc/rot/scale instead of after. For example, a "Copy Rotation" constraint would
    * rotate the object's local translation as well. See #82156. */
 
-  STRNCPY(workob.parsubstr, ob->parsubstr);
+  STRNCPY_UTF8(workob.parsubstr, ob->parsubstr);
 
   BKE_object_where_is_calc(depsgraph, scene, &workob);
 
@@ -3547,7 +3554,8 @@ std::optional<Bounds<float3>> BKE_object_evaluated_geometry_bounds(const Object 
 {
   if (const blender::bke::GeometrySet *geometry = ob->runtime->geometry_set_eval) {
     const bool use_radius = ob->type != OB_CURVES_LEGACY;
-    return geometry->compute_boundbox_without_instances(use_radius);
+    const bool use_subdiv = true;
+    return geometry->compute_boundbox_without_instances(use_radius, use_subdiv);
   }
   if (const CurveCache *curve_cache = ob->runtime->curve_cache) {
     float3 min(std::numeric_limits<float>::max());

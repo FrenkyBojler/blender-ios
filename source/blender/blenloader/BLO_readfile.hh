@@ -6,6 +6,7 @@
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 #include "BLI_utility_mixins.hh"
@@ -227,7 +228,7 @@ void BLO_read_do_version_after_setup(Main *new_bmain,
  * \{ */
 
 struct BLODataBlockInfo {
-  char name[/*MAX_ID_NAME-2*/ 64];
+  char name[/*MAX_ID_NAME-2*/ 256];
   AssetMetaData *asset_data;
   /** Ownership over #asset_data above can be "stolen out" of this struct, for more permanent
    * storage. In that case, set this to false to avoid double freeing of the stolen data. */
@@ -268,6 +269,9 @@ BlendHandle *BLO_blendhandle_from_file(const char *filepath, BlendFileReadReport
 BlendHandle *BLO_blendhandle_from_memory(const void *mem,
                                          int memsize,
                                          BlendFileReadReport *reports);
+
+/** Returns the major and minor version number of Blender used to create the file. */
+blender::int3 BLO_blendhandle_get_version(const BlendHandle *bh);
 
 /**
  * Gets the names of all the data-blocks in a file of a certain type
@@ -494,19 +498,6 @@ void BLO_library_temp_free(TempLibraryContext *temp_lib_ctx);
 
 void *BLO_library_read_struct(FileData *fd, BHead *bh, const char *blockname);
 
-using BLOExpandDoitCallback = void (*)(void *fdhandle, Main *mainvar, void *idv);
-
-/**
- * Loop over all ID data in Main to mark relations.
- * Set #ID_Readfile_Data::Tags.needs_expanding to mark expanding. Flags get
- * cleared after expanding.
- *
- * \param fdhandle: usually file-data, or own handle. May be nullptr.
- * \param mainvar: the Main database to expand.
- * \param calback: Called for each ID block it finds.
- */
-void BLO_expand_main(void *fdhandle, Main *mainvar, BLOExpandDoitCallback callback);
-
 /**
  * Update defaults in startup.blend, without having to save and embed it.
  * \note defaults for preferences are stored in `userdef_default.c` and can be updated there.
@@ -563,7 +554,7 @@ struct ID_Readfile_Data {
      */
     bool is_link_placeholder : 1;
     /**
-     * Mark IDs needing to be expanded (only done once). See #BLO_expand_main.
+     * Mark IDs needing to be expanded (only done once). See #expand_main.
      */
     bool needs_expanding : 1;
     /**

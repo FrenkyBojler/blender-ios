@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -281,7 +282,7 @@ void UI_list_panel_unique_str(Panel *panel, char *r_name)
 {
   /* The panel sort-order will be unique for a specific panel type because the instanced
    * panel list is regenerated for every change in the data order / length. */
-  BLI_snprintf(r_name, INSTANCED_PANEL_UNIQUE_STR_SIZE, "%d", panel->sortorder);
+  BLI_snprintf_utf8(r_name, INSTANCED_PANEL_UNIQUE_STR_SIZE, "%d", panel->sortorder);
 }
 
 /**
@@ -1149,7 +1150,11 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   if (panel->drawname && panel->drawname[0] != '\0') {
     rcti title_rect;
     title_rect.xmin = widget_rect.xmin + (panel->labelofs / aspect) + scaled_unit * 1.1f;
-    title_rect.xmax = widget_rect.xmax - scaled_unit;
+    title_rect.xmax = widget_rect.xmax;
+    if (!is_subpanel && show_background) {
+      /* Don't draw over the drag widget. */
+      title_rect.xmax -= scaled_unit;
+    }
     title_rect.ymin = widget_rect.ymin - 2.0f / aspect;
     title_rect.ymax = widget_rect.ymax;
 
@@ -2417,7 +2422,7 @@ static void ui_panel_category_active_set(ARegion *region, const char *idname, bo
   }
   else {
     pc_act = MEM_callocN<PanelCategoryStack>(__func__);
-    STRNCPY(pc_act->idname, idname);
+    STRNCPY_UTF8(pc_act->idname, idname);
   }
 
   if (fallback) {
@@ -2506,7 +2511,7 @@ void UI_panel_category_add(ARegion *region, const char *name)
   PanelCategoryDyn *pc_dyn = MEM_callocN<PanelCategoryDyn>(__func__);
   BLI_addtail(&region->runtime->panels_category, pc_dyn);
 
-  STRNCPY(pc_dyn->idname, name);
+  STRNCPY_UTF8(pc_dyn->idname, name);
 
   /* 'pc_dyn->rect' must be set on draw. */
 }
@@ -2663,7 +2668,7 @@ int ui_handler_panel_region(bContext *C,
 
   const uiBut *region_active_but = ui_region_find_active_but(region);
   const bool region_has_active_button = region_active_but &&
-                                        region_active_but->type != UI_BTYPE_LABEL;
+                                        region_active_but->type != ButType::Label;
 
   LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     Panel *panel = block->panel;
@@ -2891,7 +2896,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const uiHandle
 
     /* Initiate edge panning during drags for scrolling beyond the initial region view. */
     wmOperatorType *ot = WM_operatortype_find("VIEW2D_OT_edge_pan", true);
-    ui_handle_afterfunc_add_operator(ot, WM_OP_INVOKE_DEFAULT);
+    ui_handle_afterfunc_add_operator(ot, blender::wm::OpCallContext::InvokeDefault);
   }
   else if (state == PANEL_STATE_ANIMATION) {
     panel_set_flag_recursive(panel, PNL_SELECT, false);
