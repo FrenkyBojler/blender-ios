@@ -163,7 +163,7 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
                                     const Span<float> knots,
                                     const Span<int> multiplicity)
 {
-  constexpr float epsilon = 1e-5;
+  constexpr float epsilon = 1e-4;
   const int8_t order = degree + 1;
 
   const int repeated_points = repeating_cyclic_point_num(order, knots);
@@ -279,7 +279,7 @@ static bool detect_knot_mode_uniform(const int8_t degree,
                                      const Span<int> multiplicity,
                                      const bool clamped)
 {
-  constexpr float epsilon = 1e-6;
+  constexpr float epsilon = 1e-4;
 
   /* Check if knot count matches multiplicity adjusted for clamped ends. For a uniform non-clamped
    * curve, all multiplicity entries equals 1 and the array size should match.
