@@ -411,8 +411,6 @@ static void test_draw_curves_interpolation()
   points_rad_buf->allocate(points_radius.size());
   points_rad_buf->data<float>().copy_from(points_radius);
 
-  Vector<float> interp_data;
-  interp_data.resize(8);
   {
     StorageArrayBuffer<float4, 512> points_pos_rad_buf;
     StorageArrayBuffer<float, 512> points_time_buf;
@@ -435,6 +433,7 @@ static void test_draw_curves_interpolation()
     /* Dummy, not used for Catmull-Rom. */
     pass.bind_ssbo("handles_pos_left_buf", curves_evaluated_offsets_buf);
     pass.bind_ssbo("handles_pos_right_buf", curves_evaluated_offsets_buf);
+    pass.bind_ssbo("bezier_offsets_buf", curves_evaluated_offsets_buf);
     pass.push_constant("curves_count", 2);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
@@ -444,6 +443,9 @@ static void test_draw_curves_interpolation()
     points_pos_rad_buf.read();
     points_time_buf.read();
     curves_length_buf.read();
+
+    Vector<float> interp_data;
+    interp_data.resize(8);
 
     bke::curves::catmull_rom::interpolate_to_evaluated(
         GSpan(points_radius.as_span().slice(0, 3)),
@@ -483,15 +485,166 @@ static void test_draw_curves_interpolation()
     EXPECT_EQ(points_time_buf[8], 0.0f);
   }
 
+  const Vector<float3> handle_pos_left = {
+      float3{0.0f}, float3{1.0f}, float3{-1.0f}, float3{1.0f}, float3{4.0f}};
+  const Vector<float3> handle_pos_right = {
+      float3{0.0f}, float3{-1.0f}, float3{1.0f}, float3{-1.0f}, float3{0.0f}};
+
+  gpu::VertBuf *handles_pos_left_buf = GPU_vertbuf_create_with_format_ex(
+      Position::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  handles_pos_left_buf->allocate(handle_pos_left.size());
+  handles_pos_left_buf->data<float3>().copy_from(handle_pos_left);
+
+  gpu::VertBuf *handles_pos_right_buf = GPU_vertbuf_create_with_format_ex(
+      Position::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  handles_pos_right_buf->allocate(handle_pos_right.size());
+  handles_pos_right_buf->data<float3>().copy_from(handle_pos_right);
+
+  const Vector<int> bezier_offsets = {0, 2, 4, 5, 0, 2, 3};
+
+  gpu::VertBuf *bezier_offsets_buf = GPU_vertbuf_create_with_format_ex(
+      IntBuf::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  bezier_offsets_buf->allocate(bezier_offsets.size());
+  bezier_offsets_buf->data<int>().copy_from(bezier_offsets);
+
+  gpu::VertBuf *curves_type_bezier_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_type_bezier_buf->allocate(2);
+  curves_type_bezier_buf->data<int>().copy_from({CURVE_TYPE_BEZIER, CURVE_TYPE_BEZIER});
+
+  {
+    StorageArrayBuffer<float4, 512> points_pos_rad_buf;
+    StorageArrayBuffer<float, 512> points_time_buf;
+    StorageArrayBuffer<float, 512> curves_length_buf;
+    points_pos_rad_buf.clear_to_zero();
+    points_time_buf.clear_to_zero();
+    curves_length_buf.clear_to_zero();
+
+    PassSimple pass("Curves Interpolation Bezier");
+    pass.shader_set(sh);
+    pass.bind_ssbo("curves_offsets_buf", curves_offsets_buf);
+    pass.bind_ssbo("curves_type_buf", curves_type_bezier_buf);
+    pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
+    pass.bind_ssbo("curves_evaluated_offsets_buf", curves_evaluated_offsets_buf);
+    pass.bind_ssbo("points_pos_buf", points_pos_buf);
+    pass.bind_ssbo("points_rad_buf", points_rad_buf);
+    pass.bind_ssbo("points_pos_rad_buf", points_pos_rad_buf);
+    pass.bind_ssbo("points_time_buf", points_time_buf);
+    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.bind_ssbo("handles_pos_left_buf", handles_pos_left_buf);
+    pass.bind_ssbo("handles_pos_right_buf", handles_pos_right_buf);
+    pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
+    pass.push_constant("curves_count", 2);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+    manager.submit(pass);
+
+    points_pos_rad_buf.read();
+    points_time_buf.read();
+    curves_length_buf.read();
+
+    Vector<float3> interp_pos;
+    interp_pos.resize(8);
+
+    Vector<float> interp_rad;
+    interp_rad.resize(8);
+
+    {
+      const int curve_index = 0;
+      const IndexRange points(0, 3);
+      const IndexRange evaluated_points(0, 5);
+      const IndexRange offsets = bke::curves::per_curve_point_offsets_range(points, curve_index);
+
+      bke::curves::bezier::calculate_evaluated_positions(
+          points_pos.as_span().slice(points),
+          handle_pos_left.as_span().slice(points),
+          handle_pos_right.as_span().slice(points),
+          bezier_offsets.as_span().slice(offsets),
+          interp_pos.as_mutable_span().slice(evaluated_points));
+
+      bke::curves::bezier::interpolate_to_evaluated(
+          points_radius.as_span().slice(points),
+          bezier_offsets.as_span().slice(offsets),
+          interp_rad.as_mutable_span().slice(evaluated_points));
+    }
+    {
+      const int curve_index = 1;
+      const IndexRange points(3, 2);
+      const IndexRange evaluated_points(5, 3);
+      const IndexRange offsets = bke::curves::per_curve_point_offsets_range(points, curve_index);
+
+      bke::curves::bezier::calculate_evaluated_positions(
+          points_pos.as_span().slice(points),
+          handle_pos_left.as_span().slice(points),
+          handle_pos_right.as_span().slice(points),
+          bezier_offsets.as_span().slice(offsets),
+          interp_pos.as_mutable_span().slice(evaluated_points));
+
+      bke::curves::bezier::interpolate_to_evaluated(
+          points_radius.as_span().slice(points),
+          bezier_offsets.as_span().slice(offsets),
+          interp_rad.as_mutable_span().slice(evaluated_points));
+    }
+
+    EXPECT_EQ(points_pos_rad_buf[0], float4(interp_pos[0], interp_rad[0]));
+    EXPECT_EQ(points_pos_rad_buf[1], float4(interp_pos[1], interp_rad[1]));
+    EXPECT_EQ(points_pos_rad_buf[2], float4(interp_pos[2], interp_rad[2]));
+    EXPECT_EQ(points_pos_rad_buf[3], float4(interp_pos[3], interp_rad[3]));
+    EXPECT_EQ(points_pos_rad_buf[4], float4(interp_pos[4], interp_rad[4]));
+    EXPECT_EQ(points_pos_rad_buf[5], float4(interp_pos[5], interp_rad[5]));
+    EXPECT_EQ(points_pos_rad_buf[6], float4(interp_pos[6], interp_rad[6]));
+    EXPECT_EQ(points_pos_rad_buf[7], float4(interp_pos[7], interp_rad[7]));
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(points_pos_rad_buf[8], float4(0.0));
+
+    float curve_len[2] = {0.0f, 0.0f};
+    Vector<float> interp_time{0.0f};
+    interp_time.resize(8);
+    interp_time[0] = 0.0f;
+    for (int i : IndexRange(1, 4)) {
+      curve_len[0] += math::distance(interp_pos[i], interp_pos[i - 1]);
+      interp_time[i] = curve_len[0];
+    }
+    for (int i : IndexRange(1, 4)) {
+      interp_time[i] /= curve_len[0];
+    }
+    interp_time[5] = 0.0f;
+    for (int i : IndexRange(6, 2)) {
+      curve_len[1] += math::distance(interp_pos[i], interp_pos[i - 1]);
+      interp_time[i] = curve_len[1];
+    }
+    for (int i : IndexRange(6, 2)) {
+      interp_time[i] /= curve_len[1];
+    }
+
+    EXPECT_FLOAT_EQ(curves_length_buf[0], curve_len[0]);
+    EXPECT_FLOAT_EQ(curves_length_buf[1], curve_len[1]);
+
+    EXPECT_FLOAT_EQ(points_time_buf[0], interp_time[0]);
+    EXPECT_FLOAT_EQ(points_time_buf[1], interp_time[1]);
+    EXPECT_FLOAT_EQ(points_time_buf[2], interp_time[2]);
+    EXPECT_FLOAT_EQ(points_time_buf[3], interp_time[3]);
+    EXPECT_FLOAT_EQ(points_time_buf[4], interp_time[4]);
+    EXPECT_FLOAT_EQ(points_time_buf[5], interp_time[5]);
+    EXPECT_FLOAT_EQ(points_time_buf[6], interp_time[6]);
+    EXPECT_FLOAT_EQ(points_time_buf[7], interp_time[7]);
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(points_time_buf[8], 0.0f);
+  }
+
   GPU_shader_unbind();
 
   GPU_SHADER_FREE_SAFE(sh);
   GPU_VERTBUF_DISCARD_SAFE(curves_offsets_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_type_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_type_bezier_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_resolution_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_evaluated_offsets_buf);
   GPU_VERTBUF_DISCARD_SAFE(points_pos_buf);
   GPU_VERTBUF_DISCARD_SAFE(points_rad_buf);
+  GPU_VERTBUF_DISCARD_SAFE(handles_pos_left_buf);
+  GPU_VERTBUF_DISCARD_SAFE(handles_pos_right_buf);
+  GPU_VERTBUF_DISCARD_SAFE(bezier_offsets_buf);
 }
 DRAW_TEST(draw_curves_interpolation)
 
