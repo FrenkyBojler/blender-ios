@@ -877,9 +877,8 @@ bool OSLRenderServices::get_background_attribute(
       ndc.val = camera_world_to_ndc(kg, sd, sd->P);
 
       if (derivatives) {
-        const differential3 dP = differential_from_compact(sd->Ng, sd->dP);
-        ndc.dx = camera_world_to_ndc(kg, sd, sd->P + dP.dx) - ndc.val;
-        ndc.dy = camera_world_to_ndc(kg, sd, sd->P + dP.dy) - ndc.val;
+        ndc.dx.x = 1.0f / kernel_data.cam.width;
+        ndc.dy.y = 1.0f / kernel_data.cam.height;
       }
     }
 
