@@ -728,6 +728,9 @@ static Color vpaint_blend_stroke(const VPaint &vp,
                                  float brush_strength,
                                  int index)
 {
+  const Brush &brush = *BKE_paint_brush_for_read(&vp.paint);
+  const IMB_BlendMode blend_mode = (IMB_BlendMode)brush.blend;
+
   Color result;
   if (!vwpaint::brush_use_accumulate(vp)) {
     BLI_assert(!stroke_buffer.is_empty());
@@ -737,18 +740,26 @@ static Color vpaint_blend_stroke(const VPaint &vp,
       prev_vertex_colors[index] = vertex_colors[index];
     }
 
-    /* Mix with mesh color under the stroke (a bit easier than trying to premultiply
-     * byte Color types */
-    if (isZero(stroke_buffer[index])) {
-      stroke_buffer[index] = vertex_colors[index];
-      stroke_buffer[index].a = 0;
+    /* Only perform the intermediate mixing step when the brush is in mix mode. Otherwise, we can
+     * cause artifacts. */
+    if (blend_mode == IMB_BLEND_MIX) {
+      /* Mix with mesh color under the stroke (a bit easier than trying to premultiply
+       * byte Color types */
+      if (isZero(stroke_buffer[index])) {
+        stroke_buffer[index] = vertex_colors[index];
+        stroke_buffer[index].a = 0;
+      }
+
+      stroke_buffer[index] = BLI_mix_colors<Color, Traits>(
+          IMB_BlendMode::IMB_BLEND_MIX, stroke_buffer[index], brush_mark_color, brush_mark_alpha);
+    }
+    else {
+      stroke_buffer[index] = brush_mark_color;
+      stroke_buffer[index].a = brush_mark_alpha;
     }
 
-    stroke_buffer[index] = BLI_mix_colors<Color, Traits>(
-        IMB_BlendMode::IMB_BLEND_MIX, stroke_buffer[index], brush_mark_color, brush_mark_alpha);
-
     result = vpaint_blend<Color, Traits>(vp,
-                                         prev_vertex_colors[index],
+                                         vertex_colors[index],
                                          prev_vertex_colors[index],
                                          stroke_buffer[index],
                                          stroke_buffer[index].a,
