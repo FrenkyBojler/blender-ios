@@ -2107,7 +2107,7 @@ class USERPREF_PT_ndof_settings(Panel):
             del colsub
             col.enabled = props.ndof_navigation_mode == "OBJECT"
             col.separator()
-            
+
             col = layout.column(heading="Show")
             col.prop(props, "ndof_show_guide_orbit_axis", text="Orbit Axis")
             colsub = col.column()
