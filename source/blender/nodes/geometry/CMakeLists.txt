@@ -24,9 +24,6 @@ set(INC
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
-set(INC_SYS
-)
-
 set(SRC
   nodes/node_geo_accumulate_field.cc
   nodes/node_geo_attribute_capture.cc
@@ -147,6 +144,7 @@ set(SRC
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_geometry.cc
+  nodes/node_geo_jolt_physics_solver.cc
   nodes/node_geo_list.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
@@ -324,6 +322,13 @@ if(WITH_BULLET)
   add_definitions(-DWITH_BULLET)
   add_definitions(-DBT_USE_DOUBLE_PRECISION)
 endif()
+
+list(APPEND INC_SYS
+  ${JOLT_INCLUDE_DIRS}
+)
+list(APPEND LIB
+  ${JOLT_LIBRARIES}
+)
 
 if(WITH_TBB)
   if(WIN32)
