@@ -1263,8 +1263,7 @@ static void do_version_world_remove_use_nodes(Main *bmain, World *world)
   bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputWorld");
   bNodeSocket &output_surface_input = version_node_add_socket(
       *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
-  bNodeSocket &output_volume_input = version_node_add_socket(
-      *ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
+  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
   new_output.flag |= NODE_DO_OUTPUT;
 
   bNode &background = version_node_add_empty(*ntree, "ShaderNodeBackground");
@@ -1281,10 +1280,11 @@ static void do_version_world_remove_use_nodes(Main *bmain, World *world)
   version_node_add_link(
       *ntree, background, background_color_output, new_output, output_surface_input);
 
-  background_color_input.default_value_typed<bNodeSocketValueRGBA>()->value[0] = world->horr;
-  background_color_input.default_value_typed<bNodeSocketValueRGBA>()->value[1] = world->horg;
-  background_color_input.default_value_typed<bNodeSocketValueRGBA>()->value[2] = world->horb;
-  background_color_input.default_value_typed<bNodeSocketValueRGBA>()->value[3] = 1.0f;
+  bNodeSocketValueRGBA *rgba = background_color_input.default_value_typed<bNodeSocketValueRGBA>();
+  rgba->value[0] = world->horr;
+  rgba->value[1] = world->horg;
+  rgba->value[2] = world->horb;
+  rgba->value[3] = 1.0f;
   background_strength_input.default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
 
   if (old_output != nullptr) {
