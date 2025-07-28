@@ -137,7 +137,7 @@ ENUM_OPERATORS(ItemInternalFlag, ItemInternalFlag::PropDecorateNoPad)
 
 }  // namespace blender::ui
 
-uiItem::uiItem(blender::ui::ItemType type) : type_{type}, flag_{} {}
+uiItem::uiItem(blender::ui::ItemType type) : type_{type} {}
 
 blender::ui::ItemType uiItem::type() const
 {
