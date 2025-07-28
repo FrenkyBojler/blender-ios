@@ -85,13 +85,25 @@ TEST(blf_metrics, get_vfont_metrics)
 {
   const int id = open_font("Ahem.ttf");
   float ascend_ratio = 0.0f;
-  float em_ratio = 0.0f;
+  float descend_ratio = 0.0f;
+  float line_height = 0.0f;
+  float underline_position = 0.0f;
+  float underline_thickness = 0.0f;
   float scale = 0.0f;
-  const bool has_metrics = BLF_get_vfont_metrics(id, &ascend_ratio, &em_ratio, &scale);
+  const bool has_metrics = BLF_get_vfont_metrics(id,
+                                                 &ascend_ratio,
+                                                 &descend_ratio,
+                                                 &line_height,
+                                                 &underline_position,
+                                                 &underline_thickness,
+                                                 &scale);
   EXPECT_TRUE(has_metrics);
   EXPECT_TRUE(ascend_ratio == 0.8f);
-  EXPECT_TRUE(em_ratio == 1.0f);
-  EXPECT_TRUE(scale == 0.001f);
+  EXPECT_TRUE(descend_ratio == 0.2f);
+  EXPECT_TRUE(line_height == 1.0f);
+  EXPECT_TRUE(underline_position == -0.143f);
+  EXPECT_TRUE(underline_thickness == -0.02f);
+  EXPECT_TRUE(scale == 0.000561250024f);
   close_font(id);
 }
 

@@ -27,14 +27,15 @@ struct VFont;
  * We obtain ascent and descent from the font itself (`FT_Face->ascender / face->height`).
  * And in some cases it is even the same value as `FT_Face->bbox.yMax / yMin`.
  * (font top and bottom respectively).
- *
- * The `em_ratio` here is relative to `FT_Face->bbox`.
  */
 struct VFontData_Metrics {
   float scale;
   /* Calculated from the font. */
-  float em_ratio;
   float ascend_ratio;
+  float descend_ratio;
+  float line_height;
+  float underline_position;
+  float underline_thickness;
 };
 
 struct VFontData {

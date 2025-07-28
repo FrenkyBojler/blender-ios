@@ -1084,7 +1084,13 @@ char *BLF_display_name_from_id(int fontid)
   return blf_display_name(font);
 }
 
-bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, float *scale)
+bool BLF_get_vfont_metrics(int fontid,
+                           float *ascend_ratio,
+                           float *descend_ratio,
+                           float *line_height,
+                           float *underline_position,
+                           float *underline_thickness,
+                           float *scale)
 {
   FontBLF *font = blf_get(fontid);
   if (!font) {
@@ -1095,36 +1101,20 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
     return false;
   }
 
-  /* Copied without change from vfontdata_freetype.cc to ensure consistent sizing. */
-
-  /* Blender default BFont is not "complete". */
-  const bool complete_font = (font->face->ascender != 0) && (font->face->descender != 0) &&
-                             (font->face->ascender != font->face->descender);
-
-  if (complete_font) {
-    /* We can get descender as well, but we simple store descender in relation to the ascender.
-     * Also note that descender is stored as a negative number. */
-    *ascend_ratio = float(font->face->ascender) / (font->face->ascender - font->face->descender);
-  }
-  else {
-    *ascend_ratio = BLF_VFONT_METRICS_ASCEND_RATIO_DEFAULT;
-    *em_ratio = BLF_VFONT_METRICS_EM_RATIO_DEFAULT;
+  if (font->metrics.valid) {
+    *ascend_ratio = float(font->metrics.ascender) / float(font->metrics.units_per_EM);
+    *descend_ratio = float(font->metrics.descender) / float(font->metrics.units_per_EM);
+    *line_height = float(font->metrics.line_height) / float(font->metrics.units_per_EM);
+    *underline_position = float(font->metrics.underline_position) /
+                          float(font->metrics.units_per_EM);
+    *underline_thickness = float(font->metrics.underline_thickness) /
+                           float(font->metrics.units_per_EM);
+    /* 449 is x-height of bFont. */
+    *scale = 449.0f / float(font->metrics.x_height) * BLF_VFONT_METRICS_SCALE_DEFAULT;
+    return true;
   }
 
-  /* Adjust font size */
-  if (font->face->bbox.yMax != font->face->bbox.yMin) {
-    *scale = float(1.0 / double(font->face->bbox.yMax - font->face->bbox.yMin));
-
-    if (complete_font) {
-      *em_ratio = float(font->face->ascender - font->face->descender) /
-                  (font->face->bbox.yMax - font->face->bbox.yMin);
-    }
-  }
-  else {
-    *scale = BLF_VFONT_METRICS_SCALE_DEFAULT;
-  }
-
-  return true;
+  return false;
 }
 
 float BLF_character_to_curves(

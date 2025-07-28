@@ -118,11 +118,20 @@ char *BLF_display_name_from_id(int fontid);
 /**
  * Get the metrics needed for the initial sizing of text objects.
  */
-bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, float *scale);
+bool BLF_get_vfont_metrics(int fontid,
+                           float *ascend_ratio,
+                           float *descend_ratio,
+                           float *line_height,
+                           float *underline_position,
+                           float *underline_thickness,
+                           float *scale);
 
 #define BLF_VFONT_METRICS_SCALE_DEFAULT float(1.0 / 1000.0)
-#define BLF_VFONT_METRICS_EM_RATIO_DEFAULT 1.0f
 #define BLF_VFONT_METRICS_ASCEND_RATIO_DEFAULT 0.8f
+#define BLF_VFONT_METRICS_DESCEND_RATIO_DEFAULT -0.2f
+#define BLF_VFONT_METRICS_LINE_HEIGHT_DEFAULT 1.2f
+#define BLF_VFONT_METRICS_UNDERLINE_POSITION_DEFAULT -0.1f
+#define BLF_VFONT_METRICS_UNDERLINE_THICKNESS_DEFAULT 0.05f
 
 /**
  * Convert a character's outlines into curves.

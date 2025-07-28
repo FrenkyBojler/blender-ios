@@ -59,11 +59,11 @@ static void mid_v2v2(float a[2], float b[2])
 
 static float vfont_metrics_ascent(const VFontData_Metrics *metrics)
 {
-  return metrics->ascend_ratio * metrics->em_ratio;
+  return metrics->ascend_ratio;
 }
 static float vfont_metrics_descent(const VFontData_Metrics *metrics)
 {
-  return metrics->em_ratio - vfont_metrics_ascent(metrics);
+  return -metrics->descend_ratio;
 }
 
 static VFont *vfont_from_charinfo(const Curve *cu, const CharInfo *info)
@@ -1141,8 +1141,7 @@ static bool vfont_to_curve(Object *ob,
             yoff = textbox_y_origin - vfont_metrics_ascent(metrics);
             break;
           case CU_ALIGN_Y_CENTER:
-            yoff = ((((metrics->em_ratio + (lines - 1) * linedist) * 0.5f) -
-                     vfont_metrics_ascent(metrics)) -
+            yoff = ((((1.0f + (lines - 1) * linedist) * 0.5f) - vfont_metrics_ascent(metrics)) -
                     (tb_scale.h * 0.5f) + textbox_y_origin);
             break;
           case CU_ALIGN_Y_BOTTOM_BASELINE:
@@ -1174,8 +1173,7 @@ static bool vfont_to_curve(Object *ob,
           yoff = -vfont_metrics_ascent(metrics);
           break;
         case CU_ALIGN_Y_CENTER:
-          yoff = ((metrics->em_ratio + (lnr - 1) * linedist) * 0.5f) -
-                 vfont_metrics_ascent(metrics);
+          yoff = ((1.0f + (lnr - 1) * linedist) * 0.5f) - vfont_metrics_ascent(metrics);
           break;
         case CU_ALIGN_Y_BOTTOM_BASELINE:
           yoff = (lnr - 1) * linedist;
