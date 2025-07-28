@@ -1778,6 +1778,9 @@ typedef enum {
   MOD_WVG_PROXIMITY_INVERT_VGROUP_MASK = (1 << 3),
   MOD_WVG_PROXIMITY_INVERT_FALLOFF = (1 << 4),
   MOD_WVG_PROXIMITY_WEIGHTS_NORMALIZE = (1 << 5),
+
+  MOD_WVG_PROXIMITY_GEOM_ALL = (MOD_WVG_PROXIMITY_GEOM_VERTS | MOD_WVG_PROXIMITY_GEOM_EDGES |
+                                MOD_WVG_PROXIMITY_GEOM_FACES),
 } WeightVGProximityModifierFlag;
 
 /* Defines common to all WeightVG modifiers. */
