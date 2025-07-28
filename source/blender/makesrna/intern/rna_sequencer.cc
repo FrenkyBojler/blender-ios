@@ -3145,7 +3145,7 @@ static void rna_def_sound(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "pitch_correction", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "sound_flags", SEQ_AUDIO_PITCH_CORRECTION);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_AUDIO_PITCH_CORRECTION);
   RNA_def_property_ui_text(
       prop,
       "Preserve Pitch",

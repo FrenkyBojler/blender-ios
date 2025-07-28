@@ -205,4 +205,4 @@ struct Depsgraph;
 
 void BKE_sound_evaluate(struct Depsgraph *depsgraph, struct Main *bmain, struct bSound *sound);
 
-void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float timeStretch);
+void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float time_ratio);

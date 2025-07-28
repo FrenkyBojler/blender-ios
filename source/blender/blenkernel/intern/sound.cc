@@ -1517,10 +1517,10 @@ bool BKE_sound_stream_info_get(Main *main,
 /* Should probably make this like a modifier & move this with the equalizer code?
  * Also add ifdef for Rubber Band Library later.
  */
-void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float timeStretch)
+void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float time_ratio)
 {
   return AUD_Sound_timeStretchPitchScale(
-      sound_handle, timeStretch, 1.0, AUD_STRETCHER_QUALITY_HIGH, false);
+      sound_handle, time_ratio, 1.0, AUD_STRETCHER_QUALITY_HIGH, false);
 }
 
 #else /* WITH_AUDASPACE */
@@ -1591,7 +1591,7 @@ void BKE_sound_read_waveform(Main *bmain,
 {
   UNUSED_VARS(sound, stop, bmain);
 }
-void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float timeStretch)
+void *BKE_sound_add_time_stretch_modifier(void *sound_handle, float time_ratio)
 {
   return nullptr;
 }

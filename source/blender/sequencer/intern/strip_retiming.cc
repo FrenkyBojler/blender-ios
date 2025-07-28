@@ -1068,7 +1068,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
   int64_t range_count = retiming_data.ranges.size();
 
   if (range_count == 1 && retiming_data.ranges[0].type == LINEAR &&
-      strip->sound_flags & SEQ_AUDIO_PITCH_CORRECTION)
+      strip->flag & SEQ_AUDIO_PITCH_CORRECTION)
   {
     void *sound_handle = strip->sound->playback_handle;
     RetimingRange range = retiming_data.ranges[0];
