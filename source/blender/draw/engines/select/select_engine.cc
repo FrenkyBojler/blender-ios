@@ -58,6 +58,8 @@ struct Instance : public DrawEngine {
   View view_edges = {"view_edges"};
   View view_verts = {"view_verts"};
 
+  UniformArrayBuffer<float4, 6> clip_planes_buf;
+
   const DRWContext *draw_ctx = nullptr;
 
  public:
@@ -132,9 +134,16 @@ struct Instance : public DrawEngine {
      */
     int clipping_plane_count = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ? 6 : 0;
 
+    for (auto i : IndexRange(clipping_plane_count)) {
+      clip_planes_buf[i] = draw_ctx->rv3d->clip[i];
+    }
+
+    clip_planes_buf.push_update();
+
     {
       depth_only_ps.init();
       depth_only_ps.state_set(state, clipping_plane_count);
+      depth_only_ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, clip_planes_buf);
       depth_only = nullptr;
       depth_occlude = nullptr;
       {
@@ -154,6 +163,7 @@ struct Instance : public DrawEngine {
 
       select_face_ps.init();
       select_face_ps.state_set(state, clipping_plane_count);
+      select_face_ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, clip_planes_buf);
       select_face_uniform = nullptr;
       select_face_flat = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_FACE) {
@@ -171,6 +181,7 @@ struct Instance : public DrawEngine {
       }
 
       select_edge_ps.init();
+      select_edge_ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, clip_planes_buf);
       select_edge = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_EDGE) {
         auto &sub = select_edge_ps.sub("Sub");
@@ -181,6 +192,7 @@ struct Instance : public DrawEngine {
       }
 
       select_id_vert_ps.init();
+      select_id_vert_ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, clip_planes_buf);
       select_vert = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
         const float vertex_size = U.pixelsize *
