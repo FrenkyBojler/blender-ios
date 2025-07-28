@@ -111,6 +111,42 @@ static wmOperatorStatus edbm_subdivide_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    if (std::optional<EditMeshSymmetryHelper> symmetry_helper =
+            EditMeshSymmetryHelper::create_if_needed(obedit, BM_EDGE | BM_FACE))
+    {
+      BMesh *bm = em->bm;
+      BMIter iter;
+      BMEdge *e;
+      BMFace *f;
+
+      Vector<BMEdge *> selected_edges;
+      if (bm->totedgesel > 0) {
+        selected_edges.reserve(bm->totedgesel);
+        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+          if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+            selected_edges.append(e);
+          }
+        }
+      }
+
+      Vector<BMFace *> selected_faces;
+      if (bm->totfacesel > 0) {
+        selected_faces.reserve(bm->totfacesel);
+        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+            selected_faces.append(f);
+          }
+        }
+      }
+
+      for (BMEdge *edge : selected_edges) {
+        symmetry_helper->set_flag_on_mirror_edges(edge, BM_ELEM_SELECT, true);
+      }
+      for (BMFace *face : selected_faces) {
+        symmetry_helper->set_flag_on_mirror_faces(face, BM_ELEM_SELECT, true);
+      }
+    }
+
     BM_mesh_esubdivide(em->bm,
                        BM_ELEM_SELECT,
                        smooth,
