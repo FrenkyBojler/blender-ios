@@ -170,6 +170,7 @@ class ProjectEdit(Operator):
         ProjectEdit._proj_hack[0] = image_new.name
 
         image_new.filepath_raw = filepath_final  # TODO, filepath raw is crummy
+        image_new.media_type = 'IMAGE'
         image_new.file_format = 'PNG'
         image_new.save()
 
