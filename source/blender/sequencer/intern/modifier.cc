@@ -36,7 +36,6 @@
 #include "COM_context.hh"
 #include "COM_domain.hh"
 #include "COM_evaluator.hh"
-#include "COM_render_context.hh"
 
 #include "SEQ_modifier.hh"
 #include "SEQ_render.hh"
@@ -1193,18 +1192,7 @@ class CompositorContext : public compositor::Context {
 
   const bNodeTree &get_node_tree() const override
   {
-    return *render_data_.scene->nodetree;
-  }
-
-  bool use_gpu() const override
-  {
-    return false;
-  }
-
-  eCompositorDenoiseQaulity get_denoise_quality() const override
-  {
-    return static_cast<eCompositorDenoiseQaulity>(
-        this->get_render_data().compositor_denoise_preview_quality);
+    return *render_data_.scene->compositing_node_group;
   }
 
   compositor::OutputTypes needed_outputs() const override
@@ -1212,65 +1200,48 @@ class CompositorContext : public compositor::Context {
     return compositor::OutputTypes::Composite | compositor::OutputTypes::Viewer;
   }
 
-  bool treat_viewer_as_composite_output() const override
+  bool treat_viewer_as_compositor_output() const override
   {
     return true;
   }
 
-  const ::RenderData &get_render_data() const override
+  Bounds<int2> get_compositing_region() const override
   {
-    return this->get_scene().r;
+    return Bounds<int2>(int2(0), int2(image_buffer_->x, image_buffer_->y));
   }
 
-  int2 get_render_size() const override
-  {
-    return int2(image_buffer_->x, image_buffer_->y);
-  }
-
-  rcti get_compositing_region() const override
-  {
-    const int2 render_size = get_render_size();
-    const rcti render_region = rcti{0, render_size.x, 0, render_size.y};
-
-    return render_region;
-  }
-
-  compositor::Result get_output_result() override
+  compositor::Result get_output() override
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color);
-    result.wrap_external(image_buffer_->float_buffer.data, this->get_render_size());
+    result.wrap_external(image_buffer_->float_buffer.data,
+                         int2(image_buffer_->x, image_buffer_->y));
     return result;
   }
 
-  compositor::Result get_viewer_output_result(compositor::Domain /*domain*/,
-                                              bool /*is_data*/,
-                                              compositor::ResultPrecision /*precision*/) override
+  compositor::Result get_viewer_output(compositor::Domain /*domain*/,
+                                       bool /*is_data*/,
+                                       compositor::ResultPrecision /*precision*/) override
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color);
-    result.wrap_external(image_buffer_->float_buffer.data, this->get_render_size());
+    result.wrap_external(image_buffer_->float_buffer.data,
+                         int2(image_buffer_->x, image_buffer_->y));
     return result;
   }
 
-  compositor::Result get_pass(const Scene * /*scene*/,
-                              int /*view_layer_id*/,
-                              const char * /*pass_name*/) override
+  compositor::Result get_input(const Scene * /*scene*/,
+                               int /*view_layer_id*/,
+                               const char * /*pass_name*/) override
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color);
-    result.wrap_external(image_buffer_->float_buffer.data, this->get_render_size());
+    result.wrap_external(image_buffer_->float_buffer.data,
+                         int2(image_buffer_->x, image_buffer_->y));
     return result;
   }
 
-  StringRef get_view_name() const override
+  bool use_gpu() const override
   {
-    return "";
+    return false;
   }
-
-  compositor::ResultPrecision get_precision() const override
-  {
-    return compositor::ResultPrecision::Full;
-  }
-
-  void set_info_message(StringRef /*message*/) const override {}
 };
 
 static void compositor_modifier_init_data(StripModifierData * /*strip_modifier_data*/) {}
