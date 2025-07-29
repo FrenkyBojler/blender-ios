@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_instances.hh"
+#include "BLI_math_matrix.hh"
 #include "NOD_geometry_nodes_behaviors_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
@@ -12,8 +14,10 @@
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
 
@@ -123,6 +127,14 @@ class BodyActivationListenerImpl : public JPH::BodyActivationListener {
   void OnBodyDeactivated(const JPH::BodyID & /*body_id*/, uint64_t /*body_user_data*/) override {}
 };
 
+struct JoltRigidBody {
+  JPH::Body *body;
+};
+
+struct JoltRigidBodies {
+  Map<int, JoltRigidBody> bodies_by_id;
+};
+
 struct JoltState {
   bool is_initialized = false;
 
@@ -132,15 +144,17 @@ struct JoltState {
   BodyActivationListenerImpl body_activation_listener;
   ContactListenerImpl contact_listener;
   JPH::PhysicsSystem system;
+
+  Map<std::string, JoltRigidBodies> rigid_bodies_by_path;
 };
 
-struct RigidBodiesBehaviors {
+struct RigidBodiesBehavior {
   std::string self_path;
   GeometrySet geometry;
 };
 
 struct JoltBehaviors {
-  Vector<RigidBodiesBehaviors> rigid_bodies;
+  Vector<RigidBodiesBehavior> rigid_bodies;
 };
 
 struct ParseBehaviorParams {
@@ -162,7 +176,9 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   if (!geometry) {
     return;
   }
-  RigidBodiesBehaviors rigid_bodies_behaviors;
+  geometry->keep_only({bke::GeometryComponent::Type::Instance});
+
+  RigidBodiesBehavior rigid_bodies_behaviors;
   rigid_bodies_behaviors.self_path = params.self_path();
   rigid_bodies_behaviors.geometry = *geometry;
   params.r_behaviors.rigid_bodies.append(std::move(rigid_bodies_behaviors));
@@ -188,6 +204,105 @@ static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
         }
       });
   return behaviors;
+}
+
+static void handle_rigid_bodies_behavior(JoltState &state,
+                                         const RigidBodiesBehavior &behavior,
+                                         Map<std::string, JoltRigidBodies> &r_rigid_bodies_by_path)
+{
+  JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
+
+  const bke::Instances *instances = behavior.geometry.get_instances();
+  if (!instances) {
+    return;
+  }
+  const int instances_num = instances->instances_num();
+  const int references_num = instances->references_num();
+  const Span<int> instance_ids = instances->almost_unique_ids();
+  const Span<float4x4> transforms = instances->transforms();
+  const Span<bke::InstanceReference> references = instances->references();
+  const Span<int> handles = instances->reference_handles();
+
+  Array<GeometrySet> reference_geometry_sets(references_num);
+  for (const int i : references.index_range()) {
+    const bke::InstanceReference &reference = references[i];
+    GeometrySet reference_geometry;
+    reference.to_geometry_set(reference_geometry);
+    reference_geometry_sets[i] = std::move(reference_geometry);
+  }
+
+  JoltRigidBodies *old_rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(behavior.self_path);
+
+  JoltRigidBodies rigid_bodies;
+  for (const int instance_i : IndexRange(instances_num)) {
+    const int reference_i = handles[instance_i];
+    const int instance_id = instance_ids[instance_i];
+    if (!reference_geometry_sets.index_range().contains(reference_i)) {
+      continue;
+    }
+    const GeometrySet &reference_geometry = reference_geometry_sets[reference_i];
+    const std::optional<Bounds<float3>> bounds =
+        reference_geometry.compute_boundbox_without_instances(true);
+    if (!bounds) {
+      continue;
+    }
+    const float4x4 &raw_transform = transforms[instance_i];
+    const float3 &position = raw_transform.location();
+
+    const float3 half_extent = bounds->size() / 2.0f;
+    const JPH::BoxShapeSettings box_shape_settings{
+        JPH::Vec3(half_extent.x, half_extent.y, half_extent.z)};
+    JPH::ShapeSettings::ShapeResult box_shape = box_shape_settings.Create();
+    if (!box_shape.IsValid()) {
+      continue;
+    }
+
+    std::optional<JoltRigidBody> rigid_body;
+    if (old_rigid_bodies) {
+      if (std::optional<JoltRigidBody> old_rigid_body = old_rigid_bodies->bodies_by_id.pop(
+              instance_i))
+      {
+        rigid_body = old_rigid_body;
+      }
+    }
+    if (!rigid_body) {
+      JPH::BodyCreationSettings jolt_body_settings{box_shape.Get(),
+                                                   JPH::Vec3(position.x, position.y, position.z),
+                                                   JPH::Quat::sIdentity(),
+                                                   JPH::EMotionType::Dynamic,
+                                                   ObjectLayers::moving};
+
+      JPH::Body *jolt_body = body_interface.CreateBody(jolt_body_settings);
+      body_interface.AddBody(jolt_body->GetID(), JPH::EActivation::Activate);
+      rigid_body = JoltRigidBody{jolt_body};
+    }
+    rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
+  }
+
+  r_rigid_bodies_by_path.add(behavior.self_path, std::move(rigid_bodies));
+}
+
+static void update_jolt_state_from_behaviors(JoltState &state, const JoltBehaviors &behaviors)
+{
+  Map<std::string, JoltRigidBodies> new_rigid_bodies_by_path;
+
+  JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
+
+  for (const RigidBodiesBehavior &rigid_bodies_behaviors : behaviors.rigid_bodies) {
+    handle_rigid_bodies_behavior(state, rigid_bodies_behaviors, new_rigid_bodies_by_path);
+  }
+
+  /* Remove old rigid bodies. */
+  Vector<JPH::BodyID> bodies_to_remove;
+  for (JoltRigidBodies &rigid_bodies : state.rigid_bodies_by_path.values()) {
+    for (JoltRigidBody &body : rigid_bodies.bodies_by_id.values()) {
+      bodies_to_remove.append(body.body->GetID());
+    }
+  }
+  body_interface.RemoveBodies(bodies_to_remove.data(), bodies_to_remove.size());
+  body_interface.DestroyBodies(bodies_to_remove.data(), bodies_to_remove.size());
+
+  state.rigid_bodies_by_path = std::move(new_rigid_bodies_by_path);
 }
 
 class JoltStateOwner : public BundleItemInternalValueMixin {
@@ -218,7 +333,10 @@ struct JoltStartupAndExit {
   static void initialize_jolt_allocator()
   {
     constexpr const char *func = __func__;
-    JPH::Allocate = [](size_t size) { return MEM_mallocN(size, func); };
+    JPH::Allocate = [](size_t size) {
+      /* Jolt requires 16-byte alignment when doing a normal allocation. */
+      return MEM_mallocN_aligned(size, 16, func);
+    };
     JPH::Reallocate = [](void *mem, size_t /*old_size*/, size_t new_size) {
       return MEM_reallocN_id(mem, new_size, func);
     };
@@ -242,6 +360,50 @@ static void ensure_initialize_jolt()
   static JoltStartupAndExit jolt_startup_and_exit;
 }
 
+static GeometrySet merge_simulation_data_into_behavior_geometry(
+    const RigidBodiesBehavior &behavior, const JoltState &state)
+{
+  GeometrySet geometry = behavior.geometry;
+  bke::Instances *instances = geometry.get_instances_for_write();
+  if (!instances) {
+    return geometry;
+  }
+
+  const JoltRigidBodies *rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(behavior.self_path);
+  if (!rigid_bodies) {
+    return geometry;
+  }
+
+  const int instances_num = instances->instances_num();
+  const Span<int> instance_ids = instances->almost_unique_ids();
+  MutableSpan<float4x4> transforms = instances->transforms_for_write();
+
+  for (const int instance_i : IndexRange(instances_num)) {
+    const int instance_id = instance_ids[instance_i];
+    const JoltRigidBody *rigid_body = rigid_bodies->bodies_by_id.lookup_ptr(instance_id);
+    if (!rigid_body) {
+      continue;
+    }
+    const JPH::Body &jolt_body = *rigid_body->body;
+
+    float4x4 &transform = transforms[instance_i];
+    const JPH::Vec3 jolt_position = jolt_body.GetPosition();
+    const JPH::Quat jolt_rotation = jolt_body.GetRotation();
+
+    const float3 position = float3(
+        jolt_position.GetX(), jolt_position.GetY(), jolt_position.GetZ());
+    const math::Quaternion rotation = math::Quaternion(
+        jolt_rotation.GetW(), jolt_rotation.GetX(), jolt_rotation.GetY(), jolt_rotation.GetZ());
+
+    /* Scale is not simulated to Jolt, so keep the scale of the original geometry. */
+    const float3 scale = math::to_scale(transform);
+
+    transform = math::from_loc_rot_scale<float4x4>(position, rotation, scale);
+  }
+
+  return geometry;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr old_data_bundle = params.extract_input<BundlePtr>("Data");
@@ -258,7 +420,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   JoltStateOwnerPtr jolt_state_owner;
   if (old_data_bundle) {
-    jolt_state_owner = old_data_bundle->lookup<JoltStateOwnerPtr>("Jolt State").value_or(nullptr);
+    jolt_state_owner = old_data_bundle->lookup<JoltStateOwnerPtr>("_state").value_or(nullptr);
   }
   if (!jolt_state_owner) {
     jolt_state_owner = JoltStateOwnerPtr{MEM_new<JoltStateOwner>(__func__)};
@@ -293,6 +455,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   JoltBehaviors behaviors = parse_behaviors(*behavior_bundle);
+  update_jolt_state_from_behaviors(state, behaviors);
 
   {
     JPH::TempAllocatorImpl temp_allocator(10 * 1024 * 1024);
@@ -305,6 +468,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
+
+  for (const RigidBodiesBehavior &rigid_bodies_behavior : behaviors.rigid_bodies) {
+    const GeometrySet geometry = merge_simulation_data_into_behavior_geometry(
+        rigid_bodies_behavior, state);
+    new_data_bundle.add_path_override(rigid_bodies_behavior.self_path + "/Instances", geometry);
+  }
+
   new_data_bundle.add("_state", jolt_state_owner);
   params.set_output("Data", std::move(new_data_bundle_ptr));
 }
