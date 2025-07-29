@@ -58,9 +58,9 @@ This package provides Blender as a Python module for use in studio pipelines, we
 
 ### Archived Versions
 
-Blender versions outside the current LTS window are removed from PyPI and archived at [https://download.blender.org/pypi/bpy/](https://download.blender.org/pypi/bpy/).
+Blender versions outside the current LTS window are removed from PyPI but are available at [https://download.blender.org/pypi/bpy/](https://download.blender.org/pypi/bpy/).
 
-These archived versions can still be installed manually. For example, to install version 3.6.0:
+These versions can still be installed manually. For example, to install version 3.6.0:
 
 ```bash
 pip install bpy==3.6.0 --extra-index-url https://download.blender.org/pypi/
