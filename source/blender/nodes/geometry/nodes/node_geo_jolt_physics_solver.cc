@@ -7,6 +7,12 @@
 
 #include "Jolt/Jolt.h"
 #include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemThreadPool.h>
+#include <Jolt/Physics/Body/Body.h>
+#include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
+#include <Jolt/Physics/Collision/ContactListener.h>
+#include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
 
 namespace blender::nodes::node_geo_jolt_physics_solver_cc {
@@ -22,7 +28,109 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Substeps").default_value(1).min(1);
 }
 
-struct JoltState {};
+namespace ObjectLayers {
+static constexpr JPH::ObjectLayer non_moving(0);
+static constexpr JPH::ObjectLayer moving(1);
+static constexpr int num_layers = 2;
+}  // namespace ObjectLayers
+
+namespace BroadPhaseLayers {
+static constexpr JPH::BroadPhaseLayer non_moving(0);
+static constexpr JPH::BroadPhaseLayer moving(1);
+static constexpr int num_layers = 2;
+}  // namespace BroadPhaseLayers
+
+class BroadPhaseLayerInterfaceImpl : public JPH::BroadPhaseLayerInterface {
+ private:
+  std::array<JPH::BroadPhaseLayer, ObjectLayers::num_layers> object_to_broad_phase_;
+
+ public:
+  BroadPhaseLayerInterfaceImpl()
+  {
+    object_to_broad_phase_[ObjectLayers::non_moving] = BroadPhaseLayers::non_moving;
+    object_to_broad_phase_[ObjectLayers::moving] = BroadPhaseLayers::moving;
+  }
+
+  uint GetNumBroadPhaseLayers() const override
+  {
+    return BroadPhaseLayers::num_layers;
+  }
+
+  JPH::BroadPhaseLayer GetBroadPhaseLayer(const JPH::ObjectLayer object_layer) const override
+  {
+    BLI_assert(object_layer >= 0 && object_layer < ObjectLayers::num_layers);
+    return object_to_broad_phase_[object_layer];
+  }
+};
+
+class ObjectLayerPairFilterImpl : public JPH::ObjectLayerPairFilter {
+ public:
+  bool ShouldCollide(const JPH::ObjectLayer a, const JPH::ObjectLayer b) const override
+  {
+    if (a == ObjectLayers::moving || b == ObjectLayers::moving) {
+      return true;
+    }
+    return false;
+  }
+};
+
+class ObjectVsBroadPhaseLayerFilterImpl : public JPH::ObjectVsBroadPhaseLayerFilter {
+ public:
+  bool ShouldCollide(const JPH::ObjectLayer object_layer,
+                     const JPH::BroadPhaseLayer broad_phase_layer) const override
+  {
+    if (object_layer == ObjectLayers::moving || broad_phase_layer == BroadPhaseLayers::moving) {
+      return true;
+    }
+    return false;
+  }
+};
+
+class ContactListenerImpl : public JPH::ContactListener {
+ public:
+  virtual JPH::ValidateResult OnContactValidate(
+      const JPH::Body & /*body_a*/,
+      const JPH::Body & /*body_b*/,
+      JPH::RVec3Arg /*in_base_offset*/,
+      const JPH::CollideShapeResult & /*in_collision_result*/) override
+  {
+    return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+  }
+
+  void OnContactAdded(const JPH::Body & /*body_a*/,
+                      const JPH::Body & /*body_b*/,
+                      const JPH::ContactManifold & /*manifold*/,
+                      JPH::ContactSettings & /*settings*/) override
+  {
+  }
+
+  void OnContactPersisted(const JPH::Body & /*body_a*/,
+                          const JPH::Body & /*body_b*/,
+                          const JPH::ContactManifold & /*manifold*/,
+                          JPH::ContactSettings & /*settings*/) override
+  {
+  }
+
+  void OnContactRemoved(const JPH::SubShapeIDPair & /*sub_shape_pair*/) override {}
+};
+
+class BodyActivationListenerImpl : public JPH::BodyActivationListener {
+ public:
+  void OnBodyActivated(const JPH::BodyID & /*body_id*/, uint64_t /*body_user_data*/) override {}
+
+  void OnBodyDeactivated(const JPH::BodyID & /*body_id*/, uint64_t /*body_user_data*/) override {}
+};
+
+struct JoltState {
+  bool is_initialized = false;
+
+  BroadPhaseLayerInterfaceImpl broad_phase_layer_interface;
+  ObjectVsBroadPhaseLayerFilterImpl object_vs_broad_phase_layer_filter;
+  ObjectLayerPairFilterImpl object_layer_pair_filter;
+  BodyActivationListenerImpl body_activation_listener;
+  ContactListenerImpl contact_listener;
+  JPH::PhysicsSystem system;
+};
 
 class JoltStateOwner : public BundleItemInternalValueMixin {
  public:
@@ -41,6 +149,49 @@ class JoltStateOwner : public BundleItemInternalValueMixin {
 };
 using JoltStateOwnerPtr = ImplicitSharingPtr<JoltStateOwner>;
 
+static void initialize_jolt_allocator()
+{
+  constexpr const char *func = __func__;
+  JPH::Allocate = [](size_t size) { return MEM_mallocN(size, func); };
+  JPH::Reallocate = [](void *mem, size_t /*old_size*/, size_t new_size) {
+    return MEM_reallocN_id(mem, new_size, func);
+  };
+  JPH::Free = [](void *mem) { MEM_freeN(mem); };
+  JPH::AlignedAllocate = [](size_t size, size_t alignment) {
+    return MEM_mallocN_aligned(size, alignment, func);
+  };
+  JPH::AlignedFree = [](void *mem) { MEM_freeN(mem); };
+}
+
+static void global_initialize_jolt()
+{
+  initialize_jolt_allocator();
+  static JPH::Factory factory;
+  JPH::Factory::sInstance = &factory;
+  JPH::RegisterTypes();
+}
+
+struct JoltStartupAndExit {
+  JoltStartupAndExit()
+  {
+    initialize_jolt_allocator();
+    JPH::Factory::sInstance = new JPH::Factory();
+    JPH::RegisterTypes();
+  }
+
+  ~JoltStartupAndExit()
+  {
+    JPH::UnregisterTypes();
+    delete JPH::Factory::sInstance;
+    JPH::Factory::sInstance = nullptr;
+  }
+};
+
+static void ensure_initialize_jolt()
+{
+  static JoltStartupAndExit jolt_startup_and_exit;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr old_data_bundle = params.extract_input<BundlePtr>("Data");
@@ -52,6 +203,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
+
+  ensure_initialize_jolt();
 
   JoltStateOwnerPtr jolt_state_owner;
   if (old_data_bundle) {
@@ -69,9 +222,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   BLI_SCOPED_DEFER([&]() { jolt_state_owner->mutex.unlock(); });
 
-  // JPH::RegisterDefaultAllocator();
-  // JPH::Factory::sInstance = new JPH::Factory();
-  // JPH::RegisterTypes();
+  JoltState &state = jolt_state_owner->state;
+  if (!state.is_initialized) {
+    /* Defaults taken from Jolt's Hello World example, may need to be tweaked/dynamic over
+     * time.*/
+    const int max_bodies = 65536;
+    const int num_body_mutexes = 0;
+    const int max_body_pairs = 65536;
+    const int max_contact_constraints = 10240;
+    state.system.Init(max_bodies,
+                      num_body_mutexes,
+                      max_body_pairs,
+                      max_contact_constraints,
+                      state.broad_phase_layer_interface,
+                      state.object_vs_broad_phase_layer_filter,
+                      state.object_layer_pair_filter);
+    state.system.SetBodyActivationListener(&state.body_activation_listener);
+    state.system.SetContactListener(&state.contact_listener);
+    state.is_initialized = true;
+  }
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
