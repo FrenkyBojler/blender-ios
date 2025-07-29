@@ -142,7 +142,7 @@ class OBJCurvesTest : public testing::Test {
   {
     BKE_tempdir_init(nullptr);
     std::string tempdir = std::string(BKE_tempdir_base());
-    std::string out_file_path = tempdir + BLI_path_basename("io_obj/tmp.obj");
+    std::string out_file_path = tempdir + BLI_path_basename("io_obj/tmp_6f5273f4.obj");
 
     /* Write/Read */
     src_curve = OBJCurvesTest::create_nurbs(points, cyclic, order, mode);
