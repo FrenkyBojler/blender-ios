@@ -20,6 +20,7 @@
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
 
@@ -138,6 +139,26 @@ class BodyActivationListenerImpl : public JPH::BodyActivationListener {
   void OnBodyDeactivated(const JPH::BodyID & /*body_id*/, uint64_t /*body_user_data*/) override {}
 };
 
+enum class CollisionShapeType {
+  Box,
+  Sphere,
+  ConvexHull,
+};
+
+static std::optional<CollisionShapeType> parse_collision_shape_type(const int type)
+{
+  switch (type) {
+    case 0:
+      return CollisionShapeType::Box;
+    case 1:
+      return CollisionShapeType::Sphere;
+    case 2:
+      return CollisionShapeType::ConvexHull;
+    default:
+      return std::nullopt;
+  }
+}
+
 struct JoltRigidBody {
   JPH::Body *body;
 };
@@ -165,11 +186,26 @@ struct CollisionShapeCache {
     BLI_STRUCT_EQUALITY_OPERATORS_1(BoxID, half_extent)
   };
 
+  struct SphereID {
+    float radius;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->radius);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_1(SphereID, radius)
+  };
+
   Map<BoxID, CachedShape> boxes;
+  Map<SphereID, CachedShape> spheres;
 
   void reset_used()
   {
     for (CachedShape &cached_shape : this->boxes.values()) {
+      cached_shape.still_used = false;
+    }
+    for (CachedShape &cached_shape : this->spheres.values()) {
       cached_shape.still_used = false;
     }
   }
@@ -177,6 +213,7 @@ struct CollisionShapeCache {
   void remove_unused()
   {
     this->boxes.remove_if([](const auto &item) { return !item.value.still_used; });
+    this->spheres.remove_if([](const auto &item) { return !item.value.still_used; });
   }
 
   JPH::ShapeSettings::ShapeResult get_or_create_box(const float3 &half_extent)
@@ -185,6 +222,19 @@ struct CollisionShapeCache {
     CachedShape &cached_shape = this->boxes.lookup_or_add_cb(box_id, [&]() {
       JPH::BoxShapeSettings box_shape_settings{convert_vec3(half_extent)};
       return box_shape_settings.Create();
+    });
+    if (cached_shape.shape.IsValid()) {
+      cached_shape.still_used = true;
+    }
+    return cached_shape.shape;
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_sphere(const float radius)
+  {
+    const SphereID sphere_id{radius};
+    CachedShape &cached_shape = this->spheres.lookup_or_add_cb(sphere_id, [&]() {
+      JPH::SphereShapeSettings sphere_shape_settings{radius};
+      return sphere_shape_settings.Create();
     });
     if (cached_shape.shape.IsValid()) {
       cached_shape.still_used = true;
@@ -210,6 +260,7 @@ struct JoltState {
 struct RigidBodiesBehavior {
   std::string self_path;
   GeometrySet geometry;
+  Field<int> collision_shape_type_field;
 };
 
 struct GravityBehavior {
@@ -237,7 +288,9 @@ using ParseBehaviorFn = std::function<void(ParseBehaviorParams &params)>;
 static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
 {
   std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
-  if (!geometry) {
+  std::optional<Field<int>> collision_shape_type_field = params.bundle.lookup<Field<int>>(
+      "Collision Shape Type");
+  if (!geometry || !collision_shape_type_field) {
     return;
   }
   geometry->keep_only({bke::GeometryComponent::Type::Instance});
@@ -245,6 +298,7 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   RigidBodiesBehavior rigid_bodies_behaviors;
   rigid_bodies_behaviors.self_path = params.self_path();
   rigid_bodies_behaviors.geometry = *geometry;
+  rigid_bodies_behaviors.collision_shape_type_field = *collision_shape_type_field;
   params.r_behaviors.rigid_bodies.append(std::move(rigid_bodies_behaviors));
 }
 
@@ -282,6 +336,39 @@ static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
   return behaviors;
 }
 
+static JPH::ShapeSettings::ShapeResult make_collision_shape(const CollisionShapeType type,
+                                                            const GeometrySet &geometry,
+                                                            const float3 &scale,
+                                                            CollisionShapeCache &cache)
+{
+  switch (type) {
+    case CollisionShapeType::Box: {
+      const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(
+          true);
+      if (!bounds) {
+        return {};
+      }
+      const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) * scale;
+      return cache.get_or_create_box(half_extent);
+    }
+    case CollisionShapeType::Sphere: {
+      const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(
+          true);
+      if (!bounds) {
+        return {};
+      }
+      const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) * scale;
+      const float radius = std::max({half_extent.x, half_extent.y, half_extent.z});
+      return cache.get_or_create_sphere(radius);
+    }
+    case CollisionShapeType::ConvexHull: {
+      return {};
+    }
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
 static void handle_rigid_bodies_behavior(JoltState &state,
                                          const RigidBodiesBehavior &behavior,
                                          Map<std::string, JoltRigidBodies> &r_rigid_bodies_by_path)
@@ -298,6 +385,12 @@ static void handle_rigid_bodies_behavior(JoltState &state,
   const Span<float4x4> transforms = instances->transforms();
   const Span<bke::InstanceReference> references = instances->references();
   const Span<int> handles = instances->reference_handles();
+
+  bke::InstancesFieldContext field_context{*instances};
+  fn::FieldEvaluator field_evaluator{field_context, instances_num};
+  field_evaluator.add(behavior.collision_shape_type_field);
+  field_evaluator.evaluate();
+  const VArray<int> collision_shape_types = field_evaluator.get_evaluated<int>(0);
 
   Array<GeometrySet> reference_geometry_sets(references_num);
   for (const int i : references.index_range()) {
@@ -316,6 +409,11 @@ static void handle_rigid_bodies_behavior(JoltState &state,
     if (!reference_geometry_sets.index_range().contains(reference_i)) {
       continue;
     }
+    const std::optional<CollisionShapeType> collision_shape_type = parse_collision_shape_type(
+        collision_shape_types[instance_i]);
+    if (!collision_shape_type) {
+      continue;
+    }
     const GeometrySet &reference_geometry = reference_geometry_sets[reference_i];
     const std::optional<Bounds<float3>> bounds =
         reference_geometry.compute_boundbox_without_instances(true);
@@ -329,9 +427,9 @@ static void handle_rigid_bodies_behavior(JoltState &state,
     math::to_loc_rot_scale_safe<true>(
         instance_transform, instance_position, instance_rotation, instance_scale);
 
-    JPH::ShapeSettings::ShapeResult box_shape = state.collision_shape_cache.get_or_create_box(
-        bounds->size() / 2.0f * instance_scale);
-    if (!box_shape.IsValid()) {
+    JPH::ShapeSettings::ShapeResult collision_shape = make_collision_shape(
+        *collision_shape_type, reference_geometry, instance_scale, state.collision_shape_cache);
+    if (!collision_shape.IsValid()) {
       continue;
     }
 
@@ -342,12 +440,12 @@ static void handle_rigid_bodies_behavior(JoltState &state,
       {
         rigid_body = old_rigid_body;
         body_interface.SetShape(
-            rigid_body->body->GetID(), box_shape.Get(), true, JPH::EActivation::Activate);
+            rigid_body->body->GetID(), collision_shape.Get(), true, JPH::EActivation::Activate);
       }
     }
     if (!rigid_body) {
       JPH::BodyCreationSettings jolt_body_settings{
-          box_shape.Get(),
+          collision_shape.Get(),
           JPH::Vec3(instance_position.x, instance_position.y, instance_position.z),
           JPH::Quat(
               instance_rotation.x, instance_rotation.y, instance_rotation.z, instance_rotation.w),
