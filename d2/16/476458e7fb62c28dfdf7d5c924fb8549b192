@@ -1,0 +1,1 @@
+Referenced by issue #143539, Assertion: BLI_string_ref.hh operator[](), at 'index < size_'
