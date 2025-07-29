@@ -61,7 +61,7 @@
 
 /* general area and region code */
 
-static void topbar_region_gradient(const ARegion *region)
+static void region_draw_gradient(const ARegion *region)
 {
   if (region->v2d.cur.xmax >= region->v2d.tot.xmax) {
     return;
@@ -533,7 +533,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     if ((screen->state != SCREENFULL) && area->spacetype == SPACE_TOPBAR &&
         region->regiontype == RGN_TYPE_HEADER)
     {
-      topbar_region_gradient(region);
+      region_draw_gradient(region);
     }
     else if ((region->regiontype == RGN_TYPE_WINDOW) && (region->alignment == RGN_ALIGN_QSPLIT)) {
 
