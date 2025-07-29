@@ -11,7 +11,7 @@
 
 #include "draw_curves_info.hh"
 
-COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolation)
+COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_position)
 
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
@@ -270,31 +270,32 @@ void main()
     return;
   }
 
+  const CurveType curve_type = CurveType(curves_type_buf[curve_id]);
+  if (curve_type != CurveType(evaluated_type)) {
+    return;
+  }
+
   IndexRange curve_range = from_begin_end(curves_offsets_buf[curve_id],
                                           curves_offsets_buf[curve_id + 1]);
 
   IndexRange evaluated_range = from_begin_end(curves_evaluated_offsets_buf[curve_id],
                                               curves_evaluated_offsets_buf[curve_id + 1]);
 
-  const CurveType curve_type = CurveType(curves_type_buf[curve_id]);
-
-  switch (curve_type) {
-    case CURVE_TYPE_CATMULL_ROM:
-      catmull_rom::evaluate_curve(curve_range, evaluated_range, curve_id);
-      break;
-    case CURVE_TYPE_BEZIER:
-      bezier::evaluate_curve(curve_range, evaluated_range, curve_id);
-      break;
-    case CURVE_TYPE_POLY:
-      /* Simple copy. */
-      copy_curve_data(curve_range, evaluated_range);
-      break;
-    case CURVE_TYPE_NURBS:
-      nurbs::interpolate_to_evaluated_rational(curve_range, evaluated_range, uint(curve_id));
-      break;
+  if (CurveType(evaluated_type) == CURVE_TYPE_CATMULL_ROM) {
+    catmull_rom::evaluate_curve(curve_range, evaluated_range, curve_id);
+  }
+  else if (CurveType(evaluated_type) == CURVE_TYPE_BEZIER) {
+    bezier::evaluate_curve(curve_range, evaluated_range, curve_id);
+  }
+  else if (CurveType(evaluated_type) == CURVE_TYPE_NURBS) {
+    nurbs::interpolate_to_evaluated_rational(curve_range, evaluated_range, uint(curve_id));
+  }
+  else if (CurveType(evaluated_type) == CURVE_TYPE_POLY) {
+    /* Simple copy. */
+    copy_curve_data(curve_range, evaluated_range);
   }
 
-  if (true /* TODO(fclem) Make it optional. */) {
+  if (compute_length_and_time) {
     float distance_along_curve = 0.0f;
     points_time_buf[0] = 0.0f;
     for (int i = 1; i < evaluated_range.size; i++) {

@@ -359,11 +359,11 @@ static void test_draw_curves_topology()
 }
 DRAW_TEST(draw_curves_topology)
 
-static void test_draw_curves_interpolation()
+static void test_draw_curves_interpolate_position()
 {
   Manager manager;
 
-  GPUShader *sh = GPU_shader_create_from_info_name("draw_curves_interpolation");
+  GPUShader *sh = GPU_shader_create_from_info_name("draw_curves_interpolate_position");
 
   const int curve_resolution = 2;
 
@@ -420,6 +420,7 @@ static void test_draw_curves_interpolation()
     curves_length_buf.clear_to_zero();
 
     PassSimple pass("Curves Interpolation Catmull Rom");
+    pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_CATMULL_ROM));
     pass.shader_set(sh);
     pass.bind_ssbo("curves_offsets_buf", curves_offsets_buf);
     pass.bind_ssbo("curves_type_buf", curves_type_buf);
@@ -435,6 +436,7 @@ static void test_draw_curves_interpolation()
     pass.bind_ssbo("handles_pos_right_buf", curves_evaluated_offsets_buf);
     pass.bind_ssbo("bezier_offsets_buf", curves_evaluated_offsets_buf);
     pass.push_constant("curves_count", 2);
+    pass.push_constant("compute_length_and_time", true);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
@@ -520,6 +522,7 @@ static void test_draw_curves_interpolation()
     curves_length_buf.clear_to_zero();
 
     PassSimple pass("Curves Interpolation Bezier");
+    pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_BEZIER));
     pass.shader_set(sh);
     pass.bind_ssbo("curves_offsets_buf", curves_offsets_buf);
     pass.bind_ssbo("curves_type_buf", curves_type_bezier_buf);
@@ -534,6 +537,7 @@ static void test_draw_curves_interpolation()
     pass.bind_ssbo("handles_pos_right_buf", handles_pos_right_buf);
     pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
     pass.push_constant("curves_count", 2);
+    pass.push_constant("compute_length_and_time", true);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
@@ -703,6 +707,7 @@ static void test_draw_curves_interpolation()
     curves_length_buf.clear_to_zero();
 
     PassSimple pass("Curves Interpolation Nurbs");
+    pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_NURBS));
     pass.shader_set(sh);
     pass.bind_ssbo("curves_offsets_buf", curves_offsets_buf);
     pass.bind_ssbo("curves_type_buf", curves_type_nurbs_buf);
@@ -717,6 +722,7 @@ static void test_draw_curves_interpolation()
     pass.bind_ssbo("handles_pos_right_buf", control_weights_buf);
     pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
     pass.push_constant("curves_count", 2);
+    pass.push_constant("compute_length_and_time", true);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
@@ -845,6 +851,6 @@ static void test_draw_curves_interpolation()
   GPU_VERTBUF_DISCARD_SAFE(curves_order_buf);
   GPU_VERTBUF_DISCARD_SAFE(control_weights_buf);
 }
-DRAW_TEST(draw_curves_interpolation)
+DRAW_TEST(draw_curves_interpolate_position)
 
 }  // namespace blender::draw
