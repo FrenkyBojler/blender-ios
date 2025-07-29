@@ -1,0 +1,1 @@
+Referenced by pull request #143541, Deps: macOS arm64: Fix Python blake2 wrongly linking to system libb2
