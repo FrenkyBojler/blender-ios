@@ -8,6 +8,8 @@
  * \ingroup bli
  */
 
+#include <stdarg.h>
+
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
@@ -31,13 +33,35 @@ size_t BLI_strncpy_utf8_rlen_unterminated(char *__restrict dst,
  */
 ptrdiff_t BLI_str_utf8_invalid_byte(const char *str, size_t str_len) ATTR_NONNULL(1);
 /**
- * Remove any invalid UTF8 byte (taking into account multi-bytes sequence of course).
+ * Remove any invalid UTF8 byte (taking into account multi-bytes sequences).
  *
  * \param str: a null terminated string.
  * \param str_len: the result of `strlen(str)`.
  * \return number of stripped bytes.
  */
 int BLI_str_utf8_invalid_strip(char *str, size_t str_len) ATTR_NONNULL(1);
+/**
+ * Substitute any invalid UTF8 byte with `substitute` (taking into account multi-bytes sequences).
+ * The length of the string remains unchanged.
+ *
+ * \param str: a null terminated string.
+ * \param str_len: the result of `strlen(str)`.
+ * \return number of bytes replaced.
+ */
+int BLI_str_utf8_invalid_substitute(char *str, size_t str_len, const char substitute)
+    ATTR_NONNULL(1);
+
+/**
+ * A utility for #BLI_str_utf8_invalid_substitute that returns `str` when it contains a
+ * valid UTF8 string. Otherwise it is copied into `buf` with invalid byte sequences
+ * substituted for `substitute`.
+ *
+ * \note This is intended for situations when the string is expected to be valid,
+ * where copying and substituting values is typically not needed.
+ */
+[[nodiscard]] const char *BLI_str_utf8_invalid_substitute_as_needed(
+    const char *str, size_t str_len, const char substitute, char *buf, const size_t buf_maxncpy)
+    ATTR_NONNULL(1, 4);
 
 /**
  * \return The size (in bytes) of a single UTF8 char.
@@ -178,6 +202,39 @@ size_t BLI_strncpy_wchar_from_utf8(wchar_t *__restrict dst_w,
                                    size_t dst_w_maxncpy) ATTR_NONNULL(1, 2);
 
 /**
+ * Portable replacement for `snprintf` that truncates partial UTF8 code-points.
+ */
+size_t BLI_snprintf_utf8(char *__restrict dst,
+                         size_t dst_maxncpy,
+                         const char *__restrict format,
+                         ...) ATTR_NONNULL(1, 3) ATTR_PRINTF_FORMAT(3, 4);
+/**
+ * A version of #BLI_snprintf that truncates partial UTF8 code-points.
+ *
+ * \return The length of the string: `strlen(dst)`.
+ */
+size_t BLI_snprintf_utf8_rlen(char *__restrict dst,
+                              size_t dst_maxncpy,
+                              const char *__restrict format,
+                              ...) ATTR_NONNULL(1, 3) ATTR_PRINTF_FORMAT(3, 4);
+
+/**
+ * Portable replacement for `vsnprintf` that truncates partial UTF8 code-points.
+ */
+size_t BLI_vsnprintf_utf8(char *__restrict dst,
+                          size_t dst_maxncpy,
+                          const char *__restrict format,
+                          va_list arg) ATTR_PRINTF_FORMAT(3, 0);
+/**
+ * A version of #BLI_vsnprintf that truncates partial UTF8 code-points.
+ * \return `strlen(dst)`
+ */
+size_t BLI_vsnprintf_utf8_rlen(char *__restrict dst,
+                               size_t dst_maxncpy,
+                               const char *__restrict format,
+                               va_list arg) ATTR_PRINTF_FORMAT(3, 0);
+
+/**
  * Count columns that character/string occupies (based on `wcwidth.co`).
  */
 int BLI_wcwidth_or_error(char32_t ucs) ATTR_WARN_UNUSED_RESULT;
@@ -222,6 +279,14 @@ size_t BLI_str_partition_ex_utf8(const char *str,
                                  const char **r_suf,
                                  bool from_right) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 3, 4, 5);
 
+/**
+ * Ensure that `str` has a null byte in the range of `[0..str_size]`, while not generating any
+ * invalid UTF-8 code. The resulting `strlen(str)` is guaranteed to be less than `str_size`.
+ *
+ * \return true when `str` was truncated.
+ */
+bool BLI_str_utf8_truncate_at_size(char *str, const size_t str_size);
+
 int BLI_str_utf8_offset_to_index(const char *str,
                                  size_t str_len,
                                  int offset_target) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
@@ -250,6 +315,9 @@ int BLI_str_utf8_offset_from_column_with_tabs(const char *str,
                                               int tab_width) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1);
 
+int BLI_str_utf8_column_count(const char *str, size_t str_len) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(1);
+
 /** Size in bytes. */
 #define BLI_UTF8_MAX 6
 #define BLI_UTF8_WIDTH_MAX 2 /* columns */
@@ -265,5 +333,13 @@ int BLI_str_utf8_offset_from_column_with_tabs(const char *str,
 #define STRNCPY_UTF8_RLEN(dst, src) BLI_strncpy_utf8_rlen(dst, src, ARRAY_SIZE(dst))
 
 #define STRNLEN_UTF8(str) BLI_strnlen_utf8(str, ARRAY_SIZE(str))
+
+#define SNPRINTF_UTF8(dst, format, ...) \
+  BLI_snprintf_utf8(dst, ARRAY_SIZE(dst), format, __VA_ARGS__)
+#define SNPRINTF_UTF8_RLEN(dst, format, ...) \
+  BLI_snprintf_utf8_rlen(dst, ARRAY_SIZE(dst), format, __VA_ARGS__)
+#define VSNPRINTF_UTF8(dst, format, args) BLI_vsnprintf_utf8(dst, ARRAY_SIZE(dst), format, args)
+#define VSNPRINTF_UTF8_RLEN(dst, format, args) \
+  BLI_vsnprintf_utf8_rlen(dst, ARRAY_SIZE(dst), format, args)
 
 /** \} */

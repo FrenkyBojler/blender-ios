@@ -220,7 +220,7 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
 
   /* Extra point count at the start/end of extended strokes. For straight extension, or for strokes
    * with only 2 points (thus unable to curve), the value of their respective index should be set
-   * to 1 to allow #extend_curves_straight() to identify strokes to work on.  */
+   * to 1 to allow #extend_curves_straight() to identify strokes to work on. */
   Array<int> start_points(src_curves_num, 0);
   Array<int> end_points(src_curves_num, 0);
 
@@ -360,7 +360,10 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
       }
     }
   });
-
+  if (src_curves.nurbs_has_custom_knots()) {
+    bke::curves::nurbs::update_custom_knot_modes(
+        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+  }
   return dst_curves;
 }
 

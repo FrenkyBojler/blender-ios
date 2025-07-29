@@ -284,8 +284,20 @@ typedef struct bPoseChannel {
 
   struct bPoseChannel *next, *prev;
 
-  /** User-Defined Properties on this PoseChannel. */
+  /**
+   * User-defined custom properties storage on this PoseChannel. Typically Accessed through the
+   * 'dict' syntax from Python.
+   */
   IDProperty *prop;
+
+  /**
+   * System-defined custom properties storage. Used to store data dynamically defined either by
+   * Blender itself (e.g. the GeoNode modifier), or some python script, extension etc.
+   *
+   * Typically accessed through RNA paths (`C.object.my_dynamic_float_property = 33.3`), when
+   * wrapped/defined by RNA.
+   */
+  IDProperty *system_properties;
 
   /** Constraints that act on this PoseChannel. */
   ListBase constraints;
@@ -420,6 +432,8 @@ typedef struct bPoseChannel {
   struct bPoseChannel *orig_pchan;
 
   BoneColor color; /* MUST be named the same as in Bone and EditBone structs. */
+
+  void *_pad2;
 
   /** Runtime data (keep last). */
   struct bPoseChannel_Runtime runtime;
@@ -765,11 +779,13 @@ typedef struct bAction {
   /** ID-serialization for relinking. */
   ID id;
 
-  struct ActionLayer **layer_array; /* Array of 'layer_array_num' layers. */
+  /** Array of `layer_array_num` layers. */
+  struct ActionLayer **layer_array;
   int layer_array_num;
   int layer_active_index; /* Index into layer_array, -1 means 'no active'. */
 
-  struct ActionSlot **slot_array; /* Array of 'slot_array_num` slots. */
+  /** Array of `slot_array_num` slots. */
+  struct ActionSlot **slot_array;
   int slot_array_num;
   int32_t last_slot_handle;
 
@@ -900,7 +916,7 @@ typedef enum eDopeSheet_FilterFlag {
   /* datatype-based filtering */
   ADS_FILTER_NOSHAPEKEYS = (1 << 6),
   ADS_FILTER_NOMESH = (1 << 7),
-  /** for animdata on object level, if we only want to concentrate on materials/etc. */
+  /** For animation-data on object level, if we only want to concentrate on materials/etc. */
   ADS_FILTER_NOOBJ = (1 << 8),
   ADS_FILTER_NOLAT = (1 << 9),
   ADS_FILTER_NOCAM = (1 << 10),
@@ -948,6 +964,8 @@ typedef enum eDopeSheet_FilterFlag2 {
 
   /** Include working drivers with variables using their fallback values into Only Show Errors. */
   ADS_FILTER_DRIVER_FALLBACK_AS_ERROR = (1 << 6),
+
+  ADS_FILTER_NOLIGHTPROBE = (1 << 7),
 } eDopeSheet_FilterFlag2;
 
 /* DopeSheet general flags */
@@ -1174,7 +1192,7 @@ typedef struct ActionSlot {
    *
    * \see #AnimData::slot_name
    */
-  char identifier[/*MAX_ID_NAME*/ 66];
+  char identifier[/*MAX_ID_NAME*/ 258];
 
   /**
    * Type of ID-block that this slot is intended for.

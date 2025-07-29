@@ -22,6 +22,7 @@
 
 #include "NOD_geometry_exec.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
 
@@ -47,10 +48,13 @@
 #include "BKE_node_tree_zones.hh"
 #include "BKE_type_conversions.hh"
 
+#include "ED_node.hh"
+
 #include "FN_lazy_function_graph_executor.hh"
 
 #include "DEG_depsgraph_query.hh"
 
+#include "list_function_eval.hh"
 #include "volume_grid_function_eval.hh"
 
 #include <fmt/format.h>
@@ -301,7 +305,7 @@ class LazyFunctionForGeometryNode : public LazyFunction {
         std::move(socket_inspection_name));
 
     void *r_value = params.get_output_data_ptr(lf_index);
-    new (r_value) SocketValueVariant(GField(std::move(attribute_field)));
+    SocketValueVariant::ConstructIn(r_value, GField(std::move(attribute_field)));
     params.output_set(lf_index);
   }
 
@@ -515,10 +519,10 @@ static void execute_multi_function_on_value_variant__field(
   /* Construct the new field node. */
   std::shared_ptr<fn::FieldOperation> operation;
   if (owned_fn) {
-    operation = fn::FieldOperation::Create(owned_fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(owned_fn, std::move(input_fields));
   }
   else {
-    operation = fn::FieldOperation::Create(fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(fn, std::move(input_fields));
   }
 
   /* Store the new fields in the output. */
@@ -534,7 +538,7 @@ static void execute_multi_function_on_value_variant__field(
  * Executes a multi-function. If all inputs are single values, the results will also be single
  * values. If any input is a field, the outputs will also be fields.
  */
-[[nodiscard]] static bool execute_multi_function_on_value_variant(
+[[nodiscard]] bool execute_multi_function_on_value_variant(
     const MultiFunction &fn,
     const std::shared_ptr<MultiFunction> &owned_fn,
     const Span<SocketValueVariant *> input_values,
@@ -545,6 +549,7 @@ static void execute_multi_function_on_value_variant__field(
   /* Check input types which determine how the function is evaluated. */
   bool any_input_is_field = false;
   bool any_input_is_volume_grid = false;
+  bool any_input_is_list = false;
   for (const int i : input_values.index_range()) {
     const SocketValueVariant &value = *input_values[i];
     if (value.is_context_dependent_field()) {
@@ -553,11 +558,18 @@ static void execute_multi_function_on_value_variant__field(
     else if (value.is_volume_grid()) {
       any_input_is_volume_grid = true;
     }
+    else if (value.is_list()) {
+      any_input_is_list = true;
+    }
   }
 
   if (any_input_is_volume_grid) {
     return execute_multi_function_on_value_variant__volume_grid(
         fn, input_values, output_values, r_error_message);
+  }
+  if (any_input_is_list) {
+    execute_multi_function_on_value_variant__list(fn, input_values, output_values, user_data);
+    return true;
   }
   if (any_input_is_field) {
     execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
@@ -4302,38 +4314,8 @@ void GeoNodesLocalUserData::ensure_tree_logger(const GeoNodesUserData &user_data
 std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesUserData &user_data,
                                                      const int node_id)
 {
-  FoundNestedNodeID found;
-  Vector<int> node_ids;
-  for (const ComputeContext *context = user_data.compute_context; context != nullptr;
-       context = context->parent())
-  {
-    if (const auto *node_context = dynamic_cast<const bke::GroupNodeComputeContext *>(context)) {
-      node_ids.append(node_context->node_id());
-    }
-    else if (dynamic_cast<const bke::RepeatZoneComputeContext *>(context) != nullptr) {
-      found.is_in_loop = true;
-    }
-    else if (dynamic_cast<const bke::SimulationZoneComputeContext *>(context) != nullptr) {
-      found.is_in_simulation = true;
-    }
-    else if (dynamic_cast<const bke::ForeachGeometryElementZoneComputeContext *>(context) !=
-             nullptr)
-    {
-      found.is_in_loop = true;
-    }
-    else if (dynamic_cast<const bke::EvaluateClosureComputeContext *>(context) != nullptr) {
-      found.is_in_closure = true;
-    }
-  }
-  std::reverse(node_ids.begin(), node_ids.end());
-  node_ids.append(node_id);
-  const bNestedNodeRef *nested_node_ref =
-      user_data.call_data->root_ntree->nested_node_ref_from_node_id_path(node_ids);
-  if (nested_node_ref == nullptr) {
-    return std::nullopt;
-  }
-  found.id = nested_node_ref->id;
-  return found;
+  return ed::space_node::find_nested_node_id_in_root(
+      *user_data.call_data->root_ntree, user_data.compute_context, node_id);
 }
 
 GeoNodesOperatorDepsgraphs::~GeoNodesOperatorDepsgraphs()

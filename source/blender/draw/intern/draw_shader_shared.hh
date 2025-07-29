@@ -38,7 +38,7 @@ struct GPULayerAttr;
 
 namespace blender::draw {
 
-struct ObjectRef;
+class ObjectRef;
 
 }  // namespace blender::draw
 
@@ -148,9 +148,16 @@ enum eObjectInfoFlag : uint32_t {
   OBJECT_ACTIVE = (1u << 3u),
   OBJECT_NEGATIVE_SCALE = (1u << 4u),
   OBJECT_HOLDOUT = (1u << 5u),
+  /* Implies all objects that match the current active object's mode and able to be edited
+   * simultaneously. Currently only applicable for edit mode. */
+  OBJECT_ACTIVE_EDIT_MODE = (1u << 6u),
   /* Avoid skipped info to change culling. */
   OBJECT_NO_INFO = ~OBJECT_HOLDOUT
 };
+
+#if !defined(GPU_SHADER) && defined(__cplusplus)
+ENUM_OPERATORS(eObjectInfoFlag, OBJECT_ACTIVE_EDIT_MODE);
+#endif
 
 struct ObjectInfos {
   /** Uploaded as center + size. Converted to mul+bias to local coord. */
@@ -172,7 +179,7 @@ struct ObjectInfos {
 
 #if !defined(GPU_SHADER) && defined(__cplusplus)
   void sync();
-  void sync(const blender::draw::ObjectRef ref, bool is_active_object);
+  void sync(const blender::draw::ObjectRef ref, bool is_active_object, bool is_active_edit_mode);
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(ObjectInfos, 16)
@@ -376,7 +383,7 @@ inline uint debug_color_pack(float4 v_color)
 }
 
 /* Take the header (DrawCommand) into account. */
-#define DRW_DEBUG_DRAW_VERT_MAX (64 * 8192) - 1
+#define DRW_DEBUG_DRAW_VERT_MAX (2 * 1024) - 1
 
 /* The debug draw buffer is laid-out as the following struct.
  * But we use plain array in shader code instead because of driver issues. */

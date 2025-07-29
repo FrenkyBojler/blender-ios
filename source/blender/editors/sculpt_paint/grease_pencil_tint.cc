@@ -90,7 +90,7 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
 
   float4 color_linear;
   color_linear[3] = 1.0f;
-  srgb_to_linearrgb_v3_v3(color_linear, BKE_brush_color_get(scene, paint, brush));
+  srgb_to_linearrgb_v3_v3(color_linear, BKE_brush_color_get(paint, brush));
 
   color_ = ColorGeometry4f(color_linear);
 
@@ -131,7 +131,7 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
 
     bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-            ob_eval, *obact, drawing_info.layer_index, drawing_info.frame_number);
+            ob_eval, *obact, drawing_info.drawing);
 
     for (const int point : strokes.points_range()) {
       ED_view3d_project_float_global(

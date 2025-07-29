@@ -18,13 +18,12 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.hh"
 
 #include "BLF_api.hh"
-
-#include "UI_interface.hh"
 
 #include "interface_intern.hh"
 
@@ -60,7 +59,7 @@ static uiStyle *ui_style_new(ListBase *styles, const char *name, short uifont_id
   uiStyle *style = MEM_callocN<uiStyle>(__func__);
 
   BLI_addtail(styles, style);
-  STRNCPY(style->name, name);
+  STRNCPY_UTF8(style->name, name);
 
   style->panelzoom = 1.0; /* unused */
 

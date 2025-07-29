@@ -45,8 +45,8 @@ class DepthOfField {
   class Instance &inst_;
 
   /** Input/Output texture references. */
-  GPUTexture *input_color_tx_ = nullptr;
-  GPUTexture *output_color_tx_ = nullptr;
+  gpu::Texture *input_color_tx_ = nullptr;
+  gpu::Texture *output_color_tx_ = nullptr;
 
   /** Bokeh LUT precompute pass. */
   TextureFromPool bokeh_gather_lut_tx_ = {"dof_bokeh_gather_lut"};
@@ -66,7 +66,7 @@ class DepthOfField {
 
   /** Stabilization (flicker attenuation) of Color and CoC output of the setup pass. */
   TextureFromPool stabilize_output_tx_ = {"dof_taa"};
-  GPUTexture *stabilize_input_ = nullptr;
+  gpu::Texture *stabilize_input_ = nullptr;
   bool32_t stabilize_valid_history_ = false;
   int3 dispatch_stabilize_size_ = int3(-1);
   PassSimple stabilize_ps_ = {"Stabilize"};
@@ -124,28 +124,30 @@ class DepthOfField {
   PassSimple scatter_bg_ps_ = {"ScatterBg"};
 
   /** Recombine the results and also perform a slight out of focus gather. */
-  GPUTexture *resolve_stable_color_tx_ = nullptr;
+  gpu::Texture *resolve_stable_color_tx_ = nullptr;
   int3 dispatch_resolve_size_ = int3(-1);
   PassSimple resolve_ps_ = {"Resolve"};
 
   DepthOfFieldDataBuf data_;
 
   /** Scene settings that are immutable. */
-  float user_overblur_;
-  float fx_max_coc_;
+  float user_overblur_ = 0.0f;
+  float fx_max_coc_ = 0.0f;
   /** Use jittered depth of field where we randomize camera location. */
-  bool do_jitter_;
+  bool do_jitter_ = false;
   /** Enable bokeh lookup texture. */
-  bool use_bokeh_lut_;
+  bool use_bokeh_lut_ = false;
 
   /** Circle of Confusion radius for FX DoF passes. Is in view X direction in [0..1] range. */
-  float fx_radius_;
+  float fx_radius_ = 0.0f;
   /** Circle of Confusion radius for jittered DoF. Is in view X direction in [0..1] range. */
-  float jitter_radius_;
+  float jitter_radius_ = 0.0f;
   /** Focus distance in view space. */
-  float focus_distance_;
+  float focus_distance_ = 0.0f;
   /** Extent of the input buffer. */
-  int2 extent_;
+  int2 extent_ = int2(0);
+
+  bool enabled_ = false;
 
  public:
   DepthOfField(Instance &inst) : inst_(inst){};
@@ -165,13 +167,18 @@ class DepthOfField {
    * is in input_tx.
    */
   void render(View &view,
-              GPUTexture **input_tx,
-              GPUTexture **output_tx,
+              gpu::Texture **input_tx,
+              gpu::Texture **output_tx,
               DepthOfFieldBuffer &dof_buffer);
 
   bool postfx_enabled() const
   {
     return fx_radius_ > 0.0f;
+  }
+
+  bool enabled() const
+  {
+    return enabled_;
   }
 
  private:

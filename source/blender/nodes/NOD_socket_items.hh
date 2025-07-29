@@ -22,12 +22,20 @@
 
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_tree_update.hh"
 
 #include "DNA_array_utils.hh"
 
 #include "NOD_socket.hh"
 
 namespace blender::nodes::socket_items {
+
+struct SocketItemsAccessorDefaults {
+  static constexpr bool has_single_identifier_str = true;
+  static constexpr bool has_name_validation = false;
+  static constexpr bool has_custom_initial_name = false;
+  static constexpr char unique_name_separator = '.';
+};
 
 /**
  * References a "C-Array" that is stored elsewhere. This is different from a MutableSpan, because
@@ -290,6 +298,7 @@ template<typename Accessor>
         extend_node, SOCK_OUT, item_identifier.c_str());
     link.fromsock = new_socket;
   }
+  BKE_ntree_update_tag_node_property(&ntree, &storage_node);
   return true;
 }
 
