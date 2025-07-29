@@ -48,6 +48,14 @@ static float3 convert_vec3(const JPH::Vec3 &v)
 {
   return float3(v.GetX(), v.GetY(), v.GetZ());
 }
+static JPH::Quat convert_quat(const math::Quaternion &q)
+{
+  return JPH::Quat(q.x, q.y, q.z, q.w);
+}
+static math::Quaternion convert_quat(const JPH::Quat &q)
+{
+  return math::Quaternion(q.GetW(), q.GetX(), q.GetY(), q.GetZ());
+}
 
 namespace ObjectLayers {
 static constexpr JPH::ObjectLayer non_moving(0);
@@ -525,14 +533,13 @@ static void handle_rigid_bodies_behavior(JoltState &state,
       }
     }
     if (!rigid_body) {
-      JPH::BodyCreationSettings jolt_body_settings{
-          collision_shape.Get(),
-          JPH::Vec3(instance_position.x, instance_position.y, instance_position.z),
-          JPH::Quat(
-              instance_rotation.x, instance_rotation.y, instance_rotation.z, instance_rotation.w),
-          *motion_type,
-          *motion_type == JPH::EMotionType::Dynamic ? ObjectLayers::moving :
-                                                      ObjectLayers::non_moving};
+      JPH::BodyCreationSettings jolt_body_settings{collision_shape.Get(),
+                                                   convert_vec3(instance_position),
+                                                   convert_quat(instance_rotation),
+                                                   *motion_type,
+                                                   *motion_type == JPH::EMotionType::Dynamic ?
+                                                       ObjectLayers::moving :
+                                                       ObjectLayers::non_moving};
 
       JPH::Body *jolt_body = body_interface.CreateBody(jolt_body_settings);
       body_interface.AddBody(jolt_body->GetID(), JPH::EActivation::Activate);
@@ -682,10 +689,8 @@ static GeometrySet merge_simulation_data_into_behavior_geometry(
     const JPH::Vec3 jolt_position = jolt_body.GetPosition();
     const JPH::Quat jolt_rotation = jolt_body.GetRotation();
 
-    const float3 position = float3(
-        jolt_position.GetX(), jolt_position.GetY(), jolt_position.GetZ());
-    const math::Quaternion rotation = math::Quaternion(
-        jolt_rotation.GetW(), jolt_rotation.GetX(), jolt_rotation.GetY(), jolt_rotation.GetZ());
+    const float3 position = convert_vec3(jolt_position);
+    const math::Quaternion rotation = convert_quat(jolt_rotation);
 
     /* Scale is not simulated to Jolt, so keep the scale of the original geometry. */
     const float3 scale = math::to_scale(transform);
