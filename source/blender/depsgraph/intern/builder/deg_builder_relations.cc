@@ -3029,6 +3029,14 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       build_nodetree_socket(socket);
     }
 
+    if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute")) {
+      NodeShaderAttribute *attr = reinterpret_cast<NodeShaderAttribute *>(bnode->storage);
+      if (StringRef(attr->name) == "frame_current") {
+        TimeSourceKey time_src_key;
+        add_relation(time_src_key, ntree_output_key, "TimeSrc -> Node");
+      }
+    }
+
     ID *id = bnode->id;
     if (id == nullptr) {
       continue;
