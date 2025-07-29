@@ -4,6 +4,7 @@
 
 #include "BKE_instances.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_rotation.hh"
 #include "NOD_geometry_nodes_behaviors_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
@@ -263,10 +264,14 @@ static void handle_rigid_bodies_behavior(JoltState &state,
     if (!bounds) {
       continue;
     }
-    const float4x4 &raw_transform = transforms[instance_i];
-    const float3 &position = raw_transform.location();
+    const float4x4 &instance_transform = transforms[instance_i];
+    float3 instance_position;
+    math::Quaternion instance_rotation;
+    float3 instance_scale;
+    math::to_loc_rot_scale_safe<true>(
+        instance_transform, instance_position, instance_rotation, instance_scale);
 
-    const float3 half_extent = bounds->size() / 2.0f;
+    const float3 half_extent = bounds->size() / 2.0f * instance_scale;
     const JPH::BoxShapeSettings box_shape_settings{
         JPH::Vec3(half_extent.x, half_extent.y, half_extent.z)};
     JPH::ShapeSettings::ShapeResult box_shape = box_shape_settings.Create();
@@ -280,14 +285,18 @@ static void handle_rigid_bodies_behavior(JoltState &state,
               instance_i))
       {
         rigid_body = old_rigid_body;
+        body_interface.SetShape(
+            rigid_body->body->GetID(), box_shape.Get(), true, JPH::EActivation::Activate);
       }
     }
     if (!rigid_body) {
-      JPH::BodyCreationSettings jolt_body_settings{box_shape.Get(),
-                                                   JPH::Vec3(position.x, position.y, position.z),
-                                                   JPH::Quat::sIdentity(),
-                                                   JPH::EMotionType::Dynamic,
-                                                   ObjectLayers::moving};
+      JPH::BodyCreationSettings jolt_body_settings{
+          box_shape.Get(),
+          JPH::Vec3(instance_position.x, instance_position.y, instance_position.z),
+          JPH::Quat(
+              instance_rotation.x, instance_rotation.y, instance_rotation.z, instance_rotation.w),
+          JPH::EMotionType::Dynamic,
+          ObjectLayers::moving};
 
       JPH::Body *jolt_body = body_interface.CreateBody(jolt_body_settings);
       body_interface.AddBody(jolt_body->GetID(), JPH::EActivation::Activate);
