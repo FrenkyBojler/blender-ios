@@ -193,10 +193,12 @@ void Instances::resize(int capacity)
   const int old_size = this->instances_num();
   attributes_.resize(AttrDomain::Instance, capacity);
   instances_num_ = capacity;
-  fill_attribute_range_default(this->attributes_for_write(),
-                               AttrDomain::Instance,
-                               {},
-                               IndexRange::from_begin_end(old_size, capacity));
+  if (capacity > old_size) {
+    fill_attribute_range_default(this->attributes_for_write(),
+                                 AttrDomain::Instance,
+                                 {},
+                                 IndexRange::from_begin_end(old_size, capacity));
+  }
 }
 
 void Instances::add_instance(const int instance_handle, const float4x4 &transform)
@@ -514,14 +516,15 @@ static void set_transform_position(float4x4 &transform, const float3 position)
 
 VArray<float3> instance_position_varray(const Instances &instances)
 {
-  return VArray<float3>::ForDerivedSpan<float4x4, get_transform_position>(instances.transforms());
+  return VArray<float3>::from_derived_span<float4x4, get_transform_position>(
+      instances.transforms());
 }
 
 VMutableArray<float3> instance_position_varray_for_write(Instances &instances)
 {
   MutableSpan<float4x4> transforms = instances.transforms_for_write();
   return VMutableArray<float3>::
-      ForDerivedSpan<float4x4, get_transform_position, set_transform_position>(transforms);
+      from_derived_span<float4x4, get_transform_position, set_transform_position>(transforms);
 }
 
 }  // namespace blender::bke

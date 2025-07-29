@@ -72,6 +72,10 @@ void AbstractViewItem::activate(bContext &C)
 {
   if (set_state_active()) {
     on_activate(C);
+  }
+
+  /* Make sure active item is selected. */
+  if (is_active()) {
     set_selected(true);
   }
 }
@@ -105,8 +109,9 @@ void AbstractViewItem::change_state_delayed()
        * shouldn't call #on_activate(). */
       set_state_active();
     }
-    else {
+    else if (is_active_) {
       is_active_ = false;
+      is_selected_ = false;
     }
   }
   if (std::optional<bool> is_selected = should_be_selected()) {
@@ -179,10 +184,10 @@ void AbstractViewItem::end_renaming()
 static AbstractViewItem *find_item_from_rename_button(const uiBut &rename_but)
 {
   /* A minimal sanity check, can't do much more here. */
-  BLI_assert(rename_but.type == UI_BTYPE_TEXT && rename_but.poin);
+  BLI_assert(rename_but.type == ButType::Text && rename_but.poin);
 
   for (const std::unique_ptr<uiBut> &but : rename_but.block->buttons) {
-    if (but->type != UI_BTYPE_VIEW_ITEM) {
+    if (but->type != ButType::ViewItem) {
       continue;
     }
 
@@ -210,7 +215,7 @@ void AbstractViewItem::add_rename_button(uiBlock &block)
 {
   AbstractView &view = this->get_view();
   uiBut *rename_but = uiDefBut(&block,
-                               UI_BTYPE_TEXT,
+                               ButType::Text,
                                1,
                                "",
                                0,

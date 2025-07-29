@@ -11,6 +11,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -1848,7 +1849,7 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
   WM_operator_properties_create_ptr(&op_props, ot);
   RNA_string_set(&op_props, "filepath", filepath);
   const wmOperatorStatus retval = WM_operator_name_call_ptr(
-      C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+      C, ot, blender::wm::OpCallContext::InvokeDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   if (retval == OPERATOR_FINISHED) {
@@ -1920,7 +1921,7 @@ static void file_os_operations_menu_item(uiLayout *layout,
   RNA_enum_name(file_external_operation, operation, &title);
 
   PointerRNA props_ptr = layout->op(
-      ot, IFACE_(title), ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+      ot, IFACE_(title), ICON_NONE, blender::wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_string_set(&props_ptr, "filepath", path);
   if (operation) {
     RNA_enum_set(&props_ptr, "operation", operation);
@@ -1967,7 +1968,7 @@ static void file_os_operations_menu_draw(const bContext *C_const, Menu *menu)
   const char *root = filelist_dir(sfile->files);
 
   uiLayout *layout = menu->layout;
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   wmOperatorType *ot = WM_operatortype_find("FILE_OT_external_operation", true);
 
   if (fileentry->typeflag & FILE_TYPE_DIR) {
@@ -2038,9 +2039,9 @@ void file_external_operations_menu_register()
   MenuType *mt;
 
   mt = MEM_callocN<MenuType>("spacetype file menu file operations");
-  STRNCPY(mt->idname, "FILEBROWSER_MT_operations_menu");
-  STRNCPY(mt->label, N_("External"));
-  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(mt->idname, "FILEBROWSER_MT_operations_menu");
+  STRNCPY_UTF8(mt->label, N_("External"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = file_os_operations_menu_draw;
   mt->poll = file_os_operations_menu_poll;
   WM_menutype_add(mt);
@@ -2540,7 +2541,8 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
   RNA_int_set(&op_ptr, "deltax", deltax);
   RNA_int_set(&op_ptr, "deltay", deltay);
 
-  WM_operator_name_call(C, "VIEW2D_OT_pan", WM_OP_EXEC_DEFAULT, &op_ptr, event);
+  WM_operator_name_call(
+      C, "VIEW2D_OT_pan", blender::wm::OpCallContext::ExecDefault, &op_ptr, event);
   WM_operator_properties_free(&op_ptr);
 
   ED_region_tag_redraw(region);
@@ -2635,7 +2637,7 @@ static bool new_folder_path(const char *parent,
    * add number to the name. Check length of generated name to avoid
    * crazy case of huge number of folders each named 'New Folder (x)' */
   while (BLI_exists(r_dirpath_full) && (len < FILE_MAXFILE)) {
-    len = BLI_snprintf(r_dirname, FILE_MAXFILE, "New Folder(%d)", i);
+    len = BLI_snprintf_utf8(r_dirname, FILE_MAXFILE, "New Folder(%d)", i);
     BLI_path_join(r_dirpath_full, FILE_MAX, parent, r_dirname);
     i++;
   }
@@ -2965,7 +2967,7 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void * /*ar
         STRNCPY(params->dir, lastdir);
       }
 
-      WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+      WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
       WM_operator_properties_free(&ptr);
     }
   }

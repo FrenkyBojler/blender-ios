@@ -19,6 +19,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 #include "BLT_translation.hh"
@@ -327,7 +328,7 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
       case SimplifyMode::SAMPLE: {
         const float resample_length = RNA_float_get(op->ptr, "length");
         info.drawing.strokes_for_write() = geometry::resample_to_length(
-            curves, strokes, VArray<float>::ForSingle(resample_length, curves.curves_num()), {});
+            curves, strokes, VArray<float>::from_single(resample_length, curves.curves_num()), {});
         info.drawing.tag_topology_changed();
         changed = true;
         break;
@@ -839,7 +840,7 @@ static bke::CurvesGeometry subdivide_last_segement(const bke::CurvesGeometry &cu
     }
   });
 
-  const VArray<int> cuts = VArray<int>::ForSpan(use_cuts.as_span());
+  const VArray<int> cuts = VArray<int>::from_span(use_cuts.as_span());
 
   return geometry::subdivide_curves(curves, strokes, cuts);
 }
@@ -1620,7 +1621,7 @@ static wmOperatorStatus gpencil_stroke_subdivide_exec(bContext *C, wmOperator *o
 
     if (selection_domain == bke::AttrDomain::Curve || !only_selected) {
       /* Subdivide entire selected curve, every stroke subdivides to the same cut. */
-      vcuts = VArray<int>::ForSingle(cuts, curves.points_num());
+      vcuts = VArray<int>::from_single(cuts, curves.points_num());
     }
     else if (selection_domain == bke::AttrDomain::Point) {
       /* Subdivide between selected points. Only cut between selected points.
@@ -1657,7 +1658,7 @@ static wmOperatorStatus gpencil_stroke_subdivide_exec(bContext *C, wmOperator *o
           }
         }
       }
-      vcuts = VArray<int>::ForContainer(std::move(use_cuts));
+      vcuts = VArray<int>::from_container(std::move(use_cuts));
     }
 
     curves = geometry::subdivide_curves(curves, strokes, vcuts);
@@ -1867,10 +1868,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
-  int target_layer_name_length;
-  char *target_layer_name = RNA_string_get_alloc(
-      op->ptr, "target_layer_name", nullptr, 0, &target_layer_name_length);
-  BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(target_layer_name); });
+  std::string target_layer_name = RNA_string_get(op->ptr, "target_layer_name");
   const bool add_new_layer = RNA_boolean_get(op->ptr, "add_new_layer");
   TreeNode *target_node = nullptr;
 
@@ -1882,13 +1880,13 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
   }
 
   if (target_node == nullptr || !target_node->is_layer()) {
-    BKE_reportf(op->reports, RPT_ERROR, "There is no layer '%s'", target_layer_name);
+    BKE_reportf(op->reports, RPT_ERROR, "There is no layer '%s'", target_layer_name.c_str());
     return OPERATOR_CANCELLED;
   }
 
   Layer &layer_dst = target_node->as_layer();
   if (layer_dst.is_locked()) {
-    BKE_reportf(op->reports, RPT_ERROR, "'%s' Layer is locked", target_layer_name);
+    BKE_reportf(op->reports, RPT_ERROR, "'%s' Layer is locked", target_layer_name.c_str());
     return OPERATOR_CANCELLED;
   }
 
@@ -1962,7 +1960,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_invoke(bContext *C,
    * pre-set. */
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "target_layer_name");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    WM_menu_name_call(C, "GREASE_PENCIL_MT_move_to_layer", 0);
+    WM_menu_name_call(C, "GREASE_PENCIL_MT_move_to_layer", wm::OpCallContext::InvokeDefault);
     return OPERATOR_FINISHED;
   }
 
@@ -2492,7 +2490,7 @@ static bke::GeometrySet join_geometries_with_transform(Span<bke::GeometrySet> ge
                                                        const float4x4 &transform)
 {
   return join_geometries_with_transforms(
-      geometries, VArray<float4x4>::ForSingle(transform, geometries.size()));
+      geometries, VArray<float4x4>::from_single(transform, geometries.size()));
 }
 
 static wmOperatorStatus grease_pencil_copy_strokes_exec(bContext *C, wmOperator *op)
@@ -2645,7 +2643,7 @@ static IndexRange clipboard_paste_strokes_ex(Main &bmain,
   const Array<float4x4> transforms = paste_back ? Span<float4x4>{transform, float4x4::identity()} :
                                                   Span<float4x4>{float4x4::identity(), transform};
   bke::GeometrySet joined_curves = join_geometries_with_transforms(
-      geometry_sets, VArray<float4x4>::ForContainer(transforms));
+      geometry_sets, VArray<float4x4>::from_container(transforms));
 
   drawing.strokes_for_write() = std::move(joined_curves.get_curves_for_write()->geometry.wrap());
 
@@ -3051,7 +3049,7 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
    *
    * This will lead to the extruded control point always having both handles selected, if it's a
    * bezier type stroke. This is to circumvent the issue of source curves handles not being
-   * deselected when the user extrudes a bezier control point with both handles selected*/
+   * deselected when the user extrudes a bezier control point with both handles selected. */
   for (const StringRef selection_attribute_name :
        ed::curves::get_curves_selection_attribute_names(src))
   {
@@ -3934,7 +3932,7 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
       return;
     }
     IndexMaskMemory memory;
-    const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+    const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_strokes(
         *object, info.drawing, info.layer_index, memory);
     const IndexMask bezier_curves = curves.indices_for_curve_type(
         CURVE_TYPE_BEZIER, editable_strokes, memory);
@@ -4247,6 +4245,7 @@ static wmOperatorStatus grease_pencil_remove_fill_guides_exec(bContext *C, wmOpe
   }
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     if (ed::greasepencil::remove_fill_guides(info.drawing.strokes_for_write())) {
+      info.drawing.tag_topology_changed();
       changed.store(true, std::memory_order_relaxed);
     }
   });
@@ -4433,9 +4432,9 @@ static bke::CurvesGeometry fit_poly_curves(bke::CurvesGeometry &curves,
                                            const IndexMask &selection,
                                            const float threshold)
 {
-  const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
+  const VArray<float> thresholds = VArray<float>::from_single(threshold, curves.curves_num());
   /* TODO: Detect or manually provide corners. */
-  const VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
+  const VArray<bool> corners = VArray<bool>::from_single(false, curves.points_num());
   return geometry::fit_poly_to_bezier_curves(
       curves, selection, thresholds, corners, geometry::FitMethod::Refit, {});
 }
@@ -4792,7 +4791,7 @@ static void remap_vertex_groups(bke::greasepencil::Drawing &drawing,
                                 const Map<StringRefNull, StringRefNull> &vertex_group_map)
 {
   LISTBASE_FOREACH (bDeformGroup *, dg, &drawing.strokes_for_write().vertex_group_names) {
-    STRNCPY(dg->name, vertex_group_map.lookup(dg->name).c_str());
+    STRNCPY_UTF8(dg->name, vertex_group_map.lookup(dg->name).c_str());
   }
 
   /* Indices in vertex weights remain valid, they are local to the drawing's vertex groups.
@@ -4821,7 +4820,7 @@ static bke::AttributeStorage merge_attributes(const bke::AttributeAccessor &a,
   bke::AttributeStorage new_storage;
   for (const auto &[name, type] : new_types.items()) {
     const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-    auto new_data = bke::Attribute::ArrayData::ForUninitialized(cpp_type, dst_size);
+    auto new_data = bke::Attribute::ArrayData::from_uninitialized(cpp_type, dst_size);
 
     const GVArray data_a = *a.lookup_or_default(name, bke::AttrDomain::Layer, type);
     data_a.materialize_to_uninitialized(new_data.data);

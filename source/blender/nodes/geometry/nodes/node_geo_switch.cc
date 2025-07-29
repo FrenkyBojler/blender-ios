@@ -42,6 +42,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (socket_type == SOCK_GEOMETRY) {
     output_decl.propagate_all();
   }
+
+  const StructureType structure_type = socket_type_always_single(socket_type) ?
+                                           StructureType::Single :
+                                           StructureType::Dynamic;
+
+  switch_decl.structure_type(structure_type);
+  false_decl.structure_type(structure_type);
+  true_decl.structure_type(structure_type);
+  output_decl.structure_type(structure_type);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -174,7 +183,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
     GField false_field = false_value_variant->extract<GField>();
     GField true_field = true_value_variant->extract<GField>();
 
-    GField output_field{FieldOperation::Create(
+    GField output_field{FieldOperation::from(
         switch_multi_function,
         {std::move(condition), std::move(false_field), std::move(true_field)})};
 
