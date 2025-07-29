@@ -26,6 +26,7 @@ void main()
 
   /* TODO(fclem): Expose through a node? */
   float4 sspos;
+  float4 sspos_adj;
   float2 aspect;
   float strength;
   float hardness;
@@ -40,6 +41,7 @@ void main()
       strength,
       g_uvs,
       sspos,
+      sspos_adj,
       aspect,
       thickness,
       hardness);
