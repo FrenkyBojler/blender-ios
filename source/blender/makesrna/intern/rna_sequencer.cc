@@ -1674,6 +1674,24 @@ static bool rna_CompositorModifier_node_group_poll(PointerRNA * /*ptr*/, Pointer
   return true;
 }
 
+static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_StripModifier_update(bmain, scene, ptr);
+
+  /* Tag depsgraph relations for an update since the modifier could now be referencing a different
+   * node tree. */
+  DEG_relations_tag_update(bmain);
+
+  /* Strips from other scenes could be modified, so use the scene of the strip as opposed to the
+   * active scene argument. */
+  Scene *strip_scene = reinterpret_cast<Scene *>(ptr->owner_id);
+  Editing *ed = blender::seq::editing_get(strip_scene);
+
+  /* The sequencer stores a cached mapping between compositor node trees and strips that use them
+   * as a modifier, so we need to invalidate the cache since the node tree changed. */
+  blender::seq::strip_lookup_invalidate(ed);
+}
+
 #else
 
 static void rna_def_strip_element(BlenderRNA *brna)
@@ -3972,7 +3990,8 @@ static void rna_def_compositor_modifier(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_CompositorModifier_node_group_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_update(
+      prop, NC_SCENE | ND_SEQUENCER, "rna_CompositorModifier_node_group_update");
 }
 
 static void rna_def_modifiers(BlenderRNA *brna)

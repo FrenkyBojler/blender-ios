@@ -1250,7 +1250,12 @@ class CompositorContext : public compositor::Context {
   }
 };
 
-static void compositor_modifier_init_data(StripModifierData * /*strip_modifier_data*/) {}
+static void compositor_modifier_init_data(StripModifierData *strip_modifier_data)
+{
+  SequencerCompositorModifierData *modifier_data =
+      reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
+  modifier_data->node_group = nullptr;
+}
 
 static void compositor_modifier_apply(const RenderData *render_data,
                                       const StripScreenQuad & /*quad*/,
@@ -1258,6 +1263,12 @@ static void compositor_modifier_apply(const RenderData *render_data,
                                       ImBuf *image_buffer,
                                       ImBuf * /*mask*/)
 {
+  const SequencerCompositorModifierData *modifier_data =
+      reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
+  if (!modifier_data->node_group) {
+    return;
+  }
+
   ImBuf *float_buffer = image_buffer;
   const bool need_float_conversion = image_buffer->float_buffer.data == nullptr;
   if (need_float_conversion) {
@@ -1266,12 +1277,6 @@ static void compositor_modifier_apply(const RenderData *render_data,
     rcti buffer_region;
     BLI_rcti_init(&buffer_region, 0, image_buffer->x, 0, image_buffer->y);
     IMB_float_from_byte_ex(float_buffer, image_buffer, &buffer_region);
-  }
-
-  const SequencerCompositorModifierData *modifier_data =
-      reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
-  if (!modifier_data->node_group) {
-    return;
   }
 
   CompositorContext context(*render_data, modifier_data, float_buffer);
