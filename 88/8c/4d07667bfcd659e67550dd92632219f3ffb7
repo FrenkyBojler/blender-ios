@@ -1,0 +1,1 @@
+Referenced by commit 87f9fd8fb3e3a463af9bff196cc77f7f7ea7a4be, Fix #143390: Incorrect results from BLI_convexhull_aabb_fit_points_2d
