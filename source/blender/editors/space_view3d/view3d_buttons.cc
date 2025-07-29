@@ -2144,17 +2144,16 @@ static bool view3d_panel_curves_data_poll(const bContext *C, PanelType * /*pt*/)
   return (ob && (ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES) && BKE_object_is_in_editmode(ob)));
 }
 
-using CurvesHandler = bool (*)(const CurvesDataPanelState &modified_state,
+using CurvesHandler = void (*)(const CurvesDataPanelState &modified_state,
                                const blender::IndexMask &selection,
                                blender::bke::CurvesGeometry &curves);
 
-bool handle_curves_cyclic(const CurvesDataPanelState &modified_state,
+void handle_curves_cyclic(const CurvesDataPanelState &modified_state,
                           const blender::IndexMask &selection,
                           blender::bke::CurvesGeometry &curves)
 {
-  blender::index_mask::masked_fill<bool>(
+  blender::index_mask::masked_fill(
       curves.cyclic_for_write(), bool(modified_state.cyclic), selection);
-  return true;
 }
 
 static void update_custom_knots(const blender::OffsetIndices<int> &src_custom_knots_by_curve,
@@ -2193,7 +2192,7 @@ static void update_custom_knots(const blender::OffsetIndices<int> &src_custom_kn
   }
 }
 
-bool handle_curves_knot_mode(const CurvesDataPanelState &modified_state,
+void handle_curves_knot_mode(const CurvesDataPanelState &modified_state,
                              const blender::IndexMask &selection,
                              blender::bke::CurvesGeometry &curves)
 {
@@ -2226,10 +2225,9 @@ bool handle_curves_knot_mode(const CurvesDataPanelState &modified_state,
   if (knots_sharing_info != nullptr) {
     knots_sharing_info->remove_weak_user_and_delete_if_last();
   }
-  return true;
 }
 
-bool handle_curves_order(const CurvesDataPanelState &modified_state,
+void handle_curves_order(const CurvesDataPanelState &modified_state,
                          const blender::IndexMask &selection,
                          blender::bke::CurvesGeometry &curves)
 {
@@ -2268,17 +2266,14 @@ bool handle_curves_order(const CurvesDataPanelState &modified_state,
   if (knots_sharing_info != nullptr) {
     knots_sharing_info->remove_weak_user_and_delete_if_last();
   }
-
-  return true;
 }
 
-bool handle_curves_resolution(const CurvesDataPanelState &modified_state,
+void handle_curves_resolution(const CurvesDataPanelState &modified_state,
                               const blender::IndexMask &selection,
                               blender::bke::CurvesGeometry &curves)
 {
   blender::index_mask::masked_fill(
       curves.resolution_for_write(), modified_state.resolution, selection);
-  return true;
 }
 
 static void handle_curves_data_button(bContext *C, void *handler, void *)
@@ -2310,9 +2305,8 @@ static void handle_curves_data_button(bContext *C, void *handler, void *)
         return;
       }
 
-      if (curves_handler(modified, selection, curves)) {
-        info.drawing.tag_topology_changed();
-      }
+      curves_handler(modified, selection, curves);
+      info.drawing.tag_topology_changed();
     });
   }
   else {
@@ -2321,7 +2315,8 @@ static void handle_curves_data_button(bContext *C, void *handler, void *)
     IndexMaskMemory memory;
     const IndexMask selection = ed::curves::retrieve_all_selected_curves(curves, memory);
 
-    if (!selection.is_empty() && curves_handler(modified, selection, curves)) {
+    if (!selection.is_empty()) {
+      curves_handler(modified, selection, curves);
       curves.tag_topology_changed();
     }
   }
