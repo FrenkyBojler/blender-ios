@@ -11,6 +11,7 @@
 #include <fmt/format.h>
 
 #include "DNA_ID.h"
+#include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
@@ -18,6 +19,7 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_numbers.hh"
@@ -25,7 +27,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
@@ -34,6 +36,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_idprop.hh"
+#include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -41,6 +44,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_pointcache.h"
+#include "BKE_report.hh"
 
 #include "BLT_translation.hh"
 
@@ -153,7 +157,7 @@ static void rename_mesh_uv_seam_attribute(Mesh &mesh)
    * list. Then the user can deal with the name conflict themselves. */
   const std::string new_name = BLI_uniquename_cb(
       [&](const StringRef name) { return names.contains(name); }, '.', "uv_seam");
-  STRNCPY(old_seam_layer->name, new_name.c_str());
+  STRNCPY_UTF8(old_seam_layer->name, new_name.c_str());
 }
 
 static void initialize_closure_input_structure_types(bNodeTree &ntree)
@@ -197,7 +201,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = FN_NODE_COMBINE_COLOR;
           NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "FunctionNodeCombineColor");
+          STRNCPY_UTF8(node->idname, "FunctionNodeCombineColor");
           node->storage = storage;
           break;
         }
@@ -205,7 +209,8 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = FN_NODE_SEPARATE_COLOR;
           NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "FunctionNodeSeparateColor");
+          STRNCPY_UTF8(node->idname, "FunctionNodeSeparateColor");
+
           node->storage = storage;
           break;
         }
@@ -262,7 +267,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
           NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "CompositorNodeCombineColor");
+          STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
           break;
         }
@@ -270,7 +275,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
           NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
-          STRNCPY(node->idname, "CompositorNodeCombineColor");
+          STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
           break;
         }
@@ -279,7 +284,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
           storage->ycc_mode = node->custom1;
-          STRNCPY(node->idname, "CompositorNodeCombineColor");
+          STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
           break;
         }
@@ -287,7 +292,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
           NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
-          STRNCPY(node->idname, "CompositorNodeCombineColor");
+          STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
           break;
         }
@@ -295,7 +300,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
           NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "CompositorNodeSeparateColor");
+          STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
           break;
         }
@@ -303,7 +308,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
           NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
-          STRNCPY(node->idname, "CompositorNodeSeparateColor");
+          STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
           break;
         }
@@ -312,7 +317,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
           storage->ycc_mode = node->custom1;
-          STRNCPY(node->idname, "CompositorNodeSeparateColor");
+          STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
           break;
         }
@@ -320,7 +325,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
           NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
-          STRNCPY(node->idname, "CompositorNodeSeparateColor");
+          STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
           break;
         }
@@ -335,13 +340,13 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         case TEX_NODE_COMPOSE_LEGACY: {
           node->type_legacy = TEX_NODE_COMBINE_COLOR;
           node->custom1 = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "TextureNodeCombineColor");
+          STRNCPY_UTF8(node->idname, "TextureNodeCombineColor");
           break;
         }
         case TEX_NODE_DECOMPOSE_LEGACY: {
           node->type_legacy = TEX_NODE_SEPARATE_COLOR;
           node->custom1 = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "TextureNodeSeparateColor");
+          STRNCPY_UTF8(node->idname, "TextureNodeSeparateColor");
           break;
         }
       }
@@ -374,7 +379,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = SH_NODE_COMBINE_COLOR;
           NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "ShaderNodeCombineColor");
+          STRNCPY_UTF8(node->idname, "ShaderNodeCombineColor");
           node->storage = storage;
           break;
         }
@@ -382,7 +387,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = SH_NODE_COMBINE_COLOR;
           NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_HSV;
-          STRNCPY(node->idname, "ShaderNodeCombineColor");
+          STRNCPY_UTF8(node->idname, "ShaderNodeCombineColor");
           node->storage = storage;
           break;
         }
@@ -390,7 +395,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = SH_NODE_SEPARATE_COLOR;
           NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "ShaderNodeSeparateColor");
+          STRNCPY_UTF8(node->idname, "ShaderNodeSeparateColor");
           node->storage = storage;
           break;
         }
@@ -398,7 +403,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
           node->type_legacy = SH_NODE_SEPARATE_COLOR;
           NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_HSV;
-          STRNCPY(node->idname, "ShaderNodeSeparateColor");
+          STRNCPY_UTF8(node->idname, "ShaderNodeSeparateColor");
           node->storage = storage;
           break;
         }
@@ -893,39 +898,39 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
     switch (node->type_legacy) {
       case CMP_NODE_VALUE_DEPRECATED:
         node->type_legacy = SH_NODE_VALUE;
-        STRNCPY(node->idname, "ShaderNodeValue");
+        STRNCPY_UTF8(node->idname, "ShaderNodeValue");
         break;
       case CMP_NODE_MATH_DEPRECATED:
         node->type_legacy = SH_NODE_MATH;
-        STRNCPY(node->idname, "ShaderNodeMath");
+        STRNCPY_UTF8(node->idname, "ShaderNodeMath");
         break;
       case CMP_NODE_COMBINE_XYZ_DEPRECATED:
         node->type_legacy = SH_NODE_COMBXYZ;
-        STRNCPY(node->idname, "ShaderNodeCombineXYZ");
+        STRNCPY_UTF8(node->idname, "ShaderNodeCombineXYZ");
         break;
       case CMP_NODE_SEPARATE_XYZ_DEPRECATED:
         node->type_legacy = SH_NODE_SEPXYZ;
-        STRNCPY(node->idname, "ShaderNodeSeparateXYZ");
+        STRNCPY_UTF8(node->idname, "ShaderNodeSeparateXYZ");
         break;
       case CMP_NODE_CURVE_VEC_DEPRECATED:
         node->type_legacy = SH_NODE_CURVE_VEC;
-        STRNCPY(node->idname, "ShaderNodeVectorCurve");
+        STRNCPY_UTF8(node->idname, "ShaderNodeVectorCurve");
         break;
       case CMP_NODE_VALTORGB_DEPRECATED: {
         node->type_legacy = SH_NODE_VALTORGB;
-        STRNCPY(node->idname, "ShaderNodeValToRGB");
+        STRNCPY_UTF8(node->idname, "ShaderNodeValToRGB");
 
         /* Compositor node uses "Image" as the output name while the shader node uses "Color" as
          * the output name. */
         bNodeSocket *image_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Image");
-        STRNCPY(image_output->identifier, "Color");
-        STRNCPY(image_output->name, "Color");
+        STRNCPY_UTF8(image_output->identifier, "Color");
+        STRNCPY_UTF8(image_output->name, "Color");
 
         break;
       }
       case CMP_NODE_MAP_RANGE_DEPRECATED: {
         node->type_legacy = SH_NODE_MAP_RANGE;
-        STRNCPY(node->idname, "ShaderNodeMapRange");
+        STRNCPY_UTF8(node->idname, "ShaderNodeMapRange");
 
         /* Transfer options from node to NodeMapRange storage. */
         NodeMapRange *data = MEM_callocN<NodeMapRange>(__func__);
@@ -937,14 +942,14 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
         /* Compositor node uses "Value" as the output name while the shader node uses "Result" as
          * the output name. */
         bNodeSocket *value_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Value");
-        STRNCPY(value_output->identifier, "Result");
-        STRNCPY(value_output->name, "Result");
+        STRNCPY_UTF8(value_output->identifier, "Result");
+        STRNCPY_UTF8(value_output->name, "Result");
 
         break;
       }
       case CMP_NODE_MIX_RGB_DEPRECATED: {
         node->type_legacy = SH_NODE_MIX;
-        STRNCPY(node->idname, "ShaderNodeMix");
+        STRNCPY_UTF8(node->idname, "ShaderNodeMix");
 
         /* Transfer options from node to NodeShaderMix storage. */
         NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
@@ -959,17 +964,17 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
          * identifiers while the shader node uses ("Factor", "Factor_Float"), ("A", "A_Color"),
          * ("B", "B_Color"), and ("Result", "Result_Color") as socket names and identifiers. */
         bNodeSocket *factor_input = blender::bke::node_find_socket(*node, SOCK_IN, "Fac");
-        STRNCPY(factor_input->identifier, "Factor_Float");
-        STRNCPY(factor_input->name, "Factor");
+        STRNCPY_UTF8(factor_input->identifier, "Factor_Float");
+        STRNCPY_UTF8(factor_input->name, "Factor");
         bNodeSocket *first_input = blender::bke::node_find_socket(*node, SOCK_IN, "Image");
-        STRNCPY(first_input->identifier, "A_Color");
-        STRNCPY(first_input->name, "A");
+        STRNCPY_UTF8(first_input->identifier, "A_Color");
+        STRNCPY_UTF8(first_input->name, "A");
         bNodeSocket *second_input = blender::bke::node_find_socket(*node, SOCK_IN, "Image_001");
-        STRNCPY(second_input->identifier, "B_Color");
-        STRNCPY(second_input->name, "B");
+        STRNCPY_UTF8(second_input->identifier, "B_Color");
+        STRNCPY_UTF8(second_input->name, "B");
         bNodeSocket *image_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Image");
-        STRNCPY(image_output->identifier, "Result_Color");
-        STRNCPY(image_output->name, "Result");
+        STRNCPY_UTF8(image_output->identifier, "Result_Color");
+        STRNCPY_UTF8(image_output->name, "Result");
 
         do_version_mix_color_use_alpha(node_tree, node);
 
@@ -1129,12 +1134,180 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
   BLI_freelistN(&pidlist);
 }
 
+static void do_version_convert_gp_jitter_values(Brush *brush)
+{
+  /* Because this change is backported into the 4.5 branch, we need to avoid performing versioning
+   * in case the user updated their custom brush assets between using 4.5 and 5.0 to avoid
+   * overwriting their changes.
+   *
+   * See #142104
+   */
+  if ((brush->flag2 & BRUSH_JITTER_COLOR) != 0 || !is_zero_v3(brush->hsv_jitter)) {
+    return;
+  }
+
+  BrushGpencilSettings *settings = brush->gpencil_settings;
+  float old_hsv_jitter[3] = {
+      settings->random_hue, settings->random_saturation, settings->random_value};
+  if (!is_zero_v3(old_hsv_jitter)) {
+    brush->flag2 |= BRUSH_JITTER_COLOR;
+  }
+  copy_v3_v3(brush->hsv_jitter, old_hsv_jitter);
+  if (brush->curve_rand_hue) {
+    BKE_curvemapping_free_data(brush->curve_rand_hue);
+    BKE_curvemapping_copy_data(brush->curve_rand_hue, settings->curve_rand_hue);
+  }
+  else {
+    brush->curve_rand_hue = BKE_curvemapping_copy(settings->curve_rand_hue);
+  }
+  if (brush->curve_rand_saturation) {
+    BKE_curvemapping_free_data(brush->curve_rand_saturation);
+    BKE_curvemapping_copy_data(brush->curve_rand_saturation, settings->curve_rand_saturation);
+  }
+  else {
+    brush->curve_rand_saturation = BKE_curvemapping_copy(settings->curve_rand_saturation);
+  }
+  if (brush->curve_rand_value) {
+    BKE_curvemapping_free_data(brush->curve_rand_value);
+    BKE_curvemapping_copy_data(brush->curve_rand_value, settings->curve_rand_value);
+  }
+  else {
+    brush->curve_rand_value = BKE_curvemapping_copy(settings->curve_rand_value);
+  }
+}
+
+/* The Composite node was removed and a Group Output node should be used instead, so we need to
+ * make the replacement. But first note that the Group Output node relies on the node tree
+ * interface, so we ensure a default interface with a single input and output. This is only for
+ * root trees used as scene compositing node groups, for other node trees, we remove all composite
+ * nodes since they are no longer supported inside groups. */
+static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode &node)
+{
+  blender::bke::node_tree_set_type(node_tree);
+
+  /* Remove inactive nodes. */
+  if (!(node.flag & NODE_DO_OUTPUT)) {
+    version_node_remove(node_tree, node);
+    return;
+  }
+
+  bNodeSocket *old_image_input = blender::bke::node_find_socket(node, SOCK_IN, "Image");
+
+  /* Find the link going into the Image input of the Composite node. */
+  bNodeLink *image_link = nullptr;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
+    if (link->tosock == old_image_input) {
+      image_link = link;
+    }
+  }
+
+  bNode *group_output_node = blender::bke::node_add_node(nullptr, node_tree, "NodeGroupOutput");
+  group_output_node->parent = node.parent;
+  group_output_node->location[0] = node.location[0];
+  group_output_node->location[1] = node.location[1];
+
+  bNodeSocket *image_input = static_cast<bNodeSocket *>(group_output_node->inputs.first);
+  BLI_assert(blender::StringRef(image_input->name) == "Image");
+  copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
+             old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+
+  if (image_link) {
+    version_node_add_link(
+        node_tree, *image_link->fromnode, *image_link->fromsock, *group_output_node, *image_input);
+    blender::bke::node_remove_link(&node_tree, *image_link);
+  }
+
+  version_node_remove(node_tree, node);
+}
+
+/* Updates the media type of the given format to match its imtype. */
+static void update_format_media_type(ImageFormatData *format)
+{
+  if (BKE_imtype_is_image(format->imtype)) {
+    format->media_type = MEDIA_TYPE_IMAGE;
+  }
+  else if (BKE_imtype_is_multi_layer_image(format->imtype)) {
+    format->media_type = MEDIA_TYPE_MULTI_LAYER_IMAGE;
+  }
+  else if (BKE_imtype_is_movie(format->imtype)) {
+    format->media_type = MEDIA_TYPE_VIDEO;
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
+static void do_version_world_remove_use_nodes(Main *bmain, World *world)
+{
+  if (world->use_nodes == true) {
+    return;
+  }
+
+  /* Users defined a world node tree, but deactivated it by disabling "Use Nodes". So we
+   * simulate the same effect by creating a new World Output node and setting it to active. */
+  bNodeTree *ntree = world->nodetree;
+  if (ntree == nullptr) {
+    /* In case the world was defined through Python API it might have been missing a node tree. */
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        bmain, &world->id, "World Node Tree Versioning", "ShaderNodeTree");
+  }
+
+  bNode *old_output = nullptr;
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (STREQ(node->idname, "ShaderNodeOutputWorld") && (node->flag & NODE_DO_OUTPUT)) {
+      old_output = node;
+      old_output->flag &= ~NODE_DO_OUTPUT;
+    }
+  }
+
+  bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputWorld");
+  bNodeSocket &output_surface_input = version_node_add_socket(
+      *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
+  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
+  new_output.flag |= NODE_DO_OUTPUT;
+
+  bNode &background = version_node_add_empty(*ntree, "ShaderNodeBackground");
+  bNodeSocket &background_color_output = version_node_add_socket(
+      *ntree, background, SOCK_OUT, "NodeSocketShader", "Background");
+  bNodeSocket &background_color_input = version_node_add_socket(
+      *ntree, background, SOCK_IN, "NodeSocketColor", "Color");
+  bNodeSocket &background_strength_input = version_node_add_socket(
+      *ntree, background, SOCK_IN, "NodeSocketFloat", "Strength");
+  bNodeSocket &background_weight_input = version_node_add_socket(
+      *ntree, background, SOCK_IN, "NodeSocketFloat", "Weight");
+  background_weight_input.flag |= SOCK_UNAVAIL;
+
+  version_node_add_link(
+      *ntree, background, background_color_output, new_output, output_surface_input);
+
+  bNodeSocketValueRGBA *rgba = background_color_input.default_value_typed<bNodeSocketValueRGBA>();
+  rgba->value[0] = world->horr;
+  rgba->value[1] = world->horg;
+  rgba->value[2] = world->horb;
+  rgba->value[3] = 1.0f;
+  background_strength_input.default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
+
+  if (old_output != nullptr) {
+    /* Position the newly created node after the old output. Assume the old output node is at
+     * the far right of the node tree. */
+    background.location[0] = old_output->location[0] + 1.5f * old_output->width;
+    background.location[1] = old_output->location[1];
+  }
+
+  new_output.location[0] = background.location[0] + 2.0f * background.width;
+  new_output.location[1] = background.location[1];
+
+  bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
+  background.parent = frame;
+  new_output.parent = frame;
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT)) {
-        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
+        STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
       }
     }
   }
@@ -1152,6 +1325,39 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     LISTBASE_FOREACH (Object *, object, &bmain->objects) {
       do_version_remove_lzo_and_lzma_compression(fd, object);
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 41)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, scene);
+      if (node_tree) {
+        /* Add a default interface for the node tree. See the versioning function below for more
+         * details. */
+        node_tree->tree_interface.clear_items();
+        node_tree->tree_interface.add_socket(
+            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+        node_tree->tree_interface.add_socket(
+            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
+        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_COMPOSITE_DEPRECATED) {
+            do_version_composite_node_in_scene_tree(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      blender::bke::node_tree_set_type(*node_tree);
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_COMPOSITE_DEPRECATED) {
+            /* See do_version_composite_node_in_scene_tree. */
+            version_node_remove(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
@@ -1364,22 +1570,22 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (node->type_legacy != CMP_NODE_TRANSLATE) {
           continue;
         }
-        if (node->storage != nullptr) {
+        if (node->storage == nullptr) {
           continue;
         }
         NodeTranslateData *data = static_cast<NodeTranslateData *>(node->storage);
         /* Map old wrap axis to new extension mode. */
         switch (data->wrap_axis) {
           case CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE:
-            data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-            data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+            data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
             break;
           case CMP_NODE_TRANSLATE_REPEAT_AXIS_X:
             data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
-            data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
             break;
           case CMP_NODE_TRANSLATE_REPEAT_AXIS_Y:
-            data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+            data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
             data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
             break;
           case CMP_NODE_TRANSLATE_REPEAT_AXIS_XY:
@@ -1387,7 +1593,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
             break;
         }
-        node->storage = data;
       }
       FOREACH_NODETREE_END;
     }
@@ -1430,9 +1635,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           continue;
         }
         NodeScaleData *data = static_cast<NodeScaleData *>(node->storage);
-        data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-        data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
-        node->storage = data;
+        data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
+        data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
       }
       FOREACH_NODETREE_END;
     }
@@ -1452,8 +1656,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
         NodeTransformData *data = MEM_callocN<NodeTransformData>(__func__);
         data->interpolation = node->custom1;
-        data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-        data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+        data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
+        data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
         node->storage = data;
       }
       FOREACH_NODETREE_END;
@@ -1513,6 +1717,50 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           return true;
         });
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 40)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->gpencil_settings) {
+        do_version_convert_gp_jitter_values(brush);
+      }
+    }
+  }
+
+  /* ImageFormatData gained a new media type which we need to be set according to the existing
+   * imtype. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 42)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      update_format_media_type(&scene->r.im_format);
+    }
+
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy != CMP_NODE_OUTPUT_FILE) {
+          continue;
+        }
+
+        NodeImageMultiFile *storage = static_cast<NodeImageMultiFile *>(node->storage);
+        update_format_media_type(&storage->format);
+
+        LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
+          NodeImageMultiFileSocket *input_storage = static_cast<NodeImageMultiFileSocket *>(
+              input->storage);
+          update_format_media_type(&input_storage->format);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 43)) {
+    LISTBASE_FOREACH (World *, world, &bmain->worlds) {
+      do_version_world_remove_use_nodes(bmain, world);
     }
   }
 

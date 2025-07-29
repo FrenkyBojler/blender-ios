@@ -18,7 +18,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -440,7 +440,7 @@ static void draw_histogram(ARegion &region,
 
     /* Label. */
     char buf[10];
-    const size_t buf_len = SNPRINTF_RLEN(buf, "%.2f", val);
+    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.2f", val);
 
     float text_width, text_height;
     BLF_width_and_height(BLF_default(), buf, buf_len, &text_width, &text_height);
@@ -505,7 +505,7 @@ static void draw_waveform_graticule(ARegion *region, SeqQuadsBatch &quads, const
   for (int i = 0; i < 3; i++) {
     const float y = area.ymin + (area.ymax - area.ymin) * lines[i];
     char buf[10];
-    const size_t buf_len = SNPRINTF_RLEN(buf, "%.1f", lines[i]);
+    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.1f", lines[i]);
     quads.add_line(x0, y, x1, y, col_grid);
     UI_view2d_text_cache_add(&region->v2d, x0 + 8, y + 8, buf, buf_len, col_grid);
   }
@@ -736,7 +736,7 @@ static void sequencer_draw_scopes(const SpaceSeq &space_sequencer, ARegion &regi
       IMB_byte_from_float(scope_image);
     }
 
-    eGPUTextureFormat format = GPU_RGBA8;
+    blender::gpu::TextureFormat format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
     eGPUDataFormat data = GPU_DATA_UBYTE;
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
     blender::gpu::Texture *texture = GPU_texture_create_2d(
@@ -839,11 +839,7 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
       }
       break;
     case SEQ_DRAW_IMG_HISTOGRAM: {
-      ImBuf *display_ibuf = IMB_dupImBuf(&ibuf);
-      IMB_colormanagement_imbuf_make_display_space(
-          display_ibuf, &view_settings, &display_settings);
-      scopes->histogram.calc_from_ibuf(display_ibuf);
-      IMB_freeImBuf(display_ibuf);
+      scopes->histogram.calc_from_ibuf(&ibuf, view_settings, display_settings);
     } break;
     case SEQ_DRAW_IMG_RGBPARADE:
       if (!scopes->sep_waveform_ibuf) {
@@ -1390,16 +1386,16 @@ static blender::gpu::Texture *create_texture(const ImBuf &ibuf)
   blender::gpu::Texture *texture = nullptr;
 
   if (ibuf.float_buffer.data) {
-    eGPUTextureFormat texture_format;
+    blender::gpu::TextureFormat texture_format;
     switch (ibuf.channels) {
       case 1:
-        texture_format = GPU_R32F;
+        texture_format = blender::gpu::TextureFormat::SFLOAT_32;
         break;
       case 3:
-        texture_format = GPU_RGB32F;
+        texture_format = blender::gpu::TextureFormat::SFLOAT_32_32_32;
         break;
       case 4:
-        texture_format = GPU_RGBA32F;
+        texture_format = blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
         break;
       default:
         BLI_assert_msg(0, "Incompatible number of channels for float buffer in sequencer");
@@ -1411,8 +1407,13 @@ static blender::gpu::Texture *create_texture(const ImBuf &ibuf)
     GPU_texture_update(texture, GPU_DATA_FLOAT, ibuf.float_buffer.data);
   }
   else if (ibuf.byte_buffer.data) {
-    texture = GPU_texture_create_2d(
-        "seq_display_buf", ibuf.x, ibuf.y, 1, GPU_RGBA8, texture_usage, nullptr);
+    texture = GPU_texture_create_2d("seq_display_buf",
+                                    ibuf.x,
+                                    ibuf.y,
+                                    1,
+                                    blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                                    texture_usage,
+                                    nullptr);
     GPU_texture_update(texture, GPU_DATA_UBYTE, ibuf.byte_buffer.data);
   }
 
