@@ -131,14 +131,16 @@ int2 get_points(uint point_id, IndexRange points)
       int(points.start) + point_ids, int2(points.start), int2(points.start + points.size - 1));
 }
 
-void evaluate_segment_positions(const float3 point_0,
-                                const float3 point_1,
-                                const float3 point_2,
-                                const float3 point_3,
-                                const float radius_0,
-                                const float radius_3,
-                                const IndexRange result)
+void evaluate_segment_positions(const int2 points, const IndexRange result)
 {
+  const float3 point_0 = gpu_attr_load_float3(positions_buf, int2(3, 0), points.x);
+  const float3 point_1 = gpu_attr_load_float3(handles_positions_right_buf, int2(3, 0), points.x);
+  const float3 point_2 = gpu_attr_load_float3(handles_positions_left_buf, int2(3, 0), points.y);
+  const float3 point_3 = gpu_attr_load_float3(positions_buf, int2(3, 0), points.y);
+
+  const float rad_0 = radii_buf[points.x];
+  const float rad_1 = radii_buf[points.y];
+
   assert(result.size > 0);
   const float inv_len = 1.0f / float(result.size);
   const float inv_len_squared = inv_len * inv_len;
@@ -153,10 +155,9 @@ void evaluate_segment_positions(const float3 point_0,
   float3 q2 = 2.0f * rt2 + 6.0f * rt3;
   float3 q3 = 6.0f * rt3;
   for (int i = 0; i < result.size; i++) {
-    /* Radius is like any other point attribute and is linearly interpolated. */
-    const float rad = mix(radius_0, radius_3, float(i) * inv_len);
-
-    evaluated_positions_radii_buf[result.start + i] = float4(q0, rad);
+    /* Radius is done separately. */
+    evaluated_positions_radii_buf[result.start + i].xyz = q0;
+    evaluated_positions_radii_buf[result.start + i].w = mix(rad_0, rad_1, float(i) * inv_len);
     q0 += q1;
     q1 += q2;
     q2 += q3;
@@ -172,22 +173,11 @@ void evaluate_curve(const IndexRange points,
 
   for (int i = 0; i < points.size; i++) {
     /* Bezier curves can have different number of evaluated segment per curve segment. */
-    const IndexRange segment_range = from_begin_end(bezier_offsets_buf[offsets.start + i],
-                                                    bezier_offsets_buf[offsets.start + i + 1]);
-
+    const IndexRange segment_range = OffsetIndices_read(bezier_offsets_buf, offsets.start + i);
     const IndexRange evaluated_segment_range = slice(evaluated_points, segment_range);
-
     const int2 point_ids = get_points(i, points);
 
-    const float3 lP_0 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.x);
-    const float3 lP_1 = gpu_attr_load_float3(handles_positions_right_buf, int2(3, 0), point_ids.x);
-    const float3 lP_2 = gpu_attr_load_float3(handles_positions_left_buf, int2(3, 0), point_ids.y);
-    const float3 lP_3 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.y);
-
-    const float rad_0 = radii_buf[point_ids.x];
-    const float rad_1 = radii_buf[point_ids.y];
-
-    evaluate_segment_positions(lP_0, lP_1, lP_2, lP_3, rad_0, rad_1, evaluated_segment_range);
+    evaluate_segment_positions(point_ids, evaluated_segment_range);
   }
 }
 
