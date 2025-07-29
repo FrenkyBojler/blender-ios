@@ -564,6 +564,13 @@ static void handle_rigid_bodies_behavior(JoltState &state,
     rigid_body->body->SetFriction(friction);
     rigid_body->body->SetRestitution(bounciness);
 
+    if (motion_type == JPH::EMotionType::Kinematic) {
+      body_interface.SetPositionAndRotationWhenChanged(rigid_body->body->GetID(),
+                                                       convert_vec3(instance_position),
+                                                       convert_quat(instance_rotation),
+                                                       JPH::EActivation::Activate);
+    }
+
     rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
   }
 
