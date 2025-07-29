@@ -18,6 +18,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "DNA_curves_types.h"
 #include "DNA_modifier_types.h"
@@ -295,6 +296,8 @@ static void lineart_bake_startjob(void *customdata, wmJobWorkerStatus *worker_st
 
   guard_modifiers(*bj);
 
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
+
   for (int frame = bj->frame_begin; frame <= bj->frame_end; frame += bj->frame_increment) {
 
     if (G.is_break) {
@@ -397,7 +400,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
     WM_jobs_timer(wm_job, 0.1, NC_GPENCIL | ND_DATA | NA_EDITED, NC_GPENCIL | ND_DATA | NA_EDITED);
     WM_jobs_callbacks(wm_job, lineart_bake_startjob, nullptr, nullptr, lineart_bake_endjob);
 
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_set_locked_interface_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
     WM_jobs_start(CTX_wm_manager(C), wm_job);
 

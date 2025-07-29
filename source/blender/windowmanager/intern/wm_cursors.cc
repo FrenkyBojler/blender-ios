@@ -6,12 +6,23 @@
  * \ingroup wm
  *
  * Cursor pixmap and cursor utility functions to change the cursor.
+ *
+ * Multiple types of mouse cursors are supported.
+ * Cursors provided by the OS are preferred.
+ * The availability of these are checked with #GHOST_HasCursorShape().
+ * These cursors can include platform-specific custom cursors.
+ * For example, on MacOS we provide vector PDF files.
+ *
+ * If the OS cannot provide a built-in or custom platform cursor,
+ * then we use our own internal custom cursors. These are defined in SVG files.
+ * The hot-spot for these are set during definition in #wm_init_cursor_data.
  */
 
 #include <cstring>
 
 #include "GHOST_C-api.h"
 
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_listBase.h"
@@ -21,39 +32,55 @@
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
-#include "nanosvgrast.h"
-#include "svg_cursors.h"
+#include "BLF_api.hh"
+
+#ifndef WITH_HEADLESS
+#  include "nanosvgrast.h"
+#  include "svg_cursors.h"
+#endif
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 #include "wm_cursors.hh"
 #include "wm_window.hh"
 
-/* Blender custom cursor. */
+/**
+ * Currently using the WIN32 limit of 255 for RGBA cursors,
+ * Wayland has a similar limit.
+ *
+ * While other systems can be tested this seems like a reasonably large limit.
+ */
+constexpr int CURSOR_HARDWARE_SIZE_MAX = 255;
+
+/**
+ * The maximum size of cursor text (in bytes).
+ * Can remain small as it's unlikely we can ever show much text in a cursor.
+ */
+#define CURSOR_TEXT_BUFFER_SIZE 24
+
+/** Blender custom cursor. */
 struct BCursor {
+  /**
+   * An SVG document size of 1600x1600 being the "normal" size,
+   * cropped to the image size and without any padding.
+   */
   const char *svg_source;
+  /**
+   * A factor (0-1) from the top-left corner of the image (not of the document size).
+   */
   blender::float2 hotspot;
+  /**
+   * By default cursors are "light", allow dark themes to invert.
+   */
   bool can_invert;
 };
 
-/* We currently support multiple types of mouse cursors. Preferred
- * is to use one provided by the OS. The availability of these are
- * checked with GHOST_HasCursorShape(). These cursors can include
- * platform-specific custom cursors. For example, on MacOS we provide
- * vector PDF files and on Windows we have CUR files.
- *
- * If the OS cannot provide a built-in or custom platform cursor,
- * then we use our own internal custom cursors. These are defined in
- * SVG files, using a document size of 1600x1600 being the "normal"
- * size, cropped to the image size and without any padding.  The hotspot
- * for these are set during definition at the bottom of this file, and
- * are a float factor (0-1) from the top-left corner of the image (not
- * of the document size).
+/**
+ * A static array aligned with #WMCursorType for simple lookups.
  */
+static BCursor g_cursors[WM_CURSOR_NUM] = {{nullptr}};
 
-static BCursor BlenderCursor[WM_CURSOR_NUM] = {{nullptr}};
-
-/* Blender cursor to GHOST standard cursor conversion. */
+/** Blender cursor to GHOST standard cursor conversion. */
 static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
 {
   switch (curs) {
@@ -131,61 +158,101 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
   }
 }
 
-static float cursor_size()
+/**
+ * Calculate the cursor in pixels to use when setting the cursor.
+ */
+static int wm_cursor_size(const wmWindow *win)
 {
-  /* Scaling with UI scale can be useful for magnified captures. */
-  const bool scale_cursor_with_ui_scale = false;
-
-  if (scale_cursor_with_ui_scale) {
-    return 21.0f * UI_SCALE_FAC;
+  /* Keep for testing. */
+  if (false) {
+    /* Scaling with UI scale can be useful for magnified captures. */
+    return std::lround(21.0f * UI_SCALE_FAC);
   }
 
-#if (OS_MAC)
-  /* MacOS always scales up this type of cursor for high-dpi displays. */
-  return 21.0f;
-#endif
+  if (OS_MAC) {
+    /* MacOS always scales up this type of cursor for high-dpi displays. */
+    return 21;
+  }
 
-  return WM_cursor_preferred_logical_size() * (UI_SCALE_FAC / U.ui_scale);
+  /* The DPI as a scale without the UI scale preference. */
+  const float system_scale = WM_window_dpi_get_scale(win);
+
+  return std::lround(WM_cursor_preferred_logical_size() * system_scale);
 }
 
-static blender::Array<uint8_t> cursor_bitmap_from_svg(const char *svg,
-                                                      float size,
-                                                      int r_bitmap_size[2])
+/**
+ * Flip an RGBA byte buffer in-place.
+ */
+static void cursor_bitmap_rgba_flip_y(uint8_t *buffer, const size_t size[2])
 {
-  /* Nano alters the source string. */
+  uint *top, *bottom, *line;
+  const size_t x_size = size[0];
+  size_t y_size = size[1];
+  const size_t stride = x_size * sizeof(int);
+
+  top = reinterpret_cast<uint *>(buffer);
+  bottom = top + ((y_size - 1) * x_size);
+  line = MEM_malloc_arrayN<uint>(x_size, "linebuf");
+
+  y_size >>= 1;
+  for (; y_size > 0; y_size--) {
+    memcpy(line, top, stride);
+    memcpy(top, bottom, stride);
+    memcpy(bottom, line, stride);
+    bottom -= x_size;
+    top += x_size;
+  }
+
+  MEM_freeN(line);
+}
+
+/**
+ * \param svg: The contents of an SVG file.
+ * \param cursor_size: The maximum dimension in pixels for the resulting cursors width or height.
+ * \param alloc_fn: A caller defined allocation functions.
+ * \param r_bitmap_size: The width & height of the cursor data (never exceeding `cursor_size`).
+ * \return the pixel data as a `sizeof(uint8_t[4]) * r_bitmap_size[0] * r_bitmap_size[1]` array
+ * or null on failure.
+ */
+static uint8_t *cursor_bitmap_from_svg(const char *svg,
+                                       const int cursor_size,
+                                       uint8_t *(*alloc_fn)(size_t size),
+                                       int r_bitmap_size[2])
+{
+#ifdef WITH_HEADLESS
+  UNUSED_VARS(svg, cursor_size, alloc_fn, r_bitmap_size);
+  return nullptr;
+#else
+  /* #nsvgParse alters the source string. */
   std::string svg_source = svg;
 
   NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
   if (image == nullptr) {
-    return {};
+    return nullptr;
   }
   if (image->width == 0 || image->height == 0) {
     nsvgDelete(image);
-    return {};
+    return nullptr;
   }
   NSVGrasterizer *rast = nsvgCreateRasterizer();
   if (rast == nullptr) {
     nsvgDelete(image);
-    return {};
+    return nullptr;
   }
 
-  float scale = (size / 1600.0f);
+  const float scale = float(cursor_size) / 1600.0f;
   const size_t dest_size[2] = {
-      std::min(size_t(ceil(image->width * scale)), size_t(size)),
-      std::min(size_t(ceil(image->height * scale)), size_t(size)),
+      std::min(size_t(ceil(image->width * scale)), size_t(cursor_size)),
+      std::min(size_t(ceil(image->height * scale)), size_t(cursor_size)),
   };
 
-  blender::Array<uint8_t> bitmap_rgba(dest_size[0] * dest_size[1] * 4);
+  uint8_t *bitmap_rgba = alloc_fn(sizeof(uint8_t[4]) * dest_size[0] * dest_size[1]);
+  if (bitmap_rgba == nullptr) {
+    return nullptr;
+  }
 
-  nsvgRasterize(rast,
-                image,
-                0.0f,
-                0.0f,
-                scale,
-                bitmap_rgba.data(),
-                dest_size[0],
-                dest_size[1],
-                dest_size[0] * 4);
+  nsvgRasterize(
+      rast, image, 0.0f, 0.0f, scale, bitmap_rgba, dest_size[0], dest_size[1], dest_size[0] * 4);
 
   nsvgDeleteRasterizer(rast);
   nsvgDelete(image);
@@ -194,12 +261,13 @@ static blender::Array<uint8_t> cursor_bitmap_from_svg(const char *svg,
   r_bitmap_size[1] = dest_size[1];
 
   return bitmap_rgba;
+#endif /* !WITH_HEADLESS */
 }
 
 /**
  * Convert 32-bit RGBA bitmap (1-32 x 1-32) to 32x32 1bpp XBitMap bitmap and mask.
  */
-static void cursor_rgba_to_xbm_32(const blender::Array<uint8_t> &rgba,
+static void cursor_rgba_to_xbm_32(const uint8_t *rgba,
                                   const int bitmap_size[2],
                                   uint8_t *bitmap,
                                   uint8_t *mask)
@@ -219,37 +287,84 @@ static void cursor_rgba_to_xbm_32(const blender::Array<uint8_t> &rgba,
   }
 }
 
-static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
+static bool window_set_custom_cursor_generator(wmWindow *win, const BCursor &cursor)
+{
+  GHOST_CursorGenerator *cursor_generator = MEM_callocN<GHOST_CursorGenerator>(__func__);
+  cursor_generator->generate_fn = [](const GHOST_CursorGenerator *cursor_generator,
+                                     const int cursor_size,
+                                     const int cursor_size_max,
+                                     uint8_t *(*alloc_fn)(size_t size),
+                                     int r_bitmap_size[2],
+                                     int r_hot_spot[2],
+                                     bool *r_can_invert_color) -> uint8_t * {
+    const BCursor &cursor = *(const BCursor *)(cursor_generator->user_data);
+    /* Currently SVG uses the `cursor_size` as the maximum. */
+    UNUSED_VARS(cursor_size_max);
+
+    int bitmap_size[2];
+    uint8_t *bitmap_rgba = cursor_bitmap_from_svg(
+        cursor.svg_source, cursor_size, alloc_fn, bitmap_size);
+
+    if (UNLIKELY(bitmap_rgba == nullptr)) {
+      return nullptr;
+    }
+
+    r_bitmap_size[0] = bitmap_size[0];
+    r_bitmap_size[1] = bitmap_size[1];
+
+    r_hot_spot[0] = int(cursor.hotspot[0] * (bitmap_size[0] - 1));
+    r_hot_spot[1] = int(cursor.hotspot[1] * (bitmap_size[1] - 1));
+
+    *r_can_invert_color = cursor.can_invert;
+
+    return bitmap_rgba;
+  };
+
+  cursor_generator->user_data = (void *)&cursor;
+  cursor_generator->free_fn = [](GHOST_CursorGenerator *cursor_generator) {
+    MEM_freeN(cursor_generator);
+  };
+
+  GHOST_TSuccess success = GHOST_SetCustomCursorGenerator(
+      static_cast<GHOST_WindowHandle>(win->ghostwin), cursor_generator);
+
+  return (success == GHOST_kSuccess) ? true : false;
+}
+
+static bool window_set_custom_cursor_pixmap(wmWindow *win, const BCursor &cursor)
 {
   /* Option to force use of 1bpp XBitMap cursors is needed for testing. */
   const bool use_only_1bpp_cursors = false;
 
   const bool use_rgba = !use_only_1bpp_cursors &&
-                        (WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS);
+                        (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_RGBA);
 
-  const int max_size = use_rgba ? 128 : 32;
-  const float size = std::min(cursor_size(), float(max_size));
+  const int max_size = use_rgba ? CURSOR_HARDWARE_SIZE_MAX : 32;
+  const int size = std::min(wm_cursor_size(win), max_size);
 
-  int bitmap_size[2];
-  blender::Array<uint8_t> bitmap_rgba = cursor_bitmap_from_svg(
-      cursor->svg_source, size, bitmap_size);
-  if (UNLIKELY(bitmap_rgba.is_empty())) {
+  int bitmap_size[2] = {0, 0};
+  uint8_t *bitmap_rgba = cursor_bitmap_from_svg(
+      cursor.svg_source,
+      size,
+      [](size_t size) -> uint8_t * { return MEM_malloc_arrayN<uint8_t>(size, "wm.cursor"); },
+      bitmap_size);
+  if (UNLIKELY(bitmap_rgba == nullptr)) {
     return false;
   }
 
   const int hot_spot[2] = {
-      int(cursor->hotspot[0] * (bitmap_size[0] - 1)),
-      int(cursor->hotspot[1] * (bitmap_size[1] - 1)),
+      int(cursor.hotspot[0] * (bitmap_size[0] - 1)),
+      int(cursor.hotspot[1] * (bitmap_size[1] - 1)),
   };
 
   GHOST_TSuccess success;
   if (use_rgba) {
     success = GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                                         bitmap_rgba.data(),
+                                         bitmap_rgba,
                                          nullptr,
                                          bitmap_size,
                                          hot_spot,
-                                         cursor->can_invert);
+                                         cursor.can_invert);
   }
   else {
     int bitmap_size_fixed[2] = {32, 32};
@@ -262,9 +377,19 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
                                          mask,
                                          bitmap_size_fixed,
                                          hot_spot,
-                                         cursor->can_invert);
+                                         cursor.can_invert);
   }
+
+  MEM_freeN(bitmap_rgba);
   return (success == GHOST_kSuccess) ? true : false;
+}
+
+static bool window_set_custom_cursor(wmWindow *win, const BCursor &cursor)
+{
+  if (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_GENERATOR) {
+    return window_set_custom_cursor_generator(win, cursor);
+  }
+  return window_set_custom_cursor_pixmap(win, cursor);
 }
 
 void WM_cursor_set(wmWindow *win, int curs)
@@ -272,8 +397,13 @@ void WM_cursor_set(wmWindow *win, int curs)
   /* Option to not use any OS-supplied cursors is needed for testing. */
   const bool use_only_custom_cursors = false;
 
-  if (win == nullptr || G.background) {
-    return; /* Can't set custom cursor before Window init. */
+  if (G.background) {
+    return;
+  }
+
+  if (win == nullptr) {
+    /* Can't set custom cursor before window initialization. */
+    return;
   }
 
   if (curs == WM_CURSOR_DEFAULT && win->modalcursor) {
@@ -307,8 +437,8 @@ void WM_cursor_set(wmWindow *win, int curs)
     GHOST_SetCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor);
   }
   else {
-    BCursor *bcursor = &BlenderCursor[curs];
-    if (!bcursor || !bcursor->svg_source || !window_set_custom_cursor(win, bcursor)) {
+    const BCursor &bcursor = g_cursors[curs];
+    if (!bcursor.svg_source || !window_set_custom_cursor(win, bcursor)) {
       /* Fall back to default cursor if no bitmap found. */
       GHOST_SetCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
                            GHOST_kStandardCursorDefault);
@@ -331,6 +461,11 @@ bool WM_cursor_set_from_tool(wmWindow *win, const ScrArea *area, const ARegion *
     }
   }
   return false;
+}
+
+bool WM_cursor_modal_is_set_ok(const wmWindow *win)
+{
+  return (win->grabcursor == 0 && win->modalcursor == 0);
 }
 
 void WM_cursor_modal_set(wmWindow *win, int val)
@@ -448,7 +583,7 @@ void WM_cursor_grab_disable(wmWindow *win, const int mouse_ungrab_xy[2])
 
 static void wm_cursor_warp_relative(wmWindow *win, int x, int y)
 {
-  /* NOTE: don't use wmEvent coords because of continuous grab #36409. */
+  /* NOTE: don't use #wmEvent coords because of continuous grab, see: #36409. */
   int cx, cy;
   if (wm_cursor_position_get(win, &cx, &cy)) {
     WM_cursor_warp(win, cx + x, cy + y);
@@ -460,7 +595,7 @@ bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
   /* TODO: give it a modal keymap? Hard coded for now. */
 
   if (win && event->val == KM_PRESS) {
-    /* Must move at least this much to avoid rounding in WM_cursor_warp. */
+    /* Must move at least this much to avoid rounding in #WM_cursor_warp. */
     float fac = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
 
     if (event->type == EVT_UPARROWKEY) {
@@ -483,7 +618,7 @@ bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
   return false;
 }
 
-static bool wm_cursor_time_large(wmWindow *win, int nr)
+static bool wm_cursor_time_large(wmWindow *win, uint32_t nr)
 {
   /* 10 16x16 digits. */
   const uchar number_bitmaps[][32] = {
@@ -549,7 +684,7 @@ static bool wm_cursor_time_large(wmWindow *win, int nr)
                                     false) == GHOST_kSuccess;
 }
 
-static void wm_cursor_time_small(wmWindow *win, int nr)
+static void wm_cursor_time_small(wmWindow *win, uint32_t nr)
 {
   /* 10 8x8 digits. */
   const char number_bitmaps[10][8] = {
@@ -592,33 +727,254 @@ static void wm_cursor_time_small(wmWindow *win, int nr)
                              false);
 }
 
-void WM_cursor_time(wmWindow *win, int nr)
+/**
+ * \param text: The text display in the cursor.
+ * \param cursor_size: The maximum dimension in pixels for the resulting cursors width or height.
+ * \param alloc_fn: A caller defined allocation functions.
+ * \param r_bitmap_size: The width & height of the cursor data (never exceeding `cursor_size`).
+ * \return the pixel data as a `sizeof(uint8_t[4]) * r_bitmap_size[0] * r_bitmap_size[1]` array
+ * or null on failure.
+ */
+static uint8_t *cursor_bitmap_from_text(const char *text,
+                                        const int cursor_size,
+                                        const int cursor_size_max,
+                                        int font_id,
+                                        uint8_t *(*alloc_fn)(size_t size),
+                                        int r_bitmap_size[2])
+{
+  /* Smaller than a full cursor size since this is typically wider.
+   * Also, use a small scale to avoid scaling single numbers up
+   * which are then shrunk when more digits are added since this seems strange. */
+  int font_size = (cursor_size * 3) / 4;
+  int font_dims[2];
+  int font_padding;
+
+  int font_descender;
+
+  /* At least 1 even on an empty string else the cursor is blank. */
+  const size_t text_len = strlen(text);
+  const int text_units = std::max(1, BLI_str_utf8_column_count(text, text_len));
+  const bool text_to_draw = text_len != 0;
+
+  for (int pass = 0; pass < 2; pass++) {
+    BLF_size(font_id, font_size);
+
+    /* Use fixed sizes instead of calculating the bounds of the text
+     * because the text can jitter based on differences in the glyphs. */
+    font_dims[0] = BLF_fixed_width(font_id) * text_units;
+    font_dims[1] = BLF_height_max(font_id);
+    font_descender = -BLF_descender(font_id);
+
+    font_padding = font_size / 6;
+    font_dims[0] += font_padding * 2;
+    font_dims[1] += (font_padding * 2) + font_descender;
+
+    if (pass == 0) {
+      const int font_dims_max = std::max(font_dims[0], font_dims[1]);
+      if (font_dims_max <= cursor_size_max) {
+        break;
+      }
+      /* +1 to scale down more than a small fraction. */
+      constexpr int fixed_pt = 1024;
+      font_size = ((font_size * fixed_pt) * cursor_size_max) / (font_dims_max * fixed_pt);
+    }
+  }
+
+  /* Camping by `cursor_size` is a safeguard to ensure the size *never* exceeds the bounds.
+   * In practice this should happen rarely - if at all. */
+  const size_t dest_size[2] = {
+      size_t(std::min(font_dims[0], cursor_size_max)),
+      size_t(std::min(font_dims[1], cursor_size_max)),
+  };
+
+  uint8_t *bitmap_rgba = alloc_fn(sizeof(uint8_t[4]) * dest_size[0] * dest_size[1]);
+  if (bitmap_rgba == nullptr) {
+    return nullptr;
+  }
+  std::fill_n(reinterpret_cast<uint32_t *>(bitmap_rgba), dest_size[0] * dest_size[1], 0xA0000000);
+
+  if (text_to_draw) {
+    const float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    BLF_buffer_col(font_id, color);
+    BLF_buffer(font_id, nullptr, bitmap_rgba, dest_size[0], dest_size[1], nullptr);
+    BLF_position(font_id, font_padding, font_padding + font_descender, 0.0f);
+    BLF_draw_buffer(font_id, text, text_len);
+    BLF_buffer(font_id, nullptr, nullptr, 0, 0, nullptr);
+
+    cursor_bitmap_rgba_flip_y(bitmap_rgba, dest_size);
+  }
+
+  r_bitmap_size[0] = dest_size[0];
+  r_bitmap_size[1] = dest_size[1];
+
+  return bitmap_rgba;
+}
+
+static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_id)
+{
+  struct WMCursorText {
+    char text[CURSOR_TEXT_BUFFER_SIZE];
+    int font_id;
+  };
+
+  GHOST_CursorGenerator *cursor_generator = MEM_callocN<GHOST_CursorGenerator>(__func__);
+  cursor_generator->generate_fn = [](const GHOST_CursorGenerator *cursor_generator,
+                                     const int cursor_size,
+                                     const int cursor_size_max,
+                                     uint8_t *(*alloc_fn)(size_t size),
+                                     int r_bitmap_size[2],
+                                     int r_hot_spot[2],
+                                     bool *r_can_invert_color) -> uint8_t * {
+    const WMCursorText &cursor_text = *(const WMCursorText *)(cursor_generator->user_data);
+
+    int bitmap_size[2];
+    uint8_t *bitmap_rgba = cursor_bitmap_from_text(cursor_text.text,
+                                                   cursor_size,
+                                                   cursor_size_max,
+                                                   cursor_text.font_id,
+                                                   alloc_fn,
+                                                   bitmap_size);
+
+    if (UNLIKELY(bitmap_rgba == nullptr)) {
+      return nullptr;
+    }
+
+    r_bitmap_size[0] = bitmap_size[0];
+    r_bitmap_size[1] = bitmap_size[1];
+
+    r_hot_spot[0] = bitmap_size[0] / 2;
+    r_hot_spot[1] = bitmap_size[1] / 2;
+
+    /* Always use a dark background, not optional. */
+    *r_can_invert_color = false;
+
+    return bitmap_rgba;
+  };
+
+  WMCursorText *cursor_text = MEM_new<WMCursorText>(__func__);
+  STRNCPY_UTF8(cursor_text->text, text);
+  cursor_text->font_id = font_id;
+
+  cursor_generator->user_data = (void *)cursor_text;
+  cursor_generator->free_fn = [](GHOST_CursorGenerator *cursor_generator) {
+    const WMCursorText *cursor_text = (WMCursorText *)(cursor_generator->user_data);
+    MEM_delete(cursor_text);
+    MEM_freeN(cursor_generator);
+  };
+
+  GHOST_TSuccess success = GHOST_SetCustomCursorGenerator(
+      static_cast<GHOST_WindowHandle>(win->ghostwin), cursor_generator);
+
+  return (success == GHOST_kSuccess) ? true : false;
+}
+
+static bool wm_cursor_text_pixmap(wmWindow *win, const char *text, int font_id)
+{
+  const int cursor_size = wm_cursor_size(win);
+  /* This is arbitrary. Use a larger value than the cursor size since the text is often wider than
+   * it is tall. In that case constraining to the cursor size tends to make the text too small.
+   * On the other hand allowing of the text to be much wider than other curses also seems strange,
+   * so constrain to twice the cursor size. */
+  const int cursor_size_max = std::min(cursor_size * 2, CURSOR_HARDWARE_SIZE_MAX);
+
+  int bitmap_size[2];
+  uint8_t *bitmap_rgba = cursor_bitmap_from_text(
+      text,
+      cursor_size,
+      cursor_size_max,
+      font_id,
+      [](size_t size) -> uint8_t * { return MEM_malloc_arrayN<uint8_t>(size, "wm.cursor"); },
+      bitmap_size);
+  if (bitmap_rgba == nullptr) {
+    return false;
+  }
+
+  const int hot_spot[2] = {
+      bitmap_size[0] / 2,
+      bitmap_size[1] / 2,
+  };
+  GHOST_TSuccess success = GHOST_SetCustomCursorShape(
+      static_cast<GHOST_WindowHandle>(win->ghostwin),
+      bitmap_rgba,
+      nullptr,
+      bitmap_size,
+      hot_spot,
+      /* Always use a black background. */
+      false);
+  MEM_freeN(bitmap_rgba);
+
+  return (success == GHOST_kSuccess) ? true : false;
+}
+
+static bool wm_cursor_text(wmWindow *win, const char *text, int font_id)
+{
+  if (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_GENERATOR) {
+    return wm_cursor_text_generator(win, text, font_id);
+  }
+  return wm_cursor_text_pixmap(win, text, font_id);
+}
+
+/**
+ * \param is_percentage: When true, nr represents a percentage multiplied by 100
+ * so the percentage with two decimal places can be shown.
+ */
+static void wm_cursor_number_impl(wmWindow *win, int nr, bool is_percentage)
 {
   if (win->lastcursor == 0) {
     win->lastcursor = win->cursor;
   }
+  /* Negative numbers not supported by #wm_cursor_time_large & #wm_cursor_time_small.
+   * Make absolute to show *something* although in typical usage this shouldn't be negative.
+   * NOTE: Use of unsigned here to allow negation when `nr` is `std::numeric_limits<int>::min()`
+   * which *can't* be negated. */
+  const uint32_t nr_abs = nr >= 0 ? uint32_t(nr) : -uint32_t(nr);
 
-  /* Use `U.ui_scale` instead of `UI_SCALE_FAC` here to ignore HiDPI/Retina scaling. */
-  if (U.ui_scale < 1.45f || !wm_cursor_time_large(win, nr)) {
-    wm_cursor_time_small(win, nr);
+  if (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_RGBA) {
+    char text[CURSOR_TEXT_BUFFER_SIZE];
+    if (is_percentage) {
+      /* Left pad to avoid resizing text between 9% & 10%. */
+      SNPRINTF_UTF8(text, "%2u.%02u", nr_abs / 100, nr_abs % 100);
+    }
+    else {
+      SNPRINTF_UTF8(text, "%u", nr_abs);
+    }
+    wm_cursor_text(win, text, blf_mono_font);
+  }
+  else if (wm_cursor_size(win) < 24 || !wm_cursor_time_large(win, nr_abs)) {
+    wm_cursor_time_small(win, nr_abs);
   }
 
-  /* Unset current cursor value so it's properly reset to wmWindow.lastcursor. */
+  /* Unset current cursor value so it's properly reset to #wmWindow::lastcursor. */
   win->cursor = 0;
 }
 
+void WM_cursor_time(wmWindow *win, int nr)
+{
+  wm_cursor_number_impl(win, nr, false);
+}
+
+void WM_cursor_progress(wmWindow *win, float progress_factor)
+{
+  constexpr int nr_max = 10000;
+  const int nr = std::clamp(int(std::round(double(progress_factor) * nr_max)), 0, nr_max);
+  wm_cursor_number_impl(win, nr, true);
+}
+
+#ifndef WITH_HEADLESS
 static void wm_add_cursor(WMCursorType cursor,
                           const char *svg_source,
                           const blender::float2 &hotspot,
                           bool can_invert = true)
 {
-  BlenderCursor[cursor].svg_source = svg_source;
-  BlenderCursor[cursor].hotspot = hotspot;
-  BlenderCursor[cursor].can_invert = can_invert;
+  g_cursors[cursor].svg_source = svg_source;
+  g_cursors[cursor].hotspot = hotspot;
+  g_cursors[cursor].can_invert = can_invert;
 }
+#endif /* !WITH_HEADLESS */
 
 void wm_init_cursor_data()
 {
+#ifndef WITH_HEADLESS
   wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
   wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
   wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
@@ -661,4 +1017,5 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_RIGHT_HANDLE, datatoc_cursor_right_handle_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_LEFT_HANDLE, datatoc_cursor_left_handle_svg, {0.5f, 0.5f});
+#endif /* !WITH_HEADLESS */
 }

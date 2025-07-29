@@ -476,7 +476,7 @@ def _template_items_object_subdivision_set():
     return [
         ("object.subdivision_set",
          {"type": NUMBERS_0[i], "value": 'PRESS', "ctrl": True},
-         {"properties": [("level", i), ("relative", False)]})
+         {"properties": [("level", i), ("relative", False), ("ensure_modifier", True)]})
         for i in range(6)
     ]
 
@@ -1043,6 +1043,10 @@ def km_user_interface(_params):
         ("ui.view_scroll", {"type": 'WHEELDOWNMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
         ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("extend", True)]}),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
+         {"properties": [("range_select", True)]}),
     ])
 
     return keymap
@@ -5977,6 +5981,7 @@ def km_transform_modal_map(params):
         ("AUTOCONSTRAINPLANE", {"type": 'MIDDLEMOUSE', "value": 'ANY', "shift": True, **alt_without_navigaton}, None),
         ("PRECISION", {"type": 'LEFT_SHIFT', "value": 'ANY', "any": True}, None),
         ("PRECISION", {"type": 'RIGHT_SHIFT', "value": 'ANY', "any": True}, None),
+        ("STRIP_CLAMP_TOGGLE", {"type": 'C', "value": 'PRESS', "any": True}, None),
     ])
 
     if params.use_alt_navigation:
@@ -6597,7 +6602,7 @@ def km_sequencer_slip_modal_map(_params):
         ("PRECISION_DISABLE", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
         ("PRECISION_ENABLE", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
         ("PRECISION_DISABLE", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
-        ("CLAMP_TOGGLE", {"type": 'C', "value": 'RELEASE', "any": True}, None),
+        ("CLAMP_TOGGLE", {"type": 'C', "value": 'PRESS', "any": True}, None),
     ])
 
     return keymap

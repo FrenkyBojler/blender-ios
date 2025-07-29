@@ -1456,7 +1456,7 @@ void BlenderSync::resolve_view_layer_attributes(Shader *shader,
   bool updated = false;
 
   for (ShaderNode *node : graph->nodes) {
-    if (node->is_a(AttributeNode::node_type)) {
+    if (node->is_a(AttributeNode::get_node_type())) {
       AttributeNode *attr_node = static_cast<AttributeNode *>(node);
 
       std::string real_name;
@@ -1639,9 +1639,7 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d,
     unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
 
     /* create nodes */
-    if (new_viewport_parameters.use_scene_world && b_world && b_world.use_nodes() &&
-        b_world.node_tree())
-    {
+    if (new_viewport_parameters.use_scene_world && b_world && b_world.node_tree()) {
       BL::ShaderNodeTree b_ntree(b_world.node_tree());
 
       add_nodes(scene, b_engine, b_data, b_scene, graph.get(), b_ntree);

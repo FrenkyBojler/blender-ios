@@ -33,6 +33,7 @@
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_light_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
@@ -691,7 +692,7 @@ static void acf_object_name(bAnimListElem *ale, char *name)
 
   /* just copy the name... */
   if (ob && name) {
-    BLI_strncpy(name, ob->id.name + 2, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, ob->id.name + 2, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -860,7 +861,7 @@ static void acf_group_name(bAnimListElem *ale, char *name)
 
   /* just copy the name... */
   if (agrp && name) {
-    BLI_strncpy(name, agrp->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, agrp->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -1301,11 +1302,12 @@ static void acf_nla_curve_name(bAnimListElem *ale, char *name)
   prop = RNA_struct_type_find_property(&RNA_NlaStrip, fcu->rna_path);
   if (prop) {
     /* "name" of this strip displays the UI identifier + the name of the NlaStrip */
-    BLI_snprintf(name, 256, "%s (%s)", RNA_property_ui_name(prop), strip->name);
+    BLI_snprintf_utf8(
+        name, ANIM_CHAN_NAME_SIZE, "%s (%s)", RNA_property_ui_name(prop), strip->name);
   }
   else {
     /* unknown property... */
-    BLI_snprintf(name, 256, "%s[%d]", fcu->rna_path, fcu->array_index);
+    BLI_snprintf_utf8(name, ANIM_CHAN_NAME_SIZE, "%s[%d]", fcu->rna_path, fcu->array_index);
   }
 }
 
@@ -1422,7 +1424,7 @@ static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
   if (!slot) {
     /* Trying to getting the slot's name without a slot is a bug. */
     BLI_assert_unreachable();
-    BLI_strncpy(r_name, "-nil-", ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(r_name, "-nil-", ANIM_CHAN_NAME_SIZE);
     return;
   }
 
@@ -1433,13 +1435,13 @@ static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
   BLI_assert(num_users >= 0);
   switch (num_users) {
     case 0:
-      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (unassigned)", display_name);
+      BLI_snprintf_utf8(r_name, ANIM_CHAN_NAME_SIZE, "%s (unassigned)", display_name);
       break;
     case 1:
-      BLI_strncpy(r_name, display_name, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(r_name, display_name, ANIM_CHAN_NAME_SIZE);
       break;
     default:
-      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (%d)", display_name, num_users);
+      BLI_snprintf_utf8(r_name, ANIM_CHAN_NAME_SIZE, "%s (%d)", display_name, num_users);
       break;
   }
 }
@@ -3369,6 +3371,103 @@ static bAnimChannelType ACF_DSVOLUME = {
     /*setting_post_update*/ nullptr,
 };
 
+/* LightProbe Expander  ------------------------------------------- */
+
+/* TODO: just get this from RNA? */
+static int acf_dslightprobe_icon(bAnimListElem *ale)
+{
+  const LightProbe *probe = static_cast<LightProbe *>(ale->data);
+  switch (probe->type) {
+    case LIGHTPROBE_TYPE_SPHERE:
+      return ICON_LIGHTPROBE_SPHERE;
+    case LIGHTPROBE_TYPE_PLANE:
+      return ICON_LIGHTPROBE_PLANE;
+    case LIGHTPROBE_TYPE_VOLUME:
+      return ICON_LIGHTPROBE_VOLUME;
+    default:
+      return ICON_LIGHTPROBE_SPHERE;
+  }
+}
+
+/* Get the appropriate flag(s) for the setting when it is valid. */
+static int acf_dslightprobe_setting_flag(bAnimContext * /*ac*/,
+                                         eAnimChannel_Settings setting,
+                                         bool *r_neg)
+{
+  /* Clear extra return data first. */
+  *r_neg = false;
+
+  switch (setting) {
+    case ACHANNEL_SETTING_EXPAND: /* expanded */
+      return LIGHTPROBE_DS_EXPAND;
+
+    case ACHANNEL_SETTING_MUTE: /* mute (only in NLA) */
+      return ADT_NLA_EVAL_OFF;
+
+    case ACHANNEL_SETTING_VISIBLE: /* visible (only in Graph Editor) */
+      *r_neg = true;
+      return ADT_CURVES_NOT_VISIBLE;
+
+    case ACHANNEL_SETTING_SELECT: /* selected */
+      return ADT_UI_SELECTED;
+
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
+    default: /* unsupported */
+      return 0;
+  }
+}
+
+/* get pointer to the setting */
+static void *acf_dslightprobe_setting_ptr(bAnimListElem *ale,
+                                          eAnimChannel_Settings setting,
+                                          short *r_type)
+{
+  LightProbe *probe = static_cast<LightProbe *>(ale->data);
+
+  /* Clear extra return data first. */
+  *r_type = 0;
+
+  switch (setting) {
+    case ACHANNEL_SETTING_EXPAND: /* expanded */
+      return GET_ACF_FLAG_PTR(probe->flag, r_type);
+
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      if (probe->adt) {
+        return GET_ACF_FLAG_PTR(probe->adt->flag, r_type);
+      }
+      return nullptr;
+
+    default: /* unsupported */
+      return nullptr;
+  }
+}
+
+/** Light Probe expander type define. */
+static bAnimChannelType ACF_DSLIGHTPROBE = {
+    /*channel_type_name*/ "LightProbe Expander",
+    /*channel_role*/ ACHANNEL_ROLE_EXPANDER,
+
+    /*get_backdrop_color*/ acf_generic_dataexpand_color,
+    /*get_channel_color*/ nullptr,
+    /*draw_backdrop*/ acf_generic_dataexpand_backdrop,
+    /*get_indent_level*/ acf_generic_indentation_1,
+    /*get_offset*/ acf_generic_basic_offset,
+
+    /*name*/ acf_generic_idblock_name,
+    /*name_prop*/ acf_generic_idblock_name_prop,
+    /*icon*/ acf_dslightprobe_icon,
+
+    /*has_setting*/ acf_generic_dataexpand_setting_valid,
+    /*setting_flag*/ acf_dslightprobe_setting_flag,
+    /*setting_ptr*/ acf_dslightprobe_setting_ptr,
+    /*setting_post_update*/ nullptr,
+};
+
 /* GPencil Expander  ------------------------------------------- */
 
 /* TODO: just get this from RNA? */
@@ -3546,10 +3645,10 @@ static void acf_shapekey_name(bAnimListElem *ale, char *name)
   if (kb && name) {
     /* if the KeyBlock had a name, use it, otherwise use the index */
     if (kb->name[0]) {
-      BLI_strncpy(name, kb->name, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, kb->name, ANIM_CHAN_NAME_SIZE);
     }
     else {
-      BLI_snprintf(name, ANIM_CHAN_NAME_SIZE, IFACE_("Key %d"), ale->index);
+      BLI_snprintf_utf8(name, ANIM_CHAN_NAME_SIZE, IFACE_("Key %d"), ale->index);
     }
   }
 }
@@ -3684,7 +3783,7 @@ static void acf_gpl_name_legacy(bAnimListElem *ale, char *name)
   bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
   if (gpl && name) {
-    BLI_strncpy(name, gpl->info, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, gpl->info, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -3692,7 +3791,7 @@ static void acf_gpl_name_legacy(bAnimListElem *ale, char *name)
 static bool acf_gpl_name_prop_legacy(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_GPencilLayer, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_AnnotationLayer, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -3848,7 +3947,7 @@ static void layer_name(bAnimListElem *ale, char *name)
   GreasePencilLayer *layer = static_cast<GreasePencilLayer *>(ale->data);
 
   if (layer && name) {
-    BLI_strncpy(name, layer->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, layer->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -3951,7 +4050,7 @@ static void layer_group_name(bAnimListElem *ale, char *name)
   GreasePencilLayerTreeGroup *layer_group = static_cast<GreasePencilLayerTreeGroup *>(ale->data);
 
   if (layer_group && name) {
-    BLI_strncpy(name, layer_group->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, layer_group->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4138,7 +4237,7 @@ static void acf_masklay_name(bAnimListElem *ale, char *name)
   MaskLayer *masklay = static_cast<MaskLayer *>(ale->data);
 
   if (masklay && name) {
-    BLI_strncpy(name, masklay->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, masklay->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4255,7 +4354,7 @@ static void acf_nlatrack_name(bAnimListElem *ale, char *name)
   NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
 
   if (nlt && name) {
-    BLI_strncpy(name, nlt->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, nlt->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4476,10 +4575,10 @@ static void acf_nlaaction_name(bAnimListElem *ale, char *name)
   if (name) {
     if (act) {
       /* TODO: add special decoration when doing this in tweaking mode? */
-      BLI_strncpy(name, act->id.name + 2, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, act->id.name + 2, ANIM_CHAN_NAME_SIZE);
     }
     else {
-      BLI_strncpy(name, IFACE_("<No Action>"), ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, IFACE_("<No Action>"), ANIM_CHAN_NAME_SIZE);
     }
   }
 }
@@ -4635,6 +4734,7 @@ static void ANIM_init_channel_typeinfo_data()
     animchannelTypeInfo[type++] = &ACF_DSCURVES;     /* Curves Channel */
     animchannelTypeInfo[type++] = &ACF_DSPOINTCLOUD; /* PointCloud Channel */
     animchannelTypeInfo[type++] = &ACF_DSVOLUME;     /* Volume Channel */
+    animchannelTypeInfo[type++] = &ACF_DSLIGHTPROBE; /* Light Probe */
 
     animchannelTypeInfo[type++] = &ACF_SHAPEKEY; /* ShapeKey */
 
@@ -4729,7 +4829,7 @@ void ANIM_channel_debug_print_info(bAnimContext &ac, bAnimListElem *ale, short i
     acf->name(ale, name);
   }
   else {
-    STRNCPY(name, "<No name>");
+    STRNCPY_UTF8(name, "<No name>");
   }
 
   printf("ChanType: <%-25s> Name: \"%s\"\n       ", acf->channel_type_name, name);
@@ -5766,21 +5866,21 @@ static void draw_setting_widget(bAnimContext *ac,
   }
 
   /* type of button */
-  short butType;
+  ButType butType;
   if (usetoggle) {
     if (negflag) {
-      butType = UI_BTYPE_ICON_TOGGLE_N;
+      butType = ButType::IconToggleN;
     }
     else {
-      butType = UI_BTYPE_ICON_TOGGLE;
+      butType = ButType::IconToggle;
     }
   }
   else {
     if (negflag) {
-      butType = UI_BTYPE_TOGGLE_N;
+      butType = ButType::ToggleN;
     }
     else {
-      butType = UI_BTYPE_TOGGLE;
+      butType = ButType::Toggle;
     }
   }
 
@@ -6068,7 +6168,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
       UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
       but = uiDefButR(block,
-                      UI_BTYPE_TEXT,
+                      ButType::Text,
                       1,
                       "",
                       offset + margin_x,
@@ -6219,9 +6319,9 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
         offset -= UI_UNIT_X;
         but = uiDefIconButO(block,
-                            UI_BTYPE_BUT,
+                            ButType::But,
                             "NLA_OT_action_pushdown",
-                            WM_OP_INVOKE_DEFAULT,
+                            blender::wm::OpCallContext::InvokeDefault,
                             ICON_NLA_PUSHDOWN,
                             offset,
                             ymid,
@@ -6330,7 +6430,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
             bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
             /* Create the RNA pointers. */
-            ptr = RNA_pointer_create_discrete(ale->id, &RNA_GPencilLayer, ale->data);
+            ptr = RNA_pointer_create_discrete(ale->id, &RNA_AnnotationLayer, ale->data);
             PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
             int icon;
 

@@ -16,7 +16,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 
 #include "BKE_colortools.hh"
@@ -864,7 +864,7 @@ static void image_buttons_region_layout(const bContext *C, ARegion *region)
   ED_region_panels_layout_ex(C,
                              region,
                              &region->runtime->type->paneltypes,
-                             WM_OP_INVOKE_REGION_WIN,
+                             blender::wm::OpCallContext::InvokeRegionWin,
                              contexts_base,
                              nullptr);
 }
@@ -1208,7 +1208,7 @@ void ED_spacetype_image()
   ARegionType *art;
 
   st->spaceid = SPACE_IMAGE;
-  STRNCPY(st->name, "Image");
+  STRNCPY_UTF8(st->name, "Image");
 
   st->create = image_create;
   st->free = image_free;
@@ -1239,6 +1239,7 @@ void ED_spacetype_image()
   art->init = image_main_region_init;
   art->draw = image_main_region_draw;
   art->listener = image_main_region_listener;
+  art->lock = REGION_DRAW_LOCK_BAKING;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons/scopes */

@@ -121,9 +121,17 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   ResourceScope scope;
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(pointcloud->attribute_storage.wrap(), attribute_data);
-  BLI_assert(pointcloud->pdata_legacy.totlayer == 0);
-  pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
-  pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
+
+  if (attribute_data.attributes.is_empty()) {
+    pointcloud->attribute_storage.dna_attributes = nullptr;
+    pointcloud->attribute_storage.dna_attributes_num = 0;
+  }
+  else {
+    pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
+    pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
+  }
+
+  CustomData_reset(&pointcloud->pdata_legacy);
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);

@@ -341,7 +341,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.console_output);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 34)) {
+  if (!USER_VERSION_ATLEAST(405, 44)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 45)) {
     FROM_DEFAULT_V4_UCHAR(common.anim.preview_range);
   }
 
