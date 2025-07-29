@@ -380,6 +380,9 @@ struct PropertyRNA {
   /** Context for translation. */
   const char *translation_context;
 
+  /** Optional deprecation information. */
+  const DeprecatedRNA *deprecated;
+
   /** Property type as it appears to the outside. */
   PropertyType type;
   /** Subtype, 'interpretation' of the property. */

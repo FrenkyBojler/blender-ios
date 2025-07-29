@@ -500,7 +500,7 @@ void Scene::update_kernel_features()
 
   const bool use_motion = need_motion() == Scene::MotionType::MOTION_BLUR;
   kernel_features |= KERNEL_FEATURE_PATH_TRACING;
-  if (params.hair_shape == CURVE_THICK) {
+  if (params.hair_shape == CURVE_THICK || params.hair_shape == CURVE_THICK_LINEAR) {
     kernel_features |= KERNEL_FEATURE_HAIR_THICK;
   }
 
@@ -643,6 +643,7 @@ static void log_kernel_features(const uint features)
   LOG_INFO << "Use Subsurface " << string_from_bool(features & KERNEL_FEATURE_SUBSURFACE);
   LOG_INFO << "Use Volume " << string_from_bool(features & KERNEL_FEATURE_VOLUME);
   LOG_INFO << "Use Shadow Catcher " << string_from_bool(features & KERNEL_FEATURE_SHADOW_CATCHER);
+  LOG_INFO << "Use Portal Node " << string_from_bool(features & KERNEL_FEATURE_NODE_PORTAL);
 }
 
 bool Scene::load_kernels(Progress &progress)
