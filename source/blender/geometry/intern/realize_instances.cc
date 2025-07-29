@@ -468,23 +468,6 @@ static void transform_positions(const float4x4 &transform, MutableSpan<float3> p
   });
 }
 
-static void copy_transformed_normals(const Span<float3> src,
-                                     const float4x4 &transform,
-                                     MutableSpan<float3> dst)
-{
-  const float3x3 normal_transform = math::transpose(math::invert(float3x3(transform)));
-  if (math::is_equal(normal_transform, float3x3::identity(), 1e-6f)) {
-    dst.copy_from(src);
-  }
-  else {
-    threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        dst[i] = normal_transform * src[i];
-      }
-    });
-  }
-}
-
 static void threaded_copy(const GSpan src, GMutableSpan dst)
 {
   BLI_assert(src.size() == dst.size());
@@ -515,7 +498,11 @@ static void copy_generic_attributes_to_result(
           const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
           const IndexRange element_slice = range_fn(domain);
 
-          GMutableSpan dst_span = dst_attribute_writers[attribute_index].span.slice(element_slice);
+          GSpanAttributeWriter &writer = dst_attribute_writers[attribute_index];
+          if (!writer) {
+            continue;
+          }
+          GMutableSpan dst_span = writer.span.slice(element_slice);
           if (src_attributes[attribute_index].has_value()) {
             threaded_copy(*src_attributes[attribute_index], dst_span);
           }
@@ -1284,7 +1271,7 @@ static void add_instance_attributes_to_single_geometry(
     const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
     const bke::AttrType data_type = ordered_attributes.kinds[attribute_index].data_type;
     const CPPType &cpp_type = bke::attribute_type_to_cpp_type(data_type);
-    GVArray gvaray(GVArray::ForSingle(cpp_type, attributes.domain_size(domain), value));
+    GVArray gvaray(GVArray::from_single(cpp_type, attributes.domain_size(domain), value));
     attributes.add(ordered_attributes.ids[attribute_index],
                    domain,
                    data_type,
@@ -1510,13 +1497,13 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
       case MeshNormalInfo::Output::Free: {
         switch (*info.custom_normal_info.result_domain) {
           case bke::AttrDomain::Point:
-            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->vert_normals());
+            mesh_info.custom_normal = VArray<float3>::from_span(mesh->vert_normals());
             break;
           case bke::AttrDomain::Face:
-            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->face_normals());
+            mesh_info.custom_normal = VArray<float3>::from_span(mesh->face_normals());
             break;
           case bke::AttrDomain::Corner:
-            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->corner_normals());
+            mesh_info.custom_normal = VArray<float3>::from_span(mesh->corner_normals());
             break;
           default:
             BLI_assert_unreachable();
@@ -1662,9 +1649,9 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
     }
     else {
       const IndexRange dst_range = domain_to_range(all_dst_custom_normals.domain);
-      copy_transformed_normals(mesh_info.custom_normal.typed<float3>(),
-                               task.transform,
-                               all_dst_custom_normals.span.typed<float3>().slice(dst_range));
+      math::transform_normals(mesh_info.custom_normal.typed<float3>(),
+                              float3x3(task.transform),
+                              all_dst_custom_normals.span.typed<float3>().slice(dst_range));
     }
   }
 
@@ -2029,8 +2016,9 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       all_custom_normals.slice(dst_point_range).fill(float3(0, 0, 1));
     }
     else {
-      copy_transformed_normals(
-          curves_info.custom_normal, task.transform, all_custom_normals.slice(dst_point_range));
+      math::transform_normals(curves_info.custom_normal,
+                              float3x3(task.transform),
+                              all_custom_normals.slice(dst_point_range));
     }
   }
 
@@ -2476,8 +2464,8 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
   }
 
   VariedDepthOptions all_instances;
-  all_instances.depths = VArray<int>::ForSingle(VariedDepthOptions::MAX_DEPTH,
-                                                geometry_set.get_instances()->instances_num());
+  all_instances.depths = VArray<int>::from_single(VariedDepthOptions::MAX_DEPTH,
+                                                  geometry_set.get_instances()->instances_num());
   all_instances.selection = IndexMask(geometry_set.get_instances()->instances_num());
   return realize_instances(geometry_set, options, all_instances);
 }

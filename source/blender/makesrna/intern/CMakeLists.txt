@@ -226,7 +226,7 @@ set(SRC
   rna_define.cc
   ${DEFSRC}
   ${APISRC}
-  ../../../../intern/clog/clog.c
+  ../../../../intern/clog/clog.cc
   # Needed for defaults.
   ../../../../release/datafiles/userdef/userdef_default.c
   ../../../../release/datafiles/userdef/userdef_default_theme.c
@@ -264,7 +264,6 @@ set(INC
   ../../render
   ../../../../intern/clog
   ../../../../intern/cycles/blender
-  ../../../../extern/fmtlib/include
   ../../../../intern/memutil
   ../../../../intern/mantaflow/extern
 
@@ -274,7 +273,7 @@ set(INC
 )
 
 set(INC_SYS
-
+  ../../../../extern/fmtlib/include
 )
 
 if(WITH_CYCLES)

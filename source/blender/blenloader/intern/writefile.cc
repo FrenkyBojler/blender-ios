@@ -91,6 +91,7 @@
 #include "DNA_print.hh"
 #include "DNA_sdna_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_endian_defines.h"
 #include "BLI_fileops.hh"
@@ -156,7 +157,7 @@
 
 #define ZSTD_COMPRESSION_LEVEL 3
 
-static CLG_LogRef LOG = {"blo.writefile"};
+static CLG_LogRef LOG = {"blend.writefile"};
 
 /** Use if we want to store how many bytes have been written to the file. */
 // #define USE_WRITE_DATA_LEN

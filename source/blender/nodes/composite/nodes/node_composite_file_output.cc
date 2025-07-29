@@ -172,7 +172,7 @@ static void format_layout(uiLayout *layout,
   column->use_property_decorate_set(false);
   column->prop(pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   const bool save_as_render = RNA_boolean_get(pointer, "save_as_render");
-  uiTemplateImageSettings(layout, format_pointer, save_as_render);
+  uiTemplateImageSettings(layout, context, format_pointer, save_as_render);
 
   if (!save_as_render) {
     uiLayout *column = &layout->column(true);
@@ -471,6 +471,9 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Bool:
         file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
+      case ResultType::Menu:
+        file_output.add_pass(pass_name, view_name, "V", buffer);
+        break;
     }
   }
 
@@ -506,6 +509,11 @@ class FileOutputOperation : public NodeOperation {
       }
       case ResultType::Bool: {
         const float value = float(result.get_single_value<bool>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Menu: {
+        const float value = float(result.get_single_value<int32_t>());
         CPPType::get<float>().fill_assign_n(&value, buffer, length);
         return buffer;
       }
@@ -555,6 +563,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int2:
       case ResultType::Int:
       case ResultType::Bool:
+      case ResultType::Menu:
         /* Not supported. */
         BLI_assert_unreachable();
         break;
@@ -696,7 +705,7 @@ class FileOutputOperation : public NodeOperation {
    * If there are any errors processing the path, the resulting path will be
    * empty.
    *
-   * \param apply_template Whether to run templating on the path or not. This is
+   * \param apply_template: Whether to run templating on the path or not. This is
    * needed because this function is called from more than one place, some of
    * which have already applied templating to the path and some of which
    * haven't. Double-applying templating can give incorrect results.

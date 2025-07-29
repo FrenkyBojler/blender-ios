@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -428,7 +429,7 @@ static bool add_node_group_asset(const bContext &C,
     BKE_report(&reports, RPT_WARNING, "Could not add node group");
     return false;
   }
-  STRNCPY(group_node->name, BKE_id_name(node_group->id));
+  STRNCPY_UTF8(group_node->name, BKE_id_name(node_group->id));
   bke::node_unique_name(*snode.edittree, *group_node);
 
   /* By default, don't show the data-block selector since it's not usually necessary for assets. */
@@ -477,7 +478,7 @@ static wmOperatorStatus node_add_group_asset_invoke(bContext *C,
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   return OPERATOR_FINISHED;
