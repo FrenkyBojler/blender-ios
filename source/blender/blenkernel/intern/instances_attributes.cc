@@ -34,8 +34,8 @@ static const auto &builtin_attributes()
      * in some situations, so this vector is allowed to be empty, in which case the index of each
      * instance will be used for the final ID.
      */
-    AttrBuiltinInfo id(bke::AttrDomain::Instance, bke::AttrType::Int32);
-    map.add_new("id", std::move(id));
+    // AttrBuiltinInfo id(bke::AttrDomain::Instance, bke::AttrType::Int32);
+    // map.add_new("id", std::move(id));
 
     AttrBuiltinInfo instance_transform(bke::AttrDomain::Instance, bke::AttrType::Float4x4);
     instance_transform.deletable = false;
