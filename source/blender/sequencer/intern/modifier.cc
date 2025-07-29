@@ -29,6 +29,8 @@
 
 #include "BKE_colortools.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -1198,7 +1200,7 @@ class CompositorContext : public compositor::Context {
 
   const bNodeTree &get_node_tree() const override
   {
-    return *modifier_data_->node_group;
+    return *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph, modifier_data_->node_group);
   }
 
   compositor::OutputTypes needed_outputs() const override
