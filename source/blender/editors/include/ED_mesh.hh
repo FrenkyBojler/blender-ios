@@ -53,9 +53,9 @@ class EditMeshSymmetryHelper {
 public:
   static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob, uchar htype);
 
-  bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
-  bool is_any_mirror_vert_selected(BMVert *vert, char hflag) const;
-  bool is_any_mirror_face_selected(BMFace *face, char hflag) const;
+  bool any_mirror_edge_selected(BMEdge *edge, char hflag) const;
+  bool any_mirror_vert_selected(BMVert *vert, char hflag) const;
+  bool any_mirror_face_selected(BMFace *face, char hflag) const;
 
   void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
   void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;

@@ -2465,56 +2465,53 @@ static wmOperatorStatus edbm_hide_exec(bContext *C, wmOperator *op)
     }
     else {
       if (bm->totvertsel == 0 && bm->totedgesel == 0 && bm->totfacesel == 0) {
-        continue;
       }
     }
 
-    std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit, BM_VERT | BM_EDGE | BM_FACE);
-
-    if (symmetry_helper) {
+    if (std::optional<EditMeshSymmetryHelper> symmetry_helper =
+            EditMeshSymmetryHelper::create_if_needed(obedit, BM_VERT | BM_EDGE | BM_FACE))
+    {
       const int select_mode = em->selectmode;
       const char hflag = BM_ELEM_SELECT;
+      BMIter iter;
 
       if (select_mode & SCE_SELECT_FACE) {
         blender::Vector<BMFace *> source_faces;
-        BMIter f_iter;
         BMFace *f;
-        BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
-          if (BM_elem_flag_test(f, hflag) != unselected) {
+        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, hflag)) {
             source_faces.append(f);
           }
         }
         for (BMFace *f_orig : source_faces) {
-          symmetry_helper->set_flag_on_mirror_faces(f_orig, hflag, !unselected);
+          symmetry_helper->set_flag_on_mirror_faces(f_orig, hflag, true);
         }
       }
       if (select_mode & SCE_SELECT_EDGE) {
         blender::Vector<BMEdge *> source_edges;
-        BMIter e_iter;
         BMEdge *e;
-        BM_ITER_MESH (e, &e_iter, bm, BM_EDGES_OF_MESH) {
-          if (BM_elem_flag_test(e, hflag) != unselected) {
+        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+          if (BM_elem_flag_test(e, hflag)) {
             source_edges.append(e);
           }
         }
         for (BMEdge *e_orig : source_edges) {
-          symmetry_helper->set_flag_on_mirror_edges(e_orig, hflag, !unselected);
+          symmetry_helper->set_flag_on_mirror_edges(e_orig, hflag, true);
         }
       }
       if (select_mode & SCE_SELECT_VERTEX) {
         blender::Vector<BMVert *> source_verts;
-        BMIter v_iter;
         BMVert *v;
-        BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
-          if (BM_elem_flag_test(v, hflag) != unselected) {
+        BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+          if (BM_elem_flag_test(v, hflag)) {
             source_verts.append(v);
           }
         }
         for (BMVert *v_orig : source_verts) {
-          symmetry_helper->set_flag_on_mirror_verts(v_orig, hflag, !unselected);
+          symmetry_helper->set_flag_on_mirror_verts(v_orig, hflag, true);
         }
       }
+      EDBM_selectmode_flush(em);
     }
 
     if (EDBM_mesh_hide(em, unselected)) {

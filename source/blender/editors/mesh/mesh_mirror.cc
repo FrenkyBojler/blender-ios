@@ -49,6 +49,8 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
   blender::Set<BMEdge *> processed_edges;
   blender::Set<BMFace *> processed_faces;
 
+  BMIter iter;
+
   for (int axis = 0; axis < 3; ++axis) {
     if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
       EDBM_verts_mirror_cache_begin(em,
@@ -59,9 +61,8 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
                                     use_topology_mirror);
 
       if (htype_ & BM_VERT) {
-        BMIter v_iter;
         BMVert *current_vert;
-        BM_ITER_MESH (current_vert, &v_iter, bmesh, BM_VERTS_OF_MESH) {
+        BM_ITER_MESH (current_vert, &iter, bmesh, BM_VERTS_OF_MESH) {
           if (processed_verts.contains(current_vert)) {
             continue;
           }
@@ -79,9 +80,8 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
       }
 
       if (htype_ & BM_EDGE) {
-        BMIter e_iter;
         BMEdge *current_edge;
-        BM_ITER_MESH (current_edge, &e_iter, bmesh, BM_EDGES_OF_MESH) {
+        BM_ITER_MESH (current_edge, &iter, bmesh, BM_EDGES_OF_MESH) {
           if (processed_edges.contains(current_edge)) {
             continue;
           }
@@ -99,9 +99,8 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
       }
 
       if (htype_ & BM_FACE) {
-        BMIter f_iter;
         BMFace *current_face;
-        BM_ITER_MESH (current_face, &f_iter, bmesh, BM_FACES_OF_MESH) {
+        BM_ITER_MESH (current_face, &iter, bmesh, BM_FACES_OF_MESH) {
           if (processed_faces.contains(current_face)) {
             continue;
           }
@@ -146,8 +145,6 @@ void EditMeshSymmetryHelper::tag_symmetrical_group(
   }
 }
 
-
-
 void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert,
                                                    blender::FunctionRef<void(BMVert *)> op) const {
   BLI_assert((this->htype_ & BM_VERT) != 0);
@@ -181,7 +178,7 @@ void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face,
   }
 }
 
-bool EditMeshSymmetryHelper::is_any_mirror_vert_selected(BMVert *vert, char hflag) const {
+bool EditMeshSymmetryHelper::any_mirror_vert_selected(BMVert *vert, char hflag) const {
   BLI_assert((this->htype_ & BM_VERT) != 0);
   if (!vert_to_mirrors_map.contains(vert)) {
     return false;
@@ -195,7 +192,7 @@ bool EditMeshSymmetryHelper::is_any_mirror_vert_selected(BMVert *vert, char hfla
   return false;
 }
 
-bool EditMeshSymmetryHelper::is_any_mirror_edge_selected(BMEdge *edge, char hflag) const {
+bool EditMeshSymmetryHelper::any_mirror_edge_selected(BMEdge *edge, char hflag) const {
   BLI_assert((this->htype_ & BM_EDGE) != 0);
   if (!edge_to_mirrors_map.contains(edge)) {
     return false;
@@ -209,7 +206,7 @@ bool EditMeshSymmetryHelper::is_any_mirror_edge_selected(BMEdge *edge, char hfla
   return false;
 }
 
-bool EditMeshSymmetryHelper::is_any_mirror_face_selected(BMFace *face, char hflag) const {
+bool EditMeshSymmetryHelper::any_mirror_face_selected(BMFace *face, char hflag) const {
   BLI_assert((this->htype_ & BM_FACE) != 0);
   if (!face_to_mirrors_map.contains(face)) {
     return false;
@@ -258,8 +255,6 @@ void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *face, char hflag, 
     }
   });
 }
-
-
 
 #define KD_THRESH 0.00002f
 
