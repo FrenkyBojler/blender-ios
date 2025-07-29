@@ -25,6 +25,8 @@
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/SoftBody/SoftBodyCreationSettings.h>
+#include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 #include <Jolt/RegisterTypes.h>
 
 namespace blender::nodes::node_geo_jolt_physics_solver_cc {
@@ -184,11 +186,15 @@ static std::optional<JPH::EMotionType> parse_motion_type(const int type)
 }
 
 struct JoltRigidBody {
-  JPH::Body *body;
+  JPH::Body *body = nullptr;
 };
 
 struct JoltRigidBodies {
   Map<int, JoltRigidBody> bodies_by_id;
+};
+
+struct JoltSoftBody {
+  JPH::Body *body = nullptr;
 };
 
 struct CollisionShapeParams {
@@ -359,8 +365,11 @@ struct JoltState {
   BodyActivationListenerImpl body_activation_listener;
   ContactListenerImpl contact_listener;
   JPH::PhysicsSystem system;
+  /* TODO: Integrate with TBB. */
+  std::optional<JPH::JobSystemThreadPool> job_system;
 
   Map<std::string, JoltRigidBodies> rigid_bodies_by_path;
+  Map<std::string, JoltSoftBody> soft_bodies_by_path;
   CollisionShapeCache collision_shape_cache;
 };
 
@@ -379,6 +388,14 @@ struct RigidBodiesBehavior {
   void update_simulated(const JoltState &state);
 };
 
+struct SoftBodyBehavior {
+  std::string self_path;
+  GeometrySet input_geometry;
+  GeometrySet simulated_geometry;
+
+  void update_simulated(const JoltState &state);
+};
+
 struct GravityBehavior {
   float3 gravity;
 };
@@ -392,6 +409,7 @@ struct ForceBehavior {
 
 struct JoltBehaviors {
   Vector<RigidBodiesBehavior> rigid_bodies;
+  Vector<SoftBodyBehavior> soft_bodies;
   Vector<GravityBehavior> gravities;
   Vector<ForceBehavior> forces;
 };
@@ -436,6 +454,20 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   params.r_behaviors.rigid_bodies.append(std::move(rigid_bodies_behaviors));
 }
 
+static void parse_behavior__soft_body(ParseBehaviorParams &params)
+{
+  std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Geometry");
+  if (!geometry) {
+    return;
+  }
+  geometry->keep_only({bke::GeometryComponent::Type::Mesh});
+
+  SoftBodyBehavior soft_body_behavior;
+  soft_body_behavior.self_path = params.self_path();
+  soft_body_behavior.input_geometry = *geometry;
+  params.r_behaviors.soft_bodies.append(std::move(soft_body_behavior));
+}
+
 static void parse_behavior__gravity(ParseBehaviorParams &params)
 {
   const std::optional<float3> gravity = params.bundle.lookup<float3>("Gravity");
@@ -468,6 +500,7 @@ static Map<std::string, ParseBehaviorFn> build_behavior_parsers()
 {
   Map<std::string, ParseBehaviorFn> behavior_parsers;
   behavior_parsers.add_new("Rigid Bodies", parse_behavior__rigid_bodies);
+  behavior_parsers.add_new("Soft Body", parse_behavior__soft_body);
   behavior_parsers.add_new("Gravity", parse_behavior__gravity);
   behavior_parsers.add_new("Force", parse_behavior__force);
   return behavior_parsers;
@@ -633,6 +666,67 @@ static void handle_rigid_bodies_behavior(JoltState &state,
   r_rigid_bodies_by_path.add(behavior.self_path, std::move(rigid_bodies));
 }
 
+static void handle_soft_body_behavior(JoltState &state,
+                                      const SoftBodyBehavior &behavior,
+                                      Map<std::string, JoltSoftBody> &r_soft_bodies_by_path)
+{
+  JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
+  const Mesh *mesh = behavior.simulated_geometry.get_mesh();
+  if (!mesh) {
+    return;
+  }
+
+  JoltSoftBody soft_body;
+  std::optional<JoltSoftBody> old_soft_body = state.soft_bodies_by_path.pop_try(
+      behavior.self_path);
+  if (old_soft_body) {
+    const auto &motion_properties = *static_cast<const JPH::SoftBodyMotionProperties *>(
+        old_soft_body->body->GetMotionProperties());
+    if (motion_properties.GetVertices().size() == mesh->verts_num) {
+      soft_body = std::move(*old_soft_body);
+    }
+  }
+  if (!soft_body.body) {
+    JPH::Ref<JPH::SoftBodySharedSettings> shared_settings = new JPH::SoftBodySharedSettings();
+    const Span<float3> positions = mesh->vert_positions();
+
+    for (int i : positions.index_range()) {
+      const float3 &position = positions[i];
+      JPH::SoftBodySharedSettings::Vertex vertex;
+      convert_vec3(position).StoreFloat3(&vertex.mPosition);
+      shared_settings->mVertices.push_back(vertex);
+    }
+
+    const Span<int3> tris = mesh->corner_tris();
+    const Span<int> corner_verts = mesh->corner_verts();
+    for (int i : tris.index_range()) {
+      JPH::SoftBodySharedSettings::Face face;
+      const int3 &tri = tris[i];
+      face.mVertex[0] = corner_verts[tri.x];
+      face.mVertex[1] = corner_verts[tri.y];
+      face.mVertex[2] = corner_verts[tri.z];
+      shared_settings->AddFace(face);
+    }
+
+    const JPH::SoftBodySharedSettings::VertexAttributes vertex_attributes = {
+        1.0e-4f, 1.0e-4f, 1.0e-3f};
+    shared_settings->CreateConstraints(
+        &vertex_attributes, 1, JPH::SoftBodySharedSettings::EBendType::Dihedral);
+    shared_settings->Optimize();
+
+    JPH::SoftBodyCreationSettings soft_body_creation_settings(
+        shared_settings, JPH::Vec3(0, 0, 0), JPH::Quat::sIdentity(), ObjectLayers::moving);
+    soft_body.body = body_interface.CreateSoftBody(soft_body_creation_settings);
+    if (!soft_body.body) {
+      return;
+    }
+    body_interface.AddBody(soft_body.body->GetID(), JPH::EActivation::Activate);
+  }
+
+  BLI_assert(soft_body.body);
+  r_soft_bodies_by_path.add(behavior.self_path, std::move(soft_body));
+}
+
 static GeometrySet merge_simulation_data_into_behavior_geometry(
     const RigidBodiesBehavior &behavior, const JoltState &state)
 {
@@ -678,6 +772,36 @@ static GeometrySet merge_simulation_data_into_behavior_geometry(
 void RigidBodiesBehavior::update_simulated(const JoltState &state)
 {
   this->simulated_geometry = merge_simulation_data_into_behavior_geometry(*this, state);
+}
+
+void SoftBodyBehavior::update_simulated(const JoltState &state)
+{
+  const JoltSoftBody *soft_body = state.soft_bodies_by_path.lookup_ptr(this->self_path);
+  this->simulated_geometry = this->input_geometry;
+  if (!soft_body) {
+    return;
+  }
+  BLI_assert(soft_body->body->IsSoftBody());
+  const auto &motion_properties = *static_cast<const JPH::SoftBodyMotionProperties *>(
+      soft_body->body->GetMotionProperties());
+  Mesh *mesh = this->simulated_geometry.get_mesh_for_write();
+  if (!mesh) {
+    return;
+  }
+  const JPH::Array<JPH::SoftBodyVertex> &vertices = motion_properties.GetVertices();
+  if (mesh->verts_num != vertices.size()) {
+    return;
+  }
+  const JPH::Vec3 center = soft_body->body->GetPosition();
+  // soft_body->body->cen
+  MutableSpan<float3> positions = mesh->vert_positions_for_write();
+  threading::parallel_for(IndexRange(mesh->verts_num), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      const JPH::SoftBodyVertex &soft_body_vertex = vertices[i];
+      positions[i] = convert_vec3(soft_body_vertex.mPosition + center);
+    }
+  });
+  mesh->tag_positions_changed();
 }
 
 static void update_gravity(const GeoNodeExecParams &params,
@@ -759,29 +883,39 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
 {
   state.collision_shape_cache.reset_used();
 
-  Map<std::string, JoltRigidBodies> new_rigid_bodies_by_path;
-
   for (RigidBodiesBehavior &rigid_bodies_behavior : behaviors.rigid_bodies) {
     rigid_bodies_behavior.update_simulated(state);
+  }
+  for (SoftBodyBehavior &soft_body_behavior : behaviors.soft_bodies) {
+    soft_body_behavior.update_simulated(state);
   }
 
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
 
+  Map<std::string, JoltRigidBodies> new_rigid_bodies_by_path;
   for (const RigidBodiesBehavior &rigid_bodies_behaviors : behaviors.rigid_bodies) {
     handle_rigid_bodies_behavior(state, rigid_bodies_behaviors, new_rigid_bodies_by_path);
   }
+  Map<std::string, JoltSoftBody> new_soft_bodies_by_path;
+  for (const SoftBodyBehavior &soft_body_behaviors : behaviors.soft_bodies) {
+    handle_soft_body_behavior(state, soft_body_behaviors, new_soft_bodies_by_path);
+  }
 
-  /* Remove old rigid bodies. */
+  /* Remove old bodies. */
   Vector<JPH::BodyID> bodies_to_remove;
   for (JoltRigidBodies &rigid_bodies : state.rigid_bodies_by_path.values()) {
     for (JoltRigidBody &body : rigid_bodies.bodies_by_id.values()) {
       bodies_to_remove.append(body.body->GetID());
     }
   }
+  for (JoltSoftBody &soft_body : state.soft_bodies_by_path.values()) {
+    bodies_to_remove.append(soft_body.body->GetID());
+  }
   body_interface.RemoveBodies(bodies_to_remove.data(), bodies_to_remove.size());
   body_interface.DestroyBodies(bodies_to_remove.data(), bodies_to_remove.size());
 
   state.rigid_bodies_by_path = std::move(new_rigid_bodies_by_path);
+  state.soft_bodies_by_path = std::move(new_soft_bodies_by_path);
   state.collision_shape_cache.remove_unused();
 
   update_gravity(params, state, behaviors);
@@ -898,6 +1032,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                       state.object_layer_pair_filter);
     state.system.SetBodyActivationListener(&state.body_activation_listener);
     state.system.SetContactListener(&state.contact_listener);
+    state.job_system.emplace(
+        JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1);
     state.is_initialized = true;
   }
   JoltBehaviors behaviors = parse_behaviors(*behavior_bundle);
@@ -911,11 +1047,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     {
       JPH::TempAllocatorImpl temp_allocator(10 * 1024 * 1024);
-      /* TODO: Integrate with TBB. */
-      JPH::JobSystemThreadPool job_system(
-          JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1);
       const int collision_steps = sub_steps;
-      state.system.Update(delta_time, collision_steps, &temp_allocator, &job_system);
+      state.system.Update(delta_time, collision_steps, &temp_allocator, &*state.job_system);
     }
 
     state.update_counter = update_counter;
@@ -928,6 +1061,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     rigid_bodies_behavior.update_simulated(state);
     new_data_bundle.add_path_override(rigid_bodies_behavior.self_path + "/Instances",
                                       std::move(rigid_bodies_behavior.simulated_geometry));
+  }
+  for (SoftBodyBehavior &soft_body_behavior : behaviors.soft_bodies) {
+    soft_body_behavior.update_simulated(state);
+    new_data_bundle.add_path_override(soft_body_behavior.self_path + "/Geometry",
+                                      std::move(soft_body_behavior.simulated_geometry));
   }
 
   new_data_bundle.add("_state", jolt_state_owner);
