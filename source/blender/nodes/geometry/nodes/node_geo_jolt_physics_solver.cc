@@ -647,6 +647,9 @@ static void handle_rigid_bodies_behavior(JoltState &state,
                                                        ObjectLayers::non_moving};
 
       JPH::Body *jolt_body = body_interface.CreateBody(jolt_body_settings);
+      if (!jolt_body) {
+        continue;
+      }
       body_interface.AddBody(jolt_body->GetID(), JPH::EActivation::Activate);
       rigid_body = JoltRigidBody{jolt_body};
     }
