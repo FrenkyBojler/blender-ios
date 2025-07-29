@@ -844,7 +844,7 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
       bArmature *arm = static_cast<bArmature *>(ob->data);
 
       /* Only selected bones should be affected. */
-      if (!blender::animrig::bone_is_selected_pchan(arm, pchan)) {
+      if (!blender::animrig::bone_is_selected(arm, pchan)) {
         return false;
       }
     }

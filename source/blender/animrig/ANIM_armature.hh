@@ -45,12 +45,12 @@ inline bool bone_is_selected(const bArmature *armature, const Bone *bone)
   return (bone->flag & BONE_SELECTED) && bone_is_visible(armature, bone);
 }
 
-inline bool bone_is_selected_pchan(const bArmature *armature, const bPoseChannel *pchan)
+inline bool bone_is_selected(const bArmature *armature, const bPoseChannel *pchan)
 {
   return (pchan->bone->flag & BONE_SELECTED) && bone_is_visible_pchan(armature, pchan);
 }
 
-inline bool bone_is_selected_editbone(const bArmature *armature, const EditBone *ebone)
+inline bool bone_is_selected(const bArmature *armature, const EditBone *ebone)
 {
   return (ebone->flag & BONE_SELECTED) && bone_is_visible_editbone(armature, ebone);
 }

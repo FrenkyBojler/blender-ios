@@ -451,7 +451,7 @@ static wmOperatorStatus armature_flip_names_exec(bContext *C, wmOperator *op)
     ListBase bones_names = {nullptr};
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (blender::animrig::bone_is_selected_editbone(arm, ebone)) {
+      if (blender::animrig::bone_is_selected(arm, ebone)) {
         BLI_addtail(&bones_names, BLI_genericNodeN(ebone->name));
 
         if (arm->flag & ARM_MIRROR_EDIT) {

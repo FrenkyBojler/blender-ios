@@ -537,7 +537,7 @@ static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator
 
     int i;
     LISTBASE_FOREACH_INDEX (bPoseChannel *, pchan, &ob->pose->chanbase, i) {
-      if (!blender::animrig::bone_is_selected_pchan(arm, pchan)) {
+      if (!blender::animrig::bone_is_selected(arm, pchan)) {
         pchan_xform_array[i].is_set = false;
         continue;
       }

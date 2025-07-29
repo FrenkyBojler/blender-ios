@@ -1231,7 +1231,7 @@ static bool armature_delete_ebone_cb(const char *bone_name, void *arm_p)
   EditBone *ebone;
 
   ebone = ED_armature_ebone_find_name(arm->edbo, bone_name);
-  return (ebone && blender::animrig::bone_is_selected_editbone(arm, ebone));
+  return (ebone && blender::animrig::bone_is_selected(arm, ebone));
 }
 
 /* previously delete_armature */
@@ -1260,7 +1260,7 @@ static wmOperatorStatus armature_delete_selected_exec(bContext *C, wmOperator * 
 
     for (curBone = static_cast<EditBone *>(arm->edbo->first); curBone; curBone = ebone_next) {
       ebone_next = curBone->next;
-      if (blender::animrig::bone_is_selected_editbone(arm, curBone)) {
+      if (blender::animrig::bone_is_selected(arm, curBone)) {
         if (curBone == arm->act_edbone) {
           arm->act_edbone = nullptr;
         }
