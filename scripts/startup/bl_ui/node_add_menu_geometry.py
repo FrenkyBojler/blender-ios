@@ -682,6 +682,7 @@ class NODE_MT_category_GEO_UTILITIES(Menu):
         if context.preferences.experimental.use_bundle_and_closure_nodes:
             node_add_menu.add_node_type(layout, "GeometryNodeCombineBundle")
             node_add_menu.add_node_type(layout, "GeometryNodeSeparateBundle")
+            node_add_menu.add_node_type(layout, "GeometryNodeGatherBundleGeometries")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 

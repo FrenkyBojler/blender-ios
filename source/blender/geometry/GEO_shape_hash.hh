@@ -7,7 +7,7 @@
 #include "BLI_struct_equality_utils.hh"
 
 namespace blender::bke {
-class GeometrySet;
+struct GeometrySet;
 }
 
 namespace blender::geometry {
