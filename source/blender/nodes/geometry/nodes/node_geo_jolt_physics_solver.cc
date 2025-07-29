@@ -174,6 +174,17 @@ static std::optional<CollisionShapeType> parse_collision_shape_type(const int ty
   return std::nullopt;
 }
 
+static JPH::SoftBodySharedSettings::EBendType parse_bend_type(const int type)
+{
+  switch (type) {
+    case 1:
+      return JPH::SoftBodySharedSettings::EBendType::Distance;
+    case 2:
+      return JPH::SoftBodySharedSettings::EBendType::Dihedral;
+  }
+  return JPH::SoftBodySharedSettings::EBendType::None;
+}
+
 static std::optional<JPH::EMotionType> parse_motion_type(const int type)
 {
   switch (type) {
@@ -397,6 +408,7 @@ struct SoftBodyBehavior {
   GeometrySet simulated_geometry;
   Field<float> compliance_field;
   Field<float> shear_compliance_field;
+  JPH::SoftBodySharedSettings::EBendType bend_type;
   Field<float> bend_compliance_field;
 
   void update_simulated(const JoltState &state);
@@ -466,11 +478,14 @@ static void parse_behavior__soft_body(ParseBehaviorParams &params)
   std::optional<Field<float>> compliance_field = params.bundle.lookup<Field<float>>("Compliance");
   std::optional<Field<float>> shear_compliance_field = params.bundle.lookup<Field<float>>(
       "Shear Compliance");
+  const JPH::SoftBodySharedSettings::EBendType bend_type = parse_bend_type(
+      params.bundle.lookup<int>("Bend Type").value_or(-1));
   std::optional<Field<float>> bend_compliance_field = params.bundle.lookup<Field<float>>(
       "Bend Compliance");
   if (!geometry || !compliance_field || !shear_compliance_field || !bend_compliance_field) {
     return;
   }
+
   geometry->keep_only({bke::GeometryComponent::Type::Mesh});
 
   SoftBodyBehavior soft_body_behavior;
@@ -478,6 +493,7 @@ static void parse_behavior__soft_body(ParseBehaviorParams &params)
   soft_body_behavior.input_geometry = *geometry;
   soft_body_behavior.compliance_field = *compliance_field;
   soft_body_behavior.shear_compliance_field = *shear_compliance_field;
+  soft_body_behavior.bend_type = bend_type;
   soft_body_behavior.bend_compliance_field = *bend_compliance_field;
   params.r_behaviors.soft_bodies.append(std::move(soft_body_behavior));
 }
@@ -755,9 +771,8 @@ static void handle_soft_body_behavior(JoltState &state,
       });
     }
 
-    shared_settings->CreateConstraints(vertex_attributes_vec.data(),
-                                       vertex_attributes_vec.size(),
-                                       JPH::SoftBodySharedSettings::EBendType::Dihedral);
+    shared_settings->CreateConstraints(
+        vertex_attributes_vec.data(), vertex_attributes_vec.size(), behavior.bend_type);
     shared_settings->Optimize();
 
     JPH::SoftBodyCreationSettings soft_body_creation_settings(
