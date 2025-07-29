@@ -2229,17 +2229,35 @@ static bool WIDGETGROUP_gizmo_poll_tool(const bContext *C, wmGizmoGroupType *gzg
     return false;
   }
 
-  /* Hide the transform gizmo when in camera view and the active object is the scene camera */
+  /* Hide the transform gizmo when in camera view and only the camera is selected */
   ARegion *region = CTX_wm_region(C);
   if (region && region->regiondata) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
     if (rv3d->persp == RV3D_CAMOB) {
       Scene *scene = CTX_data_scene(C);
       ViewLayer *view_layer = CTX_data_view_layer(C);
-      Object *ob = BKE_view_layer_active_object_get(view_layer);
-      if (ob && ob->type == OB_CAMERA && scene->camera == ob) {
-        /* In camera view, with the active object being the scene camera : hide the gizmo. */
-        return false;
+      View3D *v3d = CTX_wm_view3d(C);
+      Object *camera_obj = v3d->camera ? v3d->camera : scene->camera;
+
+      if (camera_obj && camera_obj->type == OB_CAMERA) {
+        /* Count selected objects and check if only the camera is selected */
+        BKE_view_layer_synced_ensure(scene, view_layer);
+        int selected_count = 0;
+        bool camera_selected = false;
+
+        LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+          if (BASE_SELECTED(v3d, base)) {
+            selected_count++;
+            if (base->object == camera_obj) {
+              camera_selected = true;
+            }
+          }
+        }
+
+        /* Hide gizmo only if the camera is the only object selected */
+        if (selected_count == 1 && camera_selected) {
+          return false;
+        }
       }
     }
   }
