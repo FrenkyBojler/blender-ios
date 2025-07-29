@@ -723,34 +723,7 @@ class CLIP_OT_setup_tracking_scene(Operator):
 
         return node
 
-    @staticmethod
-    def _needSetupNodes(context):
-        scene = context.scene
-        tree = scene.node_tree
-
-        if not tree:
-            # No compositor node tree found, time to create it!
-            return True
-
-        for node in tree.nodes:
-            if node.type in {'MOVIECLIP', 'MOVIEDISTORTION'}:
-                return False
-
-        return True
-
-    @staticmethod
-    def _offsetNodes(tree):
-        for a in tree.nodes:
-            for b in tree.nodes:
-                if a != b and a.location == b.location:
-                    b.location += Vector((40.0, 20.0))
-
     def _setupNodes(self, context):
-        if not self._needSetupNodes(context):
-            # Compositor nodes were already setup or even changes already
-            # do nothing to prevent nodes damage.
-            return
-
         # Enable backdrop for all compositor spaces.
         def setup_space(space):
             space.show_backdrop = True
@@ -859,9 +832,6 @@ class CLIP_OT_setup_tracking_scene(Operator):
 
         viewer.location = output.location
         output.location += Vector((0.0, 200.0))
-
-        # Ensure no nodes were created on the position of existing node.
-        self._offsetNodes(tree)
 
     @staticmethod
     def _createMesh(collection, name, vertices, faces):
