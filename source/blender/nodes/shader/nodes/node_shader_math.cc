@@ -43,8 +43,8 @@ class SocketSearchOp {
 
 static void sh_node_math_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!params.node_tree().typeinfo->validate_link(
-          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_FLOAT))
+  if (!params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
+                                                  SOCK_FLOAT))
   {
     return;
   }
@@ -361,7 +361,7 @@ void register_node_type_sh_math()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, "ShaderNodeMath", SH_NODE_MATH);
+  common_node_type_base(&ntype, "ShaderNodeMath", SH_NODE_MATH);
   ntype.ui_name = "Math";
   ntype.ui_description = "Perform math operations";
   ntype.enum_name_legacy = "MATH";

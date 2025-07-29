@@ -68,7 +68,7 @@ struct TimeSourceNode;
 class DepsgraphNodeBuilder : public DepsgraphBuilder {
  public:
   DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
-  ~DepsgraphNodeBuilder() override;
+  ~DepsgraphNodeBuilder();
 
   /* For given original ID get ID which is created by copy-on-evaluation system. */
   ID *get_cow_id(const ID *id_orig) const;
@@ -221,6 +221,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_animation_images(ID *id);
   virtual void build_action(bAction *action);
 
+  virtual void build_animdata_drivers(ID *id, AnimData *adt);
   /**
    * Build graph node(s) for Driver
    * \param id: ID-Block that driver is attached to

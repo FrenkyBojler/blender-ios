@@ -50,7 +50,7 @@ ABCCurveWriter::ABCCurveWriter(const ABCWriterConstructorArgs &args) : ABCAbstra
 
 void ABCCurveWriter::create_alembic_objects(const HierarchyContext *context)
 {
-  CLOG_INFO(&LOG, 2, "exporting %s", args_.abc_path.c_str());
+  CLOG_DEBUG(&LOG, "exporting %s", args_.abc_path.c_str());
   abc_curve_ = OCurves(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_curve_schema_ = abc_curve_.getSchema();
 
@@ -165,9 +165,7 @@ void ABCCurveWriter::do_write(HierarchyContext &context)
   const Span<float3> positions = curves.positions();
   const Span<float> nurbs_weights = curves.nurbs_weights();
   const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
-  const bke::AttributeAccessor curve_attributes = curves.attributes();
-  const VArray<float> radii = *curve_attributes.lookup_or_default<float>(
-      "radius", bke::AttrDomain::Point, 0.01f);
+  const VArray<float> radii = curves.radius();
 
   vert_counts.resize(curves.curves_num());
   const OffsetIndices points_by_curve = curves.points_by_curve();
