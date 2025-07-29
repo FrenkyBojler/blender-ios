@@ -137,8 +137,10 @@ struct Instance : public DrawEngine {
     /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity.
      */
     int clipping_plane_count = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ? 6 : 0;
+    int plane_len = min((RV3D_LOCK_FLAGS(draw_ctx->rv3d) & RV3D_BOXCLIP) ? 4 : 6,
+                        clipping_plane_count);
 
-    for (auto i : IndexRange(clipping_plane_count)) {
+    for (auto i : IndexRange(plane_len)) {
       clip_planes_buf[i] = draw_ctx->rv3d->clip[i];
     }
 
