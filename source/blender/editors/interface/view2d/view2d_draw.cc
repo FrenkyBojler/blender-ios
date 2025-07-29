@@ -59,6 +59,46 @@ static float select_major_distance(const float *possible_distances,
   return possible_distances[amount - 1];
 }
 
+/**
+ * Calculates the distance in frames between major lines.
+ */
+static int calculate_major_frame_distance(const int fps, float pixel_width, float view_width)
+{
+  if (IS_EQF(view_width, 0.0f)) {
+    return 1.0;
+  }
+  const float pixels_per_view_unit = pixel_width / view_width;
+  int distance = fps * 2;
+  if (pixels_per_view_unit * distance > MIN_MAJOR_LINE_DISTANCE) {
+    while (pixels_per_view_unit * distance > MIN_MAJOR_LINE_DISTANCE) {
+      int divisor = 2;
+      if (distance % 2 == 0) {
+        divisor = 2;
+      }
+      else if (distance % 3 == 0) {
+        divisor = 3;
+      }
+      else if (distance % 5 == 0) {
+        divisor = 5;
+      }
+      /* In case none of the if is true, the divisor will be 2. This can cause major lines to be
+       * drawn on subframes, but this will only happen on custom fps that cannot be broken down by
+       * 2, 3 or 5. */
+      const int result = distance / divisor;
+      if (pixels_per_view_unit * result < MIN_MAJOR_LINE_DISTANCE) {
+        return distance;
+      }
+      distance = result;
+    }
+  }
+  else {
+    while (pixels_per_view_unit * distance < MIN_MAJOR_LINE_DISTANCE) {
+      distance *= 2;
+    }
+  }
+  return distance;
+}
+
 static const float discrete_value_scales[] = {
     1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000};
 
@@ -235,10 +275,30 @@ static void view2d_draw_lines_internal(const View2D *v2d,
 }
 
 static void view2d_draw_lines(const View2D *v2d,
-                              float major_distance,
-                              bool display_minor_lines,
-                              char direction)
+                              const float major_distance,
+                              const bool display_minor_lines,
+                              const char direction)
 {
+  if (display_minor_lines) {
+    uchar minor_color[3];
+    UI_GetThemeColorShade3ubv(TH_GRID, 16, minor_color);
+    ParallelLinesSet minor_lines;
+    const int major_distance_int = round_fl_to_int(major_distance);
+    int divisor = 2;
+    if (major_distance_int % 2 == 0) {
+      divisor = 2;
+    }
+    else if (major_distance_int % 3 == 0) {
+      divisor = 3;
+    }
+    else if (major_distance_int % 5 == 0) {
+      divisor = 5;
+    }
+    minor_lines.distance = major_distance / divisor;
+    minor_lines.offset = 0;
+    view2d_draw_lines_internal(v2d, &minor_lines, minor_color, direction);
+  }
+
   {
     uchar major_color[3];
     UI_GetThemeColor3ubv(TH_GRID, major_color);
@@ -246,16 +306,6 @@ static void view2d_draw_lines(const View2D *v2d,
     major_lines.distance = major_distance;
     major_lines.offset = 0;
     view2d_draw_lines_internal(v2d, &major_lines, major_color, direction);
-  }
-
-  if (display_minor_lines) {
-    uchar minor_color[3];
-    UI_GetThemeColorShade3ubv(TH_GRID, 16, minor_color);
-    ParallelLinesSet minor_lines;
-    /* Draw minor lines at every second major line. */
-    minor_lines.distance = major_distance * 2.0f;
-    minor_lines.offset = major_distance;
-    view2d_draw_lines_internal(v2d, &minor_lines, minor_color, direction);
   }
 }
 
@@ -465,9 +515,12 @@ float UI_view2d_grid_resolution_y__values(const View2D *v2d)
 /* Line Drawing API
  **************************************************/
 
-void UI_view2d_draw_lines_x__discrete_values(const View2D *v2d, bool display_minor_lines)
+void UI_view2d_draw_lines_x__discrete_values(const View2D *v2d,
+                                             const int fps,
+                                             bool display_minor_lines)
 {
-  const uint major_line_distance = view2d_major_step_x__discrete(v2d);
+  const float major_line_distance = calculate_major_frame_distance(
+      fps, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   view2d_draw_lines(
       v2d, major_line_distance, display_minor_lines && (major_line_distance > 1), 'v');
 }
@@ -502,7 +555,9 @@ void UI_view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
     UI_view2d_draw_lines_x__discrete_time(v2d, scene, display_minor_lines);
   }
   else {
-    UI_view2d_draw_lines_x__discrete_values(v2d, display_minor_lines);
+    /* Rounding fractional framerates for drawing. */
+    const int fps = round_db_to_int(FPS);
+    UI_view2d_draw_lines_x__discrete_values(v2d, fps, display_minor_lines);
   }
 }
 
@@ -521,12 +576,11 @@ void UI_view2d_draw_lines_x__frames_or_seconds(const View2D *v2d,
 /* Scale indicator text drawing API
  **************************************************/
 
-static void UI_view2d_draw_scale_x__discrete_values(const ARegion *region,
-                                                    const View2D *v2d,
-                                                    const rcti *rect,
-                                                    int colorid)
+static void UI_view2d_draw_scale_x__discrete_values(
+    const ARegion *region, const View2D *v2d, const rcti *rect, int colorid, const int fps)
 {
-  const float number_step = view2d_major_step_x__discrete(v2d);
+  const float number_step = calculate_major_frame_distance(
+      fps, BLI_rcti_size_x(&v2d->mask), BLI_rctf_size_x(&v2d->cur));
   draw_horizontal_scale_indicators(
       region, v2d, number_step, rect, view_to_string__frame_number, nullptr, colorid);
 }
@@ -579,7 +633,7 @@ void UI_view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
     UI_view2d_draw_scale_x__discrete_time(region, v2d, rect, scene, colorid);
   }
   else {
-    UI_view2d_draw_scale_x__discrete_values(region, v2d, rect, colorid);
+    UI_view2d_draw_scale_x__discrete_values(region, v2d, rect, colorid, round_db_to_int(FPS));
   }
 }
 

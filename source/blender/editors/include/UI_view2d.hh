@@ -220,7 +220,9 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
 
 void UI_view2d_draw_lines_y__values(const View2D *v2d);
 void UI_view2d_draw_lines_x__values(const View2D *v2d);
-void UI_view2d_draw_lines_x__discrete_values(const View2D *v2d, bool display_minor_lines);
+void UI_view2d_draw_lines_x__discrete_values(const View2D *v2d,
+                                             const int fps,
+                                             bool display_minor_lines);
 void UI_view2d_draw_lines_x__discrete_time(const View2D *v2d,
                                            const Scene *scene,
                                            bool display_minor_lines);
