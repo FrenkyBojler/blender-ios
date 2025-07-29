@@ -234,6 +234,15 @@ static void node_geo_exec(GeoNodeExecParams params)
     state.is_initialized = true;
   }
 
+  {
+    JPH::TempAllocatorImpl temp_allocator(10 * 1024 * 1024);
+    /* TODO: Integrate with TBB. */
+    JPH::JobSystemThreadPool job_system(
+        JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1);
+    const int collision_steps = 1;
+    state.system.Update(delta_time, collision_steps, &temp_allocator, &job_system);
+  }
+
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
   new_data_bundle.add("_state", jolt_state_owner);
