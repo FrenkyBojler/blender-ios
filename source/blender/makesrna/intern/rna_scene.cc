@@ -1259,6 +1259,7 @@ static void rna_Scene_compositing_node_group_set(PointerRNA *ptr,
     return;
   }
   scene->compositing_node_group = ntree;
+  id_us_ensure_real(&scene->compositing_node_group->id);
 }
 
 static std::optional<std::string> rna_SceneEEVEE_path(const PointerRNA * /*ptr*/)
