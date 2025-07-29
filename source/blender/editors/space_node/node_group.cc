@@ -21,6 +21,7 @@
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -680,9 +681,11 @@ static wmOperatorStatus node_group_separate_invoke(bContext *C,
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Separate"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
 
-  layout->operator_context_set(WM_OP_EXEC_DEFAULT);
-  uiItemEnumO(layout, "NODE_OT_group_separate", std::nullopt, ICON_NONE, "type", NODE_GS_COPY);
-  uiItemEnumO(layout, "NODE_OT_group_separate", std::nullopt, ICON_NONE, "type", NODE_GS_MOVE);
+  layout->operator_context_set(wm::OpCallContext::ExecDefault);
+  PointerRNA op_ptr = layout->op("NODE_OT_group_separate", IFACE_("Copy"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", NODE_GS_COPY);
+  op_ptr = layout->op("NODE_OT_group_separate", IFACE_("Move"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", NODE_GS_MOVE);
 
   UI_popup_menu_end(C, pup);
 
@@ -1182,8 +1185,12 @@ static void node_group_make_insert_selected(const bContext &C,
 
   if (group.type == NTREE_GEOMETRY) {
     bke::node_field_inferencing::update_field_inferencing(group);
+  }
+
+  if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
     bke::node_structure_type_inferencing::update_structure_type_interface(group);
   }
+
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
 
   /* Add new links to inputs outside of the group. */
@@ -1387,7 +1394,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
 
   /* Create a group node. */
   bNode *gnode = bke::node_add_node(&C, ntree, node_idname);
-  STRNCPY(gnode->name, BKE_id_name(wrapper_group->id));
+  STRNCPY_UTF8(gnode->name, BKE_id_name(wrapper_group->id));
   bke::node_unique_name(ntree, *gnode);
 
   /* Assign the newly created wrapper group to the new group node. */

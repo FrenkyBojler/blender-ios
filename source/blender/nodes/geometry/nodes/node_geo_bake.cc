@@ -15,7 +15,7 @@
 #include "UI_resources.hh"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
@@ -143,7 +143,7 @@ static void draw_bake_items(const bContext *C, uiLayout *layout, PointerRNA node
         tree, node, [&](PointerRNA *item_ptr) {
           const NodeGeometryBakeItem &active_item = storage.items[storage.active_index];
           panel->use_property_split_set(true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
             panel->prop(item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -741,7 +741,7 @@ void draw_bake_button_row(const BakeDrawContext &ctx, uiLayout *layout, const bo
     PointerRNA ptr = row->op("OBJECT_OT_geometry_node_bake_single",
                              bake_label,
                              ICON_NONE,
-                             WM_OP_INVOKE_DEFAULT,
+                             wm::OpCallContext::InvokeDefault,
                              UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
     RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
@@ -756,7 +756,7 @@ void draw_bake_button_row(const BakeDrawContext &ctx, uiLayout *layout, const bo
           PointerRNA ptr = subrow->op("OBJECT_OT_geometry_node_bake_unpack_single",
                                       "",
                                       ICON_PACKAGE,
-                                      WM_OP_INVOKE_DEFAULT,
+                                      wm::OpCallContext::InvokeDefault,
                                       UI_ITEM_NONE);
           WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
           RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
@@ -766,7 +766,7 @@ void draw_bake_button_row(const BakeDrawContext &ctx, uiLayout *layout, const bo
           PointerRNA ptr = subrow->op("OBJECT_OT_geometry_node_bake_pack_single",
                                       "",
                                       ICON_UGLYPACKAGE,
-                                      WM_OP_INVOKE_DEFAULT,
+                                      wm::OpCallContext::InvokeDefault,
                                       UI_ITEM_NONE);
           WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
           RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
@@ -780,7 +780,7 @@ void draw_bake_button_row(const BakeDrawContext &ctx, uiLayout *layout, const bo
         PointerRNA ptr = subrow->op("OBJECT_OT_geometry_node_bake_pack_single",
                                     "",
                                     icon,
-                                    WM_OP_INVOKE_DEFAULT,
+                                    wm::OpCallContext::InvokeDefault,
                                     UI_ITEM_NONE);
       }
     }
@@ -788,7 +788,7 @@ void draw_bake_button_row(const BakeDrawContext &ctx, uiLayout *layout, const bo
       PointerRNA ptr = subrow->op("OBJECT_OT_geometry_node_bake_delete_single",
                                   "",
                                   ICON_TRASH,
-                                  WM_OP_INVOKE_DEFAULT,
+                                  wm::OpCallContext::InvokeDefault,
                                   UI_ITEM_NONE);
       WM_operator_properties_id_lookup_set_from_id(&ptr, &ctx.object->id);
       RNA_string_set(&ptr, "modifier_name", ctx.nmd->modifier.name);
@@ -800,7 +800,7 @@ void draw_bake_button_row(const BakeDrawContext &ctx, uiLayout *layout, const bo
 void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, uiLayout *layout)
 {
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   uiLayout *settings_col = &layout->column(false);
   settings_col->active_set(!ctx.is_baked);
@@ -879,7 +879,7 @@ void draw_data_blocks(const bContext *C, uiLayout *layout, PointerRNA &bake_rna)
 {
   static const uiListType *data_block_list = []() {
     uiListType *list = MEM_callocN<uiListType>(__func__);
-    STRNCPY(list->idname, "DATA_UL_nodes_modifier_data_blocks");
+    STRNCPY_UTF8(list->idname, "DATA_UL_nodes_modifier_data_blocks");
     list->draw_item = draw_bake_data_block_list_item;
     WM_uilisttype_add(list);
     return list;

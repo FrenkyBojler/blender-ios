@@ -63,7 +63,7 @@ struct Instance : public DrawEngine {
  public:
   struct StaticData {
     GPUFrameBuffer *framebuffer_select_id;
-    GPUTexture *texture_u32;
+    blender::gpu::Texture *texture_u32;
 
     struct Shaders {
       /* Depth Pre Pass */
@@ -205,7 +205,7 @@ struct Instance : public DrawEngine {
 
   ElemIndexRanges edit_mesh_sync(Object *ob,
                                  BMEditMesh *em,
-                                 ResourceHandle res_handle,
+                                 ResourceHandleRange res_handle,
                                  short select_mode,
                                  bool draw_facedot,
                                  const uint initial_index)
@@ -264,7 +264,7 @@ struct Instance : public DrawEngine {
   }
 
   ElemIndexRanges mesh_sync(Object *ob,
-                            ResourceHandle res_handle,
+                            ResourceHandleRange res_handle,
                             short select_mode,
                             const uint initial_index)
   {
@@ -307,7 +307,7 @@ struct Instance : public DrawEngine {
   }
 
   ElemIndexRanges object_sync(
-      View3D *v3d, Object *ob, ResourceHandle res_handle, short select_mode, uint index_start)
+      View3D *v3d, Object *ob, ResourceHandleRange res_handle, short select_mode, uint index_start)
   {
     BLI_assert_msg(index_start > 0, "Index 0 is reserved for no selection");
 
@@ -353,7 +353,7 @@ struct Instance : public DrawEngine {
     /* Only sync selectable object once.
      * This can happen in retopology mode where there is two sync loop. */
     sel_ctx.elem_ranges.lookup_or_add_cb(ob, [&]() {
-      ResourceHandle res_handle = manager.unique_handle(ob_ref);
+      ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
       ElemIndexRanges elem_ranges = object_sync(
           draw_ctx->v3d, ob, res_handle, sel_ctx.select_mode, sel_ctx.max_index_drawn_len);
       sel_ctx.max_index_drawn_len = elem_ranges.total.one_after_last();
@@ -426,7 +426,7 @@ struct Instance : public DrawEngine {
     if (e_data.texture_u32 == nullptr) {
       eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
       e_data.texture_u32 = GPU_texture_create_2d(
-          "select_buf_ids", size[0], size[1], 1, GPU_R32UI, usage, nullptr);
+          "select_buf_ids", size[0], size[1], 1, gpu::TextureFormat::UINT_32, usage, nullptr);
       GPU_framebuffer_texture_attach(e_data.framebuffer_select_id, e_data.texture_u32, 0, 0);
 
       GPU_framebuffer_check_valid(e_data.framebuffer_select_id, nullptr);
@@ -521,7 +521,7 @@ GPUFrameBuffer *DRW_engine_select_framebuffer_get()
   return e_data.framebuffer_select_id;
 }
 
-GPUTexture *DRW_engine_select_texture_get()
+blender::gpu::Texture *DRW_engine_select_texture_get()
 {
   Instance::StaticData &e_data = Instance::StaticData::get();
   return e_data.texture_u32;

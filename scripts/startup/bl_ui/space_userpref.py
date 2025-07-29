@@ -688,6 +688,7 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
         prefs = context.preferences
         system = prefs.system
         import gpu
+        import sys
 
         col = layout.column()
         col.prop(system, "gpu_backend", text="Backend")
@@ -701,9 +702,10 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
 
         if system.gpu_backend == 'VULKAN':
             col = layout.column()
-            col.label(text="Vulkan backend limitations:", icon='INFO')
-            col.label(text="\u2022 WoA support", icon='BLANK1')
-            col.label(text="\u2022 Low VR performance", icon='BLANK1')
+            col.label(text="Current Vulkan backend limitations:", icon='INFO')
+            col.label(text="\u2022 Low performance in VR", icon='BLANK1')
+            if sys.platform == "win32" and gpu.platform.device_type_get() == 'QUALCOMM':
+                col.label(text="\u2022 Windows on ARM requires driver 31.0.112.0 or higher", icon='BLANK1')
 
 
 class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
@@ -2863,6 +2865,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_bundle_and_closure_nodes"}, ("blender/blender/issues/134029", "#134029")),
                 ({"property": "use_socket_structure_type"}, ("blender/blender/issues/127106", "#127106")),
+                ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
             ),
         )
 

@@ -6,10 +6,10 @@
  * \ingroup RNA
  */
 
-#include <cctype>
 #include <cstddef>
-#include <cstdlib>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <sstream>
 
 #include <fmt/format.h>
@@ -987,6 +987,24 @@ uint RNA_struct_count_properties(StructRNA *srna)
   return counter;
 }
 
+std::optional<AncestorPointerRNA> RNA_struct_search_closest_ancestor_by_type(PointerRNA *ptr,
+                                                                             const StructRNA *srna)
+{
+  if (RNA_struct_is_a(ptr->type, srna)) {
+    return {{ptr->type, ptr->data}};
+  }
+  else {
+    for (int i = ptr->ancestors.size() - 1; i >= 0; i--) {
+      const AncestorPointerRNA &ancestor = ptr->ancestors[i];
+      if (RNA_struct_is_a(ancestor.type, srna)) {
+        return ancestor;
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
 const ListBase *RNA_struct_type_properties(StructRNA *srna)
 {
   return &srna->cont.properties;
@@ -1098,14 +1116,25 @@ void RNA_struct_blender_type_set(StructRNA *srna, void *blender_type)
   srna->blender_type = blender_type;
 }
 
+char *RNA_struct_name_get_alloc_ex(
+    PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop)
+{
+  if (ptr->data) {
+    if (PropertyRNA *nameprop = RNA_struct_name_property(ptr->type)) {
+      *r_nameprop = nameprop;
+      return RNA_property_string_get_alloc(ptr, nameprop, fixedbuf, fixedlen, r_len);
+    }
+  }
+  return nullptr;
+}
+
 char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len)
 {
-  PropertyRNA *nameprop;
-
-  if (ptr->data && (nameprop = RNA_struct_name_property(ptr->type))) {
-    return RNA_property_string_get_alloc(ptr, nameprop, fixedbuf, fixedlen, r_len);
+  if (ptr->data) {
+    if (PropertyRNA *nameprop = RNA_struct_name_property(ptr->type)) {
+      return RNA_property_string_get_alloc(ptr, nameprop, fixedbuf, fixedlen, r_len);
+    }
   }
-
   return nullptr;
 }
 
@@ -1206,6 +1235,11 @@ const char *RNA_property_identifier(const PropertyRNA *prop)
 const char *RNA_property_description(PropertyRNA *prop)
 {
   return TIP_(rna_ensure_property_description(prop));
+}
+
+const DeprecatedRNA *RNA_property_deprecated(const PropertyRNA *prop)
+{
+  return prop->deprecated;
 }
 
 PropertyType RNA_property_type(PropertyRNA *prop)
@@ -3716,21 +3750,22 @@ std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
   IDProperty *idprop;
 
   BLI_assert(RNA_property_type(prop) == PROP_STRING);
+  const size_t length = size_t(RNA_property_string_length(ptr, prop));
 
   if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    /* NOTE: `std::string` does support NULL char in its data. */
-    return std::string{IDP_String(idprop), size_t(idprop->len)};
+    /* For normal strings, the length does not contain the null terminator. But for
+     * #IDP_STRING_SUB_BYTE, it contains the full string including any terminating null. */
+    return std::string{IDP_String(idprop), length};
   }
 
   if (!sprop->get && !sprop->get_ex) {
     return std::string{sprop->defaultvalue};
   }
 
-  size_t length = size_t(RNA_property_string_length(ptr, prop));
   std::string string_ret{};
-  /* Note: after `resize()` the underlying buffer is actually at least `length +
-   * 1` bytes long, because (since C++11) `std::string` guarantees a terminating
-   * null byte, but that is not considered part of the length. */
+  /* Note: after `resize()` the underlying buffer is actually at least
+   * `length + 1` bytes long, because (since C++11) `std::string` guarantees
+   * a terminating null byte, but that is not considered part of the length. */
   string_ret.resize(length);
 
   if (sprop->get) {
@@ -4006,12 +4041,13 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
                                                            PointerRNA *ptr,
                                                            PropertyRNA *prop)
 {
-  BLI_assert(prop->type == PROP_STRING);
-  StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+  BLI_assert(RNA_property_type(prop) == PROP_STRING);
+  PropertyRNA *rna_prop = rna_ensure_property(prop);
+  StringPropertyRNA *sprop = (StringPropertyRNA *)rna_prop;
   if (!sprop->path_filter) {
     return std::nullopt;
   }
-  return sprop->path_filter(C, ptr, prop);
+  return sprop->path_filter(C, ptr, rna_prop);
 }
 
 int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop)
@@ -5443,8 +5479,8 @@ PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, ListBase *l
 void rna_iterator_array_begin(CollectionPropertyIterator *iter,
                               PointerRNA *ptr,
                               void *data,
-                              int itemsize,
-                              int length,
+                              size_t itemsize,
+                              int64_t length,
                               bool free_ptr,
                               IteratorSkipFunc skip)
 {
@@ -5459,11 +5495,17 @@ void rna_iterator_array_begin(CollectionPropertyIterator *iter,
     data = nullptr;
     itemsize = 0;
   }
+  else if (UNLIKELY(length < 0 || length > std::numeric_limits<uint64_t>::max() / itemsize)) {
+    /* This path is never expected to execute. Assert and trace if it ever does. */
+    BLI_assert_unreachable();
+    data = nullptr;
+    length = 0;
+  }
 
   internal = &iter->internal.array;
   internal->ptr = static_cast<char *>(data);
   internal->free_ptr = free_ptr ? data : nullptr;
-  internal->endptr = ((char *)data) + length * itemsize;
+  internal->endptr = ((char *)data) + itemsize * length;
   internal->itemsize = itemsize;
   internal->skip = skip;
   internal->length = length;
@@ -5514,13 +5556,18 @@ void rna_iterator_array_end(CollectionPropertyIterator *iter)
 }
 
 PointerRNA rna_array_lookup_int(
-    PointerRNA *ptr, StructRNA *type, void *data, int itemsize, int length, int index)
+    PointerRNA *ptr, StructRNA *type, void *data, size_t itemsize, int64_t length, int64_t index)
 {
   if (index < 0 || index >= length) {
     return PointerRNA_NULL;
   }
+  if (UNLIKELY(index > std::numeric_limits<uint64_t>::max() / itemsize)) {
+    /* This path is never expected to execute. Assert and trace if it ever does. */
+    BLI_assert_unreachable();
+    return PointerRNA_NULL;
+  }
 
-  return RNA_pointer_create_with_parent(*ptr, type, ((char *)data) + index * itemsize);
+  return RNA_pointer_create_with_parent(*ptr, type, ((char *)data) + itemsize * index);
 }
 
 /* Quick name based property access */
@@ -5776,6 +5823,16 @@ bool RNA_enum_name_from_value(const EnumPropertyItem *item, int value, const cha
     return true;
   }
   return false;
+}
+
+std::string RNA_string_get(PointerRNA *ptr, const char *name)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, name);
+  if (!prop) {
+    printf("%s: %s.%s not found.\n", __func__, ptr->type->identifier, name);
+    return {};
+  }
+  return RNA_property_string_get(ptr, prop);
 }
 
 void RNA_string_get(PointerRNA *ptr, const char *name, char *value)

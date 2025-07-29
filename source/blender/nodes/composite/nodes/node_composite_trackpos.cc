@@ -8,7 +8,7 @@
 
 #include "BLI_index_range.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
@@ -57,10 +57,10 @@ static void init(const bContext *C, PointerRNA *ptr)
     id_us_plus(&clip->id);
 
     const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-    STRNCPY(data->tracking_object, tracking_object->name);
+    STRNCPY_UTF8(data->tracking_object, tracking_object->name);
 
     if (tracking_object->active_track) {
-      STRNCPY(data->track_name, tracking_object->active_track->name);
+      STRNCPY_UTF8(data->track_name, tracking_object->active_track->name);
     }
   }
 }
@@ -80,14 +80,14 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
     PointerRNA tracking_ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTracking, tracking);
 
     col = &layout->column(false);
-    uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+    col->prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
 
     tracking_object = BKE_tracking_object_get_named(tracking, data->tracking_object);
     if (tracking_object) {
       PointerRNA object_ptr = RNA_pointer_create_discrete(
           &clip->id, &RNA_MovieTrackingObject, tracking_object);
 
-      uiItemPointerR(col, ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
+      col->prop_search(ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
     }
     else {
       layout->prop(ptr, "track_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);

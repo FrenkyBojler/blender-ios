@@ -18,6 +18,7 @@
 #include "BLI_hash_md5.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_system.h"
 #include "BLI_threads.h"
@@ -387,13 +388,16 @@ static ImBuf *thumb_create_ex(const char *file_path,
 
         if (img != nullptr) {
           if (BLI_stat(file_path, &info) != -1) {
-            SNPRINTF(mtime, "%ld", (long int)info.st_mtime);
+            SNPRINTF_UTF8(mtime, "%ld", (long int)info.st_mtime);
           }
         }
       }
       else if (THB_SOURCE_MOVIE == source) {
         MovieReader *anim = nullptr;
-        anim = MOV_open_file(file_path, IB_byte_data | IB_metadata, 0, nullptr);
+        /* Image buffer is converted from float to byte and only the latter one is used, and the
+         * conversion process is aware of the float colorspace. So it is possible to save some
+         * compute time by keeping the original colorspace for movies. */
+        anim = MOV_open_file(file_path, IB_byte_data | IB_metadata, 0, true, nullptr);
         if (anim != nullptr) {
           img = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
           if (img == nullptr) {
@@ -406,7 +410,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
           MOV_close(anim);
         }
         if (BLI_stat(file_path, &info) != -1) {
-          SNPRINTF(mtime, "%ld", (long int)info.st_mtime);
+          SNPRINTF_UTF8(mtime, "%ld", (long int)info.st_mtime);
         }
       }
       if (!img) {
@@ -428,7 +432,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
         IMB_scale(img, ex, ey, IMBScaleFilter::Box, false);
       }
     }
-    SNPRINTF(desc, "Thumbnail for %s", uri);
+    SNPRINTF_UTF8(desc, "Thumbnail for %s", uri);
     IMB_metadata_ensure(&img->metadata);
     IMB_metadata_set_field(img->metadata, "Software", "Blender");
     IMB_metadata_set_field(img->metadata, "Thumb::URI", uri);

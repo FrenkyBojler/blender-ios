@@ -25,7 +25,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
   b.add_input<decl::Geometry>("Geometry")
-      .supported_type({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Mesh});
+      .supported_type({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Mesh})
+      .description("Point cloud or mesh to merge points of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Distance").default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
@@ -34,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
   layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 

@@ -41,7 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
   layout->prop(ptr, "method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -133,7 +133,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   delete (handle);
 
   return mesh.attributes().adapt_domain<float3>(
-      VArray<float3>::ForContainer(std::move(uv)), AttrDomain::Corner, domain);
+      VArray<float3>::from_container(std::move(uv)), AttrDomain::Corner, domain);
 }
 
 class UnwrapFieldInput final : public bke::MeshFieldInput {
