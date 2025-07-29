@@ -395,6 +395,9 @@ struct SoftBodyBehavior {
   std::string self_path;
   GeometrySet input_geometry;
   GeometrySet simulated_geometry;
+  Field<float> compliance_field;
+  Field<float> shear_compliance_field;
+  Field<float> bend_compliance_field;
 
   void update_simulated(const JoltState &state);
 };
@@ -460,7 +463,12 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
 static void parse_behavior__soft_body(ParseBehaviorParams &params)
 {
   std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Geometry");
-  if (!geometry) {
+  std::optional<Field<float>> compliance_field = params.bundle.lookup<Field<float>>("Compliance");
+  std::optional<Field<float>> shear_compliance_field = params.bundle.lookup<Field<float>>(
+      "Shear Compliance");
+  std::optional<Field<float>> bend_compliance_field = params.bundle.lookup<Field<float>>(
+      "Bend Compliance");
+  if (!geometry || !compliance_field || !shear_compliance_field || !bend_compliance_field) {
     return;
   }
   geometry->keep_only({bke::GeometryComponent::Type::Mesh});
@@ -468,6 +476,9 @@ static void parse_behavior__soft_body(ParseBehaviorParams &params)
   SoftBodyBehavior soft_body_behavior;
   soft_body_behavior.self_path = params.self_path();
   soft_body_behavior.input_geometry = *geometry;
+  soft_body_behavior.compliance_field = *compliance_field;
+  soft_body_behavior.shear_compliance_field = *shear_compliance_field;
+  soft_body_behavior.bend_compliance_field = *bend_compliance_field;
   params.r_behaviors.soft_bodies.append(std::move(soft_body_behavior));
 }
 
@@ -693,6 +704,16 @@ static void handle_soft_body_behavior(JoltState &state,
     }
   }
   if (!soft_body.body) {
+    bke::MeshFieldContext field_context{*mesh, bke::AttrDomain::Point};
+    fn::FieldEvaluator field_evaluator{field_context, mesh->verts_num};
+    field_evaluator.add(behavior.compliance_field);
+    field_evaluator.add(behavior.shear_compliance_field);
+    field_evaluator.add(behavior.bend_compliance_field);
+    field_evaluator.evaluate();
+    const VArray<float> compliances = field_evaluator.get_evaluated<float>(0);
+    const VArray<float> shear_compliances = field_evaluator.get_evaluated<float>(1);
+    const VArray<float> bend_compliances = field_evaluator.get_evaluated<float>(2);
+
     JPH::Ref<JPH::SoftBodySharedSettings> shared_settings = new JPH::SoftBodySharedSettings();
     const Span<float3> positions = mesh->vert_positions();
 
@@ -714,10 +735,29 @@ static void handle_soft_body_behavior(JoltState &state,
       shared_settings->AddFace(face);
     }
 
-    const JPH::SoftBodySharedSettings::VertexAttributes vertex_attributes = {
-        1.0e-4f, 1.0e-4f, 1.0e-3f};
-    shared_settings->CreateConstraints(
-        &vertex_attributes, 1, JPH::SoftBodySharedSettings::EBendType::Dihedral);
+    Vector<JPH::SoftBodySharedSettings::VertexAttributes> vertex_attributes_vec;
+    if (compliances.is_single() && shear_compliances.is_single() && bend_compliances.is_single()) {
+      JPH::SoftBodySharedSettings::VertexAttributes attributes;
+      attributes.mCompliance = std::max(0.0f, compliances[0]);
+      attributes.mShearCompliance = std::max(0.0f, shear_compliances[0]);
+      attributes.mBendCompliance = std::max(0.0f, bend_compliances[0]);
+      vertex_attributes_vec.append(attributes);
+    }
+    else {
+      vertex_attributes_vec.resize(positions.size());
+      threading::parallel_for(IndexRange(positions.size()), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          JPH::SoftBodySharedSettings::VertexAttributes &attributes = vertex_attributes_vec[i];
+          attributes.mCompliance = std::max(0.0f, compliances[i]);
+          attributes.mShearCompliance = std::max(0.0f, shear_compliances[i]);
+          attributes.mBendCompliance = std::max(0.0f, bend_compliances[i]);
+        }
+      });
+    }
+
+    shared_settings->CreateConstraints(vertex_attributes_vec.data(),
+                                       vertex_attributes_vec.size(),
+                                       JPH::SoftBodySharedSettings::EBendType::Dihedral);
     shared_settings->Optimize();
 
     JPH::SoftBodyCreationSettings soft_body_creation_settings(
