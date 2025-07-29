@@ -37,7 +37,7 @@ inline bool bone_is_visible_editbone(const bArmature *armature, const EditBone *
 }
 
 /**
- * Returns true if the bone is selected. That includes a check against visibility
+ * Returns true if the bone is selected. This includes a visibility check
  * because invisible bones cannot be selected, no matter their flag.
  */
 inline bool bone_is_selected(const bArmature *armature, const Bone *bone)
