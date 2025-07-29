@@ -24,7 +24,8 @@
 /** \name Mesh Spatial Mirror API
  * \{ */
 std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(Object *ob,
-                                                                               uchar htype) {
+                                                                               uchar htype)
+{
   BLI_assert(htype != 0);
   BLI_assert((htype & ~(BM_VERT | BM_EDGE | BM_FACE)) == 0);
 
@@ -41,7 +42,8 @@ std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(O
 }
 
 EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
-    : em(BKE_editmesh_from_object(ob)), mesh(static_cast<Mesh *>(ob->data)), htype_(htype) {
+    : em(BKE_editmesh_from_object(ob)), mesh(static_cast<Mesh *>(ob->data)), htype_(htype)
+{
   BMesh *bmesh = em->bm;
   use_topology_mirror = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
@@ -123,18 +125,18 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
 }
 
 void EditMeshSymmetryHelper::tag_symmetrical_group(
-    const blender::Vector<BMFace *> &initial_selection, char hflag) const
+    const blender::Vector<BMFace *> &f_initial, char hflag) const
 {
   BLI_assert((this->htype_ & BM_FACE) != 0);
 
-  for (BMFace *f_orig : initial_selection) {
+  for (BMFace *f_orig : f_initial) {
     BM_elem_flag_enable(f_orig, hflag);
   }
 
   for (int axis = 0; axis < 3; ++axis) {
     if (this->mesh->symmetry & (ME_SYMMETRY_X << axis)) {
       EDBM_verts_mirror_cache_begin(this->em, axis, true, true, true, this->use_topology_mirror);
-      for (BMFace *f_orig : initial_selection) {
+      for (BMFace *f_orig : f_initial) {
         BMFace *f_mir = EDBM_verts_mirror_get_face(this->em, f_orig);
         if (f_mir) {
           BM_elem_flag_enable(f_mir, hflag);
@@ -145,111 +147,120 @@ void EditMeshSymmetryHelper::tag_symmetrical_group(
   }
 }
 
-void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert,
-                                                   blender::FunctionRef<void(BMVert *)> op) const {
+void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *v,
+                                                   blender::FunctionRef<void(BMVert *)> op) const
+{
   BLI_assert((this->htype_ & BM_VERT) != 0);
-  if (!vert_to_mirrors_map.contains(vert)) {
+  if (!vert_to_mirrors_map.contains(v)) {
     return;
   }
-  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
-    op(mirror_vert);
+  for (BMVert *v_mirror : vert_to_mirrors_map.lookup(v)) {
+    op(v_mirror);
   }
 }
 
-void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *edge,
-                                                   blender::FunctionRef<void(BMEdge *)> op) const {
+void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *e,
+                                                   blender::FunctionRef<void(BMEdge *)> op) const
+{
   BLI_assert((this->htype_ & BM_EDGE) != 0);
-  if (!edge_to_mirrors_map.contains(edge)) {
+  if (!edge_to_mirrors_map.contains(e)) {
     return;
   }
-  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
-    op(mirror_edge);
+  for (BMEdge *e_mirror : edge_to_mirrors_map.lookup(e)) {
+    op(e_mirror);
   }
 }
 
-void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face,
-                                                   blender::FunctionRef<void(BMFace *)> op) const {
+void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *f,
+                                                   blender::FunctionRef<void(BMFace *)> op) const
+{
   BLI_assert((this->htype_ & BM_FACE) != 0);
-  if (!face_to_mirrors_map.contains(face)) {
+  if (!face_to_mirrors_map.contains(f)) {
     return;
   }
-  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
-    op(mirror_face);
+  for (BMFace *f_mirror : face_to_mirrors_map.lookup(f)) {
+    op(f_mirror);
   }
 }
 
-bool EditMeshSymmetryHelper::any_mirror_vert_selected(BMVert *vert, char hflag) const {
+bool EditMeshSymmetryHelper::any_mirror_vert_selected(BMVert *v, char hflag) const
+{
   BLI_assert((this->htype_ & BM_VERT) != 0);
-  if (!vert_to_mirrors_map.contains(vert)) {
+  if (!vert_to_mirrors_map.contains(v)) {
     return false;
   }
-  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
-    if (BM_elem_flag_test(mirror_vert, hflag) &&
-        !BM_elem_flag_test(mirror_vert, BM_ELEM_HIDDEN)) {
+  for (BMVert *v_mirror : vert_to_mirrors_map.lookup(v)) {
+    if (BM_elem_flag_test(v_mirror, hflag) && !BM_elem_flag_test(v_mirror, BM_ELEM_HIDDEN)) {
       return true;
     }
   }
   return false;
 }
 
-bool EditMeshSymmetryHelper::any_mirror_edge_selected(BMEdge *edge, char hflag) const {
+bool EditMeshSymmetryHelper::any_mirror_edge_selected(BMEdge *e, char hflag) const
+{
   BLI_assert((this->htype_ & BM_EDGE) != 0);
-  if (!edge_to_mirrors_map.contains(edge)) {
+  if (!edge_to_mirrors_map.contains(e)) {
     return false;
   }
-  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
-    if (BM_elem_flag_test(mirror_edge, hflag) &&
-        !BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN)) {
+  for (BMEdge *e_mirror : edge_to_mirrors_map.lookup(e)) {
+    if (BM_elem_flag_test(e_mirror, hflag) && !BM_elem_flag_test(e_mirror, BM_ELEM_HIDDEN)) {
       return true;
     }
   }
   return false;
 }
 
-bool EditMeshSymmetryHelper::any_mirror_face_selected(BMFace *face, char hflag) const {
+bool EditMeshSymmetryHelper::any_mirror_face_selected(BMFace *f, char hflag) const
+{
   BLI_assert((this->htype_ & BM_FACE) != 0);
-  if (!face_to_mirrors_map.contains(face)) {
+  if (!face_to_mirrors_map.contains(f)) {
     return false;
   }
-  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
-    if (BM_elem_flag_test(mirror_face, hflag) &&
-        !BM_elem_flag_test(mirror_face, BM_ELEM_HIDDEN)) {
+  for (BMFace *f_mirror : face_to_mirrors_map.lookup(f)) {
+    if (BM_elem_flag_test(f_mirror, hflag) && !BM_elem_flag_test(f_mirror, BM_ELEM_HIDDEN)) {
       return true;
     }
   }
   return false;
 }
 
-void EditMeshSymmetryHelper::set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const {
-  apply_on_mirror_verts(vert, [hflag, value](BMVert *v_mir) {
+void EditMeshSymmetryHelper::set_flag_on_mirror_verts(BMVert *v, char hflag, bool value) const
+{
+  apply_on_mirror_verts(v, [hflag, value](BMVert *v_mir) {
     if (!BM_elem_flag_test(v_mir, BM_ELEM_HIDDEN)) {
       if (value) {
         BM_elem_flag_enable(v_mir, hflag);
-      } else {
+      }
+      else {
         BM_elem_flag_disable(v_mir, hflag);
       }
     }
   });
 }
 
-void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const {
-  apply_on_mirror_edges(edge, [hflag, value](BMEdge *e_mir) {
+void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *e, char hflag, bool value) const
+{
+  apply_on_mirror_edges(e, [hflag, value](BMEdge *e_mir) {
     if (!BM_elem_flag_test(e_mir, BM_ELEM_HIDDEN)) {
       if (value) {
         BM_elem_flag_enable(e_mir, hflag);
-      } else {
+      }
+      else {
         BM_elem_flag_disable(e_mir, hflag);
       }
     }
   });
 }
 
-void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const {
-  apply_on_mirror_faces(face, [hflag, value](BMFace *f_mir) {
+void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *f, char hflag, bool value) const
+{
+  apply_on_mirror_faces(f, [hflag, value](BMFace *f_mir) {
     if (!BM_elem_flag_test(f_mir, BM_ELEM_HIDDEN)) {
       if (value) {
         BM_elem_flag_enable(f_mir, hflag);
-      } else {
+      }
+      else {
         BM_elem_flag_disable(f_mir, hflag);
       }
     }
