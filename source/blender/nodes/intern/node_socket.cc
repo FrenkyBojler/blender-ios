@@ -17,6 +17,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_colorband.hh"
@@ -206,7 +207,7 @@ static void refresh_node_socket(bNodeTree &ntree,
     SET_FLAG_FROM_TEST(new_socket->flag, hide_new_sockets, SOCK_HIDDEN);
   }
   else {
-    STRNCPY(old_socket_with_same_identifier->name, socket_decl.name.c_str());
+    STRNCPY_UTF8(old_socket_with_same_identifier->name, socket_decl.name.c_str());
     if (socket_decl.matches(*old_socket_with_same_identifier)) {
       /* The existing socket matches exactly, just use it. */
       new_socket = old_socket_with_same_identifier;
@@ -218,7 +219,7 @@ static void refresh_node_socket(bNodeTree &ntree,
 
       if (new_socket == old_socket_with_same_identifier) {
         /* The existing socket has been updated, set the correct identifier again. */
-        STRNCPY(new_socket->identifier, socket_decl.identifier.c_str());
+        STRNCPY_UTF8(new_socket->identifier, socket_decl.identifier.c_str());
       }
       else {
         /* Move links to new socket with same identifier. */
@@ -383,7 +384,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
       if (const char *new_identifier = get_current_socket_identifier_for_future_socket(
               node, *socket, node_decl.inputs))
       {
-        STRNCPY(socket->identifier, new_identifier);
+        STRNCPY_UTF8(socket->identifier, new_identifier);
       }
     }
   }
@@ -392,7 +393,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
       if (const char *new_identifier = get_current_socket_identifier_for_future_socket(
               node, *socket, node_decl.outputs))
       {
-        STRNCPY(socket->identifier, new_identifier);
+        STRNCPY_UTF8(socket->identifier, new_identifier);
       }
     }
   }
@@ -867,7 +868,7 @@ void node_socket_copy_default_value(bNodeSocket *to, const bNodeSocket *from)
 
   /* use label instead of name if it has been set */
   if (from->label[0] != '\0') {
-    STRNCPY(to->name, from->label);
+    STRNCPY_UTF8(to->name, from->label);
   }
 
   node_socket_copy_default_value_data(to->typeinfo->type, to->default_value, from->default_value);

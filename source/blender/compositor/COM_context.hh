@@ -6,11 +6,11 @@
 
 #include <cstdint>
 
+#include "BLI_bounds_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 
 #include "DNA_scene_types.h"
-#include "DNA_vec_types.h"
 
 #include "GPU_shader.hh"
 
@@ -57,32 +57,31 @@ class Context {
   /* Returns all output types that should be computed. */
   virtual OutputTypes needed_outputs() const = 0;
 
-  /* Get the render settings for compositing. */
-  virtual const RenderData &get_render_data() const = 0;
-
   /* Get the rectangular region representing the area of the input that the compositor will operate
    * on. Conversely, the compositor will only update the region of the output that corresponds to
    * the compositing region. In the base case, the compositing region covers the entirety of the
    * render region. In other cases, the compositing region might be a subset of the render region.
    * Callers should check the validity of the region through is_valid_compositing_region(), since
    * the region can be zero sized. */
-  virtual rcti get_compositing_region() const = 0;
+  virtual Bounds<int2> get_compositing_region() const = 0;
 
   /* Get the result where the result of the compositor should be written. */
-  virtual Result get_output_result() = 0;
+  virtual Result get_output() = 0;
 
   /* Get the result where the result of the compositor viewer should be written, given the domain
    * of the result to be viewed, its precision, and whether the output is a non-color data image
    * that should be displayed without view transform. */
-  virtual Result get_viewer_output_result(Domain domain,
-                                          bool is_data,
-                                          ResultPrecision precision) = 0;
+  virtual Result get_viewer_output(Domain domain, bool is_data, ResultPrecision precision) = 0;
 
-  /* Get the result where the given render pass is stored. */
-  virtual Result get_pass(const Scene *scene, int view_layer, const char *pass_name) = 0;
+  /* Get the result where the given input is stored. */
+  virtual Result get_input(const Scene *scene, int view_layer, const char *name) = 0;
 
   /* True if the compositor should use GPU acceleration. */
   virtual bool use_gpu() const = 0;
+
+  /* Get the render settings for compositing. This could be different from scene->r render settings
+   * in case the render size or other settings needs to be overwritten. */
+  virtual const RenderData &get_render_data() const;
 
   /* Get the name of the view currently being rendered. If the context is not multi-view, return an
    * empty string. */

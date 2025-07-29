@@ -12,6 +12,7 @@
 
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 namespace blender::nodes::decl {
 
@@ -64,7 +65,7 @@ static bool basic_types_can_connect(const SocketDeclaration & /*socket_decl*/,
 static void modify_subtype_except_for_storage(bNodeSocket &socket, int new_subtype)
 {
   const StringRefNull idname = *bke::node_static_socket_type(socket.type, new_subtype);
-  STRNCPY(socket.idname, idname.c_str());
+  STRNCPY_UTF8(socket.idname, idname.c_str());
   bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
   socket.typeinfo = socktype;
 }
@@ -72,7 +73,7 @@ static void modify_subtype_except_for_storage(bNodeSocket &socket, int new_subty
 static void modify_subtype_except_for_storage(bNodeSocket &socket, int subtype, int dimensions)
 {
   const StringRefNull idname = *bke::node_static_socket_type(socket.type, subtype, dimensions);
-  STRNCPY(socket.idname, idname.c_str());
+  STRNCPY_UTF8(socket.idname, idname.c_str());
   bke::bNodeSocketType *socktype = bke::node_socket_type_find(idname);
   socket.typeinfo = socktype;
 }
