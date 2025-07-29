@@ -1357,7 +1357,7 @@ static void bpy_prop_float_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, cons
 /** \name String Property Callbacks
  * \{ */
 
-static void bpy_prop_string_get_fn(PointerRNA *ptr, PropertyRNA *prop, char *value)
+static std::string bpy_prop_string_get_fn(PointerRNA *ptr, PropertyRNA *prop)
 {
   const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
 
@@ -1379,25 +1379,27 @@ static void bpy_prop_string_get_fn(PointerRNA *ptr, PropertyRNA *prop, char *val
 
   Py_DECREF(args);
 
+  std::string ret_value = "";
+
   if (ret == nullptr) {
     PyC_Err_PrintWithFunc(py_func);
-    value[0] = '\0';
   }
   else if (!PyUnicode_Check(ret)) {
     PyErr_Format(
         PyExc_TypeError, "return value must be a string, not %.200s", Py_TYPE(ret)->tp_name);
     PyC_Err_PrintWithFunc(py_func);
-    value[0] = '\0';
     Py_DECREF(ret);
   }
   else {
     Py_ssize_t length;
-    const char *buffer = PyUnicode_AsUTF8AndSize(ret, &length);
-    memcpy(value, buffer, length + 1);
+    ret_value = PyUnicode_AsUTF8AndSize(ret, &length);
+    BLI_assert(length == ret_value.length());
     Py_DECREF(ret);
   }
 
   bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
 }
 
 static int bpy_prop_string_length_fn(PointerRNA *ptr, PropertyRNA *prop)
@@ -1447,7 +1449,7 @@ static int bpy_prop_string_length_fn(PointerRNA *ptr, PropertyRNA *prop)
   return length;
 }
 
-static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, const char *value)
+static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, std::string value)
 {
   const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
 
@@ -1467,9 +1469,10 @@ static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, const cha
   self = pyrna_struct_as_instance(ptr);
   PyTuple_SET_ITEM(args, 0, self);
 
-  py_value = PyUnicode_FromString(value);
+  py_value = PyUnicode_FromString(value.c_str());
   if (!py_value) {
-    PyErr_SetString(PyExc_ValueError, "the return value must be a string");
+    PyErr_SetString(PyExc_ValueError,
+                    "the given string value cannot be converted into a python string");
     PyC_Err_PrintWithFunc(py_func);
   }
   else {

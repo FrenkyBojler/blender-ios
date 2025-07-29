@@ -3795,7 +3795,7 @@ std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
     sprop->get(ptr, string_ret.data());
   }
   else { /* if (sprop->get_ex) */
-    sprop->get_ex(ptr, prop, string_ret.data());
+    string_ret = sprop->get_ex(ptr, prop);
   }
 
   return string_ret;
@@ -3823,7 +3823,8 @@ void RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop, char *value)
     sprop->get(ptr, value);
   }
   else if (sprop->get_ex) {
-    sprop->get_ex(ptr, prop, value);
+    std::string string_ret = sprop->get_ex(ptr, prop);
+    strcpy(value, string_ret.c_str());
   }
   else {
     strcpy(value, sprop->defaultvalue);

@@ -694,9 +694,9 @@ using FloatArrayPropertySetFunc = void (*)(PointerRNA *ptr,
                                            const float *values);
 using FloatPropertyRangeFunc = void (*)(
     PointerRNA *ptr, PropertyRNA *prop, float *min, float *max, float *softmin, float *softmax);
-using StringPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, char *value);
+using StringPropertyGetFunc = std::string (*)(PointerRNA *ptr, PropertyRNA *prop);
 using StringPropertyLengthFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
-using StringPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, const char *value);
+using StringPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, std::string value);
 
 struct StringPropertySearchVisitParams {
   /** Text being searched for. */
