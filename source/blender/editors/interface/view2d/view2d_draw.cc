@@ -99,20 +99,9 @@ static int calculate_major_frame_distance(const int fps, float pixel_width, floa
   return distance;
 }
 
-static const float discrete_value_scales[] = {
-    1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000};
-
 static const float continuous_value_scales[] = {0.01, 0.02, 0.05,  0.1,   0.2,   0.5,   1,   2,
                                                 5,    10,   20,    50,    100,   200,   500, 1000,
                                                 2000, 5000, 10000, 20000, 50000, 100000};
-
-static uint view2d_major_step_x__discrete(const View2D *v2d)
-{
-  return select_major_distance(discrete_value_scales,
-                               ARRAY_SIZE(discrete_value_scales),
-                               BLI_rcti_size_x(&v2d->mask),
-                               BLI_rctf_size_x(&v2d->cur));
-}
 
 static float view2d_major_step_x__continuous(const View2D *v2d)
 {
