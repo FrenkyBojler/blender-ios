@@ -92,7 +92,7 @@ static void fluid_modifier_reset_ex(FluidModifierData *fmd, bool need_lock);
 #ifdef WITH_FLUID
 // #define DEBUG_PRINT
 
-static CLG_LogRef LOG = {"bke.fluid"};
+static CLG_LogRef LOG = {"physics.fluid"};
 
 /* -------------------------------------------------------------------- */
 /** \name Fluid API
@@ -1794,7 +1794,7 @@ static void sample_mesh(FluidFlowSettings *ffs,
                         const blender::Span<blender::float3> vert_normals,
                         const int *corner_verts,
                         const blender::int3 *corner_tris,
-                        const float (*mloopuv)[2],
+                        blender::Span<blender::float2> mloopuv,
                         float *influence_map,
                         float *velocity_map,
                         int index,
@@ -1915,7 +1915,7 @@ static void sample_mesh(FluidFlowSettings *ffs,
           tex_co[2] = ((z - flow_center[2]) / base_res[2] - ffs->texture_offset) /
                       ffs->texture_size;
         }
-        else if (mloopuv) {
+        else if (!mloopuv.is_empty()) {
           const float *uv[3];
           uv[0] = mloopuv[corner_tris[tri_i][0]];
           uv[1] = mloopuv[corner_tris[tri_i][1]];
@@ -1992,7 +1992,7 @@ struct EmitFromDMData {
   blender::Span<blender::float3> vert_normals;
   blender::Span<int> corner_verts;
   blender::Span<blender::int3> corner_tris;
-  const float (*mloopuv)[2];
+  blender::Span<blender::float2> mloopuv;
   const MDeformVert *dvert;
   int defgrp_index;
 
@@ -2077,8 +2077,9 @@ static void emit_from_mesh(
     const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
     const int numverts = mesh->verts_num;
     const MDeformVert *dvert = mesh->deform_verts().data();
-    const float(*mloopuv)[2] = static_cast<const float(*)[2]>(
-        CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, ffs->uvlayer_name));
+    const blender::bke::AttributeAccessor attributes = mesh->attributes();
+    const blender::VArraySpan uv_map = *attributes.lookup<blender::float2>(
+        ffs->uvlayer_name, blender::bke::AttrDomain::Corner);
 
     if (ffs->flags & FLUID_FLOW_INITVELOCITY) {
       vert_vel = MEM_calloc_arrayN<float>(3 * size_t(numverts), "manta_flow_velocity");
@@ -2145,7 +2146,7 @@ static void emit_from_mesh(
       data.vert_normals = mesh->vert_normals();
       data.corner_verts = corner_verts;
       data.corner_tris = corner_tris;
-      data.mloopuv = mloopuv;
+      data.mloopuv = uv_map;
       data.dvert = dvert;
       data.defgrp_index = defgrp_index;
       data.tree = &tree_data;
@@ -2221,6 +2222,7 @@ static void adaptive_domain_adjust(
   int x, y, z;
   float *density = manta_smoke_get_density(fds->fluid);
   float *fuel = manta_smoke_get_fuel(fds->fluid);
+  float *heat = manta_smoke_get_heat(fds->fluid);
   float *bigdensity = manta_noise_get_density(fds->fluid);
   float *bigfuel = manta_noise_get_fuel(fds->fluid);
   float *vx = manta_get_velocity_x(fds->fluid);
@@ -2257,6 +2259,7 @@ static void adaptive_domain_adjust(
                                 fds->res[1],
                                 z - fds->res_min[2]);
         max_den = (fuel) ? std::max(density[index], fuel[index]) : density[index];
+        max_den = (heat) ? std::max(max_den, heat[index]) : max_den;
 
         /* Check high resolution bounds if max density isn't already high enough. */
         if (max_den < fds->adapt_threshold && fds->flags & FLUID_DOMAIN_USE_NOISE && fds->fluid) {
@@ -3079,7 +3082,7 @@ static void update_effectors_task_cb(void *__restrict userdata,
       const uint index = manta_get_index(x, fds->res[0], y, fds->res[1], z);
 
       if ((data->fuel && std::max(data->density[index], data->fuel[index]) < FLT_EPSILON) ||
-          (data->density && data->density[index] < FLT_EPSILON) ||
+          (!data->fuel && data->density && data->density[index] < FLT_EPSILON) ||
           (data->phi_obs_in && data->phi_obs_in[index] < 0.0f) ||
           data->flags[index] & 2) /* Manta-flow convention: `2 == FlagObstacle`. */
       {
@@ -4418,6 +4421,15 @@ void BKE_fluid_particle_system_create(Main *bmain,
   part->totpart = 0;
   part->draw_size = 0.01f; /* Make fluid particles more subtle in viewport. */
   part->draw_col = PART_DRAW_COL_VEL;
+
+  /* Use different shape and color for fluid particles to be able to find issues in Viewport */
+  if (psys_type == PART_FLUID_BUBBLE) {
+    part->draw_as = PART_DRAW_CIRC;
+  }
+  if (psys_type == PART_FLUID_FOAM) {
+    part->draw_as = PART_DRAW_CROSS;
+  }
+
   part->phystype = PART_PHYS_NO; /* No physics needed, part system only used to display data. */
   psys->part = part;
   psys->pointcache = BKE_ptcache_add(&psys->ptcaches);

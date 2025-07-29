@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -3684,7 +3685,8 @@ static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
   ot->poll = screen_maximize_area_poll;
   ot->flag = 0;
 
-  prop = RNA_def_boolean(ot->srna, "use_hide_panels", false, "Hide Panels", "Hide all the panels");
+  prop = RNA_def_boolean(
+      ot->srna, "use_hide_panels", false, "Hide Panels", "Hide all the panels (Focus Mode)");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -3733,6 +3735,9 @@ struct sAreaJoinData {
   float split_fac;            /* Split factor in split_dir direction. */
   wmWindow *win1;             /* Window of source area. */
   wmWindow *win2;             /* Window of the target area. */
+  bScreen *screen;            /* Screen of the source area. */
+  double start_time;          /* Start time of animation. */
+  double end_time;            /* End time of animation. */
   wmWindow *draw_dock_win;    /* Window getting docking highlight. */
   bool close_win;             /* Close the source window when done. */
   void *draw_callback;        /* call #screen_draw_join_highlight */
@@ -3747,11 +3752,18 @@ static void area_join_draw_cb(const wmWindow *win, void *userdata)
     return;
   }
 
+  float factor = 1.0f;
+  const double now = BLI_time_now_seconds();
+  if (now < sd->end_time) {
+    factor = pow((now - sd->start_time) / (sd->end_time - sd->start_time), 2);
+    sd->screen->do_refresh = true;
+  }
+
   if (sd->sa1 == sd->sa2) {
     screen_draw_split_preview(sd->sa1, sd->split_dir, sd->split_fac);
   }
   else {
-    screen_draw_join_highlight(win, sd->sa1, sd->sa2, sd->dir);
+    screen_draw_join_highlight(win, sd->sa1, sd->sa2, sd->dir, factor);
   }
 }
 
@@ -3762,8 +3774,16 @@ static void area_join_dock_cb(const wmWindow *win, void *userdata)
   if (!jd || !jd->sa2 || jd->dir != SCREEN_DIR_NONE || jd->sa1 == jd->sa2) {
     return;
   }
+
+  float factor = 1.0f;
+  const double now = BLI_time_now_seconds();
+  if (now < jd->end_time) {
+    factor = pow((now - jd->start_time) / (jd->end_time - jd->start_time), 2);
+    jd->screen->do_refresh = true;
+  }
+
   screen_draw_dock_preview(
-      win, jd->sa1, jd->sa2, jd->dock_target, jd->factor, jd->current_x, jd->current_y);
+      win, jd->sa1, jd->sa2, jd->dock_target, jd->factor, jd->current_x, jd->current_y, factor);
 }
 
 static void area_join_dock_cb_window(sAreaJoinData *jd, wmOperator *op)
@@ -3817,6 +3837,9 @@ static bool area_join_init(bContext *C, wmOperator *op, ScrArea *sa1, ScrArea *s
   jd->dir = area_getorientation(sa1, sa2);
   jd->win1 = WM_window_find_by_area(CTX_wm_manager(C), sa1);
   jd->win2 = WM_window_find_by_area(CTX_wm_manager(C), sa2);
+  jd->screen = CTX_wm_screen(C);
+  jd->start_time = BLI_time_now_seconds();
+  jd->end_time = jd->start_time + AREA_DOCK_FADEIN;
 
   op->customdata = jd;
   return true;
@@ -4334,8 +4357,13 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
   jd->win2 = WM_window_find_by_area(CTX_wm_manager(C), jd->sa2);
   jd->dir = SCREEN_DIR_NONE;
   jd->dock_target = AreaDockTarget::None;
-  jd->dir = area_getorientation(jd->sa1, jd->sa2);
+  jd->dir = area_getorientation(jd->sa1, area);
   jd->dock_target = area_docking_target(jd, event);
+
+  if (jd->sa2 != area) {
+    jd->start_time = BLI_time_now_seconds();
+    jd->end_time = jd->start_time + AREA_DOCK_FADEIN;
+  }
 
   if (jd->sa1 == area) {
     const int drag_threshold = 30 * UI_SCALE_FAC;
@@ -4350,9 +4378,10 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
       return;
     }
 
-    jd->split_dir = (abs(event->xy[0] - jd->start_x) > abs(event->xy[1] - jd->start_y)) ?
-                        SCREEN_AXIS_V :
-                        SCREEN_AXIS_H;
+    eScreenAxis dir = (abs(event->xy[0] - jd->start_x) > abs(event->xy[1] - jd->start_y)) ?
+                          SCREEN_AXIS_V :
+                          SCREEN_AXIS_H;
+    jd->split_dir = dir;
     jd->split_fac = area_split_factor(C, jd, event);
     return;
   }
@@ -4601,7 +4630,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
   ptr = layout->op("SCREEN_OT_area_split",
                    IFACE_("Vertical Split"),
                    ICON_SPLIT_VERTICAL,
-                   WM_OP_INVOKE_DEFAULT,
+                   blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   /* store initial mouse cursor position. */
   RNA_int_set_array(&ptr, "cursor", event->xy);
@@ -4611,7 +4640,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
   ptr = layout->op("SCREEN_OT_area_split",
                    IFACE_("Horizontal Split"),
                    ICON_SPLIT_HORIZONTAL,
-                   WM_OP_INVOKE_DEFAULT,
+                   blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   /* store initial mouse cursor position. */
   RNA_int_set_array(&ptr, "cursor", event->xy);
@@ -4629,7 +4658,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
                        ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? IFACE_("Join Up") :
                                                                IFACE_("Join Right"),
                        ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? ICON_AREA_JOIN_UP : ICON_AREA_JOIN,
-                       WM_OP_EXEC_DEFAULT,
+                       blender::wm::OpCallContext::ExecDefault,
                        UI_ITEM_NONE);
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
@@ -4638,7 +4667,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
           "SCREEN_OT_area_join",
           ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? IFACE_("Join Down") : IFACE_("Join Left"),
           ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? ICON_AREA_JOIN_DOWN : ICON_AREA_JOIN_LEFT,
-          WM_OP_EXEC_DEFAULT,
+          blender::wm::OpCallContext::ExecDefault,
           UI_ITEM_NONE);
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
@@ -4652,7 +4681,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
     ptr = layout->op("SCREEN_OT_area_swap",
                      IFACE_("Swap Areas"),
                      ICON_AREA_SWAP,
-                     WM_OP_EXEC_DEFAULT,
+                     blender::wm::OpCallContext::ExecDefault,
                      UI_ITEM_NONE);
     RNA_int_set_array(&ptr, "cursor", event->xy);
   }
@@ -5208,7 +5237,7 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
   ptr = layout->op("SCREEN_OT_area_join",
                    IFACE_("Move/Split Area"),
                    ICON_AREA_DOCK,
-                   WM_OP_INVOKE_DEFAULT,
+                   blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
 
   layout->separator();
@@ -5219,9 +5248,9 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
 
   if (area->spacetype != SPACE_FILE && !area->full) {
     ptr = layout->op("SCREEN_OT_screen_full_area",
-                     IFACE_("Full Screen Area"),
+                     IFACE_("Focus Mode"),
                      ICON_NONE,
-                     WM_OP_INVOKE_DEFAULT,
+                     blender::wm::OpCallContext::InvokeDefault,
                      UI_ITEM_NONE);
     RNA_boolean_set(&ptr, "use_hide_panels", true);
   }
@@ -5287,8 +5316,8 @@ void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*
                              region_alignment == RGN_ALIGN_BOTTOM ? IFACE_("Flip to Top") :
                                                                     IFACE_("Flip to Bottom");
 
-  /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  /* default is blender::wm::OpCallContext::InvokeRegionWin, which we don't want here. */
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
   layout->op("SCREEN_OT_region_flip", but_flip_str, ICON_NONE);
 }
@@ -5338,8 +5367,9 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
       uiLayout *layout = UI_popup_menu_layout(pup);
 
-      /* We need WM_OP_INVOKE_DEFAULT in case menu item is over another area. */
-      layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+      /* We need blender::wm::OpCallContext::InvokeDefault in case menu item is over another area.
+       */
+      layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
       layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 
       ED_screens_region_flip_menu_create(C, layout, nullptr);
@@ -6844,6 +6874,44 @@ static void blend_file_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop
   RNA_string_set(drop->ptr, "filepath", WM_drag_get_single_path(drag));
 }
 
+static bool screen_drop_scene_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
+{
+  /* Make sure we're dropping the scene outside the asset browser. */
+  SpaceFile *sfile = CTX_wm_space_file(C);
+  if (sfile && ED_fileselect_is_asset_browser(sfile)) {
+    return false;
+  }
+  return WM_drag_is_ID_type(drag, ID_SCE);
+}
+
+static void screen_drop_scene_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
+{
+  ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, ID_SCE);
+  BLI_assert(id);
+  RNA_int_set(drop->ptr, "session_uid", int(id->session_uid));
+}
+
+static std::string screen_drop_scene_tooltip(bContext * /*C*/,
+                                             wmDrag *drag,
+                                             const int /*xy*/
+                                                 [2],
+                                             wmDropBox * /*drop*/)
+{
+  const char *dragged_scene_name = WM_drag_get_item_name(drag);
+  wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, ID_SCE);
+  if (asset_drag) {
+    switch (asset_drag->import_settings.method) {
+      case ASSET_IMPORT_LINK:
+        return fmt::format(fmt::runtime(TIP_("Link {}")), dragged_scene_name);
+      case ASSET_IMPORT_APPEND:
+        return fmt::format(fmt::runtime(TIP_("Append {}")), dragged_scene_name);
+      case ASSET_IMPORT_APPEND_REUSE:
+        return fmt::format(fmt::runtime(TIP_("Append (Reuse) {}")), dragged_scene_name);
+    }
+  }
+  return fmt::format(fmt::runtime(TIP_("Set {} as active")), dragged_scene_name);
+}
+
 void ED_keymap_screen(wmKeyConfig *keyconf)
 {
   /* Screen Editing ------------------------------------------------ */
@@ -6860,6 +6928,12 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
   WM_dropbox_add(
       lb, "WM_OT_drop_blend_file", blend_file_drop_poll, blend_file_drop_copy, nullptr, nullptr);
   WM_dropbox_add(lb, "UI_OT_drop_color", UI_drop_color_poll, UI_drop_color_copy, nullptr, nullptr);
+  WM_dropbox_add(lb,
+                 "SCENE_OT_drop_scene_asset",
+                 screen_drop_scene_poll,
+                 screen_drop_scene_copy,
+                 WM_drag_free_imported_drag_ID,
+                 screen_drop_scene_tooltip);
 
   keymap_modal_set(keyconf);
 }

@@ -706,11 +706,13 @@ bool ED_view3d_win_to_3d_on_plane_int(
  * \param zfac: The depth result typically calculated by #ED_view3d_calc_zfac
  * (see its doc-string for details).
  * \param r_out: The resulting world-space delta.
+ * \param precise: Use a more precise calculation but increases the cost of this function.
  */
 void ED_view3d_win_to_delta(const ARegion *region,
                             const float xy_delta[2],
                             float zfac,
-                            float r_out[3]);
+                            float r_out[3],
+                            bool precise = false);
 /**
  * Calculate a 3D origin from 2D window coordinates.
  * \note Orthographic views have a less obvious origin,
@@ -961,7 +963,7 @@ bool ED_view3d_depth_read_cached_seg(const ViewDepths *vd,
  * Returns viewport color in linear space, matching #ED_space_node_color_sample().
  */
 class ViewportColorSampleSession {
-  GPUTexture *tex = nullptr;
+  blender::gpu::Texture *tex = nullptr;
   blender::ushort4 *data = nullptr;
   int tex_w, tex_h;
   rcti valid_rect;

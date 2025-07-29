@@ -10,7 +10,7 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_sequence_types.h"
 
@@ -71,7 +71,7 @@ Scene *ED_scene_sequencer_add(Main *bmain,
                               const bool assign_strip)
 {
   Strip *strip = nullptr;
-  Scene *scene_active = CTX_data_scene(C);
+  Scene *scene_active = CTX_data_sequencer_scene(C);
   Scene *scene_strip = nullptr;
   /* Sequencer need to use as base the scene defined in the strip, not the main scene. */
   Editing *ed = scene_active->ed;
@@ -221,7 +221,7 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     if (win->scene == scene && STREQ(win->view_layer_name, layer->name)) {
       ViewLayer *first_layer = BKE_view_layer_default_view(scene);
-      STRNCPY(win->view_layer_name, first_layer->name);
+      STRNCPY_UTF8(win->view_layer_name, first_layer->name);
     }
   }
 
@@ -309,7 +309,7 @@ static wmOperatorStatus scene_new_sequencer_exec(bContext *C, wmOperator *op)
 
 static bool scene_new_sequencer_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   const Strip *strip = blender::seq::select_active_get(scene);
   return (strip && (strip->type == STRIP_TYPE_SCENE));
 }
@@ -332,7 +332,7 @@ static const EnumPropertyItem *scene_new_sequencer_enum_itemf(bContext *C,
     has_scene_or_no_context = true;
   }
   else {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(C);
     Strip *strip = blender::seq::select_active_get(scene);
     if (strip && (strip->type == STRIP_TYPE_SCENE) && (strip->scene != nullptr)) {
       has_scene_or_no_context = true;
@@ -422,6 +422,45 @@ static void SCENE_OT_delete(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Drop Scene Asset
+ * \{ */
+
+static wmOperatorStatus drop_scene_asset_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene_asset = reinterpret_cast<Scene *>(
+      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op->ptr, ID_SCE));
+  if (!scene_asset) {
+    return OPERATOR_CANCELLED;
+  }
+
+  wmWindow *win = CTX_wm_window(C);
+  WM_window_set_active_scene(bmain, C, win, scene_asset);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SCENEBROWSE, scene_asset);
+
+  return OPERATOR_FINISHED;
+}
+
+static void SCENE_OT_drop_scene_asset(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Drop Scene";
+  ot->description = "Import scene and set it as the active one in the window";
+  ot->idname = "SCENE_OT_drop_scene_asset";
+
+  /* callbacks */
+  ot->exec = drop_scene_asset_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  WM_operator_properties_id_lookup(ot, false);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Registration
  * \{ */
 
@@ -430,6 +469,8 @@ void ED_operatortypes_scene()
   WM_operatortype_append(SCENE_OT_new);
   WM_operatortype_append(SCENE_OT_delete);
   WM_operatortype_append(SCENE_OT_new_sequencer);
+
+  WM_operatortype_append(SCENE_OT_drop_scene_asset);
 }
 
 /** \} */
