@@ -2397,7 +2397,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 void SEQUENCER_OT_select_circle(wmOperatorType *ot)
 {
   ot->name = "Circle Select";
-  ot->description = "Select items using circle selection";
+  ot->description = "Select strips using circle selection";
   ot->idname = "SEQUENCER_OT_select_circle";
 
   ot->invoke = WM_gesture_circle_invoke;
