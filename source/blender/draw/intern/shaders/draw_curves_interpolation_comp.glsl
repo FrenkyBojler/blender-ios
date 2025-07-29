@@ -208,23 +208,23 @@ void interpolate_to_evaluated_rational(const IndexRange points,
   const int order = int(gpu_attr_load_uchar(curves_order_buf, curve_index));
 
   const int basis_cache_start = basis_cache_offset_buf[curve_index];
-  const bool invalid = floatBitsToInt(basis_cache_buf[basis_cache_start]) != 0;
-  const IndexRange start_indices_range = IndexRange(basis_cache_start + 1, evaluated_points.size);
-  const IndexRange weights_range = IndexRange(basis_cache_start + 1 + evaluated_points.size,
-                                              evaluated_points.size * order);
+  const bool invalid = basis_cache_start < 0;
 
   if (invalid) {
     copy_curve_data(points, evaluated_points);
     return;
   }
 
+  const int start_indices_range_start = basis_cache_start;
+  const int weights_range_start = basis_cache_start + evaluated_points.size;
+
   for (int i = 0; i < evaluated_points.size; i++) {
     /* Equivalent to `attribute_math::DefaultMixer<T> mixer{dst}`. */
     evaluated_positions_radii_buf[evaluated_points.start + i] = float4(0.0f);
     float total_weight = 0.0f;
 
-    const IndexRange point_weights = slice(weights_range, IndexRange(i * order, order));
-    const int start_index = floatBitsToInt(basis_cache_buf[start_indices_range.start + i]);
+    const IndexRange point_weights = IndexRange(weights_range_start + i * order, order);
+    const int start_index = floatBitsToInt(basis_cache_buf[start_indices_range_start + i]);
 
     for (int j = 0; j < point_weights.size; j++) {
       const int point_index = points.start + (start_index + j) % points.size;

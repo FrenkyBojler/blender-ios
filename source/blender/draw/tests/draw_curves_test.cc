@@ -650,8 +650,7 @@ static void test_draw_curves_interpolate_position()
   Vector<int> basis_cache_offset;
   Vector<uint32_t> basis_cache_packed;
   {
-    basis_cache_offset.append(basis_cache_packed.size());
-    basis_cache_packed.append(basis_cache_c0.invalid);
+    basis_cache_offset.append(basis_cache_c0.invalid ? -1 : basis_cache_packed.size());
     basis_cache_packed.extend(
         Span{reinterpret_cast<const uint32_t *>(basis_cache_c0.start_indices.data()),
              basis_cache_c0.start_indices.size()});
@@ -659,8 +658,7 @@ static void test_draw_curves_interpolate_position()
         Span{reinterpret_cast<const uint32_t *>(basis_cache_c0.weights.data()),
              basis_cache_c0.weights.size()});
 
-    basis_cache_offset.append(basis_cache_packed.size());
-    basis_cache_packed.append(basis_cache_c1.invalid);
+    basis_cache_offset.append(basis_cache_c1.invalid ? -1 : basis_cache_packed.size());
     basis_cache_packed.extend(
         Span{reinterpret_cast<const uint32_t *>(basis_cache_c1.start_indices.data()),
              basis_cache_c1.start_indices.size()});
