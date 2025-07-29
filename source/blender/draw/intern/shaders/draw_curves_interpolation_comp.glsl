@@ -60,11 +60,6 @@ template float2 mix4<float2>(float2, float2, float2, float2, float4);
 template float3 mix4<float3>(float3, float3, float3, float3, float4);
 template float4 mix4<float4>(float4, float4, float4, float4, float4);
 
-struct EvaluatedPoint {
-  float3 position;
-  float radius;
-};
-
 namespace catmull_rom {
 
 float4 calculate_basis(const float parameter)
@@ -85,29 +80,22 @@ int4 get_points(uint point_id, IndexRange points)
       int(points.start) + point_ids, int4(points.start), int4(points.start + points.size - 1));
 }
 
-float4 get_weights(float parameter)
+float3 get_evaluated_position(const int4 point_ids, const float4 weights)
 {
-  return catmull_rom::calculate_basis(parameter);
-}
-
-EvaluatedPoint get_evaluated_point(uint point_id, IndexRange points, float parameter)
-{
-  const int4 point_ids = get_points(point_id, points);
   const float3 pos_0 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.x);
   const float3 pos_1 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.y);
   const float3 pos_2 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.z);
   const float3 pos_3 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.w);
+  return mix4(pos_0, pos_1, pos_2, pos_3, weights);
+}
 
+float get_evaluated_radius(const int4 point_ids, const float4 weights)
+{
   const float rad_0 = radii_buf[point_ids.x];
   const float rad_1 = radii_buf[point_ids.y];
   const float rad_2 = radii_buf[point_ids.z];
   const float rad_3 = radii_buf[point_ids.w];
-
-  EvaluatedPoint pt;
-  const float4 weights = get_weights(parameter);
-  pt.position = mix4(pos_0, pos_1, pos_2, pos_3, weights);
-  pt.radius = mix4(rad_0, rad_1, rad_2, rad_3, weights);
-  return pt;
+  return mix4(rad_0, rad_1, rad_2, rad_3, weights);
 }
 
 void evaluate_curve(IndexRange points, IndexRange evaluated_points, int curve_index)
@@ -118,9 +106,12 @@ void evaluate_curve(IndexRange points, IndexRange evaluated_points, int curve_in
     const uint evaluated_point_id = evaluated_points.start + i;
     const uint point_id = i / curve_resolution;
     const float parameter = float(i % curve_resolution) / float(curve_resolution);
+    const float4 weights = calculate_basis(parameter);
+    const int4 point_ids = get_points(point_id, points);
 
-    EvaluatedPoint pt = get_evaluated_point(point_id, points, parameter);
-    evaluated_positions_radii_buf[evaluated_point_id] = float4(pt.position, pt.radius);
+    float3 position = get_evaluated_position(point_ids, weights);
+    float radius = get_evaluated_radius(point_ids, weights);
+    evaluated_positions_radii_buf[evaluated_point_id] = float4(position, radius);
   }
 }
 
