@@ -6,6 +6,7 @@
 #include "BLI_generic_key.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
+#include "DNA_mesh_types.h"
 #include "NOD_geometry_nodes_behaviors_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
@@ -20,6 +21,7 @@
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
@@ -362,7 +364,19 @@ static JPH::ShapeSettings::ShapeResult make_collision_shape(const CollisionShape
       return cache.get_or_create_sphere(radius);
     }
     case CollisionShapeType::ConvexHull: {
-      return {};
+      Vector<JPH::Vec3, 0, GuardedAlignedAllocator<>> points;
+      if (const Mesh *mesh = geometry.get_mesh()) {
+        points.reserve(points.size() + mesh->verts_num);
+        const Span<float3> positions = mesh->vert_positions();
+        for (const int i : positions.index_range()) {
+          points.append(convert_vec3(positions[i] * scale));
+        }
+      }
+      if (points.is_empty()) {
+        return {};
+      }
+      JPH::ConvexHullShapeSettings hull_settings(points.data(), points.size(), 0.0f);
+      return hull_settings.Create();
     }
   }
   BLI_assert_unreachable();
@@ -545,6 +559,9 @@ struct JoltStartupAndExit {
       return MEM_mallocN_aligned(size, 16, func);
     };
     JPH::Reallocate = [](void *mem, size_t /*old_size*/, size_t new_size) {
+      if (mem == nullptr) {
+        return JPH::Allocate(new_size);
+      }
       return MEM_reallocN_id(mem, new_size, func);
     };
     JPH::Free = [](void *mem) { MEM_freeN(mem); };
