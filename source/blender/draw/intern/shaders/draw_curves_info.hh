@@ -75,6 +75,8 @@ STORAGE_BUF(10, read_write, uint, evaluated_uint_attr_buf[])
 PUSH_CONSTANT(int, curves_count)
 PUSH_CONSTANT(bool, compute_length_and_time)
 SPECIALIZATION_CONSTANT(int, evaluated_type, 0)
+/* Disable length computation. */
+SPECIALIZATION_CONSTANT(bool, compute_length_and_time, false)
 COMPUTE_SOURCE("draw_curves_interpolation_comp.glsl")
 // DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()

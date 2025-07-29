@@ -188,7 +188,7 @@ void linear_interpolation(const int2 points, const IndexRange result)
   COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_attribute)
   const float a = buffer_get(draw_curves_interpolate_attribute, float_attr_buf)[points.x];
   const float b = buffer_get(draw_curves_interpolate_attribute, float_attr_buf)[points.y];
-  auto &evaluated_float_attr = buffer_get(draw_curves_interpolate_position,
+  auto &evaluated_float_attr = buffer_get(draw_curves_interpolate_attribute,
                                           evaluated_float_attr_buf);
 
   const float step = 1.0f / float(result.size);
@@ -218,11 +218,17 @@ void evaluate_curve(const IndexRange points,
 
 void copy_curve_data(const IndexRange points, const IndexRange evaluated_points)
 {
+  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_attribute)
+  const auto &positions = buffer_get(draw_curves_interpolate_position, positions_buf);
+  const auto &radii = buffer_get(draw_curves_interpolate_position, radii_buf);
+  auto &evaluated_positions_radii = buffer_get(draw_curves_interpolate_position,
+                                               evaluated_positions_radii_buf);
+
   assert(points.size == evaluated_points.size);
   for (int i = 0; i < points.size; i++) {
-    float3 position = gpu_attr_load_float3(positions_buf, int2(3, 0), points.start + i);
-    float radius = radii_buf[points.start + i];
-    evaluated_positions_radii_buf[evaluated_points.start + i] = float4(position, radius);
+    float3 position = gpu_attr_load_float3(positions, int2(3, 0), points.start + i);
+    float radius = radii[points.start + i];
+    evaluated_positions_radii[evaluated_points.start + i] = float4(position, radius);
   }
 }
 
@@ -289,6 +295,30 @@ void evaluate_curve(const IndexRange points, const IndexRange evaluated_points, 
 
 }  // namespace nurbs
 
+/* Run on the evaluated position and compute the intercept time with the curve and the total curve
+ * length. */
+void evaluate_length_and_time(const IndexRange evaluated_points, const int curve_index)
+{
+  auto &evaluated_positions_radii = buffer_get(draw_curves_interpolate_position,
+                                               evaluated_positions_radii_buf);
+  auto &evaluated_time = buffer_get(draw_curves_interpolate_position, evaluated_time_buf);
+  auto &curves_length = buffer_get(draw_curves_interpolate_position, curves_length_buf);
+
+  float distance_along_curve = 0.0f;
+  evaluated_time[0] = 0.0f;
+  for (int i = 1; i < evaluated_points.size; i++) {
+    int p = evaluated_points.start + i;
+    distance_along_curve += distance(evaluated_positions_radii[p].xyz,
+                                     evaluated_positions_radii[p - 1].xyz);
+    evaluated_time[p] = distance_along_curve;
+  }
+  for (int i = 1; i < evaluated_points.size; i++) {
+    int p = evaluated_points.start + i;
+    evaluated_time[p] /= distance_along_curve;
+  }
+  curves_length[curve_index] = distance_along_curve;
+}
+
 void main()
 {
   int curve_index = int(gl_GlobalInvocationID.x);
@@ -319,18 +349,6 @@ void main()
   }
 
   if (compute_length_and_time) {
-    float distance_along_curve = 0.0f;
-    evaluated_time_buf[0] = 0.0f;
-    for (int i = 1; i < evaluated_points.size; i++) {
-      int p = evaluated_points.start + i;
-      distance_along_curve += distance(evaluated_positions_radii_buf[p].xyz,
-                                       evaluated_positions_radii_buf[p - 1].xyz);
-      evaluated_time_buf[p] = distance_along_curve;
-    }
-    curves_length_buf[curve_index] = distance_along_curve;
-    for (int i = 1; i < evaluated_points.size; i++) {
-      int p = evaluated_points.start + i;
-      evaluated_time_buf[p] /= distance_along_curve;
-    }
+    evaluate_length_and_time(evaluated_points, curve_index);
   }
 }
