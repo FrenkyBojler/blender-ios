@@ -6,20 +6,40 @@
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
-/* Returns a random position along the path between the texel and the source, which is
- * essentially a random value in the [0, steps] range to perform a quasi-monte carlo sampling.
- * The random values are generated using a low discrepancy quasirandom sequence based on the
- * following article:
+/* Generates a low-discrepancy quasirandom value in the [0, 1) range using the R1 sequence.
+ *
+ * This implementation is based on the quasirandom sequence described in:
  *
  *   "The Unreasonable Effectiveness of Quasirandom Sequences." Extreme Learning, 2021.
- *   https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences.
+ *   https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences
  *
- * If jitter is not enabled, returns the i value instead. */
-float get_position(int2 texel, int i, int steps)
+ * Additionally, it incorporates the enhancement proposed in:
+ *
+ *   "A Better R2 Sequence." Marty's Mods, 2022.
+ *   https://www.martysmods.com/a-better-r2-sequence
+ *
+ * The sequence uses a hashed per-texel toroidal combined with a scaled irrational increment
+ * derived from the golden ratio to ensure well-distributed, non-repeating samples.
+ * The improved formulation significantly extends usable index range under floating-point
+ * precision constraints while preserving the low-discrepancy property.
+ */
+float r1_low_discrepancy_sequence(const int2 texel, const int i)
+{
+  float golden_ratio = 1.618034;
+  return float(1.0f -
+               fract(-hash_uint2_to_float(texel.x, texel.y) + (1.0f - 1.0f / golden_ratio) * i));
+}
+
+/* Returns an index for a position along the path between the texel and the source.
+ *
+ * If jitter is enabled, the position index is determined using a low-discrepancy
+ * quasirandom sequence to perform quasi-Monte Carlo sampling over the range [0, steps].
+ * Otherwise, it returns the integer index `i` directly.
+ */
+float get_sample_position(int2 texel, int i, int steps)
 {
 #if defined(JITTER)
-  double golden_ratio = 1.6180339887498948482;
-  return float(fract(hash_uint2_to_float(texel.x, texel.y) + 1.0 / golden_ratio * i) * steps);
+  return r1_low_discrepancy_sequence(texel, i) * steps;
 #else
   return i;
 #endif
@@ -48,13 +68,13 @@ void main()
   float4 accumulated_color = float4(0.0f);
 
 #if defined(JITTER)
-  int number_of_steps = int(jitter_steps_ratio * steps);
+  int number_of_steps = int((1.0f - jitter_factor) * steps);
 #else
   int number_of_steps = steps;
 #endif
 
   for (int i = 0; i <= number_of_steps; i++) {
-    float position_index = get_position(texel, i, steps);
+    float position_index = get_sample_position(texel, i, steps);
     float2 position = coordinates + position_index * step_vector;
 
     /* We are already past the image boundaries, if the jetter was activated then we have to

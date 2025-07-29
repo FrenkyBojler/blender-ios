@@ -172,21 +172,15 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
-  PanelDeclarationBuilder &jitter_panel = glare_panel.add_panel("Jitter").default_closed(true);
-  jitter_panel.add_input<decl::Bool>("Jitter", "Sun Beams Jitter")
-      .default_value(false)
-      .panel_toggle()
-      .description(
-          "Introduces jitter for a faster approximation at the expense a more grainy or noisy "
-          "result");
-  jitter_panel.add_input<decl::Float>("Jitter Steps Ratio", "Jitter Ratio Of Steps")
+  glare_panel.add_input<decl::Float>("Jitter Factor")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0)
       .subtype(PROP_FACTOR)
       .description(
-          "Defines the ratio of steps wrt the number of original steps to be used to generate the "
-          "jitter effect");
+          "Defines the inverted ratio of steps relative to the original number of steps used to "
+          "generate the jitter effect. When set to 0, jitter is fully disabled; when greater than "
+          "0, jitter is applied proportionally");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -239,11 +233,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
   blender::bke::node_set_socket_availability(
       *ntree, *source_input, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 
-  bNodeSocket *jitter = bke::node_find_socket(*node, SOCK_IN, "Sun Beams Jitter");
-  blender::bke::node_set_socket_availability(
-      *ntree, *jitter, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
-
-  bNodeSocket *jitter_steps = bke::node_find_socket(*node, SOCK_IN, "Jitter Ratio Of Steps");
+  bNodeSocket *jitter_steps = bke::node_find_socket(*node, SOCK_IN, "Jitter Factor");
   blender::bke::node_set_socket_availability(
       *ntree, *jitter_steps, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 }
@@ -2275,7 +2265,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2fv(shader, "source", this->get_sun_position());
-    GPU_shader_uniform_1f(shader, "jitter_steps_ratio", this->get_jitter_steps_ratio());
+    GPU_shader_uniform_1f(shader, "jitter_factor", this->get_jitter_factor());
     GPU_shader_uniform_1i(shader, "max_steps", max_steps);
 
     GPU_texture_filter_mode(highlights, true);
@@ -2330,10 +2320,10 @@ class GlareOperation : public NodeOperation {
       float accumulated_weight = 0.0f;
       float4 accumulated_color = float4(0.0f);
 
-      int number_of_steps = this->get_use_jitter() ? this->get_jitter_steps_ratio() * steps :
+      int number_of_steps = this->get_use_jitter() ? (1.0f - this->get_jitter_factor()) * steps :
                                                      steps;
       for (int i = 0; i <= number_of_steps; i++) {
-        float position_index = this->get_position(texel, i, this->get_use_jitter(), steps);
+        float position_index = this->get_sample_position(texel, i, this->get_use_jitter(), steps);
         float2 position = coordinates + position_index * step_vector;
 
         /* We are already past the image boundaries, if the jetter was activated then we have to
@@ -2362,22 +2352,42 @@ class GlareOperation : public NodeOperation {
     return output;
   }
 
-  /* Returns a random position along the path between the texel and the source, which is
-   * essentially a random value in the [0, steps] range to perform a quasi-monte carlo sampling.
-   * The random values are generated using a low discrepancy quasirandom sequence based on the
-   * following article:
+  /* Returns an index for a position along the path between the texel and the source.
    *
-   *   "The Unreasonable Effectiveness of Quasirandom Sequences." Extreme Learning, 2021.
-   *   https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences.
-   *
-   * If jitter is not enabled, returns the i value instead. */
-  float get_position(const int2 texel, const int i, const bool use_jitter, const int steps)
+   * If jitter is enabled, the position index is determined using a low-discrepancy
+   * quasirandom sequence to perform quasi-Monte Carlo sampling over the range [0, steps].
+   * Otherwise, it returns the integer index `i` directly.
+   */
+  float get_sample_position(const int2 texel, const int i, const bool use_jitter, const int steps)
   {
     if (use_jitter) {
-      double golden_ratio = 1.6180339887498948482;
-      return math::fract(noise::hash_to_float(texel.x, texel.y) + 1.0 / golden_ratio * i) * steps;
+      return this->r1_low_discrepancy_sequence(texel, i) * steps;
     }
     return i;
+  }
+
+  /* Generates a low-discrepancy quasirandom value in the [0, 1) range using the R1 sequence.
+   *
+   * This implementation is based on the quasirandom sequence described in:
+   *
+   *   "The Unreasonable Effectiveness of Quasirandom Sequences." Extreme Learning, 2021.
+   *   https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences
+   *
+   * Additionally, it incorporates the enhancement proposed in:
+   *
+   *   "A Better R2 Sequence." Marty's Mods, 2022.
+   *   https://www.martysmods.com/a-better-r2-sequence
+   *
+   * The sequence uses a hashed per-texel toroidal combined with a scaled irrational increment
+   * derived from the golden ratio to ensure well-distributed, non-repeating samples.
+   * The improved formulation significantly extends usable index range under floating-point
+   * precision constraints while preserving the low-discrepancy property.
+   */
+  float r1_low_discrepancy_sequence(const int2 texel, const int i)
+  {
+    float golden_ratio = 1.618034;
+    return 1.0f -
+           math::fract(-noise::hash_to_float(texel.x, texel.y) + (1.0f - 1.0f / golden_ratio) * i);
   }
 
   /* ----------
@@ -2623,12 +2633,12 @@ class GlareOperation : public NodeOperation {
 
   bool get_use_jitter()
   {
-    return this->get_input("Sun Beams Jitter").get_single_value_default(false);
+    return this->get_jitter_factor() > 1e-9f;
   }
 
-  float get_jitter_steps_ratio()
+  float get_jitter_factor()
   {
-    return this->get_input("Jitter Ratio Of Steps").get_single_value_default(0.5f);
+    return this->get_input("Jitter Factor").get_single_value_default(0.5f);
   }
 };
 
