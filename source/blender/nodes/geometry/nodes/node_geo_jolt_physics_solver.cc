@@ -2,7 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_geometry_nodes_behaviors_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+
 #include "node_geometry_util.hh"
 
 #include "Jolt/Jolt.h"
@@ -132,6 +134,62 @@ struct JoltState {
   JPH::PhysicsSystem system;
 };
 
+struct RigidBodiesBehaviors {
+  std::string self_path;
+  GeometrySet geometry;
+};
+
+struct JoltBehaviors {
+  Vector<RigidBodiesBehaviors> rigid_bodies;
+};
+
+struct ParseBehaviorParams {
+  const Span<StringRef> path_elems;
+  const Bundle &bundle;
+  JoltBehaviors &r_behaviors;
+
+  std::string self_path() const
+  {
+    return Bundle::combine_path(this->path_elems);
+  }
+};
+
+using ParseBehaviorFn = std::function<void(ParseBehaviorParams &params)>;
+
+static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
+{
+  std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
+  if (!geometry) {
+    return;
+  }
+  RigidBodiesBehaviors rigid_bodies_behaviors;
+  rigid_bodies_behaviors.self_path = params.self_path();
+  rigid_bodies_behaviors.geometry = *geometry;
+  params.r_behaviors.rigid_bodies.append(std::move(rigid_bodies_behaviors));
+}
+
+static Map<std::string, ParseBehaviorFn> build_behavior_parsers()
+{
+  Map<std::string, ParseBehaviorFn> behavior_parsers;
+  behavior_parsers.add_new("Rigid Bodies", parse_behavior__rigid_bodies);
+  return behavior_parsers;
+}
+
+static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
+{
+  JoltBehaviors behaviors;
+  static Map<std::string, ParseBehaviorFn> behavior_parsers = build_behavior_parsers();
+  behaviors::foreach_behavior_in_bundle(
+      behaviors_bundle,
+      [&](const StringRef type, const Bundle &behaviors_bundle, const Span<StringRef> path) {
+        if (const ParseBehaviorFn *parse = behavior_parsers.lookup_ptr_as(type)) {
+          ParseBehaviorParams params{path, behaviors_bundle, behaviors};
+          (*parse)(params);
+        }
+      });
+  return behaviors;
+}
+
 class JoltStateOwner : public BundleItemInternalValueMixin {
  public:
   mutable Mutex mutex;
@@ -234,12 +292,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     state.is_initialized = true;
   }
 
+  JoltBehaviors behaviors = parse_behaviors(*behavior_bundle);
+
   {
     JPH::TempAllocatorImpl temp_allocator(10 * 1024 * 1024);
     /* TODO: Integrate with TBB. */
     JPH::JobSystemThreadPool job_system(
         JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1);
-    const int collision_steps = 1;
+    const int collision_steps = sub_steps;
     state.system.Update(delta_time, collision_steps, &temp_allocator, &job_system);
   }
 
