@@ -2432,6 +2432,8 @@ static void rna_VertexWeightProximityModifier_proximity_geometry_set(PointerRNA 
   WeightVGProximityModifierData *wpmd = reinterpret_cast<WeightVGProximityModifierData *>(
       ptr->data);
 
+  /* The geometry mode shares the `proximity_flags` variable with a few other boolean properties,
+   * setting the mode value this way ensures only relevant bits are changed. */
   wpmd->proximity_flags = (wpmd->proximity_flags & (~MOD_WVG_PROXIMITY_GEOM_ALL)) |
                           (value & MOD_WVG_PROXIMITY_GEOM_ALL);
 }
