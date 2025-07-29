@@ -165,9 +165,8 @@ static std::optional<CollisionShapeType> parse_collision_shape_type(const int ty
       return CollisionShapeType::Sphere;
     case 2:
       return CollisionShapeType::ConvexHull;
-    default:
-      return std::nullopt;
   }
+  return std::nullopt;
 }
 
 static std::optional<JPH::EMotionType> parse_motion_type(const int type)
@@ -192,6 +191,12 @@ struct JoltRigidBodies {
   Map<int, JoltRigidBody> bodies_by_id;
 };
 
+struct CollisionShapeParams {
+  const GeometrySet &geometry;
+  const float3 &scale;
+  const float density;
+};
+
 struct CollisionShapeCache {
   struct CachedShape {
     JPH::ShapeSettings::ShapeResult shape;
@@ -202,36 +207,39 @@ struct CollisionShapeCache {
 
   struct BoxID {
     float3 half_extent;
+    float density;
 
     uint64_t hash() const
     {
-      return get_default_hash(this->half_extent);
+      return get_default_hash(this->half_extent, this->density);
     }
 
-    BLI_STRUCT_EQUALITY_OPERATORS_1(BoxID, half_extent)
+    BLI_STRUCT_EQUALITY_OPERATORS_2(BoxID, half_extent, density)
   };
 
   struct SphereID {
     float radius;
+    float density;
 
     uint64_t hash() const
     {
-      return get_default_hash(this->radius);
+      return get_default_hash(this->radius, this->density);
     }
 
-    BLI_STRUCT_EQUALITY_OPERATORS_1(SphereID, radius)
+    BLI_STRUCT_EQUALITY_OPERATORS_2(SphereID, radius, density)
   };
 
   struct ConvexHullID {
     geometry::GeometryShapeHash shape_hash;
     float3 scale;
+    float density;
 
     uint64_t hash() const
     {
-      return get_default_hash(this->shape_hash, this->scale);
+      return get_default_hash(this->shape_hash, this->scale, this->density);
     }
 
-    BLI_STRUCT_EQUALITY_OPERATORS_2(ConvexHullID, shape_hash, scale)
+    BLI_STRUCT_EQUALITY_OPERATORS_3(ConvexHullID, shape_hash, scale, density)
   };
 
   Map<BoxID, CachedShape> boxes;
@@ -258,22 +266,26 @@ struct CollisionShapeCache {
     this->convex_hulls.remove_if([](const auto &item) { return !item.value.still_used; });
   }
 
-  JPH::ShapeSettings::ShapeResult get_or_create_box(const GeometrySet &geometry,
-                                                    const float3 &scale)
+  JPH::ShapeSettings::ShapeResult get_or_create_box(const CollisionShapeParams &params)
   {
-    const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(true);
+    const std::optional<Bounds<float3>> bounds =
+        params.geometry.compute_boundbox_without_instances(true);
     if (!bounds) {
       return {};
     }
-    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) * scale;
-    return this->get_or_create_box(half_extent);
+    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) *
+                               params.scale;
+    return this->get_or_create_box(half_extent, params.density);
   }
 
-  JPH::ShapeSettings::ShapeResult get_or_create_box(const float3 &half_extent)
+  JPH::ShapeSettings::ShapeResult get_or_create_box(const float3 &half_extent, const float density)
   {
-    const BoxID box_id{half_extent};
+    const BoxID box_id{half_extent, density};
     CachedShape &cached_shape = this->boxes.lookup_or_add_cb(box_id, [&]() {
       JPH::BoxShapeSettings box_shape_settings{convert_vec3(half_extent)};
+      box_shape_settings.mDensity = density;
+      const float min_axis = std::min({half_extent.x, half_extent.y, half_extent.z});
+      box_shape_settings.mConvexRadius = 0.5 * std::min(min_axis, 0.1f);
       return box_shape_settings.Create();
     });
     if (cached_shape.shape.IsValid()) {
@@ -282,23 +294,25 @@ struct CollisionShapeCache {
     return cached_shape.shape;
   }
 
-  JPH::ShapeSettings::ShapeResult get_or_create_sphere(const GeometrySet &geometry,
-                                                       const float3 &scale)
+  JPH::ShapeSettings::ShapeResult get_or_create_sphere(const CollisionShapeParams &params)
   {
-    const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(true);
+    const std::optional<Bounds<float3>> bounds =
+        params.geometry.compute_boundbox_without_instances(true);
     if (!bounds) {
       return {};
     }
-    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) * scale;
+    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) *
+                               params.scale;
     const float radius = std::max({half_extent.x, half_extent.y, half_extent.z});
-    return this->get_or_create_sphere(radius);
+    return this->get_or_create_sphere(radius, params.density);
   }
 
-  JPH::ShapeSettings::ShapeResult get_or_create_sphere(const float radius)
+  JPH::ShapeSettings::ShapeResult get_or_create_sphere(const float radius, const float density)
   {
-    const SphereID sphere_id{radius};
+    const SphereID sphere_id{radius, density};
     CachedShape &cached_shape = this->spheres.lookup_or_add_cb(sphere_id, [&]() {
       JPH::SphereShapeSettings sphere_shape_settings{radius};
+      sphere_shape_settings.mDensity = density;
       return sphere_shape_settings.Create();
     });
     if (cached_shape.shape.IsValid()) {
@@ -307,25 +321,25 @@ struct CollisionShapeCache {
     return cached_shape.shape;
   }
 
-  JPH::ShapeSettings::ShapeResult get_or_create_convex_hull(const GeometrySet &geometry,
-                                                            const float3 &scale)
+  JPH::ShapeSettings::ShapeResult get_or_create_convex_hull(const CollisionShapeParams &params)
   {
-    const auto shape_hash = geometry::GeometryShapeHash::from_geometry(geometry);
-    const ConvexHullID convex_hull_id{shape_hash, scale};
+    const auto shape_hash = geometry::GeometryShapeHash::from_geometry(params.geometry);
+    const ConvexHullID convex_hull_id{shape_hash, params.scale, params.density};
     CachedShape &cached_shape = this->convex_hulls.lookup_or_add_cb(
         convex_hull_id, [&]() -> CachedShape {
           Vector<JPH::Vec3, 0, GuardedAlignedAllocator<>> points;
-          if (const Mesh *mesh = geometry.get_mesh()) {
+          if (const Mesh *mesh = params.geometry.get_mesh()) {
             points.reserve(points.size() + mesh->verts_num);
             const Span<float3> positions = mesh->vert_positions();
             for (const int i : positions.index_range()) {
-              points.append(convert_vec3(positions[i] * scale));
+              points.append(convert_vec3(positions[i] * params.scale));
             }
           }
           if (points.is_empty()) {
             return {};
           }
           JPH::ConvexHullShapeSettings hull_settings(points.data(), points.size(), 0.0f);
+          hull_settings.mDensity = params.density;
           return hull_settings.Create();
         });
     if (cached_shape.shape.IsValid()) {
@@ -351,20 +365,34 @@ struct JoltState {
 
 struct RigidBodiesBehavior {
   std::string self_path;
-  GeometrySet geometry;
+  /** The raw geometry that was passed in that is not simulated. */
+  GeometrySet input_geometry;
+  /** The raw geometry that was passed in but the changes from the jolt state have been applied. */
+  GeometrySet simulated_geometry;
   Field<int> collision_shape_type_field;
   Field<int> motion_type_field;
   Field<float> friction_field;
   Field<float> bounciness_field;
+  Field<float> density_field;
+
+  void update_simulated(const JoltState &state);
 };
 
 struct GravityBehavior {
   float3 gravity;
 };
 
+struct ForceBehavior {
+  std::string self_path;
+  std::string filter;
+  Field<bool> selection_field;
+  Field<float3> force_field;
+};
+
 struct JoltBehaviors {
   Vector<RigidBodiesBehavior> rigid_bodies;
   Vector<GravityBehavior> gravities;
+  Vector<ForceBehavior> forces;
 };
 
 struct ParseBehaviorParams {
@@ -388,8 +416,9 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   std::optional<Field<int>> motion_type_field = params.bundle.lookup<Field<int>>("Motion Type");
   std::optional<Field<float>> friction_field = params.bundle.lookup<Field<float>>("Friction");
   std::optional<Field<float>> bounciness_field = params.bundle.lookup<Field<float>>("Bounciness");
+  std::optional<Field<float>> density_field = params.bundle.lookup<Field<float>>("Density");
   if (!geometry || !collision_shape_type_field || !motion_type_field || !friction_field ||
-      !bounciness_field)
+      !bounciness_field || !density_field)
   {
     return;
   }
@@ -397,11 +426,12 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
 
   RigidBodiesBehavior rigid_bodies_behaviors;
   rigid_bodies_behaviors.self_path = params.self_path();
-  rigid_bodies_behaviors.geometry = *geometry;
+  rigid_bodies_behaviors.input_geometry = *geometry;
   rigid_bodies_behaviors.collision_shape_type_field = *collision_shape_type_field;
   rigid_bodies_behaviors.motion_type_field = *motion_type_field;
   rigid_bodies_behaviors.friction_field = *friction_field;
   rigid_bodies_behaviors.bounciness_field = *bounciness_field;
+  rigid_bodies_behaviors.density_field = *density_field;
   params.r_behaviors.rigid_bodies.append(std::move(rigid_bodies_behaviors));
 }
 
@@ -416,11 +446,29 @@ static void parse_behavior__gravity(ParseBehaviorParams &params)
   params.r_behaviors.gravities.append(std::move(gravity_behavior));
 }
 
+static void parse_behavior__force(ParseBehaviorParams &params)
+{
+  const std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
+  const std::optional<Field<bool>> selection_field = params.bundle.lookup<Field<bool>>(
+      "Selection");
+  const std::optional<Field<float3>> force_field = params.bundle.lookup<Field<float3>>("Force");
+  if (!selection_field && !force_field) {
+    return;
+  }
+  ForceBehavior force_behavior;
+  force_behavior.self_path = params.self_path();
+  force_behavior.filter = filter;
+  force_behavior.selection_field = *selection_field;
+  force_behavior.force_field = *force_field;
+  params.r_behaviors.forces.append(std::move(force_behavior));
+}
+
 static Map<std::string, ParseBehaviorFn> build_behavior_parsers()
 {
   Map<std::string, ParseBehaviorFn> behavior_parsers;
   behavior_parsers.add_new("Rigid Bodies", parse_behavior__rigid_bodies);
   behavior_parsers.add_new("Gravity", parse_behavior__gravity);
+  behavior_parsers.add_new("Force", parse_behavior__force);
   return behavior_parsers;
 }
 
@@ -440,19 +488,18 @@ static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
 }
 
 static JPH::ShapeSettings::ShapeResult make_collision_shape(const CollisionShapeType type,
-                                                            const GeometrySet &geometry,
-                                                            const float3 &scale,
+                                                            const CollisionShapeParams &params,
                                                             CollisionShapeCache &cache)
 {
   switch (type) {
     case CollisionShapeType::Box: {
-      return cache.get_or_create_box(geometry, scale);
+      return cache.get_or_create_box(params);
     }
     case CollisionShapeType::Sphere: {
-      return cache.get_or_create_sphere(geometry, scale);
+      return cache.get_or_create_sphere(params);
     }
     case CollisionShapeType::ConvexHull: {
-      return cache.get_or_create_convex_hull(geometry, scale);
+      return cache.get_or_create_convex_hull(params);
     }
   }
   BLI_assert_unreachable();
@@ -465,7 +512,7 @@ static void handle_rigid_bodies_behavior(JoltState &state,
 {
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
 
-  const bke::Instances *instances = behavior.geometry.get_instances();
+  const bke::Instances *instances = behavior.simulated_geometry.get_instances();
   if (!instances) {
     return;
   }
@@ -482,11 +529,13 @@ static void handle_rigid_bodies_behavior(JoltState &state,
   field_evaluator.add(behavior.motion_type_field);
   field_evaluator.add(behavior.friction_field);
   field_evaluator.add(behavior.bounciness_field);
+  field_evaluator.add(behavior.density_field);
   field_evaluator.evaluate();
   const VArray<int> collision_shape_types = field_evaluator.get_evaluated<int>(0);
   const VArray<int> motion_types = field_evaluator.get_evaluated<int>(1);
   const VArray<float> frictions = field_evaluator.get_evaluated<float>(2);
   const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(3);
+  const VArray<float> densities = field_evaluator.get_evaluated<float>(4);
 
   Array<GeometrySet> reference_geometry_sets(references_num);
   for (const int i : references.index_range()) {
@@ -528,8 +577,11 @@ static void handle_rigid_bodies_behavior(JoltState &state,
     math::to_loc_rot_scale_safe<true>(
         instance_transform, instance_position, instance_rotation, instance_scale);
 
+    const float density = std::max(0.0f, densities[instance_i]);
+
+    const CollisionShapeParams collision_shape_params{reference_geometry, instance_scale, density};
     JPH::ShapeSettings::ShapeResult collision_shape = make_collision_shape(
-        *collision_shape_type, reference_geometry, instance_scale, state.collision_shape_cache);
+        *collision_shape_type, collision_shape_params, state.collision_shape_cache);
     if (!collision_shape.IsValid()) {
       continue;
     }
@@ -577,6 +629,53 @@ static void handle_rigid_bodies_behavior(JoltState &state,
   r_rigid_bodies_by_path.add(behavior.self_path, std::move(rigid_bodies));
 }
 
+static GeometrySet merge_simulation_data_into_behavior_geometry(
+    const RigidBodiesBehavior &behavior, const JoltState &state)
+{
+  GeometrySet geometry = behavior.input_geometry;
+  bke::Instances *instances = geometry.get_instances_for_write();
+  if (!instances) {
+    return geometry;
+  }
+
+  const JoltRigidBodies *rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(behavior.self_path);
+  if (!rigid_bodies) {
+    return geometry;
+  }
+
+  const int instances_num = instances->instances_num();
+  const Span<int> instance_ids = instances->almost_unique_ids();
+  MutableSpan<float4x4> transforms = instances->transforms_for_write();
+
+  for (const int instance_i : IndexRange(instances_num)) {
+    const int instance_id = instance_ids[instance_i];
+    const JoltRigidBody *rigid_body = rigid_bodies->bodies_by_id.lookup_ptr(instance_id);
+    if (!rigid_body) {
+      continue;
+    }
+    const JPH::Body &jolt_body = *rigid_body->body;
+
+    float4x4 &transform = transforms[instance_i];
+    const JPH::Vec3 jolt_position = jolt_body.GetPosition();
+    const JPH::Quat jolt_rotation = jolt_body.GetRotation();
+
+    const float3 position = convert_vec3(jolt_position);
+    const math::Quaternion rotation = convert_quat(jolt_rotation);
+
+    /* Scale is not simulated to Jolt, so keep the scale of the original geometry. */
+    const float3 scale = math::to_scale(transform);
+
+    transform = math::from_loc_rot_scale<float4x4>(position, rotation, scale);
+  }
+
+  return geometry;
+}
+
+void RigidBodiesBehavior::update_simulated(const JoltState &state)
+{
+  this->simulated_geometry = merge_simulation_data_into_behavior_geometry(*this, state);
+}
+
 static void update_gravity(const GeoNodeExecParams &params,
                            JoltState &state,
                            const JoltBehaviors &behaviors)
@@ -597,15 +696,70 @@ static void update_gravity(const GeoNodeExecParams &params,
   state.system.SetGravity(default_gravity);
 }
 
+static void update_forces(JoltState &state, const JoltBehaviors &behaviors)
+{
+  JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
+  for (const RigidBodiesBehavior &rigid_body_behavior : behaviors.rigid_bodies) {
+    Vector<const ForceBehavior *> used_forces;
+    for (const ForceBehavior &force_behavior : behaviors.forces) {
+      if (behaviors::behavior_path_is_selected(
+              force_behavior.self_path, force_behavior.filter, rigid_body_behavior.self_path))
+      {
+        used_forces.append(&force_behavior);
+      }
+    }
+    if (used_forces.is_empty()) {
+      continue;
+    }
+    JoltRigidBodies *rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(
+        rigid_body_behavior.self_path);
+    if (!rigid_bodies) {
+      continue;
+    }
+    const bke::Instances *instances = rigid_body_behavior.simulated_geometry.get_instances();
+    if (!instances) {
+      continue;
+    }
+    bke::InstancesFieldContext field_context{*instances};
+    fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
+    for (const ForceBehavior *force_behavior : used_forces) {
+      field_evaluator.add(force_behavior->force_field);
+    }
+    field_evaluator.evaluate();
+    Array<float3> force_sums(instances->instances_num(), float3(0.0f));
+    for (const int force_i : used_forces.index_range()) {
+      const VArray<float3> force = field_evaluator.get_evaluated<float3>(force_i);
+      for (const int i : force.index_range()) {
+        force_sums[i] += force[i];
+      }
+    }
+    const Span<int> instance_ids = instances->almost_unique_ids();
+    for (const int i : instance_ids.index_range()) {
+      const int instance_id = instance_ids[i];
+      const JoltRigidBody *rigid_body = rigid_bodies->bodies_by_id.lookup_ptr(instance_id);
+      if (!rigid_body) {
+        continue;
+      }
+      if (!rigid_body->body->IsDynamic()) {
+        continue;
+      }
+      const float3 force = force_sums[i];
+      body_interface.AddForce(rigid_body->body->GetID(), convert_vec3(force));
+    }
+  }
+}
+
 static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
                                              JoltState &state,
-                                             const JoltBehaviors &behaviors)
+                                             JoltBehaviors &behaviors)
 {
   state.collision_shape_cache.reset_used();
 
-  update_gravity(params, state, behaviors);
-
   Map<std::string, JoltRigidBodies> new_rigid_bodies_by_path;
+
+  for (RigidBodiesBehavior &rigid_bodies_behavior : behaviors.rigid_bodies) {
+    rigid_bodies_behavior.update_simulated(state);
+  }
 
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
 
@@ -625,6 +779,9 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
 
   state.rigid_bodies_by_path = std::move(new_rigid_bodies_by_path);
   state.collision_shape_cache.remove_unused();
+
+  update_gravity(params, state, behaviors);
+  update_forces(state, behaviors);
 }
 
 class JoltStateOwner : public BundleItemInternalValueMixin {
@@ -683,48 +840,6 @@ struct JoltStartupAndExit {
 static void ensure_initialize_jolt()
 {
   static JoltStartupAndExit jolt_startup_and_exit;
-}
-
-static GeometrySet merge_simulation_data_into_behavior_geometry(
-    const RigidBodiesBehavior &behavior, const JoltState &state)
-{
-  GeometrySet geometry = behavior.geometry;
-  bke::Instances *instances = geometry.get_instances_for_write();
-  if (!instances) {
-    return geometry;
-  }
-
-  const JoltRigidBodies *rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(behavior.self_path);
-  if (!rigid_bodies) {
-    return geometry;
-  }
-
-  const int instances_num = instances->instances_num();
-  const Span<int> instance_ids = instances->almost_unique_ids();
-  MutableSpan<float4x4> transforms = instances->transforms_for_write();
-
-  for (const int instance_i : IndexRange(instances_num)) {
-    const int instance_id = instance_ids[instance_i];
-    const JoltRigidBody *rigid_body = rigid_bodies->bodies_by_id.lookup_ptr(instance_id);
-    if (!rigid_body) {
-      continue;
-    }
-    const JPH::Body &jolt_body = *rigid_body->body;
-
-    float4x4 &transform = transforms[instance_i];
-    const JPH::Vec3 jolt_position = jolt_body.GetPosition();
-    const JPH::Quat jolt_rotation = jolt_body.GetRotation();
-
-    const float3 position = convert_vec3(jolt_position);
-    const math::Quaternion rotation = convert_quat(jolt_rotation);
-
-    /* Scale is not simulated to Jolt, so keep the scale of the original geometry. */
-    const float3 scale = math::to_scale(transform);
-
-    transform = math::from_loc_rot_scale<float4x4>(position, rotation, scale);
-  }
-
-  return geometry;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -792,10 +907,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
 
-  for (const RigidBodiesBehavior &rigid_bodies_behavior : behaviors.rigid_bodies) {
-    const GeometrySet geometry = merge_simulation_data_into_behavior_geometry(
-        rigid_bodies_behavior, state);
-    new_data_bundle.add_path_override(rigid_bodies_behavior.self_path + "/Instances", geometry);
+  for (RigidBodiesBehavior &rigid_bodies_behavior : behaviors.rigid_bodies) {
+    rigid_bodies_behavior.update_simulated(state);
+    new_data_bundle.add_path_override(rigid_bodies_behavior.self_path + "/Instances",
+                                      std::move(rigid_bodies_behavior.simulated_geometry));
   }
 
   new_data_bundle.add("_state", jolt_state_owner);
