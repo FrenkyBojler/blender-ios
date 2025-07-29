@@ -61,8 +61,15 @@ enum_filter_types = (
 )
 
 enum_curve_shape = (
-    ('RIBBONS', "Rounded Ribbons", "Render curves as flat ribbons with rounded normals, for fast rendering"),
-    ('THICK', "3D Curves", "Render curves as circular 3D geometry, for accurate results when viewing closely"),
+    ('RIBBONS',
+     "Rounded Ribbons",
+     "Render curves as flat ribbons with rounded normals, for fast rendering"),
+    ('THICK',
+     "3D Curves",
+     "Render curves as circular 3D geometry, for accurate results when viewing closely"),
+    ('THICK_LINEAR',
+     "Linear 3D Curves",
+     "Render curves as circular 3D geometry, with linear interpolation between control points, for fast rendering"),
 )
 
 enum_use_layer_samples = (
@@ -1811,7 +1818,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             col.label(text=rpt_("No compatible GPUs found for Cycles"), icon='INFO', translate=False)
 
             if device_type == 'CUDA':
-                compute_capability = "3.0"
+                compute_capability = "5.0"
                 col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
                           icon='BLANK1', translate=False)
             elif device_type == 'OPTIX':
