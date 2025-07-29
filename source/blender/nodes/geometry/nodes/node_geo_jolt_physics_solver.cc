@@ -577,7 +577,10 @@ static void handle_rigid_bodies_behavior(JoltState &state,
     math::to_loc_rot_scale_safe<true>(
         instance_transform, instance_position, instance_rotation, instance_scale);
 
-    const float density = std::max(0.0f, densities[instance_i]);
+    float density = densities[instance_i];
+    if (density <= 0.0f) {
+      density = 1.0f;
+    }
 
     const CollisionShapeParams collision_shape_params{reference_geometry, instance_scale, density};
     JPH::ShapeSettings::ShapeResult collision_shape = make_collision_shape(
