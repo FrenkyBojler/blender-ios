@@ -18,7 +18,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -440,7 +440,7 @@ static void draw_histogram(ARegion &region,
 
     /* Label. */
     char buf[10];
-    const size_t buf_len = SNPRINTF_RLEN(buf, "%.2f", val);
+    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.2f", val);
 
     float text_width, text_height;
     BLF_width_and_height(BLF_default(), buf, buf_len, &text_width, &text_height);
@@ -505,7 +505,7 @@ static void draw_waveform_graticule(ARegion *region, SeqQuadsBatch &quads, const
   for (int i = 0; i < 3; i++) {
     const float y = area.ymin + (area.ymax - area.ymin) * lines[i];
     char buf[10];
-    const size_t buf_len = SNPRINTF_RLEN(buf, "%.1f", lines[i]);
+    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.1f", lines[i]);
     quads.add_line(x0, y, x1, y, col_grid);
     UI_view2d_text_cache_add(&region->v2d, x0 + 8, y + 8, buf, buf_len, col_grid);
   }
@@ -839,11 +839,7 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
       }
       break;
     case SEQ_DRAW_IMG_HISTOGRAM: {
-      ImBuf *display_ibuf = IMB_dupImBuf(&ibuf);
-      IMB_colormanagement_imbuf_make_display_space(
-          display_ibuf, &view_settings, &display_settings);
-      scopes->histogram.calc_from_ibuf(display_ibuf);
-      IMB_freeImBuf(display_ibuf);
+      scopes->histogram.calc_from_ibuf(&ibuf, view_settings, display_settings);
     } break;
     case SEQ_DRAW_IMG_RGBPARADE:
       if (!scopes->sep_waveform_ibuf) {
