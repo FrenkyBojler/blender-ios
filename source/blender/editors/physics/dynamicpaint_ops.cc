@@ -11,7 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
@@ -316,7 +316,6 @@ static void dpaint_bake_endjob(void *customdata)
   dynamicPaint_freeSurfaceData(job->surface);
 
   G.is_rendering = false;
-  BKE_spacedata_draw_locks(false);
 
   WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
 
@@ -353,7 +352,7 @@ static void dynamicPaint_bakeImageSequence(DynamicPaintBakeJob *job)
 
   frames = surface->end_frame - surface->start_frame + 1;
   if (frames <= 0) {
-    STRNCPY(canvas->error, N_("No frames to bake"));
+    STRNCPY_UTF8(canvas->error, N_("No frames to bake"));
     return;
   }
 
@@ -445,7 +444,7 @@ static void dpaint_bake_startjob(void *customdata, wmJobWorkerStatus *worker_sta
    * scene frame in separate threads
    */
   G.is_rendering = true;
-  BKE_spacedata_draw_locks(true);
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
 
   dynamicPaint_bakeImageSequence(job);
 
@@ -506,7 +505,7 @@ static wmOperatorStatus dynamicpaint_bake_exec(bContext *C, wmOperator *op)
   WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, dpaint_bake_startjob, nullptr, nullptr, dpaint_bake_endjob);
 
-  WM_set_locked_interface(CTX_wm_manager(C), true);
+  WM_set_locked_interface_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
   /* Bake Dynamic Paint */
   WM_jobs_start(CTX_wm_manager(C), wm_job);

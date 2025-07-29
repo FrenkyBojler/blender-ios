@@ -7,7 +7,7 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -98,9 +98,9 @@ void file_tool_props_region_panels_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype file operator properties");
-  STRNCPY(pt->idname, "FILE_PT_operator");
-  STRNCPY(pt->label, N_("Operator"));
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "FILE_PT_operator");
+  STRNCPY_UTF8(pt->label, N_("Operator"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->flag = PANEL_TYPE_NO_HEADER;
   pt->poll = file_panel_operator_poll;
   pt->draw_header = file_panel_operator_header;
@@ -154,7 +154,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
   UI_block_func_set(block, file_draw_check_cb, nullptr, nullptr);
 
   but = uiDefButR(block,
-                  UI_BTYPE_TEXT,
+                  ButType::Text,
                   -1,
                   "",
                   0,
@@ -178,10 +178,10 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
 
   if (params->flag & FILE_CHECK_EXISTING) {
     but_extra_rna_ptr = UI_but_extra_operator_icon_add(
-        but, "FILE_OT_filenum", WM_OP_EXEC_REGION_WIN, ICON_REMOVE);
+        but, "FILE_OT_filenum", blender::wm::OpCallContext::ExecRegionWin, ICON_REMOVE);
     RNA_int_set(but_extra_rna_ptr, "increment", -1);
     but_extra_rna_ptr = UI_but_extra_operator_icon_add(
-        but, "FILE_OT_filenum", WM_OP_EXEC_REGION_WIN, ICON_ADD);
+        but, "FILE_OT_filenum", blender::wm::OpCallContext::ExecRegionWin, ICON_ADD);
     RNA_int_set(but_extra_rna_ptr, "increment", 1);
   }
 
@@ -193,7 +193,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
 
   {
     uiLayout *sub = &row->row(false);
-    sub->operator_context_set(WM_OP_EXEC_REGION_WIN);
+    sub->operator_context_set(blender::wm::OpCallContext::ExecRegionWin);
 
     if (windows_layout) {
       file_panel_execution_execute_button(sub, params->title);
@@ -211,9 +211,9 @@ void file_execute_region_panels_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype file execution buttons");
-  STRNCPY(pt->idname, "FILE_PT_execution_buttons");
-  STRNCPY(pt->label, N_("Execute Buttons"));
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "FILE_PT_execution_buttons");
+  STRNCPY_UTF8(pt->label, N_("Execute Buttons"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->flag = PANEL_TYPE_NO_HEADER;
   pt->poll = file_panel_operator_poll;
   pt->draw = file_panel_execution_buttons_draw;
@@ -240,12 +240,11 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
     bContext *mutable_ctx = CTX_copy(C);
     if (WM_operator_name_poll(mutable_ctx, "asset.bundle_install")) {
       col->separator();
-      uiItemMenuEnumO(col,
-                      C,
-                      "asset.bundle_install",
-                      "asset_library_reference",
-                      IFACE_("Copy Bundle to Asset Library..."),
-                      ICON_IMPORT);
+      col->op_menu_enum(C,
+                        "asset.bundle_install",
+                        "asset_library_reference",
+                        IFACE_("Copy Bundle to Asset Library..."),
+                        ICON_IMPORT);
     }
     CTX_free(mutable_ctx);
   }
@@ -264,9 +263,9 @@ void file_tools_region_panels_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype file asset catalog buttons");
-  STRNCPY(pt->idname, "FILE_PT_asset_catalog_buttons");
-  STRNCPY(pt->label, N_("Asset Catalogs"));
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "FILE_PT_asset_catalog_buttons");
+  STRNCPY_UTF8(pt->label, N_("Asset Catalogs"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->flag = PANEL_TYPE_NO_HEADER;
   pt->poll = file_panel_asset_browsing_poll;
   pt->draw = file_panel_asset_catalog_buttons_draw;

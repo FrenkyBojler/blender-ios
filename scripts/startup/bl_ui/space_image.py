@@ -634,14 +634,14 @@ class IMAGE_MT_uvs_snap_pie(Menu):
         layout.operator_context = 'EXEC_REGION_WIN'
 
         pie.operator(
-            "uv.snap_selected",
-            text="Selected to Pixels",
-            icon='RESTRICT_SELECT_OFF',
-        ).target = 'PIXELS'
-        pie.operator(
             "uv.snap_cursor",
             text="Cursor to Pixels",
             icon='PIVOT_CURSOR',
+        ).target = 'PIXELS'
+        pie.operator(
+            "uv.snap_selected",
+            text="Selected to Pixels",
+            icon='RESTRICT_SELECT_OFF',
         ).target = 'PIXELS'
         pie.operator(
             "uv.snap_cursor",
@@ -731,11 +731,11 @@ class IMAGE_HT_tool_header(Header):
         if tool_mode == 'PAINT':
             if (tool is not None) and tool.use_brushes:
                 layout.popover("IMAGE_PT_paint_settings_advanced")
+                layout.popover("IMAGE_PT_tools_brush_texture")
+                layout.popover("IMAGE_PT_tools_mask_texture")
                 layout.popover("IMAGE_PT_paint_stroke")
                 layout.popover("IMAGE_PT_paint_curve")
                 layout.popover("IMAGE_PT_tools_brush_display")
-                layout.popover("IMAGE_PT_tools_brush_texture")
-                layout.popover("IMAGE_PT_tools_mask_texture")
 
     def draw_mode_settings(self, context):
         layout = self.layout

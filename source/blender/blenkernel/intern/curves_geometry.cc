@@ -25,6 +25,7 @@
 
 #include "DNA_curves_types.h"
 #include "DNA_material_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_legacy_convert.hh"
@@ -474,8 +475,11 @@ Span<float> CurvesGeometry::nurbs_weights() const
 }
 MutableSpan<float> CurvesGeometry::nurbs_weights_for_write()
 {
-  return get_mutable_attribute<float>(
-      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_NURBS_WEIGHT, this->points_num());
+  return get_mutable_attribute<float>(this->attribute_storage.wrap(),
+                                      AttrDomain::Point,
+                                      ATTR_NURBS_WEIGHT,
+                                      this->points_num(),
+                                      1.0f);
 }
 
 VArray<int8_t> CurvesGeometry::nurbs_knots_modes() const
@@ -1171,6 +1175,7 @@ void CurvesGeometry::ensure_can_interpolate_to_evaluated() const
 
 void CurvesGeometry::resize(const int points_num, const int curves_num)
 {
+  BLI_assert(curves_num >= 0 && points_num >= 0);
   if (points_num != this->point_num) {
     this->attribute_storage.wrap().resize(AttrDomain::Point, points_num);
     CustomData_realloc(&this->point_data, this->points_num(), points_num);
@@ -1181,10 +1186,12 @@ void CurvesGeometry::resize(const int points_num, const int curves_num)
     implicit_sharing::resize_trivial_array(&this->curve_offsets,
                                            &this->runtime->curve_offsets_sharing_info,
                                            this->curve_num == 0 ? 0 : (this->curve_num + 1),
-                                           curves_num + 1);
-    /* Set common values for convenience. */
-    this->curve_offsets[0] = 0;
-    this->curve_offsets[curves_num] = this->point_num;
+                                           curves_num == 0 ? 0 : (curves_num + 1));
+    if (curves_num > 0) {
+      /* Set common values for convenience. */
+      this->curve_offsets[0] = 0;
+      this->curve_offsets[curves_num] = this->point_num;
+    }
     this->curve_num = curves_num;
   }
   this->tag_topology_changed();
@@ -1235,16 +1242,6 @@ static void transform_positions(MutableSpan<float3> positions, const float4x4 &m
   threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position = math::transform_point(matrix, position);
-    }
-  });
-}
-
-static void transform_normals(MutableSpan<float3> normals, const float4x4 &matrix)
-{
-  const float3x3 normal_transform = math::transpose(math::invert(float3x3(matrix)));
-  threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &normal : normals.slice(range)) {
-      normal = normal_transform * normal;
     }
   });
 }
@@ -1318,10 +1315,7 @@ void CurvesGeometry::transform(const float4x4 &matrix)
     transform_positions(this->handle_positions_right_for_write(), matrix);
   }
   MutableAttributeAccessor attributes = this->attributes_for_write();
-  if (SpanAttributeWriter normals = attributes.lookup_for_write_span<float3>("custom_normal")) {
-    transform_normals(normals.span, matrix);
-    normals.finish();
-  }
+  transform_custom_normal_attribute(matrix, attributes);
   this->tag_positions_changed();
 }
 
@@ -1787,7 +1781,7 @@ static GVArray adapt_curve_domain_point_to_curve(const CurvesGeometry &curves,
     if constexpr (!std::is_void_v<attribute_math::DefaultMixer<T>>) {
       Array<T> values(curves.curves_num());
       adapt_curve_domain_point_to_curve_impl<T>(curves, varray.typed<T>(), values);
-      new_varray = VArray<T>::ForContainer(std::move(values));
+      new_varray = VArray<T>::from_container(std::move(values));
     }
   });
   return new_varray;
@@ -1819,7 +1813,7 @@ static GVArray adapt_curve_domain_curve_to_point(const CurvesGeometry &curves,
     using T = decltype(dummy);
     Array<T> values(curves.points_num());
     adapt_curve_domain_curve_to_point_impl<T>(curves, varray.typed<T>(), values);
-    new_varray = VArray<T>::ForContainer(std::move(values));
+    new_varray = VArray<T>::from_container(std::move(values));
   });
   return new_varray;
 }
@@ -1840,7 +1834,7 @@ GVArray CurvesGeometry::adapt_domain(const GVArray &varray,
   if (varray.is_single()) {
     BUFFER_FOR_CPP_TYPE_VALUE(varray.type(), value);
     varray.get_internal_single(value);
-    return GVArray::ForSingle(varray.type(), this->attributes().domain_size(to), value);
+    return GVArray::from_single(varray.type(), this->attributes().domain_size(to), value);
   }
 
   if (from == AttrDomain::Point && to == AttrDomain::Curve) {
@@ -1910,14 +1904,21 @@ CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)
 
 void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data)
 {
+  CustomData_reset(&this->curve_data_legacy);
   attribute_storage_blend_write_prepare(this->attribute_storage.wrap(), write_data.attribute_data);
   CustomData_blend_write_prepare(this->point_data,
                                  AttrDomain::Point,
                                  this->points_num(),
                                  write_data.point_layers,
                                  write_data.attribute_data);
-  this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
-  this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
+  if (write_data.attribute_data.attributes.is_empty()) {
+    this->attribute_storage.dna_attributes = nullptr;
+    this->attribute_storage.dna_attributes_num = 0;
+  }
+  else {
+    this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
+    this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
+  }
 }
 
 void CurvesGeometry::blend_write(BlendWriter &writer,
