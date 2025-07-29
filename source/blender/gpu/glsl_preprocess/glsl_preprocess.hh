@@ -393,6 +393,21 @@ class Preprocessor {
       }
     }
     {
+      /* Replace full specialization by simple functions. */
+      std::regex regex(R"(template<>(\s\w+\s\w+)\s*<[\w\d\n\,\ ]+>\s*\()");
+      out_str = std::regex_replace(out_str, regex, "$1@$3@(");
+
+      while (true) {
+        const std::string args = get_content_between_balanced_pair(out_str, '@', '@');
+        if (args.empty()) {
+          break;
+        }
+        std::string args_concat = std::regex_replace(args, std::regex(R"(\s)"), "");
+        replace_all(args_concat, ",", "_");
+        replace_all(out_str, "@" + args + "@", "_" + args_concat + "_");
+      }
+    }
+    {
       /* Replace explicit instantiation by macro call. */
       /* Only `template ret_t fn<T>(args);` syntax is supported. */
       std::regex regex_instance(R"(template \w+ (\w+)<([\w+\,\ \n]+)>\(([\w+\ \,\n]+)\);)");
