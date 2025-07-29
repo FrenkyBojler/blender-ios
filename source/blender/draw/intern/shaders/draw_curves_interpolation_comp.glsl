@@ -82,20 +82,30 @@ int4 get_points(uint point_id, IndexRange points)
 
 float3 get_evaluated_position(const int4 point_ids, const float4 weights)
 {
-  const float3 pos_0 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.x);
-  const float3 pos_1 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.y);
-  const float3 pos_2 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.z);
-  const float3 pos_3 = gpu_attr_load_float3(positions_buf, int2(3, 0), point_ids.w);
-  return mix4(pos_0, pos_1, pos_2, pos_3, weights);
+  float3 result;
+  {
+    const auto &positions = buffer_get(draw_curves_interpolate_position, positions_buf);
+    const float3 pos_0 = gpu_attr_load_float3(positions, int2(3, 0), point_ids.x);
+    const float3 pos_1 = gpu_attr_load_float3(positions, int2(3, 0), point_ids.y);
+    const float3 pos_2 = gpu_attr_load_float3(positions, int2(3, 0), point_ids.z);
+    const float3 pos_3 = gpu_attr_load_float3(positions, int2(3, 0), point_ids.w);
+    result = mix4(pos_0, pos_1, pos_2, pos_3, weights);
+  }
+  return result;
 }
 
 float get_evaluated_radius(const int4 point_ids, const float4 weights)
 {
-  const float rad_0 = radii_buf[point_ids.x];
-  const float rad_1 = radii_buf[point_ids.y];
-  const float rad_2 = radii_buf[point_ids.z];
-  const float rad_3 = radii_buf[point_ids.w];
-  return mix4(rad_0, rad_1, rad_2, rad_3, weights);
+  float result;
+  {
+    const auto &rad_buf = buffer_get(draw_curves_interpolate_position, radii_buf);
+    const float rad_0 = rad_buf[point_ids.x];
+    const float rad_1 = rad_buf[point_ids.y];
+    const float rad_2 = rad_buf[point_ids.z];
+    const float rad_3 = rad_buf[point_ids.w];
+    result = mix4(rad_0, rad_1, rad_2, rad_3, weights);
+  }
+  return result;
 }
 
 void evaluate_curve(IndexRange points, IndexRange evaluated_points, int curve_index)
@@ -133,13 +143,22 @@ int2 get_points(uint point_id, IndexRange points)
 
 void evaluate_segment_positions(const int2 points, const IndexRange result)
 {
-  const float3 point_0 = gpu_attr_load_float3(positions_buf, int2(3, 0), points.x);
-  const float3 point_1 = gpu_attr_load_float3(handles_positions_right_buf, int2(3, 0), points.x);
-  const float3 point_2 = gpu_attr_load_float3(handles_positions_left_buf, int2(3, 0), points.y);
-  const float3 point_3 = gpu_attr_load_float3(positions_buf, int2(3, 0), points.y);
+  const auto &radii = buffer_get(draw_curves_interpolate_position, radii_buf);
+  const auto &positions = buffer_get(draw_curves_interpolate_position, positions_buf);
+  const auto &handles_right = buffer_get(draw_curves_interpolate_position,
+                                         handles_positions_right_buf);
+  const auto &handles_left = buffer_get(draw_curves_interpolate_position,
+                                        handles_positions_left_buf);
+  auto &evaluated_positions_radii = buffer_get(draw_curves_interpolate_position,
+                                               evaluated_positions_radii_buf);
 
-  const float rad_0 = radii_buf[points.x];
-  const float rad_1 = radii_buf[points.y];
+  const float3 point_0 = gpu_attr_load_float3(positions, int2(3, 0), points.x);
+  const float3 point_1 = gpu_attr_load_float3(handles_right, int2(3, 0), points.x);
+  const float3 point_2 = gpu_attr_load_float3(handles_left, int2(3, 0), points.y);
+  const float3 point_3 = gpu_attr_load_float3(positions, int2(3, 0), points.y);
+
+  const float rad_0 = radii[points.x];
+  const float rad_1 = radii[points.y];
 
   assert(result.size > 0);
   const float inv_len = 1.0f / float(result.size);
@@ -156,11 +175,25 @@ void evaluate_segment_positions(const int2 points, const IndexRange result)
   float3 q3 = 6.0f * rt3;
   for (int i = 0; i < result.size; i++) {
     /* Radius is done separately. */
-    evaluated_positions_radii_buf[result.start + i].xyz = q0;
-    evaluated_positions_radii_buf[result.start + i].w = mix(rad_0, rad_1, float(i) * inv_len);
+    evaluated_positions_radii[result.start + i].xyz = q0;
+    evaluated_positions_radii[result.start + i].w = mix(rad_0, rad_1, float(i) * inv_len);
     q0 += q1;
     q1 += q2;
     q2 += q3;
+  }
+}
+
+void linear_interpolation(const int2 points, const IndexRange result)
+{
+  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_attribute)
+  const float a = buffer_get(draw_curves_interpolate_attribute, float_attr_buf)[points.x];
+  const float b = buffer_get(draw_curves_interpolate_attribute, float_attr_buf)[points.y];
+  auto &evaluated_float_attr = buffer_get(draw_curves_interpolate_position,
+                                          evaluated_float_attr_buf);
+
+  const float step = 1.0f / float(result.size);
+  for (int i = 0; i < result.size; i++) {
+    evaluated_float_attr[result.start + i] = mix(a, b, float(i) * step);
   }
 }
 
@@ -195,14 +228,46 @@ void copy_curve_data(const IndexRange points, const IndexRange evaluated_points)
 
 namespace nurbs {
 
-void interpolate_to_evaluated_rational(const IndexRange points,
+void interpolate_to_evaluated_position(const IndexRange points,
                                        const IndexRange evaluated_points,
-                                       uint curve_index)
+                                       const int order,
+                                       const int start_indices_range_start,
+                                       const int weights_range_start)
+{
+  /* Buffer aliasing to same bind point. We cannot dispatch with different type of curve. */
+  const auto &basis_cache_buf = handles_positions_left_buf;
+  const auto &control_weights_buf = handles_positions_right_buf;
+
+  for (int i = 0; i < evaluated_points.size; i++) {
+    /* Equivalent to `attribute_math::DefaultMixer<T> mixer{dst}`. */
+    evaluated_positions_radii_buf[evaluated_points.start + i] = float4(0.0f);
+    float total_weight = 0.0f;
+
+    const IndexRange point_weights = IndexRange(weights_range_start + i * order, order);
+    const int start_index = floatBitsToInt(basis_cache_buf[start_indices_range_start + i]);
+
+    for (int j = 0; j < point_weights.size; j++) {
+      const int point_index = points.start + (start_index + j) % points.size;
+      const float point_weight = basis_cache_buf[point_weights.start + j];
+      /* TODO(fclem): Add use_point_weight toggle. */
+      const float weight = point_weight * control_weights_buf[point_index];
+
+      const float3 pos = gpu_attr_load_float3(positions_buf, int2(3, 0), point_index);
+      const float rad = radii_buf[point_index];
+
+      /* Equivalent to `mixer.mix_in()`. */
+      evaluated_positions_radii_buf[evaluated_points.start + i] += float4(pos, rad) * weight;
+      total_weight += weight;
+    }
+    /* Equivalent to `mixer.finalize()` */
+    evaluated_positions_radii_buf[evaluated_points.start + i] *= safe_rcp(total_weight);
+  }
+}
+
+void evaluate_curve(const IndexRange points, const IndexRange evaluated_points, uint curve_index)
 {
   /* Buffer aliasing to same bind point. We cannot dispatch with different type of curve. */
   const auto &curves_order_buf = curves_resolution_buf;
-  const auto &basis_cache_buf = handles_positions_left_buf;
-  const auto &control_weights_buf = handles_positions_right_buf;
   const auto &basis_cache_offset_buf = bezier_offsets_buf;
 
   const int order = int(gpu_attr_load_uchar(curves_order_buf, curve_index));
@@ -218,29 +283,8 @@ void interpolate_to_evaluated_rational(const IndexRange points,
   const int start_indices_range_start = basis_cache_start;
   const int weights_range_start = basis_cache_start + evaluated_points.size;
 
-  for (int i = 0; i < evaluated_points.size; i++) {
-    /* Equivalent to `attribute_math::DefaultMixer<T> mixer{dst}`. */
-    evaluated_positions_radii_buf[evaluated_points.start + i] = float4(0.0f);
-    float total_weight = 0.0f;
-
-    const IndexRange point_weights = IndexRange(weights_range_start + i * order, order);
-    const int start_index = floatBitsToInt(basis_cache_buf[start_indices_range_start + i]);
-
-    for (int j = 0; j < point_weights.size; j++) {
-      const int point_index = points.start + (start_index + j) % points.size;
-      const float point_weight = basis_cache_buf[point_weights.start + j];
-      const float weight = point_weight * control_weights_buf[point_index];
-
-      const float3 pos = gpu_attr_load_float3(positions_buf, int2(3, 0), point_index);
-      const float rad = radii_buf[point_index];
-
-      /* Equivalent to `mixer.mix_in()`. */
-      evaluated_positions_radii_buf[evaluated_points.start + i] += float4(pos, rad) * weight;
-      total_weight += weight;
-    }
-    /* Equivalent to `mixer.finalize()` */
-    evaluated_positions_radii_buf[evaluated_points.start + i] *= safe_rcp(total_weight);
-  }
+  interpolate_to_evaluated_position(
+      points, evaluated_points, order, start_indices_range_start, weights_range_start);
 }
 
 }  // namespace nurbs
@@ -267,7 +311,7 @@ void main()
     bezier::evaluate_curve(points, evaluated_points, curve_index);
   }
   else if (CurveType(evaluated_type) == CURVE_TYPE_NURBS) {
-    nurbs::interpolate_to_evaluated_rational(points, evaluated_points, uint(curve_index));
+    nurbs::evaluate_curve(points, evaluated_points, uint(curve_index));
   }
   else if (CurveType(evaluated_type) == CURVE_TYPE_POLY) {
     /* Simple copy. */
