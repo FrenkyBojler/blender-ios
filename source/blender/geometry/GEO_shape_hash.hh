@@ -10,7 +10,7 @@ namespace blender::bke {
 class GeometrySet;
 }
 
-namespace blender::geometry::collision_shapes {
+namespace blender::geometry {
 
 class GeometryShapeHash {
  private:
@@ -30,4 +30,4 @@ class GeometryShapeHash {
   BLI_STRUCT_EQUALITY_OPERATORS_2(GeometryShapeHash, v1_, v2_)
 };
 
-}  // namespace blender::geometry::collision_shapes
+}  // namespace blender::geometry

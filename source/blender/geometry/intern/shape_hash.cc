@@ -9,9 +9,9 @@
 #include "DNA_mesh_types.h"
 #include "GEO_shape_hash.hh"
 
-namespace blender::geometry::collision_shapes {
+namespace blender::geometry {
 
-GeometryShapeHash from_geometry(const bke::GeometrySet &geometry_set)
+GeometryShapeHash GeometryShapeHash::from_geometry(const bke::GeometrySet &geometry_set)
 {
   XXH3_state_t *hash_state = XXH3_createState();
   XXH3_128bits_reset(hash_state);
@@ -26,8 +26,8 @@ GeometryShapeHash from_geometry(const bke::GeometrySet &geometry_set)
 
   GeometryShapeHash final_hash;
   static_assert(sizeof(final_hash) == sizeof(digest));
-  memcpy(&final_hash, &digest, sizeof(digest));
+  memcpy(reinterpret_cast<void *>(&final_hash), &digest, sizeof(digest));
   return final_hash;
 }
 
-}  // namespace blender::geometry::collision_shapes
+}  // namespace blender::geometry

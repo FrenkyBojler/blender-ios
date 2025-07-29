@@ -7,6 +7,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
 #include "DNA_mesh_types.h"
+#include "GEO_shape_hash.hh"
 #include "NOD_geometry_nodes_behaviors_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
@@ -174,7 +175,7 @@ struct CollisionShapeCache {
     JPH::ShapeSettings::ShapeResult shape;
     bool still_used = true;
 
-    CachedShape(JPH::ShapeSettings::ShapeResult shape) : shape(std::move(shape)) {}
+    CachedShape(JPH::ShapeSettings::ShapeResult shape = {}) : shape(std::move(shape)) {}
   };
 
   struct BoxID {
@@ -199,8 +200,21 @@ struct CollisionShapeCache {
     BLI_STRUCT_EQUALITY_OPERATORS_1(SphereID, radius)
   };
 
+  struct ConvexHullID {
+    geometry::GeometryShapeHash shape_hash;
+    float3 scale;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->shape_hash, this->scale);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(ConvexHullID, shape_hash, scale)
+  };
+
   Map<BoxID, CachedShape> boxes;
   Map<SphereID, CachedShape> spheres;
+  Map<ConvexHullID, CachedShape> convex_hulls;
 
   void reset_used()
   {
@@ -210,12 +224,27 @@ struct CollisionShapeCache {
     for (CachedShape &cached_shape : this->spheres.values()) {
       cached_shape.still_used = false;
     }
+    for (CachedShape &cached_shape : this->convex_hulls.values()) {
+      cached_shape.still_used = false;
+    }
   }
 
   void remove_unused()
   {
     this->boxes.remove_if([](const auto &item) { return !item.value.still_used; });
     this->spheres.remove_if([](const auto &item) { return !item.value.still_used; });
+    this->convex_hulls.remove_if([](const auto &item) { return !item.value.still_used; });
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_box(const GeometrySet &geometry,
+                                                    const float3 &scale)
+  {
+    const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(true);
+    if (!bounds) {
+      return {};
+    }
+    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) * scale;
+    return this->get_or_create_box(half_extent);
   }
 
   JPH::ShapeSettings::ShapeResult get_or_create_box(const float3 &half_extent)
@@ -231,6 +260,18 @@ struct CollisionShapeCache {
     return cached_shape.shape;
   }
 
+  JPH::ShapeSettings::ShapeResult get_or_create_sphere(const GeometrySet &geometry,
+                                                       const float3 &scale)
+  {
+    const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(true);
+    if (!bounds) {
+      return {};
+    }
+    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) * scale;
+    const float radius = std::max({half_extent.x, half_extent.y, half_extent.z});
+    return this->get_or_create_sphere(radius);
+  }
+
   JPH::ShapeSettings::ShapeResult get_or_create_sphere(const float radius)
   {
     const SphereID sphere_id{radius};
@@ -238,6 +279,33 @@ struct CollisionShapeCache {
       JPH::SphereShapeSettings sphere_shape_settings{radius};
       return sphere_shape_settings.Create();
     });
+    if (cached_shape.shape.IsValid()) {
+      cached_shape.still_used = true;
+    }
+    return cached_shape.shape;
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_convex_hull(const GeometrySet &geometry,
+                                                            const float3 &scale)
+  {
+    const auto shape_hash = geometry::GeometryShapeHash::from_geometry(geometry);
+    const ConvexHullID convex_hull_id{shape_hash, scale};
+    CachedShape &cached_shape = this->convex_hulls.lookup_or_add_cb(
+        convex_hull_id, [&]() -> CachedShape {
+          Vector<JPH::Vec3, 0, GuardedAlignedAllocator<>> points;
+          if (const Mesh *mesh = geometry.get_mesh()) {
+            points.reserve(points.size() + mesh->verts_num);
+            const Span<float3> positions = mesh->vert_positions();
+            for (const int i : positions.index_range()) {
+              points.append(convert_vec3(positions[i] * scale));
+            }
+          }
+          if (points.is_empty()) {
+            return {};
+          }
+          JPH::ConvexHullShapeSettings hull_settings(points.data(), points.size(), 0.0f);
+          return hull_settings.Create();
+        });
     if (cached_shape.shape.IsValid()) {
       cached_shape.still_used = true;
     }
@@ -345,38 +413,13 @@ static JPH::ShapeSettings::ShapeResult make_collision_shape(const CollisionShape
 {
   switch (type) {
     case CollisionShapeType::Box: {
-      const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(
-          true);
-      if (!bounds) {
-        return {};
-      }
-      const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) * scale;
-      return cache.get_or_create_box(half_extent);
+      return cache.get_or_create_box(geometry, scale);
     }
     case CollisionShapeType::Sphere: {
-      const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(
-          true);
-      if (!bounds) {
-        return {};
-      }
-      const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) * scale;
-      const float radius = std::max({half_extent.x, half_extent.y, half_extent.z});
-      return cache.get_or_create_sphere(radius);
+      return cache.get_or_create_sphere(geometry, scale);
     }
     case CollisionShapeType::ConvexHull: {
-      Vector<JPH::Vec3, 0, GuardedAlignedAllocator<>> points;
-      if (const Mesh *mesh = geometry.get_mesh()) {
-        points.reserve(points.size() + mesh->verts_num);
-        const Span<float3> positions = mesh->vert_positions();
-        for (const int i : positions.index_range()) {
-          points.append(convert_vec3(positions[i] * scale));
-        }
-      }
-      if (points.is_empty()) {
-        return {};
-      }
-      JPH::ConvexHullShapeSettings hull_settings(points.data(), points.size(), 0.0f);
-      return hull_settings.Create();
+      return cache.get_or_create_convex_hull(geometry, scale);
     }
   }
   BLI_assert_unreachable();
