@@ -351,6 +351,7 @@ struct CollisionShapeCache {
 
 struct JoltState {
   bool is_initialized = false;
+  int update_counter = 0;
 
   BroadPhaseLayerInterfaceImpl broad_phase_layer_interface;
   ObjectVsBroadPhaseLayerFilterImpl object_vs_broad_phase_layer_filter;
@@ -859,6 +860,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   ensure_initialize_jolt();
 
+  int update_counter = 0;
+  if (old_data_bundle) {
+    update_counter = old_data_bundle->lookup<int>("_counter").value_or(0);
+  }
+
   JoltStateOwnerPtr jolt_state_owner;
   if (old_data_bundle) {
     jolt_state_owner = old_data_bundle->lookup<JoltStateOwnerPtr>("_state").value_or(nullptr);
@@ -894,17 +900,25 @@ static void node_geo_exec(GeoNodeExecParams params)
     state.system.SetContactListener(&state.contact_listener);
     state.is_initialized = true;
   }
-
   JoltBehaviors behaviors = parse_behaviors(*behavior_bundle);
-  update_jolt_state_from_behaviors(params, state, behaviors);
 
-  {
-    JPH::TempAllocatorImpl temp_allocator(10 * 1024 * 1024);
-    /* TODO: Integrate with TBB. */
-    JPH::JobSystemThreadPool job_system(
-        JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1);
-    const int collision_steps = sub_steps;
-    state.system.Update(delta_time, collision_steps, &temp_allocator, &job_system);
+  /* The Jolt state can't easily be reset to an older state. So better just don't do simulation
+   * in this case. */
+  const bool is_resimulating = update_counter < state.update_counter;
+  update_counter++;
+  if (!is_resimulating) {
+    update_jolt_state_from_behaviors(params, state, behaviors);
+
+    {
+      JPH::TempAllocatorImpl temp_allocator(10 * 1024 * 1024);
+      /* TODO: Integrate with TBB. */
+      JPH::JobSystemThreadPool job_system(
+          JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1);
+      const int collision_steps = sub_steps;
+      state.system.Update(delta_time, collision_steps, &temp_allocator, &job_system);
+    }
+
+    state.update_counter = update_counter;
   }
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
@@ -917,6 +931,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   new_data_bundle.add("_state", jolt_state_owner);
+  new_data_bundle.add("_counter", update_counter);
   params.set_output("Data", std::move(new_data_bundle_ptr));
 }
 
