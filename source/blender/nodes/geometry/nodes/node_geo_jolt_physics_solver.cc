@@ -354,6 +354,8 @@ struct RigidBodiesBehavior {
   GeometrySet geometry;
   Field<int> collision_shape_type_field;
   Field<int> motion_type_field;
+  Field<float> friction_field;
+  Field<float> bounciness_field;
 };
 
 struct GravityBehavior {
@@ -384,7 +386,11 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   std::optional<Field<int>> collision_shape_type_field = params.bundle.lookup<Field<int>>(
       "Collision Shape Type");
   std::optional<Field<int>> motion_type_field = params.bundle.lookup<Field<int>>("Motion Type");
-  if (!geometry || !collision_shape_type_field || !motion_type_field) {
+  std::optional<Field<float>> friction_field = params.bundle.lookup<Field<float>>("Friction");
+  std::optional<Field<float>> bounciness_field = params.bundle.lookup<Field<float>>("Bounciness");
+  if (!geometry || !collision_shape_type_field || !motion_type_field || !friction_field ||
+      !bounciness_field)
+  {
     return;
   }
   geometry->keep_only({bke::GeometryComponent::Type::Instance});
@@ -394,6 +400,8 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   rigid_bodies_behaviors.geometry = *geometry;
   rigid_bodies_behaviors.collision_shape_type_field = *collision_shape_type_field;
   rigid_bodies_behaviors.motion_type_field = *motion_type_field;
+  rigid_bodies_behaviors.friction_field = *friction_field;
+  rigid_bodies_behaviors.bounciness_field = *bounciness_field;
   params.r_behaviors.rigid_bodies.append(std::move(rigid_bodies_behaviors));
 }
 
@@ -472,9 +480,13 @@ static void handle_rigid_bodies_behavior(JoltState &state,
   fn::FieldEvaluator field_evaluator{field_context, instances_num};
   field_evaluator.add(behavior.collision_shape_type_field);
   field_evaluator.add(behavior.motion_type_field);
+  field_evaluator.add(behavior.friction_field);
+  field_evaluator.add(behavior.bounciness_field);
   field_evaluator.evaluate();
   const VArray<int> collision_shape_types = field_evaluator.get_evaluated<int>(0);
   const VArray<int> motion_types = field_evaluator.get_evaluated<int>(1);
+  const VArray<float> frictions = field_evaluator.get_evaluated<float>(2);
+  const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(3);
 
   Array<GeometrySet> reference_geometry_sets(references_num);
   for (const int i : references.index_range()) {
@@ -522,14 +534,15 @@ static void handle_rigid_bodies_behavior(JoltState &state,
       continue;
     }
 
+    const float friction = frictions[instance_i];
+    const float bounciness = bouncinesses[instance_i];
+
     std::optional<JoltRigidBody> rigid_body;
     if (old_rigid_bodies) {
       if (std::optional<JoltRigidBody> old_rigid_body = old_rigid_bodies->bodies_by_id.pop_try(
               instance_i))
       {
         rigid_body = old_rigid_body;
-        body_interface.SetShape(
-            rigid_body->body->GetID(), collision_shape.Get(), true, JPH::EActivation::Activate);
       }
     }
     if (!rigid_body) {
@@ -545,6 +558,12 @@ static void handle_rigid_bodies_behavior(JoltState &state,
       body_interface.AddBody(jolt_body->GetID(), JPH::EActivation::Activate);
       rigid_body = JoltRigidBody{jolt_body};
     }
+
+    body_interface.SetShape(
+        rigid_body->body->GetID(), collision_shape.Get(), true, JPH::EActivation::Activate);
+    rigid_body->body->SetFriction(friction);
+    rigid_body->body->SetRestitution(bounciness);
+
     rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
   }
 
