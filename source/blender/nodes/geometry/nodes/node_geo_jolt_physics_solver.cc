@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_instances.hh"
+#include "BLI_generic_key.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
 #include "NOD_geometry_nodes_behaviors_bundle.hh"
@@ -33,6 +34,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bundle>("Behavior");
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
   b.add_input<decl::Int>("Substeps").default_value(1).min(1);
+}
+
+static JPH::Vec3 convert_vec3(const float3 &v)
+{
+  return JPH::Vec3(v.x, v.y, v.z);
+}
+static float3 convert_vec3(const JPH::Vec3 &v)
+{
+  return float3(v.GetX(), v.GetY(), v.GetZ());
 }
 
 namespace ObjectLayers {
@@ -136,6 +146,53 @@ struct JoltRigidBodies {
   Map<int, JoltRigidBody> bodies_by_id;
 };
 
+struct CollisionShapeCache {
+  struct CachedShape {
+    JPH::ShapeSettings::ShapeResult shape;
+    bool still_used = true;
+
+    CachedShape(JPH::ShapeSettings::ShapeResult shape) : shape(std::move(shape)) {}
+  };
+
+  struct BoxID {
+    float3 half_extent;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->half_extent);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_1(BoxID, half_extent)
+  };
+
+  Map<BoxID, CachedShape> boxes;
+
+  void reset_used()
+  {
+    for (CachedShape &cached_shape : this->boxes.values()) {
+      cached_shape.still_used = false;
+    }
+  }
+
+  void remove_unused()
+  {
+    this->boxes.remove_if([](const auto &item) { return !item.value.still_used; });
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_box(const float3 &half_extent)
+  {
+    const BoxID box_id{half_extent};
+    CachedShape &cached_shape = this->boxes.lookup_or_add_cb(box_id, [&]() {
+      JPH::BoxShapeSettings box_shape_settings{convert_vec3(half_extent)};
+      return box_shape_settings.Create();
+    });
+    if (cached_shape.shape.IsValid()) {
+      cached_shape.still_used = true;
+    }
+    return cached_shape.shape;
+  }
+};
+
 struct JoltState {
   bool is_initialized = false;
 
@@ -147,6 +204,7 @@ struct JoltState {
   JPH::PhysicsSystem system;
 
   Map<std::string, JoltRigidBodies> rigid_bodies_by_path;
+  CollisionShapeCache collision_shape_cache;
 };
 
 struct RigidBodiesBehavior {
@@ -271,10 +329,8 @@ static void handle_rigid_bodies_behavior(JoltState &state,
     math::to_loc_rot_scale_safe<true>(
         instance_transform, instance_position, instance_rotation, instance_scale);
 
-    const float3 half_extent = bounds->size() / 2.0f * instance_scale;
-    const JPH::BoxShapeSettings box_shape_settings{
-        JPH::Vec3(half_extent.x, half_extent.y, half_extent.z)};
-    JPH::ShapeSettings::ShapeResult box_shape = box_shape_settings.Create();
+    JPH::ShapeSettings::ShapeResult box_shape = state.collision_shape_cache.get_or_create_box(
+        bounds->size() / 2.0f * instance_scale);
     if (!box_shape.IsValid()) {
       continue;
     }
@@ -332,6 +388,8 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
                                              JoltState &state,
                                              const JoltBehaviors &behaviors)
 {
+  state.collision_shape_cache.reset_used();
+
   update_gravity(params, state, behaviors);
 
   Map<std::string, JoltRigidBodies> new_rigid_bodies_by_path;
@@ -353,6 +411,7 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
   body_interface.DestroyBodies(bodies_to_remove.data(), bodies_to_remove.size());
 
   state.rigid_bodies_by_path = std::move(new_rigid_bodies_by_path);
+  state.collision_shape_cache.remove_unused();
 }
 
 class JoltStateOwner : public BundleItemInternalValueMixin {

@@ -116,6 +116,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::curve_fit_nd
+  PRIVATE bf::extern::xxhash
   PRIVATE bf::dependencies::optional::manifold
 )
 
