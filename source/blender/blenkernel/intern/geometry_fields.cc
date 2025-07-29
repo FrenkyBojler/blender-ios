@@ -758,8 +758,7 @@ GVArray RadiusFieldInput::get_varray_for_context(const GeometryFieldContext &con
   const AttrDomain domain = context.domain();
   if (auto attributes = context.attributes()) {
     const StringRef name("radius");
-    if (GVArray attribute = *attributes->lookup<float>(name, domain))
-    {
+    if (GVArray attribute = *attributes->lookup<float>(name, domain)) {
       return attribute;
     }
   }
