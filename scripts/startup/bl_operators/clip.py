@@ -707,18 +707,6 @@ class CLIP_OT_setup_tracking_scene(Operator):
         )
 
     @staticmethod
-    def _wipeDefaultNodes(tree):
-        if len(tree.nodes) != 4:
-            return False
-        types = [node.type for node in tree.nodes]
-        types.sort()
-
-        if (types[0] == 'COMPOSITE' and types[1] == 'REROUTE'
-                and types[2] == 'R_LAYERS' and types[3] == 'VIEWER'):
-            while tree.nodes:
-                tree.nodes.remove(tree.nodes[0])
-
-    @staticmethod
     def _findNode(tree, type):
         for node in tree.nodes:
             if node.type == type:
@@ -771,20 +759,24 @@ class CLIP_OT_setup_tracking_scene(Operator):
 
         sc = context.space_data
         scene = context.scene
-        scene.use_nodes = True
-        tree = scene.node_tree
+        tree = scene.compositing_node_group
         clip = sc.clip
 
         need_stabilization = False
 
-        # Remove all the nodes if they came from default node setup.
-        # This is simplest way to make it so final node setup is correct.
-        self._wipeDefaultNodes(tree)
+        # If a compositing node tree exists already, preserve it and create
+        # a separate one for the tracking setup.
+        if tree:
+            tree.use_fake_user = True
+
+        tree = bpy.data.node_groups.new("Tracking Setup", "CompositorNodeTree")
+        scene.compositing_node_group = tree
 
         # Create nodes.
-        rlayer_fg = self._findOrCreateNode(tree, 'CompositorNodeRLayers')
+        rlayer_fg = tree.nodes.new(type='CompositorNodeRLayers')
         rlayer_bg = tree.nodes.new(type='CompositorNodeRLayers')
-        output = self._findOrCreateNode(tree, 'NodeGroupOutput')
+        output = tree.nodes.new(type='NodeGroupOutput')
+        tree.interface.new_socket(name="Image", in_out="OUTPUT", socket_type="NodeSocketColor")
 
         movieclip = tree.nodes.new(type='CompositorNodeMovieClip')
         distortion = tree.nodes.new(type='CompositorNodeMovieDistortion')
