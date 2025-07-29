@@ -153,8 +153,13 @@ struct RigidBodiesBehavior {
   GeometrySet geometry;
 };
 
+struct GravityBehavior {
+  float3 gravity;
+};
+
 struct JoltBehaviors {
   Vector<RigidBodiesBehavior> rigid_bodies;
+  Vector<GravityBehavior> gravities;
 };
 
 struct ParseBehaviorParams {
@@ -184,10 +189,22 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   params.r_behaviors.rigid_bodies.append(std::move(rigid_bodies_behaviors));
 }
 
+static void parse_behavior__gravity(ParseBehaviorParams &params)
+{
+  const std::optional<float3> gravity = params.bundle.lookup<float3>("Gravity");
+  if (!gravity) {
+    return;
+  }
+  GravityBehavior gravity_behavior;
+  gravity_behavior.gravity = *gravity;
+  params.r_behaviors.gravities.append(std::move(gravity_behavior));
+}
+
 static Map<std::string, ParseBehaviorFn> build_behavior_parsers()
 {
   Map<std::string, ParseBehaviorFn> behavior_parsers;
   behavior_parsers.add_new("Rigid Bodies", parse_behavior__rigid_bodies);
+  behavior_parsers.add_new("Gravity", parse_behavior__gravity);
   return behavior_parsers;
 }
 
@@ -259,7 +276,7 @@ static void handle_rigid_bodies_behavior(JoltState &state,
 
     std::optional<JoltRigidBody> rigid_body;
     if (old_rigid_bodies) {
-      if (std::optional<JoltRigidBody> old_rigid_body = old_rigid_bodies->bodies_by_id.pop(
+      if (std::optional<JoltRigidBody> old_rigid_body = old_rigid_bodies->bodies_by_id.pop_try(
               instance_i))
       {
         rigid_body = old_rigid_body;
@@ -282,8 +299,32 @@ static void handle_rigid_bodies_behavior(JoltState &state,
   r_rigid_bodies_by_path.add(behavior.self_path, std::move(rigid_bodies));
 }
 
-static void update_jolt_state_from_behaviors(JoltState &state, const JoltBehaviors &behaviors)
+static void update_gravity(const GeoNodeExecParams &params,
+                           JoltState &state,
+                           const JoltBehaviors &behaviors)
 {
+  if (behaviors.gravities.size() >= 2) {
+    params.error_message_add(NodeWarningType::Warning, "There can't be multiple gravities");
+    state.system.SetGravity(JPH::Vec3::sZero());
+    return;
+  }
+  if (behaviors.gravities.size() == 1) {
+    const GravityBehavior &behavior = behaviors.gravities[0];
+    const float3 gravity = behavior.gravity;
+    state.system.SetGravity(JPH::Vec3(gravity.x, gravity.y, gravity.z));
+    return;
+  }
+
+  const JPH::Vec3 default_gravity(0.0f, 0.0f, -9.81f);
+  state.system.SetGravity(default_gravity);
+}
+
+static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
+                                             JoltState &state,
+                                             const JoltBehaviors &behaviors)
+{
+  update_gravity(params, state, behaviors);
+
   Map<std::string, JoltRigidBodies> new_rigid_bodies_by_path;
 
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
@@ -455,7 +496,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   JoltBehaviors behaviors = parse_behaviors(*behavior_bundle);
-  update_jolt_state_from_behaviors(state, behaviors);
+  update_jolt_state_from_behaviors(params, state, behaviors);
 
   {
     JPH::TempAllocatorImpl temp_allocator(10 * 1024 * 1024);
