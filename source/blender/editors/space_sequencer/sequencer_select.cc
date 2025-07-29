@@ -2410,7 +2410,7 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
 void SEQUENCER_OT_select_lasso(wmOperatorType *ot)
 {
   ot->name = "Lasso Select";
-  ot->description = "Select items using lasso selection";
+  ot->description = "Select strips using lasso selection";
   ot->idname = "SEQUENCER_OT_select_lasso";
 
   ot->invoke = WM_gesture_lasso_invoke;
