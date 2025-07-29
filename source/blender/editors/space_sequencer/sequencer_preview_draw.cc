@@ -408,6 +408,30 @@ static rctf preview_get_reference_texture_coord(const SpaceSeq &space_sequencer,
   return texture_coord;
 }
 
+static void add_vertical_line(const float val,
+                              const float x_scale,
+                              View2D &v2d,
+                              const float text_scale_x,
+                              const float text_scale_y,
+                              SeqQuadsBatch &quads,
+                              const rctf &area)
+{
+  const uchar col_grid[4] = {128, 128, 128, 128};
+
+  const float x = area.xmin + (area.xmax - area.xmin) * val * x_scale;
+
+  char buf[20];
+  const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.2f", val);
+  float text_width, text_height;
+  BLF_width_and_height(BLF_default(), buf, buf_len, &text_width, &text_height);
+  text_width *= text_scale_x;
+  text_height *= text_scale_y;
+  UI_view2d_text_cache_add(
+      &v2d, x - text_width / 2, area.ymax - text_height * 1.3f, buf, buf_len, col_grid);
+
+  quads.add_line(x, area.ymin, x, area.ymax - text_height * 1.4f, col_grid);
+}
+
 static void draw_histogram(ARegion &region,
                            const ScopeHistogram &hist,
                            SeqQuadsBatch &quads,
@@ -418,43 +442,45 @@ static void draw_histogram(ARegion &region,
   }
 
   /* Grid lines and labels. */
-  uchar col_grid[4] = {128, 128, 128, 128};
-  float grid_x_0 = area.xmin;
-  float grid_x_1 = area.xmax;
-  /* Float histograms show more than 0..1 range horizontally. */
-  if (hist.is_float_hist()) {
-    float ratio_0 = ratiof(ScopeHistogram::FLOAT_VAL_MIN, ScopeHistogram::FLOAT_VAL_MAX, 0.0f);
-    float ratio_1 = ratiof(ScopeHistogram::FLOAT_VAL_MIN, ScopeHistogram::FLOAT_VAL_MAX, 1.0f);
-    grid_x_0 = area.xmin + (area.xmax - area.xmin) * ratio_0;
-    grid_x_1 = area.xmin + (area.xmax - area.xmin) * ratio_1;
-  }
-
   View2D &v2d = region.v2d;
   float text_scale_x, text_scale_y;
   UI_view2d_scale_get_inverse(&v2d, &text_scale_x, &text_scale_y);
 
-  for (int line = 0; line <= 4; line++) {
-    float val = float(line) / 4;
-    float x = grid_x_0 + (grid_x_1 - grid_x_0) * val;
-    quads.add_line(x, area.ymin, x, area.ymax, col_grid);
+  const float val_min = ScopeHistogram::bin_to_float(hist.bin_range.x);
+  float val_max = ScopeHistogram::bin_to_float(hist.bin_range.y);
 
-    /* Label. */
-    char buf[10];
-    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.2f", val);
-
-    float text_width, text_height;
-    BLF_width_and_height(BLF_default(), buf, buf_len, &text_width, &text_height);
-    text_width *= text_scale_x;
-    text_height *= text_scale_y;
-    UI_view2d_text_cache_add(
-        &v2d, x - text_width / 2, area.ymax - text_height * 1.3f, buf, buf_len, col_grid);
+  /* Horizontally, scale the histogram range to ceil(max value), so that
+   * all of it fits into the view but small changes in maximum value between
+   * frames do no alter the scale.
+   *
+   * Some view transforms (AgX, Filmic) result in values just slightly above
+   * 1.0 range; if we find maximum to be within that range treat it as 1.0. */
+  if (val_max > 1.0f && val_max <= 1.0f + 2.0f / ScopeHistogram::BINS_01) {
+    val_max = 1.0f;
   }
+  const float val_ceil = ceilf(std::max(val_max, 0.5f));
+  const float val_x_scale = 1.0f / val_ceil;
 
-  /* Border. */
+  /* Grid lines covering 0..1 range, with 0.25 steps. */
+  for (float val = 0.0f; val <= 1.0f; val += 0.25f) {
+    add_vertical_line(val, val_x_scale, v2d, text_scale_x, text_scale_y, quads, area);
+  }
+  /* For HDR content, more lines every 1.0 step, up to displayed maximum value. */
+  for (float val = 2.0f; val <= val_ceil; val += 1.0f) {
+    add_vertical_line(val, val_x_scale, v2d, text_scale_x, text_scale_y, quads, area);
+  }
+  /* Lines for minimum & maximum image values. */
+  add_vertical_line(val_min, val_x_scale, v2d, text_scale_x, text_scale_y, quads, area);
+  add_vertical_line(val_max, val_x_scale, v2d, text_scale_x, text_scale_y, quads, area);
+
+  /* Horizontal lines covering min..max value range. */
   uchar col_border[4] = {64, 64, 64, 128};
-  quads.add_wire_quad(area.xmin, area.ymin, area.xmax, area.ymax, col_border);
+  const float x_val_min = area.xmin + (area.xmax - area.xmin) * val_min * val_x_scale;
+  const float x_val_max = area.xmin + (area.xmax - area.xmin) * val_max * val_x_scale;
+  quads.add_line(x_val_min, area.ymin, x_val_max, area.ymin, col_border);
+  quads.add_line(x_val_min, area.ymax, x_val_max, area.ymax, col_border);
 
-  /* Histogram area & line for each R/G/B channels, additively blended. */
+  /* Histogram area for each R/G/B channels, additively blended. */
   quads.draw();
   GPU_blend(GPU_BLEND_ADDITIVE);
   for (int ch = 0; ch < 3; ++ch) {
@@ -466,16 +492,21 @@ static void draw_histogram(ARegion &region,
     col_line[ch] = 224;
     col_area[ch] = 224;
     float y_scale = (area.ymax - area.ymin) / hist.max_value[ch] * 0.95f;
-    float x_scale = (area.xmax - area.xmin) / hist.data.size();
+    float x_scale = (area.xmax - area.xmin) * val_x_scale;
     float yb = area.ymin;
-    for (int bin = 0; bin < hist.data.size() - 1; bin++) {
-      float x0 = area.xmin + (bin + 0.5f) * x_scale;
-      float x1 = area.xmin + (bin + 1.5f) * x_scale;
+    for (int bin = hist.bin_range.x; bin <= hist.bin_range.y; bin++) {
+      uint bin_val = hist.data[bin][ch];
+      if (bin_val == 0) {
+        continue;
+      }
+      float f0 = ScopeHistogram::bin_to_float(bin);
+      float f1 = ScopeHistogram::bin_to_float(bin + 1);
+      float x0 = area.xmin + f0 * x_scale;
+      float x1 = area.xmin + f1 * x_scale;
 
-      float y0 = area.ymin + hist.data[bin][ch] * y_scale;
-      float y1 = area.ymin + hist.data[bin + 1][ch] * y_scale;
-      quads.add_quad(x0, yb, x0, y0, x1, yb, x1, y1, col_area);
-      quads.add_line(x0, y0, x1, y1, col_line);
+      float y = area.ymin + bin_val * y_scale;
+      quads.add_quad(x0, yb, x0, y, x1, yb, x1, y, col_area);
+      quads.add_line(x0, y, x1, y, col_line);
     }
   }
   quads.draw();

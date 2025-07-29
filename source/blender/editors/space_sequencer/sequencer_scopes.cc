@@ -273,14 +273,6 @@ ImBuf *make_zebra_view_from_ibuf(const ImBuf *ibuf, float perc)
   return res;
 }
 
-static int get_bin_float(float f)
-{
-  int bin = int(((f - ScopeHistogram::FLOAT_VAL_MIN) /
-                 (ScopeHistogram::FLOAT_VAL_MAX - ScopeHistogram::FLOAT_VAL_MIN)) *
-                ScopeHistogram::BINS_FLOAT);
-  return clamp_i(bin, 0, ScopeHistogram::BINS_FLOAT - 1);
-}
-
 void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
                                     const ColorManagedViewSettings &view_settings,
                                     const ColorManagedDisplaySettings &display_settings)
@@ -293,8 +285,10 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
       ibuf, &view_settings, &display_settings);
 
   const bool is_float = ibuf->float_buffer.data != nullptr;
-  const int hist_size = is_float ? BINS_FLOAT : BINS_BYTE;
+  const int hist_size = is_float ? BINS_HDR : BINS_01;
 
+  /* Calculate histogram of input image with parallel reduction:
+   * process in chunks, and merge their histograms. */
   Array<uint3> counts(hist_size, uint3(0));
   data = threading::parallel_reduce(
       IndexRange(IMB_get_pixel_count(ibuf)),
@@ -310,9 +304,9 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
             for ([[maybe_unused]] const int64_t index : range) {
               float4 pixel;
               premul_to_straight_v4_v4(pixel, src);
-              res[get_bin_float(pixel.x)].x++;
-              res[get_bin_float(pixel.y)].y++;
-              res[get_bin_float(pixel.z)].z++;
+              res[float_to_bin(pixel.x)].x++;
+              res[float_to_bin(pixel.y)].y++;
+              res[float_to_bin(pixel.z)].z++;
               src += 4;
             }
           }
@@ -327,9 +321,9 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
             IMB_colormanagement_processor_apply(
                 cm_processor, &pixels.data()->x, pixels.size(), 1, 4, false);
             for (const float4 &pixel : pixels) {
-              res[get_bin_float(pixel.x)].x++;
-              res[get_bin_float(pixel.y)].y++;
-              res[get_bin_float(pixel.z)].z++;
+              res[float_to_bin(pixel.x)].x++;
+              res[float_to_bin(pixel.y)].y++;
+              res[float_to_bin(pixel.z)].z++;
             }
           }
         }
@@ -366,6 +360,7 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
         }
         return res;
       },
+      /* Merge histograms a & b. */
       [&](const Array<uint3> &a, const Array<uint3> &b) {
         BLI_assert(a.size() == b.size());
         Array<uint3> res(a.size());
@@ -382,6 +377,13 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
   max_value = uint3(0);
   for (const uint3 &v : data) {
     max_value = math::max(max_value, v);
+  }
+  bin_range = uint2(0, data.size() - 1);
+  while (bin_range.x < data.size() - 1 && data[bin_range.x] == uint3(0)) {
+    bin_range.x++;
+  }
+  while (bin_range.y > 0 && data[bin_range.y] == uint3(0)) {
+    bin_range.y--;
   }
 }
 
