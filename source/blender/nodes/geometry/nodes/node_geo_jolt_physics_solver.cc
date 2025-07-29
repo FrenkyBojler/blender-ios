@@ -6,6 +6,8 @@
 #include "BLI_generic_key.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
+#include "BLI_task.h"
+#include "BLI_threads.h"
 #include "DNA_mesh_types.h"
 #include "GEO_shape_hash.hh"
 #include "NOD_geometry_nodes_behaviors_bundle.hh"
@@ -15,6 +17,7 @@
 
 #include "Jolt/Jolt.h"
 #include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemSingleThreaded.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
@@ -366,7 +369,7 @@ struct JoltState {
   ContactListenerImpl contact_listener;
   JPH::PhysicsSystem system;
   /* TODO: Integrate with TBB. */
-  std::optional<JPH::JobSystemThreadPool> job_system;
+  std::optional<JPH::JobSystemSingleThreaded> job_system;
 
   Map<std::string, JoltRigidBodies> rigid_bodies_by_path;
   Map<std::string, JoltSoftBody> soft_bodies_by_path;
@@ -1032,8 +1035,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                       state.object_layer_pair_filter);
     state.system.SetBodyActivationListener(&state.body_activation_listener);
     state.system.SetContactListener(&state.contact_listener);
-    state.job_system.emplace(
-        JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1);
+    state.job_system.emplace(JPH::cMaxPhysicsJobs);
     state.is_initialized = true;
   }
   JoltBehaviors behaviors = parse_behaviors(*behavior_bundle);
