@@ -149,34 +149,26 @@ class JoltStateOwner : public BundleItemInternalValueMixin {
 };
 using JoltStateOwnerPtr = ImplicitSharingPtr<JoltStateOwner>;
 
-static void initialize_jolt_allocator()
-{
-  constexpr const char *func = __func__;
-  JPH::Allocate = [](size_t size) { return MEM_mallocN(size, func); };
-  JPH::Reallocate = [](void *mem, size_t /*old_size*/, size_t new_size) {
-    return MEM_reallocN_id(mem, new_size, func);
-  };
-  JPH::Free = [](void *mem) { MEM_freeN(mem); };
-  JPH::AlignedAllocate = [](size_t size, size_t alignment) {
-    return MEM_mallocN_aligned(size, alignment, func);
-  };
-  JPH::AlignedFree = [](void *mem) { MEM_freeN(mem); };
-}
-
-static void global_initialize_jolt()
-{
-  initialize_jolt_allocator();
-  static JPH::Factory factory;
-  JPH::Factory::sInstance = &factory;
-  JPH::RegisterTypes();
-}
-
 struct JoltStartupAndExit {
   JoltStartupAndExit()
   {
     initialize_jolt_allocator();
     JPH::Factory::sInstance = new JPH::Factory();
     JPH::RegisterTypes();
+  }
+
+  static void initialize_jolt_allocator()
+  {
+    constexpr const char *func = __func__;
+    JPH::Allocate = [](size_t size) { return MEM_mallocN(size, func); };
+    JPH::Reallocate = [](void *mem, size_t /*old_size*/, size_t new_size) {
+      return MEM_reallocN_id(mem, new_size, func);
+    };
+    JPH::Free = [](void *mem) { MEM_freeN(mem); };
+    JPH::AlignedAllocate = [](size_t size, size_t alignment) {
+      return MEM_mallocN_aligned(size, alignment, func);
+    };
+    JPH::AlignedFree = [](void *mem) { MEM_freeN(mem); };
   }
 
   ~JoltStartupAndExit()
