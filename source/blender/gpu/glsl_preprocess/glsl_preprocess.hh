@@ -1383,8 +1383,16 @@ class Preprocessor {
         return str;
       }
       if (value.find("(") != string::npos) {
-        report_error(match, "Reference definitions cannot contain function calls.");
-        return str;
+        if (value.find("specialization_constant_get(") == string::npos &&
+            value.find("push_constant_get(") == string::npos &&
+            value.find("interface_get(") == string::npos &&
+            value.find("attribute_get(") == string::npos &&
+            value.find("buffer_get(") == string::npos &&
+            value.find("sampler_get(") == string::npos && value.find("image_get(") == string::npos)
+        {
+          report_error(match, "Reference definitions cannot contain function calls.");
+          return str;
+        }
       }
       if (value.find("[") != string::npos) {
         const string index_var = get_content_between_balanced_pair(value, '[', ']');

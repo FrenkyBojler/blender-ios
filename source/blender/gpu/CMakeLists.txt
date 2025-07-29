@@ -456,9 +456,12 @@ if(WITH_VULKAN_BACKEND)
   add_definitions(-DWITH_VULKAN_BACKEND)
 endif()
 
+set(GLSL_SRC_RAW
+  shaders/opengl/glsl_shader_defines.glsl
+)
+
 set(GLSL_SRC
   GPU_shader_shared.hh
-  shaders/opengl/glsl_shader_defines.glsl
 
   shaders/gpu_shader_depth_only_frag.glsl
   shaders/gpu_shader_uniform_color_frag.glsl
@@ -702,6 +705,10 @@ endif()
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
   glsl_to_c(${GLSL_FILE} GLSL_C)
+endforeach()
+
+foreach(GLSL_FILE ${GLSL_SRC_RAW})
+  data_to_c_simple(${GLSL_FILE} GLSL_C)
 endforeach()
 
 set(SHADER_C)

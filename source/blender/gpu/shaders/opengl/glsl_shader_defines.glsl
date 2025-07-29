@@ -166,6 +166,15 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define TEMPLATE_GLUE3(name, arg1, arg2, arg3) name##_##arg1##_##arg2##_##arg3##_
 #define TEMPLATE_GLUE4(name, arg1, arg2, arg3, arg4) name##_##arg1##_##arg2##_##arg3##_##arg4##_
 
+/* Resource accessor. */
+#define specialization_constant_get(create_info, _res) _res
+#define push_constant_get(create_info, _res) _res
+#define interface_get(create_info, _res) _res
+#define attribute_get(create_info, _res) _res
+#define buffer_get(create_info, _res) _res
+#define sampler_get(create_info, _res) _res
+#define image_get(create_info, _res) _res
+
 /* Stage agnostic builtin function.
  * GLSL doesn't allow mixing shader stages inside the same source file.
  * Make sure builtin functions are stubbed when used in an invalid stage. */
