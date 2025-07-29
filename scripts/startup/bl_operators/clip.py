@@ -706,23 +706,6 @@ class CLIP_OT_setup_tracking_scene(Operator):
             "indirect_only",
         )
 
-    @staticmethod
-    def _findNode(tree, type):
-        for node in tree.nodes:
-            if node.type == type:
-                return node
-
-        return None
-
-    @staticmethod
-    def _findOrCreateNode(tree, type):
-        node = CLIP_OT_setup_tracking_scene._findNode(tree, type)
-
-        if not node:
-            node = tree.nodes.new(type=type)
-
-        return node
-
     def _setupNodes(self, context):
         # Enable backdrop for all compositor spaces.
         def setup_space(space):
