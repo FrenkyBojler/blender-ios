@@ -8,7 +8,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 
 #include "BKE_unit.hh"
@@ -273,11 +273,11 @@ static void apply_shear(TransInfo *t)
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
     outputNumInput(&(t->num), c, t->scene->unit);
-    SNPRINTF(str, IFACE_("Shear: %s %s"), c, t->proptext);
+    SNPRINTF_UTF8(str, IFACE_("Shear: %s %s"), c, t->proptext);
   }
   else {
     /* Default header print. */
-    SNPRINTF(str, IFACE_("Shear: %.3f %s"), value, t->proptext);
+    SNPRINTF_UTF8(str, IFACE_("Shear: %.3f %s"), value, t->proptext);
   }
 
   ED_area_status_text(t->area, str);
@@ -309,10 +309,10 @@ static void initShear(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 0;
   t->num.idx_max = 0;
-  t->snap[0] = 0.1f;
-  t->snap[1] = t->snap[0] * 0.1f;
+  t->increment[0] = 0.1f;
+  t->increment_precision = 0.1f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_NONE; /* Don't think we have any unit here? */
 

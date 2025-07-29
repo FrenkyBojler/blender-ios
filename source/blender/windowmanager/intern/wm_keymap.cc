@@ -491,7 +491,7 @@ bool WM_keymap_poll(bContext *C, wmKeyMap *keymap)
          * default. */
         !STREQ(keymap->idname, "Asset Shelf"))
     {
-      CLOG_WARN(WM_LOG_KEYMAPS, "empty keymap '%s'", keymap->idname);
+      CLOG_WARN(WM_LOG_EVENTS, "empty keymap '%s'", keymap->idname);
     }
   }
 
@@ -1032,7 +1032,7 @@ void WM_modalkeymap_assign(wmKeyMap *km, const char *opname)
     ot->modalkeymap = km;
   }
   else {
-    CLOG_ERROR(WM_LOG_KEYMAPS, "unknown operator '%s'", opname);
+    CLOG_ERROR(WM_LOG_OPERATORS, "unknown operator '%s' in modal keymap", opname);
   }
 }
 
@@ -1387,7 +1387,7 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(const bContext *C,
                                                   wmWindow *win,
                                                   ListBase *handlers,
                                                   const char *opname,
-                                                  wmOperatorCallContext /*opcontext*/,
+                                                  blender::wm::OpCallContext /*opcontext*/,
                                                   IDProperty *properties,
                                                   const bool is_strict,
                                                   const wmKeyMapItemFind_Params *params,
@@ -1423,7 +1423,7 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(const bContext *C,
 
 static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
                                                const char *opname,
-                                               wmOperatorCallContext opcontext,
+                                               blender::wm::OpCallContext opcontext,
                                                IDProperty *properties,
                                                const bool is_strict,
                                                const wmKeyMapItemFind_Params *params,
@@ -1459,7 +1459,10 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
   }
 
   if (found == nullptr) {
-    if (ELEM(opcontext, WM_OP_EXEC_REGION_WIN, WM_OP_INVOKE_REGION_WIN)) {
+    if (ELEM(opcontext,
+             blender::wm::OpCallContext::ExecRegionWin,
+             blender::wm::OpCallContext::InvokeRegionWin))
+    {
       if (area) {
         if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
           region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
@@ -1479,7 +1482,10 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         }
       }
     }
-    else if (ELEM(opcontext, WM_OP_EXEC_REGION_CHANNELS, WM_OP_INVOKE_REGION_CHANNELS)) {
+    else if (ELEM(opcontext,
+                  blender::wm::OpCallContext::ExecRegionChannels,
+                  blender::wm::OpCallContext::InvokeRegionChannels))
+    {
       if (!(region && region->regiontype == RGN_TYPE_CHANNELS)) {
         region = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
       }
@@ -1497,7 +1503,10 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
                                              r_keymap);
       }
     }
-    else if (ELEM(opcontext, WM_OP_EXEC_REGION_PREVIEW, WM_OP_INVOKE_REGION_PREVIEW)) {
+    else if (ELEM(opcontext,
+                  blender::wm::OpCallContext::ExecRegionPreview,
+                  blender::wm::OpCallContext::InvokeRegionPreview))
+    {
       if (!(region && region->regiontype == RGN_TYPE_PREVIEW)) {
         region = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
       }
@@ -1536,7 +1545,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
 
 static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
                                          const char *opname,
-                                         wmOperatorCallContext opcontext,
+                                         blender::wm::OpCallContext opcontext,
                                          IDProperty *properties,
                                          bool is_strict,
                                          const wmKeyMapItemFind_Params *params,
@@ -1632,7 +1641,7 @@ static bool kmi_filter_is_visible(const wmKeyMap * /*km*/,
 
 std::optional<std::string> WM_key_event_operator_string(const bContext *C,
                                                         const char *opname,
-                                                        wmOperatorCallContext opcontext,
+                                                        blender::wm::OpCallContext opcontext,
                                                         IDProperty *properties,
                                                         const bool is_strict)
 {
@@ -1643,13 +1652,6 @@ std::optional<std::string> WM_key_event_operator_string(const bContext *C,
       C, opname, opcontext, properties, is_strict, &params, nullptr);
   if (kmi) {
     return WM_keymap_item_to_string(kmi, false);
-  }
-
-  /* Check UI state (non key-map actions for UI regions). */
-  if (std::optional<std::string> result = UI_key_event_operator_string(
-          C, opname, properties, is_strict))
-  {
-    return result;
   }
 
   return std::nullopt;
@@ -1667,7 +1669,7 @@ static bool kmi_filter_is_visible_type_mask(const wmKeyMap *km,
 
 wmKeyMapItem *WM_key_event_operator(const bContext *C,
                                     const char *opname,
-                                    wmOperatorCallContext opcontext,
+                                    blender::wm::OpCallContext opcontext,
                                     IDProperty *properties,
                                     const short include_mask,
                                     const short exclude_mask,
@@ -1800,7 +1802,7 @@ void WM_keyconfig_update_operatortype()
 
 /* NOTE(@ideasman42): regarding suppressing updates.
  * If this becomes a common operation it would be better use something more general,
- * a key-map flag for e.g. to signify that the key-map is stored outside of a #wmKeyConfig
+ * a key-map flag for example to signify that the key-map is stored outside of a #wmKeyConfig
  * and should not receive updates on modification. At the moment this has the down-side of
  * needing to be supported in quite a few places for something which isn't used much.
  * Since the use case for this is limited, add functions to begin/end suppression.
@@ -1981,7 +1983,7 @@ void WM_keyconfig_update_ex(wmWindowManager *wm, bool keep_properties)
   /* NOTE(@ideasman42): open preferences will contain "stale" #wmKeyMapItem data.
    *
    * The common case this solves is using Blender with the key-map editor open,
-   * an action in the view-port for e.g. may manipulate the key-map causing it to be rebuilt.
+   * an action in the view-port for example may manipulate the key-map causing it to be rebuilt.
    * Later interaction with the key-map editor may then attempt to access freed data.
    *
    * Take care, this is _not_ fool proof because it's possible:

@@ -18,7 +18,7 @@
 #endif
 
 #include "intern/GHOST_Context.hh"
-#include "intern/GHOST_ContextCGL.hh"
+#include "intern/GHOST_ContextMTL.hh"
 #include "intern/GHOST_Window.hh"
 
 #include "mtl_backend.hh"
@@ -33,6 +33,7 @@
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
+#include <chrono>
 #include <mutex>
 
 @class CAMetalLayer;
@@ -727,7 +728,7 @@ class MTLContext : public Context {
 
  private:
   /* Parent Context. */
-  GHOST_ContextCGL *ghost_context_;
+  GHOST_ContextMTL *ghost_context_;
 
   /* Render Passes and Frame-buffers. */
   id<MTLTexture> default_fbo_mtltexture_ = nil;
@@ -775,6 +776,23 @@ class MTLContext : public Context {
   gpu::MTLTexture *dummy_textures_[GPU_SAMPLER_TYPE_MAX][GPU_TEXTURE_BUFFER] = {{nullptr}};
   GPUVertFormat dummy_vertformat_[GPU_SAMPLER_TYPE_MAX];
   VertBuf *dummy_verts_[GPU_SAMPLER_TYPE_MAX] = {nullptr};
+
+  /* Debug scope timings. Adapted form GLContext::TimeQuery.
+   * Only supports CPU timings for now. */
+  struct ScopeTimings {
+    using Clock = std::chrono::steady_clock;
+    using TimePoint = Clock::time_point;
+    using Nanoseconds = std::chrono::nanoseconds;
+
+    static TimePoint epoch;
+
+    std::string name;
+    bool finished;
+    TimePoint cpu_start, cpu_end;
+  };
+  Vector<ScopeTimings> scope_timings;
+
+  void process_frame_timings();
 
  public:
   /* GPUContext interface. */

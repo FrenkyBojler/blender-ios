@@ -16,11 +16,13 @@
 #include "BLI_math_vector.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_material_types.h"
 
 #include "NOD_shader.h"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "fbx_import_material.hh"
@@ -300,6 +302,14 @@ static void add_image_texture(Main *bmain,
   Image *image = load_texture_image(bmain, file_dir, *ftex);
   BLI_assert(image != nullptr);
 
+  /* Set "non-color" color space for all "data" textures. */
+  if (!STR_ELEM(
+          socket_name, "Base Color", "Specular Tint", "Sheen Tint", "Coat Tint", "Emission Color"))
+  {
+    STRNCPY_UTF8(image->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
+  }
+
   /* Add texture node and any UV transformations if needed. */
   bNode *image_node = add_node(ntree, SH_NODE_TEX_IMAGE, node_locx_image, node_locy);
   BLI_assert(image_node);
@@ -314,7 +324,7 @@ static void add_image_texture(Main *bmain,
 
   /* UV transform. */
   if (ftex->has_uv_transform) {
-    /*@TODO: which UV set to use. */
+    /* TODO: which UV set to use. */
     bNode *uvmap = add_node(ntree, SH_NODE_UVMAP, node_locx_texcoord, node_locy);
     bNode *mapping = add_node(ntree, SH_NODE_MAPPING, node_locx_mapping, node_locy);
     mapping->custom1 = TEXMAP_TYPE_TEXTURE;

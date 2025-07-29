@@ -4,7 +4,7 @@
 
 #include "DNA_mesh_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
@@ -20,8 +20,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Geometry").supported_type(GeometryComponent::Type::Mesh);
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_input<decl::Geometry>("Mesh", "Geometry")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Description to set the smoothness of");
+  b.add_output<decl::Geometry>("Mesh", "Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Bool>("Shade Smooth").default_value(true).field_on_all();
 }

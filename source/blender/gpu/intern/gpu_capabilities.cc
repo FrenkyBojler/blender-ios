@@ -131,19 +131,14 @@ int GPU_max_samplers()
   return GCaps.max_samplers;
 }
 
-bool GPU_use_parallel_compilation()
+bool GPU_use_subprocess_compilation()
 {
-  return GCaps.max_parallel_compilations > 0;
+  return GCaps.use_subprocess_shader_compilations;
 }
 
 int GPU_max_parallel_compilations()
 {
   return GCaps.max_parallel_compilations;
-}
-
-bool GPU_mip_render_workaround()
-{
-  return GCaps.mip_render_workaround;
 }
 
 bool GPU_depth_blitting_workaround()

@@ -45,14 +45,14 @@ namespace blender::draw::gpencil {
 
 struct MaterialPool {
   /* Single linked-list. */
-  struct MaterialPool *next;
+  MaterialPool *next;
   /* GPU representation of materials. */
   gpMaterial mat_data[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Matching ubo. */
-  struct GPUUniformBuf *ubo;
+  GPUUniformBuf *ubo;
   /* Texture per material. NULL means none. */
-  struct GPUTexture *tex_fill[GPENCIL_MATERIAL_BUFFER_LEN];
-  struct GPUTexture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
+  gpu::Texture *tex_fill[GPENCIL_MATERIAL_BUFFER_LEN];
+  gpu::Texture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Number of material used in this pool. */
   int used_count;
 };
@@ -165,6 +165,7 @@ struct Instance final : public DrawEngine {
 
   Framebuffer render_fb = {"render_fb"};
   Framebuffer gpencil_fb = {"gpencil_fb"};
+  Framebuffer gpencil_pass_fb = {"gpencil_pass_fb"};
   Framebuffer snapshot_fb = {"snapshot_fb"};
   Framebuffer layer_fb = {"layer_fb"};
   Framebuffer object_fb = {"object_fb"};
@@ -208,13 +209,13 @@ struct Instance final : public DrawEngine {
    * pass rendering to avoid generating infinite lists. */
   bool is_sorted;
   /* Pointer to dtxl->depth */
-  GPUTexture *scene_depth_tx;
+  gpu::Texture *scene_depth_tx;
   GPUFrameBuffer *scene_fb;
   /* Used for render accumulation antialiasing. */
   Texture accumulation_tx = {"gp_accumulation_tx"};
   Framebuffer accumulation_fb = {"gp_accumulation_fb"};
   /* Copy of txl->dummy_tx */
-  GPUTexture *dummy_tx;
+  gpu::Texture *dummy_tx;
   /* Copy of v3d->shading.single_color. */
   float v3d_single_color[3];
   /* Copy of v3d->shading.color_type or -1 to ignore. */
@@ -254,7 +255,6 @@ struct Instance final : public DrawEngine {
   /* Batches containing the temp stroke. */
   gpu::Batch *stroke_batch;
   gpu::Batch *fill_batch;
-  bool do_fast_drawing;
   bool snapshot_buffer_dirty;
 
   /* Display onion skinning */
@@ -275,6 +275,9 @@ struct Instance final : public DrawEngine {
   bool use_layer_fb;
   bool use_object_fb;
   bool use_mask_fb;
+  /* If viewport compositor is active, we need to render grease pencil onto another additional
+   * pass. */
+  bool use_separate_pass;
   /* Some blend mode needs to add negative values.
    * This is only supported if target texture is signed. */
   bool use_signed_fb;
@@ -328,7 +331,7 @@ struct Instance final : public DrawEngine {
   static float2 antialiasing_sample_get(int sample_index, int sample_count);
 
  private:
-  tObject *object_sync_do(Object *ob, ResourceHandle res_handle);
+  tObject *object_sync_do(Object *ob, ResourceHandleRange res_handle);
 
   /* Check if the passed in layer is used by any other layer as a mask (in the viewlayer). */
   bool is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil,
@@ -344,17 +347,14 @@ struct Instance final : public DrawEngine {
   void draw_mask(View &view, tObject *ob, tLayer *layer);
   void draw_object(View &view, tObject *ob);
 
-  void fast_draw_start();
-  void fast_draw_end(View &view);
-
   void antialiasing_init();
   void antialiasing_draw(Manager &manager);
 
   struct VfxFramebufferRef {
     /* These may not be allocated yet, use address of future pointer. */
     GPUFrameBuffer **fb;
-    GPUTexture **color_tx;
-    GPUTexture **reveal_tx;
+    gpu::Texture **color_tx;
+    gpu::Texture **reveal_tx;
   };
 
   SwapChain<VfxFramebufferRef, 2> vfx_swapchain_;
@@ -425,8 +425,8 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
                                            bool is_vertex_mode);
 void gpencil_material_resources_get(MaterialPool *first_pool,
                                     int mat_id,
-                                    struct GPUTexture **r_tex_stroke,
-                                    struct GPUTexture **r_tex_fill,
+                                    gpu::Texture **r_tex_stroke,
+                                    gpu::Texture **r_tex_fill,
                                     struct GPUUniformBuf **r_ubo_mat);
 
 void gpencil_light_ambient_add(LightPool *lightpool, const float color[3]);

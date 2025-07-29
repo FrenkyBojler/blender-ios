@@ -396,10 +396,10 @@ typedef struct FileSelectParams {
   /**
    * Directory.
    *
-   * \note #FILE_MAX_LIBEXTRA == `1024 + 66`, this is for extreme case when 1023 length path
+   * \note #FILE_MAX_LIBEXTRA == `1024 + 258`, this is for extreme case when 1023 length path
    * needs to be linked in, where `foo.blend/Armature` need adding.
    */
-  char dir[/*FILE_MAX_LIBEXTRA*/ 1090];
+  char dir[/*FILE_MAX_LIBEXTRA*/ 1282];
   char file[/*FILE_MAXFILE*/ 256];
 
   char renamefile[/*FILE_MAXFILE*/ 256];
@@ -419,7 +419,8 @@ typedef struct FileSelectParams {
   /** Same as filter, but for ID types (aka library groups). */
   uint64_t filter_id;
 
-  /** Active file used for keyboard navigation. */
+  /** Active file used for keyboard navigation. -1 means no active file (cleared e.g. after
+   * directory change or search update). */
   int active_file;
   /** File under cursor. */
   int highlight_file;
@@ -888,6 +889,9 @@ typedef struct SpaceNode {
   /** Grease-pencil data. */
   struct bGPdata *gpd;
 
+  char gizmo_flag;
+  char _pad2[7];
+
   SpaceNodeOverlay overlay;
 
   SpaceNode_Runtime *runtime;
@@ -1132,12 +1136,6 @@ typedef struct SpreadsheetInstanceID {
 typedef struct SpreadsheetTableID {
   /** #eSpreadsheetTableIDType. */
   int type;
-
-#ifdef __cplusplus
-  uint64_t hash() const;
-  friend bool operator==(const SpreadsheetTableID &a, const SpreadsheetTableID &b);
-  friend bool operator!=(const SpreadsheetTableID &a, const SpreadsheetTableID &b);
-#endif
 } SpreadsheetTableID;
 
 typedef struct SpreadsheetTableIDGeometry {

@@ -978,23 +978,6 @@ class CYCLES_RENDER_PT_filter(CyclesButtonsPanel, Panel):
         sub.active = scene.cycles.use_denoising
 
 
-class CYCLES_RENDER_PT_override(CyclesButtonsPanel, Panel):
-    bl_label = "Override"
-    bl_options = {'DEFAULT_CLOSED'}
-    bl_context = "view_layer"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        view_layer = context.view_layer
-
-        layout.prop(view_layer, "material_override")
-        layout.prop(view_layer, "world_override")
-        layout.prop(view_layer, "samples")
-
-
 class CYCLES_RENDER_PT_passes(CyclesButtonsPanel, Panel):
     bl_label = "Passes"
     bl_context = "view_layer"
@@ -1473,7 +1456,7 @@ class CYCLES_OBJECT_PT_visibility_culling(CyclesButtonsPanel, Panel):
 def panel_node_draw(layout, id_data, output_type, input_name):
     from bpy_extras.node_utils import find_node_input
 
-    if not id_data.use_nodes:
+    if not isinstance(id_data, bpy.types.World) and not id_data.use_nodes:
         layout.operator("cycles.use_shading_nodes", icon='NODETREE')
         return False
 
@@ -1535,6 +1518,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
         col = layout.column()
         heading = col.column(align=True, heading="Temperature")
         row = heading.column(align=True).row(align=True)
+        row.use_property_decorate = False
         row.prop(light, "use_temperature", text="")
         # Don't show color preview for now, it is grayed out so the color
         # is not accurate. Would not a change in the UI code to allow
@@ -1548,6 +1532,7 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
             sub = row.row()
             sub.active = light.use_temperature
             sub.prop(light, "temperature", text="")
+            row.prop_decorator(light, "temperature")
 
         if light.use_temperature:
             col.prop(light, "color", text="Tint")
@@ -2566,7 +2551,6 @@ classes = (
     CYCLES_RENDER_PT_passes_aov,
     CYCLES_RENDER_PT_passes_lightgroups,
     CYCLES_RENDER_PT_filter,
-    CYCLES_RENDER_PT_override,
     CYCLES_PT_post_processing,
     CYCLES_CAMERA_PT_dof,
     CYCLES_CAMERA_PT_dof_aperture,
