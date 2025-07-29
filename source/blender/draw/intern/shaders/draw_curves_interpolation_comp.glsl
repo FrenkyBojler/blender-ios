@@ -14,6 +14,7 @@
 COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolation)
 
 #include "gpu_shader_attribute_load_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 
 struct IndexRange {
   int start;
@@ -222,8 +223,7 @@ void interpolate_to_evaluated_rational(const IndexRange curve_range,
   const auto &control_weights_buf = handles_pos_right_buf;
   const auto &basis_cache_offset_buf = bezier_offsets_buf;
 
-  const int order = int(
-      gpu_attr_load_uchar4(curves_order_buf, int2(1, 0), curve_id)[curve_id & 3u]);
+  const int order = int(gpu_attr_load_uchar(curves_order_buf, curve_id));
 
   const int basis_cache_start = basis_cache_offset_buf[curve_id];
   const bool invalid = floatBitsToInt(basis_cache_buf[basis_cache_start]) != 0;
@@ -237,21 +237,27 @@ void interpolate_to_evaluated_rational(const IndexRange curve_range,
   }
 
   for (int i = 0; i < evaluated_range.size; i++) {
+    /* Equivalent to `attribute_math::DefaultMixer<T> mixer{dst}`. */
     points_pos_rad_buf[evaluated_range.start + i] = float4(0.0f);
+    float total_weight = 0.0f;
 
     const IndexRange point_weights = slice(weights_range, IndexRange(i * order, order));
     const int start_index = floatBitsToInt(basis_cache_buf[start_indices_range.start + i]);
 
     for (int j = 0; j < point_weights.size; j++) {
-      const int point_index = (start_index + j) % curve_range.size;
-      const float point_weight = basis_cache_buf[point_weights.start + i];
+      const int point_index = curve_range.start + (start_index + j) % curve_range.size;
+      const float point_weight = basis_cache_buf[point_weights.start + j];
       const float weight = point_weight * control_weights_buf[point_index];
 
       const float3 pos = gpu_attr_load_float3(points_pos_buf, int2(3, 0), point_index);
       const float rad = points_rad_buf[point_index];
 
+      /* Equivalent to `mixer.mix_in()`. */
       points_pos_rad_buf[evaluated_range.start + i] += float4(pos, rad) * weight;
+      total_weight += weight;
     }
+    /* Equivalent to `mixer.finalize()` */
+    points_pos_rad_buf[evaluated_range.start + i] *= safe_rcp(total_weight);
   }
 }
 

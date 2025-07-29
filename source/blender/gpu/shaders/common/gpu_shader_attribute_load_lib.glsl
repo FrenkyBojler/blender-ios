@@ -88,3 +88,6 @@ uint4 gpu_attr_decode_uchar4_to_uint4(uint in_data)
 /* Assumes _data is declared as an array of uint. */
 #define gpu_attr_load_uchar4(_data, _stride_and_offset, _i) \
   gpu_attr_decode_uchar4_to_uint4(_data[gpu_attr_load_index(_i, _stride_and_offset)])
+/* Assumes _data is declared as an array of uint. */
+#define gpu_attr_load_uchar(_data, _i) \
+  gpu_attr_decode_uchar4_to_uint4(_data[gpu_attr_load_index(_i >> 2, int2(1, 0))])[_i & 3]

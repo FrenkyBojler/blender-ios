@@ -633,12 +633,12 @@ static void test_draw_curves_interpolation()
   }
 
   const bke::curves::nurbs::BasisCache basis_cache_c0 = {
-      {0.1f, 0.2f, 0.2f, 0.5f, 0.5f, 0.3f, 0.3f, 0.2f, 0.8f, 0.5f, 0.1f, 0.2f, 0.2f, 0.2f, 0.5f},
+      {0.1f, 0.2f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f},
       {0, 0, 0, 0, 0},
       false,
   };
   const bke::curves::nurbs::BasisCache basis_cache_c1 = {
-      {0.1f, 0.2f, 0.2f, 0.5f, 0.5f, 0.3f},
+      {0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 2.0f},
       {0, 0, 0},
       false,
   };
@@ -653,7 +653,7 @@ static void test_draw_curves_interpolation()
              basis_cache_c0.start_indices.size()});
     basis_cache_packed.extend(
         Span{reinterpret_cast<const uint32_t *>(basis_cache_c0.weights.data()),
-             basis_cache_c0.start_indices.size()});
+             basis_cache_c0.weights.size()});
 
     basis_cache_offset.append(basis_cache_packed.size());
     basis_cache_packed.append(basis_cache_c1.invalid);
@@ -684,11 +684,15 @@ static void test_draw_curves_interpolation()
   curves_order_buf->data<int>().copy_from(
       Span<int>(reinterpret_cast<const int *>(curves_order.data()), curves_order.size() / 4));
 
-  const Vector<float> control_weights = {1.0f, 0.5f, 0.0f, 0.0f, 2.0f};
+  const Vector<float> control_weights = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
 
   gpu::VertBuf *control_weights_buf = GPU_vertbuf_create_with_format(Radius::format());
   control_weights_buf->allocate(control_weights.size());
   control_weights_buf->data<float>().copy_from(control_weights);
+
+  gpu::VertBuf *curves_type_nurbs_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_type_nurbs_buf->allocate(2);
+  curves_type_nurbs_buf->data<int>().copy_from({CURVE_TYPE_NURBS, CURVE_TYPE_NURBS});
 
   {
     StorageArrayBuffer<float4, 512> points_pos_rad_buf;
@@ -698,10 +702,10 @@ static void test_draw_curves_interpolation()
     points_time_buf.clear_to_zero();
     curves_length_buf.clear_to_zero();
 
-    PassSimple pass("Curves Interpolation Bezier");
+    PassSimple pass("Curves Interpolation Nurbs");
     pass.shader_set(sh);
     pass.bind_ssbo("curves_offsets_buf", curves_offsets_buf);
-    pass.bind_ssbo("curves_type_buf", curves_type_bezier_buf);
+    pass.bind_ssbo("curves_type_buf", curves_type_nurbs_buf);
     pass.bind_ssbo("curves_resolution_buf", curves_order_buf);
     pass.bind_ssbo("curves_evaluated_offsets_buf", curves_evaluated_offsets_buf);
     pass.bind_ssbo("points_pos_buf", points_pos_buf);
@@ -767,14 +771,23 @@ static void test_draw_curves_interpolation()
           interp_rad.as_mutable_span().slice(evaluated_points));
     }
 
-    EXPECT_EQ(points_pos_rad_buf[0], float4(interp_pos[0], interp_rad[0]));
-    EXPECT_EQ(points_pos_rad_buf[1], float4(interp_pos[1], interp_rad[1]));
-    EXPECT_EQ(points_pos_rad_buf[2], float4(interp_pos[2], interp_rad[2]));
-    EXPECT_EQ(points_pos_rad_buf[3], float4(interp_pos[3], interp_rad[3]));
-    EXPECT_EQ(points_pos_rad_buf[4], float4(interp_pos[4], interp_rad[4]));
-    EXPECT_EQ(points_pos_rad_buf[5], float4(interp_pos[5], interp_rad[5]));
-    EXPECT_EQ(points_pos_rad_buf[6], float4(interp_pos[6], interp_rad[6]));
-    EXPECT_EQ(points_pos_rad_buf[7], float4(interp_pos[7], interp_rad[7]));
+    EXPECT_NEAR(points_pos_rad_buf[0].x, interp_pos[0].x, 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[1].x, interp_pos[1].x, 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[2].x, interp_pos[2].x, 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[3].x, interp_pos[3].x, 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[4].x, interp_pos[4].x, 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[5].x, interp_pos[5].x, 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[6].x, interp_pos[6].x, 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[7].x, interp_pos[7].x, 0.000001f);
+
+    EXPECT_NEAR(points_pos_rad_buf[0].w, interp_rad[0], 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[1].w, interp_rad[1], 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[2].w, interp_rad[2], 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[3].w, interp_rad[3], 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[4].w, interp_rad[4], 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[5].w, interp_rad[5], 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[6].w, interp_rad[6], 0.000001f);
+    EXPECT_NEAR(points_pos_rad_buf[7].w, interp_rad[7], 0.000001f);
     /* Ensure the rest of the buffer is untouched. */
     EXPECT_EQ(points_pos_rad_buf[8], float4(0.0));
 
@@ -798,17 +811,17 @@ static void test_draw_curves_interpolation()
       interp_time[i] /= curve_len[1];
     }
 
-    EXPECT_FLOAT_EQ(curves_length_buf[0], curve_len[0]);
-    EXPECT_FLOAT_EQ(curves_length_buf[1], curve_len[1]);
+    EXPECT_NEAR(curves_length_buf[0], curve_len[0], 0.000001f);
+    EXPECT_NEAR(curves_length_buf[1], curve_len[1], 0.000001f);
 
-    EXPECT_FLOAT_EQ(points_time_buf[0], interp_time[0]);
-    EXPECT_FLOAT_EQ(points_time_buf[1], interp_time[1]);
-    EXPECT_FLOAT_EQ(points_time_buf[2], interp_time[2]);
-    EXPECT_FLOAT_EQ(points_time_buf[3], interp_time[3]);
-    EXPECT_FLOAT_EQ(points_time_buf[4], interp_time[4]);
-    EXPECT_FLOAT_EQ(points_time_buf[5], interp_time[5]);
-    EXPECT_FLOAT_EQ(points_time_buf[6], interp_time[6]);
-    EXPECT_FLOAT_EQ(points_time_buf[7], interp_time[7]);
+    EXPECT_EQ(points_time_buf[0], interp_time[0]);
+    EXPECT_NEAR(points_time_buf[1], interp_time[1], 0.000001f);
+    EXPECT_NEAR(points_time_buf[2], interp_time[2], 0.000001f);
+    EXPECT_NEAR(points_time_buf[3], interp_time[3], 0.000001f);
+    EXPECT_NEAR(points_time_buf[4], interp_time[4], 0.000001f);
+    EXPECT_EQ(points_time_buf[5], interp_time[5]);
+    EXPECT_NEAR(points_time_buf[6], interp_time[6], 0.000001f);
+    EXPECT_NEAR(points_time_buf[7], interp_time[7], 0.000001f);
     /* Ensure the rest of the buffer is untouched. */
     EXPECT_EQ(points_time_buf[8], 0.0f);
   }
@@ -819,6 +832,7 @@ static void test_draw_curves_interpolation()
   GPU_VERTBUF_DISCARD_SAFE(curves_offsets_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_type_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_type_bezier_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_type_nurbs_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_resolution_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_evaluated_offsets_buf);
   GPU_VERTBUF_DISCARD_SAFE(points_pos_buf);
