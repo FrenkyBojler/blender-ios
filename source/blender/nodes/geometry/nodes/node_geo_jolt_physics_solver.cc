@@ -162,6 +162,20 @@ static std::optional<CollisionShapeType> parse_collision_shape_type(const int ty
   }
 }
 
+static std::optional<JPH::EMotionType> parse_motion_type(const int type)
+{
+  switch (type) {
+    case 0:
+      return JPH::EMotionType::Dynamic;
+    case 1:
+      return JPH::EMotionType::Static;
+    case 2:
+      return JPH::EMotionType::Kinematic;
+    default:
+      return std::nullopt;
+  }
+}
+
 struct JoltRigidBody {
   JPH::Body *body;
 };
@@ -331,6 +345,7 @@ struct RigidBodiesBehavior {
   std::string self_path;
   GeometrySet geometry;
   Field<int> collision_shape_type_field;
+  Field<int> motion_type_field;
 };
 
 struct GravityBehavior {
@@ -360,7 +375,8 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
   std::optional<Field<int>> collision_shape_type_field = params.bundle.lookup<Field<int>>(
       "Collision Shape Type");
-  if (!geometry || !collision_shape_type_field) {
+  std::optional<Field<int>> motion_type_field = params.bundle.lookup<Field<int>>("Motion Type");
+  if (!geometry || !collision_shape_type_field || !motion_type_field) {
     return;
   }
   geometry->keep_only({bke::GeometryComponent::Type::Instance});
@@ -369,6 +385,7 @@ static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
   rigid_bodies_behaviors.self_path = params.self_path();
   rigid_bodies_behaviors.geometry = *geometry;
   rigid_bodies_behaviors.collision_shape_type_field = *collision_shape_type_field;
+  rigid_bodies_behaviors.motion_type_field = *motion_type_field;
   params.r_behaviors.rigid_bodies.append(std::move(rigid_bodies_behaviors));
 }
 
@@ -446,8 +463,10 @@ static void handle_rigid_bodies_behavior(JoltState &state,
   bke::InstancesFieldContext field_context{*instances};
   fn::FieldEvaluator field_evaluator{field_context, instances_num};
   field_evaluator.add(behavior.collision_shape_type_field);
+  field_evaluator.add(behavior.motion_type_field);
   field_evaluator.evaluate();
   const VArray<int> collision_shape_types = field_evaluator.get_evaluated<int>(0);
+  const VArray<int> motion_types = field_evaluator.get_evaluated<int>(1);
 
   Array<GeometrySet> reference_geometry_sets(references_num);
   for (const int i : references.index_range()) {
@@ -469,6 +488,11 @@ static void handle_rigid_bodies_behavior(JoltState &state,
     const std::optional<CollisionShapeType> collision_shape_type = parse_collision_shape_type(
         collision_shape_types[instance_i]);
     if (!collision_shape_type) {
+      continue;
+    }
+    const std::optional<JPH::EMotionType> motion_type = parse_motion_type(
+        motion_types[instance_i]);
+    if (!motion_type) {
       continue;
     }
     const GeometrySet &reference_geometry = reference_geometry_sets[reference_i];
@@ -506,8 +530,9 @@ static void handle_rigid_bodies_behavior(JoltState &state,
           JPH::Vec3(instance_position.x, instance_position.y, instance_position.z),
           JPH::Quat(
               instance_rotation.x, instance_rotation.y, instance_rotation.z, instance_rotation.w),
-          JPH::EMotionType::Dynamic,
-          ObjectLayers::moving};
+          *motion_type,
+          *motion_type == JPH::EMotionType::Dynamic ? ObjectLayers::moving :
+                                                      ObjectLayers::non_moving};
 
       JPH::Body *jolt_body = body_interface.CreateBody(jolt_body_settings);
       body_interface.AddBody(jolt_body->GetID(), JPH::EActivation::Activate);
