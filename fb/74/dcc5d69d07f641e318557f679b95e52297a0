@@ -4,3 +4,4 @@ Referenced by commit f38c54d56ef, Fix Vertex weight gradient tool show wrong wei
 Referenced by commit eb98cbb8c51, Fix: Missing category in IMAGE_PT_paint_settings_advanced panel
 Referenced by issue #72786, Sculpt Mode RMB menu appears at shifted hotspot under pointer
 Referenced by pull request #143222, Fix #143182: Inconsistency in Menu order in Texture Painting Workspace
+Referenced by commit c634e065b19e7528716e60d26faee3138306584b, Fix #143182: Inconsistency in Menu order in Texture Painting Workspace
