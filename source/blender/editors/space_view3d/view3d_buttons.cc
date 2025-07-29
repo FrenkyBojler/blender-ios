@@ -567,114 +567,6 @@ static CurvesSelectionStatus init_curves_selection_status(
       CurvesSelectionStatus::sum);
 }
 
-static bool apply_to_curves_selection(const CurvesDataPanelState &current,
-                                      const CurvesDataPanelState &modified,
-                                      blender::bke::CurvesGeometry &curves)
-{
-  using namespace blender;
-  using namespace ed::curves;
-  if (curves.is_empty()) {
-    return false;
-  }
-
-  const bool cyclic_changed = modified.cyclic != current.cyclic;
-  const bool nurbs_knot_mode_changed = modified.nurbs_knot_mode != current.nurbs_knot_mode;
-  const bool order_changed = modified.order != current.order;
-  const bool resolution_changed = modified.resolution != current.resolution;
-  if (!(cyclic_changed || nurbs_knot_mode_changed || order_changed || resolution_changed)) {
-    return false;
-  }
-
-  IndexMaskMemory memory;
-  const IndexMask selection = retrieve_all_selected_curves(curves, memory);
-  if (selection.is_empty()) {
-    return false;
-  }
-
-  if (cyclic_changed) {
-    index_mask::masked_fill(curves.cyclic_for_write(), bool(modified.cyclic), selection);
-  }
-
-  if (resolution_changed) {
-    index_mask::masked_fill(curves.resolution_for_write(), modified.resolution, selection);
-  }
-
-  if (!(nurbs_knot_mode_changed || order_changed)) {
-    return true;
-  }
-
-  const OffsetIndices<int> src_custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-  /* Ensure `src_knot_offsets` will not get deleted. */
-  const SharedCache<Vector<int>> custom_knot_offsets_cache =
-      curves.runtime->custom_knot_offsets_cache;
-  const Span<float> src_custom_knots = curves.nurbs_custom_knots();
-  const ImplicitSharingInfo *knots_sharing_info = curves.runtime->custom_knots_sharing_info;
-  if (knots_sharing_info != nullptr) {
-    knots_sharing_info->add_weak_user();
-  }
-
-  Array<int8_t> src_knot_modes;
-  if (nurbs_knot_mode_changed &&
-      (!src_custom_knots.is_empty() || modified.nurbs_knot_mode == NURBS_KNOT_MODE_CUSTOM))
-  {
-    src_knot_modes.reinitialize(curves.curves_num());
-    curves.nurbs_knots_modes().materialize(src_knot_modes);
-  }
-
-  const MutableSpan<int8_t> nurbs_knot_modes = nurbs_knot_mode_changed ?
-                                                   curves.nurbs_knots_modes_for_write() :
-                                                   MutableSpan<int8_t>();
-  const MutableSpan<int8_t> orders = order_changed ? curves.nurbs_orders_for_write() :
-                                                     MutableSpan<int8_t>();
-
-  if (nurbs_knot_mode_changed) {
-    index_mask::masked_fill(nurbs_knot_modes, int8_t(modified.nurbs_knot_mode), selection);
-  }
-
-  if (order_changed) {
-    selection.foreach_index(GrainSize(512), [&](const int curve) {
-      orders[curve] = modified.order;
-      if (nurbs_knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
-        nurbs_knot_modes[curve] = NURBS_KNOT_MODE_NORMAL;
-      }
-    });
-  }
-
-  if (nurbs_knot_mode_changed) {
-    curves.nurbs_custom_knots_update_size();
-    const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
-    if (!custom_knot_curves.is_empty()) {
-      const OffsetIndices points_by_curve = curves.points_by_curve();
-      const OffsetIndices<int> custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
-      const VArray<int8_t> orders = curves.nurbs_orders();
-      const VArray<bool> cyclic = curves.cyclic();
-      MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
-
-      custom_knot_curves.foreach_index(GrainSize(512), [&](const int curve) {
-        const IndexRange dst_knots = custom_knots_by_curve[curve];
-        const IndexRange src_knots = src_custom_knots_by_curve[curve];
-        if (src_knots.is_empty()) {
-          const int points_num = points_by_curve[curve].size();
-          const int order = orders[curve];
-          const bool is_cyclic = cyclic[curve];
-          Array<float> knots_buffer(bke::curves::nurbs::knots_num(points_num, order, is_cyclic));
-          bke::curves::nurbs::calculate_knots(
-              points_num, KnotsMode(src_knot_modes[curve]), order, is_cyclic, knots_buffer);
-          custom_knots.slice(dst_knots).copy_from(
-              knots_buffer.as_span().take_front(dst_knots.size()));
-        }
-        else {
-          custom_knots.slice(dst_knots).copy_from(src_custom_knots.slice(src_knots));
-        }
-      });
-    }
-  }
-  if (knots_sharing_info != nullptr) {
-    knots_sharing_info->remove_weak_user_and_delete_if_last();
-  }
-  return true;
-}
-
 /* is used for both read and write... */
 static void v3d_editvertex_buts(
     const bContext *C, uiLayout *layout, View3D *v3d, Object *ob, float lim)
@@ -2252,9 +2144,148 @@ static bool view3d_panel_curves_data_poll(const bContext *C, PanelType * /*pt*/)
   return (ob && (ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES) && BKE_object_is_in_editmode(ob)));
 }
 
-static void do_view3d_curves_data_buttons(bContext *C, void * /*index*/, int /*event*/)
+using CurvesHandler = bool (*)(const CurvesDataPanelState &modified_state,
+                               const blender::IndexMask &selection,
+                               blender::bke::CurvesGeometry &curves);
+
+bool handle_curves_cyclic(const CurvesDataPanelState &modified_state,
+                          const blender::IndexMask &selection,
+                          blender::bke::CurvesGeometry &curves)
+{
+  blender::index_mask::masked_fill<bool>(
+      curves.cyclic_for_write(), bool(modified_state.cyclic), selection);
+  return true;
+}
+
+static void update_custom_knots(const blender::OffsetIndices<int> &src_custom_knots_by_curve,
+                                const blender::Span<int8_t> src_knot_modes,
+                                const blender::Span<float> src_custom_knots,
+                                blender::bke::CurvesGeometry &curves)
 {
   using namespace blender;
+  curves.nurbs_custom_knots_update_size();
+  IndexMaskMemory memory;
+  const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
+  if (!custom_knot_curves.is_empty()) {
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+    const VArray<int8_t> orders = curves.nurbs_orders();
+    const VArray<bool> cyclic = curves.cyclic();
+    MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
+
+    custom_knot_curves.foreach_index(GrainSize(512), [&](const int curve) {
+      const IndexRange dst_knots = custom_knots_by_curve[curve];
+      const IndexRange src_knots = src_custom_knots_by_curve[curve];
+      if (src_knots.is_empty()) {
+        const int points_num = points_by_curve[curve].size();
+        const int order = orders[curve];
+        const bool is_cyclic = cyclic[curve];
+        Array<float> knots_buffer(bke::curves::nurbs::knots_num(points_num, order, is_cyclic));
+        bke::curves::nurbs::calculate_knots(
+            points_num, KnotsMode(src_knot_modes[curve]), order, is_cyclic, knots_buffer);
+        custom_knots.slice(dst_knots).copy_from(
+            knots_buffer.as_span().take_front(dst_knots.size()));
+      }
+      else {
+        custom_knots.slice(dst_knots).copy_from(src_custom_knots.slice(src_knots));
+      }
+    });
+  }
+}
+
+bool handle_curves_knot_mode(const CurvesDataPanelState &modified_state,
+                             const blender::IndexMask &selection,
+                             blender::bke::CurvesGeometry &curves)
+{
+  using namespace blender;
+  const OffsetIndices<int> src_custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+  /* Ensure `src_custom_knots_by_curve` will not get deleted. */
+  const SharedCache<Vector<int>> custom_knot_offsets_cache =
+      curves.runtime->custom_knot_offsets_cache;
+  const Span<float> src_custom_knots = curves.nurbs_custom_knots();
+  const ImplicitSharingInfo *knots_sharing_info = curves.runtime->custom_knots_sharing_info;
+  if (knots_sharing_info != nullptr) {
+    knots_sharing_info->add_weak_user();
+  }
+
+  Array<int8_t> src_knot_modes;
+  if (!src_custom_knots.is_empty() || modified_state.nurbs_knot_mode == NURBS_KNOT_MODE_CUSTOM) {
+    src_knot_modes.reinitialize(curves.curves_num());
+    curves.nurbs_knots_modes().materialize(src_knot_modes);
+  }
+
+  const MutableSpan<int8_t> nurbs_knot_modes = curves.nurbs_knots_modes_for_write();
+
+  index_mask::masked_fill(nurbs_knot_modes, int8_t(modified_state.nurbs_knot_mode), selection);
+  /**
+   * Copies custom knots from the original array for curves which retain NURBS_KNOT_MODE_CUSTOM.
+   * Calculates custom knots for curves which gain NURBS_KNOT_MODE_CUSTOM.
+   */
+  update_custom_knots(src_custom_knots_by_curve, src_knot_modes, src_custom_knots, curves);
+
+  if (knots_sharing_info != nullptr) {
+    knots_sharing_info->remove_weak_user_and_delete_if_last();
+  }
+  return true;
+}
+
+bool handle_curves_order(const CurvesDataPanelState &modified_state,
+                         const blender::IndexMask &selection,
+                         blender::bke::CurvesGeometry &curves)
+{
+  using namespace blender;
+  const MutableSpan<int8_t> nurbs_knot_modes = curves.nurbs_knots_modes_for_write();
+  const MutableSpan<int8_t> orders = curves.nurbs_orders_for_write();
+
+  const OffsetIndices<int> src_custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+  /* Ensure `src_custom_knots_by_curve` will not get deleted. */
+  const SharedCache<Vector<int>> custom_knot_offsets_cache =
+      curves.runtime->custom_knot_offsets_cache;
+  const Span<float> src_custom_knots = curves.nurbs_custom_knots();
+  const ImplicitSharingInfo *knots_sharing_info = curves.runtime->custom_knots_sharing_info;
+  if (knots_sharing_info != nullptr) {
+    knots_sharing_info->add_weak_user();
+  }
+
+  bool knot_modes_changed = false;
+
+  selection.foreach_index(GrainSize(512), [&](const int curve) {
+    if (orders[curve] != modified_state.order && nurbs_knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM)
+    {
+      nurbs_knot_modes[curve] = NURBS_KNOT_MODE_NORMAL;
+      knot_modes_changed = true;
+    }
+    orders[curve] = modified_state.order;
+  });
+
+  /**
+   * Custom knots need to be recopied, if some curves loose NURBS_KNOT_MODE_CUSTOM.
+   */
+  if (knot_modes_changed) {
+    update_custom_knots(src_custom_knots_by_curve, {}, src_custom_knots, curves);
+  }
+
+  if (knots_sharing_info != nullptr) {
+    knots_sharing_info->remove_weak_user_and_delete_if_last();
+  }
+
+  return true;
+}
+
+bool handle_curves_resolution(const CurvesDataPanelState &modified_state,
+                              const blender::IndexMask &selection,
+                              blender::bke::CurvesGeometry &curves)
+{
+  blender::index_mask::masked_fill(
+      curves.resolution_for_write(), modified_state.resolution, selection);
+  return true;
+}
+
+static void handle_curves_data_button(bContext *C, void *handler, void *)
+{
+  using namespace blender;
+
+  CurvesHandler curves_handler = reinterpret_cast<CurvesHandler>(handler);
 
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -2263,31 +2294,70 @@ static void do_view3d_curves_data_buttons(bContext *C, void * /*index*/, int /*e
 
   View3D *v3d = CTX_wm_view3d(C);
   const TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
+  const CurvesDataPanelState &modified = tfp.modified;
 
   if (ob->type == OB_GREASE_PENCIL) {
     using namespace ed::greasepencil;
-    using namespace ed::curves;
     Scene &scene = *CTX_data_scene(C);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
     Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-      if (apply_to_curves_selection(tfp.current, tfp.modified, curves)) {
+      IndexMaskMemory memory;
+      const IndexMask selection = ed::curves::retrieve_all_selected_curves(curves, memory);
+      if (selection.is_empty()) {
+        return;
+      }
+
+      if (curves_handler(modified, selection, curves)) {
         info.drawing.tag_topology_changed();
       }
     });
   }
   else {
     Curves &curves_id = *static_cast<Curves *>(ob->data);
-    blender::bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    if (apply_to_curves_selection(tfp.current, tfp.modified, curves)) {
+    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    IndexMaskMemory memory;
+    const IndexMask selection = ed::curves::retrieve_all_selected_curves(curves, memory);
+
+    if (!selection.is_empty() && curves_handler(modified, selection, curves)) {
       curves.tag_topology_changed();
     }
   }
 
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+}
+
+constexpr std::array<EnumPropertyItem, 5> enum_curve_knot_mode_items{{
+    {NURBS_KNOT_MODE_NORMAL, "NORMAL", ICON_NONE, "Normal", ""},
+    {NURBS_KNOT_MODE_ENDPOINT, "ENDPOINT", ICON_NONE, "Endpoint", ""},
+    {NURBS_KNOT_MODE_BEZIER, "BEZIER", ICON_NONE, "Bezier", ""},
+    {NURBS_KNOT_MODE_ENDPOINT_BEZIER, "ENDPOINT_BEZIER", ICON_NONE, "Endpoint Bezier", ""},
+    {NURBS_KNOT_MODE_CUSTOM, "CUSTOM", ICON_NONE, "Custom", ""},
+}};
+
+static void knot_modes_menu(bContext * /*C*/, uiLayout *layout, void *knot_mode_p)
+{
+  uiBlock *block = layout->block();
+  blender::ui::block_layout_set_current(block, layout);
+  layout->column(false);
+
+  for (const EnumPropertyItem &item : enum_curve_knot_mode_items) {
+    uiDefButI(block,
+              ButType::ButMenu,
+              0,
+              IFACE_(item.name),
+              0,
+              0,
+              UI_UNIT_X * 5,
+              UI_UNIT_Y,
+              reinterpret_cast<int *>(knot_mode_p),
+              item.value,
+              0.0,
+              "");
+  }
 }
 
 static void view3d_panel_curves_data(const bContext *C, Panel *panel)
@@ -2339,8 +2409,6 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
   CurvesDataPanelState &modified = tfp.modified;
   CurvesDataPanelState &current = tfp.current;
 
-  UI_block_func_handle_set(block, do_view3d_curves_data_buttons, nullptr);
-
   current.cyclic = status.cyclic_count > 0;
   current.nurbs_knot_mode = math::safe_divide(status.nurbs_knot_mode_sum, status.nurbs_count);
   current.order = math::safe_divide(status.order_sum, status.nurbs_count);
@@ -2351,27 +2419,82 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
   panel->layout->use_property_split_set(true);
   uiLayout &bcol = panel->layout->column(false);
 
-  PointerRNA data_ptr = RNA_pointer_create_discrete(
-      nullptr, &RNA_CurvesDataPanelState, static_cast<void *>(&tfp.modified));
+  auto add_labeled_field = [&](const StringRef label,
+                               const bool active,
+                               FunctionRef<uiBut *()> add_button,
+                               CurvesHandler curves_handler) {
+    uiLayout &row = bcol.row(true);
+    uiLayout &split = row.split(0.4, true);
+    uiLayout &col = split.column(true);
+    col.alignment_set(ui::LayoutAlign::Right);
+    col.label(label, ICON_NONE);
+    split.column(false);
+    uiBut *but = add_button();
+    if (active) {
+      UI_but_drawflag_disable(but, UI_BUT_INDETERMINATE);
+    }
+    else {
+      UI_but_drawflag_enable(but, UI_BUT_INDETERMINATE);
+    }
+    UI_but_func_set(
+        but, handle_curves_data_button, reinterpret_cast<void *>(curves_handler), nullptr);
+  };
 
-  uiLayout &cyclic_prop = bcol.column(true, "Cyclic");
-  cyclic_prop.prop(&data_ptr, "cyclic", UI_ITEM_NONE, "", ICON_NONE);
-  cyclic_prop.active_set(status.cyclic_count == 0 || status.cyclic_count == status.curve_count);
+  const int butw = 10 * UI_UNIT_X;
+  const int buth = 20 * UI_SCALE_FAC;
+
+  add_labeled_field(
+      "Cyclic",
+      status.cyclic_count == 0 || status.cyclic_count == status.curve_count,
+      [&]() {
+        return uiDefButC(
+            block, ButType::Checkbox, 0, "", 0, 0, butw, buth, &modified.cyclic, 0, 1, "");
+      },
+      handle_curves_cyclic);
 
   if (status.nurbs_count == status.curve_count) {
-    uiLayout &knot_mode_prop = bcol.column(true);
-    knot_mode_prop.prop(&data_ptr, "nurbs_knot_mode", UI_ITEM_NONE, "Knot Mode", ICON_NONE);
-    knot_mode_prop.active_set(status.nurbs_knot_mode_max * status.nurbs_count ==
-                              status.nurbs_knot_mode_sum);
+    add_labeled_field(
+        "Knot Mode",
+        status.nurbs_knot_mode_max * status.nurbs_count == status.nurbs_knot_mode_sum,
+        [&]() {
+          uiBut *but = uiDefMenuBut(block,
+                                    knot_modes_menu,
+                                    &modified.nurbs_knot_mode,
+                                    enum_curve_knot_mode_items[modified.nurbs_knot_mode].name,
+                                    0,
+                                    0,
+                                    butw,
+                                    buth,
+                                    "");
+          UI_but_type_set_menu_from_pulldown(but);
+          return but;
+        },
+        handle_curves_knot_mode);
 
-    uiLayout &resolution_prop = bcol.column(true);
-    resolution_prop.prop(&data_ptr, "order", UI_ITEM_NONE, "Order", ICON_NONE);
-    resolution_prop.active_set(status.order_max * status.nurbs_count == status.order_sum);
+    add_labeled_field(
+        "Order",
+        status.order_max * status.nurbs_count == status.order_sum,
+        [&]() {
+          uiBut *but = uiDefButI(
+              block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.order, 2, 6, "");
+          UI_but_number_step_size_set(but, 1);
+          UI_but_number_precision_set(but, -1);
+          return but;
+        },
+        handle_curves_order);
   }
 
-  uiLayout &resolution_prop = bcol.column(true);
-  resolution_prop.prop(&data_ptr, "resolution", UI_ITEM_NONE, "Resolution", ICON_NONE);
-  resolution_prop.active_set(status.resolution_max * status.curve_count == status.resolution_sum);
+  add_labeled_field(
+      "Resolution",
+      status.resolution_max * status.curve_count == status.resolution_sum,
+      [&]() {
+        uiBut *but = uiDefButI(
+            block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.resolution, 1, 64, "");
+        UI_but_number_step_size_set(but, 1);
+        UI_but_number_precision_set(but, -1);
+        return but;
+      },
+      handle_curves_resolution);
 }
 
 void view3d_buttons_register(ARegionType *art)
