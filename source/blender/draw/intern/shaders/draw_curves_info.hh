@@ -30,13 +30,13 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_curves_data)
 /* Offsets giving the start and end of the curve. */
-STORAGE_BUF(0, read, int, curves_offsets_buf[])
+STORAGE_BUF(0, read, int, points_by_curve_buf[])
 STORAGE_BUF(1, read, int, curves_type_buf[])
 STORAGE_BUF(2, read, uint, curves_resolution_buf[])
-STORAGE_BUF(3, read, int, curves_evaluated_offsets_buf[])
+STORAGE_BUF(3, read, int, evaluated_points_by_curve_buf[])
 /* Bezier handles (if needed). */
-STORAGE_BUF(4, read, float, handles_pos_left_buf[])
-STORAGE_BUF(5, read, float, handles_pos_right_buf[])
+STORAGE_BUF(4, read, float, handles_positions_left_buf[])
+STORAGE_BUF(5, read, float, handles_positions_right_buf[])
 STORAGE_BUF(6, read, int, bezier_offsets_buf[])
 /* Nurbs (alias of other buffers).  */
 // STORAGE_BUF(2, read, uint, curves_order_buf[])
@@ -49,11 +49,11 @@ GPU_SHADER_CREATE_INFO(draw_curves_interpolate_position)
 LOCAL_GROUP_SIZE(64)
 ADDITIONAL_INFO(draw_curves_data)
 /* Attributes. */
-STORAGE_BUF(7, read, float, points_pos_buf[])
-STORAGE_BUF(8, read, float, points_rad_buf[])
+STORAGE_BUF(7, read, float, positions_buf[])
+STORAGE_BUF(8, read, float, radii_buf[])
 /* Outputs. */
-STORAGE_BUF(9, read_write, float4, points_pos_rad_buf[])
-STORAGE_BUF(10, read_write, float, points_time_buf[])
+STORAGE_BUF(9, read_write, float4, evaluated_positions_radii_buf[])
+STORAGE_BUF(10, read_write, float, evaluated_time_buf[])
 STORAGE_BUF(11, write, float, curves_length_buf[])
 PUSH_CONSTANT(int, curves_count)
 PUSH_CONSTANT(bool, compute_length_and_time)
