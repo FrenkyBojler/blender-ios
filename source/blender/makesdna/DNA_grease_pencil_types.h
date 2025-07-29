@@ -568,8 +568,8 @@ struct GreasePencil {
    */
   bke::greasepencil::LayerGroup &duplicate_layer_group(
       const bke::greasepencil::LayerGroup &duplicate_group,
-      const bool duplicate_frames,
-      const bool duplicate_drawings);
+      const bool duplicate_frames = false,
+      const bool duplicate_drawings = false);
 
   /**
    *  Adds multiple layers with an empty name.
