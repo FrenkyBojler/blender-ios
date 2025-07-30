@@ -117,6 +117,8 @@ struct SpaceNode_Runtime {
    * Stored with a shared pointer so that it can be forward declared.
    */
   std::shared_ptr<asset::AssetItemTree> assets_for_menu;
+
+  Map<int, bool> node_can_sync_states;
 };
 
 enum NodeResizeDirection {
