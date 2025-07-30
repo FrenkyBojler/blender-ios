@@ -71,7 +71,7 @@ VFontData *BKE_vfontdata_from_freetypefont(PackedFile *pf)
 
 static void *vfontdata_copy_characters_value_cb(const void *src)
 {
-  return BKE_vfontdata_char_copy(static_cast<const VChar *>(src));
+  return src ? BKE_vfontdata_char_copy(static_cast<const VChar *>(src)) : nullptr;
 }
 
 VFontData *BKE_vfontdata_copy(const VFontData *vfont_src, const int /*flag*/)
@@ -117,33 +117,27 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
     return nullptr;
   }
 
-  if (!use_fallback) {
-    if (!BLF_has_glyph(font_id, character)) {
-      BLF_unload_id(font_id);
-      return nullptr; /* No fallback, so no character found. */
-    }
-  }
-
   VChar *che = MEM_callocN<VChar>("objfnt_char");
 
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);
 
-  if (BLF_character_to_curves(font_id,
-                              character,
-                              &che->nurbsbase,
-                              vfont->data->metrics.scale,
-                              use_fallback,
-                              &che->width))
+  if (!BLF_character_to_curves(font_id,
+                               character,
+                               &che->nurbsbase,
+                               vfont->data->metrics.scale,
+                               use_fallback,
+                               &che->width))
   {
-    BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
-    BLF_unload_id(font_id);
-    return che;
+    /* Free but add to the character cache to prevent future lookups
+     * from attempting to load the font again. */
+    MEM_freeN(che);
+    che = nullptr;
   }
 
-  MEM_freeN(che);
+  BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
   BLF_unload_id(font_id);
-  return nullptr;
+  return che;
 }
 
 VChar *BKE_vfontdata_char_copy(const VChar *vchar_src)
