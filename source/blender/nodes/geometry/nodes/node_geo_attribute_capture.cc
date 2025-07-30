@@ -239,7 +239,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       params.connect_available_socket(node, "Geometry");
     });
   }
-  if (!CaptureAttributeItemsAccessor::supports_socket_type(type)) {
+  if (!CaptureAttributeItemsAccessor::supports_socket_type(type, params.node_tree().type)) {
     return;
   }
 

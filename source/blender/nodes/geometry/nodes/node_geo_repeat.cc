@@ -233,7 +233,9 @@ static void node_operators()
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
-  if (!RepeatItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type))) {
+  if (!RepeatItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type),
+                                                 params.node_tree().type))
+  {
     return;
   }
   params.add_item_full_name(IFACE_("Repeat"), [](LinkSearchOpParams &params) {

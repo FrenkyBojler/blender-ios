@@ -196,7 +196,7 @@ inline typename Accessor::ItemT *add_item_with_socket_type_and_name(
     bNode &node, const eNodeSocketDatatype socket_type, const char *name)
 {
   using ItemT = typename Accessor::ItemT;
-  BLI_assert(Accessor::supports_socket_type(socket_type));
+  BLI_assert(Accessor::supports_socket_type(socket_type, node.owner_tree().type));
   ItemT &new_item = detail::add_item_to_array<Accessor>(node);
   Accessor::init_with_socket_type_and_name(node, new_item, socket_type, name);
   return &new_item;
@@ -267,7 +267,7 @@ template<typename Accessor>
   const ItemT *item = nullptr;
   if constexpr (Accessor::has_name && Accessor::has_type) {
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(src_socket->type);
-    if (!Accessor::supports_socket_type(socket_type)) {
+    if (!Accessor::supports_socket_type(socket_type, ntree.type)) {
       return false;
     }
     std::string name = src_socket->name;

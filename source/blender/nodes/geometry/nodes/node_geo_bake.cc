@@ -562,7 +562,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     });
     return;
   }
-  if (!BakeItemsAccessor::supports_socket_type(type)) {
+  if (!BakeItemsAccessor::supports_socket_type(type, params.node_tree().type)) {
     return;
   }
 
