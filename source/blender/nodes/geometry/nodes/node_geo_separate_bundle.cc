@@ -12,6 +12,8 @@
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
 
+#include "BKE_idprop.hh"
+
 #include "BLO_read_write.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -123,15 +125,45 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_cpp_type) {
       continue;
     }
-    const std::optional<Bundle::Item> value = bundle->lookup(name);
+    const BundleItemValue *value = bundle->lookup(name);
     if (!value) {
       params.error_message_add(NodeWarningType::Error,
                                fmt::format(fmt::runtime(TIP_("Value not found: \"{}\"")), name));
       continue;
     }
+    const auto *socket_value = std::get_if<BundleItemSocketValue>(&value->value);
+    if (!socket_value) {
+      params.error_message_add(
+          NodeWarningType::Error,
+          fmt::format("{}: \"{}\"", TIP_("Cannot get internal value from bundle"), name));
+      continue;
+    }
     void *output_ptr = lf_params.get_output_data_ptr(i);
-    if (!implicitly_convert_socket_value(*value->type, value->value, *stype, output_ptr)) {
-      construct_socket_default_value(*stype, output_ptr);
+    if (socket_value->type->type == stype->type) {
+      socket_value->type->geometry_nodes_cpp_type->copy_construct(socket_value->value, output_ptr);
+    }
+    else {
+      if (implicitly_convert_socket_value(
+              *socket_value->type, socket_value->value, *stype, output_ptr))
+      {
+        params.error_message_add(
+            NodeWarningType::Info,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Implicit type conversion"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+      }
+      else {
+        params.error_message_add(
+            NodeWarningType::Error,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Conversion not supported"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+        construct_socket_default_value(*stype, output_ptr);
+      }
     }
     lf_params.output_set(i);
   }
@@ -168,6 +200,37 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<SeparateBundleItemsAccessor>(&reader, node);
 }
 
+static bool node_can_sync_sockets(const bContext &C,
+                                  const bNodeTree & /*ntree*/,
+                                  const bNode &node)
+{
+  const SpaceNode *snode = CTX_wm_space_node(&C);
+  if (!snode) {
+    return false;
+  }
+  const NodeGeometrySeparateBundle &storage = node_storage(node);
+  if (!(storage.flag & NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC)) {
+    return false;
+  }
+  const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_separate_bundle(
+      *snode, node);
+  switch (state) {
+    case ed::space_node::NodeSyncState::NoSyncSource:
+    case ed::space_node::NodeSyncState::Synced: {
+      const_cast<NodeGeometrySeparateBundle &>(storage).flag &=
+          ~NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC;
+      break;
+    }
+    case ed::space_node::NodeSyncState::CanBeSynced: {
+      return true;
+    }
+    case ed::space_node::NodeSyncState::ConflictingSyncSources: {
+      break;
+    }
+  }
+  return false;
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -185,6 +248,7 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.can_sync_sockets = node_can_sync_sockets;
   bke::node_type_storage(
       ntype, "NodeGeometrySeparateBundle", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
