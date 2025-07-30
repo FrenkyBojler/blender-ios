@@ -126,6 +126,7 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
 
 /**
  * Convert a character's outlines into curves.
+ * \return success if the character was found and converted.
  */
 bool BLF_character_to_curves(int fontid,
                              unsigned int unicode,
