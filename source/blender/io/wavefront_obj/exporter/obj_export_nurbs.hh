@@ -106,42 +106,14 @@ class OBJCurves : public IOBJCurve, NonCopyable {
 
   const char *get_curve_name() const override;
 
-  /**
-   *  Number of splines associated with the Curve object.assign_if_different
-   */
   int total_splines() const override;
-  /**
-   * \param spline_index: Zero-based index of spline of interest.
-   * \return Total vertices in a spline.
-   */
   int total_spline_vertices(int spline_index) const override;
-  /**
-   * Get the number of control points on the U-dimension.
-   */
   int num_control_points_u(int spline_index) const override;
-  /**
-   * Get the number of control points on the V-dimension.
-   */
   int num_control_points_v(int spline_index) const override;
-  /**
-   * Get the degree of the NURBS spline for the U-dimension.
-   */
   int get_nurbs_degree_u(int spline_index) const override;
-  /**
-   * Get the degree of the NURBS spline for the V-dimension.
-   */
   int get_nurbs_degree_v(int spline_index) const override;
-  /**
-   * True if the indexed spline is cyclic along U dimension.
-   */
   bool get_cyclic_u(int spline_index) const override;
-  /**
-   * Get the knot vector for the U-dimension. Computes knots using the buffer if necessary.
-   */
   Span<float> get_knots_u(int spline_index, Vector<float> &buffer) const override;
-  /**
-   * Get coordinates for the (non-looped) spline control points.
-   */
   Span<float3> vertex_coordinates(int spline_index,
                                   Vector<float3> &dynamic_point_buffer) const override;
 };
@@ -167,42 +139,14 @@ class OBJLegacyCurve : public IOBJCurve, NonCopyable {
 
   const char *get_curve_name() const override;
 
-  /**
-   *  Number of splines associated with the Curve object.assign_if_different
-   */
   int total_splines() const override;
-  /**
-   * \param spline_index: Zero-based index of spline of interest.
-   * \return Total vertices in a spline.
-   */
   int total_spline_vertices(int spline_index) const override;
-  /**
-   * Get the number of control points on the U-dimension.
-   */
   int num_control_points_u(int spline_index) const override;
-  /**
-   * Get the number of control points on the V-dimension.
-   */
   int num_control_points_v(int spline_index) const override;
-  /**
-   * Get the degree of the NURBS spline for the U-dimension.
-   */
   int get_nurbs_degree_u(int spline_index) const override;
-  /**
-   * Get the degree of the NURBS spline for the V-dimension.
-   */
   int get_nurbs_degree_v(int spline_index) const override;
-  /**
-   * True if the indexed spline is cyclic along U dimension.
-   */
   bool get_cyclic_u(int spline_index) const override;
-  /**
-   * Get the knot vector for the U-dimension. Computes knots using the buffer if necessary.
-   */
   Span<float> get_knots_u(int spline_index, Vector<float> &buffer) const override;
-  /**
-   * Get coordinates for the (non-looped) spline control points.
-   */
   Span<float3> vertex_coordinates(int spline_index,
                                   Vector<float3> &dynamic_point_buffer) const override;
 };
