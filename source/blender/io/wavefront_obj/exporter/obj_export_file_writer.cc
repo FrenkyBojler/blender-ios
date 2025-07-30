@@ -508,7 +508,6 @@ void OBJWriter::write_nurbs_curve(FormatHandler &fh, const IOBJCurve &obj_nurbs_
     fh.write_obj_nurbs_degree(degree_u);
 
     const int num_points_u = obj_nurbs_data.num_control_points_u(spline_idx);
-    const bool cyclic_u = obj_nurbs_data.get_cyclic_u(spline_idx);
 
     Vector<float> knot_buffer;
     Span<float> knots_u = obj_nurbs_data.get_knots_u(spline_idx, knot_buffer);
