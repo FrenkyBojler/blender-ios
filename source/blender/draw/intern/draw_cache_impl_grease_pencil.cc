@@ -639,9 +639,9 @@ static void index_buf_add_bezier_handle_lines(const IndexMask bezier_points,
 
   /* Add all bezier handle lines. */
   for (const int point : bezier_points.index_range()) {
-    handle_lines[line_index++] = uint2(point + bezier_points.size() * 0 + offset,
-                                       point + bezier_points.size() * 1 + offset);
     handle_lines[line_index++] = uint2(point + bezier_points.size() * 1 + offset,
+                                       point + bezier_points.size() * 0 + offset);
+    handle_lines[line_index++] = uint2(point + bezier_points.size() * 0 + offset,
                                        point + bezier_points.size() * 2 + offset);
   }
 
@@ -969,27 +969,29 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     array_utils::gather(selected_left, bezier_points, selection_slice_left);
     array_utils::gather(selected_right, bezier_points, selection_slice_right);
 
-    const IndexRange eval_left_slice = IndexRange(drawing_line_start_offset, bezier_points.size());
     const IndexRange eval_center_slice = IndexRange(
-        drawing_line_start_offset + bezier_points.size(), bezier_points.size());
+        drawing_line_start_offset + bezier_points.size() * 0, bezier_points.size());
+    const IndexRange eval_left_slice = IndexRange(
+        drawing_line_start_offset + bezier_points.size() * 1, bezier_points.size());
     const IndexRange eval_right_slice = IndexRange(
         drawing_line_start_offset + bezier_points.size() * 2, bezier_points.size());
 
     const VArray<int8_t> types_left = curves.handle_types_left();
     const VArray<int8_t> types_right = curves.handle_types_right();
 
-    MutableSpan<float3> positions_eval_left_slice = edit_line_points.slice(eval_left_slice);
     MutableSpan<float3> positions_eval_center_slice = edit_line_points.slice(eval_center_slice);
+    MutableSpan<float3> positions_eval_left_slice = edit_line_points.slice(eval_left_slice);
     MutableSpan<float3> positions_eval_right_slice = edit_line_points.slice(eval_right_slice);
 
     bezier_points.foreach_index([&](const int point_i, const int pos) {
       const bool selected = selected_point[point_i] || selected_left[point_i] ||
                             selected_right[point_i];
+
       edit_points_data.slice(eval_left_slice)[pos] = bezier_data_value(types_left[point_i],
                                                                        selected);
       edit_points_data.slice(eval_right_slice)[pos] = bezier_data_value(types_right[point_i],
                                                                         selected);
-      /* Workaround */
+      /* Workaround: Should use `EDIT_CURVES_BEZIER_KNOT` instead. */
       edit_points_data.slice(eval_center_slice)[pos] = bezier_data_value(types_right[point_i],
                                                                          selected);
     });
