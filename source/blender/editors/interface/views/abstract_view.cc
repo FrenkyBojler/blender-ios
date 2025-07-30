@@ -47,6 +47,7 @@ void AbstractView::update_from_old(uiBlock &new_block)
   uiBlock *old_block = new_block.oldblock;
   if (!old_block) {
     is_reconstructed_ = true;
+    /* Keep selection when switched between properties tab, collapsed panel, etc. */
     clear_selection_ = false;
     return;
   }
