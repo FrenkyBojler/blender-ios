@@ -87,21 +87,6 @@ class MapUVOperation : public NodeOperation {
     }
   }
 
-  char const *get_shader_name(const Interpolation &interpolation)
-  {
-    switch (interpolation) {
-      case Interpolation::Anisotropic:
-        return "compositor_map_uv_anisotropic";
-      case Interpolation::Bicubic:
-        return "compositor_map_uv_bicubic";
-      case Interpolation::Bilinear:
-      case Interpolation::Nearest:
-        return "compositor_map_uv";
-    }
-    BLI_assert_unreachable();
-    return "compositor_map_uv";
-  }
-
   void execute_gpu()
   {
     const Interpolation interpolation = this->get_interpolation();
@@ -138,6 +123,21 @@ class MapUVOperation : public NodeOperation {
     GPU_shader_unbind();
   }
 
+  char const *get_shader_name(const Interpolation &interpolation)
+  {
+    switch (interpolation) {
+      case Interpolation::Anisotropic:
+        return "compositor_map_uv_anisotropic";
+      case Interpolation::Bicubic:
+        return "compositor_map_uv_bicubic";
+      case Interpolation::Bilinear:
+      case Interpolation::Nearest:
+        return "compositor_map_uv";
+    }
+    BLI_assert_unreachable();
+    return "compositor_map_uv";
+  }
+
   void execute_cpu()
   {
     const Interpolation interpolation = this->get_interpolation();
@@ -159,8 +159,8 @@ class MapUVOperation : public NodeOperation {
     float4 sampled_color = sample_pixel(context(),
                                         input_image,
                                         interpolation,
-                                        ExtensionMode::Zero,
-                                        ExtensionMode::Zero,
+                                        ExtensionMode::Clip,
+                                        ExtensionMode::Clip,
                                         uv_coordinates);
 
     /* The UV input is assumed to contain an alpha channel as its third channel, since the

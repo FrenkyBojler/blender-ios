@@ -13,7 +13,7 @@ namespace blender::compositor {
 
 /* Samples a pixel from a texture. */
 float4 sample_pixel(Context &context,
-                    const Result &result,
+                    const Result &input_texture,
                     const Interpolation &interpolation,
                     const ExtensionMode &extension_mode_x,
                     const ExtensionMode &extension_mode_y,

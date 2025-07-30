@@ -246,7 +246,6 @@ set(GLSL_SRC
   shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
   shaders/compositor_sample_pixel.glsl
-  shaders/compositor_sample_pixel_anisotropic.glsl
   shaders/compositor_scale_variable.glsl
   shaders/compositor_smaa_blending_weight_calculation.glsl
   shaders/compositor_smaa_edge_detection.glsl
