@@ -238,8 +238,8 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
   int closest_point = -1;
 
   const bke::CurvesGeometry &curves = drawing.strokes();
-  const OffsetIndices points_by_curve = curves.points_by_curve();
-  const OffsetIndices evaluated_points_by_curve = curves.evaluated_points_by_curve();
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
   const Span<float3> positions = curves.positions();
   const Span<float3> evaluated_positions = curves.evaluated_positions();
   const VArray<bool> curve_cyclic = curves.cyclic();
@@ -751,7 +751,7 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
     const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
     const float4x4 layer_to_object = layer.local_transform();
     const Span<float3> positions = curves.positions();
-    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
     const VArray<bool> &cyclic = curves.cyclic();
 
@@ -915,7 +915,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       return;
     }
 
-    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const IndexRange points = points_by_curve[ptd.closest_element.curve_index];
 
     if (event->val == KM_DBL_CLICK && ptd.cycle_handle_type) {
@@ -1030,7 +1030,7 @@ static void move_segment(const PenToolOperation &ptd,
                          bke::CurvesGeometry &curves,
                          const float4x4 layer_to_world)
 {
-  const OffsetIndices points_by_curve = curves.points_by_curve();
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   MutableSpan<float3> positions = curves.positions_for_write();
   MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
   MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
@@ -1142,7 +1142,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     MutableSpan<float3> positions = curves.positions_for_write();
-    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
     const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
