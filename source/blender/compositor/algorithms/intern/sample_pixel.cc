@@ -21,33 +21,34 @@ char const *get_pixel_sampler_shader_name(const Interpolation &interpolation)
 {
   switch (interpolation) {
     case Interpolation::Anisotropic:
-      return "compositor_map_uv_anisotropic";
+      return "compositor_sample_pixel_anisotropic";
     case Interpolation::Bicubic:
-      return "compositor_map_uv_bicubic";
+      return "compositor_sample_pixel_bicubic";
     case Interpolation::Bilinear:
     case Interpolation::Nearest:
-      return "compositor_map_uv";
+      return "compositor_sample_pixel";
   }
   BLI_assert_unreachable();
-  return "compositor_map_uv";
+  return "compositor_sample_pixel";
 }
 
 /* Samples a pixel from a GPU texture. */
 float4 sample_pixel_gpu(Context &context,
                         const Result &input_image,
                         const Interpolation &interpolation,
+                        const ExtensionMode &extension_mode_x,
+                        const ExtensionMode &extension_mode_y,
                         const float2 uv_coordinates)
 {
   GPUShader *shader = context.get_shader(get_pixel_sampler_shader_name(interpolation));
   GPU_shader_bind(shader);
 
-  GPU_shader_uniform_1b(shader, "is_single_value_uv_coordinates", true);
-  GPU_shader_uniform_2fv(shader, "single_value_uv_coordinates", uv_coordinates);
+  GPU_shader_uniform_2fv(shader, "uv_coordinates", uv_coordinates);
 
   GPUTexture *texture_1x1 = gpu::TexturePool::get().acquire_texture(
       1,
       1,
-      Result::gpu_texture_format(ResultType::Color, ResultPrecision::Full),
+      Result::gpu_texture_format(input_image.type(), ResultPrecision::Full),
       GPU_TEXTURE_USAGE_GENERAL);
 
   if (interpolation == Interpolation::Anisotropic) {
@@ -59,7 +60,8 @@ float4 sample_pixel_gpu(Context &context,
     GPU_texture_filter_mode(input_image, use_bilinear);
   }
 
-  GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+  GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
+  GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH);
 
@@ -77,7 +79,10 @@ float4 sample_pixel_gpu(Context &context,
   float *pixel = static_cast<float *>(GPU_texture_read(texture_1x1, GPU_DATA_FLOAT, 0));
   gpu::TexturePool::get().release_texture(texture_1x1);
 
-  float4 sampled_value = float4(pixel);
+  float4 sampled_value;
+  for (int i = 0; i < input_image.channels_count(); i++) {
+    sampled_value[i] = pixel[i];
+  }
   MEM_freeN(pixel);
   GPU_shader_unbind();
 
@@ -87,36 +92,28 @@ float4 sample_pixel_gpu(Context &context,
 /* Samples a pixel from a CPU texture. */
 float4 sample_pixel_cpu(const Result &input_image,
                         const Interpolation &interpolation,
+                        const ExtensionMode &extension_mode_x,
+                        const ExtensionMode &extension_mode_y,
                         const float2 uv_coordinates)
 {
-  switch (interpolation) {
-    case Interpolation::Nearest:
-      return input_image.sample_nearest_zero(uv_coordinates);
-      break;
-    case Interpolation::Bilinear:
-      return input_image.sample_bilinear_zero(uv_coordinates);
-      break;
-    /* NOTE: The anisotropic case should be handled after reimplementation of EWA. */
-    case Interpolation::Anisotropic:
-    case Interpolation::Bicubic:
-      return input_image.sample_cubic_wrap(uv_coordinates, false, false);
-      break;
-  }
-  BLI_assert_unreachable();
-  return float4(0.0, 0.0, 0.0, 0.0);
+  return input_image.sample(uv_coordinates, interpolation, extension_mode_x, extension_mode_y);
 }
 
 /* Samples a pixel from a texture. */
 float4 sample_pixel(Context &context,
                     const Result &input_image,
                     const Interpolation &interpolation,
+                    const ExtensionMode &extension_mode_x,
+                    const ExtensionMode &extension_mode_y,
                     const float2 uv_coordinates)
 {
   if (context.use_gpu()) {
-    return sample_pixel_gpu(context, input_image, interpolation, uv_coordinates);
+    return sample_pixel_gpu(
+        context, input_image, interpolation, extension_mode_x, extension_mode_y, uv_coordinates);
   }
   else {
-    return sample_pixel_cpu(input_image, interpolation, uv_coordinates);
+    return sample_pixel_cpu(
+        input_image, interpolation, extension_mode_x, extension_mode_y, uv_coordinates);
   }
 }
 

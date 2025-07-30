@@ -11,12 +11,12 @@
 
 namespace blender::compositor {
 
-char const *get_pixel_sampler_shader_name(const Interpolation &interpolation);
-
 /* Samples a pixel from a texture. */
 float4 sample_pixel(Context &context,
                     const Result &result,
                     const Interpolation &interpolation,
+                    const ExtensionMode &extension_mode_x,
+                    const ExtensionMode &extension_mode_y,
                     const float2 uv_coordinates);
 
 }  // namespace blender::compositor

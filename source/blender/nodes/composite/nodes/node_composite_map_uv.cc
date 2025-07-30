@@ -87,14 +87,26 @@ class MapUVOperation : public NodeOperation {
     }
   }
 
+  char const *get_shader_name(const Interpolation &interpolation)
+  {
+    switch (interpolation) {
+      case Interpolation::Anisotropic:
+        return "compositor_map_uv_anisotropic";
+      case Interpolation::Bicubic:
+        return "compositor_map_uv_bicubic";
+      case Interpolation::Bilinear:
+      case Interpolation::Nearest:
+        return "compositor_map_uv";
+    }
+    BLI_assert_unreachable();
+    return "compositor_map_uv";
+  }
+
   void execute_gpu()
   {
     const Interpolation interpolation = this->get_interpolation();
-    GPUShader *shader = context().get_shader(get_pixel_sampler_shader_name(interpolation));
+    GPUShader *shader = context().get_shader(this->get_shader_name(interpolation));
     GPU_shader_bind(shader);
-
-    GPU_shader_uniform_1b(shader, "is_single_value_uv_coordinates", false);
-    GPU_shader_uniform_2fv(shader, "single_value_uv_coordinates", float2(0.0, 0.0));
 
     const Result &input_image = get_input("Image");
     if (interpolation == Interpolation::Anisotropic) {
@@ -144,7 +156,12 @@ class MapUVOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
 
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
-    float4 sampled_color = sample_pixel(context(), input_image, interpolation, uv_coordinates);
+    float4 sampled_color = sample_pixel(context(),
+                                        input_image,
+                                        interpolation,
+                                        ExtensionMode::Zero,
+                                        ExtensionMode::Zero,
+                                        uv_coordinates);
 
     /* The UV input is assumed to contain an alpha channel as its third channel, since the
      * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
