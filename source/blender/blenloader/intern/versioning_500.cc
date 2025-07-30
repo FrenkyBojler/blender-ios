@@ -1448,59 +1448,75 @@ static void do_version_world_remove_use_nodes(Main *bmain, World *world)
   new_output.parent = frame;
 }
 
-static void do_version_material_remove_use_nodes(Material *material)
+static void do_version_material_remove_use_nodes(Main *bmain, Material *material)
 {
-  bNodeTree *ntree = material->nodetree;
-  if (ntree == nullptr || material->use_nodes == true) {
+  if (material->use_nodes) {
     return;
   }
 
-  /* Users defined a material node tree, but deactivated it by disabling "Use Nodes". So we create
-   * a new Principled BSDF node to simulate an equivalent material. */
+  /* Users defined a material node tree, but deactivated it by disabling "Use Nodes". So we
+   * simulate the same effect by creating a new Material Output node and setting it to active. */
+  bNodeTree *ntree = material->nodetree;
+  if (ntree == nullptr) {
+    /* In case the material was defined through Python API it might have been missing a node tree.
+     */
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        bmain, &material->id, "Material Node Tree Versioning", "ShaderNodeTree");
+  }
 
   bNode *old_output = nullptr;
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (STREQ(node->idname, "ShaderNodeOutputMaterial") && (node->flag & NODE_ACTIVE)) {
+    if (STREQ(node->idname, "ShaderNodeOutputMaterial") && (node->flag & NODE_DO_OUTPUT)) {
       old_output = node;
       old_output->flag &= ~NODE_DO_OUTPUT;
     }
   }
 
-  bNode *new_output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
-  new_output->flag |= NODE_DO_OUTPUT;
-  bNode *bsdf = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
-  version_node_add_link(*ntree,
-                        *bsdf,
-                        *blender::bke::node_find_socket(*bsdf, SOCK_OUT, "BSDF"),
-                        *new_output,
-                        *blender::bke::node_find_socket(*new_output, SOCK_IN, "Surface"));
-  bNodeSocket *diffuse_socket = blender::bke::node_find_socket(*bsdf, SOCK_IN, "Base Color");
-  diffuse_socket->default_value_typed<bNodeSocketValueRGBA>()->value[0] = material->r;
-  diffuse_socket->default_value_typed<bNodeSocketValueRGBA>()->value[1] = material->g;
-  diffuse_socket->default_value_typed<bNodeSocketValueRGBA>()->value[2] = material->b;
-  diffuse_socket->default_value_typed<bNodeSocketValueRGBA>()->value[3] = material->a;
+  bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputMaterial");
+  bNodeSocket &output_surface_input = version_node_add_socket(
+      *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
+  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
+  new_output.flag |= NODE_DO_OUTPUT;
 
-  bNodeSocket *metallic_socket = blender::bke::node_find_socket(*bsdf, SOCK_IN, "Metallic");
-  metallic_socket->default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
+  bNode &shader = version_node_add_empty(*ntree, "ShaderNodeBsdfPrincipled");
+  bNodeSocket &shader_bsdf_output = version_node_add_socket(
+      *ntree, shader, SOCK_OUT, "NodeSocketShader", "BSDF");
+  bNodeSocket &shader_color_input = version_node_add_socket(
+      *ntree, shader, SOCK_IN, "NodeSocketColor", "Base Color");
+  bNodeSocket &specular_input = version_node_add_socket(
+      *ntree, shader, SOCK_IN, "NodeSocketFloat", "Specular IOR Level");
+  bNodeSocket &metallic_input = version_node_add_socket(
+      *ntree, shader, SOCK_IN, "NodeSocketFloat", "Metallic");
+  bNodeSocket &roughness_input = version_node_add_socket(
+      *ntree, shader, SOCK_IN, "NodeSocketFloat", "Roughness");
+  // todo(habib): add the rest of the 500 sockets
 
-  bNodeSocket *ior_socket = blender::bke::node_find_socket(*bsdf, SOCK_IN, "IOR");
-  ior_socket->default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
+  version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);
 
-  bNodeSocket *roughness_socket = blender::bke::node_find_socket(*bsdf, SOCK_IN, "Roughness");
-  roughness_socket->default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
+  bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
+  rgba->value[0] = material->r;
+  rgba->value[1] = material->g;
+  rgba->value[2] = material->b;
+  rgba->value[3] = material->a;
+  roughness_input.default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
+  metallic_input.default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
+  specular_input.default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
+
+  // todo(habib): metallic, roughnes and specular
 
   if (old_output != nullptr) {
     /* Position the newly created node after the old output. Assume the old output node is at
      * the far right of the node tree. */
-    bsdf->location[0] = old_output->location[0] + 1.5f * old_output->width;
-    bsdf->location[1] = old_output->location[1];
+    shader.location[0] = old_output->location[0] + 1.5f * old_output->width;
+    shader.location[1] = old_output->location[1];
   }
 
-  new_output->location[0] = bsdf->location[0] + 2.0f * bsdf->width;
-  new_output->location[1] = bsdf->location[1];
+  new_output.location[0] = shader.location[0] + 2.0f * shader.width;
+  new_output.location[1] = shader.location[1];
+
   bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
-  bsdf->parent = frame;
-  new_output->parent = frame;
+  shader.parent = frame;
+  new_output.parent = frame;
 }
 
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
@@ -2055,7 +2071,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 46)) {
     LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-      do_version_material_remove_use_nodes(material);
+      do_version_material_remove_use_nodes(bmain, material);
     }
   }
 
