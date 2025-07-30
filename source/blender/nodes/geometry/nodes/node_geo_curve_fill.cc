@@ -45,6 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
+  /* Still used for forward compatibility. */
   node->storage = MEM_callocN<NodeGeometryCurveFill>(__func__);
 }
 
