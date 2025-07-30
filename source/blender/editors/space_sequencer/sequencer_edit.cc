@@ -123,7 +123,7 @@ bool check_show_strip(const SpaceSeq &sseq)
 
 /* Checks if the active region of the active screen matches the specified type.
  * This is different from #CTX_wm_region, as that includes popovers. */
-bool check_active_region(bContext *C, eRegion_Type type)
+static bool check_active_region(bContext *C, eRegion_Type type)
 {
   const wmWindow *win = CTX_wm_window(C);
   const bScreen *screen = WM_window_get_active_screen(win);
@@ -2298,6 +2298,14 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   return OPERATOR_FINISHED;
 }
 
+static bool sequencer_meta_poll_timeline(bContext *C)
+{
+  if (sequencer_strip_editable_poll_timeline(C)) {
+    return active_strip_from_context(C)->type == STRIP_TYPE_META;
+  }
+  return false;
+}
+
 void SEQUENCER_OT_meta_separate(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -2307,7 +2315,7 @@ void SEQUENCER_OT_meta_separate(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_meta_separate_exec;
-  ot->poll = sequencer_edit_poll_timeline;
+  ot->poll = sequencer_meta_poll_timeline;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2544,7 +2552,7 @@ void SEQUENCER_OT_swap(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_swap_exec;
-  ot->poll = sequencer_edit_poll_timeline;
+  ot->poll = sequencer_strip_editable_poll_timeline;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2612,7 +2620,7 @@ void SEQUENCER_OT_rendersize(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_rendersize_exec;
-  ot->poll = sequencer_edit_poll;
+  ot->poll = sequencer_strip_editable_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2727,7 +2735,7 @@ void SEQUENCER_OT_swap_data(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_swap_data_exec;
-  ot->poll = sequencer_edit_poll_timeline;
+  ot->poll = sequencer_strip_editable_poll_timeline;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
