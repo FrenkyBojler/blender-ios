@@ -58,8 +58,7 @@ GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list
     GHOST_DisposeRectangle(bounds);
 
     if (default_fbo != 0) {
-      /* Bind default framebuffer, otherwise state might be undefined because of
-       * detect_mip_render_workaround(). */
+      /* Bind default framebuffer, otherwise state might be undefined. */
       glBindFramebuffer(GL_FRAMEBUFFER, default_fbo);
       front_left = new GLFrameBuffer("front_left", this, GL_COLOR_ATTACHMENT0, default_fbo, w, h);
       back_left = new GLFrameBuffer("back_left", this, GL_COLOR_ATTACHMENT0, default_fbo, w, h);
@@ -88,7 +87,11 @@ GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list
 
 GLContext::~GLContext()
 {
-  process_frame_timings();
+  if (G.profile_gpu) {
+    /* Ensure query results are available. */
+    finish();
+    process_frame_timings();
+  }
   free_resources();
   BLI_assert(orphaned_framebuffers_.is_empty());
   BLI_assert(orphaned_vertarrays_.is_empty());
@@ -177,17 +180,6 @@ void GLContext::flush()
 void GLContext::finish()
 {
   glFinish();
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name ShaderCompiler
- * \{ */
-
-ShaderCompiler *GLContext::get_compiler()
-{
-  return GLBackend::get()->get_compiler();
 }
 
 /** \} */

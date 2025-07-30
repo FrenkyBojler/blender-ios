@@ -24,7 +24,8 @@ void HiZBuffer::sync()
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
   for ([[maybe_unused]] const int i : IndexRange(hiz_tx_.size())) {
-    hiz_tx_.current().ensure_2d(GPU_R32F, hiz_extent, usage, nullptr, HIZ_MIP_COUNT);
+    hiz_tx_.current().ensure_2d(
+        gpu::TextureFormat::SFLOAT_32, hiz_extent, usage, nullptr, HIZ_MIP_COUNT);
     hiz_tx_.current().ensure_mip_views();
     GPU_texture_mipmap_mode(hiz_tx_.current(), true, false);
     hiz_tx_.swap();
@@ -44,7 +45,7 @@ void HiZBuffer::sync()
     pass.shader_set(sh);
     pass.bind_ssbo("finished_tile_counter", atomic_tile_counter_);
     /* TODO(fclem): Should be a parameter to avoid confusion. */
-    pass.bind_texture("depth_tx", &src_tx_, with_filter);
+    pass.bind_texture("depth_tx", &src_tx_);
     pass.bind_image("out_mip_0", &hiz_mip_ref_[0]);
     pass.bind_image("out_mip_1", &hiz_mip_ref_[1]);
     pass.bind_image("out_mip_2", &hiz_mip_ref_[2]);
@@ -63,7 +64,7 @@ void HiZBuffer::sync()
     pass.shader_set(sh);
     pass.bind_ssbo("finished_tile_counter", atomic_tile_counter_);
     /* TODO(fclem): Should be a parameter to avoid confusion. */
-    pass.bind_texture("depth_layered_tx", &src_tx_, with_filter);
+    pass.bind_texture("depth_layered_tx", &src_tx_);
     pass.bind_image("out_mip_0", &hiz_mip_ref_[0]);
     pass.bind_image("out_mip_1", &hiz_mip_ref_[1]);
     pass.bind_image("out_mip_2", &hiz_mip_ref_[2]);

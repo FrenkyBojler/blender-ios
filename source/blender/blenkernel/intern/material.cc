@@ -50,7 +50,6 @@
 #include "BKE_curves.hh"
 #include "BKE_displist.h"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
@@ -79,7 +78,7 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.material"};
+static CLG_LogRef LOG = {"material"};
 
 static void material_init_data(ID *id)
 {
@@ -231,7 +230,7 @@ static void material_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MA = {
-    /*id_code*/ ID_MA,
+    /*id_code*/ Material::id_type,
     /*id_filter*/ FILTER_ID_MA,
     /*dependencies_id_types*/ FILTER_ID_TE | FILTER_ID_GR,
     /*main_listbase_index*/ INDEX_ID_MA,
@@ -304,7 +303,7 @@ Material *BKE_material_add(Main *bmain, const char *name)
 {
   Material *ma;
 
-  ma = static_cast<Material *>(BKE_id_new(bmain, ID_MA, name));
+  ma = BKE_id_new<Material>(bmain, name);
 
   return ma;
 }
@@ -2031,7 +2030,7 @@ static Material **default_materials[] = {&default_material_empty,
 
 static Material *material_default_create(Material **ma_p, const char *name)
 {
-  *ma_p = static_cast<Material *>(BKE_id_new_nomain(ID_MA, name));
+  *ma_p = BKE_id_new_nomain<Material>(name);
   return *ma_p;
 }
 

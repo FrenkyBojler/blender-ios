@@ -195,7 +195,7 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
     return false;
   }
 
-  WM_set_locked_interface(tmj->wm, true);
+  WM_locked_interface_set(tmj->wm, true);
 
   return true;
 }
@@ -278,7 +278,7 @@ static void track_markers_freejob(void *tmv)
 {
   TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
   tmj->clip->tracking_context = nullptr;
-  WM_set_locked_interface(tmj->wm, false);
+  WM_locked_interface_set(tmj->wm, false);
   BKE_autotrack_context_free(tmj->context);
   MEM_freeN(tmj);
 }
@@ -416,7 +416,7 @@ void CLIP_OT_track_markers(wmOperatorType *ot)
   ot->description = "Track selected markers";
   ot->idname = "CLIP_OT_track_markers";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = track_markers_exec;
   ot->invoke = track_markers_invoke;
   ot->modal = track_markers_modal;
@@ -469,7 +469,7 @@ void CLIP_OT_refine_markers(wmOperatorType *ot)
       "to current frame";
   ot->idname = "CLIP_OT_refine_markers";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = refine_marker_exec;
   ot->poll = ED_space_clip_tracking_poll;
 

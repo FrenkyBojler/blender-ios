@@ -84,7 +84,7 @@ static bool seq_update_modifier_curve(Strip *strip, void *user_data)
     if (smd->type == seqModifierType_Curves) {
       CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
       if (&cmd->curve_mapping == data->curve) {
-        blender::seq::relations_invalidate_cache_preprocessed(data->scene, strip);
+        blender::seq::relations_invalidate_cache(data->scene, strip);
       }
     }
   }
@@ -232,7 +232,7 @@ static std::optional<std::string> rna_ColorRamp_path(const PointerRNA *ptr)
         bNode *node;
 
         for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, CMP_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
+          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
             if (node->storage == ptr->data) {
               /* all node color ramp properties called 'color_ramp'
                * prepend path from ID to the node
@@ -299,7 +299,7 @@ static std::optional<std::string> rna_ColorRampElement_path(const PointerRNA *pt
         bNode *node;
 
         for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, CMP_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
+          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
             ramp_ptr = RNA_pointer_create_discrete(id, &RNA_ColorRamp, node->storage);
             COLRAMP_GETPATH;
           }
@@ -355,7 +355,7 @@ static void rna_ColorRamp_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr
         bNode *node;
 
         for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, CMP_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
+          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
             BKE_ntree_update_tag_node_property(ntree, node);
             BKE_main_ensure_invariants(*bmain, ntree->id);
           }
@@ -448,7 +448,7 @@ static void rna_ColorManagedDisplaySettings_display_device_set(PointerRNA *ptr, 
   const char *name = IMB_colormanagement_display_get_indexed_name(value);
 
   if (name) {
-    STRNCPY(display->display_device, name);
+    STRNCPY_UTF8(display->display_device, name);
   }
 }
 
@@ -496,24 +496,23 @@ static void rna_ColorManagedDisplaySettings_display_device_update(Main *bmain,
 static int rna_ColorManagedViewSettings_view_transform_get(PointerRNA *ptr)
 {
   ColorManagedViewSettings *view = (ColorManagedViewSettings *)ptr->data;
-
-  return IMB_colormanagement_view_get_named_index(view->view_transform);
+  return IMB_colormanagement_view_get_id_by_name(view->view_transform);
 }
 
 static void rna_ColorManagedViewSettings_view_transform_set(PointerRNA *ptr, int value)
 {
   ColorManagedViewSettings *view = (ColorManagedViewSettings *)ptr->data;
 
-  const char *view_name = IMB_colormanagement_view_get_indexed_name(value);
+  const char *view_name = IMB_colormanagement_view_get_name_by_id(value);
   if (!view_name) {
     return;
   }
 
-  STRNCPY(view->view_transform, view_name);
+  STRNCPY_UTF8(view->view_transform, view_name);
 
   const char *look_name = IMB_colormanagement_look_validate_for_view(view_name, view->look);
   if (look_name) {
-    STRNCPY(view->look, look_name);
+    STRNCPY_UTF8(view->look, look_name);
   }
 }
 
@@ -546,7 +545,7 @@ static void rna_ColorManagedViewSettings_look_set(PointerRNA *ptr, int value)
   const char *name = IMB_colormanagement_look_get_indexed_name(value);
 
   if (name) {
-    STRNCPY(view->look, name);
+    STRNCPY_UTF8(view->look, name);
   }
 }
 
@@ -606,7 +605,7 @@ static void rna_ColorManagedColorspaceSettings_is_data_set(PointerRNA *ptr, bool
   ColorManagedColorspaceSettings *colorspace = (ColorManagedColorspaceSettings *)ptr->data;
   if (value) {
     const char *data_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA);
-    STRNCPY(colorspace->name, data_name);
+    STRNCPY_UTF8(colorspace->name, data_name);
   }
 }
 
@@ -623,7 +622,7 @@ static void rna_ColorManagedColorspaceSettings_colorspace_set(PointerRNA *ptr, i
   const char *name = IMB_colormanagement_colorspace_get_indexed_name(value);
 
   if (name && name[0]) {
-    STRNCPY(colorspace->name, name);
+    STRNCPY_UTF8(colorspace->name, name);
   }
 }
 
@@ -704,7 +703,6 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       if (&scene->sequencer_colorspace_settings == colorspace_settings) {
         /* Scene colorspace was changed. */
         blender::seq::cache_cleanup(scene);
-        blender::seq::thumbnail_cache_clear(scene);
       }
       else {
         /* Strip colorspace was likely changed. */

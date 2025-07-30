@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <mutex>
 
 #include "CLG_log.h"
 
@@ -21,6 +20,7 @@
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist_lockfree.h"
+#include "BLI_mutex.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -44,7 +44,7 @@ enum {
 
 /* GLOBALS */
 
-static CLG_LogRef LOG = {"bke.icons"};
+static CLG_LogRef LOG = {"lib.icons"};
 
 /* Protected by gIconMutex. */
 static GHash *gIcons = nullptr;
@@ -55,7 +55,7 @@ static int gNextIconId = 1;
 /* Protected by gIconMutex. */
 static int gFirstIconId = 1;
 
-static std::mutex gIconMutex;
+static blender::Mutex gIconMutex;
 
 /* Queue of icons for deferred deletion. */
 struct DeferredIconDeleteNode {

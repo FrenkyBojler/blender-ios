@@ -24,7 +24,7 @@ Blender Convenience Targets
    * ccache:        Use ccache for faster rebuilds.
 
    Note: when passing in multiple targets their order is not important.
-   So for a fast build you can for e.g. run 'make lite ccache ninja'.
+   For example, fo a fast build you can run 'make lite ccache ninja'.
    Note: passing the argument 'BUILD_DIR=path' when calling make will override the default build dir.
    Note: passing the argument 'BUILD_CMAKE_ARGS=args' lets you add cmake arguments.
 
@@ -64,6 +64,7 @@ Static Source Code Checking
 
    * check_clang_array:     Run blender source through clang array checking script (C & C++).
    * check_struct_comments: Check struct member comments are correct (C & C++).
+   * check_size_comments:   Check array size comments match defines/enums (C & C++).
    * check_deprecated:      Check if there is any deprecated code to remove.
    * check_descriptions:    Check for duplicate/invalid descriptions.
    * check_licenses:        Check license headers follow the SPDX license specification,
@@ -98,6 +99,9 @@ Spell Checkers
    Example:
       make check_spelling_c CHECK_SPELLING_CACHE=../spelling_cache.data
 
+   Note: additonal arguments can be passed in via: 'CHECK_SPELLING_EXTRA_ARGS'.
+   See the output of './tools/check_source/check_spelling.py --help' for details.
+
 Utilities
    Not associated with building Blender.
 
@@ -117,10 +121,10 @@ Utilities
      Create a compressed archive of the source code and all the libraries of dependencies.
 
    * update:
-     Updates git and all submodules and svn.
+     Update blender repository and libraries.
 
    * update_code:
-     Updates git and all submodules but not svn.
+     Updates blender repository only, without updating libraries.
 
    * format:
      Format source code using clang-format & autopep8 (uses PATHS if passed in). For example::
@@ -428,6 +432,8 @@ ifneq "$(findstring clean, $(MAKECMDGOALS))" ""
 	DEPS_TARGET = clean
 endif
 
+# Set the SOURCE_DATE_EPOCH to make builds reproducible (locks timestamps to the specified date).
+deps: export SOURCE_DATE_EPOCH = 1745584760
 deps: .FORCE
 	@echo
 	@echo Configuring dependencies in \"$(DEPS_BUILD_DIR)\", install to \"$(DEPS_INSTALL_DIR)\"
@@ -500,6 +506,10 @@ check_struct_comments: .FORCE
 	    "$(BLENDER_DIR)/tools/check_source/static_check_clang.py" \
 	    --checks=struct_comments --match=".*" --jobs=$(NPROCS)
 
+check_size_comments: .FORCE
+	$(PYTHON) \
+	    "$(BLENDER_DIR)/tools/check_source/static_check_size_comments.py"
+
 check_clang_array: .FORCE
 	@$(CMAKE_CONFIG)
 	@cd "$(BUILD_DIR)" ; \
@@ -517,6 +527,7 @@ check_spelling_py: .FORCE
 	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
 	    --cache-file=$(CHECK_SPELLING_CACHE) \
 	    --match=".*\.(py)$$" \
+	    $(CHECK_SPELLING_EXTRA_ARGS) \
 	    "$(BLENDER_DIR)/release" \
 	    "$(BLENDER_DIR)/scripts" \
 	    "$(BLENDER_DIR)/source" \
@@ -529,6 +540,7 @@ check_spelling_c: .FORCE
 	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
 	    --cache-file=$(CHECK_SPELLING_CACHE) \
 	    --match=".*\.(c|cc|cpp|cxx|h|hh|hpp|hxx|inl|m|mm)$$" \
+	    $(CHECK_SPELLING_EXTRA_ARGS) \
 	    "$(BLENDER_DIR)/source" \
 	    "$(BLENDER_DIR)/intern/cycles" \
 	    "$(BLENDER_DIR)/intern/guardedalloc" \
@@ -539,6 +551,7 @@ check_spelling_shaders: .FORCE
 	    "$(BLENDER_DIR)/tools/check_source/check_spelling.py" \
 	    --cache-file=$(CHECK_SPELLING_CACHE) \
 	    --match=".*\.(osl|metal|msl|glsl)$$" \
+	    $(CHECK_SPELLING_EXTRA_ARGS) \
 	    "$(BLENDER_DIR)/intern/" \
 	    "$(BLENDER_DIR)/source/"
 
@@ -548,6 +561,7 @@ check_spelling_cmake: .FORCE
 	    --cache-file=$(CHECK_SPELLING_CACHE) \
 	    --match=".*\.(cmake)$$" \
 	    --match=".*\bCMakeLists\.(txt)$$" \
+	    $(CHECK_SPELLING_EXTRA_ARGS) \
 	    "$(BLENDER_DIR)/build_files/" \
 	    "$(BLENDER_DIR)/intern/" \
 	    "$(BLENDER_DIR)/source/"

@@ -13,6 +13,7 @@
 #include "DNA_customdata_types.h"
 
 #include "GPU_context.hh"
+#include "GPU_debug.hh"
 #include "GPU_material.hh"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -43,8 +44,6 @@ ShaderOperation::ShaderOperation(Context &context,
 {
   material_ = GPU_material_from_callbacks(
       GPU_MAT_COMPOSITOR, &construct_material, &generate_code, this);
-  GPU_material_status_set(material_, GPU_MAT_QUEUED);
-  GPU_material_compile(material_);
 }
 
 ShaderOperation::~ShaderOperation()
@@ -54,6 +53,7 @@ ShaderOperation::~ShaderOperation()
 
 void ShaderOperation::execute()
 {
+  GPU_debug_group_begin("ShaderOperation");
   const Domain domain = compute_domain();
   for (StringRef identifier : output_sockets_to_output_identifiers_map_.values()) {
     Result &result = get_result(identifier);
@@ -73,6 +73,7 @@ void ShaderOperation::execute()
   GPU_texture_image_unbind_all();
   GPU_uniformbuf_debug_unbind_all();
   GPU_shader_unbind();
+  GPU_debug_group_end();
 }
 
 void ShaderOperation::bind_material_resources(GPUShader *shader)
@@ -133,7 +134,7 @@ void ShaderOperation::link_node_inputs(DNode node)
 
     /* The input is unavailable and unused, but it still needs to be linked as this is what the GPU
      * material compiler expects. */
-    if (!input->is_available()) {
+    if (!is_socket_available(input.bsocket())) {
       this->link_node_input_unavailable(input);
       continue;
     }
@@ -207,13 +208,19 @@ static void initialize_input_stack_value(const DInputSocket input, GPUNodeStack 
       break;
     }
     case SOCK_VECTOR: {
-      const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
-      copy_v3_v3(stack.vec, value);
+      const float4 value = float4(input->default_value_typed<bNodeSocketValueVector>()->value);
+      copy_v4_v4(stack.vec, value);
       break;
     }
     case SOCK_RGBA: {
       const float4 value = float4(input->default_value_typed<bNodeSocketValueRGBA>()->value);
       copy_v4_v4(stack.vec, value);
+      break;
+    }
+    case SOCK_MENU: {
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(get_node_socket_result_type(input.bsocket())));
+      BLI_assert_unreachable();
       break;
     }
     default:
@@ -245,6 +252,11 @@ static const char *get_set_function_name(const ResultType type)
     case ResultType::Int2:
       /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
       return "set_rgb";
+    case ResultType::Menu:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -280,7 +292,7 @@ void ShaderOperation::link_node_input_implicit(const DInputSocket input, const D
   input_descriptor.implicit_input = implicit_input;
 
   /* An input was already declared for that implicit input, so no need to declare it again and we
-   * just link it.  */
+   * just link it. */
   if (implicit_input_to_material_attribute_map_.contains(implicit_input)) {
     /* But first we update the domain priority of the input descriptor to be the higher priority of
      * the existing descriptor and the descriptor of the new input socket. That's because the same
@@ -409,7 +421,7 @@ void ShaderOperation::populate_results_for_node(DNode node)
   for (const bNodeSocket *output : node->output_sockets()) {
     const DOutputSocket doutput{node.context(), output};
 
-    if (!output->is_available()) {
+    if (!is_socket_available(output)) {
       continue;
     }
 
@@ -451,6 +463,11 @@ static const char *get_store_function_name(ResultType type)
       return "node_compositor_store_output_float2";
     case ResultType::Int2:
       return "node_compositor_store_output_int2";
+    case ResultType::Menu:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -557,6 +574,11 @@ static const char *glsl_store_expression_from_result_type(ResultType type)
       /* GPUMaterial doesn't support int2, so it is passed as a float3, and we need to convert it
        * back to int2 before writing it. */
       return "ivec4(ivec2(value.xy), 0, 0)";
+    case ResultType::Menu:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -576,6 +598,11 @@ static ImageType gpu_image_type_from_result_type(const ResultType type)
     case ResultType::Int2:
     case ResultType::Bool:
       return ImageType::Int2D;
+    case ResultType::Menu:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -679,6 +706,11 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
       case ResultType::Int2:
         store_int2_function << case_code.str();
         break;
+      case ResultType::Menu:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(result.type()));
+        BLI_assert_unreachable();
+        break;
     }
   }
 
@@ -721,6 +753,11 @@ static const char *glsl_type_from_result_type(ResultType type)
     case ResultType::Int2:
       /* GPUMaterial doesn't support int2, so it is passed as a float3 with z ignored. */
       return "vec3";
+    case ResultType::Menu:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -748,6 +785,11 @@ static const char *glsl_swizzle_from_result_type(ResultType type)
     case ResultType::Int2:
       /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
       return "xyz";
+    case ResultType::Menu:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();

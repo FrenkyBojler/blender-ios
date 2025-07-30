@@ -10,7 +10,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_join_geometries.hh"
@@ -25,8 +25,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  auto &first_geometry = b.add_input<decl::Geometry>("Mesh 1").only_realized_data().supported_type(
-      GeometryComponent::Type::Mesh);
+  auto &first_geometry = b.add_input<decl::Geometry>("Mesh 1")
+                             .only_realized_data()
+                             .supported_type(GeometryComponent::Type::Mesh)
+                             .description("Base mesh to subtract geometry from");
 
   if (node != nullptr) {
     switch (geometry::boolean::Operation(node->custom1)) {
@@ -34,12 +36,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       case geometry::boolean::Operation::Union:
         b.add_input<decl::Geometry>("Mesh", "Mesh 2")
             .supported_type(GeometryComponent::Type::Mesh)
-            .multi_input();
+            .multi_input()
+            .description("Meshes to union or intersect");
         break;
       case geometry::boolean::Operation::Difference:
         b.add_input<decl::Geometry>("Mesh 2")
             .supported_type(GeometryComponent::Type::Mesh)
-            .multi_input();
+            .multi_input()
+            .description("Mesh that is subtracted from the first mesh");
         break;
     }
   }
@@ -58,8 +62,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     const auto operation = geometry::boolean::Operation(node->custom1);
     const auto solver = geometry::boolean::Solver(node->custom2);
 
-    output_edges.available(solver == geometry::boolean::Solver::MeshArr ||
-                           solver == geometry::boolean::Solver::Manifold);
+    output_edges.available(
+        ELEM(solver, geometry::boolean::Solver::MeshArr, geometry::boolean::Solver::Manifold));
     self_intersect.available(solver == geometry::boolean::Solver::MeshArr);
     hole_tolerant.available(solver == geometry::boolean::Solver::MeshArr);
 
@@ -76,8 +80,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "solver", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "solver", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 struct AttributeOutputs {
@@ -175,6 +179,11 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       }
     }
+  }
+
+  if (solver == geometry::boolean::Solver::Manifold) {
+    /* Manifold remaps materials using realize_instances. */
+    material_remaps.resize(0);
   }
 
   AttributeOutputs attribute_outputs;

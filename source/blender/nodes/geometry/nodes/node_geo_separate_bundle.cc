@@ -4,15 +4,21 @@
 
 #include "node_geometry_util.hh"
 
+#include "ED_screen.hh"
+
 #include "NOD_geo_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
+#include "NOD_socket_search_link.hh"
+#include "NOD_sync_sockets.hh"
+
+#include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
 
-#include "NOD_geometry_nodes_bundle.hh"
-
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include <fmt/format.h>
 
@@ -35,7 +41,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       b.add_output(socket_type, name, identifier)
           .socket_name_ptr(&tree->id, SeparateBundleItemsAccessor::item_srna, &item, "name")
           .propagate_all()
-          .reference_pass_all();
+          .reference_pass_all()
+          .structure_type(StructureType::Dynamic);
     }
   }
   b.add_output<decl::Extend>("", "__extend__");
@@ -73,12 +80,14 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node_ptr->owner_id);
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "bundle_items", false, TIP_("Bundle Items"))) {
+  if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
+    panel->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+
     socket_items::ui::draw_items_list_with_operators<SeparateBundleItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<SeparateBundleItemsAccessor>(
         ntree, node, [&](PointerRNA *item_ptr) {
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
         });
   }
 }
@@ -116,20 +125,79 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_cpp_type) {
       continue;
     }
-    const std::optional<Bundle::Item> value = bundle->lookup(SocketInterfaceKey(name));
+    const BundleItemValue *value = bundle->lookup(name);
     if (!value) {
       params.error_message_add(NodeWarningType::Error,
                                fmt::format(fmt::runtime(TIP_("Value not found: \"{}\"")), name));
       continue;
     }
+    const auto *socket_value = std::get_if<BundleItemSocketValue>(&value->value);
+    if (!socket_value) {
+      params.error_message_add(
+          NodeWarningType::Error,
+          fmt::format("{}: \"{}\"", TIP_("Cannot get internal value from bundle"), name));
+      continue;
+    }
     void *output_ptr = lf_params.get_output_data_ptr(i);
-    if (!implicitly_convert_socket_value(*value->type, value->value, *stype, output_ptr)) {
-      construct_socket_default_value(*stype, output_ptr);
+    if (socket_value->type->type == stype->type) {
+      socket_value->type->geometry_nodes_cpp_type->copy_construct(socket_value->value, output_ptr);
+    }
+    else {
+      if (implicitly_convert_socket_value(
+              *socket_value->type, socket_value->value, *stype, output_ptr))
+      {
+        params.error_message_add(
+            NodeWarningType::Info,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Implicit type conversion"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+      }
+      else {
+        params.error_message_add(
+            NodeWarningType::Error,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Conversion not supported"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+        construct_socket_default_value(*stype, output_ptr);
+      }
     }
     lf_params.output_set(i);
   }
 
   params.set_default_remaining_outputs();
+}
+
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const bNodeSocket &other_socket = params.other_socket();
+  if (other_socket.type != SOCK_BUNDLE) {
+    return;
+  }
+  if (other_socket.in_out == SOCK_IN) {
+    return;
+  }
+
+  params.add_item("Bundle", [](LinkSearchOpParams &params) {
+    bNode &node = params.add_node("GeometryNodeSeparateBundle");
+    params.connect_available_socket(node, "Bundle");
+
+    SpaceNode &snode = *CTX_wm_space_node(&params.C);
+    sync_sockets_separate_bundle(snode, node, nullptr);
+  });
+}
+
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<SeparateBundleItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<SeparateBundleItemsAccessor>(&reader, node);
 }
 
 static void node_register()
@@ -145,7 +213,10 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.register_operators = node_operators;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_type_storage(
       ntype, "NodeGeometrySeparateBundle", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
@@ -157,9 +228,6 @@ NOD_REGISTER_NODE(node_register)
 namespace blender::nodes {
 
 StructRNA *SeparateBundleItemsAccessor::item_srna = &RNA_NodeGeometrySeparateBundleItem;
-int SeparateBundleItemsAccessor::node_type = GEO_NODE_SEPARATE_BUNDLE;
-int SeparateBundleItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeGeometrySeparateBundleItem);
 
 void SeparateBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

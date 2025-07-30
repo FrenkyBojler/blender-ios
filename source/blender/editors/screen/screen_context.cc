@@ -51,6 +51,7 @@
 #include "UI_interface.hh"
 #include "WM_api.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "screen_intern.hh"
@@ -279,7 +280,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
       /* Attention: X-Axis Mirroring is also handled here... */
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
         /* first and foremost, bone must be visible and selected */
-        if (EBONE_VISIBLE(arm, ebone)) {
+        if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
           /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
            * so that most users of this data don't need to explicitly check for it themselves.
            *
@@ -306,7 +307,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
             /* only include bones if visible */
             CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
 
-            if ((flipbone) && EBONE_VISIBLE(arm, flipbone) == 0) {
+            if ((flipbone) && blender::animrig::bone_is_visible_editbone(arm, flipbone) == 0) {
               CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
             }
           }
@@ -349,7 +350,9 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
       /* Attention: X-Axis Mirroring is also handled here... */
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
         /* first and foremost, bone must be visible and selected */
-        if (EBONE_VISIBLE(arm, ebone) && (ebone->flag & BONE_SELECTED)) {
+        if (blender::animrig::bone_is_visible_editbone(arm, ebone) &&
+            (ebone->flag & BONE_SELECTED))
+        {
           /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
            * so that most users of this data don't need to explicitly check for it themselves.
            *
@@ -844,7 +847,7 @@ static eContextResult screen_ctx_active_annotation_layer(const bContext *C,
     bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
     if (gpl) {
-      CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl);
+      CTX_data_pointer_set(result, &gpd->id, &RNA_AnnotationLayer, gpl);
       return CTX_RESULT_OK;
     }
   }

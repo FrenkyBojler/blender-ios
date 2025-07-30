@@ -67,7 +67,7 @@ struct MikkMeshWrapper {
   {
     /* TODO: Check whether introducing a template boolean in order to
      * turn this into a constexpr is worth it. */
-    if (uv != nullptr) {
+    if (has_uv()) {
       const int corner_index = CornerIndex(face_num, vert_num);
       const float2 tfuv = uv[corner_index];
       return mikk::float3(tfuv.x, tfuv.y, 1.0f);
@@ -99,6 +99,11 @@ struct MikkMeshWrapper {
     if (tangent_sign != nullptr) {
       tangent_sign[corner_index] = orientation ? 1.0f : -1.0f;
     }
+  }
+
+  bool has_uv() const
+  {
+    return uv != nullptr;
   }
 
   const Mesh *mesh;
@@ -618,6 +623,18 @@ void Mesh::apply_transform(const Transform &tfm, const bool apply_to_motion)
         vert_steps[i] = transform_point(&tfm, vert_steps[i]);
       }
     }
+
+    Attribute *attr_N = attributes.find(ATTR_STD_MOTION_VERTEX_NORMAL);
+
+    if (attr_N) {
+      const Transform ntfm = transform_normal;
+      const size_t steps_size = verts.size() * (motion_steps - 1);
+      float3 *normal_steps = attr_N->data_float3();
+
+      for (size_t i = 0; i < steps_size; i++) {
+        normal_steps[i] = normalize(transform_direction(&ntfm, normal_steps[i]));
+      }
+    }
   }
 }
 
@@ -725,25 +742,31 @@ void Mesh::add_vertex_normals()
   }
 }
 
-void Mesh::add_undisplaced()
+void Mesh::add_undisplaced(Scene *scene)
 {
-  AttributeSet &attrs = (subdivision_type == SUBDIVISION_NONE) ? attributes : subd_attributes;
+  if (need_attribute(scene, ATTR_STD_POSITION_UNDISPLACED) &&
+      !attributes.find(ATTR_STD_POSITION_UNDISPLACED))
+  {
+    /* Copy position to attribute. */
+    Attribute *attr = attributes.add(ATTR_STD_POSITION_UNDISPLACED);
 
-  /* don't compute if already there */
-  if (attrs.find(ATTR_STD_POSITION_UNDISPLACED)) {
-    return;
+    size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(float3);
+    std::copy_n(verts.data(), size, attr->data_float3());
   }
 
-  /* get attribute */
-  Attribute *attr = attrs.add(ATTR_STD_POSITION_UNDISPLACED);
+  /* Keep "N" attribute undisplaced for backwards compatibility in Blender 4.5. */
+  if (((need_attribute(scene, ATTR_STD_VERTEX_NORMAL) && has_true_displacement()) ||
+       need_attribute(scene, ATTR_STD_NORMAL_UNDISPLACED)) &&
+      !attributes.find(ATTR_STD_NORMAL_UNDISPLACED))
+  {
+    /* Copy vertex normal to attribute */
+    Attribute *attr_N = attributes.find(ATTR_STD_VERTEX_NORMAL);
+    if (attr_N) {
+      Attribute *attr = attributes.add(ATTR_STD_NORMAL_UNDISPLACED);
 
-  float3 *data = attr->data_float3();
-
-  /* copy verts */
-  size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(float3);
-
-  if (size) {
-    std::copy_n(verts.data(), size, data);
+      size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(float3);
+      std::copy_n(attr_N->data_float3(), size, attr->data_float3());
+    }
   }
 }
 

@@ -45,10 +45,14 @@ class CPUDevice : public Device {
   OSLGlobals osl_globals;
 #endif
 #ifdef WITH_EMBREE
-  RTCScene embree_scene = nullptr;
+#  if RTC_VERSION >= 40400
+  RTCTraversable embree_traversable = nullptr;
+#  else
+  RTCScene embree_traversable = nullptr;
+#  endif
   RTCDevice embree_device;
 #endif
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   mutable unique_ptr<openpgl::cpp::Device> guiding_device;
 #endif
 

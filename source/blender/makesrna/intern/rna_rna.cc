@@ -173,8 +173,11 @@ static constexpr auto PROP_PROPORTIONAL_DESCR = "";
 static constexpr auto PROP_TEXTEDIT_UPDATE_DESCR = "";
 static constexpr auto PROP_PATH_OUTPUT_DESCR = "";
 static constexpr auto PROP_PATH_RELATIVE_DESCR =
-    "This path supports relative prefix \"//\" which is expanded the the directory "
+    "This path supports relative prefix \"//\" which is expanded the directory "
     "where the current \".blend\" file is located.";
+static constexpr auto PROP_PATH_SUPPORTS_TEMPLATES_DESCR =
+    "This path supports the \"{variable_name}\" template syntax, which substitutes the "
+    "value of the referenced variable in place of the template expression";
 static constexpr auto PROP_ENUM_FLAG_DESCR = "";
 
 const EnumPropertyItem rna_enum_property_flag_items[] = {
@@ -199,6 +202,11 @@ const EnumPropertyItem rna_enum_property_flag_items[] = {
      0,
      "Relative Path Support",
      PROP_PATH_RELATIVE_DESCR},
+    {PROP_PATH_SUPPORTS_TEMPLATES,
+     "SUPPORTS_TEMPLATES",
+     0,
+     "Variable expression support",
+     PROP_PATH_SUPPORTS_TEMPLATES_DESCR},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -257,6 +265,7 @@ const EnumPropertyItem rna_enum_property_string_search_flag_items[] = {
 #ifdef RNA_RUNTIME
 #  include "BLI_ghash.h"
 #  include "BLI_string.h"
+
 #  include "MEM_guardedalloc.h"
 
 #  include "BKE_idprop.hh"
@@ -449,7 +458,11 @@ static void rna_Struct_properties_next(CollectionPropertyIterator *iter)
     /* regular properties */
     rna_inheritance_properties_listbase_next(iter, rna_property_builtin);
 
-    /* try id properties */
+    /* Try IDProperties (i.e. custom data).
+     *
+     * NOTE: System IDProperties should not need to be handled here, as they are expected to have a
+     * valid (runtime-defined) RNA property to wrap them, which will have been processed above as
+     * part of `rna_inheritance_properties_listbase_next`. */
     if (!iter->valid) {
       group = RNA_struct_idprops(&iter->builtin_parent, 0);
 
@@ -801,6 +814,12 @@ static bool rna_Property_is_path_supports_blend_relative_flag_get(PointerRNA *pt
   return (prop->flag & PROP_PATH_SUPPORTS_BLEND_RELATIVE) != 0;
 }
 
+static bool rna_Property_is_path_supports_templates_flag_get(PointerRNA *ptr)
+{
+  PropertyRNA *prop = (PropertyRNA *)ptr->data;
+  return (prop->flag & PROP_PATH_SUPPORTS_TEMPLATES) != 0;
+}
+
 static int rna_Property_tags_get(PointerRNA *ptr)
 {
   return RNA_property_tags(static_cast<PropertyRNA *>(ptr->data));
@@ -870,6 +889,50 @@ static bool rna_Property_is_runtime_get(PointerRNA *ptr)
 {
   PropertyRNA *prop = (PropertyRNA *)ptr->data;
   return RNA_property_is_runtime(prop);
+}
+
+static bool rna_Property_is_deprecated_get(PointerRNA *ptr)
+{
+  const PropertyRNA *prop = (const PropertyRNA *)ptr->data;
+  return RNA_property_deprecated(prop) != nullptr;
+}
+
+static int rna_Property_deprecated_note_length(PointerRNA *ptr)
+{
+  const PropertyRNA *prop = (const PropertyRNA *)ptr->data;
+  if (const DeprecatedRNA *deprecated = RNA_property_deprecated(prop)) {
+    return strlen(deprecated->note);
+  }
+  return 0;
+}
+
+static void rna_Property_deprecated_note_get(PointerRNA *ptr, char *value)
+{
+  const PropertyRNA *prop = (const PropertyRNA *)ptr->data;
+  if (const DeprecatedRNA *deprecated = RNA_property_deprecated(prop)) {
+    strcpy(value, deprecated->note);
+  }
+}
+
+static void rna_Property_deprecated_version_get(PointerRNA *ptr, int *value)
+{
+  const PropertyRNA *prop = (const PropertyRNA *)ptr->data;
+  short version = 0;
+  if (const DeprecatedRNA *deprecated = RNA_property_deprecated(prop)) {
+    version = deprecated->version;
+  }
+  ARRAY_SET_ITEMS(value, version / 100, version % 100, 0);
+}
+
+static void rna_Property_deprecated_removal_version_get(PointerRNA *ptr, int *value)
+{
+  const PropertyRNA *prop = (const PropertyRNA *)ptr->data;
+  short version = 0;
+  if (const DeprecatedRNA *deprecated = RNA_property_deprecated(prop)) {
+    version = deprecated->removal_version;
+  }
+
+  ARRAY_SET_ITEMS(value, version / 100, version % 100, 0);
 }
 
 static bool rna_BoolProperty_default_get(PointerRNA *ptr)
@@ -1610,11 +1673,11 @@ static void rna_property_override_diff_propptr(Main *bmain,
               /* In case one of the owner of the checked property is tagged as needing resync, do
                * not change the 'match reference' status of its ID pointer properties overrides,
                * since many non-matching ones are likely due to missing resync. */
-              CLOG_INFO(&LOG_COMPARE_OVERRIDE,
-                        4,
-                        "Not checking matching ID pointer properties, since owner %s is tagged as "
-                        "needing resync.\n",
-                        id_a->name);
+              CLOG_DEBUG(
+                  &LOG_COMPARE_OVERRIDE,
+                  "Not checking matching ID pointer properties, since owner %s is tagged as "
+                  "needing resync.\n",
+                  id_a->name);
             }
             else if (id_a->override_library != nullptr &&
                      id_a->override_library->reference == id_b)
@@ -3312,7 +3375,43 @@ static void rna_def_property(BlenderRNA *brna)
       prop,
       "Path Relative",
       "Property is a path which supports the \"//\" prefix, "
-      "signifying the location as relative to the \".blend\" files directory");
+      "signifying the location as relative to the \".blend\" file's directory");
+
+  prop = RNA_def_property(srna, "is_path_supports_templates", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_Property_is_path_supports_templates_flag_get", nullptr);
+  RNA_def_property_ui_text(
+      prop,
+      "Variable Expression Support",
+      "Property is a path which supports the \"{variable_name}\" variable expression syntax, "
+      "which substitutes the value of the referenced variable in place of the expression");
+
+  prop = RNA_def_property(srna, "is_deprecated", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_Property_is_deprecated_get", nullptr);
+  RNA_def_property_ui_text(prop, "Deprecated", "The property is deprecated");
+
+  prop = RNA_def_property(srna, "deprecated_note", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_string_funcs(
+      prop, "rna_Property_deprecated_note_get", "rna_Property_deprecated_note_length", nullptr);
+  RNA_def_property_ui_text(prop, "Deprecated Note", "A note regarding deprecation");
+
+  prop = RNA_def_property(srna, "deprecated_version", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  /* Use 3 values to match `bpy.app.version`. */
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Deprecated Version", "The Blender version this was deprecated");
+  RNA_def_property_int_funcs(prop, "rna_Property_deprecated_version_get", nullptr, nullptr);
+
+  prop = RNA_def_property(srna, "deprecated_removal_version", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(
+      prop, "Deprecated Removal Version", "The Blender version this is expected to be removed");
+  RNA_def_property_int_funcs(
+      prop, "rna_Property_deprecated_removal_version_get", nullptr, nullptr);
 
   prop = RNA_def_property(srna, "tags", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

@@ -165,8 +165,7 @@ TEST_F(LibQueryTest, libquery_basic)
   FOREACH_MAIN_ID_END;
 
   /* Set an invalid user-count value to IDs directly used by the scene.
-   * This includes these used by its embedded IDs, like the master collection, and the scene
-   itself
+   * This includes these used by its embedded IDs, like the master collection, and the scene itself
    * (through the loop-back pointers of embedded IDs to their owner). */
   auto set_count = [](LibraryIDLinkCallbackData *cb_data) -> int {
     if (*(cb_data->id_pointer)) {
@@ -298,7 +297,7 @@ TEST_F(LibQueryTest, libquery_subdata)
 
   EXPECT_EQ(context.scene->id.us, 0);
   EXPECT_EQ(context.object->id.us, 0);
-  /* The material's nodetre input node IDProperty uses the target object. */
+  /* The material's node-tree input node IDProperty uses the target object. */
   EXPECT_EQ(context.target->id.us, 42);
   EXPECT_EQ(context.mesh->id.us, 0);
 }

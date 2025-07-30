@@ -37,6 +37,7 @@
 #include "RNA_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -337,7 +338,7 @@ static wmOperatorStatus preferences_extension_repo_add_exec(bContext *C, wmOpera
    * Otherwise URL's have their '.' removed, making for quite unreadable module names. */
   char module_buf[FILE_MAX];
   {
-    STRNCPY(module_buf, module);
+    STRNCPY_UTF8(module_buf, module);
     int i;
     for (i = 0; module_buf[i]; i++) {
       if (ELEM(module_buf[i], '.', '-', '/', '\\')) {
@@ -362,7 +363,7 @@ static wmOperatorStatus preferences_extension_repo_add_exec(bContext *C, wmOpera
   }
 
   if (repo_type == bUserExtensionRepoAddType::Remote) {
-    STRNCPY(new_repo->remote_url, remote_url);
+    STRNCPY_UTF8(new_repo->remote_url, remote_url);
     new_repo->flag |= USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL;
 
     if (use_access_token) {
@@ -390,7 +391,7 @@ static wmOperatorStatus preferences_extension_repo_add_exec(bContext *C, wmOpera
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   /* Mainly useful when adding a repository from a popup since it's not as obvious
-   * the repository was added compared to the repository popover.  */
+   * the repository was added compared to the repository popover. */
   BKE_reportf(op->reports,
               RPT_INFO,
               "Added %s \"%s\"",
@@ -424,18 +425,18 @@ static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
 {
 
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   PointerRNA *ptr = op->ptr;
   const bUserExtensionRepoAddType repo_type = bUserExtensionRepoAddType(RNA_enum_get(ptr, "type"));
 
   switch (repo_type) {
     case bUserExtensionRepoAddType::Remote: {
-      uiItemR(layout, op->ptr, "remote_url", UI_ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
-      uiItemR(layout, op->ptr, "use_sync_on_startup", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "remote_url", UI_ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "use_sync_on_startup", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
+      layout->separator(0.2f, LayoutSeparatorType::Line);
 
       const bool use_access_token = RNA_boolean_get(ptr, "use_access_token");
       const int token_icon = (use_access_token && RNA_string_length(op->ptr, "access_token")) ?
@@ -443,26 +444,26 @@ static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
                                  ICON_UNLOCKED;
 
       uiLayout *row = &layout->row(true, IFACE_("Authentication"));
-      uiItemR(row, op->ptr, "use_access_token", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(op->ptr, "use_access_token", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       uiLayout *col = &layout->row(false);
-      uiLayoutSetActive(col, use_access_token);
+      col->active_set(use_access_token);
       /* Use "immediate" flag to refresh the icon. */
-      uiItemR(col, op->ptr, "access_token", UI_ITEM_R_IMMEDIATE, std::nullopt, token_icon);
+      col->prop(op->ptr, "access_token", UI_ITEM_R_IMMEDIATE, std::nullopt, token_icon);
 
-      uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
+      layout->separator(0.2f, LayoutSeparatorType::Line);
 
       break;
     }
     case bUserExtensionRepoAddType::Local: {
-      uiItemR(layout, op->ptr, "name", UI_ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "name", UI_ITEM_R_IMMEDIATE, std::nullopt, ICON_NONE);
       break;
     }
   }
 
-  uiItemR(layout, op->ptr, "use_custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "use_custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiLayout *col = &layout->row(false);
-  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_custom_directory"));
-  uiItemR(col, op->ptr, "custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->active_set(RNA_boolean_get(ptr, "use_custom_directory"));
+  col->prop(op->ptr, "custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
@@ -783,9 +784,10 @@ static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
                                                               wmOperator *op,
                                                               const wmEvent *event)
 {
-  char *url = RNA_string_get_alloc(op->ptr, "url", nullptr, 0, nullptr);
-  const bool url_is_file = STRPREFIX(url, "file://");
-  const bool url_is_online = STRPREFIX(url, "http://") || STRPREFIX(url, "https://");
+  std::string url = RNA_string_get(op->ptr, "url");
+  const bool url_is_file = STRPREFIX(url.c_str(), "file://");
+  const bool url_is_online = STRPREFIX(url.c_str(), "http://") ||
+                             STRPREFIX(url.c_str(), "https://");
   const bool url_is_remote = url_is_file | url_is_online;
 
   /* NOTE: searching for hard-coded add-on name isn't great.
@@ -805,9 +807,9 @@ static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
     PointerRNA props_ptr;
     WM_operator_properties_create_ptr(&props_ptr, ot);
     if (use_url) {
-      RNA_string_set(&props_ptr, "url", url);
+      RNA_string_set(&props_ptr, "url", url.c_str());
     }
-    WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, event);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, event);
     WM_operator_properties_free(&props_ptr);
     retval = OPERATOR_FINISHED;
   }
@@ -815,7 +817,6 @@ static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
     BKE_reportf(op->reports, RPT_ERROR, "Extension operator not found \"%s\"", idname_external);
     retval = OPERATOR_CANCELLED;
   }
-  MEM_freeN(url);
   return retval;
 }
 
@@ -826,7 +827,7 @@ static void PREFERENCES_OT_extension_url_drop(wmOperatorType *ot)
   ot->description = "Handle dropping an extension URL";
   ot->idname = "PREFERENCES_OT_extension_url_drop";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = preferences_extension_url_drop_invoke;
 
   RNA_def_string(ot->srna, "url", nullptr, 0, "URL", "Location of the extension to install");
@@ -917,7 +918,7 @@ static void PREFERENCES_OT_associate_blend(wmOperatorType *ot)
   ot->description = "Use this installation for .blend files and to display thumbnails";
   ot->idname = "PREFERENCES_OT_associate_blend";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = associate_blend_exec;
   ot->poll = associate_blend_poll;
 }
@@ -965,7 +966,7 @@ static void PREFERENCES_OT_unassociate_blend(wmOperatorType *ot)
   ot->description = "Remove this installation's associations with .blend files";
   ot->idname = "PREFERENCES_OT_unassociate_blend";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = unassociate_blend_exec;
   ot->poll = associate_blend_poll;
 }

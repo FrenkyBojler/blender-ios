@@ -43,7 +43,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -381,7 +381,7 @@ static void particle_settings_blend_read_after_liblink(BlendLibReader * /*reader
 }
 
 IDTypeInfo IDType_ID_PA = {
-    /*id_code*/ ID_PA,
+    /*id_code*/ ParticleSettings::id_type,
     /*id_filter*/ FILTER_ID_PA,
     /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_GR | FILTER_ID_TE,
     /*main_listbase_index*/ INDEX_ID_PA,
@@ -1145,7 +1145,7 @@ void psys_interpolate_particle(
     interp_cubic_v3(result->co, result->vel, keys[1].co, keys[1].vel, keys[2].co, keys[2].vel, dt);
   }
   else {
-    key_curve_position_weights(dt, t, type);
+    key_curve_position_weights(dt, t, KeyInterpolationType(type));
 
     interp_v3_v3v3v3v3(result->co, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
 
@@ -1153,12 +1153,12 @@ void psys_interpolate_particle(
       float temp[3];
 
       if (dt > 0.999f) {
-        key_curve_position_weights(dt - 0.001f, t, type);
+        key_curve_position_weights(dt - 0.001f, t, KeyInterpolationType(type));
         interp_v3_v3v3v3v3(temp, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
         sub_v3_v3v3(result->vel, result->co, temp);
       }
       else {
-        key_curve_position_weights(dt + 0.001f, t, type);
+        key_curve_position_weights(dt + 0.001f, t, KeyInterpolationType(type));
         interp_v3_v3v3v3v3(temp, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
         sub_v3_v3v3(result->vel, temp, result->co);
       }
@@ -3942,7 +3942,7 @@ static ModifierData *object_add_or_copy_particle_system(
     psys->part = BKE_particlesettings_add(bmain, DATA_("ParticleSettings"));
   }
   md = BKE_modifier_new(eModifierType_ParticleSystem);
-  STRNCPY(md->name, psys->name);
+  STRNCPY_UTF8(md->name, psys->name);
   BKE_modifier_unique_name(&ob->modifiers, md);
 
   psmd = (ParticleSystemModifierData *)md;
@@ -4087,7 +4087,7 @@ ParticleSettings *BKE_particlesettings_add(Main *bmain, const char *name)
 {
   ParticleSettings *part;
 
-  part = static_cast<ParticleSettings *>(BKE_id_new(bmain, ID_PA, name));
+  part = BKE_id_new<ParticleSettings>(bmain, name);
 
   return part;
 }

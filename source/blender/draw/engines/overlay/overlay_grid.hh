@@ -56,9 +56,9 @@ class Grid : Overlay {
       return;
     }
 
-    GPUTexture **depth_tx = state.xray_enabled ? &res.xray_depth_tx : &res.depth_tx;
-    GPUTexture **depth_infront_tx = state.use_in_front ? &res.depth_target_in_front_tx :
-                                                         &res.dummy_depth_tx;
+    gpu::Texture **depth_tx = state.xray_enabled ? &res.xray_depth_tx : &res.depth_tx;
+    gpu::Texture **depth_infront_tx = state.use_in_front ? &res.depth_target_in_front_tx :
+                                                           &res.dummy_depth_tx;
 
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
@@ -232,14 +232,20 @@ class Grid : Overlay {
       }
     }
     else {
-      if (show_ortho_grid && ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-        grid_flag_ = PLANE_YZ | SHOW_AXIS_Y | SHOW_AXIS_Z | SHOW_GRID | GRID_BACK;
+      if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
+        grid_flag_ = PLANE_YZ | (show_axis_y ? SHOW_AXIS_Y : OVERLAY_GridBits(0)) |
+                     (show_axis_z ? SHOW_AXIS_Z : OVERLAY_GridBits(0));
       }
-      else if (show_ortho_grid && ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-        grid_flag_ = PLANE_XY | SHOW_AXIS_X | SHOW_AXIS_Y | SHOW_GRID | GRID_BACK;
+      else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
+        grid_flag_ = PLANE_XY | (show_axis_x ? SHOW_AXIS_X : OVERLAY_GridBits(0)) |
+                     (show_axis_y ? SHOW_AXIS_Y : OVERLAY_GridBits(0));
       }
-      else if (show_ortho_grid && ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-        grid_flag_ = PLANE_XZ | SHOW_AXIS_X | SHOW_AXIS_Z | SHOW_GRID | GRID_BACK;
+      else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
+        grid_flag_ = PLANE_XZ | (show_axis_x ? SHOW_AXIS_X : OVERLAY_GridBits(0)) |
+                     (show_axis_z ? SHOW_AXIS_Z : OVERLAY_GridBits(0));
+      }
+      if (show_ortho_grid) {
+        grid_flag_ |= SHOW_GRID | GRID_BACK;
       }
     }
 

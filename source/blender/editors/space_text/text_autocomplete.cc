@@ -146,7 +146,7 @@ static GHash *text_autocomplete_build(Text *text)
     seek_len = text->curc - i;
     seek = text->curl->line + i;
 
-    // BLI_strncpy(seek, seek_ptr, seek_len);
+    // BLI_strncpy_utf8(seek, seek_ptr, seek_len);
   }
 
   /* now walk over entire doc and suggest words */
@@ -569,7 +569,7 @@ void TEXT_OT_autocomplete(wmOperatorType *ot)
   ot->description = "Show a list of used text in the open document";
   ot->idname = "TEXT_OT_autocomplete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = text_autocomplete_invoke;
   ot->cancel = text_autocomplete_cancel;
   ot->modal = text_autocomplete_modal;

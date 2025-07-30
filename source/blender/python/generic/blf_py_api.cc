@@ -5,7 +5,7 @@
 /** \file
  * \ingroup pygen
  *
- * This file defines the `bgl` module, used for drawing text in OpenGL.
+ * This file defines the `blf` module, used for drawing text to the GPU or image buffers.
  */
 
 /* Future-proof, See https://docs.python.org/3/c-api/arg.html#strings-and-buffers */
@@ -13,7 +13,7 @@
 
 #include "blf_py_api.hh"
 
-#include "../generic/py_capi_utils.hh"
+#include "py_capi_utils.hh"
 
 #include <Python.h>
 
@@ -25,7 +25,8 @@
 #include "../../imbuf/IMB_imbuf.hh"
 #include "../../imbuf/IMB_imbuf_types.hh"
 
-#include "python_compat.hh"
+#include "python_compat.hh" /* IWYU pragma: keep. */
+
 #include "python_utildefines.hh"
 
 #include "imbuf_py_api.hh"
@@ -33,7 +34,7 @@
 struct BPyBLFImBufContext {
   PyObject_HEAD /* Required Python macro. */
   PyObject *py_imbuf;
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display;
 
   int fontid;
   BLFBufferState *buffer_state;
@@ -696,7 +697,7 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
     return nullptr;
   }
 
-  ColorManagedDisplay *display = nullptr;
+  const ColorManagedDisplay *display = nullptr;
   if (display_name) {
     display = IMB_colormanagement_display_get_named(display_name);
     if (UNLIKELY(display == nullptr)) {

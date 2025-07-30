@@ -7,6 +7,8 @@
  */
 
 #ifdef _WIN32
+#  include "BLI_winstuff.h"
+#  include <exception>
 #  include <io.h>
 #  include <stddef.h>
 #  include <sys/types.h>
@@ -16,6 +18,8 @@
 #include "BLI_mmap.h"
 #include "BLI_path_utils.hh" /* For assertions. */
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
+
 #include <cstdlib>
 
 #include "IMB_allocimbuf.hh"
@@ -40,32 +44,33 @@ static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
 
   if (r_colorspace && r_colorspace[0]) {
     /* Existing configured colorspace has priority. */
-    STRNCPY(new_colorspace, r_colorspace);
+    STRNCPY_UTF8(new_colorspace, r_colorspace);
   }
   else if (file_colorspace.metadata_colorspace[0] &&
            colormanage_colorspace_get_named(file_colorspace.metadata_colorspace))
   {
     /* Use colorspace from file metadata if provided. */
-    STRNCPY(new_colorspace, file_colorspace.metadata_colorspace);
+    STRNCPY_UTF8(new_colorspace, file_colorspace.metadata_colorspace);
   }
   else {
+    /* The color-space from the file-path (not a file-path). */
     const char *filepath_colorspace = (filepath) ?
                                           IMB_colormanagement_space_from_filepath_rules(filepath) :
                                           nullptr;
     if (filepath_colorspace) {
       /* Use colorspace from OpenColorIO file rules. */
-      STRNCPY(new_colorspace, filepath_colorspace);
+      STRNCPY_UTF8(new_colorspace, filepath_colorspace);
     }
     else {
       /* Use float colorspace if the image may contain HDR colors, byte otherwise. */
       const char *role_colorspace = IMB_colormanagement_role_colorspace_name_get(
           file_colorspace.is_hdr_float ? COLOR_ROLE_DEFAULT_FLOAT : COLOR_ROLE_DEFAULT_BYTE);
-      STRNCPY(new_colorspace, role_colorspace);
+      STRNCPY_UTF8(new_colorspace, role_colorspace);
     }
   }
 
   if (r_colorspace) {
-    BLI_strncpy(r_colorspace, new_colorspace, IM_MAX_SPACE);
+    BLI_strncpy_utf8(r_colorspace, new_colorspace, IM_MAX_SPACE);
   }
 
   if (r_colorspace) {
@@ -167,7 +172,30 @@ ImBuf *IMB_load_image_from_file_descriptor(const int file,
   const uchar *mem = static_cast<const uchar *>(BLI_mmap_get_pointer(mmap_file));
   const size_t size = BLI_mmap_get_length(mmap_file);
 
-  ibuf = IMB_load_image_from_memory(mem, size, flags, filepath, filepath, r_colorspace);
+  /* There could be broken mmap due to network drives and other issues, handles exception the
+   * same way as in #BLI_mmap_read. Note that if the mmap becomes invalid mid-way through reading,
+   * external calls in #IMB_load_image_from_memory could leave unfreed memory, but this is the
+   * limitation of current exception handling method. Ref #139472. */
+#ifdef WIN32
+  __try
+  {
+#endif
+
+    ibuf = IMB_load_image_from_memory(mem, size, flags, filepath, filepath, r_colorspace);
+
+#ifdef WIN32
+  }
+  __except (GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR ? EXCEPTION_EXECUTE_HANDLER :
+                                                            EXCEPTION_CONTINUE_SEARCH)
+  {
+    ibuf = nullptr;
+  }
+#else
+  /* For unix, if mmap encounters an exception, BLI_mmap_file::io_error would be set. */
+  if (BLI_mmap_any_io_error(mmap_file)) {
+    ibuf = nullptr;
+  }
+#endif
 
   imb_mmap_lock();
   BLI_mmap_free(mmap_file);
@@ -245,8 +273,8 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
       /* Save dimensions of original image into the thumbnail metadata. */
       char cwidth[40];
       char cheight[40];
-      SNPRINTF(cwidth, "%zu", width);
-      SNPRINTF(cheight, "%zu", height);
+      SNPRINTF_UTF8(cwidth, "%zu", width);
+      SNPRINTF_UTF8(cheight, "%zu", height);
       IMB_metadata_ensure(&ibuf->metadata);
       IMB_metadata_set_field(ibuf->metadata, "Thumb::Image::Width", cwidth);
       IMB_metadata_set_field(ibuf->metadata, "Thumb::Image::Height", cheight);
