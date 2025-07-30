@@ -53,7 +53,6 @@ static int find_rightmost_span(const int8_t order, const Span<int> multiplicity)
 }
 
 Span<float> valid_nurb_control_point_range(const int8_t order,
-                                           const bool cyclic,
                                            const Span<float> knots,
                                            IndexRange &point_range)
 {
@@ -77,8 +76,8 @@ Span<float> valid_nurb_control_point_range(const int8_t order,
   int skip_end = acc_end - order;
 
   /* Update ranges */
-  knots = knots.drop_front(skip_start).drop_back(skip_end);
   point_range = point_range.drop_front(skip_start).drop_back(skip_end);
+  return knots.drop_front(skip_start).drop_back(skip_end);
 }
 
 /** \} */

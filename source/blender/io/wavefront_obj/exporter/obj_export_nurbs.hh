@@ -31,7 +31,6 @@ namespace blender::io::obj {
  * knot/point does not contribute to any span/segment.
  */
 Span<float> valid_nurb_control_point_range(int8_t order,
-                                           bool cyclic,
                                            Span<float> knots,
                                            IndexRange &point_range);
 

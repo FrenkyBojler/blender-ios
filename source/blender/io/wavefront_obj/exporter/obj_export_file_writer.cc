@@ -513,7 +513,7 @@ void OBJWriter::write_nurbs_curve(FormatHandler &fh, const IOBJCurve &obj_nurbs_
     Vector<float> knot_buffer;
     Span<float> knots_u = obj_nurbs_data.get_knots_u(spline_idx, knot_buffer);
     IndexRange point_range(0, num_points_u);
-    knots_u = valid_nurb_control_point_range(degree_u + 1, cyclic_u, knots_u, point_range);
+    knots_u = valid_nurb_control_point_range(degree_u + 1, knots_u, point_range);
 
     /* Write coords */
     Vector<float3> dynamic_point_buffer;
@@ -537,7 +537,7 @@ void OBJWriter::write_nurbs_curve(FormatHandler &fh, const IOBJCurve &obj_nurbs_
     fh.write_obj_nurbs_parm(knots_u.last(degree_u));
 
     /* Loop over the [0, N) range, not its actual interval [x, N + x).
-     * This will finalize 'unrolling' of the point coordinates.
+     * For cyclic curves, up to [0, order) will be repeated.
      */
     for (int64_t index : point_range.index_range()) {
       /* Write one based (1 ==> coords[0]) relative/negative indices.
