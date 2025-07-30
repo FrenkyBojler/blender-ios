@@ -2,17 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_idprop.hh"
-#include "NOD_node_extra_info.hh"
 #include "node_geometry_util.hh"
 
 #include "ED_screen.hh"
 
 #include "NOD_geo_bundle.hh"
+#include "NOD_node_extra_info.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
+
+#include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
 

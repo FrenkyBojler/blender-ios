@@ -6,7 +6,10 @@
 
 #include "BLI_string_utf8.h"
 
+#include "BKE_idprop.hh"
+
 #include "NOD_geo_closure.hh"
+#include "NOD_node_extra_info.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -160,32 +163,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
-static void node_layout(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
-{
-  const SpaceNode *snode = CTX_wm_space_node(C);
-  bNode &node = *static_cast<bNode *>(node_ptr->data);
-  NodeGeometryClosureOutput &storage = node_storage(node);
-  if (snode && storage.flag & NODE_GEO_CLOSURE_FLAG_MAY_NEED_SYNC) {
-    const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_closure_output(
-        *snode, node);
-    switch (state) {
-      case ed::space_node::NodeSyncState::NoSyncSource:
-      case ed::space_node::NodeSyncState::Synced: {
-        storage.flag &= ~NODE_GEO_CLOSURE_FLAG_MAY_NEED_SYNC;
-        break;
-      }
-      case ed::space_node::NodeSyncState::CanBeSynced: {
-        PointerRNA props = layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
-        RNA_string_set(&props, "node_name", node.name);
-        break;
-      }
-      case ed::space_node::NodeSyncState::ConflictingSyncSources: {
-        break;
-      }
-    }
-  }
-}
-
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryClosureOutput &src_storage = node_storage(*src_node);
@@ -251,6 +228,42 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<ClosureOutputItemsAccessor>(&reader, node);
 }
 
+static void node_extra_info(NodeExtraInfoParams &params)
+{
+  const SpaceNode *snode = CTX_wm_space_node(&params.C);
+  const bNode &node = params.node;
+  const NodeGeometryClosureOutput &storage = node_storage(node);
+  if (snode && storage.flag & NODE_GEO_COMBINE_BUNDLE_FLAG_MAY_NEED_SYNC) {
+    const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_closure_output(
+        *snode, node);
+    switch (state) {
+      case ed::space_node::NodeSyncState::NoSyncSource:
+      case ed::space_node::NodeSyncState::Synced: {
+        const_cast<NodeGeometryClosureOutput &>(storage).flag &=
+            ~NODE_GEO_COMBINE_BUNDLE_FLAG_MAY_NEED_SYNC;
+        break;
+      }
+      case ed::space_node::NodeSyncState::CanBeSynced: {
+        NodeExtraInfoRow row;
+        row.text = TIP_("Sync");
+        row.icon = ICON_FILE_REFRESH;
+        row.set_execute_fn = [node = &params.node](uiBut &but) {
+          wmOperatorType *ot = WM_operatortype_find("NODE_OT_sockets_sync", false);
+          UI_but_operator_set(&but, ot, wm::OpCallContext::InvokeDefault);
+          PointerRNA *opptr = UI_but_operator_ptr_ensure(&but);
+          opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
+          RNA_string_set(opptr, "node_name", node->name);
+        };
+        params.rows.append(std::move(row));
+        break;
+      }
+      case ed::space_node::NodeSyncState::ConflictingSyncSources: {
+        break;
+      }
+    }
+  }
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -264,8 +277,8 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.insert_link = node_insert_link;
-  ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.get_extra_info = node_extra_info;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_type_storage(ntype, "NodeGeometryClosureOutput", node_free_storage, node_copy_storage);
