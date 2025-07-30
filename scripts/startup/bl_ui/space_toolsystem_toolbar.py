@@ -3290,8 +3290,8 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
         (
             _defs_image_mask_select.select,
             _defs_image_mask_select.box,
-            _defs_image_mask_select.lasso,
             _defs_image_mask_select.circle,
+            _defs_image_mask_select.lasso,
         ),
     )
 
