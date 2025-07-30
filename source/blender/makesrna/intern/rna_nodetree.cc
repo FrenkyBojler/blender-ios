@@ -6573,11 +6573,21 @@ static void def_cmp_file_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
 
-  prop = RNA_def_property(srna, "base_path", PROP_STRING, PROP_FILEPATH);
-  RNA_def_property_string_sdna(prop, nullptr, "base_path");
-  RNA_def_property_ui_text(prop, "Base Path", "Base output path for the image");
+  prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
+  RNA_def_property_string_sdna(prop, nullptr, "directory");
+  RNA_def_property_ui_text(prop, "Directory", "The directory where the image will be written");
   RNA_def_property_flag(
       prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_BLEND_RELATIVE | PROP_PATH_SUPPORTS_TEMPLATES);
+  RNA_def_property_path_template_type(prop, PROP_VARIABLES_RENDER_OUTPUT);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "file_name", PROP_STRING, PROP_FILENAME);
+  RNA_def_property_string_sdna(prop, nullptr, "file_name");
+  RNA_def_property_ui_text(prop,
+                           "File Name",
+                           "The base name of the file. Other information might be included in the "
+                           "final file name depending on the node options");
+  RNA_def_property_flag(prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_TEMPLATES);
   RNA_def_property_path_template_type(prop, PROP_VARIABLES_RENDER_OUTPUT);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 

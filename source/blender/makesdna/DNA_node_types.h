@@ -1288,7 +1288,8 @@ typedef struct NodeCompositorFileOutputItem {
 } NodeCompositorFileOutputItem;
 
 typedef struct NodeCompositorFileOutput {
-  char base_path[/*FILE_MAX*/ 1024];
+  char *directory;
+  char *file_name;
   /* The image format to use when saving the images. */
   ImageFormatData format;
   /* The file output images. They can represent individual images or layers depending on whether
