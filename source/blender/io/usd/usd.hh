@@ -152,7 +152,7 @@ struct USDExportParams {
   bool use_instancing = false;
   bool export_custom_properties = true;
   bool author_blender_name = true;
-  bool allow_unicode = false;
+  bool allow_unicode = true;
 
   eSubdivExportMode export_subdiv = USD_SUBDIV_BEST_MATCH;
   enum eEvaluationMode evaluation_mode = DAG_EVAL_VIEWPORT;
@@ -321,7 +321,7 @@ struct USDHook {
   /* Identifier used as label. */
   char name[64];
   /* Short help/description. */
-  char description[1024]; /* #RNA_DYN_DESCR_MAX */
+  char description[/*RNA_DYN_DESCR_MAX*/ 1024];
 
   /* rna_ext.data points to the USDHook class PyObject. */
   ExtensionRNA rna_ext;
