@@ -1022,10 +1022,6 @@ static void grease_pencil_edit_batch_ensure(Object &object,
 
     /* Add three for each bezier point, (one left, one right and one for the center point). */
     drawing_line_start_offset += bezier_points.size() * 3;
-    total_line_ids_num += bezier_points.size() * 3;
-
-    /* Add one id for the restart after every bezier. */
-    total_line_ids_num += bezier_points.size();
 
     total_bezier_num += bezier_points.size();
   }
