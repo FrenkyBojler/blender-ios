@@ -265,7 +265,7 @@ typedef struct SubsurfModifierData {
   /** #eSubsurfUVSmooth. */
   short uv_smooth;
   short quality;
-  /** #eSubsurfBoundarySmooth.  */
+  /** #eSubsurfBoundarySmooth. */
   short boundary_smooth;
   char _pad[2];
 
@@ -299,7 +299,7 @@ typedef struct CurveModifierData {
   char name[/*MAX_VGROUP_NAME*/ 64];
   /** #CurveModifierDefaultAxis. Axis along which curve deforms. */
   short defaxis;
-  /** #CurveModifierFlag.  */
+  /** #CurveModifierFlag. */
   short flag;
   char _pad[4];
   void *_pad1;
@@ -1778,6 +1778,12 @@ typedef enum {
   MOD_WVG_PROXIMITY_INVERT_VGROUP_MASK = (1 << 3),
   MOD_WVG_PROXIMITY_INVERT_FALLOFF = (1 << 4),
   MOD_WVG_PROXIMITY_WEIGHTS_NORMALIZE = (1 << 5),
+
+  /* Having an "all flags" name for geometry modes because these bits are accessed with RNA via a
+     different property and this makes it easier to do bit setting/testing. See
+     `rna_VertexWeightProximityModifier_proximity_geometry_set` in rna_modifier.cc */
+  MOD_WVG_PROXIMITY_GEOM_ALL = (MOD_WVG_PROXIMITY_GEOM_VERTS | MOD_WVG_PROXIMITY_GEOM_EDGES |
+                                MOD_WVG_PROXIMITY_GEOM_FACES),
 } WeightVGProximityModifierFlag;
 
 /* Defines common to all WeightVG modifiers. */
@@ -2771,7 +2777,7 @@ typedef enum GreasePencilTintModifierFlag {
 typedef struct GreasePencilSmoothModifierData {
   ModifierData modifier;
   GreasePencilModifierInfluenceData influence;
-  /** `eGreasePencilSmooth_Flag. */
+  /** #eGreasePencilSmooth_Flag. */
   int flag;
   /** Factor of smooth. */
   float factor;
@@ -3243,7 +3249,7 @@ typedef struct GreasePencilLineartModifierData {
   struct LineartCache *shared_cache;
 
   /* Cache for single execution of line art, when LINEART_GPENCIL_USE_CACHE is enabled, this is a
-   * reference to first_lineart->shared_cache, otherwise it holds its own cache.  */
+   * reference to first_lineart->shared_cache, otherwise it holds its own cache. */
   struct LineartCache *cache;
 
   /* Keep a pointer to the render buffer so we can call destroy from #ModifierData. */

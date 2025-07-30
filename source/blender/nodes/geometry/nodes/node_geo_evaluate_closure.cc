@@ -40,8 +40,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       const std::string identifier =
           EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item);
       b.add_output(socket_type, item.name, identifier)
-          .propagate_all()
-          .reference_pass_all()
           .structure_type(StructureType(item.structure_type));
     }
   }
@@ -247,11 +245,11 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
   }
   const NodeGeometryEvaluateClosureOutputItem &output_item =
       storage.output_items.items[output_socket.index()];
-  const SocketInterfaceKey output_key{output_item.name};
+  const StringRef output_key = output_item.name;
   for (const int i : IndexRange(storage.input_items.items_num)) {
     const NodeGeometryEvaluateClosureInputItem &input_item = storage.input_items.items[i];
-    const SocketInterfaceKey input_key{input_item.name};
-    if (output_key.matches(input_key)) {
+    const StringRef input_key = input_item.name;
+    if (output_key == input_key) {
       if (!tree.typeinfo->validate_link ||
           tree.typeinfo->validate_link(eNodeSocketDatatype(input_item.socket_type),
                                        eNodeSocketDatatype(output_item.socket_type)))
