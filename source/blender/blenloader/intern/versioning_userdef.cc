@@ -350,7 +350,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.node_zone_repeat);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 45)) {
+  if (!USER_VERSION_ATLEAST(500, 47)) {
     if (btheme->tui.panel_title[3] == 0) {
       btheme->tui.panel_title[3] = 255;
     }
