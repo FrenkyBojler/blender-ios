@@ -3030,7 +3030,7 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
     }
 
     if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute")) {
-      NodeShaderAttribute *attr = reinterpret_cast<NodeShaderAttribute *>(bnode->storage);
+      NodeShaderAttribute *attr = static_cast<NodeShaderAttribute *>(bnode->storage);
       if (attr->type == SHD_ATTRIBUTE_VIEW_LAYER && StringRef(attr->name) == "frame_current") {
         TimeSourceKey time_src_key;
         add_relation(time_src_key, ntree_output_key, "TimeSrc -> Node");
