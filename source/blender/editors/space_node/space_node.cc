@@ -12,6 +12,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_ID.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -41,6 +42,7 @@
 
 #include "BLT_translation.hh"
 
+#include "ED_asset_shelf.hh"
 #include "ED_image.hh"
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
@@ -63,7 +65,6 @@
 #include "WM_types.hh"
 
 #include "NOD_node_in_compute_context.hh"
-#include "NOD_socket_interface_key.hh"
 
 #include "io_utils.hh"
 
@@ -92,7 +93,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
     }
 
     if (id) {
-      STRNCPY(path->display_name, id->name + 2);
+      STRNCPY_UTF8(path->display_name, id->name + 2);
     }
 
     BLI_addtail(&snode->treepath, path);
@@ -111,6 +112,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
   snode->from = from;
 
   ED_node_set_active_viewer_key(snode);
+  snode->runtime->node_can_sync_states.clear();
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -129,8 +131,8 @@ void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNod
       path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
     }
 
-    STRNCPY(path->node_name, gnode->name);
-    STRNCPY(path->display_name, gnode->name);
+    STRNCPY_UTF8(path->node_name, gnode->name);
+    STRNCPY_UTF8(path->display_name, gnode->name);
   }
   else {
     path->parent_key = blender::bke::NODE_INSTANCE_KEY_BASE;
@@ -150,6 +152,7 @@ void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNod
   snode->edittree = ntree;
 
   ED_node_set_active_viewer_key(snode);
+  snode->runtime->node_can_sync_states.clear();
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -176,6 +179,7 @@ void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
   }
 
   ED_node_set_active_viewer_key(snode);
+  snode->runtime->node_can_sync_states.clear();
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -481,7 +485,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
     const StringRef query_node_idname,
     const bool find_all)
 {
-  using BundlePath = Vector<nodes::SocketInterfaceKey, 0>;
+  using BundlePath = Vector<std::string, 0>;
 
   struct SocketToCheck {
     nodes::SocketInContext socket;
@@ -557,7 +561,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
       if (node->is_type("GeometryNodeCombineBundle")) {
         const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node->storage);
         BundlePath new_bundle_path = bundle_path;
-        new_bundle_path.append(nodes::SocketInterfaceKey{storage.items[socket->index()].name});
+        new_bundle_path.append(storage.items[socket->index()].name);
         add_if_new(node.output_socket(0), std::move(new_bundle_path));
         continue;
       }
@@ -565,11 +569,10 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
         if (bundle_path.is_empty()) {
           continue;
         }
-        const nodes::SocketInterfaceKey &last_key = bundle_path.last();
+        const StringRef last_key = bundle_path.last();
         const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node->storage);
         for (const int output_i : IndexRange(storage.items_num)) {
-          const nodes::SocketInterfaceKey key{storage.items[output_i].name};
-          if (last_key.matches(key)) {
+          if (last_key == storage.items[output_i].name) {
             add_if_new(node.output_socket(output_i), bundle_path.as_span().drop_back(1));
           }
         }
@@ -578,8 +581,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
       if (node->is_type("GeometryNodeClosureOutput")) {
         const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
             node->storage);
-        const nodes::SocketInterfaceKey key(
-            closure_storage.output_items.items[socket->index()].name);
+        const StringRef key = closure_storage.output_items.items[socket->index()].name;
         const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
             node.output_socket(0), compute_context_cache, "GeometryNodeEvaluateClosure", true);
         for (const auto &target_socket : target_sockets) {
@@ -589,7 +591,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
           for (const int i : IndexRange(evaluate_storage.output_items.items_num)) {
             const NodeGeometryEvaluateClosureOutputItem &item =
                 evaluate_storage.output_items.items[i];
-            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+            if (key == item.name) {
               add_if_new(evaluate_node.output_socket(i), bundle_path);
             }
           }
@@ -602,8 +604,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
         }
         const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
             node->storage);
-        const nodes::SocketInterfaceKey key(
-            evaluate_storage.input_items.items[socket->index() - 1].name);
+        const StringRef key = evaluate_storage.input_items.items[socket->index() - 1].name;
         const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
             node.input_socket(0), compute_context_cache, "GeometryNodeClosureOutput", true);
         for (const nodes::SocketInContext origin_socket : origin_sockets) {
@@ -632,7 +633,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
               closure_output_node->storage);
           for (const int i : IndexRange(closure_output_storage.input_items.items_num)) {
             const NodeGeometryClosureInputItem &item = closure_output_storage.input_items.items[i];
-            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+            if (key == item.name) {
               add_if_new({&closure_context, &closure_input_node->output_socket(i)}, bundle_path);
             }
           }
@@ -697,7 +698,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
     const StringRef query_node_idname,
     const bool find_all)
 {
-  using BundlePath = Vector<nodes::SocketInterfaceKey, 0>;
+  using BundlePath = Vector<std::string, 0>;
 
   struct SocketToCheck {
     nodes::SocketInContext socket;
@@ -801,8 +802,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
       if (node->is_type("GeometryNodeEvaluateClosure")) {
         const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
             node->storage);
-        const nodes::SocketInterfaceKey key(
-            evaluate_storage.output_items.items[socket->index()].name);
+        const StringRef key = evaluate_storage.output_items.items[socket->index()].name;
         const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
             node.input_socket(0), compute_context_cache, "GeometryNodeClosureOutput", true);
         for (const nodes::SocketInContext origin_socket : origin_sockets) {
@@ -818,7 +818,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
                   &closure_tree, closure_output_node->identifier, origin_socket.context_hash()});
           for (const int i : IndexRange(closure_storage.output_items.items_num)) {
             const NodeGeometryClosureOutputItem &item = closure_storage.output_items.items[i];
-            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+            if (key == item.name) {
               add_if_new({&closure_context, &closure_output_node->input_socket(i)}, bundle_path);
             }
           }
@@ -834,8 +834,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
         }
         const auto &output_storage = *static_cast<const NodeGeometryClosureOutput *>(
             closure_output_node->storage);
-        const nodes::SocketInterfaceKey key(
-            output_storage.input_items.items[socket->index()].name);
+        const StringRef key = output_storage.input_items.items[socket->index()].name;
         const bNodeSocket &closure_output_socket = closure_output_node->output_socket(0);
         const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
             {socket.context, &closure_output_socket},
@@ -849,7 +848,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
           for (const int i : IndexRange(evaluate_storage.input_items.items_num)) {
             const NodeGeometryEvaluateClosureInputItem &item =
                 evaluate_storage.input_items.items[i];
-            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+            if (key == item.name) {
               add_if_new(target_node.input_socket(i + 1), bundle_path);
             }
           }
@@ -860,11 +859,10 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
         if (bundle_path.is_empty()) {
           continue;
         }
-        const nodes::SocketInterfaceKey &last_key = bundle_path.last();
+        const StringRef last_key = bundle_path.last();
         const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node->storage);
         for (const int input_i : IndexRange(storage.items_num)) {
-          const nodes::SocketInterfaceKey key{storage.items[input_i].name};
-          if (last_key.matches(key)) {
+          if (last_key == storage.items[input_i].name) {
             add_if_new(node.input_socket(input_i), bundle_path.as_span().drop_back(1));
           }
         }
@@ -873,7 +871,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
       if (node->is_type("GeometryNodeSeparateBundle")) {
         const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node->storage);
         BundlePath new_bundle_path = bundle_path;
-        new_bundle_path.append(nodes::SocketInterfaceKey{storage.items[socket->index()].name});
+        new_bundle_path.append(storage.items[socket->index()].name);
         add_if_new(node.input_socket(0), std::move(new_bundle_path));
         continue;
       }
@@ -1043,7 +1041,7 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 
   /* select the first tree type for valid type */
   for (const bke::bNodeTreeType *treetype : bke::node_tree_types_get()) {
-    STRNCPY(snode->tree_idname, treetype->idname.c_str());
+    STRNCPY_UTF8(snode->tree_idname, treetype->idname.c_str());
     break;
   }
 
@@ -1053,6 +1051,21 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   BLI_addtail(&snode->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+
+  /* asset shelf */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&snode->regionbase, region);
+  region->regiontype = RGN_TYPE_ASSET_SHELF;
+  region->alignment = RGN_ALIGN_BOTTOM;
+  region->flag |= RGN_FLAG_HIDDEN;
+
+  /* asset shelf header */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&snode->regionbase, region);
+  region->regiontype = RGN_TYPE_ASSET_SHELF_HEADER;
+  region->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
 
   /* buttons/list view */
   region = BKE_area_region_new();
@@ -1945,7 +1958,7 @@ static void node_widgets()
   wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(&params);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_transform);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_crop);
-  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_sun_beams);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_glare);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_corner_pin);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
@@ -2218,17 +2231,28 @@ static void node_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   }
 }
 
+static void node_asset_shelf_region_init(wmWindowManager *wm, ARegion *region)
+{
+  using namespace blender::ed;
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->defaultconf, "Node Generic", SPACE_NODE, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
+
+  asset::shelf::region_init(wm, region);
+}
+
 }  // namespace blender::ed::space_node
 
 void ED_spacetype_node()
 {
+  using namespace blender::ed;
   using namespace blender::ed::space_node;
 
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_NODE;
-  STRNCPY(st->name, "Node");
+  STRNCPY_UTF8(st->name, "Node");
 
   st->create = node_create;
   st->free = node_free;
@@ -2278,6 +2302,36 @@ void ED_spacetype_node()
   art->draw = node_header_region_draw;
 
   BLI_addhead(&st->regiontypes, art);
+
+  /* regions: asset shelf */
+  art = MEM_callocN<ARegionType>("spacetype node asset shelf region");
+  art->regionid = RGN_TYPE_ASSET_SHELF;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_FRAMES;
+  art->duplicate = asset::shelf::region_duplicate;
+  art->free = asset::shelf::region_free;
+  art->on_poll_success = asset::shelf::region_on_poll_success;
+  art->listener = asset::shelf::region_listen;
+  art->message_subscribe = asset::shelf::region_message_subscribe;
+  art->poll = asset::shelf::regions_poll;
+  art->snap_size = asset::shelf::region_snap;
+  art->on_user_resize = asset::shelf::region_on_user_resize;
+  art->context = asset::shelf::context;
+  art->init = node_asset_shelf_region_init;
+  art->layout = asset::shelf::region_layout;
+  art->draw = asset::shelf::region_draw;
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: asset shelf header */
+  art = MEM_callocN<ARegionType>("spacetype node asset shelf header region");
+  art->regionid = RGN_TYPE_ASSET_SHELF_HEADER;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+  art->init = asset::shelf::header_region_init;
+  art->poll = asset::shelf::regions_poll;
+  art->draw = asset::shelf::header_region;
+  art->listener = asset::shelf::header_region_listen;
+  art->context = asset::shelf::context;
+  BLI_addhead(&st->regiontypes, art);
+  asset::shelf::types_register(art, SPACE_NODE);
 
   /* regions: list-view/buttons */
   art = MEM_callocN<ARegionType>("spacetype node region");
