@@ -12,6 +12,7 @@
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_index_range.hh"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -103,9 +104,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Extend>("", "__extend__");
 }
 
-static void node_init(const bContext *C, PointerRNA *pointer)
+static void node_init(const bContext *C, PointerRNA *node_pointer)
 {
-  bNode *node = pointer->data_as<bNode>();
+  bNode *node = node_pointer->data_as<bNode>();
   NodeCompositorFileOutput *data = MEM_callocN<NodeCompositorFileOutput>(__func__);
   node->storage = data;
   data->save_as_render = true;
@@ -114,7 +115,7 @@ static void node_init(const bContext *C, PointerRNA *pointer)
   if (scene) {
     RenderData *render_data = &scene->r;
     data->directory = BLI_strdup(render_data->pic);
-    data->file_name = BLI_strdup("image");
+    data->file_name = BLI_strdup("Image");
     BKE_image_format_copy(&data->format, &render_data->im_format);
     data->format.color_management = R_IMF_COLOR_MANAGEMENT_FOLLOW_SCENE;
     if (BKE_imtype_is_movie(data->format.imtype)) {
@@ -162,22 +163,23 @@ static void node_operators()
   socket_items::ops::make_common_operators<FileOutputItemsAccessor>();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*context*/, PointerRNA *pointer)
+static void node_layout(uiLayout *layout, bContext * /*context*/, PointerRNA *node_pointer)
 {
-  layout->prop(pointer, "directory", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  layout->prop(pointer, "file_name", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(node_pointer, "directory", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(node_pointer, "file_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void format_layout(uiLayout *layout,
                           bContext *context,
                           PointerRNA *format_pointer,
-                          PointerRNA *pointer)
+                          PointerRNA *node_or_item_pointer)
 {
   uiLayout *column = &layout->column(true);
   column->use_property_split_set(true);
   column->use_property_decorate_set(false);
-  column->prop(pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  const bool save_as_render = RNA_boolean_get(pointer, "save_as_render");
+  column->prop(
+      node_or_item_pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  const bool save_as_render = RNA_boolean_get(node_or_item_pointer, "save_as_render");
   uiTemplateImageSettings(layout, context, format_pointer, save_as_render);
 
   if (!save_as_render) {
@@ -196,16 +198,103 @@ static void format_layout(uiLayout *layout,
   }
 }
 
+/* Computes the path of the image to be saved based on the given parameters. The given file name
+ * suffix, if not empty, will be added to the file name. If the given view is not empty, its file
+ * suffix will be appended to the name. The frame number, scene, and node are provides for variable
+ * substitution in the path. If there are any errors processing the path, they will be returned. */
+static Vector<path_templates::Error> compute_image_path(const std::string directory,
+                                                        const std::string file_name,
+                                                        const std::string file_name_suffix,
+                                                        const char *view,
+                                                        const int frame_number,
+                                                        const ImageFormatData &format,
+                                                        const Scene &scene,
+                                                        const bNode &node,
+                                                        char *r_image_path)
+{
+  char base_path[FILE_MAX] = "";
+  BLI_strncpy(base_path, directory.c_str(), FILE_MAX);
+  const std::string full_file_name = file_name + file_name_suffix;
+  BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
+
+  path_templates::VariableMap template_variables;
+  BKE_add_template_variables_general(template_variables, &node.owner_tree().id);
+  BKE_add_template_variables_for_render_path(template_variables, scene);
+  BKE_add_template_variables_for_node(template_variables, node);
+
+  return BKE_image_path_from_imformat(r_image_path,
+                                      base_path,
+                                      BKE_main_blendfile_path_from_global(),
+                                      &template_variables,
+                                      frame_number,
+                                      &format,
+                                      scene.r.scemode & R_EXTENSION,
+                                      true,
+                                      BKE_scene_multiview_view_suffix_get(&scene.r, view));
+}
+
+static void output_path_layout(uiLayout *layout,
+                               const std::string directory,
+                               const std::string file_name,
+                               const std::string file_name_suffix,
+                               const char *view,
+                               const ImageFormatData &format,
+                               const Scene &scene,
+                               const bNode &node)
+{
+
+  char image_path[FILE_MAX];
+  const Vector<path_templates::Error> path_errors = compute_image_path(
+      directory, file_name, file_name_suffix, view, scene.r.cfra, format, scene, node, image_path);
+
+  if (path_errors.is_empty()) {
+    layout->label(image_path, ICON_IMAGE);
+  }
+  else {
+    for (const path_templates::Error &error : path_errors) {
+      layout->label(BKE_path_template_error_to_string(error, image_path).c_str(), ICON_ERROR);
+    }
+  }
+}
+
+static void output_paths_layout(uiLayout *layout,
+                                bContext *context,
+                                const std::string file_name_suffix,
+                                PointerRNA *node_pointer,
+                                PointerRNA *format_pointer)
+{
+  const std::string directory = RNA_string_get(node_pointer, "directory");
+  const std::string file_name = RNA_string_get(node_pointer, "file_name");
+  const bNode &node = *node_pointer->data_as<bNode>();
+  const ImageFormatData &format = *format_pointer->data_as<ImageFormatData>();
+  const Scene &scene = *CTX_data_scene(context);
+
+  if (bool(scene.r.scemode & R_MULTIVIEW) && format.views_format == R_IMF_VIEWS_MULTIVIEW) {
+    LISTBASE_FOREACH (SceneRenderView *, view, &scene.r.views) {
+      if (!BKE_scene_multiview_is_render_view_active(&scene.r, view)) {
+        continue;
+      }
+
+      output_path_layout(
+          layout, directory, file_name, file_name_suffix, view->name, format, scene, node);
+    }
+  }
+  else {
+    output_path_layout(layout, directory, file_name, file_name_suffix, "", format, scene, node);
+  }
+}
+
 static void item_layout(uiLayout *layout,
                         bContext *context,
-                        PointerRNA *pointer,
+                        PointerRNA *node_pointer,
+                        PointerRNA *item_pointer,
                         const bool is_multi_layer)
 {
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
-  layout->prop(pointer, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (RNA_enum_get(pointer, "socket_type") == SOCK_VECTOR) {
-    layout->prop(pointer, "vector_socket_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(item_pointer, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (RNA_enum_get(item_pointer, "socket_type") == SOCK_VECTOR) {
+    layout->prop(item_pointer, "vector_socket_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (is_multi_layer) {
@@ -213,39 +302,53 @@ static void item_layout(uiLayout *layout,
   }
 
   layout->prop(
-      pointer, "override_node_format", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  if (!RNA_boolean_get(pointer, "override_node_format")) {
-    return;
+      item_pointer, "override_node_format", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  const bool override_node_format = RNA_boolean_get(item_pointer, "override_node_format");
+
+  PointerRNA node_format_pointer = RNA_pointer_get(node_pointer, "format");
+  PointerRNA item_format_pointer = RNA_pointer_get(item_pointer, "format");
+  PointerRNA *format_pointer = override_node_format ? &item_format_pointer : &node_format_pointer;
+
+  if (override_node_format) {
+    if (uiLayout *panel = layout->panel(context, "item_format", false, IFACE_("Item Format"))) {
+      format_layout(panel, context, format_pointer, item_pointer);
+    }
   }
 
-  if (uiLayout *panel = layout->panel(context, "item_format", false, IFACE_("Item Format"))) {
-    PointerRNA format_pointer = RNA_pointer_get(pointer, "format");
-    format_layout(panel, context, &format_pointer, pointer);
+  if (uiLayout *panel = layout->panel(context, "item_output_paths", true, IFACE_("Output Paths")))
+  {
+    const std::string layer_name = RNA_string_get(item_pointer, "name");
+    output_paths_layout(panel, context, layer_name, node_pointer, format_pointer);
   }
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *pointer)
+static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *node_pointer)
 {
-  node_layout(layout, context, pointer);
+  node_layout(layout, context, node_pointer);
 
-  PointerRNA format_pointer = RNA_pointer_get(pointer, "format");
+  PointerRNA format_pointer = RNA_pointer_get(node_pointer, "format");
+  const bool is_multi_layer = RNA_enum_get(&format_pointer, "file_format") ==
+                              R_IMF_IMTYPE_MULTILAYER;
   layout->prop(&format_pointer, "media_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   if (uiLayout *panel = layout->panel(context, "node_format", false, IFACE_("Node Format"))) {
-    format_layout(panel, context, &format_pointer, pointer);
+    format_layout(panel, context, &format_pointer, node_pointer);
   }
 
-  if (uiLayout *panel = layout->panel(
-          context, "file_output_items", false, IFACE_("File Output Items")))
-  {
-    bNodeTree &tree = *reinterpret_cast<bNodeTree *>(pointer->owner_id);
-    bNode &node = *pointer->data_as<bNode>();
+  if (is_multi_layer) {
+    if (uiLayout *panel = layout->panel(context, "output_paths", true, IFACE_("Output Paths"))) {
+      output_paths_layout(panel, context, "", node_pointer, &format_pointer);
+    }
+  }
+
+  const char *panel_name = is_multi_layer ? IFACE_("Layers") : IFACE_("Images");
+  if (uiLayout *panel = layout->panel(context, "file_output_items", false, panel_name)) {
+    bNodeTree &tree = *reinterpret_cast<bNodeTree *>(node_pointer->owner_id);
+    bNode &node = *node_pointer->data_as<bNode>();
     socket_items::ui::draw_items_list_with_operators<FileOutputItemsAccessor>(
         context, panel, tree, node);
-    const bool is_multi_layer = RNA_enum_get(&format_pointer, "file_format") ==
-                                R_IMF_IMTYPE_MULTILAYER;
     socket_items::ui::draw_active_item_props<FileOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_pointer) {
-          item_layout(panel, context, item_pointer, is_multi_layer);
+          item_layout(panel, context, node_pointer, item_pointer, is_multi_layer);
         });
   }
 }
@@ -319,10 +422,9 @@ class FileOutputOperation : public NodeOperation {
       }
 
       char image_path[FILE_MAX];
-      if (!this->get_image_path(format, item.name, "", image_path)) {
-        BKE_report(nullptr,
-                   RPT_ERROR,
-                   "Invalid path template in File Output node. Skipping writing file.");
+      Vector<path_templates::Error> path_errors = this->get_image_path(
+          format, item.name, "", image_path);
+      if (!path_errors.is_empty()) {
         continue;
       }
 
@@ -351,9 +453,9 @@ class FileOutputOperation : public NodeOperation {
     const char *path_view = has_views ? "" : this->context().get_view_name().data();
 
     char image_path[FILE_MAX];
-    if (!this->get_image_path(format, layer_name, path_view, image_path)) {
-      BKE_report(
-          nullptr, RPT_ERROR, "Invalid path template in File Output node. Skipping writing file.");
+    Vector<path_templates::Error> path_errors = this->get_image_path(
+        format, layer_name, path_view, image_path);
+    if (!path_errors.is_empty()) {
       return;
     }
 
@@ -384,9 +486,9 @@ class FileOutputOperation : public NodeOperation {
      * sure the file name does not contain a view suffix. */
     char image_path[FILE_MAX];
     const char *write_view = store_views_in_single_file ? "" : view;
-    if (!this->get_image_path(format, "", write_view, image_path)) {
-      BKE_report(
-          nullptr, RPT_ERROR, "Invalid path template in File Output node. Skipping writing file.");
+    Vector<path_templates::Error> path_errors = this->get_image_path(
+        format, "", write_view, image_path);
+    if (!path_errors.is_empty()) {
       return;
     }
 
@@ -627,49 +729,28 @@ class FileOutputOperation : public NodeOperation {
     }
   }
 
-  /**
-   * Get the path of the image to be saved based on the given format. The given file name suffix
-   * will be added to the file name. If the given view is not empty, its corresponding file suffix
-   * will be appended to the name.
-   *
-   * If there are any errors processing the path, the resulting path will be empty.
-   *
-   * \return True on success, false if there were any errors processing the path.
-   */
-  bool get_image_path(const ImageFormatData &format,
-                      const char *file_name_suffix,
-                      const char *view,
-                      char *r_image_path)
+  Vector<path_templates::Error> get_image_path(const ImageFormatData &format,
+                                               const char *file_name_suffix,
+                                               const char *view,
+                                               char *r_image_path)
   {
-    char base_path[FILE_MAX] = "";
-    BLI_strncpy(base_path, this->get_directory().c_str(), FILE_MAX);
-    const std::string file_name = this->get_file_name() + file_name_suffix;
-    BLI_path_append(base_path, FILE_MAX, file_name.c_str());
-
-    path_templates::VariableMap template_variables;
-    BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
-    BKE_add_template_variables_for_render_path(template_variables, this->context().get_scene());
-    BKE_add_template_variables_for_node(template_variables, this->bnode());
-
-    const RenderData &render_data = this->context().get_render_data();
-    const char *view_suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
-
-    blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
-        r_image_path,
-        base_path,
-        BKE_main_blendfile_path_from_global(),
-        &template_variables,
+    const Vector<path_templates::Error> path_errors = compute_image_path(
+        this->get_directory(),
+        this->get_file_name(),
+        file_name_suffix,
+        view,
         this->context().get_frame_number(),
-        &format,
-        this->use_file_extension(),
-        true,
-        view_suffix);
+        format,
+        this->context().get_scene(),
+        this->bnode(),
+        r_image_path);
 
-    if (!errors.is_empty()) {
-      r_image_path[0] = '\0';
+    if (!path_errors.is_empty()) {
+      BKE_report(
+          nullptr, RPT_ERROR, "Invalid path template in File Output node. Skipping writing file.");
     }
 
-    return errors.is_empty();
+    return path_errors;
   }
 
   bool is_multi_layer()
@@ -685,12 +766,6 @@ class FileOutputOperation : public NodeOperation {
   std::string get_directory()
   {
     return node_storage(this->bnode()).directory;
-  }
-
-  /* Add the file format extensions to the rendered file name. */
-  bool use_file_extension()
-  {
-    return this->context().get_render_data().scemode & R_EXTENSION;
   }
 
   /* If true, save views in a multi-view EXR file, otherwise, save each view in its own file. */
