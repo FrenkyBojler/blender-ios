@@ -124,15 +124,45 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_cpp_type) {
       continue;
     }
-    const std::optional<Bundle::Item> value = bundle->lookup(name);
+    const BundleItemValue *value = bundle->lookup(name);
     if (!value) {
       params.error_message_add(NodeWarningType::Error,
                                fmt::format(fmt::runtime(TIP_("Value not found: \"{}\"")), name));
       continue;
     }
+    const auto *socket_value = std::get_if<BundleItemSocketValue>(&value->value);
+    if (!socket_value) {
+      params.error_message_add(
+          NodeWarningType::Error,
+          fmt::format("{}: \"{}\"", TIP_("Cannot get internal value from bundle"), name));
+      continue;
+    }
     void *output_ptr = lf_params.get_output_data_ptr(i);
-    if (!implicitly_convert_socket_value(*value->type, value->value, *stype, output_ptr)) {
-      construct_socket_default_value(*stype, output_ptr);
+    if (socket_value->type->type == stype->type) {
+      socket_value->type->geometry_nodes_cpp_type->copy_construct(socket_value->value, output_ptr);
+    }
+    else {
+      if (implicitly_convert_socket_value(
+              *socket_value->type, socket_value->value, *stype, output_ptr))
+      {
+        params.error_message_add(
+            NodeWarningType::Info,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Implicit type conversion"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+      }
+      else {
+        params.error_message_add(
+            NodeWarningType::Error,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Conversion not supported"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+        construct_socket_default_value(*stype, output_ptr);
+      }
     }
     lf_params.output_set(i);
   }

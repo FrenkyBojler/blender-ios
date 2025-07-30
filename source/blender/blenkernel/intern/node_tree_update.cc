@@ -892,6 +892,9 @@ class NodeTreeMainUpdater {
     if (decl.identifier == "__extend__") {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
     }
+    if (nodes::socket_type_always_single(decl.socket_type)) {
+      return SOCK_DISPLAY_SHAPE_LINE;
+    }
     switch (structure_type) {
       case StructureType::Single:
         return SOCK_DISPLAY_SHAPE_LINE;
@@ -901,6 +904,8 @@ class NodeTreeMainUpdater {
         return SOCK_DISPLAY_SHAPE_DIAMOND;
       case StructureType::Grid:
         return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
+      case StructureType::List:
+        return SOCK_DISPLAY_SHAPE_LIST;
     }
     BLI_assert_unreachable();
     return SOCK_DISPLAY_SHAPE_CIRCLE;
@@ -911,6 +916,9 @@ class NodeTreeMainUpdater {
   {
     if (decl.identifier == "__extend__") {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
+    }
+    if (nodes::socket_type_always_single(decl.socket_type)) {
+      return SOCK_DISPLAY_SHAPE_LINE;
     }
     switch (structure_type) {
       case StructureType::Single: {
@@ -924,6 +932,9 @@ class NodeTreeMainUpdater {
       }
       case StructureType::Grid: {
         return SOCK_DISPLAY_SHAPE_VOLUME_GRID;
+      }
+      case StructureType::List: {
+        return SOCK_DISPLAY_SHAPE_LIST;
       }
     }
     BLI_assert_unreachable();
