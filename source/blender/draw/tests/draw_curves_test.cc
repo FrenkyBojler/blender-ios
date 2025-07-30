@@ -150,6 +150,7 @@ static void test_draw_curves_lib()
     result_idx.clear_to_zero();
 
     PassSimple pass("Cylinder Curves");
+    pass.init();
     pass.framebuffer_set(&fb);
     pass.shader_set(sh);
     pass.bind_ubo("drw_curves", curves_info_buf);
@@ -420,6 +421,7 @@ static void test_draw_curves_interpolate_position()
     curves_length_buf.clear_to_zero();
 
     PassSimple pass("Curves Interpolation Catmull Rom");
+    pass.init();
     pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_CATMULL_ROM));
     pass.shader_set(sh);
     pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
@@ -522,6 +524,7 @@ static void test_draw_curves_interpolate_position()
     curves_length_buf.clear_to_zero();
 
     PassSimple pass("Curves Interpolation Bezier");
+    pass.init();
     pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_BEZIER));
     pass.shader_set(sh);
     pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
@@ -705,6 +708,7 @@ static void test_draw_curves_interpolate_position()
     curves_length_buf.clear_to_zero();
 
     PassSimple pass("Curves Interpolation Nurbs");
+    pass.init();
     pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_NURBS));
     pass.shader_set(sh);
     pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
@@ -850,5 +854,451 @@ static void test_draw_curves_interpolate_position()
   GPU_VERTBUF_DISCARD_SAFE(control_weights_buf);
 }
 DRAW_TEST(draw_curves_interpolate_position)
+
+static void test_draw_curves_interpolate_attributes()
+{
+  Manager manager;
+
+  const int curve_resolution = 2;
+
+  const Vector<int> curves_to_point = {0, 3, 5, 7};
+  const Vector<int> evaluated_offsets = {0, 5, 8, 11};
+
+  struct IntBuf {
+    int data;
+    GPU_VERTEX_FORMAT_FUNC(IntBuf, data);
+  };
+  gpu::VertBuf *points_by_curve_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  points_by_curve_buf->allocate(curves_to_point.size());
+  points_by_curve_buf->data<int>().copy_from(curves_to_point);
+
+  gpu::VertBuf *curves_type_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_type_buf->allocate(3);
+  curves_type_buf->data<int>().copy_from(
+      {CURVE_TYPE_NURBS, CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM});
+
+  gpu::VertBuf *curves_resolution_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_resolution_buf->allocate(3);
+  curves_resolution_buf->data<int>().copy_from(
+      {curve_resolution, curve_resolution, curve_resolution});
+
+  gpu::VertBuf *evaluated_points_by_curve_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  evaluated_points_by_curve_buf->allocate(evaluated_offsets.size());
+  evaluated_points_by_curve_buf->data<int>().copy_from(evaluated_offsets);
+
+  /* Attributes. */
+
+  const Vector<float4> attr_float4 = {float4(1.0f, 0.5f, 0.0f, 0.5f),
+                                      float4(0.5f, 0.0f, 0.0f, 4.0f),
+                                      float4(0.0f, 0.0f, 2.0f, 4.0f),
+                                      float4(2.0f, 3.0f, 4.0f, 7.0f),
+                                      float4(3.0f, 4.0f, 3.0f, 4.0f),
+                                      float4(2.0f, 2.0f, 3.0f, 4.0f),
+                                      float4(4.0f, 5.0f, 6.0f, 7.0f)};
+  const Vector<float3> attr_float3 =
+      attr_float4.as_span().cast<float>().take_front(attr_float4.size() * 3).cast<float3>();
+  const Vector<float2> attr_float2 =
+      attr_float4.as_span().cast<float>().take_front(attr_float4.size() * 2).cast<float2>();
+  const Vector<float> attr_float = attr_float4.as_span().cast<float>().take_front(
+      attr_float4.size());
+
+  struct Float4 {
+    float4 value;
+    GPU_VERTEX_FORMAT_FUNC(Float4, value);
+  };
+  gpu::VertBuf *attribute_float4_buf = GPU_vertbuf_create_with_format(Float4::format());
+  attribute_float4_buf->allocate(attr_float4.size());
+  attribute_float4_buf->data<float4>().copy_from(attr_float4);
+
+  struct Float3 {
+    float3 value;
+    GPU_VERTEX_FORMAT_FUNC(Float3, value);
+  };
+  gpu::VertBuf *attribute_float3_buf = GPU_vertbuf_create_with_format(Float3::format());
+  attribute_float3_buf->allocate(attr_float4.size());
+  attribute_float3_buf->data<float3>().copy_from(attr_float3);
+
+  struct Float2 {
+    float2 value;
+    GPU_VERTEX_FORMAT_FUNC(Float2, value);
+  };
+  gpu::VertBuf *attribute_float2_buf = GPU_vertbuf_create_with_format(Float2::format());
+  attribute_float2_buf->allocate(attr_float4.size());
+  attribute_float2_buf->data<float2>().copy_from(attr_float2);
+
+  struct Float {
+    float value;
+    GPU_VERTEX_FORMAT_FUNC(Float, value);
+  };
+  gpu::VertBuf *attribute_float_buf = GPU_vertbuf_create_with_format(Float::format());
+  attribute_float_buf->allocate(attr_float4.size());
+  attribute_float_buf->data<float>().copy_from(attr_float);
+
+  /* Nurbs. */
+
+  const bke::curves::nurbs::BasisCache basis_cache_c0 = {
+      {0.1f, 0.2f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f},
+      {0, 0, 0, 0, 0},
+      false,
+  };
+
+  Vector<int> basis_cache_offset;
+  Vector<uint32_t> basis_cache_packed;
+  {
+    basis_cache_offset.append(basis_cache_c0.invalid ? -1 : basis_cache_packed.size());
+    basis_cache_packed.extend(
+        Span{reinterpret_cast<const uint32_t *>(basis_cache_c0.start_indices.data()),
+             basis_cache_c0.start_indices.size()});
+    basis_cache_packed.extend(
+        Span{reinterpret_cast<const uint32_t *>(basis_cache_c0.weights.data()),
+             basis_cache_c0.weights.size()});
+
+    basis_cache_offset.append(-1);
+    basis_cache_offset.append(-1);
+  }
+
+  /* Raw data. Shader reinterpret as float or int. */
+  gpu::VertBuf *basis_cache_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  basis_cache_buf->allocate(basis_cache_packed.size());
+  basis_cache_buf->data<uint>().copy_from(basis_cache_packed);
+
+  gpu::VertBuf *basis_cache_offset_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  basis_cache_offset_buf->allocate(basis_cache_offset.size());
+  basis_cache_offset_buf->data<int>().copy_from(basis_cache_offset);
+
+  const Vector<int8_t> curves_order = {3, 0, 0, /* Padding. */ 0};
+
+  gpu::VertBuf *curves_order_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  curves_order_buf->allocate(curves_order.size() / 4);
+  curves_order_buf->data<int>().copy_from(
+      Span<int>(reinterpret_cast<const int *>(curves_order.data()), curves_order.size() / 4));
+
+  const Vector<float> control_weights = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+
+  gpu::VertBuf *control_weights_buf = GPU_vertbuf_create_with_format(Float::format());
+  control_weights_buf->allocate(control_weights.size());
+  control_weights_buf->data<float>().copy_from(control_weights);
+
+  /* Bezier */
+
+  const Vector<float3> handle_pos_left = {
+      float3{0.0f}, float3{1.0f}, float3{-1.0f}, float3{1.0f}, float3{4.0f}};
+  const Vector<float3> handle_pos_right = {
+      float3{0.0f}, float3{-1.0f}, float3{1.0f}, float3{-1.0f}, float3{0.0f}};
+
+  gpu::VertBuf *handles_positions_left_buf = GPU_vertbuf_create_with_format(Float3::format());
+  handles_positions_left_buf->allocate(handle_pos_left.size());
+  handles_positions_left_buf->data<float3>().copy_from(handle_pos_left);
+
+  gpu::VertBuf *handles_positions_right_buf = GPU_vertbuf_create_with_format(Float3::format());
+  handles_positions_right_buf->allocate(handle_pos_right.size());
+  handles_positions_right_buf->data<float3>().copy_from(handle_pos_right);
+
+  const Vector<int> bezier_offsets = {0, 2, 4, 5, 0, 2, 3};
+
+  gpu::VertBuf *bezier_offsets_buf = GPU_vertbuf_create_with_format(IntBuf::format());
+  bezier_offsets_buf->allocate(bezier_offsets.size());
+  bezier_offsets_buf->data<int>().copy_from(bezier_offsets);
+
+  auto dispatch =
+      [&](const char *attr_type, gpu::VertBuf *attr_buf, GPUStorageBuf *evaluated_attr_buf) {
+        std::string pass_name = std::string("Curves ") + attr_type + " Interpolation";
+        std::string sh_name = std::string("draw_curves_interpolate_") + attr_type + "_attribute";
+        std::string attr_buf_name = std::string("attribute_") + attr_type + "_buf";
+        std::string eval_buf_name = std::string("evaluated_") + attr_type + "_buf";
+        /* Make sure all references to the strings are deleted before the strings themselves. */
+        {
+          GPUShader *sh = GPU_shader_create_from_info_name(sh_name.c_str());
+
+          PassSimple pass(pass_name.c_str());
+          pass.init();
+          pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_CATMULL_ROM));
+          pass.shader_set(sh);
+          pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
+          pass.bind_ssbo("curves_type_buf", curves_type_buf);
+          pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
+          pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
+          pass.bind_ssbo(attr_buf_name.c_str(), attr_buf);
+          pass.bind_ssbo(eval_buf_name.c_str(), evaluated_attr_buf);
+          pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
+          /* Dummy, not used for Catmull-Rom. */
+          pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
+          pass.bind_ssbo("handles_positions_right_buf", evaluated_points_by_curve_buf);
+          pass.bind_ssbo("bezier_offsets_buf", evaluated_points_by_curve_buf);
+          pass.push_constant("curves_count", 3);
+          pass.push_constant("compute_length_and_time", false);
+          pass.dispatch(1);
+          pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_BEZIER));
+          pass.shader_set(sh);
+          pass.bind_ssbo("handles_positions_left_buf", handles_positions_left_buf);
+          pass.bind_ssbo("handles_positions_right_buf", handles_positions_right_buf);
+          pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
+          pass.push_constant("curves_count", 3);
+          pass.push_constant("compute_length_and_time", false);
+          pass.dispatch(1);
+          pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_NURBS));
+          pass.shader_set(sh);
+          pass.bind_ssbo("curves_resolution_buf", curves_order_buf);
+          pass.bind_ssbo("handles_positions_left_buf", basis_cache_buf);
+          pass.bind_ssbo("handles_positions_right_buf", control_weights_buf);
+          pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
+          pass.push_constant("curves_count", 3);
+          pass.push_constant("compute_length_and_time", false);
+          pass.dispatch(1);
+          pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+          manager.submit(pass);
+
+          GPU_shader_unbind();
+
+          GPU_SHADER_FREE_SAFE(sh);
+        }
+      };
+
+  {
+    StorageArrayBuffer<float4, 512> evaluated_float4_buf;
+    evaluated_float4_buf.clear_to_zero();
+
+    dispatch("float4", attribute_float4_buf, evaluated_float4_buf);
+
+    evaluated_float4_buf.read();
+
+    Vector<float4> interp_data;
+    interp_data.resize(11);
+
+    OffsetIndices<int> curves_to_point_indices(curves_to_point.as_span());
+    OffsetIndices<int> curves_to_eval_indices(evaluated_offsets.as_span());
+    Span<ColorGeometry4f> in_attr = attr_float4.as_span().cast<ColorGeometry4f>();
+    MutableSpan<ColorGeometry4f> out_attr = interp_data.as_mutable_span().cast<ColorGeometry4f>();
+    {
+      const int curve_index = 0;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      bke::curves::nurbs::interpolate_to_evaluated(basis_cache_c0,
+                                                   curves_order[curve_index],
+                                                   control_weights.as_span().slice(points),
+                                                   in_attr.slice(points),
+                                                   out_attr.slice(evaluated_points));
+    }
+    {
+      const int curve_index = 1;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      const IndexRange offsets = bke::curves::per_curve_point_offsets_range(points, curve_index);
+      bke::curves::bezier::interpolate_to_evaluated(in_attr.slice(points),
+                                                    bezier_offsets.as_span().slice(offsets),
+                                                    out_attr.slice(evaluated_points));
+    }
+    {
+      const int curve_index = 2;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      bke::curves::catmull_rom::interpolate_to_evaluated(
+          in_attr.slice(points), false, curve_resolution, out_attr.slice(evaluated_points));
+    }
+
+    EXPECT_EQ(evaluated_float4_buf[0], float4(interp_data[0]));
+    EXPECT_EQ(evaluated_float4_buf[1], float4(interp_data[1]));
+    EXPECT_EQ(evaluated_float4_buf[2], float4(interp_data[2]));
+    EXPECT_EQ(evaluated_float4_buf[3], float4(interp_data[3]));
+    EXPECT_EQ(evaluated_float4_buf[4], float4(interp_data[4]));
+    EXPECT_EQ(evaluated_float4_buf[5], float4(interp_data[5]));
+    EXPECT_EQ(evaluated_float4_buf[6], float4(interp_data[6]));
+    EXPECT_EQ(evaluated_float4_buf[7], float4(interp_data[7]));
+    EXPECT_EQ(evaluated_float4_buf[8], float4(interp_data[8]));
+    EXPECT_EQ(evaluated_float4_buf[9], float4(interp_data[9]));
+    EXPECT_EQ(evaluated_float4_buf[10], float4(interp_data[10]));
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(evaluated_float4_buf[11], float4(0.0));
+  }
+
+  {
+    StorageArrayBuffer<float3, 512> evaluated_float3_buf;
+    evaluated_float3_buf.clear_to_zero();
+
+    dispatch("float3", attribute_float3_buf, evaluated_float3_buf);
+
+    evaluated_float3_buf.read();
+
+    Vector<float3> interp_data;
+    interp_data.resize(11);
+
+    OffsetIndices<int> curves_to_point_indices(curves_to_point.as_span());
+    OffsetIndices<int> curves_to_eval_indices(evaluated_offsets.as_span());
+    Span<float3> in_attr = attr_float3.as_span();
+    MutableSpan<float3> out_attr = interp_data.as_mutable_span();
+    {
+      const int curve_index = 0;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      bke::curves::nurbs::interpolate_to_evaluated(basis_cache_c0,
+                                                   curves_order[curve_index],
+                                                   control_weights.as_span().slice(points),
+                                                   in_attr.slice(points),
+                                                   out_attr.slice(evaluated_points));
+    }
+    {
+      const int curve_index = 1;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      const IndexRange offsets = bke::curves::per_curve_point_offsets_range(points, curve_index);
+      bke::curves::bezier::interpolate_to_evaluated(in_attr.slice(points),
+                                                    bezier_offsets.as_span().slice(offsets),
+                                                    out_attr.slice(evaluated_points));
+    }
+    {
+      const int curve_index = 2;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      bke::curves::catmull_rom::interpolate_to_evaluated(
+          in_attr.slice(points), false, curve_resolution, out_attr.slice(evaluated_points));
+    }
+
+    EXPECT_EQ(evaluated_float3_buf[0], float3(interp_data[0]));
+    EXPECT_EQ(evaluated_float3_buf[1], float3(interp_data[1]));
+    EXPECT_EQ(evaluated_float3_buf[2], float3(interp_data[2]));
+    EXPECT_EQ(evaluated_float3_buf[3], float3(interp_data[3]));
+    EXPECT_EQ(evaluated_float3_buf[4], float3(interp_data[4]));
+    EXPECT_EQ(evaluated_float3_buf[5], float3(interp_data[5]));
+    EXPECT_EQ(evaluated_float3_buf[6], float3(interp_data[6]));
+    EXPECT_EQ(evaluated_float3_buf[7], float3(interp_data[7]));
+    EXPECT_EQ(evaluated_float3_buf[8], float3(interp_data[8]));
+    EXPECT_EQ(evaluated_float3_buf[9], float3(interp_data[9]));
+    EXPECT_EQ(evaluated_float3_buf[10], float3(interp_data[10]));
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(evaluated_float3_buf[11], float3(0.0));
+  }
+
+  {
+    StorageArrayBuffer<float2, 512> evaluated_float2_buf;
+    evaluated_float2_buf.clear_to_zero();
+
+    dispatch("float2", attribute_float2_buf, evaluated_float2_buf);
+
+    evaluated_float2_buf.read();
+
+    Vector<float2> interp_data;
+    interp_data.resize(11);
+
+    OffsetIndices<int> curves_to_point_indices(curves_to_point.as_span());
+    OffsetIndices<int> curves_to_eval_indices(evaluated_offsets.as_span());
+    Span<float2> in_attr = attr_float2.as_span();
+    MutableSpan<float2> out_attr = interp_data.as_mutable_span();
+    {
+      const int curve_index = 0;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      bke::curves::nurbs::interpolate_to_evaluated(basis_cache_c0,
+                                                   curves_order[curve_index],
+                                                   control_weights.as_span().slice(points),
+                                                   in_attr.slice(points),
+                                                   out_attr.slice(evaluated_points));
+    }
+    {
+      const int curve_index = 1;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      const IndexRange offsets = bke::curves::per_curve_point_offsets_range(points, curve_index);
+      bke::curves::bezier::interpolate_to_evaluated(in_attr.slice(points),
+                                                    bezier_offsets.as_span().slice(offsets),
+                                                    out_attr.slice(evaluated_points));
+    }
+    {
+      const int curve_index = 2;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      bke::curves::catmull_rom::interpolate_to_evaluated(
+          in_attr.slice(points), false, curve_resolution, out_attr.slice(evaluated_points));
+    }
+
+    EXPECT_EQ(evaluated_float2_buf[0], float2(interp_data[0]));
+    EXPECT_EQ(evaluated_float2_buf[1], float2(interp_data[1]));
+    EXPECT_EQ(evaluated_float2_buf[2], float2(interp_data[2]));
+    EXPECT_EQ(evaluated_float2_buf[3], float2(interp_data[3]));
+    EXPECT_EQ(evaluated_float2_buf[4], float2(interp_data[4]));
+    EXPECT_EQ(evaluated_float2_buf[5], float2(interp_data[5]));
+    EXPECT_EQ(evaluated_float2_buf[6], float2(interp_data[6]));
+    EXPECT_EQ(evaluated_float2_buf[7], float2(interp_data[7]));
+    EXPECT_EQ(evaluated_float2_buf[8], float2(interp_data[8]));
+    EXPECT_EQ(evaluated_float2_buf[9], float2(interp_data[9]));
+    EXPECT_EQ(evaluated_float2_buf[10], float2(interp_data[10]));
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(evaluated_float2_buf[11], float2(0.0));
+  }
+
+  {
+    StorageArrayBuffer<float, 512> evaluated_float_buf;
+    evaluated_float_buf.clear_to_zero();
+
+    dispatch("float", attribute_float_buf, evaluated_float_buf);
+
+    evaluated_float_buf.read();
+
+    Vector<float> interp_data;
+    interp_data.resize(11);
+
+    OffsetIndices<int> curves_to_point_indices(curves_to_point.as_span());
+    OffsetIndices<int> curves_to_eval_indices(evaluated_offsets.as_span());
+    Span<float> in_attr = attr_float.as_span();
+    MutableSpan<float> out_attr = interp_data.as_mutable_span();
+    {
+      const int curve_index = 0;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      bke::curves::nurbs::interpolate_to_evaluated(basis_cache_c0,
+                                                   curves_order[curve_index],
+                                                   control_weights.as_span().slice(points),
+                                                   in_attr.slice(points),
+                                                   out_attr.slice(evaluated_points));
+    }
+    {
+      const int curve_index = 1;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      const IndexRange offsets = bke::curves::per_curve_point_offsets_range(points, curve_index);
+      bke::curves::bezier::interpolate_to_evaluated(in_attr.slice(points),
+                                                    bezier_offsets.as_span().slice(offsets),
+                                                    out_attr.slice(evaluated_points));
+    }
+    {
+      const int curve_index = 2;
+      const IndexRange points = curves_to_point_indices[curve_index];
+      const IndexRange evaluated_points = curves_to_eval_indices[curve_index];
+      bke::curves::catmull_rom::interpolate_to_evaluated(
+          in_attr.slice(points), false, curve_resolution, out_attr.slice(evaluated_points));
+    }
+
+    EXPECT_EQ(evaluated_float_buf[0], float(interp_data[0]));
+    EXPECT_EQ(evaluated_float_buf[1], float(interp_data[1]));
+    EXPECT_EQ(evaluated_float_buf[2], float(interp_data[2]));
+    EXPECT_EQ(evaluated_float_buf[3], float(interp_data[3]));
+    EXPECT_EQ(evaluated_float_buf[4], float(interp_data[4]));
+    EXPECT_EQ(evaluated_float_buf[5], float(interp_data[5]));
+    EXPECT_EQ(evaluated_float_buf[6], float(interp_data[6]));
+    EXPECT_EQ(evaluated_float_buf[7], float(interp_data[7]));
+    EXPECT_EQ(evaluated_float_buf[8], float(interp_data[8]));
+    EXPECT_EQ(evaluated_float_buf[9], float(interp_data[9]));
+    EXPECT_EQ(evaluated_float_buf[10], float(interp_data[10]));
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(evaluated_float_buf[11], float(0.0));
+  }
+
+  GPU_VERTBUF_DISCARD_SAFE(points_by_curve_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_type_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_resolution_buf);
+  GPU_VERTBUF_DISCARD_SAFE(evaluated_points_by_curve_buf);
+  GPU_VERTBUF_DISCARD_SAFE(handles_positions_left_buf);
+  GPU_VERTBUF_DISCARD_SAFE(handles_positions_right_buf);
+  GPU_VERTBUF_DISCARD_SAFE(bezier_offsets_buf);
+  GPU_VERTBUF_DISCARD_SAFE(basis_cache_buf);
+  GPU_VERTBUF_DISCARD_SAFE(basis_cache_offset_buf);
+  GPU_VERTBUF_DISCARD_SAFE(curves_order_buf);
+  GPU_VERTBUF_DISCARD_SAFE(control_weights_buf);
+  GPU_VERTBUF_DISCARD_SAFE(attribute_float4_buf);
+  GPU_VERTBUF_DISCARD_SAFE(attribute_float3_buf);
+  GPU_VERTBUF_DISCARD_SAFE(attribute_float2_buf);
+  GPU_VERTBUF_DISCARD_SAFE(attribute_float_buf);
+}
+DRAW_TEST(draw_curves_interpolate_attributes)
 
 }  // namespace blender::draw

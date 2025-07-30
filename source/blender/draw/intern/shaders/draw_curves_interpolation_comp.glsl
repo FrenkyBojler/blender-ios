@@ -56,110 +56,102 @@ void output_set_zero(int evaluated_point_index, InterpPosition interp)
 
 float4 input_load(int point_index, float4 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float4_attribute)
   StoredFloat4 data = as_data(float4(0.0));
   {
-    data = buffer_get(draw_curves_interpolate_float4, attribute_float4_buf)[point_index];
+    data = buffer_get(draw_curves_interpolate_float4_attribute, attribute_float4_buf)[point_index];
   }
   return load_data(data);
 }
 
 float3 input_load(int point_index, float3 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float3_attribute)
   StoredFloat3 data = as_data(float3(0.0));
   {
-    data = buffer_get(draw_curves_interpolate_float3, attribute_float3_buf)[point_index];
+    data = buffer_get(draw_curves_interpolate_float3_attribute, attribute_float3_buf)[point_index];
   }
   return load_data(data);
 }
 
 float2 input_load(int point_index, float2 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float2_attribute)
   StoredFloat2 data = as_data(float2(0.0));
   {
-    data = buffer_get(draw_curves_interpolate_float2, attribute_float2_buf)[point_index];
+    data = buffer_get(draw_curves_interpolate_float2_attribute, attribute_float2_buf)[point_index];
   }
   return load_data(data);
 }
 
 float input_load(int point_index, float interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float_attribute)
   StoredFloat data = as_data(0.0);
   ;
   {
-    data = buffer_get(draw_curves_interpolate_float, attribute_float_buf)[point_index];
+    data = buffer_get(draw_curves_interpolate_float_attribute, attribute_float_buf)[point_index];
   }
   return load_data(data);
 }
 
 float4 output_load(int evaluated_point_index, float4 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float4_attribute)
   StoredFloat4 data = as_data(float4(0.0));
   {
-    data = buffer_get(draw_curves_interpolate_float4, evaluated_float4_buf)[evaluated_point_index];
+    data = buffer_get(draw_curves_interpolate_float4_attribute,
+                      evaluated_float4_buf)[evaluated_point_index];
   }
   return load_data(data);
 }
 
 float3 output_load(int evaluated_point_index, float3 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float3_attribute)
   StoredFloat3 data = as_data(float3(0.0));
   {
-    data = buffer_get(draw_curves_interpolate_float3, evaluated_float3_buf)[evaluated_point_index];
+    data = buffer_get(draw_curves_interpolate_float3_attribute,
+                      evaluated_float3_buf)[evaluated_point_index];
   }
   return load_data(data);
 }
 
 float2 output_load(int evaluated_point_index, float2 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float2_attribute)
   StoredFloat2 data = as_data(float2(0.0));
   {
-    data = buffer_get(draw_curves_interpolate_float2, evaluated_float2_buf)[evaluated_point_index];
+    data = buffer_get(draw_curves_interpolate_float2_attribute,
+                      evaluated_float2_buf)[evaluated_point_index];
   }
   return load_data(data);
 }
 
 float output_load(int evaluated_point_index, float interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float_attribute)
   StoredFloat data = as_data(0.0);
   {
-    data = buffer_get(draw_curves_interpolate_float, evaluated_float_buf)[evaluated_point_index];
+    data = buffer_get(draw_curves_interpolate_float_attribute,
+                      evaluated_float_buf)[evaluated_point_index];
   }
   return load_data(data);
 }
 
 void output_write(int evaluated_point_index, const float4 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float4_attribute)
-  buffer_get(draw_curves_interpolate_float4,
+  buffer_get(draw_curves_interpolate_float4_attribute,
              evaluated_float4_buf)[evaluated_point_index] = as_data(interp);
 }
 
 void output_write(int evaluated_point_index, const float3 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float3_attribute)
-  buffer_get(draw_curves_interpolate_float3,
+  buffer_get(draw_curves_interpolate_float3_attribute,
              evaluated_float3_buf)[evaluated_point_index] = as_data(interp);
 }
 
 void output_write(int evaluated_point_index, const float2 interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float2_attribute)
-  buffer_get(draw_curves_interpolate_float2,
+  buffer_get(draw_curves_interpolate_float2_attribute,
              evaluated_float2_buf)[evaluated_point_index] = as_data(interp);
 }
 
 void output_write(int evaluated_point_index, const float interp)
 {
-  COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_float_attribute)
-  buffer_get(draw_curves_interpolate_float,
+  buffer_get(draw_curves_interpolate_float_attribute,
              evaluated_float_buf)[evaluated_point_index] = as_data(interp);
 }
 
@@ -541,7 +533,7 @@ template void evaluate_curve<float2>(float2);
 template void evaluate_curve<float3>(float3);
 template void evaluate_curve<float4>(float4);
 
-void main()
+void evaluate_position_radius()
 {
   InterpPosition interp_type;
   interp_type.data = float4(0.0f); /* Avoid warnings. */
