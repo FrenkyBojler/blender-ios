@@ -87,22 +87,9 @@ class OBJCurvesTest : public testing::Test {
     curves.offsets_for_write()[1] = points.size();
     curves.cyclic_for_write()[0] = cyclic;
     curves.positions_for_write().copy_from(points);
-
-    /* Example of attribute write:
-
-    SpanAttributeWriter<int> test_indices_writer =
-        curves.attributes_for_write().lookup_or_add_for_write_span<int>(
-            "test_index", bke::AttrDomain::Point, bke::AttributeInitConstruct());
-    array_utils::fill_index_range(test_indices_writer.span);
-    test_indices_writer.finish();
-    */
-
     return curves;
   }
 
-  /*
-   * Create a rational NURBS curve.
-   */
   static bke::CurvesGeometry create_rational_nurbs(
       Span<float3> points, Span<float> weights, bool cyclic, int8_t order, KnotsMode mode)
   {
@@ -115,7 +102,7 @@ class OBJCurvesTest : public testing::Test {
   }
 
   /*
-   * Create a simple NURBS curve.
+   * Create a simple (non-rational) NUBS curve.
    */
   static bke::CurvesGeometry create_nurbs(Span<float3> points,
                                           bool cyclic,
