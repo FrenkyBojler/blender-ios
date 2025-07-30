@@ -40,7 +40,6 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
-#include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -746,7 +745,6 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
   BKE_blendfile_link_append_context_free(lapp_context);
 
   BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
-  BKE_main_ensure_invariants(*bmain);
 
   return id;
 }

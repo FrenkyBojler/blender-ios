@@ -51,6 +51,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -373,6 +374,8 @@ void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp
   PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendImportContext, lapp_context);
   PointerRNA *pointers[1] = {&ctx_ptr};
   BKE_callback_exec(lapp_context->params->bmain, pointers, 1, BKE_CB_EVT_BLENDIMPORT_POST);
+
+  BKE_main_ensure_invariants(*lapp_context->params->bmain);
 }
 
 /** \} */
