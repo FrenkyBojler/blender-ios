@@ -173,7 +173,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
   glare_panel.add_input<decl::Float>("Jitter Factor")
-      .default_value(1.0f)
+      .default_value(0.0f)
       .min(0.0f)
       .max(1.0)
       .subtype(PROP_FACTOR)
@@ -2287,7 +2287,7 @@ class GlareOperation : public NodeOperation {
 
   const char *get_compositor_sun_beams_shader()
   {
-    if (get_use_jitter()) {
+    if (this->get_use_jitter()) {
       return "compositor_sun_beams_jitter";
     }
     return "compositor_sun_beams";
@@ -2361,7 +2361,8 @@ class GlareOperation : public NodeOperation {
   float get_sample_position(const int2 texel, const int i, const bool use_jitter, const int steps)
   {
     if (use_jitter) {
-      return this->r1_low_discrepancy_sequence(texel, i) * steps;
+      float seed = noise::hash_to_float(texel.x, texel.y);
+      return this->r1_low_discrepancy_sequence(seed, i) * steps;
     }
     return i;
   }
@@ -2383,11 +2384,10 @@ class GlareOperation : public NodeOperation {
    * The improved formulation significantly extends usable index range under floating-point
    * precision constraints while preserving the low-discrepancy property.
    */
-  float r1_low_discrepancy_sequence(const int2 texel, const int i)
+  float r1_low_discrepancy_sequence(const float seed, const int i)
   {
-    float golden_ratio = 1.618034;
-    return 1.0f -
-           math::fract(-noise::hash_to_float(texel.x, texel.y) + (1.0f - 1.0f / golden_ratio) * i);
+    constexpr float golden_ratio = math::numbers::phi_v<float>;
+    return math::fract(-seed + (1.0f - 1.0f / golden_ratio) * i);
   }
 
   /* ----------
@@ -2633,12 +2633,12 @@ class GlareOperation : public NodeOperation {
 
   bool get_use_jitter()
   {
-    return this->get_jitter_factor() > 1e-9f;
+    return this->get_jitter_factor() != 0.0f;
   }
 
   float get_jitter_factor()
   {
-    return this->get_input("Jitter Factor").get_single_value_default(0.5f);
+    return this->get_input("Jitter Factor").get_single_value_default(0.0f);
   }
 };
 

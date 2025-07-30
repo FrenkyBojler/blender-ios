@@ -23,11 +23,10 @@
  * The improved formulation significantly extends usable index range under floating-point
  * precision constraints while preserving the low-discrepancy property.
  */
-float r1_low_discrepancy_sequence(const int2 texel, const int i)
+float r1_low_discrepancy_sequence(const float seed, const int i)
 {
-  float golden_ratio = 1.618034;
-  return float(1.0f -
-               fract(-hash_uint2_to_float(texel.x, texel.y) + (1.0f - 1.0f / golden_ratio) * i));
+  float golden_ratio = 1.618033988749894848204586834365638118;
+  return float(fract(-seed + (1.0f - 1.0f / golden_ratio) * i));
 }
 
 /* Returns an index for a position along the path between the texel and the source.
@@ -39,7 +38,8 @@ float r1_low_discrepancy_sequence(const int2 texel, const int i)
 float get_sample_position(int2 texel, int i, int steps)
 {
 #if defined(JITTER)
-  return r1_low_discrepancy_sequence(texel, i) * steps;
+  float seed = hash_uint2_to_float(texel.x, texel.y);
+  return r1_low_discrepancy_sequence(seed, i) * steps;
 #else
   return i;
 #endif
