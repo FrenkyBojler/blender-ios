@@ -164,11 +164,6 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   inline_params.allow_preserving_repeat_zones = false;
   blender::nodes::inline_shader_node_tree(*ntree, *localtree, inline_params);
 
-  /* Update deprecated bNodeSocket.link pointers because some still depends on it. */
-  LISTBASE_FOREACH (bNodeLink *, link, &localtree->links) {
-    link->tosock->link = link;
-  }
-
   ntreeGPUMaterialNodes(localtree, mat);
 
   gpu_material_ramp_texture_build(mat);

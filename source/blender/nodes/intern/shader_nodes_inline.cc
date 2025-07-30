@@ -903,8 +903,11 @@ class ShaderNodesInliner {
       return;
     }
     if (const auto *src_socket_value = std::get_if<LinkedSocketValue>(&value.value)) {
-      bke::node_add_link(
+      bNodeLink &link = bke::node_add_link(
           dst_tree_, *src_socket_value->node, *src_socket_value->socket, dst_node, dst_socket);
+      BLI_assert(dst_tree_.typeinfo->validate_link(link.fromsock->typeinfo->type,
+                                                   link.tosock->typeinfo->type));
+      link.flag |= NODE_LINK_VALID;
       return;
     }
     BLI_assert_unreachable();
@@ -990,7 +993,16 @@ bool inline_shader_node_tree(const bNodeTree &src_tree,
                              const InlineShaderNodeTreeParams &params)
 {
   ShaderNodesInliner inliner(src_tree, dst_tree, params);
-  return inliner.do_inline();
+
+  if (inliner.do_inline()) {
+    /* Update deprecated bNodeSocket.link pointers because some code still depends on it. */
+    LISTBASE_FOREACH (bNodeLink *, link, &dst_tree.links) {
+      link->tosock->link = link;
+    }
+    return true;
+  }
+
+  return false;
 }
 
 }  // namespace blender::nodes
