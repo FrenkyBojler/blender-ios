@@ -2262,7 +2262,7 @@ static void rna_GreasePencilDashModifierSegment_name_set(PointerRNA *ptr, const 
   char name_esc[sizeof(dmd->modifier.name) * 2];
   BLI_str_escape(name_esc, dmd->modifier.name, sizeof(name_esc));
   char rna_path_prefix[36 + sizeof(name_esc) + 1];
-  SNPRINTF(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
+  SNPRINTF_UTF8(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
   BKE_animdata_fix_paths_rename_all(nullptr, rna_path_prefix, oldname.c_str(), dash_segment->name);
 }
 
@@ -2366,7 +2366,7 @@ static void rna_GreasePencilTimeModifierSegment_name_set(PointerRNA *ptr, const 
   char name_esc[sizeof(tmd->modifier.name) * 2];
   BLI_str_escape(name_esc, tmd->modifier.name, sizeof(name_esc));
   char rna_path_prefix[36 + sizeof(name_esc) + 1];
-  SNPRINTF(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
+  SNPRINTF_UTF8(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
   BKE_animdata_fix_paths_rename_all(nullptr, rna_path_prefix, oldname.c_str(), segment->name);
 }
 
@@ -2425,6 +2425,17 @@ static void rna_GreasePencilShrinkwrapModifier_face_cull_set(PointerRNA *ptr, in
   GreasePencilShrinkwrapModifierData *smd = static_cast<GreasePencilShrinkwrapModifierData *>(
       ptr->data);
   smd->shrink_opts = (smd->shrink_opts & ~MOD_SHRINKWRAP_CULL_TARGET_MASK) | value;
+}
+
+static void rna_VertexWeightProximityModifier_proximity_geometry_set(PointerRNA *ptr, int value)
+{
+  WeightVGProximityModifierData *wpmd = reinterpret_cast<WeightVGProximityModifierData *>(
+      ptr->data);
+
+  /* The geometry mode shares the `proximity_flags` variable with a few other boolean properties,
+   * setting the mode value this way ensures only relevant bits are changed. */
+  wpmd->proximity_flags = (wpmd->proximity_flags & (~MOD_WVG_PROXIMITY_GEOM_ALL)) |
+                          (value & MOD_WVG_PROXIMITY_GEOM_ALL);
 }
 
 #else
@@ -6215,6 +6226,8 @@ static void rna_def_modifier_weightvgproximity(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, proximity_geometry_items);
   RNA_def_property_flag(prop, PROP_ENUM_FLAG); /* important to run before default set */
   RNA_def_property_enum_default(prop, MOD_WVG_PROXIMITY_GEOM_FACES);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, "rna_VertexWeightProximityModifier_proximity_geometry_set", nullptr);
   RNA_def_property_ui_text(prop,
                            "Proximity Geometry",
                            "Use the shortest computed distance to target object's geometry "
@@ -6643,7 +6656,7 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "sharpen_peak_jonswap");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_ui_text(prop, "Sharpen peak", "Peak sharpening for 'JONSWAP' and 'TMA' models");
+  RNA_def_property_ui_text(prop, "Sharpen Peak", "Peak sharpening for 'JONSWAP' and 'TMA' models");
   RNA_def_property_update(prop, 0, "rna_OceanModifier_init_update");
 
   prop = RNA_def_property(srna, "random_seed", PROP_INT, PROP_UNSIGNED);
