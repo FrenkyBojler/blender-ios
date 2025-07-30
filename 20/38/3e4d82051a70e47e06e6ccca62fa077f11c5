@@ -1,3 +1,4 @@
 Referenced by pull request #142742, Fix #142706: Batch Rename doesn't work
 Referenced by commit b2140771eae57190351acbc52dc987f3fa3838aa, Fix #142706: Batch Rename doesn't work
 Referenced by pull request #143179, Core: Rename ID name and plural_name for annotations
+Referenced by commit 3bfd4c83f6bf627d56ae1277acbfde444202a162, Core: Rename ID name and plural_name for annotations
