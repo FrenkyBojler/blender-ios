@@ -134,6 +134,9 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
 
             col.prop(gpcolor, "stroke_style", text="Style")
 
+            if gpcolor.mode == "LINE":
+                col.prop(gpcolor, "line_join_mode")
+
             col.prop(gpcolor, "color", text="Base Color")
             col.prop(gpcolor, "use_stroke_holdout")
 

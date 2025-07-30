@@ -66,9 +66,18 @@ float flip_max_min(float a, float b, float s)
   return s * max(a * s, b * s);
 }
 
-float gpencil_stroke_cap_mask(
-    float2 p1, float2 p2, float2 p0, float2 p3, float2 aspect, float thickness, float hardfac)
+float gpencil_stroke_cap_mask(float2 p1,
+                              float2 p2,
+                              float2 p0,
+                              float2 p3,
+                              float2 aspect,
+                              uint line_join_mode,
+                              float thickness,
+                              float hardfac)
 {
+  if (line_join_mode == GP_STROKE_LINEJOIN_MODE_ROUND) {
+    return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
+  }
   /* We create our own uv space to avoid issues with triangulation and linear
    * interpolation artifacts. */
   float2 pos = gl_FragCoord.xy - p1;

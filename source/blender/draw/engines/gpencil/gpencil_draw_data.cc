@@ -200,6 +200,19 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
 
     if (gp_style->mode == GP_MATERIAL_MODE_LINE) {
       mat_data->flag = 0;
+
+      switch (gp_style->line_join_mode) {
+        case GP_MATERIAL_LINEJOIN_MODE_BEVEL:
+          mat_data->flag |= GP_STROKE_LINEJOIN_MODE_BEVEL;
+          break;
+        case GP_MATERIAL_LINEJOIN_MODE_MITER:
+          mat_data->flag |= GP_STROKE_LINEJOIN_MODE_MITER;
+          break;
+        case GP_MATERIAL_LINEJOIN_MODE_ROUND:
+        default:
+          mat_data->flag |= GP_STROKE_LINEJOIN_MODE_ROUND;
+          break;
+      }
     }
     else {
       switch (gp_style->alignment_mode) {

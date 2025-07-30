@@ -542,6 +542,13 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static EnumPropertyItem line_join_mode_items[] = {
+      {GP_MATERIAL_LINEJOIN_MODE_ROUND, "ROUND", 0, "Round", "Draw corners rounded over"},
+      {GP_MATERIAL_LINEJOIN_MODE_BEVEL, "BEVEL", 0, "Bevel", "Draw corners with flat cuts"},
+      {GP_MATERIAL_LINEJOIN_MODE_MITER, "MITER", 0, "Miter", "Draw corners as sharp points"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "MaterialGPencilStyle", nullptr);
   RNA_def_struct_sdna(srna, "MaterialGPencilStyle");
   RNA_def_struct_ui_text(srna, "Grease Pencil Color", "");
@@ -690,6 +697,13 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
                            "Rotation",
                            "Additional rotation applied to dots and square texture of strokes. "
                            "Only applies in texture shading mode.");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
+
+  /* Line Join mode for Lines. */
+  prop = RNA_def_property(srna, "line_join_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "line_join_mode");
+  RNA_def_property_enum_items(prop, line_join_mode_items);
+  RNA_def_property_ui_text(prop, "Corner Mode", "Defines how corners are drawn");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
   /* pass index for future compositing and editing tools */
