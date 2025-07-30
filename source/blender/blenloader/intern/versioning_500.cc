@@ -18,6 +18,7 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_windowmanager_types.h"5764
 
 #include "BLI_listbase.h"
 #include "BLI_math_numbers.hh"
@@ -1448,6 +1449,12 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+      wm->xr.session_settings.draw_flags |= (V3D_OFSDRAW_SHOW_SELECTION |
+                                             V3D_OFSDRAW_XR_SHOW_CONTROLLERS |
+                                             V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS);
+    }
   }
 
   /**
