@@ -10,23 +10,22 @@
 
 #define DNA_DEPRECATED_ALLOW
 
-#include "BKE_duplilist.hh"
-#include "BLI_assert.h"
-#include "BLI_map.hh"
-#include "DNA_listBase.h"
-#include "SEQ_transform.hh"
 #include <cstddef>
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_listBase.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string_utf8.h"
 
+#include "BKE_duplilist.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -52,6 +51,7 @@
 #include "SEQ_sound.hh"
 #include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
+#include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
 #include "BLO_read_write.hh"
@@ -890,7 +890,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   BLO_read_struct(reader, Stereo3dFormat, &strip->stereo3d_format);
 
   if (strip->type & STRIP_TYPE_EFFECT) {
-    strip->flag |= SEQ_EFFECT_NOT_LOADED;
+    strip->runtime.flag |= STRIP_EFFECT_NOT_LOADED;
   }
 
   if (strip->type == STRIP_TYPE_TEXT) {

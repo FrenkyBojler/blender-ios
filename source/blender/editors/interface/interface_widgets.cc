@@ -13,9 +13,12 @@
 #include <list>
 
 #include "DNA_brush_types.h"
+#include "DNA_node_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BLI_color.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
@@ -3939,42 +3942,39 @@ static void widget_progress_indicator(uiBut *but,
 }
 
 static void widget_nodesocket(uiBut *but,
-                              uiWidgetColors *wcol,
+                              uiWidgetColors * /*wcol*/,
                               rcti *rect,
                               const uiWidgetStateInfo * /*state*/,
                               int /*roundboxalign*/,
-                              const float /*zoom*/)
+                              const float zoom)
 {
-  const int radi = 0.25f * BLI_rcti_size_y(rect);
+  blender::ColorTheme4f socket_color;
+  rgba_uchar_to_float(socket_color, but->col);
 
-  uiWidgetBase wtb;
-  widget_init(&wtb);
-
-  uchar old_inner[3], old_outline[3];
-  copy_v3_v3_uchar(old_inner, wcol->inner);
-  copy_v3_v3_uchar(old_outline, wcol->outline);
-
-  wcol->inner[0] = but->col[0];
-  wcol->inner[1] = but->col[1];
-  wcol->inner[2] = but->col[2];
-  wcol->outline[0] = 0;
-  wcol->outline[1] = 0;
-  wcol->outline[2] = 0;
-  wcol->outline[3] = 150;
+  blender::ColorTheme4f outline_color;
+  UI_GetThemeColorType4fv(TH_WIRE, SPACE_NODE, outline_color);
+  outline_color.a = 1.0f;
 
   const int cent_x = BLI_rcti_cent_x(rect);
   const int cent_y = BLI_rcti_cent_y(rect);
-  rect->xmin = cent_x - radi;
-  rect->xmax = cent_x + radi;
-  rect->ymin = cent_y - radi;
-  rect->ymax = cent_y + radi;
+  const int socket_radius = 0.25f * BLI_rcti_size_y(rect);
 
-  wtb.draw_outline = true;
-  round_box_edges(&wtb, UI_CNR_ALL, rect, float(radi));
-  widgetbase_draw(&wtb, wcol);
+  rctf socket_rect;
+  socket_rect.xmin = cent_x - socket_radius;
+  socket_rect.xmax = cent_x + socket_radius;
+  socket_rect.ymin = cent_y - socket_radius;
+  socket_rect.ymax = cent_y + socket_radius;
 
-  copy_v3_v3_uchar(wcol->inner, old_inner);
-  copy_v3_v3_uchar(wcol->outline, old_outline);
+  GPU_blend(GPU_BLEND_ALPHA);
+  UI_widgetbase_draw_cache_flush();
+  GPU_blend(GPU_BLEND_NONE);
+
+  blender::ed::space_node::node_draw_nodesocket(&socket_rect,
+                                                socket_color,
+                                                outline_color,
+                                                U.pixelsize,
+                                                SOCK_DISPLAY_SHAPE_CIRCLE,
+                                                1.0f / zoom);
 }
 
 static void widget_numslider(uiBut *but,
@@ -5017,6 +5017,9 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
       case ButType::PreviewTile:
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
         break;
+      case ButType::NodeSocket:
+        wt = widget_type(UI_WTYPE_NODESOCKET);
+        break;
       default:
         wt = widget_type(UI_WTYPE_ICON);
         break;
@@ -5752,7 +5755,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
     const size_t max_len = sizeof(drawstr);
     const float minwidth = UI_ICON_SIZE;
 
-    STRNCPY(drawstr, name);
+    STRNCPY_UTF8(drawstr, name);
     if (drawstr[0]) {
       UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, '\0');
     }
@@ -5798,7 +5801,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
         const size_t max_len = sizeof(hint_drawstr);
         const float minwidth = UI_ICON_SIZE;
 
-        STRNCPY(hint_drawstr, cpoin + 1);
+        STRNCPY_UTF8(hint_drawstr, cpoin + 1);
         if (hint_drawstr[0] && (max_hint_width < INT_MAX)) {
           UI_text_clip_middle_ex(fstyle, hint_drawstr, max_hint_width, minwidth, max_len, '\0');
         }
