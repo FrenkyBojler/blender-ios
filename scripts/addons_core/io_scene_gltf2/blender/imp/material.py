@@ -23,6 +23,8 @@ class BlenderMaterial():
         if material_idx is None:
             # If no material is specified, we create a default one
             mat = bpy.data.materials.new(name="DefaultMaterial")
+            mat.use_nodes = True
+            mat.node_tree.nodes.clear()
             output_node = mat.node_tree.nodes.new(type='ShaderNodeOutputMaterial')
             output_node.location = (0, 0)
             shader_node = mat.node_tree.nodes.new(type='ShaderNodeBsdfPrincipled')
@@ -51,7 +53,10 @@ class BlenderMaterial():
         BlenderMaterial.set_double_sided(pymaterial, mat)
         BlenderMaterial.set_eevee_surface_render_method(pymaterial, mat)
         BlenderMaterial.set_viewport_color(pymaterial, mat, vertex_color)
-        # todo(habib): test
+
+        mat.use_nodes = True
+        while mat.node_tree.nodes:  # clear all nodes
+            mat.node_tree.nodes.remove(mat.node_tree.nodes[0])
 
         mh = MaterialHelper(gltf, pymaterial, mat, vertex_color)
 
