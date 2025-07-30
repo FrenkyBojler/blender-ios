@@ -11,7 +11,7 @@ namespace blender::nodes {
 
 BehaviorDef &BehaviorListDef::add(std::string name)
 {
-  auto def_ptr = std::make_unique<BehaviorDef>();
+  auto def_ptr = std::make_shared<BehaviorDef>();
   BehaviorDef &def = *def_ptr;
   this->behaviors.add_new(std::move(def_ptr));
 

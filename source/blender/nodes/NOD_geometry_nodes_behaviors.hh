@@ -63,13 +63,13 @@ class BehaviorDef {
 class BehaviorListDef {
  public:
   struct BehaviorDefTypeGetter {
-    StringRef operator()(const std::unique_ptr<BehaviorDef> &def) const
+    StringRef operator()(const std::shared_ptr<BehaviorDef> &def) const
     {
       return def->type;
     }
   };
 
-  CustomIDVectorSet<std::unique_ptr<BehaviorDef>, BehaviorDefTypeGetter> behaviors;
+  CustomIDVectorSet<std::shared_ptr<BehaviorDef>, BehaviorDefTypeGetter> behaviors;
 
   BehaviorDef &add(std::string name);
 };
