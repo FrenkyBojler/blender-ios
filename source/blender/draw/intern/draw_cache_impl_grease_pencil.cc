@@ -716,8 +716,7 @@ static void index_buf_add_bezier_line_points(const IndexMask bezier_points,
 
 static void grease_pencil_edit_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
-                                            const Scene &scene,
-                                            const int handle_display)
+                                            const Scene &scene)
 {
   using namespace blender::bke::greasepencil;
   BLI_assert(grease_pencil.runtime != nullptr);
@@ -787,7 +786,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   for (const ed::greasepencil::DrawingInfo &info : drawings) {
     IndexMaskMemory memory;
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        object, info.drawing, info.layer_index, handle_display, memory);
+        object, info.drawing, info.layer_index, CURVE_HANDLE_ALL, memory);
 
     total_bezier_point_num += bezier_points.size();
   }
@@ -933,7 +932,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                   &total_line_ids_num);
 
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        object, info.drawing, info.layer_index, handle_display, memory);
+        object, info.drawing, info.layer_index, CURVE_HANDLE_ALL, memory);
     if (bezier_points.is_empty()) {
       continue;
     }
@@ -1064,7 +1063,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
 
     if (!layer->is_locked()) {
       const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-          object, info.drawing, info.layer_index, handle_display, memory);
+          object, info.drawing, info.layer_index, CURVE_HANDLE_ALL, memory);
 
       index_buf_add_nurbs_lines(object,
                                 info.drawing,
@@ -1545,37 +1544,31 @@ gpu::Batch *DRW_cache_grease_pencil_get(const Scene *scene, Object *ob)
   return cache->geom_batch;
 }
 
-gpu::Batch *DRW_cache_grease_pencil_edit_points_get(const Scene *scene,
-                                                    Object *ob,
-                                                    const int handle_display)
+gpu::Batch *DRW_cache_grease_pencil_edit_points_get(const Scene *scene, Object *ob)
 {
   GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
-  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene, handle_display);
+  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene);
 
   /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_points;
 }
 
-gpu::Batch *DRW_cache_grease_pencil_edit_lines_get(const Scene *scene,
-                                                   Object *ob,
-                                                   const int handle_display)
+gpu::Batch *DRW_cache_grease_pencil_edit_lines_get(const Scene *scene, Object *ob)
 {
   GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
-  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene, handle_display);
+  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene);
 
   /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_lines;
 }
 
-gpu::Batch *DRW_cache_grease_pencil_edit_handles_get(const Scene *scene,
-                                                     Object *ob,
-                                                     const int handle_display)
+gpu::Batch *DRW_cache_grease_pencil_edit_handles_get(const Scene *scene, Object *ob)
 {
   GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
-  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene, handle_display);
+  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene);
 
   /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_handles;
