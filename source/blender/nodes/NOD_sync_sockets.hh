@@ -13,6 +13,21 @@ struct Main;
 
 namespace blender::nodes {
 
+/**
+ * Sync the sockets of that node if possible. For example, a Separate Bundle node will be updated
+ * to match a linked Combine Bundle if one is found.
+ */
+void sync_node(bContext &C, bNode &node, ReportList *reports);
+
+/**
+ * Get a description of what syncing the node would do. This can be used as tooltip.
+ */
+std::string sync_node_description_get(const bContext &C, const bNode &node);
+
+/** Access (cached) information of whether a specific node can be synced currently. */
+bool node_can_sync_sockets(const bContext &C, const bNodeTree &tree, const bNode &node);
+void node_can_sync_cache_clear(Main &bmain);
+
 void sync_sockets_evaluate_closure(SpaceNode &snode,
                                    bNode &evaluate_closure_node,
                                    ReportList *reports);
@@ -27,27 +42,5 @@ void sync_sockets_closure(SpaceNode &snode,
                           bNode &closure_output_node,
                           const bool initialize_internal_links,
                           ReportList *reports);
-
-enum class NodeSyncState {
-  Synced,
-  CanBeSynced,
-  NoSyncSource,
-  ConflictingSyncSources,
-};
-
-NodeSyncState sync_sockets_state_separate_bundle(const SpaceNode &snode,
-                                                 const bNode &separate_bundle_node);
-NodeSyncState sync_sockets_state_combine_bundle(const SpaceNode &snode,
-                                                const bNode &combine_bundle_node);
-NodeSyncState sync_sockets_state_closure_output(const SpaceNode &snode,
-                                                const bNode &closure_output_node);
-NodeSyncState sync_sockets_state_evaluate_closure(const SpaceNode &snode,
-                                                  const bNode &evaluate_closure_node);
-
-bool node_can_sync_sockets(const bContext &C, const bNodeTree &tree, const bNode &node);
-void node_can_sync_cache_clear(Main &bmain);
-
-void sync_node(bContext &C, bNode &node, ReportList *reports);
-std::string sync_node_description_get(const bContext &C, const bNode &node);
 
 }  // namespace blender::nodes

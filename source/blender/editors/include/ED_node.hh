@@ -162,6 +162,7 @@ void ui_template_node_asset_menu_items(uiLayout &layout,
                                        const bContext &C,
                                        StringRef catalog_path);
 
+/** See #SpaceNode_Runtime::node_can_sync_states. */
 Map<int, bool> &node_can_sync_cache_get(SpaceNode &snode);
 
 }  // namespace blender::ed::space_node

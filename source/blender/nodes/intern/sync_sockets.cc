@@ -4,23 +4,22 @@
 
 #include <fmt/format.h>
 
-#include "BKE_main.hh"
-#include "BKE_workspace.hh"
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
 
 #include "RNA_access.hh"
-#include "RNA_define.hh"
 
 #include "WM_api.hh"
 
 #include "BKE_compute_context_cache.hh"
 #include "BKE_context.hh"
+#include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_report.hh"
+#include "BKE_workspace.hh"
 
 #include "ED_node.hh"
 #include "ED_screen.hh"
@@ -35,6 +34,13 @@
 #include "NOD_sync_sockets.hh"
 
 namespace blender::nodes {
+
+enum class NodeSyncState {
+  Synced,
+  CanBeSynced,
+  NoSyncSource,
+  ConflictingSyncSources,
+};
 
 struct BundleSyncState {
   NodeSyncState state;
@@ -154,30 +160,6 @@ static ClosureSyncState get_sync_state_evaluate_closure(const SpaceNode &snode,
     return {NodeSyncState::CanBeSynced, source_signature};
   }
   return {NodeSyncState::Synced};
-}
-
-NodeSyncState sync_sockets_state_separate_bundle(const SpaceNode &snode,
-                                                 const bNode &separate_bundle_node)
-{
-  return get_sync_state_separate_bundle(snode, separate_bundle_node).state;
-}
-
-NodeSyncState sync_sockets_state_combine_bundle(const SpaceNode &snode,
-                                                const bNode &combine_bundle_node)
-{
-  return get_sync_state_combine_bundle(snode, combine_bundle_node).state;
-}
-
-NodeSyncState sync_sockets_state_closure_output(const SpaceNode &snode,
-                                                const bNode &closure_output_node)
-{
-  return get_sync_state_closure_output(snode, closure_output_node).state;
-}
-
-NodeSyncState sync_sockets_state_evaluate_closure(const SpaceNode &snode,
-                                                  const bNode &evaluate_closure_node)
-{
-  return get_sync_state_evaluate_closure(snode, evaluate_closure_node).state;
 }
 
 void sync_sockets_separate_bundle(SpaceNode &snode,
