@@ -35,8 +35,8 @@ Span<float> valid_nurb_control_point_range(int8_t order,
                                            IndexRange &point_range);
 
 /**
- * Curve object wrapper for curve objects exported by the exporter. Curve objects can contain
- * multiple individual splines.
+ * Curve object wrapper providing access to the a Curve Object's properties.
+ * Curve objects can contain multiple individual splines.
  */
 class IOBJCurve {
  public:
@@ -86,12 +86,6 @@ class IOBJCurve {
                                           Vector<float3> &dynamic_point_buffer) const = 0;
 };
 
-/**
- * Provides access to the a Curve Object's properties.
- * Only support NURBS, TODO: support other types.
- *
- * \note Used for legacy Curve export.
- */
 class OBJCurves : public IOBJCurve, NonCopyable {
  private:
   const bke::CurvesGeometry &curve_;
@@ -118,12 +112,6 @@ class OBJCurves : public IOBJCurve, NonCopyable {
                                   Vector<float3> &dynamic_point_buffer) const override;
 };
 
-/**
- * Provides access to the a Curve Object's properties.
- * Only #CU_NURBS type is supported.
- *
- * \note Used for legacy Curve export.
- */
 class OBJLegacyCurve : public IOBJCurve, NonCopyable {
  private:
   const Object *export_object_eval_;

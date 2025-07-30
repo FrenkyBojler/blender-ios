@@ -99,9 +99,6 @@ class OBJCurvesTest : public testing::Test {
     return curves;
   }
 
-  /*
-   * Create a simple (non-rational) NUBS curve.
-   */
   static bke::CurvesGeometry create_nurbs(Span<float3> points,
                                           bool cyclic,
                                           int8_t order,
