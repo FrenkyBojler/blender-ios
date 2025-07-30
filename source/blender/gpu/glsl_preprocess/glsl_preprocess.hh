@@ -1098,7 +1098,7 @@ class Preprocessor {
     vector<pair<string, string>> mutations;
 
     string prefix_total;
-    regex regex_resource_access(R"(\b(\w+)_get\((\w+)\, \w+\))");
+    regex regex_resource_access(R"(\b(\w+)_get\((\w+)\,\s*\w+\))");
     regex_global_search(str, regex_resource_access, [&](const smatch &match) {
       string prefix = prefix_total + match.prefix().str();
       string suffix = match.suffix().str();
