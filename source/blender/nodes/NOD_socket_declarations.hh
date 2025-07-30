@@ -15,6 +15,8 @@
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "NOD_geometry_nodes_behaviors.hh"
+
 namespace blender::nodes::decl {
 
 class FloatBuilder;
@@ -259,6 +261,8 @@ class Bundle : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_BUNDLE;
 
+  std::shared_ptr<const BehaviorsDef> behaviors_;
+
   friend BundleBuilder;
 
   using Builder = BundleBuilder;
@@ -269,7 +273,10 @@ class Bundle : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
-class BundleBuilder : public SocketDeclarationBuilder<Bundle> {};
+class BundleBuilder : public SocketDeclarationBuilder<Bundle> {
+ public:
+  BundleBuilder &behaviors(std::shared_ptr<const BehaviorsDef> behaviors);
+};
 
 class ClosureBuilder;
 

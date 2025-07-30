@@ -6,10 +6,32 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_vector_set.hh"
 
 #include "NOD_geometry_nodes_bundle_fwd.hh"
+#include "NOD_geometry_nodes_bundle_signature.hh"
 
-namespace blender::nodes::behaviors {
+namespace blender::nodes {
+
+struct BehaviorDef {
+  std::string type;
+  BundleSignature signature;
+};
+
+struct BehaviorsDef {
+  struct BehaviorDefTypeGetter {
+    StringRef operator()(const BehaviorDef &def) const
+    {
+      return def.type;
+    }
+  };
+
+  CustomIDVectorSet<BehaviorDef, BehaviorDefTypeGetter> behaviors;
+
+  void add(BehaviorDef behavior);
+};
+
+namespace behaviors {
 
 void foreach_behavior_in_bundle(
     const Bundle &behaviors_bundle,
@@ -17,4 +39,6 @@ void foreach_behavior_in_bundle(
 
 bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef other);
 
-}  // namespace blender::nodes::behaviors
+}  // namespace behaviors
+
+}  // namespace blender::nodes

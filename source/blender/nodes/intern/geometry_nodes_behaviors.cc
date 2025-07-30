@@ -7,6 +7,15 @@
 
 #include "BKE_node_socket_value.hh"
 
+namespace blender::nodes {
+
+void BehaviorsDef::add(BehaviorDef behavior)
+{
+  this->behaviors.add(std::move(behavior));
+}
+
+}  // namespace blender::nodes
+
 namespace blender::nodes::behaviors {
 
 static void foreach_behavior_recursive(

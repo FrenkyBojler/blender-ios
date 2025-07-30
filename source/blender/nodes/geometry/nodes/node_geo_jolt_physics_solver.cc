@@ -34,13 +34,47 @@
 
 namespace blender::nodes::node_geo_jolt_physics_solver_cc {
 
+static std::shared_ptr<BehaviorsDef> make_behaviors_def()
+{
+  auto def = std::make_shared<BehaviorsDef>();
+
+  BehaviorDef gravity{"gravity"};
+  gravity.signature.add("gravity", SOCK_VECTOR);
+  def->add(std::move(gravity));
+
+  BehaviorDef force{"force"};
+  gravity.signature.add("force", SOCK_VECTOR);
+  def->add(std::move(force));
+
+  BehaviorDef rigid_bodies{"rigid_bodies"};
+  rigid_bodies.signature.add("instances", SOCK_GEOMETRY);
+  rigid_bodies.signature.add("collision_shape_type", SOCK_INT);
+  rigid_bodies.signature.add("motion_type", SOCK_INT);
+  rigid_bodies.signature.add("friction", SOCK_FLOAT);
+  rigid_bodies.signature.add("bounciness", SOCK_FLOAT);
+  rigid_bodies.signature.add("density", SOCK_FLOAT);
+  def->add(std::move(rigid_bodies));
+
+  BehaviorDef soft_body{"soft_body"};
+  soft_body.signature.add("geometry", SOCK_GEOMETRY);
+  soft_body.signature.add("compliance", SOCK_FLOAT);
+  soft_body.signature.add("shear_compliance", SOCK_FLOAT);
+  soft_body.signature.add("bend_compliance", SOCK_FLOAT);
+  soft_body.signature.add("bend_type", SOCK_INT);
+  def->add(std::move(soft_body));
+
+  return def;
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  static std::shared_ptr<const BehaviorsDef> behaviors_def = make_behaviors_def();
+
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Data");
   b.add_output<decl::Bundle>("Data").align_with_previous();
-  b.add_input<decl::Bundle>("Behavior");
+  b.add_input<decl::Bundle>("Behavior").behaviors(behaviors_def);
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
   b.add_input<decl::Int>("Substeps").default_value(1).min(1);
 }
