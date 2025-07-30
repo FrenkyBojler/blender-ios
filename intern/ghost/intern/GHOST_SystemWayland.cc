@@ -1151,19 +1151,22 @@ struct GWL_Seat {
   /** Mostly this can be interchanged with `pointer` however it can't be locked/confined. */
   GWL_SeatStatePointer tablet;
 
+  GWL_SeatStatePointer touchscreen;
+
   GWL_SeatStateKeyboard keyboard;
 
-  /**touch state, to handle touchscreen interactions.**/
-
+  /** This structure accumulates touch input that will be applied on the next frame event.
+   *  We currently only track one active contact point on the screen and map it to
+   *  pointer moves and left-clicks.
+   */
   struct {
-    GWL_SeatStatePointer pointer;  // not an "address" pointer, but a "pointing device" pointer
     bool is_touching = false;
     uint32_t latest_touch_id = 0;
-    bool will_press = false;
+    bool press_pending = false;
     uint64_t press_event_time_ms = 0;
-    bool will_release = false;
+    bool release_pending = false;
     uint64_t release_event_time_ms = 0;
-    bool will_move = false;
+    bool motion_pending = false;
     uint64_t move_event_time_ms = 0;
   } touch_state;
 
@@ -1248,8 +1251,8 @@ static GWL_SeatStatePointer *gwl_seat_state_pointer_active(GWL_Seat *seat)
   if (seat->tablet.serial == seat->cursor_source_serial) {
     return &seat->tablet;
   }
-  if (seat->touch_state.pointer.serial == seat->cursor_source_serial) {
-    return &seat->touch_state.pointer;
+  if (seat->touchscreen.serial == seat->cursor_source_serial) {
+    return &seat->touchscreen;
   }
   return nullptr;
 }
@@ -4529,7 +4532,7 @@ static const zwp_pointer_gesture_swipe_v1_listener gesture_swipe_listener = {
 static CLG_LogRef LOG_WL_TOUCH = {"ghost.wl.handle.touch"};
 #define LOG (&LOG_WL_TOUCH)
 
-// touching down is equivalent to pointing the cursor somewhere and holding Mouse0.
+/** Touching down is equivalent to moving a pointer and holding its left mouse button. */
 static void touch_seat_handle_down(void *data,
                                    wl_touch * /*touch*/,
                                    uint32_t touch_interaction_serial /*event_serial*/,
@@ -4543,28 +4546,32 @@ static void touch_seat_handle_down(void *data,
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   const uint64_t event_ms = seat->system->ms_from_input_time(contact_timestamp);
 
-  /* Null when just destroyed. */
+  /** Null when just destroyed. */
   if (!ghost_wl_surface_own_with_null_check(touched_surface)) {
     CLOG_DEBUG(LOG, "down (skipped on empty surface)");
     return;
   }
 
-  if (seat->touch_state.is_touching == false) {  // only track one contact point at a time.
+  /** Only track one point at a time */
+  if (seat->touch_state.is_touching == false) {
 
-    // set generic pointer state
-    seat->touch_state.pointer.xy[0] = location_x;
-    seat->touch_state.pointer.xy[1] = location_y;
+    /** Set generic pointer state. */
+    seat->touchscreen.xy[0] = location_x;
+    seat->touchscreen.xy[1] = location_y;
     seat->cursor_source_serial = touch_interaction_serial;
-    seat->touch_state.pointer.serial = touch_interaction_serial;
-    seat->touch_state.pointer.wl.surface_window = touched_surface;
+    seat->touchscreen.serial = touch_interaction_serial;
+    seat->touchscreen.wl.surface_window = touched_surface;
 
-    // set touch-specific state
+    /** Set touch-tracking state. */
     seat->touch_state.is_touching = true;
     seat->touch_state.latest_touch_id = touch_id;
-    seat->touch_state.will_move = true;
+    seat->touch_state.motion_pending = true;
     seat->touch_state.move_event_time_ms = event_ms;
-    seat->touch_state.will_press = true;
+    seat->touch_state.press_pending = true;
     seat->touch_state.press_event_time_ms = event_ms;
+
+    GHOST_WindowWayland *win = ghost_wl_surface_user_data(seat->touchscreen.wl.surface_window);
+    win->cursor_shape_refresh();
   }
 }
 
@@ -4578,10 +4585,11 @@ static void touch_seat_handle_up(void *data,
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   const uint64_t event_ms = seat->system->ms_from_input_time(contact_timestamp);
 
-  if (seat->touch_state.latest_touch_id == touch_id) {  // only track one contact point at a time.
+  /** Only track one contact point at a time. */
+  if (seat->touch_state.latest_touch_id == touch_id) {
 
     seat->touch_state.is_touching = false;
-    seat->touch_state.will_release = true;
+    seat->touch_state.release_pending = true;
     seat->touch_state.release_event_time_ms = event_ms;
   }
 }
@@ -4596,12 +4604,13 @@ static void touch_seat_handle_motion(void *data /*data*/,
   CLOG_DEBUG(LOG, "motion");
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   const uint64_t event_ms = seat->system->ms_from_input_time(contact_timestamp);
-  if ((seat->touch_state.latest_touch_id == touch_id) && (seat->touch_state.is_touching == true))
-  {  // only track one contact point at a time.
-    seat->touch_state.pointer.xy[0] = location_x;
-    seat->touch_state.pointer.xy[1] = location_y;
+
+  /** Only track one contact point at a time. */
+  if ((seat->touch_state.latest_touch_id == touch_id) && (seat->touch_state.is_touching == true)) {
+    seat->touchscreen.xy[0] = location_x;
+    seat->touchscreen.xy[1] = location_y;
     seat->touch_state.move_event_time_ms = event_ms;
-    seat->touch_state.will_move = true;
+    seat->touch_state.motion_pending = true;
   }
 }
 
@@ -4609,45 +4618,47 @@ static void touch_seat_handle_frame(void *data, wl_touch * /*touch*/)
 {
   CLOG_DEBUG(LOG, "frame");
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
-  if (wl_surface *wl_surface_focus = seat->touch_state.pointer.wl.surface_window) {
-    GHOST_WindowWayland *win = ghost_wl_surface_user_data(
-        seat->touch_state.pointer.wl.surface_window);
+  if (wl_surface *wl_surface_focus = seat->touchscreen.wl.surface_window) {
+    GHOST_WindowWayland *win = ghost_wl_surface_user_data(seat->touchscreen.wl.surface_window);
 
-    win->cursor_shape_refresh();
-
-    if (seat->touch_state.will_move == true) {  // for finger move, generate a cursor move
-      const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->touch_state.pointer.xy)};
+    /** For a finger move, generate a cursor move. */
+    if (seat->touch_state.motion_pending == true) {
+      const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->touchscreen.xy)};
       seat->system->pushEvent_maybe_pending(
           new GHOST_EventCursor(seat->touch_state.move_event_time_ms,
                                 GHOST_kEventCursorMove,
                                 win,
                                 UNPACK2(event_xy),
                                 GHOST_TABLET_DATA_NONE));
-      seat->touch_state.will_move = false;
+      seat->touch_state.motion_pending = false;
       seat->touch_state.move_event_time_ms = 0;
     }
-    if (seat->touch_state.will_press == true) {  // for finger-press, press left-mouse
-      seat->touch_state.pointer.buttons.set(GHOST_kButtonMaskLeft, true);
+
+    /** For a finger press, generate left-mouse button press */
+    if (seat->touch_state.press_pending == true) {
+      seat->touchscreen.buttons.set(GHOST_kButtonMaskLeft, true);
       seat->system->pushEvent_maybe_pending(
           new GHOST_EventButton(seat->touch_state.press_event_time_ms,
                                 GHOST_kEventButtonDown,
                                 win,
                                 GHOST_kButtonMaskLeft,
                                 GHOST_TABLET_DATA_NONE));
-      seat->touch_state.will_press = false;
+      seat->touch_state.press_pending = false;
       seat->touch_state.press_event_time_ms = 0;
     }
-    if (seat->touch_state.will_release == true) {  // for finger release, release left-mouse
-      seat->touch_state.pointer.buttons.set(GHOST_kButtonMaskLeft, false);
+
+    /** For a finger release, generate a left-mouse button release. */
+    if (seat->touch_state.release_pending == true) {
+      seat->touchscreen.buttons.set(GHOST_kButtonMaskLeft, false);
       seat->system->pushEvent_maybe_pending(
           new GHOST_EventButton(seat->touch_state.press_event_time_ms,
                                 GHOST_kEventButtonUp,
                                 win,
                                 GHOST_kButtonMaskLeft,
                                 GHOST_TABLET_DATA_NONE));
-      seat->touch_state.will_release = false;
+      seat->touch_state.release_pending = false;
       seat->touch_state.release_event_time_ms = 0;
-      seat->touch_state.pointer.wl.surface_window = nullptr;
+      seat->touchscreen.wl.surface_window = nullptr;
     }
   }
 }
