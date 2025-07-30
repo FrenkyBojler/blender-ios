@@ -10,6 +10,7 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
+#  include "draw_attribute_shader_shared.hh"
 #  include "draw_object_infos_info.hh"
 
 #  define DRW_HAIR_INFO
@@ -29,6 +30,7 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_curves_data)
+LOCAL_GROUP_SIZE(64)
 /* Offsets giving the start and end of the curve. */
 STORAGE_BUF(0, read, int, points_by_curve_buf[])
 STORAGE_BUF(1, read, int, curves_type_buf[])
@@ -43,10 +45,15 @@ STORAGE_BUF(6, read, int, bezier_offsets_buf[])
 // STORAGE_BUF(4, read, float, basis_cache_buf[])
 // STORAGE_BUF(5, read, float, control_weights_buf[])
 // STORAGE_BUF(6, read, int, basis_cache_offset_buf[])
+PUSH_CONSTANT(int, curves_count)
+PUSH_CONSTANT(bool, compute_length_and_time)
+PUSH_CONSTANT(bool, use_point_weight)
+SPECIALIZATION_CONSTANT(int, evaluated_type, 0)
+TYPEDEF_SOURCE("draw_attribute_shader_shared.hh")
+COMPUTE_SOURCE("draw_curves_interpolation_comp.glsl")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_curves_interpolate_position)
-LOCAL_GROUP_SIZE(64)
 ADDITIONAL_INFO(draw_curves_data)
 /* Attributes. */
 STORAGE_BUF(7, read, float, positions_buf[])
@@ -55,30 +62,35 @@ STORAGE_BUF(8, read, float, radii_buf[])
 STORAGE_BUF(9, read_write, float4, evaluated_positions_radii_buf[])
 STORAGE_BUF(10, read_write, float, evaluated_time_buf[])
 STORAGE_BUF(11, write, float, curves_length_buf[])
-PUSH_CONSTANT(int, curves_count)
-PUSH_CONSTANT(bool, compute_length_and_time)
-PUSH_CONSTANT(bool, use_point_weight)
-SPECIALIZATION_CONSTANT(int, evaluated_type, 0)
-COMPUTE_SOURCE("draw_curves_interpolation_comp.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(draw_curves_interpolate_attribute)
-LOCAL_GROUP_SIZE(64)
+GPU_SHADER_CREATE_INFO(draw_curves_interpolate_float4_attribute)
 ADDITIONAL_INFO(draw_curves_data)
-/* Attributes. */
-STORAGE_BUF(7, read, float, float_attr_buf[])
-STORAGE_BUF(8, read, uint, uint_attr_buf[])
-/* Outputs. */
-STORAGE_BUF(9, read_write, float, evaluated_float_attr_buf[])
-STORAGE_BUF(10, read_write, uint, evaluated_uint_attr_buf[])
-PUSH_CONSTANT(int, curves_count)
-PUSH_CONSTANT(bool, compute_length_and_time)
-SPECIALIZATION_CONSTANT(int, evaluated_type, 0)
-/* Disable length computation. */
-SPECIALIZATION_CONSTANT(bool, compute_length_and_time, false)
-COMPUTE_SOURCE("draw_curves_interpolation_comp.glsl")
-// DO_STATIC_COMPILATION()
+STORAGE_BUF(7, read, StoredFloat4, attribute_float4_buf[])
+STORAGE_BUF(8, read_write, StoredFloat4, evaluated_float4_buf[])
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(draw_curves_interpolate_float3_attribute)
+ADDITIONAL_INFO(draw_curves_data)
+STORAGE_BUF(7, read, StoredFloat3, attribute_float3_buf[])
+STORAGE_BUF(8, read_write, StoredFloat3, evaluated_float3_buf[])
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(draw_curves_interpolate_float2_attribute)
+ADDITIONAL_INFO(draw_curves_data)
+STORAGE_BUF(7, read, StoredFloat2, attribute_float2_buf[])
+STORAGE_BUF(8, read_write, StoredFloat2, evaluated_float2_buf[])
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(draw_curves_interpolate_float_attribute)
+ADDITIONAL_INFO(draw_curves_data)
+STORAGE_BUF(7, read, StoredFloat, attribute_float_buf[])
+STORAGE_BUF(8, read_write, StoredFloat, evaluated_float_buf[])
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_curves_test)

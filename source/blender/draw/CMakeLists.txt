@@ -577,6 +577,7 @@ set(GLSL_SRC
   intern/shaders/draw_view_reconstruction_lib.glsl
   intern/shaders/draw_visibility_comp.glsl
 
+  intern/draw_attribute_shader_shared.hh
   intern/draw_command_shared.hh
   intern/draw_defines.hh
   intern/draw_pointcloud_private.hh
