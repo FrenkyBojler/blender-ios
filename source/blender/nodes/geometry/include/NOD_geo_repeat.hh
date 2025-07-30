@@ -89,6 +89,7 @@ struct RepeatItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
                     SOCK_FLOAT,
                     SOCK_VECTOR,
                     SOCK_RGBA,
+                    SOCK_SHADER,
                     SOCK_BUNDLE,
                     SOCK_CLOSURE);
       default:
