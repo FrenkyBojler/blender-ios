@@ -2504,8 +2504,8 @@ static void node_draw_extra_info_row(const bNode &node,
                                  0,
                                  0,
                                  extra_info_row.tooltip);
-  if (extra_info_row.execute_fn) {
-    UI_but_func_set(but_icon, extra_info_row.execute_fn);
+  if (extra_info_row.set_execute_fn) {
+    extra_info_row.set_execute_fn(*but_icon);
   }
   if (extra_info_row.tooltip_fn != nullptr) {
     UI_but_func_tooltip_set(
@@ -2517,7 +2517,7 @@ static void node_draw_extra_info_row(const bNode &node,
   const float but_text_width = but_text_right - but_text_left;
 
   uiBut *but_text = uiDefBut(&block,
-                             extra_info_row.execute_fn ? ButType::But : ButType::Label,
+                             extra_info_row.set_execute_fn ? ButType::But : ButType::Label,
                              0,
                              extra_info_row.text.c_str(),
                              int(but_text_left),
@@ -2529,8 +2529,8 @@ static void node_draw_extra_info_row(const bNode &node,
                              0,
                              extra_info_row.tooltip);
   UI_but_drawflag_enable(but_text, UI_BUT_TEXT_LEFT);
-  if (extra_info_row.execute_fn) {
-    UI_but_func_set(but_text, extra_info_row.execute_fn);
+  if (extra_info_row.set_execute_fn) {
+    extra_info_row.set_execute_fn(*but_text);
   }
   if (extra_info_row.tooltip_fn != nullptr) {
     /* Don't pass tooltip free function because it's already used on the uiBut above. */

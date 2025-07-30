@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_idprop.hh"
 #include "NOD_node_extra_info.hh"
 #include "node_geometry_util.hh"
 
@@ -72,32 +73,6 @@ static bool node_insert_link(bNodeTree *tree, bNode *node, bNodeLink *link)
 {
   return socket_items::try_add_item_via_any_extend_socket<SeparateBundleItemsAccessor>(
       *tree, *node, *node, *link);
-}
-
-static void node_layout(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
-{
-  const SpaceNode *snode = CTX_wm_space_node(C);
-  bNode &node = *node_ptr->data_as<bNode>();
-  NodeGeometrySeparateBundle &storage = node_storage(node);
-  if (snode && storage.flag & NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC) {
-    const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_separate_bundle(
-        *snode, node);
-    switch (state) {
-      case ed::space_node::NodeSyncState::NoSyncSource:
-      case ed::space_node::NodeSyncState::Synced: {
-        storage.flag &= ~NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC;
-        break;
-      }
-      case ed::space_node::NodeSyncState::CanBeSynced: {
-        PointerRNA props = layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
-        RNA_string_set(&props, "node_name", node.name);
-        break;
-      }
-      case ed::space_node::NodeSyncState::ConflictingSyncSources: {
-        break;
-      }
-    }
-  }
 }
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
@@ -223,13 +198,12 @@ static void node_extra_info(NodeExtraInfoParams &params)
         NodeExtraInfoRow row;
         row.text = TIP_("Sync");
         row.icon = ICON_FILE_REFRESH;
-        row.tooltip = TIP_("Update the sockets in this node based on what is connected");
-        row.execute_fn = [node = &params.node](bContext &C) {
+        row.set_execute_fn = [node = &params.node](uiBut &but) {
           wmOperatorType *ot = WM_operatortype_find("NODE_OT_sockets_sync", false);
-          PointerRNA op_props;
-          WM_operator_properties_create_ptr(&op_props, ot);
-          RNA_string_set(&op_props, "node_name", node->name);
-          WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::InvokeDefault, &op_props, nullptr);
+          UI_but_operator_set(&but, ot, wm::OpCallContext::InvokeDefault);
+          PointerRNA *opptr = UI_but_operator_ptr_ensure(&but);
+          opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
+          RNA_string_set(opptr, "node_name", node->name);
         };
         params.rows.append(std::move(row));
         break;
@@ -253,7 +227,6 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.register_operators = node_operators;
