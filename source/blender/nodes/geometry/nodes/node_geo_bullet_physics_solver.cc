@@ -26,13 +26,49 @@
 
 namespace blender::nodes::node_geo_bullet_physics_solver_cc {
 
+static std::shared_ptr<BehaviorListDef> make_behavior_list_def()
+{
+  auto list = std::make_shared<BehaviorListDef>();
+  {
+    BehaviorDef &b = list->add("gravity");
+    b.add<decl::Vector>("gravity");
+  }
+  {
+    BehaviorDef &b = list->add("force");
+    b.add<decl::Vector>("force_field").supports_field();
+    b.add<decl::String>("filter");
+  }
+  {
+    BehaviorDef &b = list->add("rigid_body_instances");
+    b.add<decl::Geometry>("instances").supported_type(bke::GeometryComponent::Type::Instance);
+    b.add<decl::Int>("mode").supports_field();
+    b.add<decl::Int>("collision_shape").supports_field();
+    b.add<decl::Int>("mass").supports_field();
+    b.add<decl::Float>("friction").supports_field();
+    b.add<decl::Float>("bounciness").supports_field();
+    b.add<decl::Float>("margin").supports_field();
+    b.add<decl::Float>("initial_velocity").supports_field();
+    b.add<decl::Bool>("persist_velocity").supports_field();
+  }
+  {
+    BehaviorDef &b = list->add("rigid_body_distance_constraint");
+    b.add<decl::String>("body_a");
+    b.add<decl::String>("body_b");
+    b.add<decl::Int>("ids_a").structure_type(StructureType::List);
+    b.add<decl::Int>("ids_b").structure_type(StructureType::List);
+  }
+  return list;
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  static std::shared_ptr<const BehaviorListDef> behaviors = make_behavior_list_def();
+
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Data");
   b.add_output<decl::Bundle>("Data").align_with_previous();
-  b.add_input<decl::Bundle>("Behavior");
+  b.add_input<decl::Bundle>("Behavior").behaviors(behaviors);
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
   b.add_input<decl::Int>("Substeps").default_value(10).min(1);
   b.add_input<decl::Int>("Solver Steps").default_value(10).min(1);

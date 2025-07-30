@@ -263,6 +263,7 @@ class SocketDeclaration : public ItemDeclaration {
   std::unique_ptr<InputSocketUsageInferenceFn> usage_inference_fn;
 
   friend NodeDeclarationBuilder;
+  friend class BehaviorDef;
   friend class BaseSocketDeclarationBuilder;
   template<typename SocketDecl> friend class SocketDeclarationBuilder;
 
@@ -307,6 +308,7 @@ class BaseSocketDeclarationBuilder {
 
   friend class NodeDeclarationBuilder;
   friend class DeclarationListBuilder;
+  friend class BehaviorDef;
 
  public:
   virtual ~BaseSocketDeclarationBuilder() = default;
@@ -473,6 +475,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
   friend class NodeDeclarationBuilder;
   friend class DeclarationListBuilder;
+  friend class BehaviorDef;
 };
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;

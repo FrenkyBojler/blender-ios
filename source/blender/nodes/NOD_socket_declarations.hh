@@ -261,7 +261,7 @@ class Bundle : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_BUNDLE;
 
-  std::shared_ptr<const BehaviorsDef> behaviors_;
+  std::shared_ptr<const BehaviorListDef> behaviors_;
 
   friend BundleBuilder;
 
@@ -275,7 +275,7 @@ class Bundle : public SocketDeclaration {
 
 class BundleBuilder : public SocketDeclarationBuilder<Bundle> {
  public:
-  BundleBuilder &behaviors(std::shared_ptr<const BehaviorsDef> behaviors);
+  BundleBuilder &behaviors(std::shared_ptr<const BehaviorListDef> behaviors);
 };
 
 class ClosureBuilder;

@@ -9,9 +9,14 @@
 
 namespace blender::nodes {
 
-void BehaviorsDef::add(BehaviorDef behavior)
+BehaviorDef &BehaviorListDef::add(std::string name)
 {
-  this->behaviors.add(std::move(behavior));
+  auto def_ptr = std::make_unique<BehaviorDef>();
+  BehaviorDef &def = *def_ptr;
+  this->behaviors.add_new(std::move(def_ptr));
+
+  def.type = name;
+  return def;
 }
 
 }  // namespace blender::nodes

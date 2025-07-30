@@ -34,47 +34,46 @@
 
 namespace blender::nodes::node_geo_jolt_physics_solver_cc {
 
-static std::shared_ptr<BehaviorsDef> make_behaviors_def()
+static std::shared_ptr<BehaviorListDef> make_behavior_list_def()
 {
-  auto def = std::make_shared<BehaviorsDef>();
-
-  BehaviorDef gravity{"gravity"};
-  gravity.signature.add("gravity", SOCK_VECTOR);
-  def->add(std::move(gravity));
-
-  BehaviorDef force{"force"};
-  gravity.signature.add("force", SOCK_VECTOR);
-  def->add(std::move(force));
-
-  BehaviorDef rigid_bodies{"rigid_bodies"};
-  rigid_bodies.signature.add("instances", SOCK_GEOMETRY);
-  rigid_bodies.signature.add("collision_shape_type", SOCK_INT);
-  rigid_bodies.signature.add("motion_type", SOCK_INT);
-  rigid_bodies.signature.add("friction", SOCK_FLOAT);
-  rigid_bodies.signature.add("bounciness", SOCK_FLOAT);
-  rigid_bodies.signature.add("density", SOCK_FLOAT);
-  def->add(std::move(rigid_bodies));
-
-  BehaviorDef soft_body{"soft_body"};
-  soft_body.signature.add("geometry", SOCK_GEOMETRY);
-  soft_body.signature.add("compliance", SOCK_FLOAT);
-  soft_body.signature.add("shear_compliance", SOCK_FLOAT);
-  soft_body.signature.add("bend_compliance", SOCK_FLOAT);
-  soft_body.signature.add("bend_type", SOCK_INT);
-  def->add(std::move(soft_body));
-
-  return def;
+  auto list = std::make_shared<BehaviorListDef>();
+  {
+    BehaviorDef &b = list->add("gravity");
+    b.add<decl::Vector>("gravity");
+  }
+  {
+    BehaviorDef &b = list->add("force");
+    b.add<decl::Vector>("force").supports_field();
+  }
+  {
+    BehaviorDef &b = list->add("rigid_bodies");
+    b.add<decl::Geometry>("instances").supported_type(bke::GeometryComponent::Type::Instance);
+    b.add<decl::Int>("collision_shape_type").supports_field();
+    b.add<decl::Int>("motion_type").supports_field();
+    b.add<decl::Float>("friction").supports_field();
+    b.add<decl::Float>("bounciness").supports_field();
+    b.add<decl::Float>("density").supports_field();
+  }
+  {
+    BehaviorDef &b = list->add("soft_body");
+    b.add<decl::Geometry>("geometry").supported_type(bke::GeometryComponent::Type::Mesh);
+    b.add<decl::Float>("compliance").supports_field();
+    b.add<decl::Float>("shear_compliance").supports_field();
+    b.add<decl::Float>("bend_compliance").supports_field();
+    b.add<decl::Int>("bend_type").supports_field();
+  }
+  return list;
 }
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  static std::shared_ptr<const BehaviorsDef> behaviors_def = make_behaviors_def();
+  static std::shared_ptr<const BehaviorListDef> behaviors = make_behavior_list_def();
 
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Data");
   b.add_output<decl::Bundle>("Data").align_with_previous();
-  b.add_input<decl::Bundle>("Behavior").behaviors(behaviors_def);
+  b.add_input<decl::Bundle>("Behavior").behaviors(behaviors);
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
   b.add_input<decl::Int>("Substeps").default_value(1).min(1);
 }

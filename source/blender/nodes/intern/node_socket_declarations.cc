@@ -676,7 +676,7 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
   return socket;
 }
 
-BundleBuilder &BundleBuilder::behaviors(std::shared_ptr<const BehaviorsDef> behaviors)
+BundleBuilder &BundleBuilder::behaviors(std::shared_ptr<const BehaviorListDef> behaviors)
 {
   decl_->behaviors_ = behaviors;
   return *this;

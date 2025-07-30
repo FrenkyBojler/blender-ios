@@ -10,25 +10,68 @@
 
 #include "NOD_geometry_nodes_bundle_fwd.hh"
 #include "NOD_geometry_nodes_bundle_signature.hh"
+#include "NOD_node_declaration.hh"
 
 namespace blender::nodes {
 
-struct BehaviorDef {
-  std::string type;
-  BundleSignature signature;
-};
+class BehaviorDef {
+ public:
+  struct Item {
+    std::string name;
+    std::unique_ptr<SocketDeclaration> decl;
+  };
 
-struct BehaviorsDef {
-  struct BehaviorDefTypeGetter {
-    StringRef operator()(const BehaviorDef &def) const
+  struct ItemNameGetter {
+    std::string operator()(const Item &item)
     {
-      return def.type;
+      return item.name;
     }
   };
 
-  CustomIDVectorSet<BehaviorDef, BehaviorDefTypeGetter> behaviors;
+  std::string type;
+  CustomIDVectorSet<Item, ItemNameGetter> items;
 
-  void add(BehaviorDef behavior);
+  Vector<std::unique_ptr<BaseSocketDeclarationBuilder>> builders;
+
+  template<typename DeclType> typename DeclType::Builder &add(std::string name)
+  {
+    static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
+    using SocketBuilder = typename DeclType::Builder;
+
+    auto decl_ptr = std::make_unique<DeclType>();
+    DeclType &decl = *decl_ptr;
+
+    auto decl_builder_ptr = std::make_unique<SocketBuilder>();
+    SocketBuilder &decl_builder = *decl_builder_ptr;
+
+    decl_builder.decl_ = &decl;
+    decl_builder.decl_base_ = &decl;
+
+    decl.name = name;
+    decl.identifier = name;
+    decl.in_out = SOCK_IN;
+    decl.socket_type = DeclType::static_socket_type;
+
+    this->items.add_new(Item{std::move(name), std::move(decl_ptr)});
+    this->builders.append(std::move(decl_builder_ptr));
+    return decl_builder;
+  }
+
+  BundleSignature signature;
+};
+
+class BehaviorListDef {
+ public:
+  struct BehaviorDefTypeGetter {
+    StringRef operator()(const std::unique_ptr<BehaviorDef> &def) const
+    {
+      return def->type;
+    }
+  };
+
+  CustomIDVectorSet<std::unique_ptr<BehaviorDef>, BehaviorDefTypeGetter> behaviors;
+
+  BehaviorDef &add(std::string name);
 };
 
 namespace behaviors {
