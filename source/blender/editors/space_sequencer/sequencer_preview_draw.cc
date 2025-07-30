@@ -409,7 +409,6 @@ static rctf preview_get_reference_texture_coord(const SpaceSeq &space_sequencer,
 }
 
 static void add_vertical_line(const float val,
-                              const float x_scale,
                               View2D &v2d,
                               const float text_scale_x,
                               const float text_scale_y,
@@ -418,7 +417,7 @@ static void add_vertical_line(const float val,
 {
   const uchar col_grid[4] = {128, 128, 128, 128};
 
-  const float x = area.xmin + (area.xmax - area.xmin) * val * x_scale;
+  const float x = area.xmin + (area.xmax - area.xmin) * val;
 
   char buf[20];
   const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.2f", val);
@@ -447,36 +446,24 @@ static void draw_histogram(ARegion &region,
   UI_view2d_scale_get_inverse(&v2d, &text_scale_x, &text_scale_y);
 
   const float val_min = ScopeHistogram::bin_to_float(hist.bin_range.x);
-  float val_max = ScopeHistogram::bin_to_float(hist.bin_range.y);
-
-  /* Horizontally, scale the histogram range to ceil(max value), so that
-   * all of it fits into the view but small changes in maximum value between
-   * frames do no alter the scale.
-   *
-   * Some view transforms (AgX, Filmic) result in values just slightly above
-   * 1.0 range; if we find maximum to be within that range treat it as 1.0. */
-  if (val_max > 1.0f && val_max <= 1.0f + 2.0f / ScopeHistogram::BINS_01) {
-    val_max = 1.0f;
-  }
-  const float val_ceil = ceilf(std::max(val_max, 0.5f));
-  const float val_x_scale = 1.0f / val_ceil;
+  const float val_max = ScopeHistogram::bin_to_float(hist.bin_range.y);
 
   /* Grid lines covering 0..1 range, with 0.25 steps. */
   for (float val = 0.0f; val <= 1.0f; val += 0.25f) {
-    add_vertical_line(val, val_x_scale, v2d, text_scale_x, text_scale_y, quads, area);
+    add_vertical_line(val, v2d, text_scale_x, text_scale_y, quads, area);
   }
-  /* For HDR content, more lines every 1.0 step, up to displayed maximum value. */
-  for (float val = 2.0f; val <= val_ceil; val += 1.0f) {
-    add_vertical_line(val, val_x_scale, v2d, text_scale_x, text_scale_y, quads, area);
+  /* For HDR content, more lines every 1.0 step, up to maximum value. */
+  for (float val = 2.0f; val < val_max; val += 1.0f) {
+    add_vertical_line(val, v2d, text_scale_x, text_scale_y, quads, area);
   }
   /* Lines for minimum & maximum image values. */
-  add_vertical_line(val_min, val_x_scale, v2d, text_scale_x, text_scale_y, quads, area);
-  add_vertical_line(val_max, val_x_scale, v2d, text_scale_x, text_scale_y, quads, area);
+  add_vertical_line(val_min, v2d, text_scale_x, text_scale_y, quads, area);
+  add_vertical_line(val_max, v2d, text_scale_x, text_scale_y, quads, area);
 
   /* Horizontal lines covering min..max value range. */
   uchar col_border[4] = {64, 64, 64, 128};
-  const float x_val_min = area.xmin + (area.xmax - area.xmin) * val_min * val_x_scale;
-  const float x_val_max = area.xmin + (area.xmax - area.xmin) * val_max * val_x_scale;
+  const float x_val_min = area.xmin + (area.xmax - area.xmin) * val_min;
+  const float x_val_max = area.xmin + (area.xmax - area.xmin) * val_max;
   quads.add_line(x_val_min, area.ymin, x_val_max, area.ymin, col_border);
   quads.add_line(x_val_min, area.ymax, x_val_max, area.ymax, col_border);
 
@@ -492,7 +479,7 @@ static void draw_histogram(ARegion &region,
     col_line[ch] = 224;
     col_area[ch] = 224;
     float y_scale = (area.ymax - area.ymin) / hist.max_value[ch] * 0.95f;
-    float x_scale = (area.xmax - area.xmin) * val_x_scale;
+    float x_scale = (area.xmax - area.xmin);
     float yb = area.ymin;
     for (int bin = hist.bin_range.x; bin <= hist.bin_range.y; bin++) {
       uint bin_val = hist.data[bin][ch];
@@ -1155,7 +1142,8 @@ static bool preview_draw_begin(const bContext *C,
                                const RenderData &render_data,
                                const ColorManagedViewSettings &view_settings,
                                const ColorManagedDisplaySettings &display_settings,
-                               ARegion &region)
+                               ARegion &region,
+                               eSpaceSeq_RegionType preview_type)
 {
   sequencer_stop_running_jobs(C, CTX_data_sequencer_scene(C));
   if (G.is_rendering) {
@@ -1175,6 +1163,13 @@ static bool preview_draw_begin(const bContext *C,
   /* Setup view. */
   View2D &v2d = region.v2d;
   float viewrect[2];
+  /* For histogram view, allow arbitrary zoom. */
+  if (preview_type == SEQ_DRAW_IMG_HISTOGRAM) {
+    v2d.keepzoom &= ~(V2D_KEEPASPECT | V2D_KEEPZOOM);
+  }
+  else {
+    v2d.keepzoom |= V2D_KEEPASPECT | V2D_KEEPZOOM;
+  }
   sequencer_display_size(render_data, viewrect);
   UI_view2d_totRect_set(&v2d, roundf(viewrect[0]), roundf(viewrect[1]));
   UI_view2d_curRect_validate(&v2d);
@@ -1674,7 +1669,12 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   const Editing &editing = *scene->ed;
   const RenderData &render_data = scene->r;
 
-  if (!preview_draw_begin(C, render_data, scene->view_settings, scene->display_settings, *region))
+  if (!preview_draw_begin(C,
+                          render_data,
+                          scene->view_settings,
+                          scene->display_settings,
+                          *region,
+                          eSpaceSeq_RegionType(space_sequencer.mainb)))
   {
     sequencer_preview_draw_empty(*region);
     return;
