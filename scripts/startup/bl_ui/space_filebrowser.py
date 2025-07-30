@@ -516,8 +516,8 @@ class FILEBROWSER_MT_view(FileBrowserMenu, Menu):
 
         layout.separator()
 
-        layout.prop(filepaths, "show_recent_locations")
-        layout.prop(filepaths, "show_system_bookmarks")
+        layout.prop(filepaths, "show_recent_locations", text="Recent Locations")
+        layout.prop(filepaths, "show_system_bookmarks", text="System Locations")
 
         layout.separator()
 
