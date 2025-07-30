@@ -132,6 +132,8 @@ static void node_free_storage(bNode *node)
   socket_items::destruct_array<FileOutputItemsAccessor>(*node);
   NodeCompositorFileOutput &data = node_storage(*node);
   BKE_image_format_free(&data.format);
+  MEM_freeN(data.directory);
+  MEM_freeN(data.file_name);
   MEM_freeN(&data);
 }
 
@@ -142,6 +144,8 @@ static void node_copy_storage(bNodeTree * /*destination_node_tree*/,
   const NodeCompositorFileOutput &source_storage = node_storage(*source_node);
   NodeCompositorFileOutput *destination_storage = MEM_dupallocN<NodeCompositorFileOutput>(
       __func__, source_storage);
+  destination_storage->directory = BLI_strdup(source_storage.directory);
+  destination_storage->file_name = BLI_strdup(source_storage.file_name);
   BKE_image_format_copy(&destination_storage->format, &source_storage.format);
   destination_node->storage = destination_storage;
   socket_items::copy_array<FileOutputItemsAccessor>(*source_node, *destination_node);
@@ -225,8 +229,7 @@ static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *poin
   node_layout(layout, context, pointer);
 
   PointerRNA format_pointer = RNA_pointer_get(pointer, "format");
-  const bool is_multi_layer = RNA_enum_get(&format_pointer, "file_format") ==
-                              R_IMF_IMTYPE_MULTILAYER;
+  layout->prop(&format_pointer, "media_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   if (uiLayout *panel = layout->panel(context, "node_format", false, IFACE_("Node Format"))) {
     format_layout(panel, context, &format_pointer, pointer);
   }
@@ -238,6 +241,8 @@ static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *poin
     bNode &node = *pointer->data_as<bNode>();
     socket_items::ui::draw_items_list_with_operators<FileOutputItemsAccessor>(
         context, panel, tree, node);
+    const bool is_multi_layer = RNA_enum_get(&format_pointer, "file_format") ==
+                                R_IMF_IMTYPE_MULTILAYER;
     socket_items::ui::draw_active_item_props<FileOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_pointer) {
           item_layout(panel, context, item_pointer, is_multi_layer);
