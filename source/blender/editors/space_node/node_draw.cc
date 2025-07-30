@@ -2504,18 +2504,20 @@ static void node_draw_extra_info_row(const bNode &node,
                                  0,
                                  0,
                                  extra_info_row.tooltip);
+  if (extra_info_row.execute_fn) {
+    UI_but_func_set(but_icon, extra_info_row.execute_fn);
+  }
   if (extra_info_row.tooltip_fn != nullptr) {
     UI_but_func_tooltip_set(
         but_icon, extra_info_row.tooltip_fn, tooltip_arg, extra_info_row.tooltip_fn_free_arg);
   }
-  UI_block_emboss_set(&block, ui::EmbossType::Emboss);
 
   const float but_text_left = but_icon_right + 6.0f * UI_SCALE_FAC;
   const float but_text_right = rect.xmax;
   const float but_text_width = but_text_right - but_text_left;
 
   uiBut *but_text = uiDefBut(&block,
-                             ButType::Label,
+                             extra_info_row.execute_fn ? ButType::But : ButType::Label,
                              0,
                              extra_info_row.text.c_str(),
                              int(but_text_left),
@@ -2526,7 +2528,10 @@ static void node_draw_extra_info_row(const bNode &node,
                              0,
                              0,
                              extra_info_row.tooltip);
-
+  UI_but_drawflag_enable(but_text, UI_BUT_TEXT_LEFT);
+  if (extra_info_row.execute_fn) {
+    UI_but_func_set(but_text, extra_info_row.execute_fn);
+  }
   if (extra_info_row.tooltip_fn != nullptr) {
     /* Don't pass tooltip free function because it's already used on the uiBut above. */
     UI_but_func_tooltip_set(but_text, extra_info_row.tooltip_fn, tooltip_arg, nullptr);
@@ -2536,6 +2541,8 @@ static void node_draw_extra_info_row(const bNode &node,
     UI_but_flag_enable(but_text, UI_BUT_INACTIVE);
     UI_but_flag_enable(but_icon, UI_BUT_INACTIVE);
   }
+
+  UI_block_emboss_set(&block, ui::EmbossType::Emboss);
 }
 
 static void node_draw_extra_info_panel_back(const bNode &node, const rctf &extra_info_rect)

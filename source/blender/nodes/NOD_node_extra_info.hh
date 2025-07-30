@@ -19,6 +19,8 @@ struct NodeExtraInfoRow {
   void *tooltip_fn_arg = nullptr;
   void (*tooltip_fn_free_arg)(void *) = nullptr;
   void *(*tooltip_fn_copy_arg)(void *) = nullptr;
+
+  std::function<void(bContext &)> execute_fn;
 };
 
 struct NodeExtraInfoParams {

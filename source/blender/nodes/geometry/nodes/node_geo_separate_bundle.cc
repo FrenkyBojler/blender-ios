@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_node_extra_info.hh"
 #include "node_geometry_util.hh"
 
 #include "ED_screen.hh"
@@ -203,6 +204,43 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<SeparateBundleItemsAccessor>(&reader, node);
 }
 
+static void node_extra_info(NodeExtraInfoParams &params)
+{
+  const SpaceNode *snode = CTX_wm_space_node(&params.C);
+  const bNode &node = params.node;
+  const NodeGeometrySeparateBundle &storage = node_storage(node);
+  if (snode && storage.flag & NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC) {
+    const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_separate_bundle(
+        *snode, node);
+    switch (state) {
+      case ed::space_node::NodeSyncState::NoSyncSource:
+      case ed::space_node::NodeSyncState::Synced: {
+        const_cast<NodeGeometrySeparateBundle &>(storage).flag &=
+            ~NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC;
+        break;
+      }
+      case ed::space_node::NodeSyncState::CanBeSynced: {
+        NodeExtraInfoRow row;
+        row.text = TIP_("Sync");
+        row.icon = ICON_FILE_REFRESH;
+        row.tooltip = TIP_("Update the sockets in this node based on what is connected");
+        row.execute_fn = [node = &params.node](bContext &C) {
+          wmOperatorType *ot = WM_operatortype_find("NODE_OT_sockets_sync", false);
+          PointerRNA op_props;
+          WM_operator_properties_create_ptr(&op_props, ot);
+          RNA_string_set(&op_props, "node_name", node->name);
+          WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::InvokeDefault, &op_props, nullptr);
+        };
+        params.rows.append(std::move(row));
+        break;
+      }
+      case ed::space_node::NodeSyncState::ConflictingSyncSources: {
+        break;
+      }
+    }
+  }
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -219,6 +257,7 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.register_operators = node_operators;
+  ntype.get_extra_info = node_extra_info;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_type_storage(
