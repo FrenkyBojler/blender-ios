@@ -8,7 +8,7 @@
 #include "DNA_pointcloud_types.h"
 #include "GEO_xpbd.hh"
 
-#include "NOD_geometry_nodes_behaviors_bundle.hh"
+#include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
 namespace blender::geometry::xpbd {

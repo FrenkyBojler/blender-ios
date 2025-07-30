@@ -107,7 +107,7 @@ set(SRC
   NOD_derived_node_tree.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
-  NOD_geometry_nodes_behaviors_bundle.hh
+  NOD_geometry_nodes_behaviors.hh
   NOD_geometry_nodes_bundle.hh
   NOD_geometry_nodes_bundle_fwd.hh
   NOD_geometry_nodes_bundle_signature.hh

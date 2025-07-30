@@ -10,7 +10,7 @@
 #include "BLI_threads.h"
 #include "DNA_mesh_types.h"
 #include "GEO_shape_hash.hh"
-#include "NOD_geometry_nodes_behaviors_bundle.hh"
+#include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
 #include "node_geometry_util.hh"

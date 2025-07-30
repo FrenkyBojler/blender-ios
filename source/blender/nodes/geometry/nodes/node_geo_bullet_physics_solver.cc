@@ -19,7 +19,7 @@
 
 #include <btBulletDynamicsCommon.h>
 
-#include "NOD_geometry_nodes_behaviors_bundle.hh"
+#include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
 #include "BLI_bounds.hh"
