@@ -357,6 +357,36 @@ const EnumPropertyItem rna_enum_fileselect_params_sort_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem rna_enum_asset_import_method_items[] = {
+    {FILE_ASSET_IMPORT_FOLLOW_PREFS,
+     "FOLLOW_PREFS",
+     0,
+     "Follow Preferences",
+     "Use the import method set in the Preferences for this asset library, don't override it "
+     "for this Asset Browser"},
+    {FILE_ASSET_IMPORT_LINK, "LINK", 0, "Link", "Import the assets as linked data-block"},
+    {FILE_ASSET_IMPORT_APPEND,
+     "APPEND",
+     0,
+     "Append",
+     "Import the assets as copied data-block, with no link to the original asset data-block"},
+    {FILE_ASSET_IMPORT_APPEND_REUSE,
+     "APPEND_REUSE",
+     0,
+     "Append (Reuse Data)",
+     "Import the assets as copied data-block while avoiding multiple copies of nested, "
+     "typically heavy data. For example the textures of a material asset, or the mesh of an "
+     "object asset, don't have to be copied every time this asset is imported. The instances of "
+     "the asset share the data instead"},
+    {FILE_ASSET_IMPORT_PACK,
+     "PACK",
+     0,
+     "Pack",
+     "Import the assets as linked data-block, but also pack it in the current file to keep it "
+     "working even if the source file is not available anymore"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #ifndef RNA_RUNTIME
 static const EnumPropertyItem stereo3d_eye_items[] = {
     {STEREO_LEFT_ID, "LEFT_EYE", ICON_NONE, "Left Eye"},
@@ -3734,6 +3764,27 @@ static void rna_FileAssetSelectParams_catalog_id_set(PointerRNA *ptr, const char
 
   params->catalog_id = new_uuid;
   params->asset_catalog_visibility = FILE_SHOW_ASSETS_FROM_CATALOG;
+}
+
+static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
+    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+{
+  EnumPropertyItem *items = nullptr;
+  int items_num = 0;
+  for (const EnumPropertyItem *item = rna_enum_asset_import_method_items; item->identifier; item++)
+  {
+    if (item->value == ASSET_IMPORT_PACK) {
+      if (U.experimental.use_data_block_packing) {
+        RNA_enum_item_add(&items, &items_num, item);
+      }
+    }
+    else {
+      RNA_enum_item_add(&items, &items_num, item);
+    }
+  }
+  RNA_enum_item_end(&items, &items_num);
+  *r_free = true;
+  return items;
 }
 
 #else
@@ -7503,36 +7554,6 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem asset_import_method_items[] = {
-      {FILE_ASSET_IMPORT_FOLLOW_PREFS,
-       "FOLLOW_PREFS",
-       0,
-       "Follow Preferences",
-       "Use the import method set in the Preferences for this asset library, don't override it "
-       "for this Asset Browser"},
-      {FILE_ASSET_IMPORT_LINK, "LINK", 0, "Link", "Import the assets as linked data-block"},
-      {FILE_ASSET_IMPORT_APPEND,
-       "APPEND",
-       0,
-       "Append",
-       "Import the assets as copied data-block, with no link to the original asset data-block"},
-      {FILE_ASSET_IMPORT_APPEND_REUSE,
-       "APPEND_REUSE",
-       0,
-       "Append (Reuse Data)",
-       "Import the assets as copied data-block while avoiding multiple copies of nested, "
-       "typically heavy data. For example the textures of a material asset, or the mesh of an "
-       "object asset, don't have to be copied every time this asset is imported. The instances of "
-       "the asset share the data instead"},
-      {FILE_ASSET_IMPORT_PACK,
-       "PACK",
-       0,
-       "Pack",
-       "Import the assets as linked data-block, but also pack it in the current file to keep it "
-       "working even if the source file is not available anymore"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   srna = RNA_def_struct(brna, "FileAssetSelectParams", "FileSelectParams");
   RNA_def_struct_ui_text(
       srna, "Asset Select Parameters", "Settings for the file selection in Asset Browser mode");
@@ -7561,7 +7582,9 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
                            "Which asset types to show/hide, when browsing an asset library");
 
   prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, asset_import_method_items);
+  RNA_def_property_enum_items(prop, rna_enum_asset_import_method_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, nullptr, "rna_FileAssetSelectParams_import_method_itemf");
   RNA_def_property_ui_text(prop, "Import Method", "Determine how the asset will be imported");
   /* Asset drag info saved by buttons stores the import method, so the space must redraw when
    * import method changes. */

@@ -29,7 +29,13 @@ ID *asset_local_id_ensure_imported(Main &bmain, const asset_system::AssetReprese
     return nullptr;
   }
 
-  switch (asset.get_import_method().value_or(ASSET_IMPORT_PACK)) {
+  eAssetImportMethod import_method = asset.get_import_method().value_or(
+      U.experimental.use_data_block_packing ? ASSET_IMPORT_PACK : ASSET_IMPORT_APPEND_REUSE);
+  if (!U.experimental.use_data_block_packing && import_method == ASSET_IMPORT_PACK) {
+    import_method = ASSET_IMPORT_APPEND_REUSE;
+  }
+
+  switch (import_method) {
     case ASSET_IMPORT_LINK:
       return WM_file_link_datablock(&bmain,
                                     nullptr,

@@ -373,7 +373,12 @@ void *AssetDragController::create_drag_data() const
     return static_cast<void *>(local_id);
   }
 
-  const eAssetImportMethod import_method = asset_.get_import_method().value_or(ASSET_IMPORT_PACK);
+  eAssetImportMethod import_method = asset_.get_import_method().value_or(
+      U.experimental.use_data_block_packing ? ASSET_IMPORT_PACK : ASSET_IMPORT_APPEND_REUSE);
+  if (!U.experimental.use_data_block_packing && import_method == ASSET_IMPORT_PACK) {
+    import_method = ASSET_IMPORT_APPEND_REUSE;
+  }
+
   AssetImportSettings import_settings{};
   import_settings.method = import_method;
   import_settings.use_instance_collections = false;
