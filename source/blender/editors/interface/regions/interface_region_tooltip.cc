@@ -41,7 +41,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_id_hash.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_library.hh"
@@ -1158,17 +1157,6 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                                                      id->lib->filepath;
         UI_tooltip_text_field_add(
             *data, fmt::format("{}: {}", title, path), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
-        if (ID_IS_PACKED(id)) {
-          const IDHash &deep_hash = id->deep_hash;
-          BLI_assert(!deep_hash.is_null());
-          const std::string deep_hash_str = blender::bke::id_hash::id_hash_to_hex(deep_hash);
-          UI_tooltip_text_field_add(
-              *data,
-              fmt::format(fmt::runtime(TIP_("Packed Data-block Identifier: {}")), deep_hash_str),
-              {},
-              UI_TIP_STYLE_NORMAL,
-              UI_TIP_LC_NORMAL);
-        }
       }
     }
   }
