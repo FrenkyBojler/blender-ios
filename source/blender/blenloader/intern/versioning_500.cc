@@ -1458,8 +1458,7 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
    * simulate the same effect by creating a new Material Output node and setting it to active. */
   bNodeTree *ntree = material->nodetree;
   if (ntree == nullptr) {
-    /* In case the material was defined through Python API it might have been missing a node tree.
-     */
+    /* In case the material was created in Python API it might have been missing a node tree. */
     ntree = blender::bke::node_tree_add_tree_embedded(
         bmain, &material->id, "Material Node Tree Versioning", "ShaderNodeTree");
   }
@@ -1475,23 +1474,40 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
   bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputMaterial");
   bNodeSocket &output_surface_input = version_node_add_socket(
       *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
+  bNodeSocket &output_surface_input = version_node_add_socket(
+      *ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
+  bNodeSocket &output_surface_input = version_node_add_socket(
+      *ntree, new_output, SOCK_IN, "NodeSocketVector", "Displacement");
+  bNodeSocket &output_surface_input = version_node_add_socket(
+      *ntree, new_output, SOCK_IN, "NodeSocketFloat", "Thickness");
+
   version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
   new_output.flag |= NODE_DO_OUTPUT;
 
-  bNode &shader = version_node_add_empty(*ntree, "ShaderNodeBsdfPrincipled");
-  bNodeSocket &shader_bsdf_output = version_node_add_socket(
-      *ntree, shader, SOCK_OUT, "NodeSocketShader", "BSDF");
-  bNodeSocket &shader_color_input = version_node_add_socket(
-      *ntree, shader, SOCK_IN, "NodeSocketColor", "Base Color");
-  bNodeSocket &specular_input = version_node_add_socket(
-      *ntree, shader, SOCK_IN, "NodeSocketFloat", "Specular IOR Level");
-  bNodeSocket &metallic_input = version_node_add_socket(
-      *ntree, shader, SOCK_IN, "NodeSocketFloat", "Metallic");
-  bNodeSocket &roughness_input = version_node_add_socket(
-      *ntree, shader, SOCK_IN, "NodeSocketFloat", "Roughness");
-  // todo(habib): add the rest of the 500 sockets
+  // todo(habib): use version_node_add_empty and add the 500 bsdf sockets :()
+  bNode &shader = *blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
+  bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(shader, SOCK_OUT, "BSDF");
+  bNodeSocket &shader_color_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Base Color");
+  bNodeSocket &specular_input = *blender::bke::node_find_socket(
+      shader, SOCK_IN, "Specular IOR Level");
+  bNodeSocket &metallic_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Metallic");
+  bNodeSocket &roughness_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Roughness");
 
-  version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);
+  // bNode &shader = version_node_add_empty(*ntree, "ShaderNodeBsdfPrincipled");
+  // bNodeSocket &shader_bsdf_output = version_node_add_socket(
+  //     *ntree, shader, SOCK_OUT, "NodeSocketShader", "BSDF");
+  // bNodeSocket &shader_color_input = version_node_add_socket(
+  //     *ntree, shader, SOCK_IN, "NodeSocketColor", "Base Color");
+  // bNodeSocket &specular_input = version_node_add_socket(
+  //     *ntree, shader, SOCK_IN, "NodeSocketFloat", "Specular IOR Level");
+  // bNodeSocket &metallic_input = version_node_add_socket(
+  //     *ntree, shader, SOCK_IN, "NodeSocketFloat", "Metallic");
+  // bNodeSocket &roughness_input = version_node_add_socket(
+  //     *ntree, shader, SOCK_IN, "NodeSocketFloat", "Roughness");
+
+  blender::bke::node_add_link(
+      *ntree, shader, shader_bsdf_output, new_output, output_surface_input);
+  // version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);
 
   bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
   rgba->value[0] = material->r;
@@ -1501,8 +1517,6 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
   roughness_input.default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
   metallic_input.default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
   specular_input.default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
-
-  // todo(habib): metallic, roughnes and specular
 
   if (old_output != nullptr) {
     /* Position the newly created node after the old output. Assume the old output node is at
@@ -2069,7 +2083,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 46)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 47)) {
     LISTBASE_FOREACH (Material *, material, &bmain->materials) {
       do_version_material_remove_use_nodes(bmain, material);
     }
