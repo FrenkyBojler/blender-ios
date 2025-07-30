@@ -9,6 +9,7 @@
 
 #include <iomanip>
 
+#include "BKE_idprop.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_light_types.h"
@@ -2864,6 +2865,31 @@ static void node_draw_basis(const bContext &C,
     }
     UI_block_emboss_set(&block, ui::EmbossType::Emboss);
   }
+
+  if (node.typeinfo->can_sync_sockets && node.typeinfo->can_sync_sockets(C, ntree, node)) {
+    iconofs -= iconbutw;
+    UI_block_emboss_set(&block, ui::EmbossType::None);
+    uiBut *but = uiDefIconBut(&block,
+                              ButType::ButToggle,
+                              0,
+                              ICON_FILE_REFRESH,
+                              iconofs,
+                              rct.ymax - NODE_DY,
+                              iconbutw,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              "");
+
+    wmOperatorType *ot = WM_operatortype_find("NODE_OT_sockets_sync", false);
+    UI_but_operator_set(but, ot, wm::OpCallContext::InvokeDefault);
+    PointerRNA *opptr = UI_but_operator_ptr_ensure(but);
+    opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
+    RNA_string_set(opptr, "node_name", node.name);
+    UI_block_emboss_set(&block, ui::EmbossType::Emboss);
+  }
+
   /* Preview. */
   if (node_is_previewable(snode, ntree, node)) {
     const bool is_active = node.flag & NODE_PREVIEW;

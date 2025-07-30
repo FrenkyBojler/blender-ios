@@ -7,7 +7,6 @@
 #include "ED_screen.hh"
 
 #include "NOD_geo_bundle.hh"
-#include "NOD_node_extra_info.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -180,40 +179,35 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<SeparateBundleItemsAccessor>(&reader, node);
 }
 
-static void node_extra_info(NodeExtraInfoParams &params)
+static bool node_can_sync_sockets(const bContext &C,
+                                  const bNodeTree & /*ntree*/,
+                                  const bNode &node)
 {
-  const SpaceNode *snode = CTX_wm_space_node(&params.C);
-  const bNode &node = params.node;
+  const SpaceNode *snode = CTX_wm_space_node(&C);
+  if (!snode) {
+    return false;
+  }
   const NodeGeometrySeparateBundle &storage = node_storage(node);
-  if (snode && storage.flag & NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC) {
-    const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_separate_bundle(
-        *snode, node);
-    switch (state) {
-      case ed::space_node::NodeSyncState::NoSyncSource:
-      case ed::space_node::NodeSyncState::Synced: {
-        const_cast<NodeGeometrySeparateBundle &>(storage).flag &=
-            ~NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC;
-        break;
-      }
-      case ed::space_node::NodeSyncState::CanBeSynced: {
-        NodeExtraInfoRow row;
-        row.text = TIP_("Sync");
-        row.icon = ICON_FILE_REFRESH;
-        row.set_execute_fn = [node = &params.node](uiBut &but) {
-          wmOperatorType *ot = WM_operatortype_find("NODE_OT_sockets_sync", false);
-          UI_but_operator_set(&but, ot, wm::OpCallContext::InvokeDefault);
-          PointerRNA *opptr = UI_but_operator_ptr_ensure(&but);
-          opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
-          RNA_string_set(opptr, "node_name", node->name);
-        };
-        params.rows.append(std::move(row));
-        break;
-      }
-      case ed::space_node::NodeSyncState::ConflictingSyncSources: {
-        break;
-      }
+  if (!(storage.flag & NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC)) {
+    return false;
+  }
+  const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_separate_bundle(
+      *snode, node);
+  switch (state) {
+    case ed::space_node::NodeSyncState::NoSyncSource:
+    case ed::space_node::NodeSyncState::Synced: {
+      const_cast<NodeGeometrySeparateBundle &>(storage).flag &=
+          ~NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC;
+      break;
+    }
+    case ed::space_node::NodeSyncState::CanBeSynced: {
+      return true;
+    }
+    case ed::space_node::NodeSyncState::ConflictingSyncSources: {
+      break;
     }
   }
+  return false;
 }
 
 static void node_register()
@@ -231,9 +225,9 @@ static void node_register()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.register_operators = node_operators;
-  ntype.get_extra_info = node_extra_info;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.can_sync_sockets = node_can_sync_sockets;
   bke::node_type_storage(
       ntype, "NodeGeometrySeparateBundle", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
