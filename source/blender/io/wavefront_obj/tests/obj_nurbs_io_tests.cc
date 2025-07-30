@@ -37,8 +37,6 @@ static OBJImportParams default_import_params(const std::string &filepath)
   return params;
 }
 
-/* Test class intended for
- */
 class OBJCurvesTest : public testing::Test {
  public:
   static void SetUpTestSuite()
@@ -191,7 +189,7 @@ TEST_F(OBJCurvesTest, nurbs_io_uniform_polyline)
   const bke::CurvesGeometry *result;
   run_nurbs_test(positions, order, mode, cyclic, src, result, positions, &expected_mode);
 
-  /* Validate uniform, don't generally do it as it only tests
+  /* Validate uniform knots, don't do this in general as it only verifies the knot generator
    * `bke::curves::nurbs::calculate_knots`.  */
   Vector<float> knot_buffer(bke::curves::nurbs::knots_num(positions.size(), order, cyclic));
   bke::curves::nurbs::calculate_knots(positions.size(), mode, order, cyclic, knot_buffer);
