@@ -77,6 +77,7 @@ class AbstractView {
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
   bool is_multiselect_supported_ = false;
+  bool clear_selection_ = true;
 
  public:
   virtual ~AbstractView() = default;

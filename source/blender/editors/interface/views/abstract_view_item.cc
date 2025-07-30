@@ -107,7 +107,11 @@ void AbstractViewItem::change_state_delayed()
     if (*should_be_active) {
       /* Don't call #activate() here, since this reflects an external state change and therefore
        * shouldn't call #on_activate(). */
-      set_state_active();
+      if (set_state_active() && view_->clear_selection_) {
+        /* Clear select flag from all elements if active is changed outside of click selection, see
+         * #143187. */
+        this->get_view().foreach_view_item([](auto &item) { item.set_selected(false); });
+      }
     }
     else if (is_active_) {
       is_active_ = false;
