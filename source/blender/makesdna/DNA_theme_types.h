@@ -109,11 +109,32 @@ typedef struct uiStyle {
 typedef struct ThemeCommonAnim {
   /** Preview range overlay. */
   unsigned char preview_range[4];
+  char _pad[4];
 } ThemeCommonAnim;
+
+typedef struct ThemeCommonCurves {
+  /** NURB lines. */
+  unsigned char nurb_uline[4], nurb_vline[4];
+  unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4], lastsel_point[4];
+
+  /** Curve handles. */
+  unsigned char handle_free[4], handle_auto[4], handle_vect[4], handle_align[4],
+      handle_auto_clamped[4];
+  unsigned char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4],
+      handle_sel_auto_clamped[4];
+
+  /** Curve points. */
+  unsigned char handle_vertex[4];
+  unsigned char handle_vertex_select[4];
+  unsigned char handle_vertex_size;
+
+  char _pad0[3];
+} ThemeCommonCurves;
 
 typedef struct ThemeCommon {
   ThemeCommonAnim anim;
-  char _pad[4];
+  ThemeCommonCurves curves;
+  char _pad0[4];
 } ThemeCommon;
 
 typedef struct uiWidgetColors {
@@ -301,14 +322,6 @@ typedef struct ThemeSpace {
   unsigned char time_scrub_background[4];
   unsigned char time_marker_line[4], time_marker_line_selected[4];
 
-  unsigned char nurb_uline[4], nurb_vline[4];
-  unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4], lastsel_point[4];
-
-  unsigned char handle_free[4], handle_auto[4], handle_vect[4], handle_align[4],
-      handle_auto_clamped[4];
-  unsigned char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4],
-      handle_sel_auto_clamped[4];
-
   /** Dope-sheet. */
   unsigned char ds_channel[4], ds_subchannel[4], ds_ipoline[4];
   /** Key-types. */
@@ -359,11 +372,7 @@ typedef struct ThemeSpace {
   float keyframe_scale_fac;
 
   unsigned char editmesh_active[4];
-
-  unsigned char handle_vertex[4];
-  unsigned char handle_vertex_select[4];
-
-  unsigned char handle_vertex_size;
+  char _pad9[1];
 
   unsigned char clipping_border_3d[4];
 
