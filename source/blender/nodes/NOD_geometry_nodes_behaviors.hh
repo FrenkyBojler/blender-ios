@@ -35,6 +35,8 @@ class BehaviorDef {
 
   Vector<std::unique_ptr<BaseSocketDeclarationBuilder>> builders;
 
+  BundleSignature to_bundle_signature() const;
+
   template<typename DeclType> typename DeclType::Builder &add(std::string name)
   {
     static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
@@ -100,6 +102,7 @@ class BehaviorRegistry {
   void add(std::shared_ptr<const BehaviorListDef> behavior_list_def);
 
   VectorSet<std::string> get_all_behavior_names() const;
+  VectorSet<std::shared_ptr<const BehaviorDef>> get_behaviors_by_type(StringRef type) const;
 };
 
 BehaviorRegistry &get_behavior_registry();

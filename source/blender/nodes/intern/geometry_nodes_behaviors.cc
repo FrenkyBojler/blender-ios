@@ -35,10 +35,34 @@ VectorSet<std::string> BehaviorRegistry::get_all_behavior_names() const
   return names;
 }
 
+VectorSet<std::shared_ptr<const BehaviorDef>> BehaviorRegistry::get_behaviors_by_type(
+    const StringRef type) const
+{
+  VectorSet<std::shared_ptr<const BehaviorDef>> behaviors;
+  for (const std::shared_ptr<const BehaviorListDef> &behavior_list_def : behavior_list_defs_) {
+    for (const std::shared_ptr<BehaviorDef> &behavior_def : behavior_list_def->behaviors) {
+      if (behavior_def->type == type) {
+        behaviors.add(behavior_def);
+      }
+    }
+  }
+  return behaviors;
+}
+
 BehaviorRegistry &get_behavior_registry()
 {
   static BehaviorRegistry registry;
   return registry;
+}
+
+BundleSignature BehaviorDef::to_bundle_signature() const
+{
+  BundleSignature signature;
+  signature.add(Bundle::type_item_name, SOCK_STRING);
+  for (const Item &item : this->items) {
+    signature.add(item.name, item.decl->socket_type);
+  }
+  return signature;
 }
 
 }  // namespace blender::nodes
@@ -51,7 +75,9 @@ static void foreach_behavior_recursive(
     const FunctionRef<void(StringRef type, const Bundle &behavior_bundle, Span<StringRef> path)>
         fn)
 {
-  if (const std::optional<std::string> type = behaviors_bundle.lookup<std::string>("Type")) {
+  if (const std::optional<std::string> type = behaviors_bundle.lookup<std::string>(
+          Bundle::type_item_name))
+  {
     if (type->empty()) {
       return;
     }
