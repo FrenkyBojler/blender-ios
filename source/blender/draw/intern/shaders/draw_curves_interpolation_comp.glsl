@@ -496,10 +496,10 @@ void evaluate_length_and_time(const IndexRange evaluated_points, const int curve
 
 template<typename InterpType> void evaluate_curve(const InterpType interp_type)
 {
-  int curve_index = int(gl_GlobalInvocationID.x);
-  if (curve_index >= curves_count) {
+  if (gl_GlobalInvocationID.x >= uint(curves_count)) {
     return;
   }
+  int curve_index = int(gl_GlobalInvocationID.x) + curves_start;
 
   const CurveType curve_type = CurveType(curves_type_buf[curve_index]);
   if (curve_type != CurveType(evaluated_type)) {

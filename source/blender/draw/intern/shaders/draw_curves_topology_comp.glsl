@@ -13,10 +13,10 @@ COMPUTE_SHADER_CREATE_INFO(draw_curves_topology)
 
 void main()
 {
-  uint curve_id = gl_GlobalInvocationID.x;
-  if (curve_id >= uint(curves_count)) {
+  if (gl_GlobalInvocationID.x >= uint(curves_count)) {
     return;
   }
+  uint curve_id = gl_GlobalInvocationID.x + uint(curves_start);
 
   uint index_start = evaluated_offsets_buf[curve_id];
   uint num_segment = evaluated_offsets_buf[curve_id + 1] - index_start;

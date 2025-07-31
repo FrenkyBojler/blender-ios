@@ -8,9 +8,16 @@
 
 #pragma once
 
+#include "draw_curves_private.hh"
 #include "draw_pass.hh"
 
+namespace blender::bke {
+class CurvesGeometry;
+}
+
 namespace blender::draw {
+
+struct CurvesEvalCache;
 
 class CurveRefinePass : public PassSimple {
  public:
@@ -42,6 +49,9 @@ struct CurvesUniformBufPool {
 struct CurvesModule {
   CurvesUniformBufPool ubo_pool;
   CurveRefinePass refine = {"CurvesEvalPass"};
+  /* Contains all transient input buffers contained inside `refine`.
+   * Cleared after update. */
+  Vector<gpu::VertBufPtr> transient_buffers;
 
   gpu::VertBuf *dummy_vbo = drw_curves_ensure_dummy_vbo();
 
@@ -58,8 +68,40 @@ struct CurvesModule {
     refine.state_set(DRW_STATE_NO_DRAW);
   }
 
+  /* Record evaluation inside `refine`.
+   * Output will be ready once `refine` pass has been submitted. */
+  void evaluate_curve_attribute(const bke::CurvesGeometry &curve,
+                                struct CurvesEvalCache &cache,
+                                CurvesEvalShader shader_type,
+                                gpu::VertBufPtr input_buf,
+                                gpu::VertBufPtr &output_buf,
+                                /* For radius during position evaluation. */
+                                gpu::VertBuf *input2_buf = nullptr);
+
+  void evaluate_positions(const bke::CurvesGeometry &curve,
+                          struct CurvesEvalCache &cache,
+                          gpu::VertBufPtr input_pos_buf,
+                          gpu::VertBufPtr input_rad_buf,
+                          gpu::VertBufPtr &output_pos_buf)
+  {
+    evaluate_curve_attribute(curve,
+                             cache,
+                             CURVES_EVAL_POSITION,
+                             std::move(input_pos_buf),
+                             output_pos_buf,
+                             /* Transfer ownership through optional argument. */
+                             input_rad_buf.release());
+  }
+
+  void evaluate_topology_indirection(const bke::CurvesGeometry &curve,
+                                     struct CurvesEvalCache &cache,
+                                     bool is_ribbon,
+                                     gpu::VertBufPtr &output_indirection_buf);
+
  private:
   gpu::VertBuf *drw_curves_ensure_dummy_vbo();
+
+  void dispatch(const bke::CurvesGeometry &curve, PassSimple::Sub &pass);
 };
 
 }  // namespace blender::draw

@@ -39,29 +39,21 @@ static void test_draw_curves_lib()
   indirection_cylinder_buf->data<int>().copy_from({0, -1, -2, -3, 1, -1});
   gpu::Batch *batch_cylinder = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, (3 * 2 + 1) * 6);
 
-  struct Position {
+  struct PositionRadius {
     float3 pos;
-    GPU_VERTEX_FORMAT_FUNC(Position, pos);
+    GPU_VERTEX_FORMAT_FUNC(PositionRadius, pos);
   };
-  gpu::VertBuf *pos_buf = GPU_vertbuf_create_with_format_ex(Position::format(),
-                                                            GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-  pos_buf->allocate(8);
-  pos_buf->data<float3>().copy_from({float3{1.0f},
-                                     float3{0.75f},
-                                     float3{0.5f},
-                                     float3{0.25f},
-                                     float3{0.0f},
-                                     float3{0.0f},
-                                     float3{1.0f},
-                                     float3{2.0f}});
-  struct Radius {
-    float rad;
-    GPU_VERTEX_FORMAT_FUNC(Radius, rad);
-  };
-  gpu::VertBuf *rad_buf = GPU_vertbuf_create_with_format_ex(Radius::format(),
-                                                            GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-  rad_buf->allocate(8);
-  rad_buf->data<float>().copy_from({1.0f, 0.75f, 0.5f, 0.25f, 0.0f, 0.0f, 1.0f, 2.0f});
+  gpu::VertBuf *pos_rad_buf = GPU_vertbuf_create_with_format_ex(
+      PositionRadius::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  pos_rad_buf->allocate(8);
+  pos_rad_buf->data<float4>().copy_from({float4{1.0f},
+                                         float4{0.75f},
+                                         float4{0.5f},
+                                         float4{0.25f},
+                                         float4{0.0f},
+                                         float4{0.0f},
+                                         float4{1.0f},
+                                         float4{2.0f}});
 
   UniformBuffer<CurvesInfos> curves_info_buf;
   curves_info_buf.is_point_attribute[0].x = 0;
@@ -81,11 +73,11 @@ static void test_draw_curves_lib()
     result_idx.clear_to_zero();
 
     PassSimple pass("Ribbon Curves");
+    pass.init();
     pass.framebuffer_set(&fb);
     pass.shader_set(sh);
     pass.bind_ubo("drw_curves", curves_info_buf);
-    pass.bind_texture("curves_pos_buf", pos_buf);
-    pass.bind_texture("curves_rad_buf", rad_buf);
+    pass.bind_texture("curves_pos_rad_buf", pos_rad_buf);
     pass.bind_texture("curves_indirection_buf", indirection_ribbon_buf);
     pass.bind_ssbo("result_pos_buf", result_pos);
     pass.bind_ssbo("result_indices_buf", result_idx);
@@ -154,8 +146,7 @@ static void test_draw_curves_lib()
     pass.framebuffer_set(&fb);
     pass.shader_set(sh);
     pass.bind_ubo("drw_curves", curves_info_buf);
-    pass.bind_texture("curves_pos_buf", pos_buf);
-    pass.bind_texture("curves_rad_buf", rad_buf);
+    pass.bind_texture("curves_pos_rad_buf", pos_rad_buf);
     pass.bind_texture("curves_indirection_buf", indirection_cylinder_buf);
     pass.bind_ssbo("result_pos_buf", result_pos);
     pass.bind_ssbo("result_indices_buf", result_idx);
@@ -268,8 +259,7 @@ static void test_draw_curves_lib()
   GPU_BATCH_DISCARD_SAFE(batch_cylinder);
   GPU_VERTBUF_DISCARD_SAFE(indirection_ribbon_buf);
   GPU_VERTBUF_DISCARD_SAFE(indirection_cylinder_buf);
-  GPU_VERTBUF_DISCARD_SAFE(pos_buf);
-  GPU_VERTBUF_DISCARD_SAFE(rad_buf);
+  GPU_VERTBUF_DISCARD_SAFE(pos_rad_buf);
 }
 DRAW_TEST(draw_curves_lib)
 
@@ -292,6 +282,7 @@ static void test_draw_curves_topology()
     indirection_buf.clear_to_zero();
 
     PassSimple pass("Ribbon Curves");
+    pass.init();
     pass.shader_set(sh);
     pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
     pass.bind_ssbo("indirection_buf", indirection_buf);
@@ -328,6 +319,7 @@ static void test_draw_curves_topology()
     indirection_buf.clear_to_zero();
 
     PassSimple pass("Cylinder Curves");
+    pass.init();
     pass.shader_set(sh);
     pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
     pass.bind_ssbo("indirection_buf", indirection_buf);

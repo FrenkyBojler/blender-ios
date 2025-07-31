@@ -106,12 +106,12 @@ float azimuthal_offset_get(Segment segment)
 
 float3 point_position_get(uint point_id)
 {
-  return texelFetch(curves_pos_buf, int(point_id)).rgb;
+  return texelFetch(curves_pos_rad_buf, int(point_id)).rgb;
 }
 
 float point_radius(uint point_id)
 {
-  return texelFetch(curves_rad_buf, int(point_id)).r;
+  return texelFetch(curves_pos_rad_buf, int(point_id)).r;
 }
 
 struct Point {
@@ -210,7 +210,7 @@ float3 get_strand_root_pos()
   uint point_id = 0;
   uint curve_segment = 0;
   uint start_point = point_id - curve_segment;
-  return texelFetch(curves_pos_buf, int(start_point)).xyz;
+  return texelFetch(curves_pos_rad_buf, int(start_point)).xyz;
 }
 #  endif
 
