@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <fmt/format.h>
+
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -356,6 +358,17 @@ static wmOperatorStatus workspace_delete_all_exec(bContext *C, wmOperator * /*op
   return OPERATOR_FINISHED;
 }
 
+static std::string workspace_delete_all_get_description(bContext * C,
+                                               wmOperatorType * /*ot*/,
+                                               PointerRNA * /*ptr*/)
+{
+  ID *id = UI_context_active_but_get_tab_ID(C);
+  if (id && GS(id->name) == ID_WS) {
+    return fmt::format(fmt::runtime(TIP_("Remove all workspaces except '{}'")), id->name);
+  }
+  return "";
+}
+
 static void WORKSPACE_OT_delete_all(wmOperatorType *ot)
 {
   /* identifiers */
@@ -366,6 +379,7 @@ static void WORKSPACE_OT_delete_all(wmOperatorType *ot)
   /* api callbacks */
   ot->poll = workspace_context_poll;
   ot->exec = workspace_delete_all_exec;
+  ot->get_description = workspace_delete_all_get_description;
 }
 
 static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *op)
