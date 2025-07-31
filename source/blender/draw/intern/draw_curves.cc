@@ -87,11 +87,14 @@ void DRW_curves_module_free(CurvesModule *curves_module)
 
 void CurvesModule::dispatch(const bke::CurvesGeometry &curve, PassSimple::Sub &pass)
 {
-  const int max_strands_per_call = GPU_max_work_group_count(0) * CURVES_PER_THREADGROUP;
-
+  /* Note that the GPU_max_work_group_count can be INT_MAX.
+   * Promote to 64bit int to avoid overflow. */
+  const int64_t max_strands_per_call = int64_t(GPU_max_work_group_count(0)) *
+                                       CURVES_PER_THREADGROUP;
   int strands_start = 0;
   while (strands_start < curve.curves_num()) {
-    int batch_strands_len = std::min(curve.curves_num() - strands_start, max_strands_per_call);
+    int batch_strands_len = std::min(int64_t(curve.curves_num() - strands_start),
+                                     max_strands_per_call);
     pass.push_constant("curves_start", strands_start);
     pass.push_constant("curves_count", batch_strands_len);
     pass.dispatch(batch_strands_len / CURVES_PER_THREADGROUP);
