@@ -122,8 +122,7 @@ class CornerPinOperation : public NodeOperation {
 
     if (output_image.should_compute()) {
       /* Only use the mask if we have a zero extension mode on either x- or y-axis. */
-      compute_plane(homography_matrix,
-                    this->is_extension_mode_zero() ? &anti_aliased_plane_mask : nullptr);
+      compute_plane(homography_matrix, &anti_aliased_plane_mask);
     }
 
     if (output_mask.should_compute()) {
@@ -226,9 +225,15 @@ class CornerPinOperation : public NodeOperation {
         sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
       }
 
+      bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
+      bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
+
+      bool is_inside_plane = is_inside_plane_x && is_inside_plane_y;
+
       /* Premultiply the mask value as an alpha. */
-      float4 plane_color = plane_mask ? sampled_color * plane_mask->load_pixel<float>(texel) :
-                                        sampled_color;
+      float4 plane_color = plane_mask && is_inside_plane ?
+                               sampled_color * plane_mask->load_pixel<float>(texel) :
+                               sampled_color;
 
       output.store_pixel(texel, plane_color);
     });
@@ -281,8 +286,10 @@ class CornerPinOperation : public NodeOperation {
       }
       float2 projected_coordinates = transformed_coordinates.xy() / transformed_coordinates.z;
 
-      bool is_inside_plane = projected_coordinates.x >= 0.0f && projected_coordinates.y >= 0.0f &&
-                             projected_coordinates.x <= 1.0f && projected_coordinates.y <= 1.0f;
+      bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
+      bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
+
+      bool is_inside_plane = is_inside_plane_x && is_inside_plane_y;
       float mask_value = is_inside_plane ? 1.0f : 0.0f;
 
       plane_mask.store_pixel(texel, mask_value);
