@@ -170,6 +170,11 @@ def add_empty_group(layout):
     return props
 
 
+def add_typed_bundle(layout):
+    props = layout.operator("node.add_typed_bundle", text="Typed Bundle", text_ctxt=i18n_contexts.default)
+    props.use_transform = True
+
+
 class NODE_MT_category_layout(Menu):
     bl_idname = "NODE_MT_category_layout"
     bl_label = "Layout"
