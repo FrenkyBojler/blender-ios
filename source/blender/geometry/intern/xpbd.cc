@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_geometry_fields.hh"
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
@@ -548,12 +549,41 @@ class CosseratRodConstraintSet : public CurveConstraintSet {
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
       if (!attributes.contains(sim_geometry.src.rotation_attribute)) {
-        /* TODO compute initial rotation from rest frame and minimum twist. */
-        auto init_varray = VArray<math::Quaternion>::from_single(math::Quaternion::identity(),
-                                                                 curves.points_num());
-        attributes.add<math::Quaternion>(sim_geometry.src.rotation_attribute,
-                                         bke::AttrDomain::Point,
-                                         bke::AttributeInitVArray{std::move(init_varray)});
+        bke::SpanAttributeWriter<math::Quaternion> rotation_writer =
+            attributes.lookup_or_add_for_write_only_span<math::Quaternion>(
+                sim_geometry.src.rotation_attribute, bke::AttrDomain::Point);
+        const OffsetIndices points_by_curve = curves.points_by_curve();
+        const Span<float3> positions = curves.positions();
+        const VArraySpan<bool> cyclic = curves.cyclic();
+        const VArraySpan<float3> curve_normals = bke::curve_normals_varray(curves,
+                                                                           bke::AttrDomain::Point);
+
+        threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
+          for (const int curve_i : range) {
+            const IndexRange points = points_by_curve[curve_i];
+            if (points.is_empty()) {
+              continue;
+            }
+
+            auto rotation_from_points = [&](const int point0,
+                                            const int point1) -> math::Quaternion {
+              const float3 tangent = math::normalize(positions[point1] - positions[point0]);
+              const float3 &normal = curve_normals[point0] + curve_normals[point1];
+              const float3 binormal = math::normalize(math::cross(tangent, normal));
+              return math::to_quaternion(math::from_orthonormal_axes<float3x3>(binormal, tangent));
+            };
+
+            for (const int point : points.drop_back(1)) {
+              rotation_writer.span[point] = rotation_from_points(point, point + 1);
+            }
+            rotation_writer.span[points.last()] = cyclic[curve_i] ?
+                                                      rotation_from_points(points.last(),
+                                                                           points.first()) :
+                                                      math::Quaternion::identity();
+          }
+        });
+
+        rotation_writer.finish();
       }
     }
   }
