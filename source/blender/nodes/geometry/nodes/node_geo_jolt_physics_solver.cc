@@ -427,10 +427,6 @@ struct OldSoftBodyBehavior {
   void update_simulated(const JoltState &state);
 };
 
-struct OldGravityBehavior {
-  float3 gravity;
-};
-
 struct OldForceBehavior {
   std::string self_path;
   std::string filter;
@@ -441,7 +437,6 @@ struct OldForceBehavior {
 struct JoltBehaviors {
   Vector<OldRigidBodiesBehavior> old_rigid_bodies;
   Vector<OldSoftBodyBehavior> old_soft_bodies;
-  Vector<OldGravityBehavior> old_gravities;
   Vector<OldForceBehavior> old_forces;
 
   Vector<ForceBehavior> forces;
@@ -808,13 +803,13 @@ static void update_gravity(const GeoNodeExecParams &params,
                            JoltState &state,
                            const JoltBehaviors &behaviors)
 {
-  if (behaviors.old_gravities.size() >= 2) {
+  if (behaviors.gravities.size() >= 2) {
     params.error_message_add(NodeWarningType::Warning, "There can't be multiple gravities");
     state.system.SetGravity(JPH::Vec3::sZero());
     return;
   }
-  if (behaviors.old_gravities.size() == 1) {
-    const OldGravityBehavior &behavior = behaviors.old_gravities[0];
+  if (behaviors.gravities.size() == 1) {
+    const GravityBehavior &behavior = behaviors.gravities[0];
     const float3 gravity = behavior.gravity;
     state.system.SetGravity(JPH::Vec3(gravity.x, gravity.y, gravity.z));
     return;
