@@ -29,32 +29,13 @@
 
 #include "hydra_scene_delegate.hh"
 #include "image.hh"
+#include "usd_light_convert.hh"
 
 /* TODO: add custom `tftoken` "transparency"? */
 
 /* NOTE: opacity and blur aren't supported by USD */
 
 namespace blender::io::hydra {
-
-namespace {
-
-pxr::GfVec3f get_rotation_from_mapping(const bNode& color_input_node)
-{
-  pxr::GfVec3f mapping_rot{};
-  const bNodeSocket &vector_input = color_input_node.input_by_identifier("Vector");
-  if (!vector_input.directly_linked_links().is_empty()) {
-    const bNode *vector_input_node = vector_input.directly_linked_links()[0]->fromnode;
-    if (const bNodeSocket *socket = bke::node_find_socket(*vector_input_node, SOCK_IN, "Rotation")) {
-      const bNodeSocketValueVector *rot_value = static_cast<bNodeSocketValueVector *>(
-          socket->default_value);
-      copy_v3_v3(mapping_rot.data(), rot_value->value);
-      mul_v3_fl(mapping_rot.data(), 180.0f / M_PI);
-    }
-  }
-  return mapping_rot;
-}
-
-}  // namespace
 
 WorldData::WorldData(HydraSceneDelegate *scene_delegate, pxr::SdfPath const &prim_id)
     : LightData(scene_delegate, nullptr, prim_id)
@@ -75,55 +56,37 @@ void WorldData::init()
     ID_LOG("%s", world->id.name);
 
     /* TODO: Create nodes parsing system */
-    bNode *output_node = ntreeShaderOutputNode(world->nodetree, SHD_OUTPUT_ALL);
-    if (!output_node) {
+
+    const bNode *output = usd::find_world_output(world->nodetree);
+    if (!output) {
       return;
     }
-    const Span<bNodeSocket *> input_sockets = output_node->input_sockets();
-    bNodeSocket *input_socket = nullptr;
 
-    for (auto *socket : input_sockets) {
-      if (STREQ(socket->name, "Surface")) {
-        input_socket = socket;
-        break;
+    usd::WorldNtreeSearchResults res;
+    res.payload = scene_delegate_;
+    res.file_path_getter_fn = [](bNode *fromnode, void *payload) -> std::string {
+      if (!(fromnode && payload))
+        return "";
+
+      BLI_assert(fromnode->type_legacy == SH_NODE_TEX_ENVIRONMENT);
+
+      NodeTexImage *tex = static_cast<NodeTexImage *>(fromnode->storage);
+      Image *image = (Image *)fromnode->id;
+      if (!image) {
+        return "";
       }
-    }
-    if (!input_socket) {
-      return;
-    }
-    if (input_socket->directly_linked_links().is_empty()) {
-      return;
-    }
-    bNodeLink const *link = input_socket->directly_linked_links()[0];
 
-    bNode *input_node = link->fromnode;
-    if (input_node->type_legacy != SH_NODE_BACKGROUND) {
-      return;
+      const HydraSceneDelegate *scene_delegate = reinterpret_cast<const HydraSceneDelegate *>(payload);
+      return cache_or_get_image_file(scene_delegate->bmain, scene_delegate->scene, image, &tex->iuser);
+    };
+    bke::node_chain_iterator(world->nodetree, output, usd::node_search, &res, true);
+
+    intensity = res.world_intensity;
+    color = pxr::GfVec3f(res.world_color);
+    if (!res.file_path.empty()) {
+      texture_file = pxr::SdfAssetPath(res.file_path, res.file_path);
     }
-
-    const bNodeSocket &color_input = input_node->input_by_identifier("Color");
-    const bNodeSocket &strength_input = input_node->input_by_identifier("Strength");
-
-    float const *strength = strength_input.default_value_typed<float>();
-    float const *input_color = color_input.default_value_typed<float>();
-    intensity = strength[1];
-    color = pxr::GfVec3f(input_color[0], input_color[1], input_color[2]);
-
-    if (!color_input.directly_linked_links().is_empty()) {
-      bNode *color_input_node = color_input.directly_linked_links()[0]->fromnode;
-      if (ELEM(color_input_node->type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
-        NodeTexImage *tex = static_cast<NodeTexImage *>(color_input_node->storage);
-        Image *image = (Image *)color_input_node->id;
-        if (image) {
-          std::string image_path = cache_or_get_image_file(
-              scene_delegate_->bmain, scene_delegate_->scene, image, &tex->iuser);
-          if (!image_path.empty()) {
-            texture_file = pxr::SdfAssetPath(image_path, image_path);
-            mapping_rot_ = get_rotation_from_mapping(*color_input_node);
-          }
-        }
-      }
-    }
+    mapping_rot_ = pxr::GfVec3f{res.mapping_rot};
 
     if (texture_file.GetAssetPath().empty()) {
       float fill_color[4] = {color[0], color[1], color[2], 1.0f};
@@ -175,15 +138,7 @@ void WorldData::update()
 
 void WorldData::write_transform()
 {
-  transform =
-      pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
-      pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0)) *
-      pxr::GfMatrix4d().SetRotate(
-          pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -mapping_rot_[2])) *
-      pxr::GfMatrix4d().SetRotate(
-          pxr::GfRotation(pxr::GfVec3d(0.0, 1.0, 0.0), -mapping_rot_[1])) *
-      pxr::GfMatrix4d().SetRotate(
-          pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -mapping_rot_[0]));
+  transform = usd::make_dome_light_transform(mapping_rot_);
   if (!scene_delegate_->shading_settings.use_scene_world) {
     transform *= pxr::GfMatrix4d().SetRotate(
         pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, -1.0),

@@ -6,6 +6,9 @@
 #include <pxr/usd/sdf/types.h>
 #include <pxr/usd/usd/common.h>
 
+struct bNode;
+struct bNodeTree;
+
 struct Main;
 struct Scene;
 
@@ -40,5 +43,32 @@ void dome_light_to_world_material(const USDImportParams &params,
                                   const USDImportDomeLightData &dome_light_data,
                                   const pxr::UsdPrim &prim,
                                   const pxr::UsdTimeCode time = 0.0);
+
+bNode *find_world_output(const bNodeTree *nodetree);
+
+/**
+ * Helper struct for retrieving shader information when traversing a world material
+ * node chain, provided as user data for #bke::node_chain_iterator().
+ */
+struct WorldNtreeSearchResults {
+  /* Data passed to `file_path_getter_fn` */
+  void *payload = nullptr;
+  std::string (*file_path_getter_fn)(bNode *fromnode, void *payload) = nullptr;
+
+  std::string file_path;
+
+  float world_intensity = 0.0f;
+  float world_color[3]{};
+  float mapping_rot[3]{};
+  float color_mult[3]{};
+
+  bool background_found = false;
+  bool env_tex_found = false;
+  bool mult_found = false;
+};
+
+bool node_search(bNode *fromnode, bNode *tonode, void *userdata, bool reversed);
+
+pxr::GfMatrix4d make_dome_light_transform(pxr::GfVec3f rot);
 
 }  // namespace blender::io::usd

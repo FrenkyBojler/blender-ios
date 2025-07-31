@@ -53,26 +53,11 @@ static const pxr::TfToken pole_axis_z("Z", pxr::TfToken::Immortal);
 
 namespace {
 
-/**
- * Helper struct for retrieving shader information when traversing a world material
- * node chain, provided as user data for #bke::node_chain_iterator().
- */
-struct WorldNtreeSearchResults {
+struct WorldNtreeSearchPayload {
   const blender::io::usd::USDExportParams &params;
   pxr::UsdStageRefPtr stage;
 
-  std::string file_path;
-
-  float world_intensity = 0.0f;
-  float world_color[3]{};
-  float mapping_rot[3]{};
-  float color_mult[3]{};
-
-  bool background_found = false;
-  bool env_tex_found = false;
-  bool mult_found = false;
-
-  WorldNtreeSearchResults(const blender::io::usd::USDExportParams &in_params,
+  WorldNtreeSearchPayload(const blender::io::usd::USDExportParams &in_params,
                           pxr::UsdStageRefPtr in_stage)
       : params(in_params), stage(in_stage)
   {
@@ -153,76 +138,6 @@ static bNode *append_node(bNode *dst_node,
   return src_node;
 }
 
-/**
- * Callback function for iterating over a shader node chain to retrieve data
- * necessary for converting a world material to a USD dome light. It also
- * handles copying textures, if required.
- */
-static bool node_search(bNode *fromnode,
-                        bNode * /*tonode*/,
-                        void *userdata,
-                        const bool /*reversed*/)
-{
-  if (!(userdata && fromnode)) {
-    return true;
-  }
-
-  WorldNtreeSearchResults *res = reinterpret_cast<WorldNtreeSearchResults *>(userdata);
-
-  if (!res->background_found && fromnode->type_legacy == SH_NODE_BACKGROUND) {
-    /* Get light color and intensity */
-    const bNodeSocketValueRGBA *color_data = bke::node_find_socket(*fromnode, SOCK_IN, "Color")
-                                                 ->default_value_typed<bNodeSocketValueRGBA>();
-    const bNodeSocketValueFloat *strength_data =
-        bke::node_find_socket(*fromnode, SOCK_IN, "Strength")
-            ->default_value_typed<bNodeSocketValueFloat>();
-
-    res->background_found = true;
-    res->world_intensity = strength_data->value;
-    res->world_color[0] = color_data->value[0];
-    res->world_color[1] = color_data->value[1];
-    res->world_color[2] = color_data->value[2];
-  }
-  else if (!res->env_tex_found && fromnode->type_legacy == SH_NODE_TEX_ENVIRONMENT) {
-    /* Get env tex path. */
-
-    res->file_path = get_tex_image_asset_filepath(fromnode, res->stage, res->params);
-
-    if (!res->file_path.empty()) {
-      res->env_tex_found = true;
-      if (res->params.export_textures) {
-        export_texture(fromnode, res->stage, res->params.overwrite_textures);
-      }
-    }
-  }
-  else if (!res->env_tex_found && !res->mult_found && fromnode->type_legacy == SH_NODE_VECTOR_MATH)
-  {
-
-    if (fromnode->custom1 == NODE_VECTOR_MATH_MULTIPLY) {
-      res->mult_found = true;
-
-      bNodeSocket *vec_sock = bke::node_find_socket(*fromnode, SOCK_IN, "Vector");
-      if (vec_sock) {
-        vec_sock = vec_sock->next;
-      }
-
-      if (vec_sock) {
-        copy_v3_v3(res->color_mult, ((bNodeSocketValueVector *)vec_sock->default_value)->value);
-      }
-    }
-  }
-  else if (res->env_tex_found && fromnode->type_legacy == SH_NODE_MAPPING) {
-    copy_v3_fl(res->mapping_rot, 0.0f);
-    if (bNodeSocket *socket = bke::node_find_socket(*fromnode, SOCK_IN, "Rotation")) {
-      const bNodeSocketValueVector *rot_value = static_cast<bNodeSocketValueVector *>(
-          socket->default_value);
-      copy_v3_v3(res->mapping_rot, rot_value->value);
-    }
-  }
-
-  return true;
-}
-
 void world_material_to_dome_light(const USDExportParams &params,
                                   const Scene *scene,
                                   pxr::UsdStageRefPtr stage)
@@ -231,25 +146,32 @@ void world_material_to_dome_light(const USDExportParams &params,
     return;
   }
 
-  WorldNtreeSearchResults res(params, stage);
+  WorldNtreeSearchResults res;
 
   if (scene->world->nodetree) {
     /* Find the world output. */
-    bNode *output = nullptr;
-    const bNodeTree *ntree = scene->world->nodetree;
-    ntree->ensure_topology_cache();
-    const Span<const bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeOutputWorld");
-    for (const bNode *node : bsdf_nodes) {
-      if (node->flag & NODE_DO_OUTPUT) {
-        output = const_cast<bNode *>(node);
-        break;
-      }
-    }
-
+    const bNode *output = find_world_output(scene->world->nodetree);
     if (!output) {
       /* No output, no valid network to convert. */
       return;
     }
+
+    WorldNtreeSearchPayload payload(params, stage);
+    res.payload = &payload;
+    res.file_path_getter_fn = [](bNode *fromnode, void *payload) -> std::string {
+      if (!(fromnode && payload))
+        return "";
+
+      BLI_assert(fromnode->type_legacy == SH_NODE_TEX_ENVIRONMENT);
+
+      const WorldNtreeSearchPayload *res = reinterpret_cast<const WorldNtreeSearchPayload *>(payload);
+
+      const std::string file_path = get_tex_image_asset_filepath(fromnode, res->stage, res->params);
+      if (!file_path.empty() && res->params.export_textures) {
+        export_texture(fromnode, res->stage, res->params.overwrite_textures);
+      }
+      return file_path;
+    };
 
     bke::node_chain_iterator(scene->world->nodetree, output, node_search, &res, true);
   }
@@ -321,18 +243,7 @@ void world_material_to_dome_light(const USDExportParams &params,
 
   /* We always set a default rotation on the light since res.mapping_rot defaults to zeros. */
 
-  /* Convert radians to degrees. */
-  mul_v3_fl(res.mapping_rot, 180.0f / M_PI);
-
-  pxr::GfMatrix4d xf =
-      pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
-      pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0)) *
-      pxr::GfMatrix4d().SetRotate(
-          pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -res.mapping_rot[2])) *
-      pxr::GfMatrix4d().SetRotate(
-          pxr::GfRotation(pxr::GfVec3d(0.0, 1.0, 0.0), -res.mapping_rot[1])) *
-      pxr::GfMatrix4d().SetRotate(
-          pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -res.mapping_rot[0]));
+  pxr::GfMatrix4d xf = make_dome_light_transform(pxr::GfVec3f{res.mapping_rot});
 
   pxr::GfVec3d angles = xf.DecomposeRotation(
       pxr::GfVec3d::ZAxis(), pxr::GfVec3d::YAxis(), pxr::GfVec3d::XAxis());
@@ -529,6 +440,87 @@ void dome_light_to_world_material(const USDImportParams &params,
   bke::node_set_active(*ntree, *output);
   DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
   BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
+}
+
+bNode *find_world_output(const bNodeTree *ntree)
+{
+  BLI_assert(ntree);
+
+  ntree->ensure_topology_cache();
+  const Span<const bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeOutputWorld");
+  for (const bNode *node : bsdf_nodes) {
+    if (node->flag & NODE_DO_OUTPUT) {
+      return const_cast<bNode *>(node);
+    }
+  }
+  return nullptr;
+}
+
+bool node_search(bNode *fromnode, bNode * /*tonode*/, void *userdata, bool /*reversed*/)
+{
+  if (!(userdata && fromnode)) {
+    return true;
+  }
+
+  WorldNtreeSearchResults &res = *reinterpret_cast<WorldNtreeSearchResults *>(userdata);
+
+  if (!res.background_found && fromnode->type_legacy == SH_NODE_BACKGROUND) {
+    /* Get light color and intensity */
+    const bNodeSocketValueRGBA *color_data = bke::node_find_socket(*fromnode, SOCK_IN, "Color")
+                                                 ->default_value_typed<bNodeSocketValueRGBA>();
+    const bNodeSocketValueFloat *strength_data =
+        bke::node_find_socket(*fromnode, SOCK_IN, "Strength")
+            ->default_value_typed<bNodeSocketValueFloat>();
+
+    res.background_found = true;
+    res.world_intensity = strength_data->value;
+    res.world_color[0] = color_data->value[0];
+    res.world_color[1] = color_data->value[1];
+    res.world_color[2] = color_data->value[2];
+  }
+  else if (res.file_path_getter_fn && !res.env_tex_found &&
+           fromnode->type_legacy == SH_NODE_TEX_ENVIRONMENT)
+  {
+    /* Get env tex path. */
+    res.file_path = res.file_path_getter_fn(fromnode, res.payload);
+
+    if (!res.file_path.empty()) {
+      res.env_tex_found = true;
+    }
+  }
+  else if (!res.env_tex_found && !res.mult_found && fromnode->type_legacy == SH_NODE_VECTOR_MATH) {
+    if (fromnode->custom1 == NODE_VECTOR_MATH_MULTIPLY) {
+      res.mult_found = true;
+
+      bNodeSocket *vec_sock = bke::node_find_socket(*fromnode, SOCK_IN, "Vector");
+      if (vec_sock) {
+        vec_sock = vec_sock->next;
+      }
+
+      if (vec_sock) {
+        copy_v3_v3(res.color_mult, ((bNodeSocketValueVector *)vec_sock->default_value)->value);
+      }
+    }
+  }
+  else if (res.env_tex_found && fromnode->type_legacy == SH_NODE_MAPPING) {
+    copy_v3_fl(res.mapping_rot, 0.0f);
+    if (bNodeSocket *socket = bke::node_find_socket(*fromnode, SOCK_IN, "Rotation")) {
+      const bNodeSocketValueVector *rot_value = static_cast<bNodeSocketValueVector *>(
+          socket->default_value);
+      copy_v3_v3(res.mapping_rot, rot_value->value);
+    }
+  }
+  return true;
+}
+pxr::GfMatrix4d make_dome_light_transform(pxr::GfVec3f rot)
+{
+  /* Convert radians to degrees. */
+  mul_v3_fl(rot.data(), 180.0f / M_PI);
+  return pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
+         pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0)) *
+         pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -rot[2])) *
+         pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 1.0, 0.0), -rot[1])) *
+         pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -rot[0]));
 }
 
 }  // namespace blender::io::usd
