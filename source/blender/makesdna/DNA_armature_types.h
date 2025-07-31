@@ -73,10 +73,14 @@ typedef struct Bone {
 
   /** Roll is input for edit-mode, length calculated. */
   float roll;
+  /* Head/tail in bone space. Bone space: in the orientation of the parent bone,
+   * position relative to the parent's tail. */
   float head[3];
-  /** Head/tail and roll in Bone Space. */
   float tail[3];
-  /** Rotation derived from head/tail/roll. */
+  /* bone.matrix in RNA, rotation relative to parent (aka 'in parent space').
+   * When the bone has no parent, is relative to the armature space, which (at
+   * least in this case) has XYZ oriented same as the world.
+   * In other words: the bone's rotation in bone space. */
   float bone_mat[3][3];
 
   int flag;
@@ -87,16 +91,19 @@ typedef struct Bone {
   char inherit_scale_mode;
   char _pad[3];
 
+  /** Head position in armature space. So should be the same as head in edit mode. */
   float arm_head[3];
-  /** Head/tail in Armature Space (rest pose). */
+  /** Tail position in armature space. So should be the same as tail in edit mode. */
   float arm_tail[3];
   /** Matrix: `(bonemat(b)+head(b))*arm_mat(b-1)`, rest pose. */
   float arm_mat[4][4];
   /** Roll in Armature Space (rest pose). */
   float arm_roll;
 
-  /** dist, weight: for non-deformgroup deforms. */
-  float dist, weight;
+  /** Envelope distance, added to rad_head / rad_tail. */
+  float dist;
+  /** Weight: for non-deformgroup deforms. */
+  float weight;
   /**
    * The width for block bones. The final X/Z bone widths are double these values.
    *
