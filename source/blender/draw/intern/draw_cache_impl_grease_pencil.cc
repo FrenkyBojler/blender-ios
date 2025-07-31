@@ -806,8 +806,6 @@ static void grease_pencil_edit_batch_ensure(Object &object,
 
   /* Add two for each bezier point, (one left, one right). */
   total_points_num += total_bezier_point_num * 2;
-  /* Add three for each bezier point, (one left, one right and one for the center point). */
-  total_line_points_num += total_bezier_point_num * 3;
 
   if (total_points_num == 0) {
     return;
@@ -976,65 +974,22 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     array_utils::gather(selected_left, bezier_points, selection_slice_left);
     array_utils::gather(selected_right, bezier_points, selection_slice_right);
 
-    const IndexRange eval_center_slice = IndexRange(
-        drawing_line_start_offset + bezier_points.size() * 0, bezier_points.size());
-    const IndexRange eval_left_slice = IndexRange(
-        drawing_line_start_offset + bezier_points.size() * 1, bezier_points.size());
-    const IndexRange eval_right_slice = IndexRange(
-        drawing_line_start_offset + bezier_points.size() * 2, bezier_points.size());
-
     const VArray<int8_t> types_left = curves.handle_types_left();
     const VArray<int8_t> types_right = curves.handle_types_right();
-
-    MutableSpan<float3> positions_eval_center_slice = edit_line_points.slice(eval_center_slice);
-    MutableSpan<float3> positions_eval_left_slice = edit_line_points.slice(eval_left_slice);
-    MutableSpan<float3> positions_eval_right_slice = edit_line_points.slice(eval_right_slice);
 
     bezier_points.foreach_index([&](const int point_i, const int pos) {
       const bool selected = selected_point[point_i] || selected_left[point_i] ||
                             selected_right[point_i];
-
-      edit_line_points_data.slice(eval_left_slice)[pos] = bezier_data_value(types_left[point_i],
-                                                                            selected);
-      edit_line_points_data.slice(eval_right_slice)[pos] = bezier_data_value(types_right[point_i],
-                                                                             selected);
-      /* Workaround: Should use `EDIT_CURVES_BEZIER_KNOT` instead. */
-      edit_line_points_data.slice(eval_center_slice)[pos] = bezier_data_value(types_right[point_i],
-                                                                              selected);
-      edit_points_data.slice(points)[point_i] = bezier_data_value(types_right[point_i], selected);
-
       edit_points_data.slice(left_slice)[pos] = bezier_data_value(types_left[point_i], selected);
       edit_points_data.slice(right_slice)[pos] = bezier_data_value(types_right[point_i], selected);
+
+      /* Workaround: Should use `EDIT_CURVES_BEZIER_KNOT` instead. */
+      edit_points_data.slice(points)[point_i] = bezier_data_value(types_right[point_i], selected);
     });
-
-    array_utils::copy(positions_slice_left.as_span(), positions_eval_left_slice);
-    array_utils::copy(positions_slice_right.as_span(), positions_eval_right_slice);
-
-    /* This will copy over the position but without the layer transform. */
-    array_utils::gather(positions, bezier_points, positions_eval_center_slice);
-
-    /* Go through the position and apply the layer transform. */
-    threading::parallel_for(bezier_points.index_range(), 1024, [&](const IndexRange range) {
-      copy_transformed_positions(positions_eval_center_slice,
-                                 range,
-                                 layer_space_to_object_space,
-                                 positions_eval_center_slice);
-    });
-
-    MutableSpan<float> selection_eval_slice_left = edit_line_selection.slice(eval_left_slice);
-    MutableSpan<float> selection_eval_slice_center = edit_line_selection.slice(eval_center_slice);
-    MutableSpan<float> selection_eval_slice_right = edit_line_selection.slice(eval_right_slice);
-    array_utils::copy(selection_slice_left.as_span(), selection_eval_slice_left);
-    array_utils::copy(selection_slice_right.as_span(), selection_eval_slice_right);
-
-    array_utils::gather(selected_point, bezier_points, selection_eval_slice_center);
 
     /* Add two for each bezier point, (one left, one right). */
     visible_points_num += bezier_points.size() * 2;
     drawing_start_offset += bezier_points.size() * 2;
-
-    /* Add three for each bezier point, (one left, one right and one for the center point). */
-    drawing_line_start_offset += bezier_points.size() * 3;
 
     total_bezier_num += bezier_points.size();
   }
@@ -1086,7 +1041,6 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                         handle_lines,
                                         &handle_lines_id,
                                         &drawing_start_offset);
-      drawing_line_start_offset += bezier_points.size() * 3;
       index_buf_add_points(object,
                            info.drawing,
                            info.layer_index,
