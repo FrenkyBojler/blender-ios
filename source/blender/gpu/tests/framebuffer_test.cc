@@ -25,7 +25,7 @@ static void test_framebuffer_clear_color_single_attachment()
   const int2 size(1, 1);
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *texture = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_RGBA32F, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
   GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer,
@@ -52,9 +52,9 @@ static void test_framebuffer_clear_color_multiple_attachments()
   const int2 size(1, 1);
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *texture1 = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_RGBA32F, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
   blender::gpu::Texture *texture2 = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_RGBA32UI, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::UINT_32_32_32_32, usage, nullptr);
 
   GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(
@@ -93,9 +93,9 @@ static void test_framebuffer_clear_multiple_color_multiple_attachments()
   const int2 size(1, 1);
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *texture1 = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_RGBA32F, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
   blender::gpu::Texture *texture2 = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_RGBA32F, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
   GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(
@@ -131,7 +131,7 @@ static void test_framebuffer_clear_depth()
   const int2 size(1, 1);
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *texture = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_DEPTH_COMPONENT32F, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_DEPTH, usage, nullptr);
 
   GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer, {GPU_ATTACHMENT_TEXTURE(texture)});
@@ -159,7 +159,7 @@ static void test_framebuffer_scissor_test()
   const int2 size(2, 2);
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *texture = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_RGBA32F, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
   GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer,
@@ -202,7 +202,7 @@ static void test_framebuffer_cube()
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *tex = GPU_texture_create_cube(
-      "tex", SIZE, 1, GPU_RGBA32F, usage, nullptr);
+      "tex", SIZE, 1, TextureFormat::SFLOAT_32_32_32_32, usage, nullptr);
 
   const float4 clear_colors[6] = {
       {0.5f, 0.0f, 0.0f, 1.0f},
@@ -261,7 +261,7 @@ static void test_framebuffer_multi_viewport()
   const int layers = 256;
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *texture = GPU_texture_create_2d_array(
-      __func__, UNPACK2(size), layers, 1, GPU_RG32I, usage, nullptr);
+      __func__, UNPACK2(size), layers, 1, TextureFormat::SINT_32_32, usage, nullptr);
 
   GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(&framebuffer,
@@ -289,17 +289,13 @@ static void test_framebuffer_multi_viewport()
   GPUShader *shader = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
 
-  /* TODO(fclem): remove this boilerplate. */
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, "dummy", VertAttrType::UINT_32);
-  VertBuf *verts = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*verts, 3);
-  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  int tri_count = size.x * size.y * layers;
+
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, tri_count * 3);
 
   GPU_batch_set_shader(batch, shader);
 
-  int tri_count = size.x * size.y * layers;
-  GPU_batch_draw_advanced(batch, 0, tri_count * 3, 0, 1);
+  GPU_batch_draw(batch);
 
   GPU_batch_discard(batch);
 
@@ -338,9 +334,9 @@ static void test_framebuffer_subpass_input()
   const int2 size(1, 1);
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   blender::gpu::Texture *texture_a = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_R32I, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::SINT_32, usage, nullptr);
   blender::gpu::Texture *texture_b = GPU_texture_create_2d(
-      __func__, UNPACK2(size), 1, GPU_R32I, usage, nullptr);
+      __func__, UNPACK2(size), 1, TextureFormat::SINT_32, usage, nullptr);
 
   GPUFrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
   GPU_framebuffer_ensure_config(
@@ -370,12 +366,7 @@ static void test_framebuffer_subpass_input()
   GPUShader *shader_read = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_read));
 
-  /* TODO(fclem): remove this boilerplate. */
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, "dummy", VertAttrType::UINT_32);
-  VertBuf *verts = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*verts, 3);
-  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
 
   /* Metal Raster Order Group does not need that. */
   GPU_framebuffer_subpass_transition(
