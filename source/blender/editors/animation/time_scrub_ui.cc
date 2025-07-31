@@ -90,7 +90,6 @@ static void draw_current_frame(const Scene *scene,
   float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   float box_width = std::max(text_width + 8 * UI_SCALE_FAC, 24 * UI_SCALE_FAC);
   float box_padding = 3 * UI_SCALE_FAC;
-  const int line_outline = max_ii(1, round_fl_to_int(1 * UI_SCALE_FAC));
 
   float bg_color[4];
   UI_GetThemeColorShade4fv(TH_CFRAME, -5, bg_color);
@@ -103,20 +102,24 @@ static void draw_current_frame(const Scene *scene,
     GPU_blend(GPU_BLEND_ALPHA);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
+    /* There are two usages of "1.0f" below that are not scaled. This is
+     * used to force an odd width (but still pixel-aligned) to better
+     * line up with the odd widths of the keyframe icons. #98089. */
+
     /* Outline. */
     immUniformThemeColorShadeAlpha(TH_BACK, -25, -100);
     immRectf(pos,
-             subframe_x - (line_outline + U.pixelsize),
+             floor(subframe_x - U.pixelsize - U.pixelsize),
              scrub_region_rect->ymax - box_padding - U.pixelsize,
-             subframe_x + (line_outline + U.pixelsize) + 1.0f,
+             floor(subframe_x + U.pixelsize + 1.0f + U.pixelsize),
              0.0f);
 
     /* Line. */
     immUniformThemeColor(TH_CFRAME);
     immRectf(pos,
-             subframe_x - U.pixelsize,
+             floor(subframe_x - U.pixelsize),
              scrub_region_rect->ymax - box_padding - U.pixelsize,
-             subframe_x + U.pixelsize + 1.0f,
+             floor(subframe_x + U.pixelsize + 1.0f),
              0.0f);
     immUnbindProgram();
     GPU_blend(GPU_BLEND_NONE);
