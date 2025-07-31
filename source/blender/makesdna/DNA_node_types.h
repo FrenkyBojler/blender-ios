@@ -329,6 +329,7 @@ typedef enum eNodeSocketDisplayShape {
   SOCK_DISPLAY_SHAPE_DIAMOND_DOT = 5,
   SOCK_DISPLAY_SHAPE_LINE = 6,
   SOCK_DISPLAY_SHAPE_VOLUME_GRID = 7,
+  SOCK_DISPLAY_SHAPE_LIST = 8,
 } eNodeSocketDisplayShape;
 
 /** Socket side (input/output). */
@@ -1580,6 +1581,12 @@ typedef struct NodeTranslateData {
   short interpolation;
 } NodeTranslateData;
 
+typedef struct NodeRotateData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeRotateData;
+
 typedef struct NodeScaleData {
   short interpolation;
   char extension_x;
@@ -1588,6 +1595,8 @@ typedef struct NodeScaleData {
 
 typedef struct NodeDisplaceData {
   short interpolation;
+  char extension_x;
+  char extension_y;
 } NodeDisplaceData;
 
 typedef struct NodePlaneTrackDeformData {
@@ -2895,7 +2904,7 @@ typedef enum CMPNodeTranslateRepeatAxis {
 } CMPNodeTranslateRepeatAxis;
 
 typedef enum CMPExtensionMode {
-  CMP_NODE_EXTENSION_MODE_ZERO = 0,
+  CMP_NODE_EXTENSION_MODE_CLIP = 0,
   CMP_NODE_EXTENSION_MODE_EXTEND = 1,
   CMP_NODE_EXTENSION_MODE_REPEAT = 2,
 } CMPNodeBorderCondition;

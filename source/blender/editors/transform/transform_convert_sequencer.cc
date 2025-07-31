@@ -6,6 +6,7 @@
  * \ingroup edtransform
  */
 
+#include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
@@ -858,7 +859,7 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
   int val[2] = {round_fl_to_int(r_val[0]), round_fl_to_int(r_val[1])};
   bool clamped = false;
 
-  /* Unconditional channel and handle clamping. Should never be ignored. */
+  /* Unconditional channel, retiming key, and handle clamping. Should never be ignored. */
   if (BLI_rcti_clamp_pt_v(&ts->offset_clamp, val)) {
     r_val[0] = static_cast<float>(val[0]);
     r_val[1] = float(val[1]);
