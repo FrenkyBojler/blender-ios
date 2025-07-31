@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2017-2025 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
 #pragma once
 
 #ifdef __HIP__
