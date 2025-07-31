@@ -4750,6 +4750,10 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.separator()
 
+        layout.operator("mesh.pin_verts", text="Pin Selected")
+        layout.operator("mesh.unpin_all_verts", text="Unpin All")
+        layout.separator()
+
         layout.operator("mesh.edge_face_add", text="New Edge/Face from Vertices")
         layout.operator("mesh.vert_connect_path", text="Connect Vertex Path")
         layout.operator("mesh.vert_connect", text="Connect Vertex Pairs")

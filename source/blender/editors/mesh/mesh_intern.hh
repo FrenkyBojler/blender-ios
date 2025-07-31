@@ -227,6 +227,8 @@ void MESH_OT_shortest_path_select(wmOperatorType *ot);
 extern EnumPropertyItem *corner_type_items;
 
 /* *** editmesh_tools.cc *** */
+void MESH_OT_pin_verts(wmOperatorType *ot);
+void MESH_OT_unpin_all_verts(wmOperatorType *ot);
 void MESH_OT_subdivide(wmOperatorType *ot);
 void MESH_OT_subdivide_edgering(wmOperatorType *ot);
 void MESH_OT_unsubdivide(wmOperatorType *ot);

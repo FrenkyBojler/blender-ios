@@ -81,6 +81,71 @@ using blender::Vector;
 
 #define USE_FACE_CREATE_SEL_EXTEND
 
+/*
+ * Pin Vertices Operator
+ */
+
+static wmOperatorStatus pin_verts_exec(bContext *C, wmOperator *op)
+{
+  Object *ob_edit = CTX_data_edit_object(C);
+  BMEditMesh *em = BKE_editmesh_from_object(ob_edit);
+  BMesh *bm = em->bm;
+
+  if (bm->totvertsel == 0) {
+    BKE_report(op->reports, RPT_WARNING, "No vertices selected");
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_report(op->reports, RPT_INFO, "Pinned selected vertices");
+
+  return OPERATOR_FINISHED;
+}
+
+void MESH_OT_pin_verts(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Pin Selected Vertices";
+  ot->description = "Pin selected vertices for proportional editing";
+  ot->idname = "MESH_OT_pin_verts";
+
+  /* API callbacks */
+  ot->exec = pin_verts_exec;
+  ot->poll = ED_operator_editmesh;; 
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/*
+ * Unpin All Vertices Operator
+ */
+
+static wmOperatorStatus unpin_all_verts_exec(bContext *C, wmOperator *op)
+{
+  Object *ob_edit = CTX_data_edit_object(C);
+  BMEditMesh *em = BKE_editmesh_from_object(ob_edit);
+  BMesh *bm = em->bm;
+
+
+  return OPERATOR_FINISHED;
+}
+
+void MESH_OT_unpin_all_verts(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Unpin All Vertices";
+  ot->description = "Unpin all vertices for proportional editing";
+  ot->idname = "MESH_OT_unpin_all_verts";
+
+  /* API callbacks */
+  ot->exec = unpin_all_verts_exec;
+  ot->poll = ED_operator_editmesh;;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+
 /* -------------------------------------------------------------------- */
 /** \name Subdivide Operator
  * \{ */
