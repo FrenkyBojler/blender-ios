@@ -779,10 +779,9 @@ static void update_gravity(const GeoNodeExecParams &params,
   state.system.SetGravity(default_gravity);
 }
 
-static void update_forces(JoltState &state,
-                          const JoltBehaviors &behaviors,
-                          const Span<GeometrySet> applied_rigid_bodies,
-                          const Span<GeometrySet> /*applied_soft_bodies*/)
+static void apply_forces_on_rigid_bodies(JoltState &state,
+                                         const JoltBehaviors &behaviors,
+                                         const Span<GeometrySet> applied_rigid_bodies)
 {
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
   for (const int rigid_body_behavior_i : behaviors.rigid_bodies.index_range()) {
@@ -836,6 +835,14 @@ static void update_forces(JoltState &state,
       body_interface.AddForce(rigid_body->body->GetID(), convert_vec3(force));
     }
   }
+}
+
+static void apply_forces(JoltState &state,
+                         const JoltBehaviors &behaviors,
+                         const Span<GeometrySet> applied_rigid_bodies,
+                         const Span<GeometrySet> /*applied_soft_bodies*/)
+{
+  apply_forces_on_rigid_bodies(state, behaviors, applied_rigid_bodies);
   /* TODO: Forces on soft bodies. */
 }
 
@@ -897,7 +904,7 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
   state.collision_shape_cache.remove_unused();
 
   update_gravity(params, state, behaviors);
-  update_forces(state, behaviors, applied_rigid_bodies, applied_soft_bodies);
+  apply_forces(state, behaviors, applied_rigid_bodies, applied_soft_bodies);
 }
 
 class JoltStateOwner : public BundleItemInternalValueMixin {
