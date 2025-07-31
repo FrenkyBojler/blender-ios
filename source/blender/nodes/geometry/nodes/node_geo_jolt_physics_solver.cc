@@ -779,6 +779,20 @@ static void update_gravity(const GeoNodeExecParams &params,
   state.system.SetGravity(default_gravity);
 }
 
+static Vector<const ForceBehavior *> get_forces_for_body(const JoltBehaviors &state,
+                                                         const StringRef effected_path)
+{
+  Vector<const ForceBehavior *> used_forces;
+  for (const ForceBehavior &force_behavior : state.forces) {
+    if (behaviors::behavior_path_is_selected(
+            force_behavior.self_path, force_behavior.filter, effected_path))
+    {
+      used_forces.append(&force_behavior);
+    }
+  }
+  return used_forces;
+}
+
 static void apply_forces_on_rigid_bodies(JoltState &state,
                                          const JoltBehaviors &behaviors,
                                          const Span<GeometrySet> applied_rigid_bodies)
@@ -787,14 +801,8 @@ static void apply_forces_on_rigid_bodies(JoltState &state,
   for (const int rigid_body_behavior_i : behaviors.rigid_bodies.index_range()) {
     const RigidBodyInstancesBehavior &rigid_body_behavior =
         behaviors.rigid_bodies[rigid_body_behavior_i];
-    Vector<const ForceBehavior *> used_forces;
-    for (const ForceBehavior &force_behavior : behaviors.forces) {
-      if (behaviors::behavior_path_is_selected(
-              force_behavior.self_path, force_behavior.filter, rigid_body_behavior.self_path))
-      {
-        used_forces.append(&force_behavior);
-      }
-    }
+    const Vector<const ForceBehavior *> used_forces = get_forces_for_body(
+        behaviors, rigid_body_behavior.self_path);
     if (used_forces.is_empty()) {
       continue;
     }
@@ -810,8 +818,8 @@ static void apply_forces_on_rigid_bodies(JoltState &state,
     /* Can also attempt to evaluate forces together but special care needs to be taken with the
      * selection. */
     Array<float3> force_sums(instances->instances_num(), float3(0.0f));
+    bke::InstancesFieldContext field_context{*instances};
     for (const ForceBehavior *force_behavior : used_forces) {
-      bke::InstancesFieldContext field_context{*instances};
       fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
       field_evaluator.set_selection(force_behavior->selection);
       field_evaluator.add(force_behavior->force);
@@ -837,13 +845,70 @@ static void apply_forces_on_rigid_bodies(JoltState &state,
   }
 }
 
+class SoftBodyFieldContext : public fn::FieldContext {
+ private:
+  const float3 position_;
+
+ public:
+  SoftBodyFieldContext(const float3 &position) : position_(position) {}
+
+  GVArray get_varray_for_input(const fn::FieldInput &field_input,
+                               const IndexMask &mask,
+                               ResourceScope & /*scope*/) const override
+  {
+    const auto *attribute_field_input = dynamic_cast<const bke::AttributeFieldInput *>(
+        &field_input);
+    if (!attribute_field_input) {
+      return {};
+    }
+    if (attribute_field_input->attribute_name() != "position") {
+      return {};
+    }
+    return GVArray::from_single_ref(CPPType::get<float3>(), mask.min_array_size(), &position_);
+  }
+};
+
+static void apply_forces_on_soft_bodies(JoltState &state, const JoltBehaviors &behaviors)
+{
+  JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
+  for (const int soft_body_behavior_i : behaviors.soft_bodies.index_range()) {
+    const SoftBodyMeshBehavior &soft_body_behavior = behaviors.soft_bodies[soft_body_behavior_i];
+    const Vector<const ForceBehavior *> used_forces = get_forces_for_body(
+        behaviors, soft_body_behavior.self_path);
+    if (used_forces.is_empty()) {
+      continue;
+    }
+    JoltSoftBody *soft_body = state.soft_bodies_by_path.lookup_ptr(soft_body_behavior.self_path);
+    if (!soft_body) {
+      continue;
+    }
+    BLI_assert(soft_body->body->IsSoftBody());
+
+    /* Can only apply a force to the entire soft body, not to individual vertices for now. */
+    const float3 center = convert_vec3(soft_body->body->GetPosition());
+    SoftBodyFieldContext field_context(center);
+    for (const ForceBehavior *force_behavior : used_forces) {
+      fn::FieldEvaluator field_evaluator{field_context, 1};
+      field_evaluator.set_selection(force_behavior->selection);
+      field_evaluator.add(force_behavior->force);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      const VArray<float3> forces = field_evaluator.get_evaluated<float3>(0);
+      if (mask.is_empty()) {
+        continue;
+      }
+      const float3 force = forces[0];
+      body_interface.AddForce(soft_body->body->GetID(), convert_vec3(force));
+    }
+  }
+}
+
 static void apply_forces(JoltState &state,
                          const JoltBehaviors &behaviors,
-                         const Span<GeometrySet> applied_rigid_bodies,
-                         const Span<GeometrySet> /*applied_soft_bodies*/)
+                         const Span<GeometrySet> applied_rigid_bodies)
 {
   apply_forces_on_rigid_bodies(state, behaviors, applied_rigid_bodies);
-  /* TODO: Forces on soft bodies. */
+  apply_forces_on_soft_bodies(state, behaviors);
 }
 
 static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
@@ -904,7 +969,7 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
   state.collision_shape_cache.remove_unused();
 
   update_gravity(params, state, behaviors);
-  apply_forces(state, behaviors, applied_rigid_bodies, applied_soft_bodies);
+  apply_forces(state, behaviors, applied_rigid_bodies);
 }
 
 class JoltStateOwner : public BundleItemInternalValueMixin {
