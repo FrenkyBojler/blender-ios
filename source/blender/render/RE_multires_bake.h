@@ -37,8 +37,6 @@ struct MultiresBakeRender {
 
   int threads; /* Number of threads to be used for baking */
 
-  float user_scale; /* User scale used to scale displacement when baking derivative map. */
-
   bool *stop;
   bool *do_update;
   float *progress;

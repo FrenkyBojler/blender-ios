@@ -95,8 +95,6 @@ struct MultiresBakeJob {
   float bias;
   /** Number of threads to be used for baking */
   int threads;
-  /** User scale used to scale displacement when baking derivative map. */
-  float user_scale;
 };
 
 static bool multiresbake_check(bContext *C, wmOperator *op)
@@ -373,7 +371,6 @@ static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *
     bkr.use_lores_mesh = scene->r.bake_flag & R_BAKE_LORES_MESH;
     bkr.bias = scene->r.bake_biasdist;
     bkr.threads = BKE_scene_num_threads(scene);
-    bkr.user_scale = (scene->r.bake_flag & R_BAKE_USERSCALE) ? scene->r.bake_user_scale : -1.0f;
     // bkr.reports= op->reports;
 
     /* create low-resolution DM (to bake to) and hi-resolution DM (to bake from) */
@@ -420,7 +417,6 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
   bkj->bake_clear = scene->r.bake_flag & R_BAKE_CLEAR;
   bkj->bias = scene->r.bake_biasdist;
   bkj->threads = BKE_scene_num_threads(scene);
-  bkj->user_scale = (scene->r.bake_flag & R_BAKE_USERSCALE) ? scene->r.bake_user_scale : -1.0f;
   // bkj->reports = op->reports;
 
   CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
@@ -475,7 +471,6 @@ static void multiresbake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
     bkr.bake_margin_type = bkj->bake_margin_type;
     bkr.mode = bkj->mode;
     bkr.use_lores_mesh = bkj->use_lores_mesh;
-    bkr.user_scale = bkj->user_scale;
     // bkr.reports = bkj->reports;
     bkr.ob_image = data->ob_image;
 
