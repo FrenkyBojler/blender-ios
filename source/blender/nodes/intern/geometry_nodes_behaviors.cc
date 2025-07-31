@@ -65,6 +65,14 @@ BundleSignature BehaviorDef::to_bundle_signature() const
   return signature;
 }
 
+const SocketDeclaration *BehaviorDef::find_decl(const StringRef name) const
+{
+  if (const Item *item = this->items.lookup_key_ptr_as(name)) {
+    return item->decl.get();
+  }
+  return nullptr;
+}
+
 }  // namespace blender::nodes
 
 namespace blender::nodes::behaviors {

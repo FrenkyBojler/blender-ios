@@ -82,28 +82,14 @@ static BundleSyncState get_sync_state_separate_bundle(const SpaceNode &snode,
   return {NodeSyncState::Synced};
 }
 
-static std::optional<StringRef> get_combine_bundle_type(const bNode &combine_bundle_node)
-{
-  const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(
-      combine_bundle_node.storage);
-  for (const int i : IndexRange(storage.items_num)) {
-    const NodeGeometryCombineBundleItem &item = storage.items[i];
-    if (item.socket_type == SOCK_STRING && item.name == Bundle::type_item_name) {
-      const bNodeSocket &socket = combine_bundle_node.input_socket(i);
-      const auto *value = static_cast<const bNodeSocketValueString *>(socket.default_value);
-      return value->value;
-    }
-  }
-  return std::nullopt;
-}
-
 static Vector<BundleSignature> get_expected_combine_bundle_signatures(
     const SpaceNode &snode, const bNode &combine_bundle_node)
 {
   BLI_assert(combine_bundle_node.is_type("GeometryNodeCombineBundle"));
   snode.edittree->ensure_topology_cache();
 
-  const std::optional<StringRef> type = get_combine_bundle_type(combine_bundle_node);
+  const std::optional<StringRef> type = combine_bundle_node_type(*snode.edittree,
+                                                                 combine_bundle_node);
   if (type) {
     const BehaviorRegistry &behavior_registry = get_behavior_registry();
     const VectorSet<std::shared_ptr<const BehaviorDef>> behaviors =

@@ -37,6 +37,8 @@ class BehaviorDef {
 
   BundleSignature to_bundle_signature() const;
 
+  const SocketDeclaration *find_decl(const StringRef name) const;
+
   template<typename DeclType> typename DeclType::Builder &add(std::string name)
   {
     static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);

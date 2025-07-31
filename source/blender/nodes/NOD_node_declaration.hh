@@ -459,6 +459,8 @@ class BaseSocketDeclarationBuilder {
 
   bool is_input() const;
   bool is_output() const;
+
+  virtual BaseSocketDeclarationBuilder &try_copy_ui_data(const SocketDeclaration &other_decl);
 };
 
 /**
