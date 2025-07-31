@@ -34,10 +34,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const StringRef name = item.name ? item.name : "";
       const std::string identifier = CombineBundleItemsAccessor::socket_identifier_for_item(item);
-      b.add_input(socket_type, name, identifier)
-          .socket_name_ptr(&tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
-          .supports_field()
-          .structure_type(StructureType::Dynamic);
+      auto &input = b.add_input(socket_type, name, identifier)
+                        .socket_name_ptr(
+                            &tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
+                        .supports_field()
+                        .structure_type(StructureType::Dynamic);
+      if (socket_type == SOCK_STRING && name == Bundle::type_item_name) {
+        input.hide_label();
+      }
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
