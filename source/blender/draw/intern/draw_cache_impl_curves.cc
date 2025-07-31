@@ -642,6 +642,14 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
 
   /* Ensure final data for points. */
   if (attributes_point_domain[index]) {
+    ensure_common(curves);
+    if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+      ensure_bezier(curves);
+    }
+    if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+      ensure_nurbs(curves);
+    }
+
     evaluated_attributes_buf[index] = alloc_evaluated_point_attribute_vbo(
         format, name, curves.evaluated_points_num());
 
@@ -696,6 +704,9 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
 
 void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
 {
+  if (points_by_curve_buf) {
+    return;
+  }
   points_by_curve_buf = create_vbo_from_span(curves.points_by_curve().data());
   evaluated_points_by_curve_buf = create_vbo_from_span(curves.evaluated_points_by_curve().data());
 
@@ -708,6 +719,9 @@ void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
 
 void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
 {
+  if (handles_positions_left_buf) {
+    return;
+  }
   handles_positions_left_buf = create_vbo_from_span(curves.handle_positions_left());
   handles_positions_right_buf = create_vbo_from_span(curves.handle_positions_right());
   bezier_offsets_buf = create_vbo_from_span(
@@ -716,6 +730,9 @@ void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
 
 void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
 {
+  if (curves_order_buf) {
+    return;
+  }
   using BasisCache = bke::curves::nurbs::BasisCache;
 
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
@@ -743,6 +760,18 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
 
 void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGeometry &curves)
 {
+  if (evaluated_pos_rad_buf) {
+    return;
+  }
+
+  ensure_common(curves);
+  if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    ensure_bezier(curves);
+  }
+  if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    ensure_nurbs(curves);
+  }
+
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
   gpu::VertBufPtr points_pos_buf = create_vbo_from_span(curves.positions());
@@ -757,28 +786,36 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
       curves, *this, std::move(points_pos_buf), std::move(points_rad_buf), evaluated_pos_rad_buf);
 }
 
-void CurvesEvalCache::ensure_topology(CurvesModule &module,
-                                      const bke::CurvesGeometry &curves,
-                                      const bool is_ribbon)
+gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
+                                                      const bke::CurvesGeometry &curves,
+                                                      const int face_per_segment)
 {
-  if (is_ribbon) {
-    indirection_ribbon_buf = alloc_vbo_device_only<int>(curves.evaluated_points_num() +
-                                                        curves.curves_num());
-  }
-  else {
-    indirection_cylinder_buf = alloc_vbo_device_only<int>(curves.evaluated_points_num() -
-                                                          curves.curves_num());
+  const bool is_ribbon = face_per_segment < 2;
+
+  gpu::VertBufPtr &indirection_buf = is_ribbon ? this->indirection_ribbon_buf :
+                                                 this->indirection_cylinder_buf;
+  if (indirection_buf) {
+    return indirection_buf;
   }
 
-  module.evaluate_topology_indirection(
-      curves, *this, is_ribbon, is_ribbon ? indirection_ribbon_buf : indirection_cylinder_buf);
+  ensure_common(curves);
+
+  int point_count = curves.evaluated_points_num();
+  int curve_count = curves.curves_num();
+  int element_count = is_ribbon ? (point_count + curve_count) : (point_count - curve_count);
+  indirection_buf = alloc_vbo_device_only<int>(element_count);
+
+  module.evaluate_topology_indirection(curves, *this, is_ribbon, indirection_buf);
+
+  return indirection_buf;
 }
 
-void CurvesEvalCache::ensure_batch(const bke::CurvesGeometry &curves, const int face_per_segment)
+gpu::Batch *CurvesEvalCache::batch_get(const bke::CurvesGeometry &curves,
+                                       const int face_per_segment)
 {
   gpu::Batch *&batch = this->batch[face_per_segment];
   if (batch) {
-    return;
+    return batch;
   }
 
   int point_count = curves.evaluated_points_num();
@@ -797,34 +834,13 @@ void CurvesEvalCache::ensure_batch(const bke::CurvesGeometry &curves, const int 
     int vert_per_segment = (face_per_segment + 1) * 2 + 1;
     batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, segment_count * vert_per_segment);
   }
+
+  return batch;
 }
 
-CurvesEvalCache &curves_ensure_procedural_data(Curves *curves_id,
-                                               const GPUMaterial *gpu_material,
-                                               const int face_per_segment)
+CurvesEvalCache &curves_get_eval_cache(Curves &curves_id)
 {
-  const bool is_ribbon = face_per_segment < 2;
-
-  const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-  /* TODO(fclem): Remove Global access. */
-  CurvesModule &module = *drw_get().data->curves_module;
-
-  CurvesEvalCache &cache = get_batch_cache(*curves_id).eval_cache;
-
-  cache.ensure_topology(module, curves, is_ribbon);
-  cache.ensure_common(curves);
-  if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
-    cache.ensure_bezier(curves);
-  }
-  if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
-    cache.ensure_nurbs(curves);
-  }
-  cache.ensure_positions(module, curves);
-  cache.ensure_attributes(module, curves, gpu_material);
-
-  cache.ensure_batch(curves, face_per_segment);
-
-  return cache;
+  return get_batch_cache(curves_id).eval_cache;
 }
 
 void DRW_curves_batch_cache_dirty_tag(Curves *curves, int mode)

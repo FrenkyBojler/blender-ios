@@ -40,9 +40,9 @@ gpu::Batch *hair_sub_pass_setup(PassSimple::Sub &sub_ps,
 /** Curves. */
 
 /**
- * \note Only valid after #DRW_curves_update().
+ * \note Content of the vertex buf is only valid after #DRW_curves_update().
  */
-gpu::VertBuf *curves_pos_buffer_get(Scene *scene, Object *object);
+gpu::VertBuf *curves_pos_buffer_get(Object *object);
 
 gpu::Batch *curves_sub_pass_setup(PassMain::Sub &ps,
                                   const Scene *scene,

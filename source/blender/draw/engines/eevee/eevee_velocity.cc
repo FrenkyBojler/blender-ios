@@ -183,7 +183,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
       }
       switch (ob->type) {
         case OB_CURVES:
-          data.pos_buf = draw::curves_pos_buffer_get(inst_.scene, ob);
+          data.pos_buf = draw::curves_pos_buffer_get(ob);
           break;
         case OB_POINTCLOUD:
           data.pos_buf = DRW_pointcloud_position_and_radius_buffer_get(ob);

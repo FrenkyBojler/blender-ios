@@ -264,12 +264,13 @@ void DRW_curves_update(draw::Manager &manager)
 
 /* New Draw Manager. */
 
-gpu::VertBuf *curves_pos_buffer_get(Scene *scene, Object *object)
+gpu::VertBuf *curves_pos_buffer_get(Object *object)
 {
-  const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 0 : 1;
-
+  CurvesModule &module = *drw_get().data->curves_module;
   Curves &curves = DRW_object_get_data_for_drawing<Curves>(*object);
-  CurvesEvalCache &cache = curves_ensure_procedural_data(&curves, nullptr, face_per_segment);
+
+  CurvesEvalCache &cache = curves_get_eval_cache(curves);
+  cache.ensure_positions(module, curves.geometry.wrap());
 
   return cache.evaluated_pos_rad_buf.get();
 }
@@ -298,11 +299,16 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   CurvesInfosBuf &curves_infos = module.ubo_pool.alloc();
   BLI_assert(ob->type == OB_CURVES);
   Curves &curves_id = DRW_object_get_data_for_drawing<Curves>(*ob);
+  const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
 
   const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 0 : 1;
 
-  CurvesEvalCache &curves_cache = curves_ensure_procedural_data(
-      &curves_id, gpu_material, face_per_segment);
+  CurvesEvalCache &curves_cache = curves_get_eval_cache(curves_id);
+  curves_cache.ensure_positions(module, curves);
+  curves_cache.ensure_attributes(module, curves, gpu_material);
+
+  gpu::VertBufPtr &indirection_buf = curves_cache.indirection_buf_get(
+      module, curves, face_per_segment);
 
   /* Ensure we have no unbound resources.
    * Required for Vulkan.
@@ -367,11 +373,9 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
 
   sub_ps.bind_ubo("drw_curves", curves_infos);
   sub_ps.bind_texture("curves_pos_rad_buf", curves_cache.evaluated_pos_rad_buf);
-  sub_ps.bind_texture("curves_indirection_buf",
-                      face_per_segment > 2 ? curves_cache.indirection_cylinder_buf :
-                                             curves_cache.indirection_ribbon_buf);
+  sub_ps.bind_texture("curves_indirection_buf", indirection_buf);
 
-  return curves_cache.batch[face_per_segment];
+  return curves_cache.batch_get(curves, face_per_segment);
 }
 
 gpu::Batch *curves_sub_pass_setup(PassMain::Sub &ps,

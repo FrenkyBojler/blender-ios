@@ -125,7 +125,7 @@ struct CurvesEvalCache {
   void ensure_attribute(struct CurvesModule &module,
                         const bke::CurvesGeometry &curves,
                         const StringRef name,
-                        const int index);
+                        int index);
   void ensure_attributes(struct CurvesModule &module,
                          const bke::CurvesGeometry &curves,
                          const GPUMaterial *gpu_material);
@@ -136,20 +136,14 @@ struct CurvesEvalCache {
 
   void ensure_positions(CurvesModule &module, const bke::CurvesGeometry &curves);
 
-  void ensure_topology(CurvesModule &module,
-                       const bke::CurvesGeometry &curves,
-                       const bool is_ribbon);
+  gpu::VertBufPtr &indirection_buf_get(CurvesModule &module,
+                                       const bke::CurvesGeometry &curves,
+                                       int face_per_segment);
 
-  void ensure_batch(const bke::CurvesGeometry &curves, int face_per_segment);
+  gpu::Batch *batch_get(const bke::CurvesGeometry &curves, int face_per_segment);
 };
 
-/**
- * Ensure all necessary textures and buffers exist for GPU accelerated drawing.
- * Return true if GPU evaluation is needed.
- */
-CurvesEvalCache &curves_ensure_procedural_data(Curves *curves_id,
-                                               const GPUMaterial *gpu_material,
-                                               int face_per_segment);
+CurvesEvalCache &curves_get_eval_cache(Curves &curves_id);
 
 void drw_curves_get_attribute_sampler_name(StringRef layer_name, char r_sampler_name[32]);
 
