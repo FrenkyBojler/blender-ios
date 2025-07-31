@@ -320,8 +320,8 @@ blender::Vector<blender::StringRef> BLF_string_wrap(int fontid,
                                                     const int max_pixel_width,
                                                     BLFWrapMode mode = BLFWrapMode::Minimal);
 
-void BLF_enable(int fontid, FontFlags option);
-void BLF_disable(int fontid, FontFlags option);
+void BLF_enable(int fontid, FontFlags flag);
+void BLF_disable(int fontid, FontFlags flag);
 
 /**
  * Is this font part of the default fonts in the fallback stack?
