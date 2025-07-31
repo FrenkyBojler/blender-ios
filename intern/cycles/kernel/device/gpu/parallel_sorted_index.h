@@ -12,7 +12,7 @@ CCL_NAMESPACE_BEGIN
  *
  * TODO: there may be ways to optimize this to avoid this many atomic ops? */
 
-#include "block_sizes.h"
+#include "kernel/device/gpu/block_sizes.h"
 #include "util/atomic.h"
 
 #if defined(__KERNEL_LOCAL_ATOMIC_SORT__)

@@ -11,7 +11,7 @@ CCL_NAMESPACE_BEGIN
  *
  * Shared memory requirement is `sizeof(int) * (number_of_warps + 1)`. */
 
-#include "block_sizes.h"
+#include "kernel/device/gpu/block_sizes.h"
 #include "util/atomic.h"
 
 
