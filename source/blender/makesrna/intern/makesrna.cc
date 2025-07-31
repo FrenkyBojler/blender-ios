@@ -758,7 +758,7 @@ static char *rna_def_property_get_func(
     /* Check log scale sliders for negative range. */
     if (prop->type == PROP_FLOAT) {
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-      /* NOTE: UI_BTYPE_NUM_SLIDER can't have a softmin of zero. */
+      /* NOTE: ButType::NumSlider can't have a softmin of zero. */
       if ((fprop->ui_scale_type == PROP_SCALE_LOG) && (fprop->hardmin < 0 || fprop->softmin < 0)) {
         CLOG_ERROR(
             &LOG, "\"%s.%s\", range for log scale < 0.", srna->identifier, prop->identifier);
@@ -768,7 +768,7 @@ static char *rna_def_property_get_func(
     }
     if (prop->type == PROP_INT) {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-      /* Only UI_BTYPE_NUM_SLIDER is implemented and that one can't have a softmin of zero. */
+      /* Only ButType::NumSlider is implemented and that one can't have a softmin of zero. */
       if ((iprop->ui_scale_type == PROP_SCALE_LOG) && (iprop->hardmin <= 0 || iprop->softmin <= 0))
       {
         CLOG_ERROR(
@@ -2916,7 +2916,10 @@ static void rna_def_struct_function_call_impl_cpp(FILE *f, StructRNA *srna, Func
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
     WRITE_COMMA;
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "this->ptr");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "(::%s *) this->ptr.data", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3170,7 +3173,10 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
   }
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "\tstruct PointerRNA _self;\n");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "\tstruct %s *_self;\n", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3251,7 +3257,10 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
   }
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "\t_self = *_ptr;\n");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "\t_self = (struct %s *)_ptr->data;\n", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3904,7 +3913,10 @@ static void rna_generate_static_parameter_prototypes(FILE *f,
     if (!first) {
       fprintf(f, ", ");
     }
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "struct PointerRNA _self");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "struct %s *_self", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -4116,6 +4128,17 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     memcpy(errnest + 1, nest, len + 1);
 
     freenest = true;
+  }
+
+  if (prop->deprecated) {
+    fprintf(f,
+            "static const DeprecatedRNA rna_%s%s_%s_deprecated = {\n\t",
+            srna->identifier,
+            strnest,
+            prop->identifier);
+    rna_print_c_string(f, prop->deprecated->note);
+    fprintf(f, ",\n\t%d, %d,\n", prop->deprecated->version, prop->deprecated->removal_version);
+    fprintf(f, "};\n\n");
   }
 
   switch (prop->type) {
@@ -4357,7 +4380,15 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
   fprintf(f, ",\n\t");
   fprintf(f, "%d, ", prop->icon);
   rna_print_c_string(f, prop->translation_context);
-  fprintf(f, ",\n");
+  fprintf(f, ",\n\t");
+
+  if (prop->deprecated) {
+    fprintf(f, "&rna_%s%s_%s_deprecated,", srna->identifier, strnest, prop->identifier);
+  }
+  else {
+    fprintf(f, "nullptr,\n");
+  }
+
   fprintf(f,
           "\t%s, PropertySubType(int(%s) | int(%s)), %s, %u, {%u, %u, %u}, %u,\n",
           RNA_property_typename(prop->type),
@@ -4786,6 +4817,7 @@ static void rna_generate_struct(BlenderRNA * /*brna*/, StructRNA *srna, FILE *f)
   fprintf(f, "\t%s,\n", rna_function_string(srna->unreg));
   fprintf(f, "\t%s,\n", rna_function_string(srna->instance));
   fprintf(f, "\t%s,\n", rna_function_string(srna->idproperties));
+  fprintf(f, "\t%s,\n", rna_function_string(srna->system_idproperties));
 
   if (srna->reg && !srna->refine) {
     CLOG_ERROR(
@@ -5835,7 +5867,7 @@ int main(int argc, char **argv)
 
   /* Some useful defaults since this runs standalone. */
   CLG_output_use_basename_set(true);
-  CLG_level_set(debugSRNA);
+  CLG_level_set(debugSRNA ? CLG_LEVEL_DEBUG : CLG_LEVEL_WARN);
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s outdirectory [public header outdirectory]/\n", argv[0]);

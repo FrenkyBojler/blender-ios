@@ -4,19 +4,20 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_compute_context_cache.hh"
-
 #include "NOD_geo_bundle.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_sync_sockets.hh"
+
+#include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 namespace blender::nodes::node_geo_combine_bundle_cc {
 
@@ -64,10 +65,21 @@ static void node_free_storage(bNode *node)
   MEM_freeN(node->storage);
 }
 
-static bool node_insert_link(bNodeTree *tree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
+  if (params.C && params.link.fromnode == &params.node && params.link.tosock->type == SOCK_BUNDLE)
+  {
+    const NodeGeometryCombineBundle &storage = node_storage(params.node);
+    if (storage.items_num == 0) {
+      SpaceNode *snode = CTX_wm_space_node(params.C);
+      if (snode && snode->edittree == &params.ntree) {
+        sync_sockets_combine_bundle(*snode, params.node, nullptr, params.link.tosock);
+      }
+    }
+    return true;
+  }
   return socket_items::try_add_item_via_any_extend_socket<CombineBundleItemsAccessor>(
-      *tree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
@@ -75,6 +87,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node_ptr->owner_id);
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
+  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
   if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
     socket_items::ui::draw_items_list_with_operators<CombineBundleItemsAccessor>(
         C, panel, ntree, node);
@@ -116,47 +129,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     void *input_ptr = params.low_level_lazy_function_params().try_get_input_data_ptr(i);
     BLI_assert(input_ptr);
-    bundle.add(SocketInterfaceKey(name), *stype, input_ptr);
+    bundle.add(name, BundleItemSocketValue{stype, input_ptr});
   }
 
   params.set_output("Bundle", std::move(bundle_ptr));
-}
-
-static void try_initialize_combine_bundle_from_target_socket(SpaceNode &snode,
-                                                             bNode &combine_bundle_node)
-{
-  snode.edittree->ensure_topology_cache();
-  bNodeSocket &bundle_socket = combine_bundle_node.output_socket(0);
-
-  bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, bundle_socket);
-  if (!current_context) {
-    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
-     * removed. */
-    return;
-  }
-  const Vector<const bNode *> separate_bundle_nodes =
-      ed::space_node::gather_linked_separate_bundle_nodes(
-          current_context, bundle_socket, compute_context_cache);
-  if (separate_bundle_nodes.is_empty()) {
-    return;
-  }
-
-  Set<StringRef> added_names;
-  for (const bNode *separate_bundle_node : separate_bundle_nodes) {
-    const NodeGeometrySeparateBundle &separate_bundle_storage =
-        *static_cast<const NodeGeometrySeparateBundle *>(separate_bundle_node->storage);
-    for (const int i : IndexRange(separate_bundle_storage.items_num)) {
-      const NodeGeometrySeparateBundleItem &item = separate_bundle_storage.items[i];
-      if (!added_names.add(item.name)) {
-        continue;
-      }
-      socket_items::add_item_with_socket_type_and_name<CombineBundleItemsAccessor>(
-          combine_bundle_node, eNodeSocketDatatype(item.socket_type), item.name);
-    }
-  }
-  BKE_ntree_update_tag_node_property(snode.edittree, &combine_bundle_node);
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
@@ -174,7 +150,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.connect_available_socket(node, "Bundle");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    try_initialize_combine_bundle_from_target_socket(snode, node);
+    sync_sockets_combine_bundle(snode, node, nullptr);
   });
 }
 
@@ -224,6 +200,28 @@ void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const Ite
 void CombineBundleItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
   BLO_read_string(reader, &item.name);
+}
+
+std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
+{
+  std::string result;
+  if (name.is_empty()) {
+    return result;
+  }
+  /* Disallow certain characters so that we can use them to e.g. build a bundle path or
+   * expressions referencing multiple bundle items. We might not need all of them in the future,
+   * but better reserve them now while we still can. */
+  constexpr StringRefNull forbidden_chars_str = "/*&|\"^~!,{}()+$#@[];:?<>.-%\\=";
+  const Span<char> forbidden_chars = forbidden_chars_str;
+  for (const char c : name) {
+    if (forbidden_chars.contains(c)) {
+      result += '_';
+    }
+    else {
+      result += c;
+    }
+  }
+  return result;
 }
 
 }  // namespace blender::nodes

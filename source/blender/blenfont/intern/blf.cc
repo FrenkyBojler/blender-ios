@@ -317,21 +317,21 @@ void BLF_addref_id(int fontid)
   }
 }
 
-void BLF_enable(int fontid, int option)
+void BLF_enable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags |= option;
+    font->flags |= flag;
   }
 }
 
-void BLF_disable(int fontid, int option)
+void BLF_disable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags &= ~option;
+    font->flags &= ~flag;
   }
 }
 
@@ -590,10 +590,6 @@ void BLF_draw(int fontid, const char *str, const size_t str_len, ResultBLF *r_in
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-
-    /* Avoid bgl usage to corrupt BLF drawing. */
-    GPU_bgl_end();
-
     blf_draw_gpu__start(font);
     if (font->flags & BLF_WORD_WRAP) {
       blf_font_draw__wrap(font, str, str_len, r_info);
@@ -635,8 +631,6 @@ void BLF_draw_svg_icon(uint icon_id,
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];
   if (font) {
-    /* Avoid bgl usage to corrupt BLF drawing. */
-    GPU_bgl_end();
     blf_draw_gpu__start(font);
     blf_draw_svg_icon(font, icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
     blf_draw_gpu__end(font);
@@ -1133,14 +1127,18 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
   return true;
 }
 
-float BLF_character_to_curves(
-    int fontid, uint unicode, ListBase *nurbsbase, const float scale, bool use_fallback)
+bool BLF_character_to_curves(int fontid,
+                             uint unicode,
+                             ListBase *nurbsbase,
+                             const float scale,
+                             bool use_fallback,
+                             float *r_advance)
 {
   FontBLF *font = blf_get(fontid);
   if (!font) {
-    return 0.0f;
+    return false;
   }
-  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback);
+  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback, r_advance);
 }
 
 #ifndef NDEBUG

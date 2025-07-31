@@ -13,7 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf.hh"
@@ -37,6 +37,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -176,7 +177,7 @@ static wmOperatorStatus screenshot_invoke(bContext *C, wmOperator *op, const wmE
     }
     else {
       /* As the file isn't saved, only set the name and let the file selector pick a directory. */
-      STRNCPY(filepath, DATA_("screen"));
+      STRNCPY_UTF8(filepath, DATA_("screen"));
     }
     RNA_string_set(op->ptr, "filepath", filepath);
 
@@ -207,17 +208,17 @@ static bool screenshot_draw_check_prop(PointerRNA * /*ptr*/,
   return !STREQ(prop_id, "filepath");
 }
 
-static void screenshot_draw(bContext * /*C*/, wmOperator *op)
+static void screenshot_draw(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
   ScreenshotData *scd = static_cast<ScreenshotData *>(op->customdata);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* image template */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, &scd->im_format);
-  uiTemplateImageSettings(layout, &ptr, false);
+  uiTemplateImageSettings(layout, C, &ptr, false);
 
   /* main draw call */
   uiDefAutoButsRNA(layout,

@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_matrix_types.hh"
@@ -15,6 +14,7 @@
 
 #include "FN_multi_function_builder.hh"
 
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "NOD_multi_function.hh"
@@ -22,6 +22,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -36,10 +37,9 @@
 
 namespace blender::nodes::node_composite_colorbalance_cc {
 
-NODE_STORAGE_FUNCS(NodeColorBalance)
-
 static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.use_custom_socket_order();
 
   b.add_output<decl::Color>("Image");
@@ -151,14 +151,6 @@ static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
   });
 }
 
-static void node_composit_init_colorbalance(bNodeTree * /*ntree*/, bNode *node)
-{
-  /* All members are deprecated and needn't be set, but the data is still allocated for forward
-   * compatibility. */
-  NodeColorBalance *n = MEM_callocN<NodeColorBalance>(__func__);
-  node->storage = n;
-}
-
 static CMPNodeColorBalanceMethod get_color_balance_method(const bNode &node)
 {
   return static_cast<CMPNodeColorBalanceMethod>(node.custom1);
@@ -235,10 +227,10 @@ static int node_gpu_material(GPUMaterial *material,
           material, node, "node_composite_color_balance_asc_cdl", inputs, outputs);
     }
     case CMP_NODE_COLOR_BALANCE_WHITEPOINT: {
-      const bNodeSocket &input_temperature = node->input_by_identifier("Input Temperature");
-      const bNodeSocket &input_tint = node->input_by_identifier("Input Tint");
-      const bNodeSocket &output_temperature = node->input_by_identifier("Output Temperature");
-      const bNodeSocket &output_tint = node->input_by_identifier("Output Tint");
+      const bNodeSocket &input_temperature = *node->input_by_identifier("Input Temperature");
+      const bNodeSocket &input_tint = *node->input_by_identifier("Input Tint");
+      const bNodeSocket &output_temperature = *node->input_by_identifier("Output Temperature");
+      const bNodeSocket &output_tint = *node->input_by_identifier("Output Tint");
 
       /* If all inputs are not linked, compute the white point matrix on the host and pass it to
        * the shader. */
@@ -494,9 +486,6 @@ static void register_node_type_cmp_colorbalance()
   ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = file_ns::cmp_node_colorbalance_declare;
   ntype.updatefunc = file_ns::node_update;
-  ntype.initfunc = file_ns::node_composit_init_colorbalance;
-  blender::bke::node_type_storage(
-      ntype, "NodeColorBalance", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 

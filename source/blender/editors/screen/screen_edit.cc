@@ -17,7 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -564,7 +564,18 @@ static bool screen_area_join_ex(bContext *C,
 
   if (close_all_remainders || offset1 < 0 || offset2 > 0) {
     /* Close both if trimming `sa1`. */
+    float inner[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+    if (side1) {
+      rcti rect = {side1->v1->vec.x, side1->v3->vec.x, side1->v1->vec.y, side1->v3->vec.y};
+      screen_animate_area_highlight(
+          CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+    }
     screen_area_close(C, reports, screen, side1);
+    if (side2) {
+      rcti rect = {side2->v1->vec.x, side2->v3->vec.x, side2->v1->vec.y, side2->v3->vec.y};
+      screen_animate_area_highlight(
+          CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+    }
     screen_area_close(C, reports, screen, side2);
   }
   else {
@@ -649,6 +660,10 @@ static void region_cursor_set(wmWindow *win, bool swin_changed)
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
+  /* Don't touch cursor if something else is controling it, like button handling. See #51739. */
+  if (win->grabcursor) {
+    return;
+  }
   ED_screen_areas_iter (win, screen, area) {
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       if (region == screen->active_region) {
@@ -817,7 +832,7 @@ static void screen_refresh_if_needed(bContext *C, wmWindowManager *wm, wmWindow 
     /* Called even when creating the ghost window fails in #WM_window_open. */
     if (win->ghostwin) {
       /* Header size depends on DPI, let's verify. */
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
     }
 
     ED_screen_global_areas_refresh(win);
@@ -1636,7 +1651,7 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
   bScreen *oldscreen = WM_window_get_active_screen(win);
 
   oldscreen->state = state;
-  SNPRINTF(newname, "%s-%s", oldscreen->id.name + 2, "nonnormal");
+  SNPRINTF_UTF8(newname, "%s-%s", oldscreen->id.name + 2, "nonnormal");
 
   layout_new = ED_workspace_layout_add(bmain, workspace, win, newname);
 
@@ -1679,6 +1694,45 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
                RGN_TYPE_ASSET_SHELF_HEADER))
       {
         region->flag |= RGN_FLAG_HIDDEN;
+      }
+    }
+
+    /* Temporarily hide gizmos and overlays. */
+    screen->fullscreen_flag = 0;
+    if (newa->spacetype == SPACE_VIEW3D) {
+      View3D *v3d = static_cast<View3D *>(newa->spacedata.first);
+      if (v3d && !(v3d->gizmo_flag & V3D_GIZMO_HIDE_NAVIGATE)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+        v3d->gizmo_flag |= V3D_GIZMO_HIDE_NAVIGATE;
+      }
+      if (v3d && !(v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_TEXT;
+        v3d->overlay.flag |= V3D_OVERLAY_HIDE_TEXT;
+      }
+      if (v3d && (v3d->overlay.flag & V3D_OVERLAY_STATS)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_STATS;
+        v3d->overlay.flag &= ~V3D_OVERLAY_STATS;
+      }
+    }
+    else if (newa->spacetype == SPACE_CLIP) {
+      SpaceClip *sc = static_cast<SpaceClip *>(newa->spacedata.first);
+      if (sc && !(sc->gizmo_flag & SCLIP_GIZMO_HIDE_NAVIGATE)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+        sc->gizmo_flag |= SCLIP_GIZMO_HIDE_NAVIGATE;
+      }
+    }
+    else if (newa->spacetype == SPACE_SEQ) {
+      SpaceSeq *sseq = static_cast<SpaceSeq *>(newa->spacedata.first);
+      if (sseq && !(sseq->gizmo_flag & SEQ_GIZMO_HIDE_NAVIGATE)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+        sseq->gizmo_flag |= SEQ_GIZMO_HIDE_NAVIGATE;
+      }
+    }
+    else if (newa->spacetype == SPACE_IMAGE) {
+      SpaceImage *sima = static_cast<SpaceImage *>(newa->spacedata.first);
+      if (sima && !(sima->gizmo_flag & SI_GIZMO_HIDE_NAVIGATE)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+        sima->gizmo_flag |= SI_GIZMO_HIDE_NAVIGATE;
       }
     }
   }
@@ -1731,6 +1785,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
 
     screen->state = SCREENNORMAL;
     screen->flag = oldscreen->flag;
+    screen->fullscreen_flag = oldscreen->fullscreen_flag;
 
     /* Find old area we may have swapped dummy space data to. It's swapped back here. */
     ScrArea *fullsa = nullptr;
@@ -1754,6 +1809,45 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
       /* restore the old side panels/header visibility */
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
         region->flag = region->flagfullscreen;
+      }
+      /* Restore gizmos and overlays to their prior states. */
+      if (area->spacetype == SPACE_VIEW3D) {
+        View3D *v3d = static_cast<View3D *>(area->spacedata.first);
+        if (v3d) {
+          v3d->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
+                                v3d->gizmo_flag & ~V3D_GIZMO_HIDE_NAVIGATE :
+                                v3d->gizmo_flag | V3D_GIZMO_HIDE_NAVIGATE;
+          v3d->overlay.flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_TEXT) ?
+                                  v3d->overlay.flag & ~V3D_OVERLAY_HIDE_TEXT :
+                                  v3d->overlay.flag | V3D_OVERLAY_HIDE_TEXT;
+          v3d->overlay.flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_STATS) ?
+                                  v3d->overlay.flag | V3D_OVERLAY_STATS :
+                                  v3d->overlay.flag & ~V3D_OVERLAY_STATS;
+        }
+      }
+      else if (area->spacetype == SPACE_CLIP) {
+        SpaceClip *sc = static_cast<SpaceClip *>(area->spacedata.first);
+        if (sc) {
+          sc->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
+                               sc->gizmo_flag & ~SCLIP_GIZMO_HIDE_NAVIGATE :
+                               sc->gizmo_flag | SCLIP_GIZMO_HIDE_NAVIGATE;
+        }
+      }
+      else if (area->spacetype == SPACE_SEQ) {
+        SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
+        if (sseq) {
+          sseq->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
+                                 sseq->gizmo_flag & ~SEQ_GIZMO_HIDE_NAVIGATE :
+                                 sseq->gizmo_flag | SEQ_GIZMO_HIDE_NAVIGATE;
+        }
+      }
+      else if (area->spacetype == SPACE_IMAGE) {
+        SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+        if (sima) {
+          sima->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
+                                 sima->gizmo_flag & ~SI_GIZMO_HIDE_NAVIGATE :
+                                 sima->gizmo_flag | SI_GIZMO_HIDE_NAVIGATE;
+        }
       }
     }
 

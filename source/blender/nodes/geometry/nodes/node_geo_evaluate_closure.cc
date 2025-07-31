@@ -2,16 +2,17 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
-
-#include "BKE_compute_context_cache.hh"
 
 #include "NOD_geo_closure.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_sync_sockets.hh"
+
+#include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
 
@@ -42,8 +43,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       const std::string identifier =
           EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item);
       b.add_output(socket_type, item.name, identifier)
-          .propagate_all()
-          .reference_pass_all()
           .structure_type(StructureType(item.structure_type));
     }
   }
@@ -75,14 +74,26 @@ static void node_free_storage(bNode *node)
   MEM_freeN(node->storage);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  if (link->tonode == node) {
+  if (params.C && params.link.tosock == params.node.inputs.first &&
+      params.link.fromsock->type == SOCK_CLOSURE)
+  {
+    const NodeGeometryEvaluateClosure &storage = node_storage(params.node);
+    if (storage.input_items.items_num == 0 && storage.output_items.items_num == 0) {
+      SpaceNode *snode = CTX_wm_space_node(params.C);
+      if (snode && snode->edittree == &params.ntree) {
+        sync_sockets_evaluate_closure(*snode, params.node, nullptr, params.link.fromsock);
+      }
+    }
+    return true;
+  }
+  if (params.link.tonode == &params.node) {
     return socket_items::try_add_item_via_any_extend_socket<EvaluateClosureInputItemsAccessor>(
-        *ntree, *node, *node, *link);
+        params.ntree, params.node, params.node, params.link);
   }
   return socket_items::try_add_item_via_any_extend_socket<EvaluateClosureOutputItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -90,8 +101,10 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+
+  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
 
   if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
@@ -120,43 +133,6 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
   return evaluate_closure_node_internally_linked_input(output_socket);
 }
 
-static void try_initialize_evaluate_closure_node_from_origin_socket(SpaceNode &snode,
-                                                                    bNode &evaluate_closure_node)
-{
-  snode.edittree->ensure_topology_cache();
-  bNodeSocket &closure_socket = evaluate_closure_node.input_socket(0);
-
-  bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, closure_socket);
-  if (!current_context) {
-    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
-     * removed. */
-    return;
-  }
-  const Vector<const bNode *> closure_origin_nodes =
-      ed::space_node::gather_linked_closure_origin_nodes(
-          current_context, closure_socket, compute_context_cache);
-  if (closure_origin_nodes.is_empty()) {
-    return;
-  }
-  const bNode &closure_node = *closure_origin_nodes[0];
-  const NodeGeometryClosureOutput &closure_storage =
-      *static_cast<const NodeGeometryClosureOutput *>(closure_node.storage);
-
-  for (const int i : IndexRange(closure_storage.input_items.items_num)) {
-    const NodeGeometryClosureInputItem &item = closure_storage.input_items.items[i];
-    socket_items::add_item_with_socket_type_and_name<EvaluateClosureInputItemsAccessor>(
-        evaluate_closure_node, eNodeSocketDatatype(item.socket_type), item.name);
-  }
-  for (const int i : IndexRange(closure_storage.output_items.items_num)) {
-    const NodeGeometryClosureOutputItem &item = closure_storage.output_items.items[i];
-    socket_items::add_item_with_socket_type_and_name<EvaluateClosureOutputItemsAccessor>(
-        evaluate_closure_node, eNodeSocketDatatype(item.socket_type), item.name);
-  }
-  BKE_ntree_update_tag_node_property(snode.edittree, &evaluate_closure_node);
-}
-
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
@@ -172,7 +148,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.connect_available_socket(node, "Closure");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    try_initialize_evaluate_closure_node_from_origin_socket(snode, node);
+    sync_sockets_evaluate_closure(snode, node, nullptr);
   });
 }
 
@@ -257,11 +233,11 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
   }
   const NodeGeometryEvaluateClosureOutputItem &output_item =
       storage.output_items.items[output_socket.index()];
-  const SocketInterfaceKey output_key{output_item.name};
+  const StringRef output_key = output_item.name;
   for (const int i : IndexRange(storage.input_items.items_num)) {
     const NodeGeometryEvaluateClosureInputItem &input_item = storage.input_items.items[i];
-    const SocketInterfaceKey input_key{input_item.name};
-    if (output_key.matches(input_key)) {
+    const StringRef input_key = input_item.name;
+    if (output_key == input_key) {
       if (!tree.typeinfo->validate_link ||
           tree.typeinfo->validate_link(eNodeSocketDatatype(input_item.socket_type),
                                        eNodeSocketDatatype(output_item.socket_type)))

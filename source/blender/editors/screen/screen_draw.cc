@@ -203,11 +203,14 @@ void ED_screen_draw_edges(wmWindow *win)
   float outline1[4];
   float outline2[4];
   rctf bounds;
+  /* Outset by 1/2 pixel, regardless of UI scale or pixel size. #141550. */
+  const float padding = 0.5f;
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, outline1);
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, outline2);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     BLI_rctf_rcti_copy(&bounds, &area->totrct);
+    BLI_rctf_pad(&bounds, padding, padding);
     UI_draw_roundbox_4fv_ex(&bounds,
                             nullptr,
                             nullptr,
@@ -381,21 +384,23 @@ static void screen_draw_area_drag_tip(
   BLF_draw(fstyle->uifont_id, area_name, BLF_DRAW_STR_DUMMY_MAX);
 }
 
-static void screen_draw_area_closed(int xmin, int xmax, int ymin, int ymax)
+static void screen_draw_area_closed(int xmin, int xmax, int ymin, int ymax, float anim_factor)
 {
   /* Darken the area. */
   rctf rect = {float(xmin), float(xmax), float(ymin), float(ymax)};
-  float darken[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+  float darken[4] = {0.0f, 0.0f, 0.0f, 0.7f * anim_factor};
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   UI_draw_roundbox_4fv_ex(&rect, darken, nullptr, 1.0f, nullptr, U.pixelsize, EDITORRADIUS);
 }
 
-void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir)
+void screen_draw_join_highlight(
+    const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir, float anim_factor)
 {
   if (dir == SCREEN_DIR_NONE || !sa2) {
-    /* Darken source if docking. Done here because it might be a different window. */
+    /* Darken source if docking. Done here because it might be a different window.
+     * Do not animate this as we don't want to reset every time we change areas. */
     screen_draw_area_closed(
-        sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax);
+        sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax, 1.0f);
     return;
   }
 
@@ -419,45 +424,45 @@ void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2,
     if (vertical) {
       if (sa1->totrct.xmin < combined.xmin) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, combined.xmin, sa1->totrct.ymin, sa1->totrct.ymax);
+            sa1->totrct.xmin, combined.xmin, sa1->totrct.ymin, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.xmin < combined.xmin) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, combined.xmin, sa2->totrct.ymin, sa2->totrct.ymax);
+            sa2->totrct.xmin, combined.xmin, sa2->totrct.ymin, sa2->totrct.ymax, anim_factor);
       }
       if (sa1->totrct.xmax > combined.xmax) {
         screen_draw_area_closed(
-            combined.xmax, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax);
+            combined.xmax, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.xmax > combined.xmax) {
         screen_draw_area_closed(
-            combined.xmax, sa2->totrct.xmax, sa2->totrct.ymin, sa2->totrct.ymax);
+            combined.xmax, sa2->totrct.xmax, sa2->totrct.ymin, sa2->totrct.ymax, anim_factor);
       }
     }
     else {
       if (sa1->totrct.ymin < combined.ymin) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, combined.ymin);
+            sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, combined.ymin, anim_factor);
       }
       if (sa2->totrct.ymin < combined.ymin) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, sa2->totrct.xmax, sa2->totrct.ymin, combined.ymin);
+            sa2->totrct.xmin, sa2->totrct.xmax, sa2->totrct.ymin, combined.ymin, anim_factor);
       }
       if (sa1->totrct.ymax > combined.ymax) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, sa1->totrct.xmax, combined.ymax, sa1->totrct.ymax);
+            sa1->totrct.xmin, sa1->totrct.xmax, combined.ymax, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.ymax > combined.ymax) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, sa2->totrct.xmax, combined.ymax, sa2->totrct.ymax);
+            sa2->totrct.xmin, sa2->totrct.xmax, combined.ymax, sa2->totrct.ymax, anim_factor);
       }
     }
   }
 
   /* Outline the combined area. */
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
-  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f * anim_factor};
   UI_draw_roundbox_4fv_ex(&combined, inner, nullptr, 1.0f, outline, U.pixelsize, EDITORRADIUS);
 
   screen_draw_area_drag_tip(
@@ -538,16 +543,18 @@ void screen_draw_dock_preview(const wmWindow *win,
                               AreaDockTarget dock_target,
                               float factor,
                               int x,
-                              int y)
+                              int y,
+                              float anim_factor)
 {
   if (dock_target == AreaDockTarget::None) {
     return;
   }
 
-  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f * anim_factor};
   float border[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, border);
+  border[3] *= anim_factor;
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   float half_line_width = float(U.border_width) * UI_SCALE_FAC;
 
@@ -683,12 +690,10 @@ struct SpaceOutData {
   eScreenDir dir;
   void *draw_callback;
 };
-
 static void space_out_cb(const wmWindow * /*win*/, void *userdata)
 {
   const SpaceOutData *data = static_cast<const SpaceOutData *>(userdata);
   double now = BLI_time_now_seconds();
-
   if (now > data->end_time) {
     IMB_freeImBuf(data->ibuf);
     WM_draw_cb_exit(data->win, data->draw_callback);
@@ -696,15 +701,12 @@ static void space_out_cb(const wmWindow * /*win*/, void *userdata)
     data = nullptr;
     return;
   }
-
   const float total = data->end_time - data->start_time;
   const float progress = now - data->start_time;
   const float factor = pow(progress / total, 2);
   float color[4] = {1.0f, 1.0f, 1.0f, 1.0f - factor};
-
   float x = data->rect.xmin;
   float y = data->rect.ymin;
-
   if (data->dir == SCREEN_DIR_W) {
     x -= (data->rect.xmax - data->rect.xmin) * 0.6f * factor;
   }
@@ -717,7 +719,6 @@ static void space_out_cb(const wmWindow * /*win*/, void *userdata)
   else if (data->dir == SCREEN_DIR_S) {
     y -= (data->rect.ymax - data->rect.ymin) * factor;
   }
-
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_scissor(data->rect.xmin,
               data->rect.ymin,
@@ -730,7 +731,7 @@ static void space_out_cb(const wmWindow * /*win*/, void *userdata)
                                  y,
                                  data->ibuf->x,
                                  data->ibuf->y,
-                                 GPU_RGBA8,
+                                 blender::gpu::TextureFormat::UNORM_8_8_8_8,
                                  false,
                                  data->ibuf->byte_buffer.data,
                                  1.0f,
@@ -738,7 +739,6 @@ static void space_out_cb(const wmWindow * /*win*/, void *userdata)
                                  1.0f,
                                  1.0f,
                                  color);
-
   GPU_blend(GPU_BLEND_NONE);
   GPU_scissor_test(false);
   data->screen->do_refresh = true;
@@ -746,6 +746,9 @@ static void space_out_cb(const wmWindow * /*win*/, void *userdata)
 
 void screen_area_animate_out(bContext *C, ScrArea *area, eScreenDir dir, float duration)
 {
+  if (!area) {
+    return;
+  }
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   if (BLI_rcti_size_x(&area->totrct) < 2 || BLI_rcti_size_y(&area->totrct) < 2) {
@@ -764,4 +767,82 @@ void screen_area_animate_out(bContext *C, ScrArea *area, eScreenDir dir, float d
     IMB_rect_crop(data->ibuf, &data->rect);
     data->draw_callback = WM_draw_cb_activate(win, space_out_cb, data);
   }
+}
+
+struct AreaAnimateHighlightData {
+  wmWindow *win;
+  bScreen *screen;
+  rctf rect;
+  float inner[4];
+  float outline[4];
+  double start_time;
+  double end_time;
+  void *draw_callback;
+};
+
+static void area_animate_highlight_cb(const wmWindow * /*win*/, void *userdata)
+{
+  const AreaAnimateHighlightData *data = static_cast<const AreaAnimateHighlightData *>(userdata);
+
+  double now = BLI_time_now_seconds();
+  if (now > data->end_time) {
+    WM_draw_cb_exit(data->win, data->draw_callback);
+    MEM_freeN(const_cast<AreaAnimateHighlightData *>(data));
+    data = nullptr;
+    return;
+  }
+
+  const float factor = pow((now - data->start_time) / (data->end_time - data->start_time), 2);
+  const bool do_inner = data->inner[3] > 0.0f;
+  const bool do_outline = data->outline[3] > 0.0f;
+
+  float inner_color[4];
+  if (do_inner) {
+    inner_color[0] = data->inner[0];
+    inner_color[1] = data->inner[1];
+    inner_color[2] = data->inner[2];
+    inner_color[3] = (1.0f - factor) * data->inner[3];
+  }
+
+  float outline_color[4];
+  if (do_outline) {
+    outline_color[0] = data->outline[0];
+    outline_color[1] = data->outline[1];
+    outline_color[2] = data->outline[2];
+    outline_color[3] = (1.0f - factor) * data->outline[3];
+  }
+
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  UI_draw_roundbox_4fv_ex(&data->rect,
+                          do_inner ? inner_color : nullptr,
+                          nullptr,
+                          1.0f,
+                          do_outline ? outline_color : nullptr,
+                          U.pixelsize,
+                          EDITORRADIUS);
+
+  data->screen->do_refresh = true;
+}
+
+void screen_animate_area_highlight(wmWindow *win,
+                                   bScreen *screen,
+                                   const rcti *rect,
+                                   float inner[4],
+                                   float outline[4],
+                                   float seconds)
+{
+  AreaAnimateHighlightData *data = MEM_callocN<AreaAnimateHighlightData>(
+      "screen_animate_area_highlight");
+  data->win = win;
+  data->screen = screen;
+  BLI_rctf_rcti_copy(&data->rect, rect);
+  if (inner) {
+    copy_v4_v4(data->inner, inner);
+  }
+  if (outline) {
+    copy_v4_v4(data->outline, outline);
+  }
+  data->start_time = BLI_time_now_seconds();
+  data->end_time = data->start_time + seconds;
+  data->draw_callback = WM_draw_cb_activate(win, area_animate_highlight_cb, data);
 }

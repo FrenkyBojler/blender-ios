@@ -4,19 +4,21 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_compute_context_cache.hh"
+#include "ED_screen.hh"
 
 #include "NOD_geo_bundle.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_sync_sockets.hh"
+
+#include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
 
-#include "NOD_geometry_nodes_bundle.hh"
-
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include <fmt/format.h>
 
@@ -67,10 +69,21 @@ static void node_free_storage(bNode *node)
   MEM_freeN(node->storage);
 }
 
-static bool node_insert_link(bNodeTree *tree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
+  if (params.C && params.link.tonode == &params.node && params.link.fromsock->type == SOCK_BUNDLE)
+  {
+    const NodeGeometrySeparateBundle &storage = node_storage(params.node);
+    if (storage.items_num == 0) {
+      SpaceNode *snode = CTX_wm_space_node(params.C);
+      if (snode && snode->edittree == &params.ntree) {
+        sync_sockets_separate_bundle(*snode, params.node, nullptr, params.link.fromsock);
+      }
+    }
+    return true;
+  }
   return socket_items::try_add_item_via_any_extend_socket<SeparateBundleItemsAccessor>(
-      *tree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
@@ -78,6 +91,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node_ptr->owner_id);
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
+  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
   if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
     socket_items::ui::draw_items_list_with_operators<SeparateBundleItemsAccessor>(
         C, panel, ntree, node);
@@ -121,57 +135,51 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_cpp_type) {
       continue;
     }
-    const std::optional<Bundle::Item> value = bundle->lookup(SocketInterfaceKey(name));
+    const BundleItemValue *value = bundle->lookup(name);
     if (!value) {
-      params.error_message_add(NodeWarningType::Error,
-                               fmt::format(fmt::runtime(TIP_("Value not found: \"{}\"")), name));
+      params.error_message_add(
+          NodeWarningType::Error,
+          fmt::format(fmt::runtime(TIP_("Value not found in bundle: \"{}\"")), name));
+      continue;
+    }
+    const auto *socket_value = std::get_if<BundleItemSocketValue>(&value->value);
+    if (!socket_value) {
+      params.error_message_add(
+          NodeWarningType::Error,
+          fmt::format("{}: \"{}\"", TIP_("Cannot get internal value from bundle"), name));
       continue;
     }
     void *output_ptr = lf_params.get_output_data_ptr(i);
-    if (!implicitly_convert_socket_value(*value->type, value->value, *stype, output_ptr)) {
-      construct_socket_default_value(*stype, output_ptr);
+    if (socket_value->type->type == stype->type) {
+      socket_value->type->geometry_nodes_cpp_type->copy_construct(socket_value->value, output_ptr);
+    }
+    else {
+      if (implicitly_convert_socket_value(
+              *socket_value->type, socket_value->value, *stype, output_ptr))
+      {
+        params.error_message_add(
+            NodeWarningType::Info,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Implicit type conversion when separating bundle"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+      }
+      else {
+        params.error_message_add(
+            NodeWarningType::Error,
+            fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
+                        TIP_("Conversion not supported when separating bundle"),
+                        name,
+                        TIP_(socket_value->type->label),
+                        TIP_(stype->label)));
+        construct_socket_default_value(*stype, output_ptr);
+      }
     }
     lf_params.output_set(i);
   }
 
   params.set_default_remaining_outputs();
-}
-
-static void try_initialize_separate_bundle_from_origin_socket(SpaceNode &snode,
-                                                              bNode &separate_bundle_node)
-{
-  snode.edittree->ensure_topology_cache();
-  bNodeSocket &bundle_socket = separate_bundle_node.input_socket(0);
-
-  bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, bundle_socket);
-  if (!current_context) {
-    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
-     * removed. */
-    return;
-  }
-  const Vector<const bNode *> combine_bundle_nodes =
-      ed::space_node::gather_linked_combine_bundle_nodes(
-          current_context, bundle_socket, compute_context_cache);
-  if (combine_bundle_nodes.is_empty()) {
-    return;
-  }
-
-  Set<StringRef> added_names;
-  for (const bNode *combine_bundle_node : combine_bundle_nodes) {
-    const NodeGeometryCombineBundle &combine_bundle_storage =
-        *static_cast<const NodeGeometryCombineBundle *>(combine_bundle_node->storage);
-    for (const int i : IndexRange(combine_bundle_storage.items_num)) {
-      const NodeGeometryCombineBundleItem &item = combine_bundle_storage.items[i];
-      if (!added_names.add(item.name)) {
-        continue;
-      }
-      socket_items::add_item_with_socket_type_and_name<SeparateBundleItemsAccessor>(
-          separate_bundle_node, eNodeSocketDatatype(item.socket_type), item.name);
-    }
-  }
-  BKE_ntree_update_tag_node_property(snode.edittree, &separate_bundle_node);
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
@@ -189,7 +197,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.connect_available_socket(node, "Bundle");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    try_initialize_separate_bundle_from_origin_socket(snode, node);
+    sync_sockets_separate_bundle(snode, node, nullptr);
   });
 }
 

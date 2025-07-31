@@ -21,7 +21,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLF_api.hh"
 
@@ -75,19 +75,6 @@ static void sequencer_scopes_tag_refresh(ScrArea *area)
 
 SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
 
-/* ******************** manage regions ********************* */
-
-static ARegion *sequencer_find_region(ScrArea *area, short type)
-{
-
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->regiontype == type) {
-      return region;
-    }
-  }
-  return nullptr;
-}
-
 /* ******************** default callbacks for sequencer space ***************** */
 
 static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
@@ -124,6 +111,14 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   region->regiontype = RGN_TYPE_TOOL_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
   region->flag = RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER;
+
+  /* Footer. */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&sseq->regionbase, region);
+  region->regiontype = RGN_TYPE_FOOTER;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
+  region->flag = RGN_FLAG_HIDDEN;
 
   /* Buttons/list view. */
   region = BKE_area_region_new();
@@ -230,8 +225,8 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
 {
   const wmWindow *window = CTX_wm_window(C);
   SpaceSeq *sseq = (SpaceSeq *)area->spacedata.first;
-  ARegion *region_main = sequencer_find_region(area, RGN_TYPE_WINDOW);
-  ARegion *region_preview = sequencer_find_region(area, RGN_TYPE_PREVIEW);
+  ARegion *region_main = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  ARegion *region_preview = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
   bool view_changed = false;
 
   switch (sseq->view) {
@@ -332,7 +327,7 @@ static int /*eContextResult*/ sequencer_context(const bContext *C,
                                                 const char *member,
                                                 bContextDataResult *result)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, sequencer_context_dir);
@@ -479,7 +474,7 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
   }
 
   View2D *v2d = &region->v2d;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   /* Transformation uses edge panning to move view. Also if smooth view is running, don't apply
    * clamping to prevent overriding this functionality. */
@@ -500,7 +495,7 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
    */
   float pad_top, pad_bottom;
   SEQ_get_timeline_region_padding(C, &pad_top, &pad_bottom);
-  const float pixel_view_size_y = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
+  const float pixel_view_size_y = BLI_rctf_size_y(&v2d->cur) / (BLI_rcti_size_y(&v2d->mask) + 1);
   /* Add padding to be able to scroll the view so that the collapsed redo panel doesn't occlude any
    * strips. */
   float bottom_channel_padding = UI_MARKER_MARGIN_Y * pixel_view_size_y;
@@ -752,6 +747,28 @@ static void sequencer_header_region_draw(const bContext *C, ARegion *region)
   ED_region_header(C, region);
 }
 
+static void sequencer_footer_region_listener(const wmRegionListenerParams *params)
+{
+  ARegion *region = params->region;
+  const wmNotifier *wmn = params->notifier;
+
+  /* context changes */
+  switch (wmn->category) {
+    case NC_SCREEN:
+      if (wmn->data == ND_ANIMPLAY) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+    case NC_SCENE:
+      switch (wmn->data) {
+        case ND_FRAME:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+  }
+}
+
 /* *********************** toolbar region ************************ */
 /* Add handlers, stuff you only do once or on area/region changes. */
 static void sequencer_tools_region_init(wmWindowManager *wm, ARegion *region)
@@ -768,17 +785,17 @@ static void sequencer_tools_region_init(wmWindowManager *wm, ARegion *region)
 static void sequencer_tools_region_draw(const bContext *C, ARegion *region)
 {
   ScrArea *area = CTX_wm_area(C);
-  wmOperatorCallContext op_context = WM_OP_INVOKE_REGION_WIN;
+  wm::OpCallContext op_context = wm::OpCallContext::InvokeRegionWin;
 
   LISTBASE_FOREACH (ARegion *, ar, &area->regionbase) {
     if (ar->regiontype == RGN_TYPE_PREVIEW && region->regiontype == RGN_TYPE_TOOLS) {
-      op_context = WM_OP_INVOKE_REGION_PREVIEW;
+      op_context = wm::OpCallContext::InvokeRegionPreview;
       break;
     }
   }
 
   if (region->regiontype == RGN_TYPE_CHANNELS) {
-    op_context = WM_OP_INVOKE_REGION_CHANNELS;
+    op_context = wm::OpCallContext::InvokeRegionChannels;
   }
 
   ED_region_panels_ex(C, region, op_context, nullptr);
@@ -1103,7 +1120,7 @@ void ED_spacetype_sequencer()
   ARegionType *art;
 
   st->spaceid = SPACE_SEQ;
-  STRNCPY(st->name, "Sequencer");
+  STRNCPY_UTF8(st->name, "Sequencer");
 
   st->create = sequencer_create;
   st->free = sequencer_free;
@@ -1210,6 +1227,17 @@ void ED_spacetype_sequencer()
   art->init = sequencer_header_region_init;
   art->draw = sequencer_header_region_draw;
   art->listener = sequencer_main_region_listener;
+  BLI_addhead(&st->regiontypes, art);
+
+  /* Footer. */
+  art = MEM_callocN<ARegionType>("spacetype sequencer region");
+  art->regionid = RGN_TYPE_FOOTER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+
+  art->init = sequencer_header_region_init;
+  art->draw = sequencer_header_region_draw;
+  art->listener = sequencer_footer_region_listener;
   BLI_addhead(&st->regiontypes, art);
 
   /* HUD. */

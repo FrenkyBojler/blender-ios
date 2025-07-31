@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geo_capture_attribute.hh"
@@ -33,7 +33,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_default_layout();
 
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry")
+      .description(
+          "Geometry to evaluate the given fields and store the resulting attributes on. All "
+          "geometry types except volumes are supported");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   if (node != nullptr) {
     const NodeGeometryAttributeCapture &storage = node_storage(*node);
@@ -59,8 +62,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -85,8 +88,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<CaptureAttributeItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "data_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
@@ -205,10 +208,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Geometry", geometry_set);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<CaptureAttributeItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_free_storage(bNode *node)

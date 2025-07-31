@@ -16,7 +16,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -27,8 +27,9 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveToPoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description("Curves to convert to points");
   auto &count = b.add_input<decl::Int>("Count")
                     .default_value(10)
                     .min(2)
@@ -99,7 +100,7 @@ static void copy_curve_domain_attributes(const AttributeAccessor curve_attribute
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     point_attributes.add(iter.name,

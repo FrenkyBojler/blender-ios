@@ -47,7 +47,7 @@ extern "C" {
 namespace blender::gpu {
 
 using GPUPrintFormatMap = Map<uint32_t, shader::PrintfFormat>;
-using GPUSourceDictionnary = Map<StringRef, struct GPUSource *>;
+using GPUSourceDictionnary = Map<StringRef, GPUSource *>;
 using GPUFunctionDictionnary = Map<StringRef, GPUFunction *>;
 
 struct GPUSource {
@@ -361,7 +361,7 @@ struct GPUSource {
     }
 
     /* Linear lookup since we won't have more than a few per shaders.
-     * Also avoid the complexity of a Map in create infos. */
+     * Also avoid the complexity of a Map in info creation. */
     for (const shader::GeneratedSource &generated_src : generated_sources) {
       if (generated_src.filename == this->filename) {
         /* Include dependencies before the generated file. */

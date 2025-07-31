@@ -17,13 +17,14 @@
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_node_types.h" /* For `GeometryNodeCurveSampleMode` */
 #include "DNA_object_types.h"
+#include "DNA_screen_types.h"
 
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "MOD_grease_pencil_util.hh"
@@ -124,8 +125,8 @@ static void deform_drawing(const ModifierData &md,
   /* Variable for tagging shrinking when values are adjusted after random. */
   std::atomic<bool> needs_additional_shrinking = false;
 
-  VArray<float> use_starts = VArray<float>::ForSingle(mmd.start_fac, curves_num);
-  VArray<float> use_ends = VArray<float>::ForSingle(mmd.end_fac, curves_num);
+  VArray<float> use_starts = VArray<float>::from_single(mmd.start_fac, curves_num);
+  VArray<float> use_ends = VArray<float>::from_single(mmd.end_fac, curves_num);
 
   Array<float> modified_starts;
   Array<float> modified_ends;
@@ -135,8 +136,8 @@ static void deform_drawing(const ModifierData &md,
 
     /* Use random to modify start/end factors. Put the modified values outside the
      * branch so it could be accessed in later stretching/shrinking stages. */
-    use_starts = VArray<float>::ForSpan(modified_starts.as_mutable_span());
-    use_ends = VArray<float>::ForSpan(modified_ends.as_mutable_span());
+    use_starts = VArray<float>::from_span(modified_starts.as_mutable_span());
+    use_ends = VArray<float>::from_span(modified_ends.as_mutable_span());
 
     int seed = mmd.seed;
 
@@ -227,8 +228,8 @@ static void deform_drawing(const ModifierData &md,
     });
     curves = geometry::trim_curves(curves,
                                    selection,
-                                   VArray<float>::ForSpan(starts.as_span()),
-                                   VArray<float>::ForSpan(ends.as_span()),
+                                   VArray<float>::from_span(starts.as_span()),
+                                   VArray<float>::from_span(ends.as_span()),
                                    GEO_NODE_CURVE_SAMPLE_LENGTH,
                                    {});
 
@@ -274,7 +275,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *col = &layout->column(true);
@@ -293,7 +294,7 @@ static void panel_draw(const bContext *C, Panel *panel)
       C, ptr, "open_random_panel", ptr, "use_random", IFACE_("Randomize"));
   if (uiLayout *random_layout = random_panel_layout.body) {
     uiLayout *subcol = &random_layout->column(false);
-    uiLayoutSetPropSep(subcol, true);
+    subcol->use_property_split_set(true);
     subcol->active_set(RNA_boolean_get(ptr, "use_random"));
 
     subcol->prop(ptr, "step", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -307,7 +308,7 @@ static void panel_draw(const bContext *C, Panel *panel)
       C, ptr, "open_curvature_panel", ptr, "use_curvature", IFACE_("Curvature"));
   if (uiLayout *curvature_layout = curvature_panel_layout.body) {
     uiLayout *subcol = &curvature_layout->column(false);
-    uiLayoutSetPropSep(subcol, true);
+    subcol->use_property_split_set(true);
     subcol->active_set(RNA_boolean_get(ptr, "use_curvature"));
 
     subcol->prop(ptr, "point_density", UI_ITEM_NONE, std::nullopt, ICON_NONE);

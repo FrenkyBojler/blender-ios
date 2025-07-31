@@ -165,7 +165,7 @@ struct GlyphCacheBLF {
   blender::Map<GlyphCacheKey, std::unique_ptr<GlyphBLF>> glyphs;
 
   /** Texture array, to draw the glyphs. */
-  GPUTexture *texture;
+  blender::gpu::Texture *texture;
   char *bitmap_result;
   int bitmap_len;
   int bitmap_len_landed;
@@ -371,7 +371,7 @@ struct FontBLF {
   int tex_size_max;
 
   /** Font options. */
-  int flags;
+  FontFlags flags;
 
   /**
    * List of glyph caches (#GlyphCacheBLF) for this font for size, DPI, bold, italic.
