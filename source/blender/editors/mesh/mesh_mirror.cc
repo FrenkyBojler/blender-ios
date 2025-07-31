@@ -460,6 +460,8 @@ void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *v,
                                                    blender::FunctionRef<void(BMVert *)> op) const
 {
   BLI_assert((this->htype_ & BM_VERT) != 0);
+  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
+   * default. */
   if (!vert_to_mirror_map_.contains(v)) {
     return;
   }
@@ -472,6 +474,8 @@ void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *e,
                                                    blender::FunctionRef<void(BMEdge *)> op) const
 {
   BLI_assert(this->htype_ & BM_EDGE);
+  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
+   * default. */
   if (!edge_to_mirror_map_.contains(e)) {
     return;
   }
@@ -484,6 +488,8 @@ void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *f,
                                                    blender::FunctionRef<void(BMFace *)> op) const
 {
   BLI_assert(this->htype_ & BM_FACE);
+  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
+   * default. */
   if (!face_to_mirror_map_.contains(f)) {
     return;
   }
@@ -495,6 +501,8 @@ void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *f,
 bool EditMeshSymmetryHelper::any_mirror_vert_selected(BMVert *v, const char hflag) const
 {
   BLI_assert(this->htype_ & BM_VERT);
+  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
+   * default. */
   if (!vert_to_mirror_map_.contains(v)) {
     return false;
   }
@@ -509,6 +517,8 @@ bool EditMeshSymmetryHelper::any_mirror_vert_selected(BMVert *v, const char hfla
 bool EditMeshSymmetryHelper::any_mirror_edge_selected(BMEdge *e, const char hflag) const
 {
   BLI_assert((this->htype_ & BM_EDGE) != 0);
+  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
+   * default. */
   if (!edge_to_mirror_map_.contains(e)) {
     return false;
   }
@@ -523,6 +533,8 @@ bool EditMeshSymmetryHelper::any_mirror_edge_selected(BMEdge *e, const char hfla
 bool EditMeshSymmetryHelper::any_mirror_face_selected(BMFace *f, const char hflag) const
 {
   BLI_assert((this->htype_ & BM_FACE) != 0);
+  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
+   * default. */
   if (!face_to_mirror_map_.contains(f)) {
     return false;
   }
@@ -539,22 +551,24 @@ void EditMeshSymmetryHelper::set_hflag_on_mirror_verts(BMVert *v,
                                                        const bool value) const
 {
   apply_on_mirror_verts(v, [hflag, value](BMVert *v_mirr) {
-    if (BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
-      return;
-    }
+    /* FIXME: see #set_hflag_on_mirror_edges. */
+
     BM_elem_flag_set(v_mirr, hflag, value);
   });
 }
 
 void EditMeshSymmetryHelper::set_hflag_on_mirror_edges(BMEdge *e,
-                                                       const char hflag,
+                                                       char hflag,
                                                        const bool value) const
 {
   apply_on_mirror_edges(e, [hflag, value](BMEdge *e_mirr) {
-    if (BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN)) {
-      return;
+    if (hflag & BM_ELEM_SELECT) {
+      // BM_vert_select_set(bm, v, value); // FIXME
     }
-    BM_elem_flag_set(e_mirr, hflag, value);
+    char hflag_test = char(hflag & ~BM_ELEM_SELECT);
+    if (hflag_test) {
+      BM_elem_flag_set(e_mirr, hflag_test, value);
+    }
   });
 }
 
@@ -563,9 +577,7 @@ void EditMeshSymmetryHelper::set_hflag_on_mirror_faces(BMFace *f,
                                                        const bool value) const
 {
   apply_on_mirror_faces(f, [hflag, value](BMFace *f_mirr) {
-    if (BM_elem_flag_test(f_mirr, BM_ELEM_HIDDEN)) {
-      return;
-    }
+    /* FIXME: see #set_hflag_on_mirror_edges. */
     BM_elem_flag_set(f_mirr, hflag, value);
   });
 }
