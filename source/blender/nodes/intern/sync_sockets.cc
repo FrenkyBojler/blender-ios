@@ -32,6 +32,7 @@
 #include "NOD_geo_closure.hh"
 #include "NOD_socket_items.hh"
 #include "NOD_sync_sockets.hh"
+#include "NOD_trace_values.hh"
 
 namespace blender::nodes {
 
@@ -66,9 +67,8 @@ static BundleSyncState get_sync_state_separate_bundle(
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, *src_bundle_socket);
-  const Vector<nodes::BundleSignature> source_signatures =
-      ed::space_node::gather_linked_origin_bundle_signatures(
-          current_context, *src_bundle_socket, compute_context_cache);
+  const Vector<nodes::BundleSignature> source_signatures = gather_linked_origin_bundle_signatures(
+      current_context, *src_bundle_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
@@ -98,9 +98,8 @@ static BundleSyncState get_sync_state_combine_bundle(
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, *src_bundle_socket);
-  const Vector<nodes::BundleSignature> source_signatures =
-      ed::space_node::gather_linked_target_bundle_signatures(
-          current_context, *src_bundle_socket, compute_context_cache);
+  const Vector<nodes::BundleSignature> source_signatures = gather_linked_target_bundle_signatures(
+      current_context, *src_bundle_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
@@ -130,7 +129,7 @@ static ClosureSyncState get_sync_state_closure_output(
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, *src_closure_socket);
   const Vector<nodes::ClosureSignature> source_signatures =
-      ed::space_node::gather_linked_target_closure_signatures(
+      gather_linked_target_closure_signatures(
           current_context, *src_closure_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
@@ -161,7 +160,7 @@ static ClosureSyncState get_sync_state_evaluate_closure(
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, *src_closure_socket);
   const Vector<nodes::ClosureSignature> source_signatures =
-      ed::space_node::gather_linked_origin_closure_signatures(
+      gather_linked_origin_closure_signatures(
           current_context, *src_closure_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};

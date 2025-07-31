@@ -90,9 +90,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node_ptr->owner_id);
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
+  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
   if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
-    panel->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
-
     socket_items::ui::draw_items_list_with_operators<SeparateBundleItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<SeparateBundleItemsAccessor>(
@@ -137,8 +136,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     const BundleItemValue *value = bundle->lookup(name);
     if (!value) {
-      params.error_message_add(NodeWarningType::Error,
-                               fmt::format(fmt::runtime(TIP_("Value not found: \"{}\"")), name));
+      params.error_message_add(
+          NodeWarningType::Error,
+          fmt::format(fmt::runtime(TIP_("Value not found in bundle: \"{}\"")), name));
       continue;
     }
     const auto *socket_value = std::get_if<BundleItemSocketValue>(&value->value);
@@ -159,7 +159,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         params.error_message_add(
             NodeWarningType::Info,
             fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
-                        TIP_("Implicit type conversion"),
+                        TIP_("Implicit type conversion when separating bundle"),
                         name,
                         TIP_(socket_value->type->label),
                         TIP_(stype->label)));
@@ -168,7 +168,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         params.error_message_add(
             NodeWarningType::Error,
             fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
-                        TIP_("Conversion not supported"),
+                        TIP_("Conversion not supported when separating bundle"),
                         name,
                         TIP_(socket_value->type->label),
                         TIP_(stype->label)));
