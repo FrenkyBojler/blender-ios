@@ -664,7 +664,7 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
     if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
       ensure_bezier(curves);
     }
-    if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
       ensure_nurbs(curves);
     }
 
@@ -785,7 +785,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
   if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     ensure_bezier(curves);
   }
-  if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+  if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
     ensure_nurbs(curves);
   }
 
