@@ -11,6 +11,8 @@
 
 COMPUTE_SHADER_CREATE_INFO(draw_curves_topology)
 
+#include "gpu_shader_utildefines_lib.glsl"
+
 void main()
 {
   if (gl_GlobalInvocationID.x >= uint(curves_count)) {
@@ -25,9 +27,9 @@ void main()
   index_start += (is_ribbon_topology ? curve_id : -curve_id);
 
   for (uint i = 0; i < indirection_index_count; i++) {
-    uint value = (i == 0u) ? curve_id : -i;
+    int value = int((i == 0u) ? curve_id : -i);
     if (i == num_segment) {
-      value = 0x7FFFFFFF;
+      value = INT_MAX;
     }
     indirection_buf[index_start + i] = value;
   }

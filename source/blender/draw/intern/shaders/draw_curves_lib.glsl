@@ -111,7 +111,7 @@ float3 point_position_get(uint point_id)
 
 float point_radius(uint point_id)
 {
-  return texelFetch(curves_pos_rad_buf, int(point_id)).r;
+  return texelFetch(curves_pos_rad_buf, int(point_id)).a;
 }
 
 struct Point {

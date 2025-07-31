@@ -501,7 +501,7 @@ template<typename InterpType> void evaluate_curve(const InterpType interp_type)
   }
   int curve_index = int(gl_GlobalInvocationID.x) + curves_start;
 
-  const CurveType curve_type = CurveType(curves_type_buf[curve_index]);
+  const CurveType curve_type = CurveType(gpu_attr_load_uchar(curves_type_buf, curve_index));
   if (curve_type != CurveType(evaluated_type)) {
     return;
   }

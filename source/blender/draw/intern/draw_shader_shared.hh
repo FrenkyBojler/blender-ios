@@ -255,6 +255,7 @@ struct CurvesInfos {
    * \note GLSL pad arrays of scalar to 16 bytes (std140). */
   uint4 is_point_attribute[DRW_ATTRIBUTE_PER_CURVES_MAX];
 
+  /* Number of vertex in a segment (including restart vertex for cylinder). */
   uint vertex_per_segment;
   /* Edge count for the visible half cylinder. Equal to face count + 1. */
   uint half_cylinder_face_count;

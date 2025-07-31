@@ -730,7 +730,6 @@ void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
 
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  /* TODO(fclem): Shader doesn't load char. */
   curves_type_buf = create_vbo_from_varray(curves.curve_types());
   curves_resolution_buf = create_vbo_from_varray(curves.resolution());
 }

@@ -299,7 +299,6 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
                                                  GPUMaterial *gpu_material)
 {
   CurvesModule &module = *drw_get().data->curves_module;
-  CurvesInfosBuf &curves_infos = module.ubo_pool.alloc();
   BLI_assert(ob->type == OB_CURVES);
   Curves &curves_id = DRW_object_get_data_for_drawing<Curves>(*ob);
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
@@ -339,6 +338,8 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   /* TODO(fclem): Bind (and compute) only if needed. */
   sub_ps.bind_texture("l", curves_cache.curves_length_buf);
 
+  CurvesInfosBuf &curves_infos = module.ubo_pool.alloc();
+
   const std::optional<StringRef> uv_name = get_first_uv_name(
       curves_id.geometry.wrap().attributes());
   const VectorSet<std::string> &attrs = curves_cache.attr_used;
@@ -377,6 +378,10 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
       curves_infos.is_point_attribute[index][0] = curves_cache.attributes_point_domain[i];
     }
   }
+
+  curves_infos.half_cylinder_face_count = face_per_segment;
+  curves_infos.vertex_per_segment = face_per_segment < 2 ? (face_per_segment + 1) :
+                                                           ((face_per_segment + 1) * 2 + 1);
 
   curves_infos.push_update();
 
