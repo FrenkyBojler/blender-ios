@@ -10,6 +10,8 @@
 
 #include "DNA_curves_types.h"
 
+#include "BLI_math_base.h"
+
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 
@@ -97,7 +99,7 @@ void CurvesModule::dispatch(const bke::CurvesGeometry &curve, PassSimple::Sub &p
                                      max_strands_per_call);
     pass.push_constant("curves_start", strands_start);
     pass.push_constant("curves_count", batch_strands_len);
-    pass.dispatch(batch_strands_len / CURVES_PER_THREADGROUP);
+    pass.dispatch(divide_ceil_u(batch_strands_len, CURVES_PER_THREADGROUP));
     strands_start += batch_strands_len;
   }
 }
