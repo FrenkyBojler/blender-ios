@@ -359,6 +359,26 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.preview_range);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 51)) {
+    FROM_DEFAULT_V4_UCHAR(common.curves.nurb_uline);
+    FROM_DEFAULT_V4_UCHAR(common.curves.nurb_vline);
+    FROM_DEFAULT_V4_UCHAR(common.curves.nurb_sel_uline);
+    FROM_DEFAULT_V4_UCHAR(common.curves.nurb_sel_vline);
+    FROM_DEFAULT_V4_UCHAR(common.curves.act_spline);
+    FROM_DEFAULT_V4_UCHAR(common.curves.lastsel_point);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_free);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vect);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_align);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_free);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_vect);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_align);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex_select);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
