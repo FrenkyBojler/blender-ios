@@ -124,8 +124,8 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
   }
 }
 
-void EditMeshSymmetryHelper::tag_symmetrical_group(
-    const blender::Vector<BMFace *> &f_initial, char hflag) const
+void EditMeshSymmetryHelper::tag_symmetrical_group(const blender::Vector<BMFace *> &f_initial,
+                                                   char hflag) const
 {
   BLI_assert((this->htype_ & BM_FACE) != 0);
 
