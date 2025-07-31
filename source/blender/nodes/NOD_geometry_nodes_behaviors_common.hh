@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_geometry_set.hh"
+
 #include "FN_field.hh"
 
 #include "NOD_geometry_nodes_behaviors.hh"

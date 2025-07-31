@@ -32,38 +32,11 @@ class BehaviorDef {
 
   std::string type;
   CustomIDVectorSet<Item, ItemNameGetter> items;
-
   Vector<std::unique_ptr<BaseSocketDeclarationBuilder>> builders;
 
   BundleSignature to_bundle_signature() const;
-
   const SocketDeclaration *find_decl(const StringRef name) const;
-
-  template<typename DeclType> typename DeclType::Builder &add(std::string name)
-  {
-    static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
-    using SocketBuilder = typename DeclType::Builder;
-
-    auto decl_ptr = std::make_unique<DeclType>();
-    DeclType &decl = *decl_ptr;
-
-    auto decl_builder_ptr = std::make_unique<SocketBuilder>();
-    SocketBuilder &decl_builder = *decl_builder_ptr;
-
-    decl_builder.decl_ = &decl;
-    decl_builder.decl_base_ = &decl;
-
-    decl.name = name;
-    decl.identifier = name;
-    decl.in_out = SOCK_IN;
-    decl.socket_type = DeclType::static_socket_type;
-
-    this->items.add_new(Item{std::move(name), std::move(decl_ptr)});
-    this->builders.append(std::move(decl_builder_ptr));
-    return decl_builder;
-  }
-
-  BundleSignature signature;
+  template<typename DeclType> typename DeclType::Builder &add(std::string name);
 };
 
 class BehaviorListDef {
@@ -133,5 +106,29 @@ inline void parse_member(const Bundle &bundle,
 }
 
 }  // namespace behaviors
+
+template<typename DeclType> inline typename DeclType::Builder &BehaviorDef::add(std::string name)
+{
+  static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
+  using SocketBuilder = typename DeclType::Builder;
+
+  auto decl_ptr = std::make_unique<DeclType>();
+  DeclType &decl = *decl_ptr;
+
+  auto decl_builder_ptr = std::make_unique<SocketBuilder>();
+  SocketBuilder &decl_builder = *decl_builder_ptr;
+
+  decl_builder.decl_ = &decl;
+  decl_builder.decl_base_ = &decl;
+
+  decl.name = name;
+  decl.identifier = name;
+  decl.in_out = SOCK_IN;
+  decl.socket_type = DeclType::static_socket_type;
+
+  this->items.add_new(Item{std::move(name), std::move(decl_ptr)});
+  this->builders.append(std::move(decl_builder_ptr));
+  return decl_builder;
+}
 
 }  // namespace blender::nodes
