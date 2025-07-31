@@ -443,122 +443,48 @@ struct JoltBehaviors {
   Vector<OldSoftBodyBehavior> old_soft_bodies;
   Vector<OldGravityBehavior> old_gravities;
   Vector<OldForceBehavior> old_forces;
+
+  Vector<ForceBehavior> forces;
+  Vector<GravityBehavior> gravities;
+  Vector<RigidBodyInstancesBehavior> rigid_bodies;
+  Vector<SoftBodyMeshBehavior> soft_bodies;
 };
-
-struct ParseBehaviorParams {
-  const Span<StringRef> path_elems;
-  const Bundle &bundle;
-  JoltBehaviors &r_behaviors;
-
-  std::string self_path() const
-  {
-    return Bundle::combine_path(this->path_elems);
-  }
-};
-
-using ParseBehaviorFn = std::function<void(ParseBehaviorParams &params)>;
-
-static void parse_behavior__rigid_bodies(ParseBehaviorParams &params)
-{
-  std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Instances");
-  std::optional<Field<int>> collision_shape_type_field = params.bundle.lookup<Field<int>>(
-      "Collision Shape Type");
-  std::optional<Field<int>> motion_type_field = params.bundle.lookup<Field<int>>("Motion Type");
-  std::optional<Field<float>> friction_field = params.bundle.lookup<Field<float>>("Friction");
-  std::optional<Field<float>> bounciness_field = params.bundle.lookup<Field<float>>("Bounciness");
-  std::optional<Field<float>> density_field = params.bundle.lookup<Field<float>>("Density");
-  if (!geometry || !collision_shape_type_field || !motion_type_field || !friction_field ||
-      !bounciness_field || !density_field)
-  {
-    return;
-  }
-  geometry->keep_only({bke::GeometryComponent::Type::Instance});
-
-  OldRigidBodiesBehavior rigid_bodies_behaviors;
-  rigid_bodies_behaviors.self_path = params.self_path();
-  rigid_bodies_behaviors.input_geometry = *geometry;
-  rigid_bodies_behaviors.collision_shape_type_field = *collision_shape_type_field;
-  rigid_bodies_behaviors.motion_type_field = *motion_type_field;
-  rigid_bodies_behaviors.friction_field = *friction_field;
-  rigid_bodies_behaviors.bounciness_field = *bounciness_field;
-  rigid_bodies_behaviors.density_field = *density_field;
-  params.r_behaviors.old_rigid_bodies.append(std::move(rigid_bodies_behaviors));
-}
-
-static void parse_behavior__soft_body(ParseBehaviorParams &params)
-{
-  std::optional<GeometrySet> geometry = params.bundle.lookup<GeometrySet>("Geometry");
-  std::optional<Field<float>> compliance_field = params.bundle.lookup<Field<float>>("Compliance");
-  std::optional<Field<float>> shear_compliance_field = params.bundle.lookup<Field<float>>(
-      "Shear Compliance");
-  const JPH::SoftBodySharedSettings::EBendType bend_type = parse_bend_type(
-      params.bundle.lookup<int>("Bend Type").value_or(-1));
-  std::optional<Field<float>> bend_compliance_field = params.bundle.lookup<Field<float>>(
-      "Bend Compliance");
-  if (!geometry || !compliance_field || !shear_compliance_field || !bend_compliance_field) {
-    return;
-  }
-
-  geometry->keep_only({bke::GeometryComponent::Type::Mesh});
-
-  OldSoftBodyBehavior soft_body_behavior;
-  soft_body_behavior.self_path = params.self_path();
-  soft_body_behavior.input_geometry = *geometry;
-  soft_body_behavior.compliance_field = *compliance_field;
-  soft_body_behavior.shear_compliance_field = *shear_compliance_field;
-  soft_body_behavior.bend_type = bend_type;
-  soft_body_behavior.bend_compliance_field = *bend_compliance_field;
-  params.r_behaviors.old_soft_bodies.append(std::move(soft_body_behavior));
-}
-
-static void parse_behavior__gravity(ParseBehaviorParams &params)
-{
-  const std::optional<float3> gravity = params.bundle.lookup<float3>("Gravity");
-  if (!gravity) {
-    return;
-  }
-  OldGravityBehavior gravity_behavior;
-  gravity_behavior.gravity = *gravity;
-  params.r_behaviors.old_gravities.append(std::move(gravity_behavior));
-}
-
-static void parse_behavior__force(ParseBehaviorParams &params)
-{
-  const std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
-  const std::optional<Field<bool>> selection_field = params.bundle.lookup<Field<bool>>(
-      "Selection");
-  const std::optional<Field<float3>> force_field = params.bundle.lookup<Field<float3>>("Force");
-  if (!selection_field && !force_field) {
-    return;
-  }
-  OldForceBehavior force_behavior;
-  force_behavior.self_path = params.self_path();
-  force_behavior.filter = filter;
-  force_behavior.selection_field = *selection_field;
-  force_behavior.force_field = *force_field;
-  params.r_behaviors.old_forces.append(std::move(force_behavior));
-}
-
-static Map<std::string, ParseBehaviorFn> build_behavior_parsers()
-{
-  Map<std::string, ParseBehaviorFn> behavior_parsers;
-  behavior_parsers.add_new("Rigid Bodies", parse_behavior__rigid_bodies);
-  behavior_parsers.add_new("Soft Body", parse_behavior__soft_body);
-  behavior_parsers.add_new("Gravity", parse_behavior__gravity);
-  behavior_parsers.add_new("Force", parse_behavior__force);
-  return behavior_parsers;
-}
 
 static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
 {
   JoltBehaviors behaviors;
-  static Map<std::string, ParseBehaviorFn> behavior_parsers = build_behavior_parsers();
   behaviors::foreach_behavior_in_bundle(
       behaviors_bundle,
-      [&](const StringRef type, const Bundle &behaviors_bundle, const Span<StringRef> path) {
-        if (const ParseBehaviorFn *parse = behavior_parsers.lookup_ptr_as(type)) {
-          ParseBehaviorParams params{path, behaviors_bundle, behaviors};
-          (*parse)(params);
+      [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
+        BehaviorParseErrors errors;
+        if (type == ForceBehavior::type) {
+          if (std::optional<ForceBehavior> force = ForceBehavior::parse(behavior_bundle, errors)) {
+            behaviors.forces.append(std::move(*force));
+            behaviors.forces.last().self_path = Bundle::combine_path(path);
+          }
+        }
+        if (type == GravityBehavior::type) {
+          if (std::optional<GravityBehavior> gravity = GravityBehavior::parse(behavior_bundle,
+                                                                              errors)) {
+            behaviors.gravities.append(std::move(*gravity));
+            behaviors.gravities.last().self_path = Bundle::combine_path(path);
+          }
+        }
+        else if (type == RigidBodyInstancesBehavior::type) {
+          if (std::optional<RigidBodyInstancesBehavior> rigid_body =
+                  RigidBodyInstancesBehavior::parse(behavior_bundle, errors))
+          {
+            behaviors.rigid_bodies.append(std::move(*rigid_body));
+            behaviors.rigid_bodies.last().self_path = Bundle::combine_path(path);
+          }
+        }
+        else if (type == SoftBodyMeshBehavior::type) {
+          if (std::optional<SoftBodyMeshBehavior> soft_body = SoftBodyMeshBehavior::parse(
+                  behavior_bundle, errors))
+          {
+            behaviors.soft_bodies.append(std::move(*soft_body));
+            behaviors.soft_bodies.last().self_path = Bundle::combine_path(path);
+          }
         }
       });
   return behaviors;

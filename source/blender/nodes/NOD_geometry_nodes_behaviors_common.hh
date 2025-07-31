@@ -11,6 +11,8 @@ namespace blender::nodes {
 
 class GravityBehavior : public BehaviorCommon {
  public:
+  static constexpr StringRefNull type = "COMMON_GRAVITY";
+
   float3 gravity;
 
   static const std::shared_ptr<BehaviorDef> &def();
@@ -19,6 +21,8 @@ class GravityBehavior : public BehaviorCommon {
 
 class ForceBehavior : public BehaviorCommon {
  public:
+  static constexpr StringRefNull type = "COMMON_FORCE";
+
   std::string filter;
   fn::Field<bool> selection;
   fn::Field<float3> force;
@@ -29,6 +33,8 @@ class ForceBehavior : public BehaviorCommon {
 
 class RigidBodyInstancesBehavior : public BehaviorCommon {
  public:
+  static constexpr StringRefNull type = "COMMON_RIGID_BODY_INSTANCES";
+
   bke::GeometrySet instances_geometry;
   fn::Field<int> collision_shape_type;
   fn::Field<int> motion_type;
@@ -43,6 +49,8 @@ class RigidBodyInstancesBehavior : public BehaviorCommon {
 
 class SoftBodyMeshBehavior : public BehaviorCommon {
  public:
+  static constexpr StringRefNull type = "COMMON_SOFT_BODY_MESH";
+
   bke::GeometrySet mesh_geometry;
   fn::Field<float> stretch_stiffness;
   fn::Field<float> bend_stiffness;

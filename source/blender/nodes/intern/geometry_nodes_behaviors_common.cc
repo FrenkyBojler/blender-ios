@@ -13,7 +13,7 @@ const std::shared_ptr<BehaviorDef> &GravityBehavior::def()
 {
   static const std::shared_ptr<BehaviorDef> def = []() {
     auto def = std::make_shared<BehaviorDef>();
-    def->type = "COMMON_GRAVITY";
+    def->type = GravityBehavior::type;
     def->add<decl::Vector>("gravity");
     return def;
   }();
@@ -35,7 +35,7 @@ const std::shared_ptr<BehaviorDef> &ForceBehavior::def()
 {
   static const std::shared_ptr<BehaviorDef> def = []() {
     auto def = std::make_shared<BehaviorDef>();
-    def->type = "COMMON_FORCE";
+    def->type = ForceBehavior::type;
     def->add<decl::String>("filter");
     def->add<decl::Bool>("selection").supports_field();
     def->add<decl::Vector>("force").supports_field();
@@ -61,7 +61,7 @@ const std::shared_ptr<BehaviorDef> &RigidBodyInstancesBehavior::def()
 {
   static const std::shared_ptr<BehaviorDef> def = []() {
     auto def = std::make_shared<BehaviorDef>();
-    def->type = "COMMON_RIGID_BODY_INSTANCES";
+    def->type = RigidBodyInstancesBehavior::type;
     def->add<decl::Geometry>("instances").supported_type(bke::GeometryComponent::Type::Instance);
     def->add<decl::Int>("collision_shape_type").supports_field();
     def->add<decl::Int>("motion_type").supports_field();
@@ -86,6 +86,7 @@ std::optional<RigidBodyInstancesBehavior> RigidBodyInstancesBehavior::parse(
   if (r_errors.has_error()) {
     return std::nullopt;
   }
+  behavior.instances_geometry.keep_only({bke::GeometryComponent::Type::Instance});
   return behavior;
 }
 
@@ -93,7 +94,7 @@ const std::shared_ptr<BehaviorDef> &SoftBodyMeshBehavior::def()
 {
   static const std::shared_ptr<BehaviorDef> def = []() {
     auto def = std::make_shared<BehaviorDef>();
-    def->type = "COMMON_SOFT_BODY_MESH";
+    def->type = SoftBodyMeshBehavior::type;
     def->add<decl::Geometry>("mesh").supported_type(bke::GeometryComponent::Type::Mesh);
     def->add<decl::Float>("stretch_stiffness").supports_field();
     def->add<decl::Float>("bend_stiffness").supports_field();
@@ -112,6 +113,7 @@ std::optional<SoftBodyMeshBehavior> SoftBodyMeshBehavior::parse(const Bundle &bu
   if (r_errors.has_error()) {
     return std::nullopt;
   }
+  behavior.mesh_geometry.keep_only({bke::GeometryComponent::Type::Mesh});
   return behavior;
 }
 
