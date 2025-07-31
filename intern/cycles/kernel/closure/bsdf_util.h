@@ -21,6 +21,11 @@ struct FresnelThinFilm {
   float ior;
 };
 
+template<typename T> struct ComplexIOR {
+  T eta;
+  T k;
+};
+
 /* Compute fresnel reflectance for perpendicular (aka S-) and parallel (aka P-) polarized light.
  * If requested by the caller, r_phi is set to the phase shift on reflection.
  * Also returns the dot product of the refracted ray and the normal as `cos_theta_t`, as it is
@@ -124,14 +129,17 @@ ccl_device_inline float fresnel_dielectric_Fss(const float eta)
  * Wolf, but uses `n + ik` instead of `n(1 + ik)` for IOR. The phase shifts are calculated so that
  * phi_p = phi_s at 90 degree incidence to match fresnel_dielectric_polarized. */
 ccl_device void fresnel_conductor_polarized(const float cosi,
-                                            const float eta1,
-                                            const Spectrum eta2,
-                                            const Spectrum k2,
+                                            const float ambient_ior,
+                                            const ComplexIOR<Spectrum> conductor_ior,
                                             ccl_private Spectrum *r_R_s,
                                             ccl_private Spectrum *r_R_p,
                                             ccl_private Spectrum *r_phi_s,
                                             ccl_private Spectrum *r_phi_p)
 {
+  const float eta1 = ambient_ior;
+  const Spectrum eta2 = conductor_ior.eta;
+  const Spectrum k2 = conductor_ior.k;
+
   const float eta1_sq = sqr(eta1);
   const Spectrum eta2_sq = sqr(eta2);
   const Spectrum k2_sq = sqr(k2);
@@ -152,7 +160,7 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
     const Spectrum t4 = two_eta2_k2 * cosi;
     const Spectrum R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) /
                          (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
-    const int3 mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
+    const auto mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
     *r_R_p = select(mask, one_spectrum(), R_p);
   }
 
@@ -171,7 +179,7 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
 ccl_device Spectrum fresnel_conductor(const float cosi, const Spectrum eta, const Spectrum k)
 {
   Spectrum R_s, R_p;
-  fresnel_conductor_polarized(cosi, 1.0f, eta, k, &R_s, &R_p, nullptr, nullptr);
+  fresnel_conductor_polarized(cosi, 1.0f, {eta, k}, &R_s, &R_p, nullptr, nullptr);
   return (R_s + R_p) * 0.5f;
 }
 
@@ -461,52 +469,52 @@ template<> struct fresnel_info<Spectrum> {
 
 template<typename SpectrumOrFloat>
 ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
-                                        const float eta1,
-                                        const SpectrumOrFloat eta3,
-                                        const SpectrumOrFloat k3,
+                                        const float ambient_ior,
+                                        const FresnelThinFilm thin_film,
+                                        const ComplexIOR<SpectrumOrFloat> substrate_ior,
                                         ccl_private const SpectrumOrFloat *R23,
                                         const float cos_theta_1,
-                                        const FresnelThinFilm thin_film,
                                         ccl_private float *r_cos_theta_3)
 {
   /* For films below 1nm, the wave-optic-based Airy summation approach no longer applies,
    * so blend towards the case without coating. */
-  float eta2 = thin_film.ior;
+  float film_ior = thin_film.ior;
   if (thin_film.thickness < 1.0f) {
-    eta2 = mix(eta1, eta2, smoothstep(0.0f, 1.0f, thin_film.thickness));
+    film_ior = mix(ambient_ior, film_ior, smoothstep(0.0f, 1.0f, thin_film.thickness));
   }
 
   float cos_theta_2;
   float2 phi12;
 
   /* Compute reflection at the top interface (ambient to film). */
-  const float2 R12 = fresnel_dielectric_polarized(cos_theta_1, eta2 / eta1, &cos_theta_2, &phi12);
+  const float2 R12 = fresnel_dielectric_polarized(
+      cos_theta_1, film_ior / ambient_ior, &cos_theta_2, &phi12);
   if (isequal(R12, one_float2())) {
     /* TIR at the top interface. */
     return one_spectrum();
   }
 
-  /* Compute reflection at the bottom interface (film to medium). */
+  /* Compute reflection at the bottom interface (film to substrate). */
   SpectrumOrFloat R23_s, R23_p, phi23_s, phi23_p;
   if constexpr (fresnel_info<SpectrumOrFloat>::conductive) {
     /* Material is a conductor. */
     if (R23 != nullptr) {
       /* If reflectances were provided by the caller, only calculate phase shifts. */
       fresnel_conductor_polarized(
-          -cos_theta_2, eta2, eta3, k3, nullptr, nullptr, &phi23_s, &phi23_p);
+          -cos_theta_2, film_ior, substrate_ior, nullptr, nullptr, &phi23_s, &phi23_p);
       R23_s = *R23;
       R23_p = *R23;
     }
     else {
       fresnel_conductor_polarized(
-          -cos_theta_2, eta2, eta3, k3, &R23_s, &R23_p, &phi23_s, &phi23_p);
+          -cos_theta_2, film_ior, substrate_ior, &R23_s, &R23_p, &phi23_s, &phi23_p);
     }
   }
   else {
     /* Material is a dielectric. */
     float2 phi23;
     const float2 R23 = fresnel_dielectric_polarized(
-        -cos_theta_2, eta3 / eta2, r_cos_theta_3, &phi23);
+        -cos_theta_2, substrate_ior.eta / film_ior, r_cos_theta_3, &phi23);
 
     if (isequal(R23, one_float2())) {
       /* TIR at the bottom interface.
@@ -521,7 +529,7 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   }
 
   /* Compute optical path difference inside the thin film. */
-  const float OPD = -2.0f * eta2 * thin_film.thickness * cos_theta_2;
+  const float OPD = -2.0f * film_ior * thin_film.thickness * cos_theta_2;
 
   /* Compute full phase shift. */
   const SpectrumOrFloat phi_s = phi23_s + (M_PI_F - phi12.x);

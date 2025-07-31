@@ -250,14 +250,9 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
     ccl_private FresnelConductor *fresnel = (ccl_private FresnelConductor *)bsdf->fresnel;
 
     if (fresnel->thin_film.thickness > 0.1f) {
-      *r_reflectance = fresnel_iridescence<Spectrum>(kg,
-                                                     1.0f,
-                                                     fresnel->n,
-                                                     fresnel->k,
-                                                     nullptr,
-                                                     cos_theta_i,
-                                                     fresnel->thin_film,
-                                                     r_cos_theta_t);
+      const ComplexIOR<Spectrum> substrate_ior = {fresnel->n, fresnel->k};
+      *r_reflectance = fresnel_iridescence<Spectrum>(
+          kg, 1.0f, fresnel->thin_film, substrate_ior, nullptr, cos_theta_i, r_cos_theta_t);
     }
     else {
       *r_reflectance = fresnel_conductor(cos_theta_i, fresnel->n, fresnel->k);
@@ -283,7 +278,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
       const Spectrum k = safe_sqrt((r * sqr(n + 1) - sqr(n - 1)) / (1.0f - r));
 
       *r_reflectance = fresnel_iridescence<Spectrum>(
-          kg, 1.0f, n, k, &reflectance, cos_theta_i, fresnel->thin_film, r_cos_theta_t);
+          kg, 1.0f, fresnel->thin_film, {n, k}, &reflectance, cos_theta_i, r_cos_theta_t);
     }
     else {
       *r_reflectance = reflectance;
@@ -301,7 +296,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
       kernel_assert(fresnel->exponent < 0.0f);
       kernel_assert(fresnel->f90 == one_spectrum());
       F = fresnel_iridescence<float>(
-          kg, 1.0f, bsdf->ior, 0.0f, nullptr, cos_theta_i, fresnel->thin_film, r_cos_theta_t);
+          kg, 1.0f, fresnel->thin_film, {bsdf->ior, 0.0f}, nullptr, cos_theta_i, r_cos_theta_t);
       /* Apply F0 scaling (here per-channel, since iridescence produces colored output).
        * Note that the usual approach (as used below) cannot be used here, since F may be below
        * F0_real. Therefore, use a different approach: Scale the result by (F0 / F0_real), with
