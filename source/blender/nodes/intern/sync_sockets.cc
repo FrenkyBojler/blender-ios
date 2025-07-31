@@ -116,18 +116,22 @@ static BundleSyncState get_sync_state_combine_bundle(
   return {NodeSyncState::Synced};
 }
 
-static ClosureSyncState get_sync_state_closure_output(const SpaceNode &snode,
-                                                      const bNode &closure_output_node)
+static ClosureSyncState get_sync_state_closure_output(
+    const SpaceNode &snode,
+    const bNode &closure_output_node,
+    const bNodeSocket *src_closure_socket = nullptr)
 {
   snode.edittree->ensure_topology_cache();
-  const bNodeSocket &closure_socket = closure_output_node.output_socket(0);
+  if (!src_closure_socket) {
+    src_closure_socket = &closure_output_node.output_socket(0);
+  }
 
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, closure_socket);
+      snode, compute_context_cache, *src_closure_socket);
   const Vector<nodes::ClosureSignature> source_signatures =
       ed::space_node::gather_linked_target_closure_signatures(
-          current_context, closure_socket, compute_context_cache);
+          current_context, *src_closure_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
@@ -143,18 +147,22 @@ static ClosureSyncState get_sync_state_closure_output(const SpaceNode &snode,
   return {NodeSyncState::Synced};
 }
 
-static ClosureSyncState get_sync_state_evaluate_closure(const SpaceNode &snode,
-                                                        const bNode &evaluate_closure_node)
+static ClosureSyncState get_sync_state_evaluate_closure(
+    const SpaceNode &snode,
+    const bNode &evaluate_closure_node,
+    const bNodeSocket *src_closure_socket = nullptr)
 {
   snode.edittree->ensure_topology_cache();
-  const bNodeSocket &closure_socket = evaluate_closure_node.input_socket(0);
+  if (!src_closure_socket) {
+    src_closure_socket = &evaluate_closure_node.input_socket(0);
+  }
 
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, closure_socket);
+      snode, compute_context_cache, *src_closure_socket);
   const Vector<nodes::ClosureSignature> source_signatures =
       ed::space_node::gather_linked_origin_closure_signatures(
-          current_context, closure_socket, compute_context_cache);
+          current_context, *src_closure_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
@@ -255,10 +263,11 @@ void sync_sockets_combine_bundle(SpaceNode &snode,
 
 void sync_sockets_evaluate_closure(SpaceNode &snode,
                                    bNode &evaluate_closure_node,
-                                   ReportList *reports)
+                                   ReportList *reports,
+                                   const bNodeSocket *src_closure_socket)
 {
-  const ClosureSyncState sync_state = get_sync_state_evaluate_closure(snode,
-                                                                      evaluate_closure_node);
+  const ClosureSyncState sync_state = get_sync_state_evaluate_closure(
+      snode, evaluate_closure_node, src_closure_socket);
   switch (sync_state.state) {
     case NodeSyncState::Synced:
       return;
@@ -312,9 +321,11 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
 void sync_sockets_closure(SpaceNode &snode,
                           bNode &closure_input_node,
                           bNode &closure_output_node,
-                          ReportList *reports)
+                          ReportList *reports,
+                          const bNodeSocket *src_closure_socket)
 {
-  const ClosureSyncState sync_state = get_sync_state_closure_output(snode, closure_output_node);
+  const ClosureSyncState sync_state = get_sync_state_closure_output(
+      snode, closure_output_node, src_closure_socket);
   switch (sync_state.state) {
     case NodeSyncState::Synced:
       return;
