@@ -120,7 +120,7 @@ struct CurvesEvalCache {
   std::array<bool, GPU_MAX_ATTR> attributes_point_domain;
 
   /* --- Procedural Drawcalls. --- */
-  gpu::Batch *batch[MAX_THICKRES];
+  std::array<gpu::Batch *, MAX_THICKRES> batch;
 
   void ensure_attribute(struct CurvesModule &module,
                         const bke::CurvesGeometry &curves,

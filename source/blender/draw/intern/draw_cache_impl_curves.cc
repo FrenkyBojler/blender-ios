@@ -161,6 +161,24 @@ static void clear_eval_data(CurvesEvalCache &eval_cache)
   eval_cache.evaluated_time_buf.reset();
   eval_cache.curves_length_buf.reset();
 
+  eval_cache.points_by_curve_buf.reset();
+  eval_cache.evaluated_points_by_curve_buf.reset();
+  eval_cache.curves_type_buf.reset();
+  eval_cache.curves_resolution_buf.reset();
+
+  eval_cache.handles_positions_left_buf.reset();
+  eval_cache.handles_positions_right_buf.reset();
+  eval_cache.bezier_offsets_buf.reset();
+
+  eval_cache.curves_order_buf.reset();
+  eval_cache.control_weights_buf.reset();
+  eval_cache.basis_cache_buf.reset();
+  eval_cache.basis_cache_offset_buf.reset();
+
+  for (gpu::Batch *&batch : eval_cache.batch) {
+    GPU_BATCH_DISCARD_SAFE(batch);
+  }
+
   clear_topology_data(eval_cache);
 
   discard_attributes(eval_cache);
