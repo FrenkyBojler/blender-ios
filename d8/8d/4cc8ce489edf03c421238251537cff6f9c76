@@ -1,3 +1,4 @@
 Referenced by issue #37743, Remove 'Use Nodes'
 Referenced by issue #143229, compositing activation option
 Referenced by pull request #143578, Compositor: Remove `scene.use_nodes` from Python API
+Referenced by commit c499adf3b85bb4a0eb3c1d91684b7af436f0e5b6, Compositor: Remove `scene.use_nodes` from Python API
