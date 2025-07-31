@@ -125,11 +125,11 @@ class LazyFunctionForClosureZone : public LazyFunction {
 
     for (const int i : IndexRange(storage.input_items.items_num)) {
       const bNodeSocket &bsocket = zone_.input_node()->output_socket(i);
-      closure_signature_->inputs.append({bsocket.name, bsocket.typeinfo});
+      closure_signature_->inputs.add({bsocket.name, bsocket.typeinfo});
     }
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const bNodeSocket &bsocket = zone_.output_node()->input_socket(i);
-      closure_signature_->outputs.append({bsocket.name, bsocket.typeinfo});
+      closure_signature_->outputs.add({bsocket.name, bsocket.typeinfo});
     }
   }
 
@@ -444,7 +444,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
                {NodeWarningType::Error,
                 fmt::format("{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                             " {})",
-                            TIP_("Conversion not supported"),
+                            TIP_("Conversion not supported when evaluating closure"),
                             TIP_("Input"),
                             item.name,
                             TIP_(item_type->label),
@@ -457,7 +457,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
                {NodeWarningType::Info,
                 fmt::format("{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                             " {})",
-                            TIP_("Implicit type conversion"),
+                            TIP_("Implicit type conversion when evaluating closure"),
                             TIP_("Input"),
                             item.name,
                             TIP_(item_type->label),
@@ -489,7 +489,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
                {NodeWarningType::Error,
                 fmt::format("{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                             " {})",
-                            TIP_("Conversion not supported"),
+                            TIP_("Conversion not supported when evaluating closure"),
                             TIP_("Output"),
                             item.name,
                             TIP_(closure_item.type->label),
@@ -502,7 +502,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
                {NodeWarningType::Info,
                 fmt::format("{}: {} \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE
                             " {})",
-                            TIP_("Implicit type conversion"),
+                            TIP_("Implicit type conversion when evaluating closure"),
                             TIP_("Output"),
                             item.name,
                             TIP_(closure_item.type->label),
