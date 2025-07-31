@@ -27,25 +27,13 @@
 
 namespace blender::nodes::node_geo_bullet_physics_solver_cc {
 
-static std::shared_ptr<BehaviorListDef> make_behavior_list_def()
-{
-  auto list = std::make_shared<BehaviorListDef>();
-  list->behaviors.add(GravityBehavior::def());
-  list->behaviors.add(ForceBehavior::def());
-  list->behaviors.add(RigidBodyInstancesBehavior::def());
-  list->behaviors.add(RigidBodyConstraintDistance::def());
-  return list;
-}
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  static std::shared_ptr<const BehaviorListDef> behaviors = make_behavior_list_def();
-
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Data");
   b.add_output<decl::Bundle>("Data").align_with_previous();
-  b.add_input<decl::Bundle>("Behavior").behaviors(behaviors);
+  b.add_input<decl::Bundle>("Behavior");
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
   b.add_input<decl::Int>("Substeps").default_value(10).min(1);
   b.add_input<decl::Int>("Solver Steps").default_value(10).min(1);
