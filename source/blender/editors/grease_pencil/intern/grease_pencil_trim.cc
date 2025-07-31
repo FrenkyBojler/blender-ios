@@ -36,7 +36,6 @@ static constexpr int BBOX_PADDING = 2;
  * Apply the stroke trim to a drawing.
  */
 static bool execute_trim_on_drawing(const int layer_index,
-                                    const int frame_number,
                                     const Object &ob_eval,
                                     Object &obact,
                                     const ARegion &region,
@@ -50,8 +49,7 @@ static bool execute_trim_on_drawing(const int layer_index,
 
   /* Get evaluated geometry. */
   bke::crazyspace::GeometryDeformation deformation =
-      bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-          &ob_eval, obact, layer_index, frame_number);
+      bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(&ob_eval, obact, drawing);
 
   /* Compute screen space positions. */
   Array<float2> screen_space_positions(src.points_num());
@@ -142,14 +140,14 @@ static bool execute_trim_on_drawing(const int layer_index,
 /**
  * Apply the stroke trim to all layers.
  */
-static int stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
+static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
 {
   const Scene *scene = CTX_data_scene(C);
   const ARegion *region = CTX_wm_region(C);
   const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Object *obact = CTX_data_active_object(C);
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, obact);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
 
@@ -181,7 +179,6 @@ static int stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
         ed::greasepencil::retrieve_editable_drawings_from_layer(*scene, grease_pencil, layer);
     threading::parallel_for_each(drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {
       if (execute_trim_on_drawing(info.layer_index,
-                                  info.frame_number,
                                   *ob_eval,
                                   *obact,
                                   *region,
@@ -210,7 +207,6 @@ static int stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
       const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
       const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(rv3d, layer_to_world);
       if (execute_trim_on_drawing(info.layer_index,
-                                  info.frame_number,
                                   *ob_eval,
                                   *obact,
                                   *region,
@@ -235,7 +231,7 @@ static int stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
   return OPERATOR_FINISHED;
 }
 
-static int grease_pencil_stroke_trim(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_stroke_trim_exec(bContext *C, wmOperator *op)
 {
   const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
 
@@ -258,7 +254,7 @@ void GREASE_PENCIL_OT_stroke_trim(wmOperatorType *ot)
 
   ot->invoke = WM_gesture_lasso_invoke;
   ot->modal = WM_gesture_lasso_modal;
-  ot->exec = grease_pencil_stroke_trim;
+  ot->exec = grease_pencil_stroke_trim_exec;
   ot->poll = grease_pencil_painting_poll;
   ot->cancel = WM_gesture_lasso_cancel;
 

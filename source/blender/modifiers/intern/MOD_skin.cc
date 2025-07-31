@@ -64,7 +64,7 @@
 #include "BKE_mesh_mapping.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -2019,45 +2019,39 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA op_ptr;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiItemR(layout, ptr, "branch_smoothing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "branch_smoothing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Symmetry"));
-  uiItemR(row, ptr, "use_x_symmetry", toggles_flag, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "use_y_symmetry", toggles_flag, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "use_z_symmetry", toggles_flag, std::nullopt, ICON_NONE);
+  row = &layout->row(true, IFACE_("Symmetry"));
+  row->prop(ptr, "use_x_symmetry", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_y_symmetry", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_z_symmetry", toggles_flag, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRow(layout, false);
-  uiItemO(row, IFACE_("Create Armature"), ICON_NONE, "OBJECT_OT_skin_armature_create");
-  uiItemO(row, std::nullopt, ICON_NONE, "MESH_OT_customdata_skin_add");
+  row = &layout->row(false);
+  row->op("OBJECT_OT_skin_armature_create", IFACE_("Create Armature"), ICON_NONE);
+  row->op("MESH_OT_customdata_skin_add", std::nullopt, ICON_NONE);
 
-  row = uiLayoutRow(layout, false);
-  uiItemFullO(row,
-              "OBJECT_OT_skin_loose_mark_clear",
-              IFACE_("Mark Loose"),
-              ICON_NONE,
-              nullptr,
-              WM_OP_EXEC_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  row = &layout->row(false);
+  op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
+                   IFACE_("Mark Loose"),
+                   ICON_NONE,
+                   blender::wm::OpCallContext::ExecDefault,
+                   UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 0); /* SKIN_LOOSE_MARK */
-  uiItemFullO(row,
-              "OBJECT_OT_skin_loose_mark_clear",
-              IFACE_("Clear Loose"),
-              ICON_NONE,
-              nullptr,
-              WM_OP_EXEC_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
+                   IFACE_("Clear Loose"),
+                   ICON_NONE,
+                   blender::wm::OpCallContext::ExecDefault,
+                   UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 1); /* SKIN_LOOSE_CLEAR */
 
-  uiItemO(layout, IFACE_("Mark Root"), ICON_NONE, "OBJECT_OT_skin_root_mark");
-  uiItemO(layout, IFACE_("Equalize Radii"), ICON_NONE, "OBJECT_OT_skin_radii_equalize");
+  layout->op("OBJECT_OT_skin_root_mark", IFACE_("Mark Root"), ICON_NONE);
+  layout->op("OBJECT_OT_skin_radii_equalize", IFACE_("Equalize Radii"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

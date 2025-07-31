@@ -243,8 +243,8 @@ static int txtfmt_py_find_numeral_inner(const char *string)
   const char first = *string, second = *(string + 1);
 
   /* Decimal dot must be followed by a digit, any decimal digit.
-   * Note that the there can be any number of leading zeros after
-   * the decimal point (leading zeros are not allowed in integers) */
+   * Note that there can be any number of leading zeros after the decimal point
+   * (leading zeros are not allowed in integers). */
   if (first == '.') {
     if (text_check_digit(second)) {
       return 1 + txtfmt_py_numeral_string_count_decimal(string + 1);
@@ -522,7 +522,7 @@ static void txtfmt_py_format_line(SpaceText *st, TextLine *line, const bool do_n
         /* clang-format on */
 
         if (i > 0) {
-          if (prev == FMT_TYPE_DIRECTIVE) { /* can contain utf8 */
+          if (prev == FMT_TYPE_DIRECTIVE) { /* May contain UTF8. */
             text_format_fill(&str, &fmt, prev, i);
           }
           else {

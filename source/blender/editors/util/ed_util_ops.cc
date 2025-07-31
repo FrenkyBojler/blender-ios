@@ -124,7 +124,7 @@ static ID *lib_id_load_custom_preview_id_get(bContext *C, const wmOperator *op)
   return static_cast<ID *>(idptr.data);
 }
 
-static int lib_id_load_custom_preview_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lib_id_load_custom_preview_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
 
@@ -155,7 +155,9 @@ static int lib_id_load_custom_preview_exec(bContext *C, wmOperator *op)
  * confirmation, leading to failure to obtain the ID at that point. So get it before spawning the
  * File Browser (store it in the operator custom data).
  */
-static int lib_id_load_custom_preview_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus lib_id_load_custom_preview_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
 {
   op->customdata = lib_id_load_custom_preview_id_get(C, op);
   return WM_operator_filesel(C, op, event);
@@ -167,7 +169,7 @@ static void ED_OT_lib_id_load_custom_preview(wmOperatorType *ot)
   ot->description = "Choose an image to help identify the data-block visually";
   ot->idname = "ED_OT_lib_id_load_custom_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_preview_editing_poll;
   ot->exec = lib_id_load_custom_preview_exec;
   ot->invoke = lib_id_load_custom_preview_invoke;
@@ -256,7 +258,7 @@ static bool lib_id_generate_preview_poll(bContext *C)
   });
 }
 
-static int lib_id_generate_preview_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lib_id_generate_preview_exec(bContext *C, wmOperator * /*op*/)
 {
   using namespace blender::ed;
 
@@ -286,7 +288,7 @@ static void ED_OT_lib_id_generate_preview(wmOperatorType *ot)
   ot->description = "Create an automatic preview for the selected data-block";
   ot->idname = "ED_OT_lib_id_generate_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_generate_preview_poll;
   ot->exec = lib_id_generate_preview_exec;
 
@@ -296,16 +298,28 @@ static void ED_OT_lib_id_generate_preview(wmOperatorType *ot)
 
 static bool lib_id_generate_preview_from_object_poll(bContext *C)
 {
+  /* This already checks if the IDs in context (e.g. selected in the Asset browser) can generate
+   * previews... */
   if (!lib_id_batch_editing_preview_poll(C)) {
     return false;
   }
-  if (CTX_data_active_object(C) == nullptr) {
+
+  /* ... but we also need to check this for the active object (since this is what is being
+   * rendered). */
+  Object *object_to_render = CTX_data_active_object(C);
+  if (object_to_render == nullptr) {
     return false;
   }
+  const char *disabled_hint = nullptr;
+  if (!ED_preview_id_is_supported(&object_to_render->id, &disabled_hint)) {
+    CTX_wm_operator_poll_msg_set(C, disabled_hint);
+    return false;
+  }
+
   return true;
 }
 
-static int lib_id_generate_preview_from_object_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lib_id_generate_preview_from_object_exec(bContext *C, wmOperator * /*op*/)
 {
   using namespace blender::ed;
 
@@ -333,7 +347,7 @@ static void ED_OT_lib_id_generate_preview_from_object(wmOperatorType *ot)
   ot->description = "Create a preview for this asset by rendering the active object";
   ot->idname = "ED_OT_lib_id_generate_preview_from_object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_generate_preview_from_object_poll;
   ot->exec = lib_id_generate_preview_from_object_exec;
 
@@ -362,7 +376,7 @@ static bool lib_id_remove_preview_poll(bContext *C)
   return true;
 }
 
-static int lib_id_remove_preview_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lib_id_remove_preview_exec(bContext *C, wmOperator * /*op*/)
 {
   lib_id_batch_edit_previews(C, [&](ID *id) { BKE_previewimg_id_free(id); });
 
@@ -378,7 +392,7 @@ static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
   ot->description = "Remove the preview of this data-block";
   ot->idname = "ED_OT_lib_id_remove_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_remove_preview_poll;
   ot->exec = lib_id_remove_preview_exec;
 
@@ -392,7 +406,7 @@ static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
 /** \name Generic ID Operators
  * \{ */
 
-static int lib_id_fake_user_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lib_id_fake_user_toggle_exec(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA pprop;
   PointerRNA idptr = PointerRNA_NULL;
@@ -435,14 +449,14 @@ static void ED_OT_lib_id_fake_user_toggle(wmOperatorType *ot)
   ot->description = "Save this data-block even if it has no users";
   ot->idname = "ED_OT_lib_id_fake_user_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lib_id_fake_user_toggle_exec;
 
   /* flags */
   ot->flag = OPTYPE_UNDO | OPTYPE_INTERNAL;
 }
 
-static int lib_id_unlink_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lib_id_unlink_exec(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA pprop;
   PointerRNA idptr;
@@ -473,7 +487,7 @@ static void ED_OT_lib_id_unlink(wmOperatorType *ot)
   ot->description = "Remove a usage of a data-block, clearing the assignment";
   ot->idname = "ED_OT_lib_id_unlink";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lib_id_unlink_exec;
 
   /* flags */
@@ -488,7 +502,7 @@ static bool lib_id_override_editable_toggle_poll(bContext *C)
   return id && ID_IS_OVERRIDE_LIBRARY_REAL(id) && !ID_IS_LINKED(id);
 }
 
-static int lib_id_override_editable_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lib_id_override_editable_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   const PointerRNA id_ptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
@@ -519,7 +533,7 @@ static void ED_OT_lib_id_override_editable_toggle(wmOperatorType *ot)
   ot->description = "Set if this library override data-block can be edited";
   ot->idname = "ED_OT_lib_id_override_editable_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_override_editable_toggle_poll;
   ot->exec = lib_id_override_editable_toggle_exec;
 
@@ -533,7 +547,7 @@ static void ED_OT_lib_id_override_editable_toggle(wmOperatorType *ot)
 /** \name General editor utils.
  * \{ */
 
-static int ed_flush_edits_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus ed_flush_edits_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   ED_editors_flush_edits(bmain);
@@ -547,7 +561,7 @@ static void ED_OT_flush_edits(wmOperatorType *ot)
   ot->description = "Flush edit data from active editing modes";
   ot->idname = "ED_OT_flush_edits";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_flush_edits_exec;
 
   /* flags */

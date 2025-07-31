@@ -17,7 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -27,6 +27,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.h"
@@ -60,7 +61,7 @@ static ScrArea *screen_addarea_ex(ScrAreaMap *area_map,
                                   ScrVert *bottom_right,
                                   const eSpace_Type space_type)
 {
-  ScrArea *area = static_cast<ScrArea *>(MEM_callocN(sizeof(ScrArea), "addscrarea"));
+  ScrArea *area = MEM_callocN<ScrArea>("addscrarea");
 
   area->v1 = bottom_left;
   area->v2 = top_left;
@@ -368,7 +369,8 @@ static void screen_verts_valign(const wmWindow *win,
 }
 
 /* Test if two adjoining areas can be aligned by having their screen edges adjusted. */
-static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, eScreenDir dir)
+static bool screen_areas_can_align(
+    ReportList *reports, bScreen *screen, ScrArea *sa1, ScrArea *sa2, eScreenDir dir)
 {
   if (dir == SCREEN_DIR_NONE) {
     return false;
@@ -395,7 +397,7 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
       if (area->v3->vec.x - area->v1->vec.x < tolerance &&
           (area->v1->vec.x == xmin || area->v3->vec.x == xmax))
       {
-        WM_report(RPT_ERROR, "A narrow vertical area interferes with this operation");
+        BKE_report(reports, RPT_ERROR, "A narrow vertical area interferes with this operation");
         return false;
       }
     }
@@ -410,7 +412,7 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
       if (area->v3->vec.y - area->v1->vec.y < tolerance &&
           (area->v1->vec.y == ymin || area->v3->vec.y == ymax))
       {
-        WM_report(RPT_ERROR, "A narrow horizontal area interferes with this operation");
+        BKE_report(reports, RPT_ERROR, "A narrow horizontal area interferes with this operation");
         return false;
       }
     }
@@ -421,10 +423,14 @@ static bool screen_areas_can_align(bScreen *screen, ScrArea *sa1, ScrArea *sa2, 
 
 /* Adjust all screen edges to allow joining two areas. 'dir' value is like area_getorientation().
  */
-static bool screen_areas_align(
-    bContext *C, bScreen *screen, ScrArea *sa1, ScrArea *sa2, const eScreenDir dir)
+static bool screen_areas_align(bContext *C,
+                               ReportList *reports,
+                               bScreen *screen,
+                               ScrArea *sa1,
+                               ScrArea *sa2,
+                               const eScreenDir dir)
 {
-  if (!screen_areas_can_align(screen, sa1, sa2, dir)) {
+  if (!screen_areas_can_align(reports, screen, sa1, sa2, dir)) {
     return false;
   }
 
@@ -461,12 +467,13 @@ static bool screen_areas_align(
 }
 
 /* Simple join of two areas without any splitting. Will return false if not possible. */
-static bool screen_area_join_aligned(bContext *C, bScreen *screen, ScrArea *sa1, ScrArea *sa2)
+static bool screen_area_join_aligned(
+    bContext *C, ReportList *reports, bScreen *screen, ScrArea *sa1, ScrArea *sa2)
 {
   const eScreenDir dir = area_getorientation(sa1, sa2);
 
   /* Ensure that the area edges are exactly aligned. */
-  if (!screen_areas_align(C, screen, sa1, sa2, dir)) {
+  if (!screen_areas_align(C, reports, screen, sa1, sa2, dir)) {
     return false;
   }
 
@@ -530,8 +537,12 @@ static ScrArea *screen_area_trim(
 }
 
 /* Join any two neighboring areas. Might create new areas, kept if over min_remainder. */
-static bool screen_area_join_ex(
-    bContext *C, bScreen *screen, ScrArea *sa1, ScrArea *sa2, bool close_all_remainders)
+static bool screen_area_join_ex(bContext *C,
+                                ReportList *reports,
+                                bScreen *screen,
+                                ScrArea *sa1,
+                                ScrArea *sa2,
+                                bool close_all_remainders)
 {
   const eScreenDir dir = area_getorientation(sa1, sa2);
   if (dir == SCREEN_DIR_NONE) {
@@ -549,12 +560,23 @@ static bool screen_area_join_ex(
   ScrArea *side2 = screen_area_trim(C, screen, (offset2 > 0) ? &sa1 : &sa2, offset2, dir, true);
 
   /* The two areas now line up, so join them. */
-  screen_area_join_aligned(C, screen, sa1, sa2);
+  screen_area_join_aligned(C, reports, screen, sa1, sa2);
 
   if (close_all_remainders || offset1 < 0 || offset2 > 0) {
     /* Close both if trimming `sa1`. */
-    screen_area_close(C, screen, side1);
-    screen_area_close(C, screen, side2);
+    float inner[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+    if (side1) {
+      rcti rect = {side1->v1->vec.x, side1->v3->vec.x, side1->v1->vec.y, side1->v3->vec.y};
+      screen_animate_area_highlight(
+          CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+    }
+    screen_area_close(C, reports, screen, side1);
+    if (side2) {
+      rcti rect = {side2->v1->vec.x, side2->v3->vec.x, side2->v1->vec.y, side2->v3->vec.y};
+      screen_animate_area_highlight(
+          CTX_wm_window(C), CTX_wm_screen(C), &rect, inner, nullptr, AREA_CLOSE_FADEOUT);
+    }
+    screen_area_close(C, reports, screen, side2);
   }
   else {
     /* Force full rebuild. #130732 */
@@ -572,12 +594,12 @@ static bool screen_area_join_ex(
   return true;
 }
 
-int screen_area_join(bContext *C, bScreen *screen, ScrArea *sa1, ScrArea *sa2)
+int screen_area_join(bContext *C, ReportList *reports, bScreen *screen, ScrArea *sa1, ScrArea *sa2)
 {
-  return screen_area_join_ex(C, screen, sa1, sa2, false);
+  return screen_area_join_ex(C, reports, screen, sa1, sa2, false);
 }
 
-bool screen_area_close(bContext *C, bScreen *screen, ScrArea *area)
+bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrArea *area)
 {
   if (area == nullptr) {
     return false;
@@ -606,7 +628,7 @@ bool screen_area_close(bContext *C, bScreen *screen, ScrArea *area)
   }
 
   /* Join from neighbor into this area to close it. */
-  return screen_area_join_ex(C, screen, sa2, area, true);
+  return screen_area_join_ex(C, reports, screen, sa2, area, true);
 }
 
 void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type space_type)
@@ -638,6 +660,10 @@ static void region_cursor_set(wmWindow *win, bool swin_changed)
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
+  /* Don't touch cursor if something else is controling it, like button handling. See #51739. */
+  if (win->grabcursor) {
+    return;
+  }
   ED_screen_areas_iter (win, screen, area) {
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       if (region == screen->active_region) {
@@ -705,9 +731,6 @@ static bool region_poll(const bContext *C,
   return region->runtime->type->poll(&params);
 }
 
-/**
- * \return true if any region polling state changed, and an area re-init is needed.
- */
 bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
 {
   bScreen *prev_screen = CTX_wm_screen(C);
@@ -809,7 +832,7 @@ static void screen_refresh_if_needed(bContext *C, wmWindowManager *wm, wmWindow 
     /* Called even when creating the ghost window fails in #WM_window_open. */
     if (win->ghostwin) {
       /* Header size depends on DPI, let's verify. */
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
     }
 
     ED_screen_global_areas_refresh(win);
@@ -968,7 +991,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
 
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Scene *scene = WM_window_get_active_scene(prevwin);
-    Scene *scene_eval = (Scene *)DEG_get_evaluated_id(depsgraph, &scene->id);
+    Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
     BKE_sound_stop_scene(scene_eval);
   }
   screen->animtimer = nullptr;
@@ -1033,9 +1056,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
 
   LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
     az = ED_area_actionzone_find_xy(area_iter, xy);
-    /* Scrollers use default cursor and their zones extend outside of their
-     * areas. Ignore here so we can always detect screen edges - #110085. */
-    if (az && az->type != AZONE_REGION_SCROLL) {
+    /* We used to exclude AZONE_REGION_SCROLL as those used
+     * to overlap screen edges, but they no longer do so. */
+    if (az) {
       area = area_iter;
       break;
     }
@@ -1044,6 +1067,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
   if (area) {
     if (az->type == AZONE_AREA) {
       WM_cursor_set(win, WM_CURSOR_EDIT);
+    }
+    else if (az->type == AZONE_REGION_SCROLL) {
+      WM_cursor_set(win, WM_CURSOR_DEFAULT);
     }
     else if (az->type == AZONE_REGION) {
       if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
@@ -1258,7 +1284,7 @@ static void screen_global_area_refresh(wmWindow *win,
     screen_area_spacelink_add(WM_window_get_active_scene(win), area, space_type);
 
     /* Data specific to global areas. */
-    area->global = static_cast<ScrGlobalAreaData *>(MEM_callocN(sizeof(*area->global), __func__));
+    area->global = MEM_callocN<ScrGlobalAreaData>(__func__);
     area->global->size_max = height_max;
     area->global->size_min = height_min;
     area->global->align = align;
@@ -1608,7 +1634,7 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
   bScreen *oldscreen = WM_window_get_active_screen(win);
 
   oldscreen->state = state;
-  SNPRINTF(newname, "%s-%s", oldscreen->id.name + 2, "nonnormal");
+  SNPRINTF_UTF8(newname, "%s-%s", oldscreen->id.name + 2, "nonnormal");
 
   layout_new = ED_workspace_layout_add(bmain, workspace, win, newname);
 
@@ -1651,6 +1677,45 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
                RGN_TYPE_ASSET_SHELF_HEADER))
       {
         region->flag |= RGN_FLAG_HIDDEN;
+      }
+    }
+
+    /* Temporarily hide gizmos and overlays. */
+    screen->fullscreen_flag = 0;
+    if (newa->spacetype == SPACE_VIEW3D) {
+      View3D *v3d = static_cast<View3D *>(newa->spacedata.first);
+      if (v3d && !(v3d->gizmo_flag & V3D_GIZMO_HIDE_NAVIGATE)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+        v3d->gizmo_flag |= V3D_GIZMO_HIDE_NAVIGATE;
+      }
+      if (v3d && !(v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_TEXT;
+        v3d->overlay.flag |= V3D_OVERLAY_HIDE_TEXT;
+      }
+      if (v3d && (v3d->overlay.flag & V3D_OVERLAY_STATS)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_STATS;
+        v3d->overlay.flag &= ~V3D_OVERLAY_STATS;
+      }
+    }
+    else if (newa->spacetype == SPACE_CLIP) {
+      SpaceClip *sc = static_cast<SpaceClip *>(newa->spacedata.first);
+      if (sc && !(sc->gizmo_flag & SCLIP_GIZMO_HIDE_NAVIGATE)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+        sc->gizmo_flag |= SCLIP_GIZMO_HIDE_NAVIGATE;
+      }
+    }
+    else if (newa->spacetype == SPACE_SEQ) {
+      SpaceSeq *sseq = static_cast<SpaceSeq *>(newa->spacedata.first);
+      if (sseq && !(sseq->gizmo_flag & SEQ_GIZMO_HIDE_NAVIGATE)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+        sseq->gizmo_flag |= SEQ_GIZMO_HIDE_NAVIGATE;
+      }
+    }
+    else if (newa->spacetype == SPACE_IMAGE) {
+      SpaceImage *sima = static_cast<SpaceImage *>(newa->spacedata.first);
+      if (sima && !(sima->gizmo_flag & SI_GIZMO_HIDE_NAVIGATE)) {
+        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+        sima->gizmo_flag |= SI_GIZMO_HIDE_NAVIGATE;
       }
     }
   }
@@ -1703,6 +1768,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
 
     screen->state = SCREENNORMAL;
     screen->flag = oldscreen->flag;
+    screen->fullscreen_flag = oldscreen->fullscreen_flag;
 
     /* Find old area we may have swapped dummy space data to. It's swapped back here. */
     ScrArea *fullsa = nullptr;
@@ -1726,6 +1792,45 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
       /* restore the old side panels/header visibility */
       LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
         region->flag = region->flagfullscreen;
+      }
+      /* Restore gizmos and overlays to their prior states. */
+      if (area->spacetype == SPACE_VIEW3D) {
+        View3D *v3d = static_cast<View3D *>(area->spacedata.first);
+        if (v3d) {
+          v3d->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
+                                v3d->gizmo_flag & ~V3D_GIZMO_HIDE_NAVIGATE :
+                                v3d->gizmo_flag | V3D_GIZMO_HIDE_NAVIGATE;
+          v3d->overlay.flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_TEXT) ?
+                                  v3d->overlay.flag & ~V3D_OVERLAY_HIDE_TEXT :
+                                  v3d->overlay.flag | V3D_OVERLAY_HIDE_TEXT;
+          v3d->overlay.flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_STATS) ?
+                                  v3d->overlay.flag | V3D_OVERLAY_STATS :
+                                  v3d->overlay.flag & ~V3D_OVERLAY_STATS;
+        }
+      }
+      else if (area->spacetype == SPACE_CLIP) {
+        SpaceClip *sc = static_cast<SpaceClip *>(area->spacedata.first);
+        if (sc) {
+          sc->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
+                               sc->gizmo_flag & ~SCLIP_GIZMO_HIDE_NAVIGATE :
+                               sc->gizmo_flag | SCLIP_GIZMO_HIDE_NAVIGATE;
+        }
+      }
+      else if (area->spacetype == SPACE_SEQ) {
+        SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
+        if (sseq) {
+          sseq->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
+                                 sseq->gizmo_flag & ~SEQ_GIZMO_HIDE_NAVIGATE :
+                                 sseq->gizmo_flag | SEQ_GIZMO_HIDE_NAVIGATE;
+        }
+      }
+      else if (area->spacetype == SPACE_IMAGE) {
+        SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+        if (sima) {
+          sima->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
+                                 sima->gizmo_flag & ~SI_GIZMO_HIDE_NAVIGATE :
+                                 sima->gizmo_flag | SI_GIZMO_HIDE_NAVIGATE;
+        }
       }
     }
 
@@ -1836,8 +1941,7 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
   }
 
   if (enable) {
-    ScreenAnimData *sad = static_cast<ScreenAnimData *>(
-        MEM_callocN(sizeof(ScreenAnimData), "ScreenAnimData"));
+    ScreenAnimData *sad = MEM_callocN<ScreenAnimData>("ScreenAnimData");
 
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / FPS));
 
@@ -1916,7 +2020,6 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)
 
   DEG_time_tag_update(bmain);
 
-#ifdef DURIAN_CAMERA_SWITCH
   void *camera = BKE_scene_camera_switch_find(scene);
   if (camera && scene->camera != camera) {
     scene->camera = static_cast<Object *>(camera);
@@ -1926,7 +2029,6 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)
     }
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_PARAMETERS);
   }
-#endif
 
   ED_clip_update_frame(bmain, scene->r.cfra);
 
@@ -1995,10 +2097,6 @@ bool ED_screen_stereo3d_required(const bScreen *screen, const Scene *scene)
 
         sseq = static_cast<SpaceSeq *>(area->spacedata.first);
         if (ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
-          return true;
-        }
-
-        if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
           return true;
         }
 

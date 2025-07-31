@@ -9,7 +9,6 @@
 #include <opensubdiv/far/error.h>
 #include <opensubdiv/far/patchDescriptor.h>
 #include <opensubdiv/far/stencilTable.h>
-#include <opensubdiv/osd/glslPatchShaderSource.h>
 
 #include <cassert>
 #include <cmath>
@@ -41,12 +40,6 @@ using OpenSubdiv::Osd::PatchArrayVector;
 #define SHADER_WEIGHTS_BUF_SLOT 7
 #define SHADER_DU_WEIGHTS_BUF_SLOT 8
 #define SHADER_DV_WEIGHTS_BUF_SLOT 9
-#define SHADER_DUU_BUFFER_BUF_SLOT 10
-#define SHADER_DUV_BUFFER_BUF_SLOT 11
-#define SHADER_DVV_BUFFER_BUF_SLOT 12
-#define SHADER_DUU_WEIGHTS_BUF_SLOT 13
-#define SHADER_DUV_WEIGHTS_BUF_SLOT 14
-#define SHADER_DVV_WEIGHTS_BUF_SLOT 15
 
 #define SHADER_PATCH_ARRAY_BUFFER_BUF_SLOT 4
 #define SHADER_PATCH_COORDS_BUF_SLOT 5
@@ -61,13 +54,10 @@ template<class T> GPUStorageBuf *create_buffer(std::vector<T> const &src, const 
     return nullptr;
   }
 
-  // TODO: this can lead to an out of bound read. `GPU_storagebuf_update` should have a number of
-  // bytes.
-  size_t buffer_size = src.size() * sizeof(T);
-  size_t buffer_alloc_size = (buffer_size + 15) & ~0b1111;
-
+  const size_t buffer_size = src.size() * sizeof(T);
   GPUStorageBuf *storage_buffer = GPU_storagebuf_create_ex(
-      buffer_alloc_size, &src.at(0), GPU_USAGE_STATIC, name);
+      buffer_size, &src.at(0), GPU_USAGE_STATIC, name);
+
   return storage_buffer;
 }
 
@@ -138,21 +128,14 @@ GPUComputeEvaluator::~GPUComputeEvaluator()
 bool GPUComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
                                   BufferDescriptor const &dstDesc,
                                   BufferDescriptor const &duDesc,
-                                  BufferDescriptor const &dvDesc,
-                                  BufferDescriptor const &duuDesc,
-                                  BufferDescriptor const &duvDesc,
-                                  BufferDescriptor const &dvvDesc)
+                                  BufferDescriptor const &dvDesc)
 {
 
-  if (!_stencilKernel.Compile(
-          srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc, _workGroupSize))
-  {
+  if (!_stencilKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc, _workGroupSize)) {
     return false;
   }
 
-  if (!_patchKernel.Compile(
-          srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc, _workGroupSize))
-  {
+  if (!_patchKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc, _workGroupSize)) {
     return false;
   }
 
@@ -220,61 +203,6 @@ bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
                                        int start,
                                        int end) const
 {
-
-  return EvalStencils(srcBuffer,
-                      srcDesc,
-                      dstBuffer,
-                      dstDesc,
-                      duBuffer,
-                      duDesc,
-                      dvBuffer,
-                      dvDesc,
-                      nullptr,
-                      BufferDescriptor(),
-                      nullptr,
-                      BufferDescriptor(),
-                      nullptr,
-                      BufferDescriptor(),
-                      sizesBuffer,
-                      offsetsBuffer,
-                      indicesBuffer,
-                      weightsBuffer,
-                      duWeightsBuffer,
-                      dvWeightsBuffer,
-                      nullptr,
-                      nullptr,
-                      nullptr,
-                      start,
-                      end);
-}
-
-bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
-                                       BufferDescriptor const &srcDesc,
-                                       gpu::VertBuf *dstBuffer,
-                                       BufferDescriptor const &dstDesc,
-                                       gpu::VertBuf *duBuffer,
-                                       BufferDescriptor const &duDesc,
-                                       gpu::VertBuf *dvBuffer,
-                                       BufferDescriptor const &dvDesc,
-                                       gpu::VertBuf *duuBuffer,
-                                       BufferDescriptor const &duuDesc,
-                                       gpu::VertBuf *duvBuffer,
-                                       BufferDescriptor const &duvDesc,
-                                       gpu::VertBuf *dvvBuffer,
-                                       BufferDescriptor const &dvvDesc,
-                                       GPUStorageBuf *sizesBuffer,
-                                       GPUStorageBuf *offsetsBuffer,
-                                       GPUStorageBuf *indicesBuffer,
-                                       GPUStorageBuf *weightsBuffer,
-                                       GPUStorageBuf *duWeightsBuffer,
-                                       GPUStorageBuf *dvWeightsBuffer,
-                                       GPUStorageBuf *duuWeightsBuffer,
-                                       GPUStorageBuf *duvWeightsBuffer,
-                                       GPUStorageBuf *dvvWeightsBuffer,
-                                       int start,
-                                       int end) const
-{
-
   if (_stencilKernel.shader == nullptr) {
     return false;
   }
@@ -292,15 +220,6 @@ bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
   if (dvBuffer) {
     GPU_vertbuf_bind_as_ssbo(dvBuffer, SHADER_DV_BUFFER_BUF_SLOT);
   }
-  if (duuBuffer) {
-    GPU_vertbuf_bind_as_ssbo(duuBuffer, SHADER_DUU_BUFFER_BUF_SLOT);
-  }
-  if (duvBuffer) {
-    GPU_vertbuf_bind_as_ssbo(duvBuffer, SHADER_DUV_BUFFER_BUF_SLOT);
-  }
-  if (dvvBuffer) {
-    GPU_vertbuf_bind_as_ssbo(dvvBuffer, SHADER_DVV_BUFFER_BUF_SLOT);
-  }
   GPU_storagebuf_bind(sizesBuffer, SHADER_SIZES_BUF_SLOT);
   GPU_storagebuf_bind(offsetsBuffer, SHADER_OFFSETS_BUF_SLOT);
   GPU_storagebuf_bind(indicesBuffer, SHADER_INDICES_BUF_SLOT);
@@ -310,15 +229,6 @@ bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
   }
   if (dvWeightsBuffer) {
     GPU_storagebuf_bind(dvWeightsBuffer, SHADER_DV_WEIGHTS_BUF_SLOT);
-  }
-  if (duuWeightsBuffer) {
-    GPU_storagebuf_bind(duuWeightsBuffer, SHADER_DUU_WEIGHTS_BUF_SLOT);
-  }
-  if (duvWeightsBuffer) {
-    GPU_storagebuf_bind(duvWeightsBuffer, SHADER_DUV_WEIGHTS_BUF_SLOT);
-  }
-  if (dvvWeightsBuffer) {
-    GPU_storagebuf_bind(dvvWeightsBuffer, SHADER_DVV_WEIGHTS_BUF_SLOT);
   }
 
   GPU_shader_uniform_int_ex(_stencilKernel.shader, _stencilKernel.uniformStart, 1, 1, &start);
@@ -337,9 +247,6 @@ bool GPUComputeEvaluator::EvalStencils(gpu::VertBuf *srcBuffer,
   }
   BIND_BUF_DESC(uniformDuDesc, duDesc)
   BIND_BUF_DESC(uniformDvDesc, dvDesc)
-  BIND_BUF_DESC(uniformDuuDesc, duuDesc)
-  BIND_BUF_DESC(uniformDuvDesc, duvDesc)
-  BIND_BUF_DESC(uniformDvvDesc, dvvDesc)
 #undef BIND_BUF_DESC
   DispatchCompute(_stencilKernel.shader, count);
   // GPU_storagebuf_unbind_all();
@@ -362,49 +269,6 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
                                       GPUStorageBuf *patchIndexBuffer,
                                       GPUStorageBuf *patchParamsBuffer)
 {
-
-  return EvalPatches(srcBuffer,
-                     srcDesc,
-                     dstBuffer,
-                     dstDesc,
-                     duBuffer,
-                     duDesc,
-                     dvBuffer,
-                     dvDesc,
-                     nullptr,
-                     BufferDescriptor(),
-                     nullptr,
-                     BufferDescriptor(),
-                     nullptr,
-                     BufferDescriptor(),
-                     numPatchCoords,
-                     patchCoordsBuffer,
-                     patchArrays,
-                     patchIndexBuffer,
-                     patchParamsBuffer);
-}
-
-bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
-                                      BufferDescriptor const &srcDesc,
-                                      gpu::VertBuf *dstBuffer,
-                                      BufferDescriptor const &dstDesc,
-                                      gpu::VertBuf *duBuffer,
-                                      BufferDescriptor const &duDesc,
-                                      gpu::VertBuf *dvBuffer,
-                                      BufferDescriptor const &dvDesc,
-                                      gpu::VertBuf *duuBuffer,
-                                      BufferDescriptor const &duuDesc,
-                                      gpu::VertBuf *duvBuffer,
-                                      BufferDescriptor const &duvDesc,
-                                      gpu::VertBuf *dvvBuffer,
-                                      BufferDescriptor const &dvvDesc,
-                                      int numPatchCoords,
-                                      gpu::VertBuf *patchCoordsBuffer,
-                                      const PatchArrayVector &patchArrays,
-                                      GPUStorageBuf *patchIndexBuffer,
-                                      GPUStorageBuf *patchParamsBuffer)
-{
-
   if (_patchKernel.shader == nullptr) {
     return false;
   }
@@ -417,15 +281,6 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
   }
   if (dvBuffer) {
     GPU_vertbuf_bind_as_ssbo(dvBuffer, SHADER_DV_BUFFER_BUF_SLOT);
-  }
-  if (duuBuffer) {
-    GPU_vertbuf_bind_as_ssbo(duuBuffer, SHADER_DUU_BUFFER_BUF_SLOT);
-  }
-  if (duvBuffer) {
-    GPU_vertbuf_bind_as_ssbo(duvBuffer, SHADER_DUV_BUFFER_BUF_SLOT);
-  }
-  if (dvvBuffer) {
-    GPU_vertbuf_bind_as_ssbo(dvvBuffer, SHADER_DVV_BUFFER_BUF_SLOT);
   }
   GPU_vertbuf_bind_as_ssbo(patchCoordsBuffer, SHADER_PATCH_COORDS_BUF_SLOT);
   GPU_storagebuf_bind(patchIndexBuffer, SHADER_PATCH_INDEX_BUFFER_BUF_SLOT);
@@ -454,9 +309,6 @@ bool GPUComputeEvaluator::EvalPatches(gpu::VertBuf *srcBuffer,
   }
   BIND_BUF_DESC(uniformDuDesc, duDesc)
   BIND_BUF_DESC(uniformDvDesc, dvDesc)
-  BIND_BUF_DESC(uniformDuuDesc, duuDesc)
-  BIND_BUF_DESC(uniformDuvDesc, duvDesc)
-  BIND_BUF_DESC(uniformDvvDesc, dvvDesc)
 #undef BIND_BUF_DESC
 
   DispatchCompute(_patchKernel.shader, numPatchCoords);
@@ -478,16 +330,18 @@ static GPUShader *compile_eval_stencil_shader(BufferDescriptor const &srcDesc,
                                               BufferDescriptor const &dstDesc,
                                               BufferDescriptor const &duDesc,
                                               BufferDescriptor const &dvDesc,
-                                              BufferDescriptor const &duuDesc,
-                                              BufferDescriptor const &duvDesc,
-                                              BufferDescriptor const &dvvDesc,
                                               int workGroupSize)
 {
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("opensubdiv_compute_eval");
   info.local_group_size(workGroupSize, 1, 1);
+
+  /* Ensure the basis code has access to proper backend specification define: it is not guaranteed
+   * that the code provided by OpenSubdiv specifies it. For example, it doesn't for GLSL but it
+   * does for Metal. Additionally, for Metal OpenSubdiv defines OSD_PATCH_BASIS_METAL as 1, so do
+   * the same here to avoid possible warning about value being re-defined. */
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-    info.define("OSD_PATCH_BASIS_METAL");
+    info.define("OSD_PATCH_BASIS_METAL", "1");
   }
   else {
     info.define("OSD_PATCH_BASIS_GLSL");
@@ -507,51 +361,33 @@ static GPUShader *compile_eval_stencil_shader(BufferDescriptor const &srcDesc,
   info.define("WORK_GROUP_SIZE", work_group_size);
   info.typedef_source("osd_patch_basis.glsl");
   info.storage_buf(
-      SHADER_SRC_VERTEX_BUFFER_BUF_SLOT, Qualifier::READ, "float", "srcVertexBuffer[]");
+      SHADER_SRC_VERTEX_BUFFER_BUF_SLOT, Qualifier::read, "float", "srcVertexBuffer[]");
   info.storage_buf(
-      SHADER_DST_VERTEX_BUFFER_BUF_SLOT, Qualifier::WRITE, "float", "dstVertexBuffer[]");
-  info.push_constant(Type::INT, "srcOffset");
-  info.push_constant(Type::INT, "dstOffset");
+      SHADER_DST_VERTEX_BUFFER_BUF_SLOT, Qualifier::write, "float", "dstVertexBuffer[]");
+  info.push_constant(Type::int_t, "srcOffset");
+  info.push_constant(Type::int_t, "dstOffset");
 
   bool deriv1 = (duDesc.length > 0 || dvDesc.length > 0);
-  bool deriv2 = (duuDesc.length > 0 || duvDesc.length > 0 || dvvDesc.length > 0);
   if (deriv1) {
     info.define("OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES");
-    info.storage_buf(SHADER_DU_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "duBuffer[]");
-    info.storage_buf(SHADER_DV_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "dvBuffer[]");
-    info.push_constant(Type::IVEC3, "duDesc");
-    info.push_constant(Type::IVEC3, "dvDesc");
-  }
-  if (deriv2) {
-    info.define("OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES");
-    info.storage_buf(SHADER_DUU_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "duuBuffer[]");
-    info.storage_buf(SHADER_DUV_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "duvBuffer[]");
-    info.storage_buf(SHADER_DVV_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "dvvBuffer[]");
-    info.push_constant(Type::IVEC3, "duuDesc");
-    info.push_constant(Type::IVEC3, "duvDesc");
-    info.push_constant(Type::IVEC3, "dvvDesc");
+    info.storage_buf(SHADER_DU_BUFFER_BUF_SLOT, Qualifier::read_write, "float", "duBuffer[]");
+    info.storage_buf(SHADER_DV_BUFFER_BUF_SLOT, Qualifier::read_write, "float", "dvBuffer[]");
+    info.push_constant(Type::int3_t, "duDesc");
+    info.push_constant(Type::int3_t, "dvDesc");
   }
 
-  info.storage_buf(SHADER_SIZES_BUF_SLOT, Qualifier::READ, "int", "sizes_buf[]");
-  info.storage_buf(SHADER_OFFSETS_BUF_SLOT, Qualifier::READ, "int", "offsets_buf[]");
-  info.storage_buf(SHADER_INDICES_BUF_SLOT, Qualifier::READ, "int", "indices_buf[]");
-  info.storage_buf(SHADER_WEIGHTS_BUF_SLOT, Qualifier::READ, "float", "weights_buf[]");
+  info.storage_buf(SHADER_SIZES_BUF_SLOT, Qualifier::read, "int", "sizes_buf[]");
+  info.storage_buf(SHADER_OFFSETS_BUF_SLOT, Qualifier::read, "int", "offsets_buf[]");
+  info.storage_buf(SHADER_INDICES_BUF_SLOT, Qualifier::read, "int", "indices_buf[]");
+  info.storage_buf(SHADER_WEIGHTS_BUF_SLOT, Qualifier::read, "float", "weights_buf[]");
   if (deriv1) {
     info.storage_buf(
-        SHADER_DU_WEIGHTS_BUF_SLOT, Qualifier::READ_WRITE, "float", "du_weights_buf[]");
+        SHADER_DU_WEIGHTS_BUF_SLOT, Qualifier::read_write, "float", "du_weights_buf[]");
     info.storage_buf(
-        SHADER_DV_WEIGHTS_BUF_SLOT, Qualifier::READ_WRITE, "float", "dv_weights_buf[]");
+        SHADER_DV_WEIGHTS_BUF_SLOT, Qualifier::read_write, "float", "dv_weights_buf[]");
   }
-  if (deriv2) {
-    info.storage_buf(
-        SHADER_DUU_WEIGHTS_BUF_SLOT, Qualifier::READ_WRITE, "float", "duu_weights_buf[]");
-    info.storage_buf(
-        SHADER_DUV_WEIGHTS_BUF_SLOT, Qualifier::READ_WRITE, "float", "duv_weights_buf[]");
-    info.storage_buf(
-        SHADER_DVV_WEIGHTS_BUF_SLOT, Qualifier::READ_WRITE, "float", "dvv_weights_buf[]");
-  }
-  info.push_constant(Type::INT, "batchStart");
-  info.push_constant(Type::INT, "batchEnd");
+  info.push_constant(Type::int_t, "batchStart");
+  info.push_constant(Type::int_t, "batchEnd");
 
   info.compute_source("osd_eval_stencils_comp.glsl");
   GPUShader *shader = GPU_shader_create_from_info(
@@ -563,9 +399,6 @@ bool GPUComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDes
                                                   BufferDescriptor const &dstDesc,
                                                   BufferDescriptor const &duDesc,
                                                   BufferDescriptor const &dvDesc,
-                                                  BufferDescriptor const &duuDesc,
-                                                  BufferDescriptor const &duvDesc,
-                                                  BufferDescriptor const &dvvDesc,
                                                   int workGroupSize)
 {
   if (shader) {
@@ -573,8 +406,7 @@ bool GPUComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDes
     shader = nullptr;
   }
 
-  shader = compile_eval_stencil_shader(
-      srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc, workGroupSize);
+  shader = compile_eval_stencil_shader(srcDesc, dstDesc, duDesc, dvDesc, workGroupSize);
   if (shader == nullptr) {
     return false;
   }
@@ -586,9 +418,6 @@ bool GPUComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDes
   uniformDstOffset = GPU_shader_get_uniform(shader, "dstOffset");
   uniformDuDesc = GPU_shader_get_uniform(shader, "duDesc");
   uniformDvDesc = GPU_shader_get_uniform(shader, "dvDesc");
-  uniformDuuDesc = GPU_shader_get_uniform(shader, "duuDesc");
-  uniformDuvDesc = GPU_shader_get_uniform(shader, "duvDesc");
-  uniformDvvDesc = GPU_shader_get_uniform(shader, "dvvDesc");
 
   return true;
 }
@@ -608,16 +437,18 @@ static GPUShader *compile_eval_patches_shader(BufferDescriptor const &srcDesc,
                                               BufferDescriptor const &dstDesc,
                                               BufferDescriptor const &duDesc,
                                               BufferDescriptor const &dvDesc,
-                                              BufferDescriptor const &duuDesc,
-                                              BufferDescriptor const &duvDesc,
-                                              BufferDescriptor const &dvvDesc,
                                               int workGroupSize)
 {
   using namespace blender::gpu::shader;
   ShaderCreateInfo info("opensubdiv_compute_eval");
   info.local_group_size(workGroupSize, 1, 1);
+
+  /* Ensure the basis code has access to proper backend specification define: it is not guaranteed
+   * that the code provided by OpenSubdiv specifies it. For example, it doesn't for GLSL but it
+   * does for Metal. Additionally, for Metal OpenSubdiv defines OSD_PATCH_BASIS_METAL as 1, so do
+   * the same here to avoid possible warning about value being re-defined. */
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
-    info.define("OSD_PATCH_BASIS_METAL");
+    info.define("OSD_PATCH_BASIS_METAL", "1");
   }
   else {
     info.define("OSD_PATCH_BASIS_GLSL");
@@ -637,39 +468,29 @@ static GPUShader *compile_eval_patches_shader(BufferDescriptor const &srcDesc,
   info.define("WORK_GROUP_SIZE", work_group_size);
   info.typedef_source("osd_patch_basis.glsl");
   info.storage_buf(
-      SHADER_SRC_VERTEX_BUFFER_BUF_SLOT, Qualifier::READ, "float", "srcVertexBuffer[]");
+      SHADER_SRC_VERTEX_BUFFER_BUF_SLOT, Qualifier::read, "float", "srcVertexBuffer[]");
   info.storage_buf(
-      SHADER_DST_VERTEX_BUFFER_BUF_SLOT, Qualifier::WRITE, "float", "dstVertexBuffer[]");
-  info.push_constant(Type::INT, "srcOffset");
-  info.push_constant(Type::INT, "dstOffset");
+      SHADER_DST_VERTEX_BUFFER_BUF_SLOT, Qualifier::write, "float", "dstVertexBuffer[]");
+  info.push_constant(Type::int_t, "srcOffset");
+  info.push_constant(Type::int_t, "dstOffset");
 
   bool deriv1 = (duDesc.length > 0 || dvDesc.length > 0);
-  bool deriv2 = (duuDesc.length > 0 || duvDesc.length > 0 || dvvDesc.length > 0);
   if (deriv1) {
     info.define("OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES");
-    info.storage_buf(SHADER_DU_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "duBuffer[]");
-    info.storage_buf(SHADER_DV_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "dvBuffer[]");
-    info.push_constant(Type::IVEC3, "duDesc");
-    info.push_constant(Type::IVEC3, "dvDesc");
-  }
-  if (deriv2) {
-    info.define("OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES");
-    info.storage_buf(SHADER_DUU_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "duuBuffer[]");
-    info.storage_buf(SHADER_DUV_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "duvBuffer[]");
-    info.storage_buf(SHADER_DVV_BUFFER_BUF_SLOT, Qualifier::READ_WRITE, "float", "dvvBuffer[]");
-    info.push_constant(Type::IVEC3, "duuDesc");
-    info.push_constant(Type::IVEC3, "duvDesc");
-    info.push_constant(Type::IVEC3, "dvvDesc");
+    info.storage_buf(SHADER_DU_BUFFER_BUF_SLOT, Qualifier::read_write, "float", "duBuffer[]");
+    info.storage_buf(SHADER_DV_BUFFER_BUF_SLOT, Qualifier::read_write, "float", "dvBuffer[]");
+    info.push_constant(Type::int3_t, "duDesc");
+    info.push_constant(Type::int3_t, "dvDesc");
   }
 
   info.storage_buf(
-      SHADER_PATCH_ARRAY_BUFFER_BUF_SLOT, Qualifier::READ, "OsdPatchArray", "patchArrayBuffer[]");
+      SHADER_PATCH_ARRAY_BUFFER_BUF_SLOT, Qualifier::read, "OsdPatchArray", "patchArrayBuffer[]");
   info.storage_buf(
-      SHADER_PATCH_COORDS_BUF_SLOT, Qualifier::READ, "OsdPatchCoord", "patchCoords[]");
+      SHADER_PATCH_COORDS_BUF_SLOT, Qualifier::read, "OsdPatchCoord", "patchCoords[]");
   info.storage_buf(
-      SHADER_PATCH_INDEX_BUFFER_BUF_SLOT, Qualifier::READ, "int", "patchIndexBuffer[]");
+      SHADER_PATCH_INDEX_BUFFER_BUF_SLOT, Qualifier::read, "int", "patchIndexBuffer[]");
   info.storage_buf(
-      SHADER_PATCH_PARAM_BUFFER_BUF_SLOT, Qualifier::READ, "OsdPatchParam", "patchParamBuffer[]");
+      SHADER_PATCH_PARAM_BUFFER_BUF_SLOT, Qualifier::read, "OsdPatchParam", "patchParamBuffer[]");
 
   info.compute_source("osd_eval_patches_comp.glsl");
   GPUShader *shader = GPU_shader_create_from_info(
@@ -681,9 +502,6 @@ bool GPUComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
                                                 BufferDescriptor const &dstDesc,
                                                 BufferDescriptor const &duDesc,
                                                 BufferDescriptor const &dvDesc,
-                                                BufferDescriptor const &duuDesc,
-                                                BufferDescriptor const &duvDesc,
-                                                BufferDescriptor const &dvvDesc,
                                                 int workGroupSize)
 {
   if (shader) {
@@ -691,8 +509,7 @@ bool GPUComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
     shader = nullptr;
   }
 
-  shader = compile_eval_patches_shader(
-      srcDesc, dstDesc, duDesc, dvDesc, duuDesc, duvDesc, dvvDesc, workGroupSize);
+  shader = compile_eval_patches_shader(srcDesc, dstDesc, duDesc, dvDesc, workGroupSize);
   if (shader == nullptr) {
     return false;
   }
@@ -702,9 +519,6 @@ bool GPUComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
   uniformDstOffset = GPU_shader_get_uniform(shader, "dstOffset");
   uniformDuDesc = GPU_shader_get_uniform(shader, "duDesc");
   uniformDvDesc = GPU_shader_get_uniform(shader, "dvDesc");
-  uniformDuuDesc = GPU_shader_get_uniform(shader, "duuDesc");
-  uniformDuvDesc = GPU_shader_get_uniform(shader, "duvDesc");
-  uniformDvvDesc = GPU_shader_get_uniform(shader, "dvvDesc");
 
   return true;
 }

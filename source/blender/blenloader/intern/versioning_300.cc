@@ -23,6 +23,7 @@
 #include "BLI_multi_value_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -102,7 +103,7 @@
 
 #include "versioning_common.hh"
 
-static CLG_LogRef LOG = {"blo.readfile.doversion"};
+static CLG_LogRef LOG = {"blend.doversion"};
 
 static IDProperty *idproperty_find_ui_container(IDProperty *idprop_group)
 {
@@ -143,8 +144,7 @@ static void version_idproperty_move_data_int(IDPropertyUIDataInt *ui_data,
   if (default_value != nullptr) {
     if (default_value->type == IDP_ARRAY) {
       if (default_value->subtype == IDP_INT) {
-        ui_data->default_array = static_cast<int *>(
-            MEM_malloc_arrayN(default_value->len, sizeof(int), __func__));
+        ui_data->default_array = MEM_malloc_arrayN<int>(size_t(default_value->len), __func__);
         memcpy(ui_data->default_array, IDP_Array(default_value), sizeof(int) * default_value->len);
         ui_data->default_array_len = default_value->len;
       }
@@ -190,16 +190,14 @@ static void version_idproperty_move_data_float(IDPropertyUIDataFloat *ui_data,
       const int array_len = default_value->len;
       ui_data->default_array_len = array_len;
       if (default_value->subtype == IDP_FLOAT) {
-        ui_data->default_array = static_cast<double *>(
-            MEM_malloc_arrayN(array_len, sizeof(double), __func__));
+        ui_data->default_array = MEM_malloc_arrayN<double>(size_t(array_len), __func__);
         const float *old_default_array = static_cast<const float *>(IDP_Array(default_value));
         for (int i = 0; i < ui_data->default_array_len; i++) {
           ui_data->default_array[i] = double(old_default_array[i]);
         }
       }
       else if (default_value->subtype == IDP_DOUBLE) {
-        ui_data->default_array = static_cast<double *>(
-            MEM_malloc_arrayN(array_len, sizeof(double), __func__));
+        ui_data->default_array = MEM_malloc_arrayN<double>(size_t(array_len), __func__);
         memcpy(ui_data->default_array, IDP_Array(default_value), sizeof(double) * array_len);
       }
     }
@@ -437,10 +435,10 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const Lis
         }
         else {
           v->speed_control_type = SEQ_SPEED_MULTIPLY;
-          v->speed_fader = globalSpeed * (float(strip->seq1->len) /
+          v->speed_fader = globalSpeed * (float(strip->input1->len) /
                                           max_ff(float(blender::seq::time_right_handle_frame_get(
-                                                           scene, strip->seq1) -
-                                                       strip->seq1->start),
+                                                           scene, strip->input1) -
+                                                       strip->input1->start),
                                                  1.0f));
         }
       }
@@ -499,7 +497,7 @@ static bool do_versions_sequencer_color_tags(Strip *strip, void * /*user_data*/)
 
 static bool do_versions_sequencer_color_balance_sop(Strip *strip, void * /*user_data*/)
 {
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     if (smd->type == seqModifierType_ColorBalance) {
       StripColorBalance *cb = &((ColorBalanceModifierData *)smd)->color_balance;
       cb->method = SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN;
@@ -684,7 +682,7 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
   using namespace blender;
   using namespace blender::bke;
   /* Otherwise `ntree->typeInfo` is null. */
-  blender::bke::node_tree_set_type(nullptr, *ntree);
+  blender::bke::node_tree_set_type(*ntree);
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
     if (node->type_legacy != GEO_NODE_TRANSFER_ATTRIBUTE_DEPRECATED) {
       continue;
@@ -898,7 +896,7 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
         store_attribute_name_input.default_value);
     const char *uv_map_name = node->type_legacy == GEO_NODE_MESH_PRIMITIVE_ICO_SPHERE ? "UVMap" :
                                                                                         "uv_map";
-    STRNCPY(name_value->value, uv_map_name);
+    STRNCPY_UTF8(name_value->value, uv_map_name);
 
     version_node_add_link(ntree,
                           *node,
@@ -1217,7 +1215,7 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
         }
 
         NodesModifierData *new_nmd = (NodesModifierData *)BKE_modifier_new(eModifierType_Nodes);
-        STRNCPY(new_nmd->modifier.name, "Realize Instances 2.93 Legacy");
+        STRNCPY_UTF8(new_nmd->modifier.name, "Realize Instances 2.93 Legacy");
         BKE_modifier_unique_name(&ob->modifiers, &new_nmd->modifier);
         BLI_insertlinkafter(&ob->modifiers, md, new_nmd);
         if (realize_instances_node_tree == nullptr) {
@@ -1379,11 +1377,11 @@ static void version_switch_node_input_prefix(Main *bmain)
             if (socket == node->inputs.first) {
               continue;
             }
-            STRNCPY(socket->name, socket->name[0] == 'A' ? "False" : "True");
+            STRNCPY_UTF8(socket->name, socket->name[0] == 'A' ? "False" : "True");
 
             /* Replace "A" and "B", but keep the unique number suffix at the end. */
             char number_suffix[8];
-            STRNCPY(number_suffix, socket->identifier + 1);
+            STRNCPY_UTF8(number_suffix, socket->identifier + 1);
             BLI_string_join(
                 socket->identifier, sizeof(socket->identifier), socket->name, number_suffix);
           }
@@ -1695,8 +1693,8 @@ static void version_geometry_nodes_set_position_node_offset(bNodeTree *ntree)
       /* Versioning happened already. */
       return;
     }
-    /* Change identifier of old socket, so that the there is no name collision. */
-    STRNCPY(old_offset_socket->identifier, "Offset_old");
+    /* Change identifier of old socket, so that there is no name collision. */
+    STRNCPY_UTF8(old_offset_socket->identifier, "Offset_old");
     blender::bke::node_add_static_socket(
         *ntree, *node, SOCK_IN, SOCK_VECTOR, PROP_TRANSLATION, "Offset", "Offset");
   }
@@ -1749,12 +1747,6 @@ static bool version_merge_still_offsets(Strip *strip, void * /*user_data*/)
   strip->endofs -= strip->endstill;
   strip->startstill = 0;
   strip->endstill = 0;
-  return true;
-}
-
-static bool version_fix_delete_flag(Strip *strip, void * /*user_data*/)
-{
-  strip->flag &= ~SEQ_FLAG_DELETE;
   return true;
 }
 
@@ -1900,7 +1892,7 @@ static void version_liboverride_rnacollections_insertion_object(Object *object)
       char rna_path[26 + (sizeof(pchan->name) * 2) + 1];
       char name_esc[sizeof(pchan->name) * 2];
       BLI_str_escape(name_esc, pchan->name, sizeof(name_esc));
-      SNPRINTF(rna_path, "pose.bones[\"%s\"].constraints", name_esc);
+      SNPRINTF_UTF8(rna_path, "pose.bones[\"%s\"].constraints", name_esc);
       op = BKE_lib_override_library_property_find(liboverride, rna_path);
       if (op != nullptr) {
         version_liboverride_rnacollections_insertion_object_constraints(&pchan->constraints, op);
@@ -1937,250 +1929,6 @@ static void version_liboverride_rnacollections_insertion_animdata(ID *id)
   }
 }
 
-static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTree *ntree)
-{
-  /* In geometry nodes, replace shader combine/separate color nodes with function nodes */
-  if (ntree->type == NTREE_GEOMETRY) {
-    version_node_input_socket_name(ntree, SH_NODE_COMBRGB_LEGACY, "R", "Red");
-    version_node_input_socket_name(ntree, SH_NODE_COMBRGB_LEGACY, "G", "Green");
-    version_node_input_socket_name(ntree, SH_NODE_COMBRGB_LEGACY, "B", "Blue");
-    version_node_output_socket_name(ntree, SH_NODE_COMBRGB_LEGACY, "Image", "Color");
-
-    version_node_output_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "R", "Red");
-    version_node_output_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "G", "Green");
-    version_node_output_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "B", "Blue");
-    version_node_input_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "Image", "Color");
-
-    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type_legacy) {
-        case SH_NODE_COMBRGB_LEGACY: {
-          node->type_legacy = FN_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
-                                                                      __func__);
-          storage->mode = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "FunctionNodeCombineColor");
-          node->storage = storage;
-          break;
-        }
-        case SH_NODE_SEPRGB_LEGACY: {
-          node->type_legacy = FN_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
-                                                                      __func__);
-          storage->mode = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "FunctionNodeSeparateColor");
-          node->storage = storage;
-          break;
-        }
-      }
-    }
-  }
-
-  /* In compositing nodes, replace combine/separate RGBA/HSVA/YCbCrA/YCCA nodes with
-   * combine/separate color */
-  if (ntree->type == NTREE_COMPOSIT) {
-    version_node_input_socket_name(ntree, CMP_NODE_COMBRGBA_LEGACY, "R", "Red");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBRGBA_LEGACY, "G", "Green");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBRGBA_LEGACY, "B", "Blue");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBRGBA_LEGACY, "A", "Alpha");
-
-    version_node_input_socket_name(ntree, CMP_NODE_COMBHSVA_LEGACY, "H", "Red");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBHSVA_LEGACY, "S", "Green");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBHSVA_LEGACY, "V", "Blue");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBHSVA_LEGACY, "A", "Alpha");
-
-    version_node_input_socket_name(ntree, CMP_NODE_COMBYCCA_LEGACY, "Y", "Red");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBYCCA_LEGACY, "Cb", "Green");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBYCCA_LEGACY, "Cr", "Blue");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBYCCA_LEGACY, "A", "Alpha");
-
-    version_node_input_socket_name(ntree, CMP_NODE_COMBYUVA_LEGACY, "Y", "Red");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBYUVA_LEGACY, "U", "Green");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBYUVA_LEGACY, "V", "Blue");
-    version_node_input_socket_name(ntree, CMP_NODE_COMBYUVA_LEGACY, "A", "Alpha");
-
-    version_node_output_socket_name(ntree, CMP_NODE_SEPRGBA_LEGACY, "R", "Red");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPRGBA_LEGACY, "G", "Green");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPRGBA_LEGACY, "B", "Blue");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPRGBA_LEGACY, "A", "Alpha");
-
-    version_node_output_socket_name(ntree, CMP_NODE_SEPHSVA_LEGACY, "H", "Red");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPHSVA_LEGACY, "S", "Green");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPHSVA_LEGACY, "V", "Blue");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPHSVA_LEGACY, "A", "Alpha");
-
-    version_node_output_socket_name(ntree, CMP_NODE_SEPYCCA_LEGACY, "Y", "Red");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPYCCA_LEGACY, "Cb", "Green");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPYCCA_LEGACY, "Cr", "Blue");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPYCCA_LEGACY, "A", "Alpha");
-
-    version_node_output_socket_name(ntree, CMP_NODE_SEPYUVA_LEGACY, "Y", "Red");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPYUVA_LEGACY, "U", "Green");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPYUVA_LEGACY, "V", "Blue");
-    version_node_output_socket_name(ntree, CMP_NODE_SEPYUVA_LEGACY, "A", "Alpha");
-
-    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type_legacy) {
-        case CMP_NODE_COMBRGBA_LEGACY: {
-          node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
-              sizeof(NodeCMPCombSepColor), __func__);
-          storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "CompositorNodeCombineColor");
-          node->storage = storage;
-          break;
-        }
-        case CMP_NODE_COMBHSVA_LEGACY: {
-          node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
-              sizeof(NodeCMPCombSepColor), __func__);
-          storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
-          STRNCPY(node->idname, "CompositorNodeCombineColor");
-          node->storage = storage;
-          break;
-        }
-        case CMP_NODE_COMBYCCA_LEGACY: {
-          node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
-              sizeof(NodeCMPCombSepColor), __func__);
-          storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
-          storage->ycc_mode = node->custom1;
-          STRNCPY(node->idname, "CompositorNodeCombineColor");
-          node->storage = storage;
-          break;
-        }
-        case CMP_NODE_COMBYUVA_LEGACY: {
-          node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
-              sizeof(NodeCMPCombSepColor), __func__);
-          storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
-          STRNCPY(node->idname, "CompositorNodeCombineColor");
-          node->storage = storage;
-          break;
-        }
-        case CMP_NODE_SEPRGBA_LEGACY: {
-          node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
-              sizeof(NodeCMPCombSepColor), __func__);
-          storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "CompositorNodeSeparateColor");
-          node->storage = storage;
-          break;
-        }
-        case CMP_NODE_SEPHSVA_LEGACY: {
-          node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
-              sizeof(NodeCMPCombSepColor), __func__);
-          storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
-          STRNCPY(node->idname, "CompositorNodeSeparateColor");
-          node->storage = storage;
-          break;
-        }
-        case CMP_NODE_SEPYCCA_LEGACY: {
-          node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
-              sizeof(NodeCMPCombSepColor), __func__);
-          storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
-          storage->ycc_mode = node->custom1;
-          STRNCPY(node->idname, "CompositorNodeSeparateColor");
-          node->storage = storage;
-          break;
-        }
-        case CMP_NODE_SEPYUVA_LEGACY: {
-          node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = (NodeCMPCombSepColor *)MEM_callocN(
-              sizeof(NodeCMPCombSepColor), __func__);
-          storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
-          STRNCPY(node->idname, "CompositorNodeSeparateColor");
-          node->storage = storage;
-          break;
-        }
-      }
-    }
-  }
-
-  /* In texture nodes, replace combine/separate RGBA with combine/separate color */
-  if (ntree->type == NTREE_TEXTURE) {
-    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type_legacy) {
-        case TEX_NODE_COMPOSE_LEGACY: {
-          node->type_legacy = TEX_NODE_COMBINE_COLOR;
-          node->custom1 = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "TextureNodeCombineColor");
-          break;
-        }
-        case TEX_NODE_DECOMPOSE_LEGACY: {
-          node->type_legacy = TEX_NODE_SEPARATE_COLOR;
-          node->custom1 = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "TextureNodeSeparateColor");
-          break;
-        }
-      }
-    }
-  }
-
-  /* In shader nodes, replace combine/separate RGB/HSV with combine/separate color */
-  if (ntree->type == NTREE_SHADER) {
-    version_node_input_socket_name(ntree, SH_NODE_COMBRGB_LEGACY, "R", "Red");
-    version_node_input_socket_name(ntree, SH_NODE_COMBRGB_LEGACY, "G", "Green");
-    version_node_input_socket_name(ntree, SH_NODE_COMBRGB_LEGACY, "B", "Blue");
-    version_node_output_socket_name(ntree, SH_NODE_COMBRGB_LEGACY, "Image", "Color");
-
-    version_node_input_socket_name(ntree, SH_NODE_COMBHSV_LEGACY, "H", "Red");
-    version_node_input_socket_name(ntree, SH_NODE_COMBHSV_LEGACY, "S", "Green");
-    version_node_input_socket_name(ntree, SH_NODE_COMBHSV_LEGACY, "V", "Blue");
-
-    version_node_output_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "R", "Red");
-    version_node_output_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "G", "Green");
-    version_node_output_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "B", "Blue");
-    version_node_input_socket_name(ntree, SH_NODE_SEPRGB_LEGACY, "Image", "Color");
-
-    version_node_output_socket_name(ntree, SH_NODE_SEPHSV_LEGACY, "H", "Red");
-    version_node_output_socket_name(ntree, SH_NODE_SEPHSV_LEGACY, "S", "Green");
-    version_node_output_socket_name(ntree, SH_NODE_SEPHSV_LEGACY, "V", "Blue");
-
-    LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      switch (node->type_legacy) {
-        case SH_NODE_COMBRGB_LEGACY: {
-          node->type_legacy = SH_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
-                                                                      __func__);
-          storage->mode = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "ShaderNodeCombineColor");
-          node->storage = storage;
-          break;
-        }
-        case SH_NODE_COMBHSV_LEGACY: {
-          node->type_legacy = SH_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
-                                                                      __func__);
-          storage->mode = NODE_COMBSEP_COLOR_HSV;
-          STRNCPY(node->idname, "ShaderNodeCombineColor");
-          node->storage = storage;
-          break;
-        }
-        case SH_NODE_SEPRGB_LEGACY: {
-          node->type_legacy = SH_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
-                                                                      __func__);
-          storage->mode = NODE_COMBSEP_COLOR_RGB;
-          STRNCPY(node->idname, "ShaderNodeSeparateColor");
-          node->storage = storage;
-          break;
-        }
-        case SH_NODE_SEPHSV_LEGACY: {
-          node->type_legacy = SH_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = (NodeCombSepColor *)MEM_callocN(sizeof(NodeCombSepColor),
-                                                                      __func__);
-          storage->mode = NODE_COMBSEP_COLOR_HSV;
-          STRNCPY(node->idname, "ShaderNodeSeparateColor");
-          node->storage = storage;
-          break;
-        }
-      }
-    }
-  }
-}
-
 static void versioning_replace_legacy_mix_rgb_node(bNodeTree *ntree)
 {
   version_node_input_socket_name(ntree, SH_NODE_MIX_RGB_LEGACY, "Fac", "Factor_Float");
@@ -2189,9 +1937,9 @@ static void versioning_replace_legacy_mix_rgb_node(bNodeTree *ntree)
   version_node_output_socket_name(ntree, SH_NODE_MIX_RGB_LEGACY, "Color", "Result_Color");
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->type_legacy == SH_NODE_MIX_RGB_LEGACY) {
-      STRNCPY(node->idname, "ShaderNodeMix");
+      STRNCPY_UTF8(node->idname, "ShaderNodeMix");
       node->type_legacy = SH_NODE_MIX;
-      NodeShaderMix *data = (NodeShaderMix *)MEM_callocN(sizeof(NodeShaderMix), __func__);
+      NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
       data->blend_type = node->custom1;
       data->clamp_result = (node->custom2 & SHD_MIXRGB_CLAMP) ? 1 : 0;
       data->clamp_factor = 1;
@@ -2575,9 +2323,9 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 300, 8)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->master_collection != nullptr) {
-        BLI_strncpy(scene->master_collection->id.name + 2,
-                    BKE_SCENE_COLLECTION_NAME,
-                    sizeof(scene->master_collection->id.name) - 2);
+        BLI_strncpy_utf8(scene->master_collection->id.name + 2,
+                         BKE_SCENE_COLLECTION_NAME,
+                         sizeof(scene->master_collection->id.name) - 2);
       }
     }
   }
@@ -2594,7 +2342,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == GEO_NODE_SUBDIVIDE_MESH) {
-            STRNCPY(node->idname, "GeometryNodeMeshSubdivide");
+            STRNCPY_UTF8(node->idname, "GeometryNodeMeshSubdivide");
           }
         }
       }
@@ -3223,8 +2971,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         if (node->type_legacy == GEO_NODE_VIEWER) {
           if (node->storage == nullptr) {
-            NodeGeometryViewer *data = (NodeGeometryViewer *)MEM_callocN(
-                sizeof(NodeGeometryViewer), __func__);
+            NodeGeometryViewer *data = MEM_callocN<NodeGeometryViewer>(__func__);
             data->data_type = CD_PROP_FLOAT;
             node->storage = data;
           }
@@ -3346,11 +3093,10 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         /* Convert float compare into a more general compare node. */
         if (node->type_legacy == FN_NODE_COMPARE) {
           if (node->storage == nullptr) {
-            NodeFunctionCompare *data = (NodeFunctionCompare *)MEM_callocN(
-                sizeof(NodeFunctionCompare), __func__);
+            NodeFunctionCompare *data = MEM_callocN<NodeFunctionCompare>(__func__);
             data->data_type = SOCK_FLOAT;
             data->operation = node->custom1;
-            STRNCPY(node->idname, "FunctionNodeCompare");
+            STRNCPY_UTF8(node->idname, "FunctionNodeCompare");
             node->storage = data;
           }
         }
@@ -3683,9 +3429,9 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       ListBase *previous_channels = &ed->channels;
       LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
         ms->old_channels = previous_channels;
-        previous_channels = &ms->parseq->channels;
+        previous_channels = &ms->parent_strip->channels;
         /* If `MetaStack` exists, active channels must point to last link. */
-        ed->displayed_channels = &ms->parseq->channels;
+        ed->displayed_channels = &ms->parent_strip->channels;
       }
     }
   }
@@ -3851,11 +3597,6 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 303, 1)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      versioning_replace_legacy_combined_and_separate_color_nodes(ntree);
-    }
-    FOREACH_NODETREE_END;
-
     /* Initialize brush curves sculpt settings. */
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if (brush->ob_mode != OB_MODE_SCULPT_CURVES) {
@@ -4154,8 +3895,8 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         static_cast<NodeGeometryCurveSample *>(node->storage)->data_type = CD_PROP_FLOAT;
         bNodeSocket *curve_socket = blender::bke::node_find_socket(*node, SOCK_IN, "Curve");
         BLI_assert(curve_socket != nullptr);
-        STRNCPY(curve_socket->name, "Curves");
-        STRNCPY(curve_socket->identifier, "Curves");
+        STRNCPY_UTF8(curve_socket->name, "Curves");
+        STRNCPY_UTF8(curve_socket->identifier, "Curves");
       }
     }
   }
@@ -4329,14 +4070,6 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
             v3d->overlay.sculpt_curves_cage_opacity = 0.5f;
           }
         }
-      }
-    }
-
-    /* Fix possible uncleared `SEQ_FLAG_DELETE` flag */
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      Editing *ed = blender::seq::editing_get(scene);
-      if (ed != nullptr) {
-        blender::seq::for_each_callback(&ed->seqbase, version_fix_delete_flag, nullptr);
       }
     }
 
@@ -4542,7 +4275,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->toolsettings->uvcalc_iterations = 10;
       scene->toolsettings->uvcalc_weight_factor = 1.0f;
-      STRNCPY(scene->toolsettings->uvcalc_weight_group, "uv_importance");
+      STRNCPY_UTF8(scene->toolsettings->uvcalc_weight_group, "uv_importance");
     }
   }
 

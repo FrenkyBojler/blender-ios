@@ -468,7 +468,7 @@ class edit_generators:
         """
 
         # Not default because there are times when the literal sizes don't represent extra dimensions on an array,
-        # where making this edit would be misleading as it would indicate a matrix (for e.g.) when a vector is intended.
+        # where making this edit would be misleading as it would indicate a matrix e.g. when a vector is intended.
         is_default = False
 
         @staticmethod
@@ -1154,12 +1154,40 @@ class edit_generators:
                         content_fail='__ALWAYS_FAIL__',
                     ))
 
+            # `BLI_strnlen(a, sizeof(a))` -> `STRNLEN(a)`
+            # `BLI_strnlen(a, SOME_ID)` -> `STRNLEN(a)`
+            for src, dst in (
+                    ("BLI_strnlen", "STRNLEN"),
+                    ("BLI_strnlen_utf8", "STRNLEN_UTF8"),
+            ):
+                for match in re.finditer(
+                        (r"\b" + src + (
+                            r"\(([^,]+),\s+" r"("
+                            r"sizeof\([^\(\)]+\)"  # Trailing `sizeof(..)`.
+                            r"|"
+                            r"[a-zA-Z0-9_]+"  # Trailing identifier (typically a define).
+                            r")" r"\)"
+                        )),
+                        data,
+                        flags=re.MULTILINE,
+                ):
+                    edits.append(Edit(
+                        span=match.span(),
+                        content='{:s}({:s})'.format(dst, match.group(1)),
+                        content_fail='__ALWAYS_FAIL__',
+                    ))
+
             # `BLI_snprintf(a, SOME_SIZE, ...` -> `SNPRINTF(a, ...`
             for src, dst in (
                     ("BLI_snprintf", "SNPRINTF"),
                     ("BLI_snprintf_rlen", "SNPRINTF_RLEN"),
                     ("BLI_vsnprintf", "VSNPRINTF"),
                     ("BLI_vsnprintf_rlen", "VSNPRINTF_RLEN"),
+
+                    ("BLI_snprintf_utf8", "SNPRINTF_UTF8"),
+                    ("BLI_snprintf_utf8_rlen", "SNPRINTF_UTF8_RLEN"),
+                    ("BLI_vsnprintf_utf8", "VSNPRINTF_UTF8"),
+                    ("BLI_vsnprintf_utf8_rlen", "VSNPRINTF_UTF8_RLEN"),
             ):
                 for match in re.finditer(
                         r"\b" + src + r"\(([^,]+),\s+([^,]+),",
@@ -1951,7 +1979,7 @@ def run_edits_on_directory(
     # needed for when arguments are referenced relatively
     os.chdir(build_dir)
 
-    # Weak, but we probably don't want to handle extern.
+    # Weak, but we probably don't want to handle `./extern/`.
     # this limit could be removed.
     source_paths = (
         os.path.join("intern", "ghost"),

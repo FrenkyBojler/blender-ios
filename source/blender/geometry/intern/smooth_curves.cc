@@ -54,7 +54,7 @@ static void gaussian_blur_1D(const Span<T> src,
   BLI_assert(!src.is_empty());
   BLI_assert(src.size() == dst.size());
 
-  /* Avoid computation if the there is just one point. */
+  /* Avoid computation if there is just one point. */
   if (src.size() == 1) {
     return;
   }
@@ -192,7 +192,7 @@ void smooth_curve_attribute(const IndexMask &curves_to_smooth,
 
         gaussian_blur_1D(src_data,
                          iterations,
-                         VArray<float>::ForSpan(influences.slice(range)),
+                         VArray<float>::from_span(influences.slice(range)),
                          smooth_ends,
                          keep_shape,
                          cyclic,
@@ -237,7 +237,7 @@ void smooth_curve_attribute(const IndexMask &curves_to_smooth,
                          point_selection,
                          cyclic,
                          iterations,
-                         VArray<float>::ForSingle(influence, points_by_curve.total_size()),
+                         VArray<float>::from_single(influence, points_by_curve.total_size()),
                          smooth_ends,
                          keep_shape,
                          attribute_data);
@@ -324,7 +324,7 @@ void smooth_curve_positions(bke::CurvesGeometry &curves,
 
         gaussian_blur_1D(orig_data.as_span(),
                          iterations,
-                         VArray<float>::ForSpan(point_influences.as_span()),
+                         VArray<float>::from_span(point_influences.as_span()),
                          smooth_ends,
                          keep_shape,
                          cyclic[curve],
@@ -369,7 +369,7 @@ void smooth_curve_positions(bke::CurvesGeometry &curves,
   smooth_curve_positions(curves,
                          curves_to_smooth,
                          iterations,
-                         VArray<float>::ForSingle(influence, curves.points_num()),
+                         VArray<float>::from_single(influence, curves.points_num()),
                          smooth_ends,
                          keep_shape);
 }
