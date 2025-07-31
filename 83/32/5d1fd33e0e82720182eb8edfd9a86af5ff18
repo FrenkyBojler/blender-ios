@@ -1,1 +1,2 @@
 Referenced by issue #143455, Regression: Blender crashes when Modifier dependency cycle is detected
+Referenced by pull request #143757, Fix #143455: crash in Grease Pencil Shrinkwrap modifier when there is a dependency cycle
