@@ -11,7 +11,6 @@
 namespace blender::nodes {
 
 struct BundleSignature {
-
   struct Item {
     std::string key;
     const bke::bNodeSocketType *type = nullptr;
@@ -32,6 +31,8 @@ struct BundleSignature {
   };
 
   CustomIDVectorSet<Item, ItemKeyGetter> items;
+
+  void add(std::string key, const eNodeSocketDatatype socket_type);
 
   bool matches_exactly(const BundleSignature &other) const;
 

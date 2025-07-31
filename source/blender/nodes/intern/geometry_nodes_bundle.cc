@@ -14,6 +14,13 @@
 
 namespace blender::nodes {
 
+void BundleSignature::add(std::string key, const eNodeSocketDatatype socket_type)
+{
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
+  BLI_assert(stype);
+  items.add({std::move(key), stype});
+}
+
 bool BundleSignature::matches_exactly(const BundleSignature &other) const
 {
   if (items.size() != other.items.size()) {

@@ -20,10 +20,12 @@
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 
+#include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_log.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
+#include "NOD_socket_declarations.hh"
 #include "node_intern.hh"
 
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -44,6 +46,7 @@ class SocketTooltipBuilder {
     Label,
     Description,
     Value,
+    Behaviors,
     Python,
   };
 
@@ -80,6 +83,7 @@ class SocketTooltipBuilder {
     }
     this->build_tooltip_description();
     this->build_tooltip_value();
+    this->build_tooltip_behaviors();
     this->build_python();
 
     /* Extra padding at the bottom. */
@@ -816,6 +820,37 @@ class SocketTooltipBuilder {
       return false;
     }
     return true;
+  }
+
+  void build_tooltip_behaviors()
+  {
+    if (socket_.type != SOCK_BUNDLE) {
+      return;
+    }
+    if (socket_.is_output()) {
+      return;
+    }
+    const auto *socket_decl = dynamic_cast<const nodes::decl::Bundle *>(
+        socket_.runtime->declaration);
+    if (!socket_decl) {
+      return;
+    }
+    if (!socket_decl->behaviors) {
+      return;
+    }
+    const nodes::BehaviorListDef &behavior_list_def = *socket_decl->behaviors;
+    this->start_block(TooltipBlockType::Behaviors);
+    this->add_text_field_mono(TIP_("Behaviors:"));
+    for (const std::shared_ptr<nodes::BehaviorDef> &behavior_def : behavior_list_def.behaviors) {
+      this->add_space();
+      this->add_text_field_mono(fmt::format(" \u2022 {}", behavior_def->type));
+      indentation_++;
+      BLI_SCOPED_DEFER([&]() { indentation_--; });
+
+      for (const nodes::BehaviorDef::Item &item : behavior_def->items) {
+        this->add_text_field_mono(fmt::format(" \u2022 {}", item.name));
+      }
+    }
   }
 
   StringRef get_structure_type_tooltip(const nodes::StructureType &structure_type)

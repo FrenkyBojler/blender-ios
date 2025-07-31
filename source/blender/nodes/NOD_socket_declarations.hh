@@ -15,6 +15,8 @@
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "NOD_geometry_nodes_behaviors_fwd.hh"
+
 namespace blender::nodes::decl {
 
 class FloatBuilder;
@@ -44,6 +46,7 @@ class FloatBuilder : public SocketDeclarationBuilder<Float> {
   FloatBuilder &max(float value);
   FloatBuilder &default_value(float value);
   FloatBuilder &subtype(PropertySubType subtype);
+  FloatBuilder &try_copy_ui_data(const SocketDeclaration &other_decl) override;
 };
 
 class IntBuilder;
@@ -73,6 +76,7 @@ class IntBuilder : public SocketDeclarationBuilder<Int> {
   IntBuilder &max(int value);
   IntBuilder &default_value(int value);
   IntBuilder &subtype(PropertySubType subtype);
+  IntBuilder &try_copy_ui_data(const SocketDeclaration &other_decl) override;
 };
 
 class VectorBuilder;
@@ -107,6 +111,7 @@ class VectorBuilder : public SocketDeclarationBuilder<Vector> {
   VectorBuilder &min(float min);
   VectorBuilder &max(float max);
   VectorBuilder &compact();
+  VectorBuilder &try_copy_ui_data(const SocketDeclaration &other_decl) override;
 };
 
 class BoolBuilder;
@@ -129,6 +134,7 @@ class Bool : public SocketDeclaration {
 class BoolBuilder : public SocketDeclarationBuilder<Bool> {
  public:
   BoolBuilder &default_value(bool value);
+  BoolBuilder &try_copy_ui_data(const SocketDeclaration &other_decl) override;
 };
 
 class ColorBuilder;
@@ -152,6 +158,7 @@ class Color : public SocketDeclaration {
 class ColorBuilder : public SocketDeclarationBuilder<Color> {
  public:
   ColorBuilder &default_value(const ColorGeometry4f value);
+  ColorBuilder &try_copy_ui_data(const SocketDeclaration &other_decl) override;
 };
 
 class RotationBuilder;
@@ -175,6 +182,7 @@ class Rotation : public SocketDeclaration {
 class RotationBuilder : public SocketDeclarationBuilder<Rotation> {
  public:
   RotationBuilder &default_value(const math::EulerXYZ &value);
+  RotationBuilder &try_copy_ui_data(const SocketDeclaration &other_decl) override;
 };
 
 class MatrixBuilder;
@@ -220,6 +228,7 @@ class StringBuilder : public SocketDeclarationBuilder<String> {
   StringBuilder &default_value(const std::string value);
   StringBuilder &subtype(PropertySubType subtype);
   StringBuilder &path_filter(std::optional<std::string> filter);
+  StringBuilder &try_copy_ui_data(const SocketDeclaration &other_decl) override;
 };
 
 class MenuBuilder;
@@ -259,6 +268,8 @@ class Bundle : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_BUNDLE;
 
+  std::shared_ptr<const BehaviorListDef> behaviors;
+
   friend BundleBuilder;
 
   using Builder = BundleBuilder;
@@ -269,7 +280,10 @@ class Bundle : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
-class BundleBuilder : public SocketDeclarationBuilder<Bundle> {};
+class BundleBuilder : public SocketDeclarationBuilder<Bundle> {
+ public:
+  BundleBuilder &behaviors(std::shared_ptr<const BehaviorListDef> behaviors);
+};
 
 class ClosureBuilder;
 

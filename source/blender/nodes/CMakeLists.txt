@@ -70,6 +70,7 @@ set(INC_SYS
 set(SRC
   intern/derived_node_tree.cc
   intern/geometry_nodes_behaviors.cc
+  intern/geometry_nodes_behaviors_common.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
@@ -109,6 +110,8 @@ set(SRC
   NOD_geometry.hh
   NOD_geometry_exec.hh
   NOD_geometry_nodes_behaviors.hh
+  NOD_geometry_nodes_behaviors_common.hh
+  NOD_geometry_nodes_behaviors_fwd.hh
   NOD_geometry_nodes_bundle.hh
   NOD_geometry_nodes_bundle_fwd.hh
   NOD_geometry_nodes_bundle_signature.hh

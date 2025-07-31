@@ -5,6 +5,7 @@
 #include "node_geometry_util.hh"
 
 #include "NOD_geo_bundle.hh"
+#include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -19,6 +20,8 @@
 
 #include "UI_interface_layout.hh"
 
+#include "BLI_listbase.h"
+
 namespace blender::nodes::node_geo_combine_bundle_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryCombineBundle);
@@ -28,16 +31,37 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (tree && node) {
+    std::optional<StringRefNull> type = combine_bundle_node_type(*tree, *node);
+    std::shared_ptr<const BehaviorDef> behavior;
+    if (type) {
+      const BehaviorRegistry &behavior_registry = get_behavior_registry();
+      const VectorSet<std::shared_ptr<const BehaviorDef>> behaviors =
+          behavior_registry.get_behaviors_by_type(*type);
+      if (behaviors.size() == 1) {
+        behavior = behaviors[0];
+      }
+    }
+
     const NodeGeometryCombineBundle &storage = node_storage(*node);
     for (const int i : IndexRange(storage.items_num)) {
       const NodeGeometryCombineBundleItem &item = storage.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const StringRef name = item.name ? item.name : "";
       const std::string identifier = CombineBundleItemsAccessor::socket_identifier_for_item(item);
-      b.add_input(socket_type, name, identifier)
-          .socket_name_ptr(&tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
-          .supports_field()
-          .structure_type(StructureType::Dynamic);
+      auto &input = b.add_input(socket_type, name, identifier)
+                        .socket_name_ptr(
+                            &tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
+                        .supports_field()
+                        .structure_type(StructureType::Dynamic);
+      if (behavior) {
+        if (const SocketDeclaration *src_decl = behavior->find_decl(name)) {
+          input.try_copy_ui_data(*src_decl);
+        }
+      }
+
+      if (socket_type == SOCK_STRING && name == Bundle::type_item_name) {
+        input.hide_label();
+      }
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
@@ -212,6 +236,23 @@ std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
     }
   }
   return result;
+}
+
+std::optional<StringRefNull> combine_bundle_node_type(const bNodeTree & /*tree*/,
+                                                      const bNode &node)
+{
+  BLI_assert(node.is_type("GeometryNodeCombineBundle"));
+  /* Not using topology cache because this is called while building the node. */
+  LISTBASE_FOREACH (const bNodeSocket *, socket, &node.inputs) {
+    if (socket->type != SOCK_STRING) {
+      continue;
+    }
+    if (socket->name != Bundle::type_item_name) {
+      continue;
+    }
+    return socket->default_value_typed<bNodeSocketValueString>()->value;
+  }
+  return std::nullopt;
 }
 
 }  // namespace blender::nodes

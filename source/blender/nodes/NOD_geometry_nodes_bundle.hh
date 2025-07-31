@@ -70,6 +70,7 @@ class Bundle : public ImplicitSharingMixin {
   Bundle &operator=(Bundle &&other) noexcept;
   ~Bundle();
 
+  static constexpr StringRefNull type_item_name = "Type";
   static BundlePtr create();
 
   bool add(StringRef key, const BundleItemValue &value);

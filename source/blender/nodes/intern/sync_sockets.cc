@@ -30,6 +30,8 @@
 
 #include "NOD_geo_bundle.hh"
 #include "NOD_geo_closure.hh"
+#include "NOD_geometry_nodes_behaviors.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items.hh"
 #include "NOD_sync_sockets.hh"
 
@@ -80,19 +82,36 @@ static BundleSyncState get_sync_state_separate_bundle(const SpaceNode &snode,
   return {NodeSyncState::Synced};
 }
 
-static BundleSyncState get_sync_state_combine_bundle(const SpaceNode &snode,
-                                                     const bNode &combine_bundle_node)
+static Vector<BundleSignature> get_expected_combine_bundle_signatures(
+    const SpaceNode &snode, const bNode &combine_bundle_node)
 {
   BLI_assert(combine_bundle_node.is_type("GeometryNodeCombineBundle"));
   snode.edittree->ensure_topology_cache();
+
+  const std::optional<StringRef> type = combine_bundle_node_type(*snode.edittree,
+                                                                 combine_bundle_node);
+  if (type) {
+    const BehaviorRegistry &behavior_registry = get_behavior_registry();
+    const VectorSet<std::shared_ptr<const BehaviorDef>> behaviors =
+        behavior_registry.get_behaviors_by_type(*type);
+    if (behaviors.size() == 1) {
+      return {behaviors[0]->to_bundle_signature()};
+    }
+  }
   const bNodeSocket &bundle_socket = combine_bundle_node.output_socket(0);
 
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, bundle_socket);
-  const Vector<nodes::BundleSignature> source_signatures =
-      ed::space_node::gather_linked_target_bundle_signatures(
-          current_context, bundle_socket, compute_context_cache);
+  return ed::space_node::gather_linked_target_bundle_signatures(
+      current_context, bundle_socket, compute_context_cache);
+}
+
+static BundleSyncState get_sync_state_combine_bundle(const SpaceNode &snode,
+                                                     const bNode &combine_bundle_node)
+{
+  const Vector<nodes::BundleSignature> source_signatures = get_expected_combine_bundle_signatures(
+      snode, combine_bundle_node);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
