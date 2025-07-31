@@ -8,6 +8,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
+#include "NOD_geometry_nodes_behaviors_fwd.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_signature.hh"
 #include "NOD_node_declaration.hh"

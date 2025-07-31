@@ -111,6 +111,7 @@ set(SRC
   NOD_geometry_exec.hh
   NOD_geometry_nodes_behaviors.hh
   NOD_geometry_nodes_behaviors_common.hh
+  NOD_geometry_nodes_behaviors_fwd.hh
   NOD_geometry_nodes_bundle.hh
   NOD_geometry_nodes_bundle_fwd.hh
   NOD_geometry_nodes_bundle_signature.hh

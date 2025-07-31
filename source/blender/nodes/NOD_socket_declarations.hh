@@ -15,7 +15,7 @@
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "NOD_geometry_nodes_behaviors.hh"
+#include "NOD_geometry_nodes_behaviors_fwd.hh"
 
 namespace blender::nodes::decl {
 
