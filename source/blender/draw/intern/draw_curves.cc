@@ -293,8 +293,6 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
                                                  Object *ob,
                                                  GPUMaterial *gpu_material)
 {
-  /** NOTE: This still relies on the old DRW_curves implementation. */
-
   CurvesModule &module = *drw_get().data->curves_module;
   CurvesInfosBuf &curves_infos = module.ubo_pool.alloc();
   BLI_assert(ob->type == OB_CURVES);
@@ -304,6 +302,12 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 0 : 1;
 
   CurvesEvalCache &curves_cache = curves_get_eval_cache(curves_id);
+
+  if (curves.curves_num() == 0) {
+    /* Nothing to draw. Just return an empty drawcall that will be skipped. */
+    return curves_cache.batch_get(curves, face_per_segment);
+  }
+
   curves_cache.ensure_positions(module, curves);
   curves_cache.ensure_attributes(module, curves, gpu_material);
 

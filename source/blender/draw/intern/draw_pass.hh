@@ -897,6 +897,7 @@ inline void PassBase<T>::draw(gpu::Batch *batch,
   if (instance_len == 0 || vertex_len == 0) {
     return;
   }
+  BLI_assert(batch);
   BLI_assert(shader_);
   draw_commands_buf_.append_draw(headers_,
                                  commands_,

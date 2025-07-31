@@ -84,7 +84,7 @@ class Batch {
   blender::gpu::IndexBuf *elem;
   /** Resource ID attribute workaround. */
   GPUStorageBuf *resource_id_buf;
-  /** Number of vertices to draw for procedural drawcalls. */
+  /** Number of vertices to draw for procedural drawcalls. -1 otherwise. */
   int32_t procedural_vertices;
   /** Bookkeeping. */
   eGPUBatchFlag flag;

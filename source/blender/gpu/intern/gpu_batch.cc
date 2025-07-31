@@ -39,7 +39,7 @@ void GPU_batch_zero(Batch *batch)
   batch->flag = eGPUBatchFlag(0);
   batch->prim_type = GPUPrimType(0);
   batch->shader = nullptr;
-  batch->procedural_vertices = 0;
+  batch->procedural_vertices = -1;
 }
 
 Batch *GPU_batch_calloc()
@@ -81,7 +81,7 @@ void GPU_batch_init_ex(Batch *batch,
   batch->prim_type = primitive_type;
   batch->flag = owns_flag | GPU_BATCH_INIT | GPU_BATCH_DIRTY;
   batch->shader = nullptr;
-  batch->procedural_vertices = 0;
+  batch->procedural_vertices = -1;
 }
 
 Batch *GPU_batch_create_procedural(GPUPrimType primitive_type, int32_t vertex_count)
@@ -134,7 +134,7 @@ void GPU_batch_clear(Batch *batch)
     }
   }
   batch->flag = GPU_BATCH_INVALID;
-  batch->procedural_vertices = 0;
+  batch->procedural_vertices = -1;
 }
 
 void GPU_batch_discard(Batch *batch)
@@ -357,7 +357,7 @@ void GPU_batch_draw_parameter_get(Batch *batch,
                                   int *r_base_index,
                                   int *r_instance_count)
 {
-  if (batch->procedural_vertices > 0) {
+  if (batch->procedural_vertices >= 0) {
     *r_vertex_count = batch->procedural_vertices;
     *r_vertex_first = 0;
     *r_base_index = -1;
