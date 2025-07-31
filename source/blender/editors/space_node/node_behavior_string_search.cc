@@ -7,7 +7,11 @@
 #include "BKE_node_runtime.hh"
 
 #include "BLI_string_utf8.h"
+
 #include "ED_screen.hh"
+
+#include "NOD_geometry_nodes_behaviors.hh"
+
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -40,9 +44,9 @@ static Vector<std::string> get_type_names_from_context(const bContext &C,
     BLI_assert_unreachable();
     return {};
   }
-  Vector<std::string> names;
-  names.append(node->name);
-  return names;
+
+  VectorSet<std::string> names = nodes::get_behavior_registry().get_all_behavior_names();
+  return names.extract_vector();
 }
 
 static void behavior_type_string_search(

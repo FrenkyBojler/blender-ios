@@ -5,6 +5,7 @@
 #pragma once
 
 #include "BLI_function_ref.hh"
+#include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -89,6 +90,19 @@ class BehaviorCommon {
  public:
   std::string self_path;
 };
+
+class BehaviorRegistry {
+
+ private:
+  Set<std::shared_ptr<const BehaviorListDef>> behavior_list_defs_;
+
+ public:
+  void add(std::shared_ptr<const BehaviorListDef> behavior_list_def);
+
+  VectorSet<std::string> get_all_behavior_names() const;
+};
+
+BehaviorRegistry &get_behavior_registry();
 
 namespace behaviors {
 

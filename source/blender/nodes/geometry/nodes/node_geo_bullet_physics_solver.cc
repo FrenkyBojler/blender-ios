@@ -32,20 +32,9 @@ static std::shared_ptr<BehaviorListDef> make_behavior_list_def()
   auto list = std::make_shared<BehaviorListDef>();
   list->behaviors.add(GravityBehavior::def());
   list->behaviors.add(ForceBehavior::def());
+  list->behaviors.add(RigidBodyInstancesBehavior::def());
   {
-    BehaviorDef &b = list->add("rigid_body_instances");
-    b.add<decl::Geometry>("instances").supported_type(bke::GeometryComponent::Type::Instance);
-    b.add<decl::Int>("mode").supports_field();
-    b.add<decl::Int>("collision_shape").supports_field();
-    b.add<decl::Int>("mass").supports_field();
-    b.add<decl::Float>("friction").supports_field();
-    b.add<decl::Float>("bounciness").supports_field();
-    b.add<decl::Float>("margin").supports_field();
-    b.add<decl::Float>("initial_velocity").supports_field();
-    b.add<decl::Bool>("persist_velocity").supports_field();
-  }
-  {
-    BehaviorDef &b = list->add("rigid_body_distance_constraint");
+    BehaviorDef &b = list->add("COMMON_RIGID_BODY_CONSTRAINT_DISTANCE");
     b.add<decl::String>("body_a");
     b.add<decl::String>("body_b");
     b.add<decl::Int>("ids_a").structure_type(StructureType::List);

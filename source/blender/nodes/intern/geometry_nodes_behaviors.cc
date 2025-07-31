@@ -19,6 +19,28 @@ BehaviorDef &BehaviorListDef::add(std::string name)
   return def;
 }
 
+void BehaviorRegistry::add(std::shared_ptr<const BehaviorListDef> behavior_list_def)
+{
+  behavior_list_defs_.add(std::move(behavior_list_def));
+}
+
+VectorSet<std::string> BehaviorRegistry::get_all_behavior_names() const
+{
+  VectorSet<std::string> names;
+  for (const std::shared_ptr<const BehaviorListDef> &behavior_list_def : behavior_list_defs_) {
+    for (const std::shared_ptr<BehaviorDef> &behavior_def : behavior_list_def->behaviors) {
+      names.add(behavior_def->type);
+    }
+  }
+  return names;
+}
+
+BehaviorRegistry &get_behavior_registry()
+{
+  static BehaviorRegistry registry;
+  return registry;
+}
+
 }  // namespace blender::nodes
 
 namespace blender::nodes::behaviors {

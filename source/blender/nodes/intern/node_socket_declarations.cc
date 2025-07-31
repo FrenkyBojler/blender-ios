@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
@@ -678,6 +679,8 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
 
 BundleBuilder &BundleBuilder::behaviors(std::shared_ptr<const BehaviorListDef> behaviors)
 {
+
+  get_behavior_registry().add(behaviors);
   decl_->behaviors = std::move(behaviors);
   return *this;
 }
