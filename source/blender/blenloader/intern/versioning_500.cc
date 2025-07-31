@@ -6,10 +6,11 @@
  * \ingroup blenloader
  */
 
-#include "MEM_guardedalloc.h"
 #define DNA_DEPRECATED_ALLOW
 
 #include <fmt/format.h>
+
+#include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"

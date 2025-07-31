@@ -28,7 +28,6 @@
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
-#include "intern/mallocn_intern_function_pointers.hh"
 #include "node_composite_util.hh"
 
 /* **************** Map UV  ******************** */
