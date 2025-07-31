@@ -1086,6 +1086,17 @@ static bool socket_needs_layer_search(const bNode &node, const bNodeSocket &sock
   return node_decl->inputs[socket_index]->is_layer_name;
 }
 
+static bool socket_needs_behavior_type_search(const bNode &node, const bNodeSocket &socket)
+{
+  if (node.type_legacy != GEO_NODE_COMBINE_BUNDLE) {
+    return false;
+  }
+  if (socket.name != StringRef("type")) {
+    return false;
+  }
+  return true;
+}
+
 static void draw_gizmo_pin_icon(uiLayout *layout, PointerRNA *socket_ptr)
 {
   layout->prop(socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
@@ -1269,6 +1280,16 @@ static void std_node_socket_draw(
           uiLayout *row = &layout->split(0.4f, false);
           row->label(text, ICON_NONE);
           node_geometry_add_layer_search_button(*C, *node, *ptr, *row);
+        }
+      }
+      else if (socket_needs_behavior_type_search(*node, *sock)) {
+        if (text.is_empty()) {
+          node_behavior_add_string_search_button(*C, *node, *ptr, *layout, label);
+        }
+        else {
+          uiLayout *row = &layout->split(0.4f, false);
+          row->label(text, ICON_NONE);
+          node_behavior_add_string_search_button(*C, *node, *ptr, *row);
         }
       }
       else {
