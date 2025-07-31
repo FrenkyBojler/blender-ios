@@ -4226,18 +4226,18 @@ void RNA_property_pointer_set(PointerRNA *ptr,
     BLI_assert(pprop->get);
     const bool is_id_refcounting = (prop->flag & PROP_ID_REFCOUNT) != 0;
 
-    PointerRNA old_id_ptr = pprop->get(ptr);
+    const PointerRNA old_id_ptr = pprop->get(ptr);
     BLI_assert_msg(!is_id_refcounting || !old_id_ptr.data || RNA_struct_is_ID(old_id_ptr.type),
                    "If the property is tagged with ID refcounting, its current value should be "
                    "null or an ID");
-    ID *old_id = (old_id_ptr.type && RNA_struct_is_ID(old_id_ptr.type)) ?
-                     static_cast<ID *>(old_id_ptr.data) :
-                     nullptr;
+    const ID *old_id = (old_id_ptr.type && RNA_struct_is_ID(old_id_ptr.type)) ?
+                           old_id_ptr.data_as<ID>() :
+                           nullptr;
     const int old_id_old_refcount = old_id ? ID_REFCOUNTING_USERS(old_id) : 0;
 
-    ID *new_id = (ptr_value.type && RNA_struct_is_ID(ptr_value.type)) ?
-                     static_cast<ID *>(ptr_value.data) :
-                     nullptr;
+    const ID *new_id = (ptr_value.type && RNA_struct_is_ID(ptr_value.type)) ?
+                           ptr_value.data_as<ID>() :
+                           nullptr;
     const int new_id_old_refcount = new_id ? ID_REFCOUNTING_USERS(new_id) : 0;
 #endif
 
@@ -4266,17 +4266,17 @@ void RNA_property_pointer_set(PointerRNA *ptr,
     if (old_id) {
       const int old_id_new_refcount = ID_REFCOUNTING_USERS(old_id);
       if (ELEM(old_id, new_id, current_id)) {
-        BLI_assert_msg(old_id_old_refcount == old_id_new_refcount,
+        BLI_assert_msg(old_id_new_refcount == old_id_old_refcount,
                        "Reassigning the same ID to a RNA pointer property, or assignment failure, "
                        "should not modify the original ID usercount");
       }
       else if (is_id_refcounting) {
-        BLI_assert_msg(old_id_old_refcount > old_id_new_refcount,
+        BLI_assert_msg(old_id_new_refcount < old_id_old_refcount,
                        "Unassigning an ID from a refcounting RNA pointer property should decrease "
                        "its usercount");
       }
       else {
-        BLI_assert_msg(old_id_old_refcount == old_id_new_refcount,
+        BLI_assert_msg(old_id_new_refcount == old_id_old_refcount,
                        "Unassigning an ID from a non-refcounting RNA pointer property should not "
                        "modify its usercount");
       }
@@ -4284,17 +4284,17 @@ void RNA_property_pointer_set(PointerRNA *ptr,
     if (new_id && new_id != old_id) {
       const int new_id_new_refcount = ID_REFCOUNTING_USERS(new_id);
       if (current_id == old_id) {
-        BLI_assert_msg(new_id_old_refcount == new_id_new_refcount,
+        BLI_assert_msg(new_id_new_refcount == new_id_old_refcount,
                        "Failed assigning a new ID to a RNA pointer property, should not modify "
                        "the new ID usercount");
       }
       else if (is_id_refcounting) {
-        BLI_assert_msg(new_id_old_refcount < new_id_new_refcount,
+        BLI_assert_msg(new_id_new_refcount > new_id_old_refcount,
                        "Assigning an ID to a refcounting RNA pointer property should increase "
                        "its usercount");
       }
       else {
-        BLI_assert_msg(new_id_old_refcount == new_id_new_refcount,
+        BLI_assert_msg(new_id_new_refcount == new_id_old_refcount,
                        "Assigning an ID to a non-refcounting RNA pointer property should not "
                        "modify its usercount");
       }
