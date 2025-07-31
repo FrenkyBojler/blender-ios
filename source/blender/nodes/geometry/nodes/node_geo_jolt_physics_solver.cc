@@ -808,20 +808,20 @@ static void update_forces(JoltState &state,
     if (!instances) {
       continue;
     }
-    bke::InstancesFieldContext field_context{*instances};
-    fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
-    /* TODO: Selection. */
-    for (const ForceBehavior *force_behavior : used_forces) {
-      field_evaluator.add(force_behavior->force);
-    }
-    field_evaluator.evaluate();
+    /* Can also attempt to evaluate forces together but special care needs to be taken with the
+     * selection. */
     Array<float3> force_sums(instances->instances_num(), float3(0.0f));
-    for (const int force_i : used_forces.index_range()) {
-      const VArray<float3> force = field_evaluator.get_evaluated<float3>(force_i);
-      for (const int i : force.index_range()) {
-        force_sums[i] += force[i];
-      }
+    for (const ForceBehavior *force_behavior : used_forces) {
+      bke::InstancesFieldContext field_context{*instances};
+      fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
+      field_evaluator.set_selection(force_behavior->selection);
+      field_evaluator.add(force_behavior->force);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
+      mask.foreach_index([&](const int i) { force_sums[i] += force[i]; });
     }
+
     const Span<int> instance_ids = instances->almost_unique_ids();
     for (const int i : instance_ids.index_range()) {
       const int instance_id = instance_ids[i];
