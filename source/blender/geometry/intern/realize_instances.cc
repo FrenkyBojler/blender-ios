@@ -2084,9 +2084,17 @@ static void copy_vertex_group_names(CurvesGeometry &dst_curve,
                                     const OrderedAttributes &ordered_attributes,
                                     const Span<const Curves *> src_curves)
 {
+  Set<StringRef> existing_names;
+  LISTBASE_FOREACH (const bDeformGroup *, defgroup, &dst_curve.vertex_group_names) {
+    existing_names.add(defgroup->name);
+  }
   for (const Curves *src_curve : src_curves) {
     LISTBASE_FOREACH (const bDeformGroup *, src, &src_curve->geometry.vertex_group_names) {
+      if (existing_names.contains(src->name)) {
+        continue;
+      }
       copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, src);
+      existing_names.add(src->name);
     }
   }
 }
@@ -2136,7 +2144,7 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   const Curves &first_curves_id = *first_task.curve_info->curves;
   bke::curves_copy_parameters(first_curves_id, *dst_curves_id);
 
-  Span<const Curves *> src_curves = all_curves_info.order.as_span().drop_front(1);
+  Span<const Curves *> src_curves = all_curves_info.order.as_span();
   copy_vertex_group_names(dst_curves, ordered_attributes, src_curves);
 
   /* Prepare id attribute. */
