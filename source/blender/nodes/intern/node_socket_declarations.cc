@@ -678,7 +678,7 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
 
 BundleBuilder &BundleBuilder::behaviors(std::shared_ptr<const BehaviorListDef> behaviors)
 {
-  decl_->behaviors_ = behaviors;
+  decl_->behaviors = std::move(behaviors);
   return *this;
 }
 
