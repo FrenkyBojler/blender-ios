@@ -307,7 +307,7 @@ static void drawVertSlide(TransInfo *t)
       const uint shdr_pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
-      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+      immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
       immUniformThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
 
       immBegin(GPU_PRIM_LINES, sld->sv.size() * 2);
