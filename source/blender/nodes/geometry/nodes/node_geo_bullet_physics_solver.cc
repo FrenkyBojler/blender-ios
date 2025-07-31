@@ -20,6 +20,7 @@
 #include <btBulletDynamicsCommon.h>
 
 #include "NOD_geometry_nodes_behaviors.hh"
+#include "NOD_geometry_nodes_behaviors_common.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
 #include "BLI_bounds.hh"
@@ -29,15 +30,8 @@ namespace blender::nodes::node_geo_bullet_physics_solver_cc {
 static std::shared_ptr<BehaviorListDef> make_behavior_list_def()
 {
   auto list = std::make_shared<BehaviorListDef>();
-  {
-    BehaviorDef &b = list->add("gravity");
-    b.add<decl::Vector>("gravity");
-  }
-  {
-    BehaviorDef &b = list->add("force");
-    b.add<decl::Vector>("force_field").supports_field();
-    b.add<decl::String>("filter");
-  }
+  list->behaviors.add(GravityBehavior::def());
+  list->behaviors.add(ForceBehavior::def());
   {
     BehaviorDef &b = list->add("rigid_body_instances");
     b.add<decl::Geometry>("instances").supported_type(bke::GeometryComponent::Type::Instance);
