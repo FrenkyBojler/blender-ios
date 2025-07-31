@@ -2426,7 +2426,6 @@ class _defs_grease_pencil_edit:
     def pen():
         def draw_settings(_context, layout, tool):
             props = tool.operator_properties("grease_pencil.pen")
-            layout.prop(props, "extrude_handle")
             layout.prop(props, "radius")
         return dict(
             idname="builtin.pen",
