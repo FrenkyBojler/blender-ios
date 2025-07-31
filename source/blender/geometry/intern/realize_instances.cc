@@ -1691,7 +1691,7 @@ static void copy_vertex_group_name(ListBase *dst_deform_group,
   }
   const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
   if (kind.domain != bke::AttrDomain::Point || kind.data_type != bke::AttrType::Float) {
-    /* Prefer using the highest priority domain and type from all input meshes. */
+    /* Skip if the source attribute can't possibly contain vertex weights. */
     return;
   }
   bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);

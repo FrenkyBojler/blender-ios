@@ -1903,7 +1903,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
         }
       }
 
-      drawing_orig->strokes_for_write() = std::move(eval_strokes);
+      drawing_orig->strokes_for_write() = eval_strokes;
       /* Anonymous attributes shouldn't be available on original geometry. */
       drawing_orig->strokes_for_write().attributes_for_write().remove_anonymous();
       drawing_orig->tag_topology_changed();
