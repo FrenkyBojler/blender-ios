@@ -64,6 +64,11 @@ static void behavior_type_string_search(
     }
   }
 
+  if (str.is_empty() && !is_first) {
+    /* Allow clearing the text field when the string is empty, but not on the first pass. */
+    UI_search_item_add(items, str, nullptr, ICON_X, 0, 0);
+  }
+
   const StringRef search_string = is_first ? "" : str;
   ui::string_search::StringSearch<const std::string> search;
   for (const std::string &name : names) {
