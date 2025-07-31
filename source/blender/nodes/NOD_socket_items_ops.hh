@@ -153,6 +153,7 @@ inline void add_item(wmOperatorType *ot,
       }
       bNodeTree *ntree = reinterpret_cast<bNodeTree *>(node_ptr.owner_id);
       socket_items::add_item_with_socket_type_and_name<Accessor>(
+          *ntree,
           node,
           active_item ?
               Accessor::get_socket_type(*active_item) :
