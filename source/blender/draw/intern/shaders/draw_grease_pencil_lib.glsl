@@ -63,6 +63,9 @@ float2 tan_dir(float2 a)
 
 float flip_max_min(float a, float b, float s)
 {
+  if (s == 0.0f) {
+    return a;
+  }
   return s * max(a * s, b * s);
 }
 
@@ -79,27 +82,13 @@ float gpencil_stroke_cap_mask(float2 p1,
     return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
   }
 
+  float dist = 0.0f;
+
   bool is_start = p0 == p1;
   bool is_end = p2 == p3;
   float2 pos = gl_FragCoord.xy - p1;
   float2 line = p2 - p1;
   float radius = thickness * 0.5f;
-
-  if (is_start && is_end) {
-    return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
-  }
-  else if (is_start && !is_end) {
-    float t = dot(pos, line) / dot(line, line);
-    t = max(t, 0.0f);
-
-    return gpencil_stroke_round_mask(length(pos - t * line) / radius, hardfac);
-  }
-  else if (!is_start && is_end) {
-    float t = dot(pos, line) / dot(line, line);
-    t = min(t, 1.0f);
-
-    return gpencil_stroke_round_mask(length(pos - t * line) / radius, hardfac);
-  }
 
   float2 tan1 = tan_dir(line);
 
@@ -111,11 +100,29 @@ float gpencil_stroke_cap_mask(float2 p1,
   float2 tan3 = tan_dir(line3);
   float2 pos3 = gl_FragCoord.xy - p2;
 
-  float dist = dot(pos, tan1) / length(line) / radius;
-  dist = flip_max_min(dist, dot(pos2, tan2) / length(line2) / radius, -sign(dot(line, tan2)));
-  dist = flip_max_min(dist, dot(pos3, tan3) / length(line3) / radius, sign(dot(line, tan3)));
+  if (is_start && is_end) {
+    return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
+  }
+  else if (is_start && !is_end) {
+    float t = dot(pos, line) / dot(line, line);
+    t = max(t, 0.0f);
 
-  dist = abs(dist);
+    dist = length(pos - t * line) / radius;
+  }
+  else if (!is_start && is_end) {
+    float t = dot(pos, line) / dot(line, line);
+    t = min(t, 1.0f);
+
+    dist = length(pos - t * line) / radius;
+  }
+  else {
+    dist = dot(pos, tan1) / length(line) / radius;
+    dist = flip_max_min(dist, dot(pos2, tan2) / length(line2) / radius, -sign(dot(line, tan2)));
+    dist = flip_max_min(dist, dot(pos3, tan3) / length(line3) / radius, sign(dot(line, tan3)));
+
+    dist = abs(dist);
+  }
+
   if (line_join_mode != GP_STROKE_LINEJOIN_MODE_BEVEL) {
     return gpencil_stroke_round_mask(dist, hardfac);
   }
