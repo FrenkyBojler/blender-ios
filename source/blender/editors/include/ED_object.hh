@@ -11,6 +11,7 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_string_ref.hh"
@@ -18,13 +19,14 @@
 
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
-#include "DNA_windowmanager_types.h"
 
 struct Base;
 struct Depsgraph;
 struct EnumPropertyItem;
 struct ID;
+struct KeyBlock;
 struct GpencilModifierData;
+struct ListBase;
 struct Main;
 struct ModifierData;
 struct Object;
@@ -41,6 +43,7 @@ struct uiLayout;
 struct wmKeyConfig;
 struct wmOperator;
 struct wmOperatorType;
+enum eReportType : uint16_t;
 
 namespace blender::ed::object {
 
@@ -98,6 +101,14 @@ bool shape_key_report_if_active_locked(Object *ob, ReportList *reports);
  * \return true if a shape key was locked.
  */
 bool shape_key_report_if_any_locked(Object *ob, ReportList *reports);
+
+/**
+ * Return whether this shapekey is considered 'selected'.
+ *
+ * The active shapekey is always considered 'selected', even though it may not
+ * have its selection flag set.
+ */
+bool shape_key_is_selected(const Object &object, const KeyBlock &kb, int keyblock_index);
 
 /* `object_utils.cc` */
 
@@ -420,9 +431,13 @@ void constraint_copy_for_pose(Main *bmain, Object *ob_dst, bPoseChannel *pchan, 
  */
 bool mode_compat_test(const Object *ob, eObjectMode mode);
 /**
- * Sets the mode to a compatible state (use before entering the mode).
+ * Set the provided object's mode to one that is compatible with the provided mode.
  *
- * This is so each mode's exec function can call
+ * \returns true if the provided object's mode matches the provided mode, or if the function was
+ * able to set the object back into Object Mode.
+ *
+ * This is so each mode toggle operator exec function can call this function to ensure the current
+ * mode runtime data is cleaned up prior to entering a new mode.
  */
 bool mode_compat_set(bContext *C, Object *ob, eObjectMode mode, ReportList *reports);
 bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *reports);

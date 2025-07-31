@@ -9,6 +9,9 @@
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_sync_sockets.hh"
+
+#include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
 
@@ -116,7 +119,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     void *input_ptr = params.low_level_lazy_function_params().try_get_input_data_ptr(i);
     BLI_assert(input_ptr);
-    bundle.add(SocketInterfaceKey(name), *stype, input_ptr);
+    bundle.add(name, BundleItemSocketValue{stype, input_ptr});
   }
 
   params.set_output("Bundle", std::move(bundle_ptr));
@@ -137,7 +140,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.connect_available_socket(node, "Bundle");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    ed::space_node::sync_sockets_combine_bundle(snode, node, nullptr);
+    sync_sockets_combine_bundle(snode, node, nullptr);
   });
 }
 
@@ -187,6 +190,28 @@ void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const Ite
 void CombineBundleItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
   BLO_read_string(reader, &item.name);
+}
+
+std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
+{
+  std::string result;
+  if (name.is_empty()) {
+    return result;
+  }
+  /* Disallow certain characters so that we can use them to e.g. build a bundle path or
+   * expressions referencing multiple bundle items. We might not need all of them in the future,
+   * but better reserve them now while we still can. */
+  constexpr StringRefNull forbidden_chars_str = "/*&|\"^~!,{}()+$#@[];:?<>.-%\\=";
+  const Span<char> forbidden_chars = forbidden_chars_str;
+  for (const char c : name) {
+    if (forbidden_chars.contains(c)) {
+      result += '_';
+    }
+    else {
+      result += c;
+    }
+  }
+  return result;
 }
 
 }  // namespace blender::nodes
