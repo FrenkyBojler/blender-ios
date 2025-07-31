@@ -389,6 +389,7 @@ class ShaderNodesInliner {
       return;
     }
     group->ensure_interface_cache();
+    group->ensure_topology_cache();
     const bNode *group_output_node = group->group_output_node();
     if (!group_output_node) {
       this->store_socket_value_fallback(socket);
