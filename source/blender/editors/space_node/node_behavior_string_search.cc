@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_context.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -11,17 +12,34 @@
 #include "ED_screen.hh"
 
 #include "NOD_geometry_nodes_behaviors.hh"
+#include "NOD_sync_sockets.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_string_search.hh"
 
+#include "node_intern.hh"
+
 namespace blender::ed::space_node {
 
 struct BehaviorSocketSeachData {
   int32_t node_id;
   char socket_identifier[MAX_NAME];
+
+  bNode *find_node(const bContext &C) const
+  {
+    SpaceNode *snode = CTX_wm_space_node(&C);
+    if (!snode) {
+      return nullptr;
+    }
+    bNodeTree *node_tree = snode->edittree;
+    if (!node_tree) {
+      return nullptr;
+    }
+    node_tree->ensure_topology_cache();
+    return node_tree->node_by_id(this->node_id);
+  }
 };
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
 static_assert(std::is_trivially_destructible_v<BehaviorSocketSeachData>);
@@ -29,19 +47,8 @@ static_assert(std::is_trivially_destructible_v<BehaviorSocketSeachData>);
 static Vector<std::string> get_type_names_from_context(const bContext &C,
                                                        const BehaviorSocketSeachData &data)
 {
-  SpaceNode *snode = CTX_wm_space_node(&C);
-  if (!snode) {
-    BLI_assert_unreachable();
-    return {};
-  }
-  bNodeTree *node_tree = snode->edittree;
-  if (node_tree == nullptr) {
-    BLI_assert_unreachable();
-    return {};
-  }
-  const bNode *node = node_tree->node_by_id(data.node_id);
-  if (node == nullptr) {
-    BLI_assert_unreachable();
+  const bNode *node = data.find_node(C);
+  if (!node) {
     return {};
   }
 
@@ -87,9 +94,35 @@ static void behavior_type_string_search(
   }
 }
 
-// static void behavior_type_string_search_exec(bContext *C, void *data_v, void *item_v) {}
+static void behavior_type_string_search_exec(bContext *C, void *data_v, void * /*item_v*/)
+{
+  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+    return;
+  }
+  const auto &data = *static_cast<BehaviorSocketSeachData *>(data_v);
+  bNode *node = data.find_node(*C);
+  if (!node) {
+    return;
+  }
+  if (!node->is_type("GeometryNodeCombineBundle")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryCombineBundle *>(node->storage);
+  if (storage.items_num != 1) {
+    return;
+  }
+  const NodeGeometryCombineBundleItem &item = storage.items[0];
+  if (item.socket_type != SOCK_STRING) {
+    return;
+  }
+  if (item.name != nodes::Bundle::type_item_name) {
+    return;
+  }
+  nodes::sync_node(*C, *node, nullptr);
+  BKE_main_ensure_invariants(*CTX_data_main(C));
+}
 
-void node_behavior_add_string_search_button(const bContext &C,
+void node_behavior_add_string_search_button(const bContext & /*C*/,
                                             const bNode &node,
                                             PointerRNA &socket_ptr,
                                             uiLayout &layout,
@@ -118,8 +151,14 @@ void node_behavior_add_string_search_button(const bContext &C,
 
   UI_but_func_search_set_results_are_suggestions(but, true);
   UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
-  UI_but_func_search_set(
-      but, nullptr, behavior_type_string_search, data, true, nullptr, nullptr, nullptr);
+  UI_but_func_search_set(but,
+                         nullptr,
+                         behavior_type_string_search,
+                         data,
+                         true,
+                         nullptr,
+                         behavior_type_string_search_exec,
+                         nullptr);
 }
 
 }  // namespace blender::ed::space_node
