@@ -845,7 +845,7 @@ gpu::Batch *CurvesEvalCache::batch_get(const bke::CurvesGeometry &curves,
     /* Add one point per curve to restart the primitive. */
     batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, (point_count + curve_count) * 2);
   }
-  else if (face_per_segment > 2) {
+  else if (face_per_segment >= 2) {
     int segment_count = point_count - curve_count;
     /* Add one vertex per segment to restart the primitive. */
     int vert_per_segment = (face_per_segment + 1) * 2 + 1;

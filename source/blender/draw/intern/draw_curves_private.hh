@@ -31,8 +31,8 @@ namespace blender::draw {
 
 struct CurvesModule;
 
-#define MAX_THICKRES 2    /* see eHairType */
-#define MAX_HAIR_SUBDIV 4 /* see hair_subdiv rna */
+#define MAX_FACE_PER_SEGMENT 3 /* see eHairType */
+#define MAX_HAIR_SUBDIV 4      /* see hair_subdiv rna */
 
 enum CurvesEvalShader {
   CURVES_EVAL_POSITION = 0,
@@ -120,7 +120,7 @@ struct CurvesEvalCache {
   std::array<bool, GPU_MAX_ATTR> attributes_point_domain;
 
   /* --- Procedural Drawcalls. --- */
-  std::array<gpu::Batch *, MAX_THICKRES> batch;
+  std::array<gpu::Batch *, MAX_FACE_PER_SEGMENT> batch;
 
   void ensure_attribute(struct CurvesModule &module,
                         const bke::CurvesGeometry &curves,

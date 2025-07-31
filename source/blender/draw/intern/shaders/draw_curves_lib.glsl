@@ -174,8 +174,10 @@ Point object_to_world(Point pt, float4x4 object_to_world)
  */
 float3 shape_point_get(Point pt, float3 V, out float3 B)
 {
-  B = normalize(cross(V, pt.T));
-  return pt.P + B * pt.azimuthal_offset * pt.radius;
+  B = normalize(cross(pt.T, V));
+  float3 N = cross(B, pt.T);
+  return pt.P + B * (pt.azimuthal_offset * pt.radius) +
+         N * (sin_from_cos(abs(pt.azimuthal_offset)) * pt.radius);
 }
 float3 shape_point_get(Point pt, float3 V)
 {
