@@ -14,6 +14,9 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_index_mask.hh"
+
+#include "BKE_attribute_filter.hh"
 
 #include "DNA_pointcloud_types.h"
 
@@ -46,6 +49,13 @@ struct PointCloudRuntime {
 };
 
 PointCloud *pointcloud_new_no_attributes(int totpoint);
+
+namespace pointcloud {
+/* TODO: remove copy function in ED_pointcloud.hh */
+PointCloud *copy_selection(const PointCloud &src,
+                           const IndexMask &mask,
+                           const AttributeFilter &attribute_filter);
+}  // namespace pointcloud
 
 }  // namespace blender::bke
 
