@@ -214,8 +214,12 @@ PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifi
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
 const ListBase *RNA_struct_type_functions(StructRNA *srna);
 
-char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len)
-    ATTR_WARN_UNUSED_RESULT;
+[[nodiscard]] char *RNA_struct_name_get_alloc_ex(
+    PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop);
+[[nodiscard]] char *RNA_struct_name_get_alloc(PointerRNA *ptr,
+                                              char *fixedbuf,
+                                              int fixedlen,
+                                              int *r_len);
 
 /**
  * Use when registering structs with the #STRUCT_PUBLIC_NAMESPACE flag.
@@ -234,6 +238,8 @@ bool RNA_struct_bl_idname_ok_or_report(ReportList *reports,
 
 const char *RNA_property_identifier(const PropertyRNA *prop);
 const char *RNA_property_description(PropertyRNA *prop);
+
+const DeprecatedRNA *RNA_property_deprecated(const PropertyRNA *prop);
 
 PropertyType RNA_property_type(PropertyRNA *prop);
 PropertySubType RNA_property_subtype(PropertyRNA *prop);
