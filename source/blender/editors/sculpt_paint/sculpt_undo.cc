@@ -32,6 +32,7 @@
 #include "BLI_bit_group_vector.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_memory_counter.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -61,7 +62,6 @@
 
 /* TODO(sergey): Ideally should be no direct call to such low level things. */
 #include "BKE_subdiv_eval.hh"
-#include "BLI_memory_counter.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -2081,8 +2081,7 @@ void geometry_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   geometry_push(ob);
 }
 
-
-static size_t calculate_node_geometry_allocated_size(const NodeGeometry& node_geometry)
+static size_t calculate_node_geometry_allocated_size(const NodeGeometry &node_geometry)
 {
   BLI_assert(node_geometry.is_initialized);
 
@@ -2102,16 +2101,13 @@ static size_t calculate_node_geometry_allocated_size(const NodeGeometry& node_ge
   return memory.total_bytes;
 }
 
-/**
- * Calculates an estimated size of the geometry step.
- *
- * Assumes that for each geometry step only a single copy of original data will last long term
- * due to implicit sharing.
- */
 static size_t estimate_geometry_step_size(const StepData &step_data)
 {
   size_t step_size = 0;
 
+  /* TODO: This may not work as expected and be too aggressive due to how old entries are evicted.
+   * Possibly this should be changed to only estimating the size by counting the memory of the
+   * original step */
   step_size += calculate_node_geometry_allocated_size(step_data.geometry_original);
   step_size += calculate_node_geometry_allocated_size(step_data.geometry_modified);
 
