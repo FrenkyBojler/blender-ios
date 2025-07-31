@@ -1647,8 +1647,8 @@ class Preprocessor {
     }
 #else
     uint64_t hash_value = metadata::hash(filename);
-    /* Fold the value so it fits the GLSL spec. */
-    hash_value = (hash_value ^ (hash_value >> 32)) & (~uint64_t(0) >> 33);
+    /* Fold the value to 16 bits. */
+    hash_value = hash_value >> 48;
     suffix << std::to_string(uint64_t(hash_value));
 #endif
     suffix << "\n";
