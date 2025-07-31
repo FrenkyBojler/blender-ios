@@ -326,7 +326,7 @@ static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
                                                      const char *name,
                                                      const ImageFormatData *im_format)
 {
-  NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
+  NodeCompositorFileOutput *nimf = (NodeCompositorFileOutput *)node->storage;
   bNodeSocket *sock = blender::bke::node_add_static_socket(
       *ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
 
@@ -355,7 +355,7 @@ static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
   sockdata->use_node_format = true;
   sockdata->save_as_render = true;
 
-  nimf->active_input = BLI_findindex(&node->inputs, sock);
+  nimf->active_item_index = BLI_findindex(&node->inputs, sock);
 
   return sock;
 }
@@ -366,7 +366,8 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
     if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
       /* previous CMP_NODE_OUTPUT_FILE nodes get converted to multi-file outputs */
       NodeImageFile *old_data = static_cast<NodeImageFile *>(node->storage);
-      NodeImageMultiFile *nimf = MEM_callocN<NodeImageMultiFile>("node image multi file");
+      NodeCompositorFileOutput *nimf = MEM_callocN<NodeCompositorFileOutput>(
+          "node image multi file");
       bNodeSocket *old_image = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 0));
       bNodeSocket *old_z = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 1));
 
@@ -388,7 +389,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
         BLI_path_split_dir_file(
             old_data->name, basepath, sizeof(basepath), filename, sizeof(filename));
 
-        STRNCPY(nimf->base_path, basepath);
+        STRNCPY(nimf->directory, basepath);
         nimf->format = old_data->im_format;
       }
       else {
@@ -438,7 +439,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
       }
     }
     else if (node->type_legacy == CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
-      NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
+      NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node->storage);
 
       /* CMP_NODE_OUTPUT_MULTI_FILE has been re-declared as CMP_NODE_OUTPUT_FILE */
       node->type_legacy = CMP_NODE_OUTPUT_FILE;

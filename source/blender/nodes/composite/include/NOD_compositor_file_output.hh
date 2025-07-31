@@ -89,6 +89,8 @@ struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefault
                                              const char *name,
                                              std::optional<int> dimensions = std::nullopt)
   {
+    auto *storage = static_cast<NodeCompositorFileOutput *>(node.storage);
+    item.identifier = storage->next_identifier++;
     item.socket_type = socket_type;
     item.vector_socket_dimensions = dimensions.value_or(3);
     socket_items::set_item_name_and_make_unique<FileOutputItemsAccessor>(node, item, name);
@@ -102,7 +104,7 @@ struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefault
 
   static std::string socket_identifier_for_item(const NodeCompositorFileOutputItem &item)
   {
-    return item.name;
+    return "Item_" + std::to_string(item.identifier);
   }
 };
 

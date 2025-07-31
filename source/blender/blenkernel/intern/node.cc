@@ -1387,6 +1387,14 @@ static void direct_link_node_socket_storage(BlendDataReader *reader,
    * 3bae60d0c9 and 9d91bc38d3). So no need to use the same versioning work-around for old files as
    * done for default values. */
   switch (node->type_legacy) {
+    case CMP_NODE_OUTPUT_FILE:
+      BLO_read_struct(reader, NodeImageMultiFileSocket, &sock->storage);
+      if (sock->storage) {
+        NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
+            sock->storage);
+        BKE_image_format_blend_read_data(reader, &sockdata->format);
+      }
+      break;
     case CMP_NODE_IMAGE:
     case CMP_NODE_R_LAYERS:
       BLO_read_struct(reader, NodeImageLayer, &sock->storage);
