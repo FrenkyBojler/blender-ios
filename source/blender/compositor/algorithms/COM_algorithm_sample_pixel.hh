@@ -17,6 +17,6 @@ float4 sample_pixel(Context &context,
                     const Interpolation &interpolation,
                     const ExtensionMode &extension_mode_x,
                     const ExtensionMode &extension_mode_y,
-                    const float2 uv_coordinates);
+                    const float2 coordinates);
 
 }  // namespace blender::compositor
