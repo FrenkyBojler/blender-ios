@@ -16,6 +16,7 @@ namespace blender::geometry::xpbd {
 using nodes::behaviors::behavior_path_is_selected;
 
 constexpr StringRefNull prev_position_name = ".prev_position";
+constexpr StringRefNull prev_rotation_name = ".prev_rotation";
 
 SimGeometry::SimGeometry(SimGeometrySet &src, GeometryVariant data) : data(data), src(src) {}
 
@@ -123,7 +124,9 @@ ConstraintCorrections::ConstraintCorrections(MutableSpan<SimGeometry> sim_geomet
 {
   corrections_.reinitialize(sim_geometries.size());
   for (const int geometry_i : sim_geometries.index_range()) {
-    corrections_[geometry_i].reinitialize(sim_geometries[geometry_i].points_num());
+    const int points_num = sim_geometries[geometry_i].points_num();
+    corrections_[geometry_i].position_corrections.reinitialize(points_num);
+    corrections_[geometry_i].rotation_corrections.reinitialize(points_num);
   }
 }
 
@@ -138,15 +141,20 @@ void ConstraintCorrections::apply()
           if (!attributes) {
             continue;
           }
-          MutableSpan<PositionCorrection> corrections = corrections_[geometry_i];
+          SimGeometryCorrections &corrections = corrections_[geometry_i];
           bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
               "position");
+          /* Existence of rotation attribute means rotation constraints are valid on the
+           * geometry. */
+          bke::SpanAttributeWriter<math::Quaternion> rotations =
+              attributes->lookup_for_write_span<math::Quaternion>(
+                  sim_geometry.src.rotation_attribute);
 
           threading::parallel_for(
               positions.span.index_range(), 512, [&](const IndexRange points_range) {
                 const float quantize_scale = sim_geometry.quantize_scale;
                 for (const int point_i : points_range) {
-                  const PositionCorrection &correction = corrections[point_i];
+                  const PositionCorrection &correction = corrections.position_corrections[point_i];
                   if (correction.num_corrections == 0) {
                     continue;
                   }
@@ -160,7 +168,32 @@ void ConstraintCorrections::apply()
                 }
               });
 
+          if (rotations) {
+            /* TODO This is a simple linear average for quaternions, which works well if the
+             * rotations are close to each other. For larger differences a better approach is the
+             * "maximum likelihood method", see Markley et al. "Averaging Quaternions"
+             * (https://www.acsu.buffalo.edu/%7Ejohnc/ave_quat07.pdf) */
+            threading::parallel_for(
+                rotations.span.index_range(), 512, [&](const IndexRange points_range) {
+                  const float quantize_scale = sim_geometry.quantize_scale;
+                  for (const int point_i : points_range) {
+                    const RotationCorrection &correction =
+                        corrections.rotation_corrections[point_i];
+                    if (correction.num_corrections == 0) {
+                      continue;
+                    }
+                    const int4 offset_quantized = correction.offset;
+                    const float factor = 1.0f /
+                                         (quantize_scale * float(correction.num_corrections));
+                    const float4 offset = float4(offset_quantized) * factor;
+                    math::Quaternion &rotation = rotations.span[point_i];
+                    rotation = math::normalize(math::Quaternion(float4(rotation) + offset));
+                  }
+                });
+          }
+
           positions.finish();
+          rotations.finish();
         }
       });
 }
@@ -189,6 +222,53 @@ static void solve_distance_constraint(const int geometry0,
   const float3 correction1 = -lambda * m1 / m_sum * normalized_dir;
   local_corrections.add_position_correction(geometry0, i0, correction0);
   local_corrections.add_position_correction(geometry1, i1, correction1);
+}
+
+/* Extended stretch/shear constraint that ensures segment length as well as aligning the rotation
+ * with the direction of the segment. */
+static void solve_distance_rotation_constraint(const int geometry_p0,
+                                               const int geometry_p1,
+                                               const int geometry_r0,
+                                               const int p_i0,
+                                               const int p_i1,
+                                               const int r_i0,
+                                               const float3 &p0,
+                                               const float3 &p1,
+                                               const math::Quaternion &r0,
+                                               const float m0,
+                                               const float m1,
+                                               const float I0,
+                                               const float3 lambda_prev,
+                                               const float compliance_term,
+                                               const float rest_distance,
+                                               LocalConstraintCorrections &local_corrections)
+{
+  BLI_assert(m0 > 0.0f);
+  BLI_assert(m1 > 0.0f);
+  BLI_assert(I0 > 0.0f);
+  BLI_assert(rest_distance > 0.0f);
+
+  /* Inverse mass as weight factors. */
+  const float wp0 = 1 / m0;
+  const float wp1 = 1 / m1;
+  const float wr0 = 1 / I0;
+  const float weight_sum = wp0 + wp1 + 4.0f * wr0 * rest_distance * rest_distance;
+
+  const float3 p_diff = p1 - p0;
+  const float3 forward = math::transform_point(r0, float3(0, 0, 1));
+  const float3 residual = p_diff / rest_distance - forward;
+
+  const float3 lambda = (residual - compliance_term * lambda_prev) /
+                        (weight_sum + compliance_term);
+
+  const float3 correction_p0 = lambda * wp0 * rest_distance;
+  const float3 correction_p1 = -lambda * wp1 * rest_distance;
+  const math::Quaternion correction_r0 = math::Quaternion(
+                                             0.0f, lambda * wr0 * rest_distance * rest_distance) *
+                                         r0 * math::Quaternion(0, 0, 0, -1);
+  local_corrections.add_position_correction(geometry_p0, p_i0, correction_p0);
+  local_corrections.add_position_correction(geometry_p1, p_i1, correction_p1);
+  local_corrections.add_rotation_correction(geometry_r0, r_i0, correction_r0);
 }
 
 class EdgeLengthConstraintSet : public ConstraintSet {
@@ -294,26 +374,21 @@ class EdgeLengthConstraintSet : public ConstraintSet {
   }
 };
 
-class CurveLengthConstraintSet : public ConstraintSet {
- private:
+class CurveConstraintSet : public ConstraintSet {
+ protected:
   std::string self_path_;
   std::string filter_;
   std::string rest_length_attribute_;
-  float compliance_;
 
  public:
-  CurveLengthConstraintSet(std::string self_path,
-                           std::string filter,
-                           std::string rest_length_attribute,
-                           const float compliance)
+  CurveConstraintSet(std::string self_path, std::string filter, std::string rest_length_attribute)
       : self_path_(std::move(self_path)),
         filter_(std::move(filter)),
-        rest_length_attribute_(std::move(rest_length_attribute)),
-        compliance_(compliance)
+        rest_length_attribute_(std::move(rest_length_attribute))
   {
   }
 
-  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  void ensure_rest_length(MutableSpan<SimGeometry> sim_geometries) const
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
       if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
@@ -353,6 +428,27 @@ class CurveLengthConstraintSet : public ConstraintSet {
                             bke::AttrDomain::Point,
                             bke::AttributeInitMoveArray{rest_lengths});
     }
+  }
+};
+
+class CurveLengthConstraintSet : public CurveConstraintSet {
+ private:
+  float compliance_;
+
+ public:
+  CurveLengthConstraintSet(std::string self_path,
+                           std::string filter,
+                           std::string rest_length_attribute,
+                           const float compliance)
+      : CurveConstraintSet(
+            std::move(self_path), std::move(filter), std::move(rest_length_attribute)),
+        compliance_(compliance)
+  {
+  }
+
+  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  {
+    ensure_rest_length(sim_geometries);
   }
 
   void solve(ConstraintSetSolveParams &params) override
@@ -420,6 +516,215 @@ class CurveLengthConstraintSet : public ConstraintSet {
                                       compliance_term,
                                       rest_lengths.varray[last_point_i],
                                       local_corrections);
+          }
+        }
+      });
+    }
+  }
+};
+
+class CosseratRodConstraintSet : public CurveConstraintSet {
+ protected:
+ public:
+  CosseratRodConstraintSet(std::string self_path,
+                           std::string filter,
+                           std::string rest_length_attribute)
+      : CurveConstraintSet(
+            std::move(self_path), std::move(filter), std::move(rest_length_attribute))
+  {
+  }
+
+  void ensure_rotation(MutableSpan<SimGeometry> sim_geometries) const
+  {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+      Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
+      if (!curves_ptr) {
+        continue;
+      }
+      Curves &curves_id = **curves_ptr;
+      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+      if (!attributes.contains(sim_geometry.src.rotation_attribute)) {
+        /* TODO compute initial rotation from rest frame and minimum twist. */
+        auto init_varray = VArray<math::Quaternion>::from_single(math::Quaternion::identity(),
+                                                                 curves.points_num());
+        attributes.add<math::Quaternion>(sim_geometry.src.rotation_attribute,
+                                         bke::AttrDomain::Point,
+                                         bke::AttributeInitVArray{std::move(init_varray)});
+      }
+    }
+  }
+
+  void ensure_moment_of_inertia(MutableSpan<SimGeometry> sim_geometries) const
+  {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+      Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
+      if (!curves_ptr) {
+        continue;
+      }
+      Curves &curves_id = **curves_ptr;
+      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+      BLI_assert(attributes.contains(rest_length_attribute_));
+      if (!attributes.contains(sim_geometry.src.inertia_attribute)) {
+        bke::SpanAttributeWriter<float3> inertia_writer =
+            attributes.lookup_or_add_for_write_only_span<float3>(
+                sim_geometry.src.inertia_attribute, bke::AttrDomain::Point);
+        const VArraySpan<float> masses = *attributes.lookup_or_default<float>(
+            sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
+        const VArraySpan<float> rest_distances = *attributes.lookup<float>(rest_length_attribute_,
+                                                                           bke::AttrDomain::Point);
+        const OffsetIndices points_by_curve = curves.points_by_curve();
+        const VArraySpan<bool> cyclic = curves.cyclic();
+
+        threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
+          for (const int curve_i : range) {
+            const IndexRange points = points_by_curve[curve_i];
+            if (points.is_empty()) {
+              continue;
+            }
+
+            auto inertia_from_points = [&](const int point0, const int point1) -> float3 {
+              /* Thin rod model for moment-of-inertia.
+               * All mass is located on the center line and evenly distributed,
+               * leading to a moment of inertia of m*L^2/12 around X and Y.
+               * Z component of inertia is negligible for thin rods. */
+              const float mass0 = masses[point0];
+              const float mass1 = masses[point1];
+              const float rest_distance = rest_distances[point0];
+              const float inertia = 0.08333f * (mass0 + mass1) * rest_distance * rest_distance;
+              return float3(inertia, inertia, 0.0f);
+            };
+
+            for (const int point : points.drop_back(1)) {
+              inertia_writer.span[point] = inertia_from_points(point, point + 1);
+            }
+            inertia_writer.span[points.last()] = cyclic[curve_i] ?
+                                                     inertia_from_points(points.last(),
+                                                                         points.first()) :
+                                                     float3(0.0f);
+          }
+        });
+
+        inertia_writer.finish();
+      }
+    }
+  }
+};
+
+class CurveRodLengthConstraintSet : public CosseratRodConstraintSet {
+ private:
+  float compliance_;
+
+ public:
+  CurveRodLengthConstraintSet(std::string self_path,
+                              std::string filter,
+                              std::string rest_length_attribute,
+                              const float compliance)
+      : CosseratRodConstraintSet(
+            std::move(self_path), std::move(filter), std::move(rest_length_attribute)),
+        compliance_(compliance)
+  {
+  }
+
+  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  {
+    ensure_rest_length(sim_geometries);
+    ensure_rotation(sim_geometries);
+    ensure_moment_of_inertia(sim_geometries);
+  }
+
+  void solve(ConstraintSetSolveParams &params) override
+  {
+    float compliance_term = 0.0f;
+    if (params.delta_time > 0.0f) {
+      compliance_term = compliance_ / pow2f(params.delta_time);
+    }
+    for (const int geometry_i : params.sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+      const Curves *const *curves_id = std::get_if<Curves *>(&sim_geometry.data);
+      if (!curves_id) {
+        continue;
+      }
+      const bke::CurvesGeometry &curves = (**curves_id).geometry.wrap();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      const bke::AttributeAccessor attributes = curves.attributes();
+      if (!attributes.lookup<math::Quaternion>(sim_geometry.src.rotation_attribute,
+                                               bke::AttrDomain::Point))
+      {
+        continue;
+      }
+      if (!attributes.lookup<float>(rest_length_attribute_, bke::AttrDomain::Point)) {
+        continue;
+      }
+      if (!attributes.lookup<float>(sim_geometry.src.mass_attribute, bke::AttrDomain::Point)) {
+        continue;
+      }
+
+      const Span<float3> positions = curves.positions();
+      const VArraySpan<math::Quaternion> rotations =
+          *attributes.lookup_or_default<math::Quaternion>(sim_geometry.src.rotation_attribute,
+                                                          bke::AttrDomain::Point,
+                                                          math::Quaternion::identity());
+      const VArraySpan<float> rest_lengths = *attributes.lookup_or_default<float>(
+          rest_length_attribute_, bke::AttrDomain::Point, 1.0f);
+      const VArraySpan<float> masses = *attributes.lookup_or_default<float>(
+          sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
+      const VArraySpan<float3> inertias = *attributes.lookup_or_default<float3>(
+          sim_geometry.src.inertia_attribute, bke::AttrDomain::Point, float3(1.0f));
+      const VArray<bool> cyclic = curves.cyclic();
+
+      auto solve_segment = [&](const int point_i, const int next_point_i) {
+        LocalConstraintCorrections &local_corrections = params.corrections.local();
+
+        const float mass0 = masses[point_i];
+        const float mass1 = masses[next_point_i];
+        const float rest_distance = rest_lengths[point_i];
+        const float3 inertia = inertias[point_i];
+        const float lumped_inertia = 0.5f * (inertia.x + inertia.y + inertia.z);
+
+        /* TODO carry over from previous iteration, use for warm-starting. */
+        const float3 lambda_prev = float3(0.0f);
+
+        solve_distance_rotation_constraint(geometry_i,
+                                           geometry_i,
+                                           geometry_i,
+                                           point_i,
+                                           next_point_i,
+                                           point_i,
+                                           positions[point_i],
+                                           positions[next_point_i],
+                                           rotations[point_i],
+                                           mass0,
+                                           mass1,
+                                           lumped_inertia,
+                                           lambda_prev,
+                                           compliance_term,
+                                           rest_distance,
+                                           local_corrections);
+      };
+
+      threading::parallel_for(curves.curves_range(), 256, [&](IndexRange curves_range) {
+        for (const int curve_i : curves_range) {
+          const IndexRange points = points_by_curve[curve_i];
+          if (points.size() < 2) {
+            continue;
+          }
+          for (const int point_i : points.drop_back(1)) {
+            const int next_point_i = point_i + 1;
+            solve_segment(point_i, next_point_i);
+          }
+          if (cyclic[curve_i]) {
+            solve_segment(points.last(), points.first());
           }
         }
       });
@@ -727,6 +1032,7 @@ ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
   return scope.construct<EdgeLengthConstraintSet>(
       std::move(self_path), std::move(filter), std::move(rest_length_attribute), compliance);
 }
+
 ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
                                                 std::string self_path,
                                                 std::string filter,
@@ -734,6 +1040,16 @@ ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
                                                 float compliance)
 {
   return scope.construct<CurveLengthConstraintSet>(
+      self_path, filter, std::move(rest_length_attribute), compliance);
+}
+
+ConstraintSet &create_constraint__curve_rod_lengths(ResourceScope &scope,
+                                                    std::string self_path,
+                                                    std::string filter,
+                                                    std::string rest_length_attribute,
+                                                    float compliance)
+{
+  return scope.construct<CurveRodLengthConstraintSet>(
       self_path, filter, std::move(rest_length_attribute), compliance);
 }
 
@@ -764,6 +1080,158 @@ ConstraintSet &create_constraint__global_volume(ResourceScope &scope,
 {
   return scope.construct<GlobalVolumeConstraintSet>(
       self_path, filter, std::move(rest_volume_name), overpressure);
+}
+
+static void dynamics_time_step(const Behaviors &behaviors,
+                               MutableSpan<SimGeometry> sim_geometries,
+                               const float delta_time)
+{
+  for (SimGeometry &sim_geometry : sim_geometries) {
+    std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
+    if (!attributes) {
+      continue;
+    }
+    std::optional<bke::GeometryFieldContext> field_context;
+    sim_geometry.set_point_field_context(field_context);
+    if (!field_context) {
+      continue;
+    }
+    const int positions_num = attributes->domain_size(bke::AttrDomain::Point);
+
+    Vector<const ForceField *> filtered_force_fields;
+    for (const ForceField &sim_force : behaviors.force_fields) {
+      if (behavior_path_is_selected(sim_force.self_path, sim_force.filter, sim_geometry.src.path))
+      {
+        filtered_force_fields.append(&sim_force);
+      }
+    }
+    Vector<const AccelerationField *> filtered_acceleration_fields;
+    for (const AccelerationField &sim_acceleration : behaviors.acceleration_fields) {
+      if (behavior_path_is_selected(
+              sim_acceleration.self_path, sim_acceleration.filter, sim_geometry.src.path))
+      {
+        filtered_acceleration_fields.append(&sim_acceleration);
+      }
+    }
+
+    Array<float3> force(positions_num, float3());
+    Array<float3> acceleration(positions_num, float3());
+    fn::FieldEvaluator field_evaluator{*field_context, positions_num};
+    for (const ForceField *sim_force : filtered_force_fields) {
+      field_evaluator.add(sim_force->force_field);
+    }
+    for (const AccelerationField *sim_acceleration : filtered_acceleration_fields) {
+      field_evaluator.add(sim_acceleration->acceleration_field);
+    }
+    field_evaluator.evaluate();
+    for (const int force_i : filtered_force_fields.index_range()) {
+      VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
+      for (const int i : force_varray.index_range()) {
+        force[i] += force_varray[i];
+      }
+    }
+    for (const int acceleration_i : filtered_acceleration_fields.index_range()) {
+      VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
+          acceleration_i + filtered_force_fields.size());
+      for (const int i : acceleration_varray.index_range()) {
+        acceleration[i] += acceleration_varray[i];
+      }
+    }
+    const VArray<float> masses = *attributes->lookup_or_default<float>(
+        sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
+
+    bke::SpanAttributeWriter<float3> positions = attributes->lookup_or_add_for_write_span<float3>(
+        "position", bke::AttrDomain::Point);
+    bke::SpanAttributeWriter<float3> velocities = attributes->lookup_or_add_for_write_span<float3>(
+        sim_geometry.src.velocity_attribute, bke::AttrDomain::Point);
+    threading::parallel_for(positions.span.index_range(), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        acceleration[i] += force[i] / masses[i];
+        velocities.span[i] += acceleration[i] * delta_time;
+        positions.span[i] += velocities.span[i] * delta_time;
+      }
+    });
+    velocities.finish();
+    positions.finish();
+
+    /* Rotational dynamics, if a valid rotation attribute exists. */
+    const auto rotation_meta_data = attributes->lookup_meta_data(
+        sim_geometry.src.rotation_attribute);
+    if (rotation_meta_data && rotation_meta_data->data_type == bke::AttrType::Quaternion &&
+        rotation_meta_data->domain == bke::AttrDomain::Point)
+    {
+      const VArray<float3> inertias = *attributes->lookup_or_default<float3>(
+          sim_geometry.src.inertia_attribute, bke::AttrDomain::Point, float3(1.0f));
+      bke::SpanAttributeWriter<math::Quaternion> rotations =
+          attributes->lookup_or_add_for_write_span<math::Quaternion>(
+              sim_geometry.src.rotation_attribute, bke::AttrDomain::Point);
+      bke::SpanAttributeWriter<float3> angular_velocities =
+          attributes->lookup_or_add_for_write_span<float3>(
+              sim_geometry.src.angular_velocity_attribute, bke::AttrDomain::Point);
+      threading::parallel_for(rotations.span.index_range(), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          const float3 &inertia = inertias[i];
+          float3 &angular_velocity = angular_velocities.span[i];
+          /* TODO eventually may have external "torque fields", ignore for now. */
+          const float3 external_torque = float3(0.0f);
+          const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
+          math::Quaternion &rotation = rotations.span[i];
+
+          angular_velocity += delta_time *
+                              (math::safe_divide(external_torque - precession, inertia));
+          const math::Quaternion direction = math::Quaternion(0, angular_velocity) * rotation;
+          rotation = math::normalize(
+              math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
+        }
+      });
+
+      rotations.finish();
+      angular_velocities.finish();
+    }
+  }
+}
+
+static void estimate_velocities(MutableSpan<SimGeometry> sim_geometries, const float delta_time)
+{
+  for (SimGeometry &sim_geometry : sim_geometries) {
+    std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
+    if (!attributes) {
+      continue;
+    }
+    const VArraySpan<float3> prev_positions = *attributes->lookup<float3>(prev_position_name);
+    const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
+    bke::SpanAttributeWriter<float3> velocities = attributes->lookup_for_write_span<float3>(
+        sim_geometry.src.velocity_attribute);
+    threading::parallel_for(positions.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        velocities.span[i] = (positions[i] - prev_positions[i]) / delta_time;
+      }
+    });
+    velocities.finish();
+
+    /* Rotational dynamics, if a valid rotation attribute exists. */
+    const auto rotation_meta_data = attributes->lookup_meta_data(
+        sim_geometry.src.rotation_attribute);
+    if (rotation_meta_data && rotation_meta_data->data_type == bke::AttrType::Quaternion &&
+        rotation_meta_data->domain == bke::AttrDomain::Point)
+    {
+      const VArraySpan<math::Quaternion> prev_rotations = *attributes->lookup<math::Quaternion>(
+          prev_rotation_name);
+      const VArraySpan<math::Quaternion> rotations = *attributes->lookup<math::Quaternion>(
+          sim_geometry.src.rotation_attribute);
+      bke::SpanAttributeWriter<float3> angular_velocities =
+          attributes->lookup_or_add_for_write_span<float3>(
+              sim_geometry.src.angular_velocity_attribute, bke::AttrDomain::Point);
+      threading::parallel_for(rotations.index_range(), 512, [&](const IndexRange range) {
+        for (const int i : range) {
+          angular_velocities.span[i] =
+              2.0f * (math::invert_normalized(prev_rotations[i]) * rotations[i]).imaginary_part() /
+              delta_time;
+        }
+      });
+      angular_velocities.finish();
+    }
+  }
 }
 
 void solve(Behaviors &behaviors, const float total_delta_time, const int substeps)
@@ -800,6 +1268,18 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
                               bke::AttrDomain::Point,
                               bke::AttributeInitShared{positions.varray.get_internal_span().data(),
                                                        *positions.sharing_info});
+
+      if (const bke::AttributeReader<math::Quaternion> rotations =
+              attributes->lookup<math::Quaternion>(sim_geometry.src.rotation_attribute))
+      {
+
+        attributes->remove(prev_rotation_name);
+        attributes->add<math::Quaternion>(
+            prev_rotation_name,
+            bke::AttrDomain::Point,
+            bke::AttributeInitShared{rotations.varray.get_internal_span().data(),
+                                     *rotations.sharing_info});
+      }
     }
 
     /* Init constraints. */
@@ -809,75 +1289,7 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
 
     /* Handle forces and accelerations. If the time step is zero, these can't have any effect. */
     if (sub_delta_time > 0) {
-      for (SimGeometry &sim_geometry : sim_geometries) {
-        std::optional<bke::MutableAttributeAccessor> attributes =
-            sim_geometry.attributes_for_write();
-        if (!attributes) {
-          continue;
-        }
-        std::optional<bke::GeometryFieldContext> field_context;
-        sim_geometry.set_point_field_context(field_context);
-        if (!field_context) {
-          continue;
-        }
-        const int positions_num = attributes->domain_size(bke::AttrDomain::Point);
-
-        Vector<const ForceField *> filtered_force_fields;
-        for (const ForceField &sim_force : behaviors.force_fields) {
-          if (behavior_path_is_selected(
-                  sim_force.self_path, sim_force.filter, sim_geometry.src.path))
-          {
-            filtered_force_fields.append(&sim_force);
-          }
-        }
-        Vector<const AccelerationField *> filtered_acceleration_fields;
-        for (const AccelerationField &sim_acceleration : behaviors.acceleration_fields) {
-          if (behavior_path_is_selected(
-                  sim_acceleration.self_path, sim_acceleration.filter, sim_geometry.src.path))
-          {
-            filtered_acceleration_fields.append(&sim_acceleration);
-          }
-        }
-
-        Array<float3> force(positions_num, float3());
-        Array<float3> acceleration(positions_num, float3());
-        fn::FieldEvaluator field_evaluator{*field_context, positions_num};
-        for (const ForceField *sim_force : filtered_force_fields) {
-          field_evaluator.add(sim_force->force_field);
-        }
-        for (const AccelerationField *sim_acceleration : filtered_acceleration_fields) {
-          field_evaluator.add(sim_acceleration->acceleration_field);
-        }
-        field_evaluator.evaluate();
-        for (const int force_i : filtered_force_fields.index_range()) {
-          VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
-          for (const int i : force_varray.index_range()) {
-            force[i] += force_varray[i];
-          }
-        }
-        for (const int acceleration_i : filtered_acceleration_fields.index_range()) {
-          VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
-              acceleration_i + filtered_force_fields.size());
-          for (const int i : acceleration_varray.index_range()) {
-            acceleration[i] += acceleration_varray[i];
-          }
-        }
-        const VArray<float> masses = *attributes->lookup_or_default<float>(
-            sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
-
-        bke::SpanAttributeWriter<float3> velocities =
-            attributes->lookup_or_add_for_write_span<float3>(sim_geometry.src.velocity_attribute,
-                                                             bke::AttrDomain::Point);
-        bke::SpanAttributeWriter<float3> positions =
-            attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
-        for (const int i : velocities.span.index_range()) {
-          acceleration[i] += force[i] / masses[i];
-          velocities.span[i] += acceleration[i] * sub_delta_time;
-          positions.span[i] += velocities.span[i] * sub_delta_time;
-        }
-        velocities.finish();
-        positions.finish();
-      }
+      dynamics_time_step(behaviors, sim_geometries, sub_delta_time);
     }
 
     /* Constraint solve step. */
@@ -899,23 +1311,7 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
 
     /* Write back velocities. Velocities can't be computed if the time step is zero. */
     if (sub_delta_time > 0) {
-      for (SimGeometry &sim_geometry : sim_geometries) {
-        std::optional<bke::MutableAttributeAccessor> attributes =
-            sim_geometry.attributes_for_write();
-        if (!attributes) {
-          continue;
-        }
-        const VArraySpan<float3> prev_positions = *attributes->lookup<float3>(prev_position_name);
-        const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
-        bke::SpanAttributeWriter<float3> velocities = attributes->lookup_for_write_span<float3>(
-            sim_geometry.src.velocity_attribute);
-        threading::parallel_for(positions.index_range(), 512, [&](const IndexRange range) {
-          for (const int i : range) {
-            velocities.span[i] = (positions[i] - prev_positions[i]) / sub_delta_time;
-          }
-        });
-        velocities.finish();
-      }
+      estimate_velocities(sim_geometries, sub_delta_time);
     }
 
     /* Remove temporary attributes.*/
@@ -926,6 +1322,7 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
         continue;
       }
       attributes->remove(prev_position_name);
+      attributes->remove(prev_rotation_name);
     }
   }
 }

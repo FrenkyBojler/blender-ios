@@ -52,8 +52,14 @@ static void parse_behavior__geometry(ParseBehaviorParams &params)
   sim_geometry_set.geometry = *geometry;
   sim_geometry_set.mass_attribute =
       params.bundle.lookup<std::string>("Mass Attribute").value_or("mass");
+  sim_geometry_set.inertia_attribute =
+      params.bundle.lookup<std::string>("Inertia Attribute").value_or("inertia");
+  sim_geometry_set.rotation_attribute =
+      params.bundle.lookup<std::string>("Rotation").value_or("rotation");
   sim_geometry_set.velocity_attribute =
       params.bundle.lookup<std::string>("Velocity").value_or("velocity");
+  sim_geometry_set.angular_velocity_attribute =
+      params.bundle.lookup<std::string>("Angular Velocity").value_or("angular_velocity");
   params.r_behaviors.sim_geometry_sets.append(&sim_geometry_set);
 }
 
@@ -124,6 +130,23 @@ static void parse_behavior__curve_lengths(ParseBehaviorParams &params)
                                                         compliance));
 }
 
+static void parse_behavior__curve_rod_lengths(ParseBehaviorParams &params)
+{
+  std::optional<std::string> rest_length_attribute = params.bundle.lookup<std::string>(
+      "Rest Length Attribute");
+  if (!rest_length_attribute || rest_length_attribute->empty()) {
+    return;
+  }
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
+  const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
+  params.r_behaviors.constraint_sets.append(
+      &geometry::xpbd::create_constraint__curve_rod_lengths(params.scope,
+                                                            params.self_path(),
+                                                            std::move(filter),
+                                                            std::move(*rest_length_attribute),
+                                                            compliance));
+}
+
 static void parse_behavior__fixed_positions(ParseBehaviorParams &params)
 {
   std::optional<Field<bool>> selection_field = params.bundle.lookup<Field<bool>>("Selection");
@@ -176,6 +199,7 @@ static Map<std::string, BehaviorParserFn> build_behavior_parsers()
   behavior_parsers.add_new("Acceleration", parse_behavior__acceleration);
   behavior_parsers.add_new("Edge Length Constraint", parse_behavior__edge_lengths);
   behavior_parsers.add_new("Curve Length Constraint", parse_behavior__curve_lengths);
+  behavior_parsers.add_new("Curve Rod Length Constraint", parse_behavior__curve_rod_lengths);
   behavior_parsers.add_new("Fixed Position Constraint", parse_behavior__fixed_positions);
   behavior_parsers.add_new("Infinite Collision Plane", parse_behavior__infinite_collision_plane);
   behavior_parsers.add_new("Global Volume Constraint", parse_behavior__global_volume);

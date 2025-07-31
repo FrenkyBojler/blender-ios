@@ -35,7 +35,10 @@ struct SimGeometrySet {
   std::string path;
   bke::GeometrySet geometry;
   std::string mass_attribute;
+  std::string inertia_attribute;
+  std::string rotation_attribute;
   std::string velocity_attribute;
+  std::string angular_velocity_attribute;
   mutable Mutex extra_mutex;
   nodes::BundlePtr extra;
 
@@ -66,6 +69,12 @@ struct PositionCorrection {
   int num_corrections = 0;
 };
 
+struct RotationCorrection {
+  Mutex mutex;
+  int4 offset = {0, 0, 0, 0};
+  int num_corrections = 0;
+};
+
 class ConstraintCorrections;
 
 class LocalConstraintCorrections {
@@ -74,12 +83,18 @@ class LocalConstraintCorrections {
  public:
   LocalConstraintCorrections(ConstraintCorrections &corrections);
   void add_position_correction(int geometry_i, int position_i, const float3 &offset);
+  void add_rotation_correction(int geometry_i, int position_i, const math::Quaternion &offset);
 };
 
 class ConstraintCorrections {
  private:
   MutableSpan<SimGeometry> sim_geometries_;
-  Array<Array<PositionCorrection>> corrections_;
+
+  struct SimGeometryCorrections {
+    Array<PositionCorrection> position_corrections;
+    Array<RotationCorrection> rotation_corrections;
+  };
+  Array<SimGeometryCorrections> corrections_;
   LocalConstraintCorrections local_corrections_;
 
   friend LocalConstraintCorrections;
@@ -123,6 +138,11 @@ ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
                                                 std::string filter,
                                                 std::string rest_length_attribute,
                                                 float compliance);
+ConstraintSet &create_constraint__curve_rod_lengths(ResourceScope &scope,
+                                                    std::string self_path,
+                                                    std::string filter,
+                                                    std::string rest_length_attribute,
+                                                    float compliance);
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
                                                   std::string self_path,
                                                   std::string filter,
@@ -145,7 +165,26 @@ inline void LocalConstraintCorrections::add_position_correction(const int geomet
 {
   const float quantize_scale = corrections_.sim_geometries_[geometry_i].quantize_scale;
   const int3 quantized_offset = int3(offset * quantize_scale);
-  PositionCorrection &correction = corrections_.corrections_[geometry_i][position_i];
+  ConstraintCorrections::SimGeometryCorrections &corrections =
+      corrections_.corrections_[geometry_i];
+  PositionCorrection &correction = corrections.position_corrections[position_i];
+  std::lock_guard lock(correction.mutex);
+  correction.offset += quantized_offset;
+  correction.num_corrections++;
+}
+
+inline void LocalConstraintCorrections::add_rotation_correction(const int geometry_i,
+                                                                const int rotation_i,
+                                                                const math::Quaternion &offset)
+{
+  const float quantize_scale = corrections_.sim_geometries_[geometry_i].quantize_scale;
+  /* TODO Double-cover problem: quaternions q and -q describe the same rotation, which can cause
+   * rapid flip when simply adding deltas. May have to flip quaternions to push towards the nearest
+   * pole consistently. */
+  const int4 quantized_offset = int4(float4(offset) * quantize_scale);
+  ConstraintCorrections::SimGeometryCorrections &corrections =
+      corrections_.corrections_[geometry_i];
+  RotationCorrection &correction = corrections.rotation_corrections[rotation_i];
   std::lock_guard lock(correction.mutex);
   correction.offset += quantized_offset;
   correction.num_corrections++;
