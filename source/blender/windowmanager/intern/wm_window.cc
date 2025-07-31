@@ -985,8 +985,8 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
     }
 
     if (U.tablet_mode) {
-      win->sizex = 780;
-      win->sizey = 560;
+      win->sizex = 950;
+      win->sizey = 650;
     }
 
     if (wm_init_state.override_flag & WIN_OVERRIDE_WINSTATE) {
