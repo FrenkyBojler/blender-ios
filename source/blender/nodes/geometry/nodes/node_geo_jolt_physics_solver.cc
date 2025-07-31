@@ -187,17 +187,6 @@ static std::optional<CollisionShapeType> parse_collision_shape_type(const int ty
   return std::nullopt;
 }
 
-static JPH::SoftBodySharedSettings::EBendType parse_bend_type(const int type)
-{
-  switch (type) {
-    case 1:
-      return JPH::SoftBodySharedSettings::EBendType::Distance;
-    case 2:
-      return JPH::SoftBodySharedSettings::EBendType::Dihedral;
-  }
-  return JPH::SoftBodySharedSettings::EBendType::None;
-}
-
 static std::optional<JPH::EMotionType> parse_motion_type(const int type)
 {
   switch (type) {
@@ -400,24 +389,7 @@ struct JoltState {
   CollisionShapeCache collision_shape_cache;
 };
 
-struct OldRigidBodiesBehavior {
-  std::string self_path;
-  /** The raw geometry that was passed in that is not simulated. */
-  GeometrySet input_geometry;
-  /** The raw geometry that was passed in but the changes from the jolt state have been applied. */
-  GeometrySet simulated_geometry;
-  Field<int> collision_shape_type_field;
-  Field<int> motion_type_field;
-  Field<float> friction_field;
-  Field<float> bounciness_field;
-  Field<float> density_field;
-
-  void update_simulated(const JoltState &state);
-};
-
 struct JoltBehaviors {
-  Vector<OldRigidBodiesBehavior> old_rigid_bodies;
-
   Vector<ForceBehavior> forces;
   Vector<GravityBehavior> gravities;
   Vector<RigidBodyInstancesBehavior> rigid_bodies;
@@ -484,29 +456,25 @@ static JPH::ShapeSettings::ShapeResult make_collision_shape(const CollisionShape
 }
 
 static void handle_rigid_bodies_behavior(JoltState &state,
-                                         const OldRigidBodiesBehavior &behavior,
+                                         const RigidBodyInstancesBehavior &behavior,
+                                         const bke::Instances &current_instances,
                                          Map<std::string, JoltRigidBodies> &r_rigid_bodies_by_path)
 {
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
+  const int instances_num = current_instances.instances_num();
+  const int references_num = current_instances.references_num();
+  const Span<int> instance_ids = current_instances.almost_unique_ids();
+  const Span<float4x4> transforms = current_instances.transforms();
+  const Span<bke::InstanceReference> references = current_instances.references();
+  const Span<int> handles = current_instances.reference_handles();
 
-  const bke::Instances *instances = behavior.simulated_geometry.get_instances();
-  if (!instances) {
-    return;
-  }
-  const int instances_num = instances->instances_num();
-  const int references_num = instances->references_num();
-  const Span<int> instance_ids = instances->almost_unique_ids();
-  const Span<float4x4> transforms = instances->transforms();
-  const Span<bke::InstanceReference> references = instances->references();
-  const Span<int> handles = instances->reference_handles();
-
-  bke::InstancesFieldContext field_context{*instances};
+  bke::InstancesFieldContext field_context{current_instances};
   fn::FieldEvaluator field_evaluator{field_context, instances_num};
-  field_evaluator.add(behavior.collision_shape_type_field);
-  field_evaluator.add(behavior.motion_type_field);
-  field_evaluator.add(behavior.friction_field);
-  field_evaluator.add(behavior.bounciness_field);
-  field_evaluator.add(behavior.density_field);
+  field_evaluator.add(behavior.collision_shape_type);
+  field_evaluator.add(behavior.motion_type);
+  field_evaluator.add(behavior.friction);
+  field_evaluator.add(behavior.bounciness);
+  field_evaluator.add(behavior.density);
   field_evaluator.evaluate();
   const VArray<int> collision_shape_types = field_evaluator.get_evaluated<int>(0);
   const VArray<int> motion_types = field_evaluator.get_evaluated<int>(1);
@@ -635,10 +603,6 @@ static void handle_soft_body_behavior(JoltState &state,
                                       const Mesh &current_mesh,
                                       Map<std::string, JoltSoftBody> &r_soft_bodies_by_path)
 {
-  if (current_mesh.verts_num == 0) {
-    return;
-  }
-
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
 
   JoltSoftBody soft_body;
@@ -722,10 +686,10 @@ static void handle_soft_body_behavior(JoltState &state,
   r_soft_bodies_by_path.add(behavior.self_path, std::move(soft_body));
 }
 
-static GeometrySet apply_rigid_body_simulation(const OldRigidBodiesBehavior &behavior,
+static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBehavior &behavior,
                                                const JoltState &state)
 {
-  GeometrySet geometry = behavior.input_geometry;
+  GeometrySet geometry = behavior.instances_geometry;
   bke::Instances *instances = geometry.get_instances_for_write();
   if (!instances) {
     return geometry;
@@ -762,11 +726,6 @@ static GeometrySet apply_rigid_body_simulation(const OldRigidBodiesBehavior &beh
   }
 
   return geometry;
-}
-
-void OldRigidBodiesBehavior::update_simulated(const JoltState &state)
-{
-  this->simulated_geometry = apply_rigid_body_simulation(*this, state);
 }
 
 static GeometrySet apply_soft_body_simulation(const SoftBodyMeshBehavior &behavior,
@@ -820,10 +779,15 @@ static void update_gravity(const GeoNodeExecParams &params,
   state.system.SetGravity(default_gravity);
 }
 
-static void update_forces(JoltState &state, const JoltBehaviors &behaviors)
+static void update_forces(JoltState &state,
+                          const JoltBehaviors &behaviors,
+                          const Span<GeometrySet> applied_rigid_bodies,
+                          const Span<GeometrySet> /*applied_soft_bodies*/)
 {
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
-  for (const OldRigidBodiesBehavior &rigid_body_behavior : behaviors.old_rigid_bodies) {
+  for (const int rigid_body_behavior_i : behaviors.rigid_bodies.index_range()) {
+    const RigidBodyInstancesBehavior &rigid_body_behavior =
+        behaviors.rigid_bodies[rigid_body_behavior_i];
     Vector<const ForceBehavior *> used_forces;
     for (const ForceBehavior &force_behavior : behaviors.forces) {
       if (behaviors::behavior_path_is_selected(
@@ -840,7 +804,7 @@ static void update_forces(JoltState &state, const JoltBehaviors &behaviors)
     if (!rigid_bodies) {
       continue;
     }
-    const bke::Instances *instances = rigid_body_behavior.simulated_geometry.get_instances();
+    const bke::Instances *instances = applied_rigid_bodies[rigid_body_behavior_i].get_instances();
     if (!instances) {
       continue;
     }
@@ -872,6 +836,7 @@ static void update_forces(JoltState &state, const JoltBehaviors &behaviors)
       body_interface.AddForce(rigid_body->body->GetID(), convert_vec3(force));
     }
   }
+  /* TODO: Forces on soft bodies. */
 }
 
 static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
@@ -880,8 +845,10 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
 {
   state.collision_shape_cache.reset_used();
 
-  for (OldRigidBodiesBehavior &rigid_bodies_behavior : behaviors.old_rigid_bodies) {
-    rigid_bodies_behavior.update_simulated(state);
+  Array<GeometrySet> applied_rigid_bodies(behaviors.rigid_bodies.size());
+  for (const int i : behaviors.rigid_bodies.index_range()) {
+    const RigidBodyInstancesBehavior &rigid_body_behavior = behaviors.rigid_bodies[i];
+    applied_rigid_bodies[i] = apply_rigid_body_simulation(rigid_body_behavior, state);
   }
   Array<GeometrySet> applied_soft_bodies(behaviors.soft_bodies.size());
   for (const int i : behaviors.soft_bodies.index_range()) {
@@ -892,8 +859,14 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
 
   Map<std::string, JoltRigidBodies> new_rigid_bodies_by_path;
-  for (const OldRigidBodiesBehavior &rigid_bodies_behaviors : behaviors.old_rigid_bodies) {
-    handle_rigid_bodies_behavior(state, rigid_bodies_behaviors, new_rigid_bodies_by_path);
+  for (const int i : behaviors.rigid_bodies.index_range()) {
+    const GeometrySet &applied_rigid_body = applied_rigid_bodies[i];
+    const bke::Instances *instances = applied_rigid_body.get_instances();
+    if (!instances) {
+      continue;
+    }
+    const RigidBodyInstancesBehavior &rigid_body_behavior = behaviors.rigid_bodies[i];
+    handle_rigid_bodies_behavior(state, rigid_body_behavior, *instances, new_rigid_bodies_by_path);
   }
   Map<std::string, JoltSoftBody> new_soft_bodies_by_path;
   for (const int i : behaviors.soft_bodies.index_range()) {
@@ -924,7 +897,7 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
   state.collision_shape_cache.remove_unused();
 
   update_gravity(params, state, behaviors);
-  update_forces(state, behaviors);
+  update_forces(state, behaviors, applied_rigid_bodies, applied_soft_bodies);
 }
 
 class JoltStateOwner : public BundleItemInternalValueMixin {
@@ -1061,10 +1034,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
 
-  for (OldRigidBodiesBehavior &rigid_bodies_behavior : behaviors.old_rigid_bodies) {
-    rigid_bodies_behavior.update_simulated(state);
+  for (RigidBodyInstancesBehavior &rigid_bodies_behavior : behaviors.rigid_bodies) {
+    GeometrySet applied_rigid_bodies = apply_rigid_body_simulation(rigid_bodies_behavior, state);
     new_data_bundle.add_path_override(rigid_bodies_behavior.self_path + "/Instances",
-                                      std::move(rigid_bodies_behavior.simulated_geometry));
+                                      std::move(applied_rigid_bodies));
   }
   for (SoftBodyMeshBehavior &soft_body_behavior : behaviors.soft_bodies) {
     GeometrySet applied_soft_body = apply_soft_body_simulation(soft_body_behavior, state);
