@@ -221,7 +221,7 @@ class NODE_OT_add_typed_bundle(NodeAddOperator, bpy.types.Operator):
 
     def execute(self, context):
         node = self.create_node(context, "GeometryNodeCombineBundle")
-        node.bundle_items.new("STRING", "type")
+        node.bundle_items.new("STRING", "Type")
         return {"FINISHED"}
 
 

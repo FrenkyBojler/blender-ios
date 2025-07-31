@@ -65,6 +65,7 @@
 
 #include "NOD_composite.hh"
 #include "NOD_geometry.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_partial_eval.hh"
@@ -1091,7 +1092,7 @@ static bool socket_needs_behavior_type_search(const bNode &node, const bNodeSock
   if (node.type_legacy != GEO_NODE_COMBINE_BUNDLE) {
     return false;
   }
-  if (socket.name != StringRef("type")) {
+  if (socket.name != nodes::Bundle::type_item_name) {
     return false;
   }
   return true;
