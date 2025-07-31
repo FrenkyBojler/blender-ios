@@ -320,18 +320,23 @@ float4 gpencil_vertex(float4 viewport_res,
     out_hardness = gpencil_decode_hardness(use_curr ? hardness1 : hardness2);
 
     out_sspos.xy = ss1;
-    out_sspos.zw = ss2;
+    if (ma2.x != -1) {
+      out_sspos.zw = ss2;
+    }
+    else {
+      out_sspos.zw = out_sspos.xy;
+    }
     if (ma.x != -1) {
       out_sspos_adj.xy = ss0;
     }
     else {
-      out_sspos_adj.xy = ss1;
+      out_sspos_adj.xy = out_sspos.xy;
     }
     if (ma3.x != -1) {
       out_sspos_adj.zw = ss3;
     }
     else {
-      out_sspos_adj.zw = ss2;
+      out_sspos_adj.zw = out_sspos.zw;
     }
 
     if (is_dot) {
