@@ -238,6 +238,7 @@ class ShaderNodesInliner {
       case ID_MA:
         add_output_type("ShaderNodeOutputMaterial");
         add_output_type("ShaderNodeOutputAOV");
+        add_output_type("ShaderNodeOutputLight");
         break;
       case ID_WO:
         add_output_type("ShaderNodeOutputWorld");
