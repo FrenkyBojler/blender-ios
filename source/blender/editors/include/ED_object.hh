@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "BLI_compiler_attrs.h"
@@ -112,9 +113,18 @@ bool shape_key_is_selected(const Object &object, const KeyBlock &kb, int keybloc
 
 /* `object_utils.cc` */
 
-bool calc_active_center_for_editmode(Object *obedit, bool select_only, float r_center[3]);
-bool calc_active_center_for_posemode(Object *ob, bool select_only, float r_center[3]);
-bool calc_active_center(Object *ob, bool select_only, float r_center[3]);
+bool calc_active_transform_for_editmode(Object *obedit,
+                                        bool select_only,
+                                        std::optional<float3> &center,
+                                        std::optional<float4> &rotation);
+bool calc_active_transform_for_posemode(Object *ob,
+                                        bool select_only,
+                                        std::optional<float3> &center,
+                                        std::optional<float4> &rotation);
+bool calc_active_transform(Object *ob,
+                           bool select_only,
+                           std::optional<float3> &center,
+                           std::optional<float4> &rotation);
 
 bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
                                                   bool select_only,

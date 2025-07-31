@@ -1036,7 +1036,11 @@ static bool snap_calc_active_center(bContext *C, const bool select_only, float r
   if (ob == nullptr) {
     return false;
   }
-  return blender::ed::object::calc_active_center(ob, select_only, r_center);
+  std::optional<blender::float3> center_f3 = {};
+  std::optional<blender::float4> rotation_f4 = {};
+  bool res = blender::ed::object::calc_active_transform(ob, select_only, center_f3, rotation_f4);
+  copy_v3_v3(r_center, *center_f3);
+  return res;
 }
 
 static bool snap_calc_active_rot(bContext *C, const bool select_only, float r_rot[3][3])

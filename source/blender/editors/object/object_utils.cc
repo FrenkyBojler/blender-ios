@@ -60,7 +60,10 @@ bool material_active_index_set(Object *ob, const int index)
 /** \name Active Element Center
  * \{ */
 
-bool calc_active_center_for_editmode(Object *obedit, const bool select_only, float r_center[3])
+bool calc_active_transform_for_editmode(Object *obedit,
+                                        const bool select_only,
+                                        std::optional<float3> &center,
+                                        std::optional<float4> &rotation)
 {
   switch (obedit->type) {
     case OB_MESH: {
@@ -68,7 +71,7 @@ bool calc_active_center_for_editmode(Object *obedit, const bool select_only, flo
       BMEditSelection ese;
 
       if (BM_select_history_active_get(em->bm, &ese)) {
-        BM_editselection_center(&ese, r_center);
+        BM_editselection_center(&ese, *center);
         return true;
       }
       break;
@@ -78,7 +81,7 @@ bool calc_active_center_for_editmode(Object *obedit, const bool select_only, flo
       EditBone *ebo = arm->act_edbone;
 
       if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
-        copy_v3_v3(r_center, ebo->head);
+        copy_v3_v3(*center, ebo->head);
         return true;
       }
 
@@ -88,7 +91,7 @@ bool calc_active_center_for_editmode(Object *obedit, const bool select_only, flo
     case OB_SURF: {
       Curve *cu = static_cast<Curve *>(obedit->data);
 
-      if (ED_curve_active_center(cu, r_center)) {
+      if (ED_curve_active_center(cu, *center)) {
         return true;
       }
       break;
@@ -98,7 +101,7 @@ bool calc_active_center_for_editmode(Object *obedit, const bool select_only, flo
       MetaElem *ml_act = mb->lastelem;
 
       if (ml_act && (!select_only || (ml_act->flag & SELECT))) {
-        copy_v3_v3(r_center, &ml_act->x);
+        copy_v3_v3(*center, &ml_act->x);
         return true;
       }
       break;
@@ -107,14 +110,14 @@ bool calc_active_center_for_editmode(Object *obedit, const bool select_only, flo
       BPoint *actbp = BKE_lattice_active_point_get(static_cast<Lattice *>(obedit->data));
 
       if (actbp) {
-        copy_v3_v3(r_center, actbp->vec);
+        copy_v3_v3(*center, actbp->vec);
         return true;
       }
       break;
     }
     case OB_GREASE_PENCIL: {
-      copy_v3_v3(r_center, obedit->loc);
-      mul_m4_v3(obedit->world_to_object().ptr(), r_center);
+      copy_v3_v3(*center, obedit->loc);
+      mul_m4_v3(obedit->world_to_object().ptr(), *center);
       return true;
     }
   }
@@ -122,34 +125,40 @@ bool calc_active_center_for_editmode(Object *obedit, const bool select_only, flo
   return false;
 }
 
-bool calc_active_center_for_posemode(Object *ob, const bool select_only, float r_center[3])
+bool calc_active_transform_for_posemode(Object *ob,
+                                        const bool select_only,
+                                        std::optional<float3> &center,
+                                        std::optional<float4> &rotation)
 {
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
-    copy_v3_v3(r_center, pchan->pose_head);
+    copy_v3_v3(*center, pchan->pose_head);
     return true;
   }
   return false;
 }
 
-bool calc_active_center(Object *ob, const bool select_only, float r_center[3])
+bool calc_active_transform(Object *ob,
+                           const bool select_only,
+                           std::optional<float3> &center,
+                           std::optional<float4> &rotation)
 {
   if (ob->mode & OB_MODE_EDIT) {
-    if (calc_active_center_for_editmode(ob, select_only, r_center)) {
-      mul_m4_v3(ob->object_to_world().ptr(), r_center);
+    if (calc_active_transform_for_editmode(ob, select_only, center, rotation)) {
+      mul_m4_v3(ob->object_to_world().ptr(), *center);
       return true;
     }
     return false;
   }
   if (ob->mode & OB_MODE_POSE) {
-    if (calc_active_center_for_posemode(ob, select_only, r_center)) {
-      mul_m4_v3(ob->object_to_world().ptr(), r_center);
+    if (calc_active_transform_for_posemode(ob, select_only, center, rotation)) {
+      mul_m4_v3(ob->object_to_world().ptr(), *center);
       return true;
     }
     return false;
   }
   if (!select_only || (ob->base_flag & BASE_SELECTED)) {
-    copy_v3_v3(r_center, ob->object_to_world().location());
+    copy_v3_v3(*center, ob->object_to_world().location());
     return true;
   }
   return false;
@@ -178,7 +187,7 @@ bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
     case OB_ARMATURE: {
       bArmature *arm = static_cast<bArmature *>(obedit->data);
       EditBone *ebo = arm->act_edbone;
-      
+
       if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
         copy_m3_m4(r_rot, ebo->disp_mat);
         mul_m3_m4m3(r_rot, obedit->object_to_world().ptr(), r_rot);
