@@ -1456,11 +1456,11 @@ class CYCLES_OBJECT_PT_visibility_culling(CyclesButtonsPanel, Panel):
 def panel_node_draw(layout, id_data, output_type, input_name):
     from bpy_extras.node_utils import find_node_input
 
-    if isinstance(id_data, bpy.types.FreestyleLineStyle) and not id_data.use_nodes:
-        layout.operator("cycles.use_shading_nodes", icon='NODETREE')
-        return False
 
     ntree = id_data.node_tree
+
+    if ntree is None:
+        return False
 
     node = ntree.get_output_node('CYCLES')
     if node:

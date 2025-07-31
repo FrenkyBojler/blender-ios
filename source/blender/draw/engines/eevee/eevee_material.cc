@@ -22,52 +22,6 @@
 namespace blender::eevee {
 
 /* -------------------------------------------------------------------- */
-/** \name Default Material
- *
- * \{ */
-
-DefaultSurfaceNodeTree::DefaultSurfaceNodeTree()
-{
-  bNodeTree *ntree = bke::node_tree_add_tree(nullptr, "Shader Nodetree", ntreeType_Shader->idname);
-  bNode *bsdf = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
-  bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
-  bNodeSocket *bsdf_out = bke::node_find_socket(*bsdf, SOCK_OUT, "BSDF");
-  bNodeSocket *output_in = bke::node_find_socket(*output, SOCK_IN, "Surface");
-  bke::node_add_link(*ntree, *bsdf, *bsdf_out, *output, *output_in);
-  bke::node_set_active(*ntree, *output);
-
-  color_socket_ =
-      (bNodeSocketValueRGBA *)bke::node_find_socket(*bsdf, SOCK_IN, "Base Color")->default_value;
-  metallic_socket_ =
-      (bNodeSocketValueFloat *)bke::node_find_socket(*bsdf, SOCK_IN, "Metallic")->default_value;
-  roughness_socket_ =
-      (bNodeSocketValueFloat *)bke::node_find_socket(*bsdf, SOCK_IN, "Roughness")->default_value;
-  specular_socket_ = (bNodeSocketValueFloat *)bke::node_find_socket(
-                         *bsdf, SOCK_IN, "Specular IOR Level")
-                         ->default_value;
-  ntree_ = ntree;
-}
-
-DefaultSurfaceNodeTree::~DefaultSurfaceNodeTree()
-{
-  bke::node_tree_free_embedded_tree(ntree_);
-  MEM_SAFE_FREE(ntree_);
-}
-
-bNodeTree *DefaultSurfaceNodeTree::nodetree_get(::Material *ma)
-{
-  /* WARNING: This function is not threadsafe. Which is not a problem for the moment. */
-  copy_v3_fl3(color_socket_->value, ma->r, ma->g, ma->b);
-  metallic_socket_->value = ma->metallic;
-  roughness_socket_->value = ma->roughness;
-  specular_socket_->value = ma->spec;
-
-  return ntree_;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Material
  *
  * \{ */
@@ -246,9 +200,12 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                                                eMaterialGeometry geometry_type,
                                                eMaterialProbe probe_capture)
 {
-  bNodeTree *ntree = (blender_mat->nodetree != nullptr) ?
-                         blender_mat->nodetree :
-                         default_surface_ntree_.nodetree_get(blender_mat);
+  // todo(habib): for testing only, remove later
+  if (blender_mat == nullptr) {
+    printf("blender_mat nullptr\n");
+  }
+  bNodeTree *ntree = (blender_mat->nodetree != nullptr) ? blender_mat->nodetree :
+                                                          default_surface->nodetree;
 
   /* We can't defer compilation in viewport image render, since we can't re-sync.(See #130235) */
   bool use_deferred_compilation = !inst_.is_viewport_image_render;

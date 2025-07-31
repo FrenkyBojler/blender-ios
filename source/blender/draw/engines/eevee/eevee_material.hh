@@ -289,33 +289,6 @@ struct ShaderKey {
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Default Material Node-Tree
- *
- * In order to support materials without nodetree we reuse and configure a standalone nodetree that
- * we pass for shader generation. The GPUMaterial is still stored inside the Material even if
- * it does not use the same nodetree.
- *
- * \{ */
-// todo(habib): remove. No need to support materials without a node tree anymore.
-class DefaultSurfaceNodeTree {
- private:
-  bNodeTree *ntree_;
-  bNodeSocketValueRGBA *color_socket_;
-  bNodeSocketValueFloat *metallic_socket_;
-  bNodeSocketValueFloat *roughness_socket_;
-  bNodeSocketValueFloat *specular_socket_;
-
- public:
-  DefaultSurfaceNodeTree();
-  ~DefaultSurfaceNodeTree();
-
-  /** Configure a default node-tree with the given material. */
-  bNodeTree *nodetree_get(::Material *ma);
-};
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Material
  *
  * \{ */
@@ -368,8 +341,6 @@ class MaterialModule {
   Map<ShaderKey, PassMain::Sub *> shader_map_;
 
   MaterialArray material_array_;
-
-  DefaultSurfaceNodeTree default_surface_ntree_;
 
   ::Material *error_mat_;
 

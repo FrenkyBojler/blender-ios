@@ -1474,17 +1474,14 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
   bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputMaterial");
   bNodeSocket &output_surface_input = version_node_add_socket(
       *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
-  bNodeSocket &output_surface_input = version_node_add_socket(
-      *ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
-  bNodeSocket &output_surface_input = version_node_add_socket(
-      *ntree, new_output, SOCK_IN, "NodeSocketVector", "Displacement");
-  bNodeSocket &output_surface_input = version_node_add_socket(
-      *ntree, new_output, SOCK_IN, "NodeSocketFloat", "Thickness");
+  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
+  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketVector", "Displacement");
+  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketFloat", "Thickness");
 
   version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
   new_output.flag |= NODE_DO_OUTPUT;
 
-  // todo(habib): use version_node_add_empty and add the 500 bsdf sockets :()
+  // todo(habib): use version_node_add_empty and add the 500 bsdf sockets :(
   bNode &shader = *blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(shader, SOCK_OUT, "BSDF");
   bNodeSocket &shader_color_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Base Color");
@@ -1505,6 +1502,7 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
   // bNodeSocket &roughness_input = version_node_add_socket(
   //     *ntree, shader, SOCK_IN, "NodeSocketFloat", "Roughness");
 
+  // todo(habib): use version_node_add_link()
   blender::bke::node_add_link(
       *ntree, shader, shader_bsdf_output, new_output, output_surface_input);
   // version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);

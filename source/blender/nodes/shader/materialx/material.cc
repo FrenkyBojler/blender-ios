@@ -60,24 +60,17 @@ MaterialX::DocumentPtr export_to_materialx(Depsgraph *depsgraph,
   NodeGraph graph(depsgraph, material, export_params, doc);
 
   // todo(habib): how to test
-  if (material->use_nodes) {
-    material->nodetree->ensure_topology_cache();
-    bNode *output_node = ntreeShaderOutputNode(material->nodetree, SHD_OUTPUT_ALL);
-    if (output_node && output_node->typeinfo->materialx_fn) {
-      NodeParserData data = {graph, NodeItem::Type::Material, nullptr, graph.empty_node()};
-      output_node->typeinfo->materialx_fn(&data, output_node, nullptr);
-      output_item = data.result;
-    }
-    else {
-      output_item = DefaultMaterialNodeParser(
-                        graph, nullptr, nullptr, NodeItem::Type::Material, nullptr)
-                        .compute_error();
-    }
+  material->nodetree->ensure_topology_cache();
+  bNode *output_node = ntreeShaderOutputNode(material->nodetree, SHD_OUTPUT_ALL);
+  if (output_node && output_node->typeinfo->materialx_fn) {
+    NodeParserData data = {graph, NodeItem::Type::Material, nullptr, graph.empty_node()};
+    output_node->typeinfo->materialx_fn(&data, output_node, nullptr);
+    output_item = data.result;
   }
   else {
     output_item = DefaultMaterialNodeParser(
                       graph, nullptr, nullptr, NodeItem::Type::Material, nullptr)
-                      .compute();
+                      .compute_error();
   }
 
   /* This node is expected to have a specific name to link up to USD. */
