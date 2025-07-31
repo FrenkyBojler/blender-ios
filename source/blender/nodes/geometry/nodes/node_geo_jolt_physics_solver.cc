@@ -427,17 +427,9 @@ struct OldSoftBodyBehavior {
   void update_simulated(const JoltState &state);
 };
 
-struct OldForceBehavior {
-  std::string self_path;
-  std::string filter;
-  Field<bool> selection_field;
-  Field<float3> force_field;
-};
-
 struct JoltBehaviors {
   Vector<OldRigidBodiesBehavior> old_rigid_bodies;
   Vector<OldSoftBodyBehavior> old_soft_bodies;
-  Vector<OldForceBehavior> old_forces;
 
   Vector<ForceBehavior> forces;
   Vector<GravityBehavior> gravities;
@@ -823,8 +815,8 @@ static void update_forces(JoltState &state, const JoltBehaviors &behaviors)
 {
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
   for (const OldRigidBodiesBehavior &rigid_body_behavior : behaviors.old_rigid_bodies) {
-    Vector<const OldForceBehavior *> used_forces;
-    for (const OldForceBehavior &force_behavior : behaviors.old_forces) {
+    Vector<const ForceBehavior *> used_forces;
+    for (const ForceBehavior &force_behavior : behaviors.forces) {
       if (behaviors::behavior_path_is_selected(
               force_behavior.self_path, force_behavior.filter, rigid_body_behavior.self_path))
       {
@@ -845,8 +837,9 @@ static void update_forces(JoltState &state, const JoltBehaviors &behaviors)
     }
     bke::InstancesFieldContext field_context{*instances};
     fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
-    for (const OldForceBehavior *force_behavior : used_forces) {
-      field_evaluator.add(force_behavior->force_field);
+    /* TODO: Selection. */
+    for (const ForceBehavior *force_behavior : used_forces) {
+      field_evaluator.add(force_behavior->force);
     }
     field_evaluator.evaluate();
     Array<float3> force_sums(instances->instances_num(), float3(0.0f));
