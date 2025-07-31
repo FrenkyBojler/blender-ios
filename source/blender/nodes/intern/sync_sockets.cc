@@ -210,7 +210,7 @@ void sync_sockets_separate_bundle(SpaceNode &snode,
     NodeGeometrySeparateBundleItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes ::SeparateBundleItemsAccessor>(
-            separate_bundle_node, item.type->type, item.key.c_str());
+            *snode.edittree, separate_bundle_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -251,7 +251,7 @@ void sync_sockets_combine_bundle(SpaceNode &snode,
     NodeGeometryCombineBundleItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes ::CombineBundleItemsAccessor>(
-            combine_bundle_node, item.type->type, item.key.c_str());
+            *snode.edittree, combine_bundle_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -300,7 +300,7 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
     NodeGeometryEvaluateClosureInputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::EvaluateClosureInputItemsAccessor>(
-            evaluate_closure_node, item.type->type, item.key.c_str());
+            *snode.edittree, evaluate_closure_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_input_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -309,7 +309,7 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
     NodeGeometryEvaluateClosureOutputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::EvaluateClosureOutputItemsAccessor>(
-            evaluate_closure_node, item.type->type, item.key.c_str());
+            *snode.edittree, evaluate_closure_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_output_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -358,7 +358,7 @@ void sync_sockets_closure(SpaceNode &snode,
   for (const nodes::ClosureSignature::Item &item : signature.inputs) {
     NodeGeometryClosureInputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureInputItemsAccessor>(
-            closure_output_node, item.type->type, item.key.c_str());
+            *snode.edittree, closure_output_node, item.type->type, item.key.c_str());
     if (item.structure_type) {
       new_item.structure_type = int(*item.structure_type);
     }
@@ -370,7 +370,7 @@ void sync_sockets_closure(SpaceNode &snode,
     NodeGeometryClosureOutputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::ClosureOutputItemsAccessor>(
-            closure_output_node, item.type->type, item.key.c_str());
+            *snode.edittree, closure_output_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_output_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
