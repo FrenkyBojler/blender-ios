@@ -642,8 +642,8 @@ static void index_buf_add_bezier_handle_lines(const IndexMask bezier_points,
   bezier_points.foreach_index([&](const int point_i, const int pos) {
     handle_lines[line_index++] = uint2(offset + all_points + pos + bezier_points.size() * 0,
                                        offset + point_i);
-    handle_lines[line_index++] = uint2(offset + point_i,
-                                       offset + all_points + pos + bezier_points.size() * 1);
+    handle_lines[line_index++] = uint2(offset + all_points + pos + bezier_points.size() * 1,
+                                       offset + point_i);
   });
 
   *r_drawing_line_index = line_index;
@@ -975,8 +975,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
       edit_points_data.slice(left_slice)[pos] = bezier_data_value(types_left[point_i], selected);
       edit_points_data.slice(right_slice)[pos] = bezier_data_value(types_right[point_i], selected);
 
-      /* Workaround: Should use `EDIT_CURVES_BEZIER_KNOT` instead. */
-      edit_points_data.slice(points)[point_i] = bezier_data_value(types_right[point_i], selected);
+      edit_points_data.slice(points)[point_i] = EDIT_CURVES_BEZIER_KNOT;
     });
 
     /* Add two for each bezier point, (one left, one right). */
