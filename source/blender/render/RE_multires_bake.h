@@ -8,7 +8,8 @@
 
 #pragma once
 
-#include "DNA_listBase.h"
+#include "BLI_set.hh"
+#include "BLI_vector.hh"
 
 struct Image;
 struct DerivedMesh;
@@ -25,15 +26,12 @@ struct MultiresBakeRender {
   bool use_lores_mesh; /* Use low-resolution mesh when baking displacement maps */
 
   /* material aligned image array (for per-face bake image) */
-  struct {
-    Image **array;
-    int len;
-  } ob_image;
+  blender::Vector<Image *> ob_image;
 
   float bias; /* Bias between object and start ray point when doing AO baking */
 
-  int tot_obj, tot_image;
-  ListBase image;
+  int tot_obj;
+  blender::Set<Image *> images;
 
   int baked_objects, baked_faces;
 

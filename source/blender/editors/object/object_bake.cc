@@ -16,7 +16,9 @@
 #include "DNA_screen_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_span.hh"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
@@ -45,20 +47,21 @@
 
 namespace blender::ed::object {
 
-static Image *bake_object_image_get(Object *ob, int mat_nr)
+static Image *bake_object_image_get(Object &object, const int mat_nr)
 {
   Image *image = nullptr;
-  ED_object_get_active_image(ob, mat_nr + 1, &image, nullptr, nullptr, nullptr);
+  ED_object_get_active_image(&object, mat_nr + 1, &image, nullptr, nullptr, nullptr);
   return image;
 }
 
-static Image **bake_object_image_get_array(Object *ob)
+static Vector<Image *> bake_object_image_get_array(Object &object)
 {
-  Image **image_array = MEM_malloc_arrayN<Image *>(ob->totcol, __func__);
-  for (int i = 0; i < ob->totcol; i++) {
-    image_array[i] = bake_object_image_get(ob, i);
+  Vector<Image *> images;
+  images.reserve(object.totcol);
+  for (int i = 0; i < object.totcol; i++) {
+    images.append(bake_object_image_get(object, i));
   }
-  return image_array;
+  return images;
 }
 
 /* ****************** multires BAKING ********************** */
@@ -68,13 +71,10 @@ static Image **bake_object_image_get_array(Object *ob)
 struct MultiresBakerJobData {
   MultiresBakerJobData *next, *prev;
   /* material aligned image array (for per-face bake image) */
-  struct {
-    Image **array;
-    int len;
-  } ob_image;
+  Vector<Image *> ob_image;
   DerivedMesh *lores_dm, *hires_dm;
   int lvl, tot_lvl;
-  ListBase images;
+  Set<Image *> images;
 };
 
 /* data passing to multires-baker job */
@@ -155,7 +155,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
                                                                   bke::AttrDomain::Face);
       a = mesh->faces_num;
       while (ok && a--) {
-        Image *ima = bake_object_image_get(ob,
+        Image *ima = bake_object_image_get(*ob,
                                            material_indices.is_empty() ? 0 : material_indices[a]);
 
         if (!ima) {
@@ -300,24 +300,21 @@ static void clear_single_image(Image *image, ClearFlag flag)
   }
 }
 
-static void clear_images_poly(Image **ob_image_array, int ob_image_array_len, ClearFlag flag)
+static void clear_images_poly(const Span<Image *> ob_image_array, const ClearFlag flag)
 {
-  for (int i = 0; i < ob_image_array_len; i++) {
-    Image *image = ob_image_array[i];
+  for (Image *image : ob_image_array) {
     if (image) {
       image->id.tag &= ~ID_TAG_DOIT;
     }
   }
 
-  for (int i = 0; i < ob_image_array_len; i++) {
-    Image *image = ob_image_array[i];
+  for (Image *image : ob_image_array) {
     if (image) {
       clear_single_image(image, flag);
     }
   }
 
-  for (int i = 0; i < ob_image_array_len; i++) {
-    Image *image = ob_image_array[i];
+  for (Image *image : ob_image_array) {
     if (image) {
       image->id.tag &= ~ID_TAG_DOIT;
     }
@@ -349,9 +346,8 @@ static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *
       }
 
       {
-        Image **ob_image_array = bake_object_image_get_array(ob);
-        clear_images_poly(ob_image_array, ob->totcol, clear_flag);
-        MEM_freeN(ob_image_array);
+        const Vector<Image *> ob_image_array = bake_object_image_get_array(*ob);
+        clear_images_poly(ob_image_array, clear_flag);
       }
     }
     CTX_DATA_END;
@@ -381,17 +377,12 @@ static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *
     // bkr.reports= op->reports;
 
     /* create low-resolution DM (to bake to) and hi-resolution DM (to bake from) */
-    bkr.ob_image.array = bake_object_image_get_array(ob);
-    bkr.ob_image.len = ob->totcol;
+    bkr.ob_image = bake_object_image_get_array(*ob);
 
     bkr.hires_dm = multiresbake_create_hiresdm(scene, ob, &bkr.tot_lvl);
     bkr.lores_dm = multiresbake_create_loresdm(scene, ob, &bkr.lvl);
 
     RE_multires_bake_images(&bkr);
-
-    MEM_freeN(bkr.ob_image.array);
-
-    BLI_freelistN(&bkr.image);
 
     bkr.lores_dm->release(bkr.lores_dm);
     bkr.hires_dm->release(bkr.hires_dm);
@@ -439,10 +430,9 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
 
     multires_flush_sculpt_updates(ob);
 
-    MultiresBakerJobData *data = MEM_callocN<MultiresBakerJobData>(__func__);
+    MultiresBakerJobData *data = MEM_new<MultiresBakerJobData>(__func__);
 
-    data->ob_image.array = bake_object_image_get_array(ob);
-    data->ob_image.len = ob->totcol;
+    data->ob_image = bake_object_image_get_array(*ob);
 
     /* create low-resolution DM (to bake to) and hi-resolution DM (to bake from) */
     data->hires_dm = multiresbake_create_hiresdm(scene, ob, &data->tot_lvl);
@@ -472,7 +462,7 @@ static void multiresbake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
         clear_flag = CLEAR_DISPLACEMENT;
       }
 
-      clear_images_poly(data->ob_image.array, data->ob_image.len, clear_flag);
+      clear_images_poly(data->ob_image, clear_flag);
     }
   }
 
@@ -487,8 +477,7 @@ static void multiresbake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
     bkr.use_lores_mesh = bkj->use_lores_mesh;
     bkr.user_scale = bkj->user_scale;
     // bkr.reports = bkj->reports;
-    bkr.ob_image.array = data->ob_image.array;
-    bkr.ob_image.len = data->ob_image.len;
+    bkr.ob_image = data->ob_image;
 
     /* create low-resolution DM (to bake to) and hi-resolution DM (to bake from) */
     bkr.lores_dm = data->lores_dm;
@@ -509,7 +498,7 @@ static void multiresbake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
 
     RE_multires_bake_images(&bkr);
 
-    data->images = bkr.image;
+    data->images = bkr.images;
 
     baked_objects++;
   }
@@ -527,16 +516,11 @@ static void multiresbake_freejob(void *bkv)
     data->hires_dm->release(data->hires_dm);
 
     /* delete here, since this delete will be called from main thread */
-    LISTBASE_FOREACH (LinkData *, link, &data->images) {
-      Image *ima = (Image *)link->data;
-      BKE_image_partial_update_mark_full_update(ima);
+    for (Image *image : data->images) {
+      BKE_image_partial_update_mark_full_update(image);
     }
 
-    MEM_freeN(data->ob_image.array);
-
-    BLI_freelistN(&data->images);
-
-    MEM_freeN(data);
+    MEM_delete(data);
     data = next;
   }
 
