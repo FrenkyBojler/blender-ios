@@ -42,6 +42,7 @@
 
 #include "BLT_translation.hh"
 
+#include "ED_asset_shelf.hh"
 #include "ED_image.hh"
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
@@ -111,6 +112,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
   snode->from = from;
 
   ED_node_set_active_viewer_key(snode);
+  snode->runtime->node_can_sync_states.clear();
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -150,6 +152,7 @@ void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNod
   snode->edittree = ntree;
 
   ED_node_set_active_viewer_key(snode);
+  snode->runtime->node_can_sync_states.clear();
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -176,6 +179,7 @@ void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
   }
 
   ED_node_set_active_viewer_key(snode);
+  snode->runtime->node_can_sync_states.clear();
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -469,16 +473,27 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
   return current;
 }
 
+static bool is_evaluate_closure_node_input(const nodes::SocketInContext &socket)
+{
+  return socket->is_input() && socket->index() == 0 &&
+         socket.owner_node()->is_type("GeometryNodeEvaluateClosure");
+}
+
+static bool is_closure_zone_output_socket(const nodes::SocketInContext &socket)
+{
+  return socket->owner_node().is_type("GeometryNodeClosureOutput") && socket->is_output();
+}
+
 static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
     nodes::SocketInContext start_socket,
     bke::ComputeContextCache &compute_context_cache,
-    StringRef query_node_idname,
+    FunctionRef<bool(const nodes::SocketInContext &)> handle_possible_origin_socket_fn,
     bool find_all);
 
 static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
     const nodes::SocketInContext start_socket,
     bke::ComputeContextCache &compute_context_cache,
-    const StringRef query_node_idname,
+    const FunctionRef<bool(const nodes::SocketInContext &)> handle_possible_target_socket_fn,
     const bool find_all)
 {
   using BundlePath = Vector<std::string, 0>;
@@ -515,7 +530,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
         }
         continue;
       }
-      if (bundle_path.is_empty() && node->is_type(query_node_idname)) {
+      if (bundle_path.is_empty() && handle_possible_target_socket_fn(socket)) {
         found_targets.add(socket);
         if (!find_all) {
           break;
@@ -579,7 +594,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
             node->storage);
         const StringRef key = closure_storage.output_items.items[socket->index()].name;
         const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
-            node.output_socket(0), compute_context_cache, "GeometryNodeEvaluateClosure", true);
+            node.output_socket(0), compute_context_cache, is_evaluate_closure_node_input, true);
         for (const auto &target_socket : target_sockets) {
           const nodes::NodeInContext evaluate_node = target_socket.owner_node();
           const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
@@ -602,7 +617,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
             node->storage);
         const StringRef key = evaluate_storage.input_items.items[socket->index() - 1].name;
         const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
-            node.input_socket(0), compute_context_cache, "GeometryNodeClosureOutput", true);
+            node.input_socket(0), compute_context_cache, is_closure_zone_output_socket, true);
         for (const nodes::SocketInContext origin_socket : origin_sockets) {
           const bNodeTree &closure_tree = origin_socket->owner_tree();
           const bke::bNodeTreeZones *closure_tree_zones = closure_tree.zones();
@@ -675,7 +690,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
   const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
       {closure_socket_context, &closure_socket},
       compute_context_cache,
-      "GeometryNodeEvaluateClosure",
+      is_evaluate_closure_node_input,
       false);
   if (target_sockets.is_empty()) {
     return nullptr;
@@ -691,7 +706,7 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
 static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
     const nodes::SocketInContext start_socket,
     bke::ComputeContextCache &compute_context_cache,
-    const StringRef query_node_idname,
+    const FunctionRef<bool(const nodes::SocketInContext &)> handle_possible_origin_socket_fn,
     const bool find_all)
 {
   using BundlePath = Vector<std::string, 0>;
@@ -720,6 +735,13 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
     const BundlePath &bundle_path = socket_to_check.bundle_path;
     const nodes::NodeInContext &node = socket.owner_node();
     if (socket->is_input()) {
+      if (bundle_path.is_empty() && handle_possible_origin_socket_fn(socket)) {
+        found_origins.add(socket);
+        if (!find_all) {
+          break;
+        }
+        continue;
+      }
       const bke::bNodeTreeZones *zones = node->owner_tree().zones();
       if (!zones) {
         continue;
@@ -758,7 +780,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
         }
         continue;
       }
-      if (bundle_path.is_empty() && node->is_type(query_node_idname)) {
+      if (bundle_path.is_empty() && handle_possible_origin_socket_fn(socket)) {
         found_origins.add(socket);
         if (!find_all) {
           break;
@@ -800,7 +822,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
             node->storage);
         const StringRef key = evaluate_storage.output_items.items[socket->index()].name;
         const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
-            node.input_socket(0), compute_context_cache, "GeometryNodeClosureOutput", true);
+            node.input_socket(0), compute_context_cache, is_closure_zone_output_socket, true);
         for (const nodes::SocketInContext origin_socket : origin_sockets) {
           const bNodeTree &closure_tree = origin_socket->owner_tree();
           const nodes::NodeInContext closure_output_node = origin_socket.owner_node();
@@ -835,7 +857,7 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
         const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
             {socket.context, &closure_output_socket},
             compute_context_cache,
-            "GeometryNodeEvaluateClosure",
+            is_evaluate_closure_node_input,
             true);
         for (const nodes::SocketInContext &target_socket : target_sockets) {
           const nodes::NodeInContext target_node = target_socket.owner_node();
@@ -885,7 +907,9 @@ Vector<nodes::BundleSignature> gather_linked_target_bundle_signatures(
   const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
       {bundle_socket_context, &bundle_socket},
       compute_context_cache,
-      "GeometryNodeSeparateBundle",
+      [](const nodes::SocketInContext &socket) {
+        return socket->owner_node().is_type("GeometryNodeSeparateBundle");
+      },
       true);
   Vector<nodes::BundleSignature> signatures;
   for (const nodes::SocketInContext &target_socket : target_sockets) {
@@ -903,7 +927,9 @@ Vector<nodes::BundleSignature> gather_linked_origin_bundle_signatures(
   const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
       {bundle_socket_context, &bundle_socket},
       compute_context_cache,
-      "GeometryNodeCombineBundle",
+      [](const nodes::SocketInContext &socket) {
+        return socket->owner_node().is_type("GeometryNodeCombineBundle");
+      },
       true);
   Vector<nodes::BundleSignature> signatures;
   for (const nodes::SocketInContext &origin_socket : origin_sockets) {
@@ -921,7 +947,7 @@ Vector<nodes::ClosureSignature> gather_linked_target_closure_signatures(
   const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
       {closure_socket_context, &closure_socket},
       compute_context_cache,
-      "GeometryNodeEvaluateClosure",
+      is_evaluate_closure_node_input,
       true);
   Vector<nodes::ClosureSignature> signatures;
   for (const nodes::SocketInContext &target_socket : target_sockets) {
@@ -936,16 +962,19 @@ Vector<nodes::ClosureSignature> gather_linked_origin_closure_signatures(
     const bNodeSocket &closure_socket,
     bke::ComputeContextCache &compute_context_cache)
 {
-  const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
+  Vector<nodes::ClosureSignature> signatures;
+  find_origin_sockets_through_contexts(
       {closure_socket_context, &closure_socket},
       compute_context_cache,
-      "GeometryNodeClosureOutput",
+      [&](const nodes::SocketInContext &socket) {
+        if (is_closure_zone_output_socket(socket)) {
+          signatures.append(
+              nodes::ClosureSignature::from_closure_output_node(socket->owner_node()));
+          return true;
+        }
+        return false;
+      },
       true);
-  Vector<nodes::ClosureSignature> signatures;
-  for (const nodes::SocketInContext &origin_socket : origin_sockets) {
-    const nodes::NodeInContext &origin_node = origin_socket.owner_node();
-    signatures.append(nodes::ClosureSignature::from_closure_output_node(*origin_node.node));
-  }
   return signatures;
 }
 
@@ -1047,6 +1076,21 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   BLI_addtail(&snode->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+
+  /* asset shelf */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&snode->regionbase, region);
+  region->regiontype = RGN_TYPE_ASSET_SHELF;
+  region->alignment = RGN_ALIGN_BOTTOM;
+  region->flag |= RGN_FLAG_HIDDEN;
+
+  /* asset shelf header */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&snode->regionbase, region);
+  region->regiontype = RGN_TYPE_ASSET_SHELF_HEADER;
+  region->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
 
   /* buttons/list view */
   region = BKE_area_region_new();
@@ -2212,10 +2256,21 @@ static void node_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   }
 }
 
+static void node_asset_shelf_region_init(wmWindowManager *wm, ARegion *region)
+{
+  using namespace blender::ed;
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->defaultconf, "Node Generic", SPACE_NODE, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
+
+  asset::shelf::region_init(wm, region);
+}
+
 }  // namespace blender::ed::space_node
 
 void ED_spacetype_node()
 {
+  using namespace blender::ed;
   using namespace blender::ed::space_node;
 
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -2272,6 +2327,36 @@ void ED_spacetype_node()
   art->draw = node_header_region_draw;
 
   BLI_addhead(&st->regiontypes, art);
+
+  /* regions: asset shelf */
+  art = MEM_callocN<ARegionType>("spacetype node asset shelf region");
+  art->regionid = RGN_TYPE_ASSET_SHELF;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_FRAMES;
+  art->duplicate = asset::shelf::region_duplicate;
+  art->free = asset::shelf::region_free;
+  art->on_poll_success = asset::shelf::region_on_poll_success;
+  art->listener = asset::shelf::region_listen;
+  art->message_subscribe = asset::shelf::region_message_subscribe;
+  art->poll = asset::shelf::regions_poll;
+  art->snap_size = asset::shelf::region_snap;
+  art->on_user_resize = asset::shelf::region_on_user_resize;
+  art->context = asset::shelf::context;
+  art->init = node_asset_shelf_region_init;
+  art->layout = asset::shelf::region_layout;
+  art->draw = asset::shelf::region_draw;
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: asset shelf header */
+  art = MEM_callocN<ARegionType>("spacetype node asset shelf header region");
+  art->regionid = RGN_TYPE_ASSET_SHELF_HEADER;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+  art->init = asset::shelf::header_region_init;
+  art->poll = asset::shelf::regions_poll;
+  art->draw = asset::shelf::header_region;
+  art->listener = asset::shelf::header_region_listen;
+  art->context = asset::shelf::context;
+  BLI_addhead(&st->regiontypes, art);
+  asset::shelf::types_register(art, SPACE_NODE);
 
   /* regions: list-view/buttons */
   art = MEM_callocN<ARegionType>("spacetype node region");
