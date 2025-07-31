@@ -8,6 +8,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
@@ -84,6 +85,7 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
   float dir[3];
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
+  const wmGizmoType *gzt_cage2d = WM_gizmotype_find("GIZMO_GT_cage_2d", true);
 
   CameraWidgetGroup *cagzgroup = MEM_callocN<CameraWidgetGroup>(__func__);
   gzgroup->customdata = cagzgroup;
@@ -113,10 +115,11 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
     blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
-    gz = cagzgroup->ortho_scale = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
+    gz = cagzgroup->ortho_scale = WM_gizmo_new_ptr(gzt_cage2d, gzgroup, nullptr);
     gz->flag |= WM_GIZMO_DRAW_NO_SCALE;
-    RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
-    RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
+    RNA_enum_set(gz->ptr,
+                 "transform",
+                 ED_GIZMO_CAGE_XFORM_FLAG_SCALE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM);
 
     blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
     blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
@@ -126,6 +129,44 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
   LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
     WM_gizmo_set_flag(gz, WM_GIZMO_NEEDS_UNDO, true);
   }
+}
+
+static void gizmo_orthoscale_prop_matrix_get(const wmGizmo * /*gz*/,
+                                             wmGizmoProperty *gz_prop,
+                                             void *value_p)
+{
+  BLI_assert(gz_prop->type->array_length == 16);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
+
+  const Object *ob = static_cast<const Object *>(gz_prop->custom_func.user_data);
+  Camera *camera = static_cast<Camera *>(ob->data);
+
+  float zscale_or_one = ob->scale[2] == 0.0f ? 1.0f : fabsf(ob->scale[2]);
+  const float scale = camera->ortho_scale * 2.0f / zscale_or_one / camera->drawsize;
+  printf("object -> gizmo: setting scale to %f\n", scale);
+  matrix[0][0] = scale;
+  matrix[1][1] = scale;
+}
+
+static void gizmo_orthoscale_prop_matrix_set(const wmGizmo * /*gz*/,
+                                             wmGizmoProperty *gz_prop,
+                                             const void *value_p)
+{
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
+  BLI_assert(gz_prop->type->array_length == 16);
+
+  const Object *ob = static_cast<const Object *>(gz_prop->custom_func.user_data);
+  Camera *camera = static_cast<Camera *>(ob->data);
+
+  PointerRNA camera_ptr = RNA_pointer_create_discrete(&camera->id, &RNA_Camera, camera);
+  PropertyRNA *ortho_scale_prop = RNA_struct_find_property(&camera_ptr, "ortho_scale");
+  printf("gizmo -> object: setting ortho_scale to %f\n",
+         len_v3(matrix[0]) * 0.5f * fabsf(ob->scale[2]) * camera->drawsize);
+  RNA_property_float_set(&camera_ptr,
+                         ortho_scale_prop,
+                         len_v3(matrix[0]) * 0.5f * fabsf(ob->scale[2]) * camera->drawsize);
+
+  DEG_id_tag_update(&camera->id, ID_RECALC_PARAMETERS);
 }
 
 static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
@@ -193,28 +234,45 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     aspect[1] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? aspy / aspx : 1.0f;
 
     unit_m4(widget->matrix_basis);
-    WM_gizmo_set_matrix_location(widget, ob->object_to_world().location());
-    WM_gizmo_set_matrix_rotation_from_yz_axis(widget, ob->object_to_world().ptr()[1], dir);
-
     if (is_ortho) {
-      scale_matrix = ca->ortho_scale * 0.5f;
+      float zscale_or_one = ob->scale[2] == 0.0f ? 1.0f : fabsf(ob->scale[2]);
+      blender::float3 location = blender::math::transform_point(
+          ob->object_to_world(),
+          blender::float3{0.0f, 0.0f, -1.0f * ca->drawsize / zscale_or_one});
+
+      WM_gizmo_set_matrix_location(widget, location);
+      printf("refreshing ortho gizmo location\n");
     }
     else {
-      const float ob_scale_inv[3] = {
-          1.0f / len_v3(ob->object_to_world().ptr()[0]),
-          1.0f / len_v3(ob->object_to_world().ptr()[1]),
-          1.0f / len_v3(ob->object_to_world().ptr()[2]),
-      };
-      const float ob_scale_uniform_inv = (ob_scale_inv[0] + ob_scale_inv[1] + ob_scale_inv[2]) /
-                                         3.0f;
-      scale_matrix = (ca->drawsize * 0.5f) / ob_scale_uniform_inv;
+      WM_gizmo_set_matrix_location(widget, ob->object_to_world().location());
     }
+    WM_gizmo_set_matrix_rotation_from_yz_axis(widget, ob->object_to_world().ptr()[1], dir);
+
+    // we dont want to have to do this for ortho but now object_to_world is taking into account the
+    // scale and we dont want that, we have to update the code line 233 to re enable this line
+    // if (is_ortho) {
+    //   scale_matrix = ca->ortho_scale * 0.5f;
+    // }
+    // else {
+    const float ob_scale_inv[3] = {
+        1.0f / len_v3(ob->object_to_world().ptr()[0]),
+        1.0f / len_v3(ob->object_to_world().ptr()[1]),
+        1.0f / len_v3(ob->object_to_world().ptr()[2]),
+    };
+    const float ob_scale_uniform_inv = (ob_scale_inv[0] + ob_scale_inv[1] + ob_scale_inv[2]) /
+                                       3.0f;
+    scale_matrix = (ca->drawsize * 0.5f) / ob_scale_uniform_inv;
+    // }
     mul_v3_fl(widget->matrix_basis[0], scale_matrix);
     mul_v3_fl(widget->matrix_basis[1], scale_matrix);
 
-    RNA_float_set_array(widget->ptr, "aspect", aspect);
-
-    WM_gizmo_set_matrix_offset_location(widget, offset);
+    if (!is_ortho) {
+      RNA_float_set_array(widget->ptr, "aspect", aspect);
+      WM_gizmo_set_matrix_offset_location(widget, offset);
+    }
+    else {
+      RNA_float_set_array(widget->ptr, "dimensions", aspect);
+    }
   }
 
   /* Define & update properties.
@@ -222,29 +280,43 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
    * Check modal to prevent feedback loop for orthographic cameras,
    * where the range is based on the scale, see: #141667. */
   if (!is_modal) {
-    const char *propname = is_ortho ? "ortho_scale" : "lens";
-    PropertyRNA *prop = RNA_struct_find_property(&camera_ptr, propname);
-    const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(widget->type,
-                                                                                "offset");
+    if (is_ortho) {
+      PropertyRNA *ortho_scale_prop = RNA_struct_find_property(&camera_ptr, "ortho_scale");
+      const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(widget->type,
+                                                                                  "matrix");
 
-    WM_gizmo_target_property_clear_rna_ptr(widget, gz_prop_type);
+      wmGizmoPropertyFnParams params{};
+      params.value_get_fn = gizmo_orthoscale_prop_matrix_get;
+      params.value_set_fn = gizmo_orthoscale_prop_matrix_set;
+      params.range_get_fn = nullptr;
+      params.user_data = ob;
 
-    float min, max, range;
-    float step, precision;
+      WM_gizmo_target_property_def_func(widget, "matrix", &params);
+      WM_gizmo_target_property_def_rna_ptr(
+          widget, gz_prop_type, &camera_ptr, ortho_scale_prop, -1);
+    }
+    else {
+      PropertyRNA *prop = RNA_struct_find_property(&camera_ptr, "lens");
+      const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(widget->type,
+                                                                                  "offset");
 
-    /* get property range */
-    RNA_property_float_ui_range(&camera_ptr, prop, &min, &max, &step, &precision);
-    range = max - min;
+      WM_gizmo_target_property_clear_rna_ptr(widget, gz_prop_type);
 
-    ED_gizmo_arrow3d_set_range_fac(
-        widget,
-        is_ortho ?
-            ((range / ca->ortho_scale) * ca->drawsize) :
-            (scale_matrix * range /
-             /* Half sensor, intentionally use sensor from camera and not calculated above. */
-             (0.5f * sensor_size)));
+      float min, max, range;
+      float step, precision;
 
-    WM_gizmo_target_property_def_rna_ptr(widget, gz_prop_type, &camera_ptr, prop, -1);
+      /* get property range */
+      RNA_property_float_ui_range(&camera_ptr, prop, &min, &max, &step, &precision);
+      range = max - min;
+
+      ED_gizmo_arrow3d_set_range_fac(
+          widget,
+          scale_matrix * range /
+              /* Half sensor, intentionally use sensor from camera and not calculated above. */
+              (0.5f * sensor_size));
+
+      WM_gizmo_target_property_def_rna_ptr(widget, gz_prop_type, &camera_ptr, prop, -1);
+    }
   }
 
   /* This could be handled more elegantly (split into two gizmo groups). */
