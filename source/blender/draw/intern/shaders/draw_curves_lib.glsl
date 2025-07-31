@@ -93,15 +93,19 @@ int point_id_get(Segment segment, Indirection indirection)
 
 float azimuthal_offset_get(Segment segment)
 {
-  float time;
+  float offset;
+  const bool is_strand = drw_curves.half_cylinder_face_count == 0u;
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
-  if (is_cylinder) {
-    time = float(segment.v_idx >> 1) / float(drw_curves.half_cylinder_face_count);
+  if (is_strand) {
+    offset = 0.5f;
+  }
+  else if (is_cylinder) {
+    offset = float(segment.v_idx >> 1) / float(drw_curves.half_cylinder_face_count);
   }
   else {
-    time = float(segment.v_idx);
+    offset = float(segment.v_idx);
   }
-  return time * 2.0f - 1.0f;
+  return offset * 2.0f - 1.0f;
 }
 
 float3 point_position_get(uint point_id)
