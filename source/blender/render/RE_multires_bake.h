@@ -30,17 +30,14 @@ struct MultiresBakeRender {
     int len;
   } ob_image;
 
-  int number_of_rays; /* Number of rays to be cast when doing AO baking */
-  float bias;         /* Bias between object and start ray point when doing AO baking */
+  float bias; /* Bias between object and start ray point when doing AO baking */
 
   int tot_obj, tot_image;
   ListBase image;
 
   int baked_objects, baked_faces;
 
-  int raytrace_structure; /* Optimization structure to be used for AO baking */
-  int octree_resolution;  /* Resolution of octree when using octree optimization structure */
-  int threads;            /* Number of threads to be used for baking */
+  int threads; /* Number of threads to be used for baking */
 
   float user_scale; /* User scale used to scale displacement when baking derivative map. */
 

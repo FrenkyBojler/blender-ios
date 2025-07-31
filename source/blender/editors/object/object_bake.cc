@@ -91,8 +91,6 @@ struct MultiresBakeJob {
   short mode;
   /** Use low-resolution mesh when baking displacement maps */
   bool use_lores_mesh;
-  /** Number of rays to be cast when doing AO baking */
-  int number_of_rays;
   /** Bias between object and start ray point when doing AO baking */
   float bias;
   /** Number of threads to be used for baking */
@@ -378,7 +376,6 @@ static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *
     bkr.mode = scene->r.bake_mode;
     bkr.use_lores_mesh = scene->r.bake_flag & R_BAKE_LORES_MESH;
     bkr.bias = scene->r.bake_biasdist;
-    bkr.number_of_rays = scene->r.bake_samples;
     bkr.threads = BKE_scene_num_threads(scene);
     bkr.user_scale = (scene->r.bake_flag & R_BAKE_USERSCALE) ? scene->r.bake_user_scale : -1.0f;
     // bkr.reports= op->reports;
@@ -431,7 +428,6 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
   bkj->use_lores_mesh = scene->r.bake_flag & R_BAKE_LORES_MESH;
   bkj->bake_clear = scene->r.bake_flag & R_BAKE_CLEAR;
   bkj->bias = scene->r.bake_biasdist;
-  bkj->number_of_rays = scene->r.bake_samples;
   bkj->threads = BKE_scene_num_threads(scene);
   bkj->user_scale = (scene->r.bake_flag & R_BAKE_USERSCALE) ? scene->r.bake_user_scale : -1.0f;
   // bkj->reports = op->reports;
@@ -509,7 +505,6 @@ static void multiresbake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
     bkr.progress = &worker_status->progress;
 
     bkr.bias = bkj->bias;
-    bkr.number_of_rays = bkj->number_of_rays;
     bkr.threads = bkj->threads;
 
     RE_multires_bake_images(&bkr);
