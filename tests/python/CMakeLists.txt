@@ -209,6 +209,12 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_bundled_modules.py -- --inside-blender
 )
 
+add_blender_test(
+  script_http_downloader
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_http_downloader.py --
+  --output-dir ${TEST_OUT_DIR}/test_http_downloader/
+)
+
 # test running operators doesn't segfault under various conditions
 if(WITH_TESTS_EXPERIMENTAL)
   add_blender_test(
