@@ -628,6 +628,7 @@ static void index_buf_add_nurbs_lines(Object &object,
 }
 
 static void index_buf_add_bezier_handle_lines(const IndexMask bezier_points,
+                                              const int all_points,
                                               MutableSpan<uint2> handle_lines,
                                               int *r_drawing_line_index,
                                               int *r_drawing_line_start_offset)
@@ -640,15 +641,14 @@ static void index_buf_add_bezier_handle_lines(const IndexMask bezier_points,
   int line_index = *r_drawing_line_index;
 
   /* Add all bezier handle lines. */
-  for (const int point : bezier_points.index_range()) {
-    handle_lines[line_index++] = uint2(point + bezier_points.size() * 1 + offset,
-                                       point + bezier_points.size() * 0 + offset);
-    handle_lines[line_index++] = uint2(point + bezier_points.size() * 0 + offset,
-                                       point + bezier_points.size() * 2 + offset);
-  }
+  bezier_points.foreach_index([&](const int point_i, const int pos) {
+    handle_lines[line_index++] = uint2(offset + all_points + pos + bezier_points.size() * 0,
+                                       offset + point_i);
+    handle_lines[line_index++] = uint2(offset + point_i,
+                                       offset + all_points + pos + bezier_points.size() * 1);
+  });
 
   *r_drawing_line_index = line_index;
-  *r_drawing_line_start_offset += bezier_points.size() * 3;
 }
 
 static void index_buf_add_points(Object &object,
@@ -1001,8 +1001,8 @@ static void grease_pencil_edit_batch_ensure(Object &object,
       /* Workaround: Should use `EDIT_CURVES_BEZIER_KNOT` instead. */
       edit_line_points_data.slice(eval_center_slice)[pos] = bezier_data_value(types_right[point_i],
                                                                               selected);
+      edit_points_data.slice(points)[point_i] = bezier_data_value(types_right[point_i], selected);
 
-      edit_points_data.slice(points)[point_i] = EDIT_CURVES_BEZIER_KNOT;
       edit_points_data.slice(left_slice)[pos] = bezier_data_value(types_left[point_i], selected);
       edit_points_data.slice(right_slice)[pos] = bezier_data_value(types_right[point_i], selected);
     });
@@ -1051,7 +1051,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   int points_ibo_index = 0;
 
   GPUIndexBufBuilder handles_builder;
-  GPU_indexbuf_init(&handles_builder, GPU_PRIM_LINES, total_bezier_num * 2, total_line_points_num);
+  GPU_indexbuf_init(&handles_builder, GPU_PRIM_LINES, total_bezier_num * 2, total_points_num);
   MutableSpan<uint2> handle_lines = GPU_indexbuf_get_data(&handles_builder).cast<uint2>();
 
   int handle_lines_id = 0;
@@ -1081,8 +1081,12 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                 lines_data,
                                 &lines_ibo_index,
                                 &drawing_line_start_offset);
-      index_buf_add_bezier_handle_lines(
-          bezier_points, handle_lines, &handle_lines_id, &drawing_line_start_offset);
+      index_buf_add_bezier_handle_lines(bezier_points,
+                                        info.drawing.strokes().points_num(),
+                                        handle_lines,
+                                        &handle_lines_id,
+                                        &drawing_start_offset);
+      drawing_line_start_offset += bezier_points.size() * 3;
       index_buf_add_points(object,
                            info.drawing,
                            info.layer_index,
@@ -1111,10 +1115,9 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   GPU_batch_vertbuf_add(cache->edit_lines, cache->edit_line_selection, false);
 
   cache->edit_handles = GPU_batch_create(
-      GPU_PRIM_LINES, cache->edit_line_pos, cache->edit_handles_ibo);
-  GPU_batch_vertbuf_add(cache->edit_handles, cache->edit_points_pos, false);
-  GPU_batch_vertbuf_add(cache->edit_handles, cache->edit_line_points_data, false);
-  GPU_batch_vertbuf_add(cache->edit_handles, cache->edit_line_selection, false);
+      GPU_PRIM_LINES, cache->edit_points_pos, cache->edit_handles_ibo);
+  GPU_batch_vertbuf_add(cache->edit_handles, cache->edit_points_data, false);
+  GPU_batch_vertbuf_add(cache->edit_handles, cache->edit_points_selection, false);
 
   /* Allow creation of buffer texture. */
   GPU_vertbuf_use(cache->edit_points_pos);
