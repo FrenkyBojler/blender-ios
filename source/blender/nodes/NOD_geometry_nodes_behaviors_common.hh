@@ -60,4 +60,18 @@ class SoftBodyMeshBehavior : public BehaviorCommon {
                                                    BehaviorParseErrors &r_errors);
 };
 
+class RigidBodyConstraintDistance : public BehaviorCommon {
+ public:
+  static constexpr StringRefNull type = "COMMON_RIGID_BODY_CONSTRAINT_DISTANCE";
+
+  std::string bodies_a;
+  std::string bodies_b;
+  ListPtr ids_a;
+  ListPtr ids_b;
+
+  static const std::shared_ptr<BehaviorDef> &def();
+  static std::optional<RigidBodyConstraintDistance> parse(const Bundle &bundle,
+                                                          BehaviorParseErrors &r_errors);
+};
+
 }  // namespace blender::nodes

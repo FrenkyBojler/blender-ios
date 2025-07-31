@@ -83,6 +83,7 @@ class BehaviorListDef {
 class BehaviorParseErrors {
  public:
   Vector<std::string> wrong_members;
+  Vector<std::string> other_errors;
 
   bool has_error() const
   {

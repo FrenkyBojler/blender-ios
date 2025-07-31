@@ -4,6 +4,7 @@
 
 #include "NOD_geometry_nodes_behaviors_common.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
@@ -114,6 +115,48 @@ std::optional<SoftBodyMeshBehavior> SoftBodyMeshBehavior::parse(const Bundle &bu
     return std::nullopt;
   }
   behavior.mesh_geometry.keep_only({bke::GeometryComponent::Type::Mesh});
+  return behavior;
+}
+
+const std::shared_ptr<BehaviorDef> &RigidBodyConstraintDistance::def()
+{
+  static const std::shared_ptr<BehaviorDef> def = []() {
+    auto def = std::make_shared<BehaviorDef>();
+    def->type = RigidBodyConstraintDistance::type;
+    def->add<decl::String>("bodies_a");
+    def->add<decl::String>("bodies_b");
+    def->add<decl::Int>("ids_a").structure_type(StructureType::List);
+    def->add<decl::Int>("ids_b").structure_type(StructureType::List);
+    return def;
+  }();
+  return def;
+}
+
+std::optional<RigidBodyConstraintDistance> RigidBodyConstraintDistance::parse(
+    const Bundle &bundle, BehaviorParseErrors &r_errors)
+{
+  RigidBodyConstraintDistance behavior;
+  behaviors::parse_member(bundle, "bodies_a", behavior.bodies_a, r_errors);
+  behaviors::parse_member(bundle, "bodies_b", behavior.bodies_b, r_errors);
+  behaviors::parse_member(bundle, "ids_a", behavior.ids_a, r_errors);
+  behaviors::parse_member(bundle, "ids_b", behavior.ids_b, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  if (behavior.bodies_a.empty() || behavior.bodies_b.empty()) {
+    return std::nullopt;
+  }
+  if (!behavior.ids_a || !behavior.ids_b) {
+    return std::nullopt;
+  }
+  if (!behavior.ids_a->cpp_type().is<int>() || !behavior.ids_b->cpp_type().is<int>()) {
+    r_errors.other_errors.append(TIP_("ID lists must be integers"));
+    return std::nullopt;
+  }
+  if (behavior.ids_a->size() != behavior.ids_b->size()) {
+    r_errors.other_errors.append(TIP_("The ID lists have different lengths"));
+    return std::nullopt;
+  }
   return behavior;
 }
 

@@ -33,13 +33,7 @@ static std::shared_ptr<BehaviorListDef> make_behavior_list_def()
   list->behaviors.add(GravityBehavior::def());
   list->behaviors.add(ForceBehavior::def());
   list->behaviors.add(RigidBodyInstancesBehavior::def());
-  {
-    BehaviorDef &b = list->add("COMMON_RIGID_BODY_CONSTRAINT_DISTANCE");
-    b.add<decl::String>("body_a");
-    b.add<decl::String>("body_b");
-    b.add<decl::Int>("ids_a").structure_type(StructureType::List);
-    b.add<decl::Int>("ids_b").structure_type(StructureType::List);
-  }
+  list->behaviors.add(RigidBodyConstraintDistance::def());
   return list;
 }
 
