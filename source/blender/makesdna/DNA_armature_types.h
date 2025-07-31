@@ -80,7 +80,9 @@ typedef struct Bone {
   /* bone.matrix in RNA, rotation relative to parent (aka 'in parent space').
    * When the bone has no parent, is relative to the armature space, which (at
    * least in this case) has XYZ oriented same as the world.
-   * In other words: the bone's rotation in bone space. */
+   * In other words: the bone's rotation in bone space.
+   *
+   * Computed in BKE_armature_where_is_bone(). */
   float bone_mat[3][3];
 
   int flag;
