@@ -19,6 +19,7 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_numbers.hh"
@@ -566,6 +567,151 @@ static void do_version_match_string_options_to_inputs(bNodeTree &ntree, bNode &n
   bNodeSocket &socket = version_node_add_socket(
       ntree, node, SOCK_IN, "NodeSocketMenu", "Operation");
   socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_fill_curve_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryCurveFill *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
+}
+
+static void do_version_fillet_curve_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryCurveFillet *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
+}
+
+static void do_version_resample_curve_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryCurveResample *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
+}
+
+static void do_version_distribute_points_in_volume_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryDistributePointsInVolume *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
+}
+
+static void do_version_merge_by_distance_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryMergeByDistance *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
+}
+
+static void do_version_mesh_to_volume_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Resolution Mode")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryMeshToVolume *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Resolution Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.resolution_mode;
+}
+
+static void do_version_raycast_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Interpolation")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryRaycast *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Interpolation");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mapping;
+}
+
+static void do_version_remove_attribute_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Pattern Mode")) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Pattern Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_sample_grid_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Interpolation")) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Interpolation");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2;
+}
+
+static void do_version_scale_elements_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Scale Mode")) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Scale Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2;
+}
+
+static void do_version_set_curve_normal_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_subdivision_surface_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  auto &storage = *static_cast<NodeGeometrySubdivisionSurface *>(node.storage);
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "UV Smooth")) {
+    bNodeSocket &socket = version_node_add_socket(
+        ntree, node, SOCK_IN, "NodeSocketMenu", "UV Smooth");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.uv_smooth;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Boundary Smooth")) {
+    bNodeSocket &socket = version_node_add_socket(
+        ntree, node, SOCK_IN, "NodeSocketMenu", "Boundary Smooth");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.boundary_smooth;
+  }
+}
+
+static void do_version_uv_pack_islands_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Method")) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Method");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_uv_unwrap_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Method")) {
+    return;
+  }
+  const auto &storage = *static_cast<NodeGeometryUVUnwrap *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Method");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.method;
 }
 
 static void version_seq_text_from_legacy(Main *bmain)
@@ -1236,6 +1382,71 @@ static void update_format_media_type(ImageFormatData *format)
   }
 }
 
+static void do_version_world_remove_use_nodes(Main *bmain, World *world)
+{
+  if (world->use_nodes) {
+    return;
+  }
+
+  /* Users defined a world node tree, but deactivated it by disabling "Use Nodes". So we
+   * simulate the same effect by creating a new World Output node and setting it to active. */
+  bNodeTree *ntree = world->nodetree;
+  if (ntree == nullptr) {
+    /* In case the world was defined through Python API it might have been missing a node tree. */
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        bmain, &world->id, "World Node Tree Versioning", "ShaderNodeTree");
+  }
+
+  bNode *old_output = nullptr;
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (STREQ(node->idname, "ShaderNodeOutputWorld") && (node->flag & NODE_DO_OUTPUT)) {
+      old_output = node;
+      old_output->flag &= ~NODE_DO_OUTPUT;
+    }
+  }
+
+  bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputWorld");
+  bNodeSocket &output_surface_input = version_node_add_socket(
+      *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
+  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
+  new_output.flag |= NODE_DO_OUTPUT;
+
+  bNode &background = version_node_add_empty(*ntree, "ShaderNodeBackground");
+  bNodeSocket &background_color_output = version_node_add_socket(
+      *ntree, background, SOCK_OUT, "NodeSocketShader", "Background");
+  bNodeSocket &background_color_input = version_node_add_socket(
+      *ntree, background, SOCK_IN, "NodeSocketColor", "Color");
+  bNodeSocket &background_strength_input = version_node_add_socket(
+      *ntree, background, SOCK_IN, "NodeSocketFloat", "Strength");
+  bNodeSocket &background_weight_input = version_node_add_socket(
+      *ntree, background, SOCK_IN, "NodeSocketFloat", "Weight");
+  background_weight_input.flag |= SOCK_UNAVAIL;
+
+  version_node_add_link(
+      *ntree, background, background_color_output, new_output, output_surface_input);
+
+  bNodeSocketValueRGBA *rgba = background_color_input.default_value_typed<bNodeSocketValueRGBA>();
+  rgba->value[0] = world->horr;
+  rgba->value[1] = world->horg;
+  rgba->value[2] = world->horb;
+  rgba->value[3] = 1.0f;
+  background_strength_input.default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
+
+  if (old_output != nullptr) {
+    /* Position the newly created node after the old output. Assume the old output node is at
+     * the far right of the node tree. */
+    background.location[0] = old_output->location[0] + 1.5f * old_output->width;
+    background.location[1] = old_output->location[1];
+  }
+
+  new_output.location[0] = background.location[0] + 2.0f * background.width;
+  new_output.location[1] = background.location[1];
+
+  bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
+  background.parent = frame;
+  new_output.parent = frame;
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -1693,6 +1904,100 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 43)) {
+    LISTBASE_FOREACH (World *, world, &bmain->worlds) {
+      do_version_world_remove_use_nodes(bmain, world);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 45)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_GEOMETRY) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == GEO_NODE_FILL_CURVE) {
+            do_version_fill_curve_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_FILLET_CURVE) {
+            do_version_fillet_curve_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_RESAMPLE_CURVE) {
+            do_version_resample_curve_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_DISTRIBUTE_POINTS_IN_VOLUME) {
+            do_version_distribute_points_in_volume_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_MERGE_BY_DISTANCE) {
+            do_version_merge_by_distance_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_MESH_TO_VOLUME) {
+            do_version_mesh_to_volume_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_RAYCAST) {
+            do_version_raycast_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_REMOVE_ATTRIBUTE) {
+            do_version_remove_attribute_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_SAMPLE_GRID) {
+            do_version_sample_grid_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_SCALE_ELEMENTS) {
+            do_version_scale_elements_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_SET_CURVE_NORMAL) {
+            do_version_set_curve_normal_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_SUBDIVISION_SURFACE) {
+            do_version_subdivision_surface_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_UV_PACK_ISLANDS) {
+            do_version_uv_pack_islands_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_UV_UNWRAP) {
+            do_version_uv_unwrap_options_to_inputs(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 46)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_NODE) {
+            continue;
+          }
+          const SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
+          if (!STREQ(snode->tree_idname, "CompositorNodeTree")) {
+            continue;
+          }
+
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+
+          if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF,
+                  "Asset shelf for compositing (versioning)",
+                  RGN_TYPE_HEADER))
+          {
+            new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
+          }
+          if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF_HEADER,
+                  "Asset shelf header for compositing (versioning)",
+                  RGN_TYPE_ASSET_SHELF))
+          {
+            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 47)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_COMPOSIT) {
         continue;
