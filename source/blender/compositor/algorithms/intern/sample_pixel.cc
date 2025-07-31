@@ -37,15 +37,15 @@ float4 sample_pixel_gpu(Context &context,
                         const Interpolation &interpolation,
                         const ExtensionMode &extension_mode_x,
                         const ExtensionMode &extension_mode_y,
-                        const float2 uv_coordinates)
+                        const float2 coordinates)
 {
   GPUShader *shader = context.get_shader(get_pixel_sampler_shader_name(interpolation));
   GPU_shader_bind(shader);
 
-  GPU_shader_uniform_2fv(shader, "uv_coordinates", uv_coordinates);
+  GPU_shader_uniform_2fv(shader, "coordinates", coordinates);
 
-  Result texture_1x1 = context.create_result(input_texture.type(), ResultPrecision::Full);
-  texture_1x1.allocate_texture(int2(1));
+  Result output = context.create_result(input_texture.type(), ResultPrecision::Full);
+  output.allocate_texture(int2(1));
 
   if (interpolation == Interpolation::Anisotropic) {
     GPU_texture_anisotropic_filter(input_texture, true);
@@ -59,28 +59,23 @@ float4 sample_pixel_gpu(Context &context,
   GPU_texture_extend_mode_x(input_texture, map_extension_mode_to_extend_mode(extension_mode_x));
   GPU_texture_extend_mode_y(input_texture, map_extension_mode_to_extend_mode(extension_mode_y));
 
-  GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH);
-
   input_texture.bind_as_texture(shader, "input_tx");
-
-  const int output_image = GPU_shader_get_sampler_binding(shader, "output_img");
-  GPU_texture_image_bind(texture_1x1, output_image);
+  output.bind_as_image(shader, "output_img");
 
   GPU_compute_dispatch(shader, 1, 1, 1);
 
-  GPU_texture_image_unbind(texture_1x1);
   input_texture.unbind_as_texture();
+  output.unbind_as_image();
+  GPU_shader_unbind();
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-  float *pixel = static_cast<float *>(GPU_texture_read(texture_1x1, GPU_DATA_FLOAT, 0));
-  gpu::TexturePool::get().release_texture(texture_1x1);
+  float *pixel = static_cast<float *>(GPU_texture_read(output, GPU_DATA_FLOAT, 0));
+  output.release();
 
-  float4 sampled_value;
-  for (int i = 0; i < input_texture.channels_count(); i++) {
-    sampled_value[i] = pixel[i];
-  }
+  float4 sampled_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  output.get_cpp_type().copy_assign(pixel, sampled_value);
+
   MEM_freeN(pixel);
-  GPU_shader_unbind();
 
   return sampled_value;
 }
@@ -90,9 +85,9 @@ float4 sample_pixel_cpu(const Result &input_texture,
                         const Interpolation &interpolation,
                         const ExtensionMode &extension_mode_x,
                         const ExtensionMode &extension_mode_y,
-                        const float2 uv_coordinates)
+                        const float2 coordinates)
 {
-  return input_texture.sample(uv_coordinates, interpolation, extension_mode_x, extension_mode_y);
+  return input_texture.sample(coordinates, interpolation, extension_mode_x, extension_mode_y);
 }
 
 /* Samples a pixel from a texture. */
@@ -101,31 +96,33 @@ float4 sample_pixel(Context &context,
                     const Interpolation &interpolation,
                     const ExtensionMode &extension_mode_x,
                     const ExtensionMode &extension_mode_y,
-                    const float2 uv_coordinates)
+                    const float2 coordinates)
 {
   if (input_texture.is_single_value()) {
     switch (input_texture.type()) {
       case ResultType::Float:
-        return float4(input_texture.get_single_value<float>(), 0.0, 0.0, 0.0);
+        return float4(input_texture.get_single_value<float>(), 0.0f, 0.0f, 1.0f);
       case ResultType::Float2:
-        return float4(input_texture.get_single_value<float2>(), 0.0, 0.0);
+        return float4(input_texture.get_single_value<float2>(), 0.0f, 1.0f);
       case ResultType::Float3:
-        return float4(input_texture.get_single_value<float3>(), 0.0);
+        return float4(input_texture.get_single_value<float3>(), 1.0f);
       case ResultType::Float4:
       case ResultType::Color:
         return input_texture.get_single_value<float4>();
+      default:
+        break;
     }
 
     BLI_assert_unreachable();
-    return float4(0.0);
+    return float4(0.0f);
   }
   if (context.use_gpu()) {
     return sample_pixel_gpu(
-        context, input_texture, interpolation, extension_mode_x, extension_mode_y, uv_coordinates);
+        context, input_texture, interpolation, extension_mode_x, extension_mode_y, coordinates);
   }
   else {
     return sample_pixel_cpu(
-        input_texture, interpolation, extension_mode_x, extension_mode_y, uv_coordinates);
+        input_texture, interpolation, extension_mode_x, extension_mode_y, coordinates);
   }
 }
 

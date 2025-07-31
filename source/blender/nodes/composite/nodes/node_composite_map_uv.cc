@@ -73,7 +73,7 @@ class MapUVOperation : public NodeOperation {
       return;
     }
 
-    const Result &input_uv = get_input("UV");
+    const Result &input_uv = this->get_input("UV");
     if (input_uv.is_single_value()) {
       this->execute_single();
       return;
@@ -156,7 +156,7 @@ class MapUVOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
 
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
-    float4 sampled_color = sample_pixel(context(),
+    float4 sampled_color = sample_pixel(this->context(),
                                         input_image,
                                         interpolation,
                                         ExtensionMode::Clip,
