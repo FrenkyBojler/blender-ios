@@ -746,6 +746,25 @@ static bool screen_active_editable(bContext *C)
   return false;
 }
 
+/**
+ * Begin a modal operation,
+ * the caller is responsible for calling #screen_modal_action_end when it's ended.
+ */
+static void screen_modal_action_begin()
+{
+  G.moving |= G_TRANSFORM_WM;
+}
+
+/** Call once the modal action has finished. */
+static void screen_modal_action_end()
+{
+  G.moving &= ~G_TRANSFORM_WM;
+
+  /* Full refresh after `G.moving` is cleared otherwise tool gizmos
+   * won't be refreshed with the modified flag, see: #143629. */
+  WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1087,7 +1106,7 @@ static void actionzone_exit(wmOperator *op)
   }
   op->customdata = nullptr;
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 /* send EVT_ACTIONZONE event */
@@ -1151,7 +1170,7 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   /* add modal handler */
-  G.moving |= G_TRANSFORM_WM;
+  screen_modal_action_begin();
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2061,7 +2080,8 @@ static void area_move_exit(bContext *C, wmOperator *op)
   BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
   BKE_screen_remove_double_scredges(CTX_wm_screen(C));
   ED_workspace_status_text(C, nullptr);
-  G.moving &= ~G_TRANSFORM_WM;
+
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus area_move_exec(bContext *C, wmOperator *op)
@@ -2094,7 +2114,7 @@ static wmOperatorStatus area_move_invoke(bContext *C, wmOperator *op, const wmEv
   status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
 
   /* add temp handler */
-  G.moving |= G_TRANSFORM_WM;
+  screen_modal_action_begin();
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -2421,7 +2441,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
   BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
   BKE_screen_remove_double_scredges(CTX_wm_screen(C));
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static void area_split_preview_update_cursor(bContext *C, wmOperator *op)
@@ -2557,7 +2577,7 @@ static wmOperatorStatus area_split_invoke(bContext *C, wmOperator *op, const wmE
       area_move_set_limits(win, screen, dir_axis, &sd->bigger, &sd->smaller, nullptr);
 
       /* add temp handler for edge move or cancel */
-      G.moving |= G_TRANSFORM_WM;
+      screen_modal_action_begin();
       WM_event_add_modal_handler(C, op);
 
       return OPERATOR_RUNNING_MODAL;
@@ -2887,7 +2907,7 @@ static void region_scale_exit(wmOperator *op)
   MEM_freeN(rmd);
   op->customdata = nullptr;
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2961,7 +2981,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
     /* add temp handler */
-    G.moving |= G_TRANSFORM_WM;
+    screen_modal_action_begin();
     WM_event_add_modal_handler(C, op);
 
     return OPERATOR_RUNNING_MODAL;
@@ -3944,7 +3964,7 @@ static void area_join_exit(bContext *C, wmOperator *op)
 
   ED_workspace_status_text(C, nullptr);
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus area_join_exec(bContext *C, wmOperator *op)
