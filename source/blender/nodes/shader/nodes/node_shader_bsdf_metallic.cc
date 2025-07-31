@@ -14,6 +14,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
 
   b.add_output<decl::Shader>("BSDF");
+  b.add_default_layout();
 
   b.add_input<decl::Color>("Base Color")
       .default_value({0.617f, 0.577f, 0.540f, 1.0f})

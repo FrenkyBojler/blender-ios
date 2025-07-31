@@ -16,6 +16,11 @@
 
 CCL_NAMESPACE_BEGIN
 
+struct FresnelThinFilm {
+  float thickness;
+  float ior;
+};
+
 /* Compute fresnel reflectance for perpendicular (aka S-) and parallel (aka P-) polarized light.
  * If requested by the caller, r_phi is set to the phase shift on reflection.
  * Also returns the dot product of the refracted ray and the normal as `cos_theta_t`, as it is
@@ -457,18 +462,18 @@ template<> struct fresnel_info<Spectrum> {
 template<typename SpectrumOrFloat>
 ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
                                         const float eta1,
-                                        float eta2,
                                         const SpectrumOrFloat eta3,
                                         const SpectrumOrFloat k3,
                                         ccl_private const SpectrumOrFloat *R23,
                                         const float cos_theta_1,
-                                        const float thickness,
+                                        const FresnelThinFilm thin_film,
                                         ccl_private float *r_cos_theta_3)
 {
   /* For films below 1nm, the wave-optic-based Airy summation approach no longer applies,
    * so blend towards the case without coating. */
-  if (thickness < 1.0f) {
-    eta2 = mix(eta1, eta2, smoothstep(0.0f, 1.0f, thickness));
+  float eta2 = thin_film.ior;
+  if (thin_film.thickness < 1.0f) {
+    eta2 = mix(eta1, eta2, smoothstep(0.0f, 1.0f, thin_film.thickness));
   }
 
   float cos_theta_2;
@@ -516,7 +521,7 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   }
 
   /* Compute optical path difference inside the thin film. */
-  const float OPD = -2.0f * eta2 * thickness * cos_theta_2;
+  const float OPD = -2.0f * eta2 * thin_film.thickness * cos_theta_2;
 
   /* Compute full phase shift. */
   const SpectrumOrFloat phi_s = phi23_s + (M_PI_F - phi12.x);
