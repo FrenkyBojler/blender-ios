@@ -4219,7 +4219,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
 #ifndef NDEBUG
     /* NOTE: By design, it can be safely assumed that both old and new ID pointers are valid when
      * accessed through RNA. Handling of invalid ID pointers, e.g. freed ones etc., should never
-     * happen through RNA code, but directly on uderlying (DNA) data.
+     * happen through RNA code, but directly on underlying (DNA) data.
      *
      * Setters are also not expected to free or otherwise invalidate ID pointers. So storing them
      * here should be safe. */
@@ -4228,7 +4228,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
 
     PointerRNA old_id_ptr = pprop->get(ptr);
     BLI_assert_msg(!is_id_refcounting || !old_id_ptr.data || RNA_struct_is_ID(old_id_ptr.type),
-                   "If the property is tagged with ID refcounting, its current value shoulb be "
+                   "If the property is tagged with ID refcounting, its current value should be "
                    "null or an ID");
     ID *old_id = (old_id_ptr.type && RNA_struct_is_ID(old_id_ptr.type)) ?
                      static_cast<ID *>(old_id_ptr.data) :
@@ -4257,7 +4257,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
     PointerRNA current_id_ptr = pprop->get(ptr);
     BLI_assert_msg(!is_id_refcounting || !current_id_ptr.data ||
                        RNA_struct_is_ID(current_id_ptr.type),
-                   "If the property is tagged with ID refcounting, its current value shoulb be "
+                   "If the property is tagged with ID refcounting, its current value should be "
                    "null or an ID");
     ID *current_id = (current_id_ptr.type && RNA_struct_is_ID(current_id_ptr.type)) ?
                          static_cast<ID *>(current_id_ptr.data) :
@@ -4267,8 +4267,8 @@ void RNA_property_pointer_set(PointerRNA *ptr,
       const int old_id_new_refcount = ID_REFCOUNTING_USERS(old_id);
       if (ELEM(old_id, new_id, current_id)) {
         BLI_assert_msg(old_id_old_refcount == old_id_new_refcount,
-                       "Reassigning the same ID to a RNA pointer property, or assignement "
-                       "failure, should not modify the original ID usercount");
+                       "Reassigning the same ID to a RNA pointer property, or assignment failure, "
+                       "should not modify the original ID usercount");
       }
       else if (is_id_refcounting) {
         BLI_assert_msg(old_id_old_refcount > old_id_new_refcount,
