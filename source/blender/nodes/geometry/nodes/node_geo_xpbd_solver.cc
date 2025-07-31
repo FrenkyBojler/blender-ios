@@ -130,7 +130,7 @@ static void parse_behavior__curve_lengths(ParseBehaviorParams &params)
                                                         compliance));
 }
 
-static void parse_behavior__curve_rod_lengths(ParseBehaviorParams &params)
+static void parse_behavior__cosserat_rod_lengths(ParseBehaviorParams &params)
 {
   std::optional<std::string> rest_length_attribute = params.bundle.lookup<std::string>(
       "Rest Length Attribute");
@@ -140,11 +140,34 @@ static void parse_behavior__curve_rod_lengths(ParseBehaviorParams &params)
   std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
   const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
   params.r_behaviors.constraint_sets.append(
-      &geometry::xpbd::create_constraint__curve_rod_lengths(params.scope,
-                                                            params.self_path(),
-                                                            std::move(filter),
-                                                            std::move(*rest_length_attribute),
-                                                            compliance));
+      &geometry::xpbd::create_constraint__cosserat_rod_lengths(params.scope,
+                                                               params.self_path(),
+                                                               std::move(filter),
+                                                               std::move(*rest_length_attribute),
+                                                               compliance));
+}
+
+static void parse_behavior__cosserat_rod_bending(ParseBehaviorParams &params)
+{
+  std::optional<std::string> rest_length_attribute = params.bundle.lookup<std::string>(
+      "Rest Length Attribute");
+  if (!rest_length_attribute || rest_length_attribute->empty()) {
+    return;
+  }
+  std::optional<std::string> rest_shape_attribute = params.bundle.lookup<std::string>(
+      "Rest Shape Attribute");
+  if (!rest_shape_attribute || rest_shape_attribute->empty()) {
+    return;
+  }
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
+  const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
+  params.r_behaviors.constraint_sets.append(
+      &geometry::xpbd::create_constraint__cosserat_rod_bending(params.scope,
+                                                               params.self_path(),
+                                                               std::move(filter),
+                                                               std::move(*rest_length_attribute),
+                                                               std::move(*rest_shape_attribute),
+                                                               compliance));
 }
 
 static void parse_behavior__fixed_positions(ParseBehaviorParams &params)
@@ -199,7 +222,9 @@ static Map<std::string, BehaviorParserFn> build_behavior_parsers()
   behavior_parsers.add_new("Acceleration", parse_behavior__acceleration);
   behavior_parsers.add_new("Edge Length Constraint", parse_behavior__edge_lengths);
   behavior_parsers.add_new("Curve Length Constraint", parse_behavior__curve_lengths);
-  behavior_parsers.add_new("Curve Rod Length Constraint", parse_behavior__curve_rod_lengths);
+  behavior_parsers.add_new("Cosserat Rod Length Constraint", parse_behavior__cosserat_rod_lengths);
+  behavior_parsers.add_new("Cosserat Rod Bending Constraint",
+                           parse_behavior__cosserat_rod_bending);
   behavior_parsers.add_new("Fixed Position Constraint", parse_behavior__fixed_positions);
   behavior_parsers.add_new("Infinite Collision Plane", parse_behavior__infinite_collision_plane);
   behavior_parsers.add_new("Global Volume Constraint", parse_behavior__global_volume);

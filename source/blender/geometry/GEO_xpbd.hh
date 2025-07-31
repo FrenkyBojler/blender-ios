@@ -138,11 +138,17 @@ ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
                                                 std::string filter,
                                                 std::string rest_length_attribute,
                                                 float compliance);
-ConstraintSet &create_constraint__curve_rod_lengths(ResourceScope &scope,
-                                                    std::string self_path,
-                                                    std::string filter,
-                                                    std::string rest_length_attribute,
-                                                    float compliance);
+ConstraintSet &create_constraint__cosserat_rod_lengths(ResourceScope &scope,
+                                                       std::string self_path,
+                                                       std::string filter,
+                                                       std::string rest_length_attribute,
+                                                       float compliance);
+ConstraintSet &create_constraint__cosserat_rod_bending(ResourceScope &scope,
+                                                       std::string self_path,
+                                                       std::string filter,
+                                                       std::string rest_length_attribute,
+                                                       std::string rest_shape_attribute,
+                                                       float compliance);
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
                                                   std::string self_path,
                                                   std::string filter,

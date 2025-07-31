@@ -239,7 +239,7 @@ static void solve_distance_rotation_constraint(const int geometry_p0,
                                                const float m0,
                                                const float m1,
                                                const float I0,
-                                               const float3 lambda_prev,
+                                               const float3 &lambda_prev,
                                                const float compliance_term,
                                                const float rest_distance,
                                                LocalConstraintCorrections &local_corrections)
@@ -270,6 +270,39 @@ static void solve_distance_rotation_constraint(const int geometry_p0,
   local_corrections.add_position_correction(geometry_p0, p_i0, correction_p0);
   local_corrections.add_position_correction(geometry_p1, p_i1, correction_p1);
   local_corrections.add_rotation_correction(geometry_r0, r_i0, correction_r0);
+}
+
+static void solve_bending_constraint(const int geometry_r0,
+                                     const int geometry_r1,
+                                     const int r_i0,
+                                     const int r_i1,
+                                     const math::Quaternion &r0,
+                                     const math::Quaternion &r1,
+                                     const float I0,
+                                     const float I1,
+                                     const float4 &lambda_prev,
+                                     const float compliance_term,
+                                     const math::Quaternion &rest_shape,
+                                     LocalConstraintCorrections &local_corrections)
+{
+  BLI_assert(I0 > 0.0f);
+  BLI_assert(I1 > 0.0f);
+
+  /* Inverse mass as weight factors. */
+  const float wr0 = 1 / I0;
+  const float wr1 = 1 / I1;
+  const float weight_sum = wr0 + wr1;
+
+  const math::Quaternion shape = math::invert_normalized(r0) * r1;
+  const float4 residual = float4(shape) - float4(rest_shape);
+
+  const float4 lambda = (residual - compliance_term * lambda_prev) /
+                        (weight_sum + compliance_term);
+
+  const math::Quaternion correction_r0 = r1 * math::Quaternion(lambda * wr0);
+  const math::Quaternion correction_r1 = r0 * math::Quaternion(-lambda * wr1);
+  local_corrections.add_rotation_correction(geometry_r0, r_i0, correction_r0);
+  local_corrections.add_rotation_correction(geometry_r1, r_i1, correction_r1);
 }
 
 class EdgeLengthConstraintSet : public ConstraintSet {
@@ -561,8 +594,8 @@ class CosseratRodConstraintSet : public CurveConstraintSet {
         threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
           for (const int curve_i : range) {
             const IndexRange points = points_by_curve[curve_i];
-            if (points.is_empty()) {
-              continue;
+            if (points.size() < 2) {
+              rotation_writer.span.slice(points).fill(math::Quaternion::identity());
             }
 
             auto rotation_from_points = [&](const int point0,
@@ -616,7 +649,8 @@ class CosseratRodConstraintSet : public CurveConstraintSet {
         threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
           for (const int curve_i : range) {
             const IndexRange points = points_by_curve[curve_i];
-            if (points.is_empty()) {
+            if (points.size() < 2) {
+              inertia_writer.span.slice(points).fill(float3(1.0f));
               continue;
             }
 
@@ -648,15 +682,15 @@ class CosseratRodConstraintSet : public CurveConstraintSet {
   }
 };
 
-class CurveRodLengthConstraintSet : public CosseratRodConstraintSet {
+class RodLengthConstraintSet : public CosseratRodConstraintSet {
  private:
   float compliance_;
 
  public:
-  CurveRodLengthConstraintSet(std::string self_path,
-                              std::string filter,
-                              std::string rest_length_attribute,
-                              const float compliance)
+  RodLengthConstraintSet(std::string self_path,
+                         std::string filter,
+                         std::string rest_length_attribute,
+                         const float compliance)
       : CosseratRodConstraintSet(
             std::move(self_path), std::move(filter), std::move(rest_length_attribute)),
         compliance_(compliance)
@@ -688,17 +722,6 @@ class CurveRodLengthConstraintSet : public CosseratRodConstraintSet {
       const bke::CurvesGeometry &curves = (**curves_id).geometry.wrap();
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
       const bke::AttributeAccessor attributes = curves.attributes();
-      if (!attributes.lookup<math::Quaternion>(sim_geometry.src.rotation_attribute,
-                                               bke::AttrDomain::Point))
-      {
-        continue;
-      }
-      if (!attributes.lookup<float>(rest_length_attribute_, bke::AttrDomain::Point)) {
-        continue;
-      }
-      if (!attributes.lookup<float>(sim_geometry.src.mass_attribute, bke::AttrDomain::Point)) {
-        continue;
-      }
 
       const Span<float3> positions = curves.positions();
       const VArraySpan<math::Quaternion> rotations =
@@ -754,6 +777,160 @@ class CurveRodLengthConstraintSet : public CosseratRodConstraintSet {
             solve_segment(point_i, next_point_i);
           }
           if (cyclic[curve_i]) {
+            solve_segment(points.last(), points.first());
+          }
+        }
+      });
+    }
+  }
+};
+
+class RodBendingConstraintSet : public CosseratRodConstraintSet {
+ private:
+  std::string rest_shape_attribute_;
+  float compliance_;
+
+ public:
+  RodBendingConstraintSet(std::string self_path,
+                          std::string filter,
+                          std::string rest_length_attribute,
+                          std::string rest_shape_attribute,
+                          const float compliance)
+      : CosseratRodConstraintSet(
+            std::move(self_path), std::move(filter), std::move(rest_length_attribute)),
+        rest_shape_attribute_(rest_shape_attribute),
+        compliance_(compliance)
+  {
+  }
+
+  /* Compute relative rotations from each segment to the next (aka. Darboux vectors). */
+  void ensure_rest_shape(MutableSpan<SimGeometry> sim_geometries) const
+  {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+      Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
+      if (!curves_ptr) {
+        continue;
+      }
+      Curves &curves_id = **curves_ptr;
+      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+      if (!attributes.contains(rest_shape_attribute_)) {
+        bke::SpanAttributeWriter<math::Quaternion> rest_shape_writer =
+            attributes.lookup_or_add_for_write_only_span<math::Quaternion>(rest_shape_attribute_,
+                                                                           bke::AttrDomain::Point);
+        const VArraySpan<math::Quaternion> rotations = *attributes.lookup<math::Quaternion>(
+            sim_geometry.src.rotation_attribute);
+        const OffsetIndices points_by_curve = curves.points_by_curve();
+        const VArraySpan<bool> cyclic = curves.cyclic();
+
+        threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
+          for (const int curve_i : range) {
+            const IndexRange points = points_by_curve[curve_i];
+            if (points.size() < 3) {
+              rest_shape_writer.span.slice(points).fill(math::Quaternion::identity());
+              continue;
+            }
+
+            auto rest_shape_from_points = [&](const int point0,
+                                              const int point1) -> math::Quaternion {
+              const math::Quaternion &rotation0 = rotations[point0];
+              const math::Quaternion &rotation1 = rotations[point1];
+              return math::invert_normalized(rotation0) * rotation1;
+            };
+
+            for (const int point : points.drop_back(1)) {
+              rest_shape_writer.span[point] = rest_shape_from_points(point, point + 1);
+            }
+            rest_shape_writer.span[points.last()] = cyclic[curve_i] ?
+                                                        rest_shape_from_points(points.last(),
+                                                                               points.first()) :
+                                                        math::Quaternion::identity();
+          }
+        });
+
+        rest_shape_writer.finish();
+      }
+    }
+  }
+
+  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  {
+    ensure_rotation(sim_geometries);
+    ensure_moment_of_inertia(sim_geometries);
+    ensure_rest_shape(sim_geometries);
+  }
+
+  void solve(ConstraintSetSolveParams &params) override
+  {
+    float compliance_term = 0.0f;
+    if (params.delta_time > 0.0f) {
+      compliance_term = compliance_ / pow2f(params.delta_time);
+    }
+    for (const int geometry_i : params.sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+      const Curves *const *curves_id = std::get_if<Curves *>(&sim_geometry.data);
+      if (!curves_id) {
+        continue;
+      }
+      const bke::CurvesGeometry &curves = (**curves_id).geometry.wrap();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      const bke::AttributeAccessor attributes = curves.attributes();
+
+      const VArraySpan<math::Quaternion> rotations =
+          *attributes.lookup_or_default<math::Quaternion>(sim_geometry.src.rotation_attribute,
+                                                          bke::AttrDomain::Point,
+                                                          math::Quaternion::identity());
+      const VArraySpan<math::Quaternion> rest_shapes =
+          *attributes.lookup_or_default<math::Quaternion>(
+              rest_shape_attribute_, bke::AttrDomain::Point, math::Quaternion::identity());
+      const VArraySpan<float3> inertias = *attributes.lookup_or_default<float3>(
+          sim_geometry.src.inertia_attribute, bke::AttrDomain::Point, float3(1.0f));
+      const VArray<bool> cyclic = curves.cyclic();
+
+      auto solve_segment = [&](const int point_i, const int next_point_i) {
+        LocalConstraintCorrections &local_corrections = params.corrections.local();
+
+        const float3 inertia0 = inertias[point_i];
+        const float3 inertia1 = inertias[next_point_i];
+        const float lumped_inertia0 = 0.5f * (inertia0.x + inertia0.y + inertia0.z);
+        const float lumped_inertia1 = 0.5f * (inertia1.x + inertia1.y + inertia1.z);
+        const math::Quaternion &rest_shape = rest_shapes[point_i];
+
+        /* TODO carry over from previous iteration, use for warm-starting. */
+        const float4 lambda_prev = float4(0.0f);
+
+        solve_bending_constraint(geometry_i,
+                                 geometry_i,
+                                 point_i,
+                                 next_point_i,
+                                 rotations[point_i],
+                                 rotations[next_point_i],
+                                 lumped_inertia0,
+                                 lumped_inertia1,
+                                 lambda_prev,
+                                 compliance_term,
+                                 rest_shape,
+                                 local_corrections);
+      };
+
+      threading::parallel_for(curves.curves_range(), 256, [&](IndexRange curves_range) {
+        for (const int curve_i : curves_range) {
+          const IndexRange points = points_by_curve[curve_i];
+          if (points.size() < 3) {
+            continue;
+          }
+          for (const int point_i : points.drop_back(2)) {
+            const int next_point_i = point_i + 1;
+            solve_segment(point_i, next_point_i);
+          }
+          if (cyclic[curve_i]) {
+            solve_segment(points.last() - 1, points.last());
             solve_segment(points.last(), points.first());
           }
         }
@@ -1073,14 +1250,28 @@ ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
       self_path, filter, std::move(rest_length_attribute), compliance);
 }
 
-ConstraintSet &create_constraint__curve_rod_lengths(ResourceScope &scope,
-                                                    std::string self_path,
-                                                    std::string filter,
-                                                    std::string rest_length_attribute,
-                                                    float compliance)
+ConstraintSet &create_constraint__cosserat_rod_lengths(ResourceScope &scope,
+                                                       std::string self_path,
+                                                       std::string filter,
+                                                       std::string rest_length_attribute,
+                                                       float compliance)
 {
-  return scope.construct<CurveRodLengthConstraintSet>(
+  return scope.construct<RodLengthConstraintSet>(
       self_path, filter, std::move(rest_length_attribute), compliance);
+}
+
+ConstraintSet &create_constraint__cosserat_rod_bending(ResourceScope &scope,
+                                                       std::string self_path,
+                                                       std::string filter,
+                                                       std::string rest_length_attribute,
+                                                       std::string rest_shape_attribute,
+                                                       float compliance)
+{
+  return scope.construct<RodBendingConstraintSet>(self_path,
+                                                  filter,
+                                                  std::move(rest_length_attribute),
+                                                  std::move(rest_shape_attribute),
+                                                  compliance);
 }
 
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
