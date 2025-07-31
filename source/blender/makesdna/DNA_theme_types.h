@@ -113,10 +113,6 @@ typedef struct ThemeCommonAnim {
 } ThemeCommonAnim;
 
 typedef struct ThemeCommonCurves {
-  /** NURB lines. */
-  unsigned char nurb_uline[4], nurb_vline[4];
-  unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4], lastsel_point[4];
-
   /** Curve handles. */
   unsigned char handle_free[4], handle_auto[4], handle_vect[4], handle_align[4],
       handle_auto_clamped[4];
@@ -321,6 +317,9 @@ typedef struct ThemeSpace {
   unsigned char freestyle_edge_mark[4], freestyle_face_mark[4];
   unsigned char time_scrub_background[4];
   unsigned char time_marker_line[4], time_marker_line_selected[4];
+
+  unsigned char nurb_uline[4], nurb_vline[4];
+  unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4], lastsel_point[4];
 
   /** Dope-sheet. */
   unsigned char ds_channel[4], ds_subchannel[4], ds_ipoline[4];

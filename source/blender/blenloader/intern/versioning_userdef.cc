@@ -360,12 +360,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 51)) {
-    FROM_DEFAULT_V4_UCHAR(common.curves.nurb_uline);
-    FROM_DEFAULT_V4_UCHAR(common.curves.nurb_vline);
-    FROM_DEFAULT_V4_UCHAR(common.curves.nurb_sel_uline);
-    FROM_DEFAULT_V4_UCHAR(common.curves.nurb_sel_vline);
-    FROM_DEFAULT_V4_UCHAR(common.curves.act_spline);
-    FROM_DEFAULT_V4_UCHAR(common.curves.lastsel_point);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_free);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_vect);

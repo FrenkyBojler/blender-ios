@@ -545,23 +545,24 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
 
         case TH_NURB_ULINE:
-          cp = btheme->common.curves.nurb_uline;
+          cp = ts->nurb_uline;
           break;
         case TH_NURB_VLINE:
-          cp = btheme->common.curves.nurb_vline;
+          cp = ts->nurb_vline;
           break;
         case TH_NURB_SEL_ULINE:
-          cp = btheme->common.curves.nurb_sel_uline;
+          cp = ts->nurb_sel_uline;
           break;
         case TH_NURB_SEL_VLINE:
-          cp = btheme->common.curves.nurb_sel_vline;
+          cp = ts->nurb_sel_vline;
           break;
         case TH_ACTIVE_SPLINE:
-          cp = btheme->common.curves.act_spline;
+          cp = ts->act_spline;
           break;
         case TH_ACTIVE_VERT:
-          cp = btheme->common.curves.lastsel_point;
+          cp = ts->lastsel_point;
           break;
+
         case TH_HANDLE_FREE:
           cp = btheme->common.curves.handle_free;
           break;
