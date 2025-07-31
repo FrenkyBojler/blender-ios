@@ -18,6 +18,9 @@ SHADER_LIBRARY_CREATE_INFO(draw_gpencil)
 #  error Missing additional info draw_gpencil
 #endif
 
+#define miter_limit (0.2f)
+#define miter_limit2 (0.7071f)
+
 #ifdef GPU_FRAGMENT_SHADER
 float gpencil_stroke_round_mask(float dist, float hardfac)
 {
@@ -126,27 +129,30 @@ float gpencil_stroke_cap_mask(float2 p1,
     dist = abs(dist);
   }
 
-  if (line_join_mode != GP_STROKE_LINEJOIN_MODE_BEVEL) {
-    return gpencil_stroke_round_mask(dist, hardfac);
+  float cos_angle1 = -dot(normalize(line), normalize(line2));
+  float cos_angle2 = -dot(normalize(line), normalize(line3));
+
+  if (line_join_mode != GP_STROKE_LINEJOIN_MODE_MITER || cos_angle1 > miter_limit2) {
+    float2 pc1 = p1 + si1 * normalize(tan1) * radius;
+    float2 pc2 = p1 + si1 * normalize(tan2) * radius;
+
+    float2 po2 = gl_FragCoord.xy - pc1;
+    float2 lineo = pc2 - pc1;
+    float2 tano = tan_dir(lineo);
+
+    dist = max(dist, 1.0f - si1 * dot(po2, tano) / length(lineo) / radius);
   }
 
-  float2 pc1 = p1 + si1 * normalize(tan1) * radius;
-  float2 pc2 = p1 + si1 * normalize(tan2) * radius;
+  if (line_join_mode != GP_STROKE_LINEJOIN_MODE_MITER || cos_angle2 > miter_limit2) {
+    float2 pc21 = p2 + si2 * normalize(tan1) * radius;
+    float2 pc22 = p2 + si2 * normalize(tan3) * radius;
 
-  float2 po2 = gl_FragCoord.xy - pc1;
-  float2 lineo = pc2 - pc1;
-  float2 tano = tan_dir(lineo);
+    float2 po22 = gl_FragCoord.xy - pc21;
+    float2 lineo2 = pc22 - pc21;
+    float2 tano2 = tan_dir(lineo2);
 
-  dist = max(dist, 1.0f - si1 * dot(po2, tano) / length(lineo) / radius);
-
-  float2 pc21 = p2 + si2 * normalize(tan1) * radius;
-  float2 pc22 = p2 + si2 * normalize(tan3) * radius;
-
-  float2 po22 = gl_FragCoord.xy - pc21;
-  float2 lineo2 = pc22 - pc21;
-  float2 tano2 = tan_dir(lineo2);
-
-  dist = max(dist, 1.0f + si2 * dot(po22, tano2) / length(lineo2) / radius);
+    dist = max(dist, 1.0f + si2 * dot(po22, tano2) / length(lineo2) / radius);
+  }
 
   return gpencil_stroke_round_mask(dist, hardfac);
 }
@@ -426,7 +432,6 @@ float4 gpencil_vertex(float4 viewport_res,
       float2 miter_tan = safe_normalize(line_adj + line);
       float miter_dot = dot(miter_tan, line_adj);
       /* Break corners after a certain angle to avoid really thick corners. */
-      const float miter_limit = 0.2f; /* cos(60 degrees) */
       bool miter_break = (miter_dot < miter_limit);
       miter_tan = (miter_break || is_stroke_start || is_stroke_end) ? line :
                                                                       (miter_tan / miter_dot);
