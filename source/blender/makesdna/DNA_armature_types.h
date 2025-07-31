@@ -97,7 +97,7 @@ typedef struct Bone {
   float arm_head[3];
   /** Tail position in armature space. So should be the same as tail in edit mode. */
   float arm_tail[3];
-  /** Matrix: `(bonemat(b)+head(b))*arm_mat(b-1)`, rest pose. */
+  /** Matrix: `(bone_mat(b)+head(b))*arm_mat(b-1)`, rest pose in armature space. */
   float arm_mat[4][4];
   /** Roll in Armature Space (rest pose). */
   float arm_roll;
