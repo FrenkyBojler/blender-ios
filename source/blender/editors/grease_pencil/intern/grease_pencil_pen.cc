@@ -71,9 +71,9 @@ struct ClosestElement {
 /* Used to scale the default select distance. */
 constexpr float selection_distance_factor = 0.9f;
 constexpr float selection_distance_factor_edge = 0.5f;
+
 /* Used when creating a single curve from nothing. */
 constexpr float default_handle_px_distance = 16.0f;
-constexpr float default_radius_factor = 0.25f;
 
 struct PenToolOperation {
   ViewContext vc;
@@ -93,6 +93,7 @@ struct PenToolOperation {
   bool close_spline;
   bool cycle_handle_type;
   int extrude_handle;
+  float radius;
 
   bool move_entire;
   bool snap_angle;
@@ -594,8 +595,7 @@ static bool pen_add_single(const PenToolOperation &ptd, wmOperator *op)
                                              ptd.mouse_co +
                                                  float2(default_handle_px_distance / 2.0f, 0.0f),
                                              depth_point);
-  curves.radius_for_write().last() = math::distance(handles_left.last(), handles_right.last()) *
-                                     default_radius_factor;
+  curves.radius_for_write().last() = ptd.radius;
 
   for (const StringRef selection_attribute_name :
        ed::curves::get_curves_selection_attribute_names(curves))
@@ -830,6 +830,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.close_spline = RNA_boolean_get(op->ptr, "close_spline");
   ptd.cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
+  ptd.radius = RNA_float_get(op->ptr, "radius");
 
   ptd.move_entire = false;
   ptd.snap_angle = false;
@@ -1320,6 +1321,7 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
                   false,
                   "Cycle Handle Type",
                   "Cycle between all four handle types");
+  RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, FLT_MAX, "Radius", "", 0.0f, 10.0f);
 }
 
 }  // namespace blender::ed::greasepencil
