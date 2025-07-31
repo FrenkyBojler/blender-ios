@@ -100,6 +100,9 @@ float gpencil_stroke_cap_mask(float2 p1,
   float2 tan3 = tan_dir(line3);
   float2 pos3 = gl_FragCoord.xy - p2;
 
+  float si1 = -sign(dot(line, tan2));
+  float si2 = sign(dot(line, tan3));
+
   if (is_start && is_end) {
     return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
   }
@@ -117,8 +120,8 @@ float gpencil_stroke_cap_mask(float2 p1,
   }
   else {
     dist = dot(pos, tan1) / length(line) / radius;
-    dist = flip_max_min(dist, dot(pos2, tan2) / length(line2) / radius, -sign(dot(line, tan2)));
-    dist = flip_max_min(dist, dot(pos3, tan3) / length(line3) / radius, sign(dot(line, tan3)));
+    dist = flip_max_min(dist, dot(pos2, tan2) / length(line2) / radius, si1);
+    dist = flip_max_min(dist, dot(pos3, tan3) / length(line3) / radius, si2);
 
     dist = abs(dist);
   }
@@ -126,9 +129,6 @@ float gpencil_stroke_cap_mask(float2 p1,
   if (line_join_mode != GP_STROKE_LINEJOIN_MODE_BEVEL) {
     return gpencil_stroke_round_mask(dist, hardfac);
   }
-
-  float si1 = -sign(dot(line, tan2));
-  float si2 = sign(dot(line, tan3));
 
   float2 pc1 = p1 + si1 * normalize(tan1) * radius;
   float2 pc2 = p1 + si1 * normalize(tan2) * radius;
