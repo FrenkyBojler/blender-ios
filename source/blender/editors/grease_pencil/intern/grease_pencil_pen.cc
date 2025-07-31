@@ -90,7 +90,6 @@ struct PenToolOperation {
   bool move_seg;
   bool select_point;
   bool move_point;
-  bool close_spline;
   bool cycle_handle_type;
   int extrude_handle;
   float radius;
@@ -827,7 +826,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.move_seg = RNA_boolean_get(op->ptr, "move_segment");
   ptd.select_point = RNA_boolean_get(op->ptr, "select_point");
   ptd.move_point = RNA_boolean_get(op->ptr, "move_point");
-  ptd.close_spline = RNA_boolean_get(op->ptr, "close_spline");
   ptd.cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
   ptd.radius = RNA_float_get(op->ptr, "radius");
@@ -948,15 +946,14 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
           curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
       MutableSpan<bool> selection = selection_writer.span.typed<bool>();
 
-      if (ptd.close_spline) {
-        if ((ptd.closest_element.point_index == points.first() && selection[points.last()]) ||
-            (ptd.closest_element.point_index == points.last() && selection[points.first()]))
-        {
-          curves.cyclic_for_write()[ptd.closest_element.curve_index] = true;
-          curves.calculate_bezier_auto_handles();
-          info.drawing.tag_topology_changed();
-          add_single.store(false, std::memory_order_relaxed);
-        }
+      /* Close the curve by selecting the other end point. */
+      if ((ptd.closest_element.point_index == points.first() && selection[points.last()]) ||
+          (ptd.closest_element.point_index == points.last() && selection[points.first()]))
+      {
+        curves.cyclic_for_write()[ptd.closest_element.curve_index] = true;
+        curves.calculate_bezier_auto_handles();
+        info.drawing.tag_topology_changed();
+        add_single.store(false, std::memory_order_relaxed);
       }
 
       if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
@@ -1311,11 +1308,6 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna, "select_point", false, "Select Point", "Select a point or its handles");
   RNA_def_boolean(ot->srna, "move_point", false, "Move Point", "Move a point or its handles");
-  RNA_def_boolean(ot->srna,
-                  "close_spline",
-                  true,
-                  "Close Spline",
-                  "Make a spline cyclic by clicking endpoints");
   RNA_def_boolean(ot->srna,
                   "cycle_handle_type",
                   false,
