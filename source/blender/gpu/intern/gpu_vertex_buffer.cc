@@ -41,6 +41,10 @@ VertBuf::~VertBuf()
 
 void VertBuf::init(const GPUVertFormat &format, GPUUsageType usage)
 {
+  if (usage & GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY) {
+    BLI_assert_msg(format.attr_len == 1,
+                   "Only single attribute format are supported for buffer textures");
+  }
   /* Strip extended usage flags. */
   usage_ = usage & ~GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY;
 #ifndef NDEBUG

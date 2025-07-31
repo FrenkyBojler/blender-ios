@@ -40,8 +40,8 @@ static void test_draw_curves_lib()
   gpu::Batch *batch_cylinder = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, (3 * 2 + 1) * 6);
 
   struct PositionRadius {
-    float3 pos;
-    GPU_VERTEX_FORMAT_FUNC(PositionRadius, pos);
+    float4 pos_rad;
+    GPU_VERTEX_FORMAT_FUNC(PositionRadius, pos_rad);
   };
   gpu::VertBuf *pos_rad_buf = GPU_vertbuf_create_with_format_ex(
       PositionRadius::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
@@ -286,6 +286,7 @@ static void test_draw_curves_topology()
     pass.shader_set(sh);
     pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
     pass.bind_ssbo("indirection_buf", indirection_buf);
+    pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 3);
     pass.push_constant("is_ribbon_topology", true);
     pass.dispatch(1);
@@ -323,6 +324,7 @@ static void test_draw_curves_topology()
     pass.shader_set(sh);
     pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
     pass.bind_ssbo("indirection_buf", indirection_buf);
+    pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 3);
     pass.push_constant("is_ribbon_topology", false);
     pass.dispatch(1);
@@ -429,6 +431,7 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
     pass.bind_ssbo("handles_positions_right_buf", evaluated_points_by_curve_buf);
     pass.bind_ssbo("bezier_offsets_buf", evaluated_points_by_curve_buf);
+    pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
     pass.push_constant("compute_length_and_time", true);
     pass.dispatch(1);
@@ -531,6 +534,7 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("handles_positions_left_buf", handles_positions_left_buf);
     pass.bind_ssbo("handles_positions_right_buf", handles_positions_right_buf);
     pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
+    pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
     pass.push_constant("compute_length_and_time", true);
     pass.dispatch(1);
@@ -715,6 +719,7 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("handles_positions_left_buf", basis_cache_buf);
     pass.bind_ssbo("handles_positions_right_buf", control_weights_buf);
     pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
+    pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
     pass.push_constant("compute_length_and_time", true);
     pass.dispatch(1);
@@ -1017,6 +1022,7 @@ static void test_draw_curves_interpolate_attributes()
           pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
           pass.bind_ssbo("handles_positions_right_buf", evaluated_points_by_curve_buf);
           pass.bind_ssbo("bezier_offsets_buf", evaluated_points_by_curve_buf);
+          pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
           pass.push_constant("compute_length_and_time", false);
           pass.dispatch(1);
@@ -1025,6 +1031,7 @@ static void test_draw_curves_interpolate_attributes()
           pass.bind_ssbo("handles_positions_left_buf", handles_positions_left_buf);
           pass.bind_ssbo("handles_positions_right_buf", handles_positions_right_buf);
           pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
+          pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
           pass.push_constant("compute_length_and_time", false);
           pass.dispatch(1);
@@ -1034,6 +1041,7 @@ static void test_draw_curves_interpolate_attributes()
           pass.bind_ssbo("handles_positions_left_buf", basis_cache_buf);
           pass.bind_ssbo("handles_positions_right_buf", control_weights_buf);
           pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
+          pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
           pass.push_constant("compute_length_and_time", false);
           pass.dispatch(1);
