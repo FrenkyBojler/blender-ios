@@ -558,10 +558,17 @@ class BackgroundDownloader:
 
     def _handle_incoming_messages(self) -> None:
 
-        while self._connection.poll():
+        while True:
+            # Instead of `while self._connection.poll():`, wrap in an exception
+            # handler, as on Windows the `poll()` call can raise a
+            # BrokenPipeError when the subprocess has ended. Maybe the `recv()`
+            # call can raise that exception too, so just for safety I (Sybren)
+            # put them in the same `try` block.
             try:
+                if not self._connection.poll():
+                    break
                 msg: PipeMessage = self._connection.recv()
-            except EOFError:
+            except (EOFError, BrokenPipeError):
                 # The remote end closed the pipe.
                 break
 
