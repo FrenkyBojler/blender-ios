@@ -667,7 +667,7 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     const bNode *src_node = link->fromnode;
     const bNode *dst_node = link->tonode;
 
-    if (src_node->is_reroute() == dst_node->is_reroute()) {
+    if (src_node->is_reroute() == false && dst_node->is_reroute() == false) {
       continue;
     }
 
