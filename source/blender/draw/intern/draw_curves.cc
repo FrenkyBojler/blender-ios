@@ -205,9 +205,12 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.shader_set(shader);
     sub.bind_ssbo("curves_resolution_buf", cache.curves_order_buf);
     sub.bind_ssbo("handles_positions_left_buf", cache.basis_cache_buf);
-    sub.bind_ssbo("handles_positions_right_buf", cache.control_weights_buf);
+    sub.bind_ssbo("handles_positions_right_buf",
+                  cache.control_weights_buf.get() ? cache.control_weights_buf :
+                                                    cache.basis_cache_buf);
     sub.bind_ssbo("bezier_offsets_buf", cache.basis_cache_offset_buf);
     sub.push_constant("compute_length_and_time", false);
+    sub.push_constant("use_point_weight", cache.control_weights_buf.get() != nullptr);
     dispatch(curve, sub);
   }
 

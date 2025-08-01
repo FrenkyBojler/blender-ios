@@ -224,6 +224,7 @@ template<> struct GenericVertexFormat<uint8_t> {
 
 template<typename T> static gpu::VertBufPtr create_vbo_from_span(const Span<T> data)
 {
+  BLI_assert(!data.is_empty());
   gpu::VertBufPtr buf = gpu::VertBufPtr(
       GPU_vertbuf_create_with_format(GenericVertexFormat<T>::format()));
   /* GPU formats needs to be aligned to 4 bytes. */
@@ -234,6 +235,7 @@ template<typename T> static gpu::VertBufPtr create_vbo_from_span(const Span<T> d
 
 template<typename T> static gpu::VertBufPtr create_vbo_from_varray(const VArray<T> array)
 {
+  BLI_assert(!array.is_empty());
   gpu::VertBufPtr buf = gpu::VertBufPtr(GPU_vertbuf_create_with_format_ex(
       GenericVertexFormat<T>::format(), GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY));
   /* GPU formats needs to be aligned to 4 bytes. */
@@ -244,6 +246,7 @@ template<typename T> static gpu::VertBufPtr create_vbo_from_varray(const VArray<
 
 template<typename T> static gpu::VertBufPtr alloc_vbo_device_only(uint size)
 {
+  BLI_assert(size > 0);
   gpu::VertBufPtr buf = gpu::VertBufPtr(GPU_vertbuf_create_with_format_ex(
       GenericVertexFormat<T>::format(),
       GPU_USAGE_DEVICE_ONLY | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY));
@@ -755,7 +758,9 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
   curves_order_buf = create_vbo_from_varray(curves.nurbs_orders());
-  control_weights_buf = create_vbo_from_span(curves.nurbs_weights());
+  if (!curves.nurbs_weights().is_empty()) {
+    control_weights_buf = create_vbo_from_span(curves.nurbs_weights());
+  }
 
   curves.ensure_can_interpolate_to_evaluated();
 

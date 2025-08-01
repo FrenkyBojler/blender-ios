@@ -451,8 +451,8 @@ void evaluate_curve(const InterpType interp_type,
     for (int j = 0; j < point_weights.size; j++) {
       const int point_index = points.start + (start_index + j) % points.size;
       const float point_weight = basis_cache_buf[point_weights.start + j];
-      /* TODO(fclem): Add use_point_weight toggle. */
-      const float weight = point_weight * control_weights_buf[point_index];
+      const float control_weight = use_point_weight ? control_weights_buf[point_index] : 1.0f;
+      const float weight = point_weight * control_weight;
       /* Equivalent to `mixer.mix_in()`. */
       output_weighted_add(evaluated_point_index, weight, input_load(point_index, interp_type));
       total_weight += weight;
