@@ -97,13 +97,13 @@ ClosureSignature ClosureSignature::from_closure_output_node(const bNode &node)
   for (const int i : IndexRange(storage.input_items.items_num)) {
     const NodeGeometryClosureInputItem &item = storage.input_items.items[i];
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.inputs.append({item.name, stype});
+      signature.inputs.add({item.name, stype});
     }
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
     const NodeGeometryClosureOutputItem &item = storage.output_items.items[i];
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.outputs.append({item.name, stype});
+      signature.outputs.add({item.name, stype});
     }
   }
   return signature;
@@ -117,13 +117,13 @@ ClosureSignature ClosureSignature::from_evaluate_closure_node(const bNode &node)
   for (const int i : IndexRange(storage.input_items.items_num)) {
     const NodeGeometryEvaluateClosureInputItem &item = storage.input_items.items[i];
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.inputs.append({item.name, stype, nodes::StructureType(item.structure_type)});
+      signature.inputs.add({item.name, stype, nodes::StructureType(item.structure_type)});
     }
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
     const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.outputs.append({item.name, stype, nodes::StructureType(item.structure_type)});
+      signature.outputs.add({item.name, stype, nodes::StructureType(item.structure_type)});
     }
   }
   return signature;
