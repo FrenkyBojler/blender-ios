@@ -71,6 +71,17 @@ static void node_free_storage(bNode *node)
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
+  if (params.C && params.link.tonode == &params.node && params.link.fromsock->type == SOCK_BUNDLE)
+  {
+    const NodeGeometrySeparateBundle &storage = node_storage(params.node);
+    if (storage.items_num == 0) {
+      SpaceNode *snode = CTX_wm_space_node(params.C);
+      if (snode && snode->edittree == &params.ntree) {
+        sync_sockets_separate_bundle(*snode, params.node, nullptr, params.link.fromsock);
+      }
+    }
+    return true;
+  }
   return socket_items::try_add_item_via_any_extend_socket<SeparateBundleItemsAccessor>(
       params.ntree, params.node, params.node, params.link);
 }
@@ -126,8 +137,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     const BundleItemValue *value = bundle->lookup(name);
     if (!value) {
-      params.error_message_add(NodeWarningType::Error,
-                               fmt::format(fmt::runtime(TIP_("Value not found: \"{}\"")), name));
+      params.error_message_add(
+          NodeWarningType::Error,
+          fmt::format(fmt::runtime(TIP_("Value not found in bundle: \"{}\"")), name));
       continue;
     }
     const auto *socket_value = std::get_if<BundleItemSocketValue>(&value->value);
@@ -148,7 +160,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         params.error_message_add(
             NodeWarningType::Info,
             fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
-                        TIP_("Implicit type conversion"),
+                        TIP_("Implicit type conversion when separating bundle"),
                         name,
                         TIP_(socket_value->type->label),
                         TIP_(stype->label)));
@@ -157,7 +169,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         params.error_message_add(
             NodeWarningType::Error,
             fmt::format("{}: \"{}\" ({} " BLI_STR_UTF8_BLACK_RIGHT_POINTING_SMALL_TRIANGLE " {})",
-                        TIP_("Conversion not supported"),
+                        TIP_("Conversion not supported when separating bundle"),
                         name,
                         TIP_(socket_value->type->label),
                         TIP_(stype->label)));
