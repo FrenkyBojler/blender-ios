@@ -78,10 +78,10 @@ static void node_free_storage(bNode *node)
   MEM_freeN(node->storage);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<FormatStringItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_operators()
@@ -207,7 +207,7 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
     precision_group = groups_num;
   }
   /* "L" is omitted, because we take the current locale into account in Geometry Nodes. */
-  /* Allowed type specifiers vary by data type.*/
+  /* Allowed type specifiers vary by data type. */
   if (type.is<std::string>()) {
     pattern += "[s\\?]?";
   }
@@ -299,7 +299,7 @@ class FormatInputsLookup {
         return std::nullopt;
       }
       if (res.ptr < identifier.end()) {
-        /* There are other characters after the number.*/
+        /* There are other characters after the number. */
         if (!r_error) {
           r_error = fmt::format(
               fmt::runtime(TIP_("An input name can't start with a digit: \"{}\"")), identifier);

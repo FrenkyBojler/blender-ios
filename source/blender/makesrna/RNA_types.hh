@@ -335,6 +335,13 @@ enum PropertyFlag {
   PROP_PROPORTIONAL = (1 << 26),
 
   /* pointers */
+
+  /**
+   * Automatically update the ID user count when the property changes value.
+   *
+   * This is done in the auto-generated setter function. If an RNA property has a custom setter,
+   * this flag is ignored, and the setter is responsible for correctly updating the user count.
+   */
   PROP_ID_REFCOUNT = (1 << 6),
 
   /**
@@ -929,6 +936,25 @@ struct ExtensionRNA {
   StructRNA *srna;
   StructCallbackFunc call;
   StructFreeFunc free;
+};
+
+/**
+ * Information about deprecated properties.
+ *
+ * Used by the API documentation and Python API to print warnings
+ * when accessing a deprecated property.
+ */
+struct DeprecatedRNA {
+  /** Single line deprecation message, suggest alternatives where possible. */
+  const char *note;
+  /** The released version this was deprecated. */
+  short version;
+  /**
+   * The version this will be removed.
+   * The value represents major, minor versions (sub-version isn't supported).
+   * Compatible with #Main::versionfile (e.g. `502` for `v5.2`).
+   */
+  short removal_version;
 };
 
 /* Primitive types. */
