@@ -237,10 +237,14 @@ class CornerPinOperation : public NodeOperation {
 
   Result compute_plane_mask_gpu(const float3x3 &homography_matrix)
   {
+    const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
+    const bool is_y_clipped = this->get_extension_mode_y() == ExtensionMode::Clip;
     GPUShader *shader = context().get_shader("compositor_plane_deform_mask");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
+    GPU_shader_uniform_1b(shader, "x_clip", is_x_clipped);
+    GPU_shader_uniform_1b(shader, "y_clip", is_y_clipped);
 
     const Domain domain = compute_domain();
     Result plane_mask = context().create_result(ResultType::Float);

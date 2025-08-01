@@ -22,12 +22,8 @@ void main()
 
   float4 sampled_color = SAMPLER_FUNCTION(input_tx, projected_coordinates);
 
-  bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
-  bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
-  bool is_inside_plane = is_inside_plane_x && is_inside_plane_y;
-
   float mask_value = texture_load(mask_tx, texel).x;
-  float4 plane_color = is_inside_plane ? sampled_color * mask_value : sampled_color;
+  float4 plane_color = sampled_color * mask_value;
 
   imageStore(output_img, texel, plane_color);
 }

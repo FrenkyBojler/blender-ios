@@ -7,6 +7,8 @@
 GPU_SHADER_CREATE_INFO(compositor_plane_deform_mask)
 LOCAL_GROUP_SIZE(16, 16)
 PUSH_CONSTANT(float4x4, homography_matrix)
+PUSH_CONSTANT(bool, x_clip)
+PUSH_CONSTANT(bool, y_clip)
 IMAGE(0, SFLOAT_16, write, image2D, mask_img)
 COMPUTE_SOURCE("compositor_plane_deform_mask.glsl")
 DO_STATIC_COMPILATION()
