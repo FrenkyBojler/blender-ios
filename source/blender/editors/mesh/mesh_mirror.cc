@@ -460,55 +460,47 @@ void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *v,
                                                    blender::FunctionRef<void(BMVert *)> op) const
 {
   BLI_assert((this->htype_ & BM_VERT) != 0);
-  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
-   * default. */
-  if (!vert_to_mirror_map_.contains(v)) {
-    return;
-  }
-  for (BMVert *v_mirr : vert_to_mirror_map_.lookup(v)) {
-    op(v_mirr);
+  const blender::Vector<BMVert *> *mirrors = this->vert_to_mirror_map_.lookup_ptr(v);
+  if (mirrors) {
+    for (BMVert *v_mirr : *mirrors) {
+      op(v_mirr);
+    }
   }
 }
 
 void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *e,
                                                    blender::FunctionRef<void(BMEdge *)> op) const
 {
-  BLI_assert(this->htype_ & BM_EDGE);
-  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
-   * default. */
-  if (!edge_to_mirror_map_.contains(e)) {
-    return;
-  }
-  for (BMEdge *e_mirr : edge_to_mirror_map_.lookup(e)) {
-    op(e_mirr);
+  BLI_assert((this->htype_ & BM_EDGE) != 0);
+  const blender::Vector<BMEdge *> *mirrors = this->edge_to_mirror_map_.lookup_ptr(e);
+  if (mirrors) {
+    for (BMEdge *e_mirr : *mirrors) {
+      op(e_mirr);
+    }
   }
 }
 
 void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *f,
                                                    blender::FunctionRef<void(BMFace *)> op) const
 {
-  BLI_assert(this->htype_ & BM_FACE);
-  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
-   * default. */
-  if (!face_to_mirror_map_.contains(f)) {
-    return;
-  }
-  for (BMFace *f_mirr : face_to_mirror_map_.lookup(f)) {
-    op(f_mirr);
+  BLI_assert((this->htype_ & BM_FACE) != 0);
+  const blender::Vector<BMFace *> *mirrors = this->face_to_mirror_map_.lookup_ptr(f);
+  if (mirrors) {
+    for (BMFace *f_mirr : *mirrors) {
+      op(f_mirr);
+    }
   }
 }
 
 bool EditMeshSymmetryHelper::any_mirror_vert_selected(BMVert *v, const char hflag) const
 {
-  BLI_assert(this->htype_ & BM_VERT);
-  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
-   * default. */
-  if (!vert_to_mirror_map_.contains(v)) {
-    return false;
-  }
-  for (BMVert *v_mirr : vert_to_mirror_map_.lookup(v)) {
-    if (BM_elem_flag_test(v_mirr, hflag) && !BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
-      return true;
+  BLI_assert((this->htype_ & BM_VERT) != 0);
+  const blender::Vector<BMVert *> *mirrors = this->vert_to_mirror_map_.lookup_ptr(v);
+  if (mirrors) {
+    for (BMVert *v_mirr : *mirrors) {
+      if (BM_elem_flag_test(v_mirr, hflag) && !BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
+        return true;
+      }
     }
   }
   return false;
@@ -517,14 +509,12 @@ bool EditMeshSymmetryHelper::any_mirror_vert_selected(BMVert *v, const char hfla
 bool EditMeshSymmetryHelper::any_mirror_edge_selected(BMEdge *e, const char hflag) const
 {
   BLI_assert((this->htype_ & BM_EDGE) != 0);
-  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
-   * default. */
-  if (!edge_to_mirror_map_.contains(e)) {
-    return false;
-  }
-  for (BMEdge *e_mirr : edge_to_mirror_map_.lookup(e)) {
-    if (BM_elem_flag_test(e_mirr, hflag) && !BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN)) {
-      return true;
+  const blender::Vector<BMEdge *> *mirrors = this->edge_to_mirror_map_.lookup_ptr(e);
+  if (mirrors) {
+    for (BMEdge *e_mirr : *mirrors) {
+      if (BM_elem_flag_test(e_mirr, hflag) && !BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN)) {
+        return true;
+      }
     }
   }
   return false;
@@ -533,14 +523,12 @@ bool EditMeshSymmetryHelper::any_mirror_edge_selected(BMEdge *e, const char hfla
 bool EditMeshSymmetryHelper::any_mirror_face_selected(BMFace *f, const char hflag) const
 {
   BLI_assert((this->htype_ & BM_FACE) != 0);
-  /* FIXME: no need to do 2x lookups, use a lookup that returns a null default, then skip the null
-   * default. */
-  if (!face_to_mirror_map_.contains(f)) {
-    return false;
-  }
-  for (BMFace *f_mirr : face_to_mirror_map_.lookup(f)) {
-    if (BM_elem_flag_test(f_mirr, hflag) && !BM_elem_flag_test(f_mirr, BM_ELEM_HIDDEN)) {
-      return true;
+  const blender::Vector<BMFace *> *mirrors = this->face_to_mirror_map_.lookup_ptr(f);
+  if (mirrors) {
+    for (BMFace *f_mirr : *mirrors) {
+      if (BM_elem_flag_test(f_mirr, hflag) && !BM_elem_flag_test(f_mirr, BM_ELEM_HIDDEN)) {
+        return true;
+      }
     }
   }
   return false;
