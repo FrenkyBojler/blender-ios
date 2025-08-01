@@ -19,10 +19,6 @@
 
 namespace blender::nodes {
 
-/**
- * Makes it possible to use various functions (e.g. the ones in `NOD_socket_items.hh`) for format
- * string items.
- */
 struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeCompositorFileOutputItem;
   static StructRNA *item_srna;

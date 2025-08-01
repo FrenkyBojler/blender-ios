@@ -1350,15 +1350,10 @@ static std::optional<std::string> rna_ImageFormatSettings_path(
 
                 const std::string identifier = FileOutputItemsAccessor::socket_identifier_for_item(
                     item);
-                // std::string socketdata_path_esc;
-                // socketdata_path_esc.reserve(identifier.length() * 2);
-                // BLI_str_escape(
-                //     socketdata_path_esc.c_str(), identifier.c_str(),
-                //     socketdata_path_esc.length());
-
+                const std::string escaped_identifier = BLI_str_escape(identifier.c_str());
                 return fmt::format("nodes[\"{}\"].file_output_items[\"{}\"].format",
                                    node_name_esc,
-                                   identifier.c_str());
+                                   escaped_identifier.c_str());
               }
             }
           }
