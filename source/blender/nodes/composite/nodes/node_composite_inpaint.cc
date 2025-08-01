@@ -179,7 +179,8 @@ class InpaintOperation : public NodeOperation {
                                   Result &distance_to_boundary,
                                   Result &smoothing_radius)
   {
-    GPUShader *shader = context().get_shader("compositor_inpaint_fill_region");
+    GPUShader *shader = context().get_shader("compositor_inpaint_fill_region",
+                                             ResultPrecision::Half);
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "max_distance", get_max_distance());
