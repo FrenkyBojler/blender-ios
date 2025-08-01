@@ -258,7 +258,7 @@ class CornerPinOperation : public NodeOperation {
   Result compute_plane_mask_cpu(const float3x3 &homography_matrix)
   {
     const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
-    const bool is_y_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
+    const bool is_y_clipped = this->get_extension_mode_y() == ExtensionMode::Clip;
     const Domain domain = compute_domain();
     Result plane_mask = context().create_result(ResultType::Float);
     plane_mask.allocate_texture(domain);
