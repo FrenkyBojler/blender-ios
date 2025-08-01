@@ -229,7 +229,7 @@ blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region,
   return nullptr;
 }
 
-void UI_region_view_scroll_at_borders(const ARegion *region, const int xy[2], const int pad)
+void UI_region_view_scroll_at_borders(const ARegion *region, const int xy[2])
 {
   float mx, my;
   /* NOTE: Same as #UI_region_view_find_at but we want mouse coordinates in block space. */
@@ -249,9 +249,7 @@ void UI_region_view_scroll_at_borders(const ARegion *region, const int xy[2], co
         }
 
         rcti padded_bounds = *bounds;
-        if (pad) {
-          BLI_rcti_pad(&padded_bounds, pad, pad);
-        }
+        BLI_rcti_pad(&padded_bounds, 0, UI_UNIT_Y);
         if (BLI_rcti_isect_pt(&padded_bounds, mx, my)) {
           return view_link->view.get();
         }

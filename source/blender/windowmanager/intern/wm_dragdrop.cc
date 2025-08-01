@@ -1276,6 +1276,10 @@ void wm_drags_draw(bContext *C, wmWindow *win)
         wmWindowViewport(win);
       }
 
+      if (region && drag->drop_state.active_dropbox->scroll_view) {
+        drag->drop_state.active_dropbox->scroll_view(region, xy);
+      }
+
       /* Drawing should be allowed to assume the context from handling and polling (that's why we
        * restore it above). */
       if (drag->drop_state.active_dropbox->draw_droptip) {
