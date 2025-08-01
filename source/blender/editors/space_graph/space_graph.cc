@@ -751,10 +751,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
             break;
 
           case 0: {
-            /* Special Case: "W" channel should be yellow in accordance with the tooltip. */
-            col[0] = 1.0f;
-            col[1] = 1.0f;
-            col[2] = 0.0f;
+            UI_GetThemeColor3fv(TH_AXIS_W, col);
             break;
           }
 
