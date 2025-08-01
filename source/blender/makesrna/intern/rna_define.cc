@@ -3676,7 +3676,9 @@ void RNA_def_property_string_filepath_filter_func(PropertyRNA *prop, const char 
 void RNA_def_property_string_funcs_runtime(PropertyRNA *prop,
                                            StringPropertyGetFunc getfunc,
                                            StringPropertyLengthFunc lengthfunc,
-                                           StringPropertySetFunc setfunc)
+                                           StringPropertySetFunc setfunc,
+                                           StringPropertyGetTransformFunc get_transform_fn,
+                                           StringPropertySetTransformFunc set_transform_fn)
 {
   StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 
@@ -3697,6 +3699,13 @@ void RNA_def_property_string_funcs_runtime(PropertyRNA *prop,
     if (!setfunc) {
       RNA_def_property_clear_flag(prop, PROP_EDITABLE);
     }
+  }
+
+  if (get_transform_fn) {
+    sprop->get_transform = get_transform_fn;
+  }
+  if (set_transform_fn) {
+    sprop->set_transform = set_transform_fn;
   }
 }
 

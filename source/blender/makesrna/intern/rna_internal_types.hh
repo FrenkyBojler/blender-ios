@@ -137,6 +137,8 @@ using PropEnumSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value
 
 using PropBooleanGetTransformFunc = BooleanPropertyGetTransformFunc;
 using PropBooleanSetTransformFunc = BooleanPropertySetTransformFunc;
+using PropStringGetTransformFunc = StringPropertyGetTransformFunc;
+using PropStringSetTransformFunc = StringPropertySetTransformFunc;
 
 /* Handling override operations, and also comparison. */
 
@@ -475,13 +477,13 @@ struct BoolPropertyRNA {
   PropBooleanArrayGetFuncEx getarray_ex;
   PropBooleanArraySetFuncEx setarray_ex;
 
+  PropBooleanGetTransformFunc get_transform;
+  PropBooleanSetTransformFunc set_transform;
+
   PropBooleanGetFuncEx get_default;
   PropBooleanArrayGetFuncEx get_default_array;
   bool defaultvalue;
   const bool *defaultarray;
-
-  PropBooleanGetTransformFunc get_transform;
-  PropBooleanSetTransformFunc set_transform;
 };
 
 struct IntPropertyRNA {
@@ -548,6 +550,9 @@ struct StringPropertyRNA {
   PropStringGetFuncEx get_ex;
   PropStringLengthFuncEx length_ex;
   PropStringSetFuncEx set_ex;
+
+  PropStringGetTransformFunc get_transform;
+  PropStringSetTransformFunc set_transform;
 
   /**
    * Optional callback to list candidates for a string.

@@ -14,6 +14,7 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <algorithm>
+#include <string>
 
 #include <Python.h>
 
@@ -1357,10 +1358,44 @@ static void bpy_prop_float_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, cons
 /** \name String Property Callbacks
  * \{ */
 
-static std::string bpy_prop_string_get_fn(PointerRNA *ptr, PropertyRNA *prop)
+static std::string bpy_stdstring_from_py_object(PyObject *str_obj,
+                                                const std::string &default_value,
+                                                const size_t max_length,
+                                                PyObject *py_func)
 {
-  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+  std::string ret_value = default_value;
 
+  /* TODO: handle bytes strings. */
+  if (str_obj == nullptr) {
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  else if (!PyUnicode_Check(str_obj)) {
+    PyErr_Format(
+        PyExc_TypeError, "return value must be a string, not %.200s", Py_TYPE(str_obj)->tp_name);
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  else {
+    /* NOTE: Python returns the length _without_ the `\0` terminator. */
+    Py_ssize_t length;
+    const char *ret_cstr = PyUnicode_AsUTF8AndSize(str_obj, &length);
+    if (max_length && size_t(length) + 1 > max_length) {
+      PyErr_Format(PyExc_ValueError,
+                   "return string must be of max length %zu, not %d",
+                   max_length - 1,
+                   length);
+      PyC_Err_PrintWithFunc(py_func);
+    }
+    else {
+      ret_value = {ret_cstr, size_t(length)};
+    }
+  }
+
+  Py_XDECREF(str_obj);
+  return ret_value;
+}
+
+static std::string bpy_prop_string_get_locked_fn(PointerRNA *ptr, PropertyRNA *prop)
+{
   BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
   PyObject *py_func;
   PyObject *args;
@@ -1379,23 +1414,59 @@ static std::string bpy_prop_string_get_fn(PointerRNA *ptr, PropertyRNA *prop)
 
   Py_DECREF(args);
 
-  std::string ret_value = "";
+  return bpy_stdstring_from_py_object(ret, "", RNA_property_string_maxlength(prop), py_func);
+}
 
-  if (ret == nullptr) {
-    PyC_Err_PrintWithFunc(py_func);
-  }
-  else if (!PyUnicode_Check(ret)) {
-    PyErr_Format(
-        PyExc_TypeError, "return value must be a string, not %.200s", Py_TYPE(ret)->tp_name);
-    PyC_Err_PrintWithFunc(py_func);
-    Py_DECREF(ret);
-  }
-  else {
-    Py_ssize_t length;
-    ret_value = PyUnicode_AsUTF8AndSize(ret, &length);
-    BLI_assert(length == ret_value.length());
-    Py_DECREF(ret);
-  }
+static std::string bpy_prop_string_get_fn(PointerRNA *ptr, PropertyRNA *prop)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  std::string ret_value = bpy_prop_string_get_locked_fn(ptr, prop);
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
+}
+
+static std::string bpy_prop_string_get_transform_locked_fn(PointerRNA *ptr,
+                                                           PropertyRNA *prop,
+                                                           const std::string &curr_value,
+                                                           bool is_set)
+{
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *args;
+  PyObject *self;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  /* TODO: handle bytes strings. */
+  py_func = prop_store->py_data.get_transform_fn;
+
+  args = PyTuple_New(3);
+  self = pyrna_struct_as_instance(ptr);
+  PyTuple_SET_ITEM(args, 0, self);
+  PyTuple_SET_ITEM(
+      args, 1, PyUnicode_FromStringAndSize(curr_value.c_str(), Py_ssize_t(curr_value.size())));
+  PyTuple_SET_ITEM(args, 2, PyBool_FromLong(is_set));
+
+  ret = PyObject_CallObject(py_func, args);
+
+  Py_DECREF(args);
+
+  return bpy_stdstring_from_py_object(
+      ret, curr_value, RNA_property_string_maxlength(prop), py_func);
+}
+
+static std::string bpy_prop_string_get_transform_fn(PointerRNA *ptr,
+                                                    PropertyRNA *prop,
+                                                    std::string curr_value,
+                                                    bool is_set)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  std::string ret_value = bpy_prop_string_get_transform_locked_fn(ptr, prop, curr_value, is_set);
 
   bpy_prop_gil_rna_writable_end(bpy_state);
 
@@ -1404,49 +1475,9 @@ static std::string bpy_prop_string_get_fn(PointerRNA *ptr, PropertyRNA *prop)
 
 static int bpy_prop_string_length_fn(PointerRNA *ptr, PropertyRNA *prop)
 {
-  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+  std::string value = RNA_property_string_get(ptr, prop);
 
-  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
-  PyObject *py_func;
-  PyObject *args;
-  PyObject *self;
-  PyObject *ret;
-
-  int length;
-
-  BLI_assert(prop_store != nullptr);
-
-  py_func = prop_store->py_data.get_fn;
-
-  args = PyTuple_New(1);
-  self = pyrna_struct_as_instance(ptr);
-  PyTuple_SET_ITEM(args, 0, self);
-
-  ret = PyObject_CallObject(py_func, args);
-
-  Py_DECREF(args);
-
-  if (ret == nullptr) {
-    PyC_Err_PrintWithFunc(py_func);
-    length = 0;
-  }
-  else if (!PyUnicode_Check(ret)) {
-    PyErr_Format(
-        PyExc_TypeError, "return value must be a string, not %.200s", Py_TYPE(ret)->tp_name);
-    PyC_Err_PrintWithFunc(py_func);
-    length = 0;
-    Py_DECREF(ret);
-  }
-  else {
-    Py_ssize_t length_ssize = 0;
-    PyUnicode_AsUTF8AndSize(ret, &length_ssize);
-    length = length_ssize;
-    Py_DECREF(ret);
-  }
-
-  bpy_prop_gil_rna_writable_end(bpy_state);
-
-  return length;
+  return int(value.size());
 }
 
 static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, std::string value)
@@ -1469,7 +1500,16 @@ static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, std::stri
   self = pyrna_struct_as_instance(ptr);
   PyTuple_SET_ITEM(args, 0, self);
 
-  py_value = PyUnicode_FromString(value.c_str());
+  /* TODO: handle bytes strings. */
+  const size_t max_length = RNA_property_string_maxlength(prop);
+  if (max_length && value.size() >= max_length) {
+    PyErr_Format(PyExc_ValueError,
+                 "the given string must be of max length %zu, not %zu",
+                 max_length - 1,
+                 value.size());
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  py_value = PyUnicode_FromStringAndSize(value.c_str(), value.size());
   if (!py_value) {
     PyErr_SetString(PyExc_ValueError,
                     "the given string value cannot be converted into a python string");
@@ -1496,6 +1536,40 @@ static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, std::stri
   }
 
   bpy_prop_gil_rna_writable_end(bpy_state);
+}
+
+static std::string bpy_prop_string_set_transform_fn(
+    PointerRNA *ptr, PropertyRNA *prop, std::string new_value, std::string curr_value, bool is_set)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *args;
+  PyObject *self;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.set_transform_fn;
+
+  args = PyTuple_New(4);
+  self = pyrna_struct_as_instance(ptr);
+  PyTuple_SET_ITEM(args, 0, self);
+  PyTuple_SET_ITEM(args, 1, PyUnicode_FromStringAndSize(new_value.c_str(), new_value.size()));
+  PyTuple_SET_ITEM(args, 2, PyUnicode_FromStringAndSize(curr_value.c_str(), curr_value.size()));
+  PyTuple_SET_ITEM(args, 3, PyBool_FromLong(is_set));
+
+  ret = PyObject_CallObject(py_func, args);
+
+  Py_DECREF(args);
+
+  std::string ret_value = bpy_stdstring_from_py_object(
+      ret, curr_value, RNA_property_string_maxlength(prop), py_func);
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
 }
 
 static bool bpy_prop_string_visit_fn_call(
@@ -2317,15 +2391,19 @@ static void bpy_prop_callback_assign_float_array(PropertyRNA *prop,
   RNA_def_property_float_array_funcs_runtime(prop, rna_get_fn, rna_set_fn, nullptr);
 }
 
-static void bpy_prop_callback_assign_string(PropertyRNA *prop,
+static bool bpy_prop_callback_assign_string(PropertyRNA *prop,
                                             PyObject *get_fn,
                                             PyObject *set_fn,
+                                            PyObject *get_transform_fn,
+                                            PyObject *set_transform_fn,
                                             PyObject *search_fn,
                                             const eStringPropertySearchFlag search_flag)
 {
   StringPropertyGetFunc rna_get_fn = nullptr;
+  StringPropertyGetTransformFunc rna_get_transform_fn = nullptr;
   StringPropertyLengthFunc rna_length_fn = nullptr;
   StringPropertySetFunc rna_set_fn = nullptr;
+  StringPropertySetTransformFunc rna_set_transform_fn = nullptr;
   StringPropertySearchFunc rna_search_fn = nullptr;
 
   if (get_fn && get_fn != Py_None) {
@@ -2337,11 +2415,33 @@ static void bpy_prop_callback_assign_string(PropertyRNA *prop,
   }
 
   if (set_fn && set_fn != Py_None) {
+    if (!rna_get_fn) {
+      PyErr_Format(PyExc_ValueError,
+                   "The `set` callback is defined without a matching `get` function, this is not "
+                   "supported. `set_transform` should probably be used instead?");
+      return false;
+    }
+
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
 
     rna_set_fn = bpy_prop_string_set_fn;
     ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_fn, set_fn);
   }
+
+  if (get_transform_fn && get_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_get_transform_fn = bpy_prop_string_get_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.get_transform_fn, get_transform_fn);
+  }
+
+  if (set_transform_fn && set_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_set_transform_fn = bpy_prop_string_set_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_transform_fn, set_transform_fn);
+  }
+
   if (search_fn) {
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
 
@@ -2349,10 +2449,13 @@ static void bpy_prop_callback_assign_string(PropertyRNA *prop,
     ASSIGN_PYOBJECT_INCREF(prop_store->py_data.string_data.search_fn, search_fn);
   }
 
-  RNA_def_property_string_funcs_runtime(prop, rna_get_fn, rna_length_fn, rna_set_fn);
+  RNA_def_property_string_funcs_runtime(
+      prop, rna_get_fn, rna_length_fn, rna_set_fn, rna_get_transform_fn, rna_set_transform_fn);
   if (rna_search_fn) {
     RNA_def_property_string_search_func_runtime(prop, rna_search_fn, search_flag);
   }
+
+  return true;
 }
 
 static void bpy_prop_callback_assign_enum(PropertyRNA *prop,
@@ -2645,7 +2748,12 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      This function must take three arguments (self, the stored value,\n" \
   "      and a boolean indicating if the property is currently set),\n" \
   "      and return the final, transformed value of the property.\n" \
-  "   :type get: Callable[[:class:`bpy.types.bpy_struct`, " ty ", bool], " ty "]\n"
+  "\n" \
+  "      .. note:: The callback is responsible to ensure that value limits of the property\n" \
+  "      (min/max, length...) are respected.\n" \
+  "      Failing to do so will trigger ValueError exceptions.\n" \
+  "\n" \
+  "   :type get_transform: Callable[[:class:`bpy.types.bpy_struct`, " ty ", bool], " ty "]\n"
 
 #define BPY_PROPDEF_SET_TRANSFORM_DOC(ty) \
   "   :arg set_transform: Function to be called when this value is 'written',\n" \
@@ -2654,7 +2762,13 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      the currently stored value ('raw' value, without any `get_transform` applied to it),\n" \
   "      and a boolean indicating if the property is currently set),\n" \
   "      and return the final, transformed value of the property.\n" \
-  "   :type get: Callable[[:class:`bpy.types.bpy_struct`, " ty ", " ty ", bool], " ty "]\n"
+  "\n" \
+  "      .. note:: The callback is responsible to ensure that value limits (min/max, " \
+  "length...)\n" \
+  "      are respected. Failing to do so will trigger ValueError exceptions.\n" \
+  "\n" \
+  "   :type set_transform: " \
+  "Callable[[:class:`bpy.types.bpy_struct`, " ty ", " ty ", bool], " ty "]\n"
 
 #define BPY_PROPDEF_SEARCH_DOC \
   "   :arg search: Function to be called to show candidates for this string (shown in the UI).\n" \
@@ -3879,6 +3993,8 @@ PyDoc_STRVAR(
     "update=None, "
     "get=None, "
     "set=None, "
+    "get_transform=None, "
+    "set_transform=None, "
     "search=None, "
     "search_options={'SUGGESTION'})\n"
     "\n"
@@ -3889,7 +4005,9 @@ PyDoc_STRVAR(
     "   :arg maxlen: maximum length of the string.\n"
     "   :type maxlen: int\n" BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC
         BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_SUBTYPE_STRING_DOC BPY_PROPDEF_UPDATE_DOC
-            BPY_PROPDEF_GET_DOC("str") BPY_PROPDEF_SET_DOC("str") BPY_PROPDEF_SEARCH_DOC);
+            BPY_PROPDEF_GET_DOC("str") BPY_PROPDEF_SET_DOC("str")
+                BPY_PROPDEF_GET_TRANSFORM_DOC("str") BPY_PROPDEF_SET_TRANSFORM_DOC("str")
+                    BPY_PROPDEF_SEARCH_DOC);
 static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
@@ -3927,6 +4045,8 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
   PyObject *update_fn = nullptr;
   PyObject *get_fn = nullptr;
   PyObject *set_fn = nullptr;
+  PyObject *get_transform_fn = nullptr;
+  PyObject *set_transform_fn = nullptr;
   PyObject *search_fn = nullptr;
   BPy_EnumProperty_Parse search_options_enum{};
   search_options_enum.items = rna_enum_property_string_search_flag_items;
@@ -3946,6 +4066,8 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
       "update",
       "get",
       "set",
+      "get_transform",
+      "set_transform",
       "search",
       "search_options",
       nullptr,
@@ -3966,6 +4088,8 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
       "O"  /* `update` */
       "O"  /* `get` */
       "O"  /* `set` */
+      "O"  /* `get_transform` */
+      "O"  /* `set_transform` */
       "O"  /* `search` */
       "O&" /* `search_options` */
       ":StringProperty",
@@ -3993,6 +4117,8 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
                                         &update_fn,
                                         &get_fn,
                                         &set_fn,
+                                        &get_transform_fn,
+                                        &set_transform_fn,
                                         &search_fn,
                                         pyrna_enum_bitfield_parse_set,
                                         &search_options_enum))
@@ -4007,6 +4133,12 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
     return nullptr;
   }
   if (bpy_prop_callback_check(set_fn, "set", 2) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(get_transform_fn, "get_transform", 3) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(set_transform_fn, "set_transform", 4) == -1) {
     return nullptr;
   }
   if (bpy_prop_callback_check(search_fn, "search", 3) == -1) {
@@ -4040,8 +4172,13 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
     bpy_prop_assign_flag_override(prop, override_enum.value);
   }
   bpy_prop_callback_assign_update(prop, update_fn);
-  bpy_prop_callback_assign_string(
-      prop, get_fn, set_fn, search_fn, eStringPropertySearchFlag(search_options_enum.value));
+  bpy_prop_callback_assign_string(prop,
+                                  get_fn,
+                                  set_fn,
+                                  get_transform_fn,
+                                  set_transform_fn,
+                                  search_fn,
+                                  eStringPropertySearchFlag(search_options_enum.value));
   RNA_def_property_duplicate_pointers(srna, prop);
 
   Py_RETURN_NONE;

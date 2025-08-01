@@ -2571,8 +2571,6 @@ bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
     value = bprop->get_transform(ptr, &bprop->property, value, prop_rna_or_id.is_set);
   }
 
-  BLI_assert(ELEM(value, false, true));
-
   return value;
 }
 
@@ -2587,10 +2585,6 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
 {
   BLI_assert(RNA_property_type(prop) == PROP_BOOLEAN);
   BLI_assert(RNA_property_array_check(prop) == false);
-  BLI_assert(ELEM(value, false, true));
-
-  /* just in case other values are passed */
-  BLI_assert(ELEM(value, true, false));
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
@@ -3767,68 +3761,67 @@ float RNA_property_float_get_default_index(PointerRNA *ptr, PropertyRNA *prop, i
   return value;
 }
 
-std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
+static std::string property_string_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)
 {
-  StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop);
-  IDProperty *idprop;
-
-  BLI_assert(RNA_property_type(prop) == PROP_STRING);
-  const size_t length = size_t(RNA_property_string_length(ptr, prop));
-
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
+  if (prop_rna_or_id.idprop) {
     /* For normal strings, the length does not contain the null terminator. But for
      * #IDP_STRING_SUB_BYTE, it contains the full string including any terminating null. */
-    return std::string{IDP_String(idprop), length};
+    const size_t len = size_t(prop_rna_or_id.idprop->len -
+                              ((prop_rna_or_id.idprop->subtype == IDP_STRING_SUB_BYTE) ? 0 : 1));
+    return std::string{IDP_String(prop_rna_or_id.idprop), len};
   }
-
-  if (!sprop->get && !sprop->get_ex) {
-    return std::string{sprop->defaultvalue};
-  }
-
-  std::string string_ret{};
-  /* Note: after `resize()` the underlying buffer is actually at least
-   * `length + 1` bytes long, because (since C++11) `std::string` guarantees
-   * a terminating null byte, but that is not considered part of the length. */
-  string_ret.resize(length);
-
+  StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop_rna_or_id.rnaprop);
   if (sprop->get) {
+    /* FIXME This works because with get, it's never a bpy-defined property, so there won't be
+     * calling loops.
+     *
+     * Fixing likely requires two different 'get_length' paths, one internal for
+     * stored data length, the other public for final, transformed string.
+     */
+    const size_t length = size_t(RNA_property_string_length(ptr, &sprop->property));
+
+    /* Note: after `resize()` the underlying buffer is actually at least
+     * `length + 1` bytes long, because (since C++11) `std::string` guarantees
+     * a terminating null byte, but that is not considered part of the length. */
+    std::string string_ret;
+    string_ret.resize(length);
+
     sprop->get(ptr, string_ret.data());
+    return string_ret;
   }
-  else { /* if (sprop->get_ex) */
-    string_ret = sprop->get_ex(ptr, prop);
+  if (sprop->get_ex) {
+    return sprop->get_ex(ptr, &sprop->property);
   }
+  return sprop->defaultvalue;
+}
+
+std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
+{
+  BLI_assert(RNA_property_type(prop) == PROP_STRING);
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_string_get` without
+   * further complications.
+   * `sprop->property` should be used when access to an actual RNA property is required.
+   */
+  StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  std::string string_ret = property_string_get(ptr, prop_rna_or_id);
+  if (sprop->get_transform) {
+    string_ret = sprop->get_transform(ptr, &sprop->property, string_ret, prop_rna_or_id.is_set);
+  }
+
+  BLI_assert_msg(!sprop->maxlength || string_ret.size() < sprop->maxlength,
+                 "Returned string exceeds the property's max length");
 
   return string_ret;
 }
 
 void RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop, char *value)
 {
-  StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
-  IDProperty *idprop;
+  std::string string_ret = RNA_property_string_get(ptr, prop);
 
-  BLI_assert(RNA_property_type(prop) == PROP_STRING);
-
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    /* editing bytes is not 100% supported
-     * since they can contain NIL chars */
-    if (idprop->subtype == IDP_STRING_SUB_BYTE) {
-      memcpy(value, IDP_String(idprop), idprop->len);
-      value[idprop->len] = '\0';
-    }
-    else {
-      memcpy(value, IDP_String(idprop), idprop->len);
-    }
-  }
-  else if (sprop->get) {
-    sprop->get(ptr, value);
-  }
-  else if (sprop->get_ex) {
-    std::string string_ret = sprop->get_ex(ptr, prop);
-    strcpy(value, string_ret.c_str());
-  }
-  else {
-    strcpy(value, sprop->defaultvalue);
-  }
+  memcpy(value, string_ret.c_str(), string_ret.size() + 1);
 }
 
 char *RNA_property_string_get_alloc(
@@ -3838,33 +3831,19 @@ char *RNA_property_string_get_alloc(
     BLI_string_debug_size(fixedbuf, fixedlen);
   }
 
+  std::string string_ret = RNA_property_string_get(ptr, prop);
+
   char *buf;
-  int length;
-
-  BLI_assert(RNA_property_type(prop) == PROP_STRING);
-
-  length = RNA_property_string_length(ptr, prop);
-
-  if (length + 1 < fixedlen) {
+  if (string_ret.size() < fixedlen) {
     buf = fixedbuf;
   }
   else {
-    buf = MEM_malloc_arrayN<char>(size_t(length) + 1, __func__);
+    buf = MEM_malloc_arrayN<char>(string_ret.size() + 1, __func__);
   }
 
-#ifndef NDEBUG
-  /* safety check to ensure the string is actually set */
-  buf[length] = 255;
-#endif
-
-  RNA_property_string_get(ptr, prop, buf);
-
-#ifndef NDEBUG
-  BLI_assert(buf[length] == '\0');
-#endif
-
+  memcpy(buf, string_ret.c_str(), string_ret.size() + 1);
   if (r_len) {
-    *r_len = length;
+    *r_len = int(string_ret.size());
   }
 
   return buf;
@@ -3898,65 +3877,85 @@ int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop)
 
 void RNA_property_string_set(PointerRNA *ptr, PropertyRNA *prop, const char *value)
 {
-  StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
-  IDProperty *idprop;
-
   BLI_assert(RNA_property_type(prop) == PROP_STRING);
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_string_get` without
+   * further complications.
+   * `sprop->property` should be used when access to an actual RNA property is required.
+   */
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop_rna_or_id.rnaprop);
+
+  std::string value_set = value;
+  if (sprop->set_transform) {
+    /* Get raw, untransformed (aka 'storage') value. */
+    const std::string curr_value = property_string_get(ptr, prop_rna_or_id);
+    value_set = sprop->set_transform(
+        ptr, &sprop->property, value_set, curr_value, prop_rna_or_id.is_set);
+  }
+
+  if (idprop) {
     /* both IDP_STRING_SUB_BYTE / IDP_STRING_SUB_UTF8 */
-    IDP_AssignStringMaxSize(idprop, value, RNA_property_string_maxlength(prop));
+    IDP_AssignStringMaxSize(idprop, value_set.c_str(), RNA_property_string_maxlength(prop));
     rna_idproperty_touch(idprop);
   }
   else if (sprop->set) {
-    sprop->set(ptr, value); /* set function needs to clamp itself */
+    sprop->set(ptr, value_set.c_str()); /* set function needs to clamp itself */
   }
   else if (sprop->set_ex) {
-    sprop->set_ex(ptr, prop, value); /* set function needs to clamp itself */
+    sprop->set_ex(ptr, &sprop->property, value_set); /* set function needs to clamp itself */
   }
-  else if (prop->flag & PROP_EDITABLE) {
-    IDProperty *group;
-
-    group = RNA_struct_system_idprops(ptr, true);
-    if (group) {
-      IDP_AddToGroup(
-          group,
-          IDP_NewStringMaxSize(
-              value, RNA_property_string_maxlength(prop), prop->identifier, IDP_FLAG_STATIC_TYPE));
+  else if (sprop->property.flag & PROP_EDITABLE) {
+    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+      IDP_AddToGroup(group,
+                     IDP_NewStringMaxSize(value_set.c_str(),
+                                          RNA_property_string_maxlength(prop),
+                                          sprop->property.identifier,
+                                          IDP_FLAG_STATIC_TYPE));
     }
   }
 }
 
 void RNA_property_string_set_bytes(PointerRNA *ptr, PropertyRNA *prop, const char *value, int len)
 {
-  StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
-  IDProperty *idprop;
-
   BLI_assert(RNA_property_type(prop) == PROP_STRING);
   BLI_assert(RNA_property_subtype(prop) == PROP_BYTESTRING);
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    IDP_ResizeArray(idprop, len);
-    memcpy(idprop->data.pointer, value, size_t(len));
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_string_get` without
+   * further complications.
+   * `sprop->property` should be used when access to an actual RNA property is required.
+   */
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop_rna_or_id.rnaprop);
 
+  std::string value_set = {value, size_t(len)};
+  if (sprop->set_transform) {
+    /* Get raw, untransformed (aka 'storage') value. */
+    const std::string curr_value = property_string_get(ptr, prop_rna_or_id);
+    value_set = sprop->set_transform(
+        ptr, &sprop->property, value_set, curr_value, prop_rna_or_id.is_set);
+  }
+
+  if (idprop) {
+    IDP_ResizeArray(idprop, value_set.size() + 1);
+    memcpy(idprop->data.pointer, value, value_set.size() + 1);
     rna_idproperty_touch(idprop);
   }
   else if (sprop->set) {
-    /* XXX, should take length argument (currently not used). */
-    sprop->set(ptr, value); /* set function needs to clamp itself */
+    sprop->set(ptr, value_set.c_str()); /* set function needs to clamp itself */
   }
   else if (sprop->set_ex) {
-    /* XXX, should take length argument (currently not used). */
-    sprop->set_ex(ptr, prop, value); /* set function needs to clamp itself */
+    sprop->set_ex(ptr, &sprop->property, value_set); /* set function needs to clamp itself */
   }
-  else if (prop->flag & PROP_EDITABLE) {
-    IDProperty *group;
-
-    group = RNA_struct_system_idprops(ptr, true);
-    if (group) {
+  else if (sprop->property.flag & PROP_EDITABLE) {
+    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
       IDPropertyTemplate val = {0};
-      val.string.str = value;
-      val.string.len = len;
+      val.string.str = value_set.c_str();
+      val.string.len = value_set.size() + 1;
       val.string.subtype = IDP_STRING_SUB_BYTE;
       IDP_AddToGroup(group, IDP_New(IDP_STRING, &val, prop->identifier, IDP_FLAG_STATIC_TYPE));
     }

@@ -604,7 +604,9 @@ void RNA_def_property_enum_funcs_runtime(PropertyRNA *prop,
 void RNA_def_property_string_funcs_runtime(PropertyRNA *prop,
                                            StringPropertyGetFunc getfunc,
                                            StringPropertyLengthFunc lengthfunc,
-                                           StringPropertySetFunc setfunc);
+                                           StringPropertySetFunc setfunc,
+                                           StringPropertyGetTransformFunc get_transform_fn,
+                                           StringPropertySetTransformFunc set_transform_fn);
 void RNA_def_property_string_search_func_runtime(PropertyRNA *prop,
                                                  StringPropertySearchFunc search_fn,
                                                  eStringPropertySearchFlag search_flag);
