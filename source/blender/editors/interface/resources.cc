@@ -420,9 +420,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_EDITMESH_ACTIVE:
           cp = ts->editmesh_active;
           break;
-        case TH_EDGE_FACESEL:
-          cp = ts->edge_facesel;
-          break;
         case TH_FACE:
           cp = ts->face;
           break;
