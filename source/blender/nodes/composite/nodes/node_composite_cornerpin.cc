@@ -121,8 +121,7 @@ class CornerPinOperation : public NodeOperation {
     plane_mask.release();
 
     if (output_image.should_compute()) {
-      /* Only use the mask if we have a zero extension mode on either x- or y-axis. */
-      compute_plane(homography_matrix, &anti_aliased_plane_mask);
+      compute_plane(homography_matrix, anti_aliased_plane_mask);
     }
 
     if (output_mask.should_compute()) {
@@ -133,7 +132,7 @@ class CornerPinOperation : public NodeOperation {
     }
   }
 
-  void compute_plane(const float3x3 &homography_matrix, Result *plane_mask)
+  void compute_plane(const float3x3 &homography_matrix, Result &plane_mask)
   {
     if (this->context().use_gpu()) {
       this->compute_plane_gpu(homography_matrix, plane_mask);
@@ -143,9 +142,9 @@ class CornerPinOperation : public NodeOperation {
     }
   }
 
-  void compute_plane_gpu(const float3x3 &homography_matrix, Result *plane_mask)
+  void compute_plane_gpu(const float3x3 &homography_matrix, Result &plane_mask)
   {
-    GPUShader *shader = this->context().get_shader(this->get_shader_name().c_str());
+    GPUShader *shader = this->context().get_shader(this->get_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
@@ -166,9 +165,7 @@ class CornerPinOperation : public NodeOperation {
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
-    if (plane_mask) {
-      plane_mask->bind_as_texture(shader, "mask_tx");
-    }
+    plane_mask.bind_as_texture(shader, "mask_tx");
 
     const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
@@ -178,15 +175,13 @@ class CornerPinOperation : public NodeOperation {
     compute_dispatch_threads_at_least(shader, domain.size);
 
     input_image.unbind_as_texture();
-    if (plane_mask) {
-      plane_mask->unbind_as_texture();
-    }
+    plane_mask.unbind_as_texture();
 
     output_image.unbind_as_image();
     GPU_shader_unbind();
   }
 
-  void compute_plane_cpu(const float3x3 &homography_matrix, Result *plane_mask)
+  void compute_plane_cpu(const float3x3 &homography_matrix, Result &plane_mask)
   {
     Result &input = get_input("Image");
 
@@ -225,6 +220,7 @@ class CornerPinOperation : public NodeOperation {
         sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
       }
 
+      /* Turns false if there is any exception mode but Clip. */
       bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
       bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
 
@@ -232,7 +228,7 @@ class CornerPinOperation : public NodeOperation {
 
       /* Premultiply the mask value as an alpha. */
       float4 plane_color = plane_mask && is_inside_plane ?
-                               sampled_color * plane_mask->load_pixel<float>(texel) :
+                               sampled_color * plane_mask.load_pixel<float>(texel) :
                                sampled_color;
 
       output.store_pixel(texel, plane_color);
@@ -285,11 +281,8 @@ class CornerPinOperation : public NodeOperation {
         return;
       }
       float2 projected_coordinates = transformed_coordinates.xy() / transformed_coordinates.z;
-
-      bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
-      bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
-
-      bool is_inside_plane = is_inside_plane_x && is_inside_plane_y;
+      bool is_inside_plane = projected_coordinates.x >= 0.0f && projected_coordinates.y >= 0.0f &&
+                             projected_coordinates.x <= 1.0f && projected_coordinates.y <= 1.0f;
       float mask_value = is_inside_plane ? 1.0f : 0.0f;
 
       plane_mask.store_pixel(texel, mask_value);
@@ -370,31 +363,20 @@ class CornerPinOperation : public NodeOperation {
     return ExtensionMode::Zero;
   }
 
-  bool is_extension_mode_zero() const
+  const char *get_shader_name() const
   {
-    return this->get_extension_mode_x() == ExtensionMode::Zero ||
-           this->get_extension_mode_y() == ExtensionMode::Zero;
-  }
-
-  std::string get_shader_name() const
-  {
-    std::string shader_name{};
     switch (this->get_interpolation()) {
       case Interpolation::Nearest:
       case Interpolation::Bilinear:
-        shader_name = "compositor_plane_deform";
+        return "compositor_plane_deform";
       case Interpolation::Bicubic:
-        shader_name = "compositor_plane_deform_bicubic";
+        return "compositor_plane_deform_bicubic";
       case Interpolation::Anisotropic:
-        shader_name = "compositor_plane_deform_anisotropic";
+        return "compositor_plane_deform_anisotropic";
     }
 
-    /* Return the masked shader if any of x- or y-axis is a zero extension mode. */
-    if (this->is_extension_mode_zero()) {
-      shader_name.append("_masked");
-    }
-
-    return shader_name;
+    BLI_assert_unreachable();
+    return "compositor_plane_deform";
   }
 };
 

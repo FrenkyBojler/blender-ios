@@ -16,8 +16,10 @@ void main()
   }
   float2 projected_coordinates = transformed_coordinates.xy / transformed_coordinates.z;
 
-  bool is_inside_plane = all(greaterThanEqual(projected_coordinates, float2(0.0f))) &&
-                         all(lessThanEqual(projected_coordinates, float2(1.0f)));
+  bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
+  bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
+  bool is_inside_plane = is_inside_plane_x && is_inside_plane_y;
+
   float mask_value = is_inside_plane ? 1.0f : 0.0f;
 
   imageStore(mask_img, texel, float4(mask_value));
