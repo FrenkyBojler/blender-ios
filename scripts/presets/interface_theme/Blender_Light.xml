@@ -496,7 +496,6 @@
         time_scrub_background="#808080e6"
         time_marker_line="#00000060"
         time_marker_line_selected="#ffffff60"
-        window_sliders="#969696"
         channels_region="#999999"
         dopesheet_channel="#2e6399"
         dopesheet_subchannel="#7aa4cc"
@@ -583,7 +582,6 @@
     <nla_editor>
       <ThemeNLAEditor
         grid="#5e5e5e"
-        view_sliders="#969696"
         dopesheet_channel="#5a85b2"
         dopesheet_subchannel="#7d98b3"
         nla_track="#424242"
@@ -644,8 +642,6 @@
         time_scrub_background="#808080e6"
         time_marker_line="#00000060"
         time_marker_line_selected="#ffffff60"
-        value_sliders="#000000"
-        view_sliders="#969696"
         dopesheet_channel="#2e639924"
         dopesheet_subchannel="#7aa4cc24"
         channels="#707070ff"
@@ -774,7 +770,6 @@
     <sequence_editor>
       <ThemeSequenceEditor
         grid="#404040"
-        window_sliders="#a0a0a0"
         movie_strip="#4d6890"
         movieclip_strip="#8f4c4c"
         image_strip="#8f744b"
