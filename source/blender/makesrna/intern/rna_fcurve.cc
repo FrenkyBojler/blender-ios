@@ -2563,7 +2563,7 @@ static void rna_def_fcurve(BlenderRNA *brna)
        "AUTO_YRGB",
        0,
        "Auto WXYZ to YRGB",
-       "Use axis colors for XYZ parts of transform, and yellow for the 'W' channel"},
+       "Use axis colors for XYZ parts of transform, and yellow (in default theme) for the 'W' channel"},
       {FCURVE_COLOR_CUSTOM,
        "CUSTOM",
        0,
