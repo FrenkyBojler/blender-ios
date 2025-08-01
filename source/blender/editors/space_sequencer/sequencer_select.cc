@@ -2339,10 +2339,40 @@ static bool do_lasso_select_strip_is_origin_inside(const ARegion *region,
   return false;
 }
 
+static bool do_lasso_select_timeline(bContext *C, const Span<int2> mcoords, ARegion *region)
+{
+  Scene *scene = CTX_data_scene(C);
+  Editing *ed = seq::editing_get(scene);
+  rcti rect;
+  BLI_lasso_boundbox(&rect, mcoords);
+
+  bool changed = false;
+
+  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+    rctf rq;
+    strip_rectf(scene, strip, &rq);
+    int v1[2], v2[2], v3[2], v4[2];
+    UI_view2d_view_to_region_clip(&region->v2d, rq.xmin, rq.ymin, &v1[0], &v1[1]);
+    UI_view2d_view_to_region_clip(&region->v2d, rq.xmax, rq.ymin, &v2[0], &v2[1]);
+    UI_view2d_view_to_region_clip(&region->v2d, rq.xmax, rq.ymax, &v3[0], &v3[1]);
+    UI_view2d_view_to_region_clip(&region->v2d, rq.xmin, rq.ymax, &v4[0], &v4[1]);
+
+    if (BLI_lasso_is_edge_inside(mcoords, v1[0], v1[1], v2[0], v2[1], V2D_IS_CLIPPED) ||
+        BLI_lasso_is_edge_inside(mcoords, v2[0], v2[1], v3[0], v3[1], V2D_IS_CLIPPED) ||
+        BLI_lasso_is_edge_inside(mcoords, v3[0], v3[1], v4[0], v4[1], V2D_IS_CLIPPED) ||
+        BLI_lasso_is_edge_inside(mcoords, v4[0], v4[1], v1[0], v1[1], V2D_IS_CLIPPED))
+    {
+      SET_FLAG_FROM_TEST(strip->flag, select, SELECT);
+      strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSelectOp sel_op)
 {
   Scene *scene = CTX_data_scene(C);
-  View2D *v2d = UI_view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
@@ -2355,15 +2385,10 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   const bool select = (sel_op != SEL_OP_SUB);
-  const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
 
   bool changed = false;
   rcti rect;
   BLI_lasso_boundbox(&rect, mcoords);
-
-  if (use_pre_deselect) {
-    changed |= deselect_all_strips(scene);
-  }
 
   ListBase *seqbase = seq::active_seqbase_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
@@ -2391,51 +2416,34 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
 static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  Editing *ed = seq::editing_get(scene);
   ARegion *region = CTX_wm_region(C);
   Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
+
+  bool changed = false;
+
   if (mcoords.is_empty()) {
     return OPERATOR_PASS_THROUGH;
   }
 
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
+
+  if (use_pre_deselect) {
+    changed |= deselect_all_strips(scene);
+  }
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
     if (!sequencer_view_preview_only_poll(C)) {
       return OPERATOR_CANCELLED;
     }
-    bool changed = do_lasso_select_vse(C, mcoords, sel_op);
-
-    if (changed) {
-      sequencer_select_do_updates(C, scene);
-      return OPERATOR_FINISHED;
-    }
+    changed = do_lasso_select_vse(C, mcoords, sel_op);
+  }
+  else {
+    changed = do_lasso_select_timeline(C, mcoords, region);
   }
 
   /* Timeline */
-  rcti rect;
-  BLI_lasso_boundbox(&rect, mcoords);
 
-  bool changed;
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
-    rctf rq;
-    strip_rectf(scene, strip, &rq);
-    int v1[2], v2[2], v3[2], v4[2];
-    UI_view2d_view_to_region_clip(&region->v2d, rq.xmin, rq.ymin, &v1[0], &v1[1]);
-    UI_view2d_view_to_region_clip(&region->v2d, rq.xmax, rq.ymin, &v2[0], &v2[1]);
-    UI_view2d_view_to_region_clip(&region->v2d, rq.xmax, rq.ymax, &v3[0], &v3[1]);
-    UI_view2d_view_to_region_clip(&region->v2d, rq.xmin, rq.ymax, &v4[0], &v4[1]);
-
-    if (BLI_lasso_is_edge_inside(mcoords, v1[0], v1[1], v2[0], v2[1], V2D_IS_CLIPPED) ||
-        BLI_lasso_is_edge_inside(mcoords, v2[0], v2[1], v3[0], v3[1], V2D_IS_CLIPPED) ||
-        BLI_lasso_is_edge_inside(mcoords, v3[0], v3[1], v4[0], v4[1], V2D_IS_CLIPPED) ||
-        BLI_lasso_is_edge_inside(mcoords, v4[0], v4[1], v1[0], v1[1], V2D_IS_CLIPPED))
-    {
-      SET_FLAG_FROM_TEST(strip->flag, select, SELECT);
-      strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
-      changed = true;
-    }
-  }
   if (changed) {
     sequencer_select_do_updates(C, scene);
     return OPERATOR_FINISHED;
