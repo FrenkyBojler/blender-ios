@@ -1064,8 +1064,8 @@ static bool gizmo_3d_calc_pos(const bContext *C,
           return true;
         }
         std::optional<float3> center_f3 = {};
-        std::optional<float4> rotation_f4 = {};
-        bool res = object::calc_active_transform(ob, false, center_f3, rotation_f4);
+        std::optional<float3x3> rot_f3x3 = {};
+        bool res = object::calc_active_transform(ob, false, center_f3, rot_f3x3);
         copy_v3_v3(r_pivot_pos, *center_f3);
         if (res) {
           return true;

@@ -8412,7 +8412,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
 
   float target[3];
   std::optional<blender::float3> target_f3 = {};
-  std::optional<blender::float4> target_rot_f4 = {};
+  std::optional<blender::float3x3> target_rot_f3x3 = {};
 
   wmOperatorStatus ret = OPERATOR_PASS_THROUGH;
   int mode = RNA_enum_get(op->ptr, "mode");
@@ -8494,7 +8494,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
         if (EDBM_select_pick(C, event->mval, params)) {
           /* Point to newly selected active. */
           blender::ed::object::calc_active_transform_for_editmode(
-              obedit, false, target_f3, target_rot_f4);
+              obedit, false, target_f3, target_rot_f3x3);
           copy_v3_v3(target, *target_f3);
           add_v3_v3(target, obedit->loc);
           ret = OPERATOR_RUNNING_MODAL;
@@ -8540,7 +8540,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
 
           case V3D_AROUND_ACTIVE:
             if (!blender::ed::object::calc_active_transform_for_editmode(
-                    obedit, false, target_f3, target_rot_f4))
+                    obedit, false, target_f3, target_rot_f3x3))
             {
               target_f3 = blender::float3{0.f, 0.f, 0.f};
             }

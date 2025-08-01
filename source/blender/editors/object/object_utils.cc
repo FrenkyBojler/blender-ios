@@ -63,7 +63,7 @@ bool material_active_index_set(Object *ob, const int index)
 bool calc_active_transform_for_editmode(Object *obedit,
                                         const bool select_only,
                                         std::optional<float3> &center,
-                                        std::optional<float4> &rotation)
+                                        std::optional<float3x3> &rotation)
 {
   switch (obedit->type) {
     case OB_MESH: {
@@ -72,6 +72,12 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (BM_select_history_active_get(em->bm, &ese)) {
         BM_editselection_center(&ese, *center);
+
+        std::optional<float3> _axis;
+        BM_editselection_normal(&ese, *_axis);
+        m3_from_single_axis(rotation->ptr(), *_axis, 2);
+        mul_m3_m4m3(rotation->ptr(), obedit->object_to_world().ptr(), rotation->ptr());
+        orthogonalize_m3_stable(rotation->ptr(), 0, true);
         return true;
       }
       break;
@@ -82,6 +88,10 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
         copy_v3_v3(*center, ebo->head);
+
+        copy_m3_m4(rotation->ptr(), ebo->disp_mat);
+        mul_m3_m4m3(rotation->ptr(), obedit->object_to_world().ptr(), rotation->ptr());
+        orthogonalize_m3_stable(rotation->ptr(), 1, true);
         return true;
       }
 
@@ -91,7 +101,9 @@ bool calc_active_transform_for_editmode(Object *obedit,
     case OB_SURF: {
       Curve *cu = static_cast<Curve *>(obedit->data);
 
-      if (ED_curve_active_center(cu, *center)) {
+      if (ED_curve_active_center(cu, *center) && ED_curve_active_rot(cu, rotation->ptr())) {
+        mul_m3_m4m3(rotation->ptr(), obedit->object_to_world().ptr(), rotation->ptr());
+        orthogonalize_m3_stable(rotation->ptr(), 1, true);
         return true;
       }
       break;
@@ -102,6 +114,9 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (ml_act && (!select_only || (ml_act->flag & SELECT))) {
         copy_v3_v3(*center, &ml_act->x);
+
+        copy_m3_m4(rotation->ptr(), obedit->object_to_world().ptr());
+        orthogonalize_m3_stable(rotation->ptr(), 2, true);
         return true;
       }
       break;
@@ -111,6 +126,9 @@ bool calc_active_transform_for_editmode(Object *obedit,
 
       if (actbp) {
         copy_v3_v3(*center, actbp->vec);
+
+        copy_m3_m4(rotation->ptr(), obedit->object_to_world().ptr());
+        orthogonalize_m3_stable(rotation->ptr(), 2, true);
         return true;
       }
       break;
@@ -118,6 +136,9 @@ bool calc_active_transform_for_editmode(Object *obedit,
     case OB_GREASE_PENCIL: {
       copy_v3_v3(*center, obedit->loc);
       mul_m4_v3(obedit->world_to_object().ptr(), *center);
+
+      copy_m3_m4(rotation->ptr(), obedit->object_to_world().ptr());
+      orthogonalize_m3_stable(rotation->ptr(), 2, true);
       return true;
     }
   }
@@ -128,11 +149,13 @@ bool calc_active_transform_for_editmode(Object *obedit,
 bool calc_active_transform_for_posemode(Object *ob,
                                         const bool select_only,
                                         std::optional<float3> &center,
-                                        std::optional<float4> &rotation)
+                                        std::optional<float3x3> &rotation)
 {
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
     copy_v3_v3(*center, pchan->pose_head);
+
+    copy_m3_m4(rotation->ptr(), pchan->pose_mat);
     return true;
   }
   return false;
@@ -141,11 +164,12 @@ bool calc_active_transform_for_posemode(Object *ob,
 bool calc_active_transform(Object *ob,
                            const bool select_only,
                            std::optional<float3> &center,
-                           std::optional<float4> &rotation)
+                           std::optional<float3x3> &rotation)
 {
   if (ob->mode & OB_MODE_EDIT) {
     if (calc_active_transform_for_editmode(ob, select_only, center, rotation)) {
       mul_m4_v3(ob->object_to_world().ptr(), *center);
+      // TODO
       return true;
     }
     return false;
@@ -153,116 +177,18 @@ bool calc_active_transform(Object *ob,
   if (ob->mode & OB_MODE_POSE) {
     if (calc_active_transform_for_posemode(ob, select_only, center, rotation)) {
       mul_m4_v3(ob->object_to_world().ptr(), *center);
+      // TODO
+      mul_m3_m4m3(rotation->ptr(), ob->object_to_world().ptr(), rotation->ptr());
+      orthogonalize_m3_stable(rotation->ptr(), 1, true);
       return true;
     }
     return false;
   }
   if (!select_only || (ob->base_flag & BASE_SELECTED)) {
     copy_v3_v3(*center, ob->object_to_world().location());
-    return true;
-  }
-  return false;
-}
 
-// Functions for getting the rotation of active element
-bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
-                                                  bool select_only,
-                                                  float r_rot[3][3])
-{
-  switch (obedit->type) {
-    case OB_MESH: {
-      BMEditMesh *em = BKE_editmesh_from_object(obedit);
-      BMEditSelection ese;
-
-      if (BM_select_history_active_get(em->bm, &ese)) {
-        float _axis[3];
-        BM_editselection_normal(&ese, _axis);
-        m3_from_single_axis(r_rot, _axis, 2);
-        mul_m3_m4m3(r_rot, obedit->object_to_world().ptr(), r_rot);
-        orthogonalize_m3_stable(r_rot, 0, true);
-        return true;
-      }
-      break;
-    }
-    case OB_ARMATURE: {
-      bArmature *arm = static_cast<bArmature *>(obedit->data);
-      EditBone *ebo = arm->act_edbone;
-
-      if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
-        copy_m3_m4(r_rot, ebo->disp_mat);
-        mul_m3_m4m3(r_rot, obedit->object_to_world().ptr(), r_rot);
-        orthogonalize_m3_stable(r_rot, 1, true);
-        return true;
-      }
-
-      break;
-    }
-    case OB_CURVES_LEGACY:
-    case OB_SURF: {
-      Curve *cu = static_cast<Curve *>(obedit->data);
-
-      if (ED_curve_active_rot(cu, r_rot)) {
-        mul_m3_m4m3(r_rot, obedit->object_to_world().ptr(), r_rot);
-        orthogonalize_m3_stable(r_rot, 1, true);
-        return true;
-      }
-      break;
-    }
-    case OB_MBALL: {
-      MetaBall *mb = static_cast<MetaBall *>(obedit->data);
-      MetaElem *ml_act = mb->lastelem;
-
-      if (ml_act && (!select_only || (ml_act->flag & SELECT))) {
-        copy_m3_m4(r_rot, obedit->object_to_world().ptr());
-        orthogonalize_m3_stable(r_rot, 2, true);
-        return true;
-      }
-      break;
-    }
-    case OB_LATTICE: {
-      BPoint *actbp = BKE_lattice_active_point_get(static_cast<Lattice *>(obedit->data));
-
-      if (actbp) {
-        copy_m3_m4(r_rot, obedit->object_to_world().ptr());
-        orthogonalize_m3_stable(r_rot, 2, true);
-        return true;
-      }
-      break;
-    }
-  }
-
-  return false;
-}
-
-bool ED_object_calc_active_rot_for_posemode(Object *ob, bool select_only, float r_rot[3][3])
-{
-  bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
-  if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
-    copy_m3_m4(r_rot, pchan->pose_mat);
-    return true;
-  }
-  return false;
-}
-
-bool ED_object_calc_active_rot(Object *ob, const bool select_only, float r_rot[3][3])
-{
-  if (ob->mode & OB_MODE_EDIT) {
-    if (ED_object_calc_active_world_rot_for_editmode(ob, select_only, r_rot)) {
-      return true;
-    }
-    return false;
-  }
-  if (ob->mode & OB_MODE_POSE) {
-    if (ED_object_calc_active_rot_for_posemode(ob, select_only, r_rot)) {
-      mul_m3_m4m3(r_rot, ob->object_to_world().ptr(), r_rot);
-      orthogonalize_m3_stable(r_rot, 1, true);
-      return true;
-    }
-    return false;
-  }
-  if (!select_only || (ob->base_flag & BASE_SELECTED)) {
-    copy_m3_m4(r_rot, ob->object_to_world().ptr());
-    orthogonalize_m3_stable(r_rot, 2, true);
+    copy_m3_m4(rotation->ptr(), ob->object_to_world().ptr());
+    orthogonalize_m3_stable(rotation->ptr(), 2, true);
     return true;
   }
   return false;

@@ -62,7 +62,10 @@
 using blender::Vector;
 
 static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_cursor[3]);
-static bool snap_calc_active_center(bContext *C, const bool select_only, float r_center[3]);
+static bool snap_calc_active_transform(bContext *C,
+                                       const bool select_only,
+                                       std::optional<blender::float3> &center,
+                                       std::optional<blender::float3x3> &rotation);
 
 /* -------------------------------------------------------------------- */
 /** \name Snap Selection to Grid Operator
@@ -326,7 +329,12 @@ static bool snap_selected_to_location_rotation(bContext *C,
                                   blender::float3x3::zero();
 
   if (use_offset) {
-    if ((pivot_point == V3D_AROUND_ACTIVE) && snap_calc_active_center(C, true, center_global)) {
+    std::optional<blender::float3> center_f3 = {};
+    std::optional<blender::float3x3> rot_f3x3 = {};
+    bool res = (pivot_point == V3D_AROUND_ACTIVE) &&
+               snap_calc_active_transform(C, true, center_f3, rot_f3x3);
+    copy_v3_v3(center_global, *center_f3);
+    if (res) {
       /* pass */
     }
     else {
@@ -758,8 +766,11 @@ void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot)
 static wmOperatorStatus snap_selected_to_active_exec(bContext *C, wmOperator *op)
 {
   float target_loc_global[3];
-
-  if (snap_calc_active_center(C, false, target_loc_global) == false) {
+  std::optional<blender::float3> target_f3 = {};
+  std::optional<blender::float3x3> rot_f3x3 = {};
+  bool res = snap_calc_active_transform(C, false, target_f3, rot_f3x3);
+  copy_v3_v3(target_loc_global, *target_f3);
+  if (res == false) {
     BKE_report(op->reports, RPT_ERROR, "No active element found!");
     return OPERATOR_CANCELLED;
   }
@@ -1030,26 +1041,16 @@ void VIEW3D_OT_snap_cursor_to_selected(wmOperatorType *ot)
  * NOTE: this could be exported to be a generic function.
  * see: #calculateCenterActive
  */
-static bool snap_calc_active_center(bContext *C, const bool select_only, float r_center[3])
+static bool snap_calc_active_transform(bContext *C,
+                                       const bool select_only,
+                                       std::optional<blender::float3> &center,
+                                       std::optional<blender::float3x3> &rotation)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
     return false;
   }
-  std::optional<blender::float3> center_f3 = {};
-  std::optional<blender::float4> rotation_f4 = {};
-  bool res = blender::ed::object::calc_active_transform(ob, select_only, center_f3, rotation_f4);
-  copy_v3_v3(r_center, *center_f3);
-  return res;
-}
-
-static bool snap_calc_active_rot(bContext *C, const bool select_only, float r_rot[3][3])
-{
-  Object *ob = CTX_data_active_object(C);
-  if (ob == nullptr) {
-    return false;
-  }
-  return blender::ed::object::ED_object_calc_active_rot(ob, select_only, r_rot);
+  return blender::ed::object::calc_active_transform(ob, select_only, center, rotation);
 }
 
 static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator *op)
@@ -1059,14 +1060,17 @@ static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator *op)
   const bool is_loc_on = RNA_boolean_get(op->ptr, "location");
   const bool is_rot_on = RNA_boolean_get(op->ptr, "rotation");
   bool is_snap_done = false;
-  float r_center[3], r_rot[3][3];
-  if (is_loc_on && snap_calc_active_center(C, false, r_center)) {
-    copy_v3_v3(scene->cursor.location, r_center);
-    is_snap_done = true;
-  }
-  if (is_rot_on && snap_calc_active_rot(C, false, r_rot)) {
-    scene->cursor.set_matrix((blender::float3x3)r_rot, false);
-    is_snap_done = true;
+  std::optional<blender::float3> center = {};
+  std::optional<blender::float3x3> rotation = {};
+  if (snap_calc_active_transform(C, false, center, rotation)) {
+    if (is_loc_on) {
+      copy_v3_v3(scene->cursor.location, *center);
+      is_snap_done = true;
+    }
+    if (is_rot_on) {
+      scene->cursor.set_matrix(*rotation, false);
+      is_snap_done = true;
+    }
   }
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);

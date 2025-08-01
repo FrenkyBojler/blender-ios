@@ -116,21 +116,15 @@ bool shape_key_is_selected(const Object &object, const KeyBlock &kb, int keybloc
 bool calc_active_transform_for_editmode(Object *obedit,
                                         bool select_only,
                                         std::optional<float3> &center,
-                                        std::optional<float4> &rotation);
+                                        std::optional<float3x3> &rotation);
 bool calc_active_transform_for_posemode(Object *ob,
                                         bool select_only,
                                         std::optional<float3> &center,
-                                        std::optional<float4> &rotation);
+                                        std::optional<float3x3> &rotation);
 bool calc_active_transform(Object *ob,
                            bool select_only,
                            std::optional<float3> &center,
-                           std::optional<float4> &rotation);
-
-bool ED_object_calc_active_world_rot_for_editmode(Object *obedit,
-                                                  bool select_only,
-                                                  float r_rot[3][3]);
-bool ED_object_calc_active_rot_for_posemode(Object *ob, bool select_only, float r_rot[3][3]);
-bool ED_object_calc_active_rot(Object *ob, const bool select_only, float r_rot[3][3]);
+                           std::optional<float3x3> &rotation);
 
 /* Object Data Container helper API. */
 struct XFormObjectData_Container;
