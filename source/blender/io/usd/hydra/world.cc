@@ -94,6 +94,7 @@ void WorldData::init()
 
   data_[pxr::UsdLuxTokens->orientToStageUpAxis] = true;
   data_[pxr::HdLightTokens->intensity] = intensity;
+  data_[pxr::HdLightTokens->exposure] = 0.0f;
   data_[pxr::HdLightTokens->color] = color;
   data_[pxr::HdLightTokens->textureFile] = texture_file;
 }
