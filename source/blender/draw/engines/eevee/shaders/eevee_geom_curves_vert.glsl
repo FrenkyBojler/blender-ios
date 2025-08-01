@@ -25,8 +25,16 @@ void main()
   init_interface();
 
   const curves::Point ls_pt = curves::point_get(uint(gl_VertexID));
-  const curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
-  const curves::ShapePoint pt = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P));
+  curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
+
+  const float3 V = drw_world_incident_vector(ws_pt.P);
+#ifdef MAT_SHADOW
+  /* Since point clouds always face the view, camera and shadow orientation don't match.
+   * Apply a bias to avoid self-shadow issues. */
+  ws_pt.P -= V * ws_pt.radius;
+#endif
+
+  const curves::ShapePoint pt = curves::shape_point_get(ws_pt, V);
   interp.P = pt.P;
   /* Correct normal is derived in fragment shader. */
   interp.N = pt.curve_N;
