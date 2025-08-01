@@ -24,6 +24,7 @@
 #include "WM_api.hh"
 
 #include "UI_interface.hh"
+#include "UI_tree_view.hh"
 
 using namespace blender::ui;
 
@@ -65,6 +66,11 @@ static std::string ui_view_drop_tooltip(bContext *C,
   return drop_target_tooltip(*region, *drop_target, *drag, *win->eventstate);
 }
 
+void scroll_tree_view(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2])
+{
+  ARegion *region = CTX_wm_region(C);
+  UI_region_view_scroll_at_borders(region, xy, 0);
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -158,7 +164,10 @@ void ED_dropboxes_ui()
 {
   ListBase *lb = WM_dropboxmap_find("User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
-  WM_dropbox_add(lb, "UI_OT_view_drop", ui_view_drop_poll, nullptr, nullptr, ui_view_drop_tooltip);
+  wmDropBox *dropbox = WM_dropbox_add(
+      lb, "UI_OT_view_drop", ui_view_drop_poll, nullptr, nullptr, ui_view_drop_tooltip);
+  dropbox->draw_in_view = scroll_tree_view;
+
   WM_dropbox_add(lb,
                  "UI_OT_drop_name",
                  ui_drop_name_poll,

@@ -3030,6 +3030,7 @@ bool UI_view_item_drag_start(bContext &C, const blender::ui::AbstractViewItem &i
  * \param pad: Extra padding added to the bounding box of the view.
  */
 blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region, const int xy[2], int pad);
+void UI_region_view_scroll_at_borders(const ARegion *region, const int xy[2], const int pad);
 /**
  * \param xy: Coordinate to find a view item at, in window space.
  */
