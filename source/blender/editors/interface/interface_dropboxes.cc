@@ -24,7 +24,6 @@
 #include "WM_api.hh"
 
 #include "UI_interface.hh"
-#include "UI_tree_view.hh"
 
 using namespace blender::ui;
 
