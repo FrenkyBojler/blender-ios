@@ -2496,12 +2496,12 @@ static void ui_apply_but(
 static void ui_but_get_pasted_text_from_clipboard(const bool ensure_utf8,
                                                   char **r_buf_paste,
                                                   int *r_buf_len,
-                                                  bool first_line)
+                                                  bool paste_all_lines)
 {
   /* get only first line even if the clipboard contains multiple lines */
   int length;
-  char *text = first_line ? WM_clipboard_text_get_firstline(false, ensure_utf8, &length) :
-                            WM_clipboard_text_get(false, ensure_utf8, &length);
+  char *text = paste_all_lines ? WM_clipboard_text_get(false, ensure_utf8, &length) :
+                                 WM_clipboard_text_get_firstline(false, ensure_utf8, &length);
 
   if (text) {
     *r_buf_paste = text;
@@ -2880,7 +2880,7 @@ static void ui_but_paste(bContext *C, uiBut *but, uiHandleButtonData *data, cons
   int buf_paste_len = 0;
   char *buf_paste;
   ui_but_get_pasted_text_from_clipboard(
-      UI_but_is_utf8(but), &buf_paste, &buf_paste_len, but->type != ButType::TextBox);
+      UI_but_is_utf8(but), &buf_paste, &buf_paste_len, but->type == ButType::TextBox);
 
   const bool has_required_data = !(but->poin == nullptr && but->rnapoin.data == nullptr);
 
@@ -3110,6 +3110,9 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *reg
 {
   rcti rect;
   ui_but_to_pixelrect(&rect, region, textbox->block, textbox);
+  const int text_padding = round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) /
+                                           textbox->block->aspect);
+  rect.xmin += text_padding;
   return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect));
 }
 
@@ -3621,7 +3624,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 #endif
 
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
-  if(is_text_box){
+  if (is_text_box) {
     status.item(IFACE_("New Line"), ICON_EVENT_ALT, ICON_EVENT_RETURN);
   }
 
@@ -9141,10 +9144,11 @@ static void button_activate_init(bContext *C,
   }
   else if (but->type == ButType::Num) {
     ui_numedit_set_active(but);
-  }else if(ELEM(but->type ,ButType::TextBox,ButType::Text)){
-    if(but->active&&!but->active->changed_cursor){
-        WM_cursor_modal_set(but->active->window, WM_CURSOR_TEXT_EDIT);
-        but->active->changed_cursor=true;
+  }
+  else if (ELEM(but->type, ButType::TextBox, ButType::Text)) {
+    if (but->active && !but->active->changed_cursor) {
+      WM_cursor_modal_set(but->active->window, WM_CURSOR_TEXT_EDIT);
+      but->active->changed_cursor = true;
     }
   }
 
