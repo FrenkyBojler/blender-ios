@@ -35,7 +35,6 @@
 namespace blender::nodes::node_composite_map_uv_cc {
 
 NODE_STORAGE_FUNCS(NodeMapUVData)
-// versioning interpolation sits at custom2
 
 static void cmp_node_map_uv_declare(NodeDeclarationBuilder &b)
 {
