@@ -15,8 +15,8 @@
 #include "util/log.h"
 #include "util/string.h"
 
-#include "kernel/types.h"
 #include "kernel/device/gpu/block_sizes.h"
+#include "kernel/types.h"
 
 CCL_NAMESPACE_BEGIN
 
