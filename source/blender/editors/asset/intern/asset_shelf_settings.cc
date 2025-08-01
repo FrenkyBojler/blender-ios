@@ -46,7 +46,7 @@ AssetShelfSettings &AssetShelfSettings::operator=(const AssetShelfSettings &othe
 
   /* Copy from 'other'. */
   this->asset_library_reference = other.asset_library_reference;
-  memcpy(this->search_string, other.search_string, sizeof(this->search_string));
+  STRNCPY_UTF8(this->search_string, other.search_string);
   this->preview_size = other.preview_size;
   this->display_flag = other.display_flag;
 
