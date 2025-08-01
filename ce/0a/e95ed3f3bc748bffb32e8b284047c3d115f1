@@ -1,1 +1,2 @@
 Referenced by pull request #143723, Cleanup: Cycles: use `constexpr` in kernel
+Referenced by commit 1667d69d3b3cedf8a42abc175774b44c89db3288, Cleanup: Cycles: use `constexpr` in kernel
