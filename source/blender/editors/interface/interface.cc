@@ -3089,7 +3089,12 @@ void ui_but_string_get_ex(uiBut *but,
   }
   else if (ELEM(but->type, ButType::Text, ButType::SearchMenu)) {
     /* string */
-    BLI_strncpy(str, but->poin, str_maxncpy);
+    if (UI_but_is_utf8(but)) {
+      BLI_strncpy_utf8(str, but->poin, str_maxncpy);
+    }
+    else {
+      BLI_strncpy(str, but->poin, str_maxncpy);
+    }
     return;
   }
   else if (ui_but_anim_expression_get(but, str, str_maxncpy)) {
@@ -3119,17 +3124,17 @@ void ui_but_string_get_ex(uiBut *but,
       }
       else if (subtype == PROP_FACTOR) {
         if (U.factor_display_type == USER_FACTOR_AS_FACTOR) {
-          BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
+          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
         }
         else {
-          BLI_snprintf(str, str_maxncpy, "%.*f", std::max(0, prec - 2), value * 100);
+          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", std::max(0, prec - 2), value * 100);
         }
       }
       else {
         const int int_digits_num = integer_digits_f(value);
         if (use_exp_float) {
           if (int_digits_num < -6 || int_digits_num > 12) {
-            BLI_snprintf(str, str_maxncpy, "%.*g", prec, value);
+            BLI_snprintf_utf8(str, str_maxncpy, "%.*g", prec, value);
             if (r_use_exp_float) {
               *r_use_exp_float = true;
             }
@@ -3137,18 +3142,18 @@ void ui_but_string_get_ex(uiBut *but,
           else {
             prec -= int_digits_num;
             CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
-            BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
+            BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
           }
         }
         else {
           prec -= int_digits_num;
           CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
-          BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
+          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
         }
       }
     }
     else {
-      BLI_snprintf(str, str_maxncpy, "%d", int(value));
+      BLI_snprintf_utf8(str, str_maxncpy, "%d", int(value));
     }
   }
 }
@@ -3418,7 +3423,12 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
   }
   else if (but->type == ButType::SearchMenu) {
     /* string */
-    BLI_strncpy(but->poin, str, but->hardmax);
+    if (UI_but_is_utf8(but)) {
+      BLI_strncpy_utf8(but->poin, str, but->hardmax);
+    }
+    else {
+      BLI_strncpy(but->poin, str, but->hardmax);
+    }
     return true;
   }
   else if (ui_but_anim_expression_set(but, str)) {
@@ -3860,7 +3870,7 @@ uiBlock *UI_block_begin(const bContext *C,
      * would slow down redraw, so only lookup for actual transform when it's indeed
      * needed
      */
-    STRNCPY(block->display_device, scene->display_settings.display_device);
+    STRNCPY_UTF8(block->display_device, scene->display_settings.display_device);
 
     /* Copy to avoid crash when scene gets deleted with UI still open. */
     UnitSettings *unit = MEM_callocN<UnitSettings>(__func__);
@@ -3868,7 +3878,7 @@ uiBlock *UI_block_begin(const bContext *C,
     block->unit = unit;
   }
   else {
-    STRNCPY(block->display_device, IMB_colormanagement_display_get_default_name());
+    STRNCPY_UTF8(block->display_device, IMB_colormanagement_display_get_default_name());
   }
 
   block->name = std::move(name);
@@ -4518,7 +4528,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
                                     &free);
 
   /* We don't want nested rows, cols in menus. */
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
 
   int totitems = 0;
   int categories = 0;
@@ -4703,8 +4713,6 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
                                      UI_UNIT_X * 5,
                                      UI_UNIT_Y,
                                      &handle->retvalue,
-                                     item->value,
-                                     0.0,
                                      description_static);
       }
       else {
@@ -4725,6 +4733,9 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
         item_but->flag |= UI_SELECT_DRAW;
       }
 
+      /* "hardmin" is used to store the value of the enum item. */
+      item_but->hardmin = float(item->value);
+
       if (use_enum_copy_description) {
         if (item->description && item->description[0]) {
           char *description_copy = BLI_strdup(item->description);
@@ -4740,7 +4751,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     }
   }
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
 
   if (free) {
     MEM_freeN(item_array);
@@ -4784,7 +4795,7 @@ static void ui_def_but_rna__menu_type(bContext *C, uiLayout *layout, void *but_p
   }
   else {
     char msg[256];
-    SNPRINTF(msg, RPT_("Missing Menu: %s"), menu_type);
+    SNPRINTF_UTF8(msg, RPT_("Missing Menu: %s"), menu_type);
     layout->label(msg, ICON_NONE);
   }
 }
@@ -5856,12 +5867,10 @@ uiBut *uiDefIconTextBut(uiBlock *block,
                         short width,
                         short height,
                         void *poin,
-                        float min,
-                        float max,
                         const std::optional<StringRef> tip)
 {
   uiBut *but = ui_def_but(
-      block, but_and_ptr_type, retval, str, x, y, width, height, poin, min, max, tip);
+      block, but_and_ptr_type, retval, str, x, y, width, height, poin, 0.0f, 0.0f, tip);
   ui_but_update_and_icon_set(but, icon);
   but->drawflag |= UI_BUT_ICON_LEFT;
   return but;
@@ -5876,8 +5885,6 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                          short width,
                          short height,
                          int *poin,
-                         float min,
-                         float max,
                          const std::optional<StringRef> tip)
 {
   return uiDefIconTextBut(block,
@@ -5890,8 +5897,6 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                           width,
                           height,
                           (void *)poin,
-                          min,
-                          max,
                           tip);
 }
 uiBut *uiDefIconTextButS(uiBlock *block,
@@ -5904,8 +5909,6 @@ uiBut *uiDefIconTextButS(uiBlock *block,
                          short width,
                          short height,
                          short *poin,
-                         float min,
-                         float max,
                          const std::optional<StringRef> tip)
 {
   return uiDefIconTextBut(block,
@@ -5918,8 +5921,6 @@ uiBut *uiDefIconTextButS(uiBlock *block,
                           width,
                           height,
                           (void *)poin,
-                          min,
-                          max,
                           tip);
 }
 
@@ -5935,12 +5936,10 @@ uiBut *uiDefIconTextButR(uiBlock *block,
                          PointerRNA *ptr,
                          blender::StringRefNull propname,
                          int index,
-                         float min,
-                         float max,
                          const std::optional<StringRef> tip)
 {
   uiBut *but = ui_def_but_rna_propname(
-      block, type, retval, str, x, y, width, height, ptr, propname, index, min, max, tip);
+      block, type, retval, str, x, y, width, height, ptr, propname, index, 0.0f, 0.0f, tip);
   ui_but_update_and_icon_set(but, icon);
   but->drawflag |= UI_BUT_ICON_LEFT;
   return but;
@@ -6740,7 +6739,7 @@ void UI_but_icon_indicator_number_set(uiBut *but, const int indicator_number)
 
 void UI_but_icon_indicator_set(uiBut *but, const char *string)
 {
-  STRNCPY(but->icon_overlay_text.text, string);
+  STRNCPY_UTF8(but->icon_overlay_text.text, string);
 }
 
 void UI_but_icon_indicator_color_set(uiBut *but, const uchar color[4])
