@@ -623,7 +623,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
             attributes.lookup_or_add_for_write_span<float>(
                 "fill_opacity",
                 bke::AttrDomain::Curve,
-                bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num()))))
+                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
     {
       fill_opacities.span[target_curve_index] = ptd.fill_opacity;
       fill_opacities.finish();
@@ -781,9 +781,9 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   BKE_curvemapping_init(ptd.settings->curve_rand_pressure);
   BKE_curvemapping_init(ptd.settings->curve_rand_strength);
   BKE_curvemapping_init(ptd.settings->curve_rand_uv);
-  BKE_curvemapping_init(ptd.settings->curve_rand_hue);
-  BKE_curvemapping_init(ptd.settings->curve_rand_saturation);
-  BKE_curvemapping_init(ptd.settings->curve_rand_value);
+  BKE_curvemapping_init(ptd.brush->curve_rand_hue);
+  BKE_curvemapping_init(ptd.brush->curve_rand_saturation);
+  BKE_curvemapping_init(ptd.brush->curve_rand_value);
 
   ToolSettings *ts = vc.scene->toolsettings;
   GP_Sculpt_Settings *gset = &ts->gp_sculpt;

@@ -33,6 +33,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -418,15 +419,15 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src)
   }
 }
 
-void BKE_spacedata_draw_locks(bool set)
+void BKE_spacedata_draw_locks(ARegionDrawLockFlags lock_flags)
 {
   for (std::unique_ptr<SpaceType> &st : get_space_types()) {
     LISTBASE_FOREACH (ARegionType *, art, &st->regiontypes) {
-      if (set) {
-        art->do_lock = art->lock;
+      if (lock_flags != 0) {
+        art->do_lock = (art->lock & lock_flags);
       }
       else {
-        art->do_lock = false;
+        art->do_lock = 0;
       }
     }
   }
@@ -547,7 +548,7 @@ Panel *BKE_panel_new(PanelType *panel_type)
   panel->runtime = MEM_new<Panel_Runtime>(__func__);
   panel->type = panel_type;
   if (panel_type) {
-    STRNCPY(panel->panelname, panel_type->idname);
+    STRNCPY_UTF8(panel->panelname, panel_type->idname);
   }
   return panel;
 }

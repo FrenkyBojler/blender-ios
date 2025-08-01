@@ -393,6 +393,11 @@ void GPU_shader_batch_cancel(BatchHandle &handle)
   GPUBackend::get()->get_compiler()->batch_cancel(handle);
 }
 
+bool GPU_shader_batch_is_compiling()
+{
+  return GPUBackend::get()->get_compiler()->is_compiling();
+}
+
 void GPU_shader_batch_wait_for_all()
 {
   GPUBackend::get()->get_compiler()->wait_for_all();
@@ -605,7 +610,7 @@ int GPU_shader_get_sampler_binding(GPUShader *shader, const char *name)
 uint GPU_shader_get_attribute_len(const GPUShader *shader)
 {
   const ShaderInterface *interface = unwrap(shader)->interface;
-  return interface->attr_len_;
+  return interface->valid_bindings_get(interface->inputs_, interface->attr_len_);
 }
 
 uint GPU_shader_get_ssbo_input_len(const GPUShader *shader)
@@ -1170,22 +1175,34 @@ void ShaderCompiler::do_work(void *work_payload)
   compilation_finished_notification_.notify_all();
 }
 
+bool ShaderCompiler::is_compiling_impl()
+{
+  /* The mutex should be locked befor calling this function. */
+  BLI_assert(!mutex_.try_lock());
+
+  if (!compilation_queue_.is_empty()) {
+    return true;
+  }
+
+  for (Batch *batch : batches_.values()) {
+    if (!batch->is_ready()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool ShaderCompiler::is_compiling()
+{
+  std::unique_lock lock(mutex_);
+  return is_compiling_impl();
+}
+
 void ShaderCompiler::wait_for_all()
 {
   std::unique_lock lock(mutex_);
-  compilation_finished_notification_.wait(lock, [&]() {
-    if (!compilation_queue_.is_empty()) {
-      return false;
-    }
-
-    for (Batch *batch : batches_.values()) {
-      if (!batch->is_ready()) {
-        return false;
-      }
-    }
-
-    return true;
-  });
+  compilation_finished_notification_.wait(lock, [&]() { return !is_compiling_impl(); });
 }
 
 /** \} */

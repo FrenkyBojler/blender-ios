@@ -23,7 +23,7 @@
 #endif
 
 #ifdef WITH_METAL_BACKEND
-#  include "GHOST_ContextCGL.hh"
+#  include "GHOST_ContextMTL.hh"
 #endif
 
 #ifdef WITH_VULKAN_BACKEND
@@ -793,8 +793,7 @@ GHOST_IContext *GHOST_SystemCocoa::createOffscreenContext(GHOST_GPUSettings gpuS
 
 #ifdef WITH_METAL_BACKEND
     case GHOST_kDrawingContextTypeMetal: {
-      /* TODO(fclem): Remove OpenGL support and rename context to ContextMTL */
-      GHOST_Context *context = new GHOST_ContextCGL(false, nullptr, nullptr, debug_context);
+      GHOST_Context *context = new GHOST_ContextMTL(false, nullptr, nullptr, debug_context);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -979,7 +978,9 @@ GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
            * it's possible another modifier could be optionally used in it's place. */
           GHOST_kCapabilityKeyboardHyperKey |
           /* No support yet for RGBA mouse cursors. */
-          GHOST_kCapabilityCursorRGBA));
+          GHOST_kCapabilityCursorRGBA |
+          /* No support yet for dynamic cursor generation. */
+          GHOST_kCapabilityCursorGenerator));
 }
 
 /* --------------------------------------------------------------------

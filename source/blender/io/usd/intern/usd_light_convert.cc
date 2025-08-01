@@ -233,12 +233,18 @@ void world_material_to_dome_light(const USDExportParams &params,
 
   WorldNtreeSearchResults res(params, stage);
 
-  if (scene->world->use_nodes && scene->world->nodetree) {
+  if (scene->world->nodetree) {
     /* Find the world output. */
+    bNode *output = nullptr;
     const bNodeTree *ntree = scene->world->nodetree;
     ntree->ensure_topology_cache();
     const Span<const bNode *> bsdf_nodes = ntree->nodes_by_type("ShaderNodeOutputWorld");
-    const bNode *output = bsdf_nodes.is_empty() ? nullptr : bsdf_nodes.first();
+    for (const bNode *node : bsdf_nodes) {
+      if (node->flag & NODE_DO_OUTPUT) {
+        output = const_cast<bNode *>(node);
+        break;
+      }
+    }
 
     if (!output) {
       /* No output, no valid network to convert. */
@@ -249,8 +255,8 @@ void world_material_to_dome_light(const USDExportParams &params,
   }
   else {
     res.world_intensity = 1.0f;
-    copy_v3_v3(res.world_color, &scene->world->horr);
-    res.background_found = !is_zero_v3(res.world_color);
+    zero_v3(res.world_color);
+    res.background_found = false;
   }
 
   if (!(res.background_found || res.env_tex_found)) {
@@ -260,8 +266,7 @@ void world_material_to_dome_light(const USDExportParams &params,
 
   /* Create USD dome light. */
 
-  pxr::SdfPath env_light_path = get_unique_path(stage,
-                                                std::string(params.root_prim_path) + "/env_light");
+  pxr::SdfPath env_light_path = get_unique_path(stage, params.root_prim_path + "/env_light");
 
   pxr::UsdLuxDomeLight dome_light = pxr::UsdLuxDomeLight::Define(stage, env_light_path);
 
@@ -351,12 +356,9 @@ void dome_light_to_world_material(const USDImportParams &params,
     return;
   }
 
-  if (!scene->world->use_nodes) {
-    scene->world->use_nodes = true;
-  }
-
   if (!scene->world->nodetree) {
-    scene->world->nodetree = bke::node_tree_add_tree(nullptr, "Shader Nodetree", "ShaderNodeTree");
+    scene->world->nodetree = bke::node_tree_add_tree_embedded(
+        nullptr, &scene->world->id, "Shader Nodetree", "ShaderNodeTree");
   }
 
   bNodeTree *ntree = scene->world->nodetree;
@@ -491,7 +493,7 @@ void dome_light_to_world_material(const USDImportParams &params,
 
   /* Note: This logic tries to produce identical results to `usdview` as of USD 25.05.
    * However, `usdview` seems to handle Y-Up stages differently; some scenes match while others
-   * do not unless we keep the second conditional below (+90 on x-axis).  */
+   * do not unless we keep the second conditional below (+90 on x-axis). */
   const pxr::TfToken stage_up = pxr::UsdGeomGetStageUpAxis(stage);
   const bool needs_stage_z_adjust = stage_up == pxr::UsdGeomTokens->z &&
                                     ELEM(dome_light_data.pole_axis,
