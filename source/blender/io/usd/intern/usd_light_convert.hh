@@ -9,6 +9,8 @@
 struct bNode;
 struct bNodeTree;
 
+struct Image;
+struct ImageUser;
 struct Main;
 struct Scene;
 
@@ -44,31 +46,25 @@ void dome_light_to_world_material(const USDImportParams &params,
                                   const pxr::UsdPrim &prim,
                                   const pxr::UsdTimeCode time = 0.0);
 
-bNode *find_world_output(const bNodeTree *nodetree);
-
 /**
- * Helper struct for retrieving shader information when traversing a world material
- * node chain, provided as user data for #bke::node_chain_iterator().
- */
-struct WorldNtreeSearchResults {
-  /* Data passed to `file_path_getter_fn` */
-  void *payload = nullptr;
-  std::string (*file_path_getter_fn)(bNode *fromnode, void *payload) = nullptr;
+ * Helper struct for converting world shader nodes to a dome light, used by both
+ * USD and Hydra. */
+struct WorldToDomeLight {
+  /* Image and its transform. */
+  Image *image = nullptr;
+  ImageUser *iuser = nullptr;
+  pxr::GfMatrix4d transform = pxr::GfMatrix4d(1.0);
 
-  std::string file_path;
-
-  float world_intensity = 0.0f;
-  float world_color[3]{};
-  float mapping_rot[3]{};
-  float color_mult[3]{};
-
-  bool background_found = false;
-  bool env_tex_found = false;
+  /* Multiply image by color. */
   bool mult_found = false;
+  float color_mult[4]{};
+
+  /* Fixed color. */
+  bool color_found = false;
+  float intensity = 0.0f;
+  float color[4]{};
 };
 
-bool node_search(bNode *fromnode, bNode *tonode, void *userdata, bool reversed);
-
-pxr::GfMatrix4d make_dome_light_transform(pxr::GfVec3f rot);
+void world_material_to_dome_light(const Scene *scene, WorldToDomeLight &res);
 
 }  // namespace blender::io::usd
