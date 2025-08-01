@@ -236,24 +236,18 @@ static void solve_distance_rotation_constraint(const int geometry_p0,
                                                const float3 &p0,
                                                const float3 &p1,
                                                const math::Quaternion &r0,
-                                               const float m0,
-                                               const float m1,
-                                               const float I0,
+                                               const float weight_pos0,
+                                               const float weight_pos1,
+                                               const float weight_rot0,
                                                const float3 &lambda_prev,
                                                const float compliance_term,
                                                const float rest_distance,
                                                LocalConstraintCorrections &local_corrections)
 {
-  BLI_assert(m0 > 0.0f);
-  BLI_assert(m1 > 0.0f);
-  BLI_assert(I0 > 0.0f);
   BLI_assert(rest_distance > 0.0f);
 
-  /* Inverse mass as weight factors. */
-  const float wp0 = 1 / m0;
-  const float wp1 = 1 / m1;
-  const float wr0 = 1 / I0;
-  const float weight_sum = wp0 + wp1 + 4.0f * wr0 * rest_distance * rest_distance;
+  const float weight_sum = weight_pos0 + weight_pos1 +
+                           4.0f * weight_rot0 * rest_distance * rest_distance;
 
   const float3 p_diff = p1 - p0;
   const float3 forward = math::transform_point(r0, float3(0, 0, 1));
@@ -262,10 +256,11 @@ static void solve_distance_rotation_constraint(const int geometry_p0,
   const float3 lambda = (residual - compliance_term * lambda_prev) /
                         (weight_sum + compliance_term);
 
-  const float3 correction_p0 = lambda * wp0 * rest_distance;
-  const float3 correction_p1 = -lambda * wp1 * rest_distance;
-  const math::Quaternion correction_r0 = math::Quaternion(
-                                             0.0f, lambda * wr0 * rest_distance * rest_distance) *
+  const float3 correction_p0 = lambda * weight_pos0 * rest_distance;
+  const float3 correction_p1 = -lambda * weight_pos1 * rest_distance;
+  const math::Quaternion correction_r0 = math::Quaternion(0.0f,
+                                                          lambda * weight_rot0 * rest_distance *
+                                                              rest_distance) *
                                          r0 * math::Quaternion(0, 0, 0, -1);
   local_corrections.add_position_correction(geometry_p0, p_i0, correction_p0);
   local_corrections.add_position_correction(geometry_p1, p_i1, correction_p1);
@@ -278,20 +273,14 @@ static void solve_bending_constraint(const int geometry_r0,
                                      const int r_i1,
                                      const math::Quaternion &r0,
                                      const math::Quaternion &r1,
-                                     const float I0,
-                                     const float I1,
+                                     const float weight_rot0,
+                                     const float weight_rot1,
                                      const float4 &lambda_prev,
                                      const float compliance_term,
                                      const math::Quaternion &rest_shape,
                                      LocalConstraintCorrections &local_corrections)
 {
-  BLI_assert(I0 > 0.0f);
-  BLI_assert(I1 > 0.0f);
-
-  /* Inverse mass as weight factors. */
-  const float wr0 = 1 / I0;
-  const float wr1 = 1 / I1;
-  const float weight_sum = wr0 + wr1;
+  const float weight_sum = weight_rot0 + weight_rot1;
 
   const math::Quaternion shape = math::invert_normalized(r0) * r1;
   const float4 residual = float4(shape) - float4(rest_shape);
@@ -299,8 +288,8 @@ static void solve_bending_constraint(const int geometry_r0,
   const float4 lambda = (residual - compliance_term * lambda_prev) /
                         (weight_sum + compliance_term);
 
-  const math::Quaternion correction_r0 = r1 * math::Quaternion(lambda * wr0);
-  const math::Quaternion correction_r1 = r0 * math::Quaternion(-lambda * wr1);
+  const math::Quaternion correction_r0 = r1 * math::Quaternion(lambda * weight_rot0);
+  const math::Quaternion correction_r1 = r0 * math::Quaternion(-lambda * weight_rot1);
   local_corrections.add_rotation_correction(geometry_r0, r_i0, correction_r0);
   local_corrections.add_rotation_correction(geometry_r1, r_i1, correction_r1);
 }
@@ -748,6 +737,10 @@ class RodLengthConstraintSet : public CosseratRodConstraintSet {
         const float rest_distance = rest_lengths[point_i];
         const float3 inertia = inertias[point_i];
         const float lumped_inertia = 0.5f * (inertia.x + inertia.y + inertia.z);
+        /* Inverse mass as weight factors. */
+        BLI_assert(mass0 > 0.0f);
+        BLI_assert(mass1 > 0.0f);
+        BLI_assert(lumped_inertia > 0.0f);
 
         /* TODO carry over from previous iteration, use for warm-starting. */
         const float3 lambda_prev = float3(0.0f);
@@ -761,9 +754,9 @@ class RodLengthConstraintSet : public CosseratRodConstraintSet {
                                            positions[point_i],
                                            positions[next_point_i],
                                            rotations[point_i],
-                                           mass0,
-                                           mass1,
-                                           lumped_inertia,
+                                           1 / mass0,
+                                           1 / mass1,
+                                           1 / lumped_inertia,
                                            lambda_prev,
                                            compliance_term,
                                            rest_distance,
@@ -905,6 +898,9 @@ class RodBendingConstraintSet : public CosseratRodConstraintSet {
         const float lumped_inertia0 = 0.5f * (inertia0.x + inertia0.y + inertia0.z);
         const float lumped_inertia1 = 0.5f * (inertia1.x + inertia1.y + inertia1.z);
         const math::Quaternion &rest_shape = rest_shapes[point_i];
+        /* Inverse inertia as weight factors. */
+        BLI_assert(lumped_inertia0 > 0.0f);
+        BLI_assert(lumped_inertia1 > 0.0f);
 
         /* TODO carry over from previous iteration, use for warm-starting. */
         const float4 lambda_prev = float4(0.0f);
@@ -915,8 +911,8 @@ class RodBendingConstraintSet : public CosseratRodConstraintSet {
                                  next_point_i,
                                  rotations[point_i],
                                  rotations[next_point_i],
-                                 lumped_inertia0,
-                                 lumped_inertia1,
+                                 1 / lumped_inertia0,
+                                 1 / lumped_inertia1,
                                  lambda_prev,
                                  compliance_term,
                                  rest_shape,
@@ -1024,6 +1020,103 @@ class FixedPositionsConstraintSet : public ConstraintSet {
       }
       const VArray<float3> fixed_positions = field_evaluator.get_evaluated<float3>(0);
       fn(geometry_i, selection, fixed_positions);
+    }
+  }
+};
+
+class FixedRotationsConstraintSet : public ConstraintSet {
+ private:
+  std::string self_path_;
+  std::string filter_;
+  fn::Field<bool> selection_field_;
+  fn::Field<math::Quaternion> fixed_rotations_field_;
+  float compliance_;
+
+ public:
+  FixedRotationsConstraintSet(std::string self_path,
+                              std::string filter,
+                              fn::Field<bool> selection_field,
+                              fn::Field<math::Quaternion> fixed_rotations_field,
+                              const float compliance)
+      : self_path_(std::move(self_path)),
+        filter_(std::move(filter)),
+        selection_field_(std::move(selection_field)),
+        fixed_rotations_field_(std::move(fixed_rotations_field)),
+        compliance_(compliance)
+  {
+  }
+
+  void solve(ConstraintSetSolveParams &params) override
+  {
+    this->foreach_fixed_rotation(
+        params.sim_geometries,
+        [&](const int geometry_i,
+            const IndexMask &mask,
+            const VArray<math::Quaternion> &fixed_rotations) {
+          const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+          std::optional<bke::AttributeAccessor> attributes = sim_geometry.attributes();
+          if (!attributes) {
+            return;
+          }
+          if (!attributes->contains(sim_geometry.src.rotation_attribute)) {
+            return;
+          }
+          const VArraySpan<math::Quaternion> rotations = *attributes->lookup<math::Quaternion>(
+              sim_geometry.src.rotation_attribute, bke::AttrDomain::Point);
+
+          LocalConstraintCorrections &local_corrections = params.corrections.local();
+          mask.foreach_index([&](const int point_i) {
+            /* No relative offset, any additional rotation can be baked into the fixed rotation. */
+            const math::Quaternion &rest_shape = math::Quaternion::identity();
+
+            /* TODO carry over from previous iteration, use for warm-starting. */
+            const float4 lambda_prev = float4(0.0f);
+
+            /* Use the generic bending constraint with 0/1 weight factors, so the 2nd rotation
+             * receives the full correction while the 1st rotation remains fixed. */
+            solve_bending_constraint(geometry_i,
+                                     geometry_i,
+                                     -1,
+                                     point_i,
+                                     fixed_rotations[point_i],
+                                     rotations[point_i],
+                                     0.0f,
+                                     1.0f,
+                                     lambda_prev,
+                                     compliance_,
+                                     rest_shape,
+                                     local_corrections);
+          });
+        });
+  }
+
+  void foreach_fixed_rotation(
+      const Span<SimGeometry> sim_geometries,
+      FunctionRef<void(const int geometry_i,
+                       const IndexMask &mask,
+                       const VArray<math::Quaternion> &fixed_rotations)> fn) const
+  {
+    for (const int geometry_i : sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = sim_geometries[geometry_i];
+      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+      std::optional<bke::GeometryFieldContext> field_context;
+      const int points_num = sim_geometry.set_point_field_context(field_context);
+      if (!field_context) {
+        continue;
+      }
+      fn::FieldEvaluator field_evaluator{*field_context, points_num};
+      field_evaluator.set_selection(selection_field_);
+      field_evaluator.add(fixed_rotations_field_);
+      field_evaluator.evaluate();
+      const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
+      if (selection.is_empty()) {
+        continue;
+      }
+      const VArray<math::Quaternion> fixed_rotations =
+          field_evaluator.get_evaluated<math::Quaternion>(0);
+      fn(geometry_i, selection, fixed_rotations);
     }
   }
 };
@@ -1286,6 +1379,18 @@ ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
 {
   return scope.construct<FixedPositionsConstraintSet>(
       self_path, filter, std::move(selection_field), std::move(fixed_positions_field));
+}
+
+ConstraintSet &create_constraint__fixed_rotations(
+    ResourceScope &scope,
+    std::string self_path,
+    std::string filter,
+    fn::Field<bool> selection_field,
+    fn::Field<math::Quaternion> fixed_rotations_field,
+    const float compliance)
+{
+  return scope.construct<FixedRotationsConstraintSet>(
+      self_path, filter, std::move(selection_field), std::move(fixed_rotations_field), compliance);
 }
 
 ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,

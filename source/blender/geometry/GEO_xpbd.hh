@@ -154,6 +154,13 @@ ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
                                                   std::string filter,
                                                   fn::Field<bool> selection_field,
                                                   fn::Field<float3> fixed_positions_field);
+ConstraintSet &create_constraint__fixed_rotations(
+    ResourceScope &scope,
+    std::string self_path,
+    std::string filter,
+    fn::Field<bool> selection_field,
+    fn::Field<math::Quaternion> fixed_rotations_field,
+    float compliance);
 ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,
                                                            std::string self_path,
                                                            std::string filter,
@@ -169,6 +176,9 @@ inline void LocalConstraintCorrections::add_position_correction(const int geomet
                                                                 const int position_i,
                                                                 const float3 &offset)
 {
+  if (position_i < 0) {
+    return;
+  }
   const float quantize_scale = corrections_.sim_geometries_[geometry_i].quantize_scale;
   const int3 quantized_offset = int3(offset * quantize_scale);
   ConstraintCorrections::SimGeometryCorrections &corrections =
@@ -183,6 +193,9 @@ inline void LocalConstraintCorrections::add_rotation_correction(const int geomet
                                                                 const int rotation_i,
                                                                 const math::Quaternion &offset)
 {
+  if (rotation_i < 0) {
+    return;
+  }
   const float quantize_scale = corrections_.sim_geometries_[geometry_i].quantize_scale;
   /* TODO Double-cover problem: quaternions q and -q describe the same rotation, which can cause
    * rapid flip when simply adding deltas. May have to flip quaternions to push towards the nearest

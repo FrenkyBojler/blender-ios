@@ -182,6 +182,25 @@ static void parse_behavior__fixed_positions(ParseBehaviorParams &params)
       params.scope, params.self_path(), std::move(filter), *selection_field, *positions_field));
 }
 
+static void parse_behavior__fixed_rotations(ParseBehaviorParams &params)
+{
+  std::optional<Field<bool>> selection_field = params.bundle.lookup<Field<bool>>("Selection");
+  std::optional<Field<math::Quaternion>> rotations_field =
+      params.bundle.lookup<Field<math::Quaternion>>("Rotation");
+  if (!selection_field || !rotations_field) {
+    return;
+  }
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
+  const float compliance = params.bundle.lookup<float>("Compliance").value_or(0.0f);
+  params.r_behaviors.constraint_sets.append(
+      &geometry::xpbd::create_constraint__fixed_rotations(params.scope,
+                                                          params.self_path(),
+                                                          std::move(filter),
+                                                          *selection_field,
+                                                          *rotations_field,
+                                                          compliance));
+}
+
 static void parse_behavior__infinite_collision_plane(ParseBehaviorParams &params)
 {
   std::optional<float3> position = params.bundle.lookup<float3>("Position");
@@ -226,6 +245,7 @@ static Map<std::string, BehaviorParserFn> build_behavior_parsers()
   behavior_parsers.add_new("Cosserat Rod Bending Constraint",
                            parse_behavior__cosserat_rod_bending);
   behavior_parsers.add_new("Fixed Position Constraint", parse_behavior__fixed_positions);
+  behavior_parsers.add_new("Fixed Rotation Constraint", parse_behavior__fixed_rotations);
   behavior_parsers.add_new("Infinite Collision Plane", parse_behavior__infinite_collision_plane);
   behavior_parsers.add_new("Global Volume Constraint", parse_behavior__global_volume);
   return behavior_parsers;
