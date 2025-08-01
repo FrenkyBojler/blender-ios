@@ -16,7 +16,7 @@ void main()
   const curves::Point ls_pt = curves::point_get(uint(gl_VertexID));
   const curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
 
-  float3 world_pos = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P));
+  float3 world_pos = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P)).P;
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
 

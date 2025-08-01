@@ -46,7 +46,7 @@ Segment segment_get(uint vertex_id)
   segment.id = vertex_id / drw_curves.vertex_per_segment;
   segment.v_idx = vertex_id % drw_curves.vertex_per_segment;
   segment.end_of_segment = is_cylinder && (segment.v_idx == drw_curves.vertex_per_segment - 1);
-  if (is_cylinder && !segment.end_of_segment && (segment.id & 1u) == 1u) {
+  if (is_cylinder && !segment.end_of_segment && (segment.id & 1u) == 0u) {
     /* The topology is not actually restarted and the winding order changes (because we skip an odd
      * number of triangle). So we have to manually reverse the winding so that is stays consistent.
      */
@@ -175,22 +175,35 @@ Point object_to_world(Point pt, float4x4 object_to_world)
   return pt;
 }
 
+struct ShapePoint {
+  /* Curve tangent space. */
+  float3 curve_N;
+  float3 curve_T;
+  float3 curve_B;
+  /* Position on the curve shape. */
+  float3 P;
+  /* Shading normal at the position on the curve shape. */
+  float3 N;
+};
+
 /**
  * Return the position of the expanded position in world-space.
  * \arg pt : world space curve point.
  * \arg V : world space view vector (toward viewer) at `pt.P`.
  */
-float3 shape_point_get(Point pt, float3 V, out float3 B)
+ShapePoint shape_point_get(const Point pt, const float3 V)
 {
-  B = normalize(cross(pt.T, V));
-  float3 N = cross(B, pt.T);
-  return pt.P + B * (pt.azimuthal_offset * pt.radius) +
-         N * (sin_from_cos(abs(pt.azimuthal_offset)) * pt.radius);
-}
-float3 shape_point_get(Point pt, float3 V)
-{
-  float3 unused;
-  return shape_point_get(pt, V, unused);
+  ShapePoint shape;
+  /* Shading tangent is inverted because of legacy reason. */
+  /* TODO(fclem): Change user code. */
+  shape.curve_T = -pt.T;
+  shape.curve_B = normalize(cross(pt.T, V));
+  shape.curve_N = cross(shape.curve_B, pt.T);
+  /* Point in curve azimuthal space. */
+  const float2 lP = float2(pt.azimuthal_offset, sin_from_cos(abs(pt.azimuthal_offset)));
+  shape.N = shape.curve_B * lP.x + shape.curve_N * lP.y;
+  shape.P = pt.P + shape.N * pt.radius;
+  return shape;
 }
 
 #  ifdef GPU_VERTEX_SHADER

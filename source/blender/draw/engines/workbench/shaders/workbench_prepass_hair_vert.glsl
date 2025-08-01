@@ -57,13 +57,17 @@ void main()
 {
   const curves::Point ls_pt = curves::point_get(uint(gl_VertexID));
   const curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
-  float3 binor;
-  float3 world_pos = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P), binor);
+  const curves::ShapePoint pt = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P));
+  float3 world_pos = pt.P;
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
   float hair_rand = integer_noise(ws_pt.curve_id);
-  float3 nor = workbench_hair_random_normal(ws_pt.T, binor, hair_rand);
+
+  float3 nor = pt.N;
+  if (drw_curves.half_cylinder_face_count < 2) {
+    nor = workbench_hair_random_normal(pt.curve_T, pt.curve_B, hair_rand);
+  }
 
   view_clipping_distances(world_pos);
 

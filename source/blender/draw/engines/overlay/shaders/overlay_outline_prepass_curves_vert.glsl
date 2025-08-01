@@ -40,8 +40,7 @@ void main()
   float outline_width = drw_point_world_to_homogenous(ws_pt.P).w * 1.25f *
                         uniform_buf.size_viewport_inv.y * drw_view().wininv[1][1];
 #endif
-  float3 binor;
-  float3 world_pos = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P), binor);
+  float3 world_pos = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P)).P;
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
 

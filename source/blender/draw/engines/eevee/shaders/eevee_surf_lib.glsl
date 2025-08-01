@@ -38,7 +38,7 @@ void init_globals_curves()
 #if defined(MAT_GEOM_CURVES)
   /* Shade as a cylinder. */
   float cos_theta = curve_interp.time_width / curve_interp.thickness;
-  float sin_theta = sqrt(max(0.0f, 1.0f - cos_theta * cos_theta));
+  float sin_theta = sin_from_cos(cos_theta);
   g_data.N = g_data.Ni = normalize(interp.N * sin_theta + curve_interp.binormal * cos_theta);
 
   /* Costly, but follows cycles per pixel tangent space (not following curve shape). */

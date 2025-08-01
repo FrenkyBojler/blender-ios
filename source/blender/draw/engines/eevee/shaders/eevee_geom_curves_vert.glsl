@@ -26,13 +26,16 @@ void main()
 
   const curves::Point ls_pt = curves::point_get(uint(gl_VertexID));
   const curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
-  interp.P = curves::shape_point_get(
-      ws_pt, drw_world_incident_vector(ws_pt.P), curve_interp.binormal);
-  interp.N = cross(ws_pt.T, curve_interp.binormal);
-  curve_interp.tangent = ws_pt.T;
+  const curves::ShapePoint pt = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P));
+  interp.P = pt.P;
+  /* Correct normal is derived in fragment shader. */
+  interp.N = pt.curve_N;
+  curve_interp.binormal = pt.curve_B;
+  curve_interp.tangent = pt.curve_T;
   curve_interp.time = 0.0; /* TODO */
   curve_interp.thickness = ws_pt.radius;
-  curve_interp.time_width = ws_pt.azimuthal_offset;
+  /* Scaled by radius for correct interpolation. */
+  curve_interp.time_width = ws_pt.azimuthal_offset * ws_pt.radius;
   curve_interp.point_id = ws_pt.point_id;
   curve_interp_flat.strand_id = ws_pt.curve_id;
 
