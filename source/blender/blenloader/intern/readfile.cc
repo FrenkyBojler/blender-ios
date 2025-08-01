@@ -965,7 +965,7 @@ static int *read_file_thumbnail(FileData *fd)
 }
 
 /**
- * ID names are truncated the their maximum allowed length at a very low level of the readfile code
+ * ID names are truncated to their maximum allowed length at a very low level of the readfile code
  * (see #read_id_struct).
  *
  * However, ensuring they remain unique can only be done once all IDs have been read and put in
@@ -5222,6 +5222,14 @@ ID *BLO_read_get_new_id_address_from_session_uid(BlendLibReader *reader, const u
 int BLO_read_fileversion_get(BlendDataReader *reader)
 {
   return reader->fd->fileversion;
+}
+
+int BLO_read_struct_member_offset(const BlendDataReader *reader,
+                                  const char *stype,
+                                  const char *vartype,
+                                  const char *name)
+{
+  return DNA_struct_member_offset_by_name_with_alias(reader->fd->filesdna, stype, vartype, name);
 }
 
 void BLO_read_struct_list_with_size(BlendDataReader *reader,

@@ -575,10 +575,10 @@ typedef struct bNode {
   bNodeSocket &output_socket(int index);
   const bNodeSocket &output_socket(int index) const;
   /** Lookup socket of this node by its identifier. */
-  const bNodeSocket &input_by_identifier(blender::StringRef identifier) const;
-  const bNodeSocket &output_by_identifier(blender::StringRef identifier) const;
-  bNodeSocket &input_by_identifier(blender::StringRef identifier);
-  bNodeSocket &output_by_identifier(blender::StringRef identifier);
+  const bNodeSocket *input_by_identifier(blender::StringRef identifier) const;
+  const bNodeSocket *output_by_identifier(blender::StringRef identifier) const;
+  bNodeSocket *input_by_identifier(blender::StringRef identifier);
+  bNodeSocket *output_by_identifier(blender::StringRef identifier);
   /** Lookup socket by its declaration. */
   const bNodeSocket &socket_by_decl(const blender::nodes::SocketDeclaration &decl) const;
   bNodeSocket &socket_by_decl(const blender::nodes::SocketDeclaration &decl);
@@ -1581,6 +1581,12 @@ typedef struct NodeTranslateData {
   short interpolation;
 } NodeTranslateData;
 
+typedef struct NodeRotateData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeRotateData;
+
 typedef struct NodeScaleData {
   short interpolation;
   char extension_x;
@@ -1589,7 +1595,15 @@ typedef struct NodeScaleData {
 
 typedef struct NodeDisplaceData {
   short interpolation;
+  char extension_x;
+  char extension_y;
 } NodeDisplaceData;
+
+typedef struct NodeMapUVData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeMapUVData;
 
 typedef struct NodePlaneTrackDeformData {
   char tracking_object[64];
@@ -2896,7 +2910,7 @@ typedef enum CMPNodeTranslateRepeatAxis {
 } CMPNodeTranslateRepeatAxis;
 
 typedef enum CMPExtensionMode {
-  CMP_NODE_EXTENSION_MODE_ZERO = 0,
+  CMP_NODE_EXTENSION_MODE_CLIP = 0,
   CMP_NODE_EXTENSION_MODE_EXTEND = 1,
   CMP_NODE_EXTENSION_MODE_REPEAT = 2,
 } CMPNodeBorderCondition;
