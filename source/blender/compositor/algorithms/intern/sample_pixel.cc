@@ -43,7 +43,7 @@ float4 sample_pixel_gpu(Context &context,
 
   GPU_shader_uniform_2fv(shader, "coordinates", coordinates);
 
-  Result output = context.create_result(input.type(), ResultPrecision::Full);
+  Result output = context.create_result(input.type());
   output.allocate_texture(int2(1));
 
   if (interpolation == Interpolation::Anisotropic) {
