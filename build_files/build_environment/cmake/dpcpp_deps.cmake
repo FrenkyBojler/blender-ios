@@ -42,23 +42,6 @@ ExternalProject_Add(external_icdloader
   INSTALL_COMMAND echo .
 )
 
-ExternalProject_Add(external_emhash
-  URL file://${PACKAGE_DIR}/${EMHASH_FILE}
-  URL_HASH ${EMHASH_HASH_TYPE}=${EMHASH_HASH}
-  DOWNLOAD_DIR ${DOWNLOAD_DIR}
-  PREFIX ${BUILD_DIR}/emhash
-  CONFIGURE_COMMAND echo .
-  BUILD_COMMAND echo .
-  INSTALL_COMMAND echo .
-)
-
-ExternalProject_Add_Step(external_emhash after_download
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_DIR}/emhash/src/external_emhash/include/emhash
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/emhash/src/external_emhash/hash_table8.hpp ${BUILD_DIR}/emhash/src/external_emhash/include/emhash
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/emhash/src/external_emhash/hash_table7.hpp ${BUILD_DIR}/emhash/src/external_emhash/include/emhash
-  DEPENDEES download
-)
-
 ExternalProject_Add(external_dpcpp_spirvheaders
   URL file://${PACKAGE_DIR}/${DPCPP_SPIRV_HEADERS_FILE}
   URL_HASH ${DPCPP_SPIRV_HEADERS_HASH_TYPE}=${DPCPP_SPIRV_HEADERS_HASH}
@@ -93,26 +76,4 @@ ExternalProject_Add(external_unifiedmemoryframework
   CONFIGURE_COMMAND echo .
   BUILD_COMMAND echo .
   INSTALL_COMMAND echo .
-)
-
-ExternalProject_Add(external_parallelhashmap
-  URL file://${PACKAGE_DIR}/${PARALLEL_HASHMAP_FILE}
-  URL_HASH ${PARALLEL_HASHMAP_HASH_TYPE}=${PARALLEL_HASHMAP_HASH}
-  DOWNLOAD_DIR ${DOWNLOAD_DIR}
-  PREFIX ${BUILD_DIR}/parallelhashmap
-  CONFIGURE_COMMAND echo .
-  BUILD_COMMAND echo .
-  INSTALL_COMMAND echo .
-)
-
-ExternalProject_Add_Step(external_parallelhashmap after_download
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include/parallel_hashmap
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/parallel_hashmap/phmap.h ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include/parallel_hashmap
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/parallel_hashmap/phmap_fwd_decl.h ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include/parallel_hashmap
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/parallel_hashmap/phmap_utils.h ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include/parallel_hashmap
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/parallel_hashmap/phmap_bits.h ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include/parallel_hashmap
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/parallel_hashmap/phmap_config.h ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include/parallel_hashmap
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/parallel_hashmap/phmap_base.h ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include/parallel_hashmap
-  COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/parallel_hashmap/phmap_dump.h ${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include/parallel_hashmap
-  DEPENDEES download
 )

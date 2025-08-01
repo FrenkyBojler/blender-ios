@@ -39,8 +39,8 @@ set(DPCPP_EXTRA_ARGS
   -DLLVMGenXIntrinsics_SOURCE_DIR=${BUILD_DIR}/vcintrinsics/src/external_vcintrinsics/
   -DOpenCL_HEADERS=file://${PACKAGE_DIR}/${OPENCLHEADERS_FILE}
   -DOpenCL_LIBRARY_SRC=file://${PACKAGE_DIR}/${ICDLOADER_FILE}
-  -DSYCL_EMHASH_DIR=${BUILD_DIR}/emhash/src/external_emhash/include/
-  -DEMHASH_SYS_LOC=${BUILD_DIR}/emhash/src/external_emhash/include/emhash
+  -DSYCL_EMHASH_DIR=${LIBDIR}/emhash/include
+  -DEMHASH_SYS_LOC=${LIBDIR}/emhash/include/emhash
   -DLEVEL_ZERO_LIBRARY=${LIBDIR}/level-zero/lib/${LIBPREFIX}ze_loader${SHAREDLIBEXT}
   -DLEVEL_ZERO_INCLUDE_DIR=${LIBDIR}/level-zero/include/level_zero
   -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=${BUILD_DIR}/dpcpp_spirvheaders/src/external_dpcpp_spirvheaders/
@@ -53,7 +53,7 @@ set(DPCPP_EXTRA_ARGS
   -DSYCL_ENABLE_XPTI_TRACING=ON
   -DSYCL_INCLUDE_TESTS=OFF
   -DUR_ENABLE_TRACING=ON
-  -DXPTIFW_PARALLEL_HASHMAP_HEADERS=${BUILD_DIR}/parallelhashmap/src/external_parallelhashmap/include
+  -DXPTIFW_PARALLEL_HASHMAP_HEADERS=${LIBDIR}/parallelhashmap/include
   # Below here is copied from an invocation of buildbot/config.py
   -DLLVM_ENABLE_ASSERTIONS=ON
   -DLLVM_TARGETS_TO_BUILD=X86

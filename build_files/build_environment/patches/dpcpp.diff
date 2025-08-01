@@ -113,6 +113,19 @@ index eefea331d..9f08546be 100644
  #include <unordered_set>
  #include <vector>
 
+diff --git a/sycl/source/detail/unordered_multimap.hpp b/sycl/source/detail/unordered_multimap.hpp
+index 4d495ed06..e96d71870 100644
+--- a/sycl/source/detail/unordered_multimap.hpp
++++ b/sycl/source/detail/unordered_multimap.hpp
+@@ -7,7 +7,7 @@
+ //===--------------------------------------------------------------===//
+ #pragma once
+ #include <detail/hashers.hpp>
+-#include <emhash/hash_table8.hpp>
++#include <hash_table8.hpp>
+
+ #include <utility>
+ #include <vector>
 diff --git a/sycl/unittests/CMakeLists.txt b/sycl/unittests/CMakeLists.txt
 index b2b6761b9..f9db10a86 100644
 --- a/sycl/unittests/CMakeLists.txt
@@ -124,6 +137,19 @@ index b2b6761b9..f9db10a86 100644
 
  foreach(flag_var
      CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+diff --git a/xptifw/include/xpti_string_table.hpp b/xptifw/include/xpti_string_table.hpp
+index c8678bdff..bd91468c9 100644
+--- a/xptifw/include/xpti_string_table.hpp
++++ b/xptifw/include/xpti_string_table.hpp
+@@ -6,7 +6,7 @@
+ #pragma once
+
+ #include "xpti/xpti_data_types.h"
+-#include <emhash/hash_table7.hpp>
++#include <hash_table7.hpp>
+
+ #include <atomic>
+ #include <shared_mutex>
 diff --git a/xptifw/src/CMakeLists.txt b/xptifw/src/CMakeLists.txt
 index de2274129..adeca1d1d 100644
 --- a/xptifw/src/CMakeLists.txt
@@ -137,3 +163,16 @@ index de2274129..adeca1d1d 100644
  file(GLOB SOURCES *.cpp)
 
  function(add_xpti_library LIB_NAME)
+diff --git a/xptifw/src/xpti_trace_framework.cpp b/xptifw/src/xpti_trace_framework.cpp
+index 223fe20aa..d9c8d8e46 100644
+--- a/xptifw/src/xpti_trace_framework.cpp
++++ b/xptifw/src/xpti_trace_framework.cpp
+@@ -19,7 +19,7 @@
+ #include "xpti_int64_hash_table.hpp"
+ #include "xpti_object_table.hpp"
+ #include "xpti_string_table.hpp"
+-#include <emhash/hash_table7.hpp>
++#include <hash_table7.hpp>
+
+ #include <algorithm>
+ #include <array>
