@@ -127,7 +127,10 @@ class CornerPinOperation : public NodeOperation {
         this->compute_plane(homography_matrix, &anti_aliased_plane_mask);
       }
 
-      output_mask.steal_data(anti_aliased_plane_mask);
+      if (output_mask.should_compute()) {
+        output_mask.steal_data(anti_aliased_plane_mask);
+      }
+
       anti_aliased_plane_mask.release();
     }
     else {
