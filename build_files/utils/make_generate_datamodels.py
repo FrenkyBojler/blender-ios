@@ -5,7 +5,7 @@
 
 """Self-bootstrapping script to run the OpenAPI-to-dataclasses code generator.
 
-Run this via `cmake generate_datamodels` in your build directory.
+Run this via `<your buildtool> generate_datamodels` in your build directory.
 
 This script creates its own virtualenv, installs its dependencies, and then runs
 the code generator. It processes OpenAPI spec files in YAML format (see
