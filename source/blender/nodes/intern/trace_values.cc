@@ -8,6 +8,7 @@
 #include "NOD_geometry_nodes_closure_location.hh"
 #include "NOD_geometry_nodes_closure_signature.hh"
 #include "NOD_node_in_compute_context.hh"
+#include "NOD_socket_declarations.hh"
 #include "NOD_trace_values.hh"
 
 #include "BKE_compute_context_cache.hh"
@@ -26,6 +27,24 @@ static bool is_evaluate_closure_node_input(const SocketInContext &socket)
 static bool is_closure_zone_output_socket(const SocketInContext &socket)
 {
   return socket->owner_node().is_type("GeometryNodeClosureOutput") && socket->is_output();
+}
+
+static bool is_non_empty_unlinked_closure_input(const nodes::SocketInContext &socket)
+{
+  if (!socket->is_input()) {
+    return false;
+  }
+  if (socket->is_logically_linked()) {
+    return false;
+  }
+  const auto *socket_decl = dynamic_cast<const decl::Closure *>(socket->runtime->declaration);
+  if (!socket_decl) {
+    return false;
+  }
+  if (socket_decl->closure_type == CLOSURE_SOCKET_VALUE_TYPE_NONE) {
+    return false;
+  }
+  return true;
 }
 
 static Vector<SocketInContext> find_origin_sockets_through_contexts(
@@ -525,6 +544,12 @@ Vector<ClosureSignature> gather_linked_origin_closure_signatures(
       [&](const SocketInContext &socket) {
         if (is_closure_zone_output_socket(socket)) {
           signatures.append(ClosureSignature::from_closure_output_node(socket->owner_node()));
+          return true;
+        }
+        if (is_non_empty_unlinked_closure_input(socket)) {
+          signatures.append(*nodes::ClosureSignature::from_builtin(
+              dynamic_cast<const nodes::decl::Closure &>(*socket->runtime->declaration)
+                  .closure_type));
           return true;
         }
         return false;

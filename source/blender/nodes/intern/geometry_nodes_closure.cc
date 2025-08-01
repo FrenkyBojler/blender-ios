@@ -141,8 +141,8 @@ std::shared_ptr<ClosureSignature> ClosureSignature::from_builtin(const ClosureSo
             std::make_shared<nodes::ClosureSignature>();
         const bke::bNodeSocketType *float_socket_type = bke::node_socket_type_find_static(
             SOCK_FLOAT);
-        signature->inputs.append({"Value", float_socket_type});
-        signature->outputs.append({"Value", float_socket_type});
+        signature->inputs.add({"Value", float_socket_type});
+        signature->outputs.add({"Value", float_socket_type});
         return signature;
       }();
       return signature;
@@ -153,8 +153,8 @@ std::shared_ptr<ClosureSignature> ClosureSignature::from_builtin(const ClosureSo
             std::make_shared<nodes::ClosureSignature>();
         const bke::bNodeSocketType *vector_socket_type = bke::node_socket_type_find_static(
             SOCK_VECTOR);
-        signature->inputs.append({"Value", vector_socket_type});
-        signature->outputs.append({"Value", vector_socket_type});
+        signature->inputs.add({"Value", vector_socket_type});
+        signature->outputs.add({"Value", vector_socket_type});
         return signature;
       }();
       return signature;
@@ -165,8 +165,8 @@ std::shared_ptr<ClosureSignature> ClosureSignature::from_builtin(const ClosureSo
             std::make_shared<nodes::ClosureSignature>();
         const bke::bNodeSocketType *color_socket_type = bke::node_socket_type_find_static(
             SOCK_RGBA);
-        signature->inputs.append({"Value", color_socket_type});
-        signature->outputs.append({"Value", color_socket_type});
+        signature->inputs.add({"Value", color_socket_type});
+        signature->outputs.add({"Value", color_socket_type});
         return signature;
       }();
       return signature;
@@ -179,8 +179,8 @@ std::shared_ptr<ClosureSignature> ClosureSignature::from_builtin(const ClosureSo
             SOCK_FLOAT);
         const bke::bNodeSocketType *color_socket_type = bke::node_socket_type_find_static(
             SOCK_RGBA);
-        signature->inputs.append({"Value", float_socket_type});
-        signature->outputs.append({"Value", color_socket_type});
+        signature->inputs.add({"Value", float_socket_type});
+        signature->outputs.add({"Value", color_socket_type});
         return signature;
       }();
       return signature;
