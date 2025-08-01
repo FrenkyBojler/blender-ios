@@ -211,8 +211,7 @@ add_blender_test(
 
 add_blender_test(
   script_http_downloader
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_http_downloader.py --
-  --output-dir ${TEST_OUT_DIR}/test_http_downloader/
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_http_downloader.py
 )
 
 # test running operators doesn't segfault under various conditions

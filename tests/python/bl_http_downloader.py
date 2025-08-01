@@ -13,7 +13,9 @@ __all__ = (
 
 import unittest
 from pathlib import Path
-import shutil
+
+
+output_dir: Path
 
 
 class BasicImportTest(unittest.TestCase):
@@ -22,23 +24,12 @@ class BasicImportTest(unittest.TestCase):
     This doesn't test the functionality, but does ensure that dependencies like
     third-party libraries are available.
     """
-    output_dir: Path
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.output_dir = args.output_dir
-        # exists_ok=False to prevent a rmtree() of existing directories on teardown.
-        cls.output_dir.mkdir(exist_ok=False, parents=True)
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        shutil.rmtree(cls.output_dir)
 
     def test_downloader(self) -> None:
         from _bpy_internal.http import downloader as http_dl
 
         metadata_provider = http_dl.MetadataProviderFilesystem(
-            cache_location=self.output_dir / "http_metadata"
+            cache_location=output_dir / "http_metadata"
         )
         downloader = http_dl.ConditionalDownloader(metadata_provider=metadata_provider)
         self.assertIsNotNone(downloader)
@@ -47,7 +38,7 @@ class BasicImportTest(unittest.TestCase):
         from _bpy_internal.http import downloader as http_dl
 
         metadata_provider = http_dl.MetadataProviderFilesystem(
-            cache_location=self.output_dir / "http_metadata"
+            cache_location=output_dir / "http_metadata"
         )
         options = http_dl.DownloaderOptions(
             metadata_provider=metadata_provider,
@@ -77,23 +68,12 @@ class BackgroundDownloaderProcessTest(unittest.TestCase):
     This doesn't test any HTTP requests, but does start & stop the background
     process to check that this is at least possible.
     """
-    output_dir: Path
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.output_dir = args.output_dir
-        # exists_ok=False to prevent a rmtree() of existing directories on teardown.
-        cls.output_dir.mkdir(exist_ok=False, parents=True)
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        shutil.rmtree(cls.output_dir)
 
     def test_start_stop(self) -> None:
         from _bpy_internal.http import downloader as http_dl
 
         metadata_provider = http_dl.MetadataProviderFilesystem(
-            cache_location=self.output_dir / "http_metadata"
+            cache_location=output_dir / "http_metadata"
         )
         options = http_dl.DownloaderOptions(
             metadata_provider=metadata_provider,
@@ -111,7 +91,7 @@ class BackgroundDownloaderProcessTest(unittest.TestCase):
 
         # Queueing a download before the downloader has started should be rejected.
         with self.assertRaises(RuntimeError):
-            downloader.queue_download("https://example.com/", self.output_dir / "download.tmp")
+            downloader.queue_download("https://example.com/", output_dir / "download.tmp")
 
         downloader.start()
 
@@ -140,20 +120,18 @@ class BackgroundDownloaderProcessTest(unittest.TestCase):
 
 
 def main() -> None:
-    global args
-    import argparse
+    global output_dir
+
     import sys
+    import tempfile
 
+    argv = [sys.argv[0]]
     if '--' in sys.argv:
-        argv = [sys.argv[0]] + sys.argv[sys.argv.index('--') + 1:]
-    else:
-        argv = sys.argv
+        argv.extend(sys.argv[sys.argv.index('--') + 1:])
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--output-dir', required=True, type=Path)
-    args, remaining = parser.parse_known_args(argv)
-
-    unittest.main(argv=remaining)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_dir = Path(temp_dir)
+        unittest.main(argv=argv)
 
 
 if __name__ == "__main__":
