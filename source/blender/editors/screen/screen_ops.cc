@@ -5790,7 +5790,6 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
 
   blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
-
   /* Since we follow draw-flags, we can't send notifier but tag regions ourselves. */
   if (depsgraph != nullptr) {
     ED_update_for_newframe(bmain, depsgraph);
@@ -5932,11 +5931,12 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
+  Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = is_sequencer ? BKE_view_layer_default_render(scene) :
                                          CTX_data_view_layer(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = is_sequencer ? BKE_scene_ensure_depsgraph(bmain, scene, view_layer) :
+                                        CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Main *bmain = DEG_get_bmain(depsgraph);
 
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     /* stop playback now */
@@ -5944,13 +5944,16 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
     ED_scene_fps_average_clear(scene);
     BKE_sound_stop_scene(scene_eval);
 
-    /* Stop sound for sequencer scene. */
-    WorkSpace *workspace = CTX_wm_workspace(C);
-    if (workspace && workspace->sequencer_scene && workspace->sequencer_scene != scene) {
+    if (is_sequencer) {
+      /* Stop sound for active scene in window. */
+      BKE_sound_stop_scene(DEG_get_evaluated_scene(CTX_data_ensure_evaluated_depsgraph(C)));
+    }
+    else {
+      /* Stop sound for sequencer scene. */
+      WorkSpace *workspace = CTX_wm_workspace(C);
+      Scene *scene = workspace->sequencer_scene;
       Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(
-          bmain,
-          workspace->sequencer_scene,
-          BKE_view_layer_default_render(workspace->sequencer_scene));
+          bmain, scene, BKE_view_layer_default_render(scene));
       Scene *seq_scene_eval = DEG_get_evaluated_scene(depsgraph);
       BKE_sound_stop_scene(seq_scene_eval);
     }
@@ -5971,17 +5974,6 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
     /* these settings are currently only available from a menu in the TimeLine */
     if (mode == 1) { /* XXX only play audio forwards!? */
       BKE_sound_play_scene(scene_eval);
-    }
-
-    /* Stop sound for sequencer scene. */
-    WorkSpace *workspace = CTX_wm_workspace(C);
-    if (workspace && workspace->sequencer_scene && workspace->sequencer_scene != scene) {
-      Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(
-          bmain,
-          workspace->sequencer_scene,
-          BKE_view_layer_default_render(workspace->sequencer_scene));
-      Scene *seq_scene_eval = DEG_get_evaluated_scene(depsgraph);
-      BKE_sound_play_scene(seq_scene_eval);
     }
 
     ED_screen_animation_timer(C, scene, view_layer, screen->redraws_flag, sync, mode);
