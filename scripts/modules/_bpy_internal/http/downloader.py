@@ -731,7 +731,7 @@ def _download_queued_items(
 
     do_shutdown = threading.Event()
 
-    def rx_thread_func():
+    def rx_thread_func() -> None:
         """Process incoming messages."""
         while not do_shutdown.is_set():
             # Always keep receiving messages while they're coming in,
@@ -742,7 +742,7 @@ def _download_queued_items(
                 log.info("received message: %s", received_msg)
                 rx_queue.put(received_msg)
 
-    def tx_thread_func():
+    def tx_thread_func() -> None:
         """Send queued reports back to the main process."""
         while not do_shutdown.is_set():
             try:
@@ -1078,12 +1078,14 @@ class MetadataProviderFilesystem(MetadataProvider):
         converter = self._ensure_converter()
 
         try:
-            return converter.loads(meta_json, HTTPMetadata)
+            meta_data: HTTPMetadata = converter.loads(meta_json, HTTPMetadata)
         except cattrs.BaseValidationError:
             # File was an old format, got corrupted, or is otherwise unusable.
             # Just act as if it never existed in the first place.
             meta_path.unlink()
             return None
+
+        return meta_data
 
     def is_valid(self, meta: HTTPMetadata, http_req_descr: RequestDescription, local_path: Path) -> bool:
         """Determine whether this metadata is still valid, given the other parameters."""
