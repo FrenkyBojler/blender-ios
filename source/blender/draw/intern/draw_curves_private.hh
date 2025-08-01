@@ -31,8 +31,8 @@ namespace blender::draw {
 
 struct CurvesModule;
 
-#define MAX_FACE_PER_SEGMENT 3 /* see eHairType */
-#define MAX_HAIR_SUBDIV 4      /* see hair_subdiv rna */
+#define MAX_FACE_PER_SEGMENT 5
+#define MAX_HAIR_SUBDIV 4 /* see hair_subdiv rna */
 
 enum CurvesEvalShader {
   CURVES_EVAL_POSITION = 0,

@@ -304,7 +304,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
 
   const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND)   ? 0 :
-                               (scene->r.hair_type == SCE_HAIR_SHAPE_CYLINDER) ? 3 :
+                               (scene->r.hair_type == SCE_HAIR_SHAPE_CYLINDER) ? 4 :
                                                                                  1;
 
   CurvesEvalCache &curves_cache = curves_get_eval_cache(curves_id);
