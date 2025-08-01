@@ -790,6 +790,13 @@ static void ui_node_draw_node(
 {
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
+  if (node.typeinfo->draw_buttons) {
+    if (node.type_legacy != NODE_GROUP) {
+      layout.use_property_split_set(true);
+      node.typeinfo->draw_buttons(&layout, &C, &nodeptr);
+    }
+  }
+
   if (node.declaration() && node.declaration()->use_custom_socket_order) {
     const nodes::NodeDeclaration &node_decl = *node.declaration();
     for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
@@ -806,13 +813,6 @@ static void ui_node_draw_node(
     }
   }
   else {
-    if (node.typeinfo->draw_buttons) {
-      if (node.type_legacy != NODE_GROUP) {
-        layout.use_property_split_set(true);
-        node.typeinfo->draw_buttons(&layout, &C, &nodeptr);
-      }
-    }
-
     LISTBASE_FOREACH (bNodeSocket *, input, &node.inputs) {
       ui_node_draw_input(layout, C, ntree, node, *input, depth + 1, nullptr);
     }
