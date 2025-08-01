@@ -607,6 +607,13 @@ int GPU_shader_get_sampler_binding(GPUShader *shader, const char *name)
   return tex ? tex->binding : -1;
 }
 
+bool GPU_shader_validate_binding_image_format(GPUShader *shader,
+                                              int unit,
+                                              blender::gpu::TextureFormat format)
+{
+  return unwrap(shader)->validate_binding_image_format(unit, format);
+}
+
 uint GPU_shader_get_attribute_len(const GPUShader *shader)
 {
   const ShaderInterface *interface = unwrap(shader)->interface;

@@ -114,6 +114,7 @@ class GLShader : public Shader {
   GLSources compute_sources_;
 
   Vector<const char *> specialization_constant_names_;
+  Map<uint32_t, TextureFormat> image_format_binding_map_;
 
   void update_program_and_sources(GLSources &stage_sources, MutableSpan<StringRefNull> sources);
 
@@ -157,6 +158,8 @@ class GLShader : public Shader {
 
   void uniform_float(int location, int comp_len, int array_size, const float *data) override;
   void uniform_int(int location, int comp_len, int array_size, const int *data) override;
+
+  bool validate_binding_image_format(int binding, TextureFormat texture_format) const override;
 
   bool is_compute() const
   {

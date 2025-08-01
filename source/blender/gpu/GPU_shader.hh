@@ -22,7 +22,8 @@
 
 namespace blender::gpu {
 class VertBuf;
-}
+enum class TextureFormat : uint8_t;
+}  // namespace blender::gpu
 
 /** Opaque type hiding #blender::gpu::shader::ShaderCreateInfo */
 struct GPUShaderCreateInfo;
@@ -220,6 +221,13 @@ void GPU_shader_uniform_mat3_as_mat4(GPUShader *sh, const char *name, const floa
 void GPU_shader_uniform_1f_array(GPUShader *sh, const char *name, int len, const float *val);
 void GPU_shader_uniform_2fv_array(GPUShader *sh, const char *name, int len, const float (*val)[2]);
 void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, const float (*val)[4]);
+
+/**
+ *
+ */
+bool GPU_shader_validate_binding_image_format(GPUShader *shader,
+                                              int unit,
+                                              blender::gpu::TextureFormat format);
 
 /** \} */
 
