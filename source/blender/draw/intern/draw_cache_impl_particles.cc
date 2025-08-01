@@ -9,6 +9,7 @@
  */
 
 #include "DNA_collection_types.h"
+#include "DNA_curves_types.h"
 #include "DNA_scene_types.h"
 #include "DRW_render.hh"
 
@@ -154,11 +155,12 @@ static void particle_batch_cache_init(ParticleSystem *psys)
   ParticleBatchCache *cache = static_cast<ParticleBatchCache *>(psys->batch_cache);
 
   if (!cache) {
-    cache = static_cast<ParticleBatchCache *>(
-        psys->batch_cache = MEM_callocN(sizeof(*cache), __func__));
+    cache = MEM_new<ParticleBatchCache>(__func__);
+    psys->batch_cache = cache;
   }
   else {
-    memset(cache, 0, sizeof(*cache));
+    cache->edit_hair.eval_cache = {};
+    cache->hair.eval_cache = {};
   }
 
   cache->is_dirty = false;
@@ -229,7 +231,9 @@ static void particle_batch_cache_clear(ParticleSystem *psys)
 void DRW_particle_batch_cache_free(ParticleSystem *psys)
 {
   particle_batch_cache_clear(psys);
-  MEM_SAFE_FREE(psys->batch_cache);
+  ParticleBatchCache *batch_cache = static_cast<ParticleBatchCache *>(psys->batch_cache);
+  MEM_delete(batch_cache);
+  psys->batch_cache = nullptr;
 }
 
 void ParticleSpans::foreach_strand(std::function<void(Span<ParticleCacheKey>)> callback)
@@ -261,14 +265,14 @@ ParticleSpans ParticleDrawSource::particles_get()
   return spans;
 }
 
-OffsetIndices<int> ParticleDrawSource::offset_indices()
+OffsetIndices<int> ParticleDrawSource::points_by_curve()
 {
   if (!points_by_curve_storage.is_empty()) {
     return points_by_curve_storage.as_span();
   }
 
   int total = 0;
-  points_by_curve_storage.append(0);
+  points_by_curve_storage.append(total);
   particles_get().foreach_strand([&](Span<ParticleCacheKey> strand) {
     total += strand.size() + 1;
     points_by_curve_storage.append(total);
@@ -1393,11 +1397,6 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
                                         const GPUMaterial *gpu_material,
                                         int additional_subdivision)
 {
-  if (evaluated_pos_rad_buf) {
-    return;
-  }
-
-  ensure_common(src);
 }
 
 void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
@@ -1406,18 +1405,34 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
     return;
   }
 
-  points_by_curve_buf = create_vbo_from_span(src.points_by_curve().data());
+  points_by_curve_buf = gpu::VertBuf::new_from_span(src.points_by_curve().data());
   /* TODO subdiv. */
-  evaluated_points_by_curve_buf = create_vbo_from_span(src.points_by_curve().data());
+  evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(src.points_by_curve().data());
 
   /* Use the same type for all curves. */
   /* TODO subdiv. */
-  VArray<int8_t> type_varray(varray_tag::single, CURVE_TYPE_POLY, src.curves_num());
-  VArray<int32_t> resolution_varray(varray_tag::single, 0, src.curves_num());
+  auto type_varray = VArray<int8_t>::from_single(CURVE_TYPE_POLY, src.curves_num());
+  auto resolution_varray = VArray<int32_t>::from_single(0, src.curves_num());
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  curves_type_buf = create_vbo_from_varray(type_varray);
-  curves_resolution_buf = create_vbo_from_varray(resolution_varray);
+  curves_type_buf = gpu::VertBuf::new_from_varray(type_varray);
+  curves_resolution_buf = gpu::VertBuf::new_from_varray(resolution_varray);
+}
+
+/* Copied from cycles. */
+static float hair_shape_radius(float shape, float root, float tip, bool close_tip, float time)
+{
+  float radius = 1.0f - time;
+  if (shape < 0.0f) {
+    radius = pow(radius, 1.0f + shape);
+  }
+  else {
+    radius = pow(radius, 1.0f / (1.0f - shape));
+  }
+  if (close_tip && (time > 0.99f)) {
+    return 0.0f;
+  }
+  return (radius * (root - tip)) + tip;
 }
 
 void CurvesEvalCache::ensure_positions(CurvesModule &module,
@@ -1429,6 +1444,46 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
   }
 
   ensure_common(src);
+
+  gpu::VertBufPtr points_pos_buf = gpu::VertBuf::new_from_size<float3>(src.points_num());
+  gpu::VertBufPtr points_rad_buf = gpu::VertBuf::new_from_size<float>(src.points_num());
+
+  MutableSpan<float3> points_pos = points_pos_buf->data<float3>();
+  MutableSpan<float> points_rad = points_rad_buf->data<float>();
+
+  const ParticleSettings &part = *src.psys->part;
+  const float hair_rad_shape = part.shape;
+  const float hair_rad_root = part.rad_root * part.rad_scale * 0.5f;
+  const float hair_rad_tip = part.rad_tip * part.rad_scale * 0.5f;
+  const bool hair_close_tip = (part.shape_flag & PART_SHAPE_CLOSE_TIP) != 0;
+
+  int i = 0;
+  src.particles_get().foreach_strand([&](Span<ParticleCacheKey> strand) {
+    int j = 0;
+    for (const ParticleCacheKey &point : strand) {
+      points_pos[i] = point.co;
+      float time = j / float(strand.size()); /* TODO */
+      points_rad[i] = hair_shape_radius(
+          hair_rad_shape, hair_rad_root, hair_rad_tip, hair_close_tip, time);
+      i++, j++;
+    }
+    /* TODO last point*/
+  });
+
+  evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(src.evaluated_points_num());
+  /* TODO(fclem): Make time and length optional. */
+  evaluated_time_buf = gpu::VertBuf::new_device_only<float>(src.evaluated_points_num());
+  curves_length_buf = gpu::VertBuf::new_device_only<float>(src.curves_num());
+
+  module.evaluate_positions(false, /* TODO Additional subdiv */
+                            false,
+                            true,
+                            false,
+                            src.curves_num(),
+                            *this,
+                            std::move(points_pos_buf),
+                            std::move(points_rad_buf),
+                            evaluated_pos_rad_buf);
 }
 
 gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
@@ -1445,12 +1500,8 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
 
   ensure_common(src);
 
-  int point_count = 0 /*TODO*/;
-  int curve_count = 0 /*TODO*/;
-  int element_count = is_ribbon ? (point_count + curve_count) : (point_count - curve_count);
-  // indirection_buf = alloc_vbo_device_only<int>(element_count);
-
-  module.evaluate_topology_indirection(src, *this, is_ribbon, indirection_buf);
+  indirection_buf = module.evaluate_topology_indirection(
+      src.curves_num(), src.evaluated_points_num(), *this, is_ribbon);
 
   return indirection_buf;
 }

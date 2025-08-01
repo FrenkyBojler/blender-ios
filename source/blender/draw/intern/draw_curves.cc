@@ -103,37 +103,29 @@ void CurvesModule::dispatch(const int curve_count, PassSimple::Sub &pass)
   }
 }
 
-void CurvesModule::evaluate_topology_indirection(const bke::CurvesGeometry &curve,
-                                                 struct CurvesEvalCache &cache,
-                                                 bool is_ribbon,
-                                                 gpu::VertBufPtr &output_indirection_buf)
+gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_count,
+                                                            const int point_count,
+                                                            struct CurvesEvalCache &cache,
+                                                            bool is_ribbon)
 {
-  BLI_assert(output_indirection_buf != nullptr);
+  int element_count = is_ribbon ? (point_count + curve_count) : (point_count - curve_count);
+  gpu::VertBufPtr indirection_buf = gpu::VertBuf::new_device_only<int>(element_count);
 
   PassSimple::Sub &pass = refine.sub("Topology");
   pass.shader_set(DRW_shader_curves_topology_get());
   pass.bind_ssbo("evaluated_offsets_buf", cache.evaluated_points_by_curve_buf);
-  pass.bind_ssbo("indirection_buf", output_indirection_buf);
+  pass.bind_ssbo("indirection_buf", indirection_buf);
   pass.push_constant("is_ribbon_topology", is_ribbon);
-  dispatch(curve.curves_num(), pass);
+  dispatch(curve_count, pass);
+
+  return indirection_buf;
 }
 
-void CurvesModule::evaluate_topology_indirection(const ParticleDrawSource &src,
-                                                 struct CurvesEvalCache &cache,
-                                                 bool is_ribbon,
-                                                 gpu::VertBufPtr &output_indirection_buf)
-{
-  BLI_assert(output_indirection_buf != nullptr);
-
-  PassSimple::Sub &pass = refine.sub("Topology");
-  pass.shader_set(DRW_shader_curves_topology_get());
-  pass.bind_ssbo("evaluated_offsets_buf", cache.evaluated_points_by_curve_buf);
-  pass.bind_ssbo("indirection_buf", output_indirection_buf);
-  pass.push_constant("is_ribbon_topology", is_ribbon);
-  // dispatch(curve.curves_num(), pass);
-}
-
-void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
+void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
+                                            const bool has_bezier,
+                                            const bool has_poly,
+                                            const bool has_nurbs,
+                                            const int curve_count,
                                             CurvesEvalCache &cache,
                                             CurvesEvalShader shader_type,
                                             gpu::VertBufPtr input_buf,
@@ -190,7 +182,7 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
       break;
   }
 
-  if (curve.has_curve_with_type(CURVE_TYPE_CATMULL_ROM)) {
+  if (has_catmull) {
     PassSimple::Sub &sub = pass.sub("Catmull-Rom");
     sub.specialize_constant(shader, "evaluated_type", int(CURVE_TYPE_CATMULL_ROM));
     sub.shader_set(shader);
@@ -199,10 +191,10 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
     sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
     sub.push_constant("compute_length_and_time", false);
-    dispatch(curve.curves_num(), sub);
+    dispatch(curve_count, sub);
   }
 
-  if (curve.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+  if (has_bezier) {
     PassSimple::Sub &sub = pass.sub("Bezier");
     sub.specialize_constant(shader, "evaluated_type", int(CURVE_TYPE_BEZIER));
     sub.shader_set(shader);
@@ -210,10 +202,10 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.bind_ssbo("handles_positions_right_buf", cache.handles_positions_right_buf);
     sub.bind_ssbo("bezier_offsets_buf", cache.bezier_offsets_buf);
     sub.push_constant("compute_length_and_time", false);
-    dispatch(curve.curves_num(), sub);
+    dispatch(curve_count, sub);
   }
 
-  if (curve.has_curve_with_type(CURVE_TYPE_NURBS)) {
+  if (has_nurbs) {
     PassSimple::Sub &sub = pass.sub("Nurbs");
     sub.specialize_constant(shader, "evaluated_type", int(CURVE_TYPE_NURBS));
     sub.shader_set(shader);
@@ -225,10 +217,10 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.bind_ssbo("bezier_offsets_buf", cache.basis_cache_offset_buf);
     sub.push_constant("compute_length_and_time", false);
     sub.push_constant("use_point_weight", cache.control_weights_buf.get() != nullptr);
-    dispatch(curve.curves_num(), sub);
+    dispatch(curve_count, sub);
   }
 
-  if (curve.has_curve_with_type(CURVE_TYPE_POLY)) {
+  if (has_poly) {
     PassSimple::Sub &sub = pass.sub("Poly");
     sub.specialize_constant(shader, "evaluated_type", int(CURVE_TYPE_POLY));
     sub.shader_set(shader);
@@ -238,7 +230,7 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
     sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
     sub.push_constant("compute_length_and_time", false);
-    dispatch(curve.curves_num(), sub);
+    dispatch(curve_count, sub);
   }
 
   /* Move ownership of the input vbo to the module. */

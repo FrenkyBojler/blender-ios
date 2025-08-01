@@ -66,6 +66,28 @@ struct ParticleDrawSource {
 
   Vector<int> points_by_curve_storage;
 
+  int curves_num()
+  {
+    if (points_by_curve_storage.is_empty()) {
+      points_by_curve();
+    }
+    return points_by_curve_storage.size() - 1;
+  }
+
+  int points_num()
+  {
+    if (points_by_curve_storage.is_empty()) {
+      points_by_curve();
+    }
+    return points_by_curve_storage.last();
+  }
+
+  int evaluated_points_num()
+  {
+    /* TODO subdiv*/
+    return points_num();
+  }
+
   OffsetIndices<int> points_by_curve();
   ParticleSpans particles_get();
 };

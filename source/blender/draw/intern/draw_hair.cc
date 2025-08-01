@@ -68,14 +68,11 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
                                                                                  1;
   CurvesEvalCache &cache = hair_particle_get_eval_cache(source);
 
-  int curve_count = 0 /*TODO*/;
-  int point_per_curve = 0 /*TODO*/;
-  int evaluated_point_count = point_per_curve * curve_count;
-
-  if (curve_count == 0) {
-    /* Nothing to draw. Just return an empty drawcall that will be skipped. */
-    return cache.batch_get(0, 0, face_per_segment);
-  }
+  /* TODO(fclem): Need to cache the point count. */
+  // if (source.evaluated_point_count() == 0) {
+  //   /* Nothing to draw. Just return an empty drawcall that will be skipped. */
+  //   return cache.batch_get(0, 0, face_per_segment);
+  // }
 
   /* TODO(fclem): Remove Global access. */
   CurvesModule &module = *drw_get().data->curves_module;
@@ -90,7 +87,7 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
   curves_bind_resources(
       sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, uv_name);
 
-  return cache.batch_get(evaluated_point_count, curve_count, face_per_segment);
+  return cache.batch_get(source.evaluated_points_num(), source.curves_num(), face_per_segment);
 }
 
 blender::gpu::Batch *hair_sub_pass_setup(PassMain::Sub &sub_ps,

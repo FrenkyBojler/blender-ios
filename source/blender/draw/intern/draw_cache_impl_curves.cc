@@ -616,8 +616,15 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
     evaluated_attributes_buf[index] = alloc_evaluated_point_attribute_vbo(
         format, name, curves.evaluated_points_num());
 
-    module.evaluate_curve_attribute(
-        curves, *this, CURVES_EVAL_FLOAT4, std::move(attr_buf), evaluated_attributes_buf[index]);
+    module.evaluate_curve_attribute(curves.has_curve_with_type(CURVE_TYPE_CATMULL_ROM),
+                                    curves.has_curve_with_type(CURVE_TYPE_BEZIER),
+                                    curves.has_curve_with_type(CURVE_TYPE_POLY),
+                                    curves.has_curve_with_type(CURVE_TYPE_NURBS),
+                                    curves.curves_num(),
+                                    *this,
+                                    CURVES_EVAL_FLOAT4,
+                                    std::move(attr_buf),
+                                    evaluated_attributes_buf[index]);
   }
   else {
     evaluated_attributes_buf[index] = std::move(attr_buf);
@@ -747,6 +754,15 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
   evaluated_time_buf = gpu::VertBuf::new_device_only<float>(curves.evaluated_points_num());
   curves_length_buf = gpu::VertBuf::new_device_only<float>(curves.curves_num());
 
+  module.evaluate_positions(curves.has_curve_with_type(CURVE_TYPE_CATMULL_ROM),
+                            curves.has_curve_with_type(CURVE_TYPE_BEZIER),
+                            curves.has_curve_with_type(CURVE_TYPE_POLY),
+                            curves.has_curve_with_type(CURVE_TYPE_NURBS),
+                            curves.curves_num(),
+                            *this,
+                            std::move(points_pos_buf),
+                            std::move(points_rad_buf),
+                            evaluated_pos_rad_buf);
 }
 
 gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
@@ -763,12 +779,8 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
 
   ensure_common(curves);
 
-  int point_count = curves.evaluated_points_num();
-  int curve_count = curves.curves_num();
-  int element_count = is_ribbon ? (point_count + curve_count) : (point_count - curve_count);
-  indirection_buf = alloc_vbo_device_only<int>(element_count);
-
-  module.evaluate_topology_indirection(curves, *this, is_ribbon, indirection_buf);
+  indirection_buf = module.evaluate_topology_indirection(
+      curves.curves_num(), curves.evaluated_points_num(), *this, is_ribbon);
 
   return indirection_buf;
 }

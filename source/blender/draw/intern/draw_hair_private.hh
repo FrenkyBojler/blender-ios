@@ -70,7 +70,11 @@ struct CurvesModule {
 
   /* Record evaluation inside `refine`.
    * Output will be ready once `refine` pass has been submitted. */
-  void evaluate_curve_attribute(const bke::CurvesGeometry &curve,
+  void evaluate_curve_attribute(bool has_catmull,
+                                bool has_bezier,
+                                bool has_poly,
+                                bool has_nurbs,
+                                int curve_count,
                                 struct CurvesEvalCache &cache,
                                 CurvesEvalShader shader_type,
                                 gpu::VertBufPtr input_buf,
@@ -78,13 +82,21 @@ struct CurvesModule {
                                 /* For radius during position evaluation. */
                                 gpu::VertBuf *input2_buf = nullptr);
 
-  void evaluate_positions(const bke::CurvesGeometry &curve,
+  void evaluate_positions(bool has_catmull,
+                          bool has_bezier,
+                          bool has_poly,
+                          bool has_nurbs,
+                          int curve_count,
                           struct CurvesEvalCache &cache,
                           gpu::VertBufPtr input_pos_buf,
                           gpu::VertBufPtr input_rad_buf,
                           gpu::VertBufPtr &output_pos_buf)
   {
-    evaluate_curve_attribute(curve,
+    evaluate_curve_attribute(has_catmull,
+                             has_bezier,
+                             has_poly,
+                             has_nurbs,
+                             curve_count,
                              cache,
                              CURVES_EVAL_POSITION,
                              std::move(input_pos_buf),
@@ -93,15 +105,10 @@ struct CurvesModule {
                              input_rad_buf.release());
   }
 
-  void evaluate_topology_indirection(const bke::CurvesGeometry &curve,
-                                     struct CurvesEvalCache &cache,
-                                     bool is_ribbon,
-                                     gpu::VertBufPtr &output_indirection_buf);
-
-  void evaluate_topology_indirection(const ParticleDrawSource &src,
-                                     struct CurvesEvalCache &cache,
-                                     bool is_ribbon,
-                                     gpu::VertBufPtr &output_indirection_buf);
+  gpu::VertBufPtr evaluate_topology_indirection(const int curve_count,
+                                                const int point_count,
+                                                struct CurvesEvalCache &cache,
+                                                bool is_ribbon);
 
  private:
   gpu::VertBuf *drw_curves_ensure_dummy_vbo();
