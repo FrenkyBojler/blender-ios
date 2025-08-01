@@ -329,8 +329,8 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
   ClosestElement closest_element;
   closest_element.element_mode = ElementMode::None;
 
-  threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
-    const int drawing_index = (&info - ptd.drawings.data());
+  for (const int drawing_index : ptd.drawings.index_range()) {
+    const MutableDrawingInfo &info = ptd.drawings[drawing_index];
 
     int closest_curve;
     ElementMode element_mode;
@@ -342,7 +342,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
       closest_element.curve_index = closest_curve;
       closest_element.point_index = closest_point;
       closest_element.drawing_index = drawing_index;
-      return;
+      continue;
     }
 
     float edge_t;
@@ -356,7 +356,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
       closest_element.edge_t = edge_t;
       closest_element.drawing_index = drawing_index;
     }
-  });
+  }
   return closest_element;
 }
 
@@ -745,7 +745,8 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
   float2 pos = float2(0.0f, 0.0f);
   int num = 0;
 
-  threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
+  for (const int drawing_index : ptd.drawings.index_range()) {
+    const MutableDrawingInfo &info = ptd.drawings[drawing_index];
     const bke::CurvesGeometry &curves = info.drawing.strokes();
     const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
     const float4x4 layer_to_object = layer.local_transform();
@@ -775,7 +776,7 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
       pos += pen_layer_to_screen(ptd, layer_to_object, positions[point_i]);
       num++;
     });
-  });
+  }
 
   if (num == 0) {
     return pos;
