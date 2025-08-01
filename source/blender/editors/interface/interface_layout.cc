@@ -168,6 +168,7 @@ struct uiLayoutItemGridFlow : public uiLayout {
 
 struct uiLayoutItemBx : public uiLayout {
   uiBut *roundbox;
+  bool no_pad = false;
 };
 
 struct uiLayoutItemPanelHeader : public uiLayout {
@@ -2597,15 +2598,16 @@ uiBut *ui_but_add_search(uiBut *but,
   return but;
 }
 
+static uiLayoutItemBx *ui_layout_box(uiLayout *layout, ButType type);
+
 void uiLayout::prop_textbox(PointerRNA *ptr,
                             blender::StringRefNull propname,
                             blender::StringRefNull idname)
 {
   uiBlock *block = this->block();
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  uiLayout &col = this->column(false);
-  uiLayout &overlap = col.row(false).overlap();
-  overlap.row(false);
+  uiLayout &col = this->column(true);
+  uiLayout &row = col.row(true);
   if (block->oldblock && block->oldblock->textbox_status.contains_as(idname)) {
     block->textbox_status.add(block->oldblock->textbox_status.lookup_key_as(idname));
   }
@@ -2617,7 +2619,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   }
 
   TextboxStatus &textbox_status = *block->textbox_status.lookup_key_as(idname).get();
-
+  float line_heigth = UI_UNIT_Y * 0.75;
   uiBut *but = uiDefButR_prop(block,
                               ButType::TextBox,
                               0,
@@ -2625,7 +2627,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                               0,
                               0,
                               25,
-                              UI_UNIT_Y * textbox_status.visible_lines_get(),
+                              line_heigth * textbox_status.visible_lines_get(),
                               ptr,
                               prop,
                               0,
@@ -2635,7 +2637,9 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
 
   UI_but_textbox_status_set(but, &textbox_status);
 
-  overlap.row(false).alignment_set(blender::ui::LayoutAlign::Right);
+  uiLayoutItemBx *box = ui_layout_box(&row, ButType::Roundbox);
+  box->no_pad = true;
+  box->row(true);
 
   but = uiDefButI(
       block,
@@ -2646,7 +2650,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
       0,
       ((0.45f * U.widget_unit) + (2.0f * U.pixelsize)) *
           0.75f,  //                 V2D_SCROLL_WIDTH * 3/4
-      UI_UNIT_Y * textbox_status.visible_lines_get(),
+      line_heigth * textbox_status.visible_lines_get(),
       &textbox_status.line_scroll,
       0,
       std::max<int>(textbox_status.total_lines - textbox_status.visible_lines_get(), 0),
@@ -2654,7 +2658,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
   but_scroll->visual_height = textbox_status.visible_lines_get();
 
-  col.row(false);
+  col.column(true);
 
   but = uiDefIconButI(block,
                       ButType::Grip,
@@ -3990,12 +3994,13 @@ static void ui_litem_layout_panel_body(uiLayout *litem)
 /* box layout */
 static void ui_litem_estimate_box(uiLayout *litem)
 {
+  uiLayoutItemBx *box = static_cast<uiLayoutItemBx *>(litem);
   const uiStyle *style = litem->root_->style;
 
   ui_litem_estimate_column(litem, true);
 
   int boxspace = style->boxspace;
-  if (litem->root_->type == blender::ui::LayoutType::Header) {
+  if (box->no_pad || litem->root_->type == blender::ui::LayoutType::Header) {
     boxspace = 0;
   }
   litem->w_ += 2 * boxspace;
@@ -4008,7 +4013,7 @@ static void ui_litem_layout_box(uiLayout *litem)
   const uiStyle *style = litem->root_->style;
 
   int boxspace = style->boxspace;
-  if (litem->root_->type == blender::ui::LayoutType::Header) {
+  if (box->no_pad || litem->root_->type == blender::ui::LayoutType::Header) {
     boxspace = 0;
   }
 

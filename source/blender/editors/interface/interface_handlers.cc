@@ -3606,6 +3606,8 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
   uiTextEdit &text_edit = data->text_edit;
   wmWindow *win = data->window;
   const bool is_num_but = ELEM(but->type, ButType::Num, ButType::NumSlider);
+  const bool is_text_box = ELEM(but->type, ButType::TextBox);
+
   bool no_zero_strip = false;
 
   MEM_SAFE_FREE(text_edit.edit_string);
@@ -3619,6 +3621,10 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 #endif
 
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
+  if(is_text_box){
+    status.item(IFACE_("New Line"), ICON_EVENT_ALT, ICON_EVENT_RETURN);
+  }
+
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
 
   if (!is_num_but) {
@@ -9135,6 +9141,11 @@ static void button_activate_init(bContext *C,
   }
   else if (but->type == ButType::Num) {
     ui_numedit_set_active(but);
+  }else if(ELEM(but->type ,ButType::TextBox,ButType::Text)){
+    if(but->active&&!but->active->changed_cursor){
+        WM_cursor_modal_set(but->active->window, WM_CURSOR_TEXT_EDIT);
+        but->active->changed_cursor=true;
+    }
   }
 
   if (UI_but_has_quick_tooltip(but)) {
