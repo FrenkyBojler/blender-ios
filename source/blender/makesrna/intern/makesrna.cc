@@ -758,7 +758,7 @@ static char *rna_def_property_get_func(
     /* Check log scale sliders for negative range. */
     if (prop->type == PROP_FLOAT) {
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-      /* NOTE: UI_BTYPE_NUM_SLIDER can't have a softmin of zero. */
+      /* NOTE: ButType::NumSlider can't have a softmin of zero. */
       if ((fprop->ui_scale_type == PROP_SCALE_LOG) && (fprop->hardmin < 0 || fprop->softmin < 0)) {
         CLOG_ERROR(
             &LOG, "\"%s.%s\", range for log scale < 0.", srna->identifier, prop->identifier);
@@ -768,7 +768,7 @@ static char *rna_def_property_get_func(
     }
     if (prop->type == PROP_INT) {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-      /* Only UI_BTYPE_NUM_SLIDER is implemented and that one can't have a softmin of zero. */
+      /* Only ButType::NumSlider is implemented and that one can't have a softmin of zero. */
       if ((iprop->ui_scale_type == PROP_SCALE_LOG) && (iprop->hardmin <= 0 || iprop->softmin <= 0))
       {
         CLOG_ERROR(
@@ -2179,6 +2179,17 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
     }
     case PROP_ENUM: {
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+
+      if (dp->enumbitflags && eprop->item_fn &&
+          !(eprop->item != rna_enum_dummy_NULL_items || eprop->set || eprop->set_ex))
+      {
+        CLOG_ERROR(&LOG,
+                   "%s.%s, bitflag enum should not define an `item` callback function, unless "
+                   "they also define a static list of items, or a custom `set` callback.",
+                   srna->identifier,
+                   prop->identifier);
+        DefRNA.error = true;
+      }
 
       if (!(prop->flag & PROP_EDITABLE) && (eprop->set || eprop->set_ex)) {
         CLOG_ERROR(&LOG,
@@ -4130,6 +4141,17 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     freenest = true;
   }
 
+  if (prop->deprecated) {
+    fprintf(f,
+            "static const DeprecatedRNA rna_%s%s_%s_deprecated = {\n\t",
+            srna->identifier,
+            strnest,
+            prop->identifier);
+    rna_print_c_string(f, prop->deprecated->note);
+    fprintf(f, ",\n\t%d, %d,\n", prop->deprecated->version, prop->deprecated->removal_version);
+    fprintf(f, "};\n\n");
+  }
+
   switch (prop->type) {
     case PROP_ENUM: {
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
@@ -4199,10 +4221,11 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
         else {
           if (!defaultfound && !(eprop->item_fn && eprop->item == rna_enum_dummy_NULL_items)) {
             CLOG_ERROR(&LOG,
-                       "%s%s.%s, enum default is not in items.",
+                       "%s%s.%s, enum default '%d' is not in items.",
                        srna->identifier,
                        errnest,
-                       prop->identifier);
+                       prop->identifier,
+                       eprop->defaultvalue);
             DefRNA.error = true;
           }
         }
@@ -4369,7 +4392,15 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
   fprintf(f, ",\n\t");
   fprintf(f, "%d, ", prop->icon);
   rna_print_c_string(f, prop->translation_context);
-  fprintf(f, ",\n");
+  fprintf(f, ",\n\t");
+
+  if (prop->deprecated) {
+    fprintf(f, "&rna_%s%s_%s_deprecated,", srna->identifier, strnest, prop->identifier);
+  }
+  else {
+    fprintf(f, "nullptr,\n");
+  }
+
   fprintf(f,
           "\t%s, PropertySubType(int(%s) | int(%s)), %s, %u, {%u, %u, %u}, %u,\n",
           RNA_property_typename(prop->type),
@@ -5848,7 +5879,7 @@ int main(int argc, char **argv)
 
   /* Some useful defaults since this runs standalone. */
   CLG_output_use_basename_set(true);
-  CLG_level_set(debugSRNA);
+  CLG_level_set(debugSRNA ? CLG_LEVEL_DEBUG : CLG_LEVEL_WARN);
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s outdirectory [public header outdirectory]/\n", argv[0]);

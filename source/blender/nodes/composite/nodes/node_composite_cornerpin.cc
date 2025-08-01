@@ -75,8 +75,8 @@ static void node_composit_init_cornerpin(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeCornerPinData *data = MEM_callocN<NodeCornerPinData>(__func__);
   data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
-  data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-  data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+  data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
+  data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
   node->storage = data;
 }
 
@@ -257,8 +257,8 @@ class CornerPinOperation : public NodeOperation {
 
   Result compute_plane_mask_cpu(const float3x3 &homography_matrix)
   {
-    const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Zero;
-    const bool is_y_clipped = this->get_extension_mode_x() == ExtensionMode::Zero;
+    const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
+    const bool is_y_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
     const Domain domain = compute_domain();
     Result plane_mask = context().create_result(ResultType::Float);
     plane_mask.allocate_texture(domain);
@@ -335,8 +335,8 @@ class CornerPinOperation : public NodeOperation {
   ExtensionMode get_extension_mode_x() const
   {
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
-      case CMP_NODE_EXTENSION_MODE_ZERO:
-        return ExtensionMode::Zero;
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
         return ExtensionMode::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
@@ -344,14 +344,14 @@ class CornerPinOperation : public NodeOperation {
     }
 
     BLI_assert_unreachable();
-    return ExtensionMode::Zero;
+    return ExtensionMode::Clip;
   }
 
   ExtensionMode get_extension_mode_y() const
   {
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
-      case CMP_NODE_EXTENSION_MODE_ZERO:
-        return ExtensionMode::Zero;
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
         return ExtensionMode::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
@@ -359,7 +359,7 @@ class CornerPinOperation : public NodeOperation {
     }
 
     BLI_assert_unreachable();
-    return ExtensionMode::Zero;
+    return ExtensionMode::Clip;
   }
 
   const char *get_shader_name() const
@@ -375,7 +375,7 @@ class CornerPinOperation : public NodeOperation {
     }
 
     BLI_assert_unreachable();
-    return "compositor_plane_deform";
+    return "compositor_plane_deform_anisotropic";
   }
 };
 
