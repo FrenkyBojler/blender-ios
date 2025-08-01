@@ -23,6 +23,7 @@ struct Object;
 struct ParticleSystem;
 struct PTCacheEdit;
 struct ModifierData;
+struct ParticleCacheKey;
 namespace blender::bke {
 class CurvesGeometry;
 }  // namespace blender::bke
@@ -49,11 +50,24 @@ enum CurvesEvalShader {
 };
 
 /* Legacy Hair Particle. */
+
+struct ParticleSpans {
+  Span<ParticleCacheKey *> parent;
+  Span<ParticleCacheKey *> children;
+
+  void foreach_strand(std::function<void(Span<ParticleCacheKey>)> callback);
+};
+
 struct ParticleDrawSource {
-  Object *object;
-  ParticleSystem *psys;
-  ModifierData *md;
-  PTCacheEdit *edit;
+  Object *object = nullptr;
+  ParticleSystem *psys = nullptr;
+  ModifierData *md = nullptr;
+  PTCacheEdit *edit = nullptr;
+
+  Vector<int> points_by_curve_storage;
+
+  OffsetIndices<int> points_by_curve();
+  ParticleSpans particles_get();
 };
 
 #define CURVES_EVAL_SHADER_NUM 5

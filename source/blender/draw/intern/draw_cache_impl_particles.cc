@@ -17,6 +17,7 @@
 #include "BLI_alloca.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
+#include "BLI_offset_indices.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
@@ -229,6 +230,50 @@ void DRW_particle_batch_cache_free(ParticleSystem *psys)
 {
   particle_batch_cache_clear(psys);
   MEM_SAFE_FREE(psys->batch_cache);
+}
+
+void ParticleSpans::foreach_strand(std::function<void(Span<ParticleCacheKey>)> callback)
+{
+  for (const auto &particle : parent) {
+    callback(Span<ParticleCacheKey>(particle, particle->segments));
+  }
+  for (const auto &particle : children) {
+    callback(Span<ParticleCacheKey>(particle, particle->segments));
+  }
+}
+
+ParticleSpans ParticleDrawSource::particles_get()
+{
+  if (edit && edit->pathcache) {
+    /* Edit particles only display their parent. */
+    return {{edit->pathcache, edit->totcached}, {}};
+  }
+
+  ParticleSpans spans;
+  const bool display_parent = !psys->childcache || (psys->part->draw & PART_DRAW_PARENT);
+  if (psys->pathcache && display_parent) {
+    spans.parent = {psys->pathcache, psys->totpart};
+  }
+
+  if (psys->childcache) {
+    spans.children = {psys->childcache, psys->totchild * psys->part->disp / 100};
+  }
+  return spans;
+}
+
+OffsetIndices<int> ParticleDrawSource::offset_indices()
+{
+  if (!points_by_curve_storage.is_empty()) {
+    return points_by_curve_storage.as_span();
+  }
+
+  int total = 0;
+  points_by_curve_storage.append(0);
+  particles_get().foreach_strand([&](Span<ParticleCacheKey> strand) {
+    total += strand.size() + 1;
+    points_by_curve_storage.append(total);
+  });
+  return points_by_curve_storage.as_span();
 }
 
 static void count_cache_segment_keys(ParticleCacheKey **pathcache,
@@ -1357,11 +1402,22 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
 
 void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
 {
-  if (evaluated_pos_rad_buf) {
+  if (points_by_curve_buf) {
     return;
   }
 
-  ensure_common(src);
+  points_by_curve_buf = create_vbo_from_span(src.points_by_curve().data());
+  /* TODO subdiv. */
+  evaluated_points_by_curve_buf = create_vbo_from_span(src.points_by_curve().data());
+
+  /* Use the same type for all curves. */
+  /* TODO subdiv. */
+  VArray<int8_t> type_varray(varray_tag::single, CURVE_TYPE_POLY, src.curves_num());
+  VArray<int32_t> resolution_varray(varray_tag::single, 0, src.curves_num());
+  /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
+   * This concerns all varray. */
+  curves_type_buf = create_vbo_from_varray(type_varray);
+  curves_resolution_buf = create_vbo_from_varray(resolution_varray);
 }
 
 void CurvesEvalCache::ensure_positions(CurvesModule &module,
