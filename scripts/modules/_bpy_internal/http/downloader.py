@@ -12,7 +12,6 @@ import logging
 import multiprocessing
 import multiprocessing.connection
 import multiprocessing.process
-import queue
 import time
 import zlib  # For streaming gzip decompression.
 from collections.abc import Callable
