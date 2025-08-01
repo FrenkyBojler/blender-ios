@@ -1397,6 +1397,8 @@ struct wmDropBox {
    * \param xy: Cursor location in window coordinates (#wmEvent.xy compatible).
    */
   void (*draw_in_view)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
+
+  /* Callback to scroll the view when mouse is near edge (currently used for tree view). */
   void (*scroll_view)(const ARegion *region, const int xy[2]);
   /** Custom data for drawing. */
   void *draw_data;
