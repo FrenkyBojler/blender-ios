@@ -438,13 +438,17 @@ class CurveConstraintSet : public ConstraintSet {
       if (attributes.contains(rest_length_attribute_)) {
         continue;
       }
-      float *rest_lengths = MEM_malloc_arrayN<float>(curves.points_num(), __func__);
+      bke::SpanAttributeWriter<float> rest_length_writer =
+          attributes.lookup_or_add_for_write_only_span<float>(rest_length_attribute_,
+                                                              bke::AttrDomain::Point);
       const Span<float3> positions = curves.positions();
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      const VArraySpan<bool> cyclic = curves.cyclic();
       threading::parallel_for(curves.curves_range(), 256, [&](IndexRange curves_range) {
         for (const int curve_i : curves_range) {
           const IndexRange points = points_by_curve[curve_i];
           if (points.size() < 2) {
+            rest_length_writer.span.slice(points).fill(0.0f);
             continue;
           }
           for (const int point_i : points.drop_back(1)) {
@@ -452,15 +456,15 @@ class CurveConstraintSet : public ConstraintSet {
             const float3 &p0 = positions[point_i];
             const float3 &p1 = positions[next_point_i];
             const float length = math::distance(p0, p1);
-            rest_lengths[point_i] = length;
+            rest_length_writer.span[point_i] = length;
           }
-          /* Cyclic segment length. Not strictly necessary to compute in all cases. */
-          rest_lengths[points.last()] = math::distance(positions[points.last()], positions[0]);
+          rest_length_writer.span[points.last()] = cyclic[curve_i] ?
+                                                       math::distance(positions[points.last()],
+                                                                      positions[0]) :
+                                                       0.0f;
         }
       });
-      attributes.add<float>(rest_length_attribute_,
-                            bke::AttrDomain::Point,
-                            bke::AttributeInitMoveArray{rest_lengths});
+      rest_length_writer.finish();
     }
   }
 };
