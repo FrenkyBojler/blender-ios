@@ -1404,7 +1404,7 @@ static void dynamics_time_step(const Behaviors &behaviors,
 
           angular_velocity += delta_time *
                               (math::safe_divide(external_torque - precession, inertia));
-          const math::Quaternion direction = math::Quaternion(0, angular_velocity) * rotation;
+          const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
           rotation = math::normalize(
               math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
         }
