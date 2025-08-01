@@ -2379,12 +2379,7 @@ static bool do_lasso_select_vse(bContext *C, const Span<int2> mcoords, const eSe
     return OPERATOR_CANCELLED;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const ARegion *region = CTX_wm_region(C);
-  const ToolSettings *ts = scene->toolsettings;
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-
-  const bool select = (sel_op != SEL_OP_SUB);
 
   bool changed = false;
   rcti rect;
