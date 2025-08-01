@@ -40,6 +40,13 @@ YAML_PATHS = [
     "scripts/modules/_bpy_internal/assets/remote_library_index/blender_asset_library_openapi.yaml",
 ]
 
+# Packages to install in the virtualenv. These are only necessary to run this
+# generator. The generated code does not depend on these.
+REQUIREMENTS = [
+    "datamodel-code-generator ~= 0.28.2",
+    "PyYAML ~= 6.0.2",
+]
+
 # These arguments are quite likely to be used for all code generated with this
 # generator, also later when we use this approach in other areas.
 COMMON_ARGS = [
@@ -184,14 +191,6 @@ def _generate_datamodel(in_path: Path, in_type: str, out_path: Path) -> None:
 import importlib.util
 import subprocess
 import venv
-
-
-# Packages to install in the virtualenv. These are only necessary to run this
-# generator. The generated code does not depend on these.
-REQUIREMENTS = [
-    "datamodel-code-generator ~= 0.28.2",
-    "PyYAML ~= 6.0.2",
-]
 
 # Name of a module to import, to test whether dependencies have been installed or not.
 TEST_INSTALL_MODULE = "datamodel_code_generator"
