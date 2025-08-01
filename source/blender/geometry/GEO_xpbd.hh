@@ -31,6 +31,14 @@ class AccelerationField {
   fn::Field<float3> acceleration_field;
 };
 
+class Damping {
+ public:
+  std::string self_path;
+  std::string filter;
+  float linear_damping;
+  float angular_damping;
+};
+
 struct SimGeometrySet {
   std::string path;
   bke::GeometrySet geometry;
@@ -123,6 +131,7 @@ struct Behaviors {
   Vector<SimGeometrySet *> sim_geometry_sets;
   Vector<ForceField> force_fields;
   Vector<AccelerationField> acceleration_fields;
+  Vector<Damping> dampings;
   Vector<ConstraintSet *> constraint_sets;
 };
 

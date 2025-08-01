@@ -90,6 +90,18 @@ static void parse_behavior__acceleration(ParseBehaviorParams &params)
   params.r_behaviors.acceleration_fields.append(acceleration);
 }
 
+static void parse_behavior__damping(ParseBehaviorParams &params)
+{
+  float linear_damping = params.bundle.lookup<float>("Linear Damping").value_or(0.0f);
+  float angular_damping = params.bundle.lookup<float>("Angular Damping").value_or(0.0f);
+  geometry::xpbd::Damping damping;
+  damping.linear_damping = linear_damping;
+  damping.angular_damping = angular_damping;
+  damping.self_path = params.self_path();
+  damping.filter = params.bundle.lookup<std::string>("Filter").value_or("");
+  params.r_behaviors.dampings.append(damping);
+}
+
 static void parse_behavior__edge_lengths(ParseBehaviorParams &params)
 {
   std::optional<std::string> rest_length_attribute = params.bundle.lookup<std::string>(
@@ -239,6 +251,7 @@ static Map<std::string, BehaviorParserFn> build_behavior_parsers()
   behavior_parsers.add_new("Geometry", parse_behavior__geometry);
   behavior_parsers.add_new("Force", parse_behavior__force);
   behavior_parsers.add_new("Acceleration", parse_behavior__acceleration);
+  behavior_parsers.add_new("Damping", parse_behavior__damping);
   behavior_parsers.add_new("Edge Length Constraint", parse_behavior__edge_lengths);
   behavior_parsers.add_new("Curve Length Constraint", parse_behavior__curve_lengths);
   behavior_parsers.add_new("Cosserat Rod Length Constraint", parse_behavior__cosserat_rod_lengths);

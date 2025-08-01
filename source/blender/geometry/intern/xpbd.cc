@@ -1481,18 +1481,37 @@ static void dynamics_time_step(const Behaviors &behaviors,
     }
     const VArray<float> masses = *attributes->lookup_or_default<float>(
         sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
-
-    bke::SpanAttributeWriter<float3> positions = attributes->lookup_or_add_for_write_span<float3>(
-        "position", bke::AttrDomain::Point);
     bke::SpanAttributeWriter<float3> velocities = attributes->lookup_or_add_for_write_span<float3>(
         sim_geometry.src.velocity_attribute, bke::AttrDomain::Point);
-    threading::parallel_for(positions.span.index_range(), 1024, [&](const IndexRange range) {
+    bke::SpanAttributeWriter<float3> positions = attributes->lookup_or_add_for_write_span<float3>(
+        "position", bke::AttrDomain::Point);
+
+    threading::parallel_for(velocities.span.index_range(), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         acceleration[i] += force[i] / masses[i];
         velocities.span[i] += acceleration[i] * delta_time;
+      }
+    });
+    /* Apply velocity damping before position integration. */
+    for (const Damping &damping : behaviors.dampings) {
+      if (behavior_path_is_selected(damping.self_path, damping.filter, sim_geometry.src.path)) {
+        const float damping_factor = 1.0f - damping.linear_damping * delta_time;
+        if (damping_factor <= 0.0f) {
+          continue;
+        }
+        threading::parallel_for(velocities.span.index_range(), 1024, [&](const IndexRange range) {
+          for (const int i : range) {
+            velocities.span[i] *= damping_factor;
+          }
+        });
+      }
+    }
+    threading::parallel_for(positions.span.index_range(), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
         positions.span[i] += velocities.span[i] * delta_time;
       }
     });
+
     velocities.finish();
     positions.finish();
 
@@ -1510,17 +1529,39 @@ static void dynamics_time_step(const Behaviors &behaviors,
       bke::SpanAttributeWriter<float3> angular_velocities =
           attributes->lookup_or_add_for_write_span<float3>(
               sim_geometry.src.angular_velocity_attribute, bke::AttrDomain::Point);
+
+      threading::parallel_for(
+          angular_velocities.span.index_range(), 1024, [&](const IndexRange range) {
+            for (const int i : range) {
+              const float3 &inertia = inertias[i];
+              float3 &angular_velocity = angular_velocities.span[i];
+              /* TODO eventually may have external "torque fields", ignore for now. */
+              const float3 external_torque = float3(0.0f);
+              const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
+
+              angular_velocity += delta_time *
+                                  (math::safe_divide(external_torque - precession, inertia));
+            }
+          });
+      /* Apply angular velocity damping before rotation integration. */
+      for (const Damping &damping : behaviors.dampings) {
+        if (behavior_path_is_selected(damping.self_path, damping.filter, sim_geometry.src.path)) {
+          const float damping_factor = 1.0f - damping.angular_damping * delta_time;
+          if (damping_factor <= 0.0f) {
+            continue;
+          }
+          threading::parallel_for(
+              angular_velocities.span.index_range(), 1024, [&](const IndexRange range) {
+                for (const int i : range) {
+                  angular_velocities.span[i] *= damping_factor;
+                }
+              });
+        }
+      }
       threading::parallel_for(rotations.span.index_range(), 1024, [&](const IndexRange range) {
         for (const int i : range) {
-          const float3 &inertia = inertias[i];
-          float3 &angular_velocity = angular_velocities.span[i];
-          /* TODO eventually may have external "torque fields", ignore for now. */
-          const float3 external_torque = float3(0.0f);
-          const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
+          const float3 &angular_velocity = angular_velocities.span[i];
           math::Quaternion &rotation = rotations.span[i];
-
-          angular_velocity += delta_time *
-                              (math::safe_divide(external_torque - precession, inertia));
           const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
           rotation = math::normalize(
               math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
