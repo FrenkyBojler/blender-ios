@@ -196,59 +196,6 @@ static CurvesBatchCache &get_batch_cache(Curves &curves)
   return *static_cast<CurvesBatchCache *>(curves.batch_cache);
 }
 
-template<typename T> struct GenericVertexFormat {
-  T attr;
-  GPU_VERTEX_FORMAT_FUNC(GenericVertexFormat, attr);
-};
-
-template<> struct GenericVertexFormat<int8_t> {
-  /* This is a workaround to reinterpret int8_t into padded vertex format to be able to upload it
-   * on any GPU. The shaders then need to read uint32_t and use shifts and mask to decode in
-   * individual bytes. */
-  uint32_t attr;
-  GPU_VERTEX_FORMAT_FUNC(GenericVertexFormat, attr);
-};
-
-template<> struct GenericVertexFormat<uint8_t> {
-  /* This is a workaround to reinterpret int8_t into padded vertex format to be able to upload it
-   * on any GPU. The shaders then need to read uint32_t and use shifts and mask to decode in
-   * individual bytes. */
-  uint32_t attr;
-  GPU_VERTEX_FORMAT_FUNC(GenericVertexFormat, attr);
-};
-
-template<typename T> static gpu::VertBufPtr create_vbo_from_span(const Span<T> data)
-{
-  BLI_assert(!data.is_empty());
-  gpu::VertBufPtr buf = gpu::VertBufPtr(
-      GPU_vertbuf_create_with_format(GenericVertexFormat<T>::format()));
-  /* GPU formats needs to be aligned to 4 bytes. */
-  buf->allocate(ceil_to_multiple_u(data.size_in_bytes(), 4) / sizeof(GenericVertexFormat<T>));
-  buf->data<T>().slice(0, data.size()).copy_from(data);
-  return buf;
-}
-
-template<typename T> static gpu::VertBufPtr create_vbo_from_varray(const VArray<T> array)
-{
-  BLI_assert(!array.is_empty());
-  gpu::VertBufPtr buf = gpu::VertBufPtr(GPU_vertbuf_create_with_format_ex(
-      GenericVertexFormat<T>::format(), GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY));
-  /* GPU formats needs to be aligned to 4 bytes. */
-  buf->allocate(ceil_to_multiple_u(array.size() * sizeof(T), 4) / sizeof(GenericVertexFormat<T>));
-  array.materialize(buf->data<T>().slice(0, array.size()));
-  return buf;
-}
-
-template<typename T> static gpu::VertBufPtr alloc_vbo_device_only(uint size)
-{
-  BLI_assert(size > 0);
-  gpu::VertBufPtr buf = gpu::VertBufPtr(GPU_vertbuf_create_with_format_ex(
-      GenericVertexFormat<T>::format(),
-      GPU_USAGE_DEVICE_ONLY | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY));
-  buf->allocate(size);
-  return buf;
-}
-
 static uint32_t bezier_data_value(int8_t handle_type, bool is_active)
 {
   return (handle_type << EDIT_CURVES_HANDLE_TYPES_SHIFT) | EDIT_CURVES_BEZIER_HANDLE |
@@ -723,13 +670,14 @@ void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
   if (points_by_curve_buf) {
     return;
   }
-  points_by_curve_buf = create_vbo_from_span(curves.points_by_curve().data());
-  evaluated_points_by_curve_buf = create_vbo_from_span(curves.evaluated_points_by_curve().data());
+  points_by_curve_buf = gpu::VertBuf::new_from_span(curves.points_by_curve().data());
+  evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(
+      curves.evaluated_points_by_curve().data());
 
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  curves_type_buf = create_vbo_from_varray(curves.curve_types());
-  curves_resolution_buf = create_vbo_from_varray(curves.resolution());
+  curves_type_buf = gpu::VertBuf::new_from_varray(curves.curve_types());
+  curves_resolution_buf = gpu::VertBuf::new_from_varray(curves.resolution());
 }
 
 void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
@@ -737,9 +685,9 @@ void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
   if (handles_positions_left_buf) {
     return;
   }
-  handles_positions_left_buf = create_vbo_from_span(curves.handle_positions_left());
-  handles_positions_right_buf = create_vbo_from_span(curves.handle_positions_right());
-  bezier_offsets_buf = create_vbo_from_span(
+  handles_positions_left_buf = gpu::VertBuf::new_from_span(curves.handle_positions_left());
+  handles_positions_right_buf = gpu::VertBuf::new_from_span(curves.handle_positions_right());
+  bezier_offsets_buf = gpu::VertBuf::new_from_span(
       curves.runtime->evaluated_offsets_cache.data().all_bezier_offsets.as_span());
 }
 
@@ -752,9 +700,9 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
 
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  curves_order_buf = create_vbo_from_varray(curves.nurbs_orders());
+  curves_order_buf = gpu::VertBuf::new_from_varray(curves.nurbs_orders());
   if (!curves.nurbs_weights().is_empty()) {
-    control_weights_buf = create_vbo_from_span(curves.nurbs_weights());
+    control_weights_buf = gpu::VertBuf::new_from_span(curves.nurbs_weights());
   }
 
   curves.ensure_can_interpolate_to_evaluated();
@@ -771,8 +719,8 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
     }
   }
 
-  basis_cache_offset_buf = create_vbo_from_span(basis_cache_offset.as_span());
-  basis_cache_buf = create_vbo_from_span(basis_cache_packed.as_span());
+  basis_cache_offset_buf = gpu::VertBuf::new_from_span(basis_cache_offset.as_span());
+  basis_cache_buf = gpu::VertBuf::new_from_span(basis_cache_packed.as_span());
 }
 
 void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGeometry &curves)
@@ -791,16 +739,14 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
 
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  gpu::VertBufPtr points_pos_buf = create_vbo_from_span(curves.positions());
-  gpu::VertBufPtr points_rad_buf = create_vbo_from_varray(curves.radius());
+  gpu::VertBufPtr points_pos_buf = gpu::VertBuf::new_from_span(curves.positions());
+  gpu::VertBufPtr points_rad_buf = gpu::VertBuf::new_from_varray(curves.radius());
 
-  evaluated_pos_rad_buf = alloc_vbo_device_only<float4>(curves.evaluated_points_num());
+  evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(curves.evaluated_points_num());
   /* TODO(fclem): Make time and length optional. */
-  evaluated_time_buf = alloc_vbo_device_only<float>(curves.evaluated_points_num());
-  curves_length_buf = alloc_vbo_device_only<float>(curves.curves_num());
+  evaluated_time_buf = gpu::VertBuf::new_device_only<float>(curves.evaluated_points_num());
+  curves_length_buf = gpu::VertBuf::new_device_only<float>(curves.curves_num());
 
-  module.evaluate_positions(
-      curves, *this, std::move(points_pos_buf), std::move(points_rad_buf), evaluated_pos_rad_buf);
 }
 
 gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
