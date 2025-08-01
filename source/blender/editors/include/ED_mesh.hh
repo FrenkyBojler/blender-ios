@@ -53,31 +53,29 @@ class EditMeshSymmetryHelper {
  public:
   static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob, uchar htype);
 
-  bool any_mirror_edge_selected(BMEdge *edge, char hflag) const;
-  bool any_mirror_vert_selected(BMVert *vert, char hflag) const;
-  bool any_mirror_face_selected(BMFace *face, char hflag) const;
+  bool any_mirror_vert_selected(BMVert *v, char hflag) const;
+  bool any_mirror_edge_selected(BMEdge *e, char hflag) const;
+  bool any_mirror_face_selected(BMFace *f, char hflag) const;
 
-  void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
-  void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;
-  void set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const;
+  void set_hflag_on_mirror_verts(BMVert *v, char hflag, bool value) const;
+  void set_hflag_on_mirror_edges(BMEdge *e, char hflag, bool value) const;
+  void set_hflag_on_mirror_faces(BMFace *f, char hflag, bool value) const;
 
-  void apply_on_mirror_verts(BMVert *vert, blender::FunctionRef<void(BMVert *)> op) const;
-  void apply_on_mirror_edges(BMEdge *edge, blender::FunctionRef<void(BMEdge *)> op) const;
-  void apply_on_mirror_faces(BMFace *face, blender::FunctionRef<void(BMFace *)> op) const;
-
-  void tag_symmetrical_group(const blender::Vector<BMFace *> &initial_selection, char hflag) const;
+  void apply_on_mirror_verts(BMVert *v, blender::FunctionRef<void(BMVert *)> op) const;
+  void apply_on_mirror_edges(BMEdge *e, blender::FunctionRef<void(BMEdge *)> op) const;
+  void apply_on_mirror_faces(BMFace *f, blender::FunctionRef<void(BMFace *)> op) const;
 
  private:
   EditMeshSymmetryHelper(Object *ob, uchar htype);
 
-  BMEditMesh *em;
-  Mesh *mesh;
+  BMEditMesh *em_;
+  Mesh *mesh_;
   uchar htype_;
-  bool use_topology_mirror;
+  bool use_topology_mirror_;
 
-  blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirrors_map;
-  blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirrors_map;
-  blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirrors_map;
+  blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirror_map_;
+  blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirror_map_;
+  blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirror_map_;
 };
 
 /**
