@@ -138,7 +138,7 @@ class CornerPinOperation : public NodeOperation {
       this->compute_plane_gpu(homography_matrix, plane_mask);
     }
     else {
-      this->compute_plane_cpu(homography_matrix, &plane_mask);
+      this->compute_plane_cpu(homography_matrix, plane_mask);
     }
   }
 
@@ -181,7 +181,7 @@ class CornerPinOperation : public NodeOperation {
     GPU_shader_unbind();
   }
 
-  void compute_plane_cpu(const float3x3 &homography_matrix, Result *plane_mask)
+  void compute_plane_cpu(const float3x3 &homography_matrix, Result &plane_mask)
   {
     Result &input = get_input("Image");
 
@@ -220,16 +220,7 @@ class CornerPinOperation : public NodeOperation {
         sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
       }
 
-      /* Turns false if there is any exception mode but Clip. */
-      bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
-      bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
-
-      bool is_inside_plane = is_inside_plane_x && is_inside_plane_y;
-
-      /* Premultiply the mask value as an alpha. */
-      float4 plane_color = plane_mask && is_inside_plane ?
-                               sampled_color * plane_mask->load_pixel<float>(texel) :
-                               sampled_color;
+      float4 plane_color = sampled_color * plane_mask.load_pixel<float>(texel);
 
       output.store_pixel(texel, plane_color);
     });
@@ -266,6 +257,8 @@ class CornerPinOperation : public NodeOperation {
 
   Result compute_plane_mask_cpu(const float3x3 &homography_matrix)
   {
+    const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Zero;
+    const bool is_y_clipped = this->get_extension_mode_x() == ExtensionMode::Zero;
     const Domain domain = compute_domain();
     Result plane_mask = context().create_result(ResultType::Float);
     plane_mask.allocate_texture(domain);
@@ -281,9 +274,15 @@ class CornerPinOperation : public NodeOperation {
         return;
       }
       float2 projected_coordinates = transformed_coordinates.xy() / transformed_coordinates.z;
-      bool is_inside_plane = projected_coordinates.x >= 0.0f && projected_coordinates.y >= 0.0f &&
-                             projected_coordinates.x <= 1.0f && projected_coordinates.y <= 1.0f;
-      float mask_value = is_inside_plane ? 1.0f : 0.0f;
+      bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
+      bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
+
+      /* If not inside the plane and not clipped, use extend or repeat extension mode for the mask.
+       */
+      float mask_value = (is_inside_plane_x || !is_x_clipped) &&
+                                 (is_inside_plane_y || !is_y_clipped) ?
+                             1.0f :
+                             0.0f;
 
       plane_mask.store_pixel(texel, mask_value);
     });
