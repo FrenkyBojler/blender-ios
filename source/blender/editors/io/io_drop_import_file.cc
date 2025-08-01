@@ -85,23 +85,22 @@ static void file_handler_import_operator_write_ptr(
   const bool has_any_filepath_prop = filepath_prop || directory_prop || files_prop;
   if (!has_any_filepath_prop) {
     CLOG_WARN(&LOG,
-              "'%s' file handler import operator (%s) misses any filepath property.",
-              file_handler->label,
+              "'%s' file handler import operator ('%s') misses any filepath property.",
+              file_handler->idname,
               file_handler->import_operator);
   }
   if (directory_prop && !files_prop) {
-    CLOG_WARN(
-        &LOG,
-        "'%s' file handler import operator (%s) misses 'files' OperatorFileList collection property.",
-        file_handler->label,
-        file_handler->import_operator);
+    CLOG_WARN(&LOG,
+              "'%s' file handler import operator ('%s') misses 'files' OperatorFileList "
+              "collection property.",
+              file_handler->idname,
+              file_handler->import_operator);
   }
   if (!directory_prop && files_prop) {
-    CLOG_WARN(
-        &LOG,
-        "'%s' file handler import operator (%s) misses 'directory' property.",
-        file_handler->label,
-        file_handler->import_operator);
+    CLOG_WARN(&LOG,
+              "'%s' file handler import operator ('%s') misses 'directory' property.",
+              file_handler->idname,
+              file_handler->import_operator);
   }
 }
 
