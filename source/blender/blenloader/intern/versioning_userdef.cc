@@ -370,6 +370,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_vect);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_align);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex_select);
   }
 
