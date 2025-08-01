@@ -4,6 +4,25 @@
 
 from __future__ import annotations
 
+__all__ = (
+    "ConditionalDownloader",
+    "DownloaderOptions",
+    "BackgroundDownloader",
+    "DownloadReporter",
+    "QueueingReporter",
+    "MetadataProvider",
+    "MetadataProviderFilesystem",
+    "HTTPMetadata",
+    "RequestDescription",
+    "HTTPRequestDownloadError",
+    "ContentLengthUnknownError",
+    "ContentLengthError",
+    "HTTPRequestUnknownContentEncoding",
+    "DownloadCancelled",
+    "BackgroundProcessNotRunningError",
+    "http_session",
+)
+
 import collections
 import dataclasses
 import enum
