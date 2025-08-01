@@ -1319,9 +1319,6 @@ static int arg_handle_debug_mode_set(int /*argc*/, const char ** /*argv*/, void 
   return 0;
 }
 
-static const char arg_handle_debug_mode_generic_set_doc_ffmpeg[] =
-    "\n\t"
-    "Enable debug messages from FFmpeg library.";
 static const char arg_handle_debug_mode_generic_set_doc_freestyle[] =
     "\n\t"
     "Enable debug messages for Freestyle.";
@@ -1433,6 +1430,16 @@ static int arg_handle_debug_mode_cycles(int /*argc*/, const char ** /*argv*/, vo
 {
   const char *cycles_filter = "cycles.*";
   CLG_type_filter_include(cycles_filter, strlen(cycles_filter));
+  return 0;
+}
+
+static const char arg_handle_debug_mode_ffmpeg_doc[] =
+    "\n\t"
+    "Enable debug messages from FFmpeg video input and output.";
+static int arg_handle_debug_mode_ffmpeg(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  const char *video_filter = "video.*";
+  CLG_type_filter_include(video_filter, strlen(video_filter));
   return 0;
 }
 
@@ -2779,11 +2786,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, "-d", "--debug", CB(arg_handle_debug_mode_set), ba);
 
   if (defs.with_ffmpeg) {
-    BLI_args_add(ba,
-                 nullptr,
-                 "--debug-ffmpeg",
-                 CB_EX(arg_handle_debug_mode_generic_set, ffmpeg),
-                 (void *)G_DEBUG_FFMPEG);
+    BLI_args_add(ba, nullptr, "--debug-ffmpeg", CB(arg_handle_debug_mode_ffmpeg), nullptr);
   }
 
   if (defs.with_freestyle) {
