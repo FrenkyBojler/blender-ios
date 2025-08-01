@@ -1220,8 +1220,10 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
   version_node_remove(node_tree, node);
 }
 
-/* TODO. */
-static void do_version_file_output_node(bNodeTree &node_tree, bNode &node)
+/* The file output node started using item accessors, so we need to free socket storage and copy
+ * them to the new items members. Additionally, the base path was split into a directory and a file
+ * name, so we need to split it. */
+static void do_version_file_output_node(bNode &node)
 {
   if (node.storage == nullptr) {
     return;
@@ -1238,12 +1240,13 @@ static void do_version_file_output_node(bNodeTree &node_tree, bNode &node)
 
   data->items_count = BLI_listbase_count(&node.inputs);
   data->items = MEM_calloc_arrayN<NodeCompositorFileOutputItem>(data->items_count, __func__);
-  int i;
+  int i = 0;
   LISTBASE_FOREACH_INDEX (bNodeSocket *, input, &node.inputs, i) {
     NodeImageMultiFileSocket *old_item_data = static_cast<NodeImageMultiFileSocket *>(
         input->storage);
     NodeCompositorFileOutputItem *item_data = &data->items[i];
 
+    item_data->identifier = i;
     BKE_image_format_copy(&item_data->format, &old_item_data->format);
     item_data->save_as_render = old_item_data->save_as_render;
     item_data->override_node_format = !bool(old_item_data->use_node_format);
@@ -1260,6 +1263,9 @@ static void do_version_file_output_node(bNodeTree &node_tree, bNode &node)
     else {
       item_data->name = BLI_strdup(old_item_data->path);
     }
+
+    const std::string identifier = "Item_" + std::to_string(item_data->identifier);
+    STRNCPY(input->identifier, identifier.c_str());
 
     BKE_image_format_free(&old_item_data->format);
     MEM_freeN(old_item_data);
@@ -1818,7 +1824,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
       LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
         if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
-          do_version_file_output_node(*node_tree, *node);
+          do_version_file_output_node(*node);
         }
       }
       FOREACH_NODETREE_END;

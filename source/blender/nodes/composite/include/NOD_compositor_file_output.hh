@@ -6,6 +6,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_base.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
@@ -83,6 +84,19 @@ struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefault
     return ELEM(socket_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
   }
 
+  static int find_available_identifier(const NodeCompositorFileOutputItem *items,
+                                       const int items_count)
+  {
+    if (items_count == 0) {
+      return 0;
+    }
+    int max_identifier = items[0].identifier;
+    for (int i = 0; i < items_count; i++) {
+      max_identifier = math::max(items[i].identifier, max_identifier);
+    }
+    return max_identifier + 1;
+  }
+
   static void init_with_socket_type_and_name(bNode &node,
                                              NodeCompositorFileOutputItem &item,
                                              const eNodeSocketDatatype socket_type,
@@ -90,7 +104,9 @@ struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefault
                                              std::optional<int> dimensions = std::nullopt)
   {
     auto *storage = static_cast<NodeCompositorFileOutput *>(node.storage);
-    item.identifier = storage->next_identifier++;
+    item.identifier = FileOutputItemsAccessor::find_available_identifier(storage->items,
+                                                                         storage->items_count);
+
     item.socket_type = socket_type;
     item.vector_socket_dimensions = dimensions.value_or(3);
     socket_items::set_item_name_and_make_unique<FileOutputItemsAccessor>(node, item, name);

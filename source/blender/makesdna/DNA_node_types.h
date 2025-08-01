@@ -1270,11 +1270,9 @@ typedef struct NodeCompositorFileOutput {
   int items_count;
   /* The currently active file output item. */
   int active_item_index;
-  /* The identifier that should be used for the next item to be added. */
-  int next_identifier;
   /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render;
-  char _pad[3];
+  char _pad[7];
 } NodeCompositorFileOutput;
 
 typedef struct NodeImageMultiFileSocket {
