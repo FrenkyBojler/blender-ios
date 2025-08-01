@@ -278,12 +278,25 @@ static void solve_bending_constraint(const int geometry_r0,
                                      const float4 &lambda_prev,
                                      const float compliance_term,
                                      const math::Quaternion &rest_shape,
-                                     LocalConstraintCorrections &local_corrections)
+                                     LocalConstraintCorrections &local_corrections,
+                                     float4 &r_lambda)
 {
   const float weight_sum = weight_rot0 + weight_rot1;
 
   const math::Quaternion shape = math::invert_normalized(r0) * r1;
-  const float4 residual = float4(shape) - float4(rest_shape);
+
+  /* TODO In "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schoemer) the W component
+   * of the Darboux vector is ignored. In "Sag-Free Initialization for Strand-Based Hybrid Hair
+   * Simulation" (Hsu et al.) it is included.
+   * For now stick to the float3 version. */
+  const float4 rest_shapef = float4(0.0f, rest_shape.imaginary_part());
+  const float4 shapef = float4(0.0f, shape.imaginary_part());
+
+  const float4 residual_neg = shapef - rest_shapef;
+  const float4 residual_pos = shapef + rest_shapef;
+  const float4 residual = math::length_squared(residual_neg) < math::length_squared(residual_pos) ?
+                              residual_neg :
+                              residual_pos;
 
   const float4 lambda = (residual - compliance_term * lambda_prev) /
                         (weight_sum + compliance_term);
