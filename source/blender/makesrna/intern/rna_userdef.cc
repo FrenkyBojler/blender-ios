@@ -2444,7 +2444,7 @@ static void rna_def_userdef_theme_spaces_edge(StructRNA *srna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
-static void rna_def_userdef_theme_spaces_face(StructRNA *srna)
+static void rna_def_userdef_theme_spaces_face(StructRNA *srna, const bool has_face_attributes, const bool has_face_orientation)
 {
   PropertyRNA *prop;
 
@@ -2473,25 +2473,29 @@ static void rna_def_userdef_theme_spaces_face(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Face Dot Size", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "freestyle_face_mark", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Freestyle Face Mark", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  if (has_face_attributes) {
+    prop = RNA_def_property(srna, "freestyle_face_mark", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_array(prop, 4);
+    RNA_def_property_ui_text(prop, "Freestyle Face Mark", "");
+    RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "face_retopology", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Face Retopology", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+    prop = RNA_def_property(srna, "face_retopology", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_array(prop, 4);
+    RNA_def_property_ui_text(prop, "Face Retopology", "");
+    RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  }
 
-  prop = RNA_def_property(srna, "face_back", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Face Orientation Back", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  if (has_face_orientation) {
+    prop = RNA_def_property(srna, "face_back", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_array(prop, 4);
+    RNA_def_property_ui_text(prop, "Face Orientation Back", "");
+    RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "face_front", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Face Orientation Front", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+    prop = RNA_def_property(srna, "face_front", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_array(prop, 4);
+    RNA_def_property_ui_text(prop, "Face Orientation Front", "");
+    RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  }
 }
 
 static void rna_def_userdef_theme_spaces_paint_curves(StructRNA *srna)
@@ -2759,7 +2763,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 
   rna_def_userdef_theme_spaces_vertex(srna, false, true);
   rna_def_userdef_theme_spaces_edge(srna);
-  rna_def_userdef_theme_spaces_face(srna);
+  rna_def_userdef_theme_spaces_face(srna, true, true);
 
   /* Mesh Object specific curves. */
 
@@ -3543,7 +3547,7 @@ static void rna_def_userdef_theme_space_image(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_spaces_vertex(srna, false, false);
-  rna_def_userdef_theme_spaces_face(srna);
+  rna_def_userdef_theme_spaces_face(srna, false, false);
 
   prop = RNA_def_property(srna, "editmesh_active", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);

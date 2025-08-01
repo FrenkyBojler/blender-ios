@@ -636,7 +636,6 @@ const bTheme U_theme_default = {
     .face_select = RGBA(0xff85003c),
     .face_dot = RGBA(0xff8500ff),
     .cframe = RGBA(0x4772b3ff),
-    .freestyle_face_mark = RGBA(0x7fff7f33),
     .handle_auto = RGBA(0x909000ff),
     .handle_align = RGBA(0x803060ff),
     .handle_sel_auto = RGBA(0xf0ff40ff),
