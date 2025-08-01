@@ -2339,7 +2339,10 @@ static bool do_lasso_select_strip_is_origin_inside(const ARegion *region,
   return false;
 }
 
-static bool do_lasso_select_timeline(bContext *C, const Span<int2> mcoords, ARegion *region)
+static bool do_lasso_select_timeline(bContext *C,
+                                     const Span<int2> mcoords,
+                                     ARegion *region,
+                                     const eSelectOp sel_op)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
@@ -2347,6 +2350,7 @@ static bool do_lasso_select_timeline(bContext *C, const Span<int2> mcoords, AReg
   BLI_lasso_boundbox(&rect, mcoords);
 
   bool changed = false;
+  const bool select = (sel_op != SEL_OP_SUB);
 
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
     rctf rq;
@@ -2434,7 +2438,7 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
     changed = do_lasso_select_vse(C, mcoords, sel_op);
   }
   else {
-    changed = do_lasso_select_timeline(C, mcoords, region);
+    changed = do_lasso_select_timeline(C, mcoords, region, sel_op);
   }
 
   /* Timeline */
