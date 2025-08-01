@@ -114,14 +114,14 @@ float azimuthal_offset_get(Segment segment)
   return offset * 2.0f - 1.0f;
 }
 
+float4 point_position_and_radius_get(uint point_id)
+{
+  return texelFetch(curves_pos_rad_buf, int(point_id));
+}
+
 float3 point_position_get(uint point_id)
 {
   return texelFetch(curves_pos_rad_buf, int(point_id)).rgb;
-}
-
-float point_radius(uint point_id)
-{
-  return texelFetch(curves_pos_rad_buf, int(point_id)).a;
 }
 
 struct Point {
@@ -150,9 +150,11 @@ Point point_get(uint vertex_id)
   pt.curve_id = indirection.curve_id;
   pt.curve_segment = indirection.curve_segment;
 
+  float4 pos_rad = point_position_and_radius_get(pt.point_id);
+
   bool restart_strip = indirection.end_of_curve || segment.end_of_segment;
-  pt.P = (restart_strip) ? float3(NAN_FLT) : point_position_get(pt.point_id);
-  pt.radius = point_radius(pt.point_id);
+  pt.P = (restart_strip) ? float3(NAN_FLT) : pos_rad.xyz;
+  pt.radius = pos_rad.w;
   pt.azimuthal_offset = azimuthal_offset_get(segment);
 
   if (pt.curve_segment == 0) {
