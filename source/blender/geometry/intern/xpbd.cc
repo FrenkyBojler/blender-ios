@@ -278,8 +278,7 @@ static void solve_bending_constraint(const int geometry_r0,
                                      const float4 &lambda_prev,
                                      const float compliance_term,
                                      const math::Quaternion &rest_shape,
-                                     LocalConstraintCorrections &local_corrections,
-                                     float4 &r_lambda)
+                                     LocalConstraintCorrections &local_corrections)
 {
   const float weight_sum = weight_rot0 + weight_rot1;
 
