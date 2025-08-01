@@ -5781,14 +5781,15 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     sad->flag |= ANIMPLAY_FLAG_JUMPED;
   }
 
-  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
-
   if (sad->flag & ANIMPLAY_FLAG_JUMPED) {
     DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 #ifdef PROFILE_AUDIO_SYNC
     old_frame = scene->r.cfra;
 #endif
   }
+
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
+
 
   /* Since we follow draw-flags, we can't send notifier but tag regions ourselves. */
   if (depsgraph != nullptr) {

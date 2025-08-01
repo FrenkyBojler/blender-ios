@@ -214,7 +214,9 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
         layout.use_property_decorate = False
 
         screen = context.screen
-        scene = context.scene
+        st = context.space_data
+        is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+        scene = context.scene if not is_sequencer else context.sequencer_scene
 
         layout.prop(scene, "sync_mode", text="Sync")
         col = layout.column(heading="Audio")
@@ -254,7 +256,9 @@ class TIME_PT_keyframing_settings(TimelinePanelButtons, Panel):
     def draw(self, context):
         layout = self.layout
 
-        scene = context.scene
+        st = context.space_data
+        is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+        scene = context.scene if not is_sequencer else context.sequencer_scene
         tool_settings = context.tool_settings
 
         col = layout.column(align=True)

@@ -580,7 +580,8 @@ static wmOperatorStatus change_frame_exec(bContext *C, wmOperator *op)
 static float frame_from_event(bContext *C, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   float frame;
 
   /* convert from region coordinates to View2D 'tot' space */
