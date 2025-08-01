@@ -2653,6 +2653,10 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
 
   UI_but_textbox_status_set(but, &textbox_status);
 
+  uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
+  /* Clamp scroll, resizing the region could add/remove wrapped lines. */
+  textbox->line_scroll_set(textbox->line_scroll());
+
   uiLayoutItemBx *box = ui_layout_box(&row, ButType::Roundbox);
   box->no_pad = true;
   box->row(true);
