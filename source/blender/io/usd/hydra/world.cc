@@ -55,6 +55,8 @@ void WorldData::init()
     pxr::GfVec3f color(1.0f, 1.0f, 1.0f);
     ID_LOG("%s", world->id.name);
 
+    world->nodetree->ensure_topology_cache();
+
     /* TODO: Create nodes parsing system */
 
     const bNode *output = usd::find_world_output(world->nodetree);
