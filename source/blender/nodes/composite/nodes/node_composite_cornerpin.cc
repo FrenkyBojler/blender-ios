@@ -138,7 +138,7 @@ class CornerPinOperation : public NodeOperation {
       this->compute_plane_gpu(homography_matrix, plane_mask);
     }
     else {
-      this->compute_plane_cpu(homography_matrix, plane_mask);
+      this->compute_plane_cpu(homography_matrix, &plane_mask);
     }
   }
 
@@ -181,7 +181,7 @@ class CornerPinOperation : public NodeOperation {
     GPU_shader_unbind();
   }
 
-  void compute_plane_cpu(const float3x3 &homography_matrix, Result &plane_mask)
+  void compute_plane_cpu(const float3x3 &homography_matrix, Result *plane_mask)
   {
     Result &input = get_input("Image");
 
@@ -228,7 +228,7 @@ class CornerPinOperation : public NodeOperation {
 
       /* Premultiply the mask value as an alpha. */
       float4 plane_color = plane_mask && is_inside_plane ?
-                               sampled_color * plane_mask.load_pixel<float>(texel) :
+                               sampled_color * plane_mask->load_pixel<float>(texel) :
                                sampled_color;
 
       output.store_pixel(texel, plane_color);
