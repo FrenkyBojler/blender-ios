@@ -115,24 +115,29 @@ class CornerPinOperation : public NodeOperation {
       return;
     }
 
-    Result plane_mask = compute_plane_mask(homography_matrix);
-    Result anti_aliased_plane_mask = context().create_result(ResultType::Float);
-    smaa(context(), plane_mask, anti_aliased_plane_mask);
-    plane_mask.release();
+    /* Only compute the mask if extension modes are not set to clip and if it is not used as an
+     * output. */
+    if (this->should_compute_mask()) {
+      Result anti_aliased_plane_mask = context().create_result(ResultType::Float);
+      Result plane_mask = compute_plane_mask(homography_matrix);
+      smaa(context(), plane_mask, anti_aliased_plane_mask);
+      plane_mask.release();
 
-    if (output_image.should_compute()) {
-      compute_plane(homography_matrix, anti_aliased_plane_mask);
-    }
+      if (output_image.should_compute()) {
+        this->compute_plane(homography_matrix, &anti_aliased_plane_mask);
+      }
 
-    if (output_mask.should_compute()) {
       output_mask.steal_data(anti_aliased_plane_mask);
+      anti_aliased_plane_mask.release();
     }
     else {
-      anti_aliased_plane_mask.release();
+      if (output_image.should_compute()) {
+        this->compute_plane(homography_matrix, nullptr);
+      }
     }
   }
 
-  void compute_plane(const float3x3 &homography_matrix, Result &plane_mask)
+  void compute_plane(const float3x3 &homography_matrix, Result *plane_mask)
   {
     if (this->context().use_gpu()) {
       this->compute_plane_gpu(homography_matrix, plane_mask);
@@ -142,9 +147,9 @@ class CornerPinOperation : public NodeOperation {
     }
   }
 
-  void compute_plane_gpu(const float3x3 &homography_matrix, Result &plane_mask)
+  void compute_plane_gpu(const float3x3 &homography_matrix, Result *plane_mask)
   {
-    GPUShader *shader = this->context().get_shader(this->get_shader_name());
+    GPUShader *shader = this->context().get_shader(this->get_shader_name().c_str());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
@@ -165,7 +170,9 @@ class CornerPinOperation : public NodeOperation {
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
-    plane_mask.bind_as_texture(shader, "mask_tx");
+    if (plane_mask) {
+      plane_mask->bind_as_texture(shader, "mask_tx");
+    }
 
     const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
@@ -175,13 +182,15 @@ class CornerPinOperation : public NodeOperation {
     compute_dispatch_threads_at_least(shader, domain.size);
 
     input_image.unbind_as_texture();
-    plane_mask.unbind_as_texture();
+    if (plane_mask) {
+      plane_mask->unbind_as_texture();
+    }
 
     output_image.unbind_as_image();
     GPU_shader_unbind();
   }
 
-  void compute_plane_cpu(const float3x3 &homography_matrix, Result &plane_mask)
+  void compute_plane_cpu(const float3x3 &homography_matrix, Result *plane_mask)
   {
     Result &input = get_input("Image");
 
@@ -220,7 +229,8 @@ class CornerPinOperation : public NodeOperation {
         sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
       }
 
-      float4 plane_color = sampled_color * plane_mask.load_pixel<float>(texel);
+      float4 plane_color = plane_mask ? sampled_color * plane_mask->load_pixel<float>(texel) :
+                                        sampled_color;
 
       output.store_pixel(texel, plane_color);
     });
@@ -366,20 +376,36 @@ class CornerPinOperation : public NodeOperation {
     return ExtensionMode::Clip;
   }
 
-  const char *get_shader_name() const
+  std::string get_shader_name()
   {
+    std::string shader;
     switch (this->get_interpolation()) {
       case Interpolation::Nearest:
       case Interpolation::Bilinear:
-        return "compositor_plane_deform";
+        shader = "compositor_plane_deform";
       case Interpolation::Bicubic:
-        return "compositor_plane_deform_bicubic";
+        shader = "compositor_plane_deform_bicubic";
+      /* Anisotropic does not implement extension modes. Return masked shader. */
       case Interpolation::Anisotropic:
-        return "compositor_plane_deform_anisotropic";
+        shader = "compositor_plane_deform_anisotropic";
     }
 
-    BLI_assert_unreachable();
-    return "compositor_plane_deform_anisotropic";
+    if (this->should_compute_mask()) {
+      shader.append("_masked");
+    }
+
+    return shader;
+  }
+
+  bool should_compute_mask()
+  {
+    Result &output_mask = this->get_result("Plane");
+    const bool is_clipped_x = this->get_extension_mode_x() == ExtensionMode::Clip;
+    const bool is_clipped_y = this->get_extension_mode_y() == ExtensionMode::Clip;
+    const bool use_mask = output_mask.should_compute();
+    const bool use_anisotropic = this->get_interpolation() == Interpolation::Anisotropic;
+
+    return is_clipped_x || is_clipped_y || use_mask || use_anisotropic;
   }
 };
 
