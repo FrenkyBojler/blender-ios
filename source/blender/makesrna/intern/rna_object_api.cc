@@ -452,7 +452,7 @@ static void rna_Object_to_curve_clear(Object *object)
 }
 
 static PointerRNA rna_Object_shape_key_add(
-    Object *ob, bContext *C, ReportList *reports, const char *name, const bool from_mix)
+    Object *ob, bContext *C, ReportList *reports, const char *name, bool from_mix)
 {
   Main *bmain = CTX_data_main(C);
   KeyBlock *kb = nullptr;
