@@ -239,10 +239,10 @@ void DRW_particle_batch_cache_free(ParticleSystem *psys)
 void ParticleSpans::foreach_strand(std::function<void(Span<ParticleCacheKey>)> callback)
 {
   for (const auto &particle : parent) {
-    callback(Span<ParticleCacheKey>(particle, particle->segments));
+    callback(Span<ParticleCacheKey>(particle, particle->segments + 1));
   }
   for (const auto &particle : children) {
-    callback(Span<ParticleCacheKey>(particle, particle->segments));
+    callback(Span<ParticleCacheKey>(particle, particle->segments + 1));
   }
 }
 
@@ -274,7 +274,7 @@ OffsetIndices<int> ParticleDrawSource::points_by_curve()
   int total = 0;
   points_by_curve_storage.append(total);
   particles_get().foreach_strand([&](Span<ParticleCacheKey> strand) {
-    total += strand.size() + 1;
+    total += strand.size();
     points_by_curve_storage.append(total);
   });
   return points_by_curve_storage.as_span();
@@ -1420,7 +1420,7 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
 }
 
 /* Copied from cycles. */
-static float hair_shape_radius(float shape, float root, float tip, bool close_tip, float time)
+static float hair_shape_radius(float shape, float root, float tip, float time)
 {
   float radius = 1.0f - time;
   if (shape < 0.0f) {
@@ -1428,9 +1428,6 @@ static float hair_shape_radius(float shape, float root, float tip, bool close_ti
   }
   else {
     radius = pow(radius, 1.0f / (1.0f - shape));
-  }
-  if (close_tip && (time > 0.99f)) {
-    return 0.0f;
   }
   return (radius * (root - tip)) + tip;
 }
@@ -1462,12 +1459,12 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
     int j = 0;
     for (const ParticleCacheKey &point : strand) {
       points_pos[i] = point.co;
-      float time = j / float(strand.size()); /* TODO */
-      points_rad[i] = hair_shape_radius(
-          hair_rad_shape, hair_rad_root, hair_rad_tip, hair_close_tip, time);
+      points_rad[i] = (hair_close_tip && (j == strand.index_range().last())) ?
+                          0.0f :
+                          hair_shape_radius(
+                              hair_rad_shape, hair_rad_root, hair_rad_tip, point.time);
       i++, j++;
     }
-    /* TODO last point*/
   });
 
   evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(src.evaluated_points_num());
