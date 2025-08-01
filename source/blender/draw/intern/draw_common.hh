@@ -18,6 +18,9 @@ namespace blender::draw {
 
 void hair_init();
 
+/**
+ * \note Only valid after #DRW_curves_update().
+ */
 gpu::VertBuf *hair_pos_buffer_get(Scene *scene,
                                   Object *object,
                                   ParticleSystem *psys,

@@ -50,6 +50,27 @@ static void particle_batch_cache_clear(ParticleSystem *psys);
 /* ---------------------------------------------------------------------- */
 /* Particle gpu::Batch Cache */
 
+struct ParticleHairFinalCache {
+  /* Output of the subdivision stage: vertex buff sized to subdiv level. */
+  blender::gpu::VertBuf *proc_buf;
+
+  /* Just contains a huge index buffer used to draw the final hair. */
+  blender::gpu::Batch *proc_hairs[MAX_THICKRES];
+
+  int strands_res; /* points per hair, at least 2 */
+};
+
+struct ParticleHairCache {
+  blender::gpu::VertBuf *pos;
+  blender::gpu::IndexBuf *indices;
+  blender::gpu::Batch *hairs;
+  int strands_len;
+  int elems_len;
+  int point_len;
+
+  CurvesEvalCache eval_cache;
+};
+
 struct ParticlePointCache {
   gpu::VertBuf *pos;
   gpu::Batch *points;
@@ -175,36 +196,13 @@ static void particle_batch_cache_clear_point(ParticlePointCache *point_cache)
 static void particle_batch_cache_clear_hair(ParticleHairCache *hair_cache)
 {
   /* TODO: more granular update tagging. */
-  GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_point_buf);
-  GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_length_buf);
-
-  GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_strand_buf);
-  GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_strand_seg_buf);
-
-  for (int i = 0; i < MAX_MTFACE; i++) {
-    GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_uv_buf[i]);
-    GPU_TEXTURE_FREE_SAFE(hair_cache->uv_tex[i]);
-  }
-  for (int i = 0; i < hair_cache->num_col_layers; i++) {
-    GPU_VERTBUF_DISCARD_SAFE(hair_cache->proc_col_buf[i]);
-    GPU_TEXTURE_FREE_SAFE(hair_cache->col_tex[i]);
-  }
-
-  for (int i = 0; i < MAX_HAIR_SUBDIV; i++) {
-    GPU_VERTBUF_DISCARD_SAFE(hair_cache->final[i].proc_buf);
-    for (int j = 0; j < MAX_THICKRES; j++) {
-      GPU_BATCH_DISCARD_SAFE(hair_cache->final[i].proc_hairs[j]);
-    }
-  }
 
   /* "Normal" legacy hairs */
   GPU_BATCH_DISCARD_SAFE(hair_cache->hairs);
   GPU_VERTBUF_DISCARD_SAFE(hair_cache->pos);
   GPU_INDEXBUF_DISCARD_SAFE(hair_cache->indices);
 
-  MEM_SAFE_FREE(hair_cache->proc_col_buf);
-  MEM_SAFE_FREE(hair_cache->col_tex);
-  MEM_SAFE_FREE(hair_cache->col_layer_names);
+  hair_cache->eval_cache.clear();
 }
 
 static void particle_batch_cache_clear(ParticleSystem *psys)
@@ -251,9 +249,7 @@ static void ensure_seg_pt_count(PTCacheEdit *edit,
                                 ParticleSystem *psys,
                                 ParticleHairCache *hair_cache)
 {
-  if ((hair_cache->pos != nullptr && hair_cache->indices != nullptr) ||
-      (hair_cache->proc_point_buf != nullptr))
-  {
+  if (hair_cache->pos != nullptr && hair_cache->indices != nullptr) {
     return;
   }
 
@@ -816,357 +812,6 @@ static int particle_batch_cache_fill_strands_data(ParticleSystem *psys,
   return curr_point;
 }
 
-static void particle_batch_cache_ensure_procedural_final_points(ParticleHairCache *cache,
-                                                                int subdiv)
-{
-  /* Same format as proc_point_buf. */
-  static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
-
-  /* Procedural Subdiv buffer only needs to be resident in device memory. */
-  cache->final[subdiv].proc_buf = GPU_vertbuf_create_with_format_ex(
-      format, GPU_USAGE_DEVICE_ONLY | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-
-  /* Create a destination buffer for the procedural Subdiv. Sized appropriately */
-  /* Those are points! not line segments. */
-  uint point_len = cache->final[subdiv].strands_res * cache->strands_len;
-  /* Avoid creating null sized VBO which can lead to crashes on certain platforms. */
-  point_len = max_ii(1, point_len);
-
-  GPU_vertbuf_data_alloc(*cache->final[subdiv].proc_buf, point_len);
-}
-
-static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit,
-                                                               ParticleSystem *psys,
-                                                               ModifierData *md,
-                                                               ParticleHairCache *cache)
-{
-  int active_uv = 0;
-  int render_uv = 0;
-  int active_col = 0;
-  int render_col = 0;
-
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
-
-  if (psmd != nullptr && psmd->mesh_final != nullptr) {
-    if (CustomData_has_layer(&psmd->mesh_final->corner_data, CD_PROP_FLOAT2)) {
-      cache->num_uv_layers = CustomData_number_of_layers(&psmd->mesh_final->corner_data,
-                                                         CD_PROP_FLOAT2);
-      active_uv = CustomData_get_active_layer(&psmd->mesh_final->corner_data, CD_PROP_FLOAT2);
-      render_uv = CustomData_get_render_layer(&psmd->mesh_final->corner_data, CD_PROP_FLOAT2);
-    }
-    if (CustomData_has_layer(&psmd->mesh_final->corner_data, CD_PROP_BYTE_COLOR)) {
-      cache->num_col_layers = CustomData_number_of_layers(&psmd->mesh_final->corner_data,
-                                                          CD_PROP_BYTE_COLOR);
-      if (psmd->mesh_final->active_color_attribute != nullptr) {
-        active_col = CustomData_get_named_layer(&psmd->mesh_final->corner_data,
-                                                CD_PROP_BYTE_COLOR,
-                                                psmd->mesh_final->active_color_attribute);
-      }
-      if (psmd->mesh_final->default_color_attribute != nullptr) {
-        render_col = CustomData_get_named_layer(&psmd->mesh_final->corner_data,
-                                                CD_PROP_BYTE_COLOR,
-                                                psmd->mesh_final->default_color_attribute);
-      }
-    }
-  }
-
-  GPUVertBufRaw data_step, seg_step;
-  GPUVertBufRaw uv_step[MAX_MTFACE];
-  GPUVertBufRaw *col_step = BLI_array_alloca(col_step, cache->num_col_layers);
-
-  const MTFace *mtfaces[MAX_MTFACE] = {nullptr};
-  const MCol **mcols = BLI_array_alloca(mcols, cache->num_col_layers);
-  float(**parent_uvs)[2] = nullptr;
-  MCol **parent_mcol = nullptr;
-
-  GPUVertFormat format_data = {0};
-  uint data_id = GPU_vertformat_attr_add(
-      &format_data, "data", blender::gpu::VertAttrType::UINT_32);
-
-  GPUVertFormat format_seg = {0};
-  uint seg_id = GPU_vertformat_attr_add(&format_seg, "data", blender::gpu::VertAttrType::UINT_32);
-
-  GPUVertFormat format_uv = {0};
-  uint uv_id = GPU_vertformat_attr_add(&format_uv, "uv", blender::gpu::VertAttrType::SFLOAT_32_32);
-
-  GPUVertFormat format_col = {0};
-  uint col_id = GPU_vertformat_attr_add(
-      &format_col, "col", blender::gpu::VertAttrType::UNORM_16_16_16_16);
-
-  memset(cache->uv_layer_names, 0, sizeof(cache->uv_layer_names));
-
-  /* Strand Data */
-  cache->proc_strand_buf = GPU_vertbuf_create_with_format_ex(
-      format_data, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-  GPU_vertbuf_data_alloc(*cache->proc_strand_buf, max_ii(1, cache->strands_len));
-  GPU_vertbuf_attr_get_raw_data(cache->proc_strand_buf, data_id, &data_step);
-
-  cache->proc_strand_seg_buf = GPU_vertbuf_create_with_format_ex(
-      format_seg, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-  GPU_vertbuf_data_alloc(*cache->proc_strand_seg_buf, max_ii(1, cache->strands_len));
-  GPU_vertbuf_attr_get_raw_data(cache->proc_strand_seg_buf, seg_id, &seg_step);
-
-  /* UV layers */
-  for (int i = 0; i < cache->num_uv_layers; i++) {
-    cache->proc_uv_buf[i] = GPU_vertbuf_create_with_format_ex(
-        format_uv, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-    GPU_vertbuf_data_alloc(*cache->proc_uv_buf[i], max_ii(1, cache->strands_len));
-    GPU_vertbuf_attr_get_raw_data(cache->proc_uv_buf[i], uv_id, &uv_step[i]);
-
-    char attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-    const char *name = CustomData_get_layer_name(
-        &psmd->mesh_final->corner_data, CD_PROP_FLOAT2, i);
-    GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
-
-    int n = 0;
-    SNPRINTF_UTF8(cache->uv_layer_names[i][n], "a%s", attr_safe_name);
-    n++;
-
-    if (i == active_uv) {
-      STRNCPY_UTF8(cache->uv_layer_names[i][n], "au");
-      n++;
-    }
-    if (i == render_uv) {
-      STRNCPY_UTF8(cache->uv_layer_names[i][n], "a");
-      n++;
-    }
-  }
-
-  MEM_SAFE_FREE(cache->proc_col_buf);
-  MEM_SAFE_FREE(cache->col_tex);
-  MEM_SAFE_FREE(cache->col_layer_names);
-
-  cache->proc_col_buf = MEM_calloc_arrayN<gpu::VertBuf *>(cache->num_col_layers, "proc_col_buf");
-  cache->col_tex = MEM_calloc_arrayN<gpu::Texture *>(cache->num_col_layers, "col_tex");
-  cache->col_layer_names = MEM_calloc_arrayN<char[4][14]>(cache->num_col_layers,
-                                                          "col_layer_names");
-
-  /* Vertex colors */
-  for (int i = 0; i < cache->num_col_layers; i++) {
-    cache->proc_col_buf[i] = GPU_vertbuf_create_with_format_ex(
-        format_col, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-    GPU_vertbuf_data_alloc(*cache->proc_col_buf[i], max_ii(1, cache->strands_len));
-    GPU_vertbuf_attr_get_raw_data(cache->proc_col_buf[i], col_id, &col_step[i]);
-
-    char attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-    const char *name = CustomData_get_layer_name(
-        &psmd->mesh_final->corner_data, CD_PROP_BYTE_COLOR, i);
-    GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
-
-    int n = 0;
-    SNPRINTF_UTF8(cache->col_layer_names[i][n], "a%s", attr_safe_name);
-    n++;
-
-    if (i == active_col) {
-      STRNCPY_UTF8(cache->col_layer_names[i][n], "ac");
-      n++;
-    }
-    if (i == render_col) {
-      STRNCPY_UTF8(cache->col_layer_names[i][n], "c");
-      n++;
-    }
-  }
-
-  if (cache->num_uv_layers || cache->num_col_layers) {
-    BKE_mesh_tessface_ensure(psmd->mesh_final);
-    if (cache->num_uv_layers) {
-      for (int j = 0; j < cache->num_uv_layers; j++) {
-        mtfaces[j] = (const MTFace *)CustomData_get_layer_n(
-            &psmd->mesh_final->fdata_legacy, CD_MTFACE, j);
-      }
-    }
-    if (cache->num_col_layers) {
-      for (int j = 0; j < cache->num_col_layers; j++) {
-        mcols[j] = (const MCol *)CustomData_get_layer_n(
-            &psmd->mesh_final->fdata_legacy, CD_MCOL, j);
-      }
-    }
-  }
-
-  if (edit != nullptr && edit->pathcache != nullptr) {
-    particle_batch_cache_fill_strands_data(psys,
-                                           psmd,
-                                           edit->pathcache,
-                                           PARTICLE_SOURCE_PARENT,
-                                           0,
-                                           edit->totcached,
-                                           &data_step,
-                                           &seg_step,
-                                           &parent_uvs,
-                                           uv_step,
-                                           mtfaces,
-                                           cache->num_uv_layers,
-                                           &parent_mcol,
-                                           col_step,
-                                           mcols,
-                                           cache->num_col_layers);
-  }
-  else {
-    int curr_point = 0;
-    if ((psys->pathcache != nullptr) &&
-        (!psys->childcache || (psys->part->draw & PART_DRAW_PARENT)))
-    {
-      curr_point = particle_batch_cache_fill_strands_data(psys,
-                                                          psmd,
-                                                          psys->pathcache,
-                                                          PARTICLE_SOURCE_PARENT,
-                                                          0,
-                                                          psys->totpart,
-                                                          &data_step,
-                                                          &seg_step,
-                                                          &parent_uvs,
-                                                          uv_step,
-                                                          mtfaces,
-                                                          cache->num_uv_layers,
-                                                          &parent_mcol,
-                                                          col_step,
-                                                          mcols,
-                                                          cache->num_col_layers);
-    }
-    if (psys->childcache) {
-      const int child_count = psys->totchild * psys->part->disp / 100;
-      curr_point = particle_batch_cache_fill_strands_data(psys,
-                                                          psmd,
-                                                          psys->childcache,
-                                                          PARTICLE_SOURCE_CHILDREN,
-                                                          curr_point,
-                                                          child_count,
-                                                          &data_step,
-                                                          &seg_step,
-                                                          &parent_uvs,
-                                                          uv_step,
-                                                          mtfaces,
-                                                          cache->num_uv_layers,
-                                                          &parent_mcol,
-                                                          col_step,
-                                                          mcols,
-                                                          cache->num_col_layers);
-    }
-  }
-  /* Cleanup. */
-  if (parent_uvs != nullptr) {
-    /* TODO(sergey): For edit mode it should be edit->totcached. */
-    for (int i = 0; i < psys->totpart; i++) {
-      MEM_SAFE_FREE(parent_uvs[i]);
-    }
-    MEM_freeN(parent_uvs);
-  }
-  if (parent_mcol != nullptr) {
-    for (int i = 0; i < psys->totpart; i++) {
-      MEM_SAFE_FREE(parent_mcol[i]);
-    }
-    MEM_freeN(parent_mcol);
-  }
-
-  for (int i = 0; i < cache->num_uv_layers; i++) {
-    GPU_vertbuf_use(cache->proc_uv_buf[i]);
-    cache->uv_tex[i] = GPU_texture_create_from_vertbuf("part_uv", cache->proc_uv_buf[i]);
-  }
-  for (int i = 0; i < cache->num_col_layers; i++) {
-    GPU_vertbuf_use(cache->proc_col_buf[i]);
-    cache->col_tex[i] = GPU_texture_create_from_vertbuf("part_col", cache->proc_col_buf[i]);
-  }
-}
-
-static void particle_batch_cache_ensure_procedural_indices(PTCacheEdit *edit,
-                                                           ParticleSystem *psys,
-                                                           ParticleHairCache *cache,
-                                                           int thickness_res,
-                                                           int subdiv)
-{
-  BLI_assert(thickness_res <= MAX_THICKRES); /* Cylinder strip not currently supported. */
-
-  if (cache->final[subdiv].proc_hairs[thickness_res - 1] != nullptr) {
-    return;
-  }
-
-  int verts_per_hair = cache->final[subdiv].strands_res * thickness_res;
-  /* +1 for primitive restart */
-  int element_count = (verts_per_hair + 1) * cache->strands_len;
-  GPUPrimType prim_type = (thickness_res == 1) ? GPU_PRIM_LINE_STRIP : GPU_PRIM_TRI_STRIP;
-
-  static const GPUVertFormat format = GPU_vertformat_from_attribute("dummy",
-                                                                    gpu::VertAttrType::UINT_32);
-
-  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*vbo, 1);
-
-  GPUIndexBufBuilder elb;
-  GPU_indexbuf_init_ex(&elb, prim_type, element_count, element_count);
-
-  if (edit != nullptr && edit->pathcache != nullptr) {
-    particle_batch_cache_fill_segments_indices(
-        edit->pathcache, 0, edit->totcached, verts_per_hair, &elb);
-  }
-  else {
-    int curr_point = 0;
-    if ((psys->pathcache != nullptr) &&
-        (!psys->childcache || (psys->part->draw & PART_DRAW_PARENT)))
-    {
-      curr_point = particle_batch_cache_fill_segments_indices(
-          psys->pathcache, 0, psys->totpart, verts_per_hair, &elb);
-    }
-    if (psys->childcache) {
-      const int child_count = psys->totchild * psys->part->disp / 100;
-      curr_point = particle_batch_cache_fill_segments_indices(
-          psys->childcache, curr_point, child_count, verts_per_hair, &elb);
-    }
-  }
-
-  cache->final[subdiv].proc_hairs[thickness_res - 1] = GPU_batch_create_ex(
-      prim_type, vbo, GPU_indexbuf_build(&elb), GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
-}
-
-static void particle_batch_cache_ensure_procedural_pos(PTCacheEdit *edit,
-                                                       ParticleSystem *psys,
-                                                       ParticleHairCache *cache,
-                                                       GPUMaterial * /*gpu_material*/)
-{
-  if (cache->proc_point_buf == nullptr) {
-    /* initialize vertex format */
-    GPUVertFormat pos_format = {0};
-    uint pos_id = GPU_vertformat_attr_add(
-        &pos_format, "posTime", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-
-    cache->proc_point_buf = GPU_vertbuf_create_with_format_ex(
-        pos_format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-    GPU_vertbuf_data_alloc(*cache->proc_point_buf, cache->point_len);
-
-    GPUVertBufRaw pos_step;
-    GPU_vertbuf_attr_get_raw_data(cache->proc_point_buf, pos_id, &pos_step);
-
-    GPUVertFormat length_format = {0};
-    uint length_id = GPU_vertformat_attr_add(
-        &length_format, "hairLength", blender::gpu::VertAttrType::SFLOAT_32);
-
-    cache->proc_length_buf = GPU_vertbuf_create_with_format_ex(
-        length_format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-    GPU_vertbuf_data_alloc(*cache->proc_length_buf, cache->strands_len);
-
-    GPUVertBufRaw length_step;
-    GPU_vertbuf_attr_get_raw_data(cache->proc_length_buf, length_id, &length_step);
-
-    if (edit != nullptr && edit->pathcache != nullptr) {
-      particle_batch_cache_fill_segments_proc_pos(
-          edit->pathcache, edit->totcached, &pos_step, &length_step);
-    }
-    else {
-      if ((psys->pathcache != nullptr) &&
-          (!psys->childcache || (psys->part->draw & PART_DRAW_PARENT)))
-      {
-        particle_batch_cache_fill_segments_proc_pos(
-            psys->pathcache, psys->totpart, &pos_step, &length_step);
-      }
-      if (psys->childcache) {
-        const int child_count = psys->totchild * psys->part->disp / 100;
-        particle_batch_cache_fill_segments_proc_pos(
-            psys->childcache, child_count, &pos_step, &length_step);
-      }
-    }
-  }
-}
-
 static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
                                                     ParticleSystem *psys,
                                                     ModifierData *md,
@@ -1466,7 +1111,7 @@ static void drw_particle_update_ptcache_edit(Object *object_eval,
   }
 }
 
-static void drw_particle_update_ptcache(Object *object_eval, ParticleSystem *psys)
+void drw_particle_update_ptcache(Object *object_eval, ParticleSystem *psys)
 {
   if ((object_eval->mode & OB_MODE_PARTICLE_EDIT) == 0) {
     return;
@@ -1480,28 +1125,22 @@ static void drw_particle_update_ptcache(Object *object_eval, ParticleSystem *psy
   }
 }
 
-struct ParticleDrawSource {
-  Object *object;
-  ParticleSystem *psys;
-  ModifierData *md;
-  PTCacheEdit *edit;
-};
-
-static void drw_particle_get_hair_source(Object *object,
-                                         ParticleSystem *psys,
-                                         ModifierData *md,
-                                         PTCacheEdit *edit,
-                                         ParticleDrawSource *r_draw_source)
+ParticleDrawSource drw_particle_get_hair_source(Object *object,
+                                                ParticleSystem *psys,
+                                                ModifierData *md,
+                                                PTCacheEdit *edit)
 {
   const DRWContext *draw_ctx = DRW_context_get();
-  r_draw_source->object = object;
-  r_draw_source->psys = psys;
-  r_draw_source->md = md;
-  r_draw_source->edit = edit;
+  ParticleDrawSource src;
+  src.object = object;
+  src.psys = psys;
+  src.md = md;
+  src.edit = edit;
   if (psys_in_edit_mode(draw_ctx->depsgraph, psys)) {
-    r_draw_source->object = DEG_get_original(object);
-    r_draw_source->psys = psys_orig_get(psys);
+    src.object = DEG_get_original(object);
+    src.psys = psys_orig_get(psys);
   }
+  return src;
 }
 
 gpu::Batch *DRW_particles_batch_cache_get_hair(Object *object,
@@ -1511,8 +1150,7 @@ gpu::Batch *DRW_particles_batch_cache_get_hair(Object *object,
   ParticleBatchCache *cache = particle_batch_cache_get(psys);
   if (cache->hair.hairs == nullptr) {
     drw_particle_update_ptcache(object, psys);
-    ParticleDrawSource source;
-    drw_particle_get_hair_source(object, psys, md, nullptr, &source);
+    ParticleDrawSource source = drw_particle_get_hair_source(object, psys, md, nullptr);
     ensure_seg_pt_count(source.edit, source.psys, &cache->hair);
     particle_batch_cache_ensure_pos_and_seg(source.edit, source.psys, source.md, &cache->hair);
     cache->hair.hairs = GPU_batch_create(
@@ -1705,54 +1343,66 @@ gpu::Batch *DRW_particles_batch_cache_get_edit_tip_points(Object *object,
   return cache->edit_tip_points;
 }
 
-bool particles_ensure_procedural_data(Object *object,
-                                      ParticleSystem *psys,
-                                      ModifierData *md,
-                                      ParticleHairCache **r_hair_cache,
-                                      GPUMaterial *gpu_material,
-                                      int subdiv,
-                                      int thickness_res)
+void CurvesEvalCache::ensure_attributes(CurvesModule &module,
+                                        ParticleDrawSource &src,
+                                        const GPUMaterial *gpu_material,
+                                        int additional_subdivision)
 {
-  bool need_ft_update = false;
-
-  drw_particle_update_ptcache(object, psys);
-
-  ParticleDrawSource source;
-  drw_particle_get_hair_source(object, psys, md, nullptr, &source);
-
-  ParticleSettings *part = source.psys->part;
-  ParticleBatchCache *cache = particle_batch_cache_get(source.psys);
-  *r_hair_cache = &cache->hair;
-
-  (*r_hair_cache)->final[subdiv].strands_res = 1 << (part->draw_step + subdiv);
-
-  /* Refreshed on combing and simulation. */
-  if ((*r_hair_cache)->proc_point_buf == nullptr ||
-      (gpu_material && (*r_hair_cache)->proc_length_buf == nullptr))
-  {
-    ensure_seg_pt_count(source.edit, source.psys, &cache->hair);
-    particle_batch_cache_ensure_procedural_pos(
-        source.edit, source.psys, &cache->hair, gpu_material);
-    need_ft_update = true;
+  if (evaluated_pos_rad_buf) {
+    return;
   }
 
-  /* Refreshed if active layer or custom data changes. */
-  if ((*r_hair_cache)->proc_strand_buf == nullptr) {
-    particle_batch_cache_ensure_procedural_strand_data(
-        source.edit, source.psys, source.md, &cache->hair);
+  ensure_common(src);
+}
+
+void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
+{
+  if (evaluated_pos_rad_buf) {
+    return;
   }
 
-  /* Refreshed only on subdiv count change. */
-  if ((*r_hair_cache)->final[subdiv].proc_buf == nullptr) {
-    particle_batch_cache_ensure_procedural_final_points(&cache->hair, subdiv);
-    need_ft_update = true;
-  }
-  if ((*r_hair_cache)->final[subdiv].proc_hairs[thickness_res - 1] == nullptr) {
-    particle_batch_cache_ensure_procedural_indices(
-        source.edit, source.psys, &cache->hair, thickness_res, subdiv);
+  ensure_common(src);
+}
+
+void CurvesEvalCache::ensure_positions(CurvesModule &module,
+                                       ParticleDrawSource &src,
+                                       int additional_subdivision)
+{
+  if (evaluated_pos_rad_buf) {
+    return;
   }
 
-  return need_ft_update;
+  ensure_common(src);
+}
+
+gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
+                                                      ParticleDrawSource &src,
+                                                      int face_per_segment)
+{
+  const bool is_ribbon = face_per_segment < 2;
+
+  gpu::VertBufPtr &indirection_buf = is_ribbon ? this->indirection_ribbon_buf :
+                                                 this->indirection_cylinder_buf;
+  if (indirection_buf) {
+    return indirection_buf;
+  }
+
+  ensure_common(src);
+
+  int point_count = 0 /*TODO*/;
+  int curve_count = 0 /*TODO*/;
+  int element_count = is_ribbon ? (point_count + curve_count) : (point_count - curve_count);
+  // indirection_buf = alloc_vbo_device_only<int>(element_count);
+
+  module.evaluate_topology_indirection(src, *this, is_ribbon, indirection_buf);
+
+  return indirection_buf;
+}
+
+CurvesEvalCache &hair_particle_get_eval_cache(ParticleDrawSource &src)
+{
+  ParticleBatchCache *cache = particle_batch_cache_get(src.psys);
+  return cache->hair.eval_cache;
 }
 
 }  // namespace blender::draw

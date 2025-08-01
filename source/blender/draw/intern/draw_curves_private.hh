@@ -16,7 +16,13 @@
 
 #include "BLI_vector_set.hh"
 
+#include "draw_pass.hh"
+
 struct Curves;
+struct Object;
+struct ParticleSystem;
+struct PTCacheEdit;
+struct ModifierData;
 namespace blender::bke {
 class CurvesGeometry;
 }  // namespace blender::bke
@@ -40,6 +46,14 @@ enum CurvesEvalShader {
   CURVES_EVAL_FLOAT2 = 2,
   CURVES_EVAL_FLOAT3 = 3,
   CURVES_EVAL_FLOAT4 = 4,
+};
+
+/* Legacy Hair Particle. */
+struct ParticleDrawSource {
+  Object *object;
+  ParticleSystem *psys;
+  ModifierData *md;
+  PTCacheEdit *edit;
 };
 
 #define CURVES_EVAL_SHADER_NUM 5
@@ -140,11 +154,45 @@ struct CurvesEvalCache {
                                        const bke::CurvesGeometry &curves,
                                        int face_per_segment);
 
-  gpu::Batch *batch_get(const bke::CurvesGeometry &curves, int face_per_segment);
+  gpu::Batch *batch_get(int evaluated_point_count, int curve_count, int face_per_segment);
+
+  void discard_attributes();
+  void clear();
+
+  /* --- Legacy Hair Particle system. --- */
+
+  void ensure_attributes(CurvesModule &module,
+                         ParticleDrawSource &src,
+                         const GPUMaterial *gpu_material,
+                         int additional_subdivision);
+
+  void ensure_common(ParticleDrawSource &src);
+
+  void ensure_positions(CurvesModule &module, ParticleDrawSource &src, int additional_subdivision);
+
+  gpu::VertBufPtr &indirection_buf_get(CurvesModule &module,
+                                       ParticleDrawSource &src,
+                                       int face_per_segment);
 };
 
 CurvesEvalCache &curves_get_eval_cache(Curves &curves_id);
 
 void drw_curves_get_attribute_sampler_name(StringRef layer_name, char r_sampler_name[32]);
+
+void curves_bind_resources(draw::PassMain::Sub &sub_ps,
+                           CurvesModule &module,
+                           CurvesEvalCache &cache,
+                           const int face_per_segment,
+                           GPUMaterial *gpu_material,
+                           gpu::VertBufPtr &indirection_buf,
+                           const std::optional<StringRef> uv_name);
+
+void curves_bind_resources(draw::PassSimple::Sub &sub_ps,
+                           CurvesModule &module,
+                           CurvesEvalCache &cache,
+                           const int face_per_segment,
+                           GPUMaterial *gpu_material,
+                           gpu::VertBufPtr &indirection_buf,
+                           const std::optional<StringRef> uv_name);
 
 }  // namespace blender::draw

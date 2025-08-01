@@ -31,15 +31,6 @@ struct VolumeModule;
 class ObjectRef;
 }  // namespace blender::draw
 
-/* draw_hair.cc */
-
-/**
- * \note Only valid after #DRW_curves_update().
- */
-blender::gpu::VertBuf *DRW_hair_pos_buffer_get(Object *object,
-                                               ParticleSystem *psys,
-                                               ModifierData *md);
-
 /* draw_curves.cc */
 
 namespace blender::draw {

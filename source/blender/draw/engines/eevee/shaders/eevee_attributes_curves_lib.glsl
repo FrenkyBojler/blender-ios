@@ -61,27 +61,28 @@ float4 attr_load_tangent(samplerBuffer cd_buf)
 }
 float3 attr_load_uv(samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, curve_interp_flat.strand_id).rgb;
+  return float3(0.0f, 0.0f, 0.0f);  // texelFetch(cd_buf, curve_interp_flat.strand_id).rgb;
 }
 float4 attr_load_color(samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, curve_interp_flat.strand_id).rgba;
+  return float4(0.0f, 0.0f, 0.0f, 1.0f);  // texelFetch(cd_buf, curve_interp_flat.strand_id).rgba;
 }
 float4 attr_load_vec4(samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, curves_attribute_element_id()).rgba;
+  return float4(0.0f, 0.0f, 0.0f, 1.0f);  // texelFetch(cd_buf,
+                                          // curves_attribute_element_id()).rgba;
 }
 float3 attr_load_vec3(samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, curves_attribute_element_id()).rgb;
+  return float3(0.0f, 0.0f, 0.0f);  // texelFetch(cd_buf, curves_attribute_element_id()).rgb;
 }
 float2 attr_load_vec2(samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, curves_attribute_element_id()).rg;
+  return float2(0.0f, 0.0f);  // texelFetch(cd_buf, curves_attribute_element_id()).rg;
 }
 float attr_load_float(samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, curves_attribute_element_id()).r;
+  return float(0.0f);  // texelFetch(cd_buf, curves_attribute_element_id()).r;
 }
 
 /** \} */

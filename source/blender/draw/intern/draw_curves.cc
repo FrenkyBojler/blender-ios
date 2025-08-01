@@ -87,16 +87,15 @@ void DRW_curves_module_free(CurvesModule *curves_module)
   MEM_delete(curves_module);
 }
 
-void CurvesModule::dispatch(const bke::CurvesGeometry &curve, PassSimple::Sub &pass)
+void CurvesModule::dispatch(const int curve_count, PassSimple::Sub &pass)
 {
   /* Note that the GPU_max_work_group_count can be INT_MAX.
    * Promote to 64bit int to avoid overflow. */
   const int64_t max_strands_per_call = int64_t(GPU_max_work_group_count(0)) *
                                        CURVES_PER_THREADGROUP;
   int strands_start = 0;
-  while (strands_start < curve.curves_num()) {
-    int batch_strands_len = std::min(int64_t(curve.curves_num() - strands_start),
-                                     max_strands_per_call);
+  while (strands_start < curve_count) {
+    int batch_strands_len = std::min(int64_t(curve_count - strands_start), max_strands_per_call);
     pass.push_constant("curves_start", strands_start);
     pass.push_constant("curves_count", batch_strands_len);
     pass.dispatch(divide_ceil_u(batch_strands_len, CURVES_PER_THREADGROUP));
@@ -116,7 +115,22 @@ void CurvesModule::evaluate_topology_indirection(const bke::CurvesGeometry &curv
   pass.bind_ssbo("evaluated_offsets_buf", cache.evaluated_points_by_curve_buf);
   pass.bind_ssbo("indirection_buf", output_indirection_buf);
   pass.push_constant("is_ribbon_topology", is_ribbon);
-  dispatch(curve, pass);
+  dispatch(curve.curves_num(), pass);
+}
+
+void CurvesModule::evaluate_topology_indirection(const ParticleDrawSource &src,
+                                                 struct CurvesEvalCache &cache,
+                                                 bool is_ribbon,
+                                                 gpu::VertBufPtr &output_indirection_buf)
+{
+  BLI_assert(output_indirection_buf != nullptr);
+
+  PassSimple::Sub &pass = refine.sub("Topology");
+  pass.shader_set(DRW_shader_curves_topology_get());
+  pass.bind_ssbo("evaluated_offsets_buf", cache.evaluated_points_by_curve_buf);
+  pass.bind_ssbo("indirection_buf", output_indirection_buf);
+  pass.push_constant("is_ribbon_topology", is_ribbon);
+  // dispatch(curve.curves_num(), pass);
 }
 
 void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
@@ -185,7 +199,7 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
     sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
     sub.push_constant("compute_length_and_time", false);
-    dispatch(curve, sub);
+    dispatch(curve.curves_num(), sub);
   }
 
   if (curve.has_curve_with_type(CURVE_TYPE_BEZIER)) {
@@ -196,7 +210,7 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.bind_ssbo("handles_positions_right_buf", cache.handles_positions_right_buf);
     sub.bind_ssbo("bezier_offsets_buf", cache.bezier_offsets_buf);
     sub.push_constant("compute_length_and_time", false);
-    dispatch(curve, sub);
+    dispatch(curve.curves_num(), sub);
   }
 
   if (curve.has_curve_with_type(CURVE_TYPE_NURBS)) {
@@ -211,7 +225,7 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.bind_ssbo("bezier_offsets_buf", cache.basis_cache_offset_buf);
     sub.push_constant("compute_length_and_time", false);
     sub.push_constant("use_point_weight", cache.control_weights_buf.get() != nullptr);
-    dispatch(curve, sub);
+    dispatch(curve.curves_num(), sub);
   }
 
   if (curve.has_curve_with_type(CURVE_TYPE_POLY)) {
@@ -224,7 +238,7 @@ void CurvesModule::evaluate_curve_attribute(const bke::CurvesGeometry &curve,
     sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
     sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
     sub.push_constant("compute_length_and_time", false);
-    dispatch(curve, sub);
+    dispatch(curve.curves_num(), sub);
   }
 
   /* Move ownership of the input vbo to the module. */
@@ -296,33 +310,14 @@ static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &
 }
 
 template<typename PassT>
-gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
-                                                 const Scene *scene,
-                                                 Object *ob,
-                                                 GPUMaterial *gpu_material)
+void curves_bind_resources_implementation(PassT &sub_ps,
+                                          CurvesModule &module,
+                                          CurvesEvalCache &cache,
+                                          const int face_per_segment,
+                                          GPUMaterial *gpu_material,
+                                          gpu::VertBufPtr &indirection_buf,
+                                          const std::optional<StringRef> uv_name)
 {
-  CurvesModule &module = *drw_get().data->curves_module;
-  BLI_assert(ob->type == OB_CURVES);
-  Curves &curves_id = DRW_object_get_data_for_drawing<Curves>(*ob);
-  const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-
-  const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND)   ? 0 :
-                               (scene->r.hair_type == SCE_HAIR_SHAPE_CYLINDER) ? 3 :
-                                                                                 1;
-
-  CurvesEvalCache &curves_cache = curves_get_eval_cache(curves_id);
-
-  if (curves.curves_num() == 0) {
-    /* Nothing to draw. Just return an empty drawcall that will be skipped. */
-    return curves_cache.batch_get(curves, face_per_segment);
-  }
-
-  curves_cache.ensure_positions(module, curves);
-  curves_cache.ensure_attributes(module, curves, gpu_material);
-
-  gpu::VertBufPtr &indirection_buf = curves_cache.indirection_buf_get(
-      module, curves, face_per_segment);
-
   /* Ensure we have no unbound resources.
    * Required for Vulkan.
    * Fixes issues with certain GL drivers not drawing anything. */
@@ -341,36 +336,34 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   }
 
   /* TODO(fclem): Bind (and compute) only if needed. */
-  sub_ps.bind_texture("l", curves_cache.curves_length_buf);
+  sub_ps.bind_texture("l", cache.curves_length_buf);
 
   CurvesInfosBuf &curves_infos = module.ubo_pool.alloc();
 
-  const std::optional<StringRef> uv_name = get_first_uv_name(
-      curves_id.geometry.wrap().attributes());
-  const VectorSet<std::string> &attrs = curves_cache.attr_used;
+  const VectorSet<std::string> &attrs = cache.attr_used;
   for (const int i : attrs.index_range()) {
     const StringRef name = attrs[i];
     char sampler_name[32];
     drw_curves_get_attribute_sampler_name(name, sampler_name);
 
-    if (curves_cache.attributes_point_domain[i]) {
-      if (!curves_cache.evaluated_attributes_buf[i]) {
+    if (cache.attributes_point_domain[i]) {
+      if (!cache.evaluated_attributes_buf[i]) {
         continue;
       }
-      sub_ps.bind_texture(sampler_name, curves_cache.evaluated_attributes_buf[i]);
+      sub_ps.bind_texture(sampler_name, cache.evaluated_attributes_buf[i]);
       if (name == uv_name) {
-        sub_ps.bind_texture("a", curves_cache.evaluated_attributes_buf[i]);
+        sub_ps.bind_texture("a", cache.evaluated_attributes_buf[i]);
       }
     }
     else {
-      if (!curves_cache.curve_attributes_buf[i]) {
+      if (!cache.curve_attributes_buf[i]) {
         continue;
       }
-      sub_ps.bind_texture(sampler_name, curves_cache.curve_attributes_buf[i]);
+      sub_ps.bind_texture(sampler_name, cache.curve_attributes_buf[i]);
       if (name == uv_name) {
         /* TODO(fclem): At the moment, loading the 'a' attribute always use point indexing.
          * Until we have a way to switch its domain in the shader we have to disable it. */
-        // sub_ps.bind_texture("a", curves_cache.curve_attributes_buf[i]);
+        // sub_ps.bind_texture("a", cache.curve_attributes_buf[i]);
       }
     }
 
@@ -380,7 +373,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
      * attributes. */
     const int index = attribute_index_in_material(gpu_material, name);
     if (index != -1) {
-      curves_infos.is_point_attribute[index][0] = curves_cache.attributes_point_domain[i];
+      curves_infos.is_point_attribute[index][0] = cache.attributes_point_domain[i];
     }
   }
 
@@ -391,10 +384,71 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   curves_infos.push_update();
 
   sub_ps.bind_ubo("drw_curves", curves_infos);
-  sub_ps.bind_texture("curves_pos_rad_buf", curves_cache.evaluated_pos_rad_buf);
+  sub_ps.bind_texture("curves_pos_rad_buf", cache.evaluated_pos_rad_buf);
   sub_ps.bind_texture("curves_indirection_buf", indirection_buf);
+}
 
-  return curves_cache.batch_get(curves, face_per_segment);
+void curves_bind_resources(PassMain::Sub &sub_ps,
+                           CurvesModule &module,
+                           CurvesEvalCache &cache,
+                           const int face_per_segment,
+                           GPUMaterial *gpu_material,
+                           gpu::VertBufPtr &indirection_buf,
+                           const std::optional<StringRef> uv_name)
+{
+  curves_bind_resources_implementation(
+      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, uv_name);
+}
+
+void curves_bind_resources(PassSimple::Sub &sub_ps,
+                           CurvesModule &module,
+                           CurvesEvalCache &cache,
+                           const int face_per_segment,
+                           GPUMaterial *gpu_material,
+                           gpu::VertBufPtr &indirection_buf,
+                           const std::optional<StringRef> uv_name)
+{
+  curves_bind_resources_implementation(
+      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, uv_name);
+}
+
+template<typename PassT>
+gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
+                                                 const Scene *scene,
+                                                 Object *ob,
+                                                 GPUMaterial *gpu_material)
+{
+  BLI_assert(ob->type == OB_CURVES);
+  Curves &curves_id = DRW_object_get_data_for_drawing<Curves>(*ob);
+  const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+
+  const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND)   ? 0 :
+                               (scene->r.hair_type == SCE_HAIR_SHAPE_CYLINDER) ? 3 :
+                                                                                 1;
+
+  CurvesEvalCache &curves_cache = curves_get_eval_cache(curves_id);
+
+  if (curves.curves_num() == 0) {
+    /* Nothing to draw. Just return an empty drawcall that will be skipped. */
+    return curves_cache.batch_get(0, 0, face_per_segment);
+  }
+
+  CurvesModule &module = *drw_get().data->curves_module;
+
+  curves_cache.ensure_positions(module, curves);
+  curves_cache.ensure_attributes(module, curves, gpu_material);
+
+  gpu::VertBufPtr &indirection_buf = curves_cache.indirection_buf_get(
+      module, curves, face_per_segment);
+
+  const std::optional<StringRef> uv_name = get_first_uv_name(
+      curves_id.geometry.wrap().attributes());
+
+  curves_bind_resources(
+      sub_ps, module, curves_cache, face_per_segment, gpu_material, indirection_buf, uv_name);
+
+  return curves_cache.batch_get(
+      curves.evaluated_points_num(), curves.curves_num(), face_per_segment);
 }
 
 gpu::Batch *curves_sub_pass_setup(PassMain::Sub &ps,

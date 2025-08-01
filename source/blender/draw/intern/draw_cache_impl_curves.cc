@@ -118,17 +118,6 @@ static void init_batch_cache(Curves &curves)
   cache->is_dirty = false;
 }
 
-static void discard_attributes(CurvesEvalCache &eval_cache)
-{
-  for (const int i : IndexRange(GPU_MAX_ATTR)) {
-    eval_cache.evaluated_attributes_buf[i].reset();
-  }
-  for (const int i : IndexRange(GPU_MAX_ATTR)) {
-    eval_cache.curve_attributes_buf[i].reset();
-  }
-  eval_cache.attr_used.clear();
-}
-
 static void clear_edit_data(CurvesBatchCache *cache)
 {
   /* TODO: more granular update tagging. */
@@ -148,40 +137,46 @@ static void clear_edit_data(CurvesBatchCache *cache)
   GPU_BATCH_DISCARD_SAFE(cache->edit_curves_lines);
 }
 
-static void clear_topology_data(CurvesEvalCache &eval_cache)
+void CurvesEvalCache::discard_attributes()
 {
-  eval_cache.indirection_cylinder_buf.reset();
-  eval_cache.indirection_ribbon_buf.reset();
+  for (const int i : IndexRange(GPU_MAX_ATTR)) {
+    this->evaluated_attributes_buf[i].reset();
+  }
+  for (const int i : IndexRange(GPU_MAX_ATTR)) {
+    this->curve_attributes_buf[i].reset();
+  }
+  this->attr_used.clear();
 }
 
-static void clear_eval_data(CurvesEvalCache &eval_cache)
+void CurvesEvalCache::clear()
 {
   /* TODO: more granular update tagging. */
-  eval_cache.evaluated_pos_rad_buf.reset();
-  eval_cache.evaluated_time_buf.reset();
-  eval_cache.curves_length_buf.reset();
+  this->evaluated_pos_rad_buf.reset();
+  this->evaluated_time_buf.reset();
+  this->curves_length_buf.reset();
 
-  eval_cache.points_by_curve_buf.reset();
-  eval_cache.evaluated_points_by_curve_buf.reset();
-  eval_cache.curves_type_buf.reset();
-  eval_cache.curves_resolution_buf.reset();
+  this->points_by_curve_buf.reset();
+  this->evaluated_points_by_curve_buf.reset();
+  this->curves_type_buf.reset();
+  this->curves_resolution_buf.reset();
 
-  eval_cache.handles_positions_left_buf.reset();
-  eval_cache.handles_positions_right_buf.reset();
-  eval_cache.bezier_offsets_buf.reset();
+  this->handles_positions_left_buf.reset();
+  this->handles_positions_right_buf.reset();
+  this->bezier_offsets_buf.reset();
 
-  eval_cache.curves_order_buf.reset();
-  eval_cache.control_weights_buf.reset();
-  eval_cache.basis_cache_buf.reset();
-  eval_cache.basis_cache_offset_buf.reset();
+  this->curves_order_buf.reset();
+  this->control_weights_buf.reset();
+  this->basis_cache_buf.reset();
+  this->basis_cache_offset_buf.reset();
 
-  for (gpu::Batch *&batch : eval_cache.batch) {
+  this->indirection_cylinder_buf.reset();
+  this->indirection_ribbon_buf.reset();
+
+  for (gpu::Batch *&batch : this->batch) {
     GPU_BATCH_DISCARD_SAFE(batch);
   }
 
-  clear_topology_data(eval_cache);
-
-  discard_attributes(eval_cache);
+  this->discard_attributes();
 }
 
 static void clear_batch_cache(Curves &curves)
@@ -191,7 +186,7 @@ static void clear_batch_cache(Curves &curves)
     return;
   }
 
-  clear_eval_data(cache->eval_cache);
+  cache->eval_cache.clear();
   clear_edit_data(cache);
 }
 
@@ -832,7 +827,8 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
   return indirection_buf;
 }
 
-gpu::Batch *CurvesEvalCache::batch_get(const bke::CurvesGeometry &curves,
+gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
+                                       const int curve_count,
                                        const int face_per_segment)
 {
   gpu::Batch *&batch = this->batch[face_per_segment];
@@ -840,18 +836,17 @@ gpu::Batch *CurvesEvalCache::batch_get(const bke::CurvesGeometry &curves,
     return batch;
   }
 
-  int point_count = curves.evaluated_points_num();
-  int curve_count = curves.curves_num();
   if (face_per_segment == 0) {
     /* Add one point per curve to restart the primitive. */
-    batch = GPU_batch_create_procedural(GPU_PRIM_LINE_STRIP, point_count + curve_count);
+    batch = GPU_batch_create_procedural(GPU_PRIM_LINE_STRIP, evaluated_point_count + curve_count);
   }
   else if (face_per_segment == 1) {
     /* Add one point per curve to restart the primitive. */
-    batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, (point_count + curve_count) * 2);
+    batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP,
+                                        (evaluated_point_count + curve_count) * 2);
   }
   else if (face_per_segment >= 2) {
-    int segment_count = point_count - curve_count;
+    int segment_count = evaluated_point_count - curve_count;
     /* Add one vertex per segment to restart the primitive. */
     int vert_per_segment = (face_per_segment + 1) * 2 + 1;
     batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, segment_count * vert_per_segment);
@@ -918,7 +913,7 @@ void DRW_curves_batch_cache_free_old(Curves *curves, int ctime)
   eval_cache.attr_used_over_time.clear();
 
   if (do_discard) {
-    discard_attributes(cache->eval_cache);
+    cache->eval_cache.discard_attributes();
   }
 }
 
