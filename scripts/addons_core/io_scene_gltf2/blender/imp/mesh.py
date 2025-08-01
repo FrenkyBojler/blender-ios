@@ -380,7 +380,7 @@ def do_primitives(gltf, mesh_idx, skin_idx, mesh, ob):
 
     # Shapekeys
     if num_shapekeys:
-        ob.shape_key_add(name='Basis', value=0.0)
+        ob.shape_key_add(name='Basis')
         mesh.shape_keys.name = mesh.name
 
         sk_i = 0
@@ -388,8 +388,8 @@ def do_primitives(gltf, mesh_idx, skin_idx, mesh, ob):
             if sk_name is None:
                 continue
 
-            ob.shape_key_add(name=sk_name, value=0.0)
-            key_block = mesh.shape_keys.key_blocks[sk_name]
+            key_block = ob.shape_key_add(name=sk_name)
+            key_block.value = 0.0
             key_block.points.foreach_set('co', squish(sk_vert_locs[sk_i], np.float32))
 
             sk_i += 1
