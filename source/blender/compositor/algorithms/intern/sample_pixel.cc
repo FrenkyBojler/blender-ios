@@ -41,7 +41,7 @@ float4 sample_pixel_gpu(Context &context,
   GPUShader *shader = context.get_shader(get_pixel_sampler_shader_name(interpolation));
   GPU_shader_bind(shader);
 
-  GPU_shader_uniform_2fv(shader, "coordinates", coordinates);
+  GPU_shader_uniform_2fv(shader, "coordinates_u", coordinates);
 
   Result output = context.create_result(input.type());
   output.allocate_texture(int2(1));

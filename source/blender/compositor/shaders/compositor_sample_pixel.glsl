@@ -9,7 +9,7 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  float4 sampled_color = SAMPLER_FUNCTION(input_tx, coordinates);
+  float4 sampled_color = SAMPLER_FUNCTION(input_tx, coordinates_u);
 
   imageStore(output_img, texel, sampled_color);
 }
