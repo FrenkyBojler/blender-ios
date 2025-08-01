@@ -1157,6 +1157,23 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
         do_version_map_value_node(node_tree, node);
         break;
       }
+      case CMP_NODE_GAMMA_DEPRECATED: {
+        node->type_legacy = SH_NODE_GAMMA;
+        STRNCPY_UTF8(node->idname, "ShaderNodeGamma");
+
+        /* The Compositor node uses "Image" and "Gamma" as socket names and identifiers while the
+         * Shader node uses "Color" and "Gamma" as socket names and identifiers. */
+        bNodeSocket *gamma_first_input = blender::bke::node_find_socket(*node, SOCK_IN, "Image");
+        STRNCPY_UTF8(gamma_first_input->identifier, "Color");
+        STRNCPY_UTF8(gamma_first_input->name, "Color");
+        bNodeSocket *gamma_float_input = blender::bke::node_find_socket(*node, SOCK_IN, "Gamma");
+        STRNCPY_UTF8(gamma_float_input->identifier, "Gamma");
+        STRNCPY_UTF8(gamma_float_input->name, "Gamma");
+        bNodeSocket *gamma_image_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Image");
+        STRNCPY_UTF8(gamma_image_output->identifier, "Color");
+        STRNCPY_UTF8(gamma_image_output->name, "Color");
+        break;
+      }
       default:
         break;
     }
@@ -1439,6 +1456,10 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
   group_output_node->location[1] = node.location[1];
 
   bNodeSocket *image_input = static_cast<bNodeSocket *>(group_output_node->inputs.first);
+  if (STREQ(image_input->name, "Imagem")) {
+  STRNCPY_UTF8(image_input->name, "Image");
+  }
+  printf("do_version: first Group-Output input is '%s'\n", image_input->name);
   BLI_assert(blender::StringRef(image_input->name) == "Image");
   copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
              old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
