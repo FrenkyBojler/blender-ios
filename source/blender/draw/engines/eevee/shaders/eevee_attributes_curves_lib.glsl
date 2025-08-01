@@ -33,7 +33,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_curves)
 #  ifdef OBINFO_LIB
 float3 attr_load_orco(float4 orco)
 {
-  float3 P = hair_get_strand_pos();
+  float3 P = curves::get_curve_root_pos();
   float3 lP = transform_point(drw_modelinv(), P);
   return drw_object_orco(lP);
 }

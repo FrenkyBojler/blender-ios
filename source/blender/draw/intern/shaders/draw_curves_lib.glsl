@@ -215,8 +215,9 @@ float4 get_customdata_vec4(const samplerBuffer cd_buf)
   /* TODO(fclem): Pass curve_id to this function. */
   return texelFetch(cd_buf, int(0)).xyzw;
 }
+#  endif
 
-float3 get_strand_root_pos()
+float3 get_curve_root_pos()
 {
   /* TODO(fclem): Pass point_id and curve_segment to this function. */
   uint point_id = 0;
@@ -224,7 +225,6 @@ float3 get_strand_root_pos()
   uint start_point = point_id - curve_segment;
   return texelFetch(curves_pos_rad_buf, int(start_point)).xyz;
 }
-#  endif
 
 }  // namespace curves
 
