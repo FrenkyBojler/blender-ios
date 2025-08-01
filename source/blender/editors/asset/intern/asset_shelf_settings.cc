@@ -17,6 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_asset.hh"
 #include "BKE_preferences.h"
