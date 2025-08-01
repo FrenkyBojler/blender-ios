@@ -2364,7 +2364,7 @@ static void rna_def_userdef_theme_asset_shelf(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
-static void rna_def_userdef_theme_spaces_vertex(StructRNA *srna, const bool has_vertex_active)
+static void rna_def_userdef_theme_spaces_vertex(StructRNA *srna, const bool has_vertex_active, const bool has_vertex_attributes)
 {
   PropertyRNA *prop;
 
@@ -2390,15 +2390,17 @@ static void rna_def_userdef_theme_spaces_vertex(StructRNA *srna, const bool has_
   RNA_def_property_ui_text(prop, "Vertex Size", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "vertex_bevel", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Vertex Bevel", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  if (has_vertex_attributes) {
+    prop = RNA_def_property(srna, "vertex_bevel", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_array(prop, 3);
+    RNA_def_property_ui_text(prop, "Vertex Bevel", "");
+    RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "vertex_unreferenced", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Vertex Group Unreferenced", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+    prop = RNA_def_property(srna, "vertex_unreferenced", PROP_FLOAT, PROP_COLOR_GAMMA);
+    RNA_def_property_array(prop, 3);
+    RNA_def_property_ui_text(prop, "Vertex Group Unreferenced", "");
+    RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  }
 }
 
 static void rna_def_userdef_theme_spaces_edge(StructRNA *srna)
@@ -2755,7 +2757,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 
   /* Mesh Object specific */
 
-  rna_def_userdef_theme_spaces_vertex(srna, false);
+  rna_def_userdef_theme_spaces_vertex(srna, false, true);
   rna_def_userdef_theme_spaces_edge(srna);
   rna_def_userdef_theme_spaces_face(srna);
 
@@ -2971,7 +2973,7 @@ static void rna_def_userdef_theme_space_graph(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Active Channel Group", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  rna_def_userdef_theme_spaces_vertex(srna, true);
+  rna_def_userdef_theme_spaces_vertex(srna, true, false);
   rna_def_userdef_theme_spaces_curves(srna, false, true, true, true);
 }
 
@@ -3540,7 +3542,7 @@ static void rna_def_userdef_theme_space_image(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Grid", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  rna_def_userdef_theme_spaces_vertex(srna, false);
+  rna_def_userdef_theme_spaces_vertex(srna, false, false);
   rna_def_userdef_theme_spaces_face(srna);
 
   prop = RNA_def_property(srna, "editmesh_active", PROP_FLOAT, PROP_COLOR_GAMMA);
