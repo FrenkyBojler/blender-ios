@@ -110,12 +110,12 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   NodeCompositorFileOutput *data = MEM_callocN<NodeCompositorFileOutput>(__func__);
   node->storage = data;
   data->save_as_render = true;
+  data->file_name = BLI_strdup("Image");
 
   Scene *scene = CTX_data_scene(C);
   if (scene) {
     RenderData *render_data = &scene->r;
     BLI_strncpy(data->directory, render_data->pic, FILE_MAX);
-    data->file_name = BLI_strdup("Image");
     BKE_image_format_copy(&data->format, &render_data->im_format);
     data->format.color_management = R_IMF_COLOR_MANAGEMENT_FOLLOW_SCENE;
     if (BKE_imtype_is_movie(data->format.imtype)) {
@@ -133,7 +133,7 @@ static void node_free_storage(bNode *node)
   socket_items::destruct_array<FileOutputItemsAccessor>(*node);
   NodeCompositorFileOutput &data = node_storage(*node);
   BKE_image_format_free(&data.format);
-  MEM_freeN(data.file_name);
+  MEM_SAFE_FREE(data.file_name);
   MEM_freeN(&data);
 }
 
@@ -144,7 +144,7 @@ static void node_copy_storage(bNodeTree * /*destination_node_tree*/,
   const NodeCompositorFileOutput &source_storage = node_storage(*source_node);
   NodeCompositorFileOutput *destination_storage = MEM_dupallocN<NodeCompositorFileOutput>(
       __func__, source_storage);
-  destination_storage->file_name = BLI_strdup(source_storage.file_name);
+  destination_storage->file_name = BLI_strdup_null(source_storage.file_name);
   BKE_image_format_copy(&destination_storage->format, &source_storage.format);
   destination_node->storage = destination_storage;
   socket_items::copy_array<FileOutputItemsAccessor>(*source_node, *destination_node);
@@ -756,7 +756,8 @@ class FileOutputOperation : public NodeOperation {
 
   std::string get_file_name()
   {
-    return node_storage(this->bnode()).file_name;
+    const char *file_name = node_storage(this->bnode()).file_name;
+    return file_name ? file_name : "";
   }
 
   std::string get_directory()

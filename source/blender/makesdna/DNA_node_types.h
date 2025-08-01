@@ -1260,6 +1260,7 @@ typedef struct NodeCompositorFileOutputItem {
 
 typedef struct NodeCompositorFileOutput {
   char directory[/*FILE_MAX*/ 1024];
+  /* The base name of the file. Can be nullptr. */
   char *file_name;
   /* The image format to use when saving the images. */
   ImageFormatData format;

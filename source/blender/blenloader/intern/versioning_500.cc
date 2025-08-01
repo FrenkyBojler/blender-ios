@@ -1236,7 +1236,7 @@ static void do_version_file_output_node(bNode &node)
   char file_name[FILE_MAX] = "";
   BLI_path_split_dir_file(data->directory, directory, FILE_MAX, file_name, FILE_MAX);
   BLI_strncpy(data->directory, directory, FILE_MAX);
-  data->file_name = BLI_strdup(file_name);
+  data->file_name = BLI_strdup_null(file_name);
 
   data->items_count = BLI_listbase_count(&node.inputs);
   data->items = MEM_calloc_arrayN<NodeCompositorFileOutputItem>(data->items_count, __func__);
