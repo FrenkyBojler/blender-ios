@@ -491,15 +491,22 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
         for (const int index : mask_segment.index_range()) {
           const int shape_index = mask_segment[index];
           const int pos = segment_pos + index;
-          const IndexMask &shape = shapes[shape_index];
+
+          IndexMaskMemory memory;
+          /* Only get curve that are in the shape and valid. */
+          const IndexMask shape = IndexMask::from_predicate(
+              shapes[shape_index], GrainSize(4096), memory, [&](const int64_t curve_i) {
+                const IndexRange points = points_by_curve[curve_i];
+                return points.size() >= 3;
+              });
+
+          if (shape.is_empty()) {
+            continue;
+          }
 
           float3x3 axis_mat;
           axis_dominant_v3_to_m3(axis_mat.ptr(), normals[shape.first()]);
           const int num_points = offset_indices::sum_group_sizes(points_by_curve, shape);
-
-          if (num_points < 3) {
-            continue;
-          }
 
           float(*projverts)[2] = static_cast<float(*)[2]>(
               BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
