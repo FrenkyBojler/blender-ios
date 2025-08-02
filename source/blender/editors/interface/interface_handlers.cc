@@ -4316,7 +4316,7 @@ static int ui_do_but_textedit(
     changed = true;
   }
 #endif
-  if (changed || orig_pos != but->pos) {
+  if (textbox_but && (changed || orig_pos != but->pos)) {
     ui_textbox_scroll_to_cursor(data->region, textbox_but);
   }
   if (changed) {
