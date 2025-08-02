@@ -15,11 +15,6 @@
 #include "GEO_CDT_to_mesh.hh"
 #include "GEO_mesh_copy_selection.hh"
 
-#include "NOD_rna_define.hh"
-
-#include "UI_interface.hh"
-#include "UI_interface_layout.hh"
-
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_delaunay_triangulation_cc {
@@ -28,6 +23,26 @@ enum class TriangulationMode : int8_t {
   Full = 0,
   Inside = 1,
   InsideWidthHoles = 2,
+};
+
+static const EnumPropertyItem mode_items[] = {
+    {int(TriangulationMode::Full),
+     "FULL",
+     0,
+     "Full",
+     "All triangles. The outer boundary is the convex hull of input points"},
+    {int(TriangulationMode::Inside),
+     "INSIDE",
+     0,
+     "Inside",
+     "All triangles fully enclosed by constraint edges or faces"},
+    {int(TriangulationMode::InsideWidthHoles),
+     "INSIDE_WITH_HOLES",
+     0,
+     "Inside With Holes",
+     "Triangles fully enclosed by constraint edges or faces excluding triangles inside detected "
+     "holes"},
+    {0, nullptr, 0, nullptr, nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -46,20 +61,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "An index used to group points together. Triangulation is done separately for each "
           "group");
+  b.add_input<decl::Menu>("Mode")
+      .static_items(mode_items)
+      .default_value(int(TriangulationMode::Full));
   b.add_output<decl::Geometry>("Mesh").propagate_all();
   b.add_output<decl::Int>("Group ID")
       .field_on_all()
       .description("The group ID of each triangulation group");
-}
-
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
-}
-
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = int(TriangulationMode::Full);
 }
 
 static CDT_output_type get_cdt_output_type(const TriangulationMode mode)
@@ -74,7 +82,6 @@ static CDT_output_type get_cdt_output_type(const TriangulationMode mode)
   }
   return CDT_FULL;
 }
-
 
 struct CDTGeometrySetInput {
   GeometrySet geometry;
@@ -252,7 +259,7 @@ static std::optional<CDTGeometrySetInput> cdt_input_from_geometry_set(
         const VArray<bool> &cyclic = curves.cyclic();
         const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
 
-        Array<int> segment_offsets(curves.curves_num() + 1, 0);
+        Array<int> segment_offsets(curves.curves_num() + 1);
         threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {
           for (const int curve : range) {
             segment_offsets[curve] = bke::curves::segments_num(points_by_curve[curve].size(),
@@ -471,7 +478,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   Field<int> group_index = params.extract_input<Field<int>>("Group ID");
 
-  const TriangulationMode mode = TriangulationMode(params.node().custom1);
+  const TriangulationMode mode = params.extract_input<TriangulationMode>("Mode");
   const CDT_output_type output_type = get_cdt_output_type(mode);
 
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
@@ -489,36 +496,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Mesh", std::move(geometry_set));
 }
 
-static void node_rna(StructRNA *srna)
-{
-  static const EnumPropertyItem mode_items[] = {
-      {int(TriangulationMode::Full),
-       "FULL",
-       0,
-       "Full",
-       "All triangles. The outer boundary is the convex hull of input points"},
-      {int(TriangulationMode::Inside),
-       "INSIDE",
-       0,
-       "Inside",
-       "All triangles fully enclosed by constraint edges or faces"},
-      {int(TriangulationMode::InsideWidthHoles),
-       "INSIDE_WITH_HOLES",
-       0,
-       "Inside With Holes",
-       "Triangles fully enclosed by constraint edges or faces excluding triangles inside detected "
-       "holes"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_node_enum(srna,
-                    "mode",
-                    "Mode",
-                    "Mode for constrained delaunay triangulation",
-                    mode_items,
-                    NOD_inline_enum_accessors(custom1));
-}
-
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -529,15 +506,11 @@ static void node_register()
       "Generate a triangulated mesh from a set of points in the X-Y plane. Uses edges and faces "
       "as triangulation constraints";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  ntype.initfunc = node_init;
   ntype.declare = node_declare;
-  blender::bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.draw_buttons = node_layout;
 
+  blender::bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
   blender::bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
