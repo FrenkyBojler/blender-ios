@@ -795,7 +795,9 @@ static bool try_add_shared_field_attribute(MutableAttributeAccessor attributes,
   }
 
   const bool is_may_vertex_group = data_type == AttrType::Float && domain == AttrDomain::Point;
-  if (is_may_vertex_group) {
+  /* TODO: Support built-in attribute replace. */
+  const bool cant_remove = attributes.is_builtin(id_to_create);
+  if (is_may_vertex_group || cant_remove) {
     return false;
   }
 
