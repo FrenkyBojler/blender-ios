@@ -12,7 +12,7 @@
 #  error "GHOST_XrGraphicsBindingMetal can be only compiled on macOS."
 #endif
 
-class GHOST_ContextCGL; /* Forward declaring to not cross the Objective-C border. */
+class GHOST_ContextMTL; /* Forward declaring to not cross the Objective-C border. */
 
 #include <list>
 #include <vector>
@@ -49,7 +49,7 @@ class GHOST_XrGraphicsBindingMetal : public GHOST_IXrGraphicsBinding {
 
  protected:
   /** Secondary Metal context used by OpenXR. */
-  GHOST_ContextCGL *m_ghost_metal_ctx = nullptr;
+  GHOST_ContextMTL *m_ghost_metal_ctx = nullptr;
 
   std::list<std::vector<XrSwapchainImageMetalKHR>> m_image_cache;
 };

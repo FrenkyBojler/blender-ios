@@ -13,7 +13,7 @@
 #include "mtl_framebuffer.hh"
 #include "mtl_texture.hh"
 
-#include "GHOST_ContextCGL.hh"
+#include "GHOST_ContextMTL.hh"
 #include "GHOST_XrException.hh"
 #include "GHOST_XrGraphicsBindingMetal.h"
 
@@ -81,7 +81,7 @@ static std::optional<int64_t> choose_swapchain_format_from_candidates(
 GHOST_XrGraphicsBindingMetal::GHOST_XrGraphicsBindingMetal(GHOST_Context &ghost_ctx)
 {
   /* TODO: Pass the context to submitToSwapchainImage instead of storing a reference here. */
-  m_ghost_metal_ctx = dynamic_cast<GHOST_ContextCGL *>(&ghost_ctx);
+  m_ghost_metal_ctx = dynamic_cast<GHOST_ContextMTL *>(&ghost_ctx);
 }
 
 bool GHOST_XrGraphicsBindingMetal::checkVersionRequirements(GHOST_Context &ghost_ctx,
@@ -105,7 +105,7 @@ bool GHOST_XrGraphicsBindingMetal::checkVersionRequirements(GHOST_Context &ghost
 
   xrGetMetalGraphicsRequirementsKHR_fn(instance, system_id, &gpu_requirements);
 
-  GHOST_ContextCGL &ghost_metal_ctx = dynamic_cast<GHOST_ContextCGL &>(ghost_ctx);
+  GHOST_ContextMTL &ghost_metal_ctx = dynamic_cast<GHOST_ContextMTL &>(ghost_ctx);
 
   const bool metal_devices_match = (ghost_metal_ctx.metalDevice() == gpu_requirements.metalDevice);
 
@@ -121,7 +121,7 @@ void GHOST_XrGraphicsBindingMetal::initFromGhostContext(GHOST_Context &ghost_ctx
                                                         XrInstance /*instance*/,
                                                         XrSystemId /*system_id*/)
 {
-  GHOST_ContextCGL &ghost_metal_ctx = dynamic_cast<GHOST_ContextCGL &>(ghost_ctx);
+  GHOST_ContextMTL &ghost_metal_ctx = dynamic_cast<GHOST_ContextMTL &>(ghost_ctx);
 
   oxr_binding.metal.type = XR_TYPE_GRAPHICS_BINDING_METAL_KHR;
   oxr_binding.metal.next = nullptr;
@@ -230,7 +230,7 @@ void GHOST_XrGraphicsBindingMetal::submitToSwapchainEnd() {}
 
 bool GHOST_XrGraphicsBindingMetal::needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const
 {
-  GHOST_ContextCGL &ghost_metal_ctx = dynamic_cast<GHOST_ContextCGL &>(ghost_ctx);
+  GHOST_ContextMTL &ghost_metal_ctx = dynamic_cast<GHOST_ContextMTL &>(ghost_ctx);
 
   return !ghost_metal_ctx.isUpsideDown();
 }
