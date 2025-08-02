@@ -241,44 +241,39 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     aspect[1] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? aspy / aspx : 1.0f;
 
     unit_m4(widget->matrix_basis);
+
+    blender::float3 gizmo_location;
     if (is_ortho) {
       float zscale_or_one = ob->scale[2] == 0.0f ? 1.0f : fabsf(ob->scale[2]);
-      blender::float3 location = blender::math::transform_point(
-          ob->object_to_world(),
-          blender::float3{0.0f, 0.0f, -1.0f * ca->drawsize / zscale_or_one});
-
-      WM_gizmo_set_matrix_location(widget, location);
-      printf("refreshing ortho gizmo location\n");
+      blender::float3 local_gizmo_location = blender::float3{
+          0.0f, 0.0f, -1.0f * ca->drawsize / zscale_or_one};
+      gizmo_location = blender::math::transform_point(ob->object_to_world(), local_gizmo_location);
     }
     else {
-      WM_gizmo_set_matrix_location(widget, ob->object_to_world().location());
+      gizmo_location = ob->object_to_world().location();
     }
-    WM_gizmo_set_matrix_rotation_from_yz_axis(widget, ob->object_to_world().ptr()[1], dir);
+    WM_gizmo_set_matrix_location(widget, gizmo_location);
 
-    // we dont want to have to do this for ortho but now object_to_world is taking into account the
-    // scale and we dont want that, we have to update the code line 233 to re enable this line
-    // if (is_ortho) {
-    //   scale_matrix = ca->ortho_scale * 0.5f;
-    // }
-    // else {
-    const float ob_scale_inv[3] = {
-        1.0f / len_v3(ob->object_to_world().ptr()[0]),
-        1.0f / len_v3(ob->object_to_world().ptr()[1]),
-        1.0f / len_v3(ob->object_to_world().ptr()[2]),
-    };
-    const float ob_scale_uniform_inv = (ob_scale_inv[0] + ob_scale_inv[1] + ob_scale_inv[2]) /
-                                       3.0f;
-    scale_matrix = (ca->drawsize * 0.5f) / ob_scale_uniform_inv;
-    // }
-    mul_v3_fl(widget->matrix_basis[0], scale_matrix);
-    mul_v3_fl(widget->matrix_basis[1], scale_matrix);
+    const float *gizmo_y_axis = ob->object_to_world().ptr()[1];
+    WM_gizmo_set_matrix_rotation_from_yz_axis(widget, gizmo_y_axis, dir);
 
-    if (!is_ortho) {
+    if (is_ortho) {
+      RNA_float_set_array(widget->ptr, "dimensions", aspect);
+    }
+    else {
       RNA_float_set_array(widget->ptr, "aspect", aspect);
       WM_gizmo_set_matrix_offset_location(widget, offset);
-    }
-    else {
-      RNA_float_set_array(widget->ptr, "dimensions", aspect);
+
+      const float ob_scale_inv[3] = {
+          1.0f / len_v3(ob->object_to_world().ptr()[0]),
+          1.0f / len_v3(ob->object_to_world().ptr()[1]),
+          1.0f / len_v3(ob->object_to_world().ptr()[2]),
+      };
+      const float ob_scale_uniform_inv = (ob_scale_inv[0] + ob_scale_inv[1] + ob_scale_inv[2]) /
+                                         3.0f;
+      scale_matrix = (ca->drawsize * 0.5f) / ob_scale_uniform_inv;
+      mul_v3_fl(widget->matrix_basis[0], scale_matrix);
+      mul_v3_fl(widget->matrix_basis[1], scale_matrix);
     }
   }
 
