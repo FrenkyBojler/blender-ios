@@ -5405,7 +5405,8 @@ def km_edit_mesh(params):
         ("mesh.dissolve_mode", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
         ("mesh.dissolve_mode", {"type": 'DEL', "value": 'PRESS', "ctrl": True}, None),
         op_tool_optional(
-            ("mesh.knife_tool", {"type": 'K', "value": 'PRESS'}, None),
+            ("mesh.knife_tool", {"type": 'K', "value": 'PRESS'},
+             {"properties": [("use_occlude_geometry", True), ("only_selected", False)]}),
             (op_tool_cycle, "builtin.knife"), params),
         ("mesh.knife_tool", {"type": 'K', "value": 'PRESS', "shift": True},
          {"properties": [("use_occlude_geometry", False), ("only_selected", True)]}),
@@ -5981,6 +5982,7 @@ def km_transform_modal_map(params):
         ("AUTOCONSTRAINPLANE", {"type": 'MIDDLEMOUSE', "value": 'ANY', "shift": True, **alt_without_navigaton}, None),
         ("PRECISION", {"type": 'LEFT_SHIFT', "value": 'ANY', "any": True}, None),
         ("PRECISION", {"type": 'RIGHT_SHIFT', "value": 'ANY', "any": True}, None),
+        ("STRIP_CLAMP_TOGGLE", {"type": 'C', "value": 'PRESS', "any": True}, None),
     ])
 
     if params.use_alt_navigation:
@@ -6601,7 +6603,7 @@ def km_sequencer_slip_modal_map(_params):
         ("PRECISION_DISABLE", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
         ("PRECISION_ENABLE", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
         ("PRECISION_DISABLE", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
-        ("CLAMP_TOGGLE", {"type": 'C', "value": 'RELEASE', "any": True}, None),
+        ("CLAMP_TOGGLE", {"type": 'C', "value": 'PRESS', "any": True}, None),
     ])
 
     return keymap

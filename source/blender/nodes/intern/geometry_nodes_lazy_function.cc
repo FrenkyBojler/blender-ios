@@ -22,6 +22,7 @@
 
 #include "NOD_geometry_exec.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
 
@@ -53,6 +54,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "list_function_eval.hh"
 #include "volume_grid_function_eval.hh"
 
 #include <fmt/format.h>
@@ -517,10 +519,10 @@ static void execute_multi_function_on_value_variant__field(
   /* Construct the new field node. */
   std::shared_ptr<fn::FieldOperation> operation;
   if (owned_fn) {
-    operation = fn::FieldOperation::Create(owned_fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(owned_fn, std::move(input_fields));
   }
   else {
-    operation = fn::FieldOperation::Create(fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(fn, std::move(input_fields));
   }
 
   /* Store the new fields in the output. */
@@ -536,7 +538,7 @@ static void execute_multi_function_on_value_variant__field(
  * Executes a multi-function. If all inputs are single values, the results will also be single
  * values. If any input is a field, the outputs will also be fields.
  */
-[[nodiscard]] static bool execute_multi_function_on_value_variant(
+[[nodiscard]] bool execute_multi_function_on_value_variant(
     const MultiFunction &fn,
     const std::shared_ptr<MultiFunction> &owned_fn,
     const Span<SocketValueVariant *> input_values,
@@ -547,6 +549,7 @@ static void execute_multi_function_on_value_variant__field(
   /* Check input types which determine how the function is evaluated. */
   bool any_input_is_field = false;
   bool any_input_is_volume_grid = false;
+  bool any_input_is_list = false;
   for (const int i : input_values.index_range()) {
     const SocketValueVariant &value = *input_values[i];
     if (value.is_context_dependent_field()) {
@@ -555,11 +558,18 @@ static void execute_multi_function_on_value_variant__field(
     else if (value.is_volume_grid()) {
       any_input_is_volume_grid = true;
     }
+    else if (value.is_list()) {
+      any_input_is_list = true;
+    }
   }
 
   if (any_input_is_volume_grid) {
     return execute_multi_function_on_value_variant__volume_grid(
         fn, input_values, output_values, r_error_message);
+  }
+  if (any_input_is_list) {
+    execute_multi_function_on_value_variant__list(fn, input_values, output_values, user_data);
+    return true;
   }
   if (any_input_is_field) {
     execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
@@ -2064,7 +2074,7 @@ struct GeometryNodesLazyFunctionBuilder {
         case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT:
           this->build_foreach_geometry_element_zone_function(zone);
           break;
-        case GEO_NODE_CLOSURE_OUTPUT:
+        case NODE_CLOSURE_OUTPUT:
           this->build_closure_zone_function(zone);
           break;
         default: {
@@ -2955,7 +2965,7 @@ struct GeometryNodesLazyFunctionBuilder {
         this->build_menu_switch_node(bnode, graph_params);
         break;
       }
-      case GEO_NODE_EVALUATE_CLOSURE: {
+      case NODE_EVALUATE_CLOSURE: {
         this->build_evaluate_closure_node(bnode, graph_params);
         break;
       }
