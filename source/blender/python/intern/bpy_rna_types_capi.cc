@@ -45,6 +45,7 @@
 
 static PyMethodDef pyrna_blenddata_methods[] = {
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_user_map_method_def */
+    {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_file_path_map_method_def */
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_batch_remove_method_def */
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_id_collection_orphans_purge_method_def */
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_data_context_method_def */
@@ -154,9 +155,9 @@ PyDoc_STRVAR(
     "\n"
     "   :arg callback:\n"
     "      A function that will be called when the cursor is drawn.\n"
-    "      It gets the specified arguments as input with the mouse position (tuple) as last "
-    "argument.\n"
-    "   :type callback: Callable[[Any, ..., tuple[int, int]], Any]\n"
+    "      It gets the specified arguments as input with the mouse position "
+    "(``tuple[int, int]``) as last argument.\n"
+    "   :type callback: Callable[..., Any]\n"
     "   :arg args: Arguments that will be passed to the callback.\n"
     "   :type args: tuple[Any, ...]\n"
     "   :arg space_type: The space type the callback draws in; for example ``VIEW_3D``. "
@@ -228,7 +229,7 @@ PyDoc_STRVAR(
     "   :arg callback:\n"
     "      A function that will be called when the region is drawn.\n"
     "      It gets the specified arguments as input, it's return value is ignored.\n"
-    "   :type callback: Callable[[Any, ...], Any]\n"
+    "   :type callback: Callable[..., Any]\n"
     "   :arg args: Arguments that will be passed to the callback.\n"
     "   :type args: tuple[Any, ...]\n"
     "   :arg region_type: The region type the callback draws in; usually ``WINDOW``. "
@@ -276,10 +277,11 @@ void BPY_rna_types_extend_capi()
   /* BlendData */
   ARRAY_SET_ITEMS(pyrna_blenddata_methods,
                   BPY_rna_id_collection_user_map_method_def,
+                  BPY_rna_id_collection_file_path_map_method_def,
                   BPY_rna_id_collection_batch_remove_method_def,
                   BPY_rna_id_collection_orphans_purge_method_def,
                   BPY_rna_data_context_method_def);
-  BLI_STATIC_ASSERT(ARRAY_SIZE(pyrna_blenddata_methods) == 5, "Unexpected number of methods")
+  BLI_STATIC_ASSERT(ARRAY_SIZE(pyrna_blenddata_methods) == 6, "Unexpected number of methods")
   pyrna_struct_type_extend_capi(&RNA_BlendData, pyrna_blenddata_methods, nullptr);
 
   /* BlendDataLibraries */

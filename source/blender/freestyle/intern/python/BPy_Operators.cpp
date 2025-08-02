@@ -22,10 +22,6 @@
 
 #include <sstream>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -732,6 +728,17 @@ static PyObject *Operators_get_strokes_size(BPy_Operators * /*self*/)
 }
 
 /*----------------------Operators instance definitions ----------------------------*/
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 static PyMethodDef BPy_Operators_methods[] = {
     {"select",
      (PyCFunction)Operators_select,
@@ -792,6 +799,14 @@ static PyMethodDef BPy_Operators_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
+
 /*-----------------------BPy_Operators type definition ------------------------------*/
 
 PyTypeObject Operators_Type = {
@@ -836,7 +851,3 @@ PyTypeObject Operators_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

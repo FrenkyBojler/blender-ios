@@ -18,12 +18,9 @@ namespace blender::nodes::node_composite_normalize_cc {
 
 static void cmp_node_normalize_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Value")
-      .default_value(1.0f)
-      .min(0.0f)
-      .max(1.0f)
-      .compositor_domain_priority(0);
-  b.add_output<decl::Float>("Value");
+  b.add_input<decl::Float>("Value").default_value(1.0f).min(0.0f).max(1.0f).structure_type(
+      StructureType::Dynamic);
+  b.add_output<decl::Float>("Value").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -42,10 +39,10 @@ class NormalizeOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input_image = this->get_input("Value");
-    Result &output_image = this->get_result("Value");
+    const Result &input_image = this->get_input("Value");
     if (input_image.is_single_value()) {
-      input_image.pass_through(output_image);
+      Result &output_image = this->get_result("Value");
+      output_image.share_data(input_image);
       return;
     }
 
@@ -108,7 +105,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_normalize_cc
 
-void register_node_type_cmp_normalize()
+static void register_node_type_cmp_normalize()
 {
   namespace file_ns = blender::nodes::node_composite_normalize_cc;
 
@@ -123,5 +120,6 @@ void register_node_type_cmp_normalize()
   ntype.declare = file_ns::cmp_node_normalize_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_normalize)

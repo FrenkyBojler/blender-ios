@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <memory>
 
-#include "BLI_array.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -52,13 +51,9 @@ bool operator==(const DistortionGridKey &a, const DistortionGridKey &b);
  * applying the camera distortion of a given movie clip tracking camera. See the constructor for
  * more information. */
 class DistortionGrid : public CachedResource {
- private:
-  Array<float2> distortion_grid_;
-
  public:
   Result result;
 
- public:
   /* The calibration size is the size of the image where the tracking camera was calibrated, this
    * is the size of the movie clip in most cases. */
   DistortionGrid(Context &context,
