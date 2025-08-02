@@ -657,7 +657,7 @@ PyDoc_STRVAR(
 static PyObject *bpy_app_undo_memory_info(PyObject * /*self*/, PyObject * /*args*/)
 {
 
-  size_t total_memory = get_total_undo_memory();
+  size_t total_memory = ED_get_total_undo_memory();
 
   return PyLong_FromSize_t(total_memory);
 }

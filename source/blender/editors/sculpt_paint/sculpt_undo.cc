@@ -25,8 +25,6 @@
 #include "sculpt_undo.hh"
 
 #include <mutex>
-
-#include "CLG_log.h"
 #include <zstd.h>
 
 #include "BLI_array.hh"
@@ -74,6 +72,8 @@
 #include "ED_object.hh"
 #include "ED_sculpt.hh"
 #include "ED_undo.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "bmesh.hh"
 #include "mesh_brush_common.hh"
@@ -182,7 +182,7 @@ struct NodeGeometry {
 };
 
 struct Node;
-class PositionUndoStorage;
+struct PositionUndoStorage;
 
 struct StepData {
  private:
@@ -277,32 +277,39 @@ struct StepData {
     applied_ = false;
   }
 };
-template<typename T> static Array<std::byte> compress_data(const Span<T> src)
-{
-  SCOPED_TIMER(__func__);
-  Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
-  const size_t dst_size = ZSTD_compress(
-      dst.data(), dst.size(), src.data(), src.size_in_bytes(), ZSTD_fast);
-  std::cout << "Compressed undo data: " << src.size_in_bytes() << " -> " << dst_size << " ("
-            << float(src.size_in_bytes()) / dst_size << ")\n";
-  return dst.as_span().take_front(dst_size);
-}
-
-template<typename T> static Array<T> decompress_data(const Span<std::byte> src)
-{
-  SCOPED_TIMER(__func__);
-  const size_t dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
-  BLI_assert(!ZSTD_isError(dst_size_in_bytes));
-  const int64_t dst_size = dst_size_in_bytes / sizeof(T);
-  Array<T> dst(dst_size, NoInitialization());
-  const size_t result = ZSTD_decompress(
-      dst.data(), dst.as_span().size_in_bytes(), src.data(), src.size());
-  if (ZSTD_isError(result)) {
-    std::cout << ZSTD_getErrorName(result) << '\n';
+class ZstdCompressor {
+ public:
+  template<typename T> static Array<std::byte> compress_data(const Span<T> src)
+  {
+#ifdef DEBUG_TIME
+    SCOPED_TIMER(__func__);
+#endif
+    Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
+    const size_t dst_size = ZSTD_compress(
+        dst.data(), dst.size(), src.data(), src.size_in_bytes(), ZSTD_fast);
+    std::cout << "Compressed undo data: " << src.size_in_bytes() << " -> " << dst_size << " ("
+              << float(src.size_in_bytes()) / dst_size << ")\n";
+    return dst.as_span().take_front(dst_size);
   }
-  BLI_assert(!ZSTD_isError(result));
-  return dst;
-}
+
+  template<typename T> static Array<T> decompress_data(const Span<std::byte> src)
+  {
+#ifdef DEBUG_TIME
+    SCOPED_TIMER(__func__);
+#endif
+    const size_t dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
+    BLI_assert(!ZSTD_isError(dst_size_in_bytes));
+    const int64_t dst_size = dst_size_in_bytes / sizeof(T);
+    Array<T> dst(dst_size, NoInitialization());
+    const size_t result = ZSTD_decompress(
+        dst.data(), dst.as_span().size_in_bytes(), src.data(), src.size());
+    if (ZSTD_isError(result)) {
+      std::cout << ZSTD_getErrorName(result) << '\n';
+    }
+    BLI_assert(!ZSTD_isError(result));
+    return dst;
+  }
+};
 struct PositionUndoStorage : NonMovable {
   IndexMaskMemory mask_memory;
   IndexMask mask;
@@ -315,8 +322,6 @@ struct PositionUndoStorage : NonMovable {
   PositionUndoStorage() = default;
   PositionUndoStorage(const StepData &step_data, const Span<std::unique_ptr<Node>> nodes)
   {
-    SCOPED_TIMER(__func__);
-
     Array<bool> selected_verts(step_data.mesh.verts_num, false);
     threading::memory_bandwidth_bound_task(selected_verts.as_span().size_in_bytes(), [&]() {
       threading::parallel_for(nodes.index_range(), 4, [&](const IndexRange range) {
@@ -358,7 +363,7 @@ struct PositionUndoStorage : NonMovable {
     compression_task_pool = BLI_task_pool_create_background(this, TASK_PRIORITY_LOW);
     compression_started = true;
 
-    CompressionData *task_data = new CompressionData{std::move(positions), this};
+    CompressionData *task_data = MEM_new<CompressionData>(__func__, std::move(positions), this);
     BLI_task_pool_push(
         compression_task_pool, compression_task_function, task_data, true, compression_task_free);
   }
@@ -386,7 +391,7 @@ struct PositionUndoStorage : NonMovable {
   static void compression_task_function(TaskPool *pool, void *task_data)
   {
     CompressionData *data = static_cast<CompressionData *>(task_data);
-    Array<std::byte> result = compress_data(data->positions.as_span());
+    Array<std::byte> result = ZstdCompressor::compress_data(data->positions.as_span());
     data->storage->compressed_data = std::move(result);
     data->storage->compression_ready.store(true, std::memory_order_release);
   }
@@ -504,7 +509,7 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
 
   undo_data.ensure_compression_complete();
 
-  Array<float3> decompressed = decompress_data<float3>(undo_data.compressed_data);
+  Array<float3> decompressed = ZstdCompressor::decompress_data<float3>(undo_data.compressed_data);
   BLI_assert(decompressed.size() == undo_data.mask.size());
 
   threading::parallel_for(undo_data.mask.index_range(), 512, [&](const IndexRange range) {
