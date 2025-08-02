@@ -1397,6 +1397,7 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
                                         const GPUMaterial *gpu_material,
                                         int additional_subdivision)
 {
+  /* TODO. */
 }
 
 void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
@@ -1411,8 +1412,8 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
 
   /* Use the same type for all curves. */
   /* TODO subdiv. */
-  auto type_varray = VArray<int8_t>::from_single(CURVE_TYPE_POLY, src.curves_num());
-  auto resolution_varray = VArray<int32_t>::from_single(0, src.curves_num());
+  auto type_varray = VArray<int8_t>::from_single(CURVE_TYPE_CATMULL_ROM, src.curves_num());
+  auto resolution_varray = VArray<int32_t>::from_single(1, src.curves_num());
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
   curves_type_buf = gpu::VertBuf::new_from_varray(type_varray);
@@ -1474,9 +1475,9 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
 
   float4x4 transform = src.object->world_to_object();
 
-  module.evaluate_positions(false, /* TODO Additional subdiv */
+  module.evaluate_positions(true,
                             false,
-                            true,
+                            false,
                             false,
                             src.curves_num(),
                             *this,
