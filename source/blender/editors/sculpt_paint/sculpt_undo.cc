@@ -35,7 +35,6 @@
 #include "BLI_map.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_task.h"
-#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -84,6 +83,12 @@
 #include "sculpt_dyntopo.hh"
 #include "sculpt_face_set.hh"
 #include "sculpt_intern.hh"
+
+// #define DEBUG_TIME
+
+#ifdef DEBUG_TIME
+#  include "BLI_timeit.hh"
+#endif
 
 static CLG_LogRef LOG = {"undo.sculpt"};
 
