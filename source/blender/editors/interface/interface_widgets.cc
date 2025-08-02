@@ -1997,6 +1997,10 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox
   if (text.endswith("\n")) {
     lines.append(blender::StringRef(text.end(), text.end()));
   }
+  /* Last line migth include null terminator, remove this to avoid crash with #BLI_str_utf8_as_unicode_step_or_error.  */
+  if (lines.last().endswith(blender::StringRefNull("\0"))) {
+    lines.last() = lines.last().drop_suffix(1);
+  }
   textbox->status->total_lines = lines.size();
   return lines;
 }
