@@ -1980,12 +1980,12 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox *textbox,
                                                               int width)
 {
-  uiFontStyle fstyle = UI_style_get()->widget;
   if (textbox->drawstr.empty() && (!textbox->editstr || textbox->editstr[0] == 0)) {
     textbox->status->total_lines = 1;
     return {textbox->editstr ? blender::StringRef(textbox->editstr) :
                                blender::StringRef(textbox->drawstr)};
   }
+  uiFontStyle fstyle = UI_style_get()->widget;
   blender::StringRef text = textbox->editstr ? blender::StringRef(textbox->editstr) :
                                                blender::StringRef(textbox->drawstr);
   blender::Vector<blender::StringRef> lines = BLF_string_wrap(

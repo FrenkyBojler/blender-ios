@@ -3159,6 +3159,8 @@ static void ui_textbox_textedit_set_cursor_pos(uiBut *but,
 
   uiFontStyle fstyle = UI_style_get()->widget;
   const float aspect = but->block->aspect;
+  ui_fontscale(&fstyle.points, aspect);
+  UI_fontstyle_set(&fstyle);
 
   blender::float2 start = {but->rect.xmin, but->rect.ymin};
   blender::float2 end = {but->rect.xmax, but->rect.ymax};
@@ -3176,9 +3178,6 @@ static void ui_textbox_textedit_set_cursor_pos(uiBut *but,
 
   blender::StringRef line = lines[line_under_mouse];
 
-  ui_fontscale(&fstyle.points, aspect);
-
-  UI_fontstyle_set(&fstyle);
   start.x -= U.pixelsize / aspect;
   if (!(but->drawflag & UI_BUT_NO_TEXT_PADDING)) {
     start.x += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
