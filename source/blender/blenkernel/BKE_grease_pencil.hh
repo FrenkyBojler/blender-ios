@@ -128,7 +128,8 @@ class Drawing : public ::GreasePencilDrawing {
    * Tag only some curves for a topology change.
    * Do not call this if curves have been added or removed.
    */
-  void tag_topology_changed(const IndexMask &changed_curves);
+  void tag_topology_changed(const IndexMask &changed_curves,
+                            OffsetIndices<int> src_evaluated_points_by_curve);
 
   /**
    * Returns the matrices that transform from a 3D point in layer-space to a 2D point in

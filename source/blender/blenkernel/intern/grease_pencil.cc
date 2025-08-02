@@ -1048,7 +1048,8 @@ static IndexMask curves_to_shapes_mask(const IndexMask &changed_curves,
 
 static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                                 const Span<float3> normals,
-                                                const OffsetIndices<int> points_by_curve,
+                                                const OffsetIndices<int> src_points_by_curve,
+                                                const OffsetIndices<int> dst_points_by_curve,
                                                 const IndexMask &changed_curves,
                                                 const Span<IndexMask> shapes,
                                                 const VArray<bool> is_holes,
@@ -1057,8 +1058,12 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                                 Vector<int3> &r_triangles,
                                                 MutableSpan<int> r_triangle_offsets)
 {
+  BLI_assert(src_points_by_curve.size() == dst_points_by_curve.size());
+
   IndexMaskMemory memory;
   const IndexMask changed_shapes = curves_to_shapes_mask(changed_curves, shapes, memory);
+  const IndexMask unchanged_curves = changed_curves.complement(src_points_by_curve.index_range(),
+                                                               memory);
   const IndexMask unchanged_shapes = changed_shapes.complement(shapes.index_range(), memory);
 
   Array<int> changed_triangle_offsets_data(changed_shapes.size() + 1);
@@ -1066,7 +1071,7 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
 
   update_triangle_and_offsets_cache(positions,
                                     normals,
-                                    points_by_curve,
+                                    dst_points_by_curve,
                                     changed_shapes,
                                     shapes,
                                     is_holes,
@@ -1092,15 +1097,38 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
 
   r_triangles.resize(r_triangle_offsets.last());
 
+  const OffsetIndices<int> triangle_offsets = OffsetIndices<int>(r_triangle_offsets);
+
   array_utils::copy_group_to_group(src_triangle_offsets,
-                                   OffsetIndices<int>(r_triangle_offsets),
+                                   triangle_offsets,
                                    unchanged_shapes,
                                    src_triangles,
                                    r_triangles.as_mutable_span());
 
+  /* Calculate the old to new point indexes. */
+  Array<int> src_to_dst_points(src_points_by_curve.total_size());
+  unchanged_curves.foreach_index(GrainSize(512), [&](const int curve_i) {
+    const IndexRange src_points = src_points_by_curve[curve_i];
+    const IndexRange dst_points = dst_points_by_curve[curve_i];
+
+    for (const int i : src_points.index_range()) {
+      src_to_dst_points[src_points[i]] = dst_points.first() + i;
+    }
+  });
+
+  /* Update the old triangles to the new point indexes. */
+  unchanged_shapes.foreach_index(GrainSize(512), [&](const int i) {
+    const IndexRange tris = triangle_offsets[i];
+    for (const int tri : tris) {
+      r_triangles[tri] = int3(src_to_dst_points[r_triangles[tri][0]],
+                              src_to_dst_points[r_triangles[tri][1]],
+                              src_to_dst_points[r_triangles[tri][2]]);
+    }
+  });
+
   changed_shapes.foreach_index(GrainSize(512), [&](const int i, const int pos) {
     r_triangles.as_mutable_span()
-        .slice(OffsetIndices<int>(r_triangle_offsets)[i])
+        .slice(triangle_offsets[i])
         .copy_from(changed_triangles.as_span().slice(changed_triangle_offsets[pos]));
   });
 }
@@ -1148,6 +1176,7 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
   update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                       this->curve_plane_normals(),
                                       this->strokes().evaluated_points_by_curve(),
+                                      this->strokes().evaluated_points_by_curve(),
                                       changed_curves,
                                       shapes,
                                       is_holes,
@@ -1170,7 +1199,8 @@ void Drawing::tag_topology_changed()
   this->strokes_for_write().tag_topology_changed();
 }
 
-void Drawing::tag_topology_changed(const IndexMask &changed_curves)
+void Drawing::tag_topology_changed(const IndexMask &changed_curves,
+                                   const OffsetIndices<int> src_evaluated_points_by_curve)
 {
   if (changed_curves.is_empty()) {
     return;
@@ -1214,6 +1244,7 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
 
     update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                         this->curve_plane_normals(),
+                                        src_evaluated_points_by_curve,
                                         this->strokes().evaluated_points_by_curve(),
                                         changed_curves,
                                         shapes,
