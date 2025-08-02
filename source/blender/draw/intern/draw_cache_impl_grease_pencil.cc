@@ -1274,8 +1274,9 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
       /* Add the triangle indices to the index buffer. */
       for (const int3 tri : tris_slice) {
-        GPU_indexbuf_add_tri_verts(
-            &ibo, point_to_id(tri.x), point_to_id(tri.y), point_to_id(tri.z));
+        triangle_ibo_data[triangle_ibo_index] = uint3(
+            point_to_id(tri.x), point_to_id(tri.y), point_to_id(tri.z));
+        triangle_ibo_index++;
       }
 
       const float4x2 texture_matrix = texture_matrices[shape.first()] *
