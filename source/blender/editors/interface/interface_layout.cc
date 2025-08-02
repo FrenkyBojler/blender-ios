@@ -144,7 +144,7 @@ blender::ui::ItemType uiItem::type() const
   return type_;
 };
 
-uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type) {};
+uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type){};
 
 using uiItemType = blender::ui::ItemType;
 using uiItemInternalFlag = blender::ui::ItemInternalFlag;
@@ -2624,7 +2624,8 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   PropertyRNA *prop = RNA_struct_find_property_check(ptr, propname.c_str(), PROP_STRING);
   if (!prop) {
     ui_item_disabled(this, propname.c_str());
-    RNA_warning("string property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
+    RNA_warning(
+        "string property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
 
