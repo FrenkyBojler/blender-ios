@@ -7,6 +7,7 @@
  */
 
 #include "GPU_framebuffer.hh"
+#include "GPU_texture.hh"
 #include "gpu_framebuffer_private.hh"
 
 #include "mtl_context.hh"
@@ -44,19 +45,21 @@ static MTLPixelFormat ghost_format_to_mtl_format(GHOST_TXrSwapchainFormat ghost_
   return format;
 }
 
-static eGPUTextureFormat ghost_format_to_gpu_format(GHOST_TXrSwapchainFormat ghost_format)
+static blender::gpu::TextureFormat ghost_format_to_gpu_format(GHOST_TXrSwapchainFormat ghost_format)
 {
+  using namespace blender::gpu;
+
   switch (ghost_format) {
     case GHOST_kXrSwapchainFormatRGBA8:
       /* TODO: Assume SRGB for now, storing the proper SRGB info in draw_info has bad side-effects.
        *       Will be fixed separately after dropping the use of the GPU backend. */
-      return GPU_SRGB8_A8;
+      return TextureFormat::SRGBA_8_8_8_8;
     case GHOST_kXrSwapchainFormatRGBA16:
-      return GPU_RGBA16;
+      return TextureFormat::UNORM_16_16_16_16;
     case GHOST_kXrSwapchainFormatRGBA16F:
-      return GPU_RGBA16F;
+      return TextureFormat::SFLOAT_16_16_16_16;
     case GHOST_kXrSwapchainFormatRGB10_A2:
-      return GPU_RGB10_A2;
+      return TextureFormat::UNORM_10_10_10_2;
   }
 }
 
@@ -205,7 +208,7 @@ void GHOST_XrGraphicsBindingMetal::submitToSwapchainImage(
 
   using namespace blender;
 
-  const eGPUTextureFormat tex_format = ghost_format_to_gpu_format(draw_info.swapchain_format);
+  const gpu::TextureFormat tex_format = ghost_format_to_gpu_format(draw_info.swapchain_format);
   gpu::MTLTexture metal_gpu_texture = gpu::MTLTexture(
       "xr_swapchain_tex", tex_format, gpu::GPU_TEXTURE_2D, metal_xr_texture);
 
