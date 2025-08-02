@@ -410,7 +410,7 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               scene_owner,
-                              "Compositing",
+                              "Compositing...",
                               WM_JOB_EXCL_RENDER | WM_JOB_PROGRESS,
                               WM_JOB_TYPE_COMPOSITE);
   CompoJob *cj = MEM_new<CompoJob>("compo job");
@@ -477,7 +477,7 @@ bool composite_node_editable(bContext *C)
 void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo)
 {
   if (typeinfo) {
-    STRNCPY(snode->tree_idname, typeinfo->idname.c_str());
+    STRNCPY_UTF8(snode->tree_idname, typeinfo->idname.c_str());
   }
   else {
     snode->tree_idname[0] = '\0';
@@ -538,12 +538,13 @@ void ED_node_shader_default(const bContext *C, ID *id)
   }
   else if (ELEM(GS(id->name), ID_WO, ID_LA)) {
     /* Emission */
+    bNode *shader, *output;
     bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
         nullptr, id, "Shader Nodetree", ntreeType_Shader->idname);
-    bNode *shader, *output;
 
     if (GS(id->name) == ID_WO) {
       World *world = (World *)id;
+      ntree = world->nodetree;
 
       shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
       output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
@@ -799,9 +800,7 @@ void ED_node_set_active(
       }
 
       LISTBASE_FOREACH (World *, wo, &bmain->worlds) {
-        if (wo->nodetree && wo->use_nodes &&
-            blender::bke::node_tree_contains_tree(*wo->nodetree, *ntree))
-        {
+        if (wo->nodetree && blender::bke::node_tree_contains_tree(*wo->nodetree, *ntree)) {
           GPU_material_free(&wo->gpumaterial);
         }
       }
@@ -2131,7 +2130,7 @@ static wmOperatorStatus node_output_file_add_socket_exec(bContext *C, wmOperator
 
   RNA_string_get(op->ptr, "file_path", file_path);
 
-  if (strlen(file_path) != 0) {
+  if (file_path[0] != '\0') {
     ntreeCompositOutputFileAddSocket(ntree, node, file_path, &scene->r.im_format);
   }
   else {
