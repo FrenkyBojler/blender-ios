@@ -55,7 +55,130 @@
 #define reduction_size (gl_WorkGroupSize.x * gl_WorkGroupSize.y)
 shared TYPE reduction_data[reduction_size];
 
-void main()
+#define TYPE(name) \
+  struct name { \
+    int pad_; \
+  };
+
+/* Operation */
+TYPE(Min)
+TYPE(Max)
+TYPE(Sum)
+TYPE(MaxVelocity)
+TYPE(MaxInRange)
+TYPE(MinInRange)
+TYPE(SumSquareDifference)
+
+/* Initialize. */
+
+float upper_bound_get()
+{
+  float up_bound = 0.0f;
+  {
+    up_bound = push_constant_get(compositor_sum_squared_difference_float_shared, upper_bound);
+  }
+  return up_bound;
+}
+
+float lower_bound_get()
+{
+  float up_bound = 0.0f;
+  {
+    up_bound = push_constant_get(compositor_sum_squared_difference_float_shared, lower_bound);
+  }
+  return up_bound;
+}
+
+template<typename T, typename Operation> T initialize<T, Operation>(T value)
+{
+  return value;
+}
+template float initialize<float, Min>(float);
+template float initialize<float, Max>(float);
+template float initialize<float, Sum>(float);
+template float4 initialize<float4, MaxVelocity>(float4);
+
+template<> float initialize<float, MaxInRange>(float value)
+{
+  return clamp(value, lower_bound_get(), upper_bound_get());
+}
+template<> float initialize<float, MaxInRange>(float value)
+{
+  return clamp(value, lower_bound_get(), upper_bound_get());
+}
+
+template<> float initialize<float, SumSquareDifference>(float value)
+{
+  float sub = push_constant_get(compositor_sum_squared_difference_float_shared, subtrahend);
+  return square(value - sub);
+}
+
+/* Identity. */
+
+template<typename T, typename Operation> T identity()
+{
+  return T(0);
+}
+template float identity<float, Min>();
+
+/* Reduce. */
+
+template<typename T, typename Operation> T reduce(T a, T b)
+{
+  return a + b;
+}
+template float reduce<float, Sum>(float, float);
+template float4 reduce<float4, Sum>(float4, float4);
+template float reduce<float, SumSquareDifference>(float, float);
+/* clang-format off */
+template<> float reduce<float, Min>(float a, float b) { return min(a, b); }
+template<> float reduce<float, Max>(float a, float b) { return max(a, b); }
+/* clang-format on */
+template<> float reduce<float, MaxInRange>(float a, float b)
+{
+  return ((rhs > lhs) && (rhs <= upper_bound)) ? rhs : lhs;
+}
+template<> float4 reduce<float4, MaxVelocity>(float4 a, float4 b)
+{
+  return vec4(dot(lhs.xy, lhs.xy) > dot(rhs.xy, rhs.xy) ? lhs.xy : rhs.xy,
+              dot(lhs.zw, lhs.zw) > dot(rhs.zw, rhs.zw) ? lhs.zw : rhs.zw);
+}
+
+/* ChannelMix */
+TYPE(ChannelR)
+TYPE(ChannelG)
+TYPE(ChannelB)
+TYPE(ChannelRG)
+TYPE(ChannelRGBA)
+TYPE(ChannelLuma)
+TYPE(ChannelLogLuma)
+TYPE(ChannelMax)
+
+template<typename T, typename ChannelMix> T channel_mix<T, ChannelMix>(float4 value)
+{
+  return value;
+}
+template float4 channel_mix<float4, ChannelRGBA>(float4);
+/* clang-format off */
+template<> float channel_mix<float, ChannelR>(float4 value) { return value.r; }
+template<> float channel_mix<float, ChannelG>(float4 value) { return value.g; }
+template<> float channel_mix<float, ChannelB>(float4 value) { return value.b; }
+template<> float2 channel_mix<float2, ChannelRG>(float4 value) { return value.rb; }
+template<> float channel_mix<float, ChannelLuma>(float4 value) { return dot(value.rgb, luminance_coefficients); }
+template<> float channel_mix<float, ChannelLogLuma>(float4 value) { return log(max(dot(value.rgb, luminance_coefficients), 1e-5f)); }
+template<> float channel_mix<float, ChannelMax>(float4 value) { return reduce_max(value.rgb); }
+
+template<typename T> T load(float4 value) { return value; }
+template float4 load<float4>(float4);
+template<> float load<float>(float4 value) { return value.x; }
+template<> float load<float2>(float4 value) { return value.xy; }
+
+float4 to_float4(float value) { return float4(value); }
+float4 to_float4(float2 value) { return value.xyyy; }
+float4 to_float4(float4 value) { return value; }
+/* clang-format on */
+
+template<typename T, typename Operation, typename Initialization> void reduction()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
@@ -64,7 +187,7 @@ void main()
    * not affect the output of the reduction. For instance, sum reductions have an identity of 0.0,
    * while max value reductions have an identity of FLT_MIN */
   if (any(lessThan(texel, int2(0))) || any(greaterThanEqual(texel, texture_size(input_tx)))) {
-    reduction_data[gl_LocalInvocationIndex] = IDENTITY;
+    reduction_data[gl_LocalInvocationIndex] = identity<T, Operation>();
   }
   else {
     float4 value = texture_load_unbound(input_tx, texel);
@@ -81,8 +204,10 @@ void main()
      * will be loaded directly and reduced without extra processing. So the developer is expected
      * to define the INITIALIZE and LOAD macros to be expressions that derive the needed value from
      * the loaded value for the initial reduction pass and latter ones respectively. */
-    reduction_data[gl_LocalInvocationIndex] = is_initial_reduction ? INITIALIZE(value) :
-                                                                     LOAD(value);
+    reduction_data[gl_LocalInvocationIndex] = is_initial_reduction ?
+                                                  initialize<T, Operation>(
+                                                      chanel_mix<T, ChannelMix>(value)) :
+                                                  load<T>(value)
   }
 
   /* Reduce the reduction data by half on every iteration until only one element remains. See the
@@ -100,7 +225,7 @@ void main()
      * lower index, as can be seen in the diagram above. The developer is expected to define the
      * REDUCE macro to be a commutative and associative binary operator suitable for parallel
      * reduction. */
-    reduction_data[gl_LocalInvocationIndex] = REDUCE(
+    reduction_data[gl_LocalInvocationIndex] = reduce<T, Operation>(
         reduction_data[gl_LocalInvocationIndex], reduction_data[gl_LocalInvocationIndex + stride]);
   }
 
@@ -109,12 +234,6 @@ void main()
    * it. */
   barrier();
   if (gl_LocalInvocationIndex == 0) {
-    /* If no WRITE macro is provided, we assume the reduction type can be passed to the float4
-     * constructor. If not, WRITE is expected to be defined to construct the output value. */
-#if defined(WRITE)
-    imageStore(output_img, int2(gl_WorkGroupID.xy), WRITE(reduction_data[0]));
-#else
-    imageStore(output_img, int2(gl_WorkGroupID.xy), float4(reduction_data[0]));
-#endif
+    imageStore(output_img, int2(gl_WorkGroupID.xy), to_float4(reduction_data[0]));
   }
 }
