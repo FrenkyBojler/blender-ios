@@ -35,25 +35,29 @@
 
 namespace blender::nodes::node_geo_jolt_physics_solver_cc {
 
-static std::shared_ptr<BehaviorListDef> make_behavior_list_def()
+static NestedBundleTypePtr make_world_type()
 {
-  auto list = std::make_shared<BehaviorListDef>();
-  list->behaviors.add(GravityBehavior::def());
-  list->behaviors.add(ForceBehavior::def());
-  list->behaviors.add(RigidBodyInstancesBehavior::def());
-  list->behaviors.add(SoftBodyMeshBehavior::def());
-  return list;
+  Vector<std::shared_ptr<const FlatBundleType>> types;
+  types.append(GravityBehavior::get_bundle_type());
+  types.append(ForceBehavior::get_bundle_type());
+  types.append(RigidBodyInstancesBehavior::get_bundle_type());
+  types.append(SoftBodyMeshBehavior::get_bundle_type());
+
+  NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
+      "Blender.JoltSolverWorld", std::move(types));
+  BundleTypeRegistry::register_type(world_type);
+  return world_type;
 }
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  static std::shared_ptr<const BehaviorListDef> behaviors = make_behavior_list_def();
+  static NestedBundleTypePtr world_type = make_world_type();
 
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Data");
   b.add_output<decl::Bundle>("Data").align_with_previous();
-  b.add_input<decl::Bundle>("Behavior").behaviors(behaviors);
+  b.add_input<decl::Bundle>("Behavior").bundle_type(world_type);
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
   b.add_input<decl::Int>("Substeps").default_value(1).min(1);
 }
@@ -403,20 +407,20 @@ static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
       behaviors_bundle,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
         BehaviorParseErrors errors;
-        if (type == ForceBehavior::type) {
+        if (type == ForceBehavior::name) {
           if (std::optional<ForceBehavior> force = ForceBehavior::parse(behavior_bundle, errors)) {
             behaviors.forces.append(std::move(*force));
             behaviors.forces.last().self_path = Bundle::combine_path(path);
           }
         }
-        if (type == GravityBehavior::type) {
+        if (type == GravityBehavior::name) {
           if (std::optional<GravityBehavior> gravity = GravityBehavior::parse(behavior_bundle,
                                                                               errors)) {
             behaviors.gravities.append(std::move(*gravity));
             behaviors.gravities.last().self_path = Bundle::combine_path(path);
           }
         }
-        else if (type == RigidBodyInstancesBehavior::type) {
+        else if (type == RigidBodyInstancesBehavior::name) {
           if (std::optional<RigidBodyInstancesBehavior> rigid_body =
                   RigidBodyInstancesBehavior::parse(behavior_bundle, errors))
           {
@@ -424,7 +428,7 @@ static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
             behaviors.rigid_bodies.last().self_path = Bundle::combine_path(path);
           }
         }
-        else if (type == SoftBodyMeshBehavior::type) {
+        else if (type == SoftBodyMeshBehavior::name) {
           if (std::optional<SoftBodyMeshBehavior> soft_body = SoftBodyMeshBehavior::parse(
                   behavior_bundle, errors))
           {

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "NOD_bundle_type.hh"
 #include "NOD_node_declaration.hh"
 
 #include "RNA_types.hh"
@@ -14,8 +15,6 @@
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_vector_types.hh"
-
-#include "NOD_geometry_nodes_behaviors_fwd.hh"
 
 namespace blender::nodes::decl {
 
@@ -268,7 +267,7 @@ class Bundle : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_BUNDLE;
 
-  std::shared_ptr<const BehaviorListDef> behaviors;
+  std::optional<BundleType> bundle_type;
 
   friend BundleBuilder;
 
@@ -282,7 +281,7 @@ class Bundle : public SocketDeclaration {
 
 class BundleBuilder : public SocketDeclarationBuilder<Bundle> {
  public:
-  BundleBuilder &behaviors(std::shared_ptr<const BehaviorListDef> behaviors);
+  BundleBuilder &bundle_type(BundleType bundle_type);
 };
 
 class ClosureBuilder;

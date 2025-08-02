@@ -11,7 +11,8 @@
 
 #include "ED_screen.hh"
 
-#include "NOD_geometry_nodes_behaviors.hh"
+#include "NOD_bundle_type.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_sync_sockets.hh"
 
 #include "UI_interface.hh"
@@ -52,8 +53,7 @@ static Vector<std::string> get_type_names_from_context(const bContext &C,
     return {};
   }
 
-  VectorSet<std::string> names = nodes::get_behavior_registry().get_all_behavior_names();
-  return names.extract_vector();
+  return nodes::BundleTypeRegistry::get_all_flat_type_names();
 }
 
 static void behavior_type_string_search(

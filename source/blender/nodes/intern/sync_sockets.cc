@@ -28,6 +28,7 @@
 
 #include "BLT_translation.hh"
 
+#include "NOD_bundle_type.hh"
 #include "NOD_geo_bundle.hh"
 #include "NOD_geo_closure.hh"
 #include "NOD_geometry_nodes_behaviors.hh"
@@ -96,11 +97,9 @@ static Vector<BundleSignature> get_expected_combine_bundle_signatures(
   const std::optional<StringRef> type = combine_bundle_node_type(*snode.edittree,
                                                                  combine_bundle_node);
   if (type) {
-    const BehaviorRegistry &behavior_registry = get_behavior_registry();
-    const VectorSet<std::shared_ptr<const BehaviorDef>> behaviors =
-        behavior_registry.get_behaviors_by_type(*type);
-    if (behaviors.size() == 1) {
-      return {behaviors[0]->to_bundle_signature()};
+    if (const FlatBundleTypePtr flat_bundle_type = BundleTypeRegistry::try_find_single_flat(*type))
+    {
+      return {flat_bundle_type->to_bundle_signature()};
     }
   }
 

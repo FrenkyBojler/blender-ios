@@ -68,6 +68,7 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/bundle_type.cc
   intern/derived_node_tree.cc
   intern/geometry_nodes_behaviors.cc
   intern/geometry_nodes_behaviors_common.cc
@@ -105,6 +106,7 @@ set(SRC
   intern/value_elem.cc
   intern/volume_grid_function_eval.cc
 
+  NOD_bundle_type.hh
   NOD_common.hh
   NOD_composite.hh
   NOD_derived_node_tree.hh
@@ -112,7 +114,6 @@ set(SRC
   NOD_geometry_exec.hh
   NOD_geometry_nodes_behaviors.hh
   NOD_geometry_nodes_behaviors_common.hh
-  NOD_geometry_nodes_behaviors_fwd.hh
   NOD_geometry_nodes_bundle.hh
   NOD_geometry_nodes_bundle_fwd.hh
   NOD_geometry_nodes_bundle_signature.hh

@@ -46,7 +46,7 @@ class SocketTooltipBuilder {
     Label,
     Description,
     Value,
-    Behaviors,
+    BundleType,
     Python,
   };
 
@@ -835,20 +835,34 @@ class SocketTooltipBuilder {
     if (!socket_decl) {
       return;
     }
-    if (!socket_decl->behaviors) {
+    if (!socket_decl->bundle_type) {
       return;
     }
-    const nodes::BehaviorListDef &behavior_list_def = *socket_decl->behaviors;
-    this->start_block(TooltipBlockType::Behaviors);
-    this->add_text_field_mono(TIP_("Behaviors:"));
-    for (const std::shared_ptr<nodes::BehaviorDef> &behavior_def : behavior_list_def.behaviors) {
-      this->add_space();
-      this->add_text_field_mono(fmt::format(" \u2022 {}", behavior_def->type));
-      indentation_++;
-      BLI_SCOPED_DEFER([&]() { indentation_--; });
+    const nodes::BundleType &bundle_type = *socket_decl->bundle_type;
 
-      for (const nodes::BehaviorDef::Item &item : behavior_def->items) {
-        this->add_text_field_mono(fmt::format(" \u2022 {}", item.name));
+    if (const auto *nested_bundle_type = std::get_if<nodes::NestedBundleTypePtr>(
+            &bundle_type.type))
+    {
+      this->start_block(TooltipBlockType::BundleType);
+      this->add_text_field_mono(TIP_("Nested Bundle Types:"));
+      for (const nodes::FlatBundleTypePtr &flat_type : (*nested_bundle_type)->items()) {
+        this->add_space();
+        this->add_text_field_mono(fmt::format(" \u2022 {}", flat_type->name()));
+        indentation_++;
+        BLI_SCOPED_DEFER([&]() { indentation_--; });
+
+        for (const nodes::FlatBundleType::Item &item : flat_type->items()) {
+          this->add_text_field_mono(fmt::format(" \u2022 {}", item.name()));
+        }
+      }
+    }
+    else if (const auto *flat_bundle_type = std::get_if<nodes::FlatBundleTypePtr>(
+                 &bundle_type.type))
+    {
+      this->start_block(TooltipBlockType::BundleType);
+      this->add_text_field_mono(TIP_("Bundle Type:"));
+      for (const nodes::FlatBundleType::Item &item : (*flat_bundle_type)->items()) {
+        this->add_text_field_mono(fmt::format(" \u2022 {}", item.name()));
       }
     }
   }

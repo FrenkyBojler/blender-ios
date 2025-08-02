@@ -31,15 +31,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (tree && node) {
-    std::optional<StringRefNull> type = combine_bundle_node_type(*tree, *node);
-    std::shared_ptr<const BehaviorDef> behavior;
-    if (type) {
-      const BehaviorRegistry &behavior_registry = get_behavior_registry();
-      const VectorSet<std::shared_ptr<const BehaviorDef>> behaviors =
-          behavior_registry.get_behaviors_by_type(*type);
-      if (behaviors.size() == 1) {
-        behavior = behaviors[0];
-      }
+    FlatBundleTypePtr flat_bundle_type;
+    if (const std::optional<StringRefNull> type = combine_bundle_node_type(*tree, *node)) {
+      flat_bundle_type = BundleTypeRegistry::try_find_single_flat(*type);
     }
 
     const NodeCombineBundle &storage = node_storage(*node);
@@ -53,8 +47,8 @@ static void node_declare(NodeDeclarationBuilder &b)
                             &tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
                         .supports_field()
                         .structure_type(StructureType::Dynamic);
-      if (behavior) {
-        if (const SocketDeclaration *src_decl = behavior->find_decl(name)) {
+      if (flat_bundle_type) {
+        if (const SocketDeclaration *src_decl = flat_bundle_type->find_decl(name)) {
           input.try_copy_ui_data(*src_decl);
         }
       }

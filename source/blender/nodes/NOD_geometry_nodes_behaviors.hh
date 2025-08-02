@@ -9,49 +9,11 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
-#include "NOD_geometry_nodes_behaviors_fwd.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_signature.hh"
 #include "NOD_node_declaration.hh"
 
 namespace blender::nodes {
-
-class BehaviorDef {
- public:
-  struct Item {
-    std::string name;
-    std::unique_ptr<SocketDeclaration> decl;
-  };
-
-  struct ItemNameGetter {
-    std::string operator()(const Item &item)
-    {
-      return item.name;
-    }
-  };
-
-  std::string type;
-  CustomIDVectorSet<Item, ItemNameGetter> items;
-  Vector<std::unique_ptr<BaseSocketDeclarationBuilder>> builders;
-
-  BundleSignature to_bundle_signature() const;
-  const SocketDeclaration *find_decl(const StringRef name) const;
-  template<typename DeclType> typename DeclType::Builder &add(std::string name);
-};
-
-class BehaviorListDef {
- public:
-  struct BehaviorDefTypeGetter {
-    StringRef operator()(const std::shared_ptr<BehaviorDef> &def) const
-    {
-      return def->type;
-    }
-  };
-
-  CustomIDVectorSet<std::shared_ptr<BehaviorDef>, BehaviorDefTypeGetter> behaviors;
-
-  BehaviorDef &add(std::string name);
-};
 
 class BehaviorParseErrors {
  public:
@@ -68,20 +30,6 @@ class BehaviorCommon {
  public:
   std::string self_path;
 };
-
-class BehaviorRegistry {
-
- private:
-  Set<std::shared_ptr<const BehaviorListDef>> behavior_list_defs_;
-
- public:
-  void add(std::shared_ptr<const BehaviorListDef> behavior_list_def);
-
-  VectorSet<std::string> get_all_behavior_names() const;
-  VectorSet<std::shared_ptr<const BehaviorDef>> get_behaviors_by_type(StringRef type) const;
-};
-
-BehaviorRegistry &get_behavior_registry();
 
 namespace behaviors {
 
@@ -106,29 +54,5 @@ inline void parse_member(const Bundle &bundle,
 }
 
 }  // namespace behaviors
-
-template<typename DeclType> inline typename DeclType::Builder &BehaviorDef::add(std::string name)
-{
-  static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
-  using SocketBuilder = typename DeclType::Builder;
-
-  auto decl_ptr = std::make_unique<DeclType>();
-  DeclType &decl = *decl_ptr;
-
-  auto decl_builder_ptr = std::make_unique<SocketBuilder>();
-  SocketBuilder &decl_builder = *decl_builder_ptr;
-
-  decl_builder.decl_ = &decl;
-  decl_builder.decl_base_ = &decl;
-
-  decl.name = name;
-  decl.identifier = name;
-  decl.in_out = SOCK_IN;
-  decl.socket_type = DeclType::static_socket_type;
-
-  this->items.add_new(Item{std::move(name), std::move(decl_ptr)});
-  this->builders.append(std::move(decl_builder_ptr));
-  return decl_builder;
-}
 
 }  // namespace blender::nodes
