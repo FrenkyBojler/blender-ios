@@ -473,6 +473,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
   struct LocalMemArena {
     MemArena *pf_arena = nullptr;
     LocalMemArena() : pf_arena(BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "Drawing::triangles")) {}
+
     ~LocalMemArena()
     {
       if (pf_arena != nullptr) {
@@ -551,6 +552,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
             const Span<float2> projpoints = projverts_span.slice(IndexRange(cur_p, points.size()));
 
+            /* Curve have to be in a counterclockwise order, so check if a flip is need.*/
             const bool flipped = cross_poly_v2(
                                      reinterpret_cast<const float(*)[2]>(projpoints.data()),
                                      projpoints.size()) < 0.0;
@@ -608,6 +610,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             const int3 tri = int3(vert_to_point(result.face[i][0]),
                                   vert_to_point(result.face[i][1]),
                                   vert_to_point(result.face[i][2]));
+            /* Don't add the triangle if any of the point are invalid. */
             if (tri.x != -1 && tri.y != -1 && tri.z != -1) {
               triangle_results[pos].append(tri);
             }

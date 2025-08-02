@@ -1284,18 +1284,17 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       const IndexMask &shape = shapes[shape_index];
       const Span<int3> tris_slice = triangles.slice(triangle_offsets[shape_index]);
 
-      /* Add the triangle indices to the index buffer. */
+      /* Add all triangle indices to the index buffer. */
       for (const int3 tri : tris_slice) {
         triangle_ibo_data[triangle_ibo_index] = uint3(
             point_to_id(tri.x), point_to_id(tri.y), point_to_id(tri.z));
         triangle_ibo_index++;
       }
 
-      const float4x2 texture_matrix = texture_matrices[shape.first()] *
-                                      object_space_to_layer_space;
-
       const int first_curve = shape.first();
       const int first_vert = verts_start_offsets[first_curve];
+
+      const float4x2 texture_matrix = texture_matrices[first_curve] * object_space_to_layer_space;
 
       shape.foreach_index([&](const int curve_i) {
         const IndexRange points = points_by_curve[curve_i];
