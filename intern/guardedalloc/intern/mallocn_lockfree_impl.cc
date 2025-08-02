@@ -61,12 +61,20 @@ enum {
   /** This block used aligned allocation, and its 'head' is of #MemHeadAligned type. */
   MEMHEAD_FLAG_ALIGN = 1 << 0,
   /**
-   * This block of memory has been allocated from CPP `new` (e.g. #MEM_new, or some
-   * guardedalloc-overloaded `new` operator). It mainly checks that #MEM_freeN is not directly
-   * called on it (#MEM_delete or some guardedalloc-overloaded `delete` operator should always be
-   * used instead).
+   * The data in this block is known to have a type that has a non-trivial copy-constructor or has
+   * a destructor. In this case, the memory can't be freed with #MEM_freeN and can't be copied with
+   * #MEM_dupallocN. Instead, #MEM_delete and #MEM_new (with a copy constructor) have to be used
+   * respectively.
+   *
+   * This helps to avoid common mistakes where a type that used to be trivial becomes non-trivial
+   * but is still freed with #MEM_free without calling the destructor.
+   *
+   * Raw buffers can still freed with #MEM_freeN, even if they contain non-trivial data, but in
+   * this case they also have to be allocated with non-typed #MEM_mallocN or similar. This
+   * indicates that the caller takes full responsibility over constructing and destructing the
+   * object.
    */
-  MEMHEAD_FLAG_FROM_CPP_NEW = 1 << 1,
+  MEMHEAD_FLAG_NON_TRIVIAL = 1 << 1,
 
   MEMHEAD_FLAG_MASK = (1 << 2) - 1
 };
@@ -75,7 +83,7 @@ enum {
 #define PTR_FROM_MEMHEAD(memhead) (memhead + 1)
 #define MEMHEAD_ALIGNED_FROM_PTR(ptr) (((MemHeadAligned *)ptr) - 1)
 #define MEMHEAD_IS_ALIGNED(memhead) ((memhead)->len & size_t(MEMHEAD_FLAG_ALIGN))
-#define MEMHEAD_IS_FROM_CPP_NEW(memhead) ((memhead)->len & size_t(MEMHEAD_FLAG_FROM_CPP_NEW))
+#define MEMHEAD_NON_TRIVIAL(memhead) ((memhead)->len & size_t(MEMHEAD_FLAG_NON_TRIVIAL))
 #define MEMHEAD_LEN(memhead) ((memhead)->len & ~size_t(MEMHEAD_FLAG_MASK))
 
 #ifdef __GNUC__
@@ -144,7 +152,7 @@ size_t MEM_lockfree_allocN_len(const void *vmemh)
   return 0;
 }
 
-void MEM_lockfree_freeN(void *vmemh, AllocationType allocation_type)
+void MEM_lockfree_freeN(void *vmemh, const bool allow_non_trivial)
 {
   if (UNLIKELY(leak_detector_has_run)) {
     print_error("%s\n", free_after_leak_detection_message);
@@ -158,10 +166,10 @@ void MEM_lockfree_freeN(void *vmemh, AllocationType allocation_type)
   MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
   size_t len = MEMHEAD_LEN(memh);
 
-  if (allocation_type != AllocationType::NEW_DELETE && MEMHEAD_IS_FROM_CPP_NEW(memh)) {
-    report_error_on_address(
-        vmemh,
-        "Attempt to use C-style MEM_freeN on a pointer created with CPP-style MEM_new or new\n");
+  if (MEMHEAD_NON_TRIVIAL(memh)) {
+    if (!allow_non_trivial) {
+      report_error_on_address(vmemh, "Attempt to use MEM_freeN with a non-trivial object\n");
+    }
   }
 
   memory_usage_block_free(len);
@@ -185,16 +193,14 @@ void *MEM_lockfree_dupallocN(const void *vmemh)
     const MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
     const size_t prev_size = MEM_lockfree_allocN_len(vmemh);
 
-    if (MEMHEAD_IS_FROM_CPP_NEW(memh)) {
-      report_error_on_address(vmemh,
-                              "Attempt to use C-style MEM_dupallocN on a pointer created with "
-                              "CPP-style MEM_new or new\n");
+    if (MEMHEAD_NON_TRIVIAL(memh)) {
+      report_error_on_address(vmemh, "Attempt to use MEM_dupallocN with a non-trivial object\n");
     }
 
     if (UNLIKELY(MEMHEAD_IS_ALIGNED(memh))) {
       const MemHeadAligned *memh_aligned = MEMHEAD_ALIGNED_FROM_PTR(vmemh);
       newp = MEM_lockfree_mallocN_aligned(
-          prev_size, size_t(memh_aligned->alignment), "dupli_malloc", AllocationType::ALLOC_FREE);
+          prev_size, size_t(memh_aligned->alignment), "dupli_malloc", TypeInMemory::TRIVIAL);
     }
     else {
       newp = MEM_lockfree_mallocN(prev_size, "dupli_malloc");
@@ -212,7 +218,7 @@ void *MEM_lockfree_reallocN_id(void *vmemh, size_t len, const char *str)
     const MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
     const size_t old_len = MEM_lockfree_allocN_len(vmemh);
 
-    if (MEMHEAD_IS_FROM_CPP_NEW(memh)) {
+    if (MEMHEAD_NON_TRIVIAL(memh)) {
       report_error_on_address(vmemh,
                               "Attempt to use C-style MEM_reallocN on a pointer created with "
                               "CPP-style MEM_new or new\n");
@@ -224,7 +230,7 @@ void *MEM_lockfree_reallocN_id(void *vmemh, size_t len, const char *str)
     else {
       const MemHeadAligned *memh_aligned = MEMHEAD_ALIGNED_FROM_PTR(vmemh);
       newp = MEM_lockfree_mallocN_aligned(
-          len, size_t(memh_aligned->alignment), "realloc", AllocationType::ALLOC_FREE);
+          len, size_t(memh_aligned->alignment), "realloc", TypeInMemory::TRIVIAL);
     }
 
     if (newp) {
@@ -238,7 +244,7 @@ void *MEM_lockfree_reallocN_id(void *vmemh, size_t len, const char *str)
       }
     }
 
-    MEM_lockfree_freeN(vmemh, AllocationType::ALLOC_FREE);
+    MEM_lockfree_freeN(vmemh, false);
   }
   else {
     newp = MEM_lockfree_mallocN(len, str);
@@ -255,10 +261,8 @@ void *MEM_lockfree_recallocN_id(void *vmemh, size_t len, const char *str)
     const MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
     const size_t old_len = MEM_lockfree_allocN_len(vmemh);
 
-    if (MEMHEAD_IS_FROM_CPP_NEW(memh)) {
-      report_error_on_address(vmemh,
-                              "Attempt to use C-style MEM_recallocN on a pointer created with "
-                              "CPP-style MEM_new or new\n");
+    if (MEMHEAD_NON_TRIVIAL(memh)) {
+      report_error_on_address(vmemh, "Attempt to use MEM_recallocN with a non-trivial object\n");
     }
 
     if (LIKELY(!MEMHEAD_IS_ALIGNED(memh))) {
@@ -267,7 +271,7 @@ void *MEM_lockfree_recallocN_id(void *vmemh, size_t len, const char *str)
     else {
       const MemHeadAligned *memh_aligned = MEMHEAD_ALIGNED_FROM_PTR(vmemh);
       newp = MEM_lockfree_mallocN_aligned(
-          len, size_t(memh_aligned->alignment), "recalloc", AllocationType::ALLOC_FREE);
+          len, size_t(memh_aligned->alignment), "recalloc", TypeInMemory::TRIVIAL);
     }
 
     if (newp) {
@@ -286,7 +290,7 @@ void *MEM_lockfree_recallocN_id(void *vmemh, size_t len, const char *str)
       }
     }
 
-    MEM_lockfree_freeN(vmemh, AllocationType::ALLOC_FREE);
+    MEM_lockfree_freeN(vmemh, false);
   }
   else {
     newp = MEM_lockfree_callocN(len, str);
@@ -394,7 +398,7 @@ void *MEM_lockfree_malloc_arrayN(size_t len, size_t size, const char *str)
 void *MEM_lockfree_mallocN_aligned(size_t len,
                                    size_t alignment,
                                    const char *str,
-                                   const AllocationType allocation_type)
+                                   const TypeInMemory type_in_memory)
 {
   /* Huge alignment values doesn't make sense and they wouldn't fit into 'short' used in the
    * MemHead. */
@@ -446,8 +450,7 @@ void *MEM_lockfree_mallocN_aligned(size_t len,
     }
 
     memh->len = len | size_t(MEMHEAD_FLAG_ALIGN) |
-                size_t(allocation_type == AllocationType::NEW_DELETE ? MEMHEAD_FLAG_FROM_CPP_NEW :
-                                                                       0);
+                size_t(type_in_memory == TypeInMemory::NON_TRIVIAL ? MEMHEAD_FLAG_NON_TRIVIAL : 0);
     memh->alignment = short(alignment);
     memory_usage_block_alloc(len);
 

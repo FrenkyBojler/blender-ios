@@ -10,15 +10,22 @@
 
 namespace mem_guarded::internal {
 
-enum class AllocationType {
-  /** Allocation is handled through 'C type' alloc/free calls. */
-  ALLOC_FREE,
-  /** Allocation is handled through 'C++ type' new/delete calls. */
-  NEW_DELETE,
+enum class TypeInMemory {
+  /**
+   * The type of the object in this memory is trivial (as far as the allocation system is
+   * concerned). It may still contain non-trivial data, but it's the callers responsibility to
+   * construct and destruct it properly.
+   */
+  TRIVIAL,
+  /**
+   * The type of the object is known to be non-trivial. So it can't be used with e.g.
+   * #MEM_dupallocN and #MEM_freeN.
+   */
+  NON_TRIVIAL,
 };
 
 /** Internal implementation of #MEM_freeN, exposed because #MEM_delete needs access to it. */
-extern void (*mem_freeN_ex)(void *vmemh, AllocationType allocation_type);
+extern void (*mem_freeN_ex)(void *vmemh, bool allow_non_trivial);
 
 /**
  * Internal implementation of #MEM_callocN, exposed because public #MEM_callocN cannot be a
@@ -57,7 +64,7 @@ extern void *(*mem_malloc_arrayN)(size_t len,
 extern void *(*mem_mallocN_aligned_ex)(size_t len,
                                        size_t alignment,
                                        const char *str,
-                                       AllocationType allocation_type);
+                                       TypeInMemory type_in_memory);
 
 /**
  * Internal implementation of #MEM_dupallocN, exposed because public #MEM_dupallocN cannot be a

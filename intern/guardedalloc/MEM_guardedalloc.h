@@ -340,6 +340,17 @@ void MEM_use_guarded_allocator(void);
  *
  * \{ */
 
+namespace mem_guarded::internal {
+/* Note that we intentionally don't care about a non-trivial default constructor here. */
+template<typename T>
+constexpr bool is_trivial_after_construction = std::is_trivially_copyable_v<T> &&
+                                               std::is_trivially_destructible_v<T>;
+template<typename T>
+constexpr TypeInMemory type_in_memory_v = is_trivial_after_construction<T> ?
+                                              TypeInMemory::TRIVIAL :
+                                              TypeInMemory::NON_TRIVIAL;
+}  // namespace mem_guarded::internal
+
 /**
  * Allocate new memory for an object of type #T, and construct it.
  * #MEM_delete must be used to delete the object. Calling #MEM_freeN on it is illegal.
@@ -358,7 +369,7 @@ template<typename T, typename... Args>
 inline T *MEM_new(const char *allocation_name, Args &&...args)
 {
   void *buffer = mem_guarded::internal::mem_mallocN_aligned_ex(
-      sizeof(T), alignof(T), allocation_name, mem_guarded::internal::AllocationType::NEW_DELETE);
+      sizeof(T), alignof(T), allocation_name, mem_guarded::internal::type_in_memory_v<T>);
   return new (buffer) T(std::forward<Args>(args)...);
 }
 
@@ -381,8 +392,7 @@ template<typename T> inline void MEM_delete(const T *ptr)
   }
   /* C++ allows destruction of `const` objects, so the pointer is allowed to be `const`. */
   ptr->~T();
-  mem_guarded::internal::mem_freeN_ex(const_cast<T *>(ptr),
-                                      mem_guarded::internal::AllocationType::NEW_DELETE);
+  mem_guarded::internal::mem_freeN_ex(const_cast<T *>(ptr), true);
 }
 
 /**
@@ -406,18 +416,17 @@ template<typename T> inline void MEM_delete(const T *ptr)
           num_bytes, \
           __STDCPP_DEFAULT_NEW_ALIGNMENT__, \
           _id, \
-          mem_guarded::internal::AllocationType::NEW_DELETE); \
+          mem_guarded::internal::TypeInMemory::NON_TRIVIAL); \
     } \
     void *operator new(size_t num_bytes, std::align_val_t alignment) \
     { \
       return mem_guarded::internal::mem_mallocN_aligned_ex( \
-          num_bytes, size_t(alignment), _id, mem_guarded::internal::AllocationType::NEW_DELETE); \
+          num_bytes, size_t(alignment), _id, mem_guarded::internal::TypeInMemory::NON_TRIVIAL); \
     } \
     void operator delete(void *mem) \
     { \
       if (mem) { \
-        mem_guarded::internal::mem_freeN_ex(mem, \
-                                            mem_guarded::internal::AllocationType::NEW_DELETE); \
+        mem_guarded::internal::mem_freeN_ex(mem, true); \
       } \
     } \
     void *operator new[](size_t num_bytes) \
@@ -426,7 +435,7 @@ template<typename T> inline void MEM_delete(const T *ptr)
           num_bytes, \
           __STDCPP_DEFAULT_NEW_ALIGNMENT__, \
           _id "[]", \
-          mem_guarded::internal::AllocationType::NEW_DELETE); \
+          mem_guarded::internal::TypeInMemory::NON_TRIVIAL); \
     } \
     void *operator new[](size_t num_bytes, std::align_val_t alignment) \
     { \
@@ -434,13 +443,12 @@ template<typename T> inline void MEM_delete(const T *ptr)
           num_bytes, \
           size_t(alignment), \
           _id "[]", \
-          mem_guarded::internal::AllocationType::NEW_DELETE); \
+          mem_guarded::internal::TypeInMemory::NON_TRIVIAL); \
     } \
     void operator delete[](void *mem) \
     { \
       if (mem) { \
-        mem_guarded::internal::mem_freeN_ex(mem, \
-                                            mem_guarded::internal::AllocationType::NEW_DELETE); \
+        mem_guarded::internal::mem_freeN_ex(mem, true); \
       } \
     } \
     void *operator new(size_t /*count*/, void *ptr) \
@@ -567,7 +575,8 @@ template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const 
   static_assert(std::is_trivially_constructible_v<T>,
                 "For non-trivial types, MEM_new must be used.");
 #  else
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
+  static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
+                "For non-trivial types, MEM_new must be used.");
 #  endif
   T *new_object = static_cast<T *>(MEM_mallocN_aligned(sizeof(T), alignof(T), allocation_name));
   if (new_object) {
@@ -582,10 +591,10 @@ template<typename T> inline void MEM_freeN(T *ptr)
   static_assert(std::is_trivially_destructible_v<T>,
                 "For non-trivial types, MEM_delete must be used.");
 #  else
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
+  static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
+                "For non-trivial types, MEM_delete must be used.");
 #  endif
-  mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),
-                                      mem_guarded::internal::AllocationType::ALLOC_FREE);
+  mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)), false);
 }
 
 /** \} */

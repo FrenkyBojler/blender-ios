@@ -144,13 +144,23 @@ typedef MemHead MemHeadAligned;
 /* #MemHead::flag. */
 enum MemHeadFlag {
   /**
-   * This block of memory has been allocated from CPP `new` (e.g. #MEM_new, or some
-   * guardedalloc-overloaded `new` operator). It mainly checks that #MEM_freeN is not directly
-   * called on it (#MEM_delete or some guardedalloc-overloaded `delete` operator should always be
-   * used instead).
+   * The data in this block is known to have a type that has a non-trivial copy-constructor or has
+   * a destructor. In this case, the memory can't be freed with #MEM_freeN and can't be copied with
+   * #MEM_dupallocN. Instead, #MEM_delete and #MEM_new (with a copy constructor) have to be used
+   * respectively.
+   *
+   * This helps to avoid common mistakes where a type that used to be trivial becomes non-trivial
+   * but is still freed with #MEM_free without calling the destructor.
+   *
+   * Raw buffers can still freed with #MEM_freeN, even if they contain non-trivial data, but in
+   * this case they also have to be allocated with non-typed #MEM_mallocN or similar. This
+   * indicates that the caller takes full responsibility over constructing and destructing the
+   * object.
    */
-  MEMHEAD_FLAG_FROM_CPP_NEW = 1 << 1,
+  MEMHEAD_FLAG_NON_TRIVIAL = 1 << 1,
 };
+
+#define MEMHEAD_NON_TRIVIAL(memhead) ((memhead)->flag & size_t(MEMHEAD_FLAG_NON_TRIVIAL))
 
 typedef struct MemTail {
   int tag3, pad;
@@ -330,10 +340,8 @@ void *MEM_guarded_dupallocN(const void *vmemh)
     const MemHead *memh = static_cast<const MemHead *>(vmemh);
     memh--;
 
-    if ((memh->flag & MEMHEAD_FLAG_FROM_CPP_NEW) != 0) {
-      report_error_on_address(vmemh,
-                              "Attempt to use C-style MEM_dupallocN on a pointer created with "
-                              "CPP-style MEM_new or new\n");
+    if (MEMHEAD_NON_TRIVIAL(memh)) {
+      report_error_on_address(vmemh, "Attempt to use MEM_dupallocN with a non-trivial object\n");
     }
 
 #ifndef DEBUG_MEMDUPLINAME
@@ -342,7 +350,7 @@ void *MEM_guarded_dupallocN(const void *vmemh)
     }
     else {
       newp = MEM_guarded_mallocN_aligned(
-          memh->len, size_t(memh->alignment), "dupli_alloc", AllocationType::ALLOC_FREE);
+          memh->len, size_t(memh->alignment), "dupli_alloc", TypeInMemory::TRIVIAL);
     }
 
     if (newp == nullptr) {
@@ -363,7 +371,7 @@ void *MEM_guarded_dupallocN(const void *vmemh)
       }
       else {
         newp = MEM_guarded_mallocN_aligned(
-            memh->len, (size_t)memh->alignment, name, AllocationType::ALLOC_FREE);
+            memh->len, (size_t)memh->alignment, name, TypeInMemory::TRIVIAL);
       }
 
       if (newp == nullptr)
@@ -390,10 +398,8 @@ void *MEM_guarded_reallocN_id(void *vmemh, size_t len, const char *str)
     MemHead *memh = static_cast<MemHead *>(vmemh);
     memh--;
 
-    if ((memh->flag & MEMHEAD_FLAG_FROM_CPP_NEW) != 0) {
-      report_error_on_address(vmemh,
-                              "Attempt to use C-style MEM_reallocN on a pointer created with "
-                              "CPP-style MEM_new or new\n");
+    if (MEMHEAD_NON_TRIVIAL(memh)) {
+      report_error_on_address(vmemh, "Attempt to use MEM_reallocN with a non-trivial object\n");
     }
 
     if (LIKELY(memh->alignment == 0)) {
@@ -401,7 +407,7 @@ void *MEM_guarded_reallocN_id(void *vmemh, size_t len, const char *str)
     }
     else {
       newp = MEM_guarded_mallocN_aligned(
-          len, size_t(memh->alignment), memh->name, AllocationType::ALLOC_FREE);
+          len, size_t(memh->alignment), memh->name, TypeInMemory::TRIVIAL);
     }
 
     if (newp) {
@@ -415,7 +421,7 @@ void *MEM_guarded_reallocN_id(void *vmemh, size_t len, const char *str)
       }
     }
 
-    MEM_guarded_freeN(vmemh, AllocationType::ALLOC_FREE);
+    MEM_guarded_freeN(vmemh, false);
   }
   else {
     newp = MEM_guarded_mallocN(len, str);
@@ -432,10 +438,8 @@ void *MEM_guarded_recallocN_id(void *vmemh, size_t len, const char *str)
     MemHead *memh = static_cast<MemHead *>(vmemh);
     memh--;
 
-    if ((memh->flag & MEMHEAD_FLAG_FROM_CPP_NEW) != 0) {
-      report_error_on_address(vmemh,
-                              "Attempt to use C-style MEM_recallocN on a pointer created with "
-                              "CPP-style MEM_new or new\n");
+    if (MEMHEAD_NON_TRIVIAL(memh)) {
+      report_error_on_address(vmemh, "Attempt to use MEM_recallocN with a non-trivial object\n");
     }
 
     if (LIKELY(memh->alignment == 0)) {
@@ -443,7 +447,7 @@ void *MEM_guarded_recallocN_id(void *vmemh, size_t len, const char *str)
     }
     else {
       newp = MEM_guarded_mallocN_aligned(
-          len, size_t(memh->alignment), memh->name, AllocationType::ALLOC_FREE);
+          len, size_t(memh->alignment), memh->name, TypeInMemory::TRIVIAL);
     }
 
     if (newp) {
@@ -462,7 +466,7 @@ void *MEM_guarded_recallocN_id(void *vmemh, size_t len, const char *str)
       }
     }
 
-    MEM_guarded_freeN(vmemh, AllocationType::ALLOC_FREE);
+    MEM_guarded_freeN(vmemh, false);
   }
   else {
     newp = MEM_guarded_callocN(len, str);
@@ -494,7 +498,7 @@ static void print_memhead_backtrace(MemHead *memh)
 static void make_memhead_header(MemHead *memh,
                                 size_t len,
                                 const char *str,
-                                const AllocationType allocation_type)
+                                const TypeInMemory type_in_memory)
 {
   MemTail *memt;
 
@@ -502,7 +506,7 @@ static void make_memhead_header(MemHead *memh,
   memh->name = str;
   memh->nextname = nullptr;
   memh->len = len;
-  memh->flag = (allocation_type == AllocationType::NEW_DELETE ? MEMHEAD_FLAG_FROM_CPP_NEW : 0);
+  memh->flag = (type_in_memory == TypeInMemory::NON_TRIVIAL ? MEMHEAD_FLAG_NON_TRIVIAL : 0);
   memh->alignment = 0;
   memh->tag2 = MEMTAG2;
 
@@ -541,7 +545,7 @@ void *MEM_guarded_mallocN(size_t len, const char *str)
   memh = (MemHead *)malloc(len + sizeof(MemHead) + sizeof(MemTail));
 
   if (LIKELY(memh)) {
-    make_memhead_header(memh, len, str, AllocationType::ALLOC_FREE);
+    make_memhead_header(memh, len, str, TypeInMemory::TRIVIAL);
 
     if (LIKELY(len)) {
       if (UNLIKELY(malloc_debug_memset)) {
@@ -593,7 +597,7 @@ void *MEM_guarded_malloc_arrayN(size_t len, size_t size, const char *str)
 void *MEM_guarded_mallocN_aligned(size_t len,
                                   size_t alignment,
                                   const char *str,
-                                  const AllocationType allocation_type)
+                                  const TypeInMemory type_in_memory)
 {
   /* Huge alignment values doesn't make sense and they wouldn't fit into 'short' used in the
    * MemHead. */
@@ -632,7 +636,7 @@ void *MEM_guarded_mallocN_aligned(size_t len,
      */
     memh = (MemHead *)((char *)memh + extra_padding);
 
-    make_memhead_header(memh, len, str, allocation_type);
+    make_memhead_header(memh, len, str, type_in_memory);
     memh->alignment = short(alignment);
     if (LIKELY(len)) {
       if (UNLIKELY(malloc_debug_memset)) {
@@ -672,7 +676,7 @@ void *MEM_guarded_callocN(size_t len, const char *str)
   memh = (MemHead *)calloc(len + sizeof(MemHead) + sizeof(MemTail), 1);
 
   if (memh) {
-    make_memhead_header(memh, len, str, AllocationType::ALLOC_FREE);
+    make_memhead_header(memh, len, str, TypeInMemory::TRIVIAL);
 #ifdef DEBUG_MEMCOUNTER
     if (_mallocn_count == DEBUG_MEMCOUNTER_ERROR_VAL) {
       memcount_raise(__func__);
@@ -1036,7 +1040,7 @@ void mem_guarded_clearmemlist()
   membase->first = membase->last = nullptr;
 }
 
-void MEM_guarded_freeN(void *vmemh, const AllocationType allocation_type)
+void MEM_guarded_freeN(void *vmemh, const bool allow_non_trivial)
 {
   MemTail *memt;
   MemHead *memh = static_cast<MemHead *>(vmemh);
@@ -1063,12 +1067,10 @@ void MEM_guarded_freeN(void *vmemh, const AllocationType allocation_type)
 
   memh--;
 
-  if (allocation_type != AllocationType::NEW_DELETE &&
-      (memh->flag & MEMHEAD_FLAG_FROM_CPP_NEW) != 0)
-  {
-    report_error_on_address(
-        vmemh,
-        "Attempt to use C-style MEM_freeN on a pointer created with CPP-style MEM_new or new\n");
+  if (MEMHEAD_NON_TRIVIAL(memh)) {
+    if (!allow_non_trivial) {
+      report_error_on_address(vmemh, "Attempt to use MEM_freeN with a non-trivial object\n");
+    }
   }
 
   if (memh->tag1 == MEMFREE && memh->tag2 == MEMFREE) {
