@@ -214,6 +214,7 @@ class Preprocessor {
       str = preprocessor_directive_mutation(str);
       str = swizzle_function_mutation(str);
       if (language == BLENDER_GLSL) {
+        str = struct_method_mutation(str, report_error);
         str = stage_function_mutation(str);
         str = resource_guard_mutation(str, report_error);
         str = loop_unroll(str, report_error);
@@ -263,6 +264,7 @@ class Preprocessor {
 
  private:
   using regex_callback = std::function<void(const std::smatch &)>;
+  using regex_callback_with_line_count = std::function<void(const std::smatch &, int64_t)>;
 
   /* Helper to make the code more readable in parsing functions. */
   void regex_global_search(const std::string &str,
@@ -274,6 +276,19 @@ class Preprocessor {
     for (smatch match; regex_search(it, str.end(), match, regex); it = match.suffix().first) {
       callback(match);
     }
+  }
+
+  void regex_global_search(const std::string &str,
+                           const std::regex &regex,
+                           regex_callback_with_line_count callback)
+  {
+    using namespace std;
+    int64_t line = 1;
+    regex_global_search(str, regex, [&line, &callback](const std::smatch &match) {
+      line += line_count(match.prefix().str());
+      callback(match, line);
+      line += line_count(match[0].str());
+    });
   }
 
   template<typename ReportErrorF>
@@ -1035,6 +1050,102 @@ class Preprocessor {
       str = std::regex_replace(str, regex, std::to_string(hash_string(str_var)) + 'u');
     }
     return str;
+  }
+
+  /* Move all method definition outside of struct definition blocks. */
+  std::string struct_method_mutation(const std::string &str, report_callback report_error)
+  {
+    using namespace std;
+
+    if (str.find("struct") == string::npos && str.find("class") == string::npos) {
+      return str;
+    }
+
+    string out = str;
+
+    /* TODO(fclem): Template support. */
+    regex regex_struct(R"(\n(struct|class)\s+(\w+)\s+(: \w+)?)");
+    regex_global_search(str, regex_struct, [&](const smatch &match, int64_t line) {
+      if (match[3].matched) {
+        report_error(match, "class inheritance is not supported");
+      }
+
+      const string struct_suffix = match.suffix().str();
+      const string struct_begin = match[0].str();
+      const string struct_name = match[2].str();
+      const string struct_body = '{' + get_content_between_balanced_pair(struct_suffix, '{', '}') +
+                                 "};";
+      string modified_struct_begin = struct_begin;
+      string modified_struct_body = struct_body;
+      string modified_functions;
+
+      int struct_declaration_line = line + 1;
+
+      replace_all(modified_struct_begin, "\nclass ", "\nstruct ");
+      replace_all(modified_struct_body, " private:", "");
+      replace_all(modified_struct_body, " public:", "");
+
+      /* TODO(fclem): Template support. */
+      regex regex_func(R"(\n +(static )?(const )?(\w+)\s+(\w+)\()");
+      regex_global_search(struct_body, regex_func, [&](const smatch &match_fn, int64_t fn_line) {
+        if (match_fn[2].matched) {
+          report_error(match,
+                       "function return type is marked `const` but it makes no sense for values "
+                       "and returning reference is not supported");
+        }
+        const bool is_static = match_fn[1].matched;
+        const string prefix = match_fn.prefix().str();
+        const string suffix = match_fn.suffix().str();
+        const string fn_name = match_fn[4].str();
+        const string fn_args = get_content_between_balanced_pair('(' + suffix, '(', ')');
+        const string suffix_after_args = suffix.substr(fn_args.size());
+        const string fn_body = get_content_between_balanced_pair(suffix_after_args, '{', '}');
+        const string fn_name_and_type = match_fn[0].str();
+
+        size_t body_start = suffix_after_args.find("{");
+        const bool is_const = suffix_after_args.substr(0, body_start).find("const") !=
+                              string::npos;
+
+        size_t suffix_size = fn_args.size() + 1 + body_start + 1 + fn_body.size() + 1;
+
+        const string original_fn_definition = fn_name_and_type + suffix.substr(0, suffix_size);
+        replace_all(modified_struct_body,
+                    original_fn_definition,
+                    string(line_count(original_fn_definition), '\n'));
+
+        const string modified_fn_args = is_static ?
+                                            fn_args :
+                                            ((is_const ? "const " : "inout ") + struct_name +
+                                             " this" + (fn_args.empty() ? "" : (", " + fn_args)));
+
+        string modified_fn_body = fn_body;
+        /* Use regex to check word boundaries. */
+        modified_fn_body = std::regex_replace(modified_fn_body, regex(R"(\bthis\b)"), "@");
+        replace_all(modified_fn_body, "*@", "this");
+        replace_all(modified_fn_body, "@->", "this.");
+
+        string modified_fn_name_and_type = fn_name_and_type;
+        if (is_static) {
+          replace_all(modified_fn_name_and_type,
+                      " " + fn_name + "(",
+                      " " + struct_name + "::" + fn_name + "(");
+          replace_all(modified_fn_name_and_type, " static ", " ");
+        }
+
+        modified_functions += "\n#line " + to_string(struct_declaration_line + fn_line);
+        modified_functions += modified_fn_name_and_type + modified_fn_args + ")\n";
+        modified_functions += "  {" + modified_fn_body + "}\n";
+      });
+
+      modified_functions += "\n#line " +
+                            to_string(struct_declaration_line + line_count(struct_body) + 1);
+
+      replace_all(out,
+                  struct_begin + struct_body,
+                  modified_struct_begin + modified_struct_body + modified_functions);
+    });
+
+    return out;
   }
 
   std::string stage_function_mutation(const std::string &str)

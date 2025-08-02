@@ -897,4 +897,102 @@ uint my_func() {
 }
 GPU_TEST(preprocess_resource_guard);
 
+static void test_preprocess_struct_methods()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+class S {
+ private:
+  int member;
+  int this_member;
+
+ public:
+  static S construct()
+  {
+    S a;
+    a.member = 0;
+    a.this_member = 0;
+    return a;
+  }
+
+  int another_member;
+
+  S function()
+  {
+    this->member++;
+    this_member++;
+    return *this;
+  }
+
+  int size() const
+  {
+    return this->member;
+  }
+};
+)";
+    string expect = R"(
+struct S {
+
+  int member;
+  int this_member;
+
+
+
+
+
+
+
+
+
+
+  int another_member;
+
+
+
+
+
+
+
+
+
+
+
+
+};
+#line 8
+  S S_construct()
+  {
+    S a;
+    a.member = 0;
+    a.this_member = 0;
+    return a;
+  }
+
+#line 18
+  S function(inout S _inout_sta this _inout_end)
+  {
+    this.member++;
+    this_member++;
+    return this;
+  }
+
+#line 25
+  int size(const S this)
+  {
+    return this.member;
+  }
+
+#line 30
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_struct_methods);
+
 }  // namespace blender::gpu::tests
