@@ -861,15 +861,53 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     return true;
   }
 
+  const auto attribute_incompatible_with_field = [&](const int input_index) -> bool {
+    const std::optional<AttributeDomainAndType> meta_data = attributes.get_builtin_domain_and_type(
+        attribute_ids[input_index]);
+    if (!meta_data.has_value()) {
+      return false;
+    }
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(
+        fields[input_index].cpp_type());
+    return *meta_data != AttributeDomainAndType(domain, data_type);
+  };
+
+  Set<StringRef> dependencies;
+  for (const int input_index : attribute_ids.index_range()) {
+    /* No need to account dependencies for field that will not be captured. */
+    if (attribute_incompatible_with_field(input_index)) {
+      continue;
+    }
+
+    fields[input_index].node().for_each_field_input_recursive([&](const FieldInput &field_input) {
+      if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input)) {
+        dependencies.add(attr_field_input->attribute_name());
+      }
+    });
+  }
+
   fn::FieldEvaluator evaluator{field_context, domain_size};
   evaluator.set_selection(selection);
 
-  struct StoreResult {
+  /* There is no field depend on that attribute and we can just write into it directly so original
+   * non-selected attribute value kept. */
+  struct RewriteInPlace {
     int input_index;
     int evaluator_index;
   };
-  Vector<StoreResult> results_to_store;
+  Vector<RewriteInPlace> results_to_rewrite;
 
+  /* We able to delete original attribute and add new one. If original attribute had the same
+   * metadta -- depends on mask size we can copy less if replace or not. */
+  struct HotReplace {
+    int input_index;
+    int evaluator_index;
+    void *buffer;
+  };
+  Vector<HotReplace> results_to_replace;
+
+  /* There is no original attribute so we can just add it and initialize rest values. Still have to
+   * do this after evaluation though since one might be a dependency for others. */
   struct AddResult {
     int input_index;
     int evaluator_index;
@@ -877,23 +915,80 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   };
   Vector<AddResult> results_to_add;
 
+  /* We can not write into original storage and will not be able to reduce copy size by replace. So
+   * we have to just partially copy evaluated array into attribute. */
+  struct StoreResult {
+    int input_index;
+    int evaluator_index;
+  };
+  Vector<StoreResult> results_to_store;
+
   bool success = true;
 
   for (const int input_index : attribute_ids.index_range()) {
-    const StringRef id = attribute_ids[input_index];
-    const CPPType &type = fields[input_index].cpp_type();
-    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
-
     /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
-    if (const std::optional<AttributeDomainAndType> meta_data =
-            attributes.get_builtin_domain_and_type(id))
-    {
-      if (*meta_data != AttributeDomainAndType{domain, data_type}) {
-        success = false;
+    if (attribute_incompatible_with_field(input_index)) {
+      success = false;
+      continue;
+    }
+
+    const StringRef id = attribute_ids[input_index];
+    const AttributeValidator validator = attributes.lookup_validator(id);
+    const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
+    if (!validator && mask_is_full) {
+      if (try_add_shared_field_attribute(attributes, id, domain, field)) {
         continue;
       }
     }
 
+    const CPPType &type = fields[input_index].cpp_type();
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
+
+    const GAttributeReader dst = attributes.lookup(id);
+    if (!dst) {
+      /* Result #id attribute might be dependency for some other field so we have to not add this
+       * as attribute right now. */
+      void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
+      GMutableSpan dst(type, buffer, domain_size);
+      results_to_add.append({input_index, evaluator.add_with_destination(field, dst), buffer});
+      continue;
+    }
+
+    const bool match_metadata = dst.domain == domain && dst.varray.type() == type;
+    const bool is_dependency = dependencies.contains(id);
+    if (match_metadata && !is_dependency) {
+      GSpanAttributeWriter dst_mutable = attributes.lookup_for_write_span(id);
+      results_to_store.append(
+          {input_index, evaluator.add_with_destination(field, dst_mutable.span)});
+      continue;
+    }
+
+    const bool can_replace = !attributes.is_builtin(id);
+    if (!match_metadata) {
+      /* Difference with #results_to_add is that non-selected values have to be propagated from
+       * original attribute. */
+      void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
+      GMutableSpan dst(type, buffer, domain_size);
+      results_to_replace.append({input_index, evaluator.add_with_destination(field, dst), buffer});
+      continue;
+    }
+
+    const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
+    if () {
+      /* TODO: Support hot replace for built-in attributes. */
+      results_to_store.append({input_index, evaluator.add(field)});
+      continue;
+    }
+  }
+
+  for (const int input_index : attribute_ids.index_range()) {
+    /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
+    if (attribute_incompatible_with_field(input_index)) {
+      success = false;
+      continue;
+    }
+
+    const StringRef id = attribute_ids[input_index];
     const AttributeValidator validator = attributes.lookup_validator(id);
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
 
@@ -901,6 +996,14 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       if (try_add_shared_field_attribute(attributes, id, domain, field)) {
         continue;
       }
+    }
+
+    if (!dependencies.contains(id)) {
+      const GAttributeReader dst = attributes.lookup(id);
+      if (!dst) {
+      }
+
+      const bool free_to_edit = attribute_is_shared()
     }
 
     /* We are writing to an attribute that exists already with the correct domain and type. */
@@ -912,6 +1015,8 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       }
     }
 
+    const CPPType &type = fields[input_index].cpp_type();
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
     /* Could avoid allocating a new buffer if:
      * - The field does not depend on that attribute (we can't easily check for that yet). */
     void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
