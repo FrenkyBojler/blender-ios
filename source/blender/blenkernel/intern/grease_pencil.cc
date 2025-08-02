@@ -493,7 +493,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           const int pos = segment_pos + index;
 
           IndexMaskMemory memory;
-          /* Only get curve that are in the shape and valid. */
+          /* Only get curves that are in the shape and valid. */
           const IndexMask shape = IndexMask::from_predicate(
               shapes[shape_index], GrainSize(4096), memory, [&](const int64_t curve_i) {
                 const IndexRange points = points_by_curve[curve_i];
