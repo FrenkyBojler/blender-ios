@@ -823,11 +823,17 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     return all_added;
   }
 
+  const std::optional<bool> selection_is_full = selection.node().depends_on_input() ?
+                                                    std::make_optional(
+                                                        fn::evaluate_constant_field(selection)) :
+                                                    std::nullopt;
+
+  if (selection_is_full.has_value() && !*selection_is_full) {
+    return true;
+  }
+
   fn::FieldEvaluator evaluator{field_context, domain_size};
   evaluator.set_selection(selection);
-
-  const bool selection_is_full = !selection.node().depends_on_input() &&
-                                 fn::evaluate_constant_field(selection);
 
   struct StoreResult {
     int input_index;
@@ -871,7 +877,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       }
     }
 
-    if (!validator && selection_is_full) {
+    if (!validator && selection_is_full.has_value() && *selection_is_full) {
       if (try_add_shared_field_attribute(attributes, id, domain, field)) {
         continue;
       }
@@ -880,7 +886,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     /* Could avoid allocating a new buffer if:
      * - The field does not depend on that attribute (we can't easily check for that yet). */
     void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
-    if (!selection_is_full) {
+    if (!(selection_is_full.has_value() && *selection_is_full)) {
       const GAttributeReader old_attribute = attributes.lookup_or_default(id, domain, data_type);
       old_attribute.varray.materialize(buffer);
     }
@@ -892,6 +898,10 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
 
   evaluator.evaluate();
   const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
+
+  if (mask.is_empty()) {
+    return true;
+  }
 
   for (const StoreResult &result : results_to_store) {
     const StringRef id = attribute_ids[result.input_index];
