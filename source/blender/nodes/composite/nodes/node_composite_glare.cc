@@ -27,6 +27,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
+#include "BLI_string.h"
 
 #include "DNA_scene_types.h"
 
@@ -248,6 +249,44 @@ static void gather_link_searches(GatherLinkSearchOpParams &params)
   params.add_item(IFACE_("Ghost"), SocketSearchOp{CMP_NODE_GLARE_GHOST});
   params.add_item(IFACE_("Bloom"), SocketSearchOp{CMP_NODE_GLARE_BLOOM});
   params.add_item(IFACE_("Sun Beams"), SocketSearchOp{CMP_NODE_GLARE_SUN_BEAMS});
+}
+
+static void node_update_glare_label(const bNodeTree * /*ntree*/,
+                                    const bNode *node,
+                                    char *label,
+                                    int maxlen)
+{
+  const CMPNodeGlareType glare_type = static_cast<CMPNodeGlareType>(node_storage(*node).type);
+  switch (glare_type) {
+    case CMP_NODE_GLARE_SIMPLE_STAR: {
+      BLI_strncpy(label, IFACE_("Simple Star"), maxlen);
+      return;
+    }
+    case CMP_NODE_GLARE_FOG_GLOW: {
+      BLI_strncpy(label, IFACE_("Fog Glow"), maxlen);
+      return;
+    }
+    case CMP_NODE_GLARE_STREAKS: {
+      BLI_strncpy(label, IFACE_("Streaks"), maxlen);
+      return;
+    }
+    case CMP_NODE_GLARE_GHOST: {
+      BLI_strncpy(label, IFACE_("Ghosts"), maxlen);
+      return;
+    }
+    case CMP_NODE_GLARE_BLOOM: {
+      BLI_strncpy(label, IFACE_("Bloom"), maxlen);
+      return;
+    }
+    case CMP_NODE_GLARE_SUN_BEAMS: {
+      BLI_strncpy(label, IFACE_("Sun Beams"), maxlen);
+      return;
+    }
+    default: {
+      BLI_strncpy(label, IFACE_("Glare"), maxlen);
+      return;
+    }
+  }
 }
 
 using namespace blender::compositor;
@@ -2584,6 +2623,7 @@ static void register_node_type_cmp_glare()
   ntype.declare = file_ns::cmp_node_glare_declare;
   ntype.updatefunc = file_ns::node_update;
   ntype.initfunc = file_ns::node_composit_init_glare;
+  ntype.labelfunc = file_ns::node_update_glare_label;
   ntype.gather_link_search_ops = file_ns::gather_link_searches;
   blender::bke::node_type_storage(
       ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
