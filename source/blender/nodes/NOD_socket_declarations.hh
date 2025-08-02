@@ -258,6 +258,8 @@ class BundleBuilder;
 class Bundle : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_BUNDLE;
+  /** The bundle output matches the structure of an input bundle. */
+  std::optional<int> pass_through_input_index;
 
   friend BundleBuilder;
 
@@ -269,7 +271,11 @@ class Bundle : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
-class BundleBuilder : public SocketDeclarationBuilder<Bundle> {};
+class BundleBuilder : public SocketDeclarationBuilder<Bundle> {
+ public:
+  /** On output sockets indicate that the bundle structure is passed through from an input. */
+  BundleBuilder &pass_through_input_index(std::optional<int> index);
+};
 
 class ClosureBuilder;
 
