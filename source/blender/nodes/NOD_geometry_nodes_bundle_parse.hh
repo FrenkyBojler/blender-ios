@@ -42,10 +42,10 @@ class NestedBundleCommon {
 };
 
 template<typename T>
-inline void parse_member(const Bundle &bundle,
-                         const StringRef name,
-                         T &r_value,
-                         BundleParseErrors &r_errors)
+inline void bundle_parse_member(const Bundle &bundle,
+                                const StringRef name,
+                                T &r_value,
+                                BundleParseErrors &r_errors)
 {
   if (const std::optional<T> value = bundle.lookup<T>(name)) {
     r_value = *value;
