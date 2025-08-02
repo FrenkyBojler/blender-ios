@@ -566,7 +566,7 @@ static bool bake_object_check(const Scene *scene,
         if (mat != nullptr) {
           BKE_reportf(reports,
                       RPT_INFO,
-                      "No selected image found in material \"%s\" (%d) for object \"%s\"",
+                      "No active and selected image texture node found in material \"%s\" (%d) for object \"%s\"",
                       mat->id.name + 2,
                       i,
                       ob->id.name + 2);
