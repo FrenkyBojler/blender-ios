@@ -289,8 +289,6 @@ class ZstdCompressor {
     Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
     const size_t dst_size = ZSTD_compress(
         dst.data(), dst.size(), src.data(), src.size_in_bytes(), ZSTD_fast);
-    std::cout << "Compressed undo data: " << src.size_in_bytes() << " -> " << dst_size << " ("
-              << float(src.size_in_bytes()) / dst_size << ")\n";
     return dst.as_span().take_front(dst_size);
   }
 
@@ -305,10 +303,10 @@ class ZstdCompressor {
     Array<T> dst(dst_size, NoInitialization());
     const size_t result = ZSTD_decompress(
         dst.data(), dst.as_span().size_in_bytes(), src.data(), src.size());
-    if (ZSTD_isError(result)) {
-      std::cout << ZSTD_getErrorName(result) << '\n';
-    }
     BLI_assert(!ZSTD_isError(result));
+    if (ZSTD_isError(result)) {
+      return Array<T>(0, NoInitialization());
+    }
     return dst;
   }
 };
@@ -388,18 +386,22 @@ struct PositionUndoStorage : NonMovable {
   struct CompressionData {
     Array<float3> positions;
     PositionUndoStorage *storage;
+    CompressionData(Array<float3> pos, PositionUndoStorage *stor)
+        : positions(Array<float3>(pos)), storage(stor)
+    {
+    }
   };
 
-  static void compression_task_function(TaskPool *pool, void *task_data)
+  static void compression_task_function(TaskPool * /*pool*/, void *task_data)
   {
     CompressionData *data = static_cast<CompressionData *>(task_data);
     Array<std::byte> result = ZstdCompressor::compress_data(data->positions.as_span());
     data->storage->compressed_data = std::move(result);
     data->storage->compression_ready.store(true, std::memory_order_release);
   }
-  static void compression_task_free(TaskPool *pool, void *task_data)
+  static void compression_task_free(TaskPool * /*pool*/, void *task_data)
   {
-    delete static_cast<CompressionData *>(task_data);
+    MEM_delete(static_cast<CompressionData *>(task_data));
   }
 };
 
@@ -543,7 +545,6 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
       }
     }
   });
-
   PositionUndoStorage::CompressionData *task_data = new PositionUndoStorage::CompressionData{
       std::move(decompressed), &undo_data};
   BLI_task_pool_push(undo_data.compression_task_pool,
@@ -1601,10 +1602,10 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
   std::scoped_lock lock(step_data->nodes_mutex);
 
   if (step_data->nodes.is_empty()) {
-    /* We currently need to append data here so that the overall undo system knows to indicate
-     * that data should be flushed to the memfile */
-    /* TODO: Once we store entering Sculpt Mode as a specific type of action, we can remove
-     * this call. */
+    /* We currently need to append data here so that the overall undo system knows to indicate that
+     * data should be flushed to the memfile */
+    /* TODO: Once we store entering Sculpt Mode as a specific type of action, we can remove this
+     * call. */
     step_data->nodes.append(std::make_unique<Node>());
 
     step_data->type = type;
@@ -1941,11 +1942,18 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
   }
   step_data->undo_nodes_by_pbvh_node.clear();
 
+  /* We don't need normals in the undo stack. */
+  for (std::unique_ptr<Node> &unode : step_data->nodes) {
+    unode->normal = {};
+  }
+  /* TODO: When #Node.orig_positions is stored, #Node.positions is unnecessary, don't keep it in
+   * the stored undo step. In the future the stored undo step should use a different format with
+   * just one positions array that has a different semantic meaning depending on whether there are
+   * deform modifiers. */
+
   if (step_data->type == Type::Position) {
     step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data,
                                                                              step_data->nodes);
-
-    // Use estimated size initially, will be accurate when compression completes
     step_data->undo_size = step_data->position_step_storage->mask.size() * sizeof(float3);
     step_data->nodes.clear_and_shrink();
   }
@@ -2061,8 +2069,7 @@ static bool step_encode(bContext * /*C*/, Main *bmain, UndoStep *us_p)
   }
   us->step.is_applied = true;
 
-  /* We do not flush data when entering sculpt mode - this is currently indicated by Type::None
-   */
+  /* We do not flush data when entering sculpt mode - this is currently indicated by Type::None */
   if (us->data.type != Type::None) {
     bmain->is_memfile_undo_flush_needed = true;
   }
