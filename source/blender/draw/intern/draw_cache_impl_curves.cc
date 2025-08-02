@@ -528,7 +528,7 @@ static void calc_edit_handles_ibo(const OffsetIndices<int> points_by_curve,
    */
   /* TODO: Lay left handles in space allocated for bezier segments and right handles right after
    * all segments. */
-  lines.fill(uint2(-1));
+  lines.fill(uint2(0));
 
   int cyclic_segment_offset = 0;
   extract_curve_lines(points_by_curve, cyclic, catmull_rom_curves, cyclic_segment_offset, lines);
