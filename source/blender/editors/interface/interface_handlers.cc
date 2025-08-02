@@ -3945,6 +3945,7 @@ static int ui_do_but_textedit(
 #endif
   uiButTextBox *textbox_but = but->type == ButType::TextBox ? static_cast<uiButTextBox *>(but) :
                                                               nullptr;
+  int orig_pos = but->pos;
   switch (event->type) {
     case MOUSEMOVE:
     case MOUSEPAN:
@@ -4104,14 +4105,8 @@ static int ui_do_but_textedit(
         const eStrCursorJumpDirection direction = (event->type == EVT_RIGHTARROWKEY) ?
                                                       STRCUR_DIR_NEXT :
                                                       STRCUR_DIR_PREV;
-        if (textbox_but) {
-          ui_textbox_jump_line(
-              data->region, textbox_but, text_edit, direction, event->modifier & KM_SHIFT);
-        }
-        else {
-          const eStrCursorJumpType jump = ui_textedit_jump_type_from_event(event);
-          ui_textedit_move(but, text_edit, direction, event->modifier & KM_SHIFT, jump);
-        }
+        const eStrCursorJumpType jump = ui_textedit_jump_type_from_event(event);
+        ui_textedit_move(but, text_edit, direction, event->modifier & KM_SHIFT, jump);
 
         retval = WM_UI_HANDLER_BREAK;
         break;
@@ -4321,11 +4316,10 @@ static int ui_do_but_textedit(
     changed = true;
   }
 #endif
-
+  if (changed || orig_pos != but->pos) {
+    ui_textbox_scroll_to_cursor(data->region, textbox_but);
+  }
   if (changed) {
-    if (textbox_but) {
-      ui_textbox_scroll_to_cursor(data->region, textbox_but);
-    }
     /* The undo stack may be nullptr if an event exits editing. */
     if ((skip_undo_push == false) && (text_edit.undo_stack_text != nullptr)) {
       ui_textedit_undo_push(text_edit.undo_stack_text, text_edit.edit_string, but->pos);
