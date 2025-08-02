@@ -31,8 +31,6 @@
 #include "NOD_bundle_type.hh"
 #include "NOD_geo_bundle.hh"
 #include "NOD_geo_closure.hh"
-#include "NOD_geometry_nodes_behaviors.hh"
-#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items.hh"
 #include "NOD_sync_sockets.hh"
 #include "NOD_trace_values.hh"

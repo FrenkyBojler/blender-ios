@@ -7,9 +7,25 @@
 #include "FN_field.hh"
 
 #include "NOD_bundle_type_fwd.hh"
-#include "NOD_geometry_nodes_behaviors.hh"
+#include "NOD_geometry_nodes_bundle_fwd.hh"
 
 namespace blender::nodes {
+
+class BehaviorParseErrors {
+ public:
+  Vector<std::string> wrong_members;
+  Vector<std::string> other_errors;
+
+  bool has_error() const
+  {
+    return !this->wrong_members.is_empty();
+  }
+};
+
+class BehaviorCommon {
+ public:
+  std::string self_path;
+};
 
 class GravityBehavior : public BehaviorCommon {
  public:

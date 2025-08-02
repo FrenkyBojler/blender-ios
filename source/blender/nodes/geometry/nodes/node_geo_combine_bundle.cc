@@ -5,7 +5,7 @@
 #include "node_geometry_util.hh"
 
 #include "NOD_geo_bundle.hh"
-#include "NOD_geometry_nodes_behaviors.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -15,8 +15,6 @@
 #include "BKE_idprop.hh"
 
 #include "BLO_read_write.hh"
-
-#include "NOD_geometry_nodes_bundle.hh"
 
 #include "UI_interface_layout.hh"
 

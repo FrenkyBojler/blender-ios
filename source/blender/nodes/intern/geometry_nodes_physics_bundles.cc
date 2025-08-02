@@ -3,13 +3,26 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "NOD_bundle_type.hh"
-#include "NOD_geometry_nodes_behaviors_common.hh"
 #include "NOD_geometry_nodes_bundle.hh"
-#include "NOD_geometry_nodes_list.hh"
+#include "NOD_geometry_nodes_physics_bundles.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
 namespace blender::nodes {
+
+template<typename T>
+inline void parse_member(const Bundle &bundle,
+                         const StringRef name,
+                         T &r_value,
+                         BehaviorParseErrors &r_errors)
+{
+  if (const std::optional<T> value = bundle.lookup<T>(name)) {
+    r_value = *value;
+  }
+  else {
+    r_errors.wrong_members.append(name);
+  }
+}
 
 const FlatBundleTypePtr &GravityBehavior::get_bundle_type()
 {
@@ -27,7 +40,7 @@ std::optional<GravityBehavior> GravityBehavior::parse(const Bundle &bundle,
                                                       BehaviorParseErrors &r_errors)
 {
   GravityBehavior behavior;
-  behaviors::parse_member(bundle, "gravity", behavior.gravity, r_errors);
+  parse_member(bundle, "gravity", behavior.gravity, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }
@@ -52,9 +65,9 @@ std::optional<ForceBehavior> ForceBehavior::parse(const Bundle &bundle,
                                                   BehaviorParseErrors &r_errors)
 {
   ForceBehavior behavior;
-  behaviors::parse_member(bundle, "filter", behavior.filter, r_errors);
-  behaviors::parse_member(bundle, "selection", behavior.selection, r_errors);
-  behaviors::parse_member(bundle, "force", behavior.force, r_errors);
+  parse_member(bundle, "filter", behavior.filter, r_errors);
+  parse_member(bundle, "selection", behavior.selection, r_errors);
+  parse_member(bundle, "force", behavior.force, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }
@@ -82,12 +95,12 @@ std::optional<RigidBodyInstancesBehavior> RigidBodyInstancesBehavior::parse(
     const Bundle &bundle, BehaviorParseErrors &r_errors)
 {
   RigidBodyInstancesBehavior behavior;
-  behaviors::parse_member(bundle, "instances", behavior.instances_geometry, r_errors);
-  behaviors::parse_member(bundle, "collision_shape_type", behavior.collision_shape_type, r_errors);
-  behaviors::parse_member(bundle, "motion_type", behavior.motion_type, r_errors);
-  behaviors::parse_member(bundle, "friction", behavior.friction, r_errors);
-  behaviors::parse_member(bundle, "bounciness", behavior.bounciness, r_errors);
-  behaviors::parse_member(bundle, "density", behavior.density, r_errors);
+  parse_member(bundle, "instances", behavior.instances_geometry, r_errors);
+  parse_member(bundle, "collision_shape_type", behavior.collision_shape_type, r_errors);
+  parse_member(bundle, "motion_type", behavior.motion_type, r_errors);
+  parse_member(bundle, "friction", behavior.friction, r_errors);
+  parse_member(bundle, "bounciness", behavior.bounciness, r_errors);
+  parse_member(bundle, "density", behavior.density, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }
@@ -113,9 +126,9 @@ std::optional<SoftBodyMeshBehavior> SoftBodyMeshBehavior::parse(const Bundle &bu
                                                                 BehaviorParseErrors &r_errors)
 {
   SoftBodyMeshBehavior behavior;
-  behaviors::parse_member(bundle, "mesh", behavior.mesh_geometry, r_errors);
-  behaviors::parse_member(bundle, "stretch_stiffness", behavior.stretch_stiffness, r_errors);
-  behaviors::parse_member(bundle, "bend_stiffness", behavior.bend_stiffness, r_errors);
+  parse_member(bundle, "mesh", behavior.mesh_geometry, r_errors);
+  parse_member(bundle, "stretch_stiffness", behavior.stretch_stiffness, r_errors);
+  parse_member(bundle, "bend_stiffness", behavior.bend_stiffness, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }
