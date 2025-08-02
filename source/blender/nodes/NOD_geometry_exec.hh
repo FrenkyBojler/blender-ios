@@ -19,6 +19,7 @@
 #include "BKE_volume_grid_fwd.hh"
 #include "NOD_geometry_nodes_bundle_fwd.hh"
 #include "NOD_geometry_nodes_closure_fwd.hh"
+#include "NOD_geometry_nodes_list_fwd.hh"
 
 #include "DNA_node_types.h"
 
@@ -122,7 +123,7 @@ class GeoNodeExecParams {
       }
       if constexpr (std::is_same_v<T, SocketValueVariant>) {
         BLI_assert(value.valid_for_socket(
-            eNodeSocketDatatype(node_.input_by_identifier(identifier).type)));
+            eNodeSocketDatatype(node_.input_by_identifier(identifier)->type)));
       }
       return value;
     }
@@ -154,7 +155,7 @@ class GeoNodeExecParams {
       }
       if constexpr (std::is_same_v<T, SocketValueVariant>) {
         BLI_assert(value.valid_for_socket(
-            eNodeSocketDatatype(node_.input_by_identifier(identifier).type)));
+            eNodeSocketDatatype(node_.input_by_identifier(identifier)->type)));
       }
       return value;
     }
@@ -185,7 +186,7 @@ class GeoNodeExecParams {
       this->check_output_access(identifier, type);
       if constexpr (std::is_same_v<StoredT, SocketValueVariant>) {
         BLI_assert(value.valid_for_socket(
-            eNodeSocketDatatype(node_.output_by_identifier(identifier).type)));
+            eNodeSocketDatatype(node_.output_by_identifier(identifier)->type)));
       }
 #endif
       if constexpr (std::is_same_v<StoredT, GeometrySet>) {
@@ -277,7 +278,7 @@ class GeoNodeExecParams {
   {
     const int lf_index =
         lf_input_for_output_bsocket_usage_[node_.output_by_identifier(output_identifier)
-                                               .index_in_all_outputs()];
+                                               ->index_in_all_outputs()];
     return params_.get_input<bool>(lf_index);
   }
 
@@ -291,7 +292,7 @@ class GeoNodeExecParams {
     if (!this->anonymous_attribute_output_is_required(output_identifier) && !force_create) {
       return std::nullopt;
     }
-    const bNodeSocket &output_socket = node_.output_by_identifier(output_identifier);
+    const bNodeSocket &output_socket = *node_.output_by_identifier(output_identifier);
     return get_output_attribute_id_(output_socket.index());
   }
 
@@ -300,9 +301,8 @@ class GeoNodeExecParams {
    */
   NodeAttributeFilter get_attribute_filter(const StringRef output_identifier) const
   {
-    const int lf_index =
-        lf_input_for_attribute_propagation_to_output_[node_.output_by_identifier(output_identifier)
-                                                          .index_in_all_outputs()];
+    const int lf_index = lf_input_for_attribute_propagation_to_output_
+        [node_.output_by_identifier(output_identifier)->index_in_all_outputs()];
     const GeometryNodesReferenceSet &set = params_.get_input<GeometryNodesReferenceSet>(lf_index);
     return NodeAttributeFilter(set);
   }

@@ -329,6 +329,9 @@ class SocketTooltipBuilder {
     {
       this->build_tooltip_value_closure_log(*closure_log);
     }
+    else if (const auto *list_log = dynamic_cast<const geo_log::ListInfoLog *>(&value_log)) {
+      this->build_tooltip_value_list_log(*list_log);
+    }
   }
 
   void build_tooltip_value_and_type_oneline(const StringRef value, const StringRef type)
@@ -698,7 +701,16 @@ class SocketTooltipBuilder {
       });
       for (const geo_log::BundleValueLog::Item &item : sorted_items) {
         this->add_space();
-        const std::string type_name = TIP_(item.type->label);
+        std::string type_name;
+        if (const bke::bNodeSocketType *const *socket_type =
+                std::get_if<const bke::bNodeSocketType *>(&item.type))
+        {
+          type_name = TIP_((*socket_type)->label);
+        }
+        else if (const StringRefNull *internal_type_name = std::get_if<StringRefNull>(&item.type))
+        {
+          type_name = *internal_type_name;
+        }
         this->add_text_field_mono(
             fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"), item.key, type_name));
       }
@@ -735,6 +747,13 @@ class SocketTooltipBuilder {
     }
     this->add_space();
     this->add_text_field_mono(TIP_("Type: Closure"));
+  }
+
+  void build_tooltip_value_list_log(const geo_log::ListInfoLog &list_log)
+  {
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Length"), list_log.size));
+    this->add_space();
+    this->add_text_field_mono(TIP_("Type: List"));
   }
 
   void build_tooltip_value_implicit_default(const NodeDefaultInputType &type)
@@ -813,6 +832,9 @@ class SocketTooltipBuilder {
       }
       case nodes::StructureType::Grid: {
         return TIP_("Volume Grid");
+      }
+      case nodes::StructureType::List: {
+        return TIP_("List");
       }
     }
     BLI_assert_unreachable();
