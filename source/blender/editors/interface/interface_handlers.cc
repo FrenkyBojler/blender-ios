@@ -3113,6 +3113,9 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *reg
   const int text_padding = round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) /
                                            textbox->block->aspect);
   rect.xmin += text_padding;
+  uiFontStyle fstyle = UI_style_get()->widget;
+  ui_fontscale(&fstyle.points, textbox->block->aspect);
+  UI_fontstyle_set(&fstyle);
   return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect));
 }
 
