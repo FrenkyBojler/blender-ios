@@ -273,8 +273,6 @@ class Bundle : public SocketDeclaration {
   std::optional<int> pass_through_input_index;
 
   std::optional<BundleType> bundle_type;
-  /** The bundle output matches the structure of an input bundle. */
-  std::optional<int> pass_through_input_index;
 
   friend BundleBuilder;
 
