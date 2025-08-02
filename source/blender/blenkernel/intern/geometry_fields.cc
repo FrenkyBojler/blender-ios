@@ -813,7 +813,6 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
                                     const Span<fn::GField> fields)
 {
   BLI_assert(attribute_ids.size() == fields.size());
-  const int domain_size = attributes.domain_size(domain);
 
   const auto make_all_new_attributes = [&]() -> bool {
     bool all_added = true;
@@ -825,6 +824,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     return all_added;
   };
 
+  const int domain_size = attributes.domain_size(domain);
   if (domain_size == 0) {
     return make_all_new_attributes();
   }
