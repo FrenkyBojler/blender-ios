@@ -10,13 +10,11 @@
 
 #pragma once
 
-#include "DNA_customdata_types.h"
 #include "DNA_listBase.h"
 
 #include "BLI_ghash.h"
 
 #include "GPU_material.hh"
-#include "GPU_shader.hh"
 
 struct GPUNode;
 struct GPUOutput;
@@ -87,7 +85,7 @@ struct GPUNodeLink {
     /* GPU_NODE_LINK_CONSTANT | GPU_NODE_LINK_UNIFORM */
     const float *data;
     /* GPU_NODE_LINK_COLORBAND */
-    GPUTexture **colorband;
+    blender::gpu::Texture **colorband;
     /* GPU_NODE_LINK_OUTPUT */
     GPUOutput *output;
     /* GPU_NODE_LINK_ATTR */
@@ -99,7 +97,10 @@ struct GPUNodeLink {
     /* GPU_NODE_LINK_IMAGE_BLENDER */
     GPUMaterialTexture *texture;
     /* GPU_NODE_LINK_DIFFERENTIATE_FLOAT_FN */
-    const char *function_name;
+    struct {
+      const char *function_name;
+      float filter_width;
+    } differentiate_float;
   };
 };
 
@@ -215,12 +216,12 @@ GPUNodeGraph *gpu_material_node_graph(GPUMaterial *material);
 /**
  * Returns the address of the future pointer to coba_tex.
  */
-GPUTexture **gpu_material_ramp_texture_row_set(GPUMaterial *mat,
-                                               int size,
-                                               const float *pixels,
-                                               float *r_row);
+blender::gpu::Texture **gpu_material_ramp_texture_row_set(GPUMaterial *mat,
+                                                          int size,
+                                                          const float *pixels,
+                                                          float *r_row);
 /**
  * Returns the address of the future pointer to sky_tex
  */
-GPUTexture **gpu_material_sky_texture_layer_set(
+blender::gpu::Texture **gpu_material_sky_texture_layer_set(
     GPUMaterial *mat, int width, int height, const float *pixels, float *row);

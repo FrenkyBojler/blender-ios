@@ -46,7 +46,8 @@ def _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs):
                 ".bl_rna", ".rna_type",
         )):
             continue
-        attr_full = prefix + attr.lstrip()
+        # If we type/paste in complete attributes, intellisense expands with a ".", remove that again (see #134092)
+        attr_full = (prefix + attr.lstrip()).removesuffix(".")
         if attr_full in unique_attrs:
             continue
         unique_attrs.add(attr_full)
@@ -55,7 +56,7 @@ def _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs):
 
 def rna_path_prop_search_for_context(self, context, edit_text):
     # NOTE(@campbellbarton): Limiting data-path expansion is rather arbitrary.
-    # It's possible for e.g. that someone would want to set a shortcut in the preferences or
+    # It's possible for example that someone would want to set a shortcut in the preferences or
     # in other region types than those currently expanded. Unless there is a reasonable likelihood
     # users might expand these space-type/region-type combinations - exclude them from this search.
     # After all, this list is mainly intended as a hint, users are not prevented from constructing
@@ -68,7 +69,7 @@ def rna_path_prop_search_for_context(self, context, edit_text):
             if area.type == 'PREFERENCES':
                 continue
             # Ignore the same region type multiple times in an area.
-            # Prevents the 3D-viewport quad-view from attempting to expand 3 extra times for e.g.
+            # Prevents the 3D-viewport quad-view from attempting to expand 3 extra times for example
             region_type_unique = set()
             for region in area.regions:
                 if region.type not in {'WINDOW', 'PREVIEW'}:
@@ -2609,7 +2610,7 @@ class WM_OT_toolbar_prompt(Operator):
         # Pressing entry even again exists, as long as it's not mapped to a key (for convenience).
         if event_type == self._init_event_type:
             if event_value == 'RELEASE':
-                if not (event.ctrl or event.alt or event.shift or event.oskey):
+                if not (event.ctrl or event.alt or event.shift or event.oskey or event.hyper):
                     context.workspace.status_text_set(None)
                     return {'CANCELLED'}
 
@@ -2664,6 +2665,8 @@ class WM_OT_toolbar_prompt(Operator):
 
 
 class BatchRenameAction(bpy.types.PropertyGroup):
+    __slots__ = ()
+
     # category: StringProperty()
     type: EnumProperty(
         name="Operation",
@@ -2750,31 +2753,31 @@ class WM_OT_batch_rename(Operator):
     data_type: EnumProperty(
         name="Type",
         items=(
-            ('OBJECT', "Objects", ""),
-            ('COLLECTION', "Collections", ""),
-            ('MATERIAL', "Materials", ""),
+            ('OBJECT', "Objects", "", 'OBJECT_DATA', 0),
+            ('COLLECTION', "Collections", "", 'OUTLINER_COLLECTION', 1),
+            ('MATERIAL', "Materials", "", 'MATERIAL_DATA', 2),
             None,
             # Enum identifiers are compared with `object.type`.
             # Follow order in "Add" menu.
-            ('MESH', "Meshes", ""),
-            ('CURVE', "Curves", ""),
-            ('META', "Metaballs", ""),
-            ('VOLUME', "Volumes", ""),
-            ('GPENCIL', "Grease Pencils", ""),
-            ('ARMATURE', "Armatures", ""),
-            ('LATTICE', "Lattices", ""),
-            ('LIGHT', "Light", ""),
-            ('LIGHT_PROBE', "Light Probes", ""),
-            ('CAMERA', "Cameras", ""),
-            ('SPEAKER', "Speakers", ""),
+            ('MESH', "Meshes", "", 'MESH_DATA', 3),
+            ('CURVE', "Curves", "", 'CURVE_DATA', 4),
+            ('META', "Metaballs", "", 'META_DATA', 5),
+            ('VOLUME', "Volumes", "", 'VOLUME_DATA', 6),
+            ('GREASEPENCIL', "Grease Pencils", "", 'OUTLINER_DATA_GREASEPENCIL', 7),
+            ('ARMATURE', "Armatures", "", 'ARMATURE_DATA', 8),
+            ('LATTICE', "Lattices", "", 'LATTICE_DATA', 9),
+            ('LIGHT', "Lights", "", 'LIGHT_DATA', 10),
+            ('LIGHT_PROBE', "Light Probes", "", 'OUTLINER_DATA_LIGHTPROBE', 11),
+            ('CAMERA', "Cameras", "", 'CAMERA_DATA', 12),
+            ('SPEAKER', "Speakers", "", 'OUTLINER_DATA_SPEAKER', 13),
             None,
-            ('BONE', "Bones", ""),
-            ('NODE', "Nodes", ""),
-            ('SEQUENCE_STRIP', "Sequence Strips", ""),
-            ('ACTION_CLIP', "Action Clips", ""),
+            ('BONE', "Bones", "", 'BONE_DATA', 14),
+            ('NODE', "Nodes", "", 'NODETREE', 15),
+            ('SEQUENCE_STRIP', "Sequence Strips", "", 'SEQ_SEQUENCER', 16),
+            ('ACTION_CLIP', "Action Clips", "", 'ACTION', 17),
             None,
-            ('SCENE', "Scenes", ""),
-            ('BRUSH', "Brushes", ""),
+            ('SCENE', "Scenes", "", 'SCENE_DATA', 18),
+            ('BRUSH', "Brushes", "", 'BRUSH_DATA', 19),
         ),
         translation_context=i18n_contexts.id_id,
         description="Type of data to rename",
@@ -2845,9 +2848,9 @@ class WM_OT_batch_rename(Operator):
                 return data_type_test
             if data_type == data_type_test:
                 data = (
-                    context.selected_sequences
+                    context.selected_strips
                     if only_selected else
-                    scene.sequence_editor.sequences_all,
+                    scene.sequence_editor.strips_all,
                     "name",
                     iface_("Strip(s)"),
                 )
@@ -2909,7 +2912,7 @@ class WM_OT_batch_rename(Operator):
             'CURVE': ("curves", iface_("Curve(s)"), bpy.types.Curve),
             'META': ("metaballs", iface_("Metaball(s)"), bpy.types.MetaBall),
             'VOLUME': ("volumes", iface_("Volume(s)"), bpy.types.Volume),
-            'GPENCIL': ("grease_pencils", iface_("Grease Pencil(s)"), bpy.types.GreasePencil),
+            'GREASEPENCIL': ("grease_pencils_v3", iface_("Grease Pencil(s)"), bpy.types.GreasePencilv3),
             'ARMATURE': ("armatures", iface_("Armature(s)"), bpy.types.Armature),
             'LATTICE': ("lattices", iface_("Lattice(s)"), bpy.types.Lattice),
             'LIGHT': ("lights", iface_("Light(s)"), bpy.types.Light),
@@ -3030,6 +3033,10 @@ class WM_OT_batch_rename(Operator):
                     "name",
                     descr,
                 )
+
+        if data is None:
+            return None
+
         data = ([it for it in data[0] if _is_editable(it)], data[1], data[2])
 
         return data
@@ -3498,7 +3505,7 @@ class WM_MT_region_toggle_pie(Menu):
     bl_label = "Region Toggle"
 
     # Map the `region.type` to the `space_data` attribute & text label.
-    # The order of items defines priority, so in the sequencer for e.g.
+    # The order of items defines priority, so for example in the sequencer
     # when there is both a toolbar and channels, the toolbar gets the
     # axis-aligned pie, and the channels don't.
     _region_info = {
@@ -3539,6 +3546,8 @@ class WM_MT_region_toggle_pie(Menu):
 
         for region in context.area.regions:
             region_type = region.type
+            # If the attribute doesn't exist, the RNA definition is outdated.
+            # See: #134339 and its fix for reference.
             attr = cls._region_info.get(region_type, None)
             if attr is None:
                 continue

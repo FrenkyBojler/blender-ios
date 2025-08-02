@@ -14,6 +14,7 @@
 #include "gpu_storage_buffer_private.hh"
 
 #include "vk_buffer.hh"
+#include "vk_staging_buffer.hh"
 
 namespace blender::gpu {
 class VertBuf;
@@ -22,8 +23,12 @@ class VKStorageBuffer : public StorageBuf {
   GPUUsageType usage_;
   VKBuffer buffer_;
 
+  /** Staging buffer that is used when doing an async read-back. */
+  VKStagingBuffer *async_read_buffer_ = nullptr;
+
  public:
   VKStorageBuffer(size_t size, GPUUsageType usage, const char *name);
+  ~VKStorageBuffer();
 
   void update(const void *data) override;
   void bind(int slot) override;
@@ -37,6 +42,10 @@ class VKStorageBuffer : public StorageBuf {
   VkBuffer vk_handle() const
   {
     return buffer_.vk_handle();
+  }
+  inline VkDeviceAddress device_address_get() const
+  {
+    return buffer_.device_address_get();
   }
 
   int64_t size_in_bytes() const

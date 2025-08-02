@@ -17,7 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(10.0f)
       .subtype(PROP_NONE)
       .description(
-          "Gamma correction value\n"
+          "Gamma correction value, applied as color^gamma.\n"
           "Gamma controls the relative intensity of the mid-tones compared to the full black and "
           "full white");
   b.add_output<decl::Color>("Color");
@@ -35,7 +35,7 @@ static int node_shader_gpu_gamma(GPUMaterial *mat,
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  NodeItem color = get_input_value("Color", NodeItem::Type::Color4);
+  NodeItem color = get_input_value("Color", NodeItem::Type::Color3);
   NodeItem gamma = get_input_value("Gamma", NodeItem::Type::Float);
   return color ^ gamma;
 }
@@ -59,5 +59,5 @@ void register_node_type_sh_gamma()
   ntype.gpu_fn = file_ns::node_shader_gpu_gamma;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
