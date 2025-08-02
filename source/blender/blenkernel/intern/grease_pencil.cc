@@ -592,13 +592,11 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             }
 
             if (is_holes) {
-              bool is_hole = false;
-              /* If any of the original faces are holes then this is a hole. */
-              for (const int orig_face : result.face_orig[i]) {
-                if (is_holes[og_face_to_curve_map[orig_face]]) {
-                  is_hole = true;
-                }
-              }
+              /* The last curve should be drawn on top of all others. */
+              const int highest_curve = og_face_to_curve_map[result.face_orig[i].last()];
+
+              /* Check if the highest face in the draw order is a hole. */
+              const bool is_hole = is_holes[highest_curve];
 
               /* Holes are not rendered. */
               if (is_hole) {
