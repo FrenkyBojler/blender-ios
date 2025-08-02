@@ -3,3 +3,4 @@ Referenced by issue #139769, ERROR (gpu.shader): OCIO_Display FragShader:4.4.3 a
 Referenced by issue #140693, Switching to override in color mangement setting when saving image causes crash
 Referenced by pull request #140729, Fix #140693: Crash on enabling override in file output color settings
 Referenced by commit 7519586ec09990160f419c0226fdf0f66885bd85, Fix #140693: Crash on enabling override in file output color settings
+Referenced by issue #143775, Cryptomatte: Precision issues with matte output
