@@ -354,7 +354,6 @@ struct uiBut {
 };
 
 struct TextboxStatus {
-
   static constexpr int minimum_lines = 3;
   std::string idname;
   int line_scroll = 0;

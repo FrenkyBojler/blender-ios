@@ -83,7 +83,6 @@ enum uiWidgetTypeEnum {
   UI_WTYPE_NAME_LINK,
   UI_WTYPE_POINTER_LINK,
   UI_WTYPE_FILENAME,
-  UI_WTYPE_TEXT_AREA,
 
   /* menus */
   UI_WTYPE_MENU_RADIO,
@@ -1080,8 +1079,10 @@ void UI_widgetbase_draw_cache_flush()
   if (g_widget_base_batch.count == 1) {
     /* draw single */
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
-    GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (const float(*)[4])g_widget_base_batch.params);
+    GPU_batch_uniform_4fv_array(batch,
+                                "parameters",
+                                MAX_WIDGET_PARAMETERS,
+                                (const float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1090,7 +1091,7 @@ void UI_widgetbase_draw_cache_flush()
     GPU_batch_uniform_4fv_array(batch,
                                 "parameters",
                                 MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
-                                (float(*)[4])g_widget_base_batch.params);
+                                (float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw_instance_range(batch, 0, g_widget_base_batch.count);
   }
@@ -1138,7 +1139,7 @@ static void draw_widgetbase_batch(uiWidgetBase *wtb)
     blender::gpu::Batch *batch = ui_batch_roundbox_widget_get();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (float(*)[4]) & wtb->uniform_params);
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (float (*)[4]) & wtb->uniform_params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1993,7 +1994,7 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox
   if (lines.is_empty()) {
     lines.append(text);
   }
-  /** Add empty trailing line to put cursor in a new line. */
+  /* Add empty trailing line to put cursor in a new line. */
   if (text.endswith("\n")) {
     lines.append(blender::StringRef(text.end(), text.end()));
   }
@@ -4517,25 +4518,6 @@ static void widget_textbut(uiWidgetColors *wcol,
   widgetbase_draw(&wtb, wcol);
 }
 
-static void widget_textarea(uiWidgetColors *wcol,
-                            rcti *rect,
-                            const uiWidgetStateInfo *state,
-                            int roundboxalign,
-                            const float zoom)
-{
-  if (state->but_flag & UI_SELECT) {
-    std::swap(wcol->shadetop, wcol->shadedown);
-  }
-
-  uiWidgetBase wtb;
-  widget_init(&wtb);
-
-  const float rad = widget_radius_from_zoom(zoom, wcol);
-  round_box_edges(&wtb, roundboxalign, rect, rad);
-
-  widgetbase_draw(&wtb, wcol);
-}
-
 static void widget_menuiconbut(uiWidgetColors *wcol,
                                rcti *rect,
                                const uiWidgetStateInfo * /*state*/,
@@ -5068,11 +5050,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
       wt.wcol_theme = &btheme->tui.wcol_text;
       wt.draw = widget_textbut;
       break;
-    /* strings */
-    case UI_WTYPE_TEXT_AREA:
-      wt.wcol_theme = &btheme->tui.wcol_text;
-      wt.draw = widget_textarea;
-      break;
 
     case UI_WTYPE_NAME_LINK:
       break;
@@ -5376,11 +5353,9 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         wt = widget_type(UI_WTYPE_LISTITEM);
         break;
 
+      case ButType::TextBox:
       case ButType::Text:
         wt = widget_type(UI_WTYPE_NAME);
-        break;
-      case ButType::TextBox:
-        wt = widget_type(UI_WTYPE_TEXT_AREA);
         break;
 
       case ButType::SearchMenu:
