@@ -47,6 +47,7 @@ add_subdirectory(nanosvg)
 add_subdirectory(wcwidth)
 add_subdirectory(xxhash)
 add_subdirectory(jolt)
+add_subdirectory(box2d)
 
 if(WITH_BULLET)
   if(NOT WITH_SYSTEM_BULLET)

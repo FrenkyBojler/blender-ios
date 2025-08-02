@@ -282,6 +282,7 @@ set(LIB
   bf_io_common
   bf_io_csv
   PRIVATE bf::intern::atomic
+  PRIVATE bf::extern::box2d
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
