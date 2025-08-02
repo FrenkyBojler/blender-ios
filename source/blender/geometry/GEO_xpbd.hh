@@ -122,6 +122,7 @@ class ConstraintSetSolveParams {
 
 class ConstraintSet {
  public:
+  virtual ~ConstraintSet() = default;
   virtual void ensure_init(MutableSpan<SimGeometry> sim_geometries);
   virtual void solve(ConstraintSetSolveParams &params);
   virtual void post_solve_apply(MutableSpan<SimGeometry> sim_geometries);
