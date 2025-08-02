@@ -4151,7 +4151,7 @@ static int ui_do_but_textedit(
           ui_searchbox_event(C, data->searchbox, but, data->region, event);
           break;
         }
-        if (textbox_but && event->type == WHEELDOWNMOUSE) {
+        if (textbox_but && event->type == WHEELUPMOUSE) {
           ui_textbox_add_scroll(data->region, textbox_but, -1);
           retval = WM_UI_HANDLER_BREAK;
           break;
