@@ -805,6 +805,14 @@ static bool attribute_data_matches_varray(const GAttributeReader &attribute, con
   return varray_info.data == attribute_info.data;
 }
 
+static bool attribute_is_shared(const GAttributeReader &attribute)
+{
+  if (attribute.sharing_info == nullptr) {
+    return false;
+  }
+  return !attribute.sharing_info->is_mutable();
+}
+
 bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
                                     const fn::FieldContext &field_context,
                                     const Span<StringRef> attribute_ids,
@@ -909,15 +917,45 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     return make_all_new_attributes();
   }
 
+  IndexMaskMemory memory;
+  std::optional<IndexMask> inverted_mask;
+
   for (const StoreResult &result : results_to_store) {
     const StringRef id = attribute_ids[result.input_index];
     const GVArray &result_data = evaluator.get_evaluated(result.evaluator_index);
     const GAttributeReader dst = attributes.lookup(id);
-    if (!attribute_data_matches_varray(dst, result_data)) {
+    if (attribute_data_matches_varray(dst, result_data)) {
+      continue;
+    }
+
+    const CPPType &type = result_data.type();
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
+
+    const bool free_to_edit = !attribute_is_shared(dst);
+    const bool is_may_vertex_group = data_type == AttrType::Float && domain == AttrDomain::Point;
+    const bool have_to_be_edited = attributes.is_builtin(id);
+
+    if (free_to_edit || is_may_vertex_group || have_to_be_edited) {
       GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(id);
       array_utils::copy(result_data, mask, dst_mut.span);
       dst_mut.finish();
+      continue;
     }
+
+    void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
+
+    if (!inverted_mask.has_value()) {
+      inverted_mask = mask.complement(IndexRange(domain_size), memory);
+    }
+
+    GMutableSpan new_attribute_value(type, buffer, domain_size);
+    array_utils::copy(dst.varray, *inverted_mask, new_attribute_value);
+    array_utils::copy(result_data, mask, new_attribute_value);
+
+    attributes.remove(id);
+    BLI_assert(!attributes.contains(id));
+    attributes.add(id, domain, data_type, AttributeInitMoveArray(buffer));
+    BLI_assert(attributes.contains(id));
   }
 
   for (const AddResult &result : results_to_add) {
