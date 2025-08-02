@@ -29,6 +29,21 @@ static bool is_closure_zone_output_socket(const SocketInContext &socket)
   return socket->owner_node().is_type("NodeClosureOutput") && socket->is_output();
 }
 
+static bool use_link_for_tracing(const bNodeLink &link)
+{
+  if (!link.is_used()) {
+    return false;
+  }
+  const bNodeTree &tree = link.fromnode->owner_tree();
+  if (tree.typeinfo->validate_link &&
+      !tree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
+                                    eNodeSocketDatatype(link.tosock->type)))
+  {
+    return false;
+  }
+  return true;
+}
+
 static Vector<SocketInContext> find_origin_sockets_through_contexts(
     SocketInContext start_socket,
     bke::ComputeContextCache &compute_context_cache,
@@ -255,7 +270,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
       }
       const bke::bNodeTreeZone *from_zone = zones->get_zone_by_socket(*socket.socket);
       for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (!link->is_used()) {
+        if (!use_link_for_tracing(*link)) {
           continue;
         }
         bNodeSocket *to_socket = link->tosock;
@@ -345,7 +360,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
       }
       const bke::bNodeTreeZone *to_zone = zones->get_zone_by_socket(*socket.socket);
       for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (!link->is_used()) {
+        if (!use_link_for_tracing(*link)) {
           continue;
         }
         const bNodeSocket *from_socket = link->fromsock;
