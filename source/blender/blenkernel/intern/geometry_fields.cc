@@ -814,22 +814,30 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
 {
   BLI_assert(attribute_ids.size() == fields.size());
   const int domain_size = attributes.domain_size(domain);
-  if (domain_size == 0) {
+
+  const auto make_all_new_attributes = [&]() -> bool {
     bool all_added = true;
     for (const int i : attribute_ids.index_range()) {
       const bke::AttrType data_type = bke::cpp_type_to_attribute_type(fields[i].cpp_type());
       all_added &= attributes.add(attribute_ids[i], domain, data_type, AttributeInitConstruct{});
     }
     return all_added;
+  };
+
+  if (domain_size == 0) {
+    return make_all_new_attributes();
   }
 
-  const std::optional<bool> selection_is_full = selection.node().depends_on_input() ?
+  const bool mask_is_single = selection.node().depends_on_input();
+  const std::optional<bool> selection_is_full = mask_is_single ?
                                                     std::make_optional(
                                                         fn::evaluate_constant_field(selection)) :
                                                     std::nullopt;
+  const bool mask_is_full = selection_is_full.has_value() && *selection_is_full;
+  const bool mask_is_empty = selection_is_full.has_value() && !*selection_is_full;
 
-  if (selection_is_full.has_value() && !*selection_is_full) {
-    return true;
+  if (mask_is_empty) {
+    return make_all_new_attributes();
   }
 
   fn::FieldEvaluator evaluator{field_context, domain_size};
@@ -877,7 +885,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       }
     }
 
-    if (!validator && selection_is_full.has_value() && *selection_is_full) {
+    if (!validator && mask_is_full) {
       if (try_add_shared_field_attribute(attributes, id, domain, field)) {
         continue;
       }
@@ -886,7 +894,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     /* Could avoid allocating a new buffer if:
      * - The field does not depend on that attribute (we can't easily check for that yet). */
     void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
-    if (!(selection_is_full.has_value() && *selection_is_full)) {
+    if (!mask_is_full) {
       const GAttributeReader old_attribute = attributes.lookup_or_default(id, domain, data_type);
       old_attribute.varray.materialize(buffer);
     }
@@ -900,7 +908,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
 
   if (mask.is_empty()) {
-    return true;
+    return make_all_new_attributes();
   }
 
   for (const StoreResult &result : results_to_store) {
