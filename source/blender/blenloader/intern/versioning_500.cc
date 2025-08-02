@@ -165,7 +165,7 @@ static void rename_mesh_uv_seam_attribute(Mesh &mesh)
 static void initialize_closure_input_structure_types(bNodeTree &ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
-    if (STREQ(node->idname, "NodeEvaluateClosure")) {
+    if (node->type_legacy == NODE_EVALUATE_CLOSURE) {
       auto *storage = static_cast<NodeEvaluateClosure *>(node->storage);
       for (const int i : blender::IndexRange(storage->input_items.items_num)) {
         NodeEvaluateClosureInputItem &item = storage->input_items.items[i];
