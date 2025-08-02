@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>
 #include <optional>
 
 #include "BLI_math_vector_types.hh"
@@ -65,12 +66,17 @@ struct PanelLayout {
  * Meanwhile keep using `uiLayout*` functions to read/write this properties.
  */
 struct uiItem {
-  blender::ui::ItemType type_;
-  blender::ui::ItemInternalFlag flag_;
 
-  uiItem() = default;
+  uiItem(blender::ui::ItemType type);
   uiItem(const uiItem &) = default;
   virtual ~uiItem() = default;
+
+  [[nodiscard]] blender::ui::ItemType type() const;
+
+  blender::ui::ItemInternalFlag flag_ = {};
+
+ private:
+  blender::ui::ItemType type_ = {};
 };
 
 enum eUI_Item_Flag : uint16_t;
@@ -86,37 +92,39 @@ enum class LayoutSeparatorType : int8_t {
  * incoming refactors would remove public access and add public read/write function methods.
  * Meanwhile keep using `uiLayout*` functions to read/write this properties.
  */
-struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
+struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
   // protected:
-  uiLayoutRoot *root_;
-  bContextStore *context_;
-  uiLayout *parent_;
+  uiLayoutRoot *root_ = nullptr;
+  bContextStore *context_ = nullptr;
+  uiLayout *parent_ = nullptr;
   blender::Vector<uiItem *> items_;
 
   std::string heading_;
 
   /** Sub layout to add child items, if not the layout itself. */
-  uiLayout *child_items_layout_;
+  uiLayout *child_items_layout_ = nullptr;
 
-  int x_, y_, w_, h_;
-  float scale_[2];
-  short space_;
-  bool align_;
-  bool active_;
-  bool active_default_;
-  bool activate_init_;
-  bool enabled_;
-  bool redalert_;
+  int x_ = 0, y_ = 0, w_ = 0, h_ = 0;
+  float scale_[2] = {0.0f, 0.0f};
+  short space_ = 0;
+  bool align_ = false;
+  bool active_ = false;
+  bool active_default_ = false;
+  bool activate_init_ = false;
+  bool enabled_ = false;
+  bool redalert_ = false;
   /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
-  bool variable_size_;
-  blender::ui::LayoutAlign alignment_;
-  blender::ui::EmbossType emboss_;
+  bool variable_size_ = false;
+  blender::ui::LayoutAlign alignment_ = {};
+  blender::ui::EmbossType emboss_ = {};
   /** for fixed width or height to avoid UI size changes */
-  float units_[2];
+  float units_[2] = {0.0f, 0.0f};
   /** Is copied to uiButs created in this layout. */
-  float search_weight_;
+  float search_weight_ = 0.0f;
 
  public:
+  uiLayout(blender::ui::ItemType type);
+
   [[nodiscard]] bool active() const;
   /**
    * Sets the active state of the layout and its items.
@@ -334,7 +342,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                                           blender::StringRefNull open_prop_name,
                                           PointerRNA *bool_prop_owner,
                                           blender::StringRefNull bool_prop_name,
-                                          std::optional<blender::StringRefNull> label);
+                                          std::optional<blender::StringRef> label);
   /**
    * Variant of #panel_prop that automatically stores the open-close-state in the root
    * panel. When a dynamic number of panels is required, it's recommended to use #panel_prop
@@ -657,6 +665,12 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                       int icon,
                       const char *menu_type);
 
+  /** Simple button executing \a func on click. */
+  uiBut *button(blender::StringRef name,
+                int icon,
+                std::function<void(bContext &)> func,
+                std::optional<blender::StringRef> tooltip = std::nullopt);
+
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 
@@ -811,6 +825,15 @@ uiLayout &block_layout(uiBlock *block,
                        const uiStyle *style);
 int2 block_layout_resolve(uiBlock *block);
 
+void block_layout_set_current(uiBlock *block, uiLayout *layout);
+bool block_layout_needs_resolving(const uiBlock *block);
+/**
+ * Used for property search when the layout process needs to be cancelled in order to avoid
+ * computing the locations for buttons, but the layout items created while adding the buttons
+ * must still be freed.
+ */
+void block_layout_free(uiBlock *block);
+
 }  // namespace blender::ui
 
 enum eUI_Item_Flag : uint16_t {
@@ -852,15 +875,6 @@ enum eUI_Item_Flag : uint16_t {
 ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
 
-void UI_block_layout_set_current(uiBlock *block, uiLayout *layout);
-bool UI_block_layout_needs_resolving(const uiBlock *block);
-/**
- * Used for property search when the layout process needs to be cancelled in order to avoid
- * computing the locations for buttons, but the layout items created while adding the buttons
- * must still be freed.
- */
-void UI_block_layout_free(uiBlock *block);
-
 /**
  * Apply property search behavior, setting panel flags and deactivating buttons that don't match.
  *
@@ -886,6 +900,16 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
                             void *arg,
                             uiCopyArgFunc copy_arg,
                             uiFreeArgFunc free_arg);
+
+/**
+ * Same as above but should be used when building a fully custom tooltip instead of just
+ * generating a description.
+ */
+void uiLayoutSetTooltipCustomFunc(uiLayout *layout,
+                                  uiButToolTipCustomFunc func,
+                                  void *arg,
+                                  uiCopyArgFunc copy_arg,
+                                  uiFreeArgFunc free_arg);
 
 void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout);
 

@@ -227,8 +227,9 @@ typedef struct UserDef_Experimental {
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
   char use_socket_structure_type;
+  char use_geometry_nodes_lists;
   char use_text_shaping;
-  char _pad[4];
+  char _pad[3];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \

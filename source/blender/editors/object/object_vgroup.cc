@@ -23,6 +23,7 @@
 #include "BLI_bitmap.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_utildefines_stack.h"
 #include "BLI_vector.hh"
@@ -1230,14 +1231,14 @@ static void vgroup_duplicate(Object *ob)
   }
 
   if (!strstr(dg->name, "_copy")) {
-    SNPRINTF(name, "%s_copy", dg->name);
+    SNPRINTF_UTF8(name, "%s_copy", dg->name);
   }
   else {
-    STRNCPY(name, dg->name);
+    STRNCPY_UTF8(name, dg->name);
   }
 
   cdg = BKE_defgroup_duplicate(dg);
-  STRNCPY(cdg->name, name);
+  STRNCPY_UTF8(cdg->name, name);
   BKE_object_defgroup_unique_name(cdg, ob);
 
   BLI_addtail(defbase, cdg);
@@ -1751,7 +1752,7 @@ static void vgroup_smooth_subset(Object *ob,
         ".hide_vert", bke::AttrDomain::Point, false);
   }
   else {
-    hide_vert = VArray<bool>::ForSingle(false, dvert_tot);
+    hide_vert = VArray<bool>::from_single(false, dvert_tot);
   }
 
   VArray<bool> select_vert;
@@ -1760,7 +1761,7 @@ static void vgroup_smooth_subset(Object *ob,
         ".select_vert", bke::AttrDomain::Point, false);
   }
   else {
-    select_vert = VArray<bool>::ForSingle(true, dvert_tot);
+    select_vert = VArray<bool>::from_single(true, dvert_tot);
   }
 
   /* initialize used verts */
@@ -3891,7 +3892,7 @@ static char *vgroup_init_remap(Object *ob)
 
   name = name_array;
   LISTBASE_FOREACH (const bDeformGroup *, def, defbase) {
-    BLI_strncpy(name, def->name, MAX_VGROUP_NAME);
+    BLI_strncpy_utf8(name, def->name, MAX_VGROUP_NAME);
     name += MAX_VGROUP_NAME;
   }
 
