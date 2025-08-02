@@ -236,7 +236,7 @@ static void store_closure_input_structure_types(const bNodeTree &tree,
     if (!input_node || !output_node) {
       continue;
     }
-    if (!output_node->is_type("GeometryNodeClosureOutput")) {
+    if (!output_node->is_type("NodeClosureOutput")) {
       continue;
     }
     const auto *storage = static_cast<const NodeGeometryClosureOutput *>(output_node->storage);

@@ -20,12 +20,12 @@ namespace blender::nodes {
 static bool is_evaluate_closure_node_input(const SocketInContext &socket)
 {
   return socket->is_input() && socket->index() == 0 &&
-         socket.owner_node()->is_type("GeometryNodeEvaluateClosure");
+         socket.owner_node()->is_type("NodeEvaluateClosure");
 }
 
 static bool is_closure_zone_output_socket(const SocketInContext &socket)
 {
-  return socket->owner_node().is_type("GeometryNodeClosureOutput") && socket->is_output();
+  return socket->owner_node().is_type("NodeClosureOutput") && socket->is_output();
 }
 
 static Vector<SocketInContext> find_origin_sockets_through_contexts(
@@ -119,14 +119,14 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         }
         continue;
       }
-      if (node->is_type("GeometryNodeCombineBundle")) {
+      if (node->is_type("NodeCombineBundle")) {
         const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node->storage);
         BundlePath new_bundle_path = bundle_path;
         new_bundle_path.append(storage.items[socket->index()].name);
         add_if_new(node.output_socket(0), std::move(new_bundle_path));
         continue;
       }
-      if (node->is_type("GeometryNodeSeparateBundle")) {
+      if (node->is_type("NodeSeparateBundle")) {
         if (bundle_path.is_empty()) {
           continue;
         }
@@ -139,7 +139,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         }
         continue;
       }
-      if (node->is_type("GeometryNodeClosureOutput")) {
+      if (node->is_type("NodeClosureOutput")) {
         const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
             node->storage);
         const StringRef key = closure_storage.output_items.items[socket->index()].name;
@@ -159,7 +159,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         }
         continue;
       }
-      if (node->is_type("GeometryNodeEvaluateClosure")) {
+      if (node->is_type("NodeEvaluateClosure")) {
         if (socket->index() == 0) {
           continue;
         }
@@ -373,7 +373,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
         }
         continue;
       }
-      if (node->is_type("GeometryNodeEvaluateClosure")) {
+      if (node->is_type("NodeEvaluateClosure")) {
         const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
             node->storage);
         const StringRef key = evaluate_storage.output_items.items[socket->index()].name;
@@ -399,7 +399,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
         }
         continue;
       }
-      if (node->is_type("GeometryNodeClosureInput")) {
+      if (node->is_type("NodeClosureInput")) {
         const auto &input_storage = *static_cast<const NodeGeometryClosureInput *>(node->storage);
         const bNode *closure_output_node = node->owner_tree().node_by_id(
             input_storage.output_node_id);
@@ -429,7 +429,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
         }
         continue;
       }
-      if (node->is_type("GeometryNodeCombineBundle")) {
+      if (node->is_type("NodeCombineBundle")) {
         if (bundle_path.is_empty()) {
           continue;
         }
@@ -442,7 +442,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
         }
         continue;
       }
-      if (node->is_type("GeometryNodeSeparateBundle")) {
+      if (node->is_type("NodeSeparateBundle")) {
         const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node->storage);
         BundlePath new_bundle_path = bundle_path;
         new_bundle_path.append(storage.items[socket->index()].name);
@@ -464,7 +464,7 @@ Vector<BundleSignature> gather_linked_target_bundle_signatures(
       {bundle_socket_context, &bundle_socket},
       compute_context_cache,
       [](const SocketInContext &socket) {
-        return socket->is_input() && socket->owner_node().is_type("GeometryNodeSeparateBundle");
+        return socket->is_input() && socket->owner_node().is_type("NodeSeparateBundle");
       },
       true);
   Vector<BundleSignature> signatures;
@@ -484,7 +484,7 @@ Vector<BundleSignature> gather_linked_origin_bundle_signatures(
       {bundle_socket_context, &bundle_socket},
       compute_context_cache,
       [](const SocketInContext &socket) {
-        return socket->is_output() && socket->owner_node().is_type("GeometryNodeCombineBundle");
+        return socket->is_output() && socket->owner_node().is_type("NodeCombineBundle");
       },
       true);
   Vector<BundleSignature> signatures;

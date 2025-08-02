@@ -287,7 +287,7 @@ void Bundle::delete_self()
 
 BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node)
 {
-  BLI_assert(node.is_type("GeometryNodeCombineBundle"));
+  BLI_assert(node.is_type("NodeCombineBundle"));
   const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node.storage);
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {
@@ -301,7 +301,7 @@ BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node)
 
 BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node)
 {
-  BLI_assert(node.is_type("GeometryNodeSeparateBundle"));
+  BLI_assert(node.is_type("NodeSeparateBundle"));
   const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node.storage);
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {

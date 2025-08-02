@@ -193,7 +193,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 
   params.add_item("Bundle", [](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("GeometryNodeSeparateBundle");
+    bNode &node = params.add_node("NodeSeparateBundle");
     params.connect_available_socket(node, "Bundle");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
@@ -215,7 +215,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSeparateBundle", GEO_NODE_SEPARATE_BUNDLE);
+  geo_node_type_base(&ntype, "NodeSeparateBundle", GEO_NODE_SEPARATE_BUNDLE);
   ntype.ui_name = "Separate Bundle";
   ntype.ui_description = "Split a bundle into multiple sockets.";
   ntype.nclass = NODE_CLASS_CONVERTER;

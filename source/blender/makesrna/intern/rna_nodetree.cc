@@ -10825,10 +10825,10 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeBoundBox");
   define("GeometryNode", "GeometryNodeCameraInfo");
   define("GeometryNode", "GeometryNodeCaptureAttribute", rna_def_geo_capture_attribute);
-  define("GeometryNode", "GeometryNodeClosureInput", def_geo_closure_input);
-  define("GeometryNode", "GeometryNodeClosureOutput", def_geo_closure_output);
+  define("GeometryNode", "NodeClosureInput", def_geo_closure_input);
+  define("GeometryNode", "NodeClosureOutput", def_geo_closure_output);
   define("GeometryNode", "GeometryNodeCollectionInfo");
-  define("GeometryNode", "GeometryNodeCombineBundle", rna_def_geo_combine_bundle);
+  define("GeometryNode", "NodeCombineBundle", rna_def_geo_combine_bundle);
   define("GeometryNode", "GeometryNodeConvexHull");
   define("GeometryNode", "GeometryNodeCornersOfEdge");
   define("GeometryNode", "GeometryNodeCornersOfFace");
@@ -10862,7 +10862,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeEdgesOfCorner");
   define("GeometryNode", "GeometryNodeEdgesOfVertex");
   define("GeometryNode", "GeometryNodeEdgesToFaceGroups");
-  define("GeometryNode", "GeometryNodeEvaluateClosure", def_geo_evaluate_closure);
+  define("GeometryNode", "NodeEvaluateClosure", def_geo_evaluate_closure);
   define("GeometryNode", "GeometryNodeExtrudeMesh");
   define("GeometryNode", "GeometryNodeFaceOfCorner");
   define("GeometryNode", "GeometryNodeFieldAtIndex");
@@ -10984,7 +10984,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeScaleInstances");
   define("GeometryNode", "GeometryNodeSDFGridBoolean");
   define("GeometryNode", "GeometryNodeSelfObject");
-  define("GeometryNode", "GeometryNodeSeparateBundle", rna_def_geo_separate_bundle);
+  define("GeometryNode", "NodeSeparateBundle", rna_def_geo_separate_bundle);
   define("GeometryNode", "GeometryNodeSeparateComponents");
   define("GeometryNode", "GeometryNodeSeparateGeometry");
   define("GeometryNode", "GeometryNodeSetCurveHandlePositions");

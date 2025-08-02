@@ -34,7 +34,7 @@ struct CombineBundleItemsAccessor : public socket_items::SocketItemsAccessorDefa
   using ItemT = NodeGeometryCombineBundleItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeCombineBundle";
+  static constexpr StringRefNull node_idname = "NodeCombineBundle";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_name_validation = true;
@@ -110,7 +110,7 @@ struct SeparateBundleItemsAccessor : public socket_items::SocketItemsAccessorDef
   using ItemT = NodeGeometrySeparateBundleItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeSeparateBundle";
+  static constexpr StringRefNull node_idname = "NodeSeparateBundle";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_name_validation = true;

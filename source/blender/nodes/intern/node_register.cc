@@ -107,8 +107,8 @@ class ClosureZoneType : public blender::bke::bNodeZoneType {
  public:
   ClosureZoneType()
   {
-    this->input_idname = "GeometryNodeClosureInput";
-    this->output_idname = "GeometryNodeClosureOutput";
+    this->input_idname = "NodeClosureInput";
+    this->output_idname = "NodeClosureOutput";
     this->input_type = GEO_NODE_CLOSURE_INPUT;
     this->output_type = GEO_NODE_CLOSURE_OUTPUT;
     this->theme_id = TH_NODE_ZONE_CLOSURE;

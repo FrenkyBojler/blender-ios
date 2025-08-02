@@ -34,7 +34,7 @@ struct ClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefau
   using ItemT = NodeGeometryClosureInputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeClosureOutput";
+  static constexpr StringRefNull node_idname = "NodeClosureOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   struct operator_idnames {
@@ -108,7 +108,7 @@ struct ClosureOutputItemsAccessor : public socket_items::SocketItemsAccessorDefa
   using ItemT = NodeGeometryClosureOutputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeClosureOutput";
+  static constexpr StringRefNull node_idname = "NodeClosureOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   struct operator_idnames {
@@ -182,7 +182,7 @@ struct EvaluateClosureInputItemsAccessor : public socket_items::SocketItemsAcces
   using ItemT = NodeGeometryEvaluateClosureInputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeEvaluateClosure";
+  static constexpr StringRefNull node_idname = "NodeEvaluateClosure";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   struct operator_idnames {
@@ -258,7 +258,7 @@ struct EvaluateClosureOutputItemsAccessor : public socket_items::SocketItemsAcce
   using ItemT = NodeGeometryEvaluateClosureOutputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeEvaluateClosure";
+  static constexpr StringRefNull node_idname = "NodeEvaluateClosure";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   struct operator_idnames {

@@ -144,7 +144,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 
   params.add_item("Closure", [](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("GeometryNodeEvaluateClosure");
+    bNode &node = params.add_node("NodeEvaluateClosure");
     params.connect_available_socket(node, "Closure");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
@@ -174,7 +174,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeEvaluateClosure", GEO_NODE_EVALUATE_CLOSURE);
+  geo_node_type_base(&ntype, "NodeEvaluateClosure", GEO_NODE_EVALUATE_CLOSURE);
   ntype.ui_name = "Evaluate Closure";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
@@ -226,7 +226,7 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
 {
   const bNode &node = output_socket.owner_node();
   const bNodeTree &tree = node.owner_tree();
-  BLI_assert(node.is_type("GeometryNodeEvaluateClosure"));
+  BLI_assert(node.is_type("NodeEvaluateClosure"));
   const auto &storage = *static_cast<const NodeGeometryEvaluateClosure *>(node.storage);
   if (output_socket.index() >= storage.output_items.items_num) {
     return nullptr;
