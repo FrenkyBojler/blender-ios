@@ -4638,7 +4638,7 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
 /** \name Separate Shapes Operator
  * \{ */
 
-static int grease_pencil_separate_shapes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_separate_shapes_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
