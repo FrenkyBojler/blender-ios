@@ -1807,8 +1807,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
         node->storage = data;
       }
+      FOREACH_NODETREE_END;
     }
-    FOREACH_NODETREE_END;
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 36)) {
@@ -2080,8 +2080,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
         node->storage = data;
       }
+      FOREACH_NODETREE_END;
     }
-    FOREACH_NODETREE_END;
   }
 
   /**
