@@ -33,6 +33,8 @@
 #include "BKE_sound.h"
 #include "BKE_workspace.hh"
 
+#include "GHOST_C-api.h"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -1727,6 +1729,9 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
 
   ED_area_tag_refresh(newa);
 
+  GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                       GHOST_kWindowStateFullScreen);
+
   return screen;
 }
 
@@ -1852,6 +1857,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
      * Without doing so, the screen handling gets wrong area coords,
      * which in worst case can lead to crashes (see #43139) */
     screen->skip_handling = true;
+    GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(win->ghostwin), GHOST_kWindowStateNormal);
   }
   else {
     ScrArea *toggle_area = area;
