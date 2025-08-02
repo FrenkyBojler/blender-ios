@@ -8,26 +8,12 @@
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::physics_bundles {
 
-template<typename T>
-inline void parse_member(const Bundle &bundle,
-                         const StringRef name,
-                         T &r_value,
-                         BehaviorParseErrors &r_errors)
-{
-  if (const std::optional<T> value = bundle.lookup<T>(name)) {
-    r_value = *value;
-  }
-  else {
-    r_errors.wrong_members.append(name);
-  }
-}
-
-const FlatBundleTypePtr &GravityBehavior::get_bundle_type()
+const FlatBundleTypePtr &GravityBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(GravityBehavior::name);
+    FlatBundleTypeBuilder b(GravityBundle::name);
     b.add<decl::Vector>("gravity").default_value(float3(0.0f, 0.0f, -9.81f));
     FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
@@ -36,10 +22,10 @@ const FlatBundleTypePtr &GravityBehavior::get_bundle_type()
   return bundle_type;
 }
 
-std::optional<GravityBehavior> GravityBehavior::parse(const Bundle &bundle,
-                                                      BehaviorParseErrors &r_errors)
+std::optional<GravityBundle> GravityBundle::parse(const Bundle &bundle,
+                                                  BundleParseErrors &r_errors)
 {
-  GravityBehavior behavior;
+  GravityBundle behavior;
   parse_member(bundle, "gravity", behavior.gravity, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
@@ -47,10 +33,10 @@ std::optional<GravityBehavior> GravityBehavior::parse(const Bundle &bundle,
   return behavior;
 }
 
-const FlatBundleTypePtr &ForceBehavior::get_bundle_type()
+const FlatBundleTypePtr &ForceBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(ForceBehavior::name);
+    FlatBundleTypeBuilder b(ForceBundle::name);
     b.add<decl::String>("filter");
     b.add<decl::Bool>("selection").default_value(true).supports_field();
     b.add<decl::Vector>("force").supports_field();
@@ -61,10 +47,9 @@ const FlatBundleTypePtr &ForceBehavior::get_bundle_type()
   return bundle_type;
 }
 
-std::optional<ForceBehavior> ForceBehavior::parse(const Bundle &bundle,
-                                                  BehaviorParseErrors &r_errors)
+std::optional<ForceBundle> ForceBundle::parse(const Bundle &bundle, BundleParseErrors &r_errors)
 {
-  ForceBehavior behavior;
+  ForceBundle behavior;
   parse_member(bundle, "filter", behavior.filter, r_errors);
   parse_member(bundle, "selection", behavior.selection, r_errors);
   parse_member(bundle, "force", behavior.force, r_errors);
@@ -74,10 +59,10 @@ std::optional<ForceBehavior> ForceBehavior::parse(const Bundle &bundle,
   return behavior;
 }
 
-const FlatBundleTypePtr &RigidBodyInstancesBehavior::get_bundle_type()
+const FlatBundleTypePtr &RigidBodyInstancesBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(RigidBodyInstancesBehavior::name);
+    FlatBundleTypeBuilder b(RigidBodyInstancesBundle::name);
     b.add<decl::Geometry>("instances").supported_type(bke::GeometryComponent::Type::Instance);
     b.add<decl::Int>("collision_shape_type").supports_field();
     b.add<decl::Int>("motion_type").supports_field();
@@ -91,10 +76,10 @@ const FlatBundleTypePtr &RigidBodyInstancesBehavior::get_bundle_type()
   return bundle_type;
 }
 
-std::optional<RigidBodyInstancesBehavior> RigidBodyInstancesBehavior::parse(
-    const Bundle &bundle, BehaviorParseErrors &r_errors)
+std::optional<RigidBodyInstancesBundle> RigidBodyInstancesBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
 {
-  RigidBodyInstancesBehavior behavior;
+  RigidBodyInstancesBundle behavior;
   parse_member(bundle, "instances", behavior.instances_geometry, r_errors);
   parse_member(bundle, "collision_shape_type", behavior.collision_shape_type, r_errors);
   parse_member(bundle, "motion_type", behavior.motion_type, r_errors);
@@ -108,10 +93,10 @@ std::optional<RigidBodyInstancesBehavior> RigidBodyInstancesBehavior::parse(
   return behavior;
 }
 
-const FlatBundleTypePtr &SoftBodyMeshBehavior::get_bundle_type()
+const FlatBundleTypePtr &SoftBodyMeshBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(SoftBodyMeshBehavior::name);
+    FlatBundleTypeBuilder b(SoftBodyMeshBundle::name);
     b.add<decl::Geometry>("mesh").supported_type(bke::GeometryComponent::Type::Mesh);
     b.add<decl::Float>("stretch_stiffness").default_value(1e6f).min(0.0f).supports_field();
     b.add<decl::Float>("bend_stiffness").default_value(1e6f).min(0.0f).supports_field();
@@ -122,10 +107,10 @@ const FlatBundleTypePtr &SoftBodyMeshBehavior::get_bundle_type()
   return bundle_type;
 }
 
-std::optional<SoftBodyMeshBehavior> SoftBodyMeshBehavior::parse(const Bundle &bundle,
-                                                                BehaviorParseErrors &r_errors)
+std::optional<SoftBodyMeshBundle> SoftBodyMeshBundle::parse(const Bundle &bundle,
+                                                            BundleParseErrors &r_errors)
 {
-  SoftBodyMeshBehavior behavior;
+  SoftBodyMeshBundle behavior;
   parse_member(bundle, "mesh", behavior.mesh_geometry, r_errors);
   parse_member(bundle, "stretch_stiffness", behavior.stretch_stiffness, r_errors);
   parse_member(bundle, "bend_stiffness", behavior.bend_stiffness, r_errors);
@@ -136,4 +121,4 @@ std::optional<SoftBodyMeshBehavior> SoftBodyMeshBehavior::parse(const Bundle &bu
   return behavior;
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::physics_bundles

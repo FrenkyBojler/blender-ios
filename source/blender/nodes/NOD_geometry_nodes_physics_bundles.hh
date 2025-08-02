@@ -8,36 +8,21 @@
 
 #include "NOD_bundle_type_fwd.hh"
 #include "NOD_geometry_nodes_bundle_fwd.hh"
+#include "NOD_geometry_nodes_bundle_parse.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::physics_bundles {
 
-class BehaviorParseErrors {
- public:
-  Vector<std::string> wrong_members;
-  Vector<std::string> other_errors;
-
-  bool has_error() const
-  {
-    return !this->wrong_members.is_empty();
-  }
-};
-
-class BehaviorCommon {
- public:
-  std::string self_path;
-};
-
-class GravityBehavior : public BehaviorCommon {
+class GravityBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.Gravity";
 
   float3 gravity;
 
   static const FlatBundleTypePtr &get_bundle_type();
-  static std::optional<GravityBehavior> parse(const Bundle &bundle, BehaviorParseErrors &r_errors);
+  static std::optional<GravityBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
-class ForceBehavior : public BehaviorCommon {
+class ForceBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.Force";
 
@@ -46,10 +31,10 @@ class ForceBehavior : public BehaviorCommon {
   fn::Field<float3> force;
 
   static const FlatBundleTypePtr &get_bundle_type();
-  static std::optional<ForceBehavior> parse(const Bundle &bundle, BehaviorParseErrors &r_errors);
+  static std::optional<ForceBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
-class RigidBodyInstancesBehavior : public BehaviorCommon {
+class RigidBodyInstancesBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.RigidBodyInstances";
 
@@ -61,11 +46,11 @@ class RigidBodyInstancesBehavior : public BehaviorCommon {
   fn::Field<float> density;
 
   static const FlatBundleTypePtr &get_bundle_type();
-  static std::optional<RigidBodyInstancesBehavior> parse(const Bundle &bundle,
-                                                         BehaviorParseErrors &r_errors);
+  static std::optional<RigidBodyInstancesBundle> parse(const Bundle &bundle,
+                                                       BundleParseErrors &r_errors);
 };
 
-class SoftBodyMeshBehavior : public BehaviorCommon {
+class SoftBodyMeshBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.SoftBodyMesh";
 
@@ -74,8 +59,8 @@ class SoftBodyMeshBehavior : public BehaviorCommon {
   fn::Field<float> bend_stiffness;
 
   static const FlatBundleTypePtr &get_bundle_type();
-  static std::optional<SoftBodyMeshBehavior> parse(const Bundle &bundle,
-                                                   BehaviorParseErrors &r_errors);
+  static std::optional<SoftBodyMeshBundle> parse(const Bundle &bundle,
+                                                 BundleParseErrors &r_errors);
 };
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::physics_bundles

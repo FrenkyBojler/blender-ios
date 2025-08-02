@@ -3,11 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_instances.hh"
-#include "BLI_generic_key.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
-#include "BLI_task.h"
-#include "BLI_threads.h"
 #include "DNA_mesh_types.h"
 #include "GEO_shape_hash.hh"
 #include "NOD_geometry_nodes_bundle.hh"
@@ -35,13 +32,15 @@
 
 namespace blender::nodes::node_geo_jolt_physics_solver_cc {
 
+using namespace physics_bundles;
+
 static NestedBundleTypePtr make_world_type()
 {
   Vector<std::shared_ptr<const FlatBundleType>> types;
-  types.append(GravityBehavior::get_bundle_type());
-  types.append(ForceBehavior::get_bundle_type());
-  types.append(RigidBodyInstancesBehavior::get_bundle_type());
-  types.append(SoftBodyMeshBehavior::get_bundle_type());
+  types.append(GravityBundle::get_bundle_type());
+  types.append(ForceBundle::get_bundle_type());
+  types.append(RigidBodyInstancesBundle::get_bundle_type());
+  types.append(SoftBodyMeshBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.JoltSolverWorld", std::move(types));
@@ -394,40 +393,40 @@ struct JoltState {
 };
 
 struct JoltBehaviors {
-  Vector<ForceBehavior> forces;
-  Vector<GravityBehavior> gravities;
-  Vector<RigidBodyInstancesBehavior> rigid_bodies;
-  Vector<SoftBodyMeshBehavior> soft_bodies;
+  Vector<ForceBundle> forces;
+  Vector<GravityBundle> gravities;
+  Vector<RigidBodyInstancesBundle> rigid_bodies;
+  Vector<SoftBodyMeshBundle> soft_bodies;
 };
 
 static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
 {
   JoltBehaviors behaviors;
   nested_bundle_foreach(behaviors_bundle, [&](HandleNestedBundleParams &params) {
-    BehaviorParseErrors errors;
-    if (params.type == ForceBehavior::name) {
-      if (std::optional<ForceBehavior> force = ForceBehavior::parse(params.bundle, errors)) {
+    BundleParseErrors errors;
+    if (params.type == ForceBundle::name) {
+      if (std::optional<ForceBundle> force = ForceBundle::parse(params.bundle, errors)) {
         behaviors.forces.append(std::move(*force));
         behaviors.forces.last().self_path = Bundle::combine_path(params.path);
       }
     }
-    if (params.type == GravityBehavior::name) {
-      if (std::optional<GravityBehavior> gravity = GravityBehavior::parse(params.bundle, errors)) {
+    if (params.type == GravityBundle::name) {
+      if (std::optional<GravityBundle> gravity = GravityBundle::parse(params.bundle, errors)) {
         behaviors.gravities.append(std::move(*gravity));
         behaviors.gravities.last().self_path = Bundle::combine_path(params.path);
       }
     }
-    else if (params.type == RigidBodyInstancesBehavior::name) {
-      if (std::optional<RigidBodyInstancesBehavior> rigid_body = RigidBodyInstancesBehavior::parse(
+    else if (params.type == RigidBodyInstancesBundle::name) {
+      if (std::optional<RigidBodyInstancesBundle> rigid_body = RigidBodyInstancesBundle::parse(
               params.bundle, errors))
       {
         behaviors.rigid_bodies.append(std::move(*rigid_body));
         behaviors.rigid_bodies.last().self_path = Bundle::combine_path(params.path);
       }
     }
-    else if (params.type == SoftBodyMeshBehavior::name) {
-      if (std::optional<SoftBodyMeshBehavior> soft_body = SoftBodyMeshBehavior::parse(
-              params.bundle, errors))
+    else if (params.type == SoftBodyMeshBundle::name) {
+      if (std::optional<SoftBodyMeshBundle> soft_body = SoftBodyMeshBundle::parse(params.bundle,
+                                                                                  errors))
       {
         behaviors.soft_bodies.append(std::move(*soft_body));
         behaviors.soft_bodies.last().self_path = Bundle::combine_path(params.path);
@@ -457,7 +456,7 @@ static JPH::ShapeSettings::ShapeResult make_collision_shape(const CollisionShape
 }
 
 static void handle_rigid_bodies_behavior(JoltState &state,
-                                         const RigidBodyInstancesBehavior &behavior,
+                                         const RigidBodyInstancesBundle &behavior,
                                          const bke::Instances &current_instances,
                                          Map<std::string, JoltRigidBodies> &r_rigid_bodies_by_path)
 {
@@ -600,7 +599,7 @@ static float compute_soft_body_bend_compliance(float bend_stiffness)
 }
 
 static void handle_soft_body_behavior(JoltState &state,
-                                      const SoftBodyMeshBehavior &behavior,
+                                      const SoftBodyMeshBundle &behavior,
                                       const Mesh &current_mesh,
                                       Map<std::string, JoltSoftBody> &r_soft_bodies_by_path)
 {
@@ -687,7 +686,7 @@ static void handle_soft_body_behavior(JoltState &state,
   r_soft_bodies_by_path.add(behavior.self_path, std::move(soft_body));
 }
 
-static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBehavior &behavior,
+static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBundle &behavior,
                                                const JoltState &state)
 {
   GeometrySet geometry = behavior.instances_geometry;
@@ -729,7 +728,7 @@ static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBehavior 
   return geometry;
 }
 
-static GeometrySet apply_soft_body_simulation(const SoftBodyMeshBehavior &behavior,
+static GeometrySet apply_soft_body_simulation(const SoftBodyMeshBundle &behavior,
                                               const JoltState &state)
 {
   GeometrySet geometry = behavior.mesh_geometry;
@@ -770,7 +769,7 @@ static void update_gravity(const GeoNodeExecParams &params,
     return;
   }
   if (behaviors.gravities.size() == 1) {
-    const GravityBehavior &behavior = behaviors.gravities[0];
+    const GravityBundle &behavior = behaviors.gravities[0];
     const float3 gravity = behavior.gravity;
     state.system.SetGravity(JPH::Vec3(gravity.x, gravity.y, gravity.z));
     return;
@@ -780,11 +779,11 @@ static void update_gravity(const GeoNodeExecParams &params,
   state.system.SetGravity(default_gravity);
 }
 
-static Vector<const ForceBehavior *> get_forces_for_body(const JoltBehaviors &state,
-                                                         const StringRef effected_path)
+static Vector<const ForceBundle *> get_forces_for_body(const JoltBehaviors &state,
+                                                       const StringRef effected_path)
 {
-  Vector<const ForceBehavior *> used_forces;
-  for (const ForceBehavior &force_behavior : state.forces) {
+  Vector<const ForceBundle *> used_forces;
+  for (const ForceBundle &force_behavior : state.forces) {
     if (nested_bundle_path_is_selected(
             force_behavior.self_path, force_behavior.filter, effected_path))
     {
@@ -800,9 +799,9 @@ static void apply_forces_on_rigid_bodies(JoltState &state,
 {
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
   for (const int rigid_body_behavior_i : behaviors.rigid_bodies.index_range()) {
-    const RigidBodyInstancesBehavior &rigid_body_behavior =
+    const RigidBodyInstancesBundle &rigid_body_behavior =
         behaviors.rigid_bodies[rigid_body_behavior_i];
-    const Vector<const ForceBehavior *> used_forces = get_forces_for_body(
+    const Vector<const ForceBundle *> used_forces = get_forces_for_body(
         behaviors, rigid_body_behavior.self_path);
     if (used_forces.is_empty()) {
       continue;
@@ -820,7 +819,7 @@ static void apply_forces_on_rigid_bodies(JoltState &state,
      * selection. */
     Array<float3> force_sums(instances->instances_num(), float3(0.0f));
     bke::InstancesFieldContext field_context{*instances};
-    for (const ForceBehavior *force_behavior : used_forces) {
+    for (const ForceBundle *force_behavior : used_forces) {
       fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
       field_evaluator.set_selection(force_behavior->selection);
       field_evaluator.add(force_behavior->force);
@@ -873,8 +872,8 @@ static void apply_forces_on_soft_bodies(JoltState &state, const JoltBehaviors &b
 {
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
   for (const int soft_body_behavior_i : behaviors.soft_bodies.index_range()) {
-    const SoftBodyMeshBehavior &soft_body_behavior = behaviors.soft_bodies[soft_body_behavior_i];
-    const Vector<const ForceBehavior *> used_forces = get_forces_for_body(
+    const SoftBodyMeshBundle &soft_body_behavior = behaviors.soft_bodies[soft_body_behavior_i];
+    const Vector<const ForceBundle *> used_forces = get_forces_for_body(
         behaviors, soft_body_behavior.self_path);
     if (used_forces.is_empty()) {
       continue;
@@ -888,7 +887,7 @@ static void apply_forces_on_soft_bodies(JoltState &state, const JoltBehaviors &b
     /* Can only apply a force to the entire soft body, not to individual vertices for now. */
     const float3 center = convert_vec3(soft_body->body->GetPosition());
     SoftBodyFieldContext field_context(center);
-    for (const ForceBehavior *force_behavior : used_forces) {
+    for (const ForceBundle *force_behavior : used_forces) {
       fn::FieldEvaluator field_evaluator{field_context, 1};
       field_evaluator.set_selection(force_behavior->selection);
       field_evaluator.add(force_behavior->force);
@@ -920,12 +919,12 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
 
   Array<GeometrySet> applied_rigid_bodies(behaviors.rigid_bodies.size());
   for (const int i : behaviors.rigid_bodies.index_range()) {
-    const RigidBodyInstancesBehavior &rigid_body_behavior = behaviors.rigid_bodies[i];
+    const RigidBodyInstancesBundle &rigid_body_behavior = behaviors.rigid_bodies[i];
     applied_rigid_bodies[i] = apply_rigid_body_simulation(rigid_body_behavior, state);
   }
   Array<GeometrySet> applied_soft_bodies(behaviors.soft_bodies.size());
   for (const int i : behaviors.soft_bodies.index_range()) {
-    const SoftBodyMeshBehavior &soft_body_behavior = behaviors.soft_bodies[i];
+    const SoftBodyMeshBundle &soft_body_behavior = behaviors.soft_bodies[i];
     applied_soft_bodies[i] = apply_soft_body_simulation(soft_body_behavior, state);
   }
 
@@ -938,7 +937,7 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
     if (!instances) {
       continue;
     }
-    const RigidBodyInstancesBehavior &rigid_body_behavior = behaviors.rigid_bodies[i];
+    const RigidBodyInstancesBundle &rigid_body_behavior = behaviors.rigid_bodies[i];
     handle_rigid_bodies_behavior(state, rigid_body_behavior, *instances, new_rigid_bodies_by_path);
   }
   Map<std::string, JoltSoftBody> new_soft_bodies_by_path;
@@ -948,7 +947,7 @@ static void update_jolt_state_from_behaviors(const GeoNodeExecParams &params,
     if (!mesh) {
       continue;
     }
-    const SoftBodyMeshBehavior &soft_body_behavior = behaviors.soft_bodies[i];
+    const SoftBodyMeshBundle &soft_body_behavior = behaviors.soft_bodies[i];
     handle_soft_body_behavior(state, soft_body_behavior, *mesh, new_soft_bodies_by_path);
   }
 
@@ -1107,12 +1106,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
 
-  for (RigidBodyInstancesBehavior &rigid_bodies_behavior : behaviors.rigid_bodies) {
+  for (RigidBodyInstancesBundle &rigid_bodies_behavior : behaviors.rigid_bodies) {
     GeometrySet applied_rigid_bodies = apply_rigid_body_simulation(rigid_bodies_behavior, state);
     new_data_bundle.add_path_override(rigid_bodies_behavior.self_path + "/Instances",
                                       std::move(applied_rigid_bodies));
   }
-  for (SoftBodyMeshBehavior &soft_body_behavior : behaviors.soft_bodies) {
+  for (SoftBodyMeshBundle &soft_body_behavior : behaviors.soft_bodies) {
     GeometrySet applied_soft_body = apply_soft_body_simulation(soft_body_behavior, state);
     new_data_bundle.add_path_override(soft_body_behavior.self_path + "/Geometry",
                                       std::move(applied_soft_body));
