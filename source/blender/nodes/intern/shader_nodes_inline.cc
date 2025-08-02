@@ -331,23 +331,23 @@ class ShaderNodesInliner {
         return;
       }
     }
-    if (node->is_type("GeometryNodeClosureOutput")) {
+    if (node->is_type("NodeClosureOutput")) {
       this->handle_output_socket__closure_output(socket);
       return;
     }
-    if (node->is_type("GeometryNodeClosureInput")) {
+    if (node->is_type("NodeClosureInput")) {
       this->handle_output_socket__closure_input(socket);
       return;
     }
-    if (node->is_type("GeometryNodeEvaluateClosure")) {
+    if (node->is_type("NodeEvaluateClosure")) {
       this->handle_output_socket__evaluate_closure(socket);
       return;
     }
-    if (node->is_type("GeometryNodeCombineBundle")) {
+    if (node->is_type("NodeCombineBundle")) {
       this->handle_output_socket__combine_bundle(socket);
       return;
     }
-    if (node->is_type("GeometryNodeSeparateBundle")) {
+    if (node->is_type("NodeSeparateBundle")) {
       this->handle_output_socket__separate_bundle(socket);
       return;
     }
@@ -556,10 +556,10 @@ class ShaderNodesInliner {
       this->store_socket_value_fallback(socket);
       return;
     }
-    const auto *evaluate_closure_storage = static_cast<const NodeGeometryEvaluateClosure *>(
+    const auto *evaluate_closure_storage = static_cast<const NodeEvaluateClosure *>(
         evaluate_closure_node->storage);
     const bNode &closure_output_node = *closure_zone_value->zone->output_node();
-    const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
+    const auto &closure_storage = *static_cast<const NodeClosureOutput *>(
         closure_output_node.storage);
     const StringRef key = evaluate_closure_storage->output_items.items[socket->index()].name;
 
@@ -576,7 +576,7 @@ class ShaderNodesInliner {
         closure_source_location);
 
     for (const int i : IndexRange(closure_storage.output_items.items_num)) {
-      const NodeGeometryClosureOutputItem &item = closure_storage.output_items.items[i];
+      const NodeClosureOutputItem &item = closure_storage.output_items.items[i];
       if (key != item.name) {
         continue;
       }
@@ -602,14 +602,14 @@ class ShaderNodesInliner {
     const NodeInContext closure_eval_node = {closure_eval_context->parent(),
                                              closure_eval_context->node()};
 
-    const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
+    const auto &closure_storage = *static_cast<const NodeClosureOutput *>(
         closure_output_node.storage);
-    const auto &eval_closure_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
+    const auto &eval_closure_storage = *static_cast<const NodeEvaluateClosure *>(
         closure_eval_node->storage);
 
     const StringRef key = closure_storage.input_items.items[socket->index()].name;
     for (const int i : IndexRange(eval_closure_storage.input_items.items_num)) {
-      const NodeGeometryEvaluateClosureInputItem &item = eval_closure_storage.input_items.items[i];
+      const NodeEvaluateClosureInputItem &item = eval_closure_storage.input_items.items[i];
       if (key != item.name) {
         continue;
       }
@@ -623,7 +623,7 @@ class ShaderNodesInliner {
   void handle_output_socket__combine_bundle(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node->storage);
+    const auto &storage = *static_cast<const NodeCombineBundle *>(node->storage);
 
     bool all_inputs_available = true;
     for (const bNodeSocket *input_socket : node->input_sockets()) {
@@ -639,7 +639,7 @@ class ShaderNodesInliner {
     auto bundle_value = std::make_shared<BundleSocketValue>();
     for (const int i : IndexRange(storage.items_num)) {
       const SocketInContext input_socket = node.input_socket(i);
-      const NodeGeometryCombineBundleItem &item = storage.items[i];
+      const NodeCombineBundleItem &item = storage.items[i];
       const StringRef key = item.name;
       const auto &socket_value = value_by_socket_.lookup(input_socket);
       bundle_value->items.append({key, socket_value, input_socket->typeinfo});
@@ -650,7 +650,7 @@ class ShaderNodesInliner {
   void handle_output_socket__separate_bundle(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node->storage);
+    const auto &storage = *static_cast<const NodeSeparateBundle *>(node->storage);
 
     const SocketInContext input_socket = node.input_socket(0);
     const SocketValue *socket_value = value_by_socket_.lookup_ptr(input_socket);
