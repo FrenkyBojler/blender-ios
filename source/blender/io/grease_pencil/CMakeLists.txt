@@ -10,10 +10,10 @@ set(INC
   ../../makesrna
   ../../../../intern/guardedalloc
   ../../../../intern/utfconv
-  ../../../../extern/fmtlib/include
 )
 
 set(INC_SYS
+  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -70,12 +70,6 @@ if(WITH_HARU)
     ${TIFF_LIBRARY}
   )
   add_definitions(-DWITH_HARU)
-endif()
-
-if(WITH_BOOST)
-  list(APPEND LIB
-    ${BOOST_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_io_grease_pencil "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

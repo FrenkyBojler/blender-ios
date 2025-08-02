@@ -57,6 +57,10 @@
 #include "fx/Equalizer.h"
 #endif
 
+#ifdef WITH_RUBBERBAND
+#include "fx/TimeStretchPitchScale.h"
+#endif
+
 #include <cassert>
 #include <cstring>
 
@@ -208,6 +212,8 @@ AUD_API const char* AUD_Sound_write(AUD_Sound* sound, const char* filename, AUD_
 				container = AUD_CONTAINER_OGG;
 			else if(extension == ".wav")
 				container = AUD_CONTAINER_WAV;
+			else if(extension == ".aac")
+				container = AUD_CONTAINER_AAC;
 			else
 				return invalid_container_error;
 		}
@@ -236,6 +242,9 @@ AUD_API const char* AUD_Sound_write(AUD_Sound* sound, const char* filename, AUD_
 				break;
 			case AUD_CONTAINER_WAV:
 				codec = AUD_CODEC_PCM;
+				break;
+			case AUD_CONTAINER_AAC:
+				codec = AUD_CODEC_AAC;
 				break;
 			default:
 				return "Unknown container, cannot select default codec.";
@@ -783,4 +792,19 @@ AUD_API AUD_Sound* AUD_Sound_equalize(AUD_Sound* sound, float *definition, int s
 	return equalizer;
 }
 
+#endif
+
+#ifdef WITH_RUBBERBAND
+AUD_API AUD_Sound* AUD_Sound_timeStretchPitchScale(AUD_Sound* sound, double timeRatio, double pitchScale, AUD_StretcherQuality quality, bool preserveFormant)
+{
+	assert(sound);
+	try
+	{
+		return new AUD_Sound(new TimeStretchPitchScale(*sound, timeRatio, pitchScale, static_cast<StretcherQuality>(quality), preserveFormant));
+	}
+	catch(Exception&)
+	{
+		return nullptr;
+	}
+}
 #endif

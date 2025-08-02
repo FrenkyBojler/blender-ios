@@ -15,17 +15,17 @@
 
 #include "effects.hh"
 
-using namespace blender;
+namespace blender::seq {
 
-static void init_solid_color(Strip *seq)
+static void init_solid_color(Strip *strip)
 {
-  if (seq->effectdata) {
-    MEM_freeN(seq->effectdata);
+  if (strip->effectdata) {
+    MEM_freeN(strip->effectdata);
   }
 
-  seq->effectdata = MEM_callocN(sizeof(SolidColorVars), "solidcolor");
+  SolidColorVars *cv = MEM_callocN<SolidColorVars>("solidcolor");
+  strip->effectdata = cv;
 
-  SolidColorVars *cv = (SolidColorVars *)seq->effectdata;
   cv->col[0] = cv->col[1] = cv->col[2] = 0.5;
 }
 
@@ -34,9 +34,9 @@ static int num_inputs_color()
   return 0;
 }
 
-static void free_solid_color(Strip *seq, const bool /*do_id_user*/)
+static void free_solid_color(Strip *strip, const bool /*do_id_user*/)
 {
-  MEM_SAFE_FREE(seq->effectdata);
+  MEM_SAFE_FREE(strip->effectdata);
 }
 
 static void copy_solid_color(Strip *dst, const Strip *src, const int /*flag*/)
@@ -44,13 +44,13 @@ static void copy_solid_color(Strip *dst, const Strip *src, const int /*flag*/)
   dst->effectdata = MEM_dupallocN(src->effectdata);
 }
 
-static StripEarlyOut early_out_color(const Strip * /*seq*/, float /*fac*/)
+static StripEarlyOut early_out_color(const Strip * /*strip*/, float /*fac*/)
 {
   return StripEarlyOut::NoInput;
 }
 
-static ImBuf *do_solid_color(const SeqRenderData *context,
-                             Strip *seq,
+static ImBuf *do_solid_color(const RenderData *context,
+                             Strip *strip,
                              float /*timeline_frame*/,
                              float /*fac*/,
                              ImBuf *ibuf1,
@@ -59,7 +59,7 @@ static ImBuf *do_solid_color(const SeqRenderData *context,
   using namespace blender;
   ImBuf *out = prepare_effect_imbufs(context, ibuf1, ibuf2);
 
-  SolidColorVars *cv = (SolidColorVars *)seq->effectdata;
+  SolidColorVars *cv = (SolidColorVars *)strip->effectdata;
 
   threading::parallel_for(IndexRange(out->y), 64, [&](const IndexRange y_range) {
     if (out->byte_buffer.data) {
@@ -97,7 +97,7 @@ static ImBuf *do_solid_color(const SeqRenderData *context,
   return out;
 }
 
-void solid_color_effect_get_handle(SeqEffectHandle &rval)
+void solid_color_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_solid_color;
   rval.num_inputs = num_inputs_color;
@@ -106,3 +106,5 @@ void solid_color_effect_get_handle(SeqEffectHandle &rval)
   rval.copy = copy_solid_color;
   rval.execute = do_solid_color;
 }
+
+}  // namespace blender::seq

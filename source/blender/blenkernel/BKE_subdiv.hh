@@ -9,7 +9,7 @@
 #pragma once
 
 #include "BLI_compiler_compat.h"
-#include "BLI_sys_types.h"
+#include "BLI_math_vector_types.hh"
 
 struct Mesh;
 struct MultiresModifierData;
@@ -94,7 +94,7 @@ struct SubdivStats {
       double topology_refiner_creation_time;
       /* Total time spent in blender::bke::subdiv::subdiv_to_mesh(). */
       double subdiv_to_mesh_time;
-      /* Geometry (mesh vertices) creation time during SUBDIV_TYO_MESH. */
+      /* Geometry (mesh vertices) creation time during SUBDIV_TO_MESH. */
       double subdiv_to_mesh_geometry_time;
       /* Time spent on evaluator creation from topology refiner. */
       double evaluator_creation_time;
@@ -138,9 +138,9 @@ struct Displacement {
                             int ptex_face_index,
                             float u,
                             float v,
-                            const float dPdu[3],
-                            const float dPdv[3],
-                            float r_D[3]);
+                            const float3 &dPdu,
+                            const float3 &dPdv,
+                            float3 &r_D);
 
   /* Free the data, not the evaluator itself. */
   void (*free)(Displacement *displacement);
@@ -302,8 +302,9 @@ BLI_INLINE void rotate_grid_to_quad(
     int corner, float grid_u, float grid_v, float *r_quad_u, float *r_quad_v);
 
 /* Convert Blender edge crease value to OpenSubdiv sharpness. */
-BLI_INLINE float crease_to_sharpness(float edge_crease);
+BLI_INLINE float crease_to_sharpness(float crease);
+BLI_INLINE float sharpness_to_crease(float sharpness);
 
 }  // namespace blender::bke::subdiv
 
-#include "intern/subdiv_inline.hh"
+#include "intern/subdiv_inline.hh"  // IWYU pragma: export

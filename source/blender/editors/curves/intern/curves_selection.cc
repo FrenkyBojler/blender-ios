@@ -11,7 +11,6 @@
 #include "BLI_index_mask.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_geom.h"
-#include "BLI_rand.hh"
 #include "BLI_rect.h"
 
 #include "BKE_attribute.hh"
@@ -19,7 +18,6 @@
 #include "BKE_curves.hh"
 
 #include "ED_curves.hh"
-#include "ED_object.hh"
 #include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
@@ -66,6 +64,16 @@ IndexMask retrieve_selected_curves(const Curves &curves_id, IndexMaskMemory &mem
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
 {
   return retrieve_selected_points(curves, ".selection", memory);
+}
+
+IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
+{
+  Vector<IndexMask> selection_by_attribute;
+  for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves)) {
+    selection_by_attribute.append(
+        ed::curves::retrieve_selected_points(curves, selection_name, memory));
+  }
+  return IndexMask::from_union(selection_by_attribute, memory);
 }
 
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
@@ -137,7 +145,7 @@ Span<float3> get_selection_attribute_positions(
 static Vector<bke::GSpanAttributeWriter> init_selection_writers(bke::CurvesGeometry &curves,
                                                                 bke::AttrDomain selection_domain)
 {
-  const eCustomDataType create_type = CD_PROP_BOOL;
+  const bke::AttrType create_type = bke::AttrType::Bool;
   Span<StringRef> selection_attribute_names = get_curves_selection_attribute_names(curves);
   Vector<bke::GSpanAttributeWriter> writers;
   for (const int i : selection_attribute_names.index_range()) {
@@ -270,7 +278,7 @@ void foreach_selectable_curve_range(const bke::CurvesGeometry &curves,
 
 bke::GSpanAttributeWriter ensure_selection_attribute(bke::CurvesGeometry &curves,
                                                      bke::AttrDomain selection_domain,
-                                                     eCustomDataType create_type,
+                                                     bke::AttrType create_type,
                                                      StringRef attribute_name)
 {
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
@@ -285,17 +293,17 @@ bke::GSpanAttributeWriter ensure_selection_attribute(bke::CurvesGeometry &curves
   }
   const int domain_size = attributes.domain_size(selection_domain);
   switch (create_type) {
-    case CD_PROP_BOOL:
+    case bke::AttrType::Bool:
       attributes.add(attribute_name,
                      selection_domain,
-                     CD_PROP_BOOL,
-                     bke::AttributeInitVArray(VArray<bool>::ForSingle(true, domain_size)));
+                     bke::AttrType::Bool,
+                     bke::AttributeInitVArray(VArray<bool>::from_single(true, domain_size)));
       break;
-    case CD_PROP_FLOAT:
+    case bke::AttrType::Float:
       attributes.add(attribute_name,
                      selection_domain,
-                     CD_PROP_FLOAT,
-                     bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, domain_size)));
+                     bke::AttrType::Float,
+                     bke::AttributeInitVArray(VArray<float>::from_single(1.0f, domain_size)));
       break;
     default:
       BLI_assert_unreachable();
@@ -459,7 +467,7 @@ bool has_anything_selected(const GSpan selection)
   if (selection.type().is<bool>()) {
     return selection.typed<bool>().contains(true);
   }
-  else if (selection.type().is<float>()) {
+  if (selection.type().is<float>()) {
     for (const float elem : selection.typed<float>()) {
       if (elem > 0.0f) {
         return true;
@@ -467,25 +475,6 @@ bool has_anything_selected(const GSpan selection)
     }
   }
   return false;
-}
-
-static void invert_selection(MutableSpan<float> selection)
-{
-  threading::parallel_for(selection.index_range(), 2048, [&](IndexRange range) {
-    for (const int i : range) {
-      selection[i] = 1.0f - selection[i];
-    }
-  });
-}
-
-static void invert_selection(GMutableSpan selection)
-{
-  if (selection.type().is<bool>()) {
-    array_utils::invert_booleans(selection.typed<bool>());
-  }
-  else if (selection.type().is<float>()) {
-    invert_selection(selection.typed<float>());
-  }
 }
 
 static void invert_selection(MutableSpan<float> selection, const IndexMask &mask)
@@ -502,6 +491,11 @@ static void invert_selection(GMutableSpan selection, const IndexMask &mask)
   else if (selection.type().is<float>()) {
     invert_selection(selection.typed<float>(), mask);
   }
+}
+
+static void invert_selection(GMutableSpan selection)
+{
+  invert_selection(selection, IndexRange(selection.size()));
 }
 
 void select_all(bke::CurvesGeometry &curves,
@@ -590,7 +584,7 @@ void select_alternate(bke::CurvesGeometry &curves,
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
   bke::GSpanAttributeWriter selection = ensure_selection_attribute(
-      curves, bke::AttrDomain::Point, CD_PROP_BOOL);
+      curves, bke::AttrDomain::Point, bke::AttrType::Bool);
   const VArray<bool> cyclic = curves.cyclic();
 
   MutableSpan<bool> selection_typed = selection.span.typed<bool>();
@@ -635,7 +629,7 @@ void select_adjacent(bke::CurvesGeometry &curves,
 {
   const OffsetIndices points_by_curve = curves.points_by_curve();
   bke::GSpanAttributeWriter selection = ensure_selection_attribute(
-      curves, bke::AttrDomain::Point, CD_PROP_BOOL);
+      curves, bke::AttrDomain::Point, bke::AttrType::Bool);
   const VArray<bool> cyclic = curves.cyclic();
 
   if (deselect) {
@@ -839,7 +833,7 @@ static std::optional<FindClosestData> find_closest_curve_to_screen_co(
               return;
             }
 
-            best_match = {curve, std::sqrt(distance_proj_sq)};
+            best_match = {curve, distance_proj_sq};
             return;
           }
 
@@ -855,7 +849,7 @@ static std::optional<FindClosestData> find_closest_curve_to_screen_co(
               return;
             }
 
-            best_match = {curve, std::sqrt(distance_proj_sq)};
+            best_match = {curve, distance_proj_sq};
           };
           for (const int segment_i : points.drop_back(1)) {
             process_segment(segment_i, segment_i + 1);

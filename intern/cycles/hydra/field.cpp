@@ -4,9 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/field.h"
-#include "hydra/session.h"
-#include "scene/image_vdb.h"
-#include "scene/scene.h"
+
+#include "util/log.h"
+
+#ifdef WITH_OPENVDB
+#  include "hydra/session.h"
+#  include "scene/image_vdb.h"
+#  include "scene/scene.h"
+#endif
 
 #include <pxr/imaging/hd/sceneDelegate.h>
 #include <pxr/usd/sdf/assetPath.h>
@@ -39,10 +44,10 @@ class HdCyclesVolumeLoader : public VDBImageLoader {
       }
     }
     catch (const openvdb::IoError &e) {
-      VLOG_WARNING << "Error loading OpenVDB file: " << e.what();
+      LOG_WARNING << "Error loading OpenVDB file: " << e.what();
     }
     catch (...) {
-      VLOG_WARNING << "Error loading OpenVDB file: Unknown error";
+      LOG_WARNING << "Error loading OpenVDB file: Unknown error";
     }
   }
 };
@@ -93,6 +98,9 @@ void HdCyclesField::Sync(HdSceneDelegate *sceneDelegate,
       }
     }
   }
+#else
+  (void)sceneDelegate;
+  (void)renderParam;
 #endif
 
   *dirtyBits = DirtyBits::Clean;

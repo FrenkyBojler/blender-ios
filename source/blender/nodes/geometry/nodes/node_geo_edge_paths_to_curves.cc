@@ -14,7 +14,9 @@ namespace blender::nodes::node_geo_edge_paths_to_curves_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Edges to convert to curves");
   b.add_input<decl::Bool>("Start Vertices").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Int>("Next Vertex Index").default_value(-1).hide_value().field_on_all();
   b.add_output<decl::Geometry>("Curves").propagate_all();
@@ -102,12 +104,14 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_EDGE_PATHS_TO_CURVES, "Edge Paths to Curves", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeEdgePathsToCurves", GEO_NODE_EDGE_PATHS_TO_CURVES);
+  ntype.ui_name = "Edge Paths to Curves";
+  ntype.ui_description = "Output curves following paths across mesh edges";
   ntype.enum_name_legacy = "EDGE_PATHS_TO_CURVES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
