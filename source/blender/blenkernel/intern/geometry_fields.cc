@@ -787,8 +787,20 @@ static bool try_add_shared_field_attribute(MutableAttributeAccessor attributes,
   if (!attribute.sharing_info || !attribute.varray.is_span()) {
     return false;
   }
+
   const AttributeInitShared init(attribute.varray.get_internal_span().data(),
                                  *attribute.sharing_info);
+  if (attributes.add(id_to_create, domain, data_type, init)) {
+    return true;
+  }
+
+  const bool is_may_vertex_group = data_type == AttrType::Float && domain == AttrDomain::Point;
+  if (is_may_vertex_group) {
+    return false;
+  }
+
+  attributes.remove(id_to_create);
+  BLI_assert(!attributes.contains(id_to_create));
   return attributes.add(id_to_create, domain, data_type, init);
 }
 
@@ -862,17 +874,17 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     const AttributeValidator validator = attributes.lookup_validator(id);
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
 
+    if (!validator && selection_is_full) {
+      if (try_add_shared_field_attribute(attributes, id, domain, field)) {
+        continue;
+      }
+    }
+
     /* We are writing to an attribute that exists already with the correct domain and type. */
     if (const GAttributeReader dst = attributes.lookup(id)) {
       if (dst.domain == domain && dst.varray.type() == field.cpp_type()) {
         const int evaluator_index = evaluator.add(field);
         results_to_store.append({input_index, evaluator_index});
-        continue;
-      }
-    }
-
-    if (!validator && selection_is_full) {
-      if (try_add_shared_field_attribute(attributes, id, domain, field)) {
         continue;
       }
     }
