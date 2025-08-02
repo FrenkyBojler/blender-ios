@@ -758,7 +758,7 @@ class ShaderNodesInliner {
   {
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
     bNode &copied_node = *bke::node_copy_with_mapping(
-        &dst_tree_, *node.node, this->node_copy_flag(), true, socket_map);
+        &dst_tree_, *node.node, this->node_copy_flag(), std::nullopt, std::nullopt, socket_map);
     copied_node.parent = nullptr;
     for (const bNodeSocket *src_input_socket : node->input_sockets()) {
       if (!src_input_socket->is_available()) {
