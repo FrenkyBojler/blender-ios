@@ -31,7 +31,7 @@ inline bool socket_type_supported_in_closure(const eNodeSocketDatatype socket_ty
 }
 
 struct ClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
-  using ItemT = NodeGeometryClosureInputItem;
+  using ItemT = NodeClosureInputItem;
   static StructRNA *item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "NodeClosureOutput";
@@ -52,7 +52,7 @@ struct ClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefau
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryClosureOutput *>(node.storage);
+    auto *storage = static_cast<NodeClosureOutput *>(node.storage);
     return {&storage->input_items.items,
             &storage->input_items.items_num,
             &storage->input_items.active_index};
@@ -92,7 +92,7 @@ struct ClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefau
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryClosureOutput *>(node.storage);
+    auto *storage = static_cast<NodeClosureOutput *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->input_items.next_identifier++;
     socket_items::set_item_name_and_make_unique<ClosureInputItemsAccessor>(node, item, name);
@@ -105,7 +105,7 @@ struct ClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefau
 };
 
 struct ClosureOutputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
-  using ItemT = NodeGeometryClosureOutputItem;
+  using ItemT = NodeClosureOutputItem;
   static StructRNA *item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "NodeClosureOutput";
@@ -126,7 +126,7 @@ struct ClosureOutputItemsAccessor : public socket_items::SocketItemsAccessorDefa
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryClosureOutput *>(node.storage);
+    auto *storage = static_cast<NodeClosureOutput *>(node.storage);
     return {&storage->output_items.items,
             &storage->output_items.items_num,
             &storage->output_items.active_index};
@@ -166,7 +166,7 @@ struct ClosureOutputItemsAccessor : public socket_items::SocketItemsAccessorDefa
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryClosureOutput *>(node.storage);
+    auto *storage = static_cast<NodeClosureOutput *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->output_items.next_identifier++;
     socket_items::set_item_name_and_make_unique<ClosureOutputItemsAccessor>(node, item, name);
@@ -179,7 +179,7 @@ struct ClosureOutputItemsAccessor : public socket_items::SocketItemsAccessorDefa
 };
 
 struct EvaluateClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
-  using ItemT = NodeGeometryEvaluateClosureInputItem;
+  using ItemT = NodeEvaluateClosureInputItem;
   static StructRNA *item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "NodeEvaluateClosure";
@@ -200,7 +200,7 @@ struct EvaluateClosureInputItemsAccessor : public socket_items::SocketItemsAcces
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node.storage);
+    auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     return {&storage->input_items.items,
             &storage->input_items.items_num,
             &storage->input_items.active_index};
@@ -240,7 +240,7 @@ struct EvaluateClosureInputItemsAccessor : public socket_items::SocketItemsAcces
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node.storage);
+    auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->input_items.next_identifier++;
     item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
@@ -255,7 +255,7 @@ struct EvaluateClosureInputItemsAccessor : public socket_items::SocketItemsAcces
 };
 
 struct EvaluateClosureOutputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
-  using ItemT = NodeGeometryEvaluateClosureOutputItem;
+  using ItemT = NodeEvaluateClosureOutputItem;
   static StructRNA *item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "NodeEvaluateClosure";
@@ -276,7 +276,7 @@ struct EvaluateClosureOutputItemsAccessor : public socket_items::SocketItemsAcce
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node.storage);
+    auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     return {&storage->output_items.items,
             &storage->output_items.items_num,
             &storage->output_items.active_index};
@@ -316,7 +316,7 @@ struct EvaluateClosureOutputItemsAccessor : public socket_items::SocketItemsAcce
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node.storage);
+    auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->output_items.next_identifier++;
     item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;

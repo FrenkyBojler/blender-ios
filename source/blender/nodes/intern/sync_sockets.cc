@@ -201,20 +201,19 @@ void sync_sockets_separate_bundle(SpaceNode &snode,
       break;
   }
 
-  auto &storage = *static_cast<NodeGeometrySeparateBundle *>(separate_bundle_node.storage);
+  auto &storage = *static_cast<NodeSeparateBundle *>(separate_bundle_node.storage);
 
   Map<std::string, int> old_identifiers;
   for (const int i : IndexRange(storage.items_num)) {
-    const NodeGeometrySeparateBundleItem &item = storage.items[i];
+    const NodeSeparateBundleItem &item = storage.items[i];
     old_identifiers.add_new(StringRef(item.name), item.identifier);
   }
 
   nodes::socket_items::clear<nodes::SeparateBundleItemsAccessor>(separate_bundle_node);
   for (const nodes::BundleSignature::Item &item : sync_state.source_signature->items) {
-    NodeGeometrySeparateBundleItem &new_item =
-        *nodes::socket_items::add_item_with_socket_type_and_name<
-            nodes ::SeparateBundleItemsAccessor>(
-            separate_bundle_node, item.type->type, item.key.c_str());
+    NodeSeparateBundleItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
+        nodes ::SeparateBundleItemsAccessor>(
+        separate_bundle_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -242,20 +241,19 @@ void sync_sockets_combine_bundle(SpaceNode &snode,
       break;
   }
 
-  auto &storage = *static_cast<NodeGeometryCombineBundle *>(combine_bundle_node.storage);
+  auto &storage = *static_cast<NodeCombineBundle *>(combine_bundle_node.storage);
 
   Map<std::string, int> old_identifiers;
   for (const int i : IndexRange(storage.items_num)) {
-    const NodeGeometryCombineBundleItem &item = storage.items[i];
+    const NodeCombineBundleItem &item = storage.items[i];
     old_identifiers.add_new(StringRef(item.name), item.identifier);
   }
 
   nodes::socket_items::clear<nodes::CombineBundleItemsAccessor>(combine_bundle_node);
   for (const nodes::BundleSignature::Item &item : sync_state.source_signature->items) {
-    NodeGeometryCombineBundleItem &new_item =
-        *nodes::socket_items::add_item_with_socket_type_and_name<
-            nodes ::CombineBundleItemsAccessor>(
-            combine_bundle_node, item.type->type, item.key.c_str());
+    NodeCombineBundleItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
+        nodes ::CombineBundleItemsAccessor>(
+        combine_bundle_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -284,16 +282,16 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
       break;
   }
 
-  auto &storage = *static_cast<NodeGeometryEvaluateClosure *>(evaluate_closure_node.storage);
+  auto &storage = *static_cast<NodeEvaluateClosure *>(evaluate_closure_node.storage);
 
   Map<std::string, int> old_input_identifiers;
   Map<std::string, int> old_output_identifiers;
   for (const int i : IndexRange(storage.input_items.items_num)) {
-    const NodeGeometryEvaluateClosureInputItem &item = storage.input_items.items[i];
+    const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
     old_input_identifiers.add_new(StringRef(item.name), item.identifier);
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
-    const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
+    const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
     old_output_identifiers.add_new(StringRef(item.name), item.identifier);
   }
 
@@ -301,7 +299,7 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
   nodes::socket_items::clear<nodes::EvaluateClosureOutputItemsAccessor>(evaluate_closure_node);
 
   for (const nodes::ClosureSignature::Item &item : sync_state.source_signature->inputs) {
-    NodeGeometryEvaluateClosureInputItem &new_item =
+    NodeEvaluateClosureInputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::EvaluateClosureInputItemsAccessor>(
             evaluate_closure_node, item.type->type, item.key.c_str());
@@ -310,7 +308,7 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
     }
   }
   for (const nodes::ClosureSignature::Item &item : sync_state.source_signature->outputs) {
-    NodeGeometryEvaluateClosureOutputItem &new_item =
+    NodeEvaluateClosureOutputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::EvaluateClosureOutputItemsAccessor>(
             evaluate_closure_node, item.type->type, item.key.c_str());
@@ -343,16 +341,16 @@ void sync_sockets_closure(SpaceNode &snode,
   }
   const nodes::ClosureSignature &signature = *sync_state.source_signature;
 
-  auto &storage = *static_cast<NodeGeometryClosureOutput *>(closure_output_node.storage);
+  auto &storage = *static_cast<NodeClosureOutput *>(closure_output_node.storage);
 
   Map<std::string, int> old_input_identifiers;
   Map<std::string, int> old_output_identifiers;
   for (const int i : IndexRange(storage.input_items.items_num)) {
-    const NodeGeometryClosureInputItem &item = storage.input_items.items[i];
+    const NodeClosureInputItem &item = storage.input_items.items[i];
     old_input_identifiers.add_new(StringRef(item.name), item.identifier);
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
-    const NodeGeometryClosureOutputItem &item = storage.output_items.items[i];
+    const NodeClosureOutputItem &item = storage.output_items.items[i];
     old_output_identifiers.add_new(StringRef(item.name), item.identifier);
   }
 
@@ -360,7 +358,7 @@ void sync_sockets_closure(SpaceNode &snode,
   nodes::socket_items::clear<nodes::ClosureOutputItemsAccessor>(closure_output_node);
 
   for (const nodes::ClosureSignature::Item &item : signature.inputs) {
-    NodeGeometryClosureInputItem &new_item =
+    NodeClosureInputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureInputItemsAccessor>(
             closure_output_node, item.type->type, item.key.c_str());
     if (item.structure_type) {
@@ -371,10 +369,8 @@ void sync_sockets_closure(SpaceNode &snode,
     }
   }
   for (const nodes::ClosureSignature::Item &item : signature.outputs) {
-    NodeGeometryClosureOutputItem &new_item =
-        *nodes::socket_items::add_item_with_socket_type_and_name<
-            nodes::ClosureOutputItemsAccessor>(
-            closure_output_node, item.type->type, item.key.c_str());
+    NodeClosureOutputItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
+        nodes::ClosureOutputItemsAccessor>(closure_output_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_output_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -524,8 +520,7 @@ static std::string get_closure_sync_tooltip(const nodes::ClosureSignature &old_s
 
 void sync_node(bContext &C, bNode &node, ReportList *reports)
 {
-  const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(
-      GEO_NODE_CLOSURE_OUTPUT);
+  const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(NODE_CLOSURE_OUTPUT);
   SpaceNode &snode = *CTX_wm_space_node(&C);
   if (node.is_type("NodeEvaluateClosure")) {
     sync_sockets_evaluate_closure(snode, node, reports);
