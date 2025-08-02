@@ -835,7 +835,8 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   const bool mask_is_empty = mask_is_single && !selection_is_full;
 
   if (mask_is_empty) {
-    return make_all_new_attributes();
+    make_all_new_attributes();
+    return;
   }
 
   fn::FieldEvaluator evaluator{field_context, domain_size};
@@ -906,7 +907,8 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
 
   if (mask.is_empty()) {
-    return make_all_new_attributes();
+    make_all_new_attributes();
+    return;
   }
 
   for (const StoreResult &result : results_to_store) {
