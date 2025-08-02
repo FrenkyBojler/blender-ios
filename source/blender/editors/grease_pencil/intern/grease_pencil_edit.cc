@@ -4676,7 +4676,7 @@ static Array<int> get_gapless_indices(const IndexRange &universe, const IndexMas
   return indices_data;
 }
 
-static int grease_pencil_join_shapes_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
