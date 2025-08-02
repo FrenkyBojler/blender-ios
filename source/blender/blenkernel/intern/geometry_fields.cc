@@ -819,7 +819,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     bool all_added = true;
     for (const int i : attribute_ids.index_range()) {
       const bke::AttrType data_type = bke::cpp_type_to_attribute_type(fields[i].cpp_type());
-      all_added &= attributes.add(attribute_ids[i], domain, data_type, AttributeInitConstruct{});
+      all_added &= attributes.add(attribute_ids[i], domain, data_type, AttributeInitDefaultValue());
     }
     return all_added;
   };
