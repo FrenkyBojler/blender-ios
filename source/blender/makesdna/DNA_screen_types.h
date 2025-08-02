@@ -609,6 +609,7 @@ typedef enum eScreen_Fullscreen_Flag {
   FULLSCREEN_RESTORE_GIZMO_NAVIGATE = (1 << 0),
   FULLSCREEN_RESTORE_TEXT = (1 << 1),
   FULLSCREEN_RESTORE_STATS = (1 << 2),
+  FULLSCREEN_RESTORE_OVERLAYS = (1 << 3),
 } eScreen_Fullscreen_Flag;
 
 /** #bScreen.redraws_flag */

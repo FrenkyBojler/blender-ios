@@ -1713,9 +1713,15 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
     }
     else if (newa->spacetype == SPACE_IMAGE) {
       SpaceImage *sima = static_cast<SpaceImage *>(newa->spacedata.first);
-      if (sima && !(sima->gizmo_flag & SI_GIZMO_HIDE_NAVIGATE)) {
-        screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
-        sima->gizmo_flag |= SI_GIZMO_HIDE_NAVIGATE;
+      if (sima) {
+        if (!(sima->gizmo_flag & SI_GIZMO_HIDE_NAVIGATE)) {
+          screen->fullscreen_flag |= FULLSCREEN_RESTORE_GIZMO_NAVIGATE;
+          sima->gizmo_flag |= SI_GIZMO_HIDE_NAVIGATE;
+        }
+        if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS) {
+          screen->fullscreen_flag |= FULLSCREEN_RESTORE_OVERLAYS;
+          sima->overlay.flag &= ~SI_OVERLAY_SHOW_OVERLAYS;
+        }
       }
     }
   }
@@ -1830,6 +1836,9 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
           sima->gizmo_flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_GIZMO_NAVIGATE) ?
                                  sima->gizmo_flag & ~SI_GIZMO_HIDE_NAVIGATE :
                                  sima->gizmo_flag | SI_GIZMO_HIDE_NAVIGATE;
+          sima->overlay.flag = (screen->fullscreen_flag & FULLSCREEN_RESTORE_OVERLAYS) ?
+                                   sima->overlay.flag | SI_OVERLAY_SHOW_OVERLAYS :
+                                   sima->overlay.flag & ~SI_OVERLAY_SHOW_OVERLAYS;
         }
       }
     }
