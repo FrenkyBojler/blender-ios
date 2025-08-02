@@ -60,7 +60,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bundle>("World")
       .bundle_type(world_type)
       .description("Simulation world description that is simulated");
-  b.add_output<decl::Bundle>("World").align_with_previous().description("Simulated world");
+  b.add_output<decl::Bundle>("World")
+      .pass_through_input_index(1)
+      .align_with_previous()
+      .description("Simulated world");
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
   b.add_input<decl::Int>("Substeps").default_value(1).min(1);
 }
