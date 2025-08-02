@@ -828,13 +828,10 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     return make_all_new_attributes();
   }
 
-  const bool mask_is_single = selection.node().depends_on_input();
-  const std::optional<bool> selection_is_full = mask_is_single ?
-                                                    std::make_optional(
-                                                        fn::evaluate_constant_field(selection)) :
-                                                    std::nullopt;
-  const bool mask_is_full = selection_is_full.has_value() && *selection_is_full;
-  const bool mask_is_empty = selection_is_full.has_value() && !*selection_is_full;
+  const bool mask_is_single = !selection.node().depends_on_input();
+  const bool selection_is_full = mask_is_single && fn::evaluate_constant_field(selection);
+  const bool mask_is_full = mask_is_single && selection_is_full;
+  const bool mask_is_empty = mask_is_single && !selection_is_full;
 
   if (mask_is_empty) {
     return make_all_new_attributes();
