@@ -3627,7 +3627,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
   if (is_text_box) {
-    status.item(IFACE_("New Line"), ICON_EVENT_ALT, ICON_EVENT_RETURN);
+    status.item(IFACE_("New Line"), ICON_EVENT_SHIFT, ICON_EVENT_RETURN);
   }
 
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);

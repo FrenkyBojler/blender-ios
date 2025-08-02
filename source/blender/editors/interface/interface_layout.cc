@@ -2621,7 +2621,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                             blender::StringRefNull idname)
 {
   uiBlock *block = this->block();
-  PropertyRNA *prop = RNA_struct_find_property_check(ptr, propname.c_str(), PROP_STRING);
+  PropertyRNA *prop = RNA_struct_find_property_check(*ptr, propname.c_str(), PROP_STRING);
   if (!prop) {
     ui_item_disabled(this, propname.c_str());
     RNA_warning(
