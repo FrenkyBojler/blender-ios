@@ -486,11 +486,12 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
     visible_shapes.foreach_index([&](const int shape_index) {
       const IndexMask &shape = shapes[shape_index];
+      const int stroke_i = shape.first();
 
       /* The material index is allowed to be negative as it's stored as a generic attribute. We
        * clamp it here to avoid crashing in the rendering code. Any stroke with a material < 0 will
        * use the first material in the first material slot. */
-      const int material_index = std::max(stroke_materials[shape.first()], 0);
+      const int material_index = std::max(stroke_materials[stroke_i], 0);
       const MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
 
       const bool is_fill_guide_stroke = is_fill_guide[stroke_i];
