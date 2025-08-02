@@ -24,6 +24,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #ifdef WIN32
@@ -202,7 +203,7 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         /* Load Blender version directly from the file. */
         short version = BLO_version_from_file(full_path);
         if (version != 0) {
-          SNPRINTF(version_str, "%d.%01d", version / 100, version % 100);
+          SNPRINTF_UTF8(version_str, "%d.%01d", version / 100, version % 100);
         }
       }
 
@@ -701,7 +702,7 @@ static void file_draw_preview(const FileDirEntry *file,
                                 float(ymin),
                                 imb->x,
                                 imb->y,
-                                GPU_RGBA8,
+                                blender::gpu::TextureFormat::UNORM_8_8_8_8,
                                 true,
                                 imb->byte_buffer.data,
                                 scale,
@@ -1153,9 +1154,9 @@ static const char *filelist_get_details_column_string(
               nullptr, file->time, compact, time, date, &is_today, &is_yesterday);
 
           if (!compact && (is_today || is_yesterday)) {
-            STRNCPY(date, is_today ? IFACE_("Today") : IFACE_("Yesterday"));
+            STRNCPY_UTF8(date, is_today ? IFACE_("Today") : IFACE_("Yesterday"));
           }
-          SNPRINTF(file->draw_data.datetime_str, compact ? "%s" : "%s %s", date, time);
+          SNPRINTF_UTF8(file->draw_data.datetime_str, compact ? "%s" : "%s %s", date, time);
         }
 
         return file->draw_data.datetime_str;
