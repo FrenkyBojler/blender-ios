@@ -3331,8 +3331,72 @@ static bool ui_textedit_insert_ascii(uiBut *but, uiHandleButtonData *data, const
 }
 #endif
 
-static void ui_textedit_move(ARegion *region,
-                             uiBut *but,
+static void ui_textbox_jump_line(ARegion *region,
+                                 uiButTextBox *textbox,
+                                 uiTextEdit &text_edit,
+                                 eStrCursorJumpDirection direction,
+                                 const bool select)
+{
+  const char *str = text_edit.edit_string;
+  const int len = strlen(str);
+  ui_but_update(textbox);
+  if (textbox->selend != textbox->selsta) {
+    textbox->selsta = textbox->selend = textbox->pos;
+  }
+  blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
+  const bool append_selection = textbox->selend == textbox->pos;
+  const char *cursor = str + textbox->pos;
+  int line_cursor = 0;
+  for (blender::StringRef line : lines) {
+    if (line.begin() > cursor) {
+      line_cursor = line_cursor - 1;
+      break;
+    }
+    line_cursor++;
+  }
+  line_cursor = std::clamp<int>(line_cursor, 0, lines.size() - 1);
+
+  int pos_i = BLI_str_utf8_offset_from_column(lines[line_cursor].begin(),
+                                              lines[line_cursor].size(),
+                                              textbox->pos - (lines[line_cursor].begin() - str));
+  blender::StringRef dest_line = nullptr;
+  if (direction == STRCUR_DIR_NEXT) {
+    if (line_cursor == lines.size() - 1) {
+      textbox->pos = len;
+    }
+    else {
+      dest_line = lines[line_cursor + 1];
+    }
+  }
+  else {
+    if (line_cursor == 0) {
+      textbox->pos = 0;
+    }
+    else {
+      dest_line = lines[line_cursor - 1];
+    }
+  }
+  if (dest_line.data()) {
+    textbox->pos = dest_line.begin() - str +
+                   BLI_str_utf8_offset_from_index(dest_line.data(), dest_line.size(), pos_i);
+  }
+  if (!select) {
+    textbox->selsta = textbox->selend = textbox->pos;
+    return;
+  }
+
+  if (append_selection && select) {
+    textbox->selend = textbox->pos;
+  }
+  else {
+    textbox->selsta = textbox->pos;
+  }
+  if (textbox->selend < textbox->selsta) {
+    std::swap(textbox->selend, textbox->selsta);
+  }
+}
+
+static void ui_textedit_move(uiBut *but,
                              uiTextEdit &text_edit,
                              eStrCursorJumpDirection direction,
                              const bool select,
@@ -3344,65 +3408,6 @@ static void ui_textedit_move(ARegion *region,
   const bool has_sel = (but->selend - but->selsta) > 0;
 
   ui_but_update(but);
-  if (jump == STRCUR_JUMP_LINE) {
-    if (!has_sel) {
-      but->selsta = but->selend = but->pos;
-    }
-    blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
-        region, static_cast<uiButTextBox *>(but));
-    const bool append_selection = but->selend == but->pos;
-    const char *cursor = str + but->pos;
-    int line_cursor = 0;
-    for (blender::StringRef line : lines) {
-      if (line.begin() > cursor) {
-        line_cursor = line_cursor - 1;
-        break;
-      }
-      line_cursor++;
-    }
-    line_cursor = std::clamp<int>(line_cursor, 0, lines.size() - 1);
-
-    int pos_i = BLI_str_utf8_offset_from_column(lines[line_cursor].begin(),
-                                                lines[line_cursor].size(),
-                                                but->pos - (lines[line_cursor].begin() - str));
-    blender::StringRef dest_line = nullptr;
-    if (direction == STRCUR_DIR_NEXT) {
-      if (line_cursor == lines.size() - 1) {
-        but->pos = len;
-      }
-      else {
-        dest_line = lines[line_cursor + 1];
-      }
-    }
-    else {
-      if (line_cursor == 0) {
-        but->pos = 0;
-      }
-      else {
-        dest_line = lines[line_cursor - 1];
-      }
-    }
-    if (dest_line.data()) {
-      but->pos = dest_line.begin() - str +
-                 BLI_str_utf8_offset_from_index(dest_line.data(), dest_line.size(), pos_i);
-    }
-    if (!select) {
-      but->selsta = but->selend = but->pos;
-      return;
-    }
-
-    if (append_selection && select) {
-      but->selend = but->pos;
-    }
-    else {
-      but->selsta = but->pos;
-    }
-    if (but->selend < but->selsta) {
-      std::swap(but->selend, but->selsta);
-    }
-
-    return;
-  }
   /* special case, quit selection and set cursor */
   if (has_sel && !select) {
     if (jump == STRCUR_JUMP_ALL) {
@@ -4099,9 +4104,15 @@ static int ui_do_but_textedit(
         const eStrCursorJumpDirection direction = (event->type == EVT_RIGHTARROWKEY) ?
                                                       STRCUR_DIR_NEXT :
                                                       STRCUR_DIR_PREV;
-        const eStrCursorJumpType jump = ui_textedit_jump_type_from_event(event);
-        ui_textedit_move(
-            data->region, but, text_edit, direction, event->modifier & KM_SHIFT, jump);
+        if (textbox_but) {
+          ui_textbox_jump_line(
+              data->region, textbox_but, text_edit, direction, event->modifier & KM_SHIFT);
+        }
+        else {
+          const eStrCursorJumpType jump = ui_textedit_jump_type_from_event(event);
+          ui_textedit_move(but, text_edit, direction, event->modifier & KM_SHIFT, jump);
+        }
+
         retval = WM_UI_HANDLER_BREAK;
         break;
       }
@@ -4114,30 +4125,21 @@ static int ui_do_but_textedit(
           ui_searchbox_event(C, data->searchbox, but, data->region, event);
           break;
         }
-        if (textbox_but) {
-          if (event->type == WHEELDOWNMOUSE) {
-            ui_textbox_add_scroll(data->region, textbox_but, 1);
-          }
-          else {
-            ui_textedit_move(data->region,
-                             but,
-                             text_edit,
-                             STRCUR_DIR_NEXT,
-                             event->modifier & KM_SHIFT,
-                             STRCUR_JUMP_LINE);
-            ui_textbox_scroll_to_cursor(data->region, textbox_but);
-          }
+        if (textbox_but && event->type == WHEELDOWNMOUSE) {
+          ui_textbox_add_scroll(data->region, textbox_but, 1);
+          retval = WM_UI_HANDLER_BREAK;
+          break;
+        }
+        if (textbox_but && event->type == EVT_DOWNARROWKEY) {
+          ui_textbox_jump_line(
+              data->region, textbox_but, text_edit, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
         ATTR_FALLTHROUGH;
       case EVT_ENDKEY:
-        ui_textedit_move(data->region,
-                         but,
-                         text_edit,
-                         STRCUR_DIR_NEXT,
-                         event->modifier & KM_SHIFT,
-                         STRCUR_JUMP_ALL);
+        ui_textedit_move(
+            but, text_edit, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT, STRCUR_JUMP_ALL);
         retval = WM_UI_HANDLER_BREAK;
         break;
       case WHEELUPMOUSE:
@@ -4149,19 +4151,14 @@ static int ui_do_but_textedit(
           ui_searchbox_event(C, data->searchbox, but, data->region, event);
           break;
         }
-        if (textbox_but) {
-          if (event->type == WHEELUPMOUSE) {
-            ui_textbox_add_scroll(data->region, textbox_but, -1);
-          }
-          else {
-            ui_textedit_move(data->region,
-                             but,
-                             text_edit,
-                             STRCUR_DIR_PREV,
-                             event->modifier & KM_SHIFT,
-                             STRCUR_JUMP_LINE);
-            ui_textbox_scroll_to_cursor(data->region, textbox_but);
-          }
+        if (textbox_but && event->type == WHEELDOWNMOUSE) {
+          ui_textbox_add_scroll(data->region, textbox_but, -1);
+          retval = WM_UI_HANDLER_BREAK;
+          break;
+        }
+        if (textbox_but && event->type == EVT_UPARROWKEY) {
+          ui_textbox_jump_line(
+              data->region, textbox_but, text_edit, STRCUR_DIR_PREV, event->modifier & KM_SHIFT);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
@@ -4170,12 +4167,8 @@ static int ui_do_but_textedit(
         }
         ATTR_FALLTHROUGH;
       case EVT_HOMEKEY:
-        ui_textedit_move(data->region,
-                         but,
-                         text_edit,
-                         STRCUR_DIR_PREV,
-                         event->modifier & KM_SHIFT,
-                         STRCUR_JUMP_ALL);
+        ui_textedit_move(
+            but, text_edit, STRCUR_DIR_PREV, event->modifier & KM_SHIFT, STRCUR_JUMP_ALL);
         retval = WM_UI_HANDLER_BREAK;
         break;
       case EVT_PADENTER:
@@ -4211,8 +4204,8 @@ static int ui_do_but_textedit(
         if (event->modifier == KM_CTRL)
 #endif
         {
-          ui_textedit_move(data->region, but, text_edit, STRCUR_DIR_PREV, false, STRCUR_JUMP_ALL);
-          ui_textedit_move(data->region, but, text_edit, STRCUR_DIR_NEXT, true, STRCUR_JUMP_ALL);
+          ui_textedit_move(but, text_edit, STRCUR_DIR_PREV, false, STRCUR_JUMP_ALL);
+          ui_textedit_move(but, text_edit, STRCUR_DIR_NEXT, true, STRCUR_JUMP_ALL);
           retval = WM_UI_HANDLER_BREAK;
         }
         break;

@@ -2114,7 +2114,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       }
     }
 
-    /* text button selection */
+    /* Text button selection */
     for (LineSelection &selection : selections) {
       if (!(scroll <= selection.line && selection.line < visible_lines + scroll)) {
         continue;
@@ -2127,12 +2127,13 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor4ubv(wcol->item);
       blender::StringRef line = lines[selection.line];
-      const auto boxes = BLF_str_selection_boxes(fstyle->uifont_id,
-                                                 line.begin(),
-                                                 line.size(),
-                                                 std::max<int>(0, selection.start - line.begin()),
-                                                 selection.end - selection.start);
-      for (auto bounds : boxes) {
+      const blender::Vector<blender::Bounds<int>> boxes = BLF_str_selection_boxes(
+          fstyle->uifont_id,
+          line.begin(),
+          line.size(),
+          std::max<int>(0, selection.start - line.begin()),
+          selection.end - selection.start);
+      for (const blender::Bounds<int> &bounds : boxes) {
         int y = rect->ymax - (line_height * (selection.line - scroll));
         immRectf(pos,
                  rect->xmin + bounds.min,
@@ -2165,8 +2166,6 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
     /* Draw text cursor (caret). */
     if (but->pos >= but->ofs && IN_RANGE((line_cursor - scroll), -1, visible_lines)) {
-      if (but->type == ButType::TextBox) {
-      }
       int t = BLF_str_offset_to_cursor(fstyle->uifont_id,
                                        lines[line_cursor].begin(),
                                        UI_MAX_DRAW_STR,
@@ -2779,7 +2778,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   /* extra icons, e.g. 'x' icon to clear text or icon for eyedropper */
   widget_draw_extra_icons(wcol, but, rect, alpha);
 
-  /** Textbox wraps content in lines, skip clipping text.  */
+  /* Textbox wraps content in lines, skip clipping text.  */
   if (but->type == ButType::TextBox) {
   }
   else if (but->editstr && but->pos >= 0) {
