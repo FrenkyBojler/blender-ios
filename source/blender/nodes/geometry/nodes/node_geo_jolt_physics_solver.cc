@@ -1032,6 +1032,14 @@ static void ensure_initialize_jolt()
   static JoltStartupAndExit jolt_startup_and_exit;
 }
 
+static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
+                                                       const bNode &node,
+                                                       const bNodeSocket &output_socket)
+{
+  /* Internal links should always map corresponding input and output sockets. */
+  return node.input_by_identifier(output_socket.identifier);
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr old_state_bundle_ptr = params.extract_input<BundlePtr>("State");
@@ -1143,6 +1151,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.internally_linked_input = node_internally_linked_input;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
