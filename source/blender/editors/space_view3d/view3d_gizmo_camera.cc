@@ -138,14 +138,17 @@ static void gizmo_orthoscale_prop_matrix_get(const wmGizmo * /*gz*/,
   BLI_assert(gz_prop->type->array_length == 16);
   float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
 
-  const Object *ob = static_cast<const Object *>(gz_prop->custom_func.user_data);
+  const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+
+  const Object *ob = static_cast<const Object *>(BKE_view_layer_active_object_get(view_layer));
   Camera *camera = static_cast<Camera *>(ob->data);
 
-  float zscale_or_one = ob->scale[2] == 0.0f ? 1.0f : fabsf(ob->scale[2]);
-  const float scale = camera->ortho_scale * 2.0f / zscale_or_one / camera->drawsize;
-  printf("object -> gizmo: setting scale to %f\n", scale);
-  matrix[0][0] = scale;
-  matrix[1][1] = scale;
+  float gizmo_scale = camera->ortho_scale;
+  matrix[0][0] = gizmo_scale;
+  matrix[1][1] = gizmo_scale;
 }
 
 static void gizmo_orthoscale_prop_matrix_set(const wmGizmo * /*gz*/,
@@ -155,18 +158,22 @@ static void gizmo_orthoscale_prop_matrix_set(const wmGizmo * /*gz*/,
   const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
 
-  const Object *ob = static_cast<const Object *>(gz_prop->custom_func.user_data);
+  const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+
+  const Object *ob = static_cast<const Object *>(BKE_view_layer_active_object_get(view_layer));
   Camera *camera = static_cast<Camera *>(ob->data);
 
   PointerRNA camera_ptr = RNA_pointer_create_discrete(&camera->id, &RNA_Camera, camera);
   PropertyRNA *ortho_scale_prop = RNA_struct_find_property(&camera_ptr, "ortho_scale");
-  printf("gizmo -> object: setting ortho_scale to %f\n",
-         len_v3(matrix[0]) * 0.5f * fabsf(ob->scale[2]) * camera->drawsize);
-  RNA_property_float_set(&camera_ptr,
-                         ortho_scale_prop,
-                         len_v3(matrix[0]) * 0.5f * fabsf(ob->scale[2]) * camera->drawsize);
+
+  float ortho_scale = len_v3(matrix[0]);
+  RNA_property_float_set(&camera_ptr, ortho_scale_prop, ortho_scale);
 
   DEG_id_tag_update(&camera->id, ID_RECALC_PARAMETERS);
+  RNA_property_update_main(CTX_data_main(C), scene, &camera_ptr, ortho_scale_prop);
 }
 
 static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
@@ -289,7 +296,8 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
       params.value_get_fn = gizmo_orthoscale_prop_matrix_get;
       params.value_set_fn = gizmo_orthoscale_prop_matrix_set;
       params.range_get_fn = nullptr;
-      params.user_data = ob;
+      params.user_data = (void *)C;
+      // params.user_data = ob;
 
       WM_gizmo_target_property_def_func(widget, "matrix", &params);
       WM_gizmo_target_property_def_rna_ptr(
