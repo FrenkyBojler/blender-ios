@@ -9,11 +9,6 @@
  */
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_sys_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Init
@@ -588,7 +583,3 @@ void print_m4(const char *str, const float m[4][4]);
 #define print_m4_id(M) print_m4(STRINGIFY(M), M)
 
 /** \} */
-
-#ifdef __cplusplus
-}
-#endif

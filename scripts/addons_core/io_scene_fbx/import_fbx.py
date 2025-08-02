@@ -2009,6 +2009,7 @@ def blen_read_shapes(fbx_tmpl, fbx_data, objects, me, scene):
         if me.shape_keys is None:
             objects[0].shape_key_add(name="Basis", from_mix=False)
         kb = objects[0].shape_key_add(name=elem_name_utf8, from_mix=False)
+        kb.value = 0.0
         me.shape_keys.use_relative = True  # Should already be set as such.
 
         # Only need to set the shape key co if there are any non-zero dvcos.
@@ -2236,6 +2237,7 @@ def blen_read_light(fbx_tmpl, fbx_obj, settings):
     # TODO, cycles nodes???
     lamp.color = elem_props_get_color_rgb(fbx_props, b'Color', (1.0, 1.0, 1.0))
     lamp.energy = elem_props_get_number(fbx_props, b'Intensity', 100.0) / 100.0
+    lamp.exposure = elem_props_get_number(fbx_props, b'Exposure', 0.0)
     lamp.use_shadow = elem_props_get_bool(fbx_props, b'CastShadow', True)
     if hasattr(lamp, "cycles"):
         lamp.cycles.cast_shadow = lamp.use_shadow

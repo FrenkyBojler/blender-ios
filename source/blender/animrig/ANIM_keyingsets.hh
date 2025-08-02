@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "RNA_types.hh"
+
 struct KeyingSet;
 struct ExtensionRNA;
 /* Forward declaration for this struct which is declared a bit later. */
@@ -47,11 +49,11 @@ struct KeyingSetInfo {
 
   /* info */
   /** Identifier used for class name, which KeyingSet instances reference as "Type-info Name". */
-  char idname[64];
+  char idname[/*MAX_NAME*/ 64];
   /** identifier so that user can hook this up to a KeyingSet (used as label). */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   /** Short help/description. */
-  char description[1024]; /* #RNA_DYN_DESCR_MAX */
+  char description[/*RNA_DYN_DESCR_MAX*/ 1024];
   /** Keying settings. */
   short keyingflag;
 

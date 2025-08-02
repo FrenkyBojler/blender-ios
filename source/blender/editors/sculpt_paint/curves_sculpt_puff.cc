@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
@@ -61,7 +60,7 @@ struct PuffOperationExecutor {
   IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -98,9 +97,9 @@ struct PuffOperationExecutor {
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    brush_radius_base_re_ = BKE_brush_size_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     point_factors_ = *curves_->attributes().lookup_or_default<float>(
@@ -130,12 +129,14 @@ struct PuffOperationExecutor {
                                                  brush_pos_re_,
                                                  brush_radius_base_re_);
         remember_stroke_position(
-            *ctx_.scene,
+            *curves_sculpt_,
             math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
       }
 
-      self_->constraint_solver_.initialize(
-          *curves_, curve_selection_, curves_id_->flag & CV_SCULPT_COLLISION_ENABLED);
+      self_->constraint_solver_.initialize(*curves_,
+                                           curve_selection_,
+                                           curves_id_->flag & CV_SCULPT_COLLISION_ENABLED,
+                                           curves_id_->surface_collision_distance);
     }
 
     Array<float> curve_weights(curves_->curves_num(), 0.0f);

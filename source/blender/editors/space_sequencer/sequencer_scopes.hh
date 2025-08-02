@@ -12,9 +12,11 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_utility_mixins.hh"
 
+struct ColorManagedViewSettings;
+struct ColorManagedDisplaySettings;
 struct ImBuf;
 
-namespace blender::ed::seq {
+namespace blender::ed::vse {
 
 struct ScopeHistogram {
   /* Byte images just have bins for the 0..255 range. */
@@ -26,7 +28,9 @@ struct ScopeHistogram {
   Array<uint3> data;
   uint3 max_value;
 
-  void calc_from_ibuf(const ImBuf *ibuf);
+  void calc_from_ibuf(const ImBuf *ibuf,
+                      const ColorManagedViewSettings &view_settings,
+                      const ColorManagedDisplaySettings &display_settings);
   bool is_float_hist() const
   {
     return data.size() == BINS_FLOAT;
@@ -34,7 +38,11 @@ struct ScopeHistogram {
 };
 
 struct SeqScopes : public NonCopyable {
-  ImBuf *reference_ibuf = nullptr;
+  /* Multiplier to map YUV U,V range (+-0.436, +-0.615) to +-0.5 on both axes. */
+  static constexpr float VECSCOPE_U_SCALE = 0.5f / 0.436f;
+  static constexpr float VECSCOPE_V_SCALE = 0.5f / 0.615f;
+
+  const ImBuf *reference_ibuf = nullptr;
   ImBuf *zebra_ibuf = nullptr;
   ImBuf *waveform_ibuf = nullptr;
   ImBuf *sep_waveform_ibuf = nullptr;
@@ -52,4 +60,4 @@ ImBuf *make_sep_waveform_view_from_ibuf(const ImBuf *ibuf);
 ImBuf *make_vectorscope_view_from_ibuf(const ImBuf *ibuf);
 ImBuf *make_zebra_view_from_ibuf(const ImBuf *ibuf, float perc);
 
-}  // namespace blender::ed::seq
+}  // namespace blender::ed::vse

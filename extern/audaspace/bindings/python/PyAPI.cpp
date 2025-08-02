@@ -30,6 +30,10 @@
 #include "PyHRTF.h"
 #endif
 
+#ifdef WITH_RUBBERBAND
+#include "fx/TimeStretchPitchScale.h"
+#endif
+
 #include "respec/Specification.h"
 #include "devices/IHandle.h"
 #include "devices/I3DDevice.h"
@@ -43,7 +47,6 @@
 #include <structmember.h>
 
 using namespace aud;
-
 // ====================================================================
 
 #define PY_MODULE_ADD_CONSTANT(module, name) PyModule_AddIntConstant(module, #name, name)
@@ -167,6 +170,7 @@ PyInit_aud()
 	PY_MODULE_ADD_CONSTANT(module, CONTAINER_MP3);
 	PY_MODULE_ADD_CONSTANT(module, CONTAINER_OGG);
 	PY_MODULE_ADD_CONSTANT(module, CONTAINER_WAV);
+	PY_MODULE_ADD_CONSTANT(module, CONTAINER_AAC);
 	// distance model constants
 	PY_MODULE_ADD_CONSTANT(module, DISTANCE_MODEL_EXPONENT);
 	PY_MODULE_ADD_CONSTANT(module, DISTANCE_MODEL_EXPONENT_CLAMPED);
@@ -201,6 +205,13 @@ PyInit_aud()
 	PY_MODULE_ADD_CONSTANT(module, STATUS_PAUSED);
 	PY_MODULE_ADD_CONSTANT(module, STATUS_PLAYING);
 	PY_MODULE_ADD_CONSTANT(module, STATUS_STOPPED);
+
+#ifdef WITH_RUBBERBAND
+	// stretcher quality
+	PyModule_AddIntConstant(module, "STRETCHER_QUALITY_HIGH", static_cast<int>(StretcherQuality::HIGH));
+	PyModule_AddIntConstant(module, "STRETCHER_QUALITY_FAST", static_cast<int>(StretcherQuality::FAST));
+	PyModule_AddIntConstant(module, "STRETCHER_QUALITY_CONSISTENT", static_cast<int>(StretcherQuality::CONSISTENT));
+#endif
 
 	return module;
 }

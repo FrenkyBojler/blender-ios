@@ -8,12 +8,14 @@
 
 #  include <OSL/oslexec.h>
 
-#  include "kernel/osl/compat.h"
-#  include "kernel/types.h"
-
 #  include "util/map.h"
 #  include "util/param.h"
 #  include "util/vector.h"
+
+#  include "kernel/types.h"
+
+#  include "kernel/osl/compat.h"
+#  include "kernel/osl/types.h"
 
 #  ifndef WIN32
 using std::isfinite;
@@ -37,10 +39,12 @@ struct OSLGlobals {
     ss = nullptr;
     ts = nullptr;
     services = nullptr;
-    use = false;
+    use_shading = false;
+    use_camera = false;
   }
 
-  bool use;
+  bool use_shading;
+  bool use_camera;
 
   /* shading system */
   OSL::ShadingSystem *ss;
@@ -53,6 +57,7 @@ struct OSLGlobals {
   vector<OSL::ShaderGroupRef> displacement_state;
   vector<OSL::ShaderGroupRef> bump_state;
   OSL::ShaderGroupRef background_state;
+  OSL::ShaderGroupRef camera_state;
 
   /* attributes */
   using ObjectNameMap = unordered_map<OSLUStringHash, int>;
@@ -80,7 +85,7 @@ struct OSLThreadData {
   /* Per-thread data. */
   int thread_index = -1;
 
-  mutable OSL::ShaderGlobals shader_globals;
+  mutable ShaderGlobals shader_globals;
   mutable OSLTraceData tracedata;
 
   OSL::PerThreadInfo *osl_thread_info = nullptr;

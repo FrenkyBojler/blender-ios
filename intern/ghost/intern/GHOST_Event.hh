@@ -23,43 +23,30 @@ class GHOST_Event : public GHOST_IEvent {
    * \param window: The generating window (or nullptr if system event).
    */
   GHOST_Event(uint64_t msec, GHOST_TEventType type, GHOST_IWindow *window)
-      : m_type(type), m_time(msec), m_window(window), m_data(nullptr)
+      : m_type(type), m_time(msec), m_window(window)
   {
   }
 
-  /**
-   * Returns the event type.
-   * \return The event type.
-   */
-  GHOST_TEventType getType() const
+  /** \copydoc #GHOST_IEvent::getType */
+  GHOST_TEventType getType() const override
   {
     return m_type;
   }
 
-  /**
-   * Returns the time this event was generated.
-   * \return The event generation time.
-   */
-  uint64_t getTime() const
+  /** \copydoc #GHOST_IEvent::getTime */
+  uint64_t getTime() const override
   {
     return m_time;
   }
 
-  /**
-   * Returns the window this event was generated on,
-   * or nullptr if it is a 'system' event.
-   * \return The generating window.
-   */
-  GHOST_IWindow *getWindow() const
+  /** \copydoc #GHOST_IEvent::getWindow */
+  GHOST_IWindow *getWindow() const override
   {
     return m_window;
   }
 
-  /**
-   * Returns the event data.
-   * \return The event data.
-   */
-  GHOST_TEventDataPtr getData() const
+  /** \copydoc #GHOST_IEvent::getData */
+  GHOST_TEventDataPtr getData() const override
   {
     return m_data;
   }
@@ -72,5 +59,5 @@ class GHOST_Event : public GHOST_IEvent {
   /** Pointer to the generating window. */
   GHOST_IWindow *m_window;
   /** Pointer to the event data. */
-  GHOST_TEventDataPtr m_data;
+  GHOST_TEventDataPtr m_data = nullptr;
 };

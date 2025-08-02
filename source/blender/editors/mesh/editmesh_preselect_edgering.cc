@@ -10,9 +10,8 @@
 
 #include "DNA_userdef_types.h"
 
+#include "BLI_math_vector.h"
 #include "BLI_stack.h"
-
-#include "BKE_editmesh.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
@@ -21,6 +20,8 @@
 #include "ED_mesh.hh"
 
 #include "UI_resources.hh"
+
+#include "bmesh.hh"
 
 using blender::float3;
 using blender::Span;
@@ -162,7 +163,8 @@ void EDBM_preselect_edgering_draw(EditMesh_PreSelEdgeRing *psel, const float mat
   GPU_matrix_push();
   GPU_matrix_mul(matrix);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   if (psel->edges_len > 0) {
     float viewport[4];

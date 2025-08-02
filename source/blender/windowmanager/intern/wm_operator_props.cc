@@ -15,7 +15,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 
-#include "BLI_bounds.hh"
 #include "BLI_math_base.h"
 #include "BLI_rect.h"
 
@@ -169,9 +168,6 @@ void WM_operator_properties_filesel(wmOperatorType *ot,
       ot->srna, "filter_btx", (filter & FILE_TYPE_BTX) != 0, "Filter btx files", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
-      ot->srna, "filter_collada", (filter & FILE_TYPE_COLLADA) != 0, "Filter COLLADA files", "");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(
       ot->srna, "filter_alembic", (filter & FILE_TYPE_ALEMBIC) != 0, "Filter Alembic files", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
@@ -283,7 +279,7 @@ void WM_operator_properties_id_lookup(wmOperatorType *ot, const bool add_name_pr
                           MAX_ID_NAME - 2,
                           "Name",
                           "Name of the data-block to use by the operator");
-    RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
   }
 
   prop = RNA_def_int(ot->srna,
@@ -295,7 +291,7 @@ void WM_operator_properties_id_lookup(wmOperatorType *ot, const bool add_name_pr
                      "Session UID of the data-block to use by the operator",
                      INT32_MIN,
                      INT32_MAX);
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
 static void wm_operator_properties_select_action_ex(wmOperatorType *ot,

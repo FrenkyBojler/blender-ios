@@ -104,7 +104,7 @@ ccl_device float3 background_map_sample(KernelGlobals kg,
 }
 
 /* TODO(sergey): Same as above, after the release we should consider using
- * 'noinline' for all devices.
+ * `noinline` for all devices.
  */
 ccl_device float background_map_pdf(KernelGlobals kg, const float3 direction)
 {
@@ -477,10 +477,15 @@ ccl_device_forceinline bool background_light_tree_parameters(const float3 centro
 {
   if (in_volume_segment) {
     if (t == FLT_MAX) {
-      /* In world volume, distant light has no contribution. */
-      return false;
+      /* In world volumes, distant lights can contribute to the lighting of the volume with
+       * specific configurations of procedurally generated volumes. Use a ray length of 1.0 in this
+       * case to give the distant light some weight, but one that isn't too high for a typical
+       * world volume use case. */
+      theta_d = 1.0f;
     }
-    theta_d = t;
+    else {
+      theta_d = t;
+    }
   }
 
   /* Cover the whole sphere */
