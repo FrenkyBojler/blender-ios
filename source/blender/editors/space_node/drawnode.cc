@@ -464,7 +464,6 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
     case SH_NODE_VECTOR_DISPLACEMENT:
       ntype->draw_buttons = node_shader_buts_displacement;
       break;
-    case SH_NODE_BSDF_GLASS:
     case SH_NODE_BSDF_REFRACTION:
       ntype->draw_buttons = node_shader_buts_glossy;
       break;
@@ -1089,7 +1088,7 @@ static bool socket_needs_layer_search(const bNode &node, const bNodeSocket &sock
 
 static bool socket_needs_behavior_type_search(const bNode &node, const bNodeSocket &socket)
 {
-  if (node.type_legacy != GEO_NODE_COMBINE_BUNDLE) {
+  if (node.type_legacy != NODE_COMBINE_BUNDLE) {
     return false;
   }
   if (socket.name != nodes::Bundle::type_item_name) {

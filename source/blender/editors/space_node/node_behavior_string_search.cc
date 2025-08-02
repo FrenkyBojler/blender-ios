@@ -104,14 +104,14 @@ static void behavior_type_string_search_exec(bContext *C, void *data_v, void * /
   if (!node) {
     return;
   }
-  if (!node->is_type("GeometryNodeCombineBundle")) {
+  if (!node->is_type("NodeCombineBundle")) {
     return;
   }
-  const auto &storage = *static_cast<NodeGeometryCombineBundle *>(node->storage);
+  const auto &storage = *static_cast<NodeCombineBundle *>(node->storage);
   if (storage.items_num != 1) {
     return;
   }
-  const NodeGeometryCombineBundleItem &item = storage.items[0];
+  const NodeCombineBundleItem &item = storage.items[0];
   if (item.socket_type != SOCK_STRING) {
     return;
   }
