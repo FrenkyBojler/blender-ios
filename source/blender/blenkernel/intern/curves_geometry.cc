@@ -715,6 +715,13 @@ OffsetIndices<int> CurvesGeometry::evaluated_points_by_curve() const
   return OffsetIndices<int>(runtime.evaluated_offsets_cache.data().evaluated_offsets);
 }
 
+Array<int> CurvesGeometry::evaluated_point_to_curve_map() const
+{
+  Array<int> map(this->evaluated_points_num());
+  offset_indices::build_reverse_map(this->evaluated_points_by_curve(), map);
+  return map;
+}
+
 IndexMask CurvesGeometry::indices_for_curve_type(const CurveType type,
                                                  IndexMaskMemory &memory) const
 {

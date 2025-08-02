@@ -1185,7 +1185,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
     const bke::AttributeAccessor attributes = curves.attributes();
     const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
-    const Array<int> point_to_curve_map = curves.point_to_curve_map();
+    const Array<int> point_to_curve_map = curves.evaluated_point_to_curve_map();
     const Span<float3> positions = curves.evaluated_positions();
     const VArray<bool> cyclic = curves.cyclic();
 
