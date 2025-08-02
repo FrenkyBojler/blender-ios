@@ -2,18 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+#include <variant>
+
 #include "BKE_compute_context_cache.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_type_conversions.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
+
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_in_compute_context.hh"
 #include "NOD_shader_nodes_inline.hh"
-#include <variant>
 
 namespace blender::nodes {
 namespace {
@@ -160,6 +164,8 @@ class ShaderNodesInliner {
   Stack<SocketInContext> scheduled_sockets_stack_;
   bool use_refcounting_ = false;
   const bke::DataTypeConversions &data_type_conversions_;
+  /** This is used to generate unique names and ids. */
+  int dst_node_counter_ = 0;
 
  public:
   ShaderNodesInliner(const bNodeTree &src_tree,
@@ -757,8 +763,16 @@ class ShaderNodesInliner {
   void handle_output_socket__eval_copy_node(const NodeInContext &node)
   {
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
+    const int identifier = ++dst_node_counter_;
+    const std::string unique_name = fmt::format("{}_{}", identifier, node.node->name);
     bNode &copied_node = *bke::node_copy_with_mapping(
-        &dst_tree_, *node.node, this->node_copy_flag(), std::nullopt, std::nullopt, socket_map);
+        &dst_tree_,
+        *node.node,
+        this->node_copy_flag(),
+        unique_name.size() < sizeof(bNode::name) ? std::make_optional<StringRefNull>(unique_name) :
+                                                   std::nullopt,
+        identifier,
+        socket_map);
     copied_node.parent = nullptr;
     for (const bNodeSocket *src_input_socket : node->input_sockets()) {
       if (!src_input_socket->is_available()) {
