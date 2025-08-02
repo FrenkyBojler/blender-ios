@@ -56,6 +56,8 @@ set(WITH_TBB                 ON  CACHE BOOL "" FORCE)
 set(WITH_USD                 ON  CACHE BOOL "" FORCE)
 set(WITH_MATERIALX           ON  CACHE BOOL "" FORCE)
 set(WITH_HYDRA               ON  CACHE BOOL "" FORCE)
+set(WITH_FRIBIDI             ON  CACHE BOOL "" FORCE)
+set(WITH_HARFBUZZ            ON  CACHE BOOL "" FORCE)
 
 set(WITH_MEM_JEMALLOC        ON  CACHE BOOL "" FORCE)
 
