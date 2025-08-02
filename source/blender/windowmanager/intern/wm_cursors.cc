@@ -164,9 +164,9 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
 static int wm_cursor_size(const wmWindow *win)
 {
   /* Keep for testing. */
-  if (false) {
+  if (U.tablet_mode) {
     /* Scaling with UI scale can be useful for magnified captures. */
-    return std::lround(21.0f * UI_SCALE_FAC);
+    return std::lround(25.0f * UI_SCALE_FAC);
   }
 
   if (OS_MAC) {
@@ -430,7 +430,8 @@ void WM_cursor_set(wmWindow *win, int curs)
 
   GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(WMCursorType(curs));
 
-  if (!use_only_custom_cursors && ghost_cursor != GHOST_kStandardCursorCustom &&
+  if (!use_only_custom_cursors &&
+      !ELEM(ghost_cursor, GHOST_kStandardCursorCustom, GHOST_kStandardCursorDefault) &&
       GHOST_HasCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor))
   {
     /* Use native GHOST cursor when available. */
@@ -975,7 +976,7 @@ static void wm_add_cursor(WMCursorType cursor,
 void wm_init_cursor_data()
 {
 #ifndef WITH_HEADLESS
-  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
+  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_touch_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
   wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
   wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f});

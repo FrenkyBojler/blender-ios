@@ -961,6 +961,7 @@ if(WITH_BLENDER)
       cursor_stop
       cursor_swap_area
       cursor_text_edit
+      cursor_touch
       cursor_v_split
       cursor_vertex_loop
       cursor_wait
