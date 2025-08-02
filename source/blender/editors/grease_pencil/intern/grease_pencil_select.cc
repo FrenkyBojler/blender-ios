@@ -847,7 +847,7 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
-static int select_shape_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_shape_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
@@ -878,7 +878,7 @@ static int select_shape_exec(bContext *C, wmOperator * /*op*/)
 
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-        curves, selection_domain, CD_PROP_BOOL);
+        curves, selection_domain, bke::AttrType::Bool);
 
     VectorSet<int> selected_shapes_ids;
     selected_strokes.foreach_index_optimized<int64_t>(
