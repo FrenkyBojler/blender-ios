@@ -70,9 +70,9 @@ set(INC_SYS
 set(SRC
   intern/bundle_type.cc
   intern/derived_node_tree.cc
-  intern/geometry_nodes_behaviors.cc
   intern/geometry_nodes_behaviors_common.cc
   intern/geometry_nodes_bundle.cc
+  intern/geometry_nodes_bundle_parse.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
   intern/geometry_nodes_closure_zone.cc

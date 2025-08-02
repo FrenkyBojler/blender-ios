@@ -5,13 +5,9 @@
 #pragma once
 
 #include "BLI_function_ref.hh"
-#include "BLI_set.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_vector_set.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
-#include "NOD_geometry_nodes_bundle_signature.hh"
-#include "NOD_node_declaration.hh"
 
 namespace blender::nodes {
 
@@ -32,12 +28,6 @@ class BehaviorCommon {
 };
 
 namespace behaviors {
-
-void foreach_behavior_in_bundle(
-    const Bundle &behaviors_bundle,
-    FunctionRef<void(StringRef type, const Bundle &behavior_bundle, Span<StringRef> path)> fn);
-
-bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef other);
 
 template<typename T>
 inline void parse_member(const Bundle &bundle,

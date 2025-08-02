@@ -13,6 +13,7 @@
 #include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_behaviors_common.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_bundle_parse.hh"
 
 #include "node_geometry_util.hh"
 
@@ -403,40 +404,37 @@ struct JoltBehaviors {
 static JoltBehaviors parse_behaviors(const Bundle &behaviors_bundle)
 {
   JoltBehaviors behaviors;
-  behaviors::foreach_behavior_in_bundle(
-      behaviors_bundle,
-      [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
-        BehaviorParseErrors errors;
-        if (type == ForceBehavior::name) {
-          if (std::optional<ForceBehavior> force = ForceBehavior::parse(behavior_bundle, errors)) {
-            behaviors.forces.append(std::move(*force));
-            behaviors.forces.last().self_path = Bundle::combine_path(path);
-          }
-        }
-        if (type == GravityBehavior::name) {
-          if (std::optional<GravityBehavior> gravity = GravityBehavior::parse(behavior_bundle,
-                                                                              errors)) {
-            behaviors.gravities.append(std::move(*gravity));
-            behaviors.gravities.last().self_path = Bundle::combine_path(path);
-          }
-        }
-        else if (type == RigidBodyInstancesBehavior::name) {
-          if (std::optional<RigidBodyInstancesBehavior> rigid_body =
-                  RigidBodyInstancesBehavior::parse(behavior_bundle, errors))
-          {
-            behaviors.rigid_bodies.append(std::move(*rigid_body));
-            behaviors.rigid_bodies.last().self_path = Bundle::combine_path(path);
-          }
-        }
-        else if (type == SoftBodyMeshBehavior::name) {
-          if (std::optional<SoftBodyMeshBehavior> soft_body = SoftBodyMeshBehavior::parse(
-                  behavior_bundle, errors))
-          {
-            behaviors.soft_bodies.append(std::move(*soft_body));
-            behaviors.soft_bodies.last().self_path = Bundle::combine_path(path);
-          }
-        }
-      });
+  nested_bundle_foreach(behaviors_bundle, [&](HandleNestedBundleParams &params) {
+    BehaviorParseErrors errors;
+    if (params.type == ForceBehavior::name) {
+      if (std::optional<ForceBehavior> force = ForceBehavior::parse(params.bundle, errors)) {
+        behaviors.forces.append(std::move(*force));
+        behaviors.forces.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+    if (params.type == GravityBehavior::name) {
+      if (std::optional<GravityBehavior> gravity = GravityBehavior::parse(params.bundle, errors)) {
+        behaviors.gravities.append(std::move(*gravity));
+        behaviors.gravities.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+    else if (params.type == RigidBodyInstancesBehavior::name) {
+      if (std::optional<RigidBodyInstancesBehavior> rigid_body = RigidBodyInstancesBehavior::parse(
+              params.bundle, errors))
+      {
+        behaviors.rigid_bodies.append(std::move(*rigid_body));
+        behaviors.rigid_bodies.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+    else if (params.type == SoftBodyMeshBehavior::name) {
+      if (std::optional<SoftBodyMeshBehavior> soft_body = SoftBodyMeshBehavior::parse(
+              params.bundle, errors))
+      {
+        behaviors.soft_bodies.append(std::move(*soft_body));
+        behaviors.soft_bodies.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+  });
   return behaviors;
 }
 
@@ -788,7 +786,7 @@ static Vector<const ForceBehavior *> get_forces_for_body(const JoltBehaviors &st
 {
   Vector<const ForceBehavior *> used_forces;
   for (const ForceBehavior &force_behavior : state.forces) {
-    if (behaviors::behavior_path_is_selected(
+    if (nested_bundle_path_is_selected(
             force_behavior.self_path, force_behavior.filter, effected_path))
     {
       used_forces.append(&force_behavior);

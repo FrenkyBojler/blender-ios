@@ -15,6 +15,7 @@
 
 #include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_bundle_parse.hh"
 
 namespace blender::nodes::node_geo_xpbd_solver_cc {
 
@@ -272,14 +273,12 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
   }
   geometry::xpbd::Behaviors behaviors;
   static const Map<std::string, BehaviorParserFn> behavior_parsers = build_behavior_parsers();
-  behaviors::foreach_behavior_in_bundle(
-      *behaviors_bundle,
-      [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path_stack) {
-        ParseBehaviorParams params{path_stack, behavior_bundle, scope, behaviors};
-        if (const auto *parser = behavior_parsers.lookup_ptr(type)) {
-          (*parser)(params);
-        }
-      });
+  nested_bundle_foreach(*behaviors_bundle, [&](HandleNestedBundleParams &params) {
+    ParseBehaviorParams my_params{params.path, params.bundle, scope, behaviors};
+    if (const auto *parser = behavior_parsers.lookup_ptr(params.type)) {
+      (*parser)(my_params);
+    }
+  });
   return behaviors;
 }
 

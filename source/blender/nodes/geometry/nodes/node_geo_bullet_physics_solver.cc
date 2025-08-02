@@ -22,6 +22,7 @@
 #include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_behaviors_common.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_bundle_parse.hh"
 
 #include "BLI_bounds.hh"
 
@@ -733,14 +734,12 @@ static void update_state_from_behaviors(BulletState &state,
   }
   state.constraints.clear();
 
-  behaviors::foreach_behavior_in_bundle(
-      behavior_bundle,
-      [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path) {
-        ParseBehaviorParams params{path, behavior_bundle, state, r_behaviors, delta_time};
-        if (const auto *behavior_parse = build_behavior_parsers().lookup_ptr(type)) {
-          (*behavior_parse)(params);
-        }
-      });
+  nested_bundle_foreach(behavior_bundle, [&](HandleNestedBundleParams &params) {
+    ParseBehaviorParams my_params{params.path, params.bundle, state, r_behaviors, delta_time};
+    if (const auto *behavior_parse = build_behavior_parsers().lookup_ptr(params.type)) {
+      (*behavior_parse)(my_params);
+    }
+  });
 
   state.dynamics_world->setGravity(r_behaviors.gravity);
 
@@ -822,7 +821,7 @@ static void apply_forces(BulletState &state, const Behaviors &behaviors)
 
     Vector<const Force *> filtered_forces;
     for (const Force &force : behaviors.forces) {
-      if (behaviors::behavior_path_is_selected(force.self_path, force.filter, instances_path)) {
+      if (nested_bundle_path_is_selected(force.self_path, force.filter, instances_path)) {
         filtered_forces.append(&force);
       }
     }

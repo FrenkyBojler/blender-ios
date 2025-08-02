@@ -9,12 +9,12 @@
 #include "DNA_pointcloud_types.h"
 #include "GEO_xpbd.hh"
 
-#include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_bundle_parse.hh"
 
 namespace blender::geometry::xpbd {
 
-using nodes::behaviors::behavior_path_is_selected;
+using nodes::nested_bundle_path_is_selected;
 
 constexpr StringRefNull prev_position_name = ".prev_position";
 constexpr StringRefNull prev_rotation_name = ".prev_rotation";
@@ -328,7 +328,7 @@ class EdgeLengthConstraintSet : public ConstraintSet {
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -365,7 +365,7 @@ class EdgeLengthConstraintSet : public ConstraintSet {
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -426,7 +426,7 @@ class CurveConstraintSet : public ConstraintSet {
   void ensure_rest_length(MutableSpan<SimGeometry> sim_geometries) const
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
@@ -498,7 +498,7 @@ class CurveLengthConstraintSet : public CurveConstraintSet {
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       const Curves *const *curves_id = std::get_if<Curves *>(&sim_geometry.data);
@@ -576,7 +576,7 @@ class CosseratRodConstraintSet : public CurveConstraintSet {
   void ensure_rotation(MutableSpan<SimGeometry> sim_geometries) const
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
@@ -629,7 +629,7 @@ class CosseratRodConstraintSet : public CurveConstraintSet {
   void ensure_moment_of_inertia(MutableSpan<SimGeometry> sim_geometries) const
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
@@ -717,7 +717,7 @@ class RodLengthConstraintSet : public CosseratRodConstraintSet {
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       const Curves *const *curves_id = std::get_if<Curves *>(&sim_geometry.data);
@@ -816,7 +816,7 @@ class RodBendingConstraintSet : public CosseratRodConstraintSet {
   void ensure_rest_shape(MutableSpan<SimGeometry> sim_geometries) const
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
@@ -880,7 +880,7 @@ class RodBendingConstraintSet : public CosseratRodConstraintSet {
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       const Curves *const *curves_id = std::get_if<Curves *>(&sim_geometry.data);
@@ -1014,7 +1014,7 @@ class FixedPositionsConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       std::optional<bke::GeometryFieldContext> field_context;
@@ -1110,7 +1110,7 @@ class FixedRotationsConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       std::optional<bke::GeometryFieldContext> field_context;
@@ -1156,7 +1156,7 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       std::optional<bke::AttributeAccessor> attributes = sim_geometry.attributes();
@@ -1182,7 +1182,7 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       SimGeometry &sim_geometry = sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       std::optional<bke::MutableAttributeAccessor> attributes =
@@ -1229,7 +1229,7 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -1249,7 +1249,7 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
   {
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
-      if (!behavior_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
         continue;
       }
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -1442,14 +1442,15 @@ static void dynamics_time_step(const Behaviors &behaviors,
 
     Vector<const ForceField *> filtered_force_fields;
     for (const ForceField &sim_force : behaviors.force_fields) {
-      if (behavior_path_is_selected(sim_force.self_path, sim_force.filter, sim_geometry.src.path))
+      if (nested_bundle_path_is_selected(
+              sim_force.self_path, sim_force.filter, sim_geometry.src.path))
       {
         filtered_force_fields.append(&sim_force);
       }
     }
     Vector<const AccelerationField *> filtered_acceleration_fields;
     for (const AccelerationField &sim_acceleration : behaviors.acceleration_fields) {
-      if (behavior_path_is_selected(
+      if (nested_bundle_path_is_selected(
               sim_acceleration.self_path, sim_acceleration.filter, sim_geometry.src.path))
       {
         filtered_acceleration_fields.append(&sim_acceleration);
@@ -1494,7 +1495,8 @@ static void dynamics_time_step(const Behaviors &behaviors,
     });
     /* Apply velocity damping before position integration. */
     for (const Damping &damping : behaviors.dampings) {
-      if (behavior_path_is_selected(damping.self_path, damping.filter, sim_geometry.src.path)) {
+      if (nested_bundle_path_is_selected(damping.self_path, damping.filter, sim_geometry.src.path))
+      {
         const float damping_factor = 1.0f - damping.linear_damping * delta_time;
         if (damping_factor <= 0.0f) {
           continue;
@@ -1545,7 +1547,9 @@ static void dynamics_time_step(const Behaviors &behaviors,
           });
       /* Apply angular velocity damping before rotation integration. */
       for (const Damping &damping : behaviors.dampings) {
-        if (behavior_path_is_selected(damping.self_path, damping.filter, sim_geometry.src.path)) {
+        if (nested_bundle_path_is_selected(
+                damping.self_path, damping.filter, sim_geometry.src.path))
+        {
           const float damping_factor = 1.0f - damping.angular_damping * delta_time;
           if (damping_factor <= 0.0f) {
             continue;

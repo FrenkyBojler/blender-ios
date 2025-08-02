@@ -2,29 +2,29 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_geometry_nodes_behaviors.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_bundle_parse.hh"
 
 #include "BKE_node_socket_value.hh"
 
-namespace blender::nodes::behaviors {
+namespace blender::nodes {
 
-static void foreach_behavior_recursive(
-    const Bundle &behaviors_bundle,
+static void nested_bundle_foreach_recursive(
+    const Bundle &nested_bundle,
     Vector<StringRef> &path_stack,
-    const FunctionRef<void(StringRef type, const Bundle &behavior_bundle, Span<StringRef> path)>
-        fn)
+    const FunctionRef<void(HandleNestedBundleParams &params)> fn)
 {
-  if (const std::optional<std::string> type = behaviors_bundle.lookup<std::string>(
+  if (const std::optional<std::string> type = nested_bundle.lookup<std::string>(
           Bundle::type_item_name))
   {
     if (type->empty()) {
       return;
     }
-    fn(*type, behaviors_bundle, path_stack);
+    HandleNestedBundleParams params{*type, nested_bundle, path_stack};
+    fn(params);
     return;
   }
-  for (const Bundle::StoredItem &item : behaviors_bundle.items()) {
+  for (const Bundle::StoredItem &item : nested_bundle.items()) {
     const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
         &item.value.value);
     if (!socket_value) {
@@ -39,21 +39,19 @@ static void foreach_behavior_recursive(
       continue;
     }
     path_stack.append(item.key);
-    foreach_behavior_recursive(*child_bundle, path_stack, fn);
+    nested_bundle_foreach_recursive(*child_bundle, path_stack, fn);
     path_stack.pop_last();
   }
 }
 
-void foreach_behavior_in_bundle(
-    const Bundle &behaviors_bundle,
-    const FunctionRef<void(StringRef type, const Bundle &behavior_bundle, Span<StringRef> path)>
-        fn)
+void nested_bundle_foreach(const Bundle &nested_bundle,
+                           const FunctionRef<void(HandleNestedBundleParams &params)> fn)
 {
   Vector<StringRef> path_stack;
-  foreach_behavior_recursive(behaviors_bundle, path_stack, fn);
+  nested_bundle_foreach_recursive(nested_bundle, path_stack, fn);
 }
 
-bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef other)
+bool nested_bundle_path_is_selected(StringRef self_path, StringRef filter, StringRef other)
 {
   if (filter.is_empty()) {
     return true;
@@ -81,4 +79,4 @@ bool behavior_path_is_selected(StringRef self_path, StringRef filter, StringRef 
          StringRef(absolute_filter).endswith("/") || remaining_other.startswith("/");
 }
 
-}  // namespace blender::nodes::behaviors
+}  // namespace blender::nodes
