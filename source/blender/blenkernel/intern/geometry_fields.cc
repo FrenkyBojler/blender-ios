@@ -844,7 +844,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
 
   if (mask_is_empty) {
     make_all_new_attributes();
-    return;
+    return true;
   }
 
   fn::FieldEvaluator evaluator{field_context, domain_size};
@@ -916,7 +916,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
 
   if (mask.is_empty()) {
     make_all_new_attributes();
-    return;
+    return true;
   }
 
   IndexMaskMemory memory;
