@@ -1180,8 +1180,14 @@ void BKE_nurb_knot_calc_v(Nurb *nu)
   makeknots(nu, 2);
 }
 
-static void basisNurb(
-    float t, short order, int pnts, const float *knots, float *basis, int *start, int *end)
+static void basisNurb(float t,
+                      short order,
+                      int pnts,
+                      const float *knots,
+                      float *basis,
+                      int *start,
+                      int *end,
+                      int *hint_span)
 {
   float d, e;
   int i, i1 = 0, i2 = 0, j, orderpluspnts, opp2, o2;
@@ -1199,20 +1205,19 @@ static void basisNurb(
 
   /* this part is order '1' */
   o2 = order + 1;
-  for (i = 0; i < opp2; i++) {
+  for (i = std::max(*hint_span - o2, 0); i < *hint_span; i++) {
+    basis[i] = 0.0;
+  }
+  for (i = *hint_span; i < opp2; i++) {
     if (knots[i] != knots[i + 1] && t >= knots[i] && t <= knots[i + 1]) {
       basis[i] = 1.0;
       i1 = i - o2;
       i1 = std::max(i1, 0);
       i2 = i;
+      *hint_span = i;
       i++;
-      while (i < opp2) {
-        basis[i] = 0.0;
-        i++;
-      }
       break;
     }
-
     basis[i] = 0.0;
   }
   basis[i] = 0.0;
@@ -1262,7 +1267,7 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
   float *basisu, *basis, *basisv, *sum, *fp, *in;
   float u, v, ustart, uend, ustep, vstart, vend, vstep, sumdiv;
   int i, j, iofs, jofs, cycl, len, curu, curv;
-  int istart, iend, jsta, jen, *jstart, *jend, ratcomp;
+  int istart, iend, jsta, jen, *jstart, *jend, ratcomp, span_hint;
 
   int totu = nu->pntsu * resolu, totv = nu->pntsv * resolv;
 
@@ -1336,8 +1341,16 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
   v = vstart;
   basis = basisv;
   curv = totv;
+  span_hint = 0;
   while (curv--) {
-    basisNurb(v, nu->orderv, nu->pntsv + cycl, nu->knotsv, basis, jstart + curv, jend + curv);
+    basisNurb(v,
+              nu->orderv,
+              nu->pntsv + cycl,
+              nu->knotsv,
+              basis,
+              jstart + curv,
+              jend + curv,
+              &span_hint);
     basis += KNOTSV(nu);
     v += vstep;
   }
@@ -1351,8 +1364,9 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
   in = coord_array;
   u = ustart;
   curu = totu;
+  span_hint = 0;
   while (curu--) {
-    basisNurb(u, nu->orderu, nu->pntsu + cycl, nu->knotsu, basisu, &istart, &iend);
+    basisNurb(u, nu->orderu, nu->pntsu + cycl, nu->knotsu, basisu, &istart, &iend, &span_hint);
 
     basis = basisv;
     curv = totv;
@@ -1462,7 +1476,7 @@ void BKE_nurb_makeCurve(const Nurb *nu,
   float *basisu, *sum, *fp;
   float *coord_fp = coord_array, *tilt_fp = tilt_array, *radius_fp = radius_array,
         *weight_fp = weight_array;
-  int i, len, istart, iend, cycl;
+  int i, len, istart, iend, cycl, span_hint;
 
   if (nu->knotsu == nullptr) {
     return;
@@ -1508,8 +1522,9 @@ void BKE_nurb_makeCurve(const Nurb *nu,
   }
 
   u = ustart;
+  span_hint = 0;
   while (resolu--) {
-    basisNurb(u, nu->orderu, nu->pntsu + cycl, nu->knotsu, basisu, &istart, &iend);
+    basisNurb(u, nu->orderu, nu->pntsu + cycl, nu->knotsu, basisu, &istart, &iend, &span_hint);
 
     /* calc sum */
     sumdiv = 0.0;
