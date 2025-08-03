@@ -1057,6 +1057,8 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
 
     const GAttributeReader dst = attributes.lookup(id);
+    /* It is expected that attribute value validation will not affect type so we can just keep
+     * field type as type of evaluated evaluated values.*/
     const bool match_metadata = dst.domain == domain && dst.varray.type() == type;
 
     if (not_rewrite_but_replace || !match_metadata) {
