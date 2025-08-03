@@ -1884,6 +1884,8 @@ void BM_lnorspace_rebuild(BMesh *bm, bool preserve_clnor)
  */
 static void bm_lnorspace_ensure_from_free_normals(BMesh *bm)
 {
+  /* Zero values tell the normals calculation code to use the automatic normals (rather than any
+   * custom normal vector). */
   Array<float3> lnors(bm->totloop, float3(0));
   const int vert_free_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT3, "custom_normal");
