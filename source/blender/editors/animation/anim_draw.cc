@@ -582,7 +582,7 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
       if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_ROTATION) {
         /* if the radians flag is not set, default to using degrees which need conversions */
         if ((scene) && (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) == 0) {
-          if (flag & ANIM_UNITCONV_RESTORE) {            
+          if (flag & ANIM_UNITCONV_RESTORE) {
             return DEG2RADF(1.0f); /* degrees to radians */
           }
           return RAD2DEGF(1.0f); /* radians to degrees */
@@ -591,19 +591,18 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
 
       /* TODO: other rotation types here as necessary */
 
-
       /* Unit conversion for metric length units */
-      if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop))==PROP_UNIT_LENGTH){
+      if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_LENGTH) {
         if (scene) {
-          const void* usys;
+          const void *usys;
           int len;
           BKE_unit_system_get(scene->unit.system, B_UNIT_LENGTH, &usys, &len);
           if (usys)
-            return 1/float(BKE_unit_scalar_get(usys,(int)scene->unit.length_unit));
+            return 1 / float(BKE_unit_scalar_get(usys, (int)scene->unit.length_unit));
         }
       }
       /* Unit conversion for metric mass units */
-      if(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop))==PROP_UNIT_MASS){
+      if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_MASS) {
         if (scene) {
           const void *usys;
           int len;
