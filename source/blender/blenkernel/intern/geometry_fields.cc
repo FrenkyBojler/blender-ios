@@ -869,7 +869,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     }
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(
         fields[input_index].cpp_type());
-    return *meta_data != AttributeDomainAndType(domain, data_type);
+    return *meta_data != AttributeDomainAndType{domain, data_type};
   };
 
   Set<StringRef> dependencies;
@@ -879,11 +879,13 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       continue;
     }
 
-    fields[input_index].node().for_each_field_input_recursive([&](const FieldInput &field_input) {
-      if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input)) {
-        dependencies.add(attr_field_input->attribute_name());
-      }
-    });
+    fields[input_index].node().for_each_field_input_recursive(
+        [&](const fn::FieldInput &field_input) {
+          if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(
+                  &field_input)) {
+            dependencies.add(attr_field_input->attribute_name());
+          }
+        });
   }
 
   fn::FieldEvaluator evaluator{field_context, domain_size};
@@ -894,6 +896,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   struct RewriteInPlace {
     int input_index;
     int evaluator_index;
+    GSpanAttributeWriter writer;
   };
   Vector<RewriteInPlace> results_to_rewrite;
 
@@ -937,6 +940,8 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
     if (!validator && mask_is_full) {
       if (try_add_shared_field_attribute(attributes, id, domain, field)) {
+        /* TODO. */
+        BLI_assert(!dependencies.contains(id));
         continue;
       }
     }
@@ -946,11 +951,14 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
 
     const GAttributeReader dst = attributes.lookup(id);
     if (!dst) {
-      /* Result #id attribute might be dependency for some other field so we have to not add this
-       * as attribute right now. */
       void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
       GMutableSpan dst(type, buffer, domain_size);
       results_to_add.append({input_index, evaluator.add_with_destination(field, dst), buffer});
+      continue;
+    }
+
+    if (attribute_is_shared(dst)) {
+      results_to_store.append({input_index, evaluator.add(field)});
       continue;
     }
 
@@ -958,76 +966,23 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     const bool is_dependency = dependencies.contains(id);
     if (match_metadata && !is_dependency) {
       GSpanAttributeWriter dst_mutable = attributes.lookup_for_write_span(id);
-      results_to_store.append(
-          {input_index, evaluator.add_with_destination(field, dst_mutable.span)});
+
+      GMutableVArraySpan &dst_data = dst_mutable.span;
+      results_to_rewrite.append(
+          {input_index, evaluator.add_with_destination(field, dst_data), std::move(dst_mutable)});
       continue;
     }
 
     const bool can_replace = !attributes.is_builtin(id);
-    if (!match_metadata) {
-      /* Difference with #results_to_add is that non-selected values have to be propagated from
-       * original attribute. */
+    const bool is_may_vertex_group = data_type == AttrType::Float && domain == AttrDomain::Point;
+    if (can_replace && !is_may_vertex_group) {
       void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
       GMutableSpan dst(type, buffer, domain_size);
       results_to_replace.append({input_index, evaluator.add_with_destination(field, dst), buffer});
       continue;
     }
 
-    const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
-    if () {
-      /* TODO: Support hot replace for built-in attributes. */
-      results_to_store.append({input_index, evaluator.add(field)});
-      continue;
-    }
-  }
-
-  for (const int input_index : attribute_ids.index_range()) {
-    /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
-    if (attribute_incompatible_with_field(input_index)) {
-      success = false;
-      continue;
-    }
-
-    const StringRef id = attribute_ids[input_index];
-    const AttributeValidator validator = attributes.lookup_validator(id);
-    const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
-
-    if (!validator && mask_is_full) {
-      if (try_add_shared_field_attribute(attributes, id, domain, field)) {
-        continue;
-      }
-    }
-
-    if (!dependencies.contains(id)) {
-      const GAttributeReader dst = attributes.lookup(id);
-      if (!dst) {
-      }
-
-      const bool free_to_edit = attribute_is_shared()
-    }
-
-    /* We are writing to an attribute that exists already with the correct domain and type. */
-    if (const GAttributeReader dst = attributes.lookup(id)) {
-      if (dst.domain == domain && dst.varray.type() == field.cpp_type()) {
-        const int evaluator_index = evaluator.add(field);
-        results_to_store.append({input_index, evaluator_index});
-        continue;
-      }
-    }
-
-    const CPPType &type = fields[input_index].cpp_type();
-    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
-    /* Could avoid allocating a new buffer if:
-     * - The field does not depend on that attribute (we can't easily check for that yet). */
-    void *buffer = MEM_mallocN_aligned(type.size * domain_size, type.alignment, __func__);
-    if (!mask_is_full) {
-      const GAttributeReader old_attribute = attributes.lookup_or_default(id, domain, data_type);
-      old_attribute.varray.materialize(buffer);
-    }
-
-    GMutableSpan dst(type, buffer, domain_size);
-    const int evaluator_index = evaluator.add_with_destination(field, dst);
-    results_to_add.append({input_index, evaluator_index, buffer});
+    results_to_store.append({input_index, evaluator.add(field)});
   }
 
   evaluator.evaluate();
@@ -1040,6 +995,22 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
 
   IndexMaskMemory memory;
   std::optional<IndexMask> inverted_mask;
+
+  for (RewriteInPlace &result : results_to_rewrite) {
+    result.writer.finish();
+  }
+
+  if (!results_to_add.is_empty()) {
+    inverted_mask = mask.complement(IndexRange(domain_size), memory);
+  }
+
+  for (const AddResult &result : results_to_add) {
+    const StringRef id = attribute_ids[result.input_index];
+    const CPPType &type = fields[result.input_index].cpp_type();
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
+    type.fill_assign_indices(type.default_value(), result.buffer, *inverted_mask);
+    attributes.add(id, domain, data_type, AttributeInitMoveArray(result.buffer));
+  }
 
   for (const StoreResult &result : results_to_store) {
     const StringRef id = attribute_ids[result.input_index];
@@ -1079,18 +1050,35 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     BLI_assert(attributes.contains(id));
   }
 
-  for (const AddResult &result : results_to_add) {
+  const bool not_rewrite_but_replace = mask.size() > domain_size / 2;
+  if (not_rewrite_but_replace && !inverted_mask.has_value()) {
+    inverted_mask = mask.complement(IndexRange(domain_size), memory);
+  }
+
+  for (const HotReplace &result : results_to_replace) {
     const StringRef id = attribute_ids[result.input_index];
-    attributes.remove(id);
     const CPPType &type = fields[result.input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
-    if (!attributes.add(id, domain, data_type, AttributeInitMoveArray(result.buffer))) {
-      /* If the name corresponds to a builtin attribute, removing the attribute might fail if
-       * it's required, adding the attribute might fail if the domain or type is incorrect. */
-      type.destruct_n(result.buffer, domain_size);
-      MEM_freeN(result.buffer);
-      success = false;
+
+    const GAttributeReader dst = attributes.lookup(id);
+    const bool match_metadata = dst.domain == domain && dst.varray.type() == type;
+
+    if (not_rewrite_but_replace || !match_metadata) {
+      const GAttributeReader rest_values = attributes.lookup(id, domain, data_type);
+      GMutableSpan buffer(type, result.buffer, domain_size);
+      array_utils::copy(rest_values.varray, *inverted_mask, buffer);
+      attributes.remove(id);
+      BLI_assert(!attributes.contains(id));
+      attributes.add(id, domain, data_type, AttributeInitMoveArray(result.buffer));
+      BLI_assert(attributes.contains(id));
+      continue;
     }
+
+    const GSpan buffer(type, result.buffer, domain_size);
+    GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(id);
+    array_utils::copy(GVArray::from_span(buffer), mask, dst_mut.span);
+    dst_mut.finish();
+    continue;
   }
 
   return success;
