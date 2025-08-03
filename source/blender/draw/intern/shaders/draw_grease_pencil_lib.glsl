@@ -127,7 +127,7 @@ float gpencil_stroke_cap_mask(float2 p1,
       float2 lineo = pc2 - pc1;
       float2 tano = tan_dir(lineo);
 
-      dist = max(dist, 1.0f - si1 * dot(po2, tano) / length(lineo) / radius);
+      dist = max(dist, 1.0f - dot(po2, tano) / dot(p1 - pc1, tano));
     }
   }
 
@@ -142,7 +142,7 @@ float gpencil_stroke_cap_mask(float2 p1,
       float2 lineo2 = pc22 - pc21;
       float2 tano2 = tan_dir(lineo2);
 
-      dist = max(dist, 1.0f + si2 * dot(po22, tano2) / length(lineo2) / radius);
+      dist = max(dist, 1.0f - dot(po22, tano2) / dot(p2 - pc21, tano2));
     }
   }
 
