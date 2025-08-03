@@ -5,6 +5,7 @@
 #include "BKE_instances.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_threads.h"
+#include "DNA_mesh_types.h"
 #include "box2d/box2d.h"
 
 #include "xxhash.h"
@@ -208,6 +209,7 @@ static std::optional<CollisionShapeVariant> make_collision_shape(
       return b2Circle{b2Vec2{0, 0}, radius};
     }
     case RigidBodyCollisionShapeType::ConvexHull: {
+      /* Not yet supported. */
       return std::nullopt;
     }
   }
