@@ -8,10 +8,13 @@
 
 #pragma once
 
+#include <cctype>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <regex>
 #include <sstream>
+#include <stack>
 #include <string>
 #include <vector>
 
@@ -215,6 +218,7 @@ class Preprocessor {
       str = swizzle_function_mutation(str);
       if (language == BLENDER_GLSL) {
         str = struct_method_mutation(str, report_error);
+        str = method_call_mutation(str);
         str = stage_function_mutation(str);
         str = resource_guard_mutation(str, report_error);
         str = loop_unroll(str, report_error);
@@ -1146,6 +1150,477 @@ class Preprocessor {
     });
 
     return out;
+  }
+
+  enum TokenType : char {
+    Word = 'A', /* Use ascii chars to store them in string. */
+    NewLine,
+    Space,
+    Arithmetic,
+    Dot,
+    Hash,
+    Literal,
+    ParOpen,
+    ParClose,
+    BracketOpen,
+    BracketClose,
+    SquareOpen,
+    SquareClose,
+    AngleOpen,
+    AngleClose,
+    Equal,
+    SemiColon,
+    Colon,
+    Comma,
+    Star,
+    /* Keywords */
+    Namespace,
+    Struct,
+    Class,
+    Const,
+    Constexpr,
+    Return,
+    Case,
+    Switch,
+    If,
+    Else,
+    While,
+    Do,
+    For,
+    Template,
+    Static,
+  };
+
+  enum class ScopeType : char {
+    Global = 0,
+    Namespace,
+    Struct,
+    Function,
+    Template,
+    /* Added scope inside function body. */
+    Local,
+  };
+
+  struct Parser {
+    /* Poor man's IndexRange. */
+    struct IndexRange {
+      size_t start;
+      size_t size;
+
+      IndexRange(size_t start, size_t size) : start(start), size(size) {}
+    };
+
+    /* Poor man's OffsetIndices. */
+    struct OffsetIndices {
+      std::vector<size_t> offsets;
+
+      IndexRange operator[](const int64_t index) const
+      {
+        return {offsets[index], offsets[index + 1] - offsets[index]};
+      }
+    };
+
+    OffsetIndices token_offsets;
+    std::string token_types;
+    /* Ranges in token. Includes start and end tokens. */
+    std::vector<IndexRange> scope_ranges;
+    std::string scope_types;
+
+    std::string str;
+
+    Parser(const std::string &input)
+    {
+      str = input;
+
+      auto start = std::chrono::high_resolution_clock::now();
+      {
+        /* Tokenization. */
+        token_types = char(TokenType::Space);
+        token_offsets.offsets = {0};
+
+        int offset = -1;
+        for (const char &c : input) {
+          offset++;
+          TokenType type = to_type(c);
+          TokenType prev = TokenType(token_types.back());
+          /* If digit is part of word. */
+          if (type == Literal && prev == Word) {
+            continue;
+          }
+          /* If dot is part of float literal. */
+          if (type == Dot && prev == Literal) {
+            continue;
+          }
+          /* If 'f' suffix is part of float literal. */
+          if (c == 'f' && prev == Literal) {
+            continue;
+          }
+          /* Only merge these token. Otherwise, always emit a token. */
+          if (type != Word && type != NewLine && type != Space && type != Literal) {
+            prev = Word;
+          }
+          /* Emit a token if we don't merge. */
+          if (type != prev) {
+            token_types += char(type);
+            token_offsets.offsets.emplace_back(offset);
+          }
+        }
+      }
+      {
+        /* Keywords detection. */
+        int tok_id = -1;
+        for (char &c : token_types) {
+          tok_id++;
+          if (TokenType(c) == Word) {
+            std::string word = token_str(tok_id);
+            if (word == "namespace") {
+              c = Namespace;
+            }
+            else if (word == "struct") {
+              c = Struct;
+            }
+            else if (word == "class") {
+              c = Class;
+            }
+            else if (word == "const") {
+              c = Const;
+            }
+            else if (word == "constexpr") {
+              c = Constexpr;
+            }
+            else if (word == "return") {
+              c = Return;
+            }
+            else if (word == "case") {
+              c = Case;
+            }
+            else if (word == "switch") {
+              c = Switch;
+            }
+            else if (word == "if") {
+              c = If;
+            }
+            else if (word == "else") {
+              c = Else;
+            }
+            else if (word == "while") {
+              c = While;
+            }
+            else if (word == "do") {
+              c = Do;
+            }
+            else if (word == "for") {
+              c = For;
+            }
+            else if (word == "template") {
+              c = Template;
+            }
+            else if (word == "static") {
+              c = Static;
+            }
+          }
+        }
+      }
+      {
+        std::stack<std::pair<ScopeType, int>> scopes;
+        scopes.emplace(ScopeType::Global, 0);
+
+        auto enter_scope = [&](ScopeType type, int start_tok_id) {
+          scopes.emplace(type, start_tok_id);
+        };
+
+        auto exit_scope = [&](int end_tok_id) {
+          ScopeType type = scopes.top().first;
+          int start = scopes.top().second;
+
+          scope_ranges.emplace_back(start, end_tok_id - start + 1);
+          scope_types += char(type);
+
+          scopes.pop();
+        };
+
+        int tok_id = -1;
+        for (char &c : token_types) {
+          tok_id++;
+
+          switch (TokenType(c)) {
+            case BracketOpen:
+              if (token_types[tok_id - 2] == Struct) {
+                enter_scope(ScopeType::Local, tok_id);
+              }
+              else if (token_types[tok_id - 2] == Namespace) {
+                enter_scope(ScopeType::Namespace, tok_id);
+              }
+              else if (ScopeType(scopes.top().first) == ScopeType::Global) {
+                enter_scope(ScopeType::Function, tok_id);
+              }
+              else if (ScopeType(scopes.top().first) == ScopeType::Struct) {
+                enter_scope(ScopeType::Function, tok_id);
+              }
+              else {
+                enter_scope(ScopeType::Local, tok_id);
+              }
+              break;
+            case ParOpen:
+              enter_scope(ScopeType::Local, tok_id);
+              break;
+            case SquareOpen:
+              enter_scope(ScopeType::Local, tok_id);
+              break;
+            case AngleOpen:
+              if (ScopeType(scopes.top().first) == ScopeType::Global ||
+                  ScopeType(scopes.top().first) == ScopeType::Namespace ||
+                  ScopeType(scopes.top().first) == ScopeType::Struct)
+              {
+                enter_scope(ScopeType::Template, tok_id);
+              }
+              break;
+            case AngleClose:
+              if (ScopeType(scopes.top().first) == ScopeType::Template) {
+                exit_scope(tok_id);
+              }
+              break;
+            case ParClose:
+            case BracketClose:
+            case SquareClose:
+              exit_scope(tok_id);
+              break;
+            default:
+              break;
+          }
+        }
+      }
+
+      token_offsets.offsets.emplace_back(input.size());
+
+      auto end = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+      for (int i = 0; i < token_types.size(); i++) {
+        TokenType type = TokenType(token_types[i]);
+        if (type != Space && type != NewLine) {
+          std::cout << to_string(type) << " " << token_str(i) << std::endl;
+        }
+      }
+
+      for (int i = 0; i < scope_ranges.size(); i++) {
+        ScopeType type = ScopeType(scope_types[i]);
+        if (type != ScopeType::Local) {
+          std::cout << to_string(type) << " " << scope_str(i) << std::endl;
+        }
+      }
+
+      std::cout << "Parser took: " << duration.count() << " µs" << std::endl;
+      std::cout << "String len: " << std::to_string(str.size()) << std::endl;
+      std::cout << "Token len: " << std::to_string(token_types.size()) << std::endl;
+      std::cout << "Scope len: " << std::to_string(scope_ranges.size()) << std::endl;
+    }
+
+    std::string token_str(int token_id)
+    {
+      IndexRange range = token_offsets[token_id];
+      return str.substr(range.start, range.size);
+    }
+
+    std::string token_range_str(IndexRange token_id)
+    {
+      size_t start = token_offsets[token_id.start].start;
+      size_t end = token_offsets[token_id.start + token_id.size].start;
+      return str.substr(start, end - start);
+    }
+
+    std::string scope_str(int scope_id)
+    {
+      return token_range_str(scope_ranges[scope_id]);
+    }
+
+    std::string find(std::string token_pattern)
+    {
+      size_t pos = token_types.find(token_pattern);
+      if (pos != std::string::npos) {
+        return str.substr(token_offsets[pos].start,
+                          token_offsets[pos + token_pattern.size()].start -
+                              token_offsets[pos].start);
+      }
+      return {};
+    }
+
+   private:
+    TokenType to_type(const char c)
+    {
+      switch (c) {
+        case '\n':
+          return TokenType::NewLine;
+        case ' ':
+          return TokenType::Space;
+        case '#':
+          return TokenType::Hash;
+        case '.':
+          return TokenType::Dot;
+        case '(':
+          return TokenType::ParOpen;
+        case ')':
+          return TokenType::ParClose;
+        case '{':
+          return TokenType::BracketOpen;
+        case '}':
+          return TokenType::BracketClose;
+        case '[':
+          return TokenType::SquareOpen;
+        case ']':
+          return TokenType::SquareClose;
+        case '<':
+          return TokenType::AngleOpen;
+        case '>':
+          return TokenType::AngleClose;
+        case '=':
+          return TokenType::Equal;
+        case '*':
+          return TokenType::Star;
+        case '-':
+        case '+':
+        case '/':
+          return TokenType::Arithmetic;
+        case ':':
+          return TokenType::Colon;
+        case ',':
+          return TokenType::Comma;
+        case ';':
+          return TokenType::SemiColon;
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '9':
+          return TokenType::Literal;
+        default:
+          return TokenType::Word;
+      }
+    }
+
+    const char *to_string(TokenType c)
+    {
+      switch (c) {
+        case TokenType::NewLine:
+          return "NewLine     ";
+        case TokenType::Space:
+          return "Space       ";
+        case TokenType::Hash:
+          return "Hash        ";
+        case TokenType::Dot:
+          return "Dot         ";
+        case TokenType::ParOpen:
+          return "ParOpen     ";
+        case TokenType::ParClose:
+          return "ParClose    ";
+        case TokenType::BracketOpen:
+          return "BracketOpen ";
+        case TokenType::BracketClose:
+          return "BracketClose";
+        case TokenType::SquareOpen:
+          return "SquareOpen  ";
+        case TokenType::SquareClose:
+          return "SquareClose ";
+        case TokenType::AngleOpen:
+          return "AngleOpen   ";
+        case TokenType::AngleClose:
+          return "AngleClose  ";
+        case TokenType::Equal:
+          return "Equal       ";
+        case TokenType::Star:
+          return "Star        ";
+        case TokenType::Arithmetic:
+          return "Arithmetic  ";
+        case TokenType::Literal:
+          return "Literal     ";
+        case TokenType::Word:
+          return "Word        ";
+        case TokenType::Colon:
+          return "Colon       ";
+        case TokenType::SemiColon:
+          return "SemiColon   ";
+        case TokenType::Comma:
+          return "Comma       ";
+        case TokenType::Namespace:
+          return "Namespace   ";
+        case TokenType::Struct:
+          return "Struct      ";
+        case TokenType::Class:
+          return "Class       ";
+        case TokenType::Const:
+          return "Const       ";
+        case TokenType::Constexpr:
+          return "Constexpr   ";
+        case TokenType::Return:
+          return "Return      ";
+        case TokenType::Case:
+          return "Case        ";
+        case TokenType::Switch:
+          return "Switch      ";
+        case TokenType::If:
+          return "If          ";
+        case TokenType::Else:
+          return "Else        ";
+        case TokenType::While:
+          return "While       ";
+        case TokenType::Do:
+          return "Do          ";
+        case TokenType::For:
+          return "For         ";
+        case TokenType::Template:
+          return "Template    ";
+        case TokenType::Static:
+          return "Static      ";
+        default:
+          return "Error";
+      }
+    }
+
+    const char *to_string(ScopeType c)
+    {
+      switch (c) {
+        case ScopeType::Global:
+          return "Global      ";
+        case ScopeType::Namespace:
+          return "Namespace   ";
+        case ScopeType::Struct:
+          return "Struct      ";
+        case ScopeType::Function:
+          return "Function    ";
+        case ScopeType::Template:
+          return "Template    ";
+        case ScopeType::Local:
+          return "Local       ";
+        default:
+          return "Error";
+      }
+    }
+  };
+
+  template<typename... Args> std::string make_pattern(Args... args)
+  {
+    std::string result;
+    (result += ... += char(args));
+    return result;
+  }
+
+  /* Transform `a.fn(b)` into `fn(a, b)`. */
+  std::string method_call_mutation(const std::string &str)
+  {
+    using namespace std;
+
+    Parser parser(str);
+
+    string out;
+
+    std::string s = parser.find(make_pattern(Dot, Word, ParOpen));
+    std::cout << "Found: \"" << s << "\"" << std::endl;
+
+    return str;
   }
 
   std::string stage_function_mutation(const std::string &str)

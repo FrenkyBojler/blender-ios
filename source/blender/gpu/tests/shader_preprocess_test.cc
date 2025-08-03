@@ -920,9 +920,9 @@ class S {
 
   int another_member;
 
-  S function()
+  S function(int i)
   {
-    this->member++;
+    this->member = i;
     this_member++;
     return *this;
   }
@@ -932,6 +932,12 @@ class S {
     return this->member;
   }
 };
+
+void main()
+{
+  S s = S::construct();
+  s.function(0).size();
+}
 )";
     string expect = R"(
 struct S {
@@ -972,9 +978,9 @@ struct S {
   }
 
 #line 18
-  S function(inout S _inout_sta this _inout_end)
+  S function(inout S _inout_sta this _inout_end, int i)
   {
-    this.member++;
+    this.member = i;
     this_member++;
     return this;
   }
@@ -986,6 +992,12 @@ struct S {
   }
 
 #line 30
+
+void main()
+{
+  S s = S_construct();
+  size(function(s, 0));
+}
 )";
     string error;
     string output = process_test_string(input, error);
