@@ -60,6 +60,12 @@ typedef enum GreasePencilStrokeCapType {
   GP_STROKE_CAP_TYPE_MAX,
 } GreasePencilStrokeCapType;
 
+typedef enum GreasePencilLineJoinType {
+  GP_STROKE_LINE_JOIN_TYPE_ROUND = 0,
+  GP_STROKE_LINE_JOIN_TYPE_BEVEL = 1,
+  GP_STROKE_LINE_JOIN_TYPE_MITER = 2,
+} GreasePencilLineJoinType;
+
 /**
  * Type of drawing data.
  * If `GP_DRAWING` the node is a `GreasePencilDrawing`,

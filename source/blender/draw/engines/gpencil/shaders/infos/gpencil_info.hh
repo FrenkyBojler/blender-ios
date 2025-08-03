@@ -45,7 +45,7 @@ FLAT(uint, mat_flag)
 FLAT(float, depth)
 GPU_SHADER_NAMED_INTERFACE_END(gp_interp_flat)
 GPU_SHADER_NAMED_INTERFACE_INFO(gpencil_geometry_noperspective_iface, gp_interp_noperspective)
-NO_PERSPECTIVE(float2, thickness)
+NO_PERSPECTIVE(float3, thickness)
 NO_PERSPECTIVE(float, hardness)
 GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 

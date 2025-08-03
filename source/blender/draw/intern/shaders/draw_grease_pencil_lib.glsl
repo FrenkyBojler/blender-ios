@@ -18,8 +18,8 @@ SHADER_LIBRARY_CREATE_INFO(draw_gpencil)
 #  error Missing additional info draw_gpencil
 #endif
 
-#define miter_limit (0.2f)
-#define miter_limit2 (0.7071f)
+#define LINEJOIN_TYPE_BEVEL -1.0f
+#define LINEJOIN_TYPE_ROUND -2.0f
 
 #ifdef GPU_FRAGMENT_SHADER
 float gpencil_stroke_round_mask(float dist, float hardfac)
@@ -77,11 +77,11 @@ float gpencil_stroke_cap_mask(float2 p1,
                               float2 p0,
                               float2 p3,
                               float2 aspect,
-                              uint line_join_mode,
                               float thickness,
-                              float hardfac)
+                              float hardfac,
+                              float miter_limit)
 {
-  if (line_join_mode == GP_STROKE_LINEJOIN_MODE_ROUND) {
+  if (miter_limit == LINEJOIN_TYPE_ROUND) {
     return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
   }
 
@@ -132,7 +132,7 @@ float gpencil_stroke_cap_mask(float2 p1,
   float cos_angle1 = -dot(normalize(line), normalize(line2));
   float cos_angle2 = -dot(normalize(line), normalize(line3));
 
-  if (line_join_mode != GP_STROKE_LINEJOIN_MODE_MITER || cos_angle1 > miter_limit2) {
+  if (miter_limit == LINEJOIN_TYPE_BEVEL || cos_angle1 > miter_limit) {
     float2 pc1 = p1 + si1 * normalize(tan1) * radius;
     float2 pc2 = p1 + si1 * normalize(tan2) * radius;
 
@@ -143,7 +143,7 @@ float gpencil_stroke_cap_mask(float2 p1,
     dist = max(dist, 1.0f - si1 * dot(po2, tano) / length(lineo) / radius);
   }
 
-  if (line_join_mode != GP_STROKE_LINEJOIN_MODE_MITER || cos_angle2 > miter_limit2) {
+  if (miter_limit == LINEJOIN_TYPE_BEVEL || cos_angle2 > miter_limit) {
     float2 pc21 = p2 + si2 * normalize(tan1) * radius;
     float2 pc22 = p2 + si2 * normalize(tan3) * radius;
 
@@ -174,6 +174,19 @@ float gpencil_decode_uvrot(int packed_data)
 float gpencil_decode_hardness(int packed_data)
 {
   return float((uint(packed_data) & 0x3FC0000u) >> 18u) * (1.0f / 255.0f);
+}
+
+float gpencil_decode_miter_limit(int packed_data)
+{
+  uint miter_data = (uint(packed_data) & 0xFC000000u) >> 26u;
+  if (miter_data == 0u) {
+    return LINEJOIN_TYPE_ROUND;
+  }
+  else if (miter_data == 1u) {
+    return LINEJOIN_TYPE_BEVEL;
+  }
+  float miter_angle = float(miter_data) * (M_PI / 63.0f);
+  return cos(miter_angle);
 }
 
 float2 gpencil_project_to_screenspace(float4 v, float4 viewport_res)
@@ -248,8 +261,9 @@ float4 gpencil_vertex(float4 viewport_res,
                       out float4 out_sspos_adj,
                       /* Stroke aspect ratio. */
                       out float2 out_aspect,
-                      /* Stroke thickness (x: clamped, y: unclamped). */
-                      out float2 out_thickness,
+                      /* Stroke thickness and miter limit (x: clamped, y: unclamped,
+                       * z: miter limit). */
+                      out float3 out_thickness,
                       /* Stroke hardness. */
                       out float out_hardness)
 {
@@ -280,6 +294,7 @@ float4 gpencil_vertex(float4 viewport_res,
 #  define hardness2 ma2.w
 #  define uvrot1 ma1.w
 #  define aspect1 ma1.w
+#  define miter1 ma1.w
 
   float4 out_ndc;
 
@@ -445,16 +460,30 @@ float4 gpencil_vertex(float4 viewport_res,
 
       out_thickness.x = (is_squares) ? 1e18f : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18f : (thickness / out_ndc.w);
+      out_thickness.z = LINEJOIN_TYPE_ROUND;
     }
     else {
       bool is_stroke_start = (ma.x == -1 && x == -1);
       bool is_stroke_end = (ma3.x == -1 && x == 1);
 
+      float miter_limit = gpencil_decode_miter_limit(miter1);
+      out_thickness.z = miter_limit;
+
+      if (miter_limit == LINEJOIN_TYPE_BEVEL || miter_limit == LINEJOIN_TYPE_ROUND) {
+        miter_limit = 0.5f; /* Default to cos(60) */
+      }
+
+      /* Prevent the limit from becoming to small. */
+      if (miter_limit < 0.5f) {
+        miter_limit = 0.5f;
+      }
+
       /* Mitter tangent vector. */
       float2 miter_tan = safe_normalize(line_adj + line);
       float miter_dot = dot(miter_tan, line_adj);
+      float cos_angle = -dot(line, line_adj);
       /* Break corners after a certain angle to avoid really thick corners. */
-      bool miter_break = (miter_dot < miter_limit);
+      bool miter_break = cos_angle > miter_limit;
       miter_tan = (miter_break || is_stroke_start || is_stroke_end) ? line :
                                                                       (miter_tan / miter_dot);
       /* Rotate 90 degrees counter-clockwise. */
@@ -486,6 +515,7 @@ float4 gpencil_vertex(float4 viewport_res,
     out_uv = uv1.xy;
     out_thickness.x = 1e18f;
     out_thickness.y = 1e20f;
+    out_thickness.z = LINEJOIN_TYPE_ROUND;
     out_hardness = 1.0f;
     out_aspect = float2(1.0f);
     out_sspos = float4(0.0f);
@@ -526,7 +556,7 @@ float4 gpencil_vertex(float4 viewport_res,
                       out float4 out_sspos,
                       out float4 out_sspos_adj,
                       out float2 out_aspect,
-                      out float2 out_thickness,
+                      out float3 out_thickness,
                       out float out_hardness)
 {
   return gpencil_vertex(viewport_res,

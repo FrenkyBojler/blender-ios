@@ -223,7 +223,8 @@ static GreasePencilBatchCache *grease_pencil_batch_cache_get(GreasePencil &greas
 /** \name Vertex Buffers
  * \{ */
 
-BLI_INLINE int32_t pack_rotation_aspect_hardness(float rot, float asp, float softness)
+BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(
+    float rot, float asp, float softness, float miter_angle, int corner_type)
 {
   int32_t packed = 0;
   /* Aspect uses 9 bits */
@@ -243,6 +244,16 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness(float rot, float asp, float sof
   }
   /* Hardness uses 8 bits */
   packed |= int32_t(unit_float_to_uchar_clamp(1.0f - softness)) << 18;
+
+  /* Miter Angle uses the last 6 bits */
+  if (corner_type == GP_STROKE_LINE_JOIN_TYPE_BEVEL) {
+    packed |= 1 << 26;
+  }
+  else if (corner_type == GP_STROKE_LINE_JOIN_TYPE_MITER) {
+    float miter_norm = (miter_angle / M_PI);
+    packed |= int32_t(clamp_i(int(miter_norm * 63.0f), 0, 63)) << 26;
+  }
+
   return packed;
 }
 
@@ -1233,6 +1244,10 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         "u_scale", bke::AttrDomain::Curve, 1.0f);
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
+    const VArray<float> miter_angles = *attributes.lookup_or_default<float>(
+        "miter_angle", bke::AttrDomain::Curve, DEG2RADF(90.0f));
+    const VArray<int> corner_types = *attributes.lookup_or_default<int>(
+        "corner_type", bke::AttrDomain::Curve, 0);
 
     const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
@@ -1270,8 +1285,12 @@ static void grease_pencil_geom_batch_ensure(Object &object,
        * ensure the material used by the shader is valid this needs to be clamped to zero. */
       s_vert.mat = std::max(materials[curve_i], 0) % GPENCIL_MATERIAL_BUFFER_LEN;
 
-      s_vert.packed_asp_hard_rot = pack_rotation_aspect_hardness(
-          rotations[point_i], stroke_point_aspect_ratios[curve_i], stroke_softness[curve_i]);
+      s_vert.packed_asp_hard_rot = pack_rotation_aspect_hardness_miter(
+          rotations[point_i],
+          stroke_point_aspect_ratios[curve_i],
+          stroke_softness[curve_i],
+          miter_angles[curve_i],
+          corner_types[curve_i]);
       s_vert.u_stroke = u_stroke;
       copy_v2_v2(s_vert.uv_fill, texture_matrix * float4(pos, 1.0f));
 

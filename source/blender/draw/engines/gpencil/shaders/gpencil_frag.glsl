@@ -94,16 +94,14 @@ void main()
   }
   else {
     /* Line mask */
-    uint line_join_mode = gp_interp_flat.mat_flag & GP_STROKE_LINEJOIN_MODES;
-
     frag_color *= gpencil_stroke_cap_mask(gp_interp_flat.sspos.xy,
                                           gp_interp_flat.sspos.zw,
                                           gp_interp_flat.sspos_adj.xy,
                                           gp_interp_flat.sspos_adj.zw,
                                           gp_interp_flat.aspect,
-                                          line_join_mode,
                                           gp_interp_noperspective.thickness.x,
-                                          gp_interp_noperspective.hardness);
+                                          gp_interp_noperspective.hardness,
+                                          gp_interp_noperspective.thickness.z);
   }
 
   /* To avoid aliasing artifacts, we reduce the opacity of small strokes. */
