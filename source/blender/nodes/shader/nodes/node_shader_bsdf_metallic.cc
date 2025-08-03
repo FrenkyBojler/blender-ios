@@ -65,12 +65,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(100000.0f)
       .subtype(PROP_WAVELENGTH)
-      .description("Thickness in nanometers of the thin film layer");
+      .description("Thickness of the film in nanometers");
   film.add_input<decl::Float>("Thin Film IOR")
       .default_value(1.33f)
       .min(1.0f)
       .max(1000.0f)
-      .description("Refractive index of the thin film layer");
+      .description("Index of refraction (IOR) of the thin film");
 }
 
 static void node_shader_buts_metallic(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
