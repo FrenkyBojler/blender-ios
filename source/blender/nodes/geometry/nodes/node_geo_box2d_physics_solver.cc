@@ -47,7 +47,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous()
       .description("Simulated world");
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
-  b.add_input<decl::Int>("Substeps").default_value(4).min(1);
+  b.add_input<decl::Int>("Substeps").default_value(1).min(1);
+  b.add_input<decl::Int>("Solver Steps").default_value(4).min(1);
 }
 
 static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
@@ -130,6 +131,9 @@ static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBundle &b
       continue;
     }
     const b2BodyId body_id = rigid_body->body_id;
+    if (b2Body_GetType(body_id) != b2_dynamicBody) {
+      continue;
+    }
     const b2Transform b2_transform = b2Body_GetTransform(body_id);
 
     float4x4 &transform = transforms[instance_i];
@@ -164,10 +168,26 @@ static std::optional<b2BodyType> parse_body_type(const int type)
   }
 }
 
+static float get_angular_difference(const float from, const float to)
+{
+  float d = to - from;
+  if (d > 2 * M_PI || d < -2 * M_PI) {
+    d = fmodf(d, 2 * M_PI);
+  }
+  if (d < -M_PI) {
+    d += 2 * M_PI;
+  }
+  if (d > M_PI) {
+    d -= 2 * M_PI;
+  }
+  return d;
+}
+
 static void handle_rigid_body_instances_bundle(
     Box2DState &state,
     const RigidBodyInstancesBundle &bundle,
     const bke::Instances &current_instances,
+    const float delta_time,
     Map<std::string, RigidBodiesForPath> &r_rigid_bodies_by_path)
 {
   const bke::Instances *original_instances = bundle.instances_geometry.get_instances();
@@ -277,15 +297,16 @@ static void handle_rigid_body_instances_bundle(
       rigid_body = {body_id, polygon_hash};
     }
 
+    b2BodyId body_id = rigid_body->body_id;
     b2ShapeId shape_id;
-    b2Body_GetShapes(rigid_body->body_id, &shape_id, 1);
+    b2Body_GetShapes(body_id, &shape_id, 1);
     if (b2Shape_GetFriction(shape_id) != friction) {
       b2Shape_SetFriction(shape_id, friction);
-      b2Body_EnableSleep(rigid_body->body_id, false);
+      b2Body_EnableSleep(body_id, false);
     }
     if (b2Shape_GetRestitution(shape_id) != bounciness) {
       b2Shape_SetRestitution(shape_id, bounciness);
-      b2Body_EnableSleep(rigid_body->body_id, false);
+      b2Body_EnableSleep(body_id, false);
     }
     if (b2Shape_GetType(shape_id) == b2_polygonShape) {
       if (polygon_hash != rigid_body->polygon_hash) {
@@ -293,13 +314,26 @@ static void handle_rigid_body_instances_bundle(
         rigid_body->polygon_hash = polygon_hash;
       }
     }
+    if (b2Body_GetType(body_id) == b2_kinematicBody && delta_time > 0.0f) {
+      const b2Transform last_transform = b2Body_GetTransform(body_id);
+      const float2 linear_delta = instance_position.xy() -
+                                  float2(last_transform.p.x, last_transform.p.y);
+      const float angular_delta = get_angular_difference(b2Rot_GetAngle(last_transform.q),
+                                                         instance_rotation.z().radian());
+      const float2 velocity = linear_delta / delta_time;
+      const float angular_velocity = angular_delta / delta_time;
+      b2Body_SetLinearVelocity(body_id, b2Vec2{velocity.x, velocity.y});
+      b2Body_SetAngularVelocity(body_id, angular_velocity);
+    }
 
     rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
   }
   r_rigid_bodies_by_path.add(bundle.self_path, std::move(rigid_bodies));
 }
 
-static void update_box2d_state_from_world(Box2DState &state, const WorldData &world)
+static void update_box2d_state_from_world(Box2DState &state,
+                                          const WorldData &world,
+                                          const float delta_time)
 {
   Array<GeometrySet> applied_rigid_bodies(world.rigid_bodies.size());
   for (const int i : world.rigid_bodies.index_range()) {
@@ -316,7 +350,7 @@ static void update_box2d_state_from_world(Box2DState &state, const WorldData &wo
     }
     const RigidBodyInstancesBundle &rigid_body_bundle = world.rigid_bodies[i];
     handle_rigid_body_instances_bundle(
-        state, rigid_body_bundle, *instances, new_rigid_bodies_by_path);
+        state, rigid_body_bundle, *instances, delta_time, new_rigid_bodies_by_path);
   }
 
   /* Remove old data.*/
@@ -350,8 +384,9 @@ static void node_geo_exec_locked(GeoNodeExecParams params)
 {
   BundlePtr old_state_bundle_ptr = params.extract_input<BundlePtr>("State");
   BundlePtr world_bundle_ptr = params.extract_input<BundlePtr>("World");
-  const float delta_time = params.extract_input<float>("Delta Time");
-  const int sub_steps = params.extract_input<int>("Substeps");
+  const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
+  const int sub_steps = std::max(1, params.extract_input<int>("Substeps"));
+  const int solver_steps = std::max(1, params.extract_input<int>("Solver Steps"));
 
   if (!world_bundle_ptr) {
     params.set_default_remaining_outputs();
@@ -408,8 +443,10 @@ static void node_geo_exec_locked(GeoNodeExecParams params)
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
-    update_box2d_state_from_world(state, world);
-    b2World_Step(state.world_id, delta_time, sub_steps);
+    update_box2d_state_from_world(state, world, delta_time);
+    for ([[maybe_unused]] const int i : IndexRange(sub_steps)) {
+      b2World_Step(state.world_id, delta_time / sub_steps, solver_steps);
+    }
     state.update_counter = update_counter;
   }
 
