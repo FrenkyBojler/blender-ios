@@ -170,16 +170,12 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
   }
 }
 
+/* Calculates Fresnel reflectance at a dielectric-conductor interface given the relative IOR. */
 ccl_device Spectrum fresnel_conductor(const float cosi, const Spectrum eta, const Spectrum k)
 {
-  const Spectrum cosi2 = make_spectrum(cosi * cosi);
-  const Spectrum one = make_spectrum(1.0f);
-  const Spectrum tmp_f = eta * eta + k * k;
-  const Spectrum tmp = tmp_f * cosi2;
-  const Spectrum Rparl2 = (tmp - (2.0f * eta * cosi) + one) / (tmp + (2.0f * eta * cosi) + one);
-  const Spectrum Rperp2 = (tmp_f - (2.0f * eta * cosi) + cosi2) /
-                          (tmp_f + (2.0f * eta * cosi) + cosi2);
-  return (Rparl2 + Rperp2) * 0.5f;
+  Spectrum R_s, R_p;
+  fresnel_conductor_polarized(cosi, 1.0f, {eta, k}, &R_s, &R_p, nullptr, nullptr);
+  return (R_s + R_p) * 0.5f;
 }
 
 /* Computes the average single-scattering Fresnel for the F82 metallic model. */
