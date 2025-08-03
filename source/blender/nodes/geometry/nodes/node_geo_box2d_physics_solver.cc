@@ -4,6 +4,7 @@
 
 #include "BKE_instances.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_threads.h"
 #include "box2d/box2d.h"
 
 #include "xxhash.h"
@@ -382,6 +383,22 @@ static void node_geo_exec_locked(GeoNodeExecParams params)
   Box2DState &state = box2d_state_owner->state;
   if (!state.is_initialized) {
     b2WorldDef world_def = b2DefaultWorldDef();
+    world_def.workerCount = BLI_system_thread_count();
+    world_def.enqueueTask = [](b2TaskCallback *task,
+                               const int item_count,
+                               const int min_range,
+                               void *task_context,
+                               void * /*user_context*/) -> void * {
+      threading::parallel_for(IndexRange(item_count), min_range, [&](const IndexRange range) {
+        static std::atomic<int> worker_counter = 0;
+        static thread_local int worker_index = worker_counter.fetch_add(1);
+        task(range.start(), range.one_after_last(), worker_index, task_context);
+      });
+      return nullptr;
+    };
+    world_def.finishTask = [](void * /*user_task*/, void * /*user_context*/) -> void {
+      /* All tasks are done eagerly. */
+    };
     state.world_id = b2CreateWorld(&world_def);
     state.is_initialized = true;
   }
