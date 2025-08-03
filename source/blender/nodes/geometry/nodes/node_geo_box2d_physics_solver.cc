@@ -183,6 +183,20 @@ static float get_angular_difference(const float from, const float to)
   return d;
 }
 
+static b2BodyType convert_to_body_type(const RigidBodyMotionType motion_type)
+{
+  switch (motion_type) {
+    case RigidBodyMotionType::Dynamic:
+      return b2_dynamicBody;
+    case RigidBodyMotionType::Static:
+      return b2_staticBody;
+    case RigidBodyMotionType::Animated:
+      return b2_kinematicBody;
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
 static void handle_rigid_body_instances_bundle(
     Box2DState &state,
     const RigidBodyInstancesBundle &bundle,
@@ -234,10 +248,12 @@ static void handle_rigid_body_instances_bundle(
     if (!reference_geometry_sets.index_range().contains(reference_i)) {
       continue;
     }
-    const std::optional<b2BodyType> body_type = parse_body_type(motion_types[instance_i]);
-    if (!body_type) {
+    const std::optional<RigidBodyMotionType> motion_type =
+        RigidBodyInstancesBundle::parse_motion_type(motion_types[instance_i]);
+    if (!motion_type) {
       continue;
     }
+    const b2BodyType body_type = convert_to_body_type(*motion_type);
     const GeometrySet &reference_geometry = reference_geometry_sets[reference_i];
     const std::optional<Bounds<float3>> bounds =
         reference_geometry.compute_boundbox_without_instances(true);
@@ -281,7 +297,7 @@ static void handle_rigid_body_instances_bundle(
         b2BodyId body_id = rigid_body->body_id;
         const b2BodyType old_body_type = b2Body_GetType(body_id);
         if (old_body_type != body_type) {
-          b2Body_SetType(body_id, *body_type);
+          b2Body_SetType(body_id, body_type);
           if (old_body_type == b2_staticBody) {
             b2Body_SetTransform(body_id,
                                 b2Vec2{instance_position.x, instance_position.y},
@@ -292,7 +308,7 @@ static void handle_rigid_body_instances_bundle(
     }
     if (!rigid_body) {
       b2BodyDef body_def = b2DefaultBodyDef();
-      body_def.type = *body_type;
+      body_def.type = body_type;
       body_def.position.x = instance_position.x;
       body_def.position.y = instance_position.y;
       body_def.rotation = b2MakeRot(instance_rotation.z().radian());

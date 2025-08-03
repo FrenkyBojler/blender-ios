@@ -34,12 +34,19 @@ class ForceBundle : public NestedBundleCommon {
   static std::optional<ForceBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
+enum class RigidBodyMotionType {
+  Dynamic,
+  Static,
+  Animated,
+};
+
 class RigidBodyInstancesBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.RigidBodyInstances";
 
   bke::GeometrySet instances_geometry;
   fn::Field<int> collision_shape_type;
+  /** Uses #RigidBodyMotionType. */
   fn::Field<int> motion_type;
   fn::Field<float> friction;
   fn::Field<float> bounciness;
@@ -48,6 +55,8 @@ class RigidBodyInstancesBundle : public NestedBundleCommon {
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<RigidBodyInstancesBundle> parse(const Bundle &bundle,
                                                        BundleParseErrors &r_errors);
+
+  static std::optional<RigidBodyMotionType> parse_motion_type(const int type);
 };
 
 class SoftBodyMeshBundle : public NestedBundleCommon {
@@ -62,5 +71,19 @@ class SoftBodyMeshBundle : public NestedBundleCommon {
   static std::optional<SoftBodyMeshBundle> parse(const Bundle &bundle,
                                                  BundleParseErrors &r_errors);
 };
+
+inline std::optional<RigidBodyMotionType> RigidBodyInstancesBundle::parse_motion_type(
+    const int type)
+{
+  switch (type) {
+    case 0:
+      return RigidBodyMotionType::Dynamic;
+    case 1:
+      return RigidBodyMotionType::Static;
+    case 2:
+      return RigidBodyMotionType::Animated;
+  }
+  return std::nullopt;
+}
 
 }  // namespace blender::nodes::physics_bundles
