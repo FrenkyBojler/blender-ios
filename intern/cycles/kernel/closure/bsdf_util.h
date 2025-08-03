@@ -171,10 +171,10 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
 }
 
 /* Calculates Fresnel reflectance at a dielectric-conductor interface given the relative IOR. */
-ccl_device Spectrum fresnel_conductor(const float cosi, const Spectrum eta, const Spectrum k)
+ccl_device Spectrum fresnel_conductor(const float cosi, const ComplexIOR<Spectrum> ior)
 {
   Spectrum R_s, R_p;
-  fresnel_conductor_polarized(cosi, 1.0f, {eta, k}, &R_s, &R_p, nullptr, nullptr);
+  fresnel_conductor_polarized(cosi, 1.0f, ior, &R_s, &R_p, nullptr, nullptr);
   return (R_s + R_p) * 0.5f;
 }
 
@@ -218,12 +218,12 @@ ccl_device_inline Spectrum fresnel_f82(const float cosi, const Spectrum F0, cons
 }
 
 /* Approximates the average single-scattering Fresnel for a physical conductor. */
-ccl_device_inline Spectrum fresnel_conductor_Fss(const Spectrum eta, const Spectrum k)
+ccl_device_inline Spectrum fresnel_conductor_Fss(const ComplexIOR<Spectrum> ior)
 {
   /* In order to estimate Fss of the conductor, we fit the F82 model to it based on the
    * value at 0° and ~82° and then use the analytic expression for its Fss. */
-  const Spectrum F0 = fresnel_conductor(1.0f, eta, k);
-  const Spectrum F82 = fresnel_conductor(1.0f / 7.0f, eta, k);
+  const Spectrum F0 = fresnel_conductor(1.0f, ior);
+  const Spectrum F82 = fresnel_conductor(1.0f / 7.0f, ior);
   return saturate(fresnel_f82_Fss(F0, fresnel_f82_B(F0, F82)));
 }
 
