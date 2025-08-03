@@ -73,11 +73,13 @@ bool calc_active_transform_for_editmode(Object *obedit,
       if (BM_select_history_active_get(em->bm, &ese)) {
         BM_editselection_center(&ese, *center);
 
-        std::optional<float3> _axis;
-        BM_editselection_normal(&ese, *_axis);
-        m3_from_single_axis(rotation->ptr(), *_axis, 2);
-        mul_m3_m4m3(rotation->ptr(), obedit->object_to_world().ptr(), rotation->ptr());
-        orthogonalize_m3_stable(rotation->ptr(), 0, true);
+        float rot[3][3];
+        BM_editselection_normal(&ese, rot[2]);
+        BM_editselection_plane(&ese, rot[0]);
+        cross_v3_v3v3(rot[1], rot[2], rot[0]);
+        mul_m3_m4m3(rot, obedit->object_to_world().ptr(), rot);
+        orthogonalize_m3_stable(rot, 2, true);
+        copy_m3_m3(rotation->ptr(), rot);
         return true;
       }
       break;
