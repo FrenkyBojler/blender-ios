@@ -182,7 +182,7 @@ float gpencil_decode_miter_limit(int packed_data)
   if (miter_data == 0u) {
     return LINEJOIN_TYPE_ROUND;
   }
-  else if (miter_data == 1u) {
+  else if (miter_data == 0x3Fu) {
     return LINEJOIN_TYPE_BEVEL;
   }
   float miter_angle = float(miter_data) * (M_PI / 63.0f);
