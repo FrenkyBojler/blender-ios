@@ -238,7 +238,6 @@ bool ED_curve_active_center(Curve *cu, float center[3])
 
 bool ED_curve_active_rot(Curve *cu, float rot[3][3])
 {
-  float r_axis[3], r_plane[3];
   Nurb *nu = nullptr;
   void *vert = nullptr;
   if (!BKE_curve_nurb_vert_active_get(cu, &nu, &vert)) {
