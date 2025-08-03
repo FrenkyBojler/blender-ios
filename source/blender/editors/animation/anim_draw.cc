@@ -27,6 +27,7 @@
 #include "BKE_global.hh"
 #include "BKE_mask.h"
 #include "BKE_nla.hh"
+#include "BKE_unit.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_edit.hh"
@@ -594,30 +595,31 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
       /* Unit conversion for metric length units */
       if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop))==PROP_UNIT_LENGTH){
         if (scene) {
-          switch((int)scene->unit.length_unit){
-            case 0:
-              return .001f;
-            case 5:
-              return 100.0f;
-            case 6:
-              return 1000.0f;
-            case 7:
-              return 1000000.0f;
-
-          }
+          const void* usys;
+          int len;
+          BKE_unit_system_get(scene->unit.system, B_UNIT_LENGTH, &usys, &len);
+          if (usys)
+            return 1/float(BKE_unit_scalar_get(usys,(int)scene->unit.length_unit));
         }
       }
       /* Unit conversion for metric mass units */
       if(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop))==PROP_UNIT_MASS){
         if (scene) {
-          switch ((int)scene->unit.mass_unit) {
-            case 0:
-              return .001f;
-            case 5:
-              return 1000.0f;
-            case 6:
-              return 1000000.0f;
-          }
+          const void *usys;
+          int len;
+          BKE_unit_system_get(scene->unit.system, B_UNIT_MASS, &usys, &len);
+          if (usys)
+            return 1 / float(BKE_unit_scalar_get(usys, (int)scene->unit.mass_unit));
+        }
+      }
+      /* Unit conversion for metric time units */
+      if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_TIME) {
+        if (scene) {
+          const void *usys;
+          int len;
+          BKE_unit_system_get(scene->unit.system, B_UNIT_TIME, &usys, &len);
+          if (usys)
+            return 1 / float(BKE_unit_scalar_get(usys, (int)scene->unit.time_unit));
         }
       }
     }
