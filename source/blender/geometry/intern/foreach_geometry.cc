@@ -59,21 +59,23 @@ static void reinsert_modified_geometry_recursive(bke::GeometrySet &geometry,
   reinsert_modified_geometry_recursive(sub_geometry, geometry_to_insert, path.drop_front(1));
 }
 
-bke::GeometrySet modify_sub_geometries(bke::GeometrySet geometry,
-                                       const FunctionRef<void(bke::GeometrySet &geometry_set)> fn)
+struct GeometryWithPaths {
+  bke::GeometrySet geometry;
+  Vector<Vector<int>> paths;
+};
+
+void foreach_real_geometry(bke::GeometrySet &geometry,
+                           FunctionRef<void(bke::GeometrySet &geometry_set)> fn)
 {
+  /* Afterwards the geometry does not have realized geometry anymore. It has been extracted and
+   * will be reinserted afterwards. */
   Map<bke::GeometrySet, Vector<Vector<int>>> real_geometries;
   {
     Vector<int> path;
-    /* Afterwards the geometry does not have realized geometry anymore. It has been extracted and
-     * will be reinserted afterwards. */
     extract_real_geometries_recursive(geometry, path, real_geometries);
   }
-
-  struct GeometryWithPaths {
-    bke::GeometrySet geometry;
-    Vector<Vector<int>> paths;
-  };
+  /* Take the geometries out of the map so that they can be edited in-place. As keys in the #Map
+   * the geometries are const and thus can't be modified. */
   Vector<GeometryWithPaths> geometries_with_paths;
   for (auto &&item : real_geometries.items()) {
     geometries_with_paths.append({item.key, std::move(item.value)});
@@ -81,7 +83,7 @@ bke::GeometrySet modify_sub_geometries(bke::GeometrySet geometry,
   /* Clear to avoid extra references to the geometries which prohibit editing them inplace. */
   real_geometries.clear();
 
-  /* Actually modify the geometries.*/
+  /* Actually modify the geometries in parallel.*/
   threading::parallel_for(geometries_with_paths.index_range(), 1, [&](const IndexRange range) {
     for (const int i : range) {
       bke::GeometrySet &geometry_to_modify = geometries_with_paths[i].geometry;
@@ -95,14 +97,6 @@ bke::GeometrySet modify_sub_geometries(bke::GeometrySet geometry,
       reinsert_modified_geometry_recursive(geometry, geometry_with_paths.geometry, path);
     }
   }
-
-  return geometry;
-}
-
-void foreach_real_geometry(bke::GeometrySet &geometry,
-                           FunctionRef<void(bke::GeometrySet &geometry_set)> fn)
-{
-  geometry = modify_sub_geometries(std::move(geometry), fn);
 }
 
 }  // namespace blender::geometry

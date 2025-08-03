@@ -169,6 +169,7 @@ class Instances {
 
   Span<InstanceReference> references() const;
   MutableSpan<InstanceReference> references_for_write();
+
   void remove_unused_references();
 
   /**

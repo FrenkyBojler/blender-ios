@@ -13,9 +13,6 @@ namespace blender::geometry {
  * callback never contains instances. Newly generated instances will be merged with the
  * previously existing ones.
  */
-bke::GeometrySet modify_sub_geometries(bke::GeometrySet geometry,
-                                       FunctionRef<void(bke::GeometrySet &geometry_set)> fn);
-
 void foreach_real_geometry(bke::GeometrySet &geometry,
                            FunctionRef<void(bke::GeometrySet &geometry_set)> fn);
 
