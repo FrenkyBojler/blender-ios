@@ -16,6 +16,11 @@
 
 CCL_NAMESPACE_BEGIN
 
+template<typename T> struct ComplexIOR {
+  T eta;
+  T k;
+};
+
 /* Compute fresnel reflectance for perpendicular (aka S-) and parallel (aka P-) polarized light.
  * If requested by the caller, r_phi is set to the phase shift on reflection.
  * Also returns the dot product of the refracted ray and the normal as `cos_theta_t`, as it is
@@ -110,6 +115,59 @@ ccl_device_inline float fresnel_dielectric_Fss(const float eta)
     return 0.997118f + eta * (0.1014f - eta * (0.965241f + eta * 0.130607f));
   }
   return (eta - 1.0f) / (4.08567f + 1.00071f * eta);
+}
+
+/* Evaluates the Fresnel equations at a dielectric-conductor interface. If requested by the caller,
+ * sets r_R_s and r_R_p to the reflectances for perpendicular and parallel polarized light, and
+ * sets r_phi_s and r_phi_p to the phase shifts due to reflection.
+ * This code is based on equations from section 14.4.1 of Principles of Optics 7th ed. by Born and
+ * Wolf, but uses `n + ik` instead of `n(1 + ik)` for IOR. The phase shifts are calculated so that
+ * phi_p = phi_s at 90 degree incidence to match fresnel_dielectric_polarized. */
+ccl_device void fresnel_conductor_polarized(const float cosi,
+                                            const float ambient_ior,
+                                            const ComplexIOR<Spectrum> conductor_ior,
+                                            ccl_private Spectrum *r_R_s,
+                                            ccl_private Spectrum *r_R_p,
+                                            ccl_private Spectrum *r_phi_s,
+                                            ccl_private Spectrum *r_phi_p)
+{
+  const float eta1 = ambient_ior;
+  const Spectrum eta2 = conductor_ior.eta;
+  const Spectrum k2 = conductor_ior.k;
+
+  const float eta1_sq = sqr(eta1);
+  const Spectrum eta2_sq = sqr(eta2);
+  const Spectrum k2_sq = sqr(k2);
+  const Spectrum two_eta2_k2 = 2.0f * eta2 * k2;
+
+  const Spectrum t1 = eta2_sq - k2_sq - eta1_sq * (1.0f - sqr(cosi));
+  const Spectrum t2 = sqrt(sqr(t1) + sqr(two_eta2_k2));
+
+  const Spectrum u_sq = max(0.5f * (t2 + t1), zero_float3());
+  const Spectrum v_sq = max(0.5f * (t2 - t1), zero_float3());
+  const Spectrum u = sqrt(u_sq);
+  const Spectrum v = sqrt(v_sq);
+
+  if (r_R_s && r_R_p) {
+    *r_R_s = (sqr(eta1 * cosi - u) + v_sq) / (sqr(eta1 * cosi + u) + v_sq);
+
+    const Spectrum t3 = (eta2_sq - k2_sq) * cosi;
+    const Spectrum t4 = two_eta2_k2 * cosi;
+    const Spectrum R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) /
+                         (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
+    const auto mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
+    *r_R_p = select(mask, one_spectrum(), R_p);
+  }
+
+  if (r_phi_s && r_phi_p) {
+    const Spectrum s_numerator = 2.0f * eta1 * cosi * v;
+    const Spectrum s_denominator = u_sq + v_sq - sqr(eta1 * cosi);
+    *r_phi_s = atan2(-s_numerator, -s_denominator);
+
+    const Spectrum p_numerator = 2.0f * eta1 * cosi * (two_eta2_k2 * u - (eta2_sq - k2_sq) * v);
+    const Spectrum p_denominator = sqr((eta2_sq + k2_sq) * cosi) - eta1_sq * (u_sq + v_sq);
+    *r_phi_p = atan2(p_numerator, p_denominator);
+  }
 }
 
 ccl_device Spectrum fresnel_conductor(const float cosi, const Spectrum eta, const Spectrum k)
