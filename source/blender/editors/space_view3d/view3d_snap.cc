@@ -1056,7 +1056,6 @@ static bool snap_calc_active_transform(bContext *C,
 static wmOperatorStatus snap_curs_to_active_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  const int snap_mode = RNA_enum_get(op->ptr, "snap_mode");
   const bool is_loc_on = RNA_boolean_get(op->ptr, "location");
   const bool is_rot_on = RNA_boolean_get(op->ptr, "rotation");
   bool is_snap_done = false;
