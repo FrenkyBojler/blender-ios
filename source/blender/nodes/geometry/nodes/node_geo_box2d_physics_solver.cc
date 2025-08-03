@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous()
       .description("Simulated world");
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
-  b.add_input<decl::Int>("Substeps").default_value(1).min(1);
+  b.add_input<decl::Int>("Substeps").default_value(4).min(1);
 }
 
 static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
@@ -54,6 +54,21 @@ class Box2DState {
  public:
   bool is_initialized = false;
   int update_counter = 0;
+
+  b2WorldId world_id = b2_nullWorldId;
+
+  b2BodyId ground_body_id = b2_nullBodyId;
+  b2ShapeId ground_shape_id = b2_nullShapeId;
+
+  b2BodyId box_body_id = b2_nullBodyId;
+  b2ShapeId box_shape_id = b2_nullShapeId;
+
+  ~Box2DState()
+  {
+    if (b2World_IsValid(this->world_id)) {
+      b2DestroyWorld(this->world_id);
+    }
+  }
 };
 
 class Box2DStateOwner : public BundleItemInternalValueMixin {
@@ -73,7 +88,7 @@ class Box2DStateOwner : public BundleItemInternalValueMixin {
 };
 using Box2DStateOwnerPtr = ImplicitSharingPtr<Box2DStateOwner>;
 
-static void node_geo_exec(GeoNodeExecParams params)
+static void node_geo_exec_locked(GeoNodeExecParams params)
 {
   BundlePtr old_state_bundle_ptr = params.extract_input<BundlePtr>("State");
   BundlePtr world_bundle_ptr = params.extract_input<BundlePtr>("World");
@@ -107,14 +122,43 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   BLI_SCOPED_DEFER([&]() { box2d_state_owner->mutex.unlock(); });
 
-  Box2DState &state = const_cast<Box2DState &>(box2d_state_owner->state);
+  Box2DState &state = box2d_state_owner->state;
   if (!state.is_initialized) {
+    b2WorldDef world_def = b2DefaultWorldDef();
+    state.world_id = b2CreateWorld(&world_def);
+
+    b2BodyDef ground_body_def = b2DefaultBodyDef();
+    state.ground_body_id = b2CreateBody(state.world_id, &ground_body_def);
+
+    b2Polygon ground_box = b2MakeBox(10, 1);
+    b2ShapeDef ground_shape_def = b2DefaultShapeDef();
+    state.ground_shape_id = b2CreatePolygonShape(
+        state.ground_body_id, &ground_shape_def, &ground_box);
+
+    b2BodyDef box_body_def = b2DefaultBodyDef();
+    box_body_def.type = b2_dynamicBody;
+    box_body_def.position = (b2Vec2){0, 4};
+    box_body_def.rotation = b2MakeRot(0.2f);
+    state.box_body_id = b2CreateBody(state.world_id, &box_body_def);
+
+    b2Polygon box_polygon = b2MakeBox(1, 1);
+    b2ShapeDef box_shape_def = b2DefaultShapeDef();
+    box_shape_def.density = 1.0f;
+    box_shape_def.material.friction = 0.3f;
+    state.box_shape_id = b2CreatePolygonShape(state.box_body_id, &box_shape_def, &box_polygon);
+
     state.is_initialized = true;
   }
 
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
+    b2World_Step(state.world_id, delta_time, sub_steps);
+
+    b2Vec2 position = b2Body_GetPosition(state.box_body_id);
+    b2Rot rotation = b2Body_GetRotation(state.box_body_id);
+    printf("%4.2f %4.2f %4.2f\n", position.x, position.y, b2Rot_GetAngle(rotation));
+
     state.update_counter = update_counter;
   }
 
@@ -133,6 +177,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   params.set_output("State", std::move(new_state_bundle_ptr));
   params.set_output("World", std::move(world_bundle_ptr));
+}
+
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  /* The entire Box2D API is single-threaded, so use a global lock for this node. */
+  static Mutex box2d_mutex;
+  std::scoped_lock lock(box2d_mutex);
+  threading::isolate_task([&]() { node_geo_exec_locked(params); });
 }
 
 static void node_register()
