@@ -43,7 +43,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *mesh = geometry_set.get_mesh();
     if (mesh == nullptr) {
-      geometry_set.remove_geometry_during_modify();
+      geometry_set.keep_only({GeometryComponent::Type::Edit});
       return;
     }
 
@@ -55,7 +55,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         evaluator.evaluate();
         const IndexMask selection = evaluator.get_evaluated_as_mask(0);
         if (selection.is_empty()) {
-          geometry_set.remove_geometry_during_modify();
+          geometry_set.keep_only({GeometryComponent::Type::Edit});
           return;
         }
 
@@ -71,7 +71,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         evaluator.evaluate();
         const IndexMask selection = evaluator.get_evaluated_as_mask(0);
         if (selection.is_empty()) {
-          geometry_set.remove_geometry_during_modify();
+          geometry_set.keep_only({GeometryComponent::Type::Edit});
           return;
         }
 
@@ -81,7 +81,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         break;
       }
     }
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
+    geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Edit});
   });
 
   params.set_output("Curve", std::move(geometry_set));

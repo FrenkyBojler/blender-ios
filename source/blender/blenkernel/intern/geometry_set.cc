@@ -164,19 +164,6 @@ void GeometrySet::keep_only(const Span<GeometryComponent::Type> component_types)
   }
 }
 
-void GeometrySet::keep_only_during_modify(const Span<GeometryComponent::Type> component_types)
-{
-  Vector<GeometryComponent::Type> extended_types = component_types;
-  extended_types.append_non_duplicates(GeometryComponent::Type::Instance);
-  extended_types.append_non_duplicates(GeometryComponent::Type::Edit);
-  this->keep_only(extended_types);
-}
-
-void GeometrySet::remove_geometry_during_modify()
-{
-  this->keep_only_during_modify({});
-}
-
 void GeometrySet::add(const GeometryComponent &component)
 {
   BLI_assert(!components_[size_t(component.type())]);

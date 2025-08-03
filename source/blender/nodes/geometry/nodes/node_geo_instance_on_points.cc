@@ -262,7 +262,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           attribute_filter);
       dst_instances = new_instances.get_component_for_write<InstancesComponent>().release();
     }
-    geometry_set.keep_only({});
+    geometry_set.keep_only({GeometryComponent::Type::Edit});
     geometry_set.replace_instances(dst_instances);
   });
 

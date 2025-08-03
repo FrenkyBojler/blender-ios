@@ -247,7 +247,9 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }
@@ -284,7 +286,9 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }
@@ -319,7 +323,9 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }

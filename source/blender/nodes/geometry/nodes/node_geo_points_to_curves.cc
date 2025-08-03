@@ -182,7 +182,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           *points, group_id_field, weight_field, attribute_filter);
       geometry_set.replace_curves(curves_id);
     }
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
+    geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Edit});
   });
 
   params.set_output("Curves", std::move(geometry_set));

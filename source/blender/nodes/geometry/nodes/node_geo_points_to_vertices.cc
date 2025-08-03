@@ -31,11 +31,11 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
 {
   const PointCloud *points = geometry_set.get_pointcloud();
   if (points == nullptr) {
-    geometry_set.remove_geometry_during_modify();
+    geometry_set.keep_only({GeometryComponent::Type::Edit});
     return;
   }
   if (points->totpoint == 0) {
-    geometry_set.remove_geometry_during_modify();
+    geometry_set.keep_only({GeometryComponent::Type::Edit});
     return;
   }
 
@@ -87,7 +87,7 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   mesh->tag_overlapping_none();
 
   geometry_set.replace_mesh(mesh);
-  geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
+  geometry_set.keep_only({GeometryComponent::Type::Mesh, GeometryComponent::Type::Edit});
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

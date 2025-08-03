@@ -76,7 +76,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *mesh = geometry_set.get_mesh();
     if (mesh == nullptr) {
-      geometry_set.keep_only({GeometryComponent::Type::Instance});
+      geometry_set.keep_only({GeometryComponent::Type::Edit});
       return;
     }
 
@@ -89,13 +89,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     IndexMask start_verts = evaluator.get_evaluated_as_mask(1);
 
     if (start_verts.is_empty()) {
-      geometry_set.keep_only({GeometryComponent::Type::Instance});
+      geometry_set.keep_only({GeometryComponent::Type::Edit});
       return;
     }
 
     geometry_set.replace_curves(edge_paths_to_curves_convert(
         *mesh, start_verts, next_vert, params.get_attribute_filter("Curves")));
-    geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Instance});
+    geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Edit});
   });
 
   params.set_output("Curves", std::move(geometry_set));

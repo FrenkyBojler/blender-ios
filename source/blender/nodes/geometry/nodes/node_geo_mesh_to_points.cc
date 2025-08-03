@@ -62,12 +62,12 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
 {
   const Mesh *mesh = geometry_set.get_mesh();
   if (mesh == nullptr) {
-    geometry_set.remove_geometry_during_modify();
+    geometry_set.keep_only({GeometryComponent::Type::Edit});
     return;
   }
   const int domain_size = mesh->attributes().domain_size(domain);
   if (domain_size == 0) {
-    geometry_set.remove_geometry_during_modify();
+    geometry_set.keep_only({GeometryComponent::Type::Edit});
     return;
   }
   const AttributeAccessor src_attributes = mesh->attributes();
@@ -140,7 +140,7 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   }
 
   geometry_set.replace_pointcloud(pointcloud);
-  geometry_set.keep_only_during_modify({GeometryComponent::Type::PointCloud});
+  geometry_set.keep_only({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Edit});
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

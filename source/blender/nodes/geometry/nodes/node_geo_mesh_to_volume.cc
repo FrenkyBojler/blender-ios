@@ -132,7 +132,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_mesh()) {
       Volume *volume = create_volume_from_mesh(*geometry_set.get_mesh(), params);
       geometry_set.replace_volume(volume);
-      geometry_set.keep_only_during_modify({GeometryComponent::Type::Volume});
+      geometry_set.keep_only({GeometryComponent::Type::Volume, GeometryComponent::Type::Edit});
     }
   });
   params.set_output("Volume", std::move(geometry_set));
