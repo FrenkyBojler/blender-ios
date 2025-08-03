@@ -9,6 +9,8 @@
 
 #include "BKE_type_conversions.hh"
 
+#include "DNA_mesh_types.h"
+
 #include "GEO_dyntopo.hh"
 
 #include "node_geometry_util.hh"
@@ -67,7 +69,7 @@ static void node_register()
   ntype.ui_name = "Dyntopo";
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
