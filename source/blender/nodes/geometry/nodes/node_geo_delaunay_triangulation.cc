@@ -160,15 +160,28 @@ static std::optional<CDTGeometrySetInput> cdt_input_from_geometry_set(
         input.point_components.append(component_i);
         input.point_offsets.append(curves.evaluated_points_num());
 
-        int total_segment_num = 0;
+        int total_edge_num = 0;
+        int total_face_num = 0;
         const VArray<bool> &cyclic = curves.cyclic();
         const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
         for (const int curve : curves.curves_range()) {
-          total_segment_num += bke::curves::segments_num(points_by_curve[curve].size(),
-                                                         cyclic[curve]);
+          const IndexRange points = points_by_curve[curve];
+          if (cyclic[curve] && points.size() > 2) {
+            total_face_num++;
+          }
+          else {
+            total_edge_num += bke::curves::segments_num(points.size(), cyclic[curve]);
+          }
         }
-        input.edge_components.append(component_i);
-        input.edge_offsets.append(total_segment_num);
+        
+        if (total_edge_num > 0) {
+          input.edge_components.append(component_i);
+          input.edge_offsets.append(total_edge_num);
+        }
+        if (total_face_num > 0) {
+          input.face_components.append(component_i);
+          input.face_offsets.append(total_face_num);
+        }
         break;
       }
       case GeometryComponent::Type::Mesh: {
@@ -307,6 +320,7 @@ static std::optional<CDTGeometrySetInput> cdt_input_from_geometry_set(
     }
   }
 
+  /* Add face constraints. */
   for (const int face_component_i : input.face_components.index_range()) {
     const int component_i = input.face_components[face_component_i];
     const GeometryComponent *component = all_components[component_i];
@@ -316,6 +330,35 @@ static std::optional<CDTGeometrySetInput> cdt_input_from_geometry_set(
 
     MutableSpan<Vector<int>> dst_faces = cdt_input.face.as_mutable_span().slice(dst_face_range);
     switch (component->type()) {
+      case GeometryComponent::Type::Curve: {
+        const Curves &curves_component = *static_cast<const CurveComponent *>(component)->get();
+        const bke::CurvesGeometry &curves = curves_component.geometry.wrap();
+        const VArray<bool> &cyclic = curves.cyclic();
+        const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
+
+        Vector<int> faces;
+        for (const int curve : curves.curves_range()) {
+          const IndexRange points = points_by_curve[curve];
+          if (cyclic[curve] && points.size() > 2) {
+            faces.append(curve);
+          }
+        }
+        BLI_assert(!faces.is_empty());
+
+        const int dst_points_start_offset = dst_points_range.start();
+        threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
+          for (const int face_i : range) {
+            const int curve = faces[face_i];
+            const IndexRange points = points_by_curve[curve];
+            Vector<int> &dst_face = dst_faces[face_i];
+            dst_face.reinitialize(points.size());
+            for (const int i : points.index_range()) {
+              dst_face[i] = points[i] + dst_points_start_offset;
+            }
+          }
+        });
+        break;
+      }
       case GeometryComponent::Type::Mesh: {
         const Mesh &mesh = *static_cast<const MeshComponent *>(component)->get();
         const OffsetIndices faces = mesh.faces();
