@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_instances.hh"
+#include "BLI_math_matrix.hh"
 #include "box2d/box2d.h"
 
 #include "node_geometry_util.hh"
@@ -15,6 +17,9 @@ using namespace physics_bundles;
 static NestedBundleTypePtr make_world_type()
 {
   Vector<std::shared_ptr<const FlatBundleType>> types;
+  types.append(GravityBundle::get_bundle_type());
+  types.append(ForceBundle::get_bundle_type());
+  types.append(RigidBodyInstancesBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.Box2DSolverWorld", std::move(types));
@@ -50,6 +55,14 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
   return node.input_by_identifier(output_socket.identifier);
 }
 
+struct RigidBodyForInstance {
+  b2BodyId body_id = b2_nullBodyId;
+};
+
+struct RigidBodiesForPath {
+  Map<int, RigidBodyForInstance> bodies_by_id;
+};
+
 class Box2DState {
  public:
   bool is_initialized = false;
@@ -57,11 +70,7 @@ class Box2DState {
 
   b2WorldId world_id = b2_nullWorldId;
 
-  b2BodyId ground_body_id = b2_nullBodyId;
-  b2ShapeId ground_shape_id = b2_nullShapeId;
-
-  b2BodyId box_body_id = b2_nullBodyId;
-  b2ShapeId box_shape_id = b2_nullShapeId;
+  Map<std::string, RigidBodiesForPath> rigid_bodies_by_path;
 
   ~Box2DState()
   {
@@ -70,6 +79,220 @@ class Box2DState {
     }
   }
 };
+
+struct WorldData {
+  Vector<RigidBodyInstancesBundle> rigid_bodies;
+};
+
+static WorldData parse_world(const Bundle &world_bundle)
+{
+  WorldData world;
+  nested_bundle_foreach(world_bundle, [&](HandleNestedBundleParams &params) {
+    BundleParseErrors errors;
+    if (params.type == RigidBodyInstancesBundle::name) {
+      if (std::optional<RigidBodyInstancesBundle> rigid_body = RigidBodyInstancesBundle::parse(
+              params.bundle, errors))
+      {
+        world.rigid_bodies.append(std::move(*rigid_body));
+        world.rigid_bodies.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+  });
+  return world;
+}
+
+static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBundle &bundle,
+                                               const Box2DState &state)
+{
+  GeometrySet geometry = bundle.instances_geometry;
+  bke::Instances *instances = geometry.get_instances_for_write();
+  if (!instances) {
+    return geometry;
+  }
+
+  const RigidBodiesForPath *rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(bundle.self_path);
+  if (!rigid_bodies) {
+    return geometry;
+  }
+
+  const int instances_num = instances->instances_num();
+  const Span<int> instance_ids = instances->almost_unique_ids();
+  MutableSpan<float4x4> transforms = instances->transforms_for_write();
+
+  for (const int instance_i : IndexRange(instances_num)) {
+    const int instance_id = instance_ids[instance_i];
+    const RigidBodyForInstance *rigid_body = rigid_bodies->bodies_by_id.lookup_ptr(instance_id);
+    if (!rigid_body) {
+      continue;
+    }
+    const b2BodyId body_id = rigid_body->body_id;
+    const b2Transform b2_transform = b2Body_GetTransform(body_id);
+
+    float4x4 &transform = transforms[instance_i];
+    const float3 old_scale = math::to_scale(transform);
+    const float3 old_position = transform.location();
+
+    transform = float4x4::identity();
+    transform[0][0] = b2_transform.q.c * old_scale.x;
+    transform[1][0] = -b2_transform.q.s * old_scale.y;
+    transform[0][1] = b2_transform.q.s * old_scale.x;
+    transform[1][1] = b2_transform.q.c * old_scale.y;
+    transform[2][2] = old_scale.z;
+    transform[3][0] = b2_transform.p.x;
+    transform[3][1] = b2_transform.p.y;
+    transform[3][2] = old_position.z;
+  }
+  return geometry;
+}
+
+/* Keep in sync with jolt motion types. */
+static std::optional<b2BodyType> parse_body_type(const int type)
+{
+  switch (type) {
+    case 0:
+      return b2_dynamicBody;
+    case 1:
+      return b2_staticBody;
+    case 2:
+      return b2_kinematicBody;
+    default:
+      return std::nullopt;
+  }
+}
+
+static void handle_rigid_body_instances_bundle(
+    Box2DState &state,
+    const RigidBodyInstancesBundle &bundle,
+    const bke::Instances &current_instances,
+    Map<std::string, RigidBodiesForPath> &r_rigid_bodies_by_path)
+{
+  const int instances_num = current_instances.instances_num();
+  const int references_num = current_instances.references_num();
+  const Span<int> instance_ids = current_instances.almost_unique_ids();
+  const Span<float4x4> transforms = current_instances.transforms();
+  const Span<bke::InstanceReference> references = current_instances.references();
+  const Span<int> handles = current_instances.reference_handles();
+
+  bke::InstancesFieldContext field_context(current_instances);
+  fn::FieldEvaluator field_evaluator{field_context, instances_num};
+  field_evaluator.add(bundle.collision_shape_type);
+  field_evaluator.add(bundle.motion_type);
+  field_evaluator.add(bundle.friction);
+  field_evaluator.add(bundle.bounciness);
+  field_evaluator.add(bundle.density);
+  field_evaluator.evaluate();
+  const VArray<int> collision_shape_types = field_evaluator.get_evaluated<int>(0);
+  const VArray<int> motion_types = field_evaluator.get_evaluated<int>(1);
+  const VArray<float> frictions = field_evaluator.get_evaluated<float>(2);
+  const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(3);
+  const VArray<float> densities = field_evaluator.get_evaluated<float>(4);
+
+  Array<GeometrySet> reference_geometry_sets(references_num);
+  for (const int i : references.index_range()) {
+    const bke::InstanceReference &reference = references[i];
+    GeometrySet reference_geometry;
+    reference.to_geometry_set(reference_geometry);
+    reference_geometry_sets[i] = std::move(reference_geometry);
+  }
+
+  RigidBodiesForPath *old_rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(bundle.self_path);
+
+  RigidBodiesForPath rigid_bodies;
+  for (const int instance_i : IndexRange(instances_num)) {
+    const int reference_i = handles[instance_i];
+    const int instance_id = instance_ids[instance_i];
+    if (!reference_geometry_sets.index_range().contains(reference_i)) {
+      continue;
+    }
+    const std::optional<b2BodyType> body_type = parse_body_type(motion_types[instance_i]);
+    if (!body_type) {
+      continue;
+    }
+    const GeometrySet &reference_geometry = reference_geometry_sets[reference_i];
+    const std::optional<Bounds<float3>> bounds =
+        reference_geometry.compute_boundbox_without_instances(true);
+    if (!bounds) {
+      continue;
+    }
+    if (bounds->min.x >= bounds->max.x || bounds->min.y >= bounds->max.y) {
+      continue;
+    }
+    const float4x4 &instance_transform = transforms[instance_i];
+    float3 instance_position;
+    math::EulerXYZ instance_rotation;
+    float3 instance_scale;
+    math::to_loc_rot_scale_safe<true>(
+        instance_transform, instance_position, instance_rotation, instance_scale);
+
+    float density = densities[instance_i];
+    if (density <= 0.0f) {
+      density = 1.0f;
+    }
+    const float friction = std::max(frictions[instance_i], 0.0f);
+
+    std::optional<RigidBodyForInstance> rigid_body;
+    if (old_rigid_bodies) {
+      if (std::optional<RigidBodyForInstance> old_rigid_body =
+              old_rigid_bodies->bodies_by_id.pop_try(instance_id))
+      {
+        rigid_body = old_rigid_body;
+      }
+    }
+    if (!rigid_body) {
+      b2BodyDef body_def = b2DefaultBodyDef();
+      body_def.type = *body_type;
+      body_def.position.x = instance_position.x;
+      body_def.position.y = instance_position.y;
+      body_def.rotation = b2MakeRot(instance_rotation.z().radian());
+      b2BodyId body_id = b2CreateBody(state.world_id, &body_def);
+
+      const float half_width = math::abs(
+          math::max(math::abs(bounds->min.x), math::abs(bounds->max.x)) * instance_scale.x);
+      const float half_height = math::abs(
+          math::max(math::abs(bounds->min.y), math::abs(bounds->max.y)) * instance_scale.y);
+
+      b2Polygon polygon = b2MakeBox(half_width, half_height);
+      b2ShapeDef shape_def = b2DefaultShapeDef();
+      shape_def.density = density;
+      shape_def.material.friction = friction;
+      b2CreatePolygonShape(body_id, &shape_def, &polygon);
+
+      rigid_body = {body_id};
+    }
+    rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
+  }
+  r_rigid_bodies_by_path.add(bundle.self_path, std::move(rigid_bodies));
+}
+
+static void update_box2d_state_from_world(Box2DState &state, const WorldData &world)
+{
+  Array<GeometrySet> applied_rigid_bodies(world.rigid_bodies.size());
+  for (const int i : world.rigid_bodies.index_range()) {
+    const RigidBodyInstancesBundle &rigid_body_bundle = world.rigid_bodies[i];
+    applied_rigid_bodies[i] = apply_rigid_body_simulation(rigid_body_bundle, state);
+  }
+
+  Map<std::string, RigidBodiesForPath> new_rigid_bodies_by_path;
+  for (const int i : world.rigid_bodies.index_range()) {
+    const GeometrySet &applied_rigid_body = applied_rigid_bodies[i];
+    const bke::Instances *instances = applied_rigid_body.get_instances();
+    if (!instances) {
+      continue;
+    }
+    const RigidBodyInstancesBundle &rigid_body_bundle = world.rigid_bodies[i];
+    handle_rigid_body_instances_bundle(
+        state, rigid_body_bundle, *instances, new_rigid_bodies_by_path);
+  }
+
+  /* Remove old data.*/
+  for (RigidBodiesForPath &rigid_bodies : state.rigid_bodies_by_path.values()) {
+    for (RigidBodyForInstance &rigid_body : rigid_bodies.bodies_by_id.values()) {
+      b2DestroyBody(rigid_body.body_id);
+    }
+  }
+
+  state.rigid_bodies_by_path = std::move(new_rigid_bodies_by_path);
+}
 
 class Box2DStateOwner : public BundleItemInternalValueMixin {
  public:
@@ -126,39 +349,16 @@ static void node_geo_exec_locked(GeoNodeExecParams params)
   if (!state.is_initialized) {
     b2WorldDef world_def = b2DefaultWorldDef();
     state.world_id = b2CreateWorld(&world_def);
-
-    b2BodyDef ground_body_def = b2DefaultBodyDef();
-    state.ground_body_id = b2CreateBody(state.world_id, &ground_body_def);
-
-    b2Polygon ground_box = b2MakeBox(10, 1);
-    b2ShapeDef ground_shape_def = b2DefaultShapeDef();
-    state.ground_shape_id = b2CreatePolygonShape(
-        state.ground_body_id, &ground_shape_def, &ground_box);
-
-    b2BodyDef box_body_def = b2DefaultBodyDef();
-    box_body_def.type = b2_dynamicBody;
-    box_body_def.position = (b2Vec2){0, 4};
-    box_body_def.rotation = b2MakeRot(0.2f);
-    state.box_body_id = b2CreateBody(state.world_id, &box_body_def);
-
-    b2Polygon box_polygon = b2MakeBox(1, 1);
-    b2ShapeDef box_shape_def = b2DefaultShapeDef();
-    box_shape_def.density = 1.0f;
-    box_shape_def.material.friction = 0.3f;
-    state.box_shape_id = b2CreatePolygonShape(state.box_body_id, &box_shape_def, &box_polygon);
-
     state.is_initialized = true;
   }
+
+  WorldData world = parse_world(*world_bundle_ptr);
 
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
+    update_box2d_state_from_world(state, world);
     b2World_Step(state.world_id, delta_time, sub_steps);
-
-    b2Vec2 position = b2Body_GetPosition(state.box_body_id);
-    b2Rot rotation = b2Body_GetRotation(state.box_body_id);
-    printf("%4.2f %4.2f %4.2f\n", position.x, position.y, b2Rot_GetAngle(rotation));
-
     state.update_counter = update_counter;
   }
 
@@ -174,6 +374,11 @@ static void node_geo_exec_locked(GeoNodeExecParams params)
     world_bundle_ptr->tag_ensured_mutable();
   }
   Bundle &world_bundle = const_cast<Bundle &>(*world_bundle_ptr);
+  for (RigidBodyInstancesBundle &rigid_bodies_bundle : world.rigid_bodies) {
+    GeometrySet applied_rigid_bodies = apply_rigid_body_simulation(rigid_bodies_bundle, state);
+    world_bundle.add_path_override(rigid_bodies_bundle.self_path + "/instances",
+                                   std::move(applied_rigid_bodies));
+  }
 
   params.set_output("State", std::move(new_state_bundle_ptr));
   params.set_output("World", std::move(world_bundle_ptr));

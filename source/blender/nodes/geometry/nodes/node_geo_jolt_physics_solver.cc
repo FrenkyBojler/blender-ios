@@ -548,7 +548,7 @@ static void handle_rigid_body_instances_bundle(
     std::optional<JoltRigidBody> rigid_body;
     if (old_rigid_bodies) {
       if (std::optional<JoltRigidBody> old_rigid_body = old_rigid_bodies->bodies_by_id.pop_try(
-              instance_i))
+              instance_id))
       {
         rigid_body = old_rigid_body;
       }
@@ -917,7 +917,7 @@ static void apply_forces(JoltState &state,
 
 static void update_jolt_state_from_world(const GeoNodeExecParams &params,
                                          JoltState &state,
-                                         WorldData &world)
+                                         const WorldData &world)
 {
   state.collision_shape_cache.reset_used();
 
