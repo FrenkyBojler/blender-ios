@@ -79,11 +79,14 @@ float gpencil_stroke_cap_mask(float2 p1,
 
   bool is_start = p0 == p1;
   bool is_end = p2 == p3;
-  float2 pos = gl_FragCoord.xy - p1;
-  float2 line = p2 - p1;
-  float radius = thickness * 0.5f;
+  if (is_start && is_end) {
+    return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
+  }
 
-  float2 tan1 = tan_dir(line);
+  float radius = thickness * 0.5f;
+  float2 pos1 = gl_FragCoord.xy - p1;
+  float2 line1 = p2 - p1;
+  float2 tan1 = tan_dir(line1);
 
   float2 line2 = p1 - p0;
   float2 tan2 = tan_dir(line2);
@@ -93,18 +96,14 @@ float gpencil_stroke_cap_mask(float2 p1,
   float2 tan3 = tan_dir(line3);
   float2 pos3 = gl_FragCoord.xy - p2;
 
-  float si1 = -sign(dot(line, tan2));
-  float si2 = sign(dot(line, tan3));
+  float si1 = -sign(dot(line1, tan2));
+  float si2 = sign(dot(line1, tan3));
 
-  if (is_start && is_end) {
-    return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
-  }
-
-  float t = dot(pos, line) / dot(line, line);
+  float t1 = dot(pos1, line1) / dot(line1, line1);
   float t2 = dot(pos2, line2) / dot(line2, line2);
   float t3 = dot(pos3, line3) / dot(line3, line3);
 
-  float dist = length(pos - clamp(t, 0.0f, 1.0f) * line) / radius;
+  float dist = length(pos1 - clamp(t1, 0.0f, 1.0f) * line1) / radius;
 
   if (!is_start) {
     dist = min(dist, length(pos2 - clamp(t2, 0.0f, 1.0f) * line2) / radius);
@@ -113,11 +112,11 @@ float gpencil_stroke_cap_mask(float2 p1,
     dist = min(dist, length(pos3 - clamp(t3, 0.0f, 1.0f) * line3) / radius);
   }
 
-  float cos_angle1 = -dot(normalize(line), normalize(line2));
-  float cos_angle2 = -dot(normalize(line), normalize(line3));
+  float cos_angle1 = -dot(normalize(line1), normalize(line2));
+  float cos_angle2 = -dot(normalize(line1), normalize(line3));
 
-  if (t <= 0.0f && t2 >= 1.0f && !is_start) {
-    dist = max(length(pos - t * line) / radius, length(pos2 - t2 * line2) / radius);
+  if (t1 <= 0.0f && t2 >= 1.0f && !is_start) {
+    dist = max(length(pos1 - t1 * line1) / radius, length(pos2 - t2 * line2) / radius);
 
     if (miter_limit == LINEJOIN_TYPE_BEVEL || cos_angle1 > miter_limit) {
       float2 pc1 = p1 + si1 * normalize(tan1) * radius;
@@ -131,8 +130,8 @@ float gpencil_stroke_cap_mask(float2 p1,
     }
   }
 
-  if (t >= 1.0f && t3 <= 0.0f && !is_end) {
-    dist = max(length(pos - t * line) / radius, length(pos3 - t3 * line3) / radius);
+  if (t1 >= 1.0f && t3 <= 0.0f && !is_end) {
+    dist = max(length(pos1 - t1 * line1) / radius, length(pos3 - t3 * line3) / radius);
 
     if (miter_limit == LINEJOIN_TYPE_BEVEL || cos_angle2 > miter_limit) {
       float2 pc21 = p2 + si2 * normalize(tan1) * radius;
