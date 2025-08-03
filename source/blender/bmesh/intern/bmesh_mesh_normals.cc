@@ -1887,6 +1887,12 @@ static void bm_lnorspace_ensure_from_free_normals(BMesh *bm)
   Array<float3> lnors(bm->totloop, float3(0));
   const int vert_free_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT3, "custom_normal");
+  const int edge_free_offset = CustomData_get_offset_named(
+      &bm->edata, CD_PROP_FLOAT3, "custom_normal");
+  const int face_free_offset = CustomData_get_offset_named(
+      &bm->pdata, CD_PROP_FLOAT3, "custom_normal");
+  const int loop_free_offset = CustomData_get_offset_named(
+      &bm->ldata, CD_PROP_FLOAT3, "custom_normal");
   if (vert_free_offset != -1) {
     int loop_index = 0;
     BMFace *f;
@@ -1899,14 +1905,10 @@ static void bm_lnorspace_ensure_from_free_normals(BMesh *bm)
     }
     BM_data_layer_free_named(bm, &bm->vdata, "custom_normal");
   }
-  const int edge_free_offset = CustomData_get_offset_named(
-      &bm->edata, CD_PROP_FLOAT3, "custom_normal");
-  if (edge_free_offset != -1) {
+  else if (edge_free_offset != -1) {
     BM_data_layer_free_named(bm, &bm->edata, "custom_normal");
   }
-  const int face_free_offset = CustomData_get_offset_named(
-      &bm->pdata, CD_PROP_FLOAT3, "custom_normal");
-  if (face_free_offset != -1) {
+  else if (face_free_offset != -1) {
     int loop_index = 0;
     BMFace *f;
     BMLoop *l;
@@ -1918,9 +1920,7 @@ static void bm_lnorspace_ensure_from_free_normals(BMesh *bm)
     }
     BM_data_layer_free_named(bm, &bm->pdata, "custom_normal");
   }
-  const int loop_free_offset = CustomData_get_offset_named(
-      &bm->ldata, CD_PROP_FLOAT3, "custom_normal");
-  if (loop_free_offset != -1) {
+  else if (loop_free_offset != -1) {
     int loop_index = 0;
     BMFace *f;
     BMLoop *l;
