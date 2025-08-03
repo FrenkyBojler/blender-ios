@@ -2,6 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+/* The files:
+ * node_shader_radial_tiling_shared.cc
+ * node_radial_tiling_shared.h
+ * radial_tiling_shared.h
+ * gpu_shader_material_radial_tiling_shared.glsl
+ * */
+
 /* The SVM implementation is used as the base generic version because multiple math function
  * identifiers are already used as macros in the SVM code, making a code adaption into an SVM
  * implementation using macros impossible. */

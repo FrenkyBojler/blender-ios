@@ -74,7 +74,6 @@ set(SRC
   nodes/node_shader_particle_info.cc
   nodes/node_shader_point_info.cc
   nodes/node_shader_radial_tiling.cc
-  ../../../../intern/cycles/kernel/svm/radial_tiling_generic.generic
   nodes/node_shader_rgb.cc
   nodes/node_shader_rgb_to_bw.cc
   nodes/node_shader_script.cc
@@ -112,6 +111,8 @@ set(SRC
   nodes/node_shader_volume_scatter.cc
   nodes/node_shader_wavelength.cc
   nodes/node_shader_wireframe.cc
+
+    nodes/node_shader_radial_tiling_shared.hh
 
   node_shader_register.cc
   node_shader_tree.cc
