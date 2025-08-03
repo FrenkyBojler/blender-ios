@@ -6,6 +6,7 @@
 
 #include "DNA_mesh_types.h"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_to_curve.hh"
 
 #include "node_geometry_util.hh"
@@ -72,7 +73,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *mesh = geometry_set.get_mesh();
     if (mesh == nullptr) {
       geometry_set.keep_only({GeometryComponent::Type::Instance});

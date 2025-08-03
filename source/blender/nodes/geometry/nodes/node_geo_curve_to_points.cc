@@ -11,6 +11,7 @@
 #include "BKE_instances.hh"
 #include "BKE_pointcloud.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_resample_curves.hh"
 
@@ -215,7 +216,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   switch (mode) {
     case GEO_NODE_CURVE_RESAMPLE_COUNT: {
       const Field<int> count = params.extract_input<Field<int>>("Count");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_count(
               src_curves_id->geometry.wrap(),
@@ -252,7 +253,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     case GEO_NODE_CURVE_RESAMPLE_LENGTH: {
       const Field<float> length = params.extract_input<Field<float>>("Length");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_length(
               src_curves_id->geometry.wrap(),
@@ -288,7 +289,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       break;
     }
     case GEO_NODE_CURVE_RESAMPLE_EVALUATED: {
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_evaluated(
               src_curves_id->geometry.wrap(),

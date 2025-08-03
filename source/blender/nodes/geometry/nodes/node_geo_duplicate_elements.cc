@@ -21,6 +21,8 @@
 
 #include "NOD_rna_define.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "FN_multi_function_builder.hh"
 
 #include "UI_interface_layout.hh"
@@ -1179,7 +1181,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         geometry_set, count_field, selection_field, attribute_outputs, attribute_filter);
   }
   else {
-    geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+    geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
       switch (duplicate_domain) {
         case AttrDomain::Curve:
           duplicate_curves(

@@ -12,6 +12,7 @@
 
 #include "node_geometry_util.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_points_to_volume.hh"
 
 #include "BKE_lib_id.hh"
@@ -172,7 +173,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     initialize_volume_component_from_points(params, geometry_set);
   });
   params.set_output("Volume", std::move(geometry_set));

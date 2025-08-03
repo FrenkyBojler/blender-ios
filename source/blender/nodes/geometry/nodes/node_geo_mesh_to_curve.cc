@@ -6,6 +6,7 @@
 
 #include "NOD_rna_define.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_to_curve.hh"
 
 #include "UI_interface_c.hh"
@@ -39,7 +40,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Mode mode = Mode(params.node().custom1);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *mesh = geometry_set.get_mesh();
     if (mesh == nullptr) {
       geometry_set.remove_geometry_during_modify();

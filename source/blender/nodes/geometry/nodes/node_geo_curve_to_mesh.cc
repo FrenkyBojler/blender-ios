@@ -8,6 +8,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_randomize.hh"
 
@@ -126,7 +127,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(curve_set);
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
 
-  curve_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(curve_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
       const Curves &curves = *geometry_set.get_curves();
 

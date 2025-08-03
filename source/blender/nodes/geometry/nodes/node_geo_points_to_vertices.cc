@@ -9,6 +9,8 @@
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_points_to_vertices_cc {
@@ -93,7 +95,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     geometry_set_points_to_vertices(
         geometry_set, selection_field, params.get_attribute_filter("Mesh"));
   });

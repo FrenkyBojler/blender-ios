@@ -10,6 +10,7 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -257,7 +258,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 #ifdef WITH_BULLET
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     Mesh *mesh = compute_hull(geometry_set);
     if (mesh) {
       geometry::debug_randomize_mesh_order(mesh);

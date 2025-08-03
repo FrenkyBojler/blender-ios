@@ -17,6 +17,7 @@
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -195,7 +196,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     threshold = params.extract_input<float>("Threshold");
   }
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (!geometry_set.has_volume()) {
       geometry_set.keep_only_during_modify({GeometryComponent::Type::PointCloud});
       return;

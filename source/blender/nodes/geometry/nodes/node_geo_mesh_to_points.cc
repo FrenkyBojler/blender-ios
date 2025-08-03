@@ -16,6 +16,8 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "FN_multi_function_builder.hh"
 
 #include "node_geometry_util.hh"
@@ -161,7 +163,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Points");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     switch (mode) {
       case GEO_NODE_MESH_TO_POINTS_VERTICES:
         geometry_set_mesh_to_points(geometry_set,

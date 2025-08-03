@@ -14,6 +14,7 @@
 #include "BLI_sort.hh"
 #include "BLI_task.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "BKE_geometry_set.hh"
@@ -174,7 +175,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float> weight_field = params.extract_input<Field<float>>("Weight");
 
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     geometry_set.replace_curves(nullptr);
     if (const PointCloud *points = geometry_set.get_pointcloud()) {
       Curves *curves_id = curves_from_points(

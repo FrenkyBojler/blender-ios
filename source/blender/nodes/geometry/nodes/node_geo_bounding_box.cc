@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_primitive_cuboid.hh"
 #include "GEO_transform.hh"
 
@@ -49,7 +50,7 @@ static void node_geo_exec(GeoNodeExecParams params)
    * every instance). Because geometry components are reference counted anyway, we can just
    * repurpose the original geometry sets for the output. */
   if (params.output_is_required("Bounding Box")) {
-    geometry_set.modify_geometry_sets([&](GeometrySet &sub_geometry) {
+    geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &sub_geometry) {
       std::optional<Bounds<float3>> sub_bounds;
 
       /* Reuse the min and max calculation if this is the main "real" geometry set. */
