@@ -1888,13 +1888,13 @@ static void bm_lnorspace_ensure_from_free_normals(BMesh *bm)
   const int vert_free_offset = CustomData_get_offset_named(
       &bm->vdata, CD_PROP_FLOAT3, "custom_normal");
   if (vert_free_offset != -1) {
-    BM_mesh_elem_index_ensure(bm, BM_LOOP);
+    int loop_index = 0;
     BMFace *f;
     BMLoop *l;
     BMIter fiter, liter;
     BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-        lnors[BM_elem_index_get(l)] = float3(BM_ELEM_CD_GET_FLOAT_P(l->v, vert_free_offset));
+        lnors[loop_index++] = float3(BM_ELEM_CD_GET_FLOAT_P(l->v, vert_free_offset));
       }
     }
     BM_data_layer_free_named(bm, &bm->vdata, "custom_normal");
@@ -1907,13 +1907,13 @@ static void bm_lnorspace_ensure_from_free_normals(BMesh *bm)
   const int face_free_offset = CustomData_get_offset_named(
       &bm->pdata, CD_PROP_FLOAT3, "custom_normal");
   if (face_free_offset != -1) {
-    BM_mesh_elem_index_ensure(bm, BM_LOOP);
+    int loop_index = 0;
     BMFace *f;
     BMLoop *l;
     BMIter fiter, liter;
     BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-        lnors[BM_elem_index_get(l)] = float3(BM_ELEM_CD_GET_FLOAT_P(f, face_free_offset));
+        lnors[loop_index++] = float3(BM_ELEM_CD_GET_FLOAT_P(f, face_free_offset));
       }
     }
     BM_data_layer_free_named(bm, &bm->pdata, "custom_normal");
@@ -1921,13 +1921,13 @@ static void bm_lnorspace_ensure_from_free_normals(BMesh *bm)
   const int loop_free_offset = CustomData_get_offset_named(
       &bm->ldata, CD_PROP_FLOAT3, "custom_normal");
   if (loop_free_offset != -1) {
-    BM_mesh_elem_index_ensure(bm, BM_LOOP);
+    int loop_index = 0;
     BMFace *f;
     BMLoop *l;
     BMIter fiter, liter;
     BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-        lnors[BM_elem_index_get(l)] = float3(BM_ELEM_CD_GET_FLOAT_P(l, loop_free_offset));
+        lnors[loop_index++] = float3(BM_ELEM_CD_GET_FLOAT_P(l, loop_free_offset));
       }
     }
     BM_data_layer_free_named(bm, &bm->ldata, "custom_normal");
