@@ -957,14 +957,10 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       continue;
     }
 
-    if (attribute_is_shared(dst)) {
-      results_to_store.append({input_index, evaluator.add(field)});
-      continue;
-    }
-
     const bool match_metadata = dst.domain == domain && dst.varray.type() == type;
     const bool is_dependency = dependencies.contains(id);
-    if (match_metadata && !is_dependency) {
+    const bool free_to_edit = !attribute_is_shared(dst);
+    if (match_metadata && !is_dependency && free_to_edit) {
       GSpanAttributeWriter dst_mutable = attributes.lookup_for_write_span(id);
 
       GMutableVArraySpan &dst_data = dst_mutable.span;
