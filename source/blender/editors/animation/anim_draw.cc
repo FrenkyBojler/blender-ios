@@ -591,12 +591,8 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
       /* TODO: other rotation types here as necessary */
 
 
-      /* Unit conversion for metric length properties:
-       * Converts between Blender units and the active metric subunit (meters, centimeters,
-       * millimeters, etc.) as set by scene->unit.scale_length.
-       */
+      /* Unit conversion for metric length units */
       if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop))==PROP_UNIT_LENGTH){
-        /* if the centimeters flag is not set, default to using meters which need conversions */
         if (scene) {
           switch((int)scene->unit.length_unit){
             case 0:
@@ -611,6 +607,7 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
           }
         }
       }
+      /* Unit conversion for metric mass units */
       if(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop))==PROP_UNIT_MASS){
         if (scene) {
           switch ((int)scene->unit.mass_unit) {
