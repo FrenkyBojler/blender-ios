@@ -259,6 +259,14 @@ static void handle_rigid_body_instances_bundle(
 
       rigid_body = {body_id};
     }
+
+    b2ShapeId shape_id;
+    b2Body_GetShapes(rigid_body->body_id, &shape_id, 1);
+    if (b2Shape_GetFriction(shape_id) != friction) {
+      b2Shape_SetFriction(shape_id, friction);
+      b2Body_EnableSleep(rigid_body->body_id, false);
+    }
+
     rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
   }
   r_rigid_bodies_by_path.add(bundle.self_path, std::move(rigid_bodies));
