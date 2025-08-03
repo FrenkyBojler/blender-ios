@@ -206,4 +206,48 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
         rename_keymap({"Sequencer Tool: Rotate": "Preview Tool: Rotate"})
         rename_keymap({"Sequencer Tool: Scale": "Preview Tool: Scale"})
 
+    if keyconfig_version < (5, 0, 51):
+        if not has_copy:
+            keyconfig_data = copy.deepcopy(keyconfig_data)
+            has_copy = True
+
+        for _km_name, _km_parms, km_items_data in keyconfig_data:
+            for (item_op, _item_event, item_prop) in km_items_data["items"]:
+                if item_op == "wm.radial_control":
+                    correct_path_elements = []
+                    secondary_path_idx = -1
+                    secondary_path_identifier = ""
+                    toggle_path_idx = -1
+                    toggle_path_identifier = ""
+
+                    for prop_idx, (prop_id, prop_path) in enumerate(item_prop["properties"]):
+                        if prop_id == "data_path_primary":
+                            # Example: 'tool_settings.sculpt.brush.size' results in ['tool_settings',
+                            # 'sculpt', 'unified_paint_settings']
+                            correct_path_elements = prop_path.split(".")[0:2]
+                            correct_path_elements.append("unified_paint_settings")
+                        elif prop_id == "data_path_secondary":
+                            if prop_path:
+                                # Example: 'tool_settings.unified_paint_settings.size' results in 'size'
+                                secondary_path_idx = prop_idx
+                                secondary_path_identifier = prop_path.split(".")[-1]
+                        elif prop_id == "use_secondary":
+                            if prop_path:
+                                # Example: 'tool_settings.unified_paint_settings.use_unified_size' results
+                                # in 'use_unified_size'
+                                toggle_path_idx = prop_idx
+                                toggle_path_identifier = prop_path.split(".")[-1]
+
+                    if secondary_path_idx != -1 and toggle_path_idx != -1:
+                        correct_secondary_path = correct_path_elements[:]
+                        correct_secondary_path.append(secondary_path_identifier)
+                        # Example: 'tool_settings.sculpt.unified_paint_settings.size'
+                        item_prop["properties"][secondary_path_idx] = (
+                            "data_path_secondary", ".".join(correct_secondary_path))
+
+                        correct_toggle_path = correct_path_elements[:]
+                        correct_toggle_path.append(toggle_path_identifier)
+                        # Example: 'tool_settings.sculpt.unified_paint_settings.use_unified_size'
+                        item_prop["properties"][toggle_path_idx] = ("use_secondary", ".".join(correct_toggle_path))
+
     return keyconfig_data
