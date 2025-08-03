@@ -168,6 +168,7 @@ class Instances {
   void add_instance(int instance_handle, const float4x4 &transform);
 
   Span<InstanceReference> references() const;
+  MutableSpan<InstanceReference> references_for_write();
   void remove_unused_references();
 
   /**

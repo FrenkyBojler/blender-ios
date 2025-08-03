@@ -109,6 +109,7 @@ static void join_instances(const Span<const GeometryComponent *> src_components,
 
   MutableSpan<int> all_handles = dst_instances->reference_handles_for_write();
 
+  // TODO: Support disabling sharing of instance references.
   Map<std::reference_wrapper<const bke::InstanceReference>, int> new_handle_by_src_reference;
 
   for (const int i : src_components.index_range()) {
