@@ -1,3 +1,3 @@
 Referenced by issue #142583, UV editor overlay edges flickers when the uv mesh its partially display.
 Referenced by issue #143738, Curve Overlay Drawing: rogue lines going to object origin
-Referenced by pull request #143858, Fix #143738: Rogue lines going to object origin in curve topology overlay
+Referenced by pull request #143858, Fix #143738: Broken lines overlay in curve overlay
