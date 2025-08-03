@@ -9,10 +9,7 @@
  * with polygons (normal/area calculation, tessellation, etc)
  */
 
-#include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
 #include "BLI_linklist.h"
@@ -488,7 +485,7 @@ void BM_face_calc_tangent_from_edge_pair(const BMFace *f, float r_tangent[3])
 
     /* Edges may not be opposite side of the ngon,
      * this could cause problems for ngons with multiple-aligned edges of the same length.
-     * Fallback to longest edge. */
+     * Fall back to longest edge. */
     if (UNLIKELY(normalize_v3(r_tangent) == 0.0f)) {
       normalize_v3_v3(r_tangent, vec_a);
     }
@@ -670,7 +667,7 @@ void BM_face_calc_center_median_weighted(const BMFace *f, float r_cent[3])
   } while ((l_iter = l_iter->next) != l_first);
 
   if (totw != 0.0f) {
-    mul_v3_fl(r_cent, 1.0f / float(totw));
+    mul_v3_fl(r_cent, 1.0f / totw);
   }
 }
 

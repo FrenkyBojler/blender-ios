@@ -6,14 +6,13 @@
  * \ingroup bke
  */
 
+#include "ANIM_armature.hh"
+
 #include "BKE_armature.hh"
 
 #include "BLI_listbase.h"
 
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
-
-#include "ANIM_bone_collections.hh"
 
 namespace blender::bke {
 
@@ -24,7 +23,7 @@ void find_selected_bones__visit_bone(const bArmature *armature,
                                      SelectedBonesResult &result,
                                      Bone *bone)
 {
-  const bool is_selected = PBONE_SELECTED(armature, bone);
+  const bool is_selected = blender::animrig::bone_is_selected(armature, bone);
   result.all_bones_selected &= is_selected;
   result.no_bones_selected &= !is_selected;
 

@@ -2,15 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_attribute_math.hh"
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
+
 #include "BKE_mesh_sample.hh"
 #include "BKE_type_conversions.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_reverse_uv_sampler.hh"
@@ -27,7 +27,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh whose UV map is used");
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Value").hide_value().field_on_all();
@@ -51,7 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -165,7 +167,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.extract_input<Field<float3>>("Source UV Map"), float2_type);
   Field<float2> sample_uvs = conversions.try_convert(
       params.extract_input<Field<float3>>("Sample UV"), float2_type);
-  auto uv_op = FieldOperation::Create(
+  auto uv_op = FieldOperation::from(
       std::make_shared<ReverseUVSampleFunction>(geometry, std::move(source_uv_map)),
       {std::move(sample_uvs)});
   params.set_output("Is Valid", Field<bool>(uv_op, 0));
@@ -173,7 +175,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   /* Use the output of the UV sampling to interpolate the mesh attribute. */
   GField field = params.extract_input<GField>("Value");
 
-  auto sample_op = FieldOperation::Create(
+  auto sample_op = FieldOperation::from(
       std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(std::move(geometry),
                                                                      std::move(field)),
       {Field<int>(uv_op, 1), Field<float3>(uv_op, 2)});
@@ -207,7 +209,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
