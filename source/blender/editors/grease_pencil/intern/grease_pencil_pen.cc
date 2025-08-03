@@ -175,7 +175,7 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
   const Span<float3> handle_left = curves.handle_positions_left();
   const Span<float3> handle_right = curves.handle_positions_right();
   const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-      *ptd.vc.obact, drawing, layer_index, memory);
+      *ptd.vc.obact, drawing, layer_index, ptd.vc.v3d->overlay.handle_display, memory);
 
   bezier_points.foreach_index([&](const int point_i) {
     const float2 pos_proj = pen_layer_to_screen(ptd, layer_to_object, handle_left[point_i]);
@@ -757,7 +757,7 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
 
     IndexMaskMemory memory;
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        *ptd.vc.obact, info.drawing, info.layer_index, memory);
+        *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
 
     bezier_points.foreach_index([&](const int64_t point_i) {
       if (ends_only) {
@@ -1164,7 +1164,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
     IndexMaskMemory memory;
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        *object, info.drawing, info.layer_index, memory);
+        *object, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
     if (bezier_points.is_empty()) {
       return;
     }
