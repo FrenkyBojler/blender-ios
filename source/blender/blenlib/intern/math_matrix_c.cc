@@ -65,40 +65,6 @@ void unit_m4_db(double m[4][4])
   m[3][0] = m[3][1] = m[3][2] = 0.0f;
 }
 
-void m3_from_single_axis(float mat3[3][3], const float axis[3], const int axis_index)
-{
-  float len, vec[3], world_ax[3];
-  int ax_i = mod_i(axis_index, 3);
-  zero_v3(world_ax);
-  world_ax[ax_i] = 1;
-  // 1st axis
-  normalize_v3_v3(mat3[ax_i], axis);
-  if (compare_v3v3(mat3[ax_i], world_ax, FLT_EPSILON)) {
-    unit_m3(mat3);
-    return;
-  }
-  // check not to generate zero axes
-  cross_v3_v3v3(vec, mat3[ax_i], world_ax);
-  len = len_v3(vec);
-  if (compare_ff(len, 0, 0.01f)) {
-    zero_v3(vec);
-    vec[mod_i((ax_i - 1), 3)] = 1;
-  }
-  else {
-    copy_v3_v3(vec, world_ax);
-  }
-  // remaining axes
-  for (int i = 0; i < 2; i++) {
-    ax_i = mod_i((ax_i - 1), 3);
-    cross_v3_v3v3(mat3[ax_i], vec, axis);
-    len = normalize_v3(mat3[ax_i]);
-    copy_v3_v3(vec, mat3[ax_i]);
-  }
-  if (UNLIKELY(is_negative_m3(mat3))) {
-    negate_m3(mat3);
-  }
-}
-
 void copy_m2_m2(float m1[2][2], const float m2[2][2])
 {
   memcpy(m1, m2, sizeof(float[2][2]));

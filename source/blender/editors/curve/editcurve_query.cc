@@ -238,7 +238,7 @@ bool ED_curve_active_center(Curve *cu, float center[3])
 
 bool ED_curve_active_rot(Curve *cu, float rot[3][3])
 {
-  float _axis[3];
+  float r_axis[3], r_plane[3];
   Nurb *nu = nullptr;
   void *vert = nullptr;
   if (!BKE_curve_nurb_vert_active_get(cu, &nu, &vert)) {
@@ -246,8 +246,10 @@ bool ED_curve_active_rot(Curve *cu, float rot[3][3])
   }
   if (nu->type == CU_BEZIER) {
     BezTriple *bezt = (BezTriple *)vert;
-    sub_v3_v3v3(_axis, bezt->vec[2], bezt->vec[1]);
-    m3_from_single_axis(rot, _axis, 1);
+    BKE_nurb_bezt_calc_normal(nu, bezt, rot[1]);
+    BKE_nurb_bezt_calc_plane(nu, bezt, rot[0]);
+    cross_v3_v3v3(rot[2], rot[0], rot[1]);
+    orthogonalize_m3_stable(rot, 1, true);
   }
   else {
     unit_m3(rot);

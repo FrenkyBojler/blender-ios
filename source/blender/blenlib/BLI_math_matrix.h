@@ -21,7 +21,6 @@ void unit_m2(float m[2][2]);
 void unit_m3(float m[3][3]);
 void unit_m4(float m[4][4]);
 void unit_m4_db(double m[4][4]);
-void m3_from_single_axis(float mat3[3][3], const float axis[3], const int axis_index);
 
 void copy_m2_m2(float m1[2][2], const float m2[2][2]);
 void copy_m3_m3(float m1[3][3], const float m2[3][3]);
