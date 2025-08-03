@@ -183,30 +183,48 @@ Vector<int> calculate_multiplicity_sequence(const Span<float> knots)
   return multiplicity;
 }
 
+static int find_span_linear_search(const Span<float> knots,
+                                   const int degree,
+                                   const float parameter,
+                                   const int start_index = 0)
+{
+  const float *const knots_end = knots.end() - degree;
+  const float *knot_iter = knots.begin() + start_index;
+  while (knot_iter < knots_end && parameter >= *knot_iter) {
+    knot_iter++;
+    BLI_assert(*knot_iter > *(knot_iter - 1));
+  }
+  if (knot_iter == knots_end) {
+    /* Find last valid span index. */
+    while (knot_iter > knots.begin() && *(knot_iter - 1) == *knot_iter) {
+      knot_iter--;
+    }
+  }
+  return std::max<int>(knot_iter - knots.begin() - 1, 0);
+}
+
+static int find_span_binary_search(const Span<float> knots,
+                                   const int degree,
+                                   const float parameter)
+{
+}
+
 static void calculate_basis_for_point(const float parameter,
                                       const int wrapped_points_num,
                                       const int degree,
                                       const Span<float> knots,
                                       MutableSpan<float> r_weights,
-                                      int &r_start_index)
+                                      int &r_start_index,
+                                      int *span_index_hint = nullptr)
 {
   const int order = degree + 1;
 
-  int start = 0;
-  int end = 0;
-  for (const int i : IndexRange(wrapped_points_num + degree)) {
-    const bool knots_equal = knots[i] == knots[i + 1];
-    if (knots_equal || parameter < knots[i] || parameter > knots[i + 1]) {
-      continue;
-    }
-
-    start = std::max(i - degree, 0);
-    end = i;
-    break;
-  }
+  const int span_index = find_span_linear_search(
+      knots, degree, parameter, span_index_hint ? *span_index_hint : 0);
+  const int start = std::max(span_index - degree, 0);
+  int end = span_index;
 
   Array<float, 12> buffer(order * 2, 0.0f);
-
   buffer[end - start] = 1.0f;
 
   for (const int i_order : IndexRange(2, degree)) {
@@ -261,6 +279,7 @@ void calculate_basis_cache(const int points_num,
   const int wrapped_points_num = control_points_num(points_num, order, cyclic);
 
   int eval_point = 0;
+  int span_index = degree;
 
   for (const int knot_span : IndexRange::from_begin_end(degree, wrapped_points_num)) {
     const float start = knots[knot_span];
