@@ -266,14 +266,6 @@ struct GeometrySet {
   Vector<GeometryComponent::Type> gather_component_types(bool include_instances,
                                                          bool ignore_empty) const;
 
-  using ForeachSubGeometryCallback = FunctionRef<void(GeometrySet &geometry_set)>;
-
-  /**
-   * Modify every (recursive) instance separately. This is often more efficient than realizing all
-   * instances just to change the same thing on all of them.
-   */
-  void modify_geometry_sets(ForeachSubGeometryCallback callback);
-
   /* Utility methods for creation. */
   /**
    * Create a new geometry set that only contains the given mesh.
