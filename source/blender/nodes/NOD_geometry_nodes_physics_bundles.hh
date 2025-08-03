@@ -34,6 +34,12 @@ class ForceBundle : public NestedBundleCommon {
   static std::optional<ForceBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
+enum class RigidBodyCollisionShapeType {
+  Box,
+  Sphere,
+  ConvexHull,
+};
+
 enum class RigidBodyMotionType {
   Dynamic,
   Static,
@@ -45,6 +51,7 @@ class RigidBodyInstancesBundle : public NestedBundleCommon {
   static constexpr StringRefNull name = "Blender.RigidBodyInstances";
 
   bke::GeometrySet instances_geometry;
+  /** Uses #RigidBodyCollisionShapeType. */
   fn::Field<int> collision_shape_type;
   /** Uses #RigidBodyMotionType. */
   fn::Field<int> motion_type;
@@ -56,6 +63,7 @@ class RigidBodyInstancesBundle : public NestedBundleCommon {
   static std::optional<RigidBodyInstancesBundle> parse(const Bundle &bundle,
                                                        BundleParseErrors &r_errors);
 
+  static std::optional<RigidBodyCollisionShapeType> parse_collision_shape_type(const int type);
   static std::optional<RigidBodyMotionType> parse_motion_type(const int type);
 };
 
@@ -71,6 +79,20 @@ class SoftBodyMeshBundle : public NestedBundleCommon {
   static std::optional<SoftBodyMeshBundle> parse(const Bundle &bundle,
                                                  BundleParseErrors &r_errors);
 };
+
+inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
+    parse_collision_shape_type(const int type)
+{
+  switch (type) {
+    case 0:
+      return RigidBodyCollisionShapeType::Box;
+    case 1:
+      return RigidBodyCollisionShapeType::Sphere;
+    case 2:
+      return RigidBodyCollisionShapeType::ConvexHull;
+  }
+  return std::nullopt;
+}
 
 inline std::optional<RigidBodyMotionType> RigidBodyInstancesBundle::parse_motion_type(
     const int type)

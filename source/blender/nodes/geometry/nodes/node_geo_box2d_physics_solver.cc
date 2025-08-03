@@ -61,7 +61,7 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 
 struct RigidBodyForInstance {
   b2BodyId body_id = b2_nullBodyId;
-  uint64_t polygon_hash = 0;
+  uint64_t collision_shape_hash = 0;
 };
 
 struct RigidBodiesForPath {
@@ -153,21 +153,6 @@ static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBundle &b
   return geometry;
 }
 
-/* Keep in sync with jolt motion types. */
-static std::optional<b2BodyType> parse_body_type(const int type)
-{
-  switch (type) {
-    case 0:
-      return b2_dynamicBody;
-    case 1:
-      return b2_staticBody;
-    case 2:
-      return b2_kinematicBody;
-    default:
-      return std::nullopt;
-  }
-}
-
 static float get_angular_difference(const float from, const float to)
 {
   float d = to - from;
@@ -195,6 +180,39 @@ static b2BodyType convert_to_body_type(const RigidBodyMotionType motion_type)
   }
   BLI_assert_unreachable();
   return {};
+}
+
+using CollisionShapeVariant = std::variant<b2Polygon, b2Circle>;
+
+static std::optional<CollisionShapeVariant> make_collision_shape(
+    const GeometrySet &geometry, const float2 scale, const RigidBodyCollisionShapeType shape_type)
+{
+  const std::optional<Bounds<float3>> bounds = geometry.compute_boundbox_without_instances(true);
+  if (!bounds) {
+    return std::nullopt;
+  }
+  const float half_width = math::abs(
+      math::max(math::abs(bounds->min.x), math::abs(bounds->max.x)) * scale.x);
+  const float half_height = math::abs(
+      math::max(math::abs(bounds->min.y), math::abs(bounds->max.y)) * scale.y);
+  if (half_width <= 0.0f || half_height <= 0.0f) {
+    return std::nullopt;
+  }
+
+  switch (shape_type) {
+    case RigidBodyCollisionShapeType::Box: {
+      return b2MakeBox(half_width, half_height);
+    }
+    case RigidBodyCollisionShapeType::Sphere: {
+      const float radius = std::max({half_width, half_height});
+      return b2Circle{b2Vec2{0, 0}, radius};
+    }
+    case RigidBodyCollisionShapeType::ConvexHull: {
+      return std::nullopt;
+    }
+  }
+  BLI_assert_unreachable();
+  return std::nullopt;
 }
 
 static void handle_rigid_body_instances_bundle(
@@ -253,13 +271,14 @@ static void handle_rigid_body_instances_bundle(
     if (!motion_type) {
       continue;
     }
-    const b2BodyType body_type = convert_to_body_type(*motion_type);
-    const GeometrySet &reference_geometry = reference_geometry_sets[reference_i];
-    const std::optional<Bounds<float3>> bounds =
-        reference_geometry.compute_boundbox_without_instances(true);
-    if (!bounds) {
+    const std::optional<RigidBodyCollisionShapeType> shape_type =
+        RigidBodyInstancesBundle::parse_collision_shape_type(collision_shape_types[instance_i]);
+    if (!shape_type) {
       continue;
     }
+    const b2BodyType body_type = convert_to_body_type(*motion_type);
+    const GeometrySet &reference_geometry = reference_geometry_sets[reference_i];
+
     const float4x4 &instance_transform = transforms[instance_i];
     const float4x4 &original_transform = original_transforms[instance_i];
     float3 instance_position;
@@ -277,16 +296,14 @@ static void handle_rigid_body_instances_bundle(
     const float friction = std::max(frictions[instance_i], 0.0f);
     const float bounciness = std::max(bouncinesses[instance_i], 0.0f);
 
-    const float half_width = math::abs(
-        math::max(math::abs(bounds->min.x), math::abs(bounds->max.x)) * original_scale.x);
-    const float half_height = math::abs(
-        math::max(math::abs(bounds->min.y), math::abs(bounds->max.y)) * original_scale.y);
-    if (half_width <= 0.0f || half_height <= 0.0f) {
+    const std::optional<CollisionShapeVariant> collision_shape = make_collision_shape(
+        reference_geometry, original_scale.xy(), *shape_type);
+    if (!collision_shape) {
       continue;
     }
 
-    const b2Polygon polygon = b2MakeBox(half_width, half_height);
-    const uint64_t polygon_hash = XXH3_64bits(&polygon, sizeof(b2Polygon));
+    const uint64_t collision_shape_hash = XXH3_64bits(&*collision_shape,
+                                                      sizeof(CollisionShapeVariant));
 
     std::optional<RigidBodyForInstance> rigid_body;
     if (old_rigid_bodies) {
@@ -318,9 +335,14 @@ static void handle_rigid_body_instances_bundle(
       shape_def.density = density;
       shape_def.material.friction = friction;
       shape_def.material.restitution = bounciness;
-      b2CreatePolygonShape(body_id, &shape_def, &polygon);
+      if (const b2Polygon *polygon = std::get_if<b2Polygon>(&*collision_shape)) {
+        b2CreatePolygonShape(body_id, &shape_def, polygon);
+      }
+      else if (const b2Circle *circle = std::get_if<b2Circle>(&*collision_shape)) {
+        b2CreateCircleShape(body_id, &shape_def, circle);
+      }
 
-      rigid_body = {body_id, polygon_hash};
+      rigid_body = {body_id, collision_shape_hash};
     }
 
     b2BodyId body_id = rigid_body->body_id;
@@ -334,11 +356,14 @@ static void handle_rigid_body_instances_bundle(
       b2Shape_SetRestitution(shape_id, bounciness);
       b2Body_EnableSleep(body_id, false);
     }
-    if (b2Shape_GetType(shape_id) == b2_polygonShape) {
-      if (polygon_hash != rigid_body->polygon_hash) {
-        b2Shape_SetPolygon(shape_id, &polygon);
-        rigid_body->polygon_hash = polygon_hash;
+    if (collision_shape_hash != rigid_body->collision_shape_hash) {
+      if (const b2Polygon *polygon = std::get_if<b2Polygon>(&*collision_shape)) {
+        b2Shape_SetPolygon(shape_id, polygon);
       }
+      else if (const b2Circle *circle = std::get_if<b2Circle>(&*collision_shape)) {
+        b2Shape_SetCircle(shape_id, circle);
+      }
+      rigid_body->collision_shape_hash = collision_shape_hash;
     }
     if (body_type == b2_kinematicBody && delta_time > 0.0f) {
       const b2Transform last_transform = b2Body_GetTransform(body_id);
