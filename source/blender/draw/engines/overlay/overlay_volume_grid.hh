@@ -404,6 +404,8 @@ class VolumeTopologyGrid : Overlay {
 
     batches_.clear();
 
+if constexpr (false) {
+
     if (state.show_grid_root_nodes()) {
       const float3 voxel_size = grid_root_tiles_positions(grid_base, position);
       if (!position.is_empty()) {
@@ -457,6 +459,10 @@ class VolumeTopologyGrid : Overlay {
             batch_for_voxels(position[i].as_span(), sizes[i])));
       }
     }
+
+}
+
+    batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(GPU_batch_create_procedural(GPU_PRIM_LINES, 8)));
 
     const float4x4 transform = BKE_volume_transform_to_blender(grid_to_view->transform());
     voxel_buf_.append({transform, float4(1.0f), 1.0f}, res.select_id(ob_ref));
