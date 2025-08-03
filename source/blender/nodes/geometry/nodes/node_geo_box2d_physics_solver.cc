@@ -6,6 +6,8 @@
 #include "BLI_math_matrix.hh"
 #include "box2d/box2d.h"
 
+#include "xxhash.h"
+
 #include "node_geometry_util.hh"
 
 #include "NOD_geometry_nodes_physics_bundles.hh"
@@ -57,6 +59,7 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 
 struct RigidBodyForInstance {
   b2BodyId body_id = b2_nullBodyId;
+  uint64_t polygon_hash = 0;
 };
 
 struct RigidBodiesForPath {
@@ -166,12 +169,18 @@ static void handle_rigid_body_instances_bundle(
     const bke::Instances &current_instances,
     Map<std::string, RigidBodiesForPath> &r_rigid_bodies_by_path)
 {
+  const bke::Instances *original_instances = bundle.instances_geometry.get_instances();
+  if (!original_instances) {
+    return;
+  }
+
   const int instances_num = current_instances.instances_num();
   const int references_num = current_instances.references_num();
   const Span<int> instance_ids = current_instances.almost_unique_ids();
   const Span<float4x4> transforms = current_instances.transforms();
   const Span<bke::InstanceReference> references = current_instances.references();
   const Span<int> handles = current_instances.reference_handles();
+  const Span<float4x4> original_transforms = original_instances->transforms();
 
   bke::InstancesFieldContext field_context(current_instances);
   fn::FieldEvaluator field_evaluator{field_context, instances_num};
@@ -214,15 +223,15 @@ static void handle_rigid_body_instances_bundle(
     if (!bounds) {
       continue;
     }
-    if (bounds->min.x >= bounds->max.x || bounds->min.y >= bounds->max.y) {
-      continue;
-    }
     const float4x4 &instance_transform = transforms[instance_i];
+    const float4x4 &original_transform = original_transforms[instance_i];
     float3 instance_position;
     math::EulerXYZ instance_rotation;
     float3 instance_scale;
     math::to_loc_rot_scale_safe<true>(
         instance_transform, instance_position, instance_rotation, instance_scale);
+
+    const float3 original_scale = math::to_scale(original_transform);
 
     float density = densities[instance_i];
     if (density <= 0.0f) {
@@ -230,6 +239,17 @@ static void handle_rigid_body_instances_bundle(
     }
     const float friction = std::max(frictions[instance_i], 0.0f);
     const float bounciness = std::max(bouncinesses[instance_i], 0.0f);
+
+    const float half_width = math::abs(
+        math::max(math::abs(bounds->min.x), math::abs(bounds->max.x)) * original_scale.x);
+    const float half_height = math::abs(
+        math::max(math::abs(bounds->min.y), math::abs(bounds->max.y)) * original_scale.y);
+    if (half_width <= 0.0f || half_height <= 0.0f) {
+      continue;
+    }
+
+    const b2Polygon polygon = b2MakeBox(half_width, half_height);
+    const uint64_t polygon_hash = XXH3_64bits(&polygon, sizeof(b2Polygon));
 
     std::optional<RigidBodyForInstance> rigid_body;
     if (old_rigid_bodies) {
@@ -247,19 +267,13 @@ static void handle_rigid_body_instances_bundle(
       body_def.rotation = b2MakeRot(instance_rotation.z().radian());
       b2BodyId body_id = b2CreateBody(state.world_id, &body_def);
 
-      const float half_width = math::abs(
-          math::max(math::abs(bounds->min.x), math::abs(bounds->max.x)) * instance_scale.x);
-      const float half_height = math::abs(
-          math::max(math::abs(bounds->min.y), math::abs(bounds->max.y)) * instance_scale.y);
-
-      b2Polygon polygon = b2MakeBox(half_width, half_height);
       b2ShapeDef shape_def = b2DefaultShapeDef();
       shape_def.density = density;
       shape_def.material.friction = friction;
       shape_def.material.restitution = bounciness;
       b2CreatePolygonShape(body_id, &shape_def, &polygon);
 
-      rigid_body = {body_id};
+      rigid_body = {body_id, polygon_hash};
     }
 
     b2ShapeId shape_id;
@@ -271,6 +285,12 @@ static void handle_rigid_body_instances_bundle(
     if (b2Shape_GetRestitution(shape_id) != bounciness) {
       b2Shape_SetRestitution(shape_id, bounciness);
       b2Body_EnableSleep(rigid_body->body_id, false);
+    }
+    if (b2Shape_GetType(shape_id) == b2_polygonShape) {
+      if (polygon_hash != rigid_body->polygon_hash) {
+        b2Shape_SetPolygon(shape_id, &polygon);
+        rigid_body->polygon_hash = polygon_hash;
+      }
     }
 
     rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
