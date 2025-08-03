@@ -99,4 +99,10 @@ bke::GeometrySet modify_sub_geometries(bke::GeometrySet geometry,
   return geometry;
 }
 
+void foreach_real_geometry(bke::GeometrySet &geometry,
+                           FunctionRef<void(bke::GeometrySet &geometry_set)> fn)
+{
+  geometry = modify_sub_geometries(std::move(geometry), fn);
+}
+
 }  // namespace blender::geometry

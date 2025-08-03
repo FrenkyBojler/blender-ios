@@ -16,4 +16,7 @@ namespace blender::geometry {
 bke::GeometrySet modify_sub_geometries(bke::GeometrySet geometry,
                                        FunctionRef<void(bke::GeometrySet &geometry_set)> fn);
 
+void foreach_real_geometry(bke::GeometrySet &geometry,
+                           FunctionRef<void(bke::GeometrySet &geometry_set)> fn);
+
 }  // namespace blender::geometry
