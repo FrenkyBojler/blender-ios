@@ -251,7 +251,7 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(
   }
   else if (corner_type == GP_STROKE_LINE_JOIN_TYPE_MITER) {
     float miter_norm = (miter_angle / M_PI);
-    packed |= int32_t(clamp_i(int(miter_norm * 63.0f), 0, 63)) << 26;
+    packed |= int32_t(clamp_i(int(miter_norm * 63.0f), 1, 63)) << 26;
   }
 
   return packed;
