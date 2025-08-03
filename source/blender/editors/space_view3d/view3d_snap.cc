@@ -1099,12 +1099,12 @@ void VIEW3D_OT_snap_cursor_to_active(wmOperatorType *ot)
                              "location",
                              true,
                              "Location",
-                             "Whether or not snap the location of the 3d cursor.");
+                             "Whether or not snap the location of the 3D cursor.");
   ot->prop = RNA_def_boolean(ot->srna,
                              "rotation",
                              true,
                              "Rotation",
-                             "Whether or not snap the rotation of the 3d cursor.");
+                             "Whether or not snap the rotation of the 3D cursor.");
 }
 
 /** \} */
