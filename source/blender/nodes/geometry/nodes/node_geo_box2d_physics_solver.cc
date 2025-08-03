@@ -278,6 +278,16 @@ static void handle_rigid_body_instances_bundle(
               old_rigid_bodies->bodies_by_id.pop_try(instance_id))
       {
         rigid_body = old_rigid_body;
+        b2BodyId body_id = rigid_body->body_id;
+        const b2BodyType old_body_type = b2Body_GetType(body_id);
+        if (old_body_type != body_type) {
+          b2Body_SetType(body_id, *body_type);
+          if (old_body_type == b2_staticBody) {
+            b2Body_SetTransform(body_id,
+                                b2Vec2{instance_position.x, instance_position.y},
+                                b2MakeRot(instance_rotation.z().radian()));
+          }
+        }
       }
     }
     if (!rigid_body) {
@@ -314,7 +324,7 @@ static void handle_rigid_body_instances_bundle(
         rigid_body->polygon_hash = polygon_hash;
       }
     }
-    if (b2Body_GetType(body_id) == b2_kinematicBody && delta_time > 0.0f) {
+    if (body_type == b2_kinematicBody && delta_time > 0.0f) {
       const b2Transform last_transform = b2Body_GetTransform(body_id);
       const float2 linear_delta = instance_position.xy() -
                                   float2(last_transform.p.x, last_transform.p.y);
@@ -324,6 +334,11 @@ static void handle_rigid_body_instances_bundle(
       const float angular_velocity = angular_delta / delta_time;
       b2Body_SetLinearVelocity(body_id, b2Vec2{velocity.x, velocity.y});
       b2Body_SetAngularVelocity(body_id, angular_velocity);
+    }
+    if (body_type == b2_staticBody) {
+      b2Body_SetTransform(body_id,
+                          b2Vec2{instance_position.x, instance_position.y},
+                          b2MakeRot(instance_rotation.z().radian()));
     }
 
     rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
