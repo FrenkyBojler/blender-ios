@@ -11,7 +11,8 @@ namespace blender::geometry {
 bke::GeometrySet join_geometries(Span<bke::GeometrySet> geometries,
                                  const bke::AttributeFilter &attribute_filter,
                                  const std::optional<Span<bke::GeometryComponent::Type>>
-                                     &component_types_to_join = std::nullopt);
+                                     &component_types_to_join = std::nullopt,
+                                 bool allow_merging_instance_references = true);
 
 void join_attributes(const Span<const bke::GeometryComponent *> src_components,
                      bke::GeometryComponent &r_result,

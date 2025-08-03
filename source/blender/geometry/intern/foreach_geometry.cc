@@ -43,9 +43,12 @@ static void reinsert_modified_geometry_recursive(bke::GeometrySet &geometry,
                                                  const Span<int> path)
 {
   if (path.is_empty()) {
+    /* Instance references must not be merged here as that could invalidate the paths. */
+    const bool allow_merging_instance_references = false;
     /* Important to pass the old geometry first, so that the instance reference paths stay
      * valid. */
-    geometry = join_geometries({geometry, geometry_to_insert}, {});
+    geometry = join_geometries(
+        {geometry, geometry_to_insert}, {}, {}, allow_merging_instance_references);
     return;
   }
   bke::Instances *instances = geometry.get_instances_for_write();
