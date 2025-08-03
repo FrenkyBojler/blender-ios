@@ -100,9 +100,6 @@ typedef struct MaterialGPencilStyle {
   int alignment_mode;
   /** Rotation for texture for Dots and Squares. */
   float alignment_rotation;
-  /** Line Join mode for Lines. */
-  int line_join_mode;
-  char _pad3[4];
 } MaterialGPencilStyle;
 
 /* MaterialGPencilStyle->flag */
@@ -427,11 +424,4 @@ enum {
   GP_MATERIAL_FOLLOW_PATH = 0,
   GP_MATERIAL_FOLLOW_OBJ = 1,
   GP_MATERIAL_FOLLOW_FIXED = 2,
-};
-
-/* Grease Pencil Line Join Modes */
-enum {
-  GP_MATERIAL_LINEJOIN_MODE_ROUND = 0,
-  GP_MATERIAL_LINEJOIN_MODE_BEVEL = 1,
-  GP_MATERIAL_LINEJOIN_MODE_MITER = 2,
 };
