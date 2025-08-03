@@ -4453,7 +4453,9 @@ class VIEW3D_MT_edit_mesh(Menu):
 
         layout.operator("mesh.bisect")
         layout.operator("mesh.knife_project")
-        layout.operator("mesh.knife_tool")
+        props = layout.operator("mesh.knife_tool")
+        props.use_occlude_geometry = True
+        props.only_selected = False
 
         if with_bullet:
             layout.operator("mesh.convex_hull")
@@ -6745,12 +6747,11 @@ class VIEW3D_PT_shading_options(Panel):
             sub.active = shading.show_object_outline
             sub.prop(shading, "object_outline_color", text="")
 
-        if shading.type == 'SOLID':
-            col = col.column()
-            if shading.light in {'STUDIO', 'MATCAP'}:
-                studio_light = shading.selected_studio_light
-                col.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
-                col.prop(shading, "show_specular_highlight", text="Specular Lighting")
+        if shading.type == 'SOLID' and shading.light in {'STUDIO', 'MATCAP'}:
+            sub = col.row()
+            studio_light = shading.selected_studio_light
+            sub.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
+            sub.prop(shading, "show_specular_highlight", text="Specular Lighting")
 
         row = col.row(align=True)
 
@@ -7949,6 +7950,8 @@ class VIEW3D_PT_overlay_grease_pencil_options(Panel):
             col.prop(overlay, "use_gpencil_edit_lines", text="Edit Lines")
             col = split.column()
             col.prop(overlay, "use_gpencil_multiedit_line_only", text="Only in Multiframe")
+            row = layout.row()
+            row.prop(overlay, "display_handle", text="Handles")
 
         if ob.mode == 'EDIT':
             split = layout.split()
