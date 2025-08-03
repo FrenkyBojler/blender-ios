@@ -124,6 +124,10 @@ TextureFormat to_gpu_format(const VkFormat format)
     case VK_FORMAT_B8G8R8A8_UNORM:
       return TextureFormat::UNORM_8_8_8_8;
 
+    case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+    case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
+      return TextureFormat::UNORM_10_10_10_2;
+
     case VK_FORMAT_R16G16B16A16_SFLOAT:
       return TextureFormat::SFLOAT_16_16_16_16;
 
