@@ -229,6 +229,7 @@ static void handle_rigid_body_instances_bundle(
       density = 1.0f;
     }
     const float friction = std::max(frictions[instance_i], 0.0f);
+    const float bounciness = std::max(bouncinesses[instance_i], 0.0f);
 
     std::optional<RigidBodyForInstance> rigid_body;
     if (old_rigid_bodies) {
@@ -255,6 +256,7 @@ static void handle_rigid_body_instances_bundle(
       b2ShapeDef shape_def = b2DefaultShapeDef();
       shape_def.density = density;
       shape_def.material.friction = friction;
+      shape_def.material.restitution = bounciness;
       b2CreatePolygonShape(body_id, &shape_def, &polygon);
 
       rigid_body = {body_id};
@@ -264,6 +266,10 @@ static void handle_rigid_body_instances_bundle(
     b2Body_GetShapes(rigid_body->body_id, &shape_id, 1);
     if (b2Shape_GetFriction(shape_id) != friction) {
       b2Shape_SetFriction(shape_id, friction);
+      b2Body_EnableSleep(rigid_body->body_id, false);
+    }
+    if (b2Shape_GetRestitution(shape_id) != bounciness) {
+      b2Shape_SetRestitution(shape_id, bounciness);
       b2Body_EnableSleep(rigid_body->body_id, false);
     }
 
