@@ -164,10 +164,10 @@ float gpencil_decode_hardness(int packed_data)
 float gpencil_decode_miter_limit(int packed_data)
 {
   uint miter_data = (uint(packed_data) & 0xFC000000u) >> 26u;
-  if (miter_data == 0u) {
+  if (miter_data == GP_CORNER_TYPE_ROUND_BITS) {
     return MITER_LIMIT_TYPE_ROUND;
   }
-  else if (miter_data == 0x3Fu) {
+  else if (miter_data == GP_CORNER_TYPE_BEVEL_BITS) {
     return MITER_LIMIT_TYPE_BEVEL;
   }
   float miter_angle = float(miter_data) * (M_PI / 63.0f);

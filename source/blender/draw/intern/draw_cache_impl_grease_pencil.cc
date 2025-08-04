@@ -247,11 +247,14 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(
 
   /* Miter Angle uses the last 6 bits */
   if (corner_type == GP_STROKE_CORNER_TYPE_BEVEL) {
-    packed |= (0x3Fu) << 26;
+    packed |= GP_CORNER_TYPE_BEVEL_BITS << 26;
   }
   else if (corner_type == GP_STROKE_CORNER_TYPE_MITER) {
     float miter_norm = (miter_angle / M_PI);
     packed |= int32_t(clamp_i(int(miter_norm * 63.0f), 1, 63)) << 26;
+  }
+  else if (corner_type == GP_STROKE_CORNER_TYPE_ROUND) {
+    packed |= GP_CORNER_TYPE_ROUND_BITS << 26;
   }
 
   return packed;
