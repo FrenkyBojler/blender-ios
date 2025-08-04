@@ -203,24 +203,16 @@ static int find_span_linear_search(const Span<float> knots,
   return std::max<int>(knot_iter - knots.begin() - 1, 0);
 }
 
-static int find_span_binary_search(const Span<float> knots,
-                                   const int degree,
-                                   const float parameter)
-{
-}
-
 static void calculate_basis_for_point(const float parameter,
                                       const int wrapped_points_num,
                                       const int degree,
                                       const Span<float> knots,
                                       MutableSpan<float> r_weights,
-                                      int &r_start_index,
-                                      int *span_index_hint = nullptr)
+                                      int &r_start_index)
 {
   const int order = degree + 1;
 
-  const int span_index = find_span_linear_search(
-      knots, degree, parameter, span_index_hint ? *span_index_hint : 0);
+  const int span_index = find_span_linear_search(knots, degree, parameter, 0);
   const int start = std::max(span_index - degree, 0);
   int end = span_index;
 
