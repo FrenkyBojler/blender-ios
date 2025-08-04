@@ -158,7 +158,12 @@ class NodeSwapOperator:
             for input in old_node.inputs:
                 for link in input.links:
                     try:
-                        new_link = tree.links.new(link.from_socket, new_node.inputs[input.name])
+                        new_socket = new_node.inputs[input.name]
+
+                        if new_socket.hide or not new_socket.enabled:
+                            continue
+
+                        new_link = tree.links.new(link.from_socket, new_socket)
                         if link.to_socket.is_multi_input:
                             new_link.swap_multi_input_sort_id(link)
                     except KeyError:
@@ -168,7 +173,12 @@ class NodeSwapOperator:
             for output in old_node.outputs:
                 for link in output.links:
                     try:
-                        new_link = tree.links.new(new_node.outputs[output.name], link.to_socket)
+                        new_socket = new_node.outputs[output.name]
+
+                        if new_socket.hide or not new_socket.enabled:
+                            continue
+
+                        new_link = tree.links.new(new_socket, link.to_socket)
                         if link.to_socket.is_multi_input:
                             new_link.swap_multi_input_sort_id(link)
                     except KeyError:
