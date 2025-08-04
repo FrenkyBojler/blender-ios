@@ -277,7 +277,6 @@ void calculate_basis_cache(const int points_num,
   const int wrapped_points_num = control_points_num(points_num, order, cyclic);
 
   int eval_point = 0;
-  int span_index = degree;
 
   for (const int knot_span : IndexRange::from_begin_end(degree, wrapped_points_num)) {
     const float start = knots[knot_span];
