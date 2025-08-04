@@ -80,7 +80,7 @@ set(SRC
 set(LIB
 )
 
-
+set(CMAKE_C_STANDARD 17)
 
 blender_add_lib(extern_box2d "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::extern::box2d ALIAS extern_box2d)
