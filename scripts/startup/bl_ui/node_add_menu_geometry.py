@@ -612,7 +612,7 @@ class NODE_MT_gn_simulation_base(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_simulation_zone(layout, label="Simulation")
+        self.simulation_zone(layout, label="Simulation")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -674,13 +674,13 @@ class NODE_MT_gn_utilities_base(Menu):
         self.draw_menu(layout, path="Utilities/Deprecated")
         layout.separator()
         if context.preferences.experimental.use_bundle_and_closure_nodes:
-            node_add_menu.add_closure_zone(layout, label="Closure")
+            self.closure_zone(layout, label="Closure")
             self.node_operator(layout, "GeometryNodeEvaluateClosure")
-        node_add_menu.add_foreach_geometry_element_zone(layout, label="For Each Element")
+        self.for_each_element_zone(layout, label="For Each Element")
         self.node_operator(layout, "GeometryNodeIndexSwitch")
         self.node_operator(layout, "GeometryNodeMenuSwitch")
         self.node_operator(layout, "FunctionNodeRandomValue")
-        node_add_menu.add_repeat_zone(layout, label="Repeat")
+        self.repeat_zone(layout, label="Repeat")
         self.node_operator(layout, "GeometryNodeSwitch")
         if context.preferences.experimental.use_bundle_and_closure_nodes:
             self.node_operator(layout, "GeometryNodeCombineBundle")

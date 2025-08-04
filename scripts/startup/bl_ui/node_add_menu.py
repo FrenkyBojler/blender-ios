@@ -222,6 +222,22 @@ class AddNodeMenu:
     @staticmethod
     def draw_group_menu(context, layout):
         return draw_group_menu(context, layout, group_operator="node.add_node", empty_group_operator="node.add_empty_group")
+        
+    @staticmethod
+    def simulation_zone(layout, label):
+        return add_simulation_zone(layout, label)
+
+    @staticmethod
+    def repeat_zone(layout, label):
+        return add_repeat_zone(layout, label)
+    
+    @staticmethod
+    def for_each_element_zone(layout, label):
+        return add_foreach_geometry_element_zone(layout, label)
+         
+    @staticmethod
+    def closure_zone(layout, label):
+        return add_closure_zone(layout, label)
     
     @classmethod
     def draw_menu(cls, layout, path):
@@ -256,6 +272,46 @@ class SwapNodeMenu:
     def draw_group_menu(context, layout):
         return draw_group_menu(context, layout, group_operator="node.swap_node", empty_group_operator="node.swap_empty_group")
     
+    @staticmethod
+    def simulation_zone(layout, label):
+        props = layout.operator("node.swap_zone", text=label)
+        props.input_node_type = "GeometryNodeSimulationInput"
+        props.output_node_type = "GeometryNodeSimulationOutput"
+        props.add_default_geometry_link = True
+        props.use_transform = True
+
+        return props
+
+    @staticmethod
+    def repeat_zone(layout, label):
+        props = layout.operator("node.swap_zone", text=label)
+        props.input_node_type = "GeometryNodeRepeatInput"
+        props.output_node_type = "GeometryNodeRepeatOutput"
+        props.add_default_geometry_link = True
+        props.use_transform = True
+
+        return props
+    
+    @staticmethod
+    def for_each_element_zone(layout, label):
+        props = layout.operator("node.swap_zone", text=label)
+        props.input_node_type = "GeometryNodeForeachGeometryElementInput"
+        props.output_node_type = "GeometryNodeForeachGeometryElementOutput"
+        props.add_default_geometry_link = False
+        props.use_transform = True   
+
+        return props
+             
+    @staticmethod
+    def closure_zone(layout, label):
+        props = layout.operator("node.swap_zone", text=label)
+        props.input_node_type = "GeometryNodeClosureInput"
+        props.output_node_type = "GeometryNodeClosureOutput"
+        props.add_default_geometry_link = False
+        props.use_transform = True   
+
+        return props
+
     @classmethod
     def draw_menu(cls, layout, path):
         if cls.pathing_dict is None:
