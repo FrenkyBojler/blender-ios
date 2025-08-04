@@ -1646,7 +1646,20 @@ static void follow_segment_connections(const Span<Segment> all_segments,
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
-  int start_segment = processed_segments.as_span().first_index_try(false);
+  int start_segment = 0;
+
+  auto get_next_unprocessed_segment = [&]() {
+    /* All segment before `start_segment` are guaranteed to be processed, so skip search them.
+     * This optimization make the algorithm `O(N)` instead of `O(N^2)`.*/
+    const int empty_num = start_segment;
+    const int first_segment = processed_segments.as_span().drop_front(empty_num).first_index_try(
+        false);
+
+    if (first_segment == -1) {
+      return -1;
+    }
+    return first_segment + empty_num;
+  };
 
   while (start_segment != -1) {
     int current_i = start_segment;
@@ -1655,7 +1668,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
       processed_segments[current_i] = true;
 
       /* Get the next unprocessed segment. */
-      start_segment = processed_segments.as_span().first_index_try(false);
+      start_segment = get_next_unprocessed_segment();
       continue;
     }
 
@@ -1709,7 +1722,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
     segment_offset_data.append(segments.size());
 
     /* Get the next unprocessed segment. */
-    start_segment = processed_segments.as_span().first_index_try(false);
+    start_segment = get_next_unprocessed_segment();
   }
 }
 
