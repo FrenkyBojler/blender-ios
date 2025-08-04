@@ -56,12 +56,10 @@ IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, IndexMaskM
           selection.materialize_compressed(points, point_selection);
           bool is_selected = point_selection.as_span().contains(true);
           if (curve_types[curve] == CURVE_TYPE_BEZIER) {
-            Array<bool, 32> point_selection_left(points.size());
-            Array<bool, 32> point_selection_right(points.size());
-            selection_left.materialize_compressed(points, point_selection_left);
-            selection_right.materialize_compressed(points, point_selection_right);
-            is_selected |= point_selection_left.as_span().contains(true);
-            is_selected |= point_selection_right.as_span().contains(true);
+            selection_left.materialize_compressed(points, point_selection);
+            is_selected |= point_selection.as_span().contains(true);
+            selection_right.materialize_compressed(points, point_selection);
+            is_selected |= point_selection.as_span().contains(true);
           }
           return is_selected;
         });
