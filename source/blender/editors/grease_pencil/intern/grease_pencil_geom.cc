@@ -1880,6 +1880,10 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
 
+  if (src.is_empty()) {
+    return src;
+  }
+
   Vector<IntersectionPoint> intersections;
   Array<IndexRange> segments_by_curve(src_points_by_curve.size());
   Vector<Segment> all_segments;
