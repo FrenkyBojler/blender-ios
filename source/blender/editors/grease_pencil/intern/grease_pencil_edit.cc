@@ -4639,9 +4639,9 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
  * \{ */
 
 static const EnumPropertyItem prop_corner_types[] = {
-    {int(GP_STROKE_LINE_JOIN_TYPE_ROUND), "ROUND", 0, "Round", ""},
-    {int(GP_STROKE_LINE_JOIN_TYPE_BEVEL), "BEVEL", 0, "Bevel", ""},
-    {int(GP_STROKE_LINE_JOIN_TYPE_MITER), "MITER", 0, "Miter", ""},
+    {int(GP_STROKE_CORNER_TYPE_ROUND), "ROUND", 0, "Round", ""},
+    {int(GP_STROKE_CORNER_TYPE_BEVEL), "BEVEL", 0, "Bevel", ""},
+    {int(GP_STROKE_CORNER_TYPE_MITER), "MITER", 0, "Miter", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -4677,7 +4677,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
 
     index_mask::masked_fill(corner_types.span, corner_type, strokes);
 
-    if (corner_type == GP_STROKE_LINE_JOIN_TYPE_MITER) {
+    if (corner_type == GP_STROKE_CORNER_TYPE_MITER) {
       bke::SpanAttributeWriter<float> miter_angles =
           attributes.lookup_or_add_for_write_span<float>(
               "miter_angle",
@@ -4713,7 +4713,7 @@ static void grease_pencil_set_corner_type_ui(bContext *C, wmOperator *op)
 
   const int corner_type = RNA_enum_get(op->ptr, "corner_type");
 
-  if (corner_type != GP_STROKE_LINE_JOIN_TYPE_MITER) {
+  if (corner_type != GP_STROKE_CORNER_TYPE_MITER) {
     return;
   }
 
@@ -4735,12 +4735,8 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Properties */
-  ot->prop = RNA_def_enum(ot->srna,
-                          "corner_type",
-                          prop_corner_types,
-                          GP_STROKE_LINE_JOIN_TYPE_BEVEL,
-                          "Corner Type",
-                          "");
+  ot->prop = RNA_def_enum(
+      ot->srna, "corner_type", prop_corner_types, GP_STROKE_CORNER_TYPE_BEVEL, "Corner Type", "");
   ot->prop = RNA_def_float_distance(ot->srna,
                                     "miter_angle",
                                     DEG2RADF(45.0f),

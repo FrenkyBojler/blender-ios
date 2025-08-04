@@ -246,10 +246,10 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(
   packed |= int32_t(unit_float_to_uchar_clamp(1.0f - softness)) << 18;
 
   /* Miter Angle uses the last 6 bits */
-  if (corner_type == GP_STROKE_LINE_JOIN_TYPE_BEVEL) {
+  if (corner_type == GP_STROKE_CORNER_TYPE_BEVEL) {
     packed |= (0x3Fu) << 26;
   }
-  else if (corner_type == GP_STROKE_LINE_JOIN_TYPE_MITER) {
+  else if (corner_type == GP_STROKE_CORNER_TYPE_MITER) {
     float miter_norm = (miter_angle / M_PI);
     packed |= int32_t(clamp_i(int(miter_norm * 63.0f), 1, 63)) << 26;
   }
@@ -1247,7 +1247,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> miter_angles = *attributes.lookup_or_default<float>(
         "miter_angle", bke::AttrDomain::Curve, DEG2RADF(45.0f));
     const VArray<int> corner_types = *attributes.lookup_or_default<int>(
-        "corner_type", bke::AttrDomain::Curve, GP_STROKE_LINE_JOIN_TYPE_ROUND);
+        "corner_type", bke::AttrDomain::Curve, GP_STROKE_CORNER_TYPE_ROUND);
 
     const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
