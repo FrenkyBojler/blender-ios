@@ -91,8 +91,8 @@ class MESH_MT_shape_key_tree_context_menu(Menu):
         layout = self.layout
         layout.operator("object.shape_key_copy", icon='DUPLICATE', text="Duplicate")
         layout.separator()
-        layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move to Top").type = 'TOP'
-        layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move to Bottom").type = 'BOTTOM'
+        layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move After Basis").type = 'TOP'
+        layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move to Last").type = 'BOTTOM'
 
 
 class MESH_MT_color_attribute_context_menu(Menu):
