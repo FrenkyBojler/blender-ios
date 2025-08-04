@@ -1286,6 +1286,12 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
     BLI_rcti_do_minmax_v(&bbox_i, int2(co_i2));
     BLI_rcti_pad(&bbox_i, BBOX_PADDING, BBOX_PADDING);
 
+    /* Add some padding to the line segment i1-i2, otherwise we could just miss an
+     * intersection. */
+    const float2 padding_i = math::normalize(co_i2 - co_i1);
+    const float2 padded_i1 = co_i1 - padding_i;
+    const float2 padded_i2 = co_i2 + padding_i;
+
     visible_curves.foreach_index([&](const int curve_j) {
       if (curve_i > curve_j) {
         return;
@@ -1323,14 +1329,14 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
           continue;
         }
 
-        /* Add some padding to the line segment c-d, otherwise we could just miss an
+        /* Add some padding to the line segment j1-j2, otherwise we could just miss an
          * intersection. */
         const float2 padding_j = math::normalize(co_j2 - co_j1);
         const float2 padded_j1 = co_j1 - padding_j;
         const float2 padded_j2 = co_j2 + padding_j;
 
         /* Check for intersection. */
-        const auto isect = math::isect_seg_seg(co_i1, co_i2, padded_j1, padded_j2);
+        const auto isect = math::isect_seg_seg(padded_i1, padded_i2, padded_j1, padded_j2);
         if (ELEM(isect.kind, isect.LINE_LINE_CROSS, isect.LINE_LINE_EXACT)) {
           const float alpha_i = get_intersection_distance_of_segments(co_i1, co_i2, co_j1, co_j2);
           const float alpha_j = get_intersection_distance_of_segments(co_j1, co_j2, co_i1, co_i2);
