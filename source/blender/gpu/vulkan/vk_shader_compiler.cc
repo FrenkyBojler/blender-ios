@@ -177,7 +177,7 @@ static bool compile_ex(shaderc::Compiler &compiler,
   if (G.debug & G_DEBUG_GPU_RENDERDOC) {
     options.SetOptimizationLevel(shaderc_optimization_level_zero);
   }
-  if (G.debug & G_DEBUG_GPU_GENERATE_SHADER_DEBUG_INFO) {
+  if (G.debug & G_DEBUG_GPU_SHADER_DEBUG_INFO) {
     options.SetGenerateDebugInfo();
   }
 

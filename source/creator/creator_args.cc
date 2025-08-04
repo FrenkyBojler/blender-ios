@@ -1512,20 +1512,20 @@ static int arg_handle_debug_gpu_renderdoc_set(int /*argc*/,
                                               void * /*data*/)
 {
 #  ifdef WITH_RENDERDOC
-  G.debug |= G_DEBUG_GPU_RENDERDOC | G_DEBUG_GPU | G_DEBUG_GPU_GENERATE_SHADER_DEBUG_INFO;
+  G.debug |= G_DEBUG_GPU_RENDERDOC | G_DEBUG_GPU | G_DEBUG_GPU_SHADER_DEBUG_INFO;
 #  endif
   return 0;
 }
 
-static const char arg_handle_debug_gpu_generate_shader_debug_info_set_doc[] =
+static const char arg_handle_debug_gpu_shader_debug_info_set_doc[] =
     "\n"
     "\tEnable shader debug info generation (Vulkan only).";
-static int arg_handle_debug_gpu_generate_shader_debug_info_set(int /*argc*/,
-                                                               const char ** /*argv*/,
-                                                               void * /*data*/)
+static int arg_handle_debug_gpu_shader_debug_info_set(int /*argc*/,
+                                                      const char ** /*argv*/,
+                                                      void * /*data*/)
 {
 #  ifdef WITH_RENDERDOC
-  G.debug |= G_DEBUG_GPU_GENERATE_SHADER_DEBUG_INFO;
+  G.debug |= G_DEBUG_GPU_SHADER_DEBUG_INFO;
 #  endif
   return 0;
 }
@@ -2884,7 +2884,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba,
                nullptr,
                "--debug-gpu-shader-debug-info",
-               CB(arg_handle_debug_gpu_generate_shader_debug_info_set),
+               CB(arg_handle_debug_gpu_shader_debug_info_set),
                nullptr);
 
   BLI_args_add(ba,
