@@ -115,6 +115,8 @@ static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
       return "gpu_shader_index_2d_array_lines";
     case GPU_SHADER_INDEXBUF_TRIS:
       return "gpu_shader_index_2d_array_tris";
+    case GPU_SHADER_VIGNETTE:
+      return "gpu_shader_vignette";
     default:
       BLI_assert_unreachable();
       return "";

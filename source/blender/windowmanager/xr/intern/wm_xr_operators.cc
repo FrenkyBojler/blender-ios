@@ -37,6 +37,9 @@
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
 
+#include "GPU_batch_presets.hh"
+#include "GPU_matrix.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.hh"
@@ -624,9 +627,31 @@ struct XrRaycastData {
   void *draw_handle;
 };
 
+static void wm_xr_raycast_destination_draw(const XrRaycastData *data)
+{
+  // Draws a sphere at the destination of the raycast
+  
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  const float dist = len_v3v3(data->origin, data->end);
+  const float scale = 0.05f * dist;
+  blender::gpu::Batch *sphere = GPU_batch_preset_sphere(2);
+  GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
+  GPU_batch_uniform_4fv(sphere, "color", data->color);
+
+  GPU_matrix_push();
+  GPU_matrix_translate_3fv(data->end);
+  GPU_matrix_scale_1f(scale);
+  GPU_batch_draw(sphere);
+  GPU_matrix_pop();
+}
+
 static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, void *customdata)
 {
   const XrRaycastData *data = static_cast<const XrRaycastData *>(customdata);
+
+  wm_xr_raycast_destination_draw(data);
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);

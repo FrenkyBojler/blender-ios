@@ -142,6 +142,11 @@ enum eGPUBuiltinShader {
    * \param pos: in vec3
    */
   GPU_SHADER_3D_IMAGE_COLOR,
+
+  /**
+   * TODO: Write Description
+   */
+  GPU_SHADER_VIGNETTE,
 };
 #define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_3D_IMAGE_COLOR + 1)
 
