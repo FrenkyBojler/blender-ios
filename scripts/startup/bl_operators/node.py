@@ -387,14 +387,18 @@ class NODE_OT_swap_node(NodeAddOperator, Operator):
 
             for link in input.links:
                 try:
-                    tree.links.new(link.from_socket, old_node.inputs[input.name])
+                    new_link = tree.links.new(link.from_socket, old_node.inputs[input.name])
+                    if link.to_socket.is_multi_input:
+                        new_link.swap_multi_input_sort_id(link)
                 except KeyError:
                     pass
 
         for output in old_node.outputs:
             for link in output.links:
                 try:
-                    tree.links.new(old_node.outputs[output.name], link.to_socket)
+                    new_link = tree.links.new(old_node.outputs[output.name], link.to_socket)
+                    if link.to_socket.is_multi_input:
+                        new_link.swap_multi_input_sort_id(link)
                 except KeyError:
                     pass
         return {'FINISHED'}
@@ -466,14 +470,18 @@ class NODE_OT_swap_zone(NodeAddZoneOperator, Operator):
 
             for link in input.links:
                 try:
-                    tree.links.new(link.from_socket, input_node.inputs[input.name])
+                    new_link = tree.links.new(link.from_socket, input_node.inputs[input.name])
+                    if link.to_socket.is_multi_input:
+                        new_link.swap_multi_input_sort_id(link)
                 except KeyError:
                     pass
 
         for output in old_node.outputs:
             for link in output.links:
                 try:
-                    tree.links.new(output_node.outputs[output.name], link.to_socket)
+                    new_link = tree.links.new(output_node.outputs[output.name], link.to_socket)
+                    if link.to_socket.is_multi_input:
+                        new_link.swap_multi_input_sort_id(link)
                 except KeyError:
                     pass
 
