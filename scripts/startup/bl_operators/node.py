@@ -376,46 +376,27 @@ class NODE_OT_swap_node(NodeAddOperator, Operator):
                     socket.hide = True
         
         tree = old_node.id_data
-        # capture all of the existing links and default attributes for the current node
-        # to rebuild the connections we can capture the sockets that are connected to and
-        # from other nodes, but on the node itself we have to use the name instead
-        input_links = []
-        output_links = []
-        default_inputs = {}
+        node_new.location = old_node.location
+
+        # Transfer links and input socket values from old node to new node
         for input in old_node.inputs:
             try:
-                default_inputs[input.name] = input.default_value
-            except AttributeError:
-                pass
-            for link in input.links:
-                input_links.append((link.from_socket, input.name))
-                tree.links.remove(link)
-        for output in old_node.outputs:
-            for link in output.links:
-                output_links.append((output.name, link.to_socket))
-                tree.links.remove(link)
-        node_new.location = old_node.location
-        tree.nodes.remove(old_node)
-        # try to restore default values based on name, but if there isn't a socket
-        # with that name or it doesn't take a default value then we move on
-        for name, value in default_inputs.items():
-            try:
-                node_new.inputs[name].default_value = value
+                old_node.inputs[input.name].default_value = input.default_value
             except (AttributeError, KeyError):
                 pass
-        
-        # restore the links into and out of the node. Other sockets are referenced
-        # by their socket, but sockets on the new node are reference by name and looked up
-        for link in input_links:
-            try:
-                tree.links.new(link[0], node_new.inputs[link[1]])
-            except KeyError:
-                pass
-        for link in output_links:
-            try:
-                tree.links.new(node_new.outputs[link[0]], link[1])
-            except KeyError:
-                pass
+
+            for link in input.links:
+                try:
+                    tree.links.new(link.from_socket, old_node.inputs[input.name])
+                except KeyError:
+                    pass
+
+        for output in old_node.outputs:
+            for link in output.links:
+                try:
+                    tree.links.new(old_node.outputs[output.name], link.to_socket)
+                except KeyError:
+                    pass
         return {'FINISHED'}
     
     
@@ -460,25 +441,6 @@ class NODE_OT_swap_zone(NodeAddZoneOperator, Operator):
         if input_node is None or output_node is None:
             return {'CANCELLED'}
         
-        # capture all of the existing links and default attributes for the current node
-        # to rebuild the connections we can capture the sockets that are connected to and
-        # from other nodes, but on the node itself we have to use the name instead
-        input_links = []
-        output_links = []
-        default_inputs = {}
-        for input in old_node.inputs:
-            try:
-                default_inputs[input.name] = input.default_value
-            except AttributeError:
-                pass
-            for link in input.links:
-                input_links.append((link.from_socket, input.name))
-                tree.links.remove(link)
-        for output in old_node.outputs:
-            for link in output.links:
-                output_links.append((output.name, link.to_socket))
-                tree.links.remove(link)
-
         # Simulation input must be paired with the output.
         input_node.pair_with_output(output_node)
         
@@ -495,27 +457,25 @@ class NODE_OT_swap_zone(NodeAddZoneOperator, Operator):
             to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
             tree.links.new(to_socket, from_socket)
 
-
-        # try to restore default values based on name, but if there isn't a socket
-        # with that name or it doesn't take a default value then we move on
-        for name, value in default_inputs.items():
+        # Transfer links and input socket values from old node to new node
+        for input in old_node.inputs:
             try:
-                input_node.inputs[name].default_value = value
+                input_node.inputs[input.name].default_value = input.default_value
             except (AttributeError, KeyError):
                 pass
-        
-        # restore the links into and out of the node. Other sockets are referenced
-        # by their socket, but sockets on the new node are reference by name and looked up
-        for link in input_links:
-            try:
-                tree.links.new(link[0], input_node.inputs[link[1]])
-            except KeyError:
-                pass
-        for link in output_links:
-            try:
-                tree.links.new(output_node.outputs[link[0]], link[1])
-            except KeyError:
-                pass
+
+            for link in input.links:
+                try:
+                    tree.links.new(link.from_socket, input_node.inputs[input.name])
+                except KeyError:
+                    pass
+
+        for output in old_node.outputs:
+            for link in output.links:
+                try:
+                    tree.links.new(output_node.outputs[output.name], link.to_socket)
+                except KeyError:
+                    pass
 
         tree.nodes.remove(old_node)
         return {'FINISHED'}
