@@ -6754,24 +6754,16 @@ void UI_but_node_link_set(uiBut *but, bNodeSocket *socket, const float draw_colo
   rgba_float_to_uchar(but->col, draw_color);
 }
 
-void UI_but_textbox_status_set(uiBut *but, TextboxStatus *status)
-
-{
-  uiButTextBox *but_text_box = (uiButTextBox *)but;
-  BLI_assert(but->type == ButType::TextBox);
-
-  but_text_box->status = status;
-}
-
 int uiButTextBox::visible_lines()
 {
   return this->status->visible_lines_get();
 }
+
 int uiButTextBox::line_scroll()
 {
   return std::clamp<int>(this->status->line_scroll,
                          0,
-                         std::max<int>(this->status->total_lines - this->visible_lines(), 0));
+                         std::max<int>(this->status->last_total_lines - this->visible_lines(), 0));
 }
 
 void uiButTextBox::visible_lines_set(int visible_lines)

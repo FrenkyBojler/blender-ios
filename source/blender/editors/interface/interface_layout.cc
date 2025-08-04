@@ -2658,9 +2658,9 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                               0,
                               std::nullopt);
 
-  UI_but_textbox_status_set(but, &textbox_status);
-
   uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
+  textbox->status = &textbox_status;
+
   /* Clamp scroll, resizing the region could add/remove wrapped lines. */
   textbox->line_scroll_set(textbox->line_scroll());
 
@@ -2680,7 +2680,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
       line_heigth * textbox_status.visible_lines_get(),
       &textbox_status.line_scroll,
       0,
-      std::max<int>(textbox_status.total_lines - textbox_status.visible_lines_get(), 0),
+      std::max<int>(textbox_status.last_total_lines - textbox_status.visible_lines_get(), 0),
       "");
   uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
   but_scroll->visual_height = textbox_status.visible_lines_get();

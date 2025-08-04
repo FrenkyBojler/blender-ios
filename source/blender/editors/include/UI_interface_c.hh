@@ -1836,8 +1836,6 @@ void UI_but_number_precision_set(uiBut *but, float precision);
 void UI_but_number_slider_step_size_set(uiBut *but, float step_size);
 void UI_but_number_slider_precision_set(uiBut *but, float precision);
 
-void UI_but_textbox_status_set(uiBut *but, TextboxStatus *status);
-
 void UI_but_label_alpha_factor_set(uiBut *but, float alpha_factor);
 
 void UI_but_search_preview_grid_size_set(uiBut *but, int rows, int cols);

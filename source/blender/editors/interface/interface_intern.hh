@@ -357,7 +357,8 @@ struct TextboxStatus {
   static constexpr int minimum_lines = 3;
   std::string idname;
   int line_scroll = 0;
-  int total_lines = 0;
+  /** Total number of wrapped lines in the last textbox redraw/event handling. */
+  int last_total_lines = 0;
   int visible_height = 3;
 
   int visible_lines_get()

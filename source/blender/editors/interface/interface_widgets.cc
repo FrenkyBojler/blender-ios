@@ -1980,7 +1980,7 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox
                                                               int width)
 {
   if (textbox->drawstr.empty() && (!textbox->editstr || textbox->editstr[0] == 0)) {
-    textbox->status->total_lines = 1;
+    textbox->status->last_total_lines = 1;
     return {textbox->editstr ? blender::StringRef(textbox->editstr) :
                                blender::StringRef(textbox->drawstr)};
   }
@@ -1997,11 +1997,11 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox
     lines.append(blender::StringRef(text.end(), text.end()));
   }
   /* Last line migth include null terminator, remove this to avoid crash with
-   * #BLI_str_utf8_as_unicode_step_or_error.  */
+   * #BLI_str_utf8_as_unicode_step_or_error. */
   if (lines.last().endswith(blender::StringRefNull("\0"))) {
     lines.last() = lines.last().drop_suffix(1);
   }
-  textbox->status->total_lines = lines.size();
+  textbox->status->last_total_lines = lines.size();
   return lines;
 }
 
@@ -2018,7 +2018,6 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   const char *drawstr = but->drawstr.c_str();
   const blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
       textbox_but, BLI_rcti_size_x(rect));
-  textbox_but->status->total_lines = lines.size();
 
   const int line_height = BLI_rcti_size_y(rect) / visible_lines;
 

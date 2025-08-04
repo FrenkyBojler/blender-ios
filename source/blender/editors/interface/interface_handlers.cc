@@ -3119,14 +3119,14 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *reg
   return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect));
 }
 
-static void ui_textbox_add_scroll(const ARegion *region, uiButTextBox *textbox, int step)
+static void ui_but_textbox_add_scroll(const ARegion *region, uiButTextBox *textbox, int step)
 {
 
-  textbox->status->total_lines = ui_but_textbox_wrap_lines(region, textbox).size();
+  textbox->status->last_total_lines = ui_but_textbox_wrap_lines(region, textbox).size();
   textbox->line_scroll_set(textbox->line_scroll() + step);
 }
 
-static void ui_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox *textbox)
+static void ui_but_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox *textbox)
 {
 
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
@@ -3139,23 +3139,22 @@ static void ui_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox *tex
     }
     line_cursor++;
   }
-  textbox->status->total_lines = lines.size();
   int visible_bouds[] = {textbox->line_scroll(),
                          textbox->line_scroll() + textbox->visible_lines()};
   if (visible_bouds[0] <= line_cursor && line_cursor < visible_bouds[1]) {
     return;
   }
   if (visible_bouds[0] > line_cursor) {
-    ui_textbox_add_scroll(region, textbox, line_cursor - visible_bouds[0]);
+    ui_but_textbox_add_scroll(region, textbox, line_cursor - visible_bouds[0]);
   }
   else {
-    ui_textbox_add_scroll(region, textbox, line_cursor - visible_bouds[1] + 1);
+    ui_but_textbox_add_scroll(region, textbox, line_cursor - visible_bouds[1] + 1);
   }
 }
 
-static void ui_textbox_textedit_set_cursor_pos(uiBut *but,
-                                               const ARegion *region,
-                                               const blender::float2 xy)
+static void ui_but_textbox_textedit_set_cursor_pos(uiBut *but,
+                                                   const ARegion *region,
+                                                   const blender::float2 xy)
 {
   BLI_assert(but->type == ButType::TextBox);
   uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
@@ -3188,7 +3187,7 @@ static void ui_textbox_textedit_set_cursor_pos(uiBut *but,
   int offset = BLF_str_offset_from_cursor_position(
       fstyle.uifont_id, line.data(), line.size(), int(xy.x - start.x));
   but->pos = line.begin() - lines[0].data() + offset;
-  ui_textbox_scroll_to_cursor(region, textbox);
+  ui_but_textbox_scroll_to_cursor(region, textbox);
 }
 
 /**
@@ -3199,7 +3198,7 @@ static void ui_textbox_textedit_set_cursor_pos(uiBut *but,
 static void ui_textedit_set_cursor_pos(uiBut *but, const ARegion *region, const blender::float2 xy)
 {
   if (but->type == ButType::TextBox) {
-    ui_textbox_textedit_set_cursor_pos(but, region, xy);
+    ui_but_textbox_textedit_set_cursor_pos(but, region, xy);
     return;
   }
   float x = xy.x;
@@ -3331,11 +3330,11 @@ static bool ui_textedit_insert_ascii(uiBut *but, uiHandleButtonData *data, const
 }
 #endif
 
-static void ui_textbox_jump_line(ARegion *region,
-                                 uiButTextBox *textbox,
-                                 uiTextEdit &text_edit,
-                                 eStrCursorJumpDirection direction,
-                                 const bool select)
+static void ui_but_textbox_jump_line(ARegion *region,
+                                     uiButTextBox *textbox,
+                                     uiTextEdit &text_edit,
+                                     eStrCursorJumpDirection direction,
+                                     const bool select)
 {
   const char *str = text_edit.edit_string;
   const int len = strlen(str);
@@ -4107,7 +4106,6 @@ static int ui_do_but_textedit(
                                                       STRCUR_DIR_PREV;
         const eStrCursorJumpType jump = ui_textedit_jump_type_from_event(event);
         ui_textedit_move(but, text_edit, direction, event->modifier & KM_SHIFT, jump);
-
         retval = WM_UI_HANDLER_BREAK;
         break;
       }
@@ -4121,12 +4119,12 @@ static int ui_do_but_textedit(
           break;
         }
         if (textbox_but && event->type == WHEELDOWNMOUSE) {
-          ui_textbox_add_scroll(data->region, textbox_but, 1);
+          ui_but_textbox_add_scroll(data->region, textbox_but, 1);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
         if (textbox_but && event->type == EVT_DOWNARROWKEY) {
-          ui_textbox_jump_line(
+          ui_but_textbox_jump_line(
               data->region, textbox_but, text_edit, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT);
           retval = WM_UI_HANDLER_BREAK;
           break;
@@ -4147,12 +4145,12 @@ static int ui_do_but_textedit(
           break;
         }
         if (textbox_but && event->type == WHEELUPMOUSE) {
-          ui_textbox_add_scroll(data->region, textbox_but, -1);
+          ui_but_textbox_add_scroll(data->region, textbox_but, -1);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
         if (textbox_but && event->type == EVT_UPARROWKEY) {
-          ui_textbox_jump_line(
+          ui_but_textbox_jump_line(
               data->region, textbox_but, text_edit, STRCUR_DIR_PREV, event->modifier & KM_SHIFT);
           retval = WM_UI_HANDLER_BREAK;
           break;
@@ -4317,7 +4315,7 @@ static int ui_do_but_textedit(
   }
 #endif
   if (textbox_but && (changed || orig_pos != but->pos) && data->state != BUTTON_STATE_EXIT) {
-    ui_textbox_scroll_to_cursor(data->region, textbox_but);
+    ui_but_textbox_scroll_to_cursor(data->region, textbox_but);
   }
   if (changed) {
     /* The undo stack may be nullptr if an event exits editing. */
