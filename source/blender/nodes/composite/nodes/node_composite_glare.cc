@@ -2317,8 +2317,8 @@ class GlareOperation : public NodeOperation {
       float2 vector_to_source = source - coordinates;
       float2 step_vector = vector_to_source / unbounded_steps;
 
-      float accumulated_weight = 0.0f;
-      float4 accumulated_color = float4(0.0f);
+      float accumulated_weight = 1.0f;
+      float4 accumulated_color = highlights.sample_bilinear_zero(coordinates);
 
       int number_of_steps = this->get_use_jitter() ? (1.0f - this->get_jitter_factor()) * steps :
                                                      steps;
@@ -2379,7 +2379,7 @@ class GlareOperation : public NodeOperation {
    *   "A Better R2 Sequence." Marty's Mods, 2022.
    *   https://www.martysmods.com/a-better-r2-sequence
    *
-   * The sequence uses a hashed per-texel toroidal combined with a scaled irrational increment
+   * The sequence uses a toroidal combined with a scaled irrational increment
    * derived from the golden ratio to ensure well-distributed, non-repeating samples.
    * The improved formulation significantly extends usable index range under floating-point
    * precision constraints while preserving the low-discrepancy property.

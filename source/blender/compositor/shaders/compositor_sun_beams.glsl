@@ -6,6 +6,15 @@
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
+/* 2D hash (iqint3) recommended from "Hash Functions for GPU Rendering" JCGT Vol. 9, No. 3, 2020
+ * https://jcgt.org/published/0009/03/02/ */
+float hash_iqint3_f(uint2 x)
+{
+  uint2 q = 1103515245u * ((x >> 1u) ^ (x.yx));
+  uint n = 1103515245u * ((q.x) ^ (q.y >> 3u));
+  return float(n) * (1.0 / float(0xffffffffu));
+}
+
 /* Generates a low-discrepancy quasirandom value in the [0, 1) range using the R1 sequence.
  *
  * This implementation is based on the quasirandom sequence described in:
@@ -18,15 +27,15 @@
  *   "A Better R2 Sequence." Marty's Mods, 2022.
  *   https://www.martysmods.com/a-better-r2-sequence
  *
- * The sequence uses a hashed per-texel toroidal combined with a scaled irrational increment
+ * The sequence uses a toroidal combined with a scaled irrational increment
  * derived from the golden ratio to ensure well-distributed, non-repeating samples.
  * The improved formulation significantly extends usable index range under floating-point
  * precision constraints while preserving the low-discrepancy property.
  */
 float r1_low_discrepancy_sequence(const float seed, const int i)
 {
-  float golden_ratio = 1.618033988749894848204586834365638118;
-  return float(fract(-seed + (1.0f - 1.0f / golden_ratio) * i));
+  constexpr float golden_ratio = 1.618033988749894848204586834365638118;
+  return fract(-seed + (1.0f - 1.0f / golden_ratio) * i);
 }
 
 /* Returns an index for a position along the path between the texel and the source.
@@ -38,7 +47,7 @@ float r1_low_discrepancy_sequence(const float seed, const int i)
 float get_sample_position(int2 texel, int i, int steps)
 {
 #if defined(JITTER)
-  float seed = hash_uint2_to_float(texel.x, texel.y);
+  float seed = hash_iqint3_f(texel);
   return r1_low_discrepancy_sequence(seed, i) * steps;
 #else
   return i;
@@ -64,8 +73,8 @@ void main()
   float2 vector_to_source = source - coordinates;
   float2 step_vector = vector_to_source / unbounded_steps;
 
-  float accumulated_weight = 0.0f;
-  float4 accumulated_color = float4(0.0f);
+  float accumulated_weight = 1.0f;
+  float4 accumulated_color = texture(input_tx, coordinates);
 
 #if defined(JITTER)
   int number_of_steps = int((1.0f - jitter_factor) * steps);
