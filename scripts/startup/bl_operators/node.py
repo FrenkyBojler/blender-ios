@@ -417,6 +417,108 @@ class NODE_OT_swap_node(NodeAddOperator, Operator):
             except KeyError:
                 pass
         return {'FINISHED'}
+    
+    
+class NODE_OT_swap_zone(NodeAddZoneOperator, Operator):
+    bl_idname = "node.swap_zone"
+    bl_label = "Swap Zone" 
+    bl_options = {"REGISTER", "UNDO"}
+    
+    input_node_type: StringProperty(
+        name="Input Node",
+        description="Specifies the input node used the created zone",
+    )
+    
+    output_node_type: StringProperty(
+        name="Output Node",
+        description="Specifies the output node used the created zone",
+    )
+
+    add_default_geometry_link : BoolProperty(
+        name="Add Geometry Link",
+        description="When enabled, create a link between geometry sockets in this zone",
+        default=False,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return (
+            (context.area is not None)
+            and (context.area.type == "NODE_EDITOR")
+            and (context.active_node is not None)
+        )
+    
+    def execute(self, context):
+        old_node = context.active_node
+        space = context.space_data
+        tree = space.edit_tree
+
+        self.deselect_nodes(context)
+        input_node = self.create_node(context, self.input_node_type)
+        output_node = self.create_node(context, self.output_node_type)
+
+        if input_node is None or output_node is None:
+            return {'CANCELLED'}
+        
+        # capture all of the existing links and default attributes for the current node
+        # to rebuild the connections we can capture the sockets that are connected to and
+        # from other nodes, but on the node itself we have to use the name instead
+        input_links = []
+        output_links = []
+        default_inputs = {}
+        for input in old_node.inputs:
+            try:
+                default_inputs[input.name] = input.default_value
+            except AttributeError:
+                pass
+            for link in input.links:
+                input_links.append((link.from_socket, input.name))
+                tree.links.remove(link)
+        for output in old_node.outputs:
+            for link in output.links:
+                output_links.append((output.name, link.to_socket))
+                tree.links.remove(link)
+
+        # Simulation input must be paired with the output.
+        input_node.pair_with_output(output_node)
+        
+        input_node.location = old_node.location
+        output_node.location = old_node.location
+
+        input_node.location -= Vector(self.offset)
+        output_node.location += Vector(self.offset)
+        
+        if self.add_default_geometry_link:
+            # Connect geometry sockets by default if available.
+            # Get the sockets by their types, because the name is not guaranteed due to i18n.
+            from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
+            to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
+            tree.links.new(to_socket, from_socket)
+
+
+        # try to restore default values based on name, but if there isn't a socket
+        # with that name or it doesn't take a default value then we move on
+        for name, value in default_inputs.items():
+            try:
+                input_node.inputs[name].default_value = value
+            except (AttributeError, KeyError):
+                pass
+        
+        # restore the links into and out of the node. Other sockets are referenced
+        # by their socket, but sockets on the new node are reference by name and looked up
+        for link in input_links:
+            try:
+                tree.links.new(link[0], input_node.inputs[link[1]])
+            except KeyError:
+                pass
+        for link in output_links:
+            try:
+                tree.links.new(output_node.outputs[link[0]], link[1])
+            except KeyError:
+                pass
+
+        tree.nodes.remove(old_node)
+        return {'FINISHED'}
 
 
 class NODE_OT_collapse_hide_unused_toggle(Operator):
@@ -875,6 +977,7 @@ classes = (
     NODE_OT_add_closure_zone,
     NODE_OT_swap_node,
     NODE_OT_swap_empty_group,
+    NODE_OT_swap_zone,
     NODE_OT_collapse_hide_unused_toggle,
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_duplicate,
