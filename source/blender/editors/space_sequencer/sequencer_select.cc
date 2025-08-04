@@ -2423,15 +2423,13 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
   // const bool handles = RNA_boolean_get(op->ptr, "include_handles");
   float x_radius = radius / UI_view2d_scale_get_x(v2d);
   float y_radius = radius / UI_view2d_scale_get_y(v2d);
-  bool select = true;
   bool changed;
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
     rctf rq;
     strip_rectf(scene, strip, &rq);
     // if (BLI_rctf_isect_circle(&rq, view_mval, pixel_radius)) {
     /* Use custom function to check the distance because in timeline the circle is a ellipse */
-    if (check_circle_selection_in_timeline(&rq, view_mval, x_radius, y_radius))
-    {
+    if (check_circle_selection_in_timeline(&rq, view_mval, x_radius, y_radius)) {
       // Hide this if statement for now.
       //
       // if (handles) {
@@ -2472,8 +2470,13 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 
       // /* Regular box selection. */
       // else {
-      SET_FLAG_FROM_TEST(strip->flag, select, SELECT);
-      strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
+      if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
+        strip->flag |= SELECT;
+      }
+      else {
+        BLI_assert(sel_op == SEL_OP_SUB);
+        strip->flag &= ~SELECT;
+      }
       changed = true;
       // }
 
