@@ -150,10 +150,10 @@ static void node_copy_storage(bNodeTree * /*destination_node_tree*/,
   socket_items::copy_array<FileOutputItemsAccessor>(*source_node, *destination_node);
 }
 
-static bool node_insert_link(bNodeTree *node_tree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<FileOutputItemsAccessor>(
-      *node_tree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_operators()
@@ -332,12 +332,6 @@ static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *node
     format_layout(panel, context, &format_pointer, node_pointer);
   }
 
-  if (is_multi_layer) {
-    if (uiLayout *panel = layout->panel(context, "output_paths", true, IFACE_("Output Paths"))) {
-      output_paths_layout(panel, context, "", node_pointer, &format_pointer);
-    }
-  }
-
   const char *panel_name = is_multi_layer ? IFACE_("Layers") : IFACE_("Images");
   if (uiLayout *panel = layout->panel(context, "file_output_items", false, panel_name)) {
     bNodeTree &tree = *reinterpret_cast<bNodeTree *>(node_pointer->owner_id);
@@ -348,6 +342,12 @@ static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *node
         tree, node, [&](PointerRNA *item_pointer) {
           item_layout(panel, context, node_pointer, item_pointer, is_multi_layer);
         });
+  }
+
+  if (is_multi_layer) {
+    if (uiLayout *panel = layout->panel(context, "output_paths", true, IFACE_("Output Paths"))) {
+      output_paths_layout(panel, context, "", node_pointer, &format_pointer);
+    }
   }
 }
 
