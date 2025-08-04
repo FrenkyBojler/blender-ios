@@ -1011,9 +1011,9 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   };
   ctx.draw_attribute_toggle_fn =
       [&](uiLayout &layout, const int icon, const bNodeTreeInterfaceSocket &io_socket) {
-        const std::string prop_name = fmt::format(
-            "[\"{}{}\"]", BLI_str_escape(io_socket.identifier), nodes::input_use_attribute_suffix);
-        layout.prop(op.ptr, prop_name, UI_ITEM_R_ICON_ONLY, "", icon);
+        PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+        PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, io_socket.identifier);
+        layout.prop(&socket_props_ptr, "type", UI_ITEM_R_ICON_ONLY, "", icon);
       };
   ctx.use_name_for_ids = true;
 

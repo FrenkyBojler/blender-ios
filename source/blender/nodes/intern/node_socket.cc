@@ -1002,7 +1002,7 @@ static void make_common_value_and_attribute_props(StructRNA &srna,
 {
   make_common_type_prop(srna,
                         socket,
-                        nodes::geometry_nodes_input_type_items_value,
+                        nodes::geometry_nodes_input_type_items_value_or_attribute,
                         nodes::GeometryNodesInputType::Value,
                         r_generated);
   make_common_attribute_name_prop(srna, socket, r_generated);
