@@ -160,8 +160,13 @@ SearchInfo SocketSearchData::info(const bContext &C) const
     return {tree_log, nmd.node_group, socket_props_ptr};
   }
   if (const auto *operator_search_data = std::get_if<OperatorSearchData>(&this->search_data)) {
-    /* TODO */
-    return {};
+    PointerRNA properties_ptr = RNA_pointer_create_discrete(
+        nullptr,
+        operator_search_data->tree->runtime->geometry_nodes_operator_srna,
+        operator_search_data->properties);
+    PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+    PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
+    return {operator_search_data->tree_log, operator_search_data->tree, socket_props_ptr};
   }
   return {};
 }
@@ -1004,7 +1009,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
     OperatorSearchData &operator_search_data = data.search_data.emplace<OperatorSearchData>();
     operator_search_data.tree = &tree;
     operator_search_data.tree_log = tree_log;
-    operator_search_data.properties = op.properties;
+    operator_search_data.properties = properties_idprops;
     STRNCPY_UTF8(data.socket_identifier, io_socket.identifier);
     data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
