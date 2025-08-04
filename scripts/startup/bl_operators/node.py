@@ -41,7 +41,6 @@ class NodeSetting(PropertyGroup):
 
 # Base class for node "Add" operators.
 class NodeAddOperator:
-
     use_transform: BoolProperty(
         name="Use Transform",
         description="Start transform operator after inserting the node",
@@ -133,6 +132,46 @@ class NodeAddOperator:
             bpy.ops.node.translate_attach_remove_on_cancel('INVOKE_DEFAULT')
 
         return result
+    
+
+class NodeSwapOperator:
+    @classmethod
+    def poll(cls, context):
+        return (
+            (context.area is not None)
+            and (context.area.type == "NODE_EDITOR")
+            and (context.active_node is not None)
+        )
+    
+    @staticmethod
+    def transfer_input_values(old_node, new_node):
+        for input in old_node.inputs:
+            try:
+                new_node.inputs[input.name].default_value = input.default_value
+            except (AttributeError, KeyError):
+                pass
+
+    @staticmethod
+    def transfer_links(tree, old_node, new_node, is_input):
+        if is_input:
+            for input in old_node.inputs:
+                for link in input.links:
+                    try:
+                        new_link = tree.links.new(link.from_socket, new_node.inputs[input.name])
+                        if link.to_socket.is_multi_input:
+                            new_link.swap_multi_input_sort_id(link)
+                    except KeyError:
+                        pass
+
+        else:
+            for output in old_node.outputs:
+                for link in output.links:
+                    try:
+                        new_link = tree.links.new(new_node.outputs[output.name], link.to_socket)
+                        if link.to_socket.is_multi_input:
+                            new_link.swap_multi_input_sort_id(link)
+                    except KeyError:
+                        pass
 
 
 # Simple basic operator for adding a node.
@@ -213,19 +252,11 @@ class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
         return group
 
 
-class NODE_OT_swap_empty_group(NodeAddOperator, bpy.types.Operator):
+class NODE_OT_swap_empty_group(NodeSwapOperator, NodeAddOperator, bpy.types.Operator):
     bl_idname = "node.swap_empty_group"
     bl_label = "Swap Empty Group"
     bl_description = "Replace active node with an empty group"
     bl_options = {'REGISTER', 'UNDO'}
-    
-    @classmethod
-    def poll(cls, context):
-        return (
-            (context.area is not None)
-            and (context.area.type == "NODE_EDITOR")
-            and (context.active_node is not None)
-        )
 
     def execute(self, context):
         old_node = context.active_node
@@ -333,7 +364,7 @@ class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
     add_default_geometry_link = False
     
     
-class NODE_OT_swap_node(NodeAddOperator, Operator):
+class NODE_OT_swap_node(NodeSwapOperator, NodeAddOperator, Operator):
     bl_idname = "node.swap_node"
     bl_label = "Swap Node" 
     bl_options = {"REGISTER", "UNDO"}
@@ -365,14 +396,6 @@ class NODE_OT_swap_node(NodeAddOperator, Operator):
             return tip_(bl_rna.description)
         else:
             return ""
-
-    @classmethod
-    def poll(cls, context):
-        return (
-            (context.area is not None)
-            and (context.area.type == "NODE_EDITOR")
-            and (context.active_node is not None)
-        )
     
     def execute(self, context):
         old_node = context.active_node
@@ -386,35 +409,16 @@ class NODE_OT_swap_node(NodeAddOperator, Operator):
         tree = old_node.id_data
         node_new.location = old_node.location
 
-        # Transfer links and input socket values from old node to new node
-        for input in old_node.inputs:
-            try:
-                old_node.inputs[input.name].default_value = input.default_value
-            except (AttributeError, KeyError):
-                pass
-
-            for link in input.links:
-                try:
-                    new_link = tree.links.new(link.from_socket, node_new.inputs[input.name])
-                    if link.to_socket.is_multi_input:
-                        new_link.swap_multi_input_sort_id(link)
-                except KeyError:
-                    pass
-
-        for output in old_node.outputs:
-            for link in output.links:
-                try:
-                    new_link = tree.links.new(node_new.outputs[output.name], link.to_socket)
-                    if link.to_socket.is_multi_input:
-                        new_link.swap_multi_input_sort_id(link)
-                except KeyError:
-                    pass
+        self.transfer_input_values(old_node, node_new)
+        
+        self.transfer_links(tree, old_node, node_new, is_input=True)
+        self.transfer_links(tree, old_node, node_new, is_input=False)
 
         tree.nodes.remove(old_node)
         return {'FINISHED'}
     
     
-class NODE_OT_swap_zone(NodeAddZoneOperator, Operator):
+class NODE_OT_swap_zone(NodeSwapOperator, NodeAddZoneOperator, Operator):
     bl_idname = "node.swap_zone"
     bl_label = "Swap Zone" 
     bl_options = {"REGISTER", "UNDO"}
@@ -471,29 +475,10 @@ class NODE_OT_swap_zone(NodeAddZoneOperator, Operator):
             to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
             tree.links.new(to_socket, from_socket)
 
-        # Transfer links and input socket values from old node to new node
-        for input in old_node.inputs:
-            try:
-                input_node.inputs[input.name].default_value = input.default_value
-            except (AttributeError, KeyError):
-                pass
+        self.transfer_input_values(old_node, input_node)
 
-            for link in input.links:
-                try:
-                    new_link = tree.links.new(link.from_socket, input_node.inputs[input.name])
-                    if link.to_socket.is_multi_input:
-                        new_link.swap_multi_input_sort_id(link)
-                except KeyError:
-                    pass
-
-        for output in old_node.outputs:
-            for link in output.links:
-                try:
-                    new_link = tree.links.new(output_node.outputs[output.name], link.to_socket)
-                    if link.to_socket.is_multi_input:
-                        new_link.swap_multi_input_sort_id(link)
-                except KeyError:
-                    pass
+        self.transfer_links(tree, old_node, input_node, is_input=True)
+        self.transfer_links(tree, old_node, output_node, is_input=False)
 
         tree.nodes.remove(old_node)
         return {'FINISHED'}
