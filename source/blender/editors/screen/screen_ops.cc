@@ -5951,11 +5951,14 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
     else {
       /* Stop sound for sequencer scene. */
       WorkSpace *workspace = CTX_wm_workspace(C);
-      Scene *scene = workspace->sequencer_scene;
-      Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(
-          bmain, scene, BKE_view_layer_default_render(scene));
-      Scene *seq_scene_eval = DEG_get_evaluated_scene(depsgraph);
-      BKE_sound_stop_scene(seq_scene_eval);
+      if (workspace->sequencer_scene) {
+        Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(
+            bmain,
+            workspace->sequencer_scene,
+            BKE_view_layer_default_render(workspace->sequencer_scene));
+        Scene *seq_scene_eval = DEG_get_evaluated_scene(depsgraph);
+        BKE_sound_stop_scene(seq_scene_eval);
+      }
     }
 
     BKE_callback_exec_id_depsgraph(
