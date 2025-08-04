@@ -1,1 +1,1 @@
-Referenced by pull request #143580, Fix #143238: Weight / Vertex Paint crash when applying deform modifier
+Referenced by pull request #143580, Refactor: Deduplicate Paint BVH source of truth for position cache access
