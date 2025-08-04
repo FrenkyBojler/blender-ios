@@ -4683,7 +4683,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
               "miter_angle",
               bke::AttrDomain::Curve,
               bke::AttributeInitVArray(
-                  VArray<float>::from_single(DEG2RADF(90.0f), curves.curves_num())));
+                  VArray<float>::from_single(DEG2RADF(45.0f), curves.curves_num())));
 
       index_mask::masked_fill(miter_angles.span, miter_angle, strokes);
     }

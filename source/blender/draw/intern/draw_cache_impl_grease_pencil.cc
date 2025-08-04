@@ -1245,7 +1245,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
     const VArray<float> miter_angles = *attributes.lookup_or_default<float>(
-        "miter_angle", bke::AttrDomain::Curve, DEG2RADF(90.0f));
+        "miter_angle", bke::AttrDomain::Curve, DEG2RADF(45.0f));
     const VArray<int> corner_types = *attributes.lookup_or_default<int>(
         "corner_type", bke::AttrDomain::Curve, GP_STROKE_LINE_JOIN_TYPE_ROUND);
 
