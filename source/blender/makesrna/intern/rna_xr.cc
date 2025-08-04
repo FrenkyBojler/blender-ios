@@ -1941,6 +1941,12 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem viewfinder_view_points[] = {
+      {XR_VIEWFINDER_SCENE_CAMERA, "SCENE_CAMERA", 0, "Scene Camera", "Active scene camera"},
+      {XR_VIEWFINDER_HANDHELD, "HANDHELD", 0, "Handheld", "Handheld camera"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "XrSessionSettings", nullptr);
   RNA_def_struct_ui_text(srna, "XR Session Settings", "");
 
@@ -2031,6 +2037,21 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Controller Draw Style", "Style to use when drawing VR controllers");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "use_viewfinder", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Enable Viewfinder", "Enable the Location Scouting Viewfinder");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_view_point", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, viewfinder_view_points);
+  RNA_def_property_ui_text(
+      prop, "Viewfinder Viewpoint", "View point used by the viewfinder window");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "viewfinder_width", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Viewfinder Width", "Width of the viewfinder");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);

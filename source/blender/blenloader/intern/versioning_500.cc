@@ -21,6 +21,7 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
@@ -2076,6 +2077,14 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         node->storage = data;
       }
       FOREACH_NODETREE_END;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 51)) {
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+      wm->xr.session_settings.use_viewfinder = true;
+      wm->xr.session_settings.viewfinder_view_point = XR_VIEWFINDER_HANDHELD;
+      wm->xr.session_settings.viewfinder_width = 3.0f;
     }
   }
 

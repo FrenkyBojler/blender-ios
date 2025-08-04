@@ -19,12 +19,16 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
+
+#include "BKE_camera.h"
 
 #include "ED_view3d_offscreen.hh"
 
 #include "GHOST_C-api.h"
 
 #include "GPU_batch_presets.hh"
+#include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
@@ -33,6 +37,8 @@
 #include "WM_api.hh"
 
 #include "wm_xr_intern.hh"
+
+static GPUOffScreen *g_viewfinder_offscreen;
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
 {
@@ -165,6 +171,77 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   GPU_framebuffer_restore();
   /* Some systems have drawing glitches without this. */
   GPU_clear_depth(1.0f);
+
+  /* WIP Hack: Draw the viewfinder view here and pass it to wm_xr_controller_model_draw via a
+   *           static local global as context prevents us from doing this in model_draw */
+  if (g_viewfinder_offscreen == nullptr) {
+    char err_out[256] = "unknown";
+    g_viewfinder_offscreen = GPU_offscreen_create(draw_view->width,
+                                                  draw_view->height,
+                                                  true,
+                                                  blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                                                  GPU_TEXTURE_USAGE_SHADER_READ |
+                                                      GPU_TEXTURE_USAGE_MEMORY_EXPORT,
+                                                  false,
+                                                  err_out);
+  }
+  static GPUViewport *gpu_viewport = GPU_viewport_create();
+
+  Scene *scene = draw_data->scene;
+  Object *camera_ob = scene->camera; /* Active scene camera. */
+
+  float viewfinder_viewmat[4][4], viewfinder_winmat[4][4];
+  if (settings->viewfinder_view_point == XR_VIEWFINDER_SCENE_CAMERA) {
+    invert_m4_m4(viewfinder_viewmat, camera_ob->object_to_world().ptr());
+  }
+  else if (settings->viewfinder_view_point == XR_VIEWFINDER_HANDHELD) {
+    const wmXrController *first_controller = static_cast<wmXrController *>(
+        session_state->controllers.first);
+
+    float handheld_mat[4][4];
+    copy_m4_m4(handheld_mat, first_controller->grip_mat);
+    rotate_m4(handheld_mat, 'X', -M_PI_2); /* Same rotation used to place the viewfinder window. */
+    translate_m4(handheld_mat, -2.5f, 0.0f, 1.2f); /* Hardcoded offset for now. */
+
+    invert_m4_m4(viewfinder_viewmat, handheld_mat);
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+
+  CameraParams params;
+  BKE_camera_params_init(&params);
+  BKE_camera_params_from_object(&params, camera_ob);
+  BKE_camera_params_compute_viewplane(
+      &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
+  BKE_camera_params_compute_matrix(&params);
+
+  copy_m4_m4(viewfinder_winmat, params.winmat);
+
+  const int viewfinder_display_flag = V3D_OFSDRAW_SHOW_ANNOTATION |
+                                      V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
+                                      V3D_OFSDRAW_SHOW_GRIDFLOOR | V3D_OFSDRAW_SHOW_SELECTION;
+
+  ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
+                                  draw_data->scene,
+                                  &settings->shading,
+                                  (eDrawType)settings->shading.type,
+                                  settings->object_type_exclude_viewport,
+                                  settings->object_type_exclude_select,
+                                  draw_view->width,
+                                  draw_view->height,
+                                  viewfinder_display_flag,
+                                  viewfinder_viewmat,
+                                  viewfinder_winmat,
+                                  settings->clip_start,
+                                  settings->clip_end,
+                                  false,
+                                  true,
+                                  true,
+                                  nullptr,
+                                  true,
+                                  g_viewfinder_offscreen,
+                                  gpu_viewport);
 
   /* Draws the view into the surface_data->viewport's frame-buffers. */
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
@@ -325,6 +402,102 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
       GPU_matrix_pop();
     }
   }
+
+  if (!settings->use_viewfinder) {
+    return;
+  }
+
+  /* Viewfinder */
+  /* Only draw the viewfinder on the first controller. */
+  const wmXrController *first_controller = static_cast<wmXrController *>(state->controllers.first);
+
+  /* Fixed 16:9 aspect ratio for now. */
+  const blender::float2 viewfinder_size = {settings->viewfinder_width,
+                                           settings->viewfinder_width * 9.0f / 16.0f};
+  const rctf viewfinder_rect = {-viewfinder_size.x / 2.0f,
+                                viewfinder_size.x / 2.0f,
+                                -viewfinder_size.y / 2.0f,
+                                viewfinder_size.y / 2.0f};
+  const float viewfinder_vertical_offset = 2.6f;             /* Center of the viewfinder square. */
+  const float viewfinder_color[] = {0.7f, 0.9, 0.7f, 1.0f};  // TODO: Could obtain from theme.
+
+  const int32_t button_num = 4;
+  const float button_vertical_padding = 0.5f;
+  const float button_size = 0.1f;
+  const float button_color_active[] = {1.0f, 0.6, 0.2, 1.0f};
+  const float button_color_inactive[] = {0.9, 0.9, 0.9, 1.0f};
+
+  // TODO: Could be cycled using the VR controller via an XR action operator
+  int32_t active_button_idx = 1;
+
+  GPU_matrix_push();
+  GPU_matrix_mul(first_controller->grip_mat);
+  GPU_matrix_scale_1f(0.05f);
+  GPU_matrix_translate_3f(0.0f, 0.0f, -viewfinder_vertical_offset);
+  GPU_matrix_rotate_3f(-90.0f, 1.0f, 0.0f, 0.0f);
+
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
+
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
+  immUniform2fv("viewportSize", &viewport[2]);
+  immUniform1f("lineWidth", 1.5f * U.pixelsize);
+  immUniformColor4fv(viewfinder_color);
+
+  /* Viewfinder outline. */
+  imm_draw_box_wire_3d(
+      pos, viewfinder_rect.xmin, viewfinder_rect.ymin, viewfinder_rect.xmax, viewfinder_rect.ymax);
+
+  immUnbindProgram();
+
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  /* Button outline. */
+  const float button_y_pos = ((viewfinder_size.y / 2.0f) + button_vertical_padding) * -1.0f;
+  const float button_delta = viewfinder_size.x / (button_num + 1);
+  for (int i = 0; i < button_num; ++i) {
+    if (i == active_button_idx) {
+      immUniformColor4fv(button_color_active);
+    }
+    else {
+      immUniformColor4fv(button_color_inactive);
+    }
+    const float button_h_pos = -(viewfinder_size.x / 2) + (i + 1) * button_delta;
+    imm_draw_circle_fill_3d(pos, button_h_pos, button_y_pos, button_size, 16);
+  }
+
+  immUnbindProgram();
+
+  /* Viewfinder View. */
+  /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
+  blender::gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
+
+  GPUVertFormat *view_text_format = immVertexFormat();
+  uint view_tex_pos = GPU_vertformat_attr_add(
+      view_text_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint view_tex_coord = GPU_vertformat_attr_add(
+      view_text_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
+
+  GPU_depth_mask(false);
+  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
+
+  const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  immUniformColor4fv(tex_color);
+
+  GPUSamplerExtendMode extend_mode = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+  immBindTextureSampler(
+      "image", view_tex, {GPU_SAMPLER_FILTERING_LINEAR, extend_mode, extend_mode});
+
+  immRectf_with_texco(view_tex_pos, view_tex_coord, viewfinder_rect, rctf{0.0f, 1.0f, 0.0f, 1.0f});
+
+  immUnbindProgram();
+
+  GPU_matrix_pop();
 }
 
 static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSessionState *state)
