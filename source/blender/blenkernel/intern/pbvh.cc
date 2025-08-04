@@ -902,19 +902,19 @@ static bool mesh_topology_count_matches(const Mesh &a, const Mesh &b)
          a.verts_num == b.verts_num;
 }
 
-enum class CacheSource : int8_t {
-  EvalNoSubsurf,
+enum class PositionSource : int8_t {
+  Eval,
   EvalDeform,
   Orig,
   RuntimeDeform,
 };
 
-struct CacheSourceResult {
-  CacheSource cache_source;
+struct PositionSourceResult {
+  PositionSource cache_source;
   const Mesh *mesh_eval;
 };
 
-static CacheSourceResult cache_source_get(const Object &object_orig, const Object &object_eval)
+static PositionSourceResult cache_source_get(const Object &object_orig, const Object &object_eval)
 {
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
@@ -922,28 +922,24 @@ static CacheSourceResult cache_source_get(const Object &object_orig, const Objec
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
-        return {CacheSource::EvalNoSubsurf, mesh_eval};
+        return {PositionSource::Eval, mesh_eval};
       }
     }
     if (!ss.deform_cos.is_empty()) {
       BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
-      return {CacheSource::RuntimeDeform, nullptr};
-    }
-    if (!ss.deform_cos.is_empty()) {
-      BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
-      return {CacheSource::RuntimeDeform, nullptr};
+      return {PositionSource::RuntimeDeform, nullptr};
     }
     if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
-      return {CacheSource::EvalDeform, mesh_eval};
+      return {PositionSource::EvalDeform, mesh_eval};
     }
   }
 
   if (!ss.deform_cos.is_empty()) {
     BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
-    return {CacheSource::RuntimeDeform, nullptr};
+    return {PositionSource::RuntimeDeform, nullptr};
   }
 
-  return {CacheSource::Orig, nullptr};
+  return {PositionSource::Orig, nullptr};
 }
 
 static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &object_orig,
@@ -953,15 +949,15 @@ static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
   BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
 
-  const CacheSourceResult result = cache_source_get(object_orig, object_eval);
+  const PositionSourceResult result = cache_source_get(object_orig, object_eval);
   switch (result.cache_source) {
-    case CacheSource::EvalDeform:
+    case PositionSource::EvalDeform:
       return result.mesh_eval->runtime->vert_normals_true_cache;
-    case CacheSource::EvalNoSubsurf:
+    case PositionSource::Eval:
       return result.mesh_eval->runtime->vert_normals_true_cache;
-    case CacheSource::RuntimeDeform:
+    case PositionSource::RuntimeDeform:
       return ss.vert_normals_deform;
-    case CacheSource::Orig:
+    case PositionSource::Orig:
       return mesh_orig.runtime->vert_normals_true_cache;
   }
   BLI_assert_unreachable();
@@ -980,15 +976,15 @@ static const SharedCache<Vector<float3>> &face_normals_cache_eval(const Object &
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
   BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
-  const CacheSourceResult result = cache_source_get(object_orig, object_eval);
+  const PositionSourceResult result = cache_source_get(object_orig, object_eval);
   switch (result.cache_source) {
-    case CacheSource::EvalDeform:
+    case PositionSource::EvalDeform:
       return result.mesh_eval->runtime->face_normals_true_cache;
-    case CacheSource::EvalNoSubsurf:
+    case PositionSource::Eval:
       return result.mesh_eval->runtime->face_normals_true_cache;
-    case CacheSource::RuntimeDeform:
+    case PositionSource::RuntimeDeform:
       return ss.face_normals_deform;
-    case CacheSource::Orig:
+    case PositionSource::Orig:
       return mesh_orig.runtime->face_normals_true_cache;
   }
   BLI_assert_unreachable();
@@ -1006,15 +1002,15 @@ static Span<float3> vert_positions_eval(const Object &object_orig, const Object 
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
   BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
-  const CacheSourceResult result = cache_source_get(object_orig, object_eval);
+  const PositionSourceResult result = cache_source_get(object_orig, object_eval);
   switch (result.cache_source) {
-    case CacheSource::EvalDeform:
+    case PositionSource::EvalDeform:
       return result.mesh_eval->vert_positions();
-    case CacheSource::EvalNoSubsurf:
+    case PositionSource::Eval:
       return result.mesh_eval->vert_positions();
-    case CacheSource::RuntimeDeform:
+    case PositionSource::RuntimeDeform:
       return ss.deform_cos;
-    case CacheSource::Orig:
+    case PositionSource::Orig:
       return mesh_orig.vert_positions();
   }
   BLI_assert_unreachable();
@@ -1026,15 +1022,15 @@ static MutableSpan<float3> vert_positions_eval_for_write(Object &object_orig, Ob
   SculptSession &ss = *object_orig.sculpt;
   Mesh &mesh_orig = *static_cast<Mesh *>(object_orig.data);
   BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
-  const CacheSourceResult result = cache_source_get(object_orig, object_eval);
+  const PositionSourceResult result = cache_source_get(object_orig, object_eval);
   switch (result.cache_source) {
-    case CacheSource::EvalDeform:
+    case PositionSource::EvalDeform:
       return const_cast<Mesh *>(result.mesh_eval)->vert_positions_for_write();
-    case CacheSource::EvalNoSubsurf:
+    case PositionSource::Eval:
       return const_cast<Mesh *>(result.mesh_eval)->vert_positions_for_write();
-    case CacheSource::RuntimeDeform:
+    case PositionSource::RuntimeDeform:
       return ss.deform_cos;
-    case CacheSource::Orig:
+    case PositionSource::Orig:
       return mesh_orig.vert_positions_for_write();
   }
   BLI_assert_unreachable();
