@@ -3,3 +3,4 @@ Referenced by issue #136837, Objects with a GPU subdivision surface modifier alw
 Referenced by pull request #137104, Fix: EEVEE motion blur broken after recent fix
 Referenced by commit 0b7b2e737fd92d3c70002cd2777a237766f79548, Fix: EEVEE motion blur broken after recent fix
 Referenced by issue #137983, List of bug fixes per release override
+Referenced by pull request #143967, Fix #143317: Broken paint mode face selection lines with GPU subdiv
