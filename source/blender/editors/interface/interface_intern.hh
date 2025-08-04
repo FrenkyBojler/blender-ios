@@ -359,12 +359,9 @@ struct TextboxStatus {
   int line_scroll = 0;
   /** Total number of wrapped lines in the last textbox redraw/event handling. */
   int last_total_lines = 0;
-  int visible_height = 3;
+  int visible_height = 0;
 
-  int visible_lines_get()
-  {
-    return std::max(visible_height / UI_UNIT_Y, minimum_lines);
-  }
+  int visible_lines_get();
 };
 
 /** Derived struct for #ButType::TextBox */

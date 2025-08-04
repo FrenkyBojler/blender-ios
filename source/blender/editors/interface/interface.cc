@@ -6754,6 +6754,14 @@ void UI_but_node_link_set(uiBut *but, bNodeSocket *socket, const float draw_colo
   rgba_float_to_uchar(but->col, draw_color);
 }
 
+int TextboxStatus::visible_lines_get()
+{
+  int lines = std::max<int>(std::floor(this->visible_height / (UI_UNIT_Y * 0.75f)),
+                            this->minimum_lines);
+  this->visible_height = lines * (UI_UNIT_Y * 0.75f);
+  return lines;
+}
+
 int uiButTextBox::visible_lines()
 {
   return this->status->visible_lines_get();
