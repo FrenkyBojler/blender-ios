@@ -410,7 +410,8 @@ class NODE_OT_swap_node(NodeSwapOperator, NodeAddOperator, Operator):
     
     def execute(self, context):
         old_node = context.active_node
-        
+        self.deselect_nodes(context)
+
         node_new = self.create_node(context, self.type)
         if self.visible_output:
             for socket in node_new.outputs:
