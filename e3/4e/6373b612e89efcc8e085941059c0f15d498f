@@ -1,2 +1,3 @@
 Referenced by issue #143892, Tabbing into Compositor NodeGroup is Crashing Blender 5.0 Alpha
 Referenced by pull request #143933, Fix #143892: Crash inside node group in viewport compositor
+Referenced by commit cf32baff187170be9f84e887dd0c6fa9715f375d, Fix #143892: Crash inside node group in viewport compositor
