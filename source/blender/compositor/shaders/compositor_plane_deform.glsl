@@ -23,8 +23,8 @@ void main()
   float4 sampled_color = SAMPLER_FUNCTION(input_tx, projected_coordinates);
 
 #if defined(PREMULTIPLY_MASK)
-  float mask_value = texture_load(mask_tx, texel).x;
-  float4 plane_color = sampled_color * mask_value;
+  /* Premultiply the mask value as an alpha. */
+  float4 plane_color = sampled_color * texture_load(mask_tx, texel).x;
 #else
   float4 plane_color = sampled_color;
 #endif

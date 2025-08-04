@@ -18,12 +18,11 @@ void main()
 
   bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
   bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
-  bool is_x_clipped = x_clip;
-  bool is_y_clipped = y_clip;
 
-  float mask_value = (is_inside_plane_x || !is_x_clipped) && (is_inside_plane_y || !is_y_clipped) ?
-                         1.0f :
-                         0.0f;
+  bool is_x_masked = is_inside_plane_x && !is_x_clipped;
+  bool is_y_masked = is_inside_plane_y && !is_y_clipped;
+
+  float mask_value = is_x_masked && is_y_masked ? 1.0f : 0.0f;
 
   imageStore(mask_img, texel, float4(mask_value));
 }
