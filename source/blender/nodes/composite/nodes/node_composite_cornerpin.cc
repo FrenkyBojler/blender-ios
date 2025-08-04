@@ -6,6 +6,7 @@
  * \ingroup cmpnodes
  */
 
+#include "BLI_assert.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -153,7 +154,7 @@ class CornerPinOperation : public NodeOperation {
 
   void compute_plane_gpu(const float3x3 &homography_matrix, Result *plane_mask)
   {
-    GPUShader *shader = this->context().get_shader(this->get_shader_name().c_str());
+    GPUShader *shader = this->context().get_shader(this->get_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
@@ -379,25 +380,31 @@ class CornerPinOperation : public NodeOperation {
     return ExtensionMode::Clip;
   }
 
-  std::string get_shader_name()
+  const char *get_shader_name()
   {
-    std::string shader;
+    if (this->should_compute_mask()) {
+      switch (this->get_interpolation()) {
+        case Interpolation::Nearest:
+        case Interpolation::Bilinear:
+          return "compositor_plane_deform_masked";
+        case Interpolation::Bicubic:
+          return "compositor_plane_deform_bicubic_masked";
+        case Interpolation::Anisotropic:
+          return "compositor_plane_deform_anisotropic_masked";
+      }
+    }
+
     switch (this->get_interpolation()) {
       case Interpolation::Nearest:
       case Interpolation::Bilinear:
-        shader = "compositor_plane_deform";
+        return "compositor_plane_deform";
       case Interpolation::Bicubic:
-        shader = "compositor_plane_deform_bicubic";
+        return "compositor_plane_deform_bicubic";
       /* Anisotropic does not implement extension modes. Return masked shader. */
       case Interpolation::Anisotropic:
-        shader = "compositor_plane_deform_anisotropic";
+        BLI_assert_unreachable();
+        return "compositor_plane_deform_anisotropic_masked";
     }
-
-    if (this->should_compute_mask()) {
-      shader.append("_masked");
-    }
-
-    return shader;
   }
 
   bool should_compute_mask()
