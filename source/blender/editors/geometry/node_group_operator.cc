@@ -778,12 +778,16 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
         *depsgraph_active, *object, operator_eval_data, orig_mesh_states);
 
+    IDProperty *properties_idprops = IDP_GetPropertyFromGroup(op->properties, "properties");
+    if (!properties_idprops) {
+      properties_idprops = bke::idprop::create_group("properties", IDP_FLAG_STATIC_TYPE).release();
+      IDP_AddToGroup(op->properties, properties_idprops);
+    }
+    PointerRNA properties_ptr = RNA_pointer_create_discrete(
+        op->ptr->owner_id, node_tree->runtime->geometry_nodes_operator_srna, properties_idprops);
+
     bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
-        *node_tree,
-        nodes::build_properties_vector_set(properties),
-        compute_context,
-        call_data,
-        std::move(geometry_orig));
+        *node_tree, properties_ptr, compute_context, call_data, std::move(geometry_orig));
 
     store_result_geometry(
         *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));

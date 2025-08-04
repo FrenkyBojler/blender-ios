@@ -1901,8 +1901,11 @@ static void modifyGeometry(ModifierData *md,
 
   bke::ModifierComputeContext modifier_compute_context{nullptr, *nmd};
 
+  PointerRNA md_ptr = RNA_pointer_create_discrete(&ctx->object->id, &RNA_NodesModifier, md);
+  PointerRNA properties_ptr = RNA_pointer_get(&md_ptr, "properties");
+
   geometry_set = nodes::execute_geometry_nodes_on_geometry(
-      tree, properties, modifier_compute_context, call_data, std::move(geometry_set));
+      tree, properties_ptr, modifier_compute_context, call_data, std::move(geometry_set));
 
   if (logging_enabled(ctx)) {
     nmd_orig->runtime->eval_log = std::move(eval_log);
