@@ -1865,6 +1865,17 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
 #ifdef WIN32
   const FileExternalOperation operation = (FileExternalOperation)RNA_enum_get(op->ptr,
                                                                               "operation");
+
+  if (!(fileentry->typeflag & FILE_TYPE_DIR) &&
+      ELEM(operation, FILE_EXTERNAL_OPERATION_FOLDER_OPEN, FILE_EXTERNAL_OPERATION_FOLDER_CMD))
+  {
+    /* Not a folder path, so for these operations use the root. */
+    const char *root = filelist_dir(sfile->files);
+    if (BLI_file_external_operation_execute(root, operation)) {
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
+      return OPERATOR_FINISHED;
+    }
+  }
   if (BLI_file_external_operation_execute(filepath, operation)) {
     WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
     return OPERATOR_FINISHED;
@@ -1901,8 +1912,6 @@ static std::string file_external_operation_get_description(bContext * /*C*/,
 
 void FILE_OT_external_operation(wmOperatorType *ot)
 {
-  PropertyRNA *prop;
-
   /* identifiers */
   ot->name = "External File Operation";
   ot->idname = "FILE_OT_external_operation";
@@ -1916,12 +1925,12 @@ void FILE_OT_external_operation(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER; /* No undo! */
 
   /* properties */
-  prop = RNA_def_enum(ot->srna,
-                      "operation",
-                      file_external_operation,
-                      FILE_EXTERNAL_OPERATION_OPEN,
-                      "Operation",
-                      "Operation to perform on the selected file or path");
+  RNA_def_enum(ot->srna,
+               "operation",
+               file_external_operation,
+               FILE_EXTERNAL_OPERATION_OPEN,
+               "Operation",
+               "Operation to perform on the selected file or path");
 }
 
 static void file_os_operations_menu_item(uiLayout *layout,
@@ -1934,6 +1943,7 @@ static void file_os_operations_menu_item(uiLayout *layout,
     return;
   }
 #else
+  UNUSED_VARS(path);
   if (!ELEM(operation, FILE_EXTERNAL_OPERATION_OPEN, FILE_EXTERNAL_OPERATION_FOLDER_OPEN)) {
     return;
   }
@@ -1944,9 +1954,7 @@ static void file_os_operations_menu_item(uiLayout *layout,
 
   PointerRNA props_ptr = layout->op(
       ot, IFACE_(title), ICON_NONE, blender::wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
-  if (operation) {
-    RNA_enum_set(&props_ptr, "operation", operation);
-  }
+  RNA_enum_set(&props_ptr, "operation", operation);
 }
 
 static void file_os_operations_menu_draw(const bContext *C_const, Menu *menu)
@@ -2501,7 +2509,7 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
                               (min_curr_scroll - min_tot_scroll < 1.0f) &&
                               (middle_offset - min_middle_offset < items_block_size));
   /* OR edited item must be towards the end, and we are scrolled fully to the end.
-   * This one is crucial (unlike the one for the beginning), because without it we won't scroll
+   * This one is crucial (unlike the one for the beginning), because without it scrolling
    * fully to the end, and last column or row will end up only partially drawn. */
   const bool is_full_end = ((sfile->scroll_offset > max_middle_offset) &&
                             (max_tot_scroll - max_curr_scroll < 1.0f) &&
