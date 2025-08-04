@@ -375,14 +375,20 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     return;
   }
   ListBase *seqbase = seq::active_seqbase_get(ed);
-  ListBase *channels = seq::channels_displayed_get(ed);
-  VectorSet<Strip *> render_strips = seq::query_rendered_strips(
-      sequence_scene, channels, seqbase, sequence_scene->r.cfra, 0);
-  Vector<Strip *> strips = render_strips.extract_vector();
+  const ListBase *channels = seq::channels_displayed_get(ed);
+  VectorSet<Strip *> query_strips = seq::query_strips_recursive_at_frame(
+      sequence_scene, seqbase, sequence_scene->r.cfra);
+  /* Ignore effect strips, sound strips and muted strips. */
+  query_strips.remove_if([&](const Strip *strip) {
+    return (strip->type & STRIP_TYPE_EFFECT) != 0 || strip->type == STRIP_TYPE_SOUND_RAM ||
+           seq::render_is_muted(channels, strip);
+  });
+  Vector<Strip *> strips = query_strips.extract_vector();
   /* Sort strips by channel. */
   std::sort(strips.begin(), strips.end(), [](const Strip *a, const Strip *b) {
     return a->channel > b->channel;
   });
+  /* Get the top-most scene strip. */
   const Strip *scene_strip = [&]() -> const Strip * {
     for (const Strip *strip : strips) {
       if (strip->type == STRIP_TYPE_SCENE) {
