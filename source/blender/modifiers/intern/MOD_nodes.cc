@@ -450,6 +450,9 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
 void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
 {
   using namespace blender;
+  if (!nmd->group_properties) {
+    nmd->group_properties = bke::idprop::create_group("NodesModifierProperties").release();
+  }
   /* TODO: Update new properties according struct rna (while keeping old values). */
   update_id_properties_from_node_group(nmd);
   update_bakes_from_node_group(*nmd);
@@ -1997,8 +2000,8 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     IDP_BlendWrite(writer, nmd->settings.properties);
   }
 
-  if (nmd->properties) {
-    IDP_BlendWrite(writer, nmd->properties);
+  if (nmd->group_properties) {
+    IDP_BlendWrite(writer, nmd->group_properties);
   }
 
   BLO_write_struct_array(writer, NodesModifierBake, nmd->bakes_num, nmd->bakes);
@@ -2064,8 +2067,8 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
     IDP_BlendDataRead(reader, &nmd->settings.properties);
   }
 
-  BLO_read_struct(reader, IDProperty, &nmd->properties);
-  IDP_BlendDataRead(reader, &nmd->properties);
+  BLO_read_struct(reader, IDProperty, &nmd->group_properties);
+  IDP_BlendDataRead(reader, &nmd->group_properties);
 
   BLO_read_struct_array(reader, NodesModifierBake, nmd->bakes_num, &nmd->bakes);
 

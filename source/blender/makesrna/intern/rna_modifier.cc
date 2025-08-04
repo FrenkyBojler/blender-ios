@@ -1932,17 +1932,16 @@ static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
 static IDProperty **rna_NodesModifierProperties_idprops(PointerRNA *ptr)
 {
   auto *nmd = ptr->data_as<NodesModifierData>();
-  return &nmd->properties;
+  return &nmd->group_properties;
 }
 
-static PointerRNA rna_NodesModifier_properties_get(PointerRNA *ptr)
+static PointerRNA rna_NodesModifierProperties_get(PointerRNA *ptr)
 {
   auto *nmd = ptr->data_as<NodesModifierData>();
   if (!nmd->node_group) {
     return PointerRNA_NULL;
   }
-  StructRNA *srna = nmd->node_group->runtime->geometry_nodes_srna;
-  return RNA_pointer_create_with_parent(*ptr, srna, nmd);
+  return RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodesModifierProperties, nmd);
 }
 
 static blender::nodes::geo_eval_log::GeoTreeLog *get_nodes_modifier_log(NodesModifierData &nmd)
@@ -8023,7 +8022,7 @@ static void rna_def_modifier_nodes_properties(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "NodesModifierProperties", nullptr);
   RNA_def_struct_ui_text(srna, "Geometry Nodes Modifier Properties", "");
   RNA_def_struct_refine_func(srna, "rna_NodesModifierProperties_refine");
-  RNA_def_struct_idprops_func(srna, "rna_NodesModifierProperties_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_NodesModifierProperties_idprops");
 }
 
 static void rna_def_modifier_nodes(BlenderRNA *brna)
@@ -8112,7 +8111,7 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "NodesModifierProperties");
   RNA_def_property_ui_text(prop, "Properties", "");
   RNA_def_property_pointer_funcs(
-      prop, "rna_NodesModifier_properties_get", nullptr, nullptr, nullptr);
+      prop, "rna_NodesModifierProperties_get", nullptr, nullptr, nullptr);
 
   RNA_define_lib_overridable(false);
 }
