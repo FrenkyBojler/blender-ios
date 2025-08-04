@@ -475,6 +475,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   const Array<int> dst_point_to_curve_map = dst.point_to_curve_map();
   MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
   MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
+  MutableSpan<float> radius = dst.radius_for_write();
   for (const int i : dst_to_src_points.index_range()) {
     if (!(dst_selected_end[i] || dst_selected_start[i])) {
       continue;
@@ -485,6 +486,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
     dst_positions[i] = pen_screen_to_layer(ptd, layer_to_world, pos, depth_point);
     handle_types_left[i] = ptd.extrude_handle;
     handle_types_right[i] = ptd.extrude_handle;
+    radius[i] = ptd.radius;
     dst_cyclic[dst_point_to_curve_map[i]] = false;
   }
 
