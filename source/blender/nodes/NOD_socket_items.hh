@@ -198,15 +198,17 @@ template<typename Accessor> inline typename Accessor::ItemT &add_item_to_array(b
  */
 template<typename Accessor>
 inline typename Accessor::ItemT *add_item_with_socket_type_and_name(
+    bNodeTree &ntree,
     bNode &node,
     const eNodeSocketDatatype socket_type,
     const char *name,
     std::optional<int> dimensions = std::nullopt)
 {
   using ItemT = typename Accessor::ItemT;
-  BLI_assert(Accessor::supports_socket_type(socket_type));
+  BLI_assert(Accessor::supports_socket_type(socket_type, ntree.type));
   BLI_assert(!(dimensions.has_value() && socket_type != SOCK_VECTOR));
   BLI_assert(ELEM(dimensions.value_or(3), 2, 3, 4));
+  UNUSED_VARS_NDEBUG(ntree);
   ItemT &new_item = detail::add_item_to_array<Accessor>(node);
   if constexpr (Accessor::has_vector_dimensions) {
     Accessor::init_with_socket_type_and_name(node, new_item, socket_type, name, dimensions);
@@ -282,7 +284,7 @@ template<typename Accessor>
   const ItemT *item = nullptr;
   if constexpr (Accessor::has_name && Accessor::has_type) {
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(src_socket->type);
-    if (!Accessor::supports_socket_type(socket_type)) {
+    if (!Accessor::supports_socket_type(socket_type, ntree.type)) {
       return false;
     }
     std::string name = src_socket->name;
@@ -294,7 +296,7 @@ template<typename Accessor>
       dimensions = src_socket->default_value_typed<bNodeSocketValueVector>()->dimensions;
     }
     item = add_item_with_socket_type_and_name<Accessor>(
-        storage_node, socket_type, name.c_str(), dimensions);
+        ntree, storage_node, socket_type, name.c_str(), dimensions);
   }
   else if constexpr (Accessor::has_name && !Accessor::has_type) {
     item = add_item_with_name<Accessor>(storage_node, src_socket->name);
