@@ -14,6 +14,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -178,7 +179,7 @@ static int add_driver_with_target(ReportList * /*reports*/,
       /* Rotation Destination: normal -> radians, so convert src to radians
        * (However, if both input and output is a rotation, don't apply such corrections)
        */
-      STRNCPY(driver->expression, "radians(var)");
+      STRNCPY_UTF8(driver->expression, "radians(var)");
     }
     else if ((RNA_property_unit(src_prop) == PROP_UNIT_ROTATION) &&
              (RNA_property_unit(dst_prop) != PROP_UNIT_ROTATION))
@@ -186,11 +187,11 @@ static int add_driver_with_target(ReportList * /*reports*/,
       /* Rotation Source: radians -> normal, so convert src to degrees
        * (However, if both input and output is a rotation, don't apply such corrections)
        */
-      STRNCPY(driver->expression, "degrees(var)");
+      STRNCPY_UTF8(driver->expression, "degrees(var)");
     }
     else {
       /* Just a normal property without any unit problems */
-      STRNCPY(driver->expression, "var");
+      STRNCPY_UTF8(driver->expression, "var");
     }
 
     /* Create a driver variable for the target
@@ -470,7 +471,7 @@ int ANIM_add_driver(
             val = RNA_property_boolean_get_index(&ptr, prop, array_index);
           }
 
-          BLI_snprintf(
+          BLI_snprintf_utf8(
               expression, expression_maxncpy, "%s%s", dvar_prefix, (val) ? "True" : "False");
         }
         else if (proptype == PROP_INT) {
@@ -481,7 +482,7 @@ int ANIM_add_driver(
             val = RNA_property_int_get_index(&ptr, prop, array_index);
           }
 
-          BLI_snprintf(expression, expression_maxncpy, "%s%d", dvar_prefix, val);
+          BLI_snprintf_utf8(expression, expression_maxncpy, "%s%d", dvar_prefix, val);
         }
         else if (proptype == PROP_FLOAT) {
           if (!array) {
@@ -491,11 +492,11 @@ int ANIM_add_driver(
             fval = RNA_property_float_get_index(&ptr, prop, array_index);
           }
 
-          BLI_snprintf(expression, expression_maxncpy, "%s%.3f", dvar_prefix, fval);
+          BLI_snprintf_utf8(expression, expression_maxncpy, "%s%.3f", dvar_prefix, fval);
           BLI_str_rstrip_float_zero(expression, '\0');
         }
         else if (flag & CREATEDRIVER_WITH_DEFAULT_DVAR) {
-          BLI_strncpy(expression, "var", expression_maxncpy);
+          BLI_strncpy_utf8(expression, "var", expression_maxncpy);
         }
       }
 
@@ -801,7 +802,7 @@ void ANIM_copy_as_driver(ID *target_id, const char *target_path, const char *var
 
   /* Set the variable name. */
   if (var_name) {
-    STRNCPY(var->name, var_name);
+    STRNCPY_UTF8(var->name, var_name);
 
     /* Sanitize the name. */
     for (int i = 0; var->name[i]; i++) {
@@ -811,7 +812,7 @@ void ANIM_copy_as_driver(ID *target_id, const char *target_path, const char *var
     }
   }
 
-  STRNCPY(driver->expression, var->name);
+  STRNCPY_UTF8(driver->expression, var->name);
 
   /* Store the driver into the copy/paste buffers. */
   channeldriver_copypaste_buf = fcu;
@@ -971,7 +972,7 @@ static wmOperatorStatus add_driver_button_menu_exec(bContext *C, wmOperator *op)
 
   /* XXX: We assume that it's fine to use the same set of properties,
    * since they're actually the same. */
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, op->ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, op->ptr, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -993,7 +994,7 @@ static wmOperatorStatus add_driver_button_menu_invoke(bContext *C,
   /* Show menu */
   /* TODO: This should get filtered by the enum filter. */
   /* important to execute in the region we're currently in. */
-  return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_DEFAULT);
+  return WM_menu_invoke_ex(C, op, blender::wm::OpCallContext::InvokeDefault);
 }
 
 static void UNUSED_FUNCTION(ANIM_OT_driver_button_add_menu)(wmOperatorType *ot)

@@ -616,7 +616,9 @@ GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
           GHOST_kCapabilityClipboardPrimary |
           /* WIN32 doesn't define a Hyper modifier key,
            * it's possible another modifier could be optionally used in it's place. */
-          GHOST_kCapabilityKeyboardHyperKey));
+          GHOST_kCapabilityKeyboardHyperKey |
+          /* No support yet for cursors generated on demand. */
+          GHOST_kCapabilityCursorGenerator));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()
@@ -1340,9 +1342,9 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     }
   }
 
-  /* We used to check `if (key != GHOST_kKeyUnknown)`, but since the message
-   * values `WM_SYSKEYUP`, `WM_KEYUP` and `WM_CHAR` are ignored, we capture
-   * those events here as well. */
+  /* We used to check `if (key != GHOST_kKeyUnknown)`, however,
+   * given the message values `WM_SYSKEYUP`, `WM_KEYUP` and `WM_CHAR` are ignored,
+   * we capture those events here as well. */
   if (!is_repeated_modifier) {
     char utf8_char[6] = {0};
     BYTE state[256];
