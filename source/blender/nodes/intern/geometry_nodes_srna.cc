@@ -16,14 +16,28 @@
 
 namespace blender::nodes {
 
-const EnumPropertyItem geometry_nodes_input_type_items[] = {
-    {int(GeometryNodesInputType::Value), "VALUE", 0, "Value", "Pass a single value"},
-    {int(GeometryNodesInputType::Attribute),
-     "ATTRIBUTE",
-     0,
-     "Attribute",
-     "Pass an attribute as field"},
-    {0, nullptr, 0, nullptr, nullptr}};
+static constexpr EnumPropertyItem input_type_item_fallback = {
+    int(GeometryNodesInputType::Fallback), "FALLBACK", 0, "Fallback", "Fallback"};
+static constexpr EnumPropertyItem input_type_item_value = {
+    int(GeometryNodesInputType::Value), "VALUE", 0, "Value", "Pass a single value"};
+static constexpr EnumPropertyItem input_type_item_attribute = {
+    int(GeometryNodesInputType::Attribute), "ATTRIBUTE", 0, "Attribute", "Pass an attribute"};
+
+const EnumPropertyItem geometry_nodes_input_type_items_fallback[] = {
+    input_type_item_fallback,
+    {0},
+};
+
+const EnumPropertyItem geometry_nodes_input_type_items_value[] = {
+    input_type_item_value,
+    {0},
+};
+
+const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute[] = {
+    input_type_item_value,
+    input_type_item_attribute,
+    {0},
+};
 
 static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
                                               const bNodeTreeInterfaceSocket &socket,

@@ -17,11 +17,14 @@ namespace blender::nodes {
  * This is share across all socket types, even though some entries don't make sense for some types.
  */
 enum class GeometryNodesInputType {
-  Value = 0,
-  Attribute = 1,
+  Fallback = 0,
+  Value = 1,
+  Attribute = 2,
 };
 
-extern const EnumPropertyItem geometry_nodes_input_type_items[];
+extern const EnumPropertyItem geometry_nodes_input_type_items_fallback[];
+extern const EnumPropertyItem geometry_nodes_input_type_items_value[];
+extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute[];
 
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
