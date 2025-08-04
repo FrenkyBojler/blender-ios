@@ -3278,8 +3278,12 @@ void ED_areas_do_frame_follow(bContext *C, bool center_view)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus frame_offset_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
+  
   int delta = RNA_int_get(op->ptr, "delta");
 
   /* In order to jump from e.g. 1.5 to 1 the delta needs to be incremented by 1 since the sub-frame
