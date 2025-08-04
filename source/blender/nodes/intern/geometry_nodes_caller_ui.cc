@@ -479,6 +479,11 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
    * pointer IDProperties contain no information about their type. */
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+
+  if (ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_BUNDLE, SOCK_CLOSURE)) {
+    return;
+  }
+
   std::string name = socket.name ? IFACE_(socket.name) : "";
 
   /* If the property has a prefix that's the same string as the name of the panel it's in, remove
