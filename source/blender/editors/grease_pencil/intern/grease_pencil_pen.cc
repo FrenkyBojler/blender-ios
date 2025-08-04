@@ -81,6 +81,9 @@ struct PenToolOperation {
   GreasePencil *grease_pencil;
   Vector<MutableDrawingInfo> drawings;
 
+  /* Helper class to project screen space coordinates to 3D. */
+  DrawingPlacement placement;
+
   float threshold_distance;
   float threshold_distance_edge;
 
@@ -364,7 +367,6 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
                                               const bke::greasepencil::Drawing &drawing,
                                               const int layer_index,
                                               const float4x4 &layer_to_object,
-                                              const float4x4 &layer_to_world,
                                               bool *r_extruded)
 {
   const bke::CurvesGeometry &src = drawing.strokes();
@@ -483,7 +485,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
     const float3 depth_point = src_positions[dst_to_src_points[i]];
     const float2 pos = pen_layer_to_screen(ptd, layer_to_object, depth_point) -
                        ptd.center_of_mass_co + ptd.mouse_co;
-    dst_positions[i] = pen_screen_to_layer(ptd, layer_to_world, pos, depth_point);
+    dst_positions[i] = ptd.placement.project(pos);
     handle_types_left[i] = ptd.extrude_handle;
     handle_types_right[i] = ptd.extrude_handle;
     radius[i] = ptd.radius;
@@ -555,8 +557,7 @@ static bool pen_add_single(const PenToolOperation &ptd, wmOperator *op)
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
 
-  curves.positions_for_write().last() = pen_screen_to_layer(
-      ptd, layer_to_world, ptd.mouse_co, depth_point);
+  curves.positions_for_write().last() = ptd.placement.project(ptd.mouse_co);
   curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
   curves.handle_types_left_for_write().last() = ptd.extrude_handle;
   curves.handle_types_right_for_write().last() = ptd.extrude_handle;
@@ -817,6 +818,19 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(vc.obact->data);
   ptd.grease_pencil = grease_pencil;
   ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
+  View3D *view3d = CTX_wm_view3d(C);
+
+  /* Initialize helper class for projecting screen space coordinates. */
+  DrawingPlacement placement = DrawingPlacement(
+      *vc.scene, *vc.region, *view3d, *vc.obact, grease_pencil->get_active_layer());
+  if (placement.use_project_to_surface()) {
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
+  }
+  else if (placement.use_project_to_stroke()) {
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
+  }
+
+  ptd.placement = placement;
 
   /* Distance threshold for mouse clicks to affect the spline or its points */
   ptd.mouse_co = float2(event->mval);
@@ -873,11 +887,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       if (ptd.extrude_point) {
         const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
         const float4x4 layer_to_object = layer.local_transform();
-        const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
 
         bool extruded = false;
         curves = pen_extrude_curves(
-            ptd, info.drawing, info.layer_index, layer_to_object, layer_to_world, &extruded);
+            ptd, info.drawing, info.layer_index, layer_to_object, &extruded);
         if (!extruded) {
           for (const StringRef selection_attribute_name :
                ed::curves::get_curves_selection_attribute_names(curves))
@@ -1237,8 +1250,13 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
           handle_types_left[point_i] = BEZIER_HANDLE_FREE;
         }
 
-        handles_left[point_i] = pen_screen_to_layer(
-            ptd, layer_to_world, center_point + offset, depth_point);
+        if (ptd.point_added) {
+          handles_left[point_i] = ptd.placement.project(center_point + offset);
+        }
+        else {
+          handles_left[point_i] = pen_screen_to_layer(
+              ptd, layer_to_world, center_point + offset, depth_point);
+        }
 
         if (handle_types_right[point_i] == BEZIER_HANDLE_ALIGN) {
           handles_right[point_i] = 2.0f * depth_point - handles_left[point_i];
@@ -1253,8 +1271,14 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
           handle_types_right[point_i] = BEZIER_HANDLE_FREE;
         }
 
-        handles_right[point_i] = pen_screen_to_layer(
-            ptd, layer_to_world, center_point + offset, depth_point);
+        if (ptd.point_added) {
+          handles_right[point_i] = ptd.placement.project(center_point + offset);
+        }
+        else {
+          handles_right[point_i] = pen_screen_to_layer(
+              ptd, layer_to_world, center_point + offset, depth_point);
+        }
+
         if (handle_types_left[point_i] == BEZIER_HANDLE_ALIGN) {
           handles_left[point_i] = 2.0f * depth_point - handles_right[point_i];
         }
