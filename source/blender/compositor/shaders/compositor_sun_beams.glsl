@@ -6,13 +6,20 @@
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
-/* 2D hash (iqint3) recommended from "Hash Functions for GPU Rendering" JCGT Vol. 9, No. 3, 2020
- * https://jcgt.org/published/0009/03/02/ */
-float hash_iqint3_f(uint2 x)
+/* 2D hash (iqint3), originally recommended in
+ * "Hash Functions for GPU Rendering", JCGT Vol. 9, No. 3, 2020:
+ * https://jcgt.org/published/0009/03/02/
+ *
+ * Updated with modifications inspired by the "Star Nest" fragment shader
+ * by Pablo Román Andrioli on ShaderToy:
+ * https://www.shadertoy.com/view/4tXyWN
+ */
+float hash_iqint3_f(uint2 p)
 {
-  uint2 q = 1103515245u * ((x >> 1u) ^ (x.yx));
-  uint n = 1103515245u * ((q.x) ^ (q.y >> 3u));
-  return float(n) * (1.0 / float(0xffffffffu));
+  p *= uvec2(73333, 7777);
+  p ^= (uvec2(3333777777) >> (p >> 28));
+  uint n = p.x * p.y;
+  return float(n ^ (n >> 15)) * (1.0f / float(0xffffffffU));
 }
 
 /* Generates a low-discrepancy quasirandom value in the [0, 1) range using the R1 sequence.
@@ -73,8 +80,8 @@ void main()
   float2 vector_to_source = source - coordinates;
   float2 step_vector = vector_to_source / unbounded_steps;
 
-  float accumulated_weight = 1.0f;
-  float4 accumulated_color = texture(input_tx, coordinates);
+  float accumulated_weight = 0.0f;
+  float4 accumulated_color = float4(0.0f);
 
 #if defined(JITTER)
   int number_of_steps = int((1.0f - jitter_factor) * steps);
@@ -106,6 +113,11 @@ void main()
     accumulated_color += sample_color * weight;
   }
 
-  accumulated_color /= accumulated_weight != 0.0f ? accumulated_weight : 1.0f;
+  if (accumulated_weight != 0.0f) {
+    accumulated_color /= accumulated_weight;
+  }
+  else {
+    accumulated_color = texture(input_tx, coordinates);
+  }
   imageStore(output_img, texel, accumulated_color);
 }

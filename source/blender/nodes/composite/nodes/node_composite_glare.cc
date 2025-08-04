@@ -172,7 +172,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
-  glare_panel.add_input<decl::Float>("Jitter Factor")
+  glare_panel.add_input<decl::Float>("Jitter")
       .default_value(0.0f)
       .min(0.0f)
       .max(1.0)
@@ -233,7 +233,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
   blender::bke::node_set_socket_availability(
       *ntree, *source_input, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 
-  bNodeSocket *jitter_steps = bke::node_find_socket(*node, SOCK_IN, "Jitter Factor");
+  bNodeSocket *jitter_steps = bke::node_find_socket(*node, SOCK_IN, "Jitter");
   blender::bke::node_set_socket_availability(
       *ntree, *jitter_steps, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 }
@@ -2317,8 +2317,8 @@ class GlareOperation : public NodeOperation {
       float2 vector_to_source = source - coordinates;
       float2 step_vector = vector_to_source / unbounded_steps;
 
-      float accumulated_weight = 1.0f;
-      float4 accumulated_color = highlights.sample_bilinear_zero(coordinates);
+      float accumulated_weight = 0.0f;
+      float4 accumulated_color = float4(0.0f);
 
       int number_of_steps = this->get_use_jitter() ? (1.0f - this->get_jitter_factor()) * steps :
                                                      steps;
@@ -2346,7 +2346,12 @@ class GlareOperation : public NodeOperation {
         accumulated_color += sample_color * weight;
       }
 
-      accumulated_color /= accumulated_weight != 0.0f ? accumulated_weight : 1.0f;
+      if (accumulated_weight != 0.0f) {
+        accumulated_color /= accumulated_weight;
+      }
+      else {
+        accumulated_color = highlights.sample_bilinear_zero(coordinates);
+      }
       output.store_pixel(texel, accumulated_color);
     });
     return output;
@@ -2638,7 +2643,7 @@ class GlareOperation : public NodeOperation {
 
   float get_jitter_factor()
   {
-    return this->get_input("Jitter Factor").get_single_value_default(0.0f);
+    return this->get_input("Jitter").get_single_value_default(0.0f);
   }
 };
 
