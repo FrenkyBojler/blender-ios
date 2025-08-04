@@ -220,11 +220,11 @@ static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
 
 static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                          uiLayout *layout,
-                                         const bNodeTreeInterfaceSocket &socket)
+                                         const bNodeTreeInterfaceSocket &socket,
+                                         PointerRNA *socket_props_ptr)
 {
-  const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(socket.identifier));
   if (!ctx.tree_log) {
-    layout->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
+    layout->prop(socket_props_ptr, "layer_name", UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
 
@@ -247,8 +247,8 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                  0,
                                  10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
                                  UI_UNIT_Y,
-                                 ctx.properties_ptr,
-                                 rna_path,
+                                 socket_props_ptr,
+                                 "layer_name",
                                  0,
                                  StringRef(socket.description));
   UI_but_placeholder_set(but, "Layer");
@@ -564,7 +564,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     case SOCK_BOOLEAN: {
       if (is_layer_selection_field(socket)) {
-        add_layer_name_search_button(ctx, row, socket);
+        add_layer_name_search_button(ctx, row, socket, socket_props_ptr);
         /* Adds a spacing at the end of the row. */
         row->label("", ICON_BLANK1);
         break;

@@ -1051,6 +1051,13 @@ static bke::bNodeSocketType *make_socket_type_bool()
     const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
     RNA_def_boolean(&srna, "value", data->value, socket.name, socket.description);
     make_common_value_and_attribute_props(srna, socket, r_generated);
+    RNA_def_string(
+        &srna,
+        "layer_name",
+        nullptr,
+        0,
+        r_generated.scope.add_value(fmt::format("{} {}", TIP_("Layer for"), socket.name)).c_str(),
+        socket.description);
   };
   return socktype;
 }
