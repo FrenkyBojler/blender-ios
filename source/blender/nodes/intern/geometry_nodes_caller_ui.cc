@@ -22,6 +22,7 @@
 
 #include "DNA_modifier_types.h"
 
+#include "ED_node.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
@@ -55,7 +56,7 @@ struct PanelOpenProperty {
 struct SearchInfo {
   geo_log::GeoTreeLog *tree_log = nullptr;
   bNodeTree *tree = nullptr;
-  IDProperty *properties = nullptr;
+  std::optional<PointerRNA> socket_props_ptr;
 };
 
 struct ModifierSearchData {
@@ -65,7 +66,9 @@ struct ModifierSearchData {
 
 struct OperatorSearchData {
   /** Can store this data directly, because it's more persistent than for the modifier. */
-  SearchInfo info;
+  geo_log::GeoTreeLog *tree_log = nullptr;
+  bNodeTree *tree = nullptr;
+  IDProperty *properties = nullptr;
 };
 
 struct SocketSearchData {
@@ -113,46 +116,53 @@ static geo_log::GeoTreeLog *get_root_tree_log(const NodesModifierData &nmd)
   return &nmd.runtime->eval_log->get_tree_log(compute_context.hash());
 }
 
-static NodesModifierData *get_modifier_data(Main &bmain,
-                                            const wmWindowManager &wm,
-                                            const ModifierSearchData &data)
+static std::optional<ed::space_node::ObjectAndModifier> get_modifier_data(
+    Main &bmain, const wmWindowManager &wm, const ModifierSearchData &data)
 {
   if (ED_screen_animation_playing(&wm)) {
     /* Work around an issue where the attribute search exec function has stale pointers when data
      * is reallocated when evaluating the node tree, causing a crash. This would be solved by
      * allowing the UI search data to own arbitrary memory rather than just referencing it. */
-    return nullptr;
+    return std::nullopt;
   }
 
-  const Object *object = (Object *)BKE_libblock_find_session_uid(
-      &bmain, ID_OB, data.object_session_uid);
+  Object *object = (Object *)BKE_libblock_find_session_uid(&bmain, ID_OB, data.object_session_uid);
   if (object == nullptr) {
-    return nullptr;
+    return std::nullopt;
   }
   ModifierData *md = BKE_modifiers_findby_name(object, data.modifier_name);
   if (md == nullptr) {
-    return nullptr;
+    return std::nullopt;
   }
   BLI_assert(md->type == eModifierType_Nodes);
-  return reinterpret_cast<NodesModifierData *>(md);
+  return ed::space_node::ObjectAndModifier{object, reinterpret_cast<NodesModifierData *>(md)};
 }
 
 SearchInfo SocketSearchData::info(const bContext &C) const
 {
   if (const auto *modifier_search_data = std::get_if<ModifierSearchData>(&this->search_data)) {
-    const NodesModifierData *nmd = get_modifier_data(
+    std::optional<ed::space_node::ObjectAndModifier> object_and_modifier = get_modifier_data(
         *CTX_data_main(&C), *CTX_wm_manager(&C), *modifier_search_data);
-    if (nmd == nullptr) {
+    if (!object_and_modifier) {
       return {};
     }
-    if (nmd->node_group == nullptr) {
+    const NodesModifierData &nmd = *object_and_modifier->nmd;
+    if (nmd.node_group == nullptr) {
       return {};
     }
-    geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
-    return {tree_log, nmd->node_group, nmd->settings.properties};
+    geo_log::GeoTreeLog *tree_log = get_root_tree_log(nmd);
+    PointerRNA nmd_ptr = RNA_pointer_create_discrete(
+        &const_cast<Object *>(object_and_modifier->object)->id,
+        &RNA_NodesModifier,
+        const_cast<NodesModifierData *>(&nmd));
+    PointerRNA group_properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
+    PointerRNA inputs_ptr = RNA_pointer_get(&group_properties_ptr, "inputs");
+    PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
+    return {tree_log, nmd.node_group, socket_props_ptr};
   }
   if (const auto *operator_search_data = std::get_if<OperatorSearchData>(&this->search_data)) {
-    return operator_search_data->info;
+    /* TODO */
+    return {};
   }
   return {};
 }
@@ -207,14 +217,12 @@ static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
   if (!item) {
     return;
   }
-  const SearchInfo info = data.info(*C);
-  if (!info.properties) {
+  SearchInfo info = data.info(*C);
+  if (!info.socket_props_ptr) {
     return;
   }
 
-  IDProperty &name_property = *IDP_GetPropertyFromGroup(info.properties, data.socket_identifier);
-  IDP_AssignString(&name_property, item->c_str());
-
+  RNA_string_set(&*info.socket_props_ptr, "layer_name", item->c_str());
   ED_undo_push(C, "Assign Layer Name");
 }
 
@@ -332,16 +340,12 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   }
   SocketSearchData &data = *static_cast<SocketSearchData *>(data_v);
   const auto &item = *static_cast<const geo_log::GeometryAttributeInfo *>(item_v);
-  const SearchInfo info = data.info(*C);
-  if (!info.properties) {
+  SearchInfo info = data.info(*C);
+  if (!info.socket_props_ptr) {
     return;
   }
 
-  const std::string attribute_prop_name = data.socket_identifier +
-                                          nodes::input_attribute_name_suffix;
-  IDProperty &name_property = *IDP_GetPropertyFromGroup(info.properties, attribute_prop_name);
-  IDP_AssignString(&name_property, item.name.c_str());
-
+  RNA_string_set(&*info.socket_props_ptr, "attribute_name", item.name.c_str());
   ED_undo_push(C, "Assign Attribute Name");
 }
 
@@ -1013,9 +1017,9 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};
     OperatorSearchData &operator_search_data = data.search_data.emplace<OperatorSearchData>();
-    operator_search_data.info.tree = &tree;
-    operator_search_data.info.tree_log = tree_log;
-    operator_search_data.info.properties = op.properties;
+    operator_search_data.tree = &tree;
+    operator_search_data.tree_log = tree_log;
+    operator_search_data.properties = op.properties;
     STRNCPY_UTF8(data.socket_identifier, io_socket.identifier);
     data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
