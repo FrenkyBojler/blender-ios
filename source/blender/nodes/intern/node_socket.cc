@@ -8,6 +8,8 @@
 
 #include <climits>
 
+#include <fmt/format.h>
+
 #include "DNA_node_types.h"
 
 #include "BLI_color.hh"
@@ -33,6 +35,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -963,6 +966,70 @@ static bke::bNodeSocketType *make_socket_type_virtual()
   return stype;
 }
 
+static void make_common_type_prop(StructRNA &srna,
+                                  const bNodeTreeInterfaceSocket &socket,
+                                  const EnumPropertyItem *items,
+                                  const nodes::GeometryNodesInputType default_type,
+                                  nodes::GeneratedTreeSrnaData &r_generated)
+{
+  PropertyRNA *prop = RNA_def_enum(
+      &srna,
+      "type",
+      items,
+      int(default_type),
+      r_generated.scope.add_value(fmt::format("{} {}", TIP_("Type for"), socket.name)).c_str(),
+      "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void make_common_attribute_name_prop(StructRNA &srna,
+                                            const bNodeTreeInterfaceSocket &socket,
+                                            nodes::GeneratedTreeSrnaData &r_generated)
+{
+  RNA_def_string(
+      &srna,
+      "attribute_name",
+      socket.default_attribute_name,
+      0,
+      r_generated.scope.add_value(fmt::format("{} {}", TIP_("Attribute for"), socket.name))
+          .c_str(),
+      socket.description);
+}
+
+static void make_common_value_and_attribute_props(StructRNA &srna,
+                                                  const bNodeTreeInterfaceSocket &socket,
+                                                  nodes::GeneratedTreeSrnaData &r_generated)
+{
+  make_common_type_prop(srna,
+                        socket,
+                        nodes::geometry_nodes_input_type_items_value,
+                        nodes::GeometryNodesInputType::Value,
+                        r_generated);
+  make_common_attribute_name_prop(srna, socket, r_generated);
+}
+
+static void make_common_value_props(StructRNA &srna,
+                                    const bNodeTreeInterfaceSocket &socket,
+                                    nodes::GeneratedTreeSrnaData &r_generated)
+{
+  make_common_type_prop(srna,
+                        socket,
+                        nodes::geometry_nodes_input_type_items_value,
+                        nodes::GeometryNodesInputType::Value,
+                        r_generated);
+}
+
+static void make_common_fallback_props(StructRNA &srna,
+                                       const bNodeTreeInterfaceSocket &socket,
+                                       nodes::GeneratedTreeSrnaData &r_generated)
+{
+  make_common_type_prop(srna,
+                        socket,
+                        nodes::geometry_nodes_input_type_items_fallback,
+                        nodes::GeometryNodesInputType::Fallback,
+                        r_generated);
+}
+
 static bke::bNodeSocketType *make_socket_type_bool()
 {
   bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_BOOLEAN, PROP_NONE);
@@ -980,21 +1047,10 @@ static bke::bNodeSocketType *make_socket_type_bool()
   socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
-                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
     RNA_def_boolean(&srna, "value", data->value, socket.name, socket.description);
-    RNA_def_enum(&srna,
-                 "type",
-                 nodes::geometry_nodes_input_type_items_value_or_attribute,
-                 int(nodes::GeometryNodesInputType::Value),
-                 "Type",
-                 "");
-    RNA_def_string(&srna,
-                   "attribute_name",
-                   socket.default_attribute_name,
-                   0,
-                   "Attribute",
-                   "Attribute to pass as field");
+    make_common_value_and_attribute_props(srna, socket, r_generated);
   };
   return socktype;
 }
@@ -1020,7 +1076,7 @@ static bke::bNodeSocketType *make_socket_type_rotation()
   socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
-                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueRotation *>(socket.socket_data);
     RNA_def_float_rotation(&srna,
                            "value",
@@ -1032,18 +1088,7 @@ static bke::bNodeSocketType *make_socket_type_rotation()
                            socket.description,
                            -FLT_MAX,
                            FLT_MAX);
-    RNA_def_enum(&srna,
-                 "type",
-                 nodes::geometry_nodes_input_type_items_value_or_attribute,
-                 int(nodes::GeometryNodesInputType::Value),
-                 "Type",
-                 "");
-    RNA_def_string(&srna,
-                   "attribute_name",
-                   socket.default_attribute_name,
-                   0,
-                   "Attribute",
-                   "Attribute to pass as field");
+    make_common_value_and_attribute_props(srna, socket, r_generated);
   };
   return socktype;
 }
@@ -1063,14 +1108,9 @@ static bke::bNodeSocketType *make_socket_type_matrix()
   socktype->geometry_nodes_default_cpp_value = &default_value;
   socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                 StructRNA &srna,
-                                                const bNodeTreeInterfaceSocket & /*socket*/,
-                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
-    RNA_def_enum(&srna,
-                 "type",
-                 nodes::geometry_nodes_input_type_items_fallback,
-                 int(nodes::GeometryNodesInputType::Fallback),
-                 "Type",
-                 "");
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    make_common_fallback_props(srna, socket, r_generated);
   };
   return socktype;
 }
@@ -1088,6 +1128,12 @@ static bke::bNodeSocketType *make_socket_type_bundle()
   };
   static SocketValueVariant default_value = SocketValueVariant::From(nodes::BundlePtr());
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    make_common_fallback_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1104,6 +1150,12 @@ static bke::bNodeSocketType *make_socket_type_closure()
   };
   static SocketValueVariant default_value = SocketValueVariant::From(nodes::ClosurePtr());
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    make_common_fallback_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1124,7 +1176,7 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
   socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
-                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
     PropertyRNA *prop;
     const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
     prop = RNA_def_float(&srna,
@@ -1137,18 +1189,7 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
                          data->min,
                          data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    prop = RNA_def_enum(&srna,
-                        "type",
-                        nodes::geometry_nodes_input_type_items_value_or_attribute,
-                        int(nodes::GeometryNodesInputType::Value),
-                        "Type",
-                        "");
-    prop = RNA_def_string(&srna,
-                          "attribute_name",
-                          socket.default_attribute_name,
-                          0,
-                          "Attribute",
-                          "Attribute to pass as field");
+    make_common_value_and_attribute_props(srna, socket, r_generated);
   };
   return socktype;
 }
@@ -1170,7 +1211,7 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
   socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
-                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
     PropertyRNA *prop;
     const auto *data = static_cast<const bNodeSocketValueInt *>(socket.socket_data);
     prop = RNA_def_int(&srna,
@@ -1183,18 +1224,7 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
                        data->min,
                        data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    prop = RNA_def_enum(&srna,
-                        "type",
-                        nodes::geometry_nodes_input_type_items_value_or_attribute,
-                        int(nodes::GeometryNodesInputType::Value),
-                        "Type",
-                        "");
-    prop = RNA_def_string(&srna,
-                          "attribute_name",
-                          socket.default_attribute_name,
-                          0,
-                          "Attribute",
-                          "Attribute to pass as field");
+    make_common_value_and_attribute_props(srna, socket, r_generated);
   };
   return socktype;
 }
@@ -1213,6 +1243,25 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
   };
   static SocketValueVariant default_value{blender::float3(0, 0, 0)};
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    PropertyRNA *prop;
+    const auto *data = static_cast<const bNodeSocketValueVector *>(socket.socket_data);
+    prop = RNA_def_float_vector(&srna,
+                                "value",
+                                3,
+                                data->value,
+                                -FLT_MAX,
+                                FLT_MAX,
+                                socket.name,
+                                socket.description,
+                                data->min,
+                                data->max);
+    RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+    make_common_value_and_attribute_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1230,6 +1279,25 @@ static bke::bNodeSocketType *make_socket_type_rgba()
   };
   static SocketValueVariant default_value{blender::ColorGeometry4f(0, 0, 0, 0)};
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    PropertyRNA *prop;
+    const auto *data = static_cast<const bNodeSocketValueVector *>(socket.socket_data);
+    prop = RNA_def_float_color(&srna,
+                               "value",
+                               4,
+                               data->value,
+                               -FLT_MAX,
+                               FLT_MAX,
+                               socket.name,
+                               socket.description,
+                               data->min,
+                               data->max);
+    RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+    make_common_value_and_attribute_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1250,7 +1318,7 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
   socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
-                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueString *>(socket.socket_data);
     RNA_def_string(&srna,
                    "value",
@@ -1258,12 +1326,7 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
                    0,
                    socket.name,
                    socket.description);
-    RNA_def_enum(&srna,
-                 "type",
-                 nodes::geometry_nodes_input_type_items_value,
-                 int(nodes::GeometryNodesInputType::Value),
-                 "Type",
-                 "");
+    make_common_value_props(srna, socket, r_generated);
   };
   return socktype;
 }
@@ -1282,6 +1345,7 @@ static bke::bNodeSocketType *make_socket_type_menu()
   };
   static SocketValueVariant default_value{0};
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  // TODO
   return socktype;
 }
 
@@ -1294,6 +1358,13 @@ static bke::bNodeSocketType *make_socket_type_object()
   };
   socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
   socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    RNA_def_pointer_runtime(&srna, "value", &RNA_Object, socket.name, socket.description);
+    make_common_value_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1306,6 +1377,12 @@ static bke::bNodeSocketType *make_socket_type_geometry()
   };
   socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
   socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    make_common_fallback_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1318,6 +1395,13 @@ static bke::bNodeSocketType *make_socket_type_collection()
   };
   socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
   socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    RNA_def_pointer_runtime(&srna, "value", &RNA_Collection, socket.name, socket.description);
+    make_common_value_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1330,6 +1414,13 @@ static bke::bNodeSocketType *make_socket_type_texture()
   };
   socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
   socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    RNA_def_pointer_runtime(&srna, "value", &RNA_Texture, socket.name, socket.description);
+    make_common_value_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1342,6 +1433,13 @@ static bke::bNodeSocketType *make_socket_type_image()
   };
   socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
   socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    RNA_def_pointer_runtime(&srna, "value", &RNA_Image, socket.name, socket.description);
+    make_common_value_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
@@ -1354,6 +1452,13 @@ static bke::bNodeSocketType *make_socket_type_material()
   };
   socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
   socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    RNA_def_pointer_runtime(&srna, "value", &RNA_Material, socket.name, socket.description);
+    make_common_value_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
