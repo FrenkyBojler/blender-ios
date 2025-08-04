@@ -4679,7 +4679,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
 
     corner_types.finish();
 
-    if (corner_type == GP_STROKE_CORNER_TYPE_MITER) {
+    if (corner_type == GP_STROKE_CORNER_TYPE_MITER && miter_angle != DEG2RADF(45.0f)) {
       bke::SpanAttributeWriter<float> miter_angles =
           attributes.lookup_or_add_for_write_span<float>(
               "miter_angle",
