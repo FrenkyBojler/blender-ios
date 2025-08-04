@@ -1594,20 +1594,36 @@ static void cut_caps(bke::CurvesGeometry &dst,
   dst_end_caps.finish();
 }
 
-static constexpr int SEGMENT_CONNECTION_NULL = -2;
-static constexpr int SEGMENT_CONNECTION_END = -3;
+static constexpr int SEGMENT_CONNECTION_NULL = 0;
+
+/* We store the side as sign, but because a segment with index zero is valid, we shift by one. */
+static int encode_index_and_side(const int index, const Side side)
+{
+  return side == Side::Start ? index + 1 : -(index + 1);
+}
+
+static int decode_index(const int encoded)
+{
+  return math::abs(encoded) - 1;
+}
+
+static Side decode_side(const int encoded)
+{
+  return encoded < 0 ? Side::End : Side::Start;
+}
 
 static void create_connections_from_curves(const Span<IndexRange> segments_by_curve,
                                            const Span<bool> segments_to_keep,
                                            const VArray<bool> is_cyclic,
-                                           MutableSpan<int> segment_connections)
+                                           MutableSpan<int2> segment_connections)
 {
   for (const int curve_i : segments_by_curve.index_range()) {
     const IndexRange segment_range = segments_by_curve[curve_i];
 
     if (segment_range.size() == 1) {
       if (segments_to_keep[segment_range.first()]) {
-        segment_connections[segment_range.first()] = SEGMENT_CONNECTION_END;
+        segment_connections[segment_range.first()][Side::Start] = SEGMENT_CONNECTION_NULL;
+        segment_connections[segment_range.first()][Side::End] = SEGMENT_CONNECTION_NULL;
       }
       continue;
     }
@@ -1618,10 +1634,13 @@ static void create_connections_from_curves(const Span<IndexRange> segments_by_cu
       }
 
       if (segments_to_keep[segment_i + 1]) {
-        segment_connections[segment_i] = segment_i + 1;
+        segment_connections[segment_i][Side::End] = encode_index_and_side(segment_i + 1,
+                                                                          Side::Start);
+        segment_connections[segment_i + 1][Side::Start] = encode_index_and_side(segment_i,
+                                                                                Side::End);
       }
       else {
-        segment_connections[segment_i] = SEGMENT_CONNECTION_END;
+        segment_connections[segment_i][Side::End] = SEGMENT_CONNECTION_NULL;
       }
     }
 
@@ -1630,24 +1649,32 @@ static void create_connections_from_curves(const Span<IndexRange> segments_by_cu
     }
 
     if (!is_cyclic[curve_i]) {
-      segment_connections[segment_range.last()] = SEGMENT_CONNECTION_END;
+      segment_connections[segment_range.first()][Side::Start] = SEGMENT_CONNECTION_NULL;
+      segment_connections[segment_range.last()][Side::End] = SEGMENT_CONNECTION_NULL;
       continue;
     }
 
     if (segments_to_keep[segment_range.first()]) {
-      segment_connections[segment_range.last()] = segment_range.first();
+      segment_connections[segment_range.first()][Side::Start] = encode_index_and_side(
+          segment_range.last(), Side::End);
+      segment_connections[segment_range.last()][Side::End] = encode_index_and_side(
+          segment_range.first(), Side::Start);
     }
     else {
-      segment_connections[segment_range.last()] = SEGMENT_CONNECTION_END;
+      segment_connections[segment_range.last()][Side::End] = SEGMENT_CONNECTION_NULL;
     }
   }
 }
 
 static void follow_segment_connections(const Span<Segment> all_segments,
-                                       const Span<int> segment_connections,
+                                       const Span<bool> segments_to_keep,
+                                       const Span<int2> segment_connections,
                                        Vector<Segment> &segments,
                                        Vector<int> &segment_offset_data)
 {
+  BLI_assert(all_segments.size() == segments_to_keep.size());
+  BLI_assert(all_segments.size() == segment_connections.size());
+
   segment_offset_data.append(0);
 
   /* Follow each segment until it loops or ends. */
@@ -1667,16 +1694,19 @@ static void follow_segment_connections(const Span<Segment> all_segments,
     return first_segment + empty_num;
   };
 
-  while (start_segment != -1) {
-    int current_i = start_segment;
-
-    if (segment_connections[current_i] == SEGMENT_CONNECTION_NULL) {
-      processed_segments[current_i] = true;
-
-      /* Get the next unprocessed segment. */
-      start_segment = get_next_unprocessed_segment();
-      continue;
+  /* Mark all segments that are not to keep as processed. */
+  for (const int seg_i : all_segments.index_range()) {
+    if (!segments_to_keep[seg_i]) {
+      processed_segments[seg_i] = true;
     }
+  }
+
+  /* Get the first unprocessed segment. */
+  start_segment = get_next_unprocessed_segment();
+
+  while (start_segment != -1) {
+    bool current_backwards = false;
+    int current_i = start_segment;
 
     bool curve_done = false;
     while (!curve_done) {
@@ -1696,20 +1726,21 @@ static void follow_segment_connections(const Span<Segment> all_segments,
         segments.append(current_segment);
       }
 
-      const int next_segment = segment_connections[current_i];
+      const int next_encoded =
+          segment_connections[current_i][current_backwards ? Side::Start : Side::End];
 
-      if (next_segment == SEGMENT_CONNECTION_NULL) {
-        BLI_assert_unreachable();
-        break;
-      }
+      const int next_segment = decode_index(next_encoded);
+      const Side next_side = decode_side(next_encoded);
 
-      if (next_segment == SEGMENT_CONNECTION_END) {
+      if (next_encoded == SEGMENT_CONNECTION_NULL) {
         curve_done = true;
         break;
       }
 
       if (next_segment == start_segment) {
         curve_done = true;
+
+        BLI_assert(next_side == Side::Start);
 
         /* Check if the last segment in this curve can be joined to the first one in this curve. */
         if ((!segments.index_range().is_empty()) &&
@@ -1724,6 +1755,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
       }
 
       current_i = next_segment;
+      current_backwards = next_side == Side::End;
     }
     segment_offset_data.append(segments.size());
 
@@ -1928,7 +1960,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
 
   /* -------------------- */
 
-  Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
+  Array<int2> segment_connections(all_segments.size(), int2(SEGMENT_CONNECTION_NULL));
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
   store_segment_map_on_intersections(all_segments, intersections);
@@ -1937,7 +1969,8 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
 
   Vector<Segment> segments;
   Vector<int> segment_offset_data;
-  follow_segment_connections(all_segments, segment_connections, segments, segment_offset_data);
+  follow_segment_connections(
+      all_segments, segments_to_keep, segment_connections, segments, segment_offset_data);
   Array<bool> segment_reversed(segments.size());
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
   Array<bool> cyclic(segment_offsets.size());
@@ -2008,7 +2041,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
   /* -------------------- */
 
-  Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
+  Array<int2> segment_connections(all_segments.size(), int2(SEGMENT_CONNECTION_NULL));
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
   store_segment_map_on_intersections(all_segments, intersections);
@@ -2017,7 +2050,8 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
   Vector<Segment> segments;
   Vector<int> segment_offset_data;
-  follow_segment_connections(all_segments, segment_connections, segments, segment_offset_data);
+  follow_segment_connections(
+      all_segments, segments_to_keep, segment_connections, segments, segment_offset_data);
   Array<bool> segment_reversed(segments.size());
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
   Array<bool> cyclic(segment_offsets.size());
