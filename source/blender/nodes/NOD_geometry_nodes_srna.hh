@@ -6,25 +6,22 @@
 
 #include "BLI_resource_scope.hh"
 
+#include "RNA_types.hh"
+
 struct StructRNA;
 struct bNodeTree;
 
 namespace blender::nodes {
 
-enum class GeometryNodesInputTypeFloat {
+/**
+ * This is share across all socket types, even though some entries don't make sense for some types.
+ */
+enum class GeometryNodesInputType {
   Value = 0,
   Attribute = 1,
 };
 
-enum class GeometryNodesInputTypeInt {
-  Value = 0,
-  Attribute = 1,
-};
-
-enum class GeometryNodesInputTypeBool {
-  Value = 0,
-  Attribute = 1,
-};
+extern const EnumPropertyItem geometry_nodes_input_type_items[];
 
 struct GeneratedTreeSrnaData {
   ResourceScope scope;

@@ -16,6 +16,15 @@
 
 namespace blender::nodes {
 
+const EnumPropertyItem geometry_nodes_input_type_items[] = {
+    {int(GeometryNodesInputType::Value), "VALUE", 0, "Value", "Pass a single value"},
+    {int(GeometryNodesInputType::Attribute),
+     "ATTRIBUTE",
+     0,
+     "Attribute",
+     "Pass an attribute as field"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
                                               const bNodeTreeInterfaceSocket &socket,
                                               GeneratedTreeSrnaData &r_generated)

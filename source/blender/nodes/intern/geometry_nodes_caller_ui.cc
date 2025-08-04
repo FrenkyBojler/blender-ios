@@ -415,7 +415,7 @@ static void add_attribute_search_or_value_buttons(
   const bool show_attribute_toggle = StructureType(socket.structure_type) !=
                                          StructureType::Single &&
                                      RNA_enum_get(&input_socket_ptr, "type") ==
-                                         int(nodes::GeometryNodesInputTypeFloat::Attribute);
+                                         int(nodes::GeometryNodesInputType::Attribute);
 
   /* We're handling this manually in this case. */
   layout->use_property_decorate_set(false);

@@ -983,18 +983,18 @@ static bke::bNodeSocketType *make_socket_type_bool()
                                                 nodes::GeneratedTreeSrnaData & /*r_generated*/) {
     const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
     RNA_def_boolean(&srna, "value", data->value, socket.name, socket.description);
-
-    static const EnumPropertyItem input_type_items[] = {
-        {int(nodes::GeometryNodesInputTypeBool::Value), "VALUE", 0, "Value", ""},
-        {int(nodes::GeometryNodesInputTypeBool::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
-        {0, nullptr, 0, nullptr, nullptr},
-    };
     RNA_def_enum(&srna,
                  "type",
-                 input_type_items,
-                 int(nodes::GeometryNodesInputTypeBool::Value),
+                 nodes::geometry_nodes_input_type_items,
+                 int(nodes::GeometryNodesInputType::Value),
                  "Type",
                  "");
+    RNA_def_string(&srna,
+                   "attribute_name",
+                   socket.default_attribute_name,
+                   0,
+                   "Attribute",
+                   "Attribute to pass as field");
   };
   return socktype;
 }
@@ -1098,14 +1098,10 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
                          data->min,
                          data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-    static const EnumPropertyItem input_type_items[] = {
-        {int(nodes::GeometryNodesInputTypeFloat::Value), "VALUE", 0, "Value", ""},
-        {int(nodes::GeometryNodesInputTypeFloat::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
-        {0, nullptr, 0, nullptr, nullptr}};
     prop = RNA_def_enum(&srna,
                         "type",
-                        input_type_items,
-                        int(nodes::GeometryNodesInputTypeFloat::Value),
+                        nodes::geometry_nodes_input_type_items,
+                        int(nodes::GeometryNodesInputType::Value),
                         "Type",
                         "");
     prop = RNA_def_string(&srna,
@@ -1148,13 +1144,18 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
                        data->min,
                        data->max);
     RNA_def_property_subtype(prop, PropertySubType(data->subtype));
-
-    static const EnumPropertyItem input_type_items[] = {
-        {int(nodes::GeometryNodesInputTypeInt::Value), "VALUE", 0, "Value", ""},
-        {int(nodes::GeometryNodesInputTypeInt::Attribute), "ATTRIBUTE", 0, "Attribute", ""},
-        {0, nullptr, 0, nullptr, nullptr}};
-    prop = RNA_def_enum(
-        &srna, "type", input_type_items, int(nodes::GeometryNodesInputTypeInt::Value), "Type", "");
+    prop = RNA_def_enum(&srna,
+                        "type",
+                        nodes::geometry_nodes_input_type_items,
+                        int(nodes::GeometryNodesInputType::Value),
+                        "Type",
+                        "");
+    prop = RNA_def_string(&srna,
+                          "attribute_name",
+                          socket.default_attribute_name,
+                          0,
+                          "Attribute",
+                          "Attribute to pass as field");
   };
   return socktype;
 }

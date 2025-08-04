@@ -3505,11 +3505,11 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name);
 
   int type = RNA_enum_get(&input_ptr, "type");
-  if (type == int(nodes::GeometryNodesInputTypeInt::Attribute)) {
-    type = int(nodes::GeometryNodesInputTypeInt::Value);
+  if (type == int(nodes::GeometryNodesInputType::Attribute)) {
+    type = int(nodes::GeometryNodesInputType::Value);
   }
   else {
-    type = int(nodes::GeometryNodesInputTypeFloat::Attribute);
+    type = int(nodes::GeometryNodesInputType::Attribute);
   }
   RNA_enum_set(&input_ptr, "type", type);
 
