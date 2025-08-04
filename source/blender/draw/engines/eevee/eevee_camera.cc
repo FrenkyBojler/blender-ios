@@ -147,6 +147,9 @@ void Camera::sync()
 
     BKE_camera_params_compute_viewplane(&params, UNPACK2(display_extent), 1.0f, 1.0f);
 
+    BLI_assert(BLI_rctf_size_x(&params.viewplane) > 0.0f);
+    BLI_assert(BLI_rctf_size_y(&params.viewplane) > 0.0f);
+
     BKE_camera_params_crop_viewplane(&params.viewplane, UNPACK2(display_extent), &film_rect);
 
     RE_GetWindowMatrixWithOverscan(params.is_ortho,
