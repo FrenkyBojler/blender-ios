@@ -4183,16 +4183,15 @@ PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop)
   if ((idprop = rna_idproperty_check(&prop, ptr))) {
     pprop = (PointerPropertyRNA *)prop;
 
-    if (RNA_struct_is_ID(pprop->type)) {
+    StructRNA *type = pprop->type_fn ? pprop->type_fn(ptr) : pprop->type;
+
+    if (RNA_struct_is_ID(type)) {
       /* ID PointerRNA should not have ancestors currently. */
       return RNA_id_pointer_create(IDP_Id(idprop));
     }
 
     /* for groups, data is idprop itself */
-    if (pprop->type_fn) {
-      return RNA_pointer_create_with_parent(*ptr, pprop->type_fn(ptr), idprop);
-    }
-    return RNA_pointer_create_with_parent(*ptr, pprop->type, idprop);
+    return RNA_pointer_create_with_parent(*ptr, type, idprop);
   }
   if (pprop->get) {
     return pprop->get(ptr);

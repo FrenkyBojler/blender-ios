@@ -590,13 +590,15 @@ class NodeTreeMainUpdater {
         ntree.runtime->geometry_nodes_srna_data->structs.clear();
         ntree.runtime->geometry_nodes_srna_data->inputs_map.clear();
         ntree.runtime->geometry_nodes_srna_data.reset();
-        ntree.runtime->geometry_nodes_srna = nullptr;
+        ntree.runtime->geometry_nodes_modifier_srna = nullptr;
       }
       ntree.runtime->geometry_nodes_srna_data = std::make_unique<GeneratedTreeSrnaData>();
-      StructRNA *modifier_struct = nodes::get_geometry_nodes_interface_srna(
-          ntree, *ntree.runtime->geometry_nodes_srna_data);
-      fmt::println("{}", RNA_struct_to_string(*modifier_struct));
-      ntree.runtime->geometry_nodes_srna = modifier_struct;
+      ntree.runtime->geometry_nodes_modifier_srna =
+          nodes::get_geometry_nodes_interface_srna_for_modifier(
+              ntree, *ntree.runtime->geometry_nodes_srna_data);
+      ntree.runtime->geometry_nodes_operator_srna =
+          nodes::get_geometry_nodes_interface_srna_for_operator(
+              ntree, *ntree.runtime->geometry_nodes_srna_data);
     }
 
 #ifndef NDEBUG

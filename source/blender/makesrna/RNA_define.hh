@@ -606,6 +606,10 @@ void RNA_def_property_string_funcs_runtime(PropertyRNA *prop,
 void RNA_def_property_string_search_func_runtime(PropertyRNA *prop,
                                                  StringPropertySearchFunc search_fn,
                                                  eStringPropertySearchFlag search_flag);
+void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
+                                            PointerPropertyGetFunc getfunc,
+                                            PointerPropertySetFunc setfunc,
+                                            PointerPropertyTypeFunc typefunc);
 
 void RNA_def_property_translation_context(PropertyRNA *prop, const char *context);
 

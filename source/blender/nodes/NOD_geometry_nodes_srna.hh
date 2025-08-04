@@ -32,7 +32,9 @@ struct GeneratedTreeSrnaData {
   Map<StringRef, StructRNA *> inputs_map;
 };
 
-StructRNA *get_geometry_nodes_interface_srna(const bNodeTree &tree,
-                                             GeneratedTreeSrnaData &r_generated);
+StructRNA *get_geometry_nodes_interface_srna_for_modifier(const bNodeTree &tree,
+                                                          GeneratedTreeSrnaData &r_generated);
+StructRNA *get_geometry_nodes_interface_srna_for_operator(const bNodeTree &tree,
+                                                          GeneratedTreeSrnaData &r_generated);
 
 }  // namespace blender::nodes

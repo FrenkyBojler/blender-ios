@@ -6,6 +6,7 @@
  * \ingroup edcurves
  */
 
+#include "BKE_global.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
@@ -968,6 +969,15 @@ void GEOMETRY_OT_execute_node_group(wmOperatorType *ot)
 
   asset::operator_asset_reference_props_register(*ot->srna);
   WM_operator_properties_id_lookup(ot, true);
+
+  // prop = RNA_def_property(ot->srna, "properties", PROP_POINTER, PROP_NONE);
+  // RNA_def_property_ui_text(prop, "Properties", "");
+  // RNA_def_property_pointer_funcs_runtime(
+  //     prop, nullptr, nullptr, [](PointerRNA *ptr) -> StructRNA * {
+  //       bNodeTree *group = reinterpret_cast<bNodeTree *>(
+  //           WM_operator_properties_id_lookup_from_name_or_session_uid(G_MAIN, ptr, ID_NT));
+  //       return group->runtime->geometry_nodes_modifier_srna;
+  //     });
 
   /* See comment for #store_input_node_values_rna_props. */
   prop = RNA_def_int_array(ot->srna,

@@ -694,6 +694,9 @@ using FloatPropertyRangeFunc = void (*)(
 using StringPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, char *value);
 using StringPropertyLengthFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using StringPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, const char *value);
+using PointerPropertyGetFunc = PointerRNA (*)(PointerRNA *ptr);
+using PointerPropertySetFunc = void (*)(PointerRNA *ptr, PointerRNA value, ReportList *reports);
+using PointerPropertyTypeFunc = StructRNA *(*)(PointerRNA *ptr);
 
 struct StringPropertySearchVisitParams {
   /** Text being searched for. */

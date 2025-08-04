@@ -3703,6 +3703,23 @@ void RNA_def_property_string_search_func_runtime(PropertyRNA *prop,
   }
 }
 
+void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
+                                            PointerPropertyGetFunc getfunc,
+                                            PointerPropertySetFunc setfunc,
+                                            PointerPropertyTypeFunc typefunc)
+{
+  PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
+  if (getfunc) {
+    pprop->get = getfunc;
+  }
+  if (setfunc) {
+    pprop->set = setfunc;
+  }
+  if (typefunc) {
+    pprop->type_fn = typefunc;
+  }
+}
+
 void RNA_def_property_pointer_funcs(
     PropertyRNA *prop, const char *get, const char *set, const char *type_fn, const char *poll)
 {
