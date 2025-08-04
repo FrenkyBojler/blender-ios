@@ -91,13 +91,22 @@ static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
   return srna;
 }
 
-static StructRNA *create_outputs_srna(const bNodeTree & /*tree*/,
-                                      GeneratedTreeSrnaData &r_generated)
+static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
       &BLENDER_RNA, "GeometryNodesInterfaceOutputs", &RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
+
+  StructRNA *output_srna = RNA_def_struct_ptr(
+      &BLENDER_RNA, "GeometryNodesInterfaceOutputAttribute", &RNA_PropertyGroup);
+  BLI_assert(!RNA_struct_in_public_namespace(output_srna));
+  RNA_def_string(output_srna, "attribute_name", nullptr, 0, "Attribute Name", "");
+
+  for (const bNodeTreeInterfaceSocket *socket : tree.interface_outputs()) {
+    RNA_def_pointer_runtime(
+        srna, socket->identifier, output_srna, socket->name, socket->description);
+  }
 
   return srna;
 }

@@ -514,8 +514,31 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
       }
       break;
     }
-    case SOCK_INT:
-    case SOCK_STRING:
+    case SOCK_INT: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        const int value = RNA_int_get(input_props_ptr, "value");
+        new (r_value) bke::SocketValueVariant(value);
+        return;
+      }
+      if (type == GeometryNodesInputType::Attribute) {
+        const std::string attribute_name = RNA_string_get(input_props_ptr, "attribute_name");
+        if (bke::allow_procedural_attribute_access(attribute_name)) {
+          bke::SocketValueVariant::ConstructIn(
+              r_value, bke::AttributeFieldInput::from<int>(attribute_name));
+          return;
+        }
+      }
+      break;
+    }
+    case SOCK_STRING: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        const std::string value = RNA_string_get(input_props_ptr, "value");
+        new (r_value) bke::SocketValueVariant(value);
+        return;
+      }
+    }
     case SOCK_OBJECT:
     case SOCK_IMAGE:
     case SOCK_GEOMETRY:
