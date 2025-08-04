@@ -28,7 +28,11 @@
 
 #include "FN_lazy_function_execute.hh"
 
+#include "DNA_collection_types.h"
+#include "DNA_material_types.h"
+
 #include "RNA_access.hh"
+
 #include "UI_resources.hh"
 
 namespace lf = blender::fn::lazy_function;
@@ -478,8 +482,7 @@ PropertiesVectorSet build_properties_vector_set(const IDProperty *properties)
 }
 
 template<typename T>
-[[nodiscard]] static bool create_attribute_field_for_input(PointerRNA &input_props_ptr,
-                                                           void *r_value)
+[[nodiscard]] static bool load_attribute_field_input(PointerRNA &input_props_ptr, void *r_value)
 {
   const std::string attribute_name = RNA_string_get(&input_props_ptr, "attribute_name");
   if (!bke::allow_procedural_attribute_access(attribute_name)) {
@@ -489,6 +492,12 @@ template<typename T>
   return true;
 }
 
+template<typename T> static void load_data_block_input(PointerRNA &input_props_ptr, void *r_value)
+{
+  T *object = id_cast<T *>(RNA_pointer_get(&input_props_ptr, "value").owner_id);
+  *(T **)r_value = object;
+}
+
 static void init_socket_cpp_value(PointerRNA *input_props_ptr,
                                   const bNodeTreeInterfaceSocket &io_socket,
                                   void *r_value)
@@ -496,9 +505,7 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
   const bke::bNodeSocketType *stype = io_socket.socket_typeinfo();
   const eNodeSocketDatatype socket_type = stype->type;
   switch (socket_type) {
-    case SOCK_CUSTOM: {
-      break;
-    }
+
     case SOCK_FLOAT: {
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
@@ -507,7 +514,7 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         return;
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (create_attribute_field_for_input<float>(*input_props_ptr, r_value)) {
+        if (load_attribute_field_input<float>(*input_props_ptr, r_value)) {
           return;
         }
       }
@@ -522,7 +529,7 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         return;
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (create_attribute_field_for_input<float3>(*input_props_ptr, r_value)) {
+        if (load_attribute_field_input<float3>(*input_props_ptr, r_value)) {
           return;
         }
       }
@@ -537,14 +544,12 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         return;
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (create_attribute_field_for_input<ColorGeometry4f>(*input_props_ptr, r_value)) {
+        if (load_attribute_field_input<ColorGeometry4f>(*input_props_ptr, r_value)) {
           return;
         }
       }
       break;
     }
-    case SOCK_SHADER:
-      break;
     case SOCK_BOOLEAN: {
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
@@ -553,7 +558,7 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         return;
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (create_attribute_field_for_input<bool>(*input_props_ptr, r_value)) {
+        if (load_attribute_field_input<bool>(*input_props_ptr, r_value)) {
           return;
         }
       }
@@ -574,10 +579,30 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         return;
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (create_attribute_field_for_input<int>(*input_props_ptr, r_value)) {
+        if (load_attribute_field_input<int>(*input_props_ptr, r_value)) {
           return;
         }
       }
+      break;
+    }
+    case SOCK_ROTATION: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        float3 value_euler;
+        RNA_float_get_array(input_props_ptr, "value", value_euler);
+        math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
+        new (r_value) bke::SocketValueVariant(value_rotation);
+        return;
+      }
+      if (type == GeometryNodesInputType::Attribute) {
+        if (load_attribute_field_input<int>(*input_props_ptr, r_value)) {
+          return;
+        }
+      }
+      break;
+    }
+    case SOCK_MENU: {
+      // TODO
       break;
     }
     case SOCK_STRING: {
@@ -587,18 +612,55 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         new (r_value) bke::SocketValueVariant(value);
         return;
       }
+      break;
     }
-    case SOCK_OBJECT:
-    case SOCK_IMAGE:
+    case SOCK_OBJECT: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        load_data_block_input<Object>(*input_props_ptr, r_value);
+        return;
+      }
+      break;
+    }
+    case SOCK_IMAGE: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        load_data_block_input<Image>(*input_props_ptr, r_value);
+        return;
+      }
+      break;
+    }
+    case SOCK_COLLECTION: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        load_data_block_input<Collection>(*input_props_ptr, r_value);
+        return;
+      }
+      break;
+    }
+    case SOCK_TEXTURE: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        load_data_block_input<Tex>(*input_props_ptr, r_value);
+        return;
+      }
+      break;
+    }
+    case SOCK_MATERIAL: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        load_data_block_input<Material>(*input_props_ptr, r_value);
+        return;
+      }
+      break;
+    }
     case SOCK_GEOMETRY:
-    case SOCK_COLLECTION:
-    case SOCK_TEXTURE:
-    case SOCK_MATERIAL:
-    case SOCK_ROTATION:
-    case SOCK_MENU:
     case SOCK_MATRIX:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_SHADER:
+    case SOCK_CUSTOM:
+      break;
       break;
   }
 
