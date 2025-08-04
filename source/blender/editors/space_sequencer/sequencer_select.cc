@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_rect.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
@@ -2333,7 +2334,7 @@ static bool strip_circle_select_radius_image_isect(const Scene *scene,
   float dy = origin.y - float(mval[1]);
   float dist_sq = sqrt(dx * dx + dy * dy);
 
-   return dist_sq <= *radius;
+  return dist_sq <= *radius;
 }
 
 static void seq_circle_select_strip_from_preview(bContext *C,
@@ -2364,6 +2365,30 @@ static void seq_circle_select_strip_from_preview(bContext *C,
   }
 }
 
+bool check_circle_selection_in_timeline(const rctf *rect,
+                                        const float xy[2],
+                                        const float x_radius,
+                                        const float y_radius)
+{
+  float dx, dy;
+
+  if (xy[0] >= rect->xmin && xy[0] <= rect->xmax) {
+    dx = 0;
+  }
+  else {
+    dx = (xy[0] < rect->xmin) ? (rect->xmin - xy[0]) : (xy[0] - rect->xmax);
+  }
+
+  if (xy[1] >= rect->ymin && xy[1] <= rect->ymax) {
+    dy = 0;
+  }
+  else {
+    dy = (xy[1] < rect->ymin) ? (rect->ymin - xy[1]) : (xy[1] - rect->ymax);
+  }
+
+  // return dx * dx + dy * dy <= radius * radius;
+  return ((dx * dx) / (x_radius * x_radius) + (dy * dy) / (y_radius * y_radius) <= 1.0f);
+}
 static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 {
   const int radius = RNA_int_get(op->ptr, "radius");
@@ -2380,16 +2405,87 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
 
   ARegion *region = CTX_wm_region(C);
+
+  float2 view_mval;
+  UI_view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  float pixel_radius = radius / UI_view2d_scale_get_x(v2d);
+
   if (region->regiontype == RGN_TYPE_PREVIEW) {
     if (!sequencer_view_preview_only_poll(C)) {
       return OPERATOR_CANCELLED;
     }
-    float2 view_mval;
-    UI_view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
-    float pixel_radius = radius / UI_view2d_scale_get_x(v2d);
     seq_circle_select_strip_from_preview(C, pixel_radius, view_mval, sel_op);
     sequencer_select_do_updates(C, scene);
     return OPERATOR_FINISHED;
+  }
+
+  // rctf rectf;
+  // const bool handles = RNA_boolean_get(op->ptr, "include_handles");
+  float x_radius = radius / UI_view2d_scale_get_x(v2d);
+  float y_radius = radius / UI_view2d_scale_get_y(v2d);
+  bool select = true;
+  bool changed;
+  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+    rctf rq;
+    strip_rectf(scene, strip, &rq);
+    // if (BLI_rctf_isect_circle(&rq, view_mval, pixel_radius)) {
+    /* Use custom function to check the distance because in timeline the circle is a ellipse */
+    if (check_circle_selection_in_timeline(&rq, view_mval, x_radius, y_radius))
+    {
+      // Hide this if statement for now.
+      //
+      // if (handles) {
+      //   /* Get the clickable handle size, ignoring padding. */
+      //   float handsize = inner_clickable_handle_size_get(scene, strip, v2d) * 4;
+
+      //   /* Right handle. */
+      //   if (rectf.xmax > (seq::time_right_handle_frame_get(scene, strip) - handsize)) {
+      //     if (select) {
+      //       strip->flag |= SELECT | SEQ_RIGHTSEL;
+      //     }
+      //     else {
+      //       /* Deselect the strip if it's left with no handles selected. */
+      //       if ((strip->flag & SEQ_RIGHTSEL) && ((strip->flag & SEQ_LEFTSEL) == 0)) {
+      //         strip->flag &= ~SELECT;
+      //       }
+      //       strip->flag &= ~SEQ_RIGHTSEL;
+      //     }
+
+      //     changed = true;
+      //   }
+      //   /* Left handle. */
+      //   if (rectf.xmin < (seq::time_left_handle_frame_get(scene, strip) + handsize)) {
+      //     if (select) {
+      //       strip->flag |= SELECT | SEQ_LEFTSEL;
+      //     }
+      //     else {
+      //       /* Deselect the strip if it's left with no handles selected. */
+      //       if ((strip->flag & SEQ_LEFTSEL) && ((strip->flag & SEQ_RIGHTSEL) == 0)) {
+      //         strip->flag &= ~SELECT;
+      //       }
+      //       strip->flag &= ~SEQ_LEFTSEL;
+      //     }
+      //   }
+
+      //   changed = true;
+      // }
+
+      // /* Regular box selection. */
+      // else {
+      SET_FLAG_FROM_TEST(strip->flag, select, SELECT);
+      strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
+      changed = true;
+      // }
+
+      const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+      if (!ignore_connections) {
+        /* Propagate selection to connected strips. */
+        StripSelection selection;
+        selection.strip1 = strip;
+        sequencer_select_connected_strips(selection);
+      }
+    }
+    sequencer_select_do_updates(C, scene);
   }
   return OPERATOR_FINISHED;
 }
