@@ -107,6 +107,8 @@ ENUM_OPERATORS(StickBoneFlag, POS_BONE)
 #define EDGE_SEAM (1u << 5)
 #define EDGE_SHARP (1u << 6)
 #define EDGE_FREESTYLE (1u << 7)
+/* data[2] (3rd byte flags) */
+#define VERT_PINNED (1u << 2)
 
 static inline uint outline_id_pack(uint outline_id, uint object_id)
 {
@@ -185,6 +187,7 @@ struct ThemeColors {
   float4 empty;
   float4 vert; /* "vertex" is reserved keyword in MSL. */
   float4 vert_select;
+  float4 vert_pinned;
   float4 vert_unreferenced;
   float4 vert_missing_data;
   float4 edit_mesh_active;

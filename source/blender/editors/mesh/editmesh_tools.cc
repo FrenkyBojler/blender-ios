@@ -87,16 +87,57 @@ using blender::Vector;
 
 static wmOperatorStatus pin_verts_exec(bContext *C, wmOperator *op)
 {
-  Object *ob_edit = CTX_data_edit_object(C);
-  BMEditMesh *em = BKE_editmesh_from_object(ob_edit);
-  BMesh *bm = em->bm;
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  bool changed = false;
+  int total_pinned = 0;
 
-  if (bm->totvertsel == 0) {
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    if (em == nullptr) {
+      continue;
+    }
+    BMesh *bm = em->bm;
+
+    if (bm->totvertsel == 0) {
+      continue;
+    }
+
+
+    BM_mesh_elem_index_ensure(bm, BM_VERT);
+
+    BM_data_layer_ensure_named(bm, &bm->vdata, CD_PROP_BOOL, "V_PINNED");
+
+    const int offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_BOOL, "V_PINNED");
+    if (offset == -1) {
+      printf("ERROR: Could not get V_PINNED offset!\n");
+      continue;
+    }
+
+    BMIter iter;
+    BMVert *v;
+    
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+        BM_ELEM_CD_SET_BOOL(v, offset, true);
+        changed = true;
+      }
+    }
+
+    EDBMUpdate_Params params{};
+    params.calc_looptris = true;
+    params.calc_normals = false;
+    params.is_destructive = true;
+    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+  }
+
+  if (!changed) {
     BKE_report(op->reports, RPT_WARNING, "No vertices selected");
     return OPERATOR_CANCELLED;
   }
-
-  BKE_report(op->reports, RPT_INFO, "Pinned selected vertices");
 
   return OPERATOR_FINISHED;
 }
@@ -115,17 +156,67 @@ void MESH_OT_pin_verts(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
-
 /*
  * Unpin All Vertices Operator
  */
-
-static wmOperatorStatus unpin_all_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unpin_verts_exec(bContext *C, wmOperator *op)
 {
-  Object *ob_edit = CTX_data_edit_object(C);
-  BMEditMesh *em = BKE_editmesh_from_object(ob_edit);
-  BMesh *bm = em->bm;
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  bool changed = false;
 
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    if (em == nullptr) {
+      continue;
+    }
+    BMesh *bm = em->bm;
+
+    const int cd_pin_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_BOOL, "V_PINNED");
+    if (cd_pin_offset == -1) {
+      continue; 
+    }
+
+    BMVert *v;
+    BMIter iter;
+
+    if (bm->totvertsel > 0) {
+      BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+          bool is_pinned = BM_ELEM_CD_GET_BOOL(v, cd_pin_offset);
+          if (is_pinned) {
+            BM_ELEM_CD_SET_BOOL(v, cd_pin_offset, false);
+            changed = true;
+          }
+        }
+      }
+    } else {
+      BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+        bool is_pinned = BM_ELEM_CD_GET_BOOL(v, cd_pin_offset);
+        if (is_pinned) {
+          BM_ELEM_CD_SET_BOOL(v, cd_pin_offset, false);
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      EDBMUpdate_Params params{};
+      params.calc_looptris = true;
+      params.calc_normals = false;
+      params.is_destructive = true;
+      EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+    }
+  }
+
+  if (changed) {
+    BKE_report(op->reports, RPT_INFO, "Unpinned vertices");
+  } else {
+    BKE_report(op->reports, RPT_WARNING, "No pinned vertices found");
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -138,7 +229,7 @@ void MESH_OT_unpin_all_verts(wmOperatorType *ot)
   ot->idname = "MESH_OT_unpin_all_verts";
 
   /* API callbacks */
-  ot->exec = unpin_all_verts_exec;
+  ot->exec = unpin_verts_exec;
   ot->poll = ED_operator_editmesh;;
 
   /* flags */

@@ -29,6 +29,8 @@
 #include "BKE_modifier.hh"
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
+#include "BKE_editmesh.hh"
+#include "DNA_meshdata_types.h"
 
 #include "SEQ_transform.hh"
 
@@ -1274,8 +1276,23 @@ void calculatePropRatio(TransInfo *t)
   if (t->flag & T_PROP_EDIT) {
     const char *pet_id = nullptr;
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
+      int pinned_offset = -1;
+      if (t->obedit_type == OB_MESH) {
+        BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
+        if (em) {
+          pinned_offset = CustomData_get_offset_named(&em->bm->vdata, CD_PROP_BOOL, "V_PINNED");
+        }
+      }
       TransData *td = tc->data;
       for (i = 0; i < tc->data_len; i++, td++) {
+          if (pinned_offset != -1) {
+          BMVert *v = static_cast<BMVert *>(td->extra);
+          if (BM_ELEM_CD_GET_BOOL(v, pinned_offset)) {
+            td->factor = 0.0f;
+            restoreElement(td);
+            continue;
+          }
+        }
         if (td->flag & TD_SELECTED) {
           td->factor = 1.0f;
         }

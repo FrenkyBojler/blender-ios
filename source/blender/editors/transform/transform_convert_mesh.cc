@@ -940,13 +940,16 @@ static bool bmesh_test_dist_add(BMVert *v0,
                                 BMVert *v2,
                                 float *dists, /* Optionally track original index. */
                                 int *index,
-                                const float mtx[3][3])
+                                const float mtx[3][3],
+                                const int pinned_offset)
 {
   if ((BM_elem_flag_test(v0, BM_ELEM_SELECT) == 0) && (BM_elem_flag_test(v0, BM_ELEM_HIDDEN) == 0))
   {
     const int i0 = BM_elem_index_get(v0);
     const int i1 = BM_elem_index_get(v1);
-
+    if (pinned_offset != -1 && BM_ELEM_CD_GET_BOOL(v0, pinned_offset)) {
+      return false;
+    }
     BLI_assert(dists[i1] != FLT_MAX);
     if (dists[i0] <= dists[i1]) {
       return false;
@@ -1011,7 +1014,8 @@ static bool bmesh_test_loose_edge(BMEdge *edge)
 void transform_convert_mesh_connectivity_distance(BMesh *bm,
                                                   const float mtx[3][3],
                                                   float *dists,
-                                                  int *index)
+                                                  int *index,
+                                                  const int pinned_offset)
 {
   BLI_LINKSTACK_DECLARE(queue, BMEdge *);
 
@@ -1094,7 +1098,7 @@ void transform_convert_mesh_connectivity_distance(BMesh *bm,
           std::swap(v1, v2);
         }
 
-        if (bmesh_test_dist_add(v2, v1, nullptr, dists, index, mtx)) {
+        if (bmesh_test_dist_add(v2, v1, nullptr, dists, index, mtx, pinned_offset)) {
           /* Add adjacent edges to the queue if:
            * - Adjacent edge is loose
            * - Edge itself is loose
@@ -1133,7 +1137,7 @@ void transform_convert_mesh_connectivity_distance(BMesh *bm,
             BMVert *v_other = l_other->v;
             BLI_assert(!ELEM(v_other, v1, v2));
 
-            if (bmesh_test_dist_add(v_other, v1, v2, dists, index, mtx)) {
+            if (bmesh_test_dist_add(v_other, v1, v2, dists, index, mtx, pinned_offset)) {
               /* Add adjacent edges to the queue, if they are ready to propagate across/along.
                * Always propagate along loose edges, and for other edges only propagate across
                * if both vertices have a known distances. */
@@ -1583,7 +1587,8 @@ static void createTransEditVerts(bContext * /*C*/, TransInfo *t)
       if (is_island_center) {
         dists_index = MEM_malloc_arrayN<int>(bm->totvert, __func__);
       }
-      transform_convert_mesh_connectivity_distance(em->bm, mtx, dists, dists_index);
+    const int pinned_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_BOOL, "V_PINNED");
+    transform_convert_mesh_connectivity_distance(em->bm, mtx, dists, dists_index, pinned_offset);
     }
 
     /* Create TransDataMirror. */
