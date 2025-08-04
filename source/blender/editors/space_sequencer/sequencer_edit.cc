@@ -1132,6 +1132,8 @@ static wmOperatorStatus sequencer_mute_exec(bContext *C, wmOperator *op)
     }
   }
 
+  sync_active_scene_and_time_with_scene_strip(*C);
+
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -1191,6 +1193,8 @@ static wmOperatorStatus sequencer_unmute_exec(bContext *C, wmOperator *op)
       }
     }
   }
+
+  sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
