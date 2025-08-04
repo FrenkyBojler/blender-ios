@@ -58,12 +58,6 @@ float gpencil_stroke_round_cap_mask(
   return gpencil_stroke_round_mask(length(uv_end) * 2.0f, hardfac);
 }
 
-/* Rotate 90 degrees counter-clockwise. */
-float2 tan_dir(float2 a)
-{
-  return float2(-a.y, a.x);
-}
-
 float gpencil_stroke_cap_mask(float2 p1,
                               float2 p2,
                               float2 p0,
@@ -86,14 +80,14 @@ float gpencil_stroke_cap_mask(float2 p1,
   float radius = thickness * 0.5f;
   float2 pos1 = gl_FragCoord.xy - p1;
   float2 line1 = p2 - p1;
-  float2 tan1 = tan_dir(line1);
+  float2 tan1 = orthogonal(line1);
 
   float2 line2 = p1 - p0;
-  float2 tan2 = tan_dir(line2);
+  float2 tan2 = orthogonal(line2);
   float2 pos2 = gl_FragCoord.xy - p0;
 
   float2 line3 = p3 - p2;
-  float2 tan3 = tan_dir(line3);
+  float2 tan3 = orthogonal(line3);
   float2 pos3 = gl_FragCoord.xy - p2;
 
   float si1 = -sign(dot(line1, tan2));
@@ -124,7 +118,7 @@ float gpencil_stroke_cap_mask(float2 p1,
 
       float2 po2 = gl_FragCoord.xy - pc1;
       float2 lineo = pc2 - pc1;
-      float2 tano = tan_dir(lineo);
+      float2 tano = orthogonal(lineo);
 
       dist = max(dist, 1.0f - dot(po2, tano) / dot(p1 - pc1, tano));
     }
@@ -139,7 +133,7 @@ float gpencil_stroke_cap_mask(float2 p1,
 
       float2 po22 = gl_FragCoord.xy - pc21;
       float2 lineo2 = pc22 - pc21;
-      float2 tano2 = tan_dir(lineo2);
+      float2 tano2 = orthogonal(lineo2);
 
       dist = max(dist, 1.0f - dot(po22, tano2) / dot(p2 - pc21, tano2));
     }
