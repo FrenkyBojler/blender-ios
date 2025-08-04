@@ -29,11 +29,10 @@ class bNodeTreeInterfaceRuntime {
 
  private:
   /**
-   * Keeps track of what changed in the node tree until the next update.
-   * Should not be changed directly, instead use the functions in `BKE_node_tree_update.hh`.
-   * #NodeTreeInterfaceChangedFlag.
+   * True if any trees and nodes depending on the interface have been updated.
+   * Changes to the item order invalidate dependent DNA data and require tree updates.
    */
-  uint32_t changed_flag_ = 0;
+  std::atomic<bool> dependent_trees_updated_ = true;
 
   /**
    * Protects access to item cache variables below. This is necessary so that the cache can be

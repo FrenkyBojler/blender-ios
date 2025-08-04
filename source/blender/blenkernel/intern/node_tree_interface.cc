@@ -27,15 +27,6 @@
 
 using blender::StringRef;
 
-/**
- * These flags are used by the `changed_flag` field in #bNodeTreeInterfaceRuntime.
- */
-enum NodeTreeInterfaceChangedFlag {
-  NODE_INTERFACE_CHANGED_NOTHING = 0,
-  NODE_INTERFACE_CHANGED_ITEMS = (1 << 1),
-  NODE_INTERFACE_CHANGED_ALL = -1,
-};
-
 namespace blender::bke::node_interface {
 
 namespace socket_types {
@@ -1526,24 +1517,39 @@ void bNodeTreeInterface::ensure_items_cache() const
   });
 }
 
-void bNodeTreeInterface::tag_missing_runtime_data()
+void bNodeTreeInterface::tag_dependent_tree_update()
 {
-  this->runtime->changed_flag_ |= NODE_INTERFACE_CHANGED_ALL;
-  this->runtime->items_cache_mutex_.tag_dirty();
+  this->runtime->dependent_trees_updated_.store(false);
 }
 
-bool bNodeTreeInterface::is_changed() const
+bool bNodeTreeInterface::requires_dependent_tree_updates() const
 {
-  return this->runtime->changed_flag_ != NODE_INTERFACE_CHANGED_NOTHING;
+  return !this->runtime->dependent_trees_updated_.load(std::memory_order_relaxed);
 }
 
 void bNodeTreeInterface::tag_items_changed()
 {
-  this->runtime->changed_flag_ |= NODE_INTERFACE_CHANGED_ITEMS;
+  this->tag_dependent_tree_update();
   this->runtime->items_cache_mutex_.tag_dirty();
 }
 
-void bNodeTreeInterface::reset_changed_flags()
+void bNodeTreeInterface::tag_items_changed_generic()
 {
-  this->runtime->changed_flag_ = NODE_INTERFACE_CHANGED_NOTHING;
+  /* Perform a full update since we don't know what changed exactly. */
+  tag_items_changed();
+}
+
+void bNodeTreeInterface::tag_item_property_changed()
+{
+  this->tag_dependent_tree_update();
+}
+
+void bNodeTreeInterface::tag_missing_runtime_data()
+{
+  this->tag_items_changed();
+}
+
+void bNodeTreeInterface::set_dependent_trees_updated()
+{
+  this->runtime->dependent_trees_updated_.store(true);
 }
