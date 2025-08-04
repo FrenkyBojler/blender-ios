@@ -824,8 +824,7 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
 
-  /* For performance measurements with vsync disabled. */
-  const char *ghost_vsync_string = getenv("GHOST_VSYNC");
+  const char *ghost_vsync_string = getEnvVarVsyncString();
   if (ghost_vsync_string) {
     bool vsync_off = atoi(ghost_vsync_string) == 0;
     if (vsync_off) {

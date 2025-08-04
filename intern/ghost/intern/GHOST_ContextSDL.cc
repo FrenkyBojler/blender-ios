@@ -134,8 +134,7 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
 
     success = (SDL_GL_MakeCurrent(m_window, m_context) < 0) ? GHOST_kFailure : GHOST_kSuccess;
 
-    /* For performance measurements with vsync disabled. */
-    const char *ghost_vsync_string = getenv("GHOST_VSYNC");
+    const char *ghost_vsync_string = getEnvVarVsyncString();
     if (ghost_vsync_string) {
       int swapInterval = atoi(ghost_vsync_string);
       setSwapInterval(swapInterval);

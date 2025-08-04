@@ -88,11 +88,10 @@ GHOST_ContextMTL::GHOST_ContextMTL(bool stereoVisual,
         m_metalLayer.device = metalDevice;
         m_metalLayer.allowsNextDrawableTimeout = NO;
 
-        /* For performance measurements with vsync disabled. */
-        const char *ghost_vsync_string = getenv("GHOST_VSYNC");
+        const char *ghost_vsync_string = getEnvVarVsyncString();
         if (ghost_vsync_string) {
           int swapInterval = atoi(ghost_vsync_string);
-          m_metalLayer.displaySyncEnabled = swapInterval == 1 ? YES : NO;
+          m_metalLayer.displaySyncEnabled = swapInterval != 0 ? YES : NO;
         }
 
         /* Enable EDR support. This is done by:

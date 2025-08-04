@@ -627,8 +627,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
     goto error;
   }
 
-  /* For performance measurements with vsync disabled. */
-  ghost_vsync_string = getenv("GHOST_VSYNC");
+  ghost_vsync_string = getEnvVarVsyncString();
   if (ghost_vsync_string) {
     int swapInterval = atoi(ghost_vsync_string);
     setSwapInterval(swapInterval);
