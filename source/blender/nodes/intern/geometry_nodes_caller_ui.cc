@@ -656,20 +656,15 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
         const StringRef panel_name = sub_interface_panel.name;
         if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
-          // TODO: Panel properties.
-          // char socket_id_esc[MAX_NAME * 2];
-          // BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
-
-          // char rna_path[sizeof(socket_id_esc) + 4];
-          // SNPRINTF_UTF8(rna_path, "[\"%s\"]", socket_id_esc);
-
-          // panel_layout = layout->panel_prop_with_bool_header(&ctx.C,
-          //                                                    &open_property.ptr,
-          //                                                    open_property.name,
-          //                                                    ctx.properties_ptr,
-          //                                                    rna_path,
-          //                                                    IFACE_(panel_name));
-          // skip_first = true;
+          PointerRNA inputs_ptr = RNA_pointer_get(ctx.properties_ptr, "inputs");
+          PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, toggle_socket->identifier);
+          panel_layout = layout->panel_prop_with_bool_header(&ctx.C,
+                                                             &open_property.ptr,
+                                                             open_property.name,
+                                                             &socket_props_ptr,
+                                                             "value",
+                                                             IFACE_(panel_name));
+          skip_first = true;
         }
         else {
           panel_layout = layout->panel_prop(&ctx.C, &open_property.ptr, open_property.name);
