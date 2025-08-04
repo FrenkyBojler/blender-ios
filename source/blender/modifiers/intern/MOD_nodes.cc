@@ -112,10 +112,15 @@ static void init_data(ModifierData *md)
   nmd->runtime->cache = std::make_shared<bake::ModifierCache>();
 }
 
-static void find_dependencies_from_settings(const NodesModifierSettings &settings,
+static void find_dependencies_from_settings(const NodesModifierData &nmd,
                                             nodes::GeometryNodesEvalDependencies &deps)
 {
-  IDP_foreach_property(settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
+  IDP_foreach_property(nmd.settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
+    if (ID *id = IDP_Id(property)) {
+      deps.add_generic_id_full(id);
+    }
+  });
+  IDP_foreach_property(nmd.group_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
     if (ID *id = IDP_Id(property)) {
       deps.add_generic_id_full(id);
     }
@@ -179,7 +184,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
       nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
 
   /* Create dependencies to data-blocks referenced by the settings in the modifier. */
-  find_dependencies_from_settings(nmd->settings, eval_deps);
+  find_dependencies_from_settings(*nmd, eval_deps);
 
   if (ctx->object->type == OB_CURVES) {
     Curves *curves_id = static_cast<Curves *>(ctx->object->data);
@@ -2194,6 +2199,9 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
   if (nmd->settings.properties != nullptr) {
     tnmd->settings.properties = IDP_CopyProperty_ex(nmd->settings.properties, flag);
+  }
+  if (nmd->group_properties) {
+    tnmd->group_properties = IDP_CopyProperty_ex(nmd->group_properties, flag);
   }
 }
 
