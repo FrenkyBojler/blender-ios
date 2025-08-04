@@ -22,6 +22,8 @@ static constexpr EnumPropertyItem input_type_item_value = {
     int(GeometryNodesInputType::Value), "VALUE", 0, "Value", "Pass a single value"};
 static constexpr EnumPropertyItem input_type_item_attribute = {
     int(GeometryNodesInputType::Attribute), "ATTRIBUTE", 0, "Attribute", "Pass an attribute"};
+static constexpr EnumPropertyItem input_type_item_layer = {
+    int(GeometryNodesInputType::Layer), "LAYER", 0, "Layer", "Pass a layer selection"};
 
 const EnumPropertyItem geometry_nodes_input_type_items_fallback[] = {
     input_type_item_fallback,
@@ -36,6 +38,13 @@ const EnumPropertyItem geometry_nodes_input_type_items_value[] = {
 const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute[] = {
     input_type_item_value,
     input_type_item_attribute,
+    {0},
+};
+
+const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_layer[] = {
+    input_type_item_value,
+    input_type_item_attribute,
+    input_type_item_layer,
     {0},
 };
 

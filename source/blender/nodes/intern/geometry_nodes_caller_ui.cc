@@ -924,11 +924,8 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   if (nmd.node_group != nullptr && nmd.settings.properties != nullptr) {
     nmd.node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd.node_group->interface_inputs().size());
-    // TODO
-    // nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-    //     *nmd.node_group,
-    //     nodes::build_properties_vector_set(nmd.settings.properties),
-    //     ctx.input_usages);
+    nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+        *nmd.node_group, properties_ptr, ctx.input_usages);
     draw_interface_panel_content(ctx, &layout, nmd.node_group->tree_interface.root_panel);
   }
 
@@ -994,9 +991,8 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
 
   tree.ensure_interface_cache();
   ctx.input_usages.reinitialize(tree.interface_inputs().size());
-  // TODO
-  // nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-  //     tree, ctx.properties, ctx.input_usages);
+  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+      tree, properties_ptr, ctx.input_usages);
   draw_interface_panel_content(ctx, &layout, tree.tree_interface.root_panel);
 }
 

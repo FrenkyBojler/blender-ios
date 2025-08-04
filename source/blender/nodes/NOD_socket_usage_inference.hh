@@ -128,7 +128,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
  * This is used with the geometry nodes modifier and node tools.
  */
 void infer_group_interface_inputs_usage(const bNodeTree &group,
-                                        const PropertiesVectorSet &properties,
+                                        const PointerRNA &properties_ptr,
                                         MutableSpan<SocketUsage> r_input_usages);
 
 }  // namespace blender::nodes::socket_usage_inference

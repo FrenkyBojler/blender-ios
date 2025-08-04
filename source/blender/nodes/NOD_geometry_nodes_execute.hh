@@ -15,6 +15,7 @@
 
 struct bNodeTree;
 struct bNodeTreeInterfaceSocket;
+struct PointerRNA;
 namespace blender::bke {
 struct GeometrySet;
 }
@@ -90,7 +91,7 @@ void update_output_properties_from_node_tree(const bNodeTree &tree,
  * for attribute inputs).
  */
 void get_geometry_nodes_input_base_values(const bNodeTree &btree,
-                                          const PropertiesVectorSet &properties,
+                                          const PointerRNA &properties_ptr,
                                           ResourceScope &scope,
                                           MutableSpan<GPointer> r_values);
 

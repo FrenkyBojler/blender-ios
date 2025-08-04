@@ -1050,7 +1050,12 @@ static bke::bNodeSocketType *make_socket_type_bool()
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
     RNA_def_boolean(&srna, "value", data->value, socket.name, socket.description);
-    make_common_value_and_attribute_props(srna, socket, r_generated);
+    make_common_type_prop(srna,
+                          socket,
+                          nodes::geometry_nodes_input_type_items_value_or_attribute_or_layer,
+                          nodes::GeometryNodesInputType::Value,
+                          r_generated);
+    make_common_attribute_name_prop(srna, socket, r_generated);
     RNA_def_string(
         &srna,
         "layer_name",

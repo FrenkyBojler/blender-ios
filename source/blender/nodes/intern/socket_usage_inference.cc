@@ -1501,13 +1501,13 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
 }
 
 void infer_group_interface_inputs_usage(const bNodeTree &group,
-                                        const PropertiesVectorSet &properties,
+                                        const PointerRNA &properties_ptr,
                                         MutableSpan<SocketUsage> r_input_usages)
 {
   const int inputs_num = group.interface_inputs().size();
   Array<GPointer> input_values(inputs_num);
   ResourceScope scope;
-  nodes::get_geometry_nodes_input_base_values(group, properties, scope, input_values);
+  nodes::get_geometry_nodes_input_base_values(group, properties_ptr, scope, input_values);
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
       group, input_values, r_input_usages);
 }

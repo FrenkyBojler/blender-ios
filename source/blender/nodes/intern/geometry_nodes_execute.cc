@@ -13,6 +13,7 @@
 #include "NOD_geometry.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_srna.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
@@ -27,6 +28,7 @@
 
 #include "FN_lazy_function_execute.hh"
 
+#include "RNA_access.hh"
 #include "UI_resources.hh"
 
 namespace lf = blender::fn::lazy_function;
@@ -473,6 +475,70 @@ PropertiesVectorSet build_properties_vector_set(const IDProperty *properties)
     set.add_new(prop);
   }
   return set;
+}
+
+static void init_socket_cpp_value(PointerRNA *input_props_ptr,
+                                  const bNodeTreeInterfaceSocket &io_socket,
+                                  void *r_value)
+{
+  const bke::bNodeSocketType *stype = io_socket.socket_typeinfo();
+  const eNodeSocketDatatype socket_type = stype->type;
+  switch (socket_type) {
+    case SOCK_CUSTOM:
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_SHADER:
+      break;
+    case SOCK_BOOLEAN: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        const bool value = RNA_boolean_get(input_props_ptr, "value");
+        new (r_value) bke::SocketValueVariant(value);
+        return;
+      }
+      if (type == GeometryNodesInputType::Attribute) {
+        const std::string attribute_name = RNA_string_get(input_props_ptr, "attribute_name");
+        if (bke::allow_procedural_attribute_access(attribute_name)) {
+          bke::SocketValueVariant::ConstructIn(
+              r_value, bke::AttributeFieldInput::from<bool>(attribute_name));
+          return;
+        }
+      }
+      if (type == GeometryNodesInputType::Layer) {
+        const std::string layer_name = RNA_string_get(input_props_ptr, "layer_name");
+        bke::SocketValueVariant::ConstructIn(
+            r_value,
+            fn::GField(std::make_shared<bke::NamedLayerSelectionFieldInput>(layer_name), 0));
+        return;
+      }
+      break;
+    }
+    case SOCK_INT:
+    case SOCK_STRING:
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_GEOMETRY:
+    case SOCK_COLLECTION:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+    case SOCK_ROTATION:
+    case SOCK_MENU:
+    case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
+      break;
+  }
+
+  /* Get from value by default? */
+  BLI_assert(stype->geometry_nodes_cpp_type);
+  if (stype->geometry_nodes_default_cpp_value) {
+    stype->geometry_nodes_cpp_type->copy_construct(stype->geometry_nodes_default_cpp_value,
+                                                   r_value);
+  }
+  else {
+    stype->geometry_nodes_cpp_type->value_initialize(r_value);
+  }
 }
 
 static void init_socket_cpp_value_from_property(const IDProperty &property,
@@ -1086,12 +1152,14 @@ void update_output_properties_from_node_tree(const bNodeTree &tree,
 }
 
 void get_geometry_nodes_input_base_values(const bNodeTree &btree,
-                                          const PropertiesVectorSet &properties,
+                                          const PointerRNA &properties_ptr,
                                           ResourceScope &scope,
                                           MutableSpan<GPointer> r_values)
 {
   /* Assume that all inputs have unknown values by default. */
   r_values.fill(nullptr);
+
+  PointerRNA inputs_ptr = RNA_pointer_get(const_cast<PointerRNA *>(&properties_ptr), "inputs");
 
   btree.ensure_interface_cache();
   for (const int input_i : btree.interface_inputs().index_range()) {
@@ -1100,28 +1168,17 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
     if (!stype) {
       continue;
     }
-    const eNodeSocketDatatype socket_type = stype->type;
     if (!stype->base_cpp_type || !stype->geometry_nodes_cpp_type) {
       continue;
     }
-    const IDProperty *property = properties.lookup_key_default_as(io_input.identifier, nullptr);
-    if (!property) {
-      continue;
-    }
-    if (!id_property_type_matches_socket(io_input, *property)) {
-      continue;
-    }
-    if (input_attribute_name_get(properties, io_input).has_value()) {
-      /* Attributes don't have a single base value, so ignore them here. */
-      continue;
-    }
-    if (is_layer_selection_field(io_input)) {
-      /* Can't get a single value for layer selections. */
+    PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, io_input.identifier);
+    const auto input_type = GeometryNodesInputType(RNA_enum_get(&socket_props_ptr, "type"));
+    if (input_type != GeometryNodesInputType::Value) {
       continue;
     }
 
     void *value_buffer = scope.allocate_owned(*stype->geometry_nodes_cpp_type);
-    init_socket_cpp_value_from_property(*property, socket_type, value_buffer);
+    init_socket_cpp_value(&socket_props_ptr, io_input, value_buffer);
     if (stype->geometry_nodes_cpp_type == stype->base_cpp_type) {
       r_values[input_i] = {stype->base_cpp_type, value_buffer};
       continue;

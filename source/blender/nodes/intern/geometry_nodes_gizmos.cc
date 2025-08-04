@@ -24,6 +24,8 @@
 #include "DNA_windowmanager_types.h"
 
 #include "ED_node.hh"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 namespace blender::nodes::gizmos {
 
@@ -368,6 +370,7 @@ static void foreach_active_gizmo_in_open_editors(const wmWindowManager &wm,
 }
 
 static void foreach_active_gizmo_exposed_to_modifier(
+    const Object &object,
     const NodesModifierData &nmd,
     bke::ComputeContextCache &compute_context_cache,
     const ForeachGizmoInModifierFn fn)
@@ -381,9 +384,12 @@ static void foreach_active_gizmo_exposed_to_modifier(
   }
 
   tree.ensure_interface_cache();
+  PointerRNA nmd_ptr = RNA_pointer_create_discrete(
+      const_cast<ID *>(&object.id), &RNA_NodesModifier, const_cast<NodesModifierData *>(&nmd));
+  PointerRNA properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
   Array<nodes::socket_usage_inference::SocketUsage> input_usages(tree.interface_inputs().size());
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      tree, nodes::build_properties_vector_set(nmd.settings.properties), input_usages);
+      tree, properties_ptr, input_usages);
 
   const ComputeContext &root_compute_context = compute_context_cache.for_modifier(nullptr, nmd);
   for (auto &&item : tree.runtime->gizmo_propagation->gizmo_inputs_by_group_inputs.items()) {
@@ -422,7 +428,7 @@ void foreach_active_gizmo_in_modifier(const Object &object,
                                          fn(compute_context, gizmo_node, gizmo_socket);
                                        });
 
-  foreach_active_gizmo_exposed_to_modifier(nmd, compute_context_cache, fn);
+  foreach_active_gizmo_exposed_to_modifier(object, nmd, compute_context_cache, fn);
 }
 
 void foreach_active_gizmo(const bContext &C,
@@ -448,6 +454,7 @@ void foreach_active_gizmo(const bContext &C,
       if (md->type == eModifierType_Nodes) {
         const NodesModifierData &nmd = *reinterpret_cast<const NodesModifierData *>(md);
         foreach_active_gizmo_exposed_to_modifier(
+            *active_object,
             nmd,
             compute_context_cache,
             [&](const ComputeContext &compute_context,
