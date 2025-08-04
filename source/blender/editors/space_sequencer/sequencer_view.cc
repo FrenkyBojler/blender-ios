@@ -15,6 +15,8 @@
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
 
+#include "GHOST_C-api.h"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -235,6 +237,129 @@ void SEQUENCER_OT_view_all_preview(wmOperatorType *ot)
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Fullscreen Preview Operator
+ * \{ */
+
+static const EnumPropertyItem sequencer_fullscreen_monitors[] = {
+    {-1, "CURRENT", 0, "Current", ""},
+    {0, "MONITOR_0", 0, "Monitor ID 0", ""},
+    {1, "MONITOR_1", 0, "Monitor ID 1", ""},
+    {2, "MONITOR_2", 0, "Monitor ID 2", ""},
+    {3, "MONITOR_3", 0, "Monitor ID 3", ""},
+    {4, "MONITOR_4", 0, "Monitor ID 4", ""},
+    {5, "MONITOR_5", 0, "Monitor ID 5", ""},
+    {6, "MONITOR_6", 0, "Monitor ID 6", ""},
+    {7, "MONITOR_7", 0, "Monitor ID 7", ""},
+    {8, "MONITOR_8", 0, "Monitor ID 8", ""},
+    {9, "MONITOR_9", 0, "Monitor ID 9", ""},
+    {1000, "LEFT", 0, "Left", ""},
+    {1001, "RIGHT", 0, "Right", ""},
+    {1002, "ABOVE", 0, "Above", ""},
+    {1003, "BELOW", 0, "Below", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static wmOperatorStatus sequencer_fullscreen_preview_exec(bContext *C, wmOperator *op)
+{
+  wmWindow *win_cur = CTX_wm_window(C);
+  const int monitor = RNA_enum_get(op->ptr, "monitor");
+
+  bool wm_get_screensize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
+  /**
+   * Size of all screens (desktop), useful since the mouse is bound by this.
+   * \return true on success.
+   */
+  bool wm_get_desktopsize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
+
+  rcti window_rect;
+
+  if (monitor == 1001) {
+    window_rect.xmin = 3000;
+    window_rect.ymin = 600;
+  }
+  else if (monitor == 1000) {
+    window_rect.xmin = -800;
+    window_rect.ymin = 600;
+  }
+  else {
+    window_rect.xmin = 800;
+    window_rect.ymin = 600;
+  }
+
+  window_rect.xmax = window_rect.xmin + 200;
+  window_rect.ymax = window_rect.ymin + 200;
+
+  /* changes context! */
+  if (WM_window_open(C,
+                     nullptr,
+                     &window_rect,
+                     SPACE_SEQ,
+                     false,
+                     false,
+                     true,
+                     WIN_ALIGN_LOCATION_CENTER,
+                     nullptr,
+                     nullptr) != nullptr)
+  {
+    SpaceSeq *sseq = CTX_wm_space_seq(C);
+    sseq->view = SEQ_VIEW_PREVIEW;
+    sseq->gizmo_flag |= SEQ_GIZMO_HIDE_NAVIGATE;
+
+    ScrArea *area = CTX_wm_area(C);
+    bScreen *screen = CTX_wm_screen(C);
+    screen->state = SCREENFULL;
+
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+      if (ELEM(region->regiontype,
+               RGN_TYPE_UI,
+               RGN_TYPE_HEADER,
+               RGN_TYPE_TOOL_HEADER,
+               RGN_TYPE_FOOTER,
+               RGN_TYPE_TOOLS,
+               RGN_TYPE_NAV_BAR,
+               RGN_TYPE_EXECUTE,
+               RGN_TYPE_ASSET_SHELF,
+               RGN_TYPE_ASSET_SHELF_HEADER))
+      {
+        region->flag |= RGN_FLAG_HIDDEN;
+      }
+    }
+
+    GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(CTX_wm_window(C)->ghostwin),
+                         GHOST_kWindowStateFullScreen);
+
+    return OPERATOR_FINISHED;
+  }
+  BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
+  return OPERATOR_CANCELLED;
+}
+
+void SEQUENCER_OT_fullscreen_preview(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Fullscreen Preview";
+  ot->idname = "SEQUENCER_OT_fullscreen_preview";
+  ot->description = "Toggle playing preview in a full-screen window";
+
+  /* API callbacks. */
+  ot->exec = sequencer_fullscreen_preview_exec;
+  ot->poll = ED_operator_sequencer_active;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER;
+
+  /* Properties. */
+  RNA_def_enum(ot->srna,
+               "monitor",
+               sequencer_fullscreen_monitors,
+               -1,
+               "Monitor",
+               "Monitor to show fullscreen preview");
 }
 
 /** \} */

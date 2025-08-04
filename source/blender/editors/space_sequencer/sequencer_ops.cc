@@ -132,6 +132,7 @@ void sequencer_operatortypes()
   WM_operatortype_append(SEQUENCER_OT_view_zoom_ratio);
   WM_operatortype_append(SEQUENCER_OT_view_selected);
   WM_operatortype_append(SEQUENCER_OT_view_ghost_border);
+  WM_operatortype_append(SEQUENCER_OT_fullscreen_preview);
 
   /* `sequencer_channels_edit.cc` */
   WM_operatortype_append(SEQUENCER_OT_rename_channel);

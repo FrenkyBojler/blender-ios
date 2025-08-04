@@ -321,6 +321,8 @@ void SEQUENCER_OT_view_zoom_ratio(wmOperatorType *ot);
 void SEQUENCER_OT_view_selected(wmOperatorType *ot);
 void SEQUENCER_OT_view_ghost_border(wmOperatorType *ot);
 
+void SEQUENCER_OT_fullscreen_preview(wmOperatorType *ot);
+
 /* `sequencer_channels_edit.cc` */
 
 void SEQUENCER_OT_rename_channel(wmOperatorType *ot);

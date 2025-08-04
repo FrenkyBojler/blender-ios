@@ -456,6 +456,18 @@ class SEQUENCER_MT_proxy(Menu):
         layout.prop(st, "proxy_render_size", text="")
 
 
+class SEQUENCER_MT_fullscreen_preview(Menu):
+    bl_label = "Fullscreen Preview"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("sequencer.fullscreen_preview", text="This Monitor")
+        layout.separator()
+        layout.operator("sequencer.fullscreen_preview", text="Right").monitor = 'RIGHT'
+        layout.operator("sequencer.fullscreen_preview", text="Left").monitor = 'LEFT'
+
+
 class SEQUENCER_MT_view(Menu):
     bl_label = "View"
 
@@ -512,6 +524,7 @@ class SEQUENCER_MT_view(Menu):
                 layout.separator()
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
             layout.operator("sequencer.view_all_preview", text="Fit Preview in Window")
+            layout.menu("SEQUENCER_MT_fullscreen_preview")
             if is_sequencer_view:
                 layout.menu("SEQUENCER_MT_preview_zoom", text="Preview Zoom")
             else:
@@ -3205,6 +3218,7 @@ classes = (
     SEQUENCER_MT_retiming,
     SEQUENCER_MT_view_pie,
     SEQUENCER_MT_preview_view_pie,
+    SEQUENCER_MT_fullscreen_preview,
 
     SEQUENCER_PT_color_tag_picker,
 

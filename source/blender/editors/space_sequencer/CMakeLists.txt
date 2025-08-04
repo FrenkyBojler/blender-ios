@@ -5,6 +5,7 @@
 set(INC
   ../include
   ../../makesrna
+  ../../../../intern/ghost
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
