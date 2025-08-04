@@ -218,6 +218,14 @@ class NODE_OT_swap_empty_group(NodeAddOperator, bpy.types.Operator):
     bl_label = "Swap Empty Group"
     bl_description = "Replace active node with an empty group"
     bl_options = {'REGISTER', 'UNDO'}
+    
+    @classmethod
+    def poll(cls, context):
+        return (
+            (context.area is not None)
+            and (context.area.type == "NODE_EDITOR")
+            and (context.active_node is not None)
+        )
 
     def execute(self, context):
         old_node = context.active_node
