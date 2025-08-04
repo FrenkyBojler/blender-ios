@@ -900,6 +900,8 @@ class Segment {
   /* Curve index. */
   int curve = -1;
 
+  /* The start and end of the original curve is stored, because this segment may go past then end
+   * and have to loop. */
   IndexRange src_points;
 
   /* Point range of the segment: starting point and end point. Matches the point offsets
