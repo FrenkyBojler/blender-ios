@@ -1017,6 +1017,34 @@ static bke::bNodeSocketType *make_socket_type_rotation()
   };
   static SocketValueVariant default_value{math::Quaternion::identity()};
   socktype->geometry_nodes_default_cpp_value = &default_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+    const auto *data = static_cast<const bNodeSocketValueRotation *>(socket.socket_data);
+    RNA_def_float_rotation(&srna,
+                           "value",
+                           3,
+                           data->value_euler,
+                           -FLT_MAX,
+                           FLT_MAX,
+                           socket.name,
+                           socket.description,
+                           -FLT_MAX,
+                           FLT_MAX);
+    RNA_def_enum(&srna,
+                 "type",
+                 nodes::geometry_nodes_input_type_items_value_or_attribute,
+                 int(nodes::GeometryNodesInputType::Value),
+                 "Type",
+                 "");
+    RNA_def_string(&srna,
+                   "attribute_name",
+                   socket.default_attribute_name,
+                   0,
+                   "Attribute",
+                   "Attribute to pass as field");
+  };
   return socktype;
 }
 
