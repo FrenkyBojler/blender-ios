@@ -195,12 +195,13 @@ static int find_span_linear_search(const Span<float> knots,
 {
   const float *const knots_end = knots.end() - degree;
   const float *knot_iter = knots.begin() + start_index;
+  /* Iterate until reaching: span_index + 1. */
   while (knot_iter < knots_end && parameter >= *knot_iter) {
     knot_iter++;
     BLI_assert(*knot_iter > *(knot_iter - 1));
   }
   if (knot_iter == knots_end) {
-    /* Find last valid span index. */
+    /* Find last valid span index + 1. */
     while (knot_iter > knots.begin() && *(knot_iter - 1) == *knot_iter) {
       knot_iter--;
     }
