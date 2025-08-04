@@ -308,29 +308,6 @@ static bool logging_enabled(const ModifierEvalContext *ctx)
   return true;
 }
 
-static void update_id_properties_from_node_group(NodesModifierData *nmd)
-{
-  if (nmd->node_group == nullptr) {
-    if (nmd->settings.properties) {
-      IDP_FreeProperty(nmd->settings.properties);
-      nmd->settings.properties = nullptr;
-    }
-    return;
-  }
-
-  IDProperty *old_properties = nmd->settings.properties;
-  nmd->settings.properties = bke::idprop::create_group("Nodes Modifier Settings").release();
-  IDProperty *new_properties = nmd->settings.properties;
-
-  nodes::update_input_properties_from_node_tree(*nmd->node_group, old_properties, *new_properties);
-  nodes::update_output_properties_from_node_tree(
-      *nmd->node_group, old_properties, *new_properties);
-
-  if (old_properties != nullptr) {
-    IDP_FreeProperty(old_properties);
-  }
-}
-
 static void remove_outdated_bake_caches(NodesModifierData &nmd)
 {
   if (!nmd.runtime->cache) {
@@ -462,7 +439,6 @@ void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
     nmd->group_properties = bke::idprop::create_group("NodesModifierProperties").release();
   }
   /* TODO: Update new properties according struct rna (while keeping old values). */
-  update_id_properties_from_node_group(nmd);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
 
@@ -906,64 +882,6 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
           r_socket_log_contexts.add(hash);
         }
       }
-    }
-  }
-}
-
-/**
- * \note This could be done in #initialize_group_input, though that would require adding the
- * the object as a parameter, so it's likely better to this check as a separate step.
- */
-static void check_property_socket_sync(const Object *ob,
-                                       const nodes::PropertiesVectorSet &properties,
-                                       ModifierData *md)
-{
-  NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-
-  int geometry_socket_count = 0;
-
-  nmd->node_group->ensure_interface_cache();
-  const Span<nodes::StructureType> input_structure_types =
-      nmd->node_group->runtime->structure_type_interface->inputs;
-  for (const int i : nmd->node_group->interface_inputs().index_range()) {
-    const bNodeTreeInterfaceSocket *socket = nmd->node_group->interface_inputs()[i];
-    const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
-    const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
-    if (type == SOCK_GEOMETRY) {
-      geometry_socket_count++;
-    }
-    /* The first socket is the special geometry socket for the modifier object. */
-    if (i == 0 && type == SOCK_GEOMETRY) {
-      continue;
-    }
-    if (ELEM(input_structure_types[i], nodes::StructureType::Grid, nodes::StructureType::List)) {
-      continue;
-    }
-
-    IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
-    if (property == nullptr) {
-      if (!ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_BUNDLE, SOCK_CLOSURE)) {
-        BKE_modifier_set_error(
-            ob, md, "Missing property for input socket \"%s\"", socket->name ? socket->name : "");
-      }
-      continue;
-    }
-
-    if (!nodes::id_property_type_matches_socket(*socket, *property)) {
-      BKE_modifier_set_error(ob,
-                             md,
-                             "Property type does not match input socket \"(%s)\"",
-                             socket->name ? socket->name : "");
-      continue;
-    }
-  }
-
-  if (geometry_socket_count == 1) {
-    const bNodeTreeInterfaceSocket *first_socket = nmd->node_group->interface_inputs()[0];
-    const bke::bNodeSocketType *typeinfo = first_socket->socket_typeinfo();
-    const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
-    if (type != SOCK_GEOMETRY) {
-      BKE_modifier_set_error(ob, md, "Node group's geometry input must be the first");
     }
   }
 }
@@ -1837,11 +1755,7 @@ static void modifyGeometry(ModifierData *md,
     return;
   }
 
-  nodes::PropertiesVectorSet properties = nodes::build_properties_vector_set(
-      nmd->settings.properties);
-
   const bNodeTree &tree = *nmd->node_group;
-  check_property_socket_sync(ctx->object, properties, md);
 
   tree.ensure_topology_cache();
   const bNode *output_node = tree.group_output_node();

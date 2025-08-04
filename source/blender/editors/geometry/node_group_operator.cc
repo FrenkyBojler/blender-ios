@@ -860,10 +860,6 @@ static wmOperatorStatus run_node_group_invoke(bContext *C, wmOperator *op, const
 
   store_input_node_values_rna_props(*C, *op, *event);
 
-  nodes ::update_input_properties_from_node_tree(
-      *node_tree, op->properties, *op->properties, true);
-  nodes::update_output_properties_from_node_tree(*node_tree, op->properties, *op->properties);
-
   return run_node_group_exec(C, op);
 }
 
