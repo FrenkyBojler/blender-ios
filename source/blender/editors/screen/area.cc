@@ -64,6 +64,7 @@
 static void region_draw_gradient(const ARegion *region)
 {
   if (region->v2d.cur.xmax >= region->v2d.tot.xmax) {
+    /* No overflow. */
     return;
   }
 
