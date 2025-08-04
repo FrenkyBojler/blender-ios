@@ -401,6 +401,8 @@ class NODE_OT_swap_node(NodeAddOperator, Operator):
                         new_link.swap_multi_input_sort_id(link)
                 except KeyError:
                     pass
+
+        tree.nodes.remove(old_node)
         return {'FINISHED'}
     
     
