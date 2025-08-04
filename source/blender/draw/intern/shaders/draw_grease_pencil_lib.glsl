@@ -170,7 +170,7 @@ float gpencil_decode_miter_limit(int packed_data)
   else if (miter_data == GP_CORNER_TYPE_BEVEL_BITS) {
     return MITER_LIMIT_TYPE_BEVEL;
   }
-  float miter_angle = float(miter_data) * (M_PI / 63.0f);
+  float miter_angle = float(miter_data) * (M_PI / GP_CORNER_TYPE_MITER_NUMBER);
   return cos(miter_angle);
 }
 
