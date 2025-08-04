@@ -1,1 +1,2 @@
 Referenced by issue #142483, Regression: Incorrect subdivision surface interpolation with custom normals
+Referenced by issue #143708, Broken Normals when realizing Instances with Geometry Nodes that have an Object with WeightedNormal Modifier (and mirrored)
