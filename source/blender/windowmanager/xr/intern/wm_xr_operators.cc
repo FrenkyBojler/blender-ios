@@ -1239,8 +1239,10 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
  * Casts a ray from an XR controller's pose and teleports to any hit geometry.
  * \{ */
 
-static void wm_xr_navigation_teleport(bContext *C,
+static const Object* wm_xr_navigation_teleport(bContext *C,
                                       wmXrData *xr,
+                                      float *hit_location,
+                                      float *hit_location_transformed,
                                       const float origin[3],
                                       const float direction[3],
                                       float *ray_dist,
@@ -1273,7 +1275,9 @@ static void wm_xr_navigation_teleport(bContext *C,
   if (ob) {
     float nav_location[3], nav_rotation[4], viewer_location[3];
     float nav_axes[3][3], projected[3], v0[3], v1[3];
-    float out[3] = {0.0f, 0.0f, 0.0f};
+
+    copy_v3_v3(hit_location, location);
+    copy_v3_fl(hit_location_transformed, 0.0f);
 
     WM_xr_session_state_nav_location_get(xr, nav_location);
     WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
@@ -1296,11 +1300,13 @@ static void wm_xr_navigation_teleport(bContext *C,
         madd_v3_v3fl(projected, v0, teleport_ofs);
       }
       /* Add to final location. */
-      add_v3_v3(out, projected);
+      add_v3_v3(hit_location_transformed, projected);
     }
 
-    WM_xr_session_state_nav_location_set(xr, out);
+    return ob;
   }
+
+  return nullptr;
 }
 
 static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
@@ -1342,29 +1348,36 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   wm_xr_raycast_update(op, xr, actiondata);
 
+  XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
+  bool selectable_only, teleport_axes[3];
+  float teleport_t, teleport_ofs, ray_dist, hit_location_transformed[3];
+
+  RNA_boolean_get_array(op->ptr, "teleport_axes", teleport_axes);
+  teleport_t = RNA_float_get(op->ptr, "interpolation");
+  teleport_ofs = RNA_float_get(op->ptr, "offset");
+  selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
+  ray_dist = RNA_float_get(op->ptr, "distance");
+
+  auto targetObject = wm_xr_navigation_teleport(C,
+                            xr,
+                            data->end,
+                            hit_location_transformed,
+                            data->origin,
+                            data->direction,
+                            &ray_dist,
+                            selectable_only,
+                            teleport_axes,
+                            teleport_t,
+                            teleport_ofs);
+  
   switch (event->val) {
     case KM_PRESS:
       return OPERATOR_RUNNING_MODAL;
     case KM_RELEASE: {
-      XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
-      bool selectable_only, teleport_axes[3];
-      float teleport_t, teleport_ofs, ray_dist;
 
-      RNA_boolean_get_array(op->ptr, "teleport_axes", teleport_axes);
-      teleport_t = RNA_float_get(op->ptr, "interpolation");
-      teleport_ofs = RNA_float_get(op->ptr, "offset");
-      selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
-      ray_dist = RNA_float_get(op->ptr, "distance");
-
-      wm_xr_navigation_teleport(C,
-                                xr,
-                                data->origin,
-                                data->direction,
-                                &ray_dist,
-                                selectable_only,
-                                teleport_axes,
-                                teleport_t,
-                                teleport_ofs);
+      if (targetObject != nullptr) {
+        WM_xr_session_state_nav_location_set(xr, hit_location_transformed);
+      }
 
       wm_xr_raycast_uninit(op);
 
