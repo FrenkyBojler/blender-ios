@@ -477,6 +477,18 @@ PropertiesVectorSet build_properties_vector_set(const IDProperty *properties)
   return set;
 }
 
+template<typename T>
+[[nodiscard]] static bool create_attribute_field_for_input(PointerRNA &input_props_ptr,
+                                                           void *r_value)
+{
+  const std::string attribute_name = RNA_string_get(&input_props_ptr, "attribute_name");
+  if (!bke::allow_procedural_attribute_access(attribute_name)) {
+    return false;
+  }
+  bke::SocketValueVariant::ConstructIn(r_value, bke::AttributeFieldInput::from<T>(attribute_name));
+  return true;
+}
+
 static void init_socket_cpp_value(PointerRNA *input_props_ptr,
                                   const bNodeTreeInterfaceSocket &io_socket,
                                   void *r_value)
@@ -484,10 +496,53 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
   const bke::bNodeSocketType *stype = io_socket.socket_typeinfo();
   const eNodeSocketDatatype socket_type = stype->type;
   switch (socket_type) {
-    case SOCK_CUSTOM:
-    case SOCK_FLOAT:
-    case SOCK_VECTOR:
-    case SOCK_RGBA:
+    case SOCK_CUSTOM: {
+      break;
+    }
+    case SOCK_FLOAT: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        const float value = RNA_float_get(input_props_ptr, "value");
+        new (r_value) bke::SocketValueVariant(value);
+        return;
+      }
+      if (type == GeometryNodesInputType::Attribute) {
+        if (create_attribute_field_for_input<float>(*input_props_ptr, r_value)) {
+          return;
+        }
+      }
+      break;
+    }
+    case SOCK_VECTOR: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        float3 value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        new (r_value) bke::SocketValueVariant(value);
+        return;
+      }
+      if (type == GeometryNodesInputType::Attribute) {
+        if (create_attribute_field_for_input<float3>(*input_props_ptr, r_value)) {
+          return;
+        }
+      }
+      break;
+    }
+    case SOCK_RGBA: {
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        ColorGeometry4f value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        new (r_value) bke::SocketValueVariant(value);
+        return;
+      }
+      if (type == GeometryNodesInputType::Attribute) {
+        if (create_attribute_field_for_input<ColorGeometry4f>(*input_props_ptr, r_value)) {
+          return;
+        }
+      }
+      break;
+    }
     case SOCK_SHADER:
       break;
     case SOCK_BOOLEAN: {
@@ -498,10 +553,7 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         return;
       }
       if (type == GeometryNodesInputType::Attribute) {
-        const std::string attribute_name = RNA_string_get(input_props_ptr, "attribute_name");
-        if (bke::allow_procedural_attribute_access(attribute_name)) {
-          bke::SocketValueVariant::ConstructIn(
-              r_value, bke::AttributeFieldInput::from<bool>(attribute_name));
+        if (create_attribute_field_for_input<bool>(*input_props_ptr, r_value)) {
           return;
         }
       }
@@ -522,10 +574,7 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
         return;
       }
       if (type == GeometryNodesInputType::Attribute) {
-        const std::string attribute_name = RNA_string_get(input_props_ptr, "attribute_name");
-        if (bke::allow_procedural_attribute_access(attribute_name)) {
-          bke::SocketValueVariant::ConstructIn(
-              r_value, bke::AttributeFieldInput::from<int>(attribute_name));
+        if (create_attribute_field_for_input<int>(*input_props_ptr, r_value)) {
           return;
         }
       }
