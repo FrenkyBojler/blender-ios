@@ -387,7 +387,7 @@ class NODE_OT_swap_node(NodeAddOperator, Operator):
 
             for link in input.links:
                 try:
-                    new_link = tree.links.new(link.from_socket, old_node.inputs[input.name])
+                    new_link = tree.links.new(link.from_socket, node_new.inputs[input.name])
                     if link.to_socket.is_multi_input:
                         new_link.swap_multi_input_sort_id(link)
                 except KeyError:
@@ -396,7 +396,7 @@ class NODE_OT_swap_node(NodeAddOperator, Operator):
         for output in old_node.outputs:
             for link in output.links:
                 try:
-                    new_link = tree.links.new(old_node.outputs[output.name], link.to_socket)
+                    new_link = tree.links.new(node_new.outputs[output.name], link.to_socket)
                     if link.to_socket.is_multi_input:
                         new_link.swap_multi_input_sort_id(link)
                 except KeyError:
