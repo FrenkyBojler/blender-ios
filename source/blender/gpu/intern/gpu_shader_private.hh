@@ -102,13 +102,6 @@ class Shader {
   virtual std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const = 0;
   virtual std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const = 0;
 
-  /* Returns whether an image binding is compatible with a specific image format. Can be overrriden
-   * by graphics APIs depending on the format requirements they enforce. */
-  virtual bool validate_binding_image_format(int binding, TextureFormat texture_format) const
-  {
-    return true;
-  }
-
   StringRefNull name_get() const
   {
     return name;

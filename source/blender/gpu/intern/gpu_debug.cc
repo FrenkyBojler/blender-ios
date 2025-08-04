@@ -164,3 +164,35 @@ void GPU_debug_capture_scope_end(void *scope)
   /* Declare end of capture scope region. */
   ctx->debug_capture_scope_end(scope);
 }
+
+bool GPU_debug_validate_binding_image_format()
+{
+  if (!(G.debug & G_DEBUG_GPU)) {
+    return true;
+  }
+
+  const auto &texture_formats_state = Context::get()->state_manager->image_formats;
+  const auto &texture_formats_shader = Context::get()->shader->interface->image_formats_;
+  int num_image_units = int(std::min(texture_formats_state.size(), texture_formats_shader.size()));
+  for (int image_unit = 0; image_unit < num_image_units; image_unit++) {
+    TextureFormat format_state = texture_formats_state[image_unit];
+    TextureFormat format_shader = texture_formats_shader[image_unit];
+    if (texture_formats_shader[image_unit] == TextureFormat::Invalid ||
+        texture_formats_state[image_unit] == TextureFormat::Invalid)
+    {
+      continue;
+    }
+    if (UNLIKELY(texture_formats_shader[image_unit] != texture_formats_state[image_unit])) {
+      fprintf(
+          stderr,
+          "Error in GPU_debug_validate_binding_image_format: Image format mismatch detected for "
+          "shader '%s' at binding %d (shader format '%s' vs. bound texture format '%s').\n",
+          Context::get()->shader->name_get().c_str(),
+          image_unit,
+          GPU_texture_format_name(texture_formats_shader[image_unit]),
+          GPU_texture_format_name(texture_formats_state[image_unit]));
+      return false;
+    }
+  }
+  return true;
+}

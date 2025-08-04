@@ -91,11 +91,12 @@ template<int Offset> class BindSpaceImages {
     return bound_resources[binding];
   }
 
-  void unbind(void *resource)
+  void unbind(void *resource, StateManager *state_manager)
   {
     for (int index : IndexRange(bound_resources.size())) {
       if (bound_resources[index] == resource) {
         bound_resources[index] = nullptr;
+        state_manager->image_formats[index] = TextureFormat::Invalid;
       }
     }
   }

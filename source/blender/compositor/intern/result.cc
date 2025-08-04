@@ -474,15 +474,6 @@ void Result::bind_as_image(GPUShader *shader, const char *image_name, bool read)
   }
 
   const int image_unit = GPU_shader_get_sampler_binding(shader, image_name);
-  gpu::TextureFormat texture_format = GPU_texture_format(this->gpu_texture());
-  if (!GPU_shader_validate_binding_image_format(shader, image_unit, texture_format)) {
-    fprintf(stderr,
-            "Error in Result::upload_to_gpu: Texture format '%s' does not match binding '%s' in "
-            "shader '%s'.\n",
-            GPU_texture_format_name(texture_format),
-            image_name,
-            GPU_shader_get_name(shader));
-  }
   GPU_texture_image_bind(this->gpu_texture(), image_unit);
 }
 

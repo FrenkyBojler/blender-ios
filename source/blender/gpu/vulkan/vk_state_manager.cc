@@ -75,19 +75,24 @@ void VKStateManager::image_bind(Texture *tex, int binding)
 {
   VKTexture *texture = unwrap(tex);
   images_.bind(texture, binding);
+  if (binding <= image_formats.size()) {
+    image_formats.resize(binding);
+  }
+  image_formats[binding] = tex->format_get();
   is_dirty = true;
 }
 
 void VKStateManager::image_unbind(Texture *tex)
 {
   VKTexture *texture = unwrap(tex);
-  images_.unbind(texture);
+  images_.unbind(texture, this);
   is_dirty = true;
 }
 
 void VKStateManager::image_unbind_all()
 {
   images_.unbind_all();
+  image_formats.clear();
   is_dirty = true;
 }
 
@@ -113,7 +118,7 @@ void VKStateManager::unbind_from_all_namespaces(void *resource)
 {
   uniform_buffers_.unbind(resource);
   storage_buffers_.unbind(resource);
-  images_.unbind(resource);
+  images_.unbind(resource, this);
   textures_.unbind(resource);
   is_dirty = true;
 }

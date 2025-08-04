@@ -508,6 +508,7 @@ GLShaderInterface::GLShaderInterface(GLuint program, const shader::ShaderCreateI
     input->binding = -1;
     input++;
   }
+  set_image_formats_from_info(info);
 
   /* Compatibility uniforms. */
   for (auto &name : workaround_uniform_names) {

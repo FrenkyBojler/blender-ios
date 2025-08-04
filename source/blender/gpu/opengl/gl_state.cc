@@ -584,6 +584,10 @@ void GLStateManager::image_bind(Texture *tex_, int unit)
   }
   images_[unit] = tex->tex_id_;
   formats_[unit] = to_gl_internal_format(tex->format_);
+  if (unit <= image_formats.size()) {
+    image_formats.resize(unit);
+  }
+  image_formats[unit] = tex->format_get();
   tex->is_bound_image_ = true;
   dirty_image_binds_ |= 1ULL << unit;
 }
@@ -599,6 +603,7 @@ void GLStateManager::image_unbind(Texture *tex_)
   for (int i = 0; i < ARRAY_SIZE(images_); i++) {
     if (images_[i] == tex_id) {
       images_[i] = 0;
+      image_formats[i] = TextureFormat::Invalid;
       dirty_image_binds_ |= 1ULL << i;
     }
   }
@@ -613,6 +618,7 @@ void GLStateManager::image_unbind_all()
       dirty_image_binds_ |= 1ULL << i;
     }
   }
+  image_formats.clear();
   this->image_bind_apply();
 }
 

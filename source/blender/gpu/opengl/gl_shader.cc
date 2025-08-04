@@ -75,13 +75,6 @@ void GLShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
     specialization_constant_names_.append(constant.name.c_str());
   }
 
-  /* Extract the formats of image bindings and store them locally. */
-  for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-    if (res.bind_type == ShaderCreateInfo::Resource::BindType::IMAGE) {
-      image_format_binding_map_.add(res.slot, res.image.format);
-    }
-  }
-
   /* NOTE: This is not threadsafe with regards to the specialization constants state access.
    * The shader creation must be externally synchronized. */
   main_program_ = program_cache_
@@ -1497,18 +1490,6 @@ void GLShader::uniform_int(int location, int comp_len, int array_size, const int
       BLI_assert(0);
       break;
   }
-}
-
-bool GLShader::validate_binding_image_format(int binding, TextureFormat texture_format) const
-{
-  if (!image_format_binding_map_.contains(binding)) {
-    return false;
-  }
-  TextureFormat binding_format = image_format_binding_map_.lookup(binding);
-  /* OpenGL has more complex logic in deciding matching formats (see
-   * https://registry.khronos.org/OpenGL/specs/gl/glspec46.core.pdf#page=318), but for now, we will
-   * check for exact equality. */
-  return binding_format == texture_format;
 }
 
 /** \} */

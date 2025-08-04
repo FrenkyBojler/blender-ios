@@ -141,6 +141,10 @@ class StateManager {
   GPUState state;
   GPUStateMutable mutable_state;
 
+  /* Formats of all image units (default allocation size 8, as this is the minimum supported by any
+   * API). */
+  Vector<TextureFormat, 8> image_formats;
+
   StateManager();
   virtual ~StateManager() = default;
 
