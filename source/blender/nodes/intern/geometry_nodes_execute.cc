@@ -602,7 +602,12 @@ static void init_socket_cpp_value(PointerRNA *input_props_ptr,
       break;
     }
     case SOCK_MENU: {
-      // TODO
+      const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == GeometryNodesInputType::Value) {
+        const int value = RNA_enum_get(input_props_ptr, "value");
+        new (r_value) bke::SocketValueVariant(value);
+        return;
+      }
       break;
     }
     case SOCK_STRING: {
