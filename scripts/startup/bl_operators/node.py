@@ -141,6 +141,7 @@ class NodeSwapOperator:
             (context.area is not None)
             and (context.area.type == "NODE_EDITOR")
             and (context.active_node is not None)
+            and (context.active_node.select)
         )
     
     @staticmethod
