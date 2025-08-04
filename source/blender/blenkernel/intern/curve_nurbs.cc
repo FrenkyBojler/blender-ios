@@ -183,6 +183,11 @@ Vector<int> calculate_multiplicity_sequence(const Span<float> knots)
   return multiplicity;
 }
 
+/**
+ * Finds the span index for the given knot parameter value `u`.
+ * Returns index of the span with knot range u ∈ [u_i, u_i+1),
+ * returning the index of the last span if u >= u_n.
+ */
 static int find_span_linear_search(const Span<float> knots,
                                    const int degree,
                                    const float parameter,
