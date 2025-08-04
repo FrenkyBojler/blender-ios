@@ -1108,6 +1108,12 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
                         int(nodes::GeometryNodesInputTypeFloat::Value),
                         "Type",
                         "");
+    prop = RNA_def_string(&srna,
+                          "attribute_name",
+                          socket.default_attribute_name,
+                          0,
+                          "Attribute",
+                          "Attribute to pass as field");
   };
   return socktype;
 }
