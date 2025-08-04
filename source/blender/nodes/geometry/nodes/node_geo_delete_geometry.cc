@@ -4,7 +4,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_separate_geometry.hh"
@@ -22,7 +22,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Geometry to delete elements from");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
@@ -37,10 +37,10 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   const NodeGeometryDeleteGeometry &storage = node_storage(*node);
   const AttrDomain domain = AttrDomain(storage.domain);
 
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
   /* Only show the mode when it is relevant. */
   if (ELEM(domain, AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face)) {
-    uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+    layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   }
 }
 

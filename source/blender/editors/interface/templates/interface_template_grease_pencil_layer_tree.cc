@@ -16,6 +16,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
@@ -159,6 +160,8 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
           CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layer_groups);
     }
 
+    ED_undo_push(C, "Reorder Layers");
+
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
     return true;
@@ -214,7 +217,7 @@ class LayerViewItem : public AbstractTreeViewItem {
     build_layer_name(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
 
     build_layer_buttons(*sub);
   }
@@ -300,7 +303,11 @@ class LayerViewItem : public AbstractTreeViewItem {
   {
     uiBut *but = uiItemL_ex(
         &row, layer_.name().c_str(), ICON_OUTLINER_DATA_GP_LAYER, false, false);
-    if (!layer_.is_editable()) {
+
+    if (ID_IS_LINKED(&grease_pencil_)) {
+      UI_but_flag_enable(but, UI_BUT_DISABLED);
+    }
+    else if (!layer_.is_editable()) {
       UI_but_disable(but, "Layer is locked or not visible");
     }
   }
@@ -312,20 +319,20 @@ class LayerViewItem : public AbstractTreeViewItem {
         &grease_pencil_.id, &RNA_GreasePencilLayer, &layer_);
 
     sub = &row.row(true);
-    uiLayoutSetActive(sub, layer_.parent_group().use_masks());
-    uiItemR(sub, &layer_ptr, "use_masks", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->active_set(layer_.parent_group().use_masks());
+    sub->prop(&layer_ptr, "use_masks", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
-    uiLayoutSetActive(sub, layer_.parent_group().use_onion_skinning());
-    uiItemR(sub, &layer_ptr, "use_onion_skinning", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->active_set(layer_.parent_group().use_onion_skinning());
+    sub->prop(&layer_ptr, "use_onion_skinning", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
-    uiLayoutSetActive(sub, layer_.parent_group().is_visible());
-    uiItemR(sub, &layer_ptr, "hide", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->active_set(layer_.parent_group().is_visible());
+    sub->prop(&layer_ptr, "hide", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
-    uiLayoutSetActive(sub, !layer_.parent_group().is_locked());
-    uiItemR(sub, &layer_ptr, "lock", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->active_set(!layer_.parent_group().is_locked());
+    sub->prop(&layer_ptr, "lock", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
   }
 };
 
@@ -371,7 +378,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     build_layer_group_name(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
 
     build_layer_group_buttons(*sub);
   }
@@ -463,7 +470,10 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     }
 
     uiBut *but = uiItemL_ex(&row, group_.name(), icon, false, false);
-    if (!group_.is_editable()) {
+    if (ID_IS_LINKED(&grease_pencil_)) {
+      UI_but_flag_enable(but, UI_BUT_DISABLED);
+    }
+    else if (!group_.is_editable()) {
       UI_but_disable(but, "Layer Group is locked or not visible");
     }
   }
@@ -476,27 +486,27 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
 
     sub = &row.row(true);
     if (group_.as_node().parent_group()) {
-      uiLayoutSetActive(sub, group_.as_node().parent_group()->use_masks());
+      sub->active_set(group_.as_node().parent_group()->use_masks());
     }
-    uiItemR(sub, &group_ptr, "use_masks", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->prop(&group_ptr, "use_masks", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
     if (group_.as_node().parent_group()) {
-      uiLayoutSetActive(sub, group_.as_node().parent_group()->use_onion_skinning());
+      sub->active_set(group_.as_node().parent_group()->use_onion_skinning());
     }
-    uiItemR(sub, &group_ptr, "use_onion_skinning", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->prop(&group_ptr, "use_onion_skinning", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
     if (group_.as_node().parent_group()) {
-      uiLayoutSetActive(sub, group_.as_node().parent_group()->is_visible());
+      sub->active_set(group_.as_node().parent_group()->is_visible());
     }
-    uiItemR(sub, &group_ptr, "hide", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->prop(&group_ptr, "hide", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
     if (group_.as_node().parent_group()) {
-      uiLayoutSetActive(sub, !group_.as_node().parent_group()->is_locked());
+      sub->active_set(!group_.as_node().parent_group()->is_locked());
     }
-    uiItemR(sub, &group_ptr, "lock", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->prop(&group_ptr, "lock", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
   }
 };
 
@@ -537,7 +547,7 @@ void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C)
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,

@@ -43,6 +43,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -68,7 +69,10 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.anim_sys"};
+static CLG_LogRef LOG_ANIM_DRIVER = {"anim.driver"};
+static CLG_LogRef LOG_ANIM_FCURVE = {"anim.fcurve"};
+static CLG_LogRef LOG_ANIM_KEYINGSET = {"anim.keyingset"};
+static CLG_LogRef LOG_ANIM_NLA = {"anim.nla"};
 
 using namespace blender;
 
@@ -169,20 +173,20 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks,
 
   /* sanity checks */
   if (ELEM(nullptr, ks, rna_path)) {
-    CLOG_ERROR(&LOG, "no Keying Set and/or RNA Path to add path with");
+    CLOG_ERROR(&LOG_ANIM_KEYINGSET, "no Keying Set and/or RNA Path to add path with");
     return nullptr;
   }
 
   /* ID is required for all types of KeyingSets */
   if (id == nullptr) {
-    CLOG_ERROR(&LOG, "No ID provided for Keying Set Path");
+    CLOG_ERROR(&LOG_ANIM_KEYINGSET, "No ID provided for Keying Set Path");
     return nullptr;
   }
 
   /* don't add if there is already a matching KS_Path in the KeyingSet */
   if (BKE_keyingset_find_path(ks, id, group_name, rna_path, array_index, groupmode)) {
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG, "destination already exists in Keying Set");
+      CLOG_ERROR(&LOG_ANIM_KEYINGSET, "destination already exists in Keying Set");
     }
     return nullptr;
   }
@@ -359,8 +363,8 @@ bool BKE_animsys_rna_path_resolve(
     /* XXX don't tag as failed yet though, as there are some legit situations (Action Constraint)
      * where some channels will not exist, but shouldn't lock up Action */
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG,
-                "Animato: Invalid path. ID = '%s',  '%s[%d]'",
+      CLOG_WARN(&LOG_ANIM_FCURVE,
+                "Invalid path. ID = '%s',  '%s[%d]'",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
                 path,
                 array_index);
@@ -375,8 +379,8 @@ bool BKE_animsys_rna_path_resolve(
   int array_len = RNA_property_array_length(&r_result->ptr, r_result->prop);
   if (array_len && array_index >= array_len) {
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG,
-                "Animato: Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
+      CLOG_WARN(&LOG_ANIM_FCURVE,
+                "Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
                 path,
                 array_index,
@@ -453,7 +457,9 @@ bool BKE_animsys_read_from_rna_path(PathResolvedRNA *anim_rna, float *r_value)
   return true;
 }
 
-bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna, const float value)
+bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna,
+                                   const float value,
+                                   const bool force_write)
 {
   PropertyRNA *prop = anim_rna->prop;
   PointerRNA *ptr = &anim_rna->ptr;
@@ -462,13 +468,15 @@ bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna, const float value)
   /* caller must ensure this is animatable */
   BLI_assert(RNA_property_animateable(ptr, prop) || ptr->owner_id == nullptr);
 
-  /* Check whether value is new. Otherwise we skip all the updates. */
-  float old_value;
-  if (!BKE_animsys_read_from_rna_path(anim_rna, &old_value)) {
-    return false;
-  }
-  if (old_value == value) {
-    return true;
+  if (!force_write) {
+    /* Check whether value is new. Otherwise we skip all the updates. */
+    float old_value;
+    if (!BKE_animsys_read_from_rna_path(anim_rna, &old_value)) {
+      return false;
+    }
+    if (old_value == value) {
+      return true;
+    }
   }
 
   switch (RNA_property_type(prop)) {
@@ -1384,7 +1392,7 @@ static bool nlaevalchan_validate_index_ex(const NlaEvalChannel *nec, const int a
   if (index < 0) {
     if (G.debug & G_DEBUG) {
       ID *id = nec->key.ptr.owner_id;
-      CLOG_WARN(&LOG,
+      CLOG_WARN(&LOG_ANIM_NLA,
                 "Animation: Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
                 id ? (id->name + 2) : "<No ID>",
                 nec->rna_path,
@@ -1570,8 +1578,8 @@ static NlaEvalChannel *nlaevalchan_verify(PointerRNA *ptr, NlaEvalData *nlaeval,
   if (!RNA_path_resolve_property(ptr, path, &key.ptr, &key.prop)) {
     /* Report failure to resolve the path. */
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG,
-                "Animato: Invalid path. ID = '%s',  '%s'",
+      CLOG_WARN(&LOG_ANIM_NLA,
+                "Invalid path. ID = '%s',  '%s'",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
                 path);
     }
@@ -2700,7 +2708,7 @@ static void nlastrip_evaluate_actionclip(const int evaluation_mode,
   }
 
   if (strip->act == nullptr) {
-    CLOG_ERROR(&LOG, "NLA-Strip Eval Error: Strip '%s' has no Action", strip->name);
+    CLOG_ERROR(&LOG_ANIM_NLA, "NLA-Strip Eval Error: Strip '%s' has no Action", strip->name);
     return;
   }
 
@@ -4140,9 +4148,6 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
 
   /* worlds */
   EVAL_ANIM_NODETREE_IDS(main->worlds.first, World, ADT_RECALC_ANIM);
-
-  /* scenes */
-  EVAL_ANIM_NODETREE_IDS(main->scenes.first, Scene, ADT_RECALC_ANIM);
 }
 
 /* ***************************************** */
@@ -4184,6 +4189,37 @@ void BKE_animsys_update_driver_array(ID *id)
   }
 }
 
+void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id_eval)
+{
+  BLI_assert(DEG_is_evaluated(id_eval));
+
+  AnimData *adt = BKE_animdata_from_id(id_eval);
+  PointerRNA id_ptr = RNA_id_pointer_create(id_eval);
+  const bool is_active_depsgraph = DEG_is_active(depsgraph);
+
+  LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
+    /* Resolve the driver RNA path. */
+    PathResolvedRNA anim_rna;
+    if (!BKE_animsys_rna_path_resolve(&id_ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+      continue;
+    }
+
+    /* Write the current value back to RNA. */
+    float curval;
+    if (!BKE_animsys_read_from_rna_path(&anim_rna, &curval)) {
+      continue;
+    }
+    if (!BKE_animsys_write_to_rna_path(&anim_rna, curval, /*force_write=*/true)) {
+      continue;
+    }
+
+    if (is_active_depsgraph) {
+      /* Also un-share the original data, as the driver evaluation will write here too. */
+      animsys_write_orig_anim_rna(&id_ptr, fcu->rna_path, fcu->array_index, curval);
+    }
+  }
+}
+
 void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCurve *fcu_orig)
 {
   BLI_assert(fcu_orig != nullptr);
@@ -4200,6 +4236,13 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
   }
   else {
     fcu = static_cast<FCurve *>(BLI_findlink(&adt->drivers, driver_index));
+  }
+
+  if (!fcu) {
+    /* Trying to evaluate a driver that does no longer exist. Potentially missing a call to
+     * DEG_relations_tag_update. */
+    BLI_assert_unreachable();
+    return;
   }
 
   DEG_debug_print_eval_subdata_index(
@@ -4253,9 +4296,41 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
 
       /* set error-flag if evaluation failed */
       if (ok == 0) {
-        CLOG_WARN(&LOG, "invalid driver - %s[%d]", fcu->rna_path, fcu->array_index);
+        CLOG_WARN(&LOG_ANIM_DRIVER, "Invalid driver - %s[%d]", fcu->rna_path, fcu->array_index);
         driver_orig->flag |= DRIVER_FLAG_INVALID;
       }
+    }
+  }
+}
+
+void BKE_time_markers_blend_write(BlendWriter *writer, ListBase /* TimeMarker */ &markers)
+{
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
+    BLO_write_struct(writer, TimeMarker, marker);
+
+    if (marker->prop != nullptr) {
+      IDP_BlendWrite(writer, marker->prop);
+    }
+  }
+}
+
+void BKE_time_markers_blend_read(BlendDataReader *reader, ListBase /* TimeMarker */ &markers)
+{
+  BLO_read_struct_list(reader, TimeMarker, &markers);
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
+    BLO_read_struct(reader, IDProperty, &marker->prop);
+    IDP_BlendDataRead(reader, &marker->prop);
+  }
+}
+
+void BKE_copy_time_markers(ListBase /* TimeMarker */ &markers_dst,
+                           const ListBase /* TimeMarker */ &markers_src,
+                           const int flag)
+{
+  BLI_duplicatelist(&markers_dst, &markers_src);
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers_dst) {
+    if (marker->prop != nullptr) {
+      marker->prop = IDP_CopyProperty_ex(marker->prop, flag);
     }
   }
 }

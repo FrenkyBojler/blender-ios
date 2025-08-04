@@ -14,7 +14,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -29,32 +29,28 @@ NODE_STORAGE_FUNCS(NodeColorspill)
 
 static void cmp_node_color_spill_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.use_custom_socket_order();
 
   b.add_output<decl::Color>("Image");
 
   b.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
-    uiItemL(layout, IFACE_("Despill Channel:"), ICON_NONE);
+    layout->label(IFACE_("Despill Channel:"), ICON_NONE);
     uiLayout *row = &layout->row(false);
-    uiItemR(row,
-            ptr,
-            "channel",
-            UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
-            std::nullopt,
-            ICON_NONE);
+    row->prop(
+        ptr, "channel", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
     uiLayout *col = &layout->column(false);
-    uiItemR(col, ptr, "limit_method", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    col->prop(ptr, "limit_method", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
     if (RNA_enum_get(ptr, "limit_method") == 0) {
-      uiItemL(col, IFACE_("Limiting Channel:"), ICON_NONE);
+      col->label(IFACE_("Limiting Channel:"), ICON_NONE);
       row = &col->row(false);
-      uiItemR(row,
-              ptr,
-              "limit_channel",
-              UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
-              std::nullopt,
-              ICON_NONE);
+      row->prop(ptr,
+                "limit_channel",
+                UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
+                std::nullopt,
+                ICON_NONE);
     }
   });
 
@@ -187,7 +183,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_color_spill_cc
 
-void register_node_type_cmp_color_spill()
+static void register_node_type_cmp_color_spill()
 {
   namespace file_ns = blender::nodes::node_composite_color_spill_cc;
 
@@ -206,6 +202,8 @@ void register_node_type_cmp_color_spill()
       ntype, "NodeColorspill", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
+  blender::bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_color_spill)

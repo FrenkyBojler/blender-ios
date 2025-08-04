@@ -6,7 +6,6 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "draw_common_shader_shared.hh"
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 #endif
@@ -22,7 +21,7 @@
 GPU_SHADER_CREATE_INFO(overlay_paint_face)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
-VERTEX_IN(1, float4, nor) /* Select flag on the 4th component. */
+VERTEX_IN(1, int, paint_overlay_flag)
 PUSH_CONSTANT(float4, ucolor)
 FRAGMENT_OUT(0, float4, frag_color)
 VERTEX_SOURCE("overlay_paint_face_vert.glsl")
@@ -49,7 +48,7 @@ GPU_SHADER_INTERFACE_END()
 GPU_SHADER_CREATE_INFO(overlay_paint_point)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
-VERTEX_IN(1, float4, nor) /* Select flag on the 4th component. */
+VERTEX_IN(1, int, paint_overlay_flag)
 VERTEX_OUT(overlay_overlay_paint_point_iface)
 FRAGMENT_OUT(0, float4, frag_color)
 VERTEX_SOURCE("overlay_paint_point_vert.glsl")
@@ -152,7 +151,7 @@ GPU_SHADER_INTERFACE_END()
 GPU_SHADER_CREATE_INFO(overlay_paint_wire)
 DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
-VERTEX_IN(1, float4, nor) /* flag stored in w */
+VERTEX_IN(1, int, paint_overlay_flag)
 VERTEX_OUT(overlay_paint_wire_iface)
 PUSH_CONSTANT(bool, use_select)
 FRAGMENT_OUT(0, float4, frag_color)

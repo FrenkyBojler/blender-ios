@@ -16,7 +16,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -27,8 +27,9 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveToPoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description("Curves to convert to points");
   auto &count = b.add_input<decl::Int>("Count")
                     .default_value(10)
                     .min(2)
@@ -41,6 +42,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                      .default_value(0.1f)
                      .min(0.001f)
                      .subtype(PROP_DISTANCE)
+                     .field_on_all()
                      .make_available([](bNode &node) {
                        node_storage(node).mode = GEO_NODE_CURVE_RESAMPLE_LENGTH;
                      });
@@ -61,7 +63,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -98,7 +100,7 @@ static void copy_curve_domain_attributes(const AttributeAccessor curve_attribute
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     point_attributes.add(iter.name,
@@ -116,9 +118,7 @@ static PointCloud *curves_to_points(
 {
   const AttributeAccessor curve_attributes = curves.attributes();
 
-  PointCloud *pointcloud = BKE_pointcloud_new_nomain(0);
-  CustomData_free(&pointcloud->pdata);
-  pointcloud->totpoint = curves.points_num();
+  PointCloud *pointcloud = bke::pointcloud_new_no_attributes(curves.points_num());
   MutableAttributeAccessor point_attributes = pointcloud->attributes_for_write();
 
   const bke::AttributeFilterFromFunc filter = [&](const StringRef name) {

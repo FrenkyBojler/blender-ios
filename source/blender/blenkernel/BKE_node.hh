@@ -98,15 +98,20 @@ namespace blender::bke {
  */
 struct bNodeSocketTemplate {
   int type;
-  char name[64];                /* MAX_NAME */
-  float val1, val2, val3, val4; /* default alloc value for inputs */
+  char name[/*MAX_NAME*/ 64];
+  /** Default alloc value for inputs. */
+  float val1, val2, val3, val4;
   float min, max;
-  int subtype; /* would use PropertySubType but this is a bad level include to use RNA */
+  /** Would use PropertySubType but this is a bad level include to use RNA. */
+  int subtype;
   int flag;
 
-  /* after this line is used internal only */
-  bNodeSocket *sock;   /* used to hold verified socket */
-  char identifier[64]; /* generated from name */
+  /* After this line is used internal only. */
+
+  /** Used to hold verified socket. */
+  bNodeSocket *sock;
+  /** Generated from name. */
+  char identifier[/*MAX_NAME*/ 64];
 };
 
 /* Use `void *` for callbacks that require C++. This is rather ugly, but works well for now. This
@@ -137,6 +142,13 @@ using NodeInverseElemEvalFunction =
     void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);
 using NodeElemEvalFunction = void (*)(blender::nodes::value_elem::ElemEvalParams &params);
 using NodeInverseEvalFunction = void (*)(blender::nodes::inverse_eval::InverseEvalParams &params);
+using NodeInternallyLinkedInputFunction = const bNodeSocket *(*)(const bNodeTree &tree,
+                                                                 const bNode &node,
+                                                                 const bNodeSocket &output_socket);
+using NodeBlendWriteFunction = void (*)(const bNodeTree &tree,
+                                        const bNode &node,
+                                        BlendWriter &writer);
+using NodeBlendDataReadFunction = void (*)(bNodeTree &tree, bNode &node, BlendDataReader &reader);
 
 using SocketMakeGeometryNodesInputSrnaFunction =
     void (*)(const bNodeTree &tree,
@@ -184,7 +196,8 @@ struct bNodeSocketType {
   ExtensionRNA ext_interface = {};
 
   /* for standard socket types in C */
-  int type = 0, subtype = 0;
+  eNodeSocketDatatype type = eNodeSocketDatatype(0);
+  int subtype = 0;
 
   /* When set, bNodeSocket->limit does not have any effect anymore. */
   bool use_link_limits_of_type = false;
@@ -217,6 +230,14 @@ using NodeExecFunction = void (*)(
 using NodeGPUExecFunction = int (*)(
     GPUMaterial *mat, bNode *node, bNodeExecData *execdata, GPUNodeStack *in, GPUNodeStack *out);
 using NodeMaterialXFunction = void (*)(void *data, bNode *node, bNodeSocket *out);
+
+struct NodeInsertLinkParams {
+  bNodeTree &ntree;
+  bNode &node;
+  bNodeLink &link;
+  /** Optional context to allow for more advanced link insertion functionality. */
+  bContext *C = nullptr;
+};
 
 /**
  * \brief Defines a node type.
@@ -268,8 +289,6 @@ struct bNodeType {
 
   /** Called when the node is updated in the editor. */
   void (*updatefunc)(bNodeTree *ntree, bNode *node) = nullptr;
-  /** Check and update if internal ID data has changed. */
-  void (*group_update_func)(bNodeTree *ntree, bNode *node) = nullptr;
 
   /**
    * Initialize a new node instance of this type after creation.
@@ -321,7 +340,7 @@ struct bNodeType {
                         const char **r_disabled_hint) = nullptr;
 
   /* Optional handling of link insertion. Returns false if the link shouldn't be created. */
-  bool (*insert_link)(bNodeTree *ntree, bNode *node, bNodeLink *link) = nullptr;
+  bool (*insert_link)(NodeInsertLinkParams &params) = nullptr;
 
   void (*free_self)(bNodeType *ntype) = nullptr;
 
@@ -376,6 +395,16 @@ struct bNodeType {
   /** Get extra information that is drawn next to the node. */
   NodeExtraInfoFunction get_extra_info = nullptr;
 
+  /** Get the internally linked input socket for the case when the node is muted. */
+  NodeInternallyLinkedInputFunction internally_linked_input = nullptr;
+
+  /**
+   * Read and write the content of the node storage. Writing the storage struct itself is handled
+   * by generic code by reading and writing bNodeType::storagename.
+   */
+  NodeBlendWriteFunction blend_write_storage_content = nullptr;
+  NodeBlendDataReadFunction blend_data_read_storage_content = nullptr;
+
   /**
    * "Abstract" evaluation of the node. It tells the caller which parts of the inputs affect which
    * parts of the outputs.
@@ -404,8 +433,17 @@ struct bNodeType {
 
   /** True when the node cannot be muted. */
   bool no_muting = false;
+  /** Some nodes should ignore the inferred visibility for improved UX. */
+  bool ignore_inferred_input_socket_visibility = false;
   /** True when the node still works but it's usage is discouraged. */
   const char *deprecation_notice = nullptr;
+
+  /**
+   * In some nodes the set of sockets depends on other data like linked nodes. For example, the
+   * Separate Bundle node can adapt based on what the bundle contains that is linked to it. When
+   * this function returns true, a sync button should be shown for the node that updates the node.
+   */
+  bool (*can_sync_sockets)(const bContext &C, const bNodeTree &tree, const bNode &node) = nullptr;
 
   /* RNA integration */
   ExtensionRNA rna_ext = {};
@@ -538,7 +576,7 @@ Span<bNodeTreeType *> node_tree_types_get();
  * In that case the update_typeinfo function will set type-info on registration
  * and do necessary updates.
  */
-void node_tree_set_type(const bContext *C, bNodeTree &ntree);
+void node_tree_set_type(bNodeTree &ntree);
 
 bNodeTree *node_tree_add_tree(Main *bmain, StringRef name, StringRef idname);
 
@@ -620,8 +658,15 @@ void node_unregister_socket_type(bNodeSocketType &stype);
 bool node_socket_is_registered(const bNodeSocket &sock);
 StringRefNull node_socket_type_label(const bNodeSocketType &stype);
 
-std::optional<StringRefNull> node_static_socket_type(int type, int subtype);
-std::optional<StringRefNull> node_static_socket_interface_type_new(int type, int subtype);
+/* The optional dimensions argument can be provided for types that support multiple possible
+ * dimensions like Vector. It is expected to be in the range [2, 4] and if not provided, 3 will be
+ * assumed. */
+std::optional<StringRefNull> node_static_socket_type(int type,
+                                                     int subtype,
+                                                     std::optional<int> dimensions = std::nullopt);
+std::optional<StringRefNull> node_static_socket_interface_type_new(
+    int type, int subtype, std::optional<int> dimensions = std::nullopt);
+
 std::optional<StringRefNull> node_static_socket_label(int type, int subtype);
 
 Span<bNodeSocketType *> node_socket_types_get();
@@ -917,6 +962,8 @@ void node_modify_socket_type(bNodeTree &ntree,
  */
 void node_unlink_node(bNodeTree &ntree, bNode &node);
 
+void node_unlink_attached(bNodeTree *ntree, const bNode *parent);
+
 /**
  * Rebuild the `node_by_id` runtime vector set. Call after removing a node if not handled
  * separately. This is important instead of just using `nodes_by_id.remove()` since it maintains
@@ -926,14 +973,15 @@ void node_rebuild_id_vector(bNodeTree &node_tree);
 
 /**
  * \note keeps socket list order identical, for copying links.
- * \param use_unique: If true, make sure the node's identifier and name are unique in the new
- * tree. Must be *true* if the \a dst_tree had nodes that weren't in the source node's tree.
- * Must be *false* when simply copying a node tree, so that identifiers don't change.
+ * \param dst_name: The name of the copied node. This is expected to be unique in the destination
+ * tree if provided. If not provided, the src name is used and made unique.
+ * \param dst_identifier: Same ad dst_name, but for the identifier.
  */
 bNode *node_copy_with_mapping(bNodeTree *dst_tree,
                               const bNode &node_src,
                               int flag,
-                              bool use_unique,
+                              std::optional<StringRefNull> dst_unique_name,
+                              std::optional<int> dst_unique_identifier,
                               Map<const bNodeSocket *, bNodeSocket *> &new_socket_map);
 
 bNode *node_copy(bNodeTree *dst_tree, const bNode &src_node, int flag, bool use_unique);
@@ -1208,4 +1256,4 @@ inline bool bNodeType::is_type(const StringRef query_idname) const
 constexpr int NODE_DEFAULT_MAX_WIDTH = 700;
 constexpr int GROUP_NODE_DEFAULT_WIDTH = 140;
 constexpr int GROUP_NODE_MAX_WIDTH = NODE_DEFAULT_MAX_WIDTH;
-constexpr int GROUP_NODE_MIN_WIDTH = 40;
+constexpr int GROUP_NODE_MIN_WIDTH = 60;

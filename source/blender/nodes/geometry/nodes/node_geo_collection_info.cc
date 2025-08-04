@@ -9,7 +9,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BKE_collection.hh"
@@ -35,12 +35,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Reset the transforms of every child instance in the output. Only used when Separate "
           "Children is enabled");
-  b.add_output<decl::Geometry>("Instances");
+  b.add_output<decl::Geometry>("Instances")
+      .description("Instance of the collection or instances all the children in the collection");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "transform_space", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "transform_space", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)

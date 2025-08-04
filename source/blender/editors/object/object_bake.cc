@@ -569,7 +569,7 @@ static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               scene,
-                              "Multires Bake",
+                              "Baking Multires...",
                               WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_BAKE_TEXTURE);
   WM_jobs_customdata_set(wm_job, bkr, multiresbake_freejob);
@@ -657,7 +657,7 @@ void OBJECT_OT_bake_image(wmOperatorType *ot)
   ot->description = "Bake image textures of selected objects";
   ot->idname = "OBJECT_OT_bake_image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bake_image_exec;
   ot->invoke = objects_bake_render_invoke;
   ot->modal = objects_bake_render_modal;

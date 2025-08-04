@@ -42,7 +42,6 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_islands.hh"
@@ -1085,7 +1084,7 @@ static Array<bool> duplicate_visibility_bmesh(const Object &object)
   const SculptSession &ss = *object.sculpt;
   BMesh &bm = *ss.bm;
   Array<bool> result(bm.totvert);
-  BM_mesh_elem_table_ensure(&bm, BM_VERT);
+  vert_random_access_ensure(const_cast<Object &>(object));
   for (const int i : result.index_range()) {
     result[i] = BM_elem_flag_test_bool(BM_vert_at_index(&bm, i), BM_ELEM_HIDDEN);
   }

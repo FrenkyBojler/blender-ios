@@ -25,6 +25,7 @@
 #include "BLO_read_write.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -357,7 +358,12 @@ static void modify_drawing(const GreasePencilDashModifierData &dmd,
   bke::GeometrySet unselected_geo = bke::GeometrySet::from_curves(unselected_curves_id);
   bke::GeometrySet joined_geo = geometry::join_geometries({unselected_geo, masked_geo}, {});
 
-  drawing.strokes_for_write() = std::move(joined_geo.get_curves_for_write()->geometry.wrap());
+  if (!joined_geo.has_curves()) {
+    drawing.strokes_for_write() = {};
+  }
+  else {
+    drawing.strokes_for_write() = std::move(joined_geo.get_curves_for_write()->geometry.wrap());
+  }
   drawing.tag_topology_changed();
 }
 
@@ -395,12 +401,12 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   auto *dmd = static_cast<GreasePencilDashModifierData *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiItemR(layout, ptr, "dash_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "dash_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *row = &layout->row(false);
-  uiLayoutSetPropSep(row, false);
+  row->use_property_split_set(false);
 
   uiTemplateList(row,
                  (bContext *)C,
@@ -419,18 +425,15 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayout *col = &row->column(false);
   uiLayout *sub = &col->column(true);
-  uiItemO(sub, "", ICON_ADD, "OBJECT_OT_grease_pencil_dash_modifier_segment_add");
-  uiItemO(sub, "", ICON_REMOVE, "OBJECT_OT_grease_pencil_dash_modifier_segment_remove");
-  uiItemS(col);
+  sub->op("OBJECT_OT_grease_pencil_dash_modifier_segment_add", "", ICON_ADD);
+  sub->op("OBJECT_OT_grease_pencil_dash_modifier_segment_remove", "", ICON_REMOVE);
+  col->separator();
   sub = &col->column(true);
-  uiItemEnumO_string(
-      sub, "", ICON_TRIA_UP, "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "type", "UP");
-  uiItemEnumO_string(sub,
-                     "",
-                     ICON_TRIA_DOWN,
-                     "OBJECT_OT_grease_pencil_dash_modifier_segment_move",
-                     "type",
-                     "DOWN");
+  PointerRNA op_ptr = layout->op(
+      "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_UP);
+  RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Up */ -1);
+  op_ptr = layout->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
+  RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Down */ 1);
 
   if (dmd->segment_active_index >= 0 && dmd->segment_active_index < dmd->segments_num) {
     PointerRNA ds_ptr = RNA_pointer_create_discrete(ptr->owner_id,
@@ -438,24 +441,24 @@ static void panel_draw(const bContext *C, Panel *panel)
                                                     &dmd->segments()[dmd->segment_active_index]);
 
     sub = &layout->column(true);
-    uiItemR(sub, &ds_ptr, "dash", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(sub, &ds_ptr, "gap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    sub->prop(&ds_ptr, "dash", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    sub->prop(&ds_ptr, "gap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     sub = &layout->column(false);
-    uiItemR(sub, &ds_ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(sub, &ds_ptr, "opacity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(sub, &ds_ptr, "material_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(sub, &ds_ptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    sub->prop(&ds_ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    sub->prop(&ds_ptr, "opacity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    sub->prop(&ds_ptr, "material_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    sub->prop(&ds_ptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void segment_list_item_draw(uiList * /*ui_list*/,
@@ -470,7 +473,7 @@ static void segment_list_item_draw(uiList * /*ui_list*/,
                                    int /*flt_flag*/)
 {
   uiLayout *row = &layout->row(true);
-  uiItemR(row, itemptr, "name", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  row->prop(itemptr, "name", UI_ITEM_R_NO_BG, "", ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

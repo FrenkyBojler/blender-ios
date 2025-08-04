@@ -13,7 +13,6 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -26,6 +25,7 @@ namespace blender::nodes::node_composite_invert_cc {
 
 static void cmp_node_invert_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Float>("Fac")
       .default_value(1.0f)
       .min(0.0f)
@@ -73,7 +73,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_invert_cc
 
-void register_node_type_cmp_invert()
+static void register_node_type_cmp_invert()
 {
   namespace file_ns = blender::nodes::node_composite_invert_cc;
 
@@ -90,3 +90,4 @@ void register_node_type_cmp_invert()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_invert)

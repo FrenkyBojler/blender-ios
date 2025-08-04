@@ -218,10 +218,10 @@ def handle_args():
             "Log the output of the API dump and sphinx|latex "
             "warnings and errors (default=False).\n"
             "If given, save logs in:\n"
-            "* OUTPUT_DIR/.bpy.log\n"
-            "* OUTPUT_DIR/.sphinx-build.log\n"
-            "* OUTPUT_DIR/.sphinx-build_pdf.log\n"
-            "* OUTPUT_DIR/.latex_make.log"
+            "- OUTPUT_DIR/.bpy.log\n"
+            "- OUTPUT_DIR/.sphinx-build.log\n"
+            "- OUTPUT_DIR/.sphinx-build_pdf.log\n"
+            "- OUTPUT_DIR/.latex_make.log"
         ),
         required=False,
     )
@@ -267,7 +267,6 @@ else:
     EXCLUDE_INFO_DOCS = True
     EXCLUDE_MODULES = [
         "aud",
-        "bgl",
         "blf",
         "bl_math",
         "imbuf",
@@ -420,6 +419,7 @@ INFO_DOCS_OTHER = (
     "info_advanced_blender_as_bpy.rst",
     # Included by: `info_gotcha.rst`.
     "info_gotchas_crashes.rst",
+    "info_gotchas_threading.rst",
     "info_gotchas_internal_data_and_python_objects.rst",
     "info_gotchas_operators.rst",
     "info_gotchas_meshes.rst",
@@ -783,11 +783,11 @@ def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_cla
     """
 
     if type(py_func) == MethodType:
-        # Including methods means every operators "poll" function for e.g.
+        # Including methods means every operators "poll" function example
         # would be listed in documentation which isn't useful.
         #
-        # However excluding all of them is also incorrect as it means class methods defined
-        # in `bpy_types.py` for e.g. are excluded, making some utility functions entirely hidden.
+        # However, excluding all of them is also incorrect as it means class methods defined
+        # in `bpy_types.py` for example are excluded, making some utility functions entirely hidden.
         if (bl_rna := getattr(py_func.__self__, "bl_rna", None)) is not None:
             if bl_rna.functions.get(identifier) is not None:
                 return
@@ -1105,7 +1105,7 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
            "\n"
            )
         for attribute, submod in submodules:
-            fw("* :mod:`{:s}.{:s}`\n".format(module_name, attribute))
+            fw("- :mod:`{:s}.{:s}`\n".format(module_name, attribute))
         fw("\n")
     """
 
@@ -1187,6 +1187,7 @@ context_type_map = {
     "annotation_data": [("GreasePencil", False)],
     "annotation_data_owner": [("ID", False)],
     "armature": [("Armature", False)],
+    "asset": [("AssetRepresentation", False)],
     "asset_library_reference": [("AssetLibraryReference", False)],
     "bone": [("Bone", False)],
     "brush": [("Brush", False)],
@@ -1226,10 +1227,10 @@ context_type_map = {
     "particle_settings": [("ParticleSettings", False)],
     "particle_system": [("ParticleSystem", False)],
     "particle_system_editable": [("ParticleSystem", False)],
-    "property": [("AnyType", False), ("str", False), ("int", False)],
     "pointcloud": [("PointCloud", False)],
     "pose_bone": [("PoseBone", False)],
     "pose_object": [("Object", False)],
+    "property": [("AnyType", False), ("str", False), ("int", False)],
     "scene": [("Scene", False)],
     "sculpt_object": [("Object", False)],
     "selectable_objects": [("Object", True)],
@@ -1274,6 +1275,13 @@ context_type_map = {
     "volume": [("Volume", False)],
     "world": [("World", False)],
 }
+
+if bpy.app.build_options.experimental_features:
+    for key, value in {
+        # No experimental members in context currently.
+    }.items():
+        assert key not in context_type_map, "Duplicate, the member must be removed from one of the dictionaries"
+        context_type_map[key] = value
 
 
 def pycontext2sphinx(basepath):
@@ -1323,12 +1331,15 @@ def pycontext2sphinx(basepath):
             type_descr = prop.get_type_description(
                 class_fmt=":class:`bpy.types.{:s}`",
                 mathutils_fmt=":class:`mathutils.{:s}`",
+                literal_fmt="``{!r}``",  # String with quotes.
                 collection_id=_BPY_PROP_COLLECTION_ID,
                 enum_descr_override=enum_descr_override,
             )
             fw(".. data:: {:s}\n\n".format(prop.identifier))
             if prop.description:
                 fw("   {:s}\n\n".format(prop.description))
+            if (deprecated := prop.deprecated) is not None:
+                fw(pyrna_deprecated_directive("   ", deprecated))
 
             # Special exception, can't use generic code here for enums.
             if prop.type == "enum":
@@ -1429,7 +1440,7 @@ def pyrna_enum2sphinx(prop, use_empty_descriptions=False):
 
     if ok:
         return "".join([
-            "* ``{:s}``\n"
+            "- ``{:s}``\n"
             "{:s}.\n".format(
                 identifier,
                 # Account for multi-line enum descriptions, allowing this to be a block of text.
@@ -1438,6 +1449,23 @@ def pyrna_enum2sphinx(prop, use_empty_descriptions=False):
             for identifier, name, description in prop.enum_items
         ])
     return ""
+
+
+def pyrna_deprecated_directive(ident, deprecated):
+    note, version, removal_version = deprecated
+
+    # Show a short 2 number version where possible to reduce noise.
+    version_str = "{:d}.{:d}.{:d}".format(*version).removesuffix(".0")
+    removal_version_str = "{:d}.{:d}.{:d}".format(*removal_version).removesuffix(".0")
+
+    return (
+        "{:s}.. deprecated:: {:s} removal planned in version {:s}\n"
+        "\n"
+        "{:s}   {:s}\n"
+    ).format(
+        ident, version_str, removal_version_str,
+        ident, note,
+    )
 
 
 def pyrna2sphinx(basepath):
@@ -1493,6 +1521,7 @@ def pyrna2sphinx(basepath):
 
         kwargs["class_fmt"] = ":class:`{:s}`"
         kwargs["mathutils_fmt"] = ":class:`mathutils.{:s}`"
+        kwargs["literal_fmt"] = "``{!r}``"  # String with quotes.
 
         kwargs["collection_id"] = _BPY_PROP_COLLECTION_ID
 
@@ -1613,6 +1642,7 @@ def pyrna2sphinx(basepath):
             type_descr = prop.get_type_description(
                 class_fmt=":class:`{:s}`",
                 mathutils_fmt=":class:`mathutils.{:s}`",
+                literal_fmt="``{!r}``",  # String with quotes.
                 collection_id=_BPY_PROP_COLLECTION_ID,
                 enum_descr_override=enum_descr_override,
             )
@@ -1628,6 +1658,9 @@ def pyrna2sphinx(basepath):
 
             if prop.description:
                 write_indented_lines("      ", fw, prop.description, False)
+                fw("\n")
+            if (deprecated := prop.deprecated) is not None:
+                fw(pyrna_deprecated_directive("      ", deprecated))
                 fw("\n")
 
             # Special exception, can't use generic code here for enums.
@@ -1695,6 +1728,7 @@ def pyrna2sphinx(basepath):
                     type_descr = prop.get_type_description(
                         as_ret=True, class_fmt=":class:`{:s}`",
                         mathutils_fmt=":class:`mathutils.{:s}`",
+                        literal_fmt="``{!r}``",  # String with quotes.
                         collection_id=_BPY_PROP_COLLECTION_ID,
                         enum_descr_override=enum_descr_override,
                     )
@@ -1707,6 +1741,10 @@ def pyrna2sphinx(basepath):
                         prop.identifier,
                         ", ".join((val for val in (descr, type_descr) if val))
                     ))
+                    if (deprecated := prop.deprecated) is not None:
+                        fw(pyrna_deprecated_directive("      ", deprecated))
+                        fw("\n")
+
                 fw("      :rtype: ({:s})\n".format(", ".join(type_descrs)))
 
             write_example_ref("      ", fw, struct_module_name + "." + struct_id + "." + func.identifier)
@@ -1744,14 +1782,14 @@ def pyrna2sphinx(basepath):
             if _BPY_STRUCT_FAKE:
                 for key, descr in descr_items:
                     if type(descr) == GetSetDescriptorType:
-                        lines.append("   * :class:`{:s}.{:s}`\n".format(_BPY_STRUCT_FAKE, key))
+                        lines.append("   - :class:`{:s}.{:s}`\n".format(_BPY_STRUCT_FAKE, key))
 
             for base in bases:
                 for prop in base.properties:
-                    lines.append("   * :class:`{:s}.{:s}`\n".format(base.identifier, prop.identifier))
+                    lines.append("   - :class:`{:s}.{:s}`\n".format(base.identifier, prop.identifier))
 
                 for identifier, py_prop in base.get_py_properties():
-                    lines.append("   * :class:`{:s}.{:s}`\n".format(base.identifier, identifier))
+                    lines.append("   - :class:`{:s}.{:s}`\n".format(base.identifier, identifier))
 
             if lines:
                 fw(title_string("Inherited Properties", "-"))
@@ -1769,15 +1807,15 @@ def pyrna2sphinx(basepath):
             if _BPY_STRUCT_FAKE:
                 for key, descr in descr_items:
                     if type(descr) == MethodDescriptorType:
-                        lines.append("   * :class:`{:s}.{:s}`\n".format(_BPY_STRUCT_FAKE, key))
+                        lines.append("   - :class:`{:s}.{:s}`\n".format(_BPY_STRUCT_FAKE, key))
 
             for base in bases:
                 for func in base.functions:
-                    lines.append("   * :class:`{:s}.{:s}`\n".format(base.identifier, func.identifier))
+                    lines.append("   - :class:`{:s}.{:s}`\n".format(base.identifier, func.identifier))
                 for identifier, py_func in base.get_py_functions():
-                    lines.append("   * :class:`{:s}.{:s}`\n".format(base.identifier, identifier))
+                    lines.append("   - :class:`{:s}.{:s}`\n".format(base.identifier, identifier))
                 for identifier, py_func in base.get_py_c_functions():
-                    lines.append("   * :class:`{:s}.{:s}`\n".format(base.identifier, identifier))
+                    lines.append("   - :class:`{:s}.{:s}`\n".format(base.identifier, identifier))
 
             if lines:
                 fw(title_string("Inherited Functions", "-"))
@@ -1802,14 +1840,14 @@ def pyrna2sphinx(basepath):
             for ref_attr, ref_types in sorted(context_type_map.items()):
                 for ref_type, _ in ref_types:
                     if ref_type == struct_id:
-                        fw("   * :mod:`bpy.context.{:s}`\n".format(ref_attr))
+                        fw("   - :mod:`bpy.context.{:s}`\n".format(ref_attr))
             del ref_attr, ref_types
 
             for ref in struct.references:
                 ref_split = ref.split(".")
                 if len(ref_split) > 2:
                     ref = ref_split[-2] + "." + ref_split[-1]
-                fw("   * :class:`{:s}`\n".format(ref))
+                fw("   - :class:`{:s}`\n".format(ref))
             fw("\n")
 
         # Docs last?, disable for now.
@@ -2025,7 +2063,6 @@ def write_rst_index(basepath):
     standalone_modules = (
         # Sub-modules are added in parent page.
         "aud",
-        "bgl",
         "bl_math",
         "blf",
         "bmesh",
@@ -2044,8 +2081,8 @@ def write_rst_index(basepath):
     fw("\n")
 
     fw(title_string("Indices", "="))
-    fw("* :ref:`genindex`\n")
-    fw("* :ref:`modindex`\n\n")
+    fw("- :ref:`genindex`\n")
+    fw("- :ref:`modindex`\n\n")
 
     # Special case, this `bmesh.ops.rst` is extracted from C++ source.
     if "bmesh.ops" not in EXCLUDE_MODULES:
@@ -2356,7 +2393,6 @@ def copy_handwritten_rsts(basepath):
 
     # TODO: put this docs in Blender's code and use import as per modules above.
     handwritten_modules = [
-        "bgl",  # "Blender OpenGl wrapper"
         "bmesh.ops",  # Generated by `rst_from_bmesh_opdefines.py`.
 
         # Includes.
@@ -2628,7 +2664,7 @@ def main():
             BPY_LOGGER.debug("    %s.py", f)
         BPY_LOGGER.debug("  %d total\n", len(EXAMPLE_SET_UNUSED))
 
-    # Eventually, build the html docs.
+    # Eventually, build the HTML docs.
     if ARGS.sphinx_build:
         import subprocess
         subprocess.call(SPHINX_BUILD)

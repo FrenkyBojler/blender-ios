@@ -5,6 +5,7 @@
 #pragma once
 
 #ifdef WITH_OSL
+#  include <cstdint> /* Needed before `sdlexec.h` for `int32_t` with GCC 15.1. */
 /* So no context pollution happens from indirectly included windows.h */
 #  ifdef _WIN32
 #    include "util/windows.h"
@@ -225,6 +226,7 @@ class ShaderManager {
   static thread_mutex lookup_table_mutex;
 
   unordered_map<const float *, size_t> bsdf_tables;
+  size_t thin_film_table_offset_;
 
   thread_spin_lock attribute_lock_;
 
@@ -237,6 +239,7 @@ class ShaderManager {
   float3 rec709_to_g;
   float3 rec709_to_b;
   bool is_rec709;
+  vector<float> thin_film_table;
 
   template<std::size_t n>
   size_t ensure_bsdf_table(DeviceScene *dscene, Scene *scene, const float (&table)[n])
@@ -247,6 +250,8 @@ class ShaderManager {
                                 Scene *scene,
                                 const float *table,
                                 const size_t n);
+
+  void compute_thin_film_table(const Transform &xyz_to_rgb);
 
   uint get_graph_kernel_features(ShaderGraph *graph);
 

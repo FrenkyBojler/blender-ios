@@ -5,14 +5,15 @@
 set(INC
   ../asset
   ../include
+  ../space_graph
   ../../asset_system
   ../../makesrna
-  ../../../../extern/fmtlib/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
+  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -50,6 +51,7 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )

@@ -181,7 +181,9 @@ ccl_device_inline
               case PRIMITIVE_CURVE_THICK:
               case PRIMITIVE_MOTION_CURVE_THICK:
               case PRIMITIVE_CURVE_RIBBON:
-              case PRIMITIVE_MOTION_CURVE_RIBBON: {
+              case PRIMITIVE_MOTION_CURVE_RIBBON:
+              case PRIMITIVE_CURVE_THICK_LINEAR:
+              case PRIMITIVE_MOTION_CURVE_THICK_LINEAR: {
                 if ((type & PRIMITIVE_MOTION) && kernel_data.bvh.use_bvh_steps) {
                   const float2 prim_time = kernel_data_fetch(prim_time, prim_addr);
                   if (ray->time < prim_time.x || ray->time > prim_time.y) {
@@ -236,7 +238,7 @@ ccl_device_inline
                * as that could result in situation when the same ray will be considered transparent
                * when spatial split is off, and be opaque when spatial split is on. */
               if (intersection_skip_shadow_already_recoded(
-                      kg, state, isect.object, isect.prim, *r_num_recorded_hits))
+                      state, isect.object, isect.prim, *r_num_recorded_hits))
               {
                 continue;
               }

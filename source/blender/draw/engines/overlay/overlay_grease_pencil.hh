@@ -35,6 +35,7 @@ namespace blender::draw::overlay {
 class GreasePencil : Overlay {
  private:
   PassSimple edit_grease_pencil_ps_ = {"GPencil Edit"};
+  PassSimple::Sub *edit_handles_ = nullptr;
   PassSimple::Sub *edit_points_ = nullptr;
   PassSimple::Sub *edit_lines_ = nullptr;
 
@@ -107,6 +108,7 @@ class GreasePencil : Overlay {
         break;
     }
 
+    edit_handles_ = nullptr;
     edit_points_ = nullptr;
     edit_lines_ = nullptr;
 
@@ -119,6 +121,15 @@ class GreasePencil : Overlay {
                          DRW_STATE_BLEND_ALPHA,
                      state.clipping_plane_count);
 
+      {
+        auto &sub = pass.sub("Handles");
+        sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA, state.clipping_plane_count);
+        sub.shader_set(res.shaders->curve_edit_handles.get());
+        sub.push_constant("show_curve_handles", state.overlay.handle_display != CURVE_HANDLE_NONE);
+        sub.push_constant("curve_handle_display", int(state.overlay.handle_display));
+        edit_handles_ = &sub;
+      }
+
       if (show_points_) {
         auto &sub = pass.sub("Points");
         sub.shader_set(res.shaders->curve_edit_points.get());
@@ -126,6 +137,7 @@ class GreasePencil : Overlay {
         sub.push_constant("use_weight", show_weight_);
         sub.push_constant("use_grease_pencil", true);
         sub.push_constant("do_stroke_endpoints", show_direction);
+        sub.push_constant("curve_handle_display", int(state.overlay.handle_display));
         edit_points_ = &sub;
       }
 
@@ -173,6 +185,12 @@ class GreasePencil : Overlay {
 
     Object *ob = ob_ref.object;
 
+    {
+      gpu::Batch *geom = DRW_cache_grease_pencil_edit_handles_get(state.scene, ob);
+      if (geom) {
+        edit_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, manager.unique_handle(ob_ref));
+      }
+    }
     if (show_points_) {
       gpu::Batch *geom = show_weight_ ?
                              DRW_cache_grease_pencil_weight_points_get(state.scene, ob) :
@@ -236,8 +254,8 @@ class GreasePencil : Overlay {
 
       const float4x4 grid_mat = grid_matrix_get(*ob_ref.object, state.scene) * transform_mat;
 
-      grid_ps_.push_constant("x_axis", grid_mat.x_axis());
-      grid_ps_.push_constant("y_axis", grid_mat.y_axis());
+      grid_ps_.push_constant("axis_x", grid_mat.x_axis());
+      grid_ps_.push_constant("axis_y", grid_mat.y_axis());
       grid_ps_.push_constant("origin", grid_mat.location());
       grid_ps_.push_constant("half_line_count", line_count / 2);
       grid_ps_.draw_procedural(GPU_PRIM_LINES, 1, line_count * 2);
@@ -283,7 +301,7 @@ class GreasePencil : Overlay {
                                  PassMain::Sub &pass,
                                  const Scene *scene,
                                  Object *ob,
-                                 ResourceHandle res_handle,
+                                 ResourceHandleRange res_handle,
                                  select::ID select_id = select::SelectMap::select_invalid_id())
   {
     using namespace blender;
@@ -503,15 +521,16 @@ class GreasePencil : Overlay {
         }
         const int point_i = points_by_curve[stroke_i].first();
         const float3 fpt = math::transform_point(object.object_to_world(), positions[point_i]);
-        Material *ma = BKE_object_material_get_eval(&object, materials[stroke_i] + 1);
-        DRW_text_cache_add(state.dt,
-                           fpt,
-                           ma->id.name + 2,
-                           strlen(ma->id.name + 2),
-                           10,
-                           0,
-                           DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR,
-                           color);
+        if (Material *ma = BKE_object_material_get_eval(&object, materials[stroke_i] + 1)) {
+          DRW_text_cache_add(state.dt,
+                             fpt,
+                             ma->id.name + 2,
+                             strlen(ma->id.name + 2),
+                             10,
+                             0,
+                             DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR,
+                             color);
+        }
       }
     }
   }
