@@ -317,28 +317,31 @@ void BLF_addref_id(int fontid)
   }
 }
 
-void BLF_enable(int fontid, int option)
+void BLF_enable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags |= option;
+    font->flags |= flag;
   }
 }
 
-void BLF_disable(int fontid, int option)
+void BLF_disable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags &= ~option;
+    font->flags &= ~flag;
   }
 }
 
 bool BLF_is_builtin(int fontid)
 {
   FontBLF *font = blf_get(fontid);
-  return font ? (font->flags & BLF_DEFAULT) : false;
+  if (font) {
+    return font->flags & BLF_DEFAULT;
+  }
+  return false;
 }
 
 void BLF_character_weight(int fontid, int weight)
@@ -1084,13 +1087,8 @@ char *BLF_display_name_from_id(int fontid)
   return blf_display_name(font);
 }
 
-bool BLF_get_vfont_metrics(int fontid,
-                           float *ascend_ratio,
-                           float *descend_ratio,
-                           float *line_height,
-                           float *underline_position,
-                           float *underline_thickness,
-                           float *scale)
+bool BLF_get_vfont_metrics(
+    int fontid, float *x_height, float *ascend_ratio, float *descend_ratio, float *scale)
 {
   FontBLF *font = blf_get(fontid);
   if (!font) {
@@ -1102,29 +1100,29 @@ bool BLF_get_vfont_metrics(int fontid,
   }
 
   if (font->metrics.valid) {
+    *x_height = float(font->metrics.x_height) / float(font->metrics.units_per_EM);
     *ascend_ratio = float(font->metrics.ascender) / float(font->metrics.units_per_EM);
     *descend_ratio = float(font->metrics.descender) / float(font->metrics.units_per_EM);
-    *line_height = float(font->metrics.line_height) / float(font->metrics.units_per_EM);
-    *underline_position = float(font->metrics.underline_position) /
-                          float(font->metrics.units_per_EM);
-    *underline_thickness = float(font->metrics.underline_thickness) /
-                           float(font->metrics.units_per_EM);
-    /* 449 is x-height of bFont. */
-    *scale = 449.0f / float(font->metrics.x_height) * BLF_VFONT_METRICS_SCALE_DEFAULT;
+    *scale = 1.0f / float(font->metrics.units_per_EM);
+    *scale *= BLF_VFONT_METRICS_XHEIGHT_DEFAULT / *x_height;
     return true;
   }
 
   return false;
 }
 
-float BLF_character_to_curves(
-    int fontid, uint unicode, ListBase *nurbsbase, const float scale, bool use_fallback)
+bool BLF_character_to_curves(int fontid,
+                             uint unicode,
+                             ListBase *nurbsbase,
+                             const float scale,
+                             bool use_fallback,
+                             float *r_advance)
 {
   FontBLF *font = blf_get(fontid);
   if (!font) {
-    return 0.0f;
+    return false;
   }
-  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback);
+  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback, r_advance);
 }
 
 #ifndef NDEBUG

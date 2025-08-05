@@ -34,11 +34,9 @@ extern int builtin_font_size;
 void BKE_vfontdata_metrics_get_defaults(VFontData_Metrics *metrics)
 {
   metrics->scale = BLF_VFONT_METRICS_SCALE_DEFAULT;
+  metrics->x_height = BLF_VFONT_METRICS_XHEIGHT_DEFAULT;
   metrics->ascend_ratio = BLF_VFONT_METRICS_ASCEND_RATIO_DEFAULT;
   metrics->descend_ratio = BLF_VFONT_METRICS_DESCEND_RATIO_DEFAULT;
-  metrics->line_height = BLF_VFONT_METRICS_LINE_HEIGHT_DEFAULT;
-  metrics->underline_position = BLF_VFONT_METRICS_UNDERLINE_POSITION_DEFAULT;
-  metrics->underline_thickness = BLF_VFONT_METRICS_UNDERLINE_THICKNESS_DEFAULT;
 }
 
 VFontData *BKE_vfontdata_from_freetypefont(PackedFile *pf)
@@ -60,11 +58,9 @@ VFontData *BKE_vfontdata_from_freetypefont(PackedFile *pf)
   BLI_str_utf8_invalid_strip(vfd->name, ARRAY_SIZE(vfd->name));
 
   if (!BLF_get_vfont_metrics(fontid,
+                             &vfd->metrics.x_height,
                              &vfd->metrics.ascend_ratio,
                              &vfd->metrics.descend_ratio,
-                             &vfd->metrics.line_height,
-                             &vfd->metrics.underline_position,
-                             &vfd->metrics.underline_thickness,
                              &vfd->metrics.scale))
   {
     BKE_vfontdata_metrics_get_defaults(&vfd->metrics);
@@ -79,7 +75,7 @@ VFontData *BKE_vfontdata_from_freetypefont(PackedFile *pf)
 
 static void *vfontdata_copy_characters_value_cb(const void *src)
 {
-  return BKE_vfontdata_char_copy(static_cast<const VChar *>(src));
+  return src ? BKE_vfontdata_char_copy(static_cast<const VChar *>(src)) : nullptr;
 }
 
 VFontData *BKE_vfontdata_copy(const VFontData *vfont_src, const int /*flag*/)
@@ -130,8 +126,18 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);
 
-  che->width = BLF_character_to_curves(
-      font_id, character, &che->nurbsbase, vfont->data->metrics.scale, use_fallback);
+  if (!BLF_character_to_curves(font_id,
+                               character,
+                               &che->nurbsbase,
+                               vfont->data->metrics.scale,
+                               use_fallback,
+                               &che->width))
+  {
+    /* Free but add to the character cache to prevent future lookups
+     * from attempting to load the font again. */
+    MEM_freeN(che);
+    che = nullptr;
+  }
 
   BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
   BLF_unload_id(font_id);
