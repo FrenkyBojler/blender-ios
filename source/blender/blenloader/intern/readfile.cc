@@ -4467,7 +4467,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
            * deep_hash. Otherwise, a previous call to `library_id_is_yet_read()` should have
            * returned this ID, and this code should not be reached. */
           BLI_assert(packed_id->deep_hash != *blo_bhead_id_deep_hash(fd, id_bhead));
-          UNUSED_VARS_NDEBUG(id_bhead);
+          UNUSED_VARS_NDEBUG(packed_id, id_bhead);
           continue;
         }
         BLI_assert(ELEM(main_it->curlib->runtime->filedata, fd, nullptr));
