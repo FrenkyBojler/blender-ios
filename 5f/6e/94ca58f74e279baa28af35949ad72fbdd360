@@ -1,3 +1,4 @@
 Referenced by issue #136039, Grease pencil: Crash when entering edit mode with Bezier curves
 Referenced by commit 23a88e0eec161cc1cbc0f75f558999e0fd2c67fe, Fix #136039: Grease pencil edit mode crash with Bezier curves
 Referenced by issue #143952, Problem with edit lines display on grease pencil object
+Referenced by commit 2a8da4c1fa8cce282345331814ea4f80c0658a03, Fix #143952: Broken Grease Pencil edit lines overlay in some cases
