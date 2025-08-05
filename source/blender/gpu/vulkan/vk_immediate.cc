@@ -139,7 +139,12 @@ VKBuffer &VKImmediate::ensure_space(VkDeviceSize bytes_needed, VkDeviceSize offs
 
   /* Offset alignment isn't needed when creating buffers as it is managed by VMA. */
   VkDeviceSize alloc_size = new_buffer_size(bytes_needed);
-  CLOG_DEBUG(&LOG, "Allocate buffer (size=%d)", int(alloc_size));
+  CLOG_TRACE(&LOG,
+             "Immediate buffer cannot hold another %d bytes, it contains %d bytes. A new "
+             "buffer will be allocated (size=%d)",
+             int(bytes_required),
+             int(buffer_offset_),
+             int(alloc_size));
   buffer_offset_ = 0;
   VKBuffer &result = active_buffer_.emplace();
   result.create(alloc_size,
