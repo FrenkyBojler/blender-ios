@@ -1363,18 +1363,11 @@ class NodeTreeMainUpdater {
         continue;
       }
       if (ntree.type == NTREE_GEOMETRY) {
-        if (link->fromsock->may_be_field()) {
-          const nodes::SocketDeclaration *to_socket_decl = link->tosock->runtime->declaration;
-          if (to_socket_decl &&
-              !ELEM(
-                  to_socket_decl->structure_type, StructureType::Dynamic, StructureType::Field) &&
-              !link->tonode->is_group_output() && !link->tonode->is_type("NodeClosureOutput"))
-          {
-            link->flag &= ~NODE_LINK_VALID;
-            ntree.runtime->link_errors.add(
-                NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
-            continue;
-          }
+        if (this->is_invalid_field_link(*link)) {
+          link->flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors.add(
+              NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
+          continue;
         }
       }
       const bNode &from_node = *link->fromnode;
@@ -1418,6 +1411,24 @@ class NodeTreeMainUpdater {
         }
       }
     }
+  }
+
+  bool is_invalid_field_link(const bNodeLink &link)
+  {
+    if (!link.fromsock->may_be_field()) {
+      return false;
+    }
+    const nodes::SocketDeclaration *to_socket_decl = link.tosock->runtime->declaration;
+    if (!to_socket_decl) {
+      return false;
+    }
+    if (ELEM(to_socket_decl->structure_type, StructureType::Dynamic, StructureType::Field)) {
+      return false;
+    }
+    if (link.tonode->is_group_output() || link.tonode->is_type("NodeClosureOutput")) {
+      return false;
+    }
+    return true;
   }
 
   bool check_if_output_changed(const bNodeTree &tree)
