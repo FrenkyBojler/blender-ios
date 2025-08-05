@@ -190,13 +190,13 @@ Vector<int> calculate_multiplicity_sequence(const Span<float> knots)
   return multiplicity;
 }
 
-static int calculate_basis_for_point(const Span<float> knots,
-                                     const int degree,
-                                     const int wrapped_points_num,
-                                     const float parameter,
-                                     const int span_index,
-                                     MutableSpan<float> r_weights,
-                                     int &r_start_index)
+static void calculate_basis_for_point(const Span<float> knots,
+                                      const int degree,
+                                      const int wrapped_points_num,
+                                      const float parameter,
+                                      const int span_index,
+                                      MutableSpan<float> r_weights,
+                                      int &r_start_index)
 {
   const int order = degree + 1;
 
@@ -231,7 +231,6 @@ static int calculate_basis_for_point(const Span<float> knots,
   buffer.as_mutable_span().drop_front(end - start + 1).fill(0.0f);
   r_weights.copy_from(buffer.as_span().take_front(order));
   r_start_index = start;
-  return span_index;
 }
 
 void calculate_basis_cache(const int points_num,
