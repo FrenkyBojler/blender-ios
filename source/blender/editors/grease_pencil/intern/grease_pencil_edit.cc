@@ -4678,8 +4678,14 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     index_mask::masked_fill(corner_types.span, corner_type, strokes);
 
     corner_types.finish();
+    changed = true;
 
-    if (corner_type == GP_STROKE_CORNER_TYPE_MITER && miter_angle != DEG2RADF(45.0f)) {
+    if (corner_type == GP_STROKE_CORNER_TYPE_MITER) {
+      /* Only create the attribute if we are not storing the default. */
+      if (miter_angle == DEG2RADF(45.0f) && !attributes.contains("miter_angle")) {
+        return;
+      }
+
       bke::SpanAttributeWriter<float> miter_angles =
           attributes.lookup_or_add_for_write_span<float>(
               "miter_angle",
@@ -4691,8 +4697,6 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
 
       miter_angles.finish();
     }
-
-    changed = true;
   });
 
   if (changed) {
