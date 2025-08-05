@@ -1309,8 +1309,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> miter_angles = *attributes.lookup_or_default<float>(
         "miter_angle", bke::AttrDomain::Curve, DEG2RADF(45.0f));
 
-    // runtime.evaluated_offsets_cache.data().all_bezier_offsets
-
     const Span<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
     const Span<int> verts_start_offsets = verts_start_offsets_per_visible_drawing[drawing_i];
