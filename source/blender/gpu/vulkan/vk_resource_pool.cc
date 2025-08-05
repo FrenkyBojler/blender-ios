@@ -12,6 +12,11 @@
 
 namespace blender::gpu {
 
+void VKResourcePool::init(VKDevice &device)
+{
+  descriptor_pools.init(device);
+}
+
 void VKDiscardPool::deinit(VKDevice &device)
 {
   destroy_discarded_resources(device, true);

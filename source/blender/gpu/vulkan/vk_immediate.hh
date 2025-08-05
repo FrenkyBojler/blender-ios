@@ -38,6 +38,8 @@ class VKImmediate : public Immediate {
   std::optional<VKBuffer> active_buffer_;
 
  public:
+  void deinit(VKDevice &device);
+
   uchar *begin() override;
   void end() override;
 

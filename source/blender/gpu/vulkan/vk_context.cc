@@ -48,9 +48,10 @@ VKContext::~VKContext()
     surface_texture_ = nullptr;
   }
   free_resources();
+  VKDevice &device = VKBackend::get().device;
+  static_cast<VKImmediate *>(imm)->deinit(device);
   delete imm;
   imm = nullptr;
-  VKDevice &device = VKBackend::get().device;
   device.context_unregister(*this);
 
   this->process_frame_timings();
@@ -61,6 +62,10 @@ void VKContext::sync_backbuffer()
   if (ghost_window_) {
     GHOST_VulkanSwapChainData swap_chain_data = {};
     GHOST_GetVulkanSwapChainFormat((GHOST_WindowHandle)ghost_window_, &swap_chain_data);
+    VKThreadData &thread_data = thread_data_.value().get();
+    if (cycle_resource_pool) {
+      thread_data.resource_pool_next();
+    }
 
     const bool reset_framebuffer = swap_chain_format_.format !=
                                        swap_chain_data.surface_format.format ||

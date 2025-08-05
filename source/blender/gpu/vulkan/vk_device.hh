@@ -123,6 +123,28 @@ class VKThreadData : public NonCopyable, NonMovable {
   int32_t rendering_depth = 0;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
+
+  /**
+   * Get the active resource pool.
+   */
+  VKResourcePool &resource_pool_get()
+  {
+    if (resource_pool_index >= resource_pools.size()) {
+      return resource_pools[0];
+    }
+    return resource_pools[resource_pool_index];
+  }
+
+  /** Activate the next resource pool. */
+  void resource_pool_next()
+  {
+    if (resource_pool_index == UINT32_MAX) {
+      resource_pool_index = 1;
+    }
+    else {
+      resource_pool_index = (resource_pool_index + 1) % resource_pools_count;
+    }
+  }
 };
 
 class VKDevice : public NonCopyable {

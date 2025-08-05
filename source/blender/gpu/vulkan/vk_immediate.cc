@@ -23,6 +23,14 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
+void VKImmediate::deinit(VKDevice &device)
+{
+  if (active_buffer_.has_value()) {
+    active_buffer_->free_immediately(device);
+    active_buffer_.reset();
+  }
+}
+
 uchar *VKImmediate::begin()
 {
   uint add_vertex = prim_type == GPU_PRIM_LINE_LOOP ? 1 : 0;
@@ -131,12 +139,13 @@ VKBuffer &VKImmediate::ensure_space(VkDeviceSize bytes_needed, VkDeviceSize offs
 
   /* Offset alignment isn't needed when creating buffers as it is managed by VMA. */
   VkDeviceSize alloc_size = new_buffer_size(bytes_needed);
-  CLOG_TRACE(&LOG,
-             "Immediate buffer cannot hold another %d bytes, it contains %d bytes. A new "
-             "buffer will be allocated (size=%d)",
-             int(bytes_required),
-             int(buffer_offset_),
-             int(alloc_size));
+  CLOG_INFO(&LOG,
+            3,
+            "Immediate buffer cannot hold another %d bytes, it contains %d bytes. A new "
+            "buffer will be allocated (size=%d)",
+            int(bytes_required),
+            int(buffer_offset_),
+            int(alloc_size));
   buffer_offset_ = 0;
   VKBuffer &result = active_buffer_.emplace();
   result.create(alloc_size,
