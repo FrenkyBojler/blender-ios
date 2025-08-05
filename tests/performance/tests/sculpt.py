@@ -169,7 +169,6 @@ def _run_brush_test(args: dict):
 
     min_measurements = 5
     max_measurements = 100
-    itr = 0
     measurements = []
     while True:
         prepare_sculpt_scene(context, args['mode'])
@@ -181,11 +180,9 @@ def _run_brush_test(args: dict):
                 bpy.ops.ed.undo_push()
             start = time.time()
             bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
-            if itr == 0:
-                bpy.ops.ed.undo_push()
-                memory_info = bpy.app.undo_memory_info()
+            bpy.ops.ed.undo_push()
+            memory_info = bpy.app.undo_memory_info()
             measurements.append(time.time() - start)
-        itr += 1
         if len(measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
             break
         if len(measurements) >= max_measurements:

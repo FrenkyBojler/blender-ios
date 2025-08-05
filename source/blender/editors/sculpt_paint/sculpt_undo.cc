@@ -293,7 +293,7 @@ class ZstdCompressor {
 #endif
     Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
     const size_t dst_size = ZSTD_compress(
-        dst.data(), dst.size(), src.data(), src.size_in_bytes(), ZSTD_fast);
+        dst.data(), dst.size(), src.data(), src.size_in_bytes(), -1);
     return dst.as_span().take_front(dst_size);
   }
 
@@ -392,7 +392,7 @@ struct PositionUndoStorage : NonMovable {
     Array<float3> positions;
     PositionUndoStorage *storage;
     CompressionData(Array<float3> pos, PositionUndoStorage *stor)
-        : positions(Array<float3>(pos)), storage(stor)
+        : positions(std::move(pos)), storage(stor)
     {
     }
   };
@@ -550,8 +550,8 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
       }
     }
   });
-  PositionUndoStorage::CompressionData *task_data = new PositionUndoStorage::CompressionData{
-      std::move(decompressed), &undo_data};
+  PositionUndoStorage::CompressionData *task_data = MEM_new<PositionUndoStorage::CompressionData>(
+      __func__, std::move(decompressed), &undo_data);
   BLI_task_pool_push(undo_data.compression_task_pool,
                      PositionUndoStorage::compression_task_function,
                      task_data,
