@@ -86,7 +86,7 @@ void foreach_real_geometry(bke::GeometrySet &geometry,
   /* Clear to avoid extra references to the geometries which prohibit editing them in-place. */
   real_geometries.clear();
 
-  /* Actually modify the geometries in parallel.*/
+  /* Actually modify the geometries in parallel. */
   threading::parallel_for(geometries_with_paths.index_range(), 1, [&](const IndexRange range) {
     for (const int i : range) {
       bke::GeometrySet &geometry_to_modify = geometries_with_paths[i].geometry;
