@@ -296,12 +296,12 @@ void calculate_basis_cache(const int points_num,
   MutableSpan<int> basis_start_indices(basis_cache.start_indices);
 
   /* Find breakpoint offsets. */
-  const int breakpoint_num = (evaluated_num - cyclic) / resolution;
+  const int breakpoint_num = (evaluated_num - !cyclic) / resolution;
   Array<int, 20> evaluation_offsets(breakpoint_num);
   Array<int, 20> breakpoint_offsets(breakpoint_num);
 
   int breakpoint_count = 0;
-  for (const int span_index : IndexRange::from_begin_end(degree, wrapped_points_num)) {
+  for (const int span_index : IndexRange::from_begin_end(degree, wrapped_points_num + 1)) {
     if (is_breakpoint(knots, span_index)) {
       evaluation_offsets[breakpoint_count] = breakpoint_count;
       breakpoint_offsets[breakpoint_count] = span_index;
