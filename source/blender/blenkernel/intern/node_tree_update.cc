@@ -1363,11 +1363,18 @@ class NodeTreeMainUpdater {
         continue;
       }
       if (ntree.type == NTREE_GEOMETRY) {
-        if (link->fromsock->may_be_field() && !link->tosock->may_be_field()) {
-          link->flag &= ~NODE_LINK_VALID;
-          ntree.runtime->link_errors.add(
-              NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
-          continue;
+        if (link->fromsock->may_be_field()) {
+          const nodes::SocketDeclaration *to_socket_decl = link->tosock->runtime->declaration;
+          if (to_socket_decl &&
+              !ELEM(
+                  to_socket_decl->structure_type, StructureType::Dynamic, StructureType::Field) &&
+              !link->tonode->is_group_output() && !link->tonode->is_type("NodeClosureOutput"))
+          {
+            link->flag &= ~NODE_LINK_VALID;
+            ntree.runtime->link_errors.add(
+                NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
+            continue;
+          }
         }
       }
       const bNode &from_node = *link->fromnode;
