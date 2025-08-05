@@ -263,7 +263,7 @@ void calculate_basis_cache(const int points_num,
   Array<int, 20> breakpoint_offsets(breakpoint_num);
 
   int breakpoint_count = 0;
-  for (const int span_index : IndexRange::from_begin_end(degree, wrapped_points_num + 1)) {
+  for (const int span_index : IndexRange::from_begin_end(degree, wrapped_points_num)) {
     if (is_breakpoint(knots, span_index)) {
       evaluation_offsets[breakpoint_count] = breakpoint_count;
       breakpoint_offsets[breakpoint_count] = span_index;
