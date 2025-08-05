@@ -38,6 +38,25 @@ inline bool bone_is_visible_editbone(const bArmature *armature, const EditBone *
 }
 
 /**
+ * Returns true if the bone is selected. This includes a visibility check
+ * because invisible bones cannot be selected, no matter their flag.
+ */
+inline bool bone_is_selected(const bArmature *armature, const Bone *bone)
+{
+  return (bone->flag & BONE_SELECTED) && bone_is_visible(armature, bone);
+}
+
+inline bool bone_is_selected(const bArmature *armature, const bPoseChannel *pchan)
+{
+  return (pchan->bone->flag & BONE_SELECTED) && bone_is_visible_pchan(armature, pchan);
+}
+
+inline bool bone_is_selected(const bArmature *armature, const EditBone *ebone)
+{
+  return (ebone->flag & BONE_SELECTED) && bone_is_visible_editbone(armature, ebone);
+}
+
+/**
  * Iterates all descendents of the given pose bone including the bone itself. Iterates breadth
  * first.
  */

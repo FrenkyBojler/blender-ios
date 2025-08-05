@@ -143,6 +143,9 @@ static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
   Main *bmain = CTX_data_main(C);
   KeyBlock *kb = BKE_object_shapekey_insert(bmain, ob, nullptr, from_mix);
   if (kb) {
+    /* Shapekeys created via this operator should get default value 1.0. */
+    kb->curval = 1.0f;
+
     Key *key = BKE_key_from_object(ob);
     /* for absolute shape keys, new keys may not be added last */
     ob->shapenr = BLI_findindex(&key->block, kb) + 1;
@@ -418,37 +421,49 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
     changed = BKE_object_shapekey_free(bmain, ob);
   }
   else {
-
+    int num_selected_but_locked = 0;
     /* This could be moved into a function of its own at some point. Right now it's only used here,
      * though, since its inner structure is taylored for allowing shapekey deletion. */
-    const auto visit_selected_shapekeys = [&](FunctionRef<void(KeyBlock & kb)> callback) {
-      Key &key = *BKE_key_from_object(ob);
-      LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block) {
-        /* Always try to find the keyblock again, as the previous one may have been deleted. For
-         * the same reason, ob->shapenr has to be re-evaluated on every loop iteration. */
-        const int cur_index = BLI_findindex(&key.block, kb);
-        if (!shape_key_is_selected(*ob, *kb, cur_index)) {
-          continue;
-        }
-        callback(*kb);
+    Key &key = *BKE_key_from_object(ob);
+    LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block) {
+      /* Always try to find the keyblock again, as the previous one may have been deleted. For
+       * the same reason, ob->shapenr has to be re-evaluated on every loop iteration. */
+      const int cur_index = BLI_findindex(&key.block, kb);
+      if (!shape_key_is_selected(*ob, *kb, cur_index)) {
+        continue;
       }
-    };
-
-    int num_selected_but_locked = 0;
-    visit_selected_shapekeys([&](KeyBlock &kb) {
-      if (kb.flag & KEYBLOCK_LOCKED_SHAPE) {
+      if (kb->flag & KEYBLOCK_LOCKED_SHAPE) {
         num_selected_but_locked++;
-        return;
+        continue;
       }
 
-      changed |= BKE_object_shapekey_remove(bmain, ob, &kb);
-    });
+      changed |= BKE_object_shapekey_remove(bmain, ob, kb);
+
+      /* When `BKE_object_shapekey_remove()` deletes the active shapekey, the active shapekeyindex
+       * is updated as well. It usually decrements, which means that even when the same index is
+       * re-visited, we don't see the active one any more. However, when the basis key (index=0) is
+       * deleted AND there are keys remaning, the active index remains set to 0, and so every
+       * iteration sees "the active shapekey", effectively deleting all of them. */
+      if (cur_index == 0) {
+        ob->shapenr = 0;
+      }
+    }
 
     if (num_selected_but_locked) {
       BKE_reportf(op->reports,
                   changed ? RPT_WARNING : RPT_ERROR,
                   "Could not delete %d locked shape key(s)",
                   num_selected_but_locked);
+    }
+  }
+
+  /* Ensure that there is still a shapekey active, if there are any. See the comment above. Be
+   * extra careful here, because the deletion of the last shapekey can delete the entire Key ID,
+   * making our `key` reference (from the code above) invalid. */
+  if (ob->shapenr == 0) {
+    Key *key = BKE_key_from_object(ob);
+    if (key && key->totkey > 0) {
+      ob->shapenr = 1;
     }
   }
 
@@ -645,7 +660,7 @@ void OBJECT_OT_shape_key_mirror(wmOperatorType *ot)
 /** \name Shape Key Move (Re-Order) Operator
  * \{ */
 
-enum {
+enum KeyBlockMove {
   KB_MOVE_TOP = -2,
   KB_MOVE_UP = -1,
   KB_MOVE_DOWN = 1,
@@ -656,28 +671,66 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
 {
   Object *ob = context_object(C);
 
-  Key *key = BKE_key_from_object(ob);
-  const int type = RNA_enum_get(op->ptr, "type");
-  const int totkey = key->totkey;
-  const int act_index = ob->shapenr - 1;
-  int new_index;
+  const Key &key = *BKE_key_from_object(ob);
+  const KeyBlockMove type = KeyBlockMove(RNA_enum_get(op->ptr, "type"));
+  const int totkey = key.totkey;
+  int new_index = 0;
+  bool changed = false;
 
-  switch (type) {
-    case KB_MOVE_TOP:
-      /* Replace the ref key only if we're at the top already (only for relative keys) */
-      new_index = (ELEM(act_index, 0, 1) || key->type == KEY_NORMAL) ? 0 : 1;
-      break;
-    case KB_MOVE_BOTTOM:
-      new_index = totkey - 1;
-      break;
-    case KB_MOVE_UP:
-    case KB_MOVE_DOWN:
-    default:
-      new_index = (totkey + act_index + type) % totkey;
-      break;
+  if (type < 0) { /* Moving upwards. */
+    /* Don't move above the position of the basis key */
+    int top_index = 1;
+    /* Start from index 1 to ignore basis key from being able to move above. */
+    for (int index = 1; index < totkey; index++) {
+      const KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key.block, index));
+      if (!shape_key_is_selected(*ob, kb, index)) {
+        continue;
+      }
+      switch (type) {
+        case KB_MOVE_TOP:
+          new_index = top_index;
+          break;
+        case KB_MOVE_UP:
+          new_index = max_ii(index - 1, top_index);
+          break;
+        case KB_MOVE_BOTTOM:
+        case KB_MOVE_DOWN:
+          BLI_assert_unreachable();
+          break;
+      }
+      top_index++;
+      if (new_index < 0) {
+        continue;
+      }
+      changed |= BKE_keyblock_move(ob, index, new_index);
+    }
+  }
+  else { /* Moving downwards. */
+    int bottom_index = totkey - 1;
+    /* Skip basis key to prevent it from moving downwards. */
+    for (int index = totkey - 1; index >= 1; index--) {
+      const KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key.block, index));
+      if (!shape_key_is_selected(*ob, kb, index)) {
+        continue;
+      }
+      switch (type) {
+        case KB_MOVE_BOTTOM:
+          new_index = bottom_index;
+          break;
+        case KB_MOVE_DOWN:
+          new_index = min_ii(index + 1, bottom_index);
+          break;
+        case KB_MOVE_TOP:
+        case KB_MOVE_UP:
+          BLI_assert_unreachable();
+          break;
+      }
+      bottom_index--;
+      changed |= BKE_keyblock_move(ob, index, new_index);
+    }
   }
 
-  if (!BKE_keyblock_move(ob, act_index, new_index)) {
+  if (!changed) {
     return OPERATOR_CANCELLED;
   }
 
@@ -699,7 +752,7 @@ void OBJECT_OT_shape_key_move(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Move Shape Key";
   ot->idname = "OBJECT_OT_shape_key_move";
-  ot->description = "Move the active shape key up/down in the list";
+  ot->description = "Move selected shape keys up/down in the list";
 
   /* API callbacks. */
   ot->poll = shape_key_move_poll;
@@ -795,6 +848,72 @@ void OBJECT_OT_shape_key_lock(wmOperatorType *ot)
                SHAPE_KEY_LOCK,
                "Action",
                "Lock action to execute on vertex groups");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Shape Key Make Basis Operator
+ * \{ */
+
+static bool shape_key_make_basis_poll(bContext *C)
+{
+  if (!shape_key_exists_poll(C)) {
+    return false;
+  }
+
+  Object *ob = context_object(C);
+  /* 0 = nothing active, 1 = basis key active. */
+  return ob->shapenr > 1;
+}
+
+static wmOperatorStatus shape_key_make_basis_exec(bContext *C, wmOperator * /*op*/)
+{
+  Object *ob = CTX_data_active_object(C);
+  Key *key = BKE_key_from_object(ob);
+  KeyBlock *old_basis_key = static_cast<KeyBlock *>(key->block.first);
+
+  /* Make the new basis by moving the active key to index 0. */
+  const int from_index = -1; /* Interpreted as "the active key". */
+  const int to_index = 0;    /* Offset by 1 compared to ob->shapenr. */
+  const bool changed = BKE_keyblock_move(ob, from_index, to_index);
+
+  if (!changed) {
+    /* The poll function should have prevented this operator from being called
+     * on the current basis key. */
+    BLI_assert_unreachable();
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Make the old & new basis keys "Relative to" the new basis key. For the new key it doesn't
+   * matter much, as it's treated as special anyway, but keeping it relative to another key makes
+   * no sense. For the old basis key (which just became a normal key), it would otherwise still be
+   * relative to itself, effectively disabling it. */
+  KeyBlock *new_basis_key = static_cast<KeyBlock *>(key->block.first);
+  new_basis_key->relative = 0;
+  old_basis_key->relative = 0;
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_shape_key_make_basis(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Make Shape Key the Basis Key";
+  ot->idname = "OBJECT_OT_shape_key_make_basis";
+  ot->description =
+      "Make this shape key the new basis key, effectively applying it to the mesh. Note that this "
+      "applies the shape key at its 100% value";
+
+  /* API callbacks. */
+  ot->poll = shape_key_make_basis_poll;
+  ot->exec = shape_key_make_basis_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */

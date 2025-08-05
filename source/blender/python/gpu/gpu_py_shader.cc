@@ -59,7 +59,7 @@
   "   :Uniforms: vec2 viewportSize, float lineWidth\n" \
   "``POLYLINE_UNIFORM_COLOR``\n" \
   "   :Attributes: vec3 pos\n" \
-  "   :Uniforms: vec2 viewportSize, float lineWidth\n" \
+  "   :Uniforms: vec2 viewportSize, float lineWidth, vec4 color\n" \
   "``POINT_FLAT_COLOR``\n" \
   "   :Attributes: vec3 pos, vec4 color\n" \
   "   :Uniforms: float size\n" \
@@ -505,7 +505,7 @@ PyDoc_STRVAR(
     "   :arg name: name of the uniform variable whose texture is to be specified.\n"
     "   :type name: str\n"
     "   :arg texture: Texture to attach.\n"
-    "   :type texture: :class:`gpu.types.blender::gpu::Texture`\n");
+    "   :type texture: :class:`gpu.types.GPUTexture`\n");
 static PyObject *pygpu_shader_uniform_sampler(BPyGPUShader *self, PyObject *args)
 {
   const char *name;
@@ -534,7 +534,7 @@ PyDoc_STRVAR(
     "   :arg name: Name of the image variable to which the texture is to be bound.\n"
     "   :type name: str\n"
     "   :arg texture: Texture to attach.\n"
-    "   :type texture: :class:`gpu.types.blender::gpu::Texture`\n");
+    "   :type texture: :class:`gpu.types.GPUTexture`\n");
 static PyObject *pygpu_shader_image(BPyGPUShader *self, PyObject *args)
 {
   const char *name;
