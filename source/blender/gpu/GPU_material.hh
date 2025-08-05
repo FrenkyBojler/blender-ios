@@ -34,6 +34,7 @@ struct Material;
 struct Scene;
 struct bNode;
 struct bNodeTree;
+struct Depsgraph;
 
 /**
  * High level functions to create and use GPU materials.
@@ -101,6 +102,7 @@ GPUMaterial *GPU_material_from_nodetree(
     bNodeTree *ntree,
     ListBase *gpumaterials,
     const char *name,
+    Depsgraph *depsgraph,
     eGPUMaterialEngine engine,
     uint64_t shader_uuid,
     bool deferred_compilation,

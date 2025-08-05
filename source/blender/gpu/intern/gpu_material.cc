@@ -137,6 +137,7 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
                                         bNodeTree *ntree,
                                         ListBase *gpumaterials,
                                         const char *name,
+                                        Depsgraph *depsgraph,
                                         eGPUMaterialEngine engine,
                                         uint64_t shader_uuid,
                                         bool deferred_compilation,
@@ -167,15 +168,16 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   inline_params.allow_preserving_repeat_zones = false;
   blender::nodes::inline_shader_node_tree(*ntree, *localtree, inline_params);
 
-  for (const blender::nodes::InlineShaderNodeTreeParams::ErrorMessage &error :
-       inline_params.r_error_messages)
-  {
-    const bNodeTree &tree = error.node->owner_tree();
-    if (const bNodeTree *tree_orig = DEG_get_original(&tree)) {
-      /* TODO: Only do this when the depsgraph is active? */
-      std::lock_guard lock(tree_orig->runtime->shader_node_errors_mutex);
-      tree_orig->runtime->shader_node_errors.lookup_or_add_default(error.node->identifier)
-          .add(error.message);
+  if (depsgraph && DEG_is_active(depsgraph)) {
+    for (const blender::nodes::InlineShaderNodeTreeParams::ErrorMessage &error :
+         inline_params.r_error_messages)
+    {
+      const bNodeTree &tree = error.node->owner_tree();
+      if (const bNodeTree *tree_orig = DEG_get_original(&tree)) {
+        std::lock_guard lock(tree_orig->runtime->shader_node_errors_mutex);
+        tree_orig->runtime->shader_node_errors.lookup_or_add_default(error.node->identifier)
+            .add(error.message);
+      }
     }
   }
 

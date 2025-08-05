@@ -158,7 +158,7 @@ struct TreeDrawContext {
    */
   Array<Vector<NodeExtraInfoRow>> extra_info_rows_per_node;
 
-  Map<int32_t, VectorSet<std::string>> shader_nodes_errors;
+  Map<int32_t, VectorSet<std::string>> shader_node_errors;
 
   ~TreeDrawContext()
   {
@@ -2095,7 +2095,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
     return;
   }
   if (ntree.type == NTREE_SHADER) {
-    const VectorSet<std::string> *errors = tree_draw_ctx.shader_nodes_errors.lookup_ptr(
+    const VectorSet<std::string> *errors = tree_draw_ctx.shader_node_errors.lookup_ptr(
         node.identifier);
     if (!errors) {
       return;
@@ -4698,7 +4698,7 @@ static void draw_nodetree(const bContext &C,
       std::lock_guard lock(ntree.runtime->shader_node_errors_mutex);
       /* Make a local copy to avoid mutex access for each node. Typically, there are only very few
        * error message. */
-      tree_draw_ctx.shader_nodes_errors = ntree.runtime->shader_node_errors;
+      tree_draw_ctx.shader_node_errors = ntree.runtime->shader_node_errors;
     }
   }
 
