@@ -65,9 +65,9 @@ float gpencil_stroke_cap_mask(float2 p1,
                               float2 aspect,
                               float thickness,
                               float hardfac,
-                              float miter_limit)
+                              float2 miter_limit)
 {
-  if (miter_limit == MITER_LIMIT_TYPE_ROUND) {
+  if (miter_limit.x == MITER_LIMIT_TYPE_ROUND && miter_limit.y == MITER_LIMIT_TYPE_ROUND) {
     return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
   }
 
@@ -109,10 +109,10 @@ float gpencil_stroke_cap_mask(float2 p1,
   float cos_angle1 = -dot(normalize(line1), normalize(line2));
   float cos_angle2 = -dot(normalize(line1), normalize(line3));
 
-  if (t1 <= 0.0f && t2 >= 1.0f && !is_start) {
+  if (t1 <= 0.0f && t2 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
     dist = max(length(pos1 - t1 * line1) / radius, length(pos2 - t2 * line2) / radius);
 
-    if (miter_limit == MITER_LIMIT_TYPE_BEVEL || cos_angle1 > miter_limit) {
+    if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL || cos_angle1 > miter_limit.x) {
       float2 pc1 = p1 + si1 * normalize(tan1) * radius;
       float2 pc2 = p1 + si1 * normalize(tan2) * radius;
 
@@ -124,10 +124,10 @@ float gpencil_stroke_cap_mask(float2 p1,
     }
   }
 
-  if (t1 >= 1.0f && t3 <= 0.0f && !is_end) {
+  if (t1 >= 1.0f && t3 <= 0.0f && !is_end && miter_limit.y != MITER_LIMIT_TYPE_ROUND) {
     dist = max(length(pos1 - t1 * line1) / radius, length(pos3 - t3 * line3) / radius);
 
-    if (miter_limit == MITER_LIMIT_TYPE_BEVEL || cos_angle2 > miter_limit) {
+    if (miter_limit.y == MITER_LIMIT_TYPE_BEVEL || cos_angle2 > miter_limit.y) {
       float2 pc21 = p2 + si2 * normalize(tan1) * radius;
       float2 pc22 = p2 + si2 * normalize(tan3) * radius;
 
@@ -246,9 +246,9 @@ float4 gpencil_vertex(float4 viewport_res,
                       out float4 out_sspos_adj,
                       /* Stroke aspect ratio. */
                       out float2 out_aspect,
-                      /* Stroke thickness and miter limit (x: clamped, y: unclamped,
-                       * z: miter limit). */
-                      out float3 out_thickness,
+                      /* Stroke thickness and miter limits (x: clamped, y: unclamped,
+                       * z: miter limit segment start, w: miter limit segment end). */
+                      out float4 out_thickness,
                       /* Stroke hardness. */
                       out float out_hardness)
 {
@@ -280,6 +280,7 @@ float4 gpencil_vertex(float4 viewport_res,
 #  define uvrot1 ma1.w
 #  define aspect1 ma1.w
 #  define miter1 ma1.w
+#  define miter2 ma2.w
 
   float4 out_ndc;
 
@@ -446,13 +447,18 @@ float4 gpencil_vertex(float4 viewport_res,
       out_thickness.x = (is_squares) ? 1e18f : (clamped_thickness / out_ndc.w);
       out_thickness.y = (is_squares) ? 1e18f : (thickness / out_ndc.w);
       out_thickness.z = MITER_LIMIT_TYPE_ROUND;
+      out_thickness.w = MITER_LIMIT_TYPE_ROUND;
     }
     else {
       bool is_stroke_start = (ma.x == -1 && x == -1);
       bool is_stroke_end = (ma3.x == -1 && x == 1);
 
-      float miter_limit = gpencil_decode_miter_limit(miter1);
-      out_thickness.z = miter_limit;
+      float miter_limit1 = gpencil_decode_miter_limit(miter1);
+      float miter_limit2 = gpencil_decode_miter_limit(miter2);
+      out_thickness.z = miter_limit1;
+      out_thickness.w = miter_limit2;
+
+      float miter_limit = use_curr ? miter_limit1 : miter_limit2;
 
       if (miter_limit == MITER_LIMIT_TYPE_BEVEL || miter_limit == MITER_LIMIT_TYPE_ROUND) {
         miter_limit = 0.5f; /* Default to cos(60) */
@@ -501,6 +507,7 @@ float4 gpencil_vertex(float4 viewport_res,
     out_thickness.x = 1e18f;
     out_thickness.y = 1e20f;
     out_thickness.z = MITER_LIMIT_TYPE_ROUND;
+    out_thickness.w = MITER_LIMIT_TYPE_ROUND;
     out_hardness = 1.0f;
     out_aspect = float2(1.0f);
     out_sspos = float4(0.0f);
@@ -541,7 +548,7 @@ float4 gpencil_vertex(float4 viewport_res,
                       out float4 out_sspos,
                       out float4 out_sspos_adj,
                       out float2 out_aspect,
-                      out float3 out_thickness,
+                      out float4 out_thickness,
                       out float out_hardness)
 {
   return gpencil_vertex(viewport_res,

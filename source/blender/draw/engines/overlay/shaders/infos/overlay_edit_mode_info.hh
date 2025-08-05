@@ -773,7 +773,7 @@ FLAT(float4, sspos_adj)
 GPU_SHADER_NAMED_INTERFACE_END(gp_interp_flat)
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_depth_only_gpencil_noperspective_iface,
                                 gp_interp_noperspective)
-NO_PERSPECTIVE(float3, thickness)
+NO_PERSPECTIVE(float4, thickness)
 NO_PERSPECTIVE(float, hardness)
 GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 

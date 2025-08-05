@@ -27,7 +27,7 @@ void main()
                               gp_interp_flat.aspect,
                               gp_interp_noperspective.thickness.x,
                               gp_interp_noperspective.hardness,
-                              gp_interp_noperspective.thickness.z) < 0.001f)
+                              gp_interp_noperspective.thickness.zw) < 0.001f)
   {
 #ifndef SELECT_ENABLE
     /* We cannot discard the fragment in selection mode. Otherwise we would break pipeline

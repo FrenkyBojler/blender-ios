@@ -30,7 +30,7 @@ void main()
   float2 aspect;
   float strength;
   float hardness;
-  float3 thickness;
+  float4 thickness;
 
   gl_Position = gpencil_vertex(
       /* TODO */

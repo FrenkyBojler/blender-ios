@@ -101,7 +101,7 @@ void main()
                                           gp_interp_flat.aspect,
                                           gp_interp_noperspective.thickness.x,
                                           gp_interp_noperspective.hardness,
-                                          gp_interp_noperspective.thickness.z);
+                                          gp_interp_noperspective.thickness.zw);
   }
 
   /* To avoid aliasing artifacts, we reduce the opacity of small strokes. */

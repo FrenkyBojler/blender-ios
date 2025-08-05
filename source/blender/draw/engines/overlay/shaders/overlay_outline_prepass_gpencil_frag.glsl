@@ -26,7 +26,7 @@ void main()
                               gp_interp_flat.aspect,
                               gp_interp_noperspective.thickness.x,
                               gp_interp_noperspective.hardness,
-                              gp_interp_noperspective.thickness.z) < 0.001f)
+                              gp_interp_noperspective.thickness.zw) < 0.001f)
   {
     gpu_discard_fragment();
     return;
