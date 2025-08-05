@@ -252,13 +252,8 @@ class CornerPinOperation : public NodeOperation {
 
   Result compute_plane_mask_gpu(const float3x3 &homography_matrix)
   {
-    const bool is_anisotropic = this->get_interpolation() == Interpolation::Anisotropic;
-    bool is_x_clipped = is_anisotropic;
-    bool is_y_clipped = is_anisotropic;
-    if (!is_anisotropic) {
-      is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
-      is_y_clipped = this->get_extension_mode_y() == ExtensionMode::Clip;
-    }
+    const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
+    const bool is_y_clipped = this->get_extension_mode_y() == ExtensionMode::Clip;
 
     GPUShader *shader = context().get_shader("compositor_plane_deform_mask");
     GPU_shader_bind(shader);
@@ -282,7 +277,8 @@ class CornerPinOperation : public NodeOperation {
 
   Result compute_plane_mask_cpu(const float3x3 &homography_matrix)
   {
-    const bool is_anisotropic = this->get_interpolation() == Interpolation::Anisotropic;
+    const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
+    const bool is_y_clipped = this->get_extension_mode_y() == ExtensionMode::Clip;
     const Domain domain = compute_domain();
     Result plane_mask = context().create_result(ResultType::Float);
     plane_mask.allocate_texture(domain);
@@ -301,22 +297,11 @@ class CornerPinOperation : public NodeOperation {
       bool is_inside_plane_x = projected_coordinates.x >= 0.0f && projected_coordinates.x <= 1.0f;
       bool is_inside_plane_y = projected_coordinates.y >= 0.0f && projected_coordinates.y <= 1.0f;
 
-      float mask_value = 0.0f;
-
-      if (!is_anisotropic) {
-        const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
-        const bool is_y_clipped = this->get_extension_mode_y() == ExtensionMode::Clip;
-
-        /* If not inside the plane and not clipped, use extend or repeat extension mode for the
-         * mask.
-         */
-        bool is_x_masked = is_inside_plane_x || !is_x_clipped;
-        bool is_y_masked = is_inside_plane_y || !is_y_clipped;
-        mask_value = is_x_masked && is_y_masked ? 1.0f : 0.0f;
-      }
-      else {
-        mask_value = is_inside_plane_x && is_inside_plane_y ? 1.0f : 0.0f;
-      }
+      /* If not inside the plane and not clipped, use extend or repeat extension mode for the
+       * mask. */
+      bool is_x_masked = is_inside_plane_x || !is_x_clipped;
+      bool is_y_masked = is_inside_plane_y || !is_y_clipped;
+      float mask_value = is_x_masked && is_y_masked ? 1.0f : 0.0f;
 
       plane_mask.store_pixel(texel, mask_value);
     });
@@ -368,6 +353,9 @@ class CornerPinOperation : public NodeOperation {
 
   ExtensionMode get_extension_mode_x() const
   {
+    if (this->get_interpolation() == Interpolation::Anisotropic) {
+      return ExtensionMode::Clip;
+    }
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return ExtensionMode::Clip;
@@ -383,6 +371,9 @@ class CornerPinOperation : public NodeOperation {
 
   ExtensionMode get_extension_mode_y() const
   {
+    if (this->get_interpolation() == Interpolation::Anisotropic) {
+      return ExtensionMode::Clip;
+    }
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return ExtensionMode::Clip;
