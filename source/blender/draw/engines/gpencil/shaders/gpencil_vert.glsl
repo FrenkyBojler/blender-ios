@@ -76,7 +76,8 @@ void main()
     }
     else if (flag_test(gp_flag, GP_STROKE_OVERLAP)) {
       /* Use the index of the point as depth.
-       * This means the stroke can overlap itself. */
+       * This means the stroke can overlap itself. 
+       * Take the absolute because cyclical is stored as sign. */
       float point_index = float(abs(ma1.z));
       gp_interp_flat.depth = (point_index + gp_stroke_index_offset + 2.0f) * 0.0000002f;
     }
