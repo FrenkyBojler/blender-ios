@@ -10,3 +10,4 @@ Referenced by pull request #142642, Fix #142006: Color Jitter produces black poi
 Referenced by commit 36e52ba85377475a9638338b388809da337b6558, Fix #142006: Color Jitter produces black points in Material mode
 Referenced by issue #143399, Vertex Paint: Subtract blending mode is broken
 Referenced by pull request #143972, Fix #143399: Vertex Paint subtract blend mode can cause artifacts
+Referenced by commit ba291976b228424238affd946df2063334553f46, Fix #143399: Vertex Paint subtract blend mode can cause artifacts
