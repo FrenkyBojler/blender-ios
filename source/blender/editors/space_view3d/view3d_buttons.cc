@@ -28,7 +28,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -530,7 +530,7 @@ static CurvesSelectionStatus init_curves_selection_status(
   const VArray<int> resolution = curves.resolution();
 
   IndexMaskMemory memory;
-  const IndexMask selection = retrieve_all_selected_curves(curves, memory);
+  const IndexMask selection = retrieve_selected_curves(curves, memory);
 
   return threading::parallel_reduce(
       curves.curves_range(),
@@ -2300,7 +2300,7 @@ static void handle_curves_data_button(bContext *C, void *handler, void *)
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
       IndexMaskMemory memory;
-      const IndexMask selection = ed::curves::retrieve_all_selected_curves(curves, memory);
+      const IndexMask selection = ed::curves::retrieve_selected_curves(curves, memory);
       if (selection.is_empty()) {
         return;
       }
@@ -2313,7 +2313,7 @@ static void handle_curves_data_button(bContext *C, void *handler, void *)
     Curves &curves_id = *static_cast<Curves *>(ob->data);
     bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     IndexMaskMemory memory;
-    const IndexMask selection = ed::curves::retrieve_all_selected_curves(curves, memory);
+    const IndexMask selection = ed::curves::retrieve_selected_curves(curves, memory);
 
     if (!selection.is_empty()) {
       curves_handler(modified, selection, curves);
@@ -2497,28 +2497,29 @@ void view3d_buttons_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype view3d panel object");
-  STRNCPY(pt->idname, "VIEW3D_PT_transform");
-  STRNCPY(pt->label, N_("Transform")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY(pt->category, "Item");
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "VIEW3D_PT_transform");
+  STRNCPY_UTF8(pt->label, N_("Transform")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY_UTF8(pt->category, "Item");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = view3d_panel_transform;
   pt->poll = view3d_panel_transform_poll;
   BLI_addtail(&art->paneltypes, pt);
 
   pt = MEM_callocN<PanelType>("spacetype view3d panel vgroup");
-  STRNCPY(pt->idname, "VIEW3D_PT_vgroup");
-  STRNCPY(pt->label, N_("Vertex Weights")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY(pt->category, "Item");
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "VIEW3D_PT_vgroup");
+  STRNCPY_UTF8(pt->label,
+               N_("Vertex Weights")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY_UTF8(pt->category, "Item");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = view3d_panel_vgroup;
   pt->poll = view3d_panel_vgroup_poll;
   BLI_addtail(&art->paneltypes, pt);
 
   pt = MEM_callocN<PanelType>("spacetype view3d panel curves");
-  STRNCPY(pt->idname, "VIEW3D_PT_curves");
-  STRNCPY(pt->label, N_("Curve Data")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY(pt->category, "Item");
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "VIEW3D_PT_curves");
+  STRNCPY_UTF8(pt->label, N_("Curve Data")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY_UTF8(pt->category, "Item");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = view3d_panel_curves_data;
   pt->poll = view3d_panel_curves_data_poll;
   BLI_addtail(&art->paneltypes, pt);

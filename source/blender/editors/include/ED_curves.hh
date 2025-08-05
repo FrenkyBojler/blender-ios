@@ -121,9 +121,9 @@ VectorSet<Curves *> get_unique_editable_curves(const bContext &C);
 void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob);
 
 /**
- * Allocate an array of `TransVert` for cursor/selection snapping (See
- * `ED_transverts_create_from_obedit` in `view3d_snap.cc`).
- * \note The `TransVert` elements in \a tvs are expected to write to the positions of \a curves.
+ * Allocate an array of #TransVert for cursor/selection snapping (See
+ * #ED_transverts_create_from_obedit in `view3d_snap.cc`).
+ * \note The #TransVert elements in \a tvs are expected to write to the positions of \a curves.
  */
 void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
                                              TransVertStore *tvs,
@@ -227,11 +227,6 @@ bool has_anything_selected(const VArray<bool> &varray, const IndexMask &indices_
  */
 IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
 IndexMask retrieve_selected_curves(const Curves &curves_id, IndexMaskMemory &memory);
-/**
- * Find curves that have any point or Bezier handle selected (a selection factor greater than
- * zero), or curves that have their own selection factor greater than zero.
- */
-IndexMask retrieve_all_selected_curves(const bke::CurvesGeometry &curves, IndexMaskMemory &memory);
 
 /**
  * Find points that are selected (a selection factor greater than zero),
