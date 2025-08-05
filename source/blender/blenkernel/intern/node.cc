@@ -271,7 +271,9 @@ static void ntree_free_data(ID *id)
 
   BLI_freelistN(&ntree->links);
 
-  LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
+  /* Iterate backwards because this allows for more efficient node deletion while keeping
+   * bNodeTreeRuntime::nodes_by_id valid. */
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &ntree->nodes) {
     node_free_node(ntree, *node);
   }
 
@@ -3354,7 +3356,8 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
                               const int flag,
                               const std::optional<StringRefNull> dst_unique_name,
                               const std::optional<int> dst_unique_identifier,
-                              Map<const bNodeSocket *, bNodeSocket *> &socket_map)
+                              Map<const bNodeSocket *, bNodeSocket *> &socket_map,
+                              const bool allow_duplicate_names)
 {
   bNode *node_dst = MEM_mallocN<bNode>(__func__);
   *node_dst = node_src;
@@ -3364,7 +3367,9 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
     STRNCPY_UTF8(node_dst->name, dst_unique_name->c_str());
   }
   else if (dst_tree) {
-    node_unique_name(*dst_tree, *node_dst);
+    if (!allow_duplicate_names) {
+      node_unique_name(*dst_tree, *node_dst);
+    }
   }
   if (dst_unique_identifier) {
     node_dst->identifier = *dst_unique_identifier;
@@ -3572,18 +3577,6 @@ void node_socket_move_default_value(Main & /*bmain*/,
   {
     src_type.value_initialize(src_value);
   }
-}
-
-bNode *node_copy(bNodeTree *dst_tree, const bNode &src_node, const int flag, const bool use_unique)
-{
-  Map<const bNodeSocket *, bNodeSocket *> socket_map;
-  return node_copy_with_mapping(
-      dst_tree,
-      src_node,
-      flag,
-      use_unique ? std::nullopt : std::make_optional<StringRefNull>(src_node.name),
-      use_unique ? std::nullopt : std::make_optional(src_node.identifier),
-      socket_map);
 }
 
 static int node_count_links(const bNodeTree *ntree, const bNodeSocket *socket)
@@ -4094,8 +4087,17 @@ void node_free_node(bNodeTree *ntree, bNode &node)
   /* can be called for nodes outside a node tree (e.g. clipboard) */
   if (ntree) {
     BLI_remlink(&ntree->nodes, &node);
-    /* Rebuild nodes #VectorSet which must have the same order as the list. */
-    node_rebuild_id_vector(*ntree);
+
+    const bool was_last = ntree->runtime->nodes_by_id.as_span().last() == &node;
+    if (was_last) {
+      /* No need to rebuild the entire bNodeTreeRuntime::nodes_by_id when the removed node is the
+       * last one. */
+      ntree->runtime->nodes_by_id.pop();
+    }
+    else {
+      /* Rebuild nodes #VectorSet which must have the same order as the list. */
+      node_rebuild_id_vector(*ntree);
+    }
 
     /* texture node has bad habit of keeping exec data around */
     if (ntree->type == NTREE_TEXTURE && ntree->runtime->execdata) {
