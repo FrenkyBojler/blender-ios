@@ -151,6 +151,5 @@ class VKResourcePool {
 
   void init(VKDevice &device);
   void deinit(VKDevice &device);
-  void reset();
 };
 }  // namespace blender::gpu
