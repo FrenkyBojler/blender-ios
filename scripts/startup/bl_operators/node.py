@@ -156,7 +156,9 @@ class NodeSwapOperator:
     def transfer_links(tree, old_node, new_node, is_input):
         if is_input:
             for input in old_node.inputs:
-                for link in input.links:
+                links = sorted(input.links, key=lambda link: link.multi_input_sort_id)
+
+                for link in links:
                     try:
                         new_socket = new_node.inputs[input.name]
 
