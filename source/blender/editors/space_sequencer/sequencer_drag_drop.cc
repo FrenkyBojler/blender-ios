@@ -549,6 +549,10 @@ static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_sta
       if ((eSoundChannels)info.specs.channels != SOUND_CHANNELS_INVALID) {
         g_drop_coords.audio_length = info.length;
       }
+      /* The playback rate is defined by the scene. This will be computed later in
+       * #update_overlay_strip_position_data, when we know the scene from the context. So set it to
+       * 0 for now. */
+      g_drop_coords.playback_rate = 0.0f;
       AUD_Sound_free(sound);
       return;
     }
