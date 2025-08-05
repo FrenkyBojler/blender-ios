@@ -342,7 +342,7 @@ enum ThemeColorID {
   TH_AXIS_Y,
   TH_AXIS_Z,
 
-  TH_AXIS_W, /* W (quaternion rotation) */
+  TH_AXIS_W, /* W (quaternion and axis-angle rotations) */
 
   TH_GIZMO_HI,
   TH_GIZMO_PRIMARY,
