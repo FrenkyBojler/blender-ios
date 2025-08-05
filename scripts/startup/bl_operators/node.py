@@ -451,6 +451,17 @@ class NODE_OT_swap_zone(NodeSwapOperator, NodeAddZoneOperator, Operator):
         default=False,
     )
 
+    zone_tooltips = {
+        "GeometryNodeSimulationInput" : "Simulate the execution of nodes across a time span",
+        "GeometryNodeRepeatInput" : "Execute nodes with a dynamic number of repetitions",
+        "GeometryNodeForeachGeometryElementInput" : "Perform operations separately for each geometry element (e.g. vertices, edges, etc.)",
+        "GeometryNodeClosureInput" : "Wrap nodes inside a closure that could be executed later",
+    }
+
+    @classmethod
+    def description(cls, _context, properties):
+        return cls.zone_tooltips.get(properties.input_node_type, None)
+
     @classmethod
     def poll(cls, context):
         return (
