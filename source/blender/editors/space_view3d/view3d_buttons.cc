@@ -2202,8 +2202,6 @@ static void apply_to_active_object(
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 }
 
-using CurvesHandler = void (*)(bContext *C, void *, void *);
-
 void handle_curves_cyclic(bContext *C, void *, void *)
 {
   using namespace blender;
@@ -2447,37 +2445,33 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   panel->layout->use_property_split_set(true);
   uiLayout &bcol = panel->layout->column(false);
 
-  auto add_labeled_field = [&](const StringRef label,
-                               const bool active,
-                               FunctionRef<uiBut *()> add_button,
-                               CurvesHandler curves_handler) {
-    uiLayout &row = bcol.row(true);
-    uiLayout &split = row.split(0.4, true);
-    uiLayout &col = split.column(true);
-    col.alignment_set(ui::LayoutAlign::Right);
-    col.label(label, ICON_NONE);
-    split.column(false);
-    uiBut *but = add_button();
-    if (active) {
-      UI_but_drawflag_disable(but, UI_BUT_INDETERMINATE);
-    }
-    else {
-      UI_but_drawflag_enable(but, UI_BUT_INDETERMINATE);
-    }
-    UI_but_func_set(but, curves_handler, nullptr, nullptr);
-  };
+  auto add_labeled_field =
+      [&](const StringRef label, const bool active, FunctionRef<uiBut *()> add_button) {
+        uiLayout &row = bcol.row(true);
+        uiLayout &split = row.split(0.4, true);
+        uiLayout &col = split.column(true);
+        col.alignment_set(ui::LayoutAlign::Right);
+        col.label(label, ICON_NONE);
+        split.column(false);
+        uiBut *but = add_button();
+        if (active) {
+          UI_but_drawflag_disable(but, UI_BUT_INDETERMINATE);
+        }
+        else {
+          UI_but_drawflag_enable(but, UI_BUT_INDETERMINATE);
+        }
+      };
 
   const int butw = 10 * UI_UNIT_X;
   const int buth = 20 * UI_SCALE_FAC;
 
   add_labeled_field(
-      "Cyclic",
-      status.cyclic_count == 0 || status.cyclic_count == status.curve_count,
-      [&]() {
-        return uiDefButC(
+      "Cyclic", status.cyclic_count == 0 || status.cyclic_count == status.curve_count, [&]() {
+        uiBut *but = uiDefButC(
             block, ButType::Checkbox, 0, "", 0, 0, butw, buth, &modified.cyclic, 0, 1, "");
-      },
-      handle_curves_cyclic);
+        UI_but_func_set(but, handle_curves_cyclic, nullptr, nullptr);
+        return but;
+      });
 
   if (status.nurbs_count == status.curve_count) {
     add_labeled_field(
@@ -2494,34 +2488,29 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
                                     buth,
                                     "");
           UI_but_type_set_menu_from_pulldown(but);
+          UI_but_func_set(but, handle_curves_knot_mode, nullptr, nullptr);
           return but;
-        },
-        handle_curves_knot_mode);
+        });
 
-    add_labeled_field(
-        "Order",
-        status.order_max * status.nurbs_count == status.order_sum,
-        [&]() {
-          uiBut *but = uiDefButI(
-              block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.order, 2, 6, "");
-          UI_but_number_step_size_set(but, 1);
-          UI_but_number_precision_set(but, -1);
-          return but;
-        },
-        handle_curves_order);
+    add_labeled_field("Order", status.order_max * status.nurbs_count == status.order_sum, [&]() {
+      uiBut *but = uiDefButI(
+          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.order, 2, 6, "");
+      UI_but_number_step_size_set(but, 1);
+      UI_but_number_precision_set(but, -1);
+      UI_but_func_set(but, handle_curves_order, nullptr, nullptr);
+      return but;
+    });
   }
 
   add_labeled_field(
-      "Resolution",
-      status.resolution_max * status.curve_count == status.resolution_sum,
-      [&]() {
+      "Resolution", status.resolution_max * status.curve_count == status.resolution_sum, [&]() {
         uiBut *but = uiDefButI(
             block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.resolution, 1, 64, "");
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, -1);
+        UI_but_func_set(but, handle_curves_resolution, nullptr, nullptr);
         return but;
-      },
-      handle_curves_resolution);
+      });
 }
 
 void view3d_buttons_register(ARegionType *art)
