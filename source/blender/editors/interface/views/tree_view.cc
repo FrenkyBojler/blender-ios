@@ -393,6 +393,28 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
+bool AbstractTreeView::get_active_in_focus()
+{
+  int index = 1;
+  const std::optional<int> visible_row_count = tot_visible_row_count();
+  if (AbstractView::get_active_in_focus()) {
+    if (!scroll_value_) {
+      scroll_value_ = std::make_unique<int>(0);
+    }
+    foreach_item(
+        [&, this](AbstractTreeViewItem &item) {
+          if (item.is_active_) {
+            *scroll_value_ = std::max(0, index - *visible_row_count);
+            return;
+          }
+          index++;
+        },
+        AbstractTreeView::IterOptions::SkipCollapsed |
+            AbstractTreeView::IterOptions::SkipFiltered);
+  }
+  return true;
+}
+
 /* ---------------------------------------------------------------------- */
 
 TreeViewItemDropTarget::TreeViewItemDropTarget(AbstractTreeViewItem &view_item,
@@ -813,6 +835,8 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   /* Column for the tree view. */
   row->column(true);
+
+  tree_view.get_active_in_focus();
 
   /* Clamp scroll-value to valid range. */
   if (tree_view.scroll_value_ && visible_row_count) {

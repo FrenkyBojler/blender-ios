@@ -256,6 +256,13 @@ bool AbstractView::is_multiselect_supported() const
 {
   return is_multiselect_supported_;
 }
+
+bool AbstractView::get_active_in_focus()
+{
+  /* Do nothing by default, actual focus is handled in overridden function */
+  return set_active_in_focus_;
+}
+
 /** \} */
 
 }  // namespace blender::ui

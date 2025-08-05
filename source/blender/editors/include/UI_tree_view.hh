@@ -146,6 +146,8 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
+  /* Scroll to the active element when state is changed. */
+  bool get_active_in_focus() override;
 
   /**
    * \param xy: The mouse coordinates in window space.
