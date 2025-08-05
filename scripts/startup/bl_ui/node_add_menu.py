@@ -344,6 +344,16 @@ def generate_menu(bl_idname: str, template: Menu, layout_base: Menu, pathing_dic
     return type(bl_idname, (template, layout_base), {"bl_idname" : bl_idname, "pathing_dict" : pathing_dict})
 
 
+def generate_menus(menus: dict, template: Menu):
+    pathing_dict = {}
+    menus = tuple(
+        generate_menu(bl_idname, template, layout_base, pathing_dict)
+            for bl_idname, layout_base in menus.items()
+    )
+    generate_pathing_dict(pathing_dict, menus)
+    return menus
+
+
 def generate_pathing_dict(pathing_dict, menus):
     for menu in menus:
         if hasattr(menu, "menu_path"):

@@ -388,18 +388,18 @@ class NODE_MT_shader_node_script_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-add_menu_pathing_dict = {}
-add_menus = (
-    node_add_menu.generate_menu("NODE_MT_category_shader_input", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_shader_node_input_base, pathing_dict=add_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_category_shader_output", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_shader_node_output_base, pathing_dict=add_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_category_shader_color", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_shader_node_color_base, pathing_dict=add_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_category_shader_converter", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_shader_node_converter_base, pathing_dict=add_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_category_shader_shader", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_shader_node_shader_base, pathing_dict=add_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_category_shader_texture", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_shader_node_texture_base, pathing_dict=add_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_category_shader_vector", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_shader_node_vector_base, pathing_dict=add_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_category_shader_script", template=node_add_menu.AddNodeMenu, layout_base=NODE_MT_shader_node_script_base, pathing_dict=add_menu_pathing_dict),
-)
-node_add_menu.generate_pathing_dict(add_menu_pathing_dict, add_menus)
+add_menus = {
+    # menu bl_idname : baseclass
+    "NODE_MT_category_shader_input" : NODE_MT_shader_node_input_base,
+    "NODE_MT_category_shader_output" : NODE_MT_shader_node_output_base,
+    "NODE_MT_category_shader_color" : NODE_MT_shader_node_color_base,
+    "NODE_MT_category_shader_converter" : NODE_MT_shader_node_converter_base,
+    "NODE_MT_category_shader_shader" : NODE_MT_shader_node_shader_base,
+    "NODE_MT_category_shader_texture" : NODE_MT_shader_node_texture_base,
+    "NODE_MT_category_shader_vector" : NODE_MT_shader_node_vector_base,
+    "NODE_MT_category_shader_script" : NODE_MT_shader_node_script_base,
+}
+add_menus = node_add_menu.generate_menus(add_menus, template=node_add_menu.AddNodeMenu)
 
 
 class NODE_MT_shader_node_add_all(Menu):
@@ -425,18 +425,18 @@ class NODE_MT_shader_node_add_all(Menu):
         node_add_menu.draw_root_assets(layout)
 
 
-swap_menu_pathing_dict = {}
-swap_menus = (
-    node_add_menu.generate_menu("NODE_MT_shader_node_input_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_shader_node_input_base, pathing_dict=swap_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_shader_node_output_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_shader_node_output_base, pathing_dict=swap_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_shader_node_color_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_shader_node_color_base, pathing_dict=swap_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_shader_node_converter_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_shader_node_converter_base, pathing_dict=swap_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_shader_node_shader_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_shader_node_shader_base, pathing_dict=swap_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_shader_node_texture_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_shader_node_texture_base, pathing_dict=swap_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_shader_node_vector_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_shader_node_vector_base, pathing_dict=swap_menu_pathing_dict),
-    node_add_menu.generate_menu("NODE_MT_shader_node_script_swap", template=node_add_menu.SwapNodeMenu, layout_base=NODE_MT_shader_node_script_base, pathing_dict=swap_menu_pathing_dict),
-)
-node_add_menu.generate_pathing_dict(swap_menu_pathing_dict, swap_menus)
+swap_menus = {
+    # menu bl_idname : baseclass
+    "NODE_MT_shader_node_input_swap" : NODE_MT_shader_node_input_base,
+    "NODE_MT_shader_node_output_swap" : NODE_MT_shader_node_output_base,
+    "NODE_MT_shader_node_color_swap" : NODE_MT_shader_node_color_base,
+    "NODE_MT_shader_node_converter_swap" : NODE_MT_shader_node_converter_base,
+    "NODE_MT_shader_node_shader_swap" : NODE_MT_shader_node_shader_base,
+    "NODE_MT_shader_node_texture_swap" : NODE_MT_shader_node_texture_base,
+    "NODE_MT_shader_node_vector_swap" : NODE_MT_shader_node_vector_base,
+    "NODE_MT_shader_node_script_swap" : NODE_MT_shader_node_script_base,
+}
+swap_menus = node_add_menu.generate_menus(swap_menus, template=node_add_menu.SwapNodeMenu)
 
 
 class NODE_MT_shader_node_swap_all(Menu):
