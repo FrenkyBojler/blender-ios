@@ -223,12 +223,15 @@ static GreasePencilBatchCache *grease_pencil_batch_cache_get(GreasePencil &greas
 /** \name Vertex Buffers
  * \{ */
 
-BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(
-    float rot, float asp, float softness, float miter_angle, int corner_type)
+BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(const float rot,
+                                                       const float asp,
+                                                       const float softness,
+                                                       const float miter_angle,
+                                                       const int corner_type)
 {
   int32_t packed = 0;
   /* Aspect uses 9 bits */
-  float asp_normalized = (asp > 1.0f) ? (1.0f / asp) : asp;
+  const float asp_normalized = (asp > 1.0f) ? (1.0f / asp) : asp;
   packed |= int32_t(unit_float_to_uchar_clamp(asp_normalized));
   /* Store if inverted in the 9th bit. */
   if (asp > 1.0f) {
@@ -250,7 +253,7 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(
     packed |= GP_CORNER_TYPE_BEVEL_BITS << 26;
   }
   else if (corner_type == GP_STROKE_CORNER_TYPE_MITER) {
-    float miter_norm = (miter_angle / M_PI);
+    const float miter_norm = (miter_angle / M_PI);
     packed |= int32_t(clamp_i(
                   int(miter_norm * GP_CORNER_TYPE_MITER_NUMBER), 1, GP_CORNER_TYPE_MITER_NUMBER))
               << 26;
