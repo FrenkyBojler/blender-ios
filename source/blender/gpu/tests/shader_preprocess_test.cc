@@ -936,7 +936,14 @@ class S {
 void main()
 {
   S s = S::construct();
-  s.function(0).size();
+  s.f();
+  f(0).f();
+  f().f();
+  s.s.f();
+  s.f(0).f();
+  s.f().f();
+  s[0].f();
+  s.s[0].f();
 }
 )";
     string expect = R"(
@@ -997,6 +1004,14 @@ void main()
 {
   S s = S_construct();
   size(function(s, 0));
+  f(s);
+  f(f(0));
+  f(f());
+  f(s.s);
+  f(f(s, 0));
+  f(f(s));
+  f(s[0]);
+  f(s.s[0]);
 }
 )";
     string error;

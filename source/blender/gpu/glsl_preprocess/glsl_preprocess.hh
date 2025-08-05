@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cctype>
 #include <cstdint>
 #include <functional>
@@ -1192,7 +1193,7 @@ class Preprocessor {
   };
 
   enum class ScopeType : char {
-    Global = 0,
+    Global = 'A', /* Use ascii chars to store them in string. */
     Namespace,
     Struct,
     Function,
@@ -1208,6 +1209,17 @@ class Preprocessor {
       size_t size;
 
       IndexRange(size_t start, size_t size) : start(start), size(size) {}
+
+      bool overlaps(IndexRange other) const
+      {
+        return ((start < other.start) && (other.start < (start + size))) ||
+               ((other.start < start) && (start < (other.start + other.size)));
+      }
+
+      size_t last()
+      {
+        return start + size - 1;
+      }
     };
 
     /* Poor man's OffsetIndices. */
@@ -1218,28 +1230,161 @@ class Preprocessor {
       {
         return {offsets[index], offsets[index + 1] - offsets[index]};
       }
+
+      void clear()
+      {
+        offsets.clear();
+      };
     };
 
     OffsetIndices token_offsets;
     std::string token_types;
+    /* Index inside token_types of the original token. */
+    std::vector<int> token_no_whitespace_index;
+    std::string token_no_whitespace_types;
     /* Ranges in token. Includes start and end tokens. */
     std::vector<IndexRange> scope_ranges;
     std::string scope_types;
+    /* Index inside scope_types. */
+    std::vector<int> scope_per_token;
+
+    struct TokenTypeSequence {
+      std::string sequence;
+
+      template<typename... Args> TokenTypeSequence(Args... args)
+      {
+        (sequence += ... += char(args));
+      }
+    };
+
+    struct ScopeRef;
+
+    struct TokenRef {
+      Parser *parser;
+      size_t index;
+
+      int no_whitespace_id() const
+      {
+        return parser->token_no_whitespace_index[index];
+      }
+
+      /* String index range. */
+      IndexRange index_range() const
+      {
+        return parser->token_offsets[no_whitespace_id()];
+      }
+
+      TokenRef prev() const
+      {
+        return {parser, index - 1};
+      }
+      TokenRef next() const
+      {
+        return {parser, index + 1};
+      }
+      ScopeRef scope() const
+      {
+        return {parser, size_t(parser->scope_per_token[no_whitespace_id()])};
+      }
+
+      TokenType type() const
+      {
+        return TokenType(parser->token_types[no_whitespace_id()]);
+      }
+
+      size_t str_index_start() const
+      {
+        return index_range().start;
+      }
+
+      size_t str_index_last() const
+      {
+        return index_range().last();
+      }
+
+      std::string str() const
+      {
+        return parser->token_str(no_whitespace_id());
+      }
+
+      bool operator==(TokenType type) const
+      {
+        return TokenType(parser->token_types[no_whitespace_id()]) == type;
+      }
+    };
+
+    struct ScopeRef {
+      Parser *parser;
+      size_t index;
+
+      TokenRef start() const
+      {
+        return {parser, parser->scope_ranges[index].start};
+      }
+
+      TokenRef end() const
+      {
+        return {parser, parser->scope_ranges[index].last()};
+      }
+
+      std::string str() const
+      {
+        return parser->scope_str(index);
+      }
+    };
 
     std::string str;
+
+    struct Mutation {
+      /* Range of the original string to replace. */
+      IndexRange src_range;
+      /* The replacement string. */
+      std::string replacement;
+
+      Mutation(IndexRange src_range, std::string replacement)
+          : src_range(src_range), replacement(replacement)
+      {
+      }
+    };
+
+    std::vector<Mutation> mutations;
+
+    void foreach(ScopeType type, TokenTypeSequence seq, std::function<void(TokenRef)> callback)
+    {
+      size_t pos = 0;
+      while ((pos = token_no_whitespace_types.find(seq.sequence, pos)) != std::string::npos) {
+        // if (ScopeType(scope_types[scope_per_token[pos]]) == type) {
+        callback(TokenRef{this, pos});
+        // }
+        pos += 1;
+      }
+    }
+
+    std::string substr_range_inclusive(TokenRef start, TokenRef end)
+    {
+      return str.substr(start.str_index_start(),
+                        end.str_index_last() - start.str_index_start() + 1);
+    }
 
     Parser(const std::string &input)
     {
       str = input;
+      parse();
+    }
 
+    void parse()
+    {
       auto start = std::chrono::high_resolution_clock::now();
       {
         /* Tokenization. */
+        token_types.clear();
+        token_offsets.clear();
+
         token_types = char(TokenType::Space);
         token_offsets.offsets = {0};
 
         int offset = -1;
-        for (const char &c : input) {
+        for (const char &c : str) {
           offset++;
           TokenType type = to_type(c);
           TokenType prev = TokenType(token_types.back());
@@ -1322,26 +1467,49 @@ class Preprocessor {
         }
       }
       {
-        std::stack<std::pair<ScopeType, int>> scopes;
-        scopes.emplace(ScopeType::Global, 0);
+        token_no_whitespace_index.clear();
+        token_no_whitespace_types.clear();
 
-        auto enter_scope = [&](ScopeType type, int start_tok_id) {
-          scopes.emplace(type, start_tok_id);
+        int tok_id = -1;
+        for (char &c : token_types) {
+          tok_id++;
+          if (c != Space && c != NewLine) {
+            token_no_whitespace_index.emplace_back(tok_id);
+            token_no_whitespace_types += c;
+          }
+        }
+      }
+      {
+        /* Scope detection. */
+        scope_ranges.clear();
+        scope_types.clear();
+        scope_per_token.clear();
+
+        struct ScopeItem {
+          ScopeType type;
+          size_t start;
+          int index;
+        };
+
+        int scope_index = 0;
+        std::stack<ScopeItem> scopes;
+        scopes.emplace(ScopeItem{ScopeType::Global, 0, scope_index++});
+
+        auto enter_scope = [&](ScopeType type, size_t start_tok_id) {
+          scopes.emplace(ScopeItem{type, start_tok_id, scope_index++});
         };
 
         auto exit_scope = [&](int end_tok_id) {
-          ScopeType type = scopes.top().first;
-          int start = scopes.top().second;
-
-          scope_ranges.emplace_back(start, end_tok_id - start + 1);
-          scope_types += char(type);
-
+          ScopeItem scope = scopes.top();
+          scope_ranges.emplace_back(scope.start, end_tok_id - scope.start + 1);
+          scope_types += char(scope.type);
           scopes.pop();
         };
 
         int tok_id = -1;
         for (char &c : token_types) {
           tok_id++;
+          scope_per_token.emplace_back(scopes.top().index);
 
           switch (TokenType(c)) {
             case BracketOpen:
@@ -1351,10 +1519,10 @@ class Preprocessor {
               else if (token_types[tok_id - 2] == Namespace) {
                 enter_scope(ScopeType::Namespace, tok_id);
               }
-              else if (ScopeType(scopes.top().first) == ScopeType::Global) {
+              else if (scopes.top().type == ScopeType::Global) {
                 enter_scope(ScopeType::Function, tok_id);
               }
-              else if (ScopeType(scopes.top().first) == ScopeType::Struct) {
+              else if (scopes.top().type == ScopeType::Struct) {
                 enter_scope(ScopeType::Function, tok_id);
               }
               else {
@@ -1368,15 +1536,15 @@ class Preprocessor {
               enter_scope(ScopeType::Local, tok_id);
               break;
             case AngleOpen:
-              if (ScopeType(scopes.top().first) == ScopeType::Global ||
-                  ScopeType(scopes.top().first) == ScopeType::Namespace ||
-                  ScopeType(scopes.top().first) == ScopeType::Struct)
+              if (scopes.top().type == ScopeType::Global ||
+                  scopes.top().type == ScopeType::Namespace ||
+                  scopes.top().type == ScopeType::Struct)
               {
                 enter_scope(ScopeType::Template, tok_id);
               }
               break;
             case AngleClose:
-              if (ScopeType(scopes.top().first) == ScopeType::Template) {
+              if (scopes.top().type == ScopeType::Template) {
                 exit_scope(tok_id);
               }
               break;
@@ -1391,23 +1559,22 @@ class Preprocessor {
         }
       }
 
-      token_offsets.offsets.emplace_back(input.size());
+      token_offsets.offsets.emplace_back(str.size());
 
       auto end = std::chrono::high_resolution_clock::now();
       auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-      for (int i = 0; i < token_types.size(); i++) {
-        TokenType type = TokenType(token_types[i]);
-        if (type != Space && type != NewLine) {
-          std::cout << to_string(type) << " " << token_str(i) << std::endl;
-        }
+      for (int i = 0; i < token_no_whitespace_types.size(); i++) {
+        TokenRef tok{this, size_t(i)};
+        std::cout << to_string(tok.type()) << " " << tok.scope().index << " " << tok.str()
+                  << std::endl;
       }
 
       for (int i = 0; i < scope_ranges.size(); i++) {
         ScopeType type = ScopeType(scope_types[i]);
-        if (type != ScopeType::Local) {
-          std::cout << to_string(type) << " " << scope_str(i) << std::endl;
-        }
+        // if (type != ScopeType::Local) {
+        std::cout << to_string(type) << " " << scope_str(i) << std::endl;
+        // }
       }
 
       std::cout << "Parser took: " << duration.count() << " µs" << std::endl;
@@ -1438,11 +1605,50 @@ class Preprocessor {
     {
       size_t pos = token_types.find(token_pattern);
       if (pos != std::string::npos) {
-        return str.substr(token_offsets[pos].start,
-                          token_offsets[pos + token_pattern.size()].start -
-                              token_offsets[pos].start);
+        return token_range_str(IndexRange(pos, token_pattern.size()));
       }
       return {};
+    }
+
+    bool add_mutation_try(TokenRef from, TokenRef to, const std::string &replacement)
+    {
+      IndexRange range = IndexRange(from.str_index_start(),
+                                    to.str_index_last() + 1 - from.str_index_start());
+
+      bool overlaps = false;
+      for (const Mutation &mut : mutations) {
+        overlaps |= mut.src_range.overlaps(range);
+      }
+      if (overlaps == false) {
+        mutations.emplace_back(range, replacement);
+      }
+      return overlaps;
+    }
+
+    void add_mutation(TokenRef from, TokenRef to, const std::string &replacement)
+    {
+      bool success = add_mutation_try(from, to, replacement);
+      assert(success);
+      (void)success;
+    }
+
+    /* Return true if any mutation was applied. */
+    bool apply_mutations()
+    {
+      if (mutations.empty()) {
+        return false;
+      }
+
+      int64_t offset = 0;
+      for (const Mutation &mut : mutations) {
+        std::cout << "Replace \"" << str.substr(mut.src_range.start + offset, mut.src_range.size)
+                  << "\" by \"" << mut.replacement << "\"" << std::endl;
+        str.replace(mut.src_range.start + offset, mut.src_range.size, mut.replacement);
+        offset += mut.replacement.size() - mut.src_range.size;
+      }
+      mutations.clear();
+      this->parse();
+      return true;
     }
 
    private:
@@ -1601,26 +1807,53 @@ class Preprocessor {
     }
   };
 
-  template<typename... Args> std::string make_pattern(Args... args)
-  {
-    std::string result;
-    (result += ... += char(args));
-    return result;
-  }
-
   /* Transform `a.fn(b)` into `fn(a, b)`. */
   std::string method_call_mutation(const std::string &str)
   {
     using namespace std;
+    using Seq = Parser::TokenTypeSequence;
+    using TokenRef = Parser::TokenRef;
 
     Parser parser(str);
 
-    string out;
+    do {
+      parser.foreach(ScopeType::Function, Seq(Dot, Word, ParOpen), [&](TokenRef dot) {
+        const TokenRef par_open = dot.next().next();
+        const TokenRef end_of_this = dot.prev();
+        TokenRef start_of_this = end_of_this;
+        while (true) {
+          if ((start_of_this == ParClose) || (start_of_this == BracketClose)) {
+            /* Function call or array subscript. Take argument scope and function name. */
+            std::cout << "end_of_this.scope().start() " << end_of_this.scope().str() << std::endl;
+            start_of_this = end_of_this.scope().start().prev();
+            break;
+          }
+          if (end_of_this == Word) {
+            /* Member. */
+            if (end_of_this.prev() == Dot) {
+              start_of_this = end_of_this.prev();
+              /* Continue until we find root member. */
+            }
+            else {
+              break;
+            }
+          }
+          else {
+            /* Error. */
+            std::cout << "Error " << std::endl;
+            break;
+          }
+        }
+        string this_str = parser.substr_range_inclusive(start_of_this, end_of_this);
+        const bool has_no_arg = par_open.next() == ParClose;
+        /* `a.fn(b)` -> `fn(a, b)` */
+        // parser.add_mutation_try(
+        //     start_of_this, par_open, dot.next().str() + "(" + this_str + (has_no_arg ? "" : ",
+        //     "));
+      });
+    } while (parser.apply_mutations());
 
-    std::string s = parser.find(make_pattern(Dot, Word, ParOpen));
-    std::cout << "Found: \"" << s << "\"" << std::endl;
-
-    return str;
+    return parser.str;
   }
 
   std::string stage_function_mutation(const std::string &str)
