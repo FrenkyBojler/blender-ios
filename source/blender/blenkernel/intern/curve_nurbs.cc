@@ -190,54 +190,16 @@ Vector<int> calculate_multiplicity_sequence(const Span<float> knots)
   return multiplicity;
 }
 
-static int find_span_linear_search(const Span<float> knots,
-                                   const int degree,
-                                   const float parameter,
-                                   const int start_index = 0)
-{
-  const float *const knots_end = knots.end() - degree;
-  const float *knot_iter = knots.begin() + start_index;
-  while (knot_iter < knots_end && parameter >= *knot_iter) {
-    knot_iter++;
-    BLI_assert(*knot_iter > *(knot_iter - 1));
-  }
-  if (knot_iter == knots_end) {
-    /* Find last valid span index. */
-    while (knot_iter > knots.begin() && *(knot_iter - 1) == *knot_iter) {
-      knot_iter--;
-    }
-  }
-  return std::max<int>(knot_iter - knots.begin() - 1, 0);
-}
-
-static int find_span_binary_search(const Span<float> knots,
-                                   const int degree,
-                                   const float parameter)
-{
-  const float *const knots_end = knots.end() - degree;
-  const float *knot_iter = std::upper_bound(knots.begin() + degree, knots_end, parameter);
-  if (knot_iter == knots_end) {
-    /* Find last valid span index. */
-    while (knot_iter > knots.begin() && *(knot_iter - 1) == *knot_iter) {
-      knot_iter--;
-    }
-  }
-  return std::max<int>(knot_iter - knots.begin() - 1, 0);
-}
-
 static int calculate_basis_for_point(const Span<float> knots,
                                      const int degree,
                                      const int wrapped_points_num,
                                      const float parameter,
-                                     const int *span_index_hint,
+                                     const int span_index,
                                      MutableSpan<float> r_weights,
                                      int &r_start_index)
 {
   const int order = degree + 1;
 
-  const int span_index = span_index_hint ?
-                             find_span_linear_search(knots, degree, parameter, *span_index_hint) :
-                             find_span_binary_search(knots, degree, parameter);
   const int start = std::max(span_index - degree, 0);
   int end = span_index;
 
@@ -326,7 +288,7 @@ void calculate_basis_cache(const int points_num,
                                   degree,
                                   wrapped_points_num,
                                   parameter,
-                                  &span_index,
+                                  span_index,
                                   basis_weights.slice(eval_point * order, order),
                                   basis_start_indices[eval_point]);
         eval_point++;
@@ -338,7 +300,7 @@ void calculate_basis_cache(const int points_num,
                               degree,
                               wrapped_points_num,
                               knots[wrapped_points_num],
-                              &breakpoint_offsets.last(),
+                              breakpoint_offsets.last(),
                               basis_weights.slice(basis_weights.size() - order, order),
                               basis_start_indices.last());
   }
