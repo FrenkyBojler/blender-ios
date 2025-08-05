@@ -2202,7 +2202,7 @@ static void apply_to_active_object(
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 }
 
-void handle_curves_cyclic(bContext *C, void *, void *)
+static void handle_curves_cyclic(bContext *C, void *, void *)
 {
   using namespace blender;
 
@@ -2251,7 +2251,7 @@ static void update_custom_knots(const blender::OffsetIndices<int> &src_custom_kn
   }
 }
 
-void handle_curves_knot_mode(bContext *C, void *, void *)
+static void handle_curves_knot_mode(bContext *C, void *, void *)
 {
   using namespace blender;
 
@@ -2294,7 +2294,7 @@ void handle_curves_knot_mode(bContext *C, void *, void *)
       });
 }
 
-void handle_curves_order(bContext *C, void *, void *)
+static void handle_curves_order(bContext *C, void *, void *)
 {
   using namespace blender;
 
@@ -2341,7 +2341,7 @@ void handle_curves_order(bContext *C, void *, void *)
       });
 }
 
-void handle_curves_resolution(bContext *C, void *, void *)
+static void handle_curves_resolution(bContext *C, void *, void *)
 {
   using namespace blender;
 
