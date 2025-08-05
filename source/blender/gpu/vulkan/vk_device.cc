@@ -76,7 +76,6 @@ void VKDevice::deinit()
   {
     while (!thread_data_.is_empty()) {
       VKThreadData *thread_data = thread_data_.pop_last();
-      thread_data->deinit(*this);
       delete thread_data;
     }
     thread_data_.clear();
@@ -500,13 +499,6 @@ VKThreadData::VKThreadData(VKDevice &device, pthread_t thread_id) : thread_id(th
 {
   for (VKResourcePool &resource_pool : resource_pools) {
     resource_pool.init(device);
-  }
-}
-
-void VKThreadData::deinit(VKDevice &device)
-{
-  for (VKResourcePool &resource_pool : resource_pools) {
-    resource_pool.deinit(device);
   }
 }
 
