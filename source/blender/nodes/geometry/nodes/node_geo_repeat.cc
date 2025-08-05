@@ -189,17 +189,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
+static void node_init(bNodeTree *tree, bNode *node)
 {
   NodeGeometryRepeatOutput *data = MEM_callocN<NodeGeometryRepeatOutput>(__func__);
 
   data->next_identifier = 0;
 
-  data->items = MEM_calloc_arrayN<NodeRepeatItem>(1, __func__);
-  data->items[0].name = BLI_strdup(DATA_("Geometry"));
-  data->items[0].socket_type = SOCK_GEOMETRY;
-  data->items[0].identifier = data->next_identifier++;
-  data->items_num = 1;
+  if (tree->type == NTREE_GEOMETRY) {
+    data->items = MEM_calloc_arrayN<NodeRepeatItem>(1, __func__);
+    data->items[0].name = BLI_strdup(DATA_("Geometry"));
+    data->items[0].socket_type = SOCK_GEOMETRY;
+    data->items[0].identifier = data->next_identifier++;
+    data->items_num = 1;
+  }
 
   node->storage = data;
 }
