@@ -212,8 +212,13 @@ class ShaderNodesInliner {
     for (const SocketInContext &socket : final_output_sockets) {
       const NodeInContext src_node = socket.owner_node();
       bNode *copied_node = final_output_nodes.lookup_or_add_cb(src_node, [&]() {
-        bNode *copied_node = bke::node_copy(
-            &dst_tree_, *src_node.node, this->node_copy_flag(), true);
+        Map<const bNodeSocket *, bNodeSocket *> socket_map;
+        bNode *copied_node = bke::node_copy_with_mapping(&dst_tree_,
+                                                         *src_node.node,
+                                                         this->node_copy_flag(),
+                                                         std::nullopt,
+                                                         std::nullopt,
+                                                         socket_map);
         copied_node->parent = nullptr;
         return copied_node;
       });
