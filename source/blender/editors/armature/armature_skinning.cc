@@ -151,43 +151,46 @@ static int dgroup_skinnable_cb(Object *ob, Bone *bone, void *datap)
     bool is_weight_paint;
   } *data = static_cast<Arg *>(datap);
 
+  if (bone->flag & BONE_NO_DEFORM) {
+    return 0;
+  }
+
   bArmature *arm = static_cast<bArmature *>(data->armob->data);
   const bPoseChannel *pose_bone = BKE_pose_channel_find_name(data->armob->pose, bone->name);
   BLI_assert_msg(pose_bone != nullptr, bone->name);
 
-  if (!data->is_weight_paint || !(pose_bone->drawflag & PCHAN_DRAW_HIDDEN)) {
-    if (!(bone->flag & BONE_NO_DEFORM)) {
-      if (data->heat) {
-        segments = bone->segments;
-      }
-      else {
-        segments = 1;
-      }
+  if (data->is_weight_paint && (pose_bone->drawflag & PCHAN_DRAW_HIDDEN)) {
+    return 0;
+  }
 
-      if (!data->is_weight_paint ||
-          (ANIM_bone_in_visible_collection(arm, bone) && (bone->flag & BONE_SELECTED)))
-      {
-        if (!(defgroup = BKE_object_defgroup_find_name(ob, bone->name))) {
-          defgroup = BKE_object_defgroup_add_name(ob, bone->name);
-        }
-        else if (defgroup->flag & DG_LOCK_WEIGHT) {
-          /* In case vgroup already exists and is locked, do not modify it here. See #43814. */
-          defgroup = nullptr;
-        }
-      }
+  if (data->heat) {
+    segments = bone->segments;
+  }
+  else {
+    segments = 1;
+  }
 
-      if (data->list != nullptr) {
-        hgroup = (bDeformGroup ***)&data->list;
-
-        for (a = 0; a < segments; a++) {
-          **hgroup = defgroup;
-          (*hgroup)++;
-        }
-      }
-      return segments;
+  if (!data->is_weight_paint ||
+      (ANIM_bone_in_visible_collection(arm, bone) && (bone->flag & BONE_SELECTED)))
+  {
+    if (!(defgroup = BKE_object_defgroup_find_name(ob, bone->name))) {
+      defgroup = BKE_object_defgroup_add_name(ob, bone->name);
+    }
+    else if (defgroup->flag & DG_LOCK_WEIGHT) {
+      /* In case vgroup already exists and is locked, do not modify it here. See #43814. */
+      defgroup = nullptr;
     }
   }
-  return 0;
+
+  if (data->list != nullptr) {
+    hgroup = (bDeformGroup ***)&data->list;
+
+    for (a = 0; a < segments; a++) {
+      **hgroup = defgroup;
+      (*hgroup)++;
+    }
+  }
+  return segments;
 }
 
 static void envelope_bone_weighting(Object *ob,

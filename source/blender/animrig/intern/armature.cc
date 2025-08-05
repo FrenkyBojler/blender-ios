@@ -12,27 +12,29 @@
 
 namespace blender::animrig {
 
-void pose_bone_descendent_iterator(bPose &pose, bPoseChannel &pose_bone, FunctionRef<void(bPoseChannel &child_bone)> callback){
-    /* Needed for fast name lookups. */
-    BKE_pose_channels_hash_ensure(&pose);
+void pose_bone_descendent_iterator(bPose &pose,
+                                   bPoseChannel &pose_bone,
+                                   FunctionRef<void(bPoseChannel &child_bone)> callback)
+{
+  /* Needed for fast name lookups. */
+  BKE_pose_channels_hash_ensure(&pose);
 
-    int i = 0;
-    Vector<bPoseChannel *> descendants = {&pose_bone};
-    while (i < descendants.size()){
-        bPoseChannel *descendant = descendants[i];
-        i++;
-        callback(*descendant);
-        LISTBASE_FOREACH(Bone *, child_bone, &descendant->bone->childbase){
-            bPoseChannel *child_pose_bone = BKE_pose_channel_find_name(&pose, child_bone->name);
-            if (!child_pose_bone){
-                /* Can happen if the pose is not rebuilt. */
-                BLI_assert_unreachable();
-                continue;
-            }
-            descendants.append(child_pose_bone);
-        }
+  int i = 0;
+  Vector<bPoseChannel *> descendants = {&pose_bone};
+  while (i < descendants.size()) {
+    bPoseChannel *descendant = descendants[i];
+    i++;
+    callback(*descendant);
+    LISTBASE_FOREACH (Bone *, child_bone, &descendant->bone->childbase) {
+      bPoseChannel *child_pose_bone = BKE_pose_channel_find_name(&pose, child_bone->name);
+      if (!child_pose_bone) {
+        /* Can happen if the pose is not rebuilt. */
+        BLI_assert_unreachable();
+        continue;
+      }
+      descendants.append(child_pose_bone);
     }
-    
+  }
 };
 
-}
+}  // namespace blender::animrig
