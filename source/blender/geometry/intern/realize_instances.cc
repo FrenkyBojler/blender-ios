@@ -1680,9 +1680,9 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
 }
 static void copy_vertex_group_name(ListBase *dst_deform_group,
                                    const OrderedAttributes &ordered_attributes,
-                                   const bDeformGroup *src_deform_group)
+                                   const bDeformGroup &src_deform_group)
 {
-  const StringRef src_name = src_deform_group->name;
+  const StringRef src_name = src_deform_group.name;
   const int attribute_index = ordered_attributes.ids.index_of_try(src_name);
   if (attribute_index == -1) {
     /* The attribute is not propagated to the result (possibly because the mesh isn't included
@@ -1712,7 +1712,7 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
       if (existing_names.contains(src->name)) {
         continue;
       }
-      copy_vertex_group_name(&dst_mesh.vertex_group_names, ordered_attributes, src);
+      copy_vertex_group_name(&dst_mesh.vertex_group_names, ordered_attributes, *src);
     }
   }
 }
@@ -2093,7 +2093,7 @@ static void copy_vertex_group_names(CurvesGeometry &dst_curve,
       if (existing_names.contains(src->name)) {
         continue;
       }
-      copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, src);
+      copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, *src);
       existing_names.add(src->name);
     }
   }
@@ -2144,8 +2144,7 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   const Curves &first_curves_id = *first_task.curve_info->curves;
   bke::curves_copy_parameters(first_curves_id, *dst_curves_id);
 
-  Span<const Curves *> src_curves = all_curves_info.order.as_span();
-  copy_vertex_group_names(dst_curves, ordered_attributes, src_curves);
+  copy_vertex_group_names(dst_curves, ordered_attributes, all_curves_info.order);
 
   /* Prepare id attribute. */
   SpanAttributeWriter<int> point_ids;

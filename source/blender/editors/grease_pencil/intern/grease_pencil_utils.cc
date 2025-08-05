@@ -1876,10 +1876,8 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     }
   }
 
-  /* Gather new vertex group names present in the evaluated strokes.
-   * These could be created in Geometry Nodes. */
+  /* Gather the original vertex group names. */
   Set<StringRef> orig_vgroup_names;
-  Set<StringRef> new_vgroup_names;
   LISTBASE_FOREACH (bDeformGroup *, dg, &orig_grease_pencil.vertex_group_names) {
     orig_vgroup_names.add(dg->name);
   }
@@ -1887,6 +1885,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
   /* Update the drawings. */
   VectorSet<Drawing *> all_updated_drawings;
 
+  Set<StringRef> new_vgroup_names;
   for (auto [layer_eval, layer_orig] : eval_to_orig_layer_map.items()) {
     const Drawing *drawing_eval = merged_layers_grease_pencil.get_drawing_at(*layer_eval,
                                                                              eval_frame);
@@ -1896,7 +1895,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
       /* Write the data to the original drawing. */
       const CurvesGeometry &eval_strokes = drawing_eval->strokes();
 
-      /* Check for new vertex groups */
+      /* Check for new vertex groups in CurvesGeometry. */
       LISTBASE_FOREACH (bDeformGroup *, dg, &eval_strokes.vertex_group_names) {
         if (!orig_vgroup_names.contains(dg->name)) {
           new_vgroup_names.add(dg->name);
@@ -1911,7 +1910,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     }
   }
 
-  /* Add new vertex groups to GreasePencil object */
+  /* Add new vertex groups to GreasePencil object. */
   for (StringRef new_vgroup_name : new_vgroup_names) {
     bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
     new_vgroup_name.copy_utf8_truncated(dst->name);
