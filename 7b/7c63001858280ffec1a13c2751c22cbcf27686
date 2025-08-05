@@ -1,3 +1,4 @@
 Referenced by commit f94ec130c3c142559b32f8c61971f40afc3a09fc, Fix: outdated structure type test
 Referenced by issue #142449, Wrong warning content when the link forms a cycle in geometry nodes
 Referenced by issue #143839, Regression: Warning on Switch node disappears
+Referenced by pull request #143975, Fix #143839: missing warning when connecting field to single value
