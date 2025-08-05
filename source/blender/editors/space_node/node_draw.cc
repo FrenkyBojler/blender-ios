@@ -1324,41 +1324,35 @@ static void node_update_collapsed(bNode &node, uiBlock &block)
     }
   }
 
-  float collapsedrad = COLLAPSED_RAD;
-  float tot = std::max(totin, totout);
-  if (tot > 4) {
-    collapsedrad += 5.0f * float(tot - 4);
-  }
+  const float dy = NODE_DY * 0.5f;
+  const float height = dy * std::max(totin, totout) + BASIS_RAD * 2.0f;
 
   node.runtime->draw_bounds.xmin = loc.x;
-  node.runtime->draw_bounds.xmax = loc.x + max_ff(NODE_WIDTH(node), 2 * collapsedrad);
-  node.runtime->draw_bounds.ymax = loc.y + (collapsedrad - 0.5f * NODE_DY);
-  node.runtime->draw_bounds.ymin = node.runtime->draw_bounds.ymax - 2 * collapsedrad;
+  node.runtime->draw_bounds.xmax = loc.x + NODE_WIDTH(node);
+  node.runtime->draw_bounds.ymax = loc.y + height * 0.5f;
+  node.runtime->draw_bounds.ymin = loc.y - height * 0.5f;
 
   /* Output sockets. */
-  float rad = float(M_PI) / (1.0f + float(totout));
-  float drad = rad;
-
-  for (bNodeSocket *socket : node.output_sockets()) {
-    if (socket->is_visible()) {
-      /* Round the socket location to stop it from jiggling. */
-      socket->runtime->location = {
-          round(node.runtime->draw_bounds.xmax - collapsedrad + sinf(rad) * collapsedrad),
-          round(node.runtime->draw_bounds.ymin + collapsedrad + cosf(rad) * collapsedrad)};
-      rad += drad;
+  {
+    const float x = node.runtime->draw_bounds.xmax;
+    float y = loc.y + dy * float(totout - 1) * 0.5f;
+    for (bNodeSocket *socket : node.output_sockets()) {
+      if (socket->is_visible()) {
+        socket->runtime->location = {x, y};
+        y -= dy;
+      }
     }
   }
 
   /* Input sockets. */
-  rad = drad = -float(M_PI) / (1.0f + float(totin));
-
-  for (bNodeSocket *socket : node.input_sockets()) {
-    if (socket->is_visible()) {
-      /* Round the socket location to stop it from jiggling. */
-      socket->runtime->location = {
-          round(node.runtime->draw_bounds.xmin + collapsedrad + sinf(rad) * collapsedrad),
-          round(node.runtime->draw_bounds.ymin + collapsedrad + cosf(rad) * collapsedrad)};
-      rad += drad;
+  {
+    const float x = node.runtime->draw_bounds.xmin;
+    float y = loc.y + dy * float(totin - 1) * 0.5f;
+    for (bNodeSocket *socket : node.input_sockets()) {
+      if (socket->is_visible()) {
+        socket->runtime->location = {x, y};
+        y -= dy;
+      }
     }
   }
 
@@ -2544,12 +2538,7 @@ static void node_draw_extra_info_row(const bNode &node,
 
 static void node_draw_extra_info_panel_back(const bNode &node, const rctf &extra_info_rect)
 {
-  const rctf &node_rect = node.runtime->draw_bounds;
   rctf panel_back_rect = extra_info_rect;
-  /* Extend the panel behind hidden nodes to accommodate the large rounded corners. */
-  if (node.flag & NODE_COLLAPSED) {
-    panel_back_rect.ymin = BLI_rctf_cent_y(&node_rect);
-  }
 
   ColorTheme4f color;
   if (node.is_muted()) {
@@ -3190,7 +3179,6 @@ static void node_draw_collapsed(const bContext &C,
 {
   const rctf &rct = node.runtime->draw_bounds;
   float centy = BLI_rctf_cent_y(&rct);
-  float collapsedrad = BLI_rctf_size_y(&rct) / 2.0f;
 
   float scale;
   UI_view2d_scale_get(&v2d, &scale, nullptr);
@@ -3200,7 +3188,7 @@ static void node_draw_collapsed(const bContext &C,
   node_draw_extra_info_panel(C, tree_draw_ctx, snode, node, nullptr, block);
 
   /* Shadow. */
-  node_draw_shadow(snode, node, collapsedrad, 1.0f);
+  node_draw_shadow(snode, node, BASIS_RAD, 1.0f);
 
   /* Wire across the node when muted/disabled. */
   if (node.is_muted()) {
@@ -3244,7 +3232,7 @@ static void node_draw_collapsed(const bContext &C,
         rct.ymax + padding,
     };
 
-    UI_draw_roundbox_4fv(&rect, true, collapsedrad + padding, color);
+    UI_draw_roundbox_4fv(&rect, true, BASIS_RAD + padding, color);
   }
 
   /* Title. */
@@ -3320,7 +3308,7 @@ static void node_draw_collapsed(const bContext &C,
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
-    UI_draw_roundbox_4fv(&rect, false, collapsedrad + outline_width, color_outline);
+    UI_draw_roundbox_4fv(&rect, false, BASIS_RAD + outline_width, color_outline);
   }
 
   if (node.is_muted()) {
