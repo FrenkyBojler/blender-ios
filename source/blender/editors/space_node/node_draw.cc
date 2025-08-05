@@ -1326,16 +1326,18 @@ static void node_update_collapsed(bNode &node, uiBlock &block)
 
   const float dy = NODE_DY * 0.5f;
   const float height = dy * std::max(totin, totout) + BASIS_RAD * 2.0f;
+  /* This offset for Y values keeps the text in the same spot as in non-collapsed nodes. */
+  const float offset = NODE_DY * -0.5f;
 
   node.runtime->draw_bounds.xmin = loc.x;
   node.runtime->draw_bounds.xmax = loc.x + NODE_WIDTH(node);
-  node.runtime->draw_bounds.ymax = loc.y + height * 0.5f;
-  node.runtime->draw_bounds.ymin = loc.y - height * 0.5f;
+  node.runtime->draw_bounds.ymax = loc.y + height * 0.5f + offset;
+  node.runtime->draw_bounds.ymin = loc.y - height * 0.5f + offset;
 
   /* Output sockets. */
   {
     const float x = node.runtime->draw_bounds.xmax;
-    float y = loc.y + dy * float(totout - 1) * 0.5f;
+    float y = loc.y + dy * float(totout - 1) * 0.5f + offset;
     for (bNodeSocket *socket : node.output_sockets()) {
       if (socket->is_visible()) {
         socket->runtime->location = {x, y};
@@ -1347,7 +1349,7 @@ static void node_update_collapsed(bNode &node, uiBlock &block)
   /* Input sockets. */
   {
     const float x = node.runtime->draw_bounds.xmin;
-    float y = loc.y + dy * float(totin - 1) * 0.5f;
+    float y = loc.y + dy * float(totin - 1) * 0.5f + offset;
     for (bNodeSocket *socket : node.input_sockets()) {
       if (socket->is_visible()) {
         socket->runtime->location = {x, y};
