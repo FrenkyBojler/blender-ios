@@ -961,7 +961,7 @@ class NodeTreeMainUpdater {
         }
         /* For input/output nodes we use the inferred structure types. */
         if (node->is_group_input() || node->is_group_output() ||
-            ELEM(node->type_legacy, GEO_NODE_CLOSURE_INPUT, GEO_NODE_CLOSURE_OUTPUT))
+            ELEM(node->type_legacy, NODE_CLOSURE_INPUT, NODE_CLOSURE_OUTPUT))
         {
           for (bNodeSocket *socket : node->input_sockets()) {
             socket->display_shape = get_input_socket_shape(
@@ -1363,7 +1363,7 @@ class NodeTreeMainUpdater {
         continue;
       }
       if (ntree.type == NTREE_GEOMETRY) {
-        if (link->fromsock->may_be_field() && !link->tosock->may_be_field()) {
+        if (this->is_invalid_field_link(*link)) {
           link->flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors.add(
               NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
@@ -1411,6 +1411,24 @@ class NodeTreeMainUpdater {
         }
       }
     }
+  }
+
+  bool is_invalid_field_link(const bNodeLink &link)
+  {
+    if (!link.fromsock->may_be_field()) {
+      return false;
+    }
+    const nodes::SocketDeclaration *to_socket_decl = link.tosock->runtime->declaration;
+    if (!to_socket_decl) {
+      return false;
+    }
+    if (ELEM(to_socket_decl->structure_type, StructureType::Dynamic, StructureType::Field)) {
+      return false;
+    }
+    if (link.tonode->is_group_output() || link.tonode->is_type("NodeClosureOutput")) {
+      return false;
+    }
+    return true;
   }
 
   bool check_if_output_changed(const bNodeTree &tree)

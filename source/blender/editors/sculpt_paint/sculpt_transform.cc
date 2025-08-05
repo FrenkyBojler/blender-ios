@@ -927,40 +927,38 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
-  /* Pivot to center. */
-  if (mode == PivotPositionMode::Origin) {
-    zero_v3(ss.pivot_pos);
-  }
-  /* Pivot to active vertex. */
-  else if (mode == PivotPositionMode::ActiveVert) {
-    const float2 mval(RNA_float_get(op->ptr, "mouse_x"), RNA_float_get(op->ptr, "mouse_y"));
-    CursorGeometryInfo cgi;
-    if (cursor_geometry_info_update(C, &cgi, mval, false)) {
-      copy_v3_v3(ss.pivot_pos, ss.active_vert_position(*depsgraph, ob));
+  switch (mode) {
+    case PivotPositionMode::Origin:
+      ss.pivot_pos = float3(0.0f);
+      break;
+    case PivotPositionMode::Unmasked:
+      ss.pivot_pos = average_unmasked_position(*depsgraph, ob, ss.pivot_pos, symm);
+      break;
+    case PivotPositionMode::MaskBorder:
+      ss.pivot_pos = average_mask_border_position(*depsgraph, ob, ss.pivot_pos, symm);
+      break;
+    case PivotPositionMode::ActiveVert: {
+      const float2 mval(RNA_float_get(op->ptr, "mouse_x"), RNA_float_get(op->ptr, "mouse_y"));
+      CursorGeometryInfo cgi;
+      if (cursor_geometry_info_update(C, &cgi, mval, false)) {
+        ss.pivot_pos = ss.active_vert_position(*depsgraph, ob);
+      }
+      break;
     }
-  }
-  /* Pivot to ray-cast surface. */
-  else if (mode == PivotPositionMode::CursorSurface) {
-    float stroke_location[3];
-    const float mval[2] = {
-        RNA_float_get(op->ptr, "mouse_x"),
-        RNA_float_get(op->ptr, "mouse_y"),
-    };
-    if (stroke_get_location_bvh(C, stroke_location, mval, false)) {
-      copy_v3_v3(ss.pivot_pos, stroke_location);
+    case PivotPositionMode::CursorSurface: {
+      const float2 mval(RNA_float_get(op->ptr, "mouse_x"), RNA_float_get(op->ptr, "mouse_y"));
+      float3 stroke_location;
+      if (stroke_get_location_bvh(C, stroke_location, mval, false)) {
+        ss.pivot_pos = stroke_location;
+      }
+      break;
     }
-  }
-  else if (mode == PivotPositionMode::Unmasked) {
-    ss.pivot_pos = average_unmasked_position(*depsgraph, ob, ss.pivot_pos, symm);
-  }
-  else {
-    ss.pivot_pos = average_mask_border_position(*depsgraph, ob, ss.pivot_pos, symm);
   }
 
   /* Update the viewport navigation rotation origin. */
   Paint *paint = BKE_paint_get_active_from_context(C);
   bke::PaintRuntime *paint_runtime = paint->runtime;
-  copy_v3_v3(paint_runtime->average_stroke_accum, ss.pivot_pos);
+  paint_runtime->average_stroke_accum = ss.pivot_pos;
   paint_runtime->average_stroke_counter = 1;
   paint_runtime->last_stroke_valid = true;
 
