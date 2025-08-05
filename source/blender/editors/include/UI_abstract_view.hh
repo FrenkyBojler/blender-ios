@@ -391,9 +391,13 @@ class AbstractViewItemDragController {
   AbstractViewItemDragController(AbstractView &view);
   virtual ~AbstractViewItemDragController() = default;
 
-  virtual eWM_DragDataType get_drag_type() const = 0;
+  virtual std::optional<eWM_DragDataType> get_drag_type() const = 0;
   virtual void *create_drag_data() const = 0;
-  virtual void on_drag_start();
+  /**
+   * Called when beginning to drag. Also called when #get_drag_type() doesn't return a value, so an
+   * arbitrary action can be executed.
+   */
+  virtual void on_drag_start(bContext &C);
 
   /** Request the view the item is registered for as type #ViewType. Throws a `std::bad_cast`
    * exception if the view is not of the requested type. */

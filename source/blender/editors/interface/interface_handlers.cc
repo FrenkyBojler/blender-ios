@@ -5077,7 +5077,12 @@ static void force_activate_view_item_but(bContext *C,
 
   /* For popups. Other abstract view instances correctly calls the select operator, see:
    * #141235. */
+  if (but->context) {
+    CTX_store_set(C, but->context);
+  }
   but->view_item->activate(*C);
+  CTX_store_set(C, nullptr);
+
   ED_region_tag_redraw_no_rebuild(region);
   ED_region_tag_refresh_ui(region);
 

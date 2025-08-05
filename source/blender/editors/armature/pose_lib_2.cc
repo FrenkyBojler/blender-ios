@@ -38,6 +38,7 @@
 #include "UI_interface.hh"
 
 #include "ED_asset.hh"
+#include "ED_asset_menu_utils.hh"
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
 #include "ED_util.hh"
@@ -637,6 +638,7 @@ void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Properties: */
+  blender::ed::asset::operator_asset_reference_props_register(*ot->srna);
   RNA_def_float_factor(ot->srna,
                        "blend_factor",
                        1.0f,
@@ -675,6 +677,7 @@ void POSELIB_OT_blend_pose_asset(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
 
   /* Properties: */
+  blender::ed::asset::operator_asset_reference_props_register(*ot->srna);
   prop = RNA_def_float_factor(ot->srna,
                               "blend_factor",
                               0.0f,

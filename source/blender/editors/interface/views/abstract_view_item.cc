@@ -293,7 +293,7 @@ std::optional<std::string> AbstractViewItem::debug_name() const
 
 AbstractViewItemDragController::AbstractViewItemDragController(AbstractView &view) : view_(view) {}
 
-void AbstractViewItemDragController::on_drag_start()
+void AbstractViewItemDragController::on_drag_start(bContext & /*C*/)
 {
   /* Do nothing by default. */
 }
@@ -426,12 +426,11 @@ bool UI_view_item_drag_start(bContext &C, const AbstractViewItem &item)
     return false;
   }
 
-  WM_event_start_drag(&C,
-                      ICON_NONE,
-                      drag_controller->get_drag_type(),
-                      drag_controller->create_drag_data(),
-                      WM_DRAG_FREE_DATA);
-  drag_controller->on_drag_start();
+  if (const std::optional<eWM_DragDataType> drag_type = drag_controller->get_drag_type()) {
+    WM_event_start_drag(
+        &C, ICON_NONE, *drag_type, drag_controller->create_drag_data(), WM_DRAG_FREE_DATA);
+  }
+  drag_controller->on_drag_start(C);
 
   return true;
 }

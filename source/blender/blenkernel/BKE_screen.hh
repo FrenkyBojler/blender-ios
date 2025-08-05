@@ -656,6 +656,8 @@ struct AssetShelfType {
 
   /** Operator to call when activating a grid view item. */
   std::string activate_operator;
+  /** Operator to call when dragging a grid view item. */
+  std::string drag_operator;
 
   AssetShelfTypeFlag flag;
 
