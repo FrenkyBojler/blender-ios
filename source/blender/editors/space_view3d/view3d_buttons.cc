@@ -110,6 +110,13 @@ union TransformMedian {
   TransformMedian_Curves curves;
 };
 
+typedef struct CurvesDataPanelState {
+  KnotsMode nurbs_knot_mode;
+  int order;
+  int resolution;
+  char cyclic;
+} CurvesDataPanelState;
+
 /* temporary struct for storing transform properties */
 
 struct TransformProperties {
@@ -2405,7 +2412,8 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
   CurvesDataPanelState &current = tfp.current;
 
   current.cyclic = status.cyclic_count > 0;
-  current.nurbs_knot_mode = math::safe_divide(status.nurbs_knot_mode_sum, status.nurbs_count);
+  current.nurbs_knot_mode = KnotsMode(
+      math::safe_divide(status.nurbs_knot_mode_sum, status.nurbs_count));
   current.order = math::safe_divide(status.order_sum, status.nurbs_count);
   current.resolution = math::safe_divide(status.resolution_sum, status.curve_count);
 
