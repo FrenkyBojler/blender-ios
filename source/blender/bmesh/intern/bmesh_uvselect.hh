@@ -163,4 +163,16 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_vertex(BMesh *bm);
  */
 void BM_mesh_uvselect_flush_to_v3d(BMesh *bm);
 
+/**
+ * A specialized flushing that fills in selection information after subdividing.
+ *
+ * It's important this runs:
+ * - After subdivision.
+ * - After the mesh selection has already been flushed.
+ *
+ * \note Intended to be a generic utility to be used in any situation
+ * new geometry is created by splitting existing geometry.
+ */
+void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offset);
+
 /** \} */

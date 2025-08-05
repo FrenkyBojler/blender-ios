@@ -1679,4 +1679,79 @@ void BM_mesh_uvselect_flush_to_v3d(BMesh *bm)
   BM_select_history_validate(bm);
 }
 
+void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offset)
+{
+  {
+    BMIter iter;
+    BMFace *f;
+    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+        BM_face_uvselect_set(bm, f, true);
+      }
+    }
+  }
+
+  const bool use_edges = bm->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE);
+  if (use_edges) {
+    BMIter iter;
+    BMEdge *e;
+    BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+      if (e->l == nullptr) {
+        continue;
+      }
+      if (BM_elem_flag_test(e, BM_ELEM_SELECT) &&
+          /* This will have been handled if an attached face is selected. */
+          !BM_edge_is_any_face_flag_test(e, BM_ELEM_SELECT))
+      {
+        BMLoop *l_radial_iter, *l_radial_first;
+        l_radial_iter = l_radial_first = e->l;
+        do {
+          BM_loop_edge_uvselect_set(bm, l_radial_iter, true);
+        } while ((l_radial_iter = l_radial_iter->radial_next) != l_radial_first);
+      }
+    }
+  }
+
+  /* Now select any "shared" UV's that are connected to an edge or face. */
+  if (cd_loop_uv_offset != -1) {
+    BMIter iter;
+    BMFace *f;
+    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      if (BM_elem_flag_test(f, BM_ELEM_SELECT_UV)) {
+        continue;
+      }
+      /* Check if "shared" edges/ */
+      BMLoop *l_iter, *l_first;
+
+      /* Setting these values first. */
+      l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+      do {
+        /* With vertex select mode, only handle vertices, then flush to edges -> faces. */
+        if ((bm->selectmode & SCE_SELECT_VERTEX) == 0) {
+          /* Check edges first, since a selected edge also indicates a selected vertex. */
+          if (!BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE) &&
+              BM_loop_vert_uvselect_check_other_loop_edge(
+                  l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
+          {
+            /* Check the other radial edge. */
+            BM_loop_edge_uvselect_set(bm, l_iter, true);
+          }
+        }
+        /* Check the other radial vertex (a selected edge will have done this). */
+        if (!BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
+          if (BM_loop_vert_uvselect_check_other_loop_vert(
+                  l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
+          {
+            BM_loop_vert_uvselect_set_noflush(bm, l_iter, true);
+          }
+        }
+      } while ((l_iter = l_iter->next) != l_first);
+    }
+  }
+
+  /* It's possible selecting a vertex or edge will cause other elements to have become selected.
+   * Flush up if necessary. */
+  BM_mesh_uvselect_flush_mode_only_select(bm);
+}
+
 /** \} */
