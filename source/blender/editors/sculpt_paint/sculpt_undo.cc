@@ -2089,14 +2089,12 @@ static size_t calculate_node_geometry_allocated_size(const NodeGeometry &node_ge
   MemoryCounter memory_counter(memory);
 
   memory_counter.add_shared(node_geometry.face_offsets_sharing_info,
-                            [&](MemoryCounter &shared_memory) {
-                              shared_memory.add((node_geometry.faces_num + 1) * sizeof(int));
-                            });
+                            sizeof(int) * (node_geometry.faces_num + 1));
 
-  CustomData_count_memory(node_geometry.corner_data, node_geometry.totloop, memory_counter);
+  CustomData_count_memory(node_geometry.corner_data, node_geometry.corners_num, memory_counter);
   CustomData_count_memory(node_geometry.face_data, node_geometry.faces_num, memory_counter);
-  CustomData_count_memory(node_geometry.vert_data, node_geometry.totvert, memory_counter);
-  CustomData_count_memory(node_geometry.edge_data, node_geometry.totedge, memory_counter);
+  CustomData_count_memory(node_geometry.vert_data, node_geometry.verts_num, memory_counter);
+  CustomData_count_memory(node_geometry.edge_data, node_geometry.edges_num, memory_counter);
 
   return memory.total_bytes;
 }
@@ -2105,9 +2103,9 @@ static size_t estimate_geometry_step_size(const StepData &step_data)
 {
   size_t step_size = 0;
 
-  /* TODO: This may not work as expected and be too aggressive due to how old entries are evicted.
-   * Possibly this should be changed to only estimating the size by counting the memory of the
-   * original step */
+  /* TODO: This calculation is not entirely accurate, as the current amount of memory consumed by
+   * Sculpt Undo is not updated when elements are evicted. Further changes to the overall undo
+   * system would be needed to measure this accurately. */
   step_size += calculate_node_geometry_allocated_size(step_data.geometry_original);
   step_size += calculate_node_geometry_allocated_size(step_data.geometry_modified);
 
