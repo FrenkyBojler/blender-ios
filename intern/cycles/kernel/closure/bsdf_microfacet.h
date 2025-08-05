@@ -38,7 +38,7 @@ struct FresnelDielectricTint {
 
 struct FresnelConductor {
   FresnelThinFilm thin_film;
-  Spectrum n, k;
+  ComplexIOR<Spectrum> ior;
 };
 
 struct FresnelGeneralizedSchlick {
@@ -249,13 +249,12 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
   else if (bsdf->fresnel_type == MicrofacetFresnel::CONDUCTOR) {
     ccl_private FresnelConductor *fresnel = (ccl_private FresnelConductor *)bsdf->fresnel;
 
-    if (fresnel->thin_film.thickness > 0.1f) {
-      const ComplexIOR<Spectrum> substrate_ior = {fresnel->n, fresnel->k};
+    if (fresnel->thin_film.thickness > THINFILM_THICKNESS_CUTOFF) {
       *r_reflectance = fresnel_iridescence<Spectrum>(
-          kg, 1.0f, fresnel->thin_film, substrate_ior, nullptr, cos_theta_i, r_cos_theta_t);
+          kg, 1.0f, fresnel->thin_film, fresnel->ior, nullptr, cos_theta_i, r_cos_theta_t);
     }
     else {
-      *r_reflectance = fresnel_conductor(cos_theta_i, fresnel->n, fresnel->k);
+      *r_reflectance = fresnel_conductor(cos_theta_i, fresnel->ior);
     }
 
     *r_transmittance = zero_spectrum();
@@ -267,7 +266,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
     ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)bsdf->fresnel;
     const Spectrum reflectance = fresnel_f82(cos_theta_i, fresnel->f0, fresnel->b);
 
-    if (fresnel->thin_film.thickness > 0.1f) {
+    if (fresnel->thin_film.thickness > THINFILM_THICKNESS_CUTOFF) {
       /* Estimate n and k by reinterpreting F0 and F82 as r and g from "Artist Friendly Metallic
        * Fresnel" by Ole Gulbrandsen. */
       const Spectrum r = min(fresnel->f0, make_float3(0.999f));
@@ -290,7 +289,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
     ccl_private FresnelGeneralizedSchlick *fresnel = (ccl_private FresnelGeneralizedSchlick *)
                                                          bsdf->fresnel;
     Spectrum F;
-    if (fresnel->thin_film.thickness > 0.1f) {
+    if (fresnel->thin_film.thickness > THINFILM_THICKNESS_CUTOFF) {
       /* Iridescence doesn't combine well with the general case. We only expose it through the
        * Principled BSDF for now, so it's fine to not support custom exponents and F90. */
       kernel_assert(fresnel->exponent < 0.0f);
@@ -444,7 +443,7 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
     ccl_private FresnelGeneralizedSchlick *fresnel = (ccl_private FresnelGeneralizedSchlick *)
                                                          bsdf->fresnel;
 
-    if (fresnel->thin_film.thickness > 0.1f) {
+    if (fresnel->thin_film.thickness > THINFILM_THICKNESS_CUTOFF) {
       /* Precomputing LUTs for thin-film iridescence isn't viable, so fall back to the specular
        * reflection approximation from the microfacet_fresnel call above in that case. */
     }
@@ -467,7 +466,7 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
   else if (bsdf->fresnel_type == MicrofacetFresnel::F82_TINT) {
     ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)bsdf->fresnel;
 
-    if (fresnel->thin_film.thickness > 0.1f) {
+    if (fresnel->thin_film.thickness > THINFILM_THICKNESS_CUTOFF) {
       /* Precomputing LUTs for thin-film iridescence isn't viable, so fall back to the specular
        * reflection approximation from the microfacet_fresnel call above in that case. */
     }
@@ -835,7 +834,7 @@ ccl_device void bsdf_microfacet_setup_fresnel_conductor(KernelGlobals kg,
   bsdf->sample_weight *= average(bsdf_microfacet_estimate_albedo(kg, sd, bsdf, true, true));
 
   if (preserve_energy) {
-    microfacet_ggx_preserve_energy(kg, bsdf, sd, fresnel_conductor_Fss(fresnel->n, fresnel->k));
+    microfacet_ggx_preserve_energy(kg, bsdf, sd, fresnel_conductor_Fss(fresnel->ior));
   }
 }
 
