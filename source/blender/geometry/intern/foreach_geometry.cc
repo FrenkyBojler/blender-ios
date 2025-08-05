@@ -83,7 +83,7 @@ void foreach_real_geometry(bke::GeometrySet &geometry,
   for (auto &&item : real_geometries.items()) {
     geometries_with_paths.append({item.key, std::move(item.value)});
   }
-  /* Clear to avoid extra references to the geometries which prohibit editing them inplace. */
+  /* Clear to avoid extra references to the geometries which prohibit editing them in-place. */
   real_geometries.clear();
 
   /* Actually modify the geometries in parallel.*/
