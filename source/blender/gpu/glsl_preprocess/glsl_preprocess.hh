@@ -1198,6 +1198,7 @@ class Preprocessor {
     Struct,
     Function,
     Template,
+    Subscript,
     /* Added scope inside function body. */
     Local,
   };
@@ -1242,11 +1243,13 @@ class Preprocessor {
     /* Index inside token_types of the original token. */
     std::vector<int> token_no_whitespace_index;
     std::string token_no_whitespace_types;
-    /* Ranges in token. Includes start and end tokens. */
+    /* Index of no_whitespace_token indexed by original tokens. */
+    std::vector<int> token_index;
+    /* Ranges in no_whitespace_token. Includes start and end tokens. */
     std::vector<IndexRange> scope_ranges;
     std::string scope_types;
     /* Index inside scope_types. */
-    std::vector<int> scope_per_token;
+    std::vector<int> scope_per_no_whitespace_token;
 
     struct TokenTypeSequence {
       std::string sequence;
@@ -1284,7 +1287,7 @@ class Preprocessor {
       }
       ScopeRef scope() const
       {
-        return {parser, size_t(parser->scope_per_token[no_whitespace_id()])};
+        return {parser, size_t(parser->scope_per_no_whitespace_token[no_whitespace_id()])};
       }
 
       TokenType type() const
@@ -1319,12 +1322,12 @@ class Preprocessor {
 
       TokenRef start() const
       {
-        return {parser, parser->scope_ranges[index].start};
+        return {parser, size_t(parser->token_index[parser->scope_ranges[index].start])};
       }
 
       TokenRef end() const
       {
-        return {parser, parser->scope_ranges[index].last()};
+        return {parser, size_t(parser->token_index[parser->scope_ranges[index].last()])};
       }
 
       std::string str() const
@@ -1353,7 +1356,7 @@ class Preprocessor {
     {
       size_t pos = 0;
       while ((pos = token_no_whitespace_types.find(seq.sequence, pos)) != std::string::npos) {
-        // if (ScopeType(scope_types[scope_per_token[pos]]) == type) {
+        // if (ScopeType(scope_types[scope_per_no_whitespace_token[pos]]) == type) {
         callback(TokenRef{this, pos});
         // }
         pos += 1;
@@ -1467,6 +1470,7 @@ class Preprocessor {
         }
       }
       {
+        token_index.resize(token_types.size());
         token_no_whitespace_index.clear();
         token_no_whitespace_types.clear();
 
@@ -1474,6 +1478,7 @@ class Preprocessor {
         for (char &c : token_types) {
           tok_id++;
           if (c != Space && c != NewLine) {
+            token_index[tok_id] = token_no_whitespace_index.size();
             token_no_whitespace_index.emplace_back(tok_id);
             token_no_whitespace_types += c;
           }
@@ -1483,7 +1488,7 @@ class Preprocessor {
         /* Scope detection. */
         scope_ranges.clear();
         scope_types.clear();
-        scope_per_token.clear();
+        scope_per_no_whitespace_token.clear();
 
         struct ScopeItem {
           ScopeType type;
@@ -1493,23 +1498,29 @@ class Preprocessor {
 
         int scope_index = 0;
         std::stack<ScopeItem> scopes;
-        scopes.emplace(ScopeItem{ScopeType::Global, 0, scope_index++});
 
         auto enter_scope = [&](ScopeType type, size_t start_tok_id) {
           scopes.emplace(ScopeItem{type, start_tok_id, scope_index++});
+          scope_ranges.emplace_back(start_tok_id, 1);
+          scope_types += char(type);
+          if (start_tok_id > 0) {
+            /* Edit token scope index to put it inside the new scope. */
+            scope_per_no_whitespace_token.back() = scopes.top().index;
+          }
         };
 
         auto exit_scope = [&](int end_tok_id) {
           ScopeItem scope = scopes.top();
-          scope_ranges.emplace_back(scope.start, end_tok_id - scope.start + 1);
-          scope_types += char(scope.type);
+          scope_ranges[scope.index].size = end_tok_id - scope.start + 1;
           scopes.pop();
         };
+
+        enter_scope(ScopeType::Global, 0);
 
         int tok_id = -1;
         for (char &c : token_types) {
           tok_id++;
-          scope_per_token.emplace_back(scopes.top().index);
+          scope_per_no_whitespace_token.emplace_back(scopes.top().index);
 
           switch (TokenType(c)) {
             case BracketOpen:
@@ -1533,7 +1544,7 @@ class Preprocessor {
               enter_scope(ScopeType::Local, tok_id);
               break;
             case SquareOpen:
-              enter_scope(ScopeType::Local, tok_id);
+              enter_scope(ScopeType::Subscript, tok_id);
               break;
             case AngleOpen:
               if (scopes.top().type == ScopeType::Global ||
@@ -1557,6 +1568,8 @@ class Preprocessor {
               break;
           }
         }
+
+        exit_scope(tok_id);
       }
 
       token_offsets.offsets.emplace_back(str.size());
@@ -1564,6 +1577,7 @@ class Preprocessor {
       auto end = std::chrono::high_resolution_clock::now();
       auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
+#ifdef PRINT
       for (int i = 0; i < token_no_whitespace_types.size(); i++) {
         TokenRef tok{this, size_t(i)};
         std::cout << to_string(tok.type()) << " " << tok.scope().index << " " << tok.str()
@@ -1576,7 +1590,7 @@ class Preprocessor {
         std::cout << to_string(type) << " " << scope_str(i) << std::endl;
         // }
       }
-
+#endif
       std::cout << "Parser took: " << duration.count() << " µs" << std::endl;
       std::cout << "String len: " << std::to_string(str.size()) << std::endl;
       std::cout << "Token len: " << std::to_string(token_types.size()) << std::endl;
@@ -1799,6 +1813,8 @@ class Preprocessor {
           return "Function    ";
         case ScopeType::Template:
           return "Template    ";
+        case ScopeType::Subscript:
+          return "Subscript   ";
         case ScopeType::Local:
           return "Local       ";
         default:
@@ -1822,34 +1838,37 @@ class Preprocessor {
         const TokenRef end_of_this = dot.prev();
         TokenRef start_of_this = end_of_this;
         while (true) {
-          if ((start_of_this == ParClose) || (start_of_this == BracketClose)) {
-            /* Function call or array subscript. Take argument scope and function name. */
-            std::cout << "end_of_this.scope().start() " << end_of_this.scope().str() << std::endl;
-            start_of_this = end_of_this.scope().start().prev();
+          if (start_of_this == ParClose) {
+            /* Function call. Take argument scope and function name. No recursion. */
+            start_of_this = start_of_this.scope().start().prev();
             break;
           }
-          if (end_of_this == Word) {
+          if (start_of_this == BracketClose) {
+            /* Array subscript. Take scope and continue. */
+            start_of_this = start_of_this.scope().start().prev();
+            continue;
+          }
+          if (start_of_this == Word) {
             /* Member. */
-            if (end_of_this.prev() == Dot) {
-              start_of_this = end_of_this.prev();
+            if (start_of_this.prev() == Dot) {
+              start_of_this = start_of_this.prev();
               /* Continue until we find root member. */
+              continue;
             }
-            else {
-              break;
-            }
-          }
-          else {
-            /* Error. */
-            std::cout << "Error " << std::endl;
+            /* End of chain. */
             break;
           }
+
+          /* Error. */
+          std::cout << "Error " << start_of_this.str() << std::endl;
+          break;
         }
         string this_str = parser.substr_range_inclusive(start_of_this, end_of_this);
+        std::cout << "this_str " << this_str << std::endl;
         const bool has_no_arg = par_open.next() == ParClose;
         /* `a.fn(b)` -> `fn(a, b)` */
-        // parser.add_mutation_try(
-        //     start_of_this, par_open, dot.next().str() + "(" + this_str + (has_no_arg ? "" : ",
-        //     "));
+        parser.add_mutation_try(
+            start_of_this, par_open, dot.next().str() + "(" + this_str + (has_no_arg ? "" : ", "));
       });
     } while (parser.apply_mutations());
 
