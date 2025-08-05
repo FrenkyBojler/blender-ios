@@ -935,7 +935,7 @@ static void ntree_shader_pruned_unused(bNodeTree *ntree, bNode *output_node)
 
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
     if (node->runtime->tmp_flag == 0) {
-      blender::bke::node_tree_free_local_node(*ntree, *node);
+      blender::bke::node_free_node(ntree, *node);
       changed = true;
     }
   }
