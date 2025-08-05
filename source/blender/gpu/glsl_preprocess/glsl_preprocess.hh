@@ -219,7 +219,7 @@ class Preprocessor {
       str = swizzle_function_mutation(str);
       if (language == BLENDER_GLSL) {
         str = struct_method_mutation(str, report_error);
-        str = method_call_mutation(str);
+        str = method_call_mutation(str, report_error);
         str = stage_function_mutation(str);
         str = resource_guard_mutation(str, report_error);
         str = loop_unroll(str, report_error);
@@ -1137,13 +1137,13 @@ class Preprocessor {
           replace_all(modified_fn_name_and_type, " static ", " ");
         }
 
-        modified_functions += "\n#line " + to_string(struct_declaration_line + fn_line);
+        modified_functions += "\n#line " + std::to_string(struct_declaration_line + fn_line);
         modified_functions += modified_fn_name_and_type + modified_fn_args + ")\n";
         modified_functions += "  {" + modified_fn_body + "}\n";
       });
 
       modified_functions += "\n#line " +
-                            to_string(struct_declaration_line + line_count(struct_body) + 1);
+                            std::to_string(struct_declaration_line + line_count(struct_body) + 1);
 
       replace_all(out,
                   struct_begin + struct_body,
@@ -1192,6 +1192,84 @@ class Preprocessor {
     Static,
   };
 
+  const char *to_string(TokenType c)
+  {
+    switch (c) {
+      case TokenType::NewLine:
+        return "NewLine     ";
+      case TokenType::Space:
+        return "Space       ";
+      case TokenType::Hash:
+        return "Hash        ";
+      case TokenType::Dot:
+        return "Dot         ";
+      case TokenType::ParOpen:
+        return "ParOpen     ";
+      case TokenType::ParClose:
+        return "ParClose    ";
+      case TokenType::BracketOpen:
+        return "BracketOpen ";
+      case TokenType::BracketClose:
+        return "BracketClose";
+      case TokenType::SquareOpen:
+        return "SquareOpen  ";
+      case TokenType::SquareClose:
+        return "SquareClose ";
+      case TokenType::AngleOpen:
+        return "AngleOpen   ";
+      case TokenType::AngleClose:
+        return "AngleClose  ";
+      case TokenType::Equal:
+        return "Equal       ";
+      case TokenType::Star:
+        return "Star        ";
+      case TokenType::Arithmetic:
+        return "Arithmetic  ";
+      case TokenType::Literal:
+        return "Literal     ";
+      case TokenType::Word:
+        return "Word        ";
+      case TokenType::Colon:
+        return "Colon       ";
+      case TokenType::SemiColon:
+        return "SemiColon   ";
+      case TokenType::Comma:
+        return "Comma       ";
+      case TokenType::Namespace:
+        return "Namespace   ";
+      case TokenType::Struct:
+        return "Struct      ";
+      case TokenType::Class:
+        return "Class       ";
+      case TokenType::Const:
+        return "Const       ";
+      case TokenType::Constexpr:
+        return "Constexpr   ";
+      case TokenType::Return:
+        return "Return      ";
+      case TokenType::Case:
+        return "Case        ";
+      case TokenType::Switch:
+        return "Switch      ";
+      case TokenType::If:
+        return "If          ";
+      case TokenType::Else:
+        return "Else        ";
+      case TokenType::While:
+        return "While       ";
+      case TokenType::Do:
+        return "Do          ";
+      case TokenType::For:
+        return "For         ";
+      case TokenType::Template:
+        return "Template    ";
+      case TokenType::Static:
+        return "Static      ";
+      default:
+        return "Error";
+    }
+  }
+
   enum class ScopeType : char {
     Global = 'A', /* Use ascii chars to store them in string. */
     Namespace,
@@ -1202,6 +1280,28 @@ class Preprocessor {
     /* Added scope inside function body. */
     Local,
   };
+
+  const char *to_string(ScopeType c)
+  {
+    switch (c) {
+      case ScopeType::Global:
+        return "Global      ";
+      case ScopeType::Namespace:
+        return "Namespace   ";
+      case ScopeType::Struct:
+        return "Struct      ";
+      case ScopeType::Function:
+        return "Function    ";
+      case ScopeType::Template:
+        return "Template    ";
+      case ScopeType::Subscript:
+        return "Subscript   ";
+      case ScopeType::Local:
+        return "Local       ";
+      default:
+        return "Error";
+    }
+  }
 
   struct Parser {
     /* Poor man's IndexRange. */
@@ -1356,9 +1456,9 @@ class Preprocessor {
     {
       size_t pos = 0;
       while ((pos = token_no_whitespace_types.find(seq.sequence, pos)) != std::string::npos) {
-        // if (ScopeType(scope_types[scope_per_no_whitespace_token[pos]]) == type) {
-        callback(TokenRef{this, pos});
-        // }
+        if (ScopeType(scope_types[scope_per_no_whitespace_token[pos]]) == type) {
+          callback(TokenRef{this, pos});
+        }
         pos += 1;
       }
     }
@@ -1591,10 +1691,14 @@ class Preprocessor {
         // }
       }
 #endif
+#ifdef TIME_IT
       std::cout << "Parser took: " << duration.count() << " µs" << std::endl;
       std::cout << "String len: " << std::to_string(str.size()) << std::endl;
       std::cout << "Token len: " << std::to_string(token_types.size()) << std::endl;
       std::cout << "Scope len: " << std::to_string(scope_ranges.size()) << std::endl;
+#else
+      (void)duration;
+#endif
     }
 
     std::string token_str(int token_id)
@@ -1655,8 +1759,10 @@ class Preprocessor {
 
       int64_t offset = 0;
       for (const Mutation &mut : mutations) {
+#ifdef DEBUG_MUTATIONS
         std::cout << "Replace \"" << str.substr(mut.src_range.start + offset, mut.src_range.size)
                   << "\" by \"" << mut.replacement << "\"" << std::endl;
+#endif
         str.replace(mut.src_range.start + offset, mut.src_range.size, mut.replacement);
         offset += mut.replacement.size() - mut.src_range.size;
       }
@@ -1721,110 +1827,10 @@ class Preprocessor {
           return TokenType::Word;
       }
     }
-
-    const char *to_string(TokenType c)
-    {
-      switch (c) {
-        case TokenType::NewLine:
-          return "NewLine     ";
-        case TokenType::Space:
-          return "Space       ";
-        case TokenType::Hash:
-          return "Hash        ";
-        case TokenType::Dot:
-          return "Dot         ";
-        case TokenType::ParOpen:
-          return "ParOpen     ";
-        case TokenType::ParClose:
-          return "ParClose    ";
-        case TokenType::BracketOpen:
-          return "BracketOpen ";
-        case TokenType::BracketClose:
-          return "BracketClose";
-        case TokenType::SquareOpen:
-          return "SquareOpen  ";
-        case TokenType::SquareClose:
-          return "SquareClose ";
-        case TokenType::AngleOpen:
-          return "AngleOpen   ";
-        case TokenType::AngleClose:
-          return "AngleClose  ";
-        case TokenType::Equal:
-          return "Equal       ";
-        case TokenType::Star:
-          return "Star        ";
-        case TokenType::Arithmetic:
-          return "Arithmetic  ";
-        case TokenType::Literal:
-          return "Literal     ";
-        case TokenType::Word:
-          return "Word        ";
-        case TokenType::Colon:
-          return "Colon       ";
-        case TokenType::SemiColon:
-          return "SemiColon   ";
-        case TokenType::Comma:
-          return "Comma       ";
-        case TokenType::Namespace:
-          return "Namespace   ";
-        case TokenType::Struct:
-          return "Struct      ";
-        case TokenType::Class:
-          return "Class       ";
-        case TokenType::Const:
-          return "Const       ";
-        case TokenType::Constexpr:
-          return "Constexpr   ";
-        case TokenType::Return:
-          return "Return      ";
-        case TokenType::Case:
-          return "Case        ";
-        case TokenType::Switch:
-          return "Switch      ";
-        case TokenType::If:
-          return "If          ";
-        case TokenType::Else:
-          return "Else        ";
-        case TokenType::While:
-          return "While       ";
-        case TokenType::Do:
-          return "Do          ";
-        case TokenType::For:
-          return "For         ";
-        case TokenType::Template:
-          return "Template    ";
-        case TokenType::Static:
-          return "Static      ";
-        default:
-          return "Error";
-      }
-    }
-
-    const char *to_string(ScopeType c)
-    {
-      switch (c) {
-        case ScopeType::Global:
-          return "Global      ";
-        case ScopeType::Namespace:
-          return "Namespace   ";
-        case ScopeType::Struct:
-          return "Struct      ";
-        case ScopeType::Function:
-          return "Function    ";
-        case ScopeType::Template:
-          return "Template    ";
-        case ScopeType::Subscript:
-          return "Subscript   ";
-        case ScopeType::Local:
-          return "Local       ";
-        default:
-          return "Error";
-      }
-    }
   };
 
   /* Transform `a.fn(b)` into `fn(a, b)`. */
-  std::string method_call_mutation(const std::string &str)
+  std::string method_call_mutation(const std::string &str, report_callback report_error)
   {
     using namespace std;
     using Seq = Parser::TokenTypeSequence;
@@ -1843,7 +1849,7 @@ class Preprocessor {
             start_of_this = start_of_this.scope().start().prev();
             break;
           }
-          if (start_of_this == BracketClose) {
+          if (start_of_this == SquareClose) {
             /* Array subscript. Take scope and continue. */
             start_of_this = start_of_this.scope().start().prev();
             continue;
@@ -1851,20 +1857,19 @@ class Preprocessor {
           if (start_of_this == Word) {
             /* Member. */
             if (start_of_this.prev() == Dot) {
-              start_of_this = start_of_this.prev();
+              start_of_this = start_of_this.prev().prev();
               /* Continue until we find root member. */
               continue;
             }
             /* End of chain. */
             break;
           }
-
-          /* Error. */
-          std::cout << "Error " << start_of_this.str() << std::endl;
+          string error = "method_call_mutation parsing error : " + start_of_this.str() +
+                         to_string(start_of_this.type());
+          report_error(smatch(), error.c_str());
           break;
         }
         string this_str = parser.substr_range_inclusive(start_of_this, end_of_this);
-        std::cout << "this_str " << this_str << std::endl;
         const bool has_no_arg = par_open.next() == ParClose;
         /* `a.fn(b)` -> `fn(a, b)` */
         parser.add_mutation_try(
@@ -2077,7 +2082,7 @@ class Preprocessor {
 
       const bool has_non_void_return_type = return_type != "void";
 
-      string line_directive = "#line " + to_string(line - lines_in_content + 2) + "\n";
+      string line_directive = "#line " + std::to_string(line - lines_in_content + 2) + "\n";
 
       vector<string> args_split = split_string_not_between_balanced_pair(args, ',', '(', ')');
       string overloads;
@@ -2125,7 +2130,7 @@ class Preprocessor {
                             "}\n";
 
       string last_line_directive =
-          "#line " + to_string(line - lines_in_content + line_count(body_content) + 3) + "\n";
+          "#line " + std::to_string(line - lines_in_content + line_count(body_content) + 3) + "\n";
 
       mutations.emplace_back(with_default + body_content,
                              no_default + body_content + overloads + last_line_directive);
