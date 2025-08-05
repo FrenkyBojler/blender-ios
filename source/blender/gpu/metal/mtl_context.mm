@@ -2426,7 +2426,7 @@ void MTLContext::texture_unbind(gpu::MTLTexture *mtl_texture,
       resource_bind_table[i].texture_resource = nullptr;
       resource_bind_table[i].used = false;
       if (is_image) {
-        state_manage->image_formats[index] = TextureFormat::Invalid;
+        state_manage->image_formats[i] = TextureWriteFormat::Invalid;
       }
     }
   }

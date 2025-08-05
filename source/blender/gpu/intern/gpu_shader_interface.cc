@@ -73,10 +73,17 @@ void ShaderInterface::set_image_formats_from_info(const shader::ShaderCreateInfo
 {
   for (const shader::ShaderCreateInfo::Resource &res : info.pass_resources_) {
     if (res.bind_type == shader::ShaderCreateInfo::Resource::BindType::IMAGE) {
-      if (res.slot <= image_formats_.size()) {
-        image_formats_.resize(res.slot);
-      }
-      image_formats_[res.slot] = res.image.format;
+      image_formats_[res.slot] = TextureWriteFormat(res.image.format);
+    }
+  }
+  for (const shader::ShaderCreateInfo::Resource &res : info.batch_resources_) {
+    if (res.bind_type == shader::ShaderCreateInfo::Resource::BindType::IMAGE) {
+      image_formats_[res.slot] = TextureWriteFormat(res.image.format);
+    }
+  }
+  for (const shader::ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+    if (res.bind_type == shader::ShaderCreateInfo::Resource::BindType::IMAGE) {
+      image_formats_[res.slot] = TextureWriteFormat(res.image.format);
     }
   }
 }

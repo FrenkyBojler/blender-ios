@@ -173,15 +173,9 @@ bool GPU_debug_validate_binding_image_format()
 
   const auto &texture_formats_state = Context::get()->state_manager->image_formats;
   const auto &texture_formats_shader = Context::get()->shader->interface->image_formats_;
-  int num_image_units = int(std::min(texture_formats_state.size(), texture_formats_shader.size()));
-  for (int image_unit = 0; image_unit < num_image_units; image_unit++) {
-    TextureFormat format_state = texture_formats_state[image_unit];
-    TextureFormat format_shader = texture_formats_shader[image_unit];
-    if (texture_formats_shader[image_unit] == TextureFormat::Invalid ||
-        texture_formats_state[image_unit] == TextureFormat::Invalid)
-    {
-      continue;
-    }
+  for (int image_unit = 0; image_unit < GPU_MAX_IMAGE; image_unit++) {
+    TextureWriteFormat format_state = texture_formats_state[image_unit];
+    TextureWriteFormat format_shader = texture_formats_shader[image_unit];
     if (UNLIKELY(texture_formats_shader[image_unit] != texture_formats_state[image_unit])) {
       fprintf(
           stderr,
@@ -189,8 +183,8 @@ bool GPU_debug_validate_binding_image_format()
           "shader '%s' at binding %d (shader format '%s' vs. bound texture format '%s').\n",
           Context::get()->shader->name_get().c_str(),
           image_unit,
-          GPU_texture_format_name(texture_formats_shader[image_unit]),
-          GPU_texture_format_name(texture_formats_state[image_unit]));
+          GPU_texture_format_name(to_texture_format(texture_formats_shader[image_unit])),
+          GPU_texture_format_name(to_texture_format(texture_formats_state[image_unit])));
       return false;
     }
   }

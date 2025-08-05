@@ -20,6 +20,7 @@
 
 #include "GPU_format.hh"
 #include "GPU_shader.hh"
+#include "GPU_texture_private.hh"
 #include "GPU_vertex_format.hh" /* GPU_VERT_ATTR_MAX_LEN */
 #include "gpu_shader_create_info.hh"
 
@@ -78,9 +79,8 @@ class ShaderInterface {
    */
   uint8_t attr_types_[GPU_VERT_ATTR_MAX_LEN];
 
-  /* Formats of all image units (default allocation size 8, as this is the minimum supported by any
-   * API). */
-  Vector<TextureFormat, 8> image_formats_;
+  /* Formats of all image units. */
+  std::array<TextureWriteFormat, GPU_MAX_IMAGE> image_formats_;
 
   ShaderInterface();
   virtual ~ShaderInterface();

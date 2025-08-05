@@ -691,11 +691,7 @@ void MTLStateManager::image_bind(Texture *tex_, int unit)
   MTLContext *ctx = MTLContext::get();
   if (unit >= 0) {
     ctx->texture_bind(mtl_tex, unit, true);
-
-    if (unit <= image_formats.size()) {
-      image_formats.resize(unit);
-    }
-    image_formats[unit] = tex_->format_get();
+    image_formats[unit] = TextureWriteFormat(tex_->format_get());
   }
 }
 
@@ -713,7 +709,7 @@ void MTLStateManager::image_unbind_all()
   MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
   ctx->texture_unbind_all(true);
-  image_formats.clear();
+  image_formats.fill(TextureWriteFormat::Invalid);
 }
 
 /** \} */

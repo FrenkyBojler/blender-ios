@@ -96,7 +96,7 @@ template<int Offset> class BindSpaceImages {
     for (int index : IndexRange(bound_resources.size())) {
       if (bound_resources[index] == resource) {
         bound_resources[index] = nullptr;
-        state_manager->image_formats[index] = TextureFormat::Invalid;
+        state_manager->image_formats[index] = TextureWriteFormat::Invalid;
       }
     }
   }
