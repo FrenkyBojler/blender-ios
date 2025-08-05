@@ -105,9 +105,7 @@ static wmOperatorStatus pin_verts_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-
     BM_mesh_elem_index_ensure(bm, BM_VERT);
-
     BM_data_layer_ensure_named(bm, &bm->vdata, CD_PROP_BOOL, "V_PINNED");
 
     const int offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_BOOL, "V_PINNED");
@@ -142,11 +140,7 @@ static wmOperatorStatus pin_verts_exec(bContext *C, wmOperator *op)
   ts->proportional_edit |= (PROP_EDIT_CONNECTED);
 
   WM_event_add_notifier(C,NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-
   BKE_report(op->reports, RPT_INFO, "Pinned vertices; 'Connected Only' mode enabled");
-
-
   return OPERATOR_FINISHED;
 }
 
@@ -164,9 +158,11 @@ void MESH_OT_pin_verts(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
 /*
  * Unpin All Vertices Operator
  */
+
 static wmOperatorStatus unpin_verts_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
