@@ -3071,6 +3071,7 @@ class _defs_sequencer_select:
             row.use_property_split = False
             row.prop(props, "mode", text="", expand=True, icon_only=True)
             layout.prop(props, "radius")
+
         def draw_cursor(_context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             props = tool.operator_properties("sequencer.select_circle")
@@ -3094,6 +3095,7 @@ class _defs_sequencer_select:
             row.use_property_split = False
             row.prop(props, "mode", text="", expand=True, icon_only=True)
             layout.prop(props, "radius")
+
         def draw_cursor(_context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             props = tool.operator_properties("sequencer.select_circle")
@@ -3108,6 +3110,7 @@ class _defs_sequencer_select:
             draw_settings=draw_settings,
             draw_cursor=draw_cursor,
         )
+
 
 class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -3774,8 +3777,10 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
         ],
         'SEQUENCER': [
-            _defs_sequencer_select.box_timeline,
-            _defs_sequencer_select.circle_timeline,
+            (
+                _defs_sequencer_select.box_timeline,
+                _defs_sequencer_select.circle_timeline,
+            ),
             _defs_sequencer_generic.blade,
         ],
         'SEQUENCER_PREVIEW': [
