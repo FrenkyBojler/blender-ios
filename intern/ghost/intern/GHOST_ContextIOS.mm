@@ -1,21 +1,6 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -105,8 +90,9 @@ GHOST_ContextIOS::GHOST_ContextIOS(UIView *uiView, MTKView *metalView)
 
   /* IOS_FIXME: Temp fix for swapbuffers issue causing sporadic lockups.
    * Repros on loading assets screen */
+  m_allow_presents = false;
   defer_swap_buffers = true;
-  swap_buffers_requested = false;
+  swap_buffers_requested_count = 0;
 }
 
 GHOST_ContextIOS::~GHOST_ContextIOS()
@@ -127,7 +113,7 @@ GHOST_TSuccess GHOST_ContextIOS::swapBuffers()
     metalSwapBuffers();
   }
   else {
-    swap_buffers_requested = true;
+    swap_buffers_requested_count++;
   }
   return GHOST_kSuccess;
 }
@@ -401,41 +387,59 @@ void GHOST_ContextIOS::metalRegisterPresentCallback(void (*callback)(
   this->contextPresentCallback = callback;
 }
 
+void GHOST_ContextIOS::allowPresents(bool allow_presents)
+{
+  m_allow_presents = allow_presents;
+}
+
 void GHOST_ContextIOS::metalSwapBuffers()
 {
-  /* IOS_FIXME: Deferred swap buffers to fix lockups. */
-  if (defer_swap_buffers && !swap_buffers_requested) {
+  /* Check a request was made. */
+  if (defer_swap_buffers && !swap_buffers_requested_count) {
+    return;
+  }
+  /* If we hit this it implies that we have a request to swap/present
+   * from an inactive window and we need to debug why. */
+  if (!m_allow_presents) {
+    NSLog(@"Present for inactive window observed");
+  }
+
+  /* Get the next drawable. */
+  id<CAMetalDrawable> current_drawable = m_metalView.currentDrawable;
+
+  if (!current_drawable) {
+    NSLog(@"Failed to acquire CAMetalDrawable");
     return;
   }
 
-  /* Avoid double present from separate windows. */
-  if (m_metalView.currentDrawable != GHOST_ContextIOS::prevDrawable) {
+  /* Double presents indicate that we are trying to present updates faster
+   * than the display's refresh rate. We should always display the latest update
+   * (or the screen will lag Blender's view of the world) but output a message
+   * so we are aware and can investigate. */
+  if (current_drawable != GHOST_ContextIOS::prevDrawable) {
     GHOST_ContextIOS::current_drawable_presented = false;
-    GHOST_ContextIOS::prevDrawable = m_metalView.currentDrawable;
+    GHOST_ContextIOS::prevDrawable = current_drawable;
   }
   if (current_drawable_presented) {
-    return;
-  }
-
-  /* Get a renderpass descriptor for the current view. */
-  MTLRenderPassDescriptor *passDescriptor = m_metalView.currentRenderPassDescriptor;
-  if (passDescriptor == nil) {
-    return;
-  }
-  else {
-    auto attachment = [passDescriptor.colorAttachments objectAtIndexedSubscript:0];
-    attachment.loadAction = MTLLoadActionClear;
-    attachment.clearColor = MTLClearColorMake(0.294, 0.294, 0.294, 1.000);
-    attachment.storeAction = MTLStoreActionStore;
+    NSLog(@"Double present (MTKView)%p!", m_metalView);
   }
 
   /* clang-format off */
   @autoreleasepool {
     /* clang-format on */
     updateDrawingContext();
-    id<CAMetalDrawable> drawable = m_metalView.currentDrawable;
-    if (!drawable) {
+
+    /* Get a renderpass descriptor for the current view. */
+    MTLRenderPassDescriptor *passDescriptor = m_metalView.currentRenderPassDescriptor;
+    if (passDescriptor == nil) {
+      NSLog(@"Failed to acquire MTLRenderPassDescriptor");
       return;
+    }
+    else {
+      auto attachment = [passDescriptor.colorAttachments objectAtIndexedSubscript:0];
+      attachment.loadAction = MTLLoadActionClear;
+      attachment.clearColor = MTLClearColorMake(0.294, 0.294, 0.294, 1.000);
+      attachment.storeAction = MTLStoreActionStore;
     }
 
     assert(contextPresentCallback);
@@ -443,11 +447,11 @@ void GHOST_ContextIOS::metalSwapBuffers()
     (*contextPresentCallback)(passDescriptor,
                               (id<MTLRenderPipelineState>)m_metalRenderPipeline,
                               m_defaultFramebufferMetalTexture[current_swapchain_index].texture,
-                              drawable);
+                              m_allow_presents ? current_drawable : nullptr);
     GHOST_ContextIOS::current_drawable_presented = true;
   }
 
   if (defer_swap_buffers) {
-    swap_buffers_requested = false;
+    swap_buffers_requested_count = 0;
   }
 }
