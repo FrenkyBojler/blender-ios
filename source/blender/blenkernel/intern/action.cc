@@ -1451,7 +1451,7 @@ static bool pose_channel_gizmo_use_localized_transform(const bArmature *arm,
 }
 
 /**
- * Get the pose_bone's restspace matrix relative to its custom_tx.
+ * Get the pose_bone's rest pose transform matrix in armature space relative to its custom_tx.
  */
 static void pose_channel_rest_pose_custom_tx_from_pchan(const bPoseChannel *pose_bone,
                                                         float r_custom_tx_from_pose_bone[3][3])
@@ -1475,8 +1475,8 @@ void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
 
   const bPoseChannel *custom_tx_bone = pose_bone->custom_tx;
 
-  /* Get custom_tx_bone's current rest matrix in posespace. The word `rest` refers to using
-   * custom_tx_bone's EditMode armature-space matrix relative to its parent. */
+  /* Get custom_tx_bone's current rest pose matrix in armature space. The word `rest` refers to
+   * using custom_tx_bone's EditMode armature-space matrix relative to its parent. */
   float pose_from_custom_tx[3][3];
   {
     BoneParentTransform bpt;
