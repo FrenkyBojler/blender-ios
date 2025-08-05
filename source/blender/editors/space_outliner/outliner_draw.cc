@@ -179,17 +179,6 @@ static void restrictbutton_r_lay_fn(bContext *C, void *poin, void * /*poin2*/)
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, poin);
 }
 
-static bool pose_bone_is_descendant_of(bPoseChannel *pchan, const bPoseChannel *potential_parent)
-{
-  while (pchan) {
-    if (pchan == potential_parent) {
-      return true;
-    }
-    pchan = pchan->parent;
-  }
-  return false;
-}
-
 static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void *poin2)
 {
   const Object *ob = (Object *)poin;

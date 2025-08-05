@@ -76,7 +76,6 @@ static int bone_skinnable_cb(Object * /*ob*/, Bone *bone, void *datap)
     bool is_weight_paint;
   } *data = static_cast<Arg *>(datap);
 
-  bArmature *arm = static_cast<bArmature *>(data->armob->data);
   bPoseChannel *pose_bone = BKE_pose_channel_find_name(data->armob->pose, bone->name);
   BLI_assert_msg(pose_bone != nullptr, bone->name);
 
