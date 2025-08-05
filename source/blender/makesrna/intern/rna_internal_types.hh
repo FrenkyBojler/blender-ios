@@ -548,6 +548,8 @@ struct StringPropertyRNA {
   PropStringSetFunc set;
 
   PropStringGetFuncEx get_ex;
+  /* This callback only returns the 'storage' length (i.e. length of string returned by `get_ex`),
+   * _not_ the final length (potentially modified by the `get_transform` callback). */
   PropStringLengthFuncEx length_ex;
   PropStringSetFuncEx set_ex;
 

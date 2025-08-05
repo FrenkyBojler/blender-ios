@@ -1475,9 +1475,16 @@ static std::string bpy_prop_string_get_transform_fn(PointerRNA *ptr,
 
 static int bpy_prop_string_length_fn(PointerRNA *ptr, PropertyRNA *prop)
 {
-  std::string value = RNA_property_string_get(ptr, prop);
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
 
-  return int(value.size());
+  /* This bpyprops-specific length callback is only called when there is a custom `get` function.
+   */
+  std::string ret = bpy_prop_string_get_locked_fn(ptr, prop);
+  const int length = int(ret.size());
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return length;
 }
 
 static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, std::string value)

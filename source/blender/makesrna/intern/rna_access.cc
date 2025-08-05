@@ -3761,25 +3761,40 @@ float RNA_property_float_get_default_index(PointerRNA *ptr, PropertyRNA *prop, i
   return value;
 }
 
+static size_t property_string_length_storage(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)
+{
+  if (prop_rna_or_id.idprop) {
+    IDProperty *idprop = prop_rna_or_id.idprop;
+    if (idprop->subtype == IDP_STRING_SUB_BYTE) {
+      return size_t(idprop->len);
+    }
+    /* these _must_ stay in sync */
+    if (strlen(IDP_String(idprop)) != idprop->len - 1) {
+      printf("%zu vs. %d\n", strlen(IDP_String(idprop)), idprop->len - 1);
+    }
+    BLI_assert(strlen(IDP_String(idprop)) == idprop->len - 1);
+    return size_t(idprop->len - 1);
+  }
+
+  StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop_rna_or_id.rnaprop);
+  if (sprop->length) {
+    return sprop->length(ptr);
+  }
+  if (sprop->length_ex) {
+    return size_t(sprop->length_ex(ptr, &sprop->property));
+  }
+  return strlen(sprop->defaultvalue);
+}
+
 static std::string property_string_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)
 {
   if (prop_rna_or_id.idprop) {
-    /* For normal strings, the length does not contain the null terminator. But for
-     * #IDP_STRING_SUB_BYTE, it contains the full string including any terminating null. */
-    const size_t len = size_t(prop_rna_or_id.idprop->len -
-                              ((prop_rna_or_id.idprop->subtype == IDP_STRING_SUB_BYTE) ? 0 : 1));
-    return std::string{IDP_String(prop_rna_or_id.idprop), len};
+    const size_t length = property_string_length_storage(ptr, prop_rna_or_id);
+    return std::string{IDP_String(prop_rna_or_id.idprop), length};
   }
   StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop_rna_or_id.rnaprop);
   if (sprop->get) {
-    /* FIXME This works because with get, it's never a bpy-defined property, so there won't be
-     * calling loops.
-     *
-     * Fixing likely requires two different 'get_length' paths, one internal for
-     * stored data length, the other public for final, transformed string.
-     */
-    const size_t length = size_t(RNA_property_string_length(ptr, &sprop->property));
-
+    const size_t length = property_string_length_storage(ptr, prop_rna_or_id);
     /* Note: after `resize()` the underlying buffer is actually at least
      * `length + 1` bytes long, because (since C++11) `std::string` guarantees
      * a terminating null byte, but that is not considered part of the length. */
@@ -3851,28 +3866,24 @@ char *RNA_property_string_get_alloc(
 
 int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop)
 {
-  StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
-  IDProperty *idprop;
-
   BLI_assert(RNA_property_type(prop) == PROP_STRING);
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_string_get` without
+   * further complications.
+   * `sprop->property` should be used when access to an actual RNA property is required.
+   */
+  StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop_rna_or_id.rnaprop);
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    if (idprop->subtype == IDP_STRING_SUB_BYTE) {
-      return idprop->len;
-    }
-#ifndef NDEBUG
-    /* these _must_ stay in sync */
-    BLI_assert(strlen(IDP_String(idprop)) == idprop->len - 1);
-#endif
-    return idprop->len - 1;
+  /* If there is a `get_transform` callback, no choice but get that final string to find out its
+   * length. Otherwise, get the 'storage length', whcih is typically more efficient to compute. */
+  if (sprop->get_transform) {
+    std::string string_final = RNA_property_string_get(ptr, prop);
+    return int(string_final.size());
   }
-  if (sprop->length) {
-    return sprop->length(ptr);
+  else {
+    return int(property_string_length_storage(ptr, prop_rna_or_id));
   }
-  if (sprop->length_ex) {
-    return sprop->length_ex(ptr, prop);
-  }
-  return strlen(sprop->defaultvalue);
 }
 
 void RNA_property_string_set(PointerRNA *ptr, PropertyRNA *prop, const char *value)
