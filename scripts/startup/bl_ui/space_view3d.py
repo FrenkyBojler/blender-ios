@@ -5842,10 +5842,6 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
         layout.operator("grease_pencil.reset_uvs")
 
-        layout.separator()
-
-        layout.operator("grease_pencil.set_corner_type")
-
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
 
@@ -5868,6 +5864,7 @@ class VIEW3D_MT_edit_greasepencil_point(Menu):
         layout.separator()
 
         layout.operator_menu_enum("grease_pencil.set_handle_type", property="type")
+        layout.operator_menu_enum("grease_pencil.set_corner_type", property="corner_type")
 
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
