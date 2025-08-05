@@ -50,6 +50,7 @@ VKContext::~VKContext()
   free_resources();
   VKDevice &device = VKBackend::get().device;
   static_cast<VKImmediate *>(imm)->deinit(device);
+  delete imm;
   imm = nullptr;
   device.context_unregister(*this);
 
