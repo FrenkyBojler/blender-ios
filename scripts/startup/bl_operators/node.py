@@ -163,9 +163,7 @@ class NodeSwapOperator:
                         if new_socket.hide or not new_socket.enabled:
                             continue
 
-                        new_link = tree.links.new(link.from_socket, new_socket)
-                        if link.to_socket.is_multi_input:
-                            new_link.swap_multi_input_sort_id(link)
+                        tree.links.new(link.from_socket, new_socket)
                     except KeyError:
                         pass
 
