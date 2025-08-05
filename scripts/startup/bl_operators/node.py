@@ -179,8 +179,13 @@ class NodeSwapOperator:
                             continue
 
                         new_link = tree.links.new(new_socket, link.to_socket)
-                        if link.to_socket.is_multi_input:
-                            new_link.swap_multi_input_sort_id(link)
+
+                        try:
+                            if link.to_socket.is_multi_input:
+                                new_link.swap_multi_input_sort_id(link)
+                        except AttributeError:
+                            pass
+
                     except KeyError:
                         pass
 
