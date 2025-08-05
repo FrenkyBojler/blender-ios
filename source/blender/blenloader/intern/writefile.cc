@@ -1118,9 +1118,21 @@ static void write_id(WriteData *wd, ID *id)
   mywrite_id_begin(wd, id);
   if (id_type->blend_write != nullptr) {
     BlendWriter writer = {wd};
-    BLO_Write_IDBuffer id_buffer{*id, &writer};
+    BLO_Write_IDBuffer id_buffer{*id, wd->use_memfile, false};
     id_type->blend_write(&writer, id_buffer.get(), id);
   }
+  mywrite_id_end(wd, id);
+}
+
+static void write_id_placeholder(WriteData *wd, ID *id)
+{
+  mywrite_id_begin(wd, id);
+
+  /* Only copy required data for the placeholder ID. */
+  BLO_Write_IDBuffer id_buffer{*id, wd->use_memfile, true};
+
+  writestruct_at_address(wd, ID_LINK_PLACEHOLDER, ID, 1, id, &id_buffer);
+
   mywrite_id_end(wd, id);
 }
 
@@ -1195,7 +1207,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     write_id(wd, &library.id);
 
-    /* Write placeholders or packed data for linked data-blocks that are used. */
+    /* Write placeholders for linked data-blocks that are used. */
     for (ID *id : ids_used_from_library) {
       if (ID_IS_PACKED(id)) {
         write_id(wd, id);
@@ -1208,7 +1220,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
                      id->name,
                      library.runtime->filepath_abs);
         }
-        writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
+        write_id_placeholder(wd, id);
       }
     }
   }
@@ -1294,8 +1306,9 @@ static void write_thumb(WriteData *wd, const BlendThumbnail *thumb)
 /** \name File Writing (Private)
  * \{ */
 
-BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
-    : buffer_(BKE_idtype_get_info_from_id(&id)->struct_size, alignof(ID))
+BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo, const bool is_placeholder)
+    : buffer_(is_placeholder ? sizeof(ID) : BKE_idtype_get_info_from_id(&id)->struct_size,
+              alignof(ID))
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(&id);
   ID *temp_id = static_cast<ID *>(buffer_.buffer());
@@ -1309,6 +1322,24 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
   }
 
   /* Copy ID data itself into buffer, to be able to freely modify it. */
+
+  if (is_placeholder) {
+    /* For placeholders (references to linked data), zero-initialize, and only explicitely copy the
+     * very small subset of required data. */
+    *temp_id = ID{};
+    temp_id->lib = id.lib;
+    STRNCPY(temp_id->name, id.name);
+    temp_id->flag = id.flag;
+    temp_id->session_uid = id.session_uid;
+    if (is_undo) {
+      temp_id->recalc_up_to_undo_push = id.recalc_up_to_undo_push;
+      temp_id->tag = id.tag & ID_TAG_KEEP_ON_UNDO;
+    }
+    return;
+  }
+
+  /* Regular 'full' ID writing, copy everything, then clear some runtime data irrelevant in the
+   * blendfile. */
   memcpy(temp_id, &id, id_type->struct_size);
 
   /* Clear runtime data to reduce false detection of changed data in undo/redo context. */
@@ -1338,7 +1369,7 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
 }
 
 BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, BlendWriter *writer)
-    : BLO_Write_IDBuffer(id, BLO_write_is_undo(writer))
+    : BLO_Write_IDBuffer(id, BLO_write_is_undo(writer), false)
 {
 }
 
