@@ -645,9 +645,23 @@ static void propagate_left_to_right(const bNodeTree &tree,
         continue;
       }
 
+      /* If a node has e.g. a single value input, don't overwrite that based on what's passed into
+       * it. */
+      const bool use_specified_node_structure_types = !node->is_group_output() &&
+                                                      !node->is_type("NodeClosureOutput");
+
       for (const bNodeSocket *input : input_sockets) {
         if (!input->is_available()) {
           continue;
+        }
+        if (use_specified_node_structure_types) {
+          const nodes::SocketDeclaration *socket_decl = input->runtime->declaration;
+          if (socket_decl) {
+            if (socket_decl->structure_type != StructureType::Dynamic) {
+              structure_types[input->index_in_tree()] = socket_decl->structure_type;
+              continue;
+            }
+          }
         }
 
         std::optional<StructureType> input_type;
