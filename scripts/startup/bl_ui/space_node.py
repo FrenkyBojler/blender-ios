@@ -302,6 +302,20 @@ class NODE_MT_swap(Menu):
     bl_translation_context = i18n_contexts.operator_default
     bl_options = {'SEARCH_ON_KEY_PRESS'}
 
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+
+        if snode.tree_type == 'TextureNodeTree':
+            return False
+
+        return (
+            (snode is not None )
+            and (snode.node_tree is not None)
+            and (context.active_node is not None)
+            and (context.active_node.select)
+        )
+    
     def draw(self, context):
         layout = self.layout
 
