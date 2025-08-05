@@ -62,7 +62,7 @@ static float select_major_distance(const float *possible_distances,
 static const float discrete_value_scales[] = {
     1, 2, 4, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000};
 
-static const float continuous_value_scales[] = {0.01, 0.02, 0.4,   0.1,   0.2,   0.4,   1,   2,
+static const float continuous_value_scales[] = {0.01, 0.02, 0.04,  0.1,   0.2,   0.4,   1,   2,
                                                 4,    10,   20,    50,    100,   200,   500, 1000,
                                                 2000, 5000, 10000, 20000, 50000, 100000};
 
