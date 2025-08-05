@@ -157,7 +157,7 @@ class ShaderNodesInliner {
   ResourceScope scope_;
   const bNodeTree &src_tree_;
   bNodeTree &dst_tree_;
-  const InlineShaderNodeTreeParams &params_;
+  InlineShaderNodeTreeParams &params_;
   bke::ComputeContextCache compute_context_cache_;
   Map<SocketInContext, SocketValue> value_by_socket_;
   Map<NodeInContext, PreservedZone> copied_zone_by_zone_output_node_;
@@ -170,7 +170,7 @@ class ShaderNodesInliner {
  public:
   ShaderNodesInliner(const bNodeTree &src_tree,
                      bNodeTree &dst_tree,
-                     const InlineShaderNodeTreeParams &params)
+                     InlineShaderNodeTreeParams &params)
       : src_tree_(src_tree),
         dst_tree_(dst_tree),
         params_(params),
@@ -489,6 +489,8 @@ class ShaderNodesInliner {
     if (!iterations_value_opt) {
       /* Number of iterations is not a primitive value. */
       this->store_socket_value_fallback(socket);
+      params_.r_error_messages.append(
+          {repeat_input_node.node, TIP_("Iterations input has to be a constant value")});
       return;
     }
     const int iterations = std::get<int>(iterations_value_opt->value);
@@ -1011,7 +1013,7 @@ class ShaderNodesInliner {
 
 bool inline_shader_node_tree(const bNodeTree &src_tree,
                              bNodeTree &dst_tree,
-                             const InlineShaderNodeTreeParams &params)
+                             InlineShaderNodeTreeParams &params)
 {
   ShaderNodesInliner inliner(src_tree, dst_tree, params);
 

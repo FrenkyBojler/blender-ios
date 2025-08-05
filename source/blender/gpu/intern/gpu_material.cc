@@ -25,6 +25,7 @@
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "NOD_shader.h"
 #include "NOD_shader_nodes_inline.hh"
@@ -34,6 +35,8 @@
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "DRW_engine.hh"
 
@@ -163,6 +166,18 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   blender::nodes::InlineShaderNodeTreeParams inline_params;
   inline_params.allow_preserving_repeat_zones = false;
   blender::nodes::inline_shader_node_tree(*ntree, *localtree, inline_params);
+
+  for (const blender::nodes::InlineShaderNodeTreeParams::ErrorMessage &error :
+       inline_params.r_error_messages)
+  {
+    const bNodeTree &tree = error.node->owner_tree();
+    if (const bNodeTree *tree_orig = DEG_get_original(&tree)) {
+      /* TODO: Only do this when the depsgraph is active? */
+      std::lock_guard lock(tree_orig->runtime->shader_node_errors_mutex);
+      tree_orig->runtime->shader_node_errors.lookup_or_add_default(error.node->identifier)
+          .add(error.message);
+    }
+  }
 
   ntreeGPUMaterialNodes(localtree, mat);
 
