@@ -90,7 +90,6 @@ static wmOperatorStatus pin_verts_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   bool changed = false;
-  int total_pinned = 0;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
@@ -138,6 +137,15 @@ static wmOperatorStatus pin_verts_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_WARNING, "No vertices selected");
     return OPERATOR_CANCELLED;
   }
+
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  ts->proportional_edit |= (PROP_EDIT_CONNECTED);
+
+  WM_event_add_notifier(C,NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+
+  BKE_report(op->reports, RPT_INFO, "Pinned vertices; 'Connected Only' mode enabled");
+
 
   return OPERATOR_FINISHED;
 }
