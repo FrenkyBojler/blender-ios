@@ -2142,7 +2142,7 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
   }
 }
 
-static bool view3d_panel_curves_data_poll(const bContext *C, PanelType * /*pt*/)
+static bool view3d_panel_curve_data_poll(const bContext *C, PanelType * /*pt*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -2283,7 +2283,7 @@ void handle_curves_resolution(const CurvesDataPanelState &modified_state,
       curves.resolution_for_write(), modified_state.resolution, selection);
 }
 
-static void handle_curves_data_button(bContext *C, void *handler, void *)
+static void handle_curve_data_button(bContext *C, void *handler, void *)
 {
   using namespace blender;
 
@@ -2362,7 +2362,7 @@ static void knot_modes_menu(bContext * /*C*/, uiLayout *layout, void *knot_mode_
   }
 }
 
-static void view3d_panel_curves_data(const bContext *C, Panel *panel)
+static void view3d_panel_curve_data(const bContext *C, Panel *panel)
 {
   using namespace blender;
   using namespace ed::curves;
@@ -2440,7 +2440,7 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
       UI_but_drawflag_enable(but, UI_BUT_INDETERMINATE);
     }
     UI_but_func_set(
-        but, handle_curves_data_button, reinterpret_cast<void *>(curves_handler), nullptr);
+        but, handle_curve_data_button, reinterpret_cast<void *>(curves_handler), nullptr);
   };
 
   const int butw = 10 * UI_UNIT_X;
@@ -2528,8 +2528,8 @@ void view3d_buttons_register(ARegionType *art)
   STRNCPY_UTF8(pt->label, N_("Curve Data")); /* XXX C panels unavailable through RNA bpy.types! */
   STRNCPY_UTF8(pt->category, "Item");
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  pt->draw = view3d_panel_curves_data;
-  pt->poll = view3d_panel_curves_data_poll;
+  pt->draw = view3d_panel_curve_data;
+  pt->poll = view3d_panel_curve_data_poll;
   BLI_addtail(&art->paneltypes, pt);
 }
 
