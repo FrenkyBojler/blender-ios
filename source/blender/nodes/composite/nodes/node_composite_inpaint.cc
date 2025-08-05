@@ -58,9 +58,8 @@ class InpaintOperation : public NodeOperation {
     inpainting_boundary.release();
 
     Result filled_region = context().create_result(ResultType::Color);
-    Result distance_to_boundary = context().create_result(ResultType::Float,
-                                                          ResultPrecision::Half);
-    Result smoothing_radius = context().create_result(ResultType::Float, ResultPrecision::Half);
+    Result distance_to_boundary = context().create_result(ResultType::Float);
+    Result smoothing_radius = context().create_result(ResultType::Float);
     fill_inpainting_region(
         flooded_boundary, filled_region, distance_to_boundary, smoothing_radius);
     flooded_boundary.release();
@@ -179,8 +178,7 @@ class InpaintOperation : public NodeOperation {
                                   Result &distance_to_boundary,
                                   Result &smoothing_radius)
   {
-    GPUShader *shader = context().get_shader("compositor_inpaint_fill_region",
-                                             ResultPrecision::Half);
+    GPUShader *shader = context().get_shader("compositor_inpaint_fill_region");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "max_distance", get_max_distance());
