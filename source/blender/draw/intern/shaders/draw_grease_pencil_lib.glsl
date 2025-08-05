@@ -178,8 +178,30 @@ float4 gpencil_vertex(float4 viewport_res,
     bool is_dot = flag_test(material_flags, GP_STROKE_ALIGNMENT);
     bool is_squares = !flag_test(material_flags, GP_STROKE_DOTS);
 
+    bool is_first = (ma.x == -1);
+    bool is_last = (ma3.x == -1);
+    bool is_single = is_first && (ma2.x == -1);
+    /* Cyclical is stored in the sign of the point index. */
+    bool is_cyclical = ma1.z < 0;
+
+    /* Join the first and last point if the curve is cyclical. */
+    if (is_cyclical && !is_single) {
+      if (is_first) {
+        /* The first point will have the index of the last point. */
+        int last_stroke_id = ma.y;
+        ma = floatBitsToInt(texelFetch(gp_pos_tx, (last_stroke_id - 2) * 3 + 1));
+        pos = texelFetch(gp_pos_tx, (last_stroke_id - 2) * 3 + 0);
+      }
+
+      if (is_last) {
+        int first_stroke_id = ma1.y;
+        ma3 = floatBitsToInt(texelFetch(gp_pos_tx, (first_stroke_id + 2) * 3 + 1));
+        pos3 = texelFetch(gp_pos_tx, (first_stroke_id + 2) * 3 + 0);
+      }
+    }
+
     /* Special Case. Stroke with single vert are rendered as dots. Do not discard them. */
-    if (!is_dot && ma.x == -1 && ma2.x == -1) {
+    if (!is_dot && is_single) {
       is_dot = true;
       is_squares = false;
     }
@@ -246,7 +268,7 @@ float4 gpencil_vertex(float4 viewport_res,
       uint alignment_mode = material_flags & GP_STROKE_ALIGNMENT;
 
       /* For one point strokes use object alignment. */
-      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && ma.x == -1 && ma2.x == -1) {
+      if (alignment_mode == GP_STROKE_ALIGNMENT_STROKE && is_single) {
         alignment_mode = GP_STROKE_ALIGNMENT_OBJECT;
       }
 
