@@ -110,12 +110,12 @@ union TransformMedian {
   TransformMedian_Curves curves;
 };
 
-typedef struct CurvesDataPanelState {
+struct CurvesDataPanelState {
   KnotsMode nurbs_knot_mode;
   int order;
   int resolution;
   char cyclic;
-} CurvesDataPanelState;
+};
 
 /* temporary struct for storing transform properties */
 
