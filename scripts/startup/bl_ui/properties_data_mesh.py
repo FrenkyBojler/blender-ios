@@ -89,6 +89,7 @@ class MESH_MT_shape_key_tree_context_menu(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        layout.operator("object.shape_key_make_basis", text="Make Basis")
         layout.operator("object.shape_key_copy", icon='DUPLICATE', text="Duplicate")
         layout.separator()
         layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move After Basis").type = 'TOP'
