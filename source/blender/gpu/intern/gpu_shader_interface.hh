@@ -20,9 +20,9 @@
 
 #include "GPU_format.hh"
 #include "GPU_shader.hh"
-#include "GPU_texture_private.hh"
 #include "GPU_vertex_format.hh" /* GPU_VERT_ATTR_MAX_LEN */
 #include "gpu_shader_create_info.hh"
+#include "gpu_texture_private.hh"
 
 namespace blender::gpu {
 
