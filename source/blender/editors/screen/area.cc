@@ -3338,8 +3338,7 @@ void ED_region_draw_overflow_indicators(const ScrArea *area, ARegion *region, rc
   }
 
   float opaque[4];
-  // UI_GetThemeColor4fv(TH_BACK, opaque);
-  UI_GetThemeColor4fv(TH_REDALERT, opaque);
+  UI_GetThemeColor4fv(TH_BACK, opaque);
   opaque[3] = 1.0f;
   mul_v3_fl(opaque, 0.6f);
   float transparent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
