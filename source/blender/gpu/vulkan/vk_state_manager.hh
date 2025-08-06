@@ -72,7 +72,10 @@ template<int Offset> class BindSpaceImages {
  public:
   Vector<VKTexture *> bound_resources;
 
-  void bind(VKTexture *resource, int binding)
+  void bind(VKTexture *resource,
+            int binding,
+            TextureWriteFormat format,
+            StateManager *state_manager)
   {
     if (binding >= Offset) {
       binding -= Offset;
@@ -81,6 +84,7 @@ template<int Offset> class BindSpaceImages {
       bound_resources.resize(binding + 1);
     }
     bound_resources[binding] = resource;
+    state_manager->image_formats[binding] = format;
   }
 
   VKTexture *get(int binding) const

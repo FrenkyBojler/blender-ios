@@ -74,8 +74,7 @@ void VKStateManager::texture_unbind_all()
 void VKStateManager::image_bind(Texture *tex, int binding)
 {
   VKTexture *texture = unwrap(tex);
-  images_.bind(texture, binding);
-  image_formats[binding] = TextureWriteFormat(tex->format_get());
+  images_.bind(texture, binding, TextureWriteFormat(tex->format_get()), this);
   is_dirty = true;
 }
 
