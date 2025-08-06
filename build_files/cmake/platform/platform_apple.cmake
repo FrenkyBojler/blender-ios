@@ -85,16 +85,9 @@ if(WITH_APPLE_CROSSPLATFORM)
   set(CMAKE_TOOLS_ARGS "${CMAKE_TOOLS_ARGS} -DCMAKE_CXX_FLAGS=\"-DWITH_CROSSCOMPILED_TOOLS -DWITH_APPLE_CROSSPLATFORM\"")
 
   get_filename_component(CMAKE_BIN_DIRECTORY "${CMAKE_COMMAND}" DIRECTORY)
-  # Get default PATH from a clean environment (required for sysctl, make, ...).
-  execute_process(
-    COMMAND env -i bash -c "echo \$PATH"
-    OUTPUT_VARIABLE DEFAULT_PATH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  set(COMBINED_PATH "${DEFAULT_PATH}:${CMAKE_BIN_DIRECTORY}")
   add_custom_target(blender_cross_tools_compile
     COMMENT "\n---------------------------\n Building Cross Compile Tools\n"
-    COMMAND env -i PATH="${COMBINED_PATH}" BUILD_CMAKE_ARGS=${CMAKE_TOOLS_ARGS} BUILD_DIR=${CROSSCOMPILE_TOOLDIR} make tools
+    COMMAND env -i PATH="${CMAKE_BIN_DIRECTORY}:$ENV{PATH}" BUILD_CMAKE_ARGS=${CMAKE_TOOLS_ARGS} BUILD_DIR=${CROSSCOMPILE_TOOLDIR} make tools
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   )
 
