@@ -1423,7 +1423,7 @@ static const EnumPropertyItem prop_graphkeys_expo_types[] = {
      "MAKE_CYCLIC",
      0,
      "Make Cyclic (F-Modifier)",
-     "Add Cycles F-Modifier if one doesn't exist already"},
+     "Add Cycles F-Modifier if one does not exist already"},
     {CLEAR_CYCLIC_EXPO,
      "CLEAR_CYCLIC",
      0,
@@ -2238,7 +2238,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   BKE_report(op->reports, RPT_WARNING, "Deprecated operator, use screen.keyframe_jump instead");
   /* The op->ptr can be passed to the operator because it has an identically named property. */
   return WM_operator_name_call(
-      C, "SCREEN_OT_keyframe_jump", WM_OP_INVOKE_DEFAULT, op->ptr, nullptr);
+      C, "SCREEN_OT_keyframe_jump", blender::wm::OpCallContext::InvokeDefault, op->ptr, nullptr);
 }
 
 void GRAPH_OT_keyframe_jump(wmOperatorType *ot)

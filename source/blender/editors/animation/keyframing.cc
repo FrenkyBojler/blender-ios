@@ -967,13 +967,8 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
     if ((pchan) && (pchan->bone)) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
 
-      /* Invisible bones should not be modified. */
-      if (!blender::animrig::bone_is_visible_pchan(arm, pchan)) {
-        return false;
-      }
-
-      /* selection flag... */
-      if ((pchan->bone->flag & BONE_SELECTED) == 0) {
+      /* Only selected bones should be affected. */
+      if (!blender::animrig::bone_is_selected(arm, pchan)) {
         return false;
       }
     }
@@ -1069,14 +1064,14 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     if (modified_strips.is_empty()) {
       BKE_reportf(op->reports,
                   RPT_WARNING,
-                  "No keyframes removed from %ld strip(s)",
+                  "No keyframes removed from %" PRId64 " strip(s)",
                   selected_strips_rna_paths.size());
       return OPERATOR_CANCELLED;
     }
 
     BKE_reportf(op->reports,
                 RPT_INFO,
-                "%ld strip(s) successfully had %ld keyframes removed",
+                "%" PRId64 " strip(s) successfully had %" PRId64 " keyframes removed",
                 modified_strips.size(),
                 modified_fcurves.size());
   }
@@ -1386,7 +1381,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
     else {
       BKE_reportf(op->reports,
                   RPT_WARNING,
-                  "Button doesn't appear to have any property information attached (ptr.data = "
+                  "Button does not appear to have any property information attached (ptr.data = "
                   "%p, prop = %p)",
                   ptr.data,
                   (void *)prop);

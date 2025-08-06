@@ -25,6 +25,7 @@
 
 #include "DNA_curves_types.h"
 #include "DNA_material_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_legacy_convert.hh"
@@ -36,6 +37,8 @@
 #include "BKE_curves_utils.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
+
+#include "attribute_storage_access.hh"
 
 namespace blender::bke {
 
@@ -68,7 +71,7 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
   this->point_num = point_num;
   this->curve_num = curve_num;
   CustomData_reset(&this->point_data);
-  CustomData_reset(&this->curve_data);
+  CustomData_reset(&this->curve_data_legacy);
   new (&this->attribute_storage.wrap()) blender::bke::AttributeStorage();
   BLI_listbase_clear(&this->vertex_group_names);
 
@@ -110,8 +113,7 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
     other.runtime->custom_knots_sharing_info->add_user();
   }
 
-  CustomData_init_from(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
-  CustomData_init_from(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
+  CustomData_init_from(&other.point_data, &this->point_data, CD_MASK_MDEFORMVERT, other.point_num);
 
   new (&this->attribute_storage.wrap()) AttributeStorage(other.attribute_storage.wrap());
 
@@ -171,9 +173,6 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
   this->point_data = other.point_data;
   CustomData_reset(&other.point_data);
 
-  this->curve_data = other.curve_data;
-  CustomData_reset(&other.curve_data);
-
   new (&this->attribute_storage.wrap())
       AttributeStorage(std::move(other.attribute_storage.wrap()));
 
@@ -209,7 +208,6 @@ CurvesGeometry &CurvesGeometry::operator=(CurvesGeometry &&other)
 CurvesGeometry::~CurvesGeometry()
 {
   CustomData_free(&this->point_data);
-  CustomData_free(&this->curve_data);
   this->attribute_storage.wrap().~AttributeStorage();
   BLI_freelistN(&this->vertex_group_names);
   if (this->runtime) {
@@ -227,88 +225,19 @@ CurvesGeometry::~CurvesGeometry()
 /** \name Accessors
  * \{ */
 
-static int domain_num(const CurvesGeometry &curves, const AttrDomain domain)
-{
-  return domain == AttrDomain::Point ? curves.points_num() : curves.curves_num();
-}
-
-static CustomData &domain_custom_data(CurvesGeometry &curves, const AttrDomain domain)
-{
-  return domain == AttrDomain::Point ? curves.point_data : curves.curve_data;
-}
-
-static const CustomData &domain_custom_data(const CurvesGeometry &curves, const AttrDomain domain)
-{
-  return domain == AttrDomain::Point ? curves.point_data : curves.curve_data;
-}
-
-template<typename T>
-static VArray<T> get_varray_attribute(const CurvesGeometry &curves,
-                                      const AttrDomain domain,
-                                      const StringRef name,
-                                      const T default_value)
-{
-  const int num = domain_num(curves, domain);
-  const eCustomDataType type = cpp_type_to_custom_data_type(CPPType::get<T>());
-  const CustomData &custom_data = domain_custom_data(curves, domain);
-
-  const T *data = (const T *)CustomData_get_layer_named(&custom_data, type, name);
-  if (data != nullptr) {
-    return VArray<T>::ForSpan(Span<T>(data, num));
-  }
-  return VArray<T>::ForSingle(default_value, num);
-}
-
-template<typename T>
-static Span<T> get_span_attribute(const CurvesGeometry &curves,
-                                  const AttrDomain domain,
-                                  const StringRef name)
-{
-  const int num = domain_num(curves, domain);
-  const CustomData &custom_data = domain_custom_data(curves, domain);
-  const eCustomDataType type = cpp_type_to_custom_data_type(CPPType::get<T>());
-
-  T *data = (T *)CustomData_get_layer_named(&custom_data, type, name);
-  if (data == nullptr) {
-    return {};
-  }
-  return {data, num};
-}
-
-template<typename T>
-static MutableSpan<T> get_mutable_attribute(CurvesGeometry &curves,
-                                            const AttrDomain domain,
-                                            const StringRef name,
-                                            const T default_value = T())
-{
-  const int num = domain_num(curves, domain);
-  if (num <= 0) {
-    return {};
-  }
-  const eCustomDataType type = cpp_type_to_custom_data_type(CPPType::get<T>());
-  CustomData &custom_data = domain_custom_data(curves, domain);
-
-  T *data = (T *)CustomData_get_layer_named_for_write(&custom_data, type, name, num);
-  if (data != nullptr) {
-    return {data, num};
-  }
-  data = (T *)CustomData_add_layer_named(&custom_data, type, CD_SET_DEFAULT, num, name);
-  MutableSpan<T> span = {data, num};
-  if (num > 0 && span.first() != default_value) {
-    span.fill(default_value);
-  }
-  return span;
-}
-
 VArray<int8_t> CurvesGeometry::curve_types() const
 {
-  return get_varray_attribute<int8_t>(
-      *this, AttrDomain::Curve, ATTR_CURVE_TYPE, CURVE_TYPE_CATMULL_ROM);
+  return get_varray_attribute<int8_t>(this->attribute_storage.wrap(),
+                                      AttrDomain::Curve,
+                                      ATTR_CURVE_TYPE,
+                                      this->curves_num(),
+                                      CURVE_TYPE_CATMULL_ROM);
 }
 
 MutableSpan<int8_t> CurvesGeometry::curve_types_for_write()
 {
-  return get_mutable_attribute<int8_t>(*this, AttrDomain::Curve, ATTR_CURVE_TYPE);
+  return get_mutable_attribute<int8_t>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_CURVE_TYPE, this->curves_num());
 }
 
 void CurvesGeometry::fill_curve_types(const CurveType type)
@@ -383,20 +312,24 @@ void CurvesGeometry::update_curve_types()
 
 Span<float3> CurvesGeometry::positions() const
 {
-  return get_span_attribute<float3>(*this, AttrDomain::Point, ATTR_POSITION);
+  return get_span_attribute<float3>(
+      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_POSITION, this->points_num());
 }
 MutableSpan<float3> CurvesGeometry::positions_for_write()
 {
-  return get_mutable_attribute<float3>(*this, AttrDomain::Point, ATTR_POSITION);
+  return get_mutable_attribute<float3>(
+      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_POSITION, this->points_num());
 }
 
 VArray<float> CurvesGeometry::radius() const
 {
-  return get_varray_attribute<float>(*this, AttrDomain::Point, ATTR_RADIUS, 0.01f);
+  return get_varray_attribute<float>(
+      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_RADIUS, this->points_num(), 0.01f);
 }
 MutableSpan<float> CurvesGeometry::radius_for_write()
 {
-  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_RADIUS, 0.01f);
+  return get_mutable_attribute<float>(
+      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_RADIUS, this->points_num(), 0.01f);
 }
 
 Span<int> CurvesGeometry::offsets() const
@@ -418,111 +351,168 @@ MutableSpan<int> CurvesGeometry::offsets_for_write()
 
 VArray<bool> CurvesGeometry::cyclic() const
 {
-  return get_varray_attribute<bool>(*this, AttrDomain::Curve, ATTR_CYCLIC, false);
+  return get_varray_attribute<bool>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_CYCLIC, this->curves_num(), false);
 }
 MutableSpan<bool> CurvesGeometry::cyclic_for_write()
 {
-  return get_mutable_attribute<bool>(*this, AttrDomain::Curve, ATTR_CYCLIC, false);
+  return get_mutable_attribute<bool>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_CYCLIC, this->curves_num(), false);
 }
 
 VArray<int> CurvesGeometry::resolution() const
 {
-  return get_varray_attribute<int>(*this, AttrDomain::Curve, ATTR_RESOLUTION, 12);
+  return get_varray_attribute<int>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_RESOLUTION, this->curves_num(), 12);
 }
 MutableSpan<int> CurvesGeometry::resolution_for_write()
 {
-  return get_mutable_attribute<int>(*this, AttrDomain::Curve, ATTR_RESOLUTION, 12);
+  return get_mutable_attribute<int>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_RESOLUTION, this->curves_num(), 12);
 }
 
 VArray<int8_t> CurvesGeometry::normal_mode() const
 {
-  return get_varray_attribute<int8_t>(*this, AttrDomain::Curve, ATTR_NORMAL_MODE, 0);
+  return get_varray_attribute<int8_t>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_NORMAL_MODE, this->curves_num(), 0);
 }
 MutableSpan<int8_t> CurvesGeometry::normal_mode_for_write()
 {
-  return get_mutable_attribute<int8_t>(*this, AttrDomain::Curve, ATTR_NORMAL_MODE);
+  return get_mutable_attribute<int8_t>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_NORMAL_MODE, this->curves_num());
 }
 
 VArray<float> CurvesGeometry::tilt() const
 {
-  return get_varray_attribute<float>(*this, AttrDomain::Point, ATTR_TILT, 0.0f);
+  return get_varray_attribute<float>(
+      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_TILT, this->points_num(), 0.0f);
 }
 MutableSpan<float> CurvesGeometry::tilt_for_write()
 {
-  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_TILT);
+  return get_mutable_attribute<float>(
+      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_TILT, this->points_num());
 }
 
 VArray<int8_t> CurvesGeometry::handle_types_left() const
 {
-  return get_varray_attribute<int8_t>(*this, AttrDomain::Point, ATTR_HANDLE_TYPE_LEFT, 0);
+  return get_varray_attribute<int8_t>(this->attribute_storage.wrap(),
+                                      AttrDomain::Point,
+                                      ATTR_HANDLE_TYPE_LEFT,
+                                      this->points_num(),
+                                      0);
 }
 MutableSpan<int8_t> CurvesGeometry::handle_types_left_for_write()
 {
-  return get_mutable_attribute<int8_t>(*this, AttrDomain::Point, ATTR_HANDLE_TYPE_LEFT, 0);
+  return get_mutable_attribute<int8_t>(this->attribute_storage.wrap(),
+                                       AttrDomain::Point,
+                                       ATTR_HANDLE_TYPE_LEFT,
+                                       this->points_num(),
+                                       0);
 }
 
 VArray<int8_t> CurvesGeometry::handle_types_right() const
 {
-  return get_varray_attribute<int8_t>(*this, AttrDomain::Point, ATTR_HANDLE_TYPE_RIGHT, 0);
+  return get_varray_attribute<int8_t>(this->attribute_storage.wrap(),
+                                      AttrDomain::Point,
+                                      ATTR_HANDLE_TYPE_RIGHT,
+                                      this->points_num(),
+                                      0);
 }
 MutableSpan<int8_t> CurvesGeometry::handle_types_right_for_write()
 {
-  return get_mutable_attribute<int8_t>(*this, AttrDomain::Point, ATTR_HANDLE_TYPE_RIGHT, 0);
+  return get_mutable_attribute<int8_t>(this->attribute_storage.wrap(),
+                                       AttrDomain::Point,
+                                       ATTR_HANDLE_TYPE_RIGHT,
+                                       this->points_num(),
+                                       0);
 }
 
 Span<float3> CurvesGeometry::handle_positions_left() const
 {
-  return get_span_attribute<float3>(*this, AttrDomain::Point, ATTR_HANDLE_POSITION_LEFT);
+  return get_span_attribute<float3>(this->attribute_storage.wrap(),
+                                    AttrDomain::Point,
+                                    ATTR_HANDLE_POSITION_LEFT,
+                                    this->points_num());
 }
 MutableSpan<float3> CurvesGeometry::handle_positions_left_for_write()
 {
-  return get_mutable_attribute<float3>(*this, AttrDomain::Point, ATTR_HANDLE_POSITION_LEFT);
+  return get_mutable_attribute<float3>(this->attribute_storage.wrap(),
+                                       AttrDomain::Point,
+                                       ATTR_HANDLE_POSITION_LEFT,
+                                       this->points_num());
 }
 
 Span<float3> CurvesGeometry::handle_positions_right() const
 {
-  return get_span_attribute<float3>(*this, AttrDomain::Point, ATTR_HANDLE_POSITION_RIGHT);
+  return get_span_attribute<float3>(this->attribute_storage.wrap(),
+                                    AttrDomain::Point,
+                                    ATTR_HANDLE_POSITION_RIGHT,
+                                    this->points_num());
 }
 MutableSpan<float3> CurvesGeometry::handle_positions_right_for_write()
 {
-  return get_mutable_attribute<float3>(*this, AttrDomain::Point, ATTR_HANDLE_POSITION_RIGHT);
+  return get_mutable_attribute<float3>(this->attribute_storage.wrap(),
+                                       AttrDomain::Point,
+                                       ATTR_HANDLE_POSITION_RIGHT,
+                                       this->points_num());
 }
 
 VArray<int8_t> CurvesGeometry::nurbs_orders() const
 {
-  return get_varray_attribute<int8_t>(*this, AttrDomain::Curve, ATTR_NURBS_ORDER, 4);
+  return get_varray_attribute<int8_t>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_NURBS_ORDER, this->curves_num(), 4);
 }
 MutableSpan<int8_t> CurvesGeometry::nurbs_orders_for_write()
 {
-  return get_mutable_attribute<int8_t>(*this, AttrDomain::Curve, ATTR_NURBS_ORDER, 4);
+  return get_mutable_attribute<int8_t>(
+      this->attribute_storage.wrap(), AttrDomain::Curve, ATTR_NURBS_ORDER, this->curves_num(), 4);
 }
 
 Span<float> CurvesGeometry::nurbs_weights() const
 {
-  return get_span_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_WEIGHT);
+  return get_span_attribute<float>(
+      this->attribute_storage.wrap(), AttrDomain::Point, ATTR_NURBS_WEIGHT, this->points_num());
 }
 MutableSpan<float> CurvesGeometry::nurbs_weights_for_write()
 {
-  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_WEIGHT);
+  return get_mutable_attribute<float>(this->attribute_storage.wrap(),
+                                      AttrDomain::Point,
+                                      ATTR_NURBS_WEIGHT,
+                                      this->points_num(),
+                                      1.0f);
 }
 
 VArray<int8_t> CurvesGeometry::nurbs_knots_modes() const
 {
-  return get_varray_attribute<int8_t>(*this, AttrDomain::Curve, ATTR_NURBS_KNOTS_MODE, 0);
+  return get_varray_attribute<int8_t>(this->attribute_storage.wrap(),
+                                      AttrDomain::Curve,
+                                      ATTR_NURBS_KNOTS_MODE,
+                                      this->curves_num(),
+                                      0);
 }
 MutableSpan<int8_t> CurvesGeometry::nurbs_knots_modes_for_write()
 {
-  return get_mutable_attribute<int8_t>(*this, AttrDomain::Curve, ATTR_NURBS_KNOTS_MODE, 0);
+  return get_mutable_attribute<int8_t>(this->attribute_storage.wrap(),
+                                       AttrDomain::Curve,
+                                       ATTR_NURBS_KNOTS_MODE,
+                                       this->curves_num(),
+                                       0);
 }
 
 Span<float2> CurvesGeometry::surface_uv_coords() const
 {
-  return get_span_attribute<float2>(*this, AttrDomain::Curve, ATTR_SURFACE_UV_COORDINATE);
+  return get_span_attribute<float2>(this->attribute_storage.wrap(),
+                                    AttrDomain::Curve,
+                                    ATTR_SURFACE_UV_COORDINATE,
+                                    this->curves_num());
 }
 
 MutableSpan<float2> CurvesGeometry::surface_uv_coords_for_write()
 {
-  return get_mutable_attribute<float2>(*this, AttrDomain::Curve, ATTR_SURFACE_UV_COORDINATE);
+  return get_mutable_attribute<float2>(this->attribute_storage.wrap(),
+                                       AttrDomain::Curve,
+                                       ATTR_SURFACE_UV_COORDINATE,
+                                       this->curves_num());
 }
 
 Span<float> CurvesGeometry::nurbs_custom_knots() const
@@ -1185,19 +1175,23 @@ void CurvesGeometry::ensure_can_interpolate_to_evaluated() const
 
 void CurvesGeometry::resize(const int points_num, const int curves_num)
 {
+  BLI_assert(curves_num >= 0 && points_num >= 0);
   if (points_num != this->point_num) {
+    this->attribute_storage.wrap().resize(AttrDomain::Point, points_num);
     CustomData_realloc(&this->point_data, this->points_num(), points_num);
     this->point_num = points_num;
   }
   if (curves_num != this->curve_num) {
-    CustomData_realloc(&this->curve_data, this->curves_num(), curves_num);
+    this->attribute_storage.wrap().resize(AttrDomain::Curve, curves_num);
     implicit_sharing::resize_trivial_array(&this->curve_offsets,
                                            &this->runtime->curve_offsets_sharing_info,
                                            this->curve_num == 0 ? 0 : (this->curve_num + 1),
-                                           curves_num + 1);
-    /* Set common values for convenience. */
-    this->curve_offsets[0] = 0;
-    this->curve_offsets[curves_num] = this->point_num;
+                                           curves_num == 0 ? 0 : (curves_num + 1));
+    if (curves_num > 0) {
+      /* Set common values for convenience. */
+      this->curve_offsets[0] = 0;
+      this->curve_offsets[curves_num] = this->point_num;
+    }
     this->curve_num = curves_num;
   }
   this->tag_topology_changed();
@@ -1248,16 +1242,6 @@ static void transform_positions(MutableSpan<float3> positions, const float4x4 &m
   threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position = math::transform_point(matrix, position);
-    }
-  });
-}
-
-static void transform_normals(MutableSpan<float3> normals, const float4x4 &matrix)
-{
-  const float3x3 normal_transform = math::transpose(math::invert(float3x3(matrix)));
-  threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &normal : normals.slice(range)) {
-      normal = normal_transform * normal;
     }
   });
 }
@@ -1331,10 +1315,7 @@ void CurvesGeometry::transform(const float4x4 &matrix)
     transform_positions(this->handle_positions_right_for_write(), matrix);
   }
   MutableAttributeAccessor attributes = this->attributes_for_write();
-  if (SpanAttributeWriter normals = attributes.lookup_for_write_span<float3>("custom_normal")) {
-    transform_normals(normals.span, matrix);
-    normals.finish();
-  }
+  transform_custom_normal_attribute(matrix, attributes);
   this->tag_positions_changed();
 }
 
@@ -1390,8 +1371,8 @@ void CurvesGeometry::count_memory(MemoryCounter &memory) const
   memory.add_shared(this->runtime->curve_offsets_sharing_info, this->offsets().size_in_bytes());
   memory.add_shared(this->runtime->custom_knots_sharing_info,
                     this->nurbs_custom_knots().size_in_bytes());
+  this->attribute_storage.wrap().count_memory(memory);
   CustomData_count_memory(this->point_data, this->point_num, memory);
-  CustomData_count_memory(this->curve_data, this->curve_num, memory);
 }
 
 static void copy_point_selection_custom_knots(const CurvesGeometry &curves,
@@ -1659,7 +1640,7 @@ void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
     if (iter.domain != AttrDomain::Point) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (bezier_handle_names.contains(iter.name)) {
@@ -1732,7 +1713,7 @@ CurvesGeometry curves_new_no_attributes(int point_num, int curve_num)
 {
   CurvesGeometry curves(0, curve_num);
   curves.point_num = point_num;
-  CustomData_free_layer_named(&curves.point_data, "position");
+  curves.attribute_storage.wrap().remove("position");
   return curves;
 }
 
@@ -1800,7 +1781,7 @@ static GVArray adapt_curve_domain_point_to_curve(const CurvesGeometry &curves,
     if constexpr (!std::is_void_v<attribute_math::DefaultMixer<T>>) {
       Array<T> values(curves.curves_num());
       adapt_curve_domain_point_to_curve_impl<T>(curves, varray.typed<T>(), values);
-      new_varray = VArray<T>::ForContainer(std::move(values));
+      new_varray = VArray<T>::from_container(std::move(values));
     }
   });
   return new_varray;
@@ -1832,7 +1813,7 @@ static GVArray adapt_curve_domain_curve_to_point(const CurvesGeometry &curves,
     using T = decltype(dummy);
     Array<T> values(curves.points_num());
     adapt_curve_domain_curve_to_point_impl<T>(curves, varray.typed<T>(), values);
-    new_varray = VArray<T>::ForContainer(std::move(values));
+    new_varray = VArray<T>::from_container(std::move(values));
   });
   return new_varray;
 }
@@ -1853,7 +1834,7 @@ GVArray CurvesGeometry::adapt_domain(const GVArray &varray,
   if (varray.is_single()) {
     BUFFER_FOR_CPP_TYPE_VALUE(varray.type(), value);
     varray.get_internal_single(value);
-    return GVArray::ForSingle(varray.type(), this->attributes().domain_size(to), value);
+    return GVArray::from_single(varray.type(), this->attributes().domain_size(to), value);
   }
 
   if (from == AttrDomain::Point && to == AttrDomain::Curve) {
@@ -1888,7 +1869,7 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   this->runtime = MEM_new<blender::bke::CurvesGeometryRuntime>(__func__);
 
   CustomData_blend_read(&reader, &this->point_data, this->point_num);
-  CustomData_blend_read(&reader, &this->curve_data, this->curve_num);
+  CustomData_blend_read(&reader, &this->curve_data_legacy, this->curve_num);
   this->attribute_storage.wrap().blend_read(reader);
 
   if (this->curve_offsets) {
@@ -1898,9 +1879,6 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
           return implicit_sharing::info_for_mem_free(this->curve_offsets);
         });
   }
-
-  /* Forward compatibility. To be removed when runtime format changes. */
-  curves_convert_storage_to_customdata(*this);
 
   BLO_read_struct_list(&reader, bDeformGroup, &this->vertex_group_names);
 
@@ -1926,19 +1904,21 @@ CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)
 
 void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data)
 {
+  CustomData_reset(&this->curve_data_legacy);
   attribute_storage_blend_write_prepare(this->attribute_storage.wrap(), write_data.attribute_data);
   CustomData_blend_write_prepare(this->point_data,
                                  AttrDomain::Point,
                                  this->points_num(),
                                  write_data.point_layers,
                                  write_data.attribute_data);
-  CustomData_blend_write_prepare(this->curve_data,
-                                 AttrDomain::Curve,
-                                 this->curves_num(),
-                                 write_data.curve_layers,
-                                 write_data.attribute_data);
-  this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
-  this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
+  if (write_data.attribute_data.attributes.is_empty()) {
+    this->attribute_storage.dna_attributes = nullptr;
+    this->attribute_storage.dna_attributes_num = 0;
+  }
+  else {
+    this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
+    this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
+  }
 }
 
 void CurvesGeometry::blend_write(BlendWriter &writer,
@@ -1947,8 +1927,6 @@ void CurvesGeometry::blend_write(BlendWriter &writer,
 {
   CustomData_blend_write(
       &writer, &this->point_data, write_data.point_layers, this->point_num, CD_MASK_ALL, &id);
-  CustomData_blend_write(
-      &writer, &this->curve_data, write_data.curve_layers, this->curve_num, CD_MASK_ALL, &id);
   this->attribute_storage.wrap().blend_write(writer, write_data.attribute_data);
 
   if (this->curve_offsets) {
