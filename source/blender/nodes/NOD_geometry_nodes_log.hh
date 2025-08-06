@@ -235,12 +235,22 @@ class ListInfoLog : public ValueLog {
 };
 
 /**
- * Data logged by a viewer node when it is executed. In this case, we do want to log the entire
- * geometry.
+ * Data logged by a viewer node when it is executed.
  */
 class ViewerNodeLog {
  public:
-  bke::GeometrySet geometry;
+  struct Item {
+    std::string name;
+    const bke::bNodeSocketType *type;
+    void *data;
+  };
+
+  ResourceScope scope;
+  Vector<Item> items;
+
+  std::optional<bke::GeometrySet> main_geometry() const;
+
+  ~ViewerNodeLog();
 };
 
 using Clock = std::chrono::steady_clock;
@@ -310,7 +320,6 @@ class GeoTreeLogger {
   ~GeoTreeLogger();
 
   void log_value(const bNode &node, const bNodeSocket &socket, GPointer value);
-  void log_viewer_node(const bNode &viewer_node, bke::GeometrySet geometry);
 };
 
 /**

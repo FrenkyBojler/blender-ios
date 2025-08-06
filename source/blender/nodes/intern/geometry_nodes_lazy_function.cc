@@ -860,10 +860,11 @@ class LazyFunctionForImplicitInput : public LazyFunction {
 class LazyFunctionForViewerNode : public LazyFunction {
  private:
   const bNode &bnode_;
+  Span<int> lf_index_by_bsocket_;
 
  public:
   LazyFunctionForViewerNode(const bNode &bnode, MutableSpan<int> r_lf_index_by_bsocket)
-      : bnode_(bnode)
+      : bnode_(bnode), lf_index_by_bsocket_(r_lf_index_by_bsocket)
   {
     debug_name_ = "Viewer";
     lazy_function_interface_from_node(bnode, inputs_, outputs_, r_lf_index_by_bsocket);
@@ -878,7 +879,30 @@ class LazyFunctionForViewerNode : public LazyFunction {
       return;
     }
 
-    // TODO
+    LinearAllocator<> &allocator = *tree_logger->allocator;
+
+    auto log = tree_logger->allocator->construct<geo_eval_log::ViewerNodeLog>();
+    const NodeGeometryViewer &storage = *static_cast<const NodeGeometryViewer *>(bnode_.storage);
+
+    for (const int i : IndexRange(storage.items_num)) {
+      const NodeGeometryViewerItem &item = storage.items[i];
+      const bNodeSocket &bsocket = bnode_.input_socket(i);
+      const bke::bNodeSocketType &type = *bsocket.typeinfo;
+      if (!type.geometry_nodes_cpp_type) {
+        continue;
+      }
+      const int param_index = lf_index_by_bsocket_[bsocket.index_in_tree()];
+      void *data = params.try_get_input_data_ptr(param_index);
+      void *data_owned = allocator.allocate(*type.geometry_nodes_cpp_type);
+      type.geometry_nodes_cpp_type->move_construct(data, data_owned);
+      if (type.type == SOCK_GEOMETRY) {
+        bke::GeometrySet &geometry = *static_cast<bke::GeometrySet *>(data_owned);
+        geometry.ensure_owns_direct_data();
+      }
+      log->items.append({StringRef(item.name), &type, data_owned});
+    }
+
+    tree_logger->viewer_node_logs.append(allocator, {bnode_.identifier, std::move(log)});
   }
 };
 

@@ -674,7 +674,9 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
               nodes::geo_eval_log::GeoNodesLog::find_viewer_node_log_for_path(
                   sspreadsheet->geometry_id.viewer_path))
       {
-        geometry_set = viewer_log->geometry;
+        if (std::optional<bke::GeometrySet> viewer_geometry = viewer_log->main_geometry()) {
+          geometry_set = std::move(*viewer_geometry);
+        }
       }
     }
   }

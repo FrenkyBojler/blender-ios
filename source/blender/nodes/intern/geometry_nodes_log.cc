@@ -381,12 +381,21 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
   }
 }
 
-void GeoTreeLogger::log_viewer_node(const bNode &viewer_node, bke::GeometrySet geometry)
+ViewerNodeLog::~ViewerNodeLog()
 {
-  destruct_ptr<ViewerNodeLog> log = this->allocator->construct<ViewerNodeLog>();
-  log->geometry = std::move(geometry);
-  log->geometry.ensure_owns_direct_data();
-  this->viewer_node_logs.append(*this->allocator, {viewer_node.identifier, std::move(log)});
+  for (const Item &item : items) {
+    item.type->geometry_nodes_cpp_type->destruct(item.data);
+  }
+}
+
+std::optional<bke::GeometrySet> ViewerNodeLog::main_geometry() const
+{
+  for (const Item &item : this->items) {
+    if (item.type->type == SOCK_GEOMETRY) {
+      return *static_cast<const bke::GeometrySet *>(item.data);
+    }
+  }
+  return std::nullopt;
 }
 
 static bool warning_is_propagated(const NodeWarningPropagation propagation,
