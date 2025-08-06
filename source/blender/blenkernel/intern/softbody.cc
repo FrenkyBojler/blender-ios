@@ -67,7 +67,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-static CLG_LogRef LOG = {"bke.softbody"};
+static CLG_LogRef LOG = {"physics.softbody"};
 
 /* callbacks for errors and interrupts and some goo */
 static int (*SB_localInterruptCallBack)() = nullptr;
@@ -2672,10 +2672,8 @@ static void mesh_to_softbody(Object *ob)
 {
   SoftBody *sb;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  const blender::int2 *edge = static_cast<const blender::int2 *>(
-      CustomData_get_layer_named(&mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts"));
+  const blender::Span<blender::int2> edges = mesh->edges();
   BodyPoint *bp;
-  BodySpring *bs;
   int a, totedge;
   int defgroup_index, defgroup_index_mass, defgroup_index_spring;
 
@@ -2728,12 +2726,11 @@ static void mesh_to_softbody(Object *ob)
 
   /* but we only optionally add body edge springs */
   if (ob->softflag & OB_SB_EDGES) {
-    if (edge) {
-      bs = sb->bspring;
-      for (a = mesh->edges_num; a > 0; a--, edge++, bs++) {
-        bs->v1 = edge->x;
-        bs->v2 = edge->y;
-        bs->springtype = SB_EDGE;
+    if (!edges.is_empty()) {
+      for (const int i : edges.index_range()) {
+        sb->bspring[i].v1 = edges[i][0];
+        sb->bspring[i].v2 = edges[i][1];
+        sb->bspring[i].springtype = SB_EDGE;
       }
 
       /* insert *diagonal* springs in quads if desired */
@@ -3294,16 +3291,16 @@ static void softbody_reset(Object *ob, SoftBody *sb, float (*vertexCos)[3], int 
     copy_v3_v3(bp->origT, bp->pos);
     bp->vec[0] = bp->vec[1] = bp->vec[2] = 0.0f;
 
-    /* the bp->prev*'s are for rolling back from a canceled try to propagate in time
+    /* The `bp->prev*` 's are for rolling back from a canceled try to propagate in time
      * adaptive step size algorithm in a nutshell:
-     * 1.  set scheduled time step to new dtime
-     * 2.  try to advance the scheduled time step, being optimistic execute it
-     * 3.  check for success
-     * 3.a we 're fine continue, may be we can increase scheduled time again ?? if so, do so!
-     * 3.b we did exceed error limit --> roll back, shorten the scheduled time and try again at 2.
-     * 4.  check if we did reach dtime
-     * 4.a nope we need to do some more at 2.
-     * 4.b yup we're done
+     * 1)  set scheduled time step to new dtime
+     * 2)  try to advance the scheduled time step, being optimistic execute it
+     * 3)  check for success
+     * 3a) we 're fine continue, may be we can increase scheduled time again ?? if so, do so!
+     * 3b) we did exceed error limit --> roll back, shorten the scheduled time and try again at 2.
+     * 4)  check if we did reach dtime
+     * 4a) nope we need to do some more at 2.
+     * 4b) yup we're done
      */
 
     copy_v3_v3(bp->prevpos, bp->pos);

@@ -16,6 +16,8 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_geometry_set.hh"
@@ -660,8 +662,8 @@ static void initialize_group_input(const bNodeTree &tree,
 
   const std::optional<StringRef> attribute_name = input_attribute_name_get(properties, io_input);
   if (attribute_name && bke::allow_procedural_attribute_access(*attribute_name)) {
-    fn::GField attribute_field = bke::AttributeFieldInput::Create(*attribute_name,
-                                                                  *typeinfo->base_cpp_type);
+    fn::GField attribute_field = bke::AttributeFieldInput::from(*attribute_name,
+                                                                *typeinfo->base_cpp_type);
     bke::SocketValueVariant::ConstructIn(r_value, std::move(attribute_field));
   }
   else if (is_layer_selection_field(io_input)) {
@@ -738,18 +740,11 @@ static MultiValueMap<bke::AttrDomain, OutputAttributeInfo> find_output_attribute
 static Vector<OutputAttributeToStore> compute_attributes_to_store(
     const bke::GeometrySet &geometry,
     const MultiValueMap<bke::AttrDomain, OutputAttributeInfo> &outputs_by_domain,
-    const bool do_instances)
+    const Span<const bke::GeometryComponent::Type> component_types)
 {
   Vector<OutputAttributeToStore> attributes_to_store;
-  for (const auto component_type : {bke::GeometryComponent::Type::Mesh,
-                                    bke::GeometryComponent::Type::PointCloud,
-                                    bke::GeometryComponent::Type::Curve,
-                                    bke::GeometryComponent::Type::Instance})
-  {
+  for (const auto component_type : component_types) {
     if (!geometry.has(component_type)) {
-      continue;
-    }
-    if (!do_instances && component_type == bke::GeometryComponent::Type::Instance) {
       continue;
     }
     const bke::GeometryComponent &component = *geometry.get_component(component_type);
@@ -791,7 +786,7 @@ static void store_computed_output_attributes(
     bke::GeometryComponent &component = geometry.get_component_for_write(store.component_type);
     bke::MutableAttributeAccessor attributes = *component.attributes_for_write();
 
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(store.data.type());
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(store.data.type());
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         store.name);
 
@@ -807,7 +802,7 @@ static void store_computed_output_attributes(
      * attribute didn't exist before, or if it existed but was removed above. */
     if (attributes.add(store.name,
                        store.domain,
-                       bke::cpp_type_to_custom_data_type(store.data.type()),
+                       bke::cpp_type_to_attribute_type(store.data.type()),
                        bke::AttributeInitMoveArray(store.data.data())))
     {
       continue;
@@ -838,24 +833,32 @@ static void store_output_attributes(bke::GeometrySet &geometry,
   if (outputs_by_domain.size() == 0) {
     return;
   }
+
+  {
+    /* Handle top level instances separately first. */
+    Vector<OutputAttributeToStore> attributes_to_store = compute_attributes_to_store(
+        geometry, outputs_by_domain, {bke::GeometryComponent::Type::Instance});
+    store_computed_output_attributes(geometry, attributes_to_store);
+  }
+
   const bool only_instance_attributes = outputs_by_domain.size() == 1 &&
                                         *outputs_by_domain.keys().begin() ==
                                             bke::AttrDomain::Instance;
   if (only_instance_attributes) {
-    /* No need to call #modify_geometry_sets when only adding attributes to top-level instances.
+    /* No need to call #foreach_real_geometry when only adding attributes to top-level instances.
      * This avoids some unnecessary data copies currently if some sub-geometries are not yet owned
      * by the geometry set, i.e. they use #GeometryOwnershipType::Editable/ReadOnly. */
-    Vector<OutputAttributeToStore> attributes_to_store = compute_attributes_to_store(
-        geometry, outputs_by_domain, true);
-    store_computed_output_attributes(geometry, attributes_to_store);
     return;
   }
 
-  geometry.modify_geometry_sets([&](bke::GeometrySet &instance_geometry) {
+  geometry::foreach_real_geometry(geometry, [&](bke::GeometrySet &instance_geometry) {
     /* Instance attributes should only be created for the top-level geometry. */
-    const bool do_instances = &geometry == &instance_geometry;
     Vector<OutputAttributeToStore> attributes_to_store = compute_attributes_to_store(
-        instance_geometry, outputs_by_domain, do_instances);
+        instance_geometry,
+        outputs_by_domain,
+        {bke::GeometryComponent::Type::Mesh,
+         bke::GeometryComponent::Type::PointCloud,
+         bke::GeometryComponent::Type::Curve});
     store_computed_output_attributes(instance_geometry, attributes_to_store);
   });
 }

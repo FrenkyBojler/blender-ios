@@ -27,7 +27,7 @@ LightData::LightData(HydraSceneDelegate *scene_delegate,
 
 void LightData::init()
 {
-  ID_LOGN(1, "");
+  ID_LOGN("");
 
   const Light *light = (const Light *)((const Object *)id)->data;
   data_.clear();
@@ -87,7 +87,7 @@ void LightData::init()
   }
 
   pxr::GfVec3f color(light->r, light->g, light->b);
-  data_[pxr::HdLightTokens->color] = color;  // We multiply the Temperature by 1
+  data_[pxr::HdLightTokens->color] = color; /* We multiply the Temperature by 1. */
   data_[pxr::HdLightTokens->enableColorTemperature] = (light->mode & LA_USE_TEMPERATURE) != 0;
   data_[pxr::HdLightTokens->colorTemperature] = light->temperature;
 
@@ -104,13 +104,13 @@ void LightData::init()
 
 void LightData::insert()
 {
-  ID_LOGN(1, "");
+  ID_LOGN("");
   scene_delegate_->GetRenderIndex().InsertSprim(prim_type_, scene_delegate_, prim_id);
 }
 
 void LightData::remove()
 {
-  ID_LOG(1, "");
+  ID_LOG("");
   scene_delegate_->GetRenderIndex().RemoveSprim(prim_type_, prim_id);
 }
 
@@ -135,13 +135,13 @@ void LightData::update()
   }
   if (bits != pxr::HdChangeTracker::Clean) {
     scene_delegate_->GetRenderIndex().GetChangeTracker().MarkSprimDirty(prim_id, bits);
-    ID_LOGN(1, "");
+    ID_LOGN("");
   }
 }
 
 pxr::VtValue LightData::get_data(pxr::TfToken const &key) const
 {
-  ID_LOGN(3, "%s", key.GetText());
+  ID_LOGN("%s", key.GetText());
   auto it = data_.find(key);
   if (it != data_.end()) {
     return pxr::VtValue(it->second);

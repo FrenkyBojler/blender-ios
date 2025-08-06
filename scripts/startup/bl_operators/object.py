@@ -28,7 +28,7 @@ class SelectPattern(Operator):
         translation_context=i18n_contexts.id_text,
         description="Name filter using '*', '?' and "
         "'[abc]' unix style wildcards",
-        maxlen=64,
+        maxlen=256,
         default="*",
     )
     case_sensitive: BoolProperty(
@@ -266,7 +266,7 @@ class SubdivisionSet(Operator):
                     mod_name = "Multiresolution"
                 else:
                     mod_name = "Subdivision Surface"
-                self.report({'WARNING'}, "No {0} modifiers found".format(mod_name))
+                self.report({'WARNING'}, rpt_("No {:s} modifiers found").format(mod_name))
                 return {'CANCELLED'}
 
         if not relative and level < 0:
@@ -372,6 +372,7 @@ class ShapeTransfer(Operator):
             if len(me.shape_keys.key_blocks) == 1:
                 key.name = "Basis"
                 key = ob.shape_key_add(from_mix=False)  # we need a rest
+            key.value = 0.0
             key.name = name
             ob.active_shape_key_index = len(me.shape_keys.key_blocks) - 1
             ob.show_only_shape_key = True

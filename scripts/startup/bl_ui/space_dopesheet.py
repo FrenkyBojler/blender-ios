@@ -127,6 +127,8 @@ class DopesheetFilterPopoverBase:
             flow.prop(dopesheet, "show_pointclouds", text="Point Clouds")
         if bpy.data.volumes:
             flow.prop(dopesheet, "show_volumes", text="Volumes")
+        if bpy.data.lightprobes:
+            flow.prop(dopesheet, "show_lightprobes", text="Light Probes")
 
         # data types
         flow.prop(dopesheet, "show_worlds", text="Worlds")
@@ -283,7 +285,10 @@ class DOPESHEET_HT_editor_buttons:
                 text="",
             )
 
-        layout.popover(panel="DOPESHEET_PT_playhead_snapping")
+        row = layout.row(align=True)
+        row.prop(tool_settings, "use_snap_playhead", text="")
+        sub = row.row(align=True)
+        sub.popover(panel="DOPESHEET_PT_playhead_snapping", text="")
 
         row = layout.row(align=True)
         row.prop(tool_settings, "use_proportional_action", text="", icon_only=True)

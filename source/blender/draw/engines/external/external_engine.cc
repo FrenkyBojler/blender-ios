@@ -10,7 +10,6 @@
  */
 
 #include "BKE_paint.hh"
-#include "DNA_particle_types.h"
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
@@ -18,6 +17,7 @@
 
 #include "BLT_translation.hh"
 
+#include "DNA_particle_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
@@ -98,7 +98,7 @@ class Prepass {
   {
     Object *ob = ob_ref.object;
 
-    ResourceHandleRange handle = {0};
+    ResourceHandleRange handle = {};
 
     LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {

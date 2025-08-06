@@ -256,7 +256,7 @@ static void rna_PoseChannel_name_set(PointerRNA *ptr, const char *value)
 
   /* need to be on the stack */
   STRNCPY_UTF8(newname, value);
-  STRNCPY(oldname, pchan->name);
+  STRNCPY(oldname, pchan->name); /* Allow non UTF8 encoding for the old name. */
 
   BLI_assert(BKE_id_is_in_global_main(&ob->id));
   BLI_assert(BKE_id_is_in_global_main(static_cast<ID *>(ob->data)));
@@ -398,6 +398,7 @@ static void rna_PoseChannel_constraints_remove(
   con_ptr->invalidate();
 
   blender::ed::object::constraint_update(bmain, ob);
+  DEG_relations_tag_update(bmain);
 
   /* XXX(@ideasman42): is this really needed? */
   BKE_constraints_active_set(&pchan->constraints, nullptr);
@@ -650,6 +651,7 @@ void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportL
   Object *custom_shape = static_cast<Object *>(value.data);
 
   if (!custom_shape) {
+    id_us_min(reinterpret_cast<ID *>(pchan->custom));
     pchan->custom = nullptr;
     return;
   }
@@ -662,7 +664,9 @@ void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportL
     return;
   }
 
+  id_us_min(reinterpret_cast<ID *>(pchan->custom));
   pchan->custom = custom_shape;
+  id_us_plus(reinterpret_cast<ID *>(pchan->custom));
 }
 
 bool rna_Pose_custom_shape_object_poll(PointerRNA * /*ptr*/, PointerRNA value)
@@ -901,7 +905,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       prop,
       "Rotation Mode",
       /* This description is shared by other "rotation_mode" properties. */
-      "The kind of rotation to apply, values from other rotation modes aren't used");
+      "The kind of rotation to apply, values from other rotation modes are not used");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   /* Curved bones settings - Applied on top of rest-pose values. */

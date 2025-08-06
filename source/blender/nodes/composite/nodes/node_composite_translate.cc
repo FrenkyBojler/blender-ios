@@ -9,11 +9,13 @@
 #include "BLI_assert.h"
 #include "BLI_math_matrix.hh"
 
+#include "DNA_node_types.h"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "COM_domain.hh"
 #include "COM_node_operation.hh"
-#include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
@@ -43,8 +45,11 @@ static void node_composit_init_translate(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_translate(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "wrap_axis", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  uiLayout &column = layout->column(true);
+  column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  uiLayout &row = column.row(true);
+  row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -65,17 +70,18 @@ class TranslateOperation : public NodeOperation {
     output.share_data(input);
     output.transform(math::from_location<float3x3>(translation));
     output.get_realization_options().interpolation = this->get_interpolation();
-    output.get_realization_options().repeat_x = this->get_repeat_x();
-    output.get_realization_options().repeat_y = this->get_repeat_y();
+    output.get_realization_options().extension_x = this->get_extension_mode_x();
+    output.get_realization_options().extension_y = this->get_extension_mode_y();
   }
 
   Interpolation get_interpolation()
   {
-    switch (node_storage(bnode()).interpolation) {
+    switch (static_cast<CMPNodeInterpolation>(node_storage(bnode()).interpolation)) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
@@ -84,18 +90,34 @@ class TranslateOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  bool get_repeat_x()
+  ExtensionMode get_extension_mode_x()
   {
-    return ELEM(node_storage(bnode()).wrap_axis,
-                CMP_NODE_TRANSLATE_REPEAT_AXIS_X,
-                CMP_NODE_TRANSLATE_REPEAT_AXIS_XY);
+    switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    BLI_assert_unreachable();
+    return ExtensionMode::Clip;
   }
 
-  bool get_repeat_y()
+  ExtensionMode get_extension_mode_y()
   {
-    return ELEM(node_storage(bnode()).wrap_axis,
-                CMP_NODE_TRANSLATE_REPEAT_AXIS_Y,
-                CMP_NODE_TRANSLATE_REPEAT_AXIS_XY);
+    switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    BLI_assert_unreachable();
+    return ExtensionMode::Clip;
   }
 };
 

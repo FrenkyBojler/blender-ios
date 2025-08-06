@@ -119,7 +119,7 @@ static void rna_Armature_act_bone_set(PointerRNA *ptr, PointerRNA value, ReportL
       Object *ob = (Object *)value.owner_id;
 
       if (GS(ob->id.name) != ID_OB || (ob->data != arm)) {
-        printf("ERROR: armature set active bone - new active doesn't come from this armature\n");
+        printf("ERROR: armature set active bone - new active does not come from this armature\n");
         return;
       }
     }
@@ -809,6 +809,15 @@ static IDProperty **rna_Bone_system_idprops(PointerRNA *ptr)
 {
   Bone *bone = static_cast<Bone *>(ptr->data);
   return &bone->system_properties;
+}
+
+static std::optional<std::string> rna_EditBone_path(const PointerRNA *ptr)
+{
+  EditBone *ebone = static_cast<EditBone *>(ptr->data);
+  char name_esc[sizeof(ebone->name) * 2];
+
+  BLI_str_escape(name_esc, ebone->name, sizeof(name_esc));
+  return fmt::format("edit_bones[\"{}\"]", name_esc);
 }
 
 static IDProperty **rna_EditBone_idprops(PointerRNA *ptr)
@@ -1503,8 +1512,7 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
   RNA_def_property_ui_text(
       prop,
       "Cyclic Offset",
-      "When bone doesn't have a parent, it receives cyclic offset effects (Deprecated)");
-  //                         "When bone doesn't have a parent, it receives cyclic offset effects");
+      "When bone does not have a parent, it receives cyclic offset effects (Deprecated)");
   RNA_def_property_update(prop, 0, "rna_Armature_update_data");
 
   prop = RNA_def_property(srna, "hide_select", PROP_BOOLEAN, PROP_NONE);
@@ -1867,6 +1875,7 @@ static void rna_def_edit_bone(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "EditBone", nullptr);
   RNA_def_struct_sdna(srna, "EditBone");
+  RNA_def_struct_path_func(srna, "rna_EditBone_path");
   RNA_def_struct_idprops_func(srna, "rna_EditBone_idprops");
   RNA_def_struct_system_idprops_func(srna, "rna_EditBone_system_idprops");
   RNA_def_struct_ui_text(srna, "Edit Bone", "Edit mode bone in an armature data-block");

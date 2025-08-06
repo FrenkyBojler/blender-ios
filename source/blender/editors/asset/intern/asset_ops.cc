@@ -10,6 +10,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BKE_asset_edit.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -25,6 +26,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 
 #include "ED_asset.hh"
 #include "ED_screen.hh"
@@ -480,7 +482,7 @@ static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
-  char *parent_path = RNA_string_get_alloc(op->ptr, "parent_path", nullptr, 0, nullptr);
+  std::string parent_path = RNA_string_get(op->ptr, "parent_path");
 
   asset_system::AssetCatalog *new_catalog = catalog_add(
       asset_library, DATA_("Catalog"), parent_path);
@@ -488,8 +490,6 @@ static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
   if (sfile) {
     ED_fileselect_activate_asset_catalog(sfile, new_catalog->catalog_id);
   }
-
-  MEM_freeN(parent_path);
 
   WM_event_add_notifier_ex(
       CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
@@ -520,15 +520,13 @@ static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
-  char *catalog_id_str = RNA_string_get_alloc(op->ptr, "catalog_id", nullptr, 0, nullptr);
+  std::string catalog_id_str = RNA_string_get(op->ptr, "catalog_id");
   asset_system::CatalogID catalog_id;
-  if (!BLI_uuid_parse_string(&catalog_id, catalog_id_str)) {
+  if (!BLI_uuid_parse_string(&catalog_id, catalog_id_str.c_str())) {
     return OPERATOR_CANCELLED;
   }
 
   catalog_remove(asset_library, catalog_id);
-
-  MEM_freeN(catalog_id_str);
 
   WM_event_add_notifier_ex(
       CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
@@ -796,7 +794,7 @@ static wmOperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
   cat_service->prepare_to_merge_on_write();
 
   const wmOperatorStatus operator_result = WM_operator_name_call(
-      C, "WM_OT_save_mainfile", WM_OP_EXEC_DEFAULT, op->ptr, nullptr);
+      C, "WM_OT_save_mainfile", wm::OpCallContext::ExecDefault, op->ptr, nullptr);
   WM_cursor_wait(false);
 
   if (operator_result != OPERATOR_FINISHED) {
@@ -1007,7 +1005,8 @@ static inline void sort_points(int2 &p1, int2 &p2)
 /* Clamps the point to the window bounds. */
 static inline int2 clamp_point_to_window(const int2 &point, const wmWindow *window)
 {
-  return {clamp_i(point.x, 0, window->sizex - 1), clamp_i(point.y, 0, window->sizey - 1)};
+  const int2 win_size = WM_window_native_pixel_size(window);
+  return {clamp_i(point.x, 0, win_size.x - 1), clamp_i(point.y, 0, win_size.y - 1)};
 }
 
 /* Ensures that the x and y distance to from p1 to p2 is equal and the resulting square remains
@@ -1026,8 +1025,9 @@ static inline void square_points_clamp_to_window(const int2 &p1, int2 &p2, const
   int square_size = std::max(size_x, size_y);
 
   /* Compute maximum size that fits within window bounds in the drag direction. */
-  const int max_size_x = (dir_x > 0) ? window->sizex - p1.x - 1 : p1.x;
-  const int max_size_y = (dir_y > 0) ? window->sizey - p1.y - 1 : p1.y;
+  const int2 win_size = WM_window_native_pixel_size(window);
+  const int max_size_x = (dir_x > 0) ? win_size.x - p1.x - 1 : p1.x;
+  const int max_size_y = (dir_y > 0) ? win_size.y - p1.y - 1 : p1.y;
 
   /* Clamp the square size so it does not exceed window bounds. */
   square_size = std::min(square_size, std::min(max_size_x, max_size_y));
@@ -1152,7 +1152,23 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
    * render to support transparency. Render settings are used as currently set up in the viewport
    * to comply with WYSIWYG as much as possible. One limitation is that GUI elements will not be
    * visible in the render. */
+  bool render_offscreen = false;
   if (area_p1 == area_p2 && area_p1 != nullptr && area_p1->spacetype == SPACE_VIEW3D) {
+    Scene *scene = CTX_data_scene(C);
+    View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
+    /* For #ED_view3d_draw_offscreen_imbuf only EEVEE only produces a good result. See #141732. */
+    if (eDrawType(v3d->shading.type) == OB_RENDER) {
+      const char *engine_name = scene->r.engine;
+      render_offscreen = STR_ELEM(engine_name,
+                                  RE_engine_id_BLENDER_EEVEE,
+                                  RE_engine_id_BLENDER_EEVEE_NEXT,
+                                  RE_engine_id_BLENDER_WORKBENCH);
+    }
+    else {
+      render_offscreen = true;
+    }
+  }
+  if (render_offscreen) {
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
     ARegion *region = BKE_area_find_region_type(area_p1, RGN_TYPE_WINDOW);
     if (!region) {
@@ -1245,15 +1261,16 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 
   /* Drawing a semi-transparent mask to highlight the area that will be captured. */
   float4 mask_color = {1, 1, 1, 0.25};
-  const rctf mask_rect_bottom = {0, float(window->sizex), 0, screenshot_rect.ymin};
+  const int2 win_size = WM_window_native_pixel_size(window);
+  const rctf mask_rect_bottom = {0, float(win_size.x), 0, screenshot_rect.ymin};
   UI_draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
-  const rctf mask_rect_top = {0, float(window->sizex), screenshot_rect.ymax, float(window->sizey)};
+  const rctf mask_rect_top = {0, float(win_size.x), screenshot_rect.ymax, float(win_size.y)};
   UI_draw_roundbox_aa(&mask_rect_top, true, 0, mask_color);
   const rctf mask_rect_left = {
       0, screenshot_rect.xmin, screenshot_rect.ymin, screenshot_rect.ymax};
   UI_draw_roundbox_aa(&mask_rect_left, true, 0, mask_color);
   const rctf mask_rect_right = {
-      screenshot_rect.xmax, float(window->sizex), screenshot_rect.ymin, screenshot_rect.ymax};
+      screenshot_rect.xmax, float(win_size.x), screenshot_rect.ymin, screenshot_rect.ymax};
   UI_draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
 
   float4 color;
@@ -1360,7 +1377,8 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         const int2 new_p2 = data->p2 + delta;
 
         auto is_within_window = [win](const int2 &pt) -> bool {
-          return pt.x >= 0 && pt.x < win->sizex && pt.y >= 0 && pt.y < win->sizey;
+          const int2 win_size = WM_window_native_pixel_size(win);
+          return pt.x >= 0 && pt.x < win_size.x && pt.y >= 0 && pt.y < win_size.y;
         };
 
         /* Apply movement only if the entire rectangle stays within window bounds. */
@@ -1434,40 +1452,28 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static ID *id_from_selected_asset(bContext *C)
-{
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  if (!asset_handle) {
-    return nullptr;
-  }
-
-  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
-  Main *bmain = CTX_data_main(C);
-  return bke::asset_edit_id_from_weak_reference(
-      *bmain, asset_handle->get_id_type(), asset_reference);
-}
-
 static bool screenshot_preview_poll(bContext *C)
 {
   if (G.background) {
     return false;
   }
 
-  ID *id = id_from_selected_asset(C);
-  if (!id) {
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  if (!asset_handle) {
     CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;
   }
-
-  if (!ID_IS_LINKED(id)) {
+  if (asset_handle->is_local_id()) {
     return WM_operator_winactive(C);
   }
 
-  if (!bke::asset_edit_id_is_editable(*id)) {
-    return false;
+  std::string lib_path = asset_handle->full_library_path();
+  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
+    return true;
   }
 
-  return WM_operator_winactive(C);
+  CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
+  return false;
 }
 
 static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
