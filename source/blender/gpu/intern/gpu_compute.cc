@@ -20,7 +20,7 @@ void GPU_compute_dispatch(GPUShader *shader,
   blender::gpu::GPUBackend &gpu_backend = *blender::gpu::GPUBackend::get();
   GPU_shader_bind(shader, constants_state);
 #ifndef NDEBUG
-  GPU_debug_validate_binding_image_format();
+  blender::gpu::debug_validate_binding_image_format();
 #endif
   gpu_backend.compute_dispatch(groups_x_len, groups_y_len, groups_z_len);
 }
@@ -36,7 +36,7 @@ void GPU_compute_dispatch_indirect(
 
   GPU_shader_bind(shader, constants_state);
 #ifndef NDEBUG
-  GPU_debug_validate_binding_image_format();
+  blender::gpu::debug_validate_binding_image_format();
 #endif
   gpu_backend.compute_dispatch_indirect(indirect_buf);
 }

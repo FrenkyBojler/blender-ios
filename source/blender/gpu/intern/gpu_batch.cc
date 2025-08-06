@@ -507,7 +507,7 @@ void GPU_batch_draw_advanced(
   }
 
 #ifndef NDEBUG
-  GPU_debug_validate_binding_image_format();
+  debug_validate_binding_image_format();
 #endif
 
   batch->draw(vertex_first, vertex_count, instance_first, instance_count);
@@ -521,7 +521,7 @@ void GPU_batch_draw_indirect(Batch *batch, GPUStorageBuf *indirect_buf, intptr_t
   Context::get()->assert_framebuffer_shader_compatibility(Context::get()->shader);
 
 #ifndef NDEBUG
-  GPU_debug_validate_binding_image_format();
+  debug_validate_binding_image_format();
 #endif
 
   batch->draw_indirect(indirect_buf, offset);
@@ -536,7 +536,7 @@ void GPU_batch_multi_draw_indirect(
   Context::get()->assert_framebuffer_shader_compatibility(Context::get()->shader);
 
 #ifndef NDEBUG
-  GPU_debug_validate_binding_image_format();
+  debug_validate_binding_image_format();
 #endif
 
   batch->multi_draw_indirect(indirect_buf, count, offset, stride);

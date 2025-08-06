@@ -165,10 +165,12 @@ void GPU_debug_capture_scope_end(void *scope)
   ctx->debug_capture_scope_end(scope);
 }
 
-bool GPU_debug_validate_binding_image_format()
+namespace blender::gpu {
+
+void debug_validate_binding_image_format()
 {
   if (!(G.debug & G_DEBUG_GPU)) {
-    return true;
+    return;
   }
 
   const auto &texture_formats_state = Context::get()->state_manager->image_formats;
@@ -176,6 +178,13 @@ bool GPU_debug_validate_binding_image_format()
   for (int image_unit = 0; image_unit < GPU_MAX_IMAGE; image_unit++) {
     TextureWriteFormat format_state = texture_formats_state[image_unit];
     TextureWriteFormat format_shader = texture_formats_shader[image_unit];
+    if (format_state != TextureWriteFormat::Invalid &&
+        format_shader == TextureWriteFormat::Invalid)
+    {
+      /* It is allowed for an image to be bound in the state manager but to be unused in the
+       * shader. */
+      continue;
+    }
     if (UNLIKELY(texture_formats_shader[image_unit] != texture_formats_state[image_unit])) {
       fprintf(
           stderr,
@@ -185,8 +194,9 @@ bool GPU_debug_validate_binding_image_format()
           image_unit,
           GPU_texture_format_name(to_texture_format(texture_formats_shader[image_unit])),
           GPU_texture_format_name(to_texture_format(texture_formats_state[image_unit])));
-      return false;
+      BLI_assert_unreachable();
     }
   }
-  return true;
 }
+
+}  // namespace blender::gpu
