@@ -3534,6 +3534,7 @@ void MESH_OT_merge(wmOperatorType *ot)
 static wmOperatorStatus edbm_remove_doubles_exec(bContext *C, wmOperator *op)
 {
   const float threshold = RNA_float_get(op->ptr, "threshold");
+  const bool use_connected = RNA_boolean_get(op->ptr, "use_connected");
   const bool use_unselected = RNA_boolean_get(op->ptr, "use_unselected");
   const bool use_sharp_edge_from_normals = RNA_boolean_get(op->ptr, "use_sharp_edge_from_normals");
 
@@ -3576,7 +3577,13 @@ static wmOperatorStatus edbm_remove_doubles_exec(bContext *C, wmOperator *op)
       EDBM_automerge(obedit, false, BM_ELEM_SELECT, threshold);
     }
     else {
-      EDBM_op_init(em, &bmop, op, "find_doubles verts=%hv dist=%f", BM_ELEM_SELECT, threshold);
+      EDBM_op_init(em,
+                   &bmop,
+                   op,
+                   "find_doubles verts=%hv dist=%f use_connected=%b",
+                   BM_ELEM_SELECT,
+                   threshold,
+                   use_connected);
 
       BMO_op_exec(em->bm, &bmop);
 
@@ -3639,6 +3646,8 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
                          "Maximum distance between elements to merge",
                          1e-5f,
                          10.0f);
+  RNA_def_boolean(ot->srna, "use_connected", false, "Connected", "Only merge connected geometry");
+
   RNA_def_boolean(ot->srna,
                   "use_unselected",
                   false,

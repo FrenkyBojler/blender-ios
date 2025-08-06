@@ -13,8 +13,11 @@
 #include "BLI_alloca.h"
 #include "BLI_kdtree.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_vector.h"
 #include "BLI_stack.h"
+#include "BLI_stack.hh"
 #include "BLI_utildefines_stack.h"
 
 #include "BKE_customdata.hh"
@@ -622,6 +625,8 @@ static void bmesh_find_doubles_common(BMesh *bm,
                                       BMOperator *optarget,
                                       BMOpSlot *optarget_slot)
 {
+  const bool use_connected = BMO_slot_bool_get(op->slots_in, "use_connected");
+
   const BMOpSlot *slot_verts = BMO_slot_get(op->slots_in, "verts");
   BMVert *const *verts = (BMVert **)slot_verts->data.buf;
   const int verts_len = slot_verts->len;
@@ -643,7 +648,84 @@ static void bmesh_find_doubles_common(BMesh *bm,
   }
 
   int *duplicates = MEM_malloc_arrayN<int>(verts_len, __func__);
-  {
+  if (use_connected) {
+    blender::Stack<int> vert_stack;
+    blender::Map<BMVert *, int> vert_to_index_map;
+
+    for (int i = 0; i < verts_len; i++) {
+      if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
+        duplicates[i] = i;
+      }
+      else {
+        duplicates[i] = -1;
+      }
+      vert_to_index_map.add(verts[i], i);
+    }
+
+    const float dist_sq = blender::math::square(dist);
+
+    for (int i = 0; i < verts_len; i++) {
+      if (!ELEM(duplicates[i], -1, i)) {
+        continue;
+      }
+      const float *co_check = verts[i]->co;
+      BLI_assert(vert_stack.is_empty());
+      int i_check = i;
+      do {
+        BMVert *v_check = verts[i_check];
+        if (v_check->e) {
+          BMEdge *e_iter, *e_first;
+          e_first = e_iter = v_check->e;
+          do {
+            /* Edge stepping. */
+            BMVert *v_other = BM_edge_other_vert(e_iter, v_check);
+            if (len_squared_v3v3(v_other->co, co_check) < dist_sq) {
+              const int i_other = vert_to_index_map.lookup_default(v_other, -1);
+              if ((i_other != -1) && (duplicates[i_other] == -1)) {
+                duplicates[i_other] = i;
+                vert_stack.push(i_other);
+                found_duplicates = true;
+              }
+            }
+
+            /* Face stepping. */
+            if (e_iter->l) {
+              BMLoop *l_radial_iter;
+              l_radial_iter = e_iter->l;
+              do {
+                if (l_radial_iter->v != v_check) {
+                  /* This face will be met from another edge. */
+                  continue;
+                }
+                if (l_radial_iter->f->len <= 3) {
+                  /* Edge iteration handles triangles. */
+                  continue;
+                }
+
+                /* Loop over all vertices not connected to edges attached to `v_check`.
+                 * For a 4 sided face, this will only check 1 vertex. */
+                BMLoop *l_iter = l_radial_iter->next->next;
+                BMLoop *l_end = l_radial_iter->prev;
+                do {
+                  BMVert *v_other = l_iter->v;
+                  if (len_squared_v3v3(v_other->co, co_check) < dist_sq) {
+                    const int i_other = vert_to_index_map.lookup_default(v_other, -1);
+                    if ((i_other != -1) && (duplicates[i_other] == -1)) {
+                      duplicates[i_other] = i;
+                      vert_stack.push(i_other);
+                      found_duplicates = true;
+                    }
+                  }
+                } while ((l_iter = l_iter->next) != l_end);
+              } while ((l_radial_iter = l_radial_iter->radial_next) != e_iter->l);
+            }
+
+          } while ((e_iter = BM_DISK_EDGE_NEXT(e_iter, v_check)) != e_first);
+        }
+      } while ((i_check = vert_stack.is_empty() ? -1 : vert_stack.pop()) != -1);
+    }
+  }
+  else {
     KDTree_3d *tree = BLI_kdtree_3d_new(verts_len);
     for (int i = 0; i < verts_len; i++) {
       BLI_kdtree_3d_insert(tree, i, verts[i]->co);

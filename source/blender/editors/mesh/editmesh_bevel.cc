@@ -91,6 +91,8 @@ struct BevelData {
   void *draw_handle_pixel;
   short value_mode; /* Which value does mouse movement and numeric input affect? */
   float segments;   /* Segments as float so smooth mouse pan works in small increments */
+  bool use_automerge;
+  double doublelimit;
 
   CurveProfile *custom_profile;
 };
@@ -260,6 +262,8 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
   opdata->value_mode = (otype == BEVEL_AMT_PERCENT) ? OFFSET_VALUE_PERCENT : OFFSET_VALUE;
   opdata->segments = float(RNA_int_get(op->ptr, "segments"));
   float pixels_per_inch = U.dpi;
+  opdata->use_automerge = (scene->toolsettings->automerge & AUTO_MERGE) != 0;
+  opdata->doublelimit = scene->toolsettings->doublimit;
 
   for (int i = 0; i < NUM_VALUE_KINDS; i++) {
     opdata->shift_value[i] = -1.0f;
@@ -380,6 +384,9 @@ static bool edbm_bevel_calc(wmOperator *op)
           BM_mesh_select_mode_flush_ex(em->bm, SCE_SELECT_VERTEX, BM_SELECT_LEN_FLUSH_RECALC_EDGE);
         }
       }
+    }
+    if (opdata->use_automerge) {
+      EDBM_automerge_connected(obedit, true, BM_ELEM_SELECT, opdata->doublelimit);
     }
 
     /* no need to de-select existing geometry */
