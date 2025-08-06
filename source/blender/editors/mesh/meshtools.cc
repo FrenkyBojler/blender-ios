@@ -161,14 +161,14 @@ static void join_mesh_single(Depsgraph *depsgraph,
         /* if this mesh has any shape-keys, check first, otherwise just copy coordinates */
         LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
           /* get pointer to where to write data for this mesh in shape-key's data array */
-          float(*cos)[3] = ((float(*)[3])kb->data) + *vertofs;
+          float (*cos)[3] = ((float (*)[3])kb->data) + *vertofs;
 
           /* Check if this mesh has such a shape-key. */
           KeyBlock *okb = mesh->key ? BKE_keyblock_find_name(mesh->key, kb->name) : nullptr;
           if (okb) {
             /* copy this mesh's shape-key to the destination shape-key
              * (need to transform first) */
-            float(*ocos)[3] = static_cast<float(*)[3]>(okb->data);
+            float (*ocos)[3] = static_cast<float (*)[3]>(okb->data);
             for (a = 0; a < mesh->verts_num; a++, cos++, ocos++) {
               copy_v3_v3(*cos, *ocos);
               mul_m4_v3(cmat, *cos);
@@ -191,13 +191,13 @@ static void join_mesh_single(Depsgraph *depsgraph,
       if (key) {
         LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
           /* get pointer to where to write data for this mesh in shape-key's data array */
-          float(*cos)[3] = ((float(*)[3])kb->data) + *vertofs;
+          float (*cos)[3] = ((float (*)[3])kb->data) + *vertofs;
 
           /* Check if this was one of the original shape-keys. */
           KeyBlock *okb = nkey ? BKE_keyblock_find_name(nkey, kb->name) : nullptr;
           if (okb) {
             /* copy this mesh's shape-key to the destination shape-key */
-            float(*ocos)[3] = static_cast<float(*)[3]>(okb->data);
+            float (*ocos)[3] = static_cast<float (*)[3]>(okb->data);
             for (a = 0; a < mesh->verts_num; a++, cos++, ocos++) {
               copy_v3_v3(*cos, *ocos);
             }
@@ -725,6 +725,7 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
 
 wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
                                                   const bool ensure_keys_exist,
+                                                  const bool mirror,
                                                   ReportList *reports)
 {
   using namespace blender;
@@ -797,6 +798,8 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
         &active_mesh, active_mesh.key, BKE_keyblock_add(active_mesh.key, nullptr));
   }
 
+  int mirror_count = 0;
+  int mirror_fail_count = 0;
   int keys_changed = 0;
   bool any_keys_added = false;
   for (const ObjectInfo &info : compatible_objects) {
@@ -804,10 +807,16 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
       KeyBlock *kb = BKE_keyblock_add(active_mesh.key, info.name.c_str());
       BKE_keyblock_convert_from_mesh(&info.mesh, active_mesh.key, kb);
       any_keys_added = true;
+      if (mirror) {
+        ed::object::shape_key_mirror(&active_object, kb, true, mirror_count, mirror_fail_count);
+      }
     }
     else if (KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, info.name.c_str())) {
       keys_changed++;
       BKE_keyblock_update_from_mesh(&info.mesh, kb);
+      if (mirror) {
+        ed::object::shape_key_mirror(&active_object, kb, true, mirror_count, mirror_fail_count);
+      }
     }
   }
 
@@ -817,6 +826,10 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
       return OPERATOR_CANCELLED;
     }
     BKE_reportf(reports, RPT_INFO, "Updated %d shape key(s)", keys_changed);
+  }
+
+  if (mirror) {
+    ED_mesh_report_mirror_ex(*reports, mirror_count, mirror_fail_count, SCE_SELECT_VERTEX);
   }
 
   DEG_id_tag_update(&active_mesh.id, ID_RECALC_GEOMETRY);
