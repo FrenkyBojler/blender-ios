@@ -236,6 +236,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
+  b.add_default_layout();
+
   const NodeGeometryViewer &storage = node_storage(*node);
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryViewerItem &item = storage.items[i];
@@ -263,7 +265,28 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
-static void node_layout(uiLayout * /*layout*/, bContext * /*C*/, PointerRNA * /*ptr*/) {}
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  const bNode &node = *ptr->data_as<bNode>();
+  const NodeGeometryViewer &storage = node_storage(node);
+
+  bool has_geometry_input = false;
+  bool has_potential_field_input = false;
+  for (const int i : IndexRange(storage.items_num)) {
+    const NodeGeometryViewerItem &item = storage.items[i];
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    if (socket_type == SOCK_GEOMETRY) {
+      has_geometry_input = true;
+    }
+    else if (socket_type_supports_fields(socket_type)) {
+      has_potential_field_input = true;
+    }
+  }
+
+  if (has_geometry_input && has_potential_field_input) {
+    layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  }
+}
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
@@ -285,6 +308,114 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 static void node_gather_link_searches(GatherLinkSearchOpParams & /*params*/)
 {
   // TODO
+}
+
+/**
+ * Evaluates the first field after for each geometry as ".viewer" attribute. This attribute is used
+ * by drawing code.
+ */
+static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog &r_log)
+{
+  const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
+  const StringRef viewer_attribute_name = ".viewer";
+  std::optional<int> last_geometry_identifier;
+  for (const int i : IndexRange(storage.items_num)) {
+    const bNodeSocket &bsocket = node.input_socket(i);
+    const NodeGeometryViewerItem &item = storage.items[i];
+    const bke::bNodeSocketType &type = *bsocket.typeinfo;
+
+    if (type.type == SOCK_GEOMETRY) {
+      last_geometry_identifier = item.identifier;
+      continue;
+    }
+    if (!last_geometry_identifier) {
+      continue;
+    }
+    if (!socket_type_supports_fields(type.type)) {
+      continue;
+    }
+    bke::GeometrySet *geometry = static_cast<bke::GeometrySet *>(
+        r_log.items.lookup_key_as(*last_geometry_identifier).data);
+    if (!geometry) {
+      continue;
+    }
+    const auto *value_variant = static_cast<const bke::SocketValueVariant *>(
+        r_log.items.lookup_key_as(item.identifier).data);
+    if (!value_variant) {
+      continue;
+    }
+    if (!(value_variant->is_single() || value_variant->is_context_dependent_field())) {
+      continue;
+    }
+    const GField field = value_variant->get<GField>();
+    const AttrDomain domain_or_auto = AttrDomain(storage.domain);
+    if (domain_or_auto == AttrDomain::Instance) {
+      if (geometry->has_instances()) {
+        bke::GeometryComponent &component =
+            geometry->get_component_for_write<bke::InstancesComponent>();
+        bke::try_capture_field_on_geometry(
+            component, viewer_attribute_name, AttrDomain::Instance, field);
+      }
+    }
+    else {
+      geometry::foreach_real_geometry(*geometry, [&](GeometrySet &geometry) {
+        for (const bke::GeometryComponent::Type type :
+             {bke::GeometryComponent::Type::Mesh,
+              bke::GeometryComponent::Type::PointCloud,
+              bke::GeometryComponent::Type::Curve,
+              bke::GeometryComponent::Type::GreasePencil})
+        {
+          if (!geometry.has(type)) {
+            continue;
+          }
+          bke::GeometryComponent &component = geometry.get_component_for_write(type);
+          AttrDomain used_domain = domain_or_auto;
+          if (domain_or_auto == AttrDomain::Auto) {
+            if (const std::optional<AttrDomain> domain = bke::try_detect_field_domain(component,
+                                                                                      field))
+            {
+              used_domain = *domain;
+            }
+            else {
+              used_domain = AttrDomain::Point;
+            }
+          }
+          bke::try_capture_field_on_geometry(component, viewer_attribute_name, used_domain, field);
+        }
+      });
+    }
+    /* Avoid overriding the viewer attribute with other fields.*/
+    last_geometry_identifier.reset();
+  }
+}
+
+static void geo_viewer_node_log_impl(const bNode &node,
+                                     const Span<void *> input_values,
+                                     geo_eval_log::ViewerNodeLog &r_log)
+{
+  const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
+  LinearAllocator<> &allocator = r_log.scope.allocator();
+
+  /* Log all input values. */
+  for (const int i : IndexRange(storage.items_num)) {
+    void *src_value = input_values[i];
+    if (!src_value) {
+      continue;
+    }
+    const bNodeSocket &bsocket = node.input_socket(i);
+    const NodeGeometryViewerItem &item = storage.items[i];
+    const bke::bNodeSocketType &type = *bsocket.typeinfo;
+
+    void *owned_value = allocator.allocate(*type.geometry_nodes_cpp_type);
+    type.geometry_nodes_cpp_type->move_construct(src_value, owned_value);
+    if (type.type == SOCK_GEOMETRY) {
+      bke::GeometrySet &geometry = *static_cast<bke::GeometrySet *>(owned_value);
+      geometry.ensure_owns_direct_data();
+    }
+    r_log.items.add_new({item.identifier, &type, owned_value});
+  }
+
+  log_viewer_attribute(node, r_log);
 }
 
 static void node_extra_info(NodeExtraInfoParams &params)
@@ -369,75 +500,7 @@ void geo_viewer_node_log(const bNode &node,
                          const Span<void *> input_values,
                          geo_eval_log::ViewerNodeLog &r_log)
 {
-  const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
-  LinearAllocator<> &allocator = r_log.scope.allocator();
-
-  /* Log all input values. */
-  for (const int i : IndexRange(storage.items_num)) {
-    void *src_value = input_values[i];
-    if (!src_value) {
-      continue;
-    }
-    const bNodeSocket &bsocket = node.input_socket(i);
-    const NodeGeometryViewerItem &item = storage.items[i];
-    const bke::bNodeSocketType &type = *bsocket.typeinfo;
-
-    void *owned_value = allocator.allocate(*type.geometry_nodes_cpp_type);
-    type.geometry_nodes_cpp_type->move_construct(src_value, owned_value);
-    if (type.type == SOCK_GEOMETRY) {
-      bke::GeometrySet &geometry = *static_cast<bke::GeometrySet *>(owned_value);
-      geometry.ensure_owns_direct_data();
-    }
-    r_log.items.add_new({item.identifier, &type, owned_value});
-  }
-
-  /* Store the ".viewer" attribute if necessary. */
-  const StringRef viewer_attribute_name = ".viewer";
-  std::optional<int> last_geometry_identifier;
-  for (const int i : IndexRange(storage.items_num)) {
-    if (!input_values[i]) {
-      continue;
-    }
-    const bNodeSocket &bsocket = node.input_socket(i);
-    const NodeGeometryViewerItem &item = storage.items[i];
-    const bke::bNodeSocketType &type = *bsocket.typeinfo;
-
-    if (type.type == SOCK_GEOMETRY) {
-      last_geometry_identifier = item.identifier;
-      continue;
-    }
-    if (!last_geometry_identifier) {
-      continue;
-    }
-    if (!socket_type_supports_fields(type.type)) {
-      continue;
-    }
-    bke::GeometrySet &geometry = *static_cast<bke::GeometrySet *>(
-        r_log.items.lookup_key_as(*last_geometry_identifier).data);
-    const auto &value_variant = *static_cast<const bke::SocketValueVariant *>(
-        r_log.items.lookup_key_as(item.identifier).data);
-    if (!(value_variant.is_single() || value_variant.is_context_dependent_field())) {
-      continue;
-    }
-    const GField field = value_variant.get<GField>();
-    // TODO: Domain selection
-    const AttrDomain domain = AttrDomain::Point;
-    geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
-      for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
-                                                      bke::GeometryComponent::Type::PointCloud,
-                                                      bke::GeometryComponent::Type::Curve,
-                                                      bke::GeometryComponent::Type::GreasePencil})
-      {
-        if (!geometry.has(type)) {
-          continue;
-        }
-        bke::GeometryComponent &component = geometry.get_component_for_write(type);
-        bke::try_capture_field_on_geometry(component, viewer_attribute_name, domain, field);
-      }
-    });
-    /* Avoid overriding the viewer attribute with other fields.*/
-    last_geometry_identifier.reset();
-  }
+  node_geo_viewer_cc::geo_viewer_node_log_impl(node, input_values, r_log);
 }
 
 }  // namespace blender::nodes
