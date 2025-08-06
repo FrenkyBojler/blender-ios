@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# Update Blender version this key-map was written in:
+# Update Blender version this key-map was written in.
+# The update runs when loading key-map presets written in older versions of Blender.
+# Failing to run this means those key-maps may fail to load with an error.
 #
 # When the version is `(0, 0, 0)`, the key-map being loaded didn't contain any versioning information.
 # This will older than `(2, 92, 0)`.
@@ -207,7 +209,7 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
         rename_keymap({"Sequencer Tool: Rotate": "Preview Tool: Rotate"})
         rename_keymap({"Sequencer Tool: Scale": "Preview Tool: Scale"})
 
-    if keyconfig_version < (5, 0, 51):
+    if keyconfig_version < (5, 0, 53):
         if not has_copy:
             keyconfig_data = copy.deepcopy(keyconfig_data)
             has_copy = True
