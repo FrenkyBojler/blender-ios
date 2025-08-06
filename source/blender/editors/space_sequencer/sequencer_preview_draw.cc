@@ -445,25 +445,24 @@ static void draw_histogram(ARegion &region,
   float text_scale_x, text_scale_y;
   UI_view2d_scale_get_inverse(&v2d, &text_scale_x, &text_scale_y);
 
-  const float val_min = ScopeHistogram::bin_to_float(hist.bin_range.x);
-  const float val_max = ScopeHistogram::bin_to_float(hist.bin_range.y);
+  const bool hdr = ScopeHistogram::bin_to_float(hist.bin_range.y) > 1.001f;
+  const float max_val = hdr ? 16.0f : 1.0f;
 
   /* Grid lines covering 0..1 range, with 0.25 steps. */
   for (float val = 0.0f; val <= 1.0f; val += 0.25f) {
     add_vertical_line(val, v2d, text_scale_x, text_scale_y, quads, area);
   }
-  /* For HDR content, more lines every 1.0 step, up to maximum value. */
-  for (float val = 2.0f; val < val_max; val += 1.0f) {
-    add_vertical_line(val, v2d, text_scale_x, text_scale_y, quads, area);
+  /* For HDR content, more lines every 1.0 step, up to 16. */
+  if (hdr) {
+    for (float val = 2.0f; val <= max_val; val += 1.0f) {
+      add_vertical_line(val, v2d, text_scale_x, text_scale_y, quads, area);
+    }
   }
-  /* Lines for minimum & maximum image values. */
-  add_vertical_line(val_min, v2d, text_scale_x, text_scale_y, quads, area);
-  add_vertical_line(val_max, v2d, text_scale_x, text_scale_y, quads, area);
 
-  /* Horizontal lines covering min..max value range. */
+  /* Horizontal lines. */
   uchar col_border[4] = {64, 64, 64, 128};
-  const float x_val_min = area.xmin + (area.xmax - area.xmin) * val_min;
-  const float x_val_max = area.xmin + (area.xmax - area.xmin) * val_max;
+  const float x_val_min = area.xmin;
+  const float x_val_max = area.xmin + (area.xmax - area.xmin) * max_val;
   quads.add_line(x_val_min, area.ymin, x_val_max, area.ymin, col_border);
   quads.add_line(x_val_min, area.ymax, x_val_max, area.ymax, col_border);
 
