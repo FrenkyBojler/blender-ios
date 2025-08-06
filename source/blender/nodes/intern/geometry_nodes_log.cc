@@ -683,7 +683,7 @@ ValueLog *GeoTreeLog::find_socket_value_log(const bNodeSocket &query_socket)
 {
   /**
    * Geometry nodes does not log values for every socket. That would produce a lot of redundant
-   * data,because often many linked sockets have the same value. To find the logged value for a
+   * data, because often many linked sockets have the same value. To find the logged value for a
    * socket one might have to look at linked sockets as well.
    */
 

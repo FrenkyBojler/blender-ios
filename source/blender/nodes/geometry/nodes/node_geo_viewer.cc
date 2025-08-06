@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "BKE_type_conversions.hh"
 #include "BLI_listbase.h"
 
 #include "BKE_context.hh"
@@ -129,6 +130,67 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
   return true;
 }
 
+static bool draw_generic_value_log(CustomSocketDrawParams &params, const GPointer &value)
+{
+  const CPPType &value_type = *params.socket.typeinfo->base_cpp_type;
+  const CPPType &socket_base_cpp_type = *params.socket.typeinfo->base_cpp_type;
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  if (value_type != socket_base_cpp_type) {
+    if (!conversions.is_convertible(value_type, socket_base_cpp_type)) {
+      return false;
+    }
+  }
+
+  BUFFER_FOR_CPP_TYPE_VALUE(socket_base_cpp_type, socket_value);
+  conversions.convert_to_uninitialized(
+      value_type, socket_base_cpp_type, value.get(), socket_value);
+  BLI_SCOPED_DEFER([&]() { socket_base_cpp_type.destruct(socket_value); });
+
+  switch (params.socket.type) {
+    case SOCK_INT: {
+      draw_int(params.layout, *static_cast<int *>(socket_value));
+      return true;
+    }
+    case SOCK_FLOAT: {
+      draw_float(params.layout, *static_cast<float *>(socket_value));
+      return true;
+    }
+    case SOCK_VECTOR: {
+      draw_vector(params.layout, *static_cast<float3 *>(socket_value));
+      return true;
+    }
+    case SOCK_BOOLEAN: {
+      draw_bool(params.layout, *static_cast<bool *>(socket_value));
+      return true;
+    }
+    default: {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+static bool draw_from_socket_log_value(CustomSocketDrawParams &params,
+                                       geo_eval_log::GeoTreeLog &tree_log)
+{
+  tree_log.ensure_socket_values();
+  geo_eval_log::ValueLog *value_log = tree_log.find_socket_value_log(params.socket);
+  if (!value_log) {
+    return false;
+  }
+  if (const auto *generic_value_log = dynamic_cast<const geo_eval_log::GenericValueLog *>(
+          value_log))
+  {
+    return draw_generic_value_log(params, generic_value_log->value);
+  }
+  if (const auto *string_value_log = dynamic_cast<const geo_eval_log::StringLog *>(value_log)) {
+    draw_string(params.layout, string_value_log->value);
+    return true;
+  }
+  return false;
+}
+
 static void draw_input_socket(CustomSocketDrawParams &params)
 {
   params.r_use_standard_drawing = true;
@@ -148,6 +210,10 @@ static void draw_input_socket(CustomSocketDrawParams &params)
     return;
   }
   if (draw_from_viewer_log_value(params, *tree_log)) {
+    params.r_use_standard_drawing = false;
+    return;
+  }
+  if (draw_from_socket_log_value(params, *tree_log)) {
     params.r_use_standard_drawing = false;
     return;
   }
