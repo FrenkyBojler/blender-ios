@@ -20,6 +20,7 @@
  * complexity. So far, this does not seem to be a performance issue.
  */
 
+#include "NOD_geo_viewer.hh"
 #include "NOD_geometry_exec.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_list.hh"
@@ -881,11 +882,11 @@ class LazyFunctionForViewerNode : public LazyFunction {
 
     LinearAllocator<> &allocator = *tree_logger->allocator;
 
-    auto log = tree_logger->allocator->construct<geo_eval_log::ViewerNodeLog>();
     const NodeGeometryViewer &storage = *static_cast<const NodeGeometryViewer *>(bnode_.storage);
 
+    Vector<void *> values(storage.items_num, nullptr);
+
     for (const int i : IndexRange(storage.items_num)) {
-      const NodeGeometryViewerItem &item = storage.items[i];
       const bNodeSocket &bsocket = bnode_.input_socket(i);
       const bke::bNodeSocketType &type = *bsocket.typeinfo;
       if (!type.geometry_nodes_cpp_type) {
@@ -893,15 +894,11 @@ class LazyFunctionForViewerNode : public LazyFunction {
       }
       const int param_index = lf_index_by_bsocket_[bsocket.index_in_tree()];
       void *data = params.try_get_input_data_ptr(param_index);
-      void *data_owned = allocator.allocate(*type.geometry_nodes_cpp_type);
-      type.geometry_nodes_cpp_type->move_construct(data, data_owned);
-      if (type.type == SOCK_GEOMETRY) {
-        bke::GeometrySet &geometry = *static_cast<bke::GeometrySet *>(data_owned);
-        geometry.ensure_owns_direct_data();
-      }
-      log->items.append({StringRef(item.name), &type, data_owned});
+      values[i] = data;
     }
 
+    auto log = tree_logger->allocator->construct<geo_eval_log::ViewerNodeLog>();
+    geo_viewer_node_log(bnode_, values, *log);
     tree_logger->viewer_node_logs.append(allocator, {bnode_.identifier, std::move(log)});
   }
 };

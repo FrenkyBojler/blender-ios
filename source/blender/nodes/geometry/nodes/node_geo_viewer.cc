@@ -76,14 +76,17 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
     return false;
   }
   const int socket_index = params.socket.index();
-  if (socket_index >= viewer_log->items.size()) {
+  const auto &storage = *static_cast<NodeGeometryViewer *>(params.node.storage);
+  const NodeGeometryViewerItem &viewer_item = storage.items[socket_index];
+  const geo_eval_log::ViewerNodeLog::Item *item_log = viewer_log->items.lookup_key_ptr_as(
+      viewer_item.identifier);
+  if (!item_log) {
     return false;
   }
-  const geo_eval_log::ViewerNodeLog::Item &viewer_item = viewer_log->items[socket_index];
 
-  switch (viewer_item.type->type) {
+  switch (item_log->type->type) {
     case SOCK_FLOAT: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
       if (!value_variant.is_single()) {
         return false;
       }
@@ -91,7 +94,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       break;
     }
     case SOCK_INT: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
       if (!value_variant.is_single()) {
         return false;
       }
@@ -99,7 +102,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       break;
     }
     case SOCK_VECTOR: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
       if (!value_variant.is_single()) {
         return false;
       }
@@ -108,7 +111,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       break;
     }
     case SOCK_STRING: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
       if (!value_variant.is_single()) {
         return false;
       }
@@ -116,7 +119,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       break;
     }
     case SOCK_BOOLEAN: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
       if (!value_variant.is_single()) {
         return false;
       }
@@ -358,6 +361,32 @@ void GeoViewerItemsAccessor::blend_read_data_item(BlendDataReader *reader,
                                                   NodeGeometryViewerItem &item)
 {
   BLO_read_string(reader, &item.name);
+}
+
+void geo_viewer_node_log(const bNode &node,
+                         const Span<void *> input_values,
+                         geo_eval_log::ViewerNodeLog &r_log)
+{
+  LinearAllocator<> &allocator = r_log.scope.allocator();
+
+  const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
+  for (const int i : IndexRange(storage.items_num)) {
+    void *src_value = input_values[i];
+    if (!src_value) {
+      continue;
+    }
+    const bNodeSocket &bsocket = node.input_socket(i);
+    const NodeGeometryViewerItem &item = storage.items[i];
+    const bke::bNodeSocketType &type = *bsocket.typeinfo;
+
+    void *owned_value = allocator.allocate(*type.geometry_nodes_cpp_type);
+    type.geometry_nodes_cpp_type->move_construct(src_value, owned_value);
+    if (type.type == SOCK_GEOMETRY) {
+      bke::GeometrySet &geometry = *static_cast<bke::GeometrySet *>(owned_value);
+      geometry.ensure_owns_direct_data();
+    }
+    r_log.items.add_new({item.identifier, &type, owned_value});
+  }
 }
 
 }  // namespace blender::nodes

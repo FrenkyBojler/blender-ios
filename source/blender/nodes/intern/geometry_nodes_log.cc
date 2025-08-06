@@ -383,7 +383,7 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
 
 ViewerNodeLog::~ViewerNodeLog()
 {
-  for (const Item &item : items) {
+  for (const Item &item : this->items) {
     item.type->geometry_nodes_cpp_type->destruct(item.data);
   }
 }

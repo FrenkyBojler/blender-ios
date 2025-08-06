@@ -6,6 +6,7 @@
 
 #include "DNA_node_types.h"
 
+#include "NOD_geometry_nodes_log.hh"
 #include "NOD_socket_items.hh"
 
 namespace blender::nodes {
@@ -14,7 +15,6 @@ namespace blender::nodes {
  * Makes it possible to use various functions (e.g. the ones in `NOD_socket_items.hh`) for viewer
  * node items.
  */
-
 struct GeoViewerItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeGeometryViewerItem;
   static StructRNA *item_srna;
@@ -109,5 +109,9 @@ struct GeoViewerItemsAccessor : public socket_items::SocketItemsAccessorDefaults
     return "Item_" + std::to_string(item.identifier);
   }
 };
+
+void geo_viewer_node_log(const bNode &node,
+                         const Span<void *> input_values,
+                         geo_eval_log::ViewerNodeLog &r_log);
 
 }  // namespace blender::nodes

@@ -240,13 +240,20 @@ class ListInfoLog : public ValueLog {
 class ViewerNodeLog {
  public:
   struct Item {
-    std::string name;
+    int identifier;
     const bke::bNodeSocketType *type;
     void *data;
   };
 
+  struct ItemIdentifierGetter {
+    int operator()(const Item &item) const
+    {
+      return item.identifier;
+    }
+  };
+
   ResourceScope scope;
-  Vector<Item> items;
+  CustomIDVectorSet<Item, ItemIdentifierGetter> items;
 
   std::optional<bke::GeometrySet> main_geometry() const;
 
