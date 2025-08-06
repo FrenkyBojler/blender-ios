@@ -210,6 +210,10 @@ class ShaderNode : public Node {
   {
     return false;
   }
+  virtual ShaderNodeType shader_node_type() const
+  {
+    return NODE_NONE;
+  }
 
   unique_ptr_vector<ShaderInput> inputs;
   unique_ptr_vector<ShaderOutput> outputs;

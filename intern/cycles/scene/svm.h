@@ -96,6 +96,7 @@ class SVMCompiler {
 
   void add_node(ShaderNodeType type, const int a = 0, const int b = 0, const int c = 0);
   void add_node(const int a = 0, const int b = 0, const int c = 0, const int d = 0);
+  void add_node(const ShaderNode *node, const int a = 0, const int b = 0, const int c = 0);
   void add_node(ShaderNodeType type, const float3 &f);
   void add_node(const float4 &f);
   uint attribute(ustring name);

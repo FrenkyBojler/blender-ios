@@ -60,6 +60,8 @@ ccl_device_noinline void svm_node_convert(
       stack_store_float3(stack, to, make_float3(f, f, f));
       break;
     }
+    default:
+      assert(false);
   }
 }
 
