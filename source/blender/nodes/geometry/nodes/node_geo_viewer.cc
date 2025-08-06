@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "BLI_listbase.h"
 
 #include "BKE_context.hh"
@@ -11,6 +13,7 @@
 #include "NOD_geo_viewer.hh"
 #include "NOD_node_extra_info.hh"
 #include "NOD_rna_define.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
@@ -29,6 +32,54 @@
 namespace blender::nodes::node_geo_viewer_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryViewer)
+
+static void draw_input_socket(CustomSocketDrawParams &params)
+{
+  params.r_use_standard_drawing = true;
+  SpaceNode *snode = CTX_wm_space_node(&params.C);
+  if (!snode) {
+    return;
+  }
+  snode->edittree->ensure_topology_cache();
+  const bNodeSocket &socket = params.socket;
+  if (!socket.is_directly_linked()) {
+    return;
+  }
+  const geo_eval_log::ContextualGeoTreeLogs geo_tree_logs =
+      geo_eval_log::GeoNodesLog::get_contextual_tree_logs(*snode);
+  geo_eval_log::GeoTreeLog *tree_log = geo_tree_logs.get_main_tree_log(params.node);
+  if (!tree_log) {
+    return;
+  }
+  tree_log->ensure_viewer_node_logs();
+  geo_eval_log::ViewerNodeLog *viewer_log = tree_log->viewer_node_logs.lookup_default(
+      params.node.identifier, nullptr);
+  if (!viewer_log) {
+    return;
+  }
+  const int socket_index = socket.index();
+  if (socket_index >= viewer_log->items.size()) {
+    return;
+  }
+  const geo_eval_log::ViewerNodeLog::Item &viewer_item = viewer_log->items[socket_index];
+  switch (viewer_item.type->type) {
+    case SOCK_FLOAT: {
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      if (!value_variant.is_single()) {
+        return;
+      }
+      const float value = value_variant.get<float>();
+      const std::string label = fmt::format("{:.5f}", value);
+      params.layout.label(label, ICON_NONE);
+      break;
+    }
+    default: {
+      return;
+    }
+  }
+
+  params.r_use_standard_drawing = false;
+}
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -55,6 +106,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       input_decl.supports_field();
     }
     input_decl.structure_type(StructureType::Dynamic);
+    input_decl.custom_draw([](CustomSocketDrawParams &params) { draw_input_socket(params); });
   }
 
   b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
@@ -116,6 +168,16 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
       params.ntree, params.node, params.node, params.link);
 }
 
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<GeoViewerItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<GeoViewerItemsAccessor>(&reader, node);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -136,6 +198,8 @@ static void node_register()
   ntype.no_muting = true;
   ntype.register_operators = node_operators;
   ntype.get_extra_info = node_extra_info;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

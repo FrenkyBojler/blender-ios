@@ -1143,7 +1143,9 @@ static void std_node_socket_draw(
     if (socket_decl->custom_draw_fn) {
       nodes::CustomSocketDrawParams params{*C, *layout, *tree, *node, *sock, *node_ptr, *ptr};
       (*socket_decl->custom_draw_fn)(params);
-      return;
+      if (!params.r_use_standard_drawing) {
+        return;
+      }
     }
   }
 
