@@ -409,6 +409,13 @@ void SVMCompiler::add_node(ShaderNodeType type, const int a, int b, const int c)
   current_svm_nodes.push_back_slow(make_int4(type, a, b, c));
 }
 
+void SVMCompiler::add_node(const ShaderNode *node, const int a, int b, const int c)
+{
+  const ShaderNodeType type = node->shader_node_type();
+  assert(type != NODE_NONE);
+  add_node(type, a, b, c);
+}
+
 void SVMCompiler::add_node(ShaderNodeType type, const float3 &f)
 {
   svm_node_types_used[type] = true;
