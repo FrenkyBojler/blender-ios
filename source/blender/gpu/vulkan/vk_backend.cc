@@ -60,6 +60,22 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
       vk_physical_device_driver_properties.conformanceVersion.subminor,
       vk_physical_device_driver_properties.conformanceVersion.patch);
 
+  VkPhysicalDeviceFeatures2 features = {};
+  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  VkPhysicalDeviceVulkan11Features features_11 = {};
+  features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+  VkPhysicalDeviceVulkan12Features features_12 = {};
+  features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+  features.pNext = &features_11;
+  features_11.pNext = &features_12;
+
+  vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
+
+  if (features_11.shaderDrawParameters == false) {
+    CLOG_WARN(&LOG, "shaderDrawParameters not available.");
+    return false;
+  }
+
   /* Intel IRIS on 10th gen CPU (and older) crashes due to multiple driver issues.
    *
    * 1) Workbench is working, but EEVEE pipelines are failing. Calling vkCreateGraphicsPipelines
