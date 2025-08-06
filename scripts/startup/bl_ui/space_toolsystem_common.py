@@ -1081,7 +1081,8 @@ def _activate_by_item(context, space_type, item, index, *, as_fallback=False):
             item.draw_cursor(context, tool, xy)
         # Check if tool is sequencer.select_circle because select circle is a vse preview tool and the region_type has
         # to be PREVIEW not WINDOW.
-        if item.idname == "sequencer.select_circle":
+        # if item.idname == "sequencer.select_circle":
+        if bpy.context.space_data.view_type == 'PREVIEW':
             handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'PREVIEW')
         else:
             handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'WINDOW')
