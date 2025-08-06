@@ -20,6 +20,7 @@ struct KernelParamsOptiX;
 
 /* List of OptiX program groups. */
 enum {
+  /* Ray generation */
   PG_RGEN_INTERSECT_CLOSEST,
   PG_RGEN_INTERSECT_SHADOW,
   PG_RGEN_INTERSECT_SUBSURFACE,
@@ -37,7 +38,11 @@ enum {
   PG_RGEN_EVAL_BACKGROUND,
   PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY,
   PG_RGEN_INIT_FROM_CAMERA,
+
+  /* Miss */
   PG_MISS,
+
+  /* Hit */
   PG_HITD, /* Default hit group. */
   PG_HITS, /* __SHADOW_RECORD_ALL__ hit group. */
   PG_HITL, /* __BVH_LOCAL__ hit group (only used for triangles). */
@@ -52,15 +57,18 @@ enum {
   PG_HITS_CURVE_RIBBON,
   PG_HITD_POINTCLOUD,
   PG_HITS_POINTCLOUD,
+
+  /* Callable */
   PG_CALL_SVM_AO,
   PG_CALL_SVM_BEVEL,
+
   NUM_PROGRAM_GROUPS
 };
 
 static const int MISS_PROGRAM_GROUP_OFFSET = PG_MISS;
 static const int NUM_MISS_PROGRAM_GROUPS = 1;
 static const int HIT_PROGAM_GROUP_OFFSET = PG_HITD;
-static const int NUM_HIT_PROGRAM_GROUPS = 8;
+static const int NUM_HIT_PROGRAM_GROUPS = 14;
 static const int CALLABLE_PROGRAM_GROUPS_BASE = PG_CALL_SVM_AO;
 static const int NUM_CALLABLE_PROGRAM_GROUPS = 2;
 
