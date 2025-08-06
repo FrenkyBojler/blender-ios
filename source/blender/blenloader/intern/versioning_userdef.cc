@@ -359,7 +359,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.preview_range);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 51)) {
+  if (!USER_VERSION_ATLEAST(500, 52)) {
+    FROM_DEFAULT_V4_UCHAR(tui.waxis);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 100)) {
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_free);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_vect);
