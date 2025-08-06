@@ -8,6 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_array_utils.hh"
 #include "DNA_node_types.h"
 
 #include "BLI_easing.h"
@@ -40,8 +41,10 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
+#include "NOD_geo_viewer.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items.hh"
 
 #include "node_intern.hh" /* own include */
 
@@ -455,19 +458,35 @@ static bool socket_can_be_viewed(const bNodeSocket &socket)
   if (STREQ(socket.idname, "NodeSocketVirtual")) {
     return false;
   }
-  if (socket.owner_tree().type != NTREE_GEOMETRY) {
-    return true;
+  return true;
+}
+
+static void ensure_geometry_nodes_viewer_starts_with_geometry_socket(bNodeTree &tree,
+                                                                     bNode &viewer_node)
+{
+  const auto &storage = *static_cast<const NodeGeometryViewer *>(viewer_node.storage);
+  if (storage.items_num >= 1) {
+    const NodeGeometryViewerItem &first_item = storage.items[0];
+    if (first_item.socket_type == SOCK_GEOMETRY) {
+      return;
+    }
   }
-  return ELEM(socket.typeinfo->type,
-              SOCK_GEOMETRY,
-              SOCK_FLOAT,
-              SOCK_VECTOR,
-              SOCK_INT,
-              SOCK_BOOLEAN,
-              SOCK_ROTATION,
-              SOCK_MATRIX,
-              SOCK_RGBA,
-              SOCK_MENU);
+  std::optional<int> existing_geometry_index;
+  for (const int i : IndexRange(storage.items_num)) {
+    const NodeGeometryViewerItem &item = storage.items[i];
+    if (item.socket_type == SOCK_GEOMETRY) {
+      existing_geometry_index = i;
+      break;
+    }
+  }
+  if (existing_geometry_index) {
+    BLI_assert(*existing_geometry_index >= 1);
+    dna::array::move_index(storage.items, storage.items_num, *existing_geometry_index, 0);
+    return;
+  }
+  nodes::socket_items::add_item_with_socket_type_and_name<nodes::GeoViewerItemsAccessor>(
+      tree, viewer_node, SOCK_GEOMETRY, "Geometry");
+  dna::array::move_index(storage.items, storage.items_num, storage.items_num - 1, 0);
 }
 
 /**
@@ -484,6 +503,8 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
   /* For the geometry nodes viewer, find the socket with the correct type. */
 
   if (src_socket.type == SOCK_GEOMETRY) {
+    ensure_geometry_nodes_viewer_starts_with_geometry_socket(ntree, viewer_node);
+    nodes::update_node_declaration_and_sockets(ntree, viewer_node);
     return static_cast<bNodeSocket *>(viewer_node.inputs.first);
   }
 
