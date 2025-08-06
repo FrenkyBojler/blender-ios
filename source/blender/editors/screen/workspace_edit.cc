@@ -358,28 +358,16 @@ static wmOperatorStatus workspace_delete_all_exec(bContext *C, wmOperator * /*op
   return OPERATOR_FINISHED;
 }
 
-static std::string workspace_delete_all_get_description(bContext * C,
-                                               wmOperatorType * /*ot*/,
-                                               PointerRNA * /*ptr*/)
-{
-  ID *id = UI_context_active_but_get_tab_ID(C);
-  if (id && GS(id->name) == ID_WS) {
-    return fmt::format(fmt::runtime(TIP_("Remove all workspaces except '{}'")), id->name);
-  }
-  return "";
-}
-
 static void WORKSPACE_OT_delete_all(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Delete all Workspaces";
-  ot->description = "Delete all workspaces";
+  ot->description = "Remove all workspaces except this one";
   ot->idname = "WORKSPACE_OT_delete_all";
 
   /* api callbacks */
   ot->poll = workspace_context_poll;
   ot->exec = workspace_delete_all_exec;
-  ot->get_description = workspace_delete_all_get_description;
 }
 
 static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *op)
