@@ -1622,6 +1622,12 @@ typedef struct NodeScaleData {
   char extension_y;
 } NodeScaleData;
 
+typedef struct NodeCornerPinData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeCornerPinData;
+
 typedef struct NodeDisplaceData {
   short interpolation;
   char extension_x;
