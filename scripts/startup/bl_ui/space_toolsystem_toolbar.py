@@ -3344,7 +3344,8 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             *_tools_annotate,
             None,
-            *_tools_mask_primitive,
+            # TODO: Make interactive placement before adding primitive tools
+            # *_tools_mask_primitive,
         ],
         'PAINT': [
             _brush_tool,
