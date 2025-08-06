@@ -1049,6 +1049,7 @@ def km_user_interface(_params):
          {"properties": [("range_select", True)]}),
         ("ui.view_item_rename", {"type": 'F2', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'X', "value": 'PRESS'}, None),
+        ("ui.view_item_delete", {"type": 'DEL', "value": 'PRESS'}, None),
     ])
 
     return keymap
