@@ -3328,10 +3328,14 @@ void ED_region_draw_overflow_indicators(const ScrArea *area, ARegion *region, rc
                                    12.0f * UI_SCALE_FAC;
   const float transition = 40.0f * UI_SCALE_FAC;
 
-  int width = mask ? BLI_rcti_size_x(mask) + 1 : BLI_rcti_size_x(&region->winrct) + 1;
-  int height = mask ? BLI_rcti_size_y(mask) + 1 : BLI_rcti_size_y(&region->winrct) + 1;
-  float offset_x = mask ? mask->xmin : 0;
-  float offset_y = mask ? mask->ymin : 0;
+  if (!mask) {
+    mask = &region->v2d.mask;
+  }
+
+  int width = BLI_rcti_size_x(mask) + 1;
+  int height = BLI_rcti_size_y(mask) + 1;
+  float offset_x = mask->xmin;
+  float offset_y = mask->ymin;
   if (ED_region_is_overlap(area->spacetype, region->regiontype)) {
     offset_x = UI_PANEL_MARGIN_X;
     width -= (2 * UI_PANEL_MARGIN_X);
