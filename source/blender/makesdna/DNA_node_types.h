@@ -2057,11 +2057,31 @@ typedef struct NodeGeometryImageTexture {
   int8_t extension;
 } NodeGeometryImageTexture;
 
+typedef struct NodeGeometryViewerItem {
+  char *name;
+  /** #eNodeSocketDatatype. */
+  short socket_type;
+  int8_t domain;
+  char _pad[1];
+  /**
+   * Generated unique identifier for sockets which stays the same even when the item order or
+   * names change.
+   */
+  int identifier;
+} NodeGeometryViewerItem;
+
 typedef struct NodeGeometryViewer {
+  NodeGeometryViewerItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+
   /** #eCustomDataType. */
   int8_t data_type;
   /** #AttrDomain. */
   int8_t domain;
+
+  char _pad[2];
 } NodeGeometryViewer;
 
 typedef struct NodeGeometryUVUnwrap {

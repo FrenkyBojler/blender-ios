@@ -666,6 +666,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_menu_switch.hh"
 #  include "NOD_geo_repeat.hh"
 #  include "NOD_geo_simulation.hh"
+#  include "NOD_geo_viewer.hh"
 #  include "NOD_geometry.hh"
 #  include "NOD_geometry_nodes_lazy_function.hh"
 #  include "NOD_shader.h"
@@ -696,6 +697,7 @@ using blender::nodes::ForeachGeometryElementGenerationItemsAccessor;
 using blender::nodes::ForeachGeometryElementInputItemsAccessor;
 using blender::nodes::ForeachGeometryElementMainItemsAccessor;
 using blender::nodes::FormatStringItemsAccessor;
+using blender::nodes::GeoViewerItemsAccessor;
 using blender::nodes::IndexSwitchItemsAccessor;
 using blender::nodes::MenuSwitchItemsAccessor;
 using blender::nodes::RepeatItemsAccessor;
@@ -1408,12 +1410,6 @@ void rna_Node_Viewer_shortcut_node_set(PointerRNA *ptr, PropertyRNA * /*prop*/, 
   bNodeTree &ntree = curr_node->owner_tree();
 
   node_viewer_set_shortcut_fn(curr_node, ntree, value);
-}
-
-int rna_Node_Viewer_shortcut_node_get(PointerRNA *ptr, PropertyRNA * /*prop*/)
-{
-  bNode *curr_node = ptr->data_as<bNode>();
-  return curr_node->custom1;
 }
 
 void rna_Node_Viewer_shortcut_node_set(PointerRNA *ptr, int value)
@@ -8294,6 +8290,68 @@ static void def_geo_repeat_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
+static void rna_def_geo_viewer_item(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "NodeGeometryViewerItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Viewer Item", "");
+  RNA_def_struct_sdna(srna, "NodeGeometryViewerItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "GeoViewerItemsAccessor", true);
+}
+
+static void rna_def_geo_viewer_items(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "NodeGeometryViewerItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Items", "Collection of viewer items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "NodeGeometryViewerItem", "GeoViewerItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "NodeGeometryViewerItem", "GeoViewerItemsAccessor");
+}
+
+static void rna_def_geo_viewer(BlenderRNA *brna, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  rna_def_geo_viewer_item(brna);
+  rna_def_geo_viewer_items(brna);
+
+  prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom1");
+  RNA_def_property_int_funcs(prop, nullptr, "rna_Node_Viewer_shortcut_node_set", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
+  RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
+
+  RNA_def_struct_sdna_from(srna, "NodeGeometryViewer", "storage");
+
+  prop = RNA_def_property(srna, "viewer_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
+  RNA_def_property_struct_type(prop, "NodeGeometryViewerItem");
+  RNA_def_property_ui_text(prop, "Viewer Items", "");
+  RNA_def_property_srna(prop, "NodeGeometryViewerItems");
+
+  prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "active_index");
+  RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "active_item", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "NodeGeometryViewerItem");
+  RNA_def_property_ui_text(prop, "Active Item", "");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NO_DEG_UPDATE);
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_Node_ItemArray_active_get<GeoViewerItemsAccessor>",
+                                 "rna_Node_ItemArray_active_set<GeoViewerItemsAccessor>",
+                                 nullptr,
+                                 nullptr);
+}
+
 static void rna_def_geo_foreach_geometry_element_input_item(BlenderRNA *brna)
 {
   StructRNA *srna = RNA_def_struct(brna, "ForeachGeometryElementInputItem", nullptr);
@@ -11051,7 +11109,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeUVPackIslands");
   define("GeometryNode", "GeometryNodeUVUnwrap");
   define("GeometryNode", "GeometryNodeVertexOfCorner");
-  define("GeometryNode", "GeometryNodeViewer");
+  define("GeometryNode", "GeometryNodeViewer", rna_def_geo_viewer);
   define("GeometryNode", "GeometryNodeViewportTransform");
   define("GeometryNode", "GeometryNodeVolumeCube");
   define("GeometryNode", "GeometryNodeVolumeToMesh");

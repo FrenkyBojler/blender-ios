@@ -6,6 +6,8 @@
 
 #include "BKE_context.hh"
 
+#include "BLO_read_write.hh"
+#include "NOD_geo_viewer.hh"
 #include "NOD_node_extra_info.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
@@ -17,6 +19,7 @@
 #include "ED_viewer_path.hh"
 
 #include "RNA_enum_types.hh"
+#include "RNA_prototypes.hh"
 
 #include "node_geometry_util.hh"
 
@@ -120,35 +123,6 @@ static void node_extra_info(NodeExtraInfoParams &params)
   }
 }
 
-static void node_rna(StructRNA *srna)
-{
-  RNA_def_node_enum(srna,
-                    "data_type",
-                    "Data Type",
-                    "",
-                    rna_enum_attribute_type_items,
-                    NOD_storage_enum_accessors(data_type),
-                    CD_PROP_FLOAT,
-                    enums::attribute_type_type_with_socket_fn);
-
-  RNA_def_node_enum(srna,
-                    "domain",
-                    "Domain",
-                    "Domain to evaluate the field on",
-                    rna_enum_attribute_domain_with_auto_items,
-                    NOD_storage_enum_accessors(domain),
-                    int(AttrDomain::Point));
-
-  PropertyRNA *prop;
-  prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
-  RNA_def_property_int_funcs_runtime(
-      prop, rna_Node_Viewer_shortcut_node_get, rna_Node_Viewer_shortcut_node_set, nullptr);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
-  RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
-  RNA_def_property_update_notifier(prop, NC_NODE | ND_DISPLAY);
-}
-
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -168,9 +142,25 @@ static void node_register()
   ntype.no_muting = true;
   ntype.get_extra_info = node_extra_info;
   blender::bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_viewer_cc
+
+namespace blender::nodes {
+
+StructRNA *GeoViewerItemsAccessor::item_srna = &RNA_NodeGeometryViewerItem;
+
+void GeoViewerItemsAccessor::blend_write_item(BlendWriter *writer,
+                                              const NodeGeometryViewerItem &item)
+{
+  BLO_write_string(writer, item.name);
+}
+
+void GeoViewerItemsAccessor::blend_read_data_item(BlendDataReader *reader,
+                                                  NodeGeometryViewerItem &item)
+{
+  BLO_read_string(reader, &item.name);
+}
+
+}  // namespace blender::nodes
