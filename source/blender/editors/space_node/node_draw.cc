@@ -1325,7 +1325,7 @@ static void node_update_collapsed(bNode &node, uiBlock &block)
   }
 
   const float dy = NODE_DY * 0.5f;
-  const float height = dy * std::max(totin, totout) + BASIS_RAD * 2.0f;
+  const float height = dy * std::max({totin, totout, 2}) + BASIS_RAD * 2.0f;
   /* This offset for Y values keeps the text in the same spot as in non-collapsed nodes. */
   const float offset = NODE_DY * -0.5f;
 
