@@ -312,8 +312,6 @@ static void create_edit_points_data(const OffsetIndices<int> points_by_curve,
 
   extract_edit_data(points_by_curve, catmull_rom_curves, selection, false, 0, data);
   extract_edit_data(points_by_curve, poly_curves, selection, false, 0, data);
-  extract_edit_data(
-      points_by_curve, nurbs_curves, selection, true, EDIT_CURVES_NURBS_CONTROL_POINT, data);
 
   if (!bezier_curves.is_empty()) {
     const VArray<int8_t> type_right = curves.handle_types_left();
@@ -340,6 +338,9 @@ static void create_edit_points_data(const OffsetIndices<int> points_by_curve,
       }
     });
   }
+
+  extract_edit_data(
+      points_by_curve, nurbs_curves, selection, true, EDIT_CURVES_NURBS_CONTROL_POINT, data);
 }
 
 static void create_edit_points_position(const bke::CurvesGeometry &curves,
