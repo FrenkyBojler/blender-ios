@@ -723,6 +723,21 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
  * Add vertex positions of selected meshes as shape keys to the active mesh.
  * \{ */
 
+static std::string create_mirrored_name(const blender::StringRefNull object_name,
+                                        const bool mirror)
+{
+  if (!mirror) {
+    return object_name;
+  }
+  if (object_name.endswith(".L")) {
+    return blender::StringRef(object_name).drop_suffix(2) + ".R";
+  }
+  if (object_name.endswith(".R")) {
+    return blender::StringRef(object_name).drop_suffix(2) + ".L";
+  }
+  return object_name;
+}
+
 wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
                                                   const bool ensure_keys_exist,
                                                   const bool mirror,
@@ -803,15 +818,16 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
   int keys_changed = 0;
   bool any_keys_added = false;
   for (const ObjectInfo &info : compatible_objects) {
+    const std::string name = create_mirrored_name(info.name, mirror);
     if (ensure_keys_exist) {
-      KeyBlock *kb = BKE_keyblock_add(active_mesh.key, info.name.c_str());
+      KeyBlock *kb = BKE_keyblock_add(active_mesh.key, name.c_str());
       BKE_keyblock_convert_from_mesh(&info.mesh, active_mesh.key, kb);
       any_keys_added = true;
       if (mirror) {
         ed::object::shape_key_mirror(&active_object, kb, true, mirror_count, mirror_fail_count);
       }
     }
-    else if (KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, info.name.c_str())) {
+    else if (KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, name.c_str())) {
       keys_changed++;
       BKE_keyblock_update_from_mesh(&info.mesh, kb);
       if (mirror) {
