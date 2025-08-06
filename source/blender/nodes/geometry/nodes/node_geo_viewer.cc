@@ -61,6 +61,15 @@ static void draw_vector(uiLayout &layout, const float3 &value)
   col.label(fmt::format("{}: {:.5f}", IFACE_("Z"), value.z), ICON_NONE);
 }
 
+static void draw_color(uiLayout &layout, const ColorGeometry4f &value)
+{
+  uiLayout &col = layout.column(true);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("R"), value.r), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("G"), value.g), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("B"), value.b), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("A"), value.a), ICON_NONE);
+}
+
 static void draw_string(uiLayout &layout, const StringRef value)
 {
   /* The node doesn't get wider than that anyway. */
@@ -110,6 +119,15 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       }
       const float3 value = value_variant.get<float3>();
       draw_vector(params.layout, value);
+      break;
+    }
+    case SOCK_RGBA: {
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
+      if (!value_variant.is_single()) {
+        return false;
+      }
+      const ColorGeometry4f value = value_variant.get<ColorGeometry4f>();
+      draw_color(params.layout, value);
       break;
     }
     case SOCK_STRING: {
@@ -162,6 +180,10 @@ static bool draw_generic_value_log(CustomSocketDrawParams &params, const GPointe
     }
     case SOCK_VECTOR: {
       draw_vector(params.layout, *static_cast<float3 *>(socket_value));
+      return true;
+    }
+    case SOCK_RGBA: {
+      draw_color(params.layout, *static_cast<ColorGeometry4f *>(socket_value));
       return true;
     }
     case SOCK_BOOLEAN: {
