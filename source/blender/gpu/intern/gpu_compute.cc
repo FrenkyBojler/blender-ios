@@ -9,6 +9,7 @@
 #include "GPU_compute.hh"
 
 #include "gpu_backend.hh"
+#include "gpu_debug_private.hh"
 
 void GPU_compute_dispatch(GPUShader *shader,
                           uint groups_x_len,

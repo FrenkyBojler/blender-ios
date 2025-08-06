@@ -20,6 +20,7 @@
 #include "GPU_vertex_buffer.hh"
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
+#include "gpu_debug_private.hh"
 #include "gpu_shader_private.hh"
 
 #include <cstring>
