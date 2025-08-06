@@ -262,7 +262,7 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
                                 # results in
                                 # 'size'
                                 secondary_path_index = prop_idx
-                                secondary_path_identifier = prop_path.split(".")[-1]
+                                secondary_path_identifier = prop_path.split(".", 2)[-1]
                         elif prop_id == "use_secondary":
                             if prop_path.startswith("tool_settings.unified_paint_settings."):
                                 # Example:
@@ -270,7 +270,7 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
                                 # results in
                                 # 'use_unified_size'
                                 toggle_path_index = prop_idx
-                                toggle_path_identifier = prop_path.split(".")[-1]
+                                toggle_path_identifier = prop_path.split(".", 2)[-1]
 
                     if updated_path_elements and secondary_path_index != -1 and toggle_path_index != -1:
                         item_prop["properties"][secondary_path_index] = (
