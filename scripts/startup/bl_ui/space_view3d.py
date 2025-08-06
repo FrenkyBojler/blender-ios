@@ -4566,7 +4566,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.separator()
 
-            col.operator("transform.vert_crease")
+            col.operator("transform.vert_crease", icon="VERTEX_CREASE")
 
             col.separator()
 
@@ -4774,7 +4774,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.separator()
 
-        layout.operator("transform.vert_crease")
+        layout.operator("transform.vert_crease", icon="VERTEX_CREASE")
 
         layout.separator()
 
@@ -7228,7 +7228,6 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         sub.active = is_any_solid_shading
         sub.prop(overlay, "show_face_center", text="Center")
 
-        col.separator()
         col.prop(overlay, "show_extra_indices", text="Indices")
 
 

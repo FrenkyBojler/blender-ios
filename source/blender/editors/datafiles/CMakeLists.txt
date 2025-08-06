@@ -905,6 +905,7 @@ if(WITH_BLENDER)
       uv_sync_select
       uv_vertexsel
       vertexsel
+      vertex_crease
       view3d
       viewzoom
       view_camera
