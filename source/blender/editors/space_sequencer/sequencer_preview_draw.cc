@@ -439,13 +439,13 @@ static void draw_histogram(ARegion &region,
   UI_view2d_scale_get_inverse(&v2d, &text_scale_x, &text_scale_y);
 
   const bool hdr = ScopeHistogram::bin_to_float(hist.bin_range.y) > 1.001f;
-  const float max_val = hdr ? 16.0f : 1.0f;
+  const float max_val = hdr ? 12.0f : 1.0f;
 
   /* Grid lines covering 0..1 range, with 0.25 steps. */
   for (float val = 0.0f; val <= 1.0f; val += 0.25f) {
     add_vertical_line(val, v2d, text_scale_x, text_scale_y, quads, area);
   }
-  /* For HDR content, more lines every 1.0 step, up to 16. */
+  /* For HDR content, more lines every 1.0 step. */
   if (hdr) {
     for (float val = 2.0f; val <= max_val; val += 1.0f) {
       add_vertical_line(val, v2d, text_scale_x, text_scale_y, quads, area);
