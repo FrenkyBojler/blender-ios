@@ -10,6 +10,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_key.hh"
+#include "BKE_object.hh"
 
 #include "BLI_listbase.h"
 #include "BLT_translation.hh"
@@ -228,6 +229,16 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   StringRef get_rename_string() const override
   {
     return label_;
+  }
+
+  void remove(bContext *C, int index) override
+  {
+    Main *bmain = CTX_data_main(C);
+    //KeyBlock *kb = static_cast<KeyBlock *>(BLI_findlink(&shape_key_.key->block, index));
+    //if (!kb) {
+    //  return;
+    //}
+    BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
   }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override

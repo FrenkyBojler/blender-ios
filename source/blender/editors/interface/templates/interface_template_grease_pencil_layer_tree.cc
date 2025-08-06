@@ -284,6 +284,11 @@ class LayerViewItem : public AbstractTreeViewItem {
     return layer_.name();
   }
 
+  void remove(bContext *C, int /*index*/) override
+  {
+    grease_pencil_.remove_layer(layer_);
+  }
+
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<LayerViewItemDragController>(
@@ -444,6 +449,11 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
   StringRef get_rename_string() const override
   {
     return group_.name();
+  }
+
+  void remove(bContext* C, int /*index*/) override
+  {
+    grease_pencil_.remove_group(group_);
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
