@@ -2061,8 +2061,7 @@ typedef struct NodeGeometryViewerItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
-  int8_t domain;
-  char _pad[1];
+  char _pad[2];
   /**
    * Generated unique identifier for sockets which stays the same even when the item order or
    * names change.
@@ -2077,7 +2076,7 @@ typedef struct NodeGeometryViewer {
   int next_identifier;
 
   /** #eCustomDataType. */
-  int8_t data_type;
+  int8_t data_type_legacy;
   /** #AttrDomain. */
   int8_t domain;
 

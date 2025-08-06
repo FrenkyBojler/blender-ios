@@ -496,7 +496,7 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
   const eCustomDataType data_type = *bke::socket_type_to_custom_data_type(
       eNodeSocketDatatype(src_socket.type));
   BLI_assert(data_type != CD_AUTO_FROM_NAME);
-  storage.data_type = data_type;
+  storage.data_type_legacy = data_type;
   nodes::update_node_declaration_and_sockets(ntree, viewer_node);
 
   return static_cast<bNodeSocket *>(viewer_node.inputs.last);

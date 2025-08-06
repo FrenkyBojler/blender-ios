@@ -260,7 +260,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryViewer *data = MEM_callocN<NodeGeometryViewer>(__func__);
-  data->data_type = CD_PROP_FLOAT;
+  data->data_type_legacy = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Auto);
   node->storage = data;
 }
@@ -420,7 +420,7 @@ static void geo_viewer_node_log_impl(const bNode &node,
 
 static void node_extra_info(NodeExtraInfoParams &params)
 {
-  const auto data_type = eCustomDataType(node_storage(params.node).data_type);
+  const auto data_type = eCustomDataType(node_storage(params.node).data_type_legacy);
   if (ELEM(data_type, CD_PROP_QUATERNION, CD_PROP_FLOAT4X4)) {
     NodeExtraInfoRow row;
     row.icon = ICON_INFO;
