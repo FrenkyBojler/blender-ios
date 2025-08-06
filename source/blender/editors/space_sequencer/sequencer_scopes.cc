@@ -105,7 +105,43 @@ static void init_wave_table(int height, uchar wtable[256])
   }
 }
 
-ImBuf *make_waveform_view_from_ibuf(const ImBuf *ibuf)
+static Array<float4> pixels_to_display_space(ColormanageProcessor *processor,
+                                             const ColorSpace *src_colorspace,
+                                             int64_t num,
+                                             const float *src,
+                                             int64_t stride)
+{
+  Array<float4> result(num, NoInitialization());
+  for (int64_t i : result.index_range()) {
+    premul_to_straight_v4_v4(result[i], src);
+    src += stride;
+  }
+  IMB_colormanagement_colorspace_to_scene_linear(
+      &result.data()->x, result.size(), 1, 4, src_colorspace, false);
+  IMB_colormanagement_processor_apply(processor, &result.data()->x, result.size(), 1, 4, false);
+  return result;
+}
+
+static Array<float4> pixels_to_display_space(ColormanageProcessor *processor,
+                                             const ColorSpace *src_colorspace,
+                                             int64_t num,
+                                             const uchar *src,
+                                             int64_t stride)
+{
+  Array<float4> result(num, NoInitialization());
+  for (int64_t i : result.index_range()) {
+    rgba_uchar_to_float(result[i], src);
+    src += stride;
+  }
+  IMB_colormanagement_colorspace_to_scene_linear(
+      &result.data()->x, result.size(), 1, 4, src_colorspace, false);
+  IMB_colormanagement_processor_apply(processor, &result.data()->x, result.size(), 1, 4, false);
+  return result;
+}
+
+ImBuf *make_waveform_view_from_ibuf(const ImBuf *ibuf,
+                                    const ColorManagedViewSettings &view_settings,
+                                    const ColorManagedDisplaySettings &display_settings)
 {
 #ifdef DEBUG_TIME
   SCOPED_TIMER(__func__);
@@ -118,6 +154,9 @@ ImBuf *make_waveform_view_from_ibuf(const ImBuf *ibuf)
   uchar wtable[256];
   init_wave_table(ibuf->y, wtable);
 
+  ColormanageProcessor *cm_processor = IMB_colormanagement_display_processor_for_imbuf(
+      ibuf, &view_settings, &display_settings);
+
   /* IMB_colormanagement_get_luminance_byte for each pixel is quite a lot of
    * overhead, so instead get luma coefficients as 16-bit integers. */
   float coeffs[3];
@@ -125,46 +164,75 @@ ImBuf *make_waveform_view_from_ibuf(const ImBuf *ibuf)
   const int muls[3] = {int(coeffs[0] * 65535), int(coeffs[1] * 65535), int(coeffs[2] * 65535)};
 
   /* Parallel over x, since each column is easily independent from others. */
-  threading::parallel_for(IndexRange(ibuf->x), 32, [&](IndexRange x_range) {
+  threading::parallel_for_each(IndexRange(ibuf->x), [&](const int x) {
     if (ibuf->float_buffer.data) {
-      /* Float image. */
-      const float *src = ibuf->float_buffer.data;
-      for (int y = 0; y < ibuf->y; y++) {
-        for (const int x : x_range) {
-          const float *rgb = src + 4 * (ibuf->x * y + x);
-          float v = IMB_colormanagement_get_luminance(rgb);
+      const float *src = ibuf->float_buffer.data + x * 4;
+      if (!cm_processor) {
+        /* Float image, no color space conversions needed. */
+        for (int y = 0; y < ibuf->y; y++) {
+          float4 pixel;
+          premul_to_straight_v4_v4(pixel, src);
+          float v = dot_v3v3(pixel, coeffs);
           uchar *p = tgt;
-
           int iv = clamp_i(int(v * h), 0, h - 1);
-
+          p += 4 * (w * iv + x);
+          scope_put_pixel(wtable, p);
+          src += ibuf->x * 4;
+        }
+      }
+      else {
+        /* Float image, with color space conversions. */
+        Array<float4> pixels = pixels_to_display_space(
+            cm_processor, ibuf->float_buffer.colorspace, ibuf->y, src, ibuf->x * 4);
+        for (int y = 0; y < ibuf->y; y++) {
+          float v = dot_v3v3(pixels[y], coeffs);
+          uchar *p = tgt;
+          int iv = clamp_i(int(v * h), 0, h - 1);
           p += 4 * (w * iv + x);
           scope_put_pixel(wtable, p);
         }
       }
     }
     else {
-      /* Byte image. */
-      const uchar *src = ibuf->byte_buffer.data;
-      for (int y = 0; y < ibuf->y; y++) {
-        for (const int x : x_range) {
-          const uchar *rgb = src + 4 * (ibuf->x * y + x);
+      const uchar *src = ibuf->byte_buffer.data + x * 4;
+      if (!cm_processor) {
+        /* Byte image, no color space conversions needed. */
+        for (int y = 0; y < ibuf->y; y++) {
           /* +1 is "Sree's solution" from http://stereopsis.com/doubleblend.html */
-          int rgb0 = rgb[0] + 1;
-          int rgb1 = rgb[1] + 1;
-          int rgb2 = rgb[2] + 1;
+          int rgb0 = src[0] + 1;
+          int rgb1 = src[1] + 1;
+          int rgb2 = src[2] + 1;
           int luma = (rgb0 * muls[0] + rgb1 * muls[1] + rgb2 * muls[2]) >> 16;
           int luma_y = clamp_i(luma, 0, 255);
           uchar *p = tgt + 4 * (w * luma_y + x);
+          scope_put_pixel(wtable, p);
+          src += ibuf->x * 4;
+        }
+      }
+      else {
+        /* Byte image, with color space conversions. */
+        Array<float4> pixels = pixels_to_display_space(
+            cm_processor, ibuf->byte_buffer.colorspace, ibuf->y, src, ibuf->x * 4);
+        for (int y = 0; y < ibuf->y; y++) {
+          float v = dot_v3v3(pixels[y], coeffs);
+          uchar *p = tgt;
+          int iv = clamp_i(int(v * h), 0, h - 1);
+          p += 4 * (w * iv + x);
           scope_put_pixel(wtable, p);
         }
       }
     }
   });
 
+  if (cm_processor) {
+    IMB_colormanagement_processor_free(cm_processor);
+  }
   return rval;
 }
 
-ImBuf *make_sep_waveform_view_from_ibuf(const ImBuf *ibuf)
+ImBuf *make_sep_waveform_view_from_ibuf(const ImBuf *ibuf,
+                                        const ColorManagedViewSettings &view_settings,
+                                        const ColorManagedDisplaySettings &display_settings)
 {
 #ifdef DEBUG_TIME
   SCOPED_TIMER(__func__);
@@ -178,19 +246,38 @@ ImBuf *make_sep_waveform_view_from_ibuf(const ImBuf *ibuf)
   uchar wtable[256];
   init_wave_table(ibuf->y, wtable);
 
+  ColormanageProcessor *cm_processor = IMB_colormanagement_display_processor_for_imbuf(
+      ibuf, &view_settings, &display_settings);
+
   /* Parallel over x, since each column is easily independent from others. */
-  threading::parallel_for(IndexRange(ibuf->x), 32, [&](IndexRange x_range) {
+  threading::parallel_for_each(IndexRange(ibuf->x), [&](const int x) {
     if (ibuf->float_buffer.data) {
-      /* Float image. */
-      const float *src = ibuf->float_buffer.data;
-      for (int y = 0; y < ibuf->y; y++) {
-        for (const int x : x_range) {
-          const float *rgb = src + 4 * (ibuf->x * y + x);
+      const float *src = ibuf->float_buffer.data + x * 4;
+      if (!cm_processor) {
+        /* Float image, no color space conversions needed. */
+        for (int y = 0; y < ibuf->y; y++) {
+          float4 pixel;
+          premul_to_straight_v4_v4(pixel, src);
           for (int c = 0; c < 3; c++) {
             uchar *p = tgt;
-            float v = rgb[c];
+            float v = pixel[c];
             int iv = clamp_i(int(v * h), 0, h - 1);
-
+            p += 4 * (w * iv + c * sw + x / 3);
+            scope_put_pixel_single(wtable, p, c);
+          }
+          src += ibuf->x * 4;
+        }
+      }
+      else {
+        /* Float image, with color space conversions. */
+        Array<float4> pixels = pixels_to_display_space(
+            cm_processor, ibuf->float_buffer.colorspace, ibuf->y, src, ibuf->x * 4);
+        for (int y = 0; y < ibuf->y; y++) {
+          float4 pixel = pixels[y];
+          for (int c = 0; c < 3; c++) {
+            uchar *p = tgt;
+            float v = pixel[c];
+            int iv = clamp_i(int(v * h), 0, h - 1);
             p += 4 * (w * iv + c * sw + x / 3);
             scope_put_pixel_single(wtable, p, c);
           }
@@ -198,14 +285,29 @@ ImBuf *make_sep_waveform_view_from_ibuf(const ImBuf *ibuf)
       }
     }
     else {
-      /* Byte image. */
-      const uchar *src = ibuf->byte_buffer.data;
-      for (int y = 0; y < ibuf->y; y++) {
-        for (const int x : x_range) {
-          const uchar *rgb = src + 4 * (ibuf->x * y + x);
+      const uchar *src = ibuf->byte_buffer.data + x * 4;
+      if (!cm_processor) {
+        /* Byte image, no color space conversions needed. */
+        for (int y = 0; y < ibuf->y; y++) {
           for (int c = 0; c < 3; c++) {
             uchar *p = tgt;
-            p += 4 * (w * rgb[c] + c * sw + x / 3);
+            p += 4 * (w * src[c] + c * sw + x / 3);
+            scope_put_pixel_single(wtable, p, c);
+          }
+          src += ibuf->x * 4;
+        }
+      }
+      else {
+        /* Byte image, with color space conversions. */
+        Array<float4> pixels = pixels_to_display_space(
+            cm_processor, ibuf->byte_buffer.colorspace, ibuf->y, src, ibuf->x * 4);
+        for (int y = 0; y < ibuf->y; y++) {
+          float4 pixel = pixels[y];
+          for (int c = 0; c < 3; c++) {
+            uchar *p = tgt;
+            float v = pixel[c];
+            int iv = clamp_i(int(v * h), 0, h - 1);
+            p += 4 * (w * iv + c * sw + x / 3);
             scope_put_pixel_single(wtable, p, c);
           }
         }
@@ -213,6 +315,9 @@ ImBuf *make_sep_waveform_view_from_ibuf(const ImBuf *ibuf)
     }
   });
 
+  if (cm_processor) {
+    IMB_colormanagement_processor_free(cm_processor);
+  }
   return rval;
 }
 
@@ -318,14 +423,8 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
           }
           else {
             /* Float image, with color space conversions. */
-            Array<float4> pixels(range.size(), NoInitialization());
-            for (int64_t i : pixels.index_range()) {
-              premul_to_straight_v4_v4(pixels[i], src + i * 4);
-            }
-            IMB_colormanagement_colorspace_to_scene_linear(
-                &pixels.data()->x, pixels.size(), 1, 4, ibuf->float_buffer.colorspace, false);
-            IMB_colormanagement_processor_apply(
-                cm_processor, &pixels.data()->x, pixels.size(), 1, 4, false);
+            Array<float4> pixels = pixels_to_display_space(
+                cm_processor, ibuf->float_buffer.colorspace, range.size(), src, 4);
             for (const float4 &pixel : pixels) {
               res[get_bin_float(pixel.x)].x++;
               res[get_bin_float(pixel.y)].y++;
@@ -347,14 +446,8 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
           }
           else {
             /* Byte image, with color space conversions. */
-            Array<float4> pixels(range.size(), NoInitialization());
-            for (int64_t i : pixels.index_range()) {
-              rgba_uchar_to_float(pixels[i], src + i * 4);
-            }
-            IMB_colormanagement_colorspace_to_scene_linear(
-                &pixels.data()->x, pixels.size(), 1, 4, ibuf->byte_buffer.colorspace, false);
-            IMB_colormanagement_processor_apply(
-                cm_processor, &pixels.data()->x, pixels.size(), 1, 4, false);
+            Array<float4> pixels = pixels_to_display_space(
+                cm_processor, ibuf->byte_buffer.colorspace, range.size(), src, 4);
             for (const float4 &pixel : pixels) {
               uchar pixel_b[4];
               rgba_float_to_uchar(pixel_b, pixel);

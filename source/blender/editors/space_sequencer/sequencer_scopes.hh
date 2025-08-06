@@ -55,8 +55,12 @@ struct SeqScopes : public NonCopyable {
   void cleanup();
 };
 
-ImBuf *make_waveform_view_from_ibuf(const ImBuf *ibuf);
-ImBuf *make_sep_waveform_view_from_ibuf(const ImBuf *ibuf);
+ImBuf *make_waveform_view_from_ibuf(const ImBuf *ibuf,
+                                    const ColorManagedViewSettings &view_settings,
+                                    const ColorManagedDisplaySettings &display_settings);
+ImBuf *make_sep_waveform_view_from_ibuf(const ImBuf *ibuf,
+                                        const ColorManagedViewSettings &view_settings,
+                                        const ColorManagedDisplaySettings &display_settings);
 ImBuf *make_vectorscope_view_from_ibuf(const ImBuf *ibuf);
 ImBuf *make_zebra_view_from_ibuf(const ImBuf *ibuf, float perc);
 

@@ -821,8 +821,8 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
       break;
     case SEQ_DRAW_IMG_WAVEFORM:
       if (!scopes->waveform_ibuf) {
-        scopes->waveform_ibuf = sequencer_make_scope(
-            view_settings, display_settings, ibuf, make_waveform_view_from_ibuf);
+        scopes->waveform_ibuf = make_waveform_view_from_ibuf(
+            &ibuf, view_settings, display_settings);
       }
       break;
     case SEQ_DRAW_IMG_VECTORSCOPE:
@@ -836,8 +836,8 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
     } break;
     case SEQ_DRAW_IMG_RGBPARADE:
       if (!scopes->sep_waveform_ibuf) {
-        scopes->sep_waveform_ibuf = sequencer_make_scope(
-            view_settings, display_settings, ibuf, make_sep_waveform_view_from_ibuf);
+        scopes->sep_waveform_ibuf = make_sep_waveform_view_from_ibuf(
+            &ibuf, view_settings, display_settings);
       }
       break;
     default: /* Future files might have scopes we don't know about. */
