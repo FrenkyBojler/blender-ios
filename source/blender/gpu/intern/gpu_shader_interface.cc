@@ -19,7 +19,10 @@
 namespace blender::gpu {
 
 /* TODO(fclem): add unique ID for debugging. */
-ShaderInterface::ShaderInterface() = default;
+ShaderInterface::ShaderInterface()
+{
+  image_formats_.fill(TextureWriteFormat::Invalid);
+}
 
 ShaderInterface::~ShaderInterface()
 {
