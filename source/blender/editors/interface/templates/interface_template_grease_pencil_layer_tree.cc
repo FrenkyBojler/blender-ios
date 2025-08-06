@@ -287,6 +287,7 @@ class LayerViewItem : public AbstractTreeViewItem {
   void remove(bContext * /*C*/) override
   {
     grease_pencil_.remove_layer(layer_);
+    DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
@@ -454,6 +455,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
   void remove(bContext * /*C*/) override
   {
     grease_pencil_.remove_group(group_);
+    DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override

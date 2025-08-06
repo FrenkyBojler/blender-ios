@@ -235,6 +235,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   {
     Main *bmain = CTX_data_main(C);
     BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
+    DEG_id_tag_update(&shape_key_.object->id, ID_RECALC_GEOMETRY);
   }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override

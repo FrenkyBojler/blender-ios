@@ -2935,7 +2935,7 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
   ot->invoke = ui_view_item_delete_invoke;
   ot->poll = ui_view_focused_poll;
 
-  ot->flag = OPTYPE_INTERNAL;
+  ot->flag = OPTYPE_INTERNAL | OPTYPE_UNDO;
 }
 /** \} */
 
