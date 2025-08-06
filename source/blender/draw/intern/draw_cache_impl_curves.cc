@@ -311,6 +311,7 @@ static void create_edit_points_data(const OffsetIndices<int> points_by_curve,
   MutableSpan<uint32_t> data = vbo.data<uint32_t>();
 
   extract_edit_data(points_by_curve, catmull_rom_curves, selection, false, 0, data);
+
   extract_edit_data(points_by_curve, poly_curves, selection, false, 0, data);
 
   if (!bezier_curves.is_empty()) {
