@@ -186,7 +186,8 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
 
   std::optional<bool> should_be_active() const override
   {
-    return shape_key_.object->shapenr == shape_key_.index + 1;
+    const int active_index = std::max(0, int(shape_key_.object->shapenr - 1));
+    return active_index == shape_key_.index;
   }
 
   void on_activate(bContext &C) override
