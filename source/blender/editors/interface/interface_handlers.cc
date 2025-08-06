@@ -10136,15 +10136,25 @@ static int ui_handle_view_item_event(bContext *C,
       }
       break;
     case LEFTMOUSE:
-      if ((event->val == KM_PRESS) && (event->modifier == 0)) {
+      if (event->modifier == 0) {
         /* Only bother finding the active view item button if the active button isn't already a
          * view item. */
         uiButViewItem *view_but = static_cast<uiButViewItem *>(
             (active_but && active_but->type == ButType::ViewItem) ?
                 active_but :
                 ui_view_item_find_mouse_over(region, event->xy));
-        /* Will free active button if there already is one. */
+
         if (view_but) {
+          if (UI_view_item_supports_drag(*view_but->view_item)) {
+            if (event->val != KM_CLICK) {
+              break;
+            }
+          }
+          else if (event->val != KM_PRESS) {
+            break;
+          }
+
+          /* Will free active button if there already is one. */
           /* Close the popup when clicking on the view item directly, not any overlapped button. */
           const bool close_popup = view_but == active_but;
           force_activate_view_item_but(C, region, view_but, close_popup);

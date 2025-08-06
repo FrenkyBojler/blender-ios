@@ -335,7 +335,37 @@ static void poselib_tempload_exit(PoseBlendData *pbd)
 static bAction *poselib_blend_init_get_action(bContext *C, wmOperator *op)
 {
   using namespace blender::ed;
-  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
+
+  const blender::asset_system::AssetRepresentation *asset = nullptr;
+
+  if (asset::operator_asset_reference_props_is_set(*op->ptr)) {
+    asset = asset::operator_asset_reference_props_get_asset_from_all_library(
+        *C, *op->ptr, op->reports);
+    if (!asset) {
+      /* Explicit asset reference passed, but cannot be found. Error out. */
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Asset not found: '%s'",
+                  RNA_string_get(op->ptr, "relative_asset_identifier").c_str());
+      return nullptr;
+    }
+  }
+  else {
+    /* If no explicit asset reference was passed, get asset from context.  */
+    asset = CTX_wm_asset(C);
+    if (!asset) {
+      BKE_report(op->reports, RPT_ERROR, "No asset in context");
+      return nullptr;
+    }
+  }
+
+  if (asset->get_id_type() != ID_AC) {
+    BKE_reportf(op->reports,
+                RPT_ERROR,
+                "Asset ('%s') is not an action data-block",
+                asset->get_name().c_str());
+    return nullptr;
+  }
 
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
 
@@ -379,6 +409,9 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
 
   pbd->act = poselib_blend_init_get_action(C, op);
   if (pbd->act == nullptr) {
+    /* No report here. The poll function cannot check if the operator properties have an asset
+     * reference to determine the asset to operate on, in which case we fallback to getting the
+     * asset from context. */
     return false;
   }
   if (pbd->act->wrap().slots().size() == 0) {
@@ -602,13 +635,6 @@ static wmOperatorStatus poselib_blend_exec(bContext *C, wmOperator *op)
   return poselib_blend_exit(C, op);
 }
 
-static bool poselib_asset_in_context(bContext *C)
-{
-  /* Check whether the context provides the asset data needed to add a pose. */
-  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
-  return asset && (asset->get_id_type() == ID_AC);
-}
-
 /* Poll callback for operators that require existing PoseLib data (with poses) to work. */
 static bool poselib_blend_poll(bContext *C)
 {
@@ -618,9 +644,12 @@ static bool poselib_blend_poll(bContext *C)
     return false;
   }
 
-  return poselib_asset_in_context(C);
+  return true;
 }
 
+/* Operator propreties can set an asset reference to determine the asset to operate on (the pose
+ * can then be applied via shortcut too, for example). If this isn't set, an active asset from
+ * context is queried. */
 void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -657,6 +686,7 @@ void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+/* See comment on #POSELIB_OT_apply_pose_asset. */
 void POSELIB_OT_blend_pose_asset(wmOperatorType *ot)
 {
   PropertyRNA *prop;

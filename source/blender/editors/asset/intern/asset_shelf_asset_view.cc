@@ -74,7 +74,6 @@ class AssetViewItem : public ui::PreviewGridItem {
 
 class AssetDragController : public ui::AbstractViewItemDragController {
   asset_system::AssetRepresentation &asset_;
-  bool allow_asset_drag_ = true;
 
  public:
   AssetDragController(ui::AbstractGridView &view, asset_system::AssetRepresentation &asset);
@@ -383,13 +382,13 @@ void AssetDragController::on_drag_start(bContext &C)
   const AssetView &asset_view = this->get_view<AssetView>();
   const AssetShelfType &shelf_type = *asset_view.shelf_.type;
 
-  if (std::optional<wmOperatorCallParams> activate_op = create_asset_operator_params(
+  if (std::optional<wmOperatorCallParams> drag_op = create_asset_operator_params(
           shelf_type.drag_operator, asset_))
   {
     WM_operator_name_call_ptr(
-        &C, activate_op->optype, activate_op->opcontext, activate_op->opptr, nullptr);
-    WM_operator_properties_free(activate_op->opptr);
-    MEM_delete(activate_op->opptr);
+        &C, drag_op->optype, drag_op->opcontext, drag_op->opptr, nullptr);
+    WM_operator_properties_free(drag_op->opptr);
+    MEM_delete(drag_op->opptr);
   }
 }
 
