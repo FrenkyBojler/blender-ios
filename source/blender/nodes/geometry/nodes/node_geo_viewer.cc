@@ -33,9 +33,52 @@ namespace blender::nodes::node_geo_viewer_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryViewer)
 
-static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
-                                       const geo_eval_log::ViewerNodeLog::Item &viewer_item)
+static void draw_float(uiLayout &layout, const float value)
 {
+  const std::string label = fmt::format("{:.5f}", value);
+  layout.label(label, ICON_NONE);
+}
+
+static void draw_int(uiLayout &layout, const int value)
+{
+  const std::string label = fmt::format("{}", value);
+  layout.label(label, ICON_NONE);
+}
+
+static void draw_bool(uiLayout &layout, const bool value)
+{
+  layout.label(value ? IFACE_("True") : IFACE_("False"), ICON_NONE);
+}
+
+static void draw_vector(uiLayout &layout, const float3 &value)
+{
+  uiLayout &col = layout.column(true);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("X"), value.x), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("Y"), value.y), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("Z"), value.z), ICON_NONE);
+}
+
+static void draw_string(uiLayout &layout, const StringRef value)
+{
+  /* The node doesn't get wider than that anyway. */
+  const int max_display_length = 200;
+  layout.label(value.substr(0, max_display_length), ICON_NONE);
+}
+
+static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
+                                       geo_eval_log::GeoTreeLog &tree_log)
+{
+  tree_log.ensure_viewer_node_logs();
+  geo_eval_log::ViewerNodeLog *viewer_log = tree_log.viewer_node_logs.lookup_default(
+      params.node.identifier, nullptr);
+  if (!viewer_log) {
+    return false;
+  }
+  const int socket_index = params.socket.index();
+  if (socket_index >= viewer_log->items.size()) {
+    return false;
+  }
+  const geo_eval_log::ViewerNodeLog::Item &viewer_item = viewer_log->items[socket_index];
 
   switch (viewer_item.type->type) {
     case SOCK_FLOAT: {
@@ -43,9 +86,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       if (!value_variant.is_single()) {
         return false;
       }
-      const float value = value_variant.get<float>();
-      const std::string label = fmt::format("{:.5f}", value);
-      params.layout.label(label, ICON_NONE);
+      draw_float(params.layout, value_variant.get<float>());
       break;
     }
     case SOCK_INT: {
@@ -53,9 +94,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       if (!value_variant.is_single()) {
         return false;
       }
-      const int value = value_variant.get<int>();
-      const std::string label = fmt::format("{}", value);
-      params.layout.label(label, ICON_NONE);
+      draw_int(params.layout, value_variant.get<int>());
       break;
     }
     case SOCK_VECTOR: {
@@ -64,10 +103,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
         return false;
       }
       const float3 value = value_variant.get<float3>();
-      uiLayout &col = params.layout.column(true);
-      col.label(fmt::format("{}: {:.5f}", IFACE_("X"), value.x), ICON_NONE);
-      col.label(fmt::format("{}: {:.5f}", IFACE_("Y"), value.y), ICON_NONE);
-      col.label(fmt::format("{}: {:.5f}", IFACE_("Z"), value.z), ICON_NONE);
+      draw_vector(params.layout, value);
       break;
     }
     case SOCK_STRING: {
@@ -75,14 +111,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       if (!value_variant.is_single()) {
         return false;
       }
-      std::string value = value_variant.get<std::string>();
-      /* The node doesn't get wider than that anyway. */
-      const int max_display_length = 200;
-      if (value.size() > max_display_length) {
-        value.resize(max_display_length);
-        value.append("...");
-      }
-      params.layout.label(value, ICON_NONE);
+      draw_string(params.layout, value_variant.get<std::string>());
       break;
     }
     case SOCK_BOOLEAN: {
@@ -90,8 +119,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
       if (!value_variant.is_single()) {
         return false;
       }
-      const bool value = value_variant.get<bool>();
-      params.layout.label(value ? IFACE_("True") : IFACE_("False"), ICON_NONE);
+      draw_bool(params.layout, value_variant.get<bool>());
       break;
     }
     default: {
@@ -119,21 +147,10 @@ static void draw_input_socket(CustomSocketDrawParams &params)
   if (!tree_log) {
     return;
   }
-  tree_log->ensure_viewer_node_logs();
-  geo_eval_log::ViewerNodeLog *viewer_log = tree_log->viewer_node_logs.lookup_default(
-      params.node.identifier, nullptr);
-  if (!viewer_log) {
+  if (draw_from_viewer_log_value(params, *tree_log)) {
+    params.r_use_standard_drawing = false;
     return;
   }
-  const int socket_index = socket.index();
-  if (socket_index >= viewer_log->items.size()) {
-    return;
-  }
-  const geo_eval_log::ViewerNodeLog::Item &viewer_item = viewer_log->items[socket_index];
-  if (!draw_from_viewer_log_value(params, viewer_item)) {
-    return;
-  }
-  params.r_use_standard_drawing = false;
 }
 
 static void node_declare(NodeDeclarationBuilder &b)
