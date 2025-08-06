@@ -270,6 +270,14 @@ void GLBackend::platform_init()
         support_level = GPU_SUPPORT_LEVEL_LIMITED;
       }
     }
+    if ((device & GPU_DEVICE_QUALCOMM) && (os & GPU_OS_WIN)) {
+      if (strstr(version, "Mesa 20.") || strstr(version, "Mesa 21.") ||
+          strstr(version, "Mesa 22.") || strstr(version, "Mesa 23."))
+      {
+        std::cerr << "Unsupported driver. Requires at least Mesa 24.0.0." << std::endl;
+        support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+      }
+    }
 
     /* Check SSBO bindings requirement. */
     GLint max_ssbo_binds_vertex;
@@ -283,6 +291,16 @@ void GLBackend::platform_init()
     if (max_ssbo_binds < 12) {
       std::cout << "Warning: Unsupported platform as it supports max " << max_ssbo_binds
                 << " SSBO binding locations\n";
+      support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+    }
+
+    if (!epoxy_has_gl_extension("GL_ARB_shader_draw_parameters")) {
+      std::cout << "Error: The OpenGL implementation doesn't support ARB_shader_draw_parameters\n";
+      support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+    }
+
+    if (!epoxy_has_gl_extension("GL_ARB_clip_control")) {
+      std::cout << "Error: The OpenGL implementation doesn't support ARB_clip_control\n";
       support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
     }
   }
@@ -481,18 +499,6 @@ static void detect_workarounds()
        strstr(version, "Mesa 19.1") || strstr(version, "Mesa 19.2")))
   {
     GLContext::unused_fb_slot_workaround = true;
-  }
-
-  /* Draw shader parameters are broken on Qualcomm Windows ARM64 devices
-   * on Mesa version < 24.0.0 */
-  if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
-    if (strstr(version, "Mesa 20.") || strstr(version, "Mesa 21.") ||
-        strstr(version, "Mesa 22.") || strstr(version, "Mesa 23."))
-    {
-      /* TODO(fclem): Maybe move this to upfront platform check on startup. */
-      std::cerr << "Unsupported driver. Requires at least Mesa 24.0.0." << std::endl;
-      exit(1);
-    }
   }
 
 /* Snapdragon X Elite devices currently have a driver bug that results in
