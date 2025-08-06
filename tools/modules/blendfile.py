@@ -368,11 +368,13 @@ class BlendFileBlock(_blendfile_header.BlockHeader):
         self.file.handle.seek(ofs, os.SEEK_SET)
 
         print(dna_type_id, array_size, dna_size)
-        return DNA_IO.read_data(self.file.handle, self.file.header,
-                                is_pointer,
-                                dna_type_id,
-                                dna_size,
-                                array_size)
+        return DNA_IO.read_data(
+            self.file.handle, self.file.header,
+            is_pointer,
+            dna_type_id,
+            dna_size,
+            array_size,
+        )
 
     def get_recursive_iter(
             self, path, path_root=b"",
@@ -849,7 +851,7 @@ class DNAStruct:
                                     use_str_nil=use_nil,
                                     )
         except NotImplementedError:
-            raise NotImplementedError("%r exists, but can't resolve field %r" %
+            raise NotImplementedError("%r exists, but cannot resolve field %r" %
                                       (path, dna_name.name_only), dna_name, dna_type)
 
     def field_set(self, header, handle, path, value):

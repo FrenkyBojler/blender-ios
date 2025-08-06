@@ -18,7 +18,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -115,26 +115,19 @@ ImBuf *sequencer_ibuf_get(const bContext *C, const int timeline_frame, const cha
 
   seq::RenderData context = {nullptr};
   ImBuf *ibuf;
-  int rectx, recty;
-  double render_size;
   short is_break = G.is_break;
-
-  if (sseq->render_size == SEQ_RENDER_SIZE_NONE) {
+  const eSpaceSeq_Proxy_RenderSize render_size_mode = eSpaceSeq_Proxy_RenderSize(
+      sseq->render_size);
+  if (render_size_mode == SEQ_RENDER_SIZE_NONE) {
     return nullptr;
   }
 
-  if (sseq->render_size == SEQ_RENDER_SIZE_SCENE) {
-    render_size = scene->r.size / 100.0;
-  }
-  else {
-    render_size = seq::rendersize_to_scale_factor(sseq->render_size);
-  }
-
-  rectx = roundf(render_size * scene->r.xsch);
-  recty = roundf(render_size * scene->r.ysch);
+  const float render_scale = seq::get_render_scale_factor(render_size_mode, scene->r.size);
+  int rectx = roundf(render_scale * scene->r.xsch);
+  int recty = roundf(render_scale * scene->r.ysch);
 
   seq::render_new_render_data(
-      bmain, depsgraph, scene, rectx, recty, sseq->render_size, false, &context);
+      bmain, depsgraph, scene, rectx, recty, render_size_mode, false, &context);
   context.view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
   context.use_proxies = (sseq->flag & SEQ_USE_PROXIES) != 0;
   context.is_playing = screen->animtimer != nullptr;
@@ -440,7 +433,7 @@ static void draw_histogram(ARegion &region,
 
     /* Label. */
     char buf[10];
-    const size_t buf_len = SNPRINTF_RLEN(buf, "%.2f", val);
+    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.2f", val);
 
     float text_width, text_height;
     BLF_width_and_height(BLF_default(), buf, buf_len, &text_width, &text_height);
@@ -505,9 +498,9 @@ static void draw_waveform_graticule(ARegion *region, SeqQuadsBatch &quads, const
   for (int i = 0; i < 3; i++) {
     const float y = area.ymin + (area.ymax - area.ymin) * lines[i];
     char buf[10];
-    SNPRINTF(buf, "%.1f", lines[i]);
+    const size_t buf_len = SNPRINTF_UTF8_RLEN(buf, "%.1f", lines[i]);
     quads.add_line(x0, y, x1, y, col_grid);
-    UI_view2d_text_cache_add(&region->v2d, x0 + 8, y + 8, buf, strlen(buf), col_grid);
+    UI_view2d_text_cache_add(&region->v2d, x0 + 8, y + 8, buf, buf_len, col_grid);
   }
   /* Border. */
   uchar col_border[4] = {64, 64, 64, 128};
@@ -736,10 +729,10 @@ static void sequencer_draw_scopes(const SpaceSeq &space_sequencer, ARegion &regi
       IMB_byte_from_float(scope_image);
     }
 
-    eGPUTextureFormat format = GPU_RGBA8;
+    blender::gpu::TextureFormat format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
     eGPUDataFormat data = GPU_DATA_UBYTE;
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
-    GPUTexture *texture = GPU_texture_create_2d(
+    blender::gpu::Texture *texture = GPU_texture_create_2d(
         "seq_display_buf", scope_image->x, scope_image->y, 1, format, usage, nullptr);
     GPU_texture_update(texture, data, scope_image->byte_buffer.data);
     GPU_texture_filter_mode(texture, false);
@@ -839,11 +832,7 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
       }
       break;
     case SEQ_DRAW_IMG_HISTOGRAM: {
-      ImBuf *display_ibuf = IMB_dupImBuf(&ibuf);
-      IMB_colormanagement_imbuf_make_display_space(
-          display_ibuf, &view_settings, &display_settings);
-      scopes->histogram.calc_from_ibuf(display_ibuf);
-      IMB_freeImBuf(display_ibuf);
+      scopes->histogram.calc_from_ibuf(&ibuf, view_settings, display_settings);
     } break;
     case SEQ_DRAW_IMG_RGBPARADE:
       if (!scopes->sep_waveform_ibuf) {
@@ -1193,7 +1182,7 @@ static void preview_draw_overlay_begin(ARegion &region)
  * The position denotes coordinates of a rectangle used to display the texture.
  * The texture_coord contains UV coordinates of the input texture which are mapped to the corners
  * of the rectangle. */
-static void preview_draw_texture_simple(GPUTexture &texture,
+static void preview_draw_texture_simple(blender::gpu::Texture &texture,
                                         const rctf &position,
                                         const rctf &texture_coord)
 {
@@ -1220,7 +1209,7 @@ static void preview_draw_texture_simple(GPUTexture &texture,
  * The position denotes coordinates of a rectangle used to display the texture.
  * The texture_coord contains UV coordinates of the input texture which are mapped to the corners
  * of the rectangle. */
-static void preview_draw_texture_to_linear(GPUTexture &texture,
+static void preview_draw_texture_to_linear(blender::gpu::Texture &texture,
                                            const char *texture_colorspace_name,
                                            const bool predivide,
                                            const rctf &position,
@@ -1375,31 +1364,31 @@ static int get_reference_frame_offset(const Editing &editing, const RenderData &
   return editing.overlay_frame_ofs;
 }
 
-/* Create GPUTexture from the given image buffer for drawing rendered sequencer frame on the
- * color render frame buffer.
+/* Create blender::gpu::Texture from the given image buffer for drawing rendered sequencer frame on
+ * the color render frame buffer.
  *
  * The texture format and color space matches the CPU-side buffer.
  *
  * If both float and byte buffers are missing nullptr is returned.
  * If channel configuration is incompatible with the texture nullptr is returned. */
-static GPUTexture *create_texture(const ImBuf &ibuf)
+static blender::gpu::Texture *create_texture(const ImBuf &ibuf)
 {
   const eGPUTextureUsage texture_usage = GPU_TEXTURE_USAGE_SHADER_READ |
                                          GPU_TEXTURE_USAGE_ATTACHMENT;
 
-  GPUTexture *texture = nullptr;
+  blender::gpu::Texture *texture = nullptr;
 
   if (ibuf.float_buffer.data) {
-    eGPUTextureFormat texture_format;
+    blender::gpu::TextureFormat texture_format;
     switch (ibuf.channels) {
       case 1:
-        texture_format = GPU_R32F;
+        texture_format = blender::gpu::TextureFormat::SFLOAT_32;
         break;
       case 3:
-        texture_format = GPU_RGB32F;
+        texture_format = blender::gpu::TextureFormat::SFLOAT_32_32_32;
         break;
       case 4:
-        texture_format = GPU_RGBA32F;
+        texture_format = blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
         break;
       default:
         BLI_assert_msg(0, "Incompatible number of channels for float buffer in sequencer");
@@ -1411,8 +1400,13 @@ static GPUTexture *create_texture(const ImBuf &ibuf)
     GPU_texture_update(texture, GPU_DATA_FLOAT, ibuf.float_buffer.data);
   }
   else if (ibuf.byte_buffer.data) {
-    texture = GPU_texture_create_2d(
-        "seq_display_buf", ibuf.x, ibuf.y, 1, GPU_RGBA8, texture_usage, nullptr);
+    texture = GPU_texture_create_2d("seq_display_buf",
+                                    ibuf.x,
+                                    ibuf.y,
+                                    1,
+                                    blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                                    texture_usage,
+                                    nullptr);
     GPU_texture_update(texture, GPU_DATA_UBYTE, ibuf.byte_buffer.data);
   }
 
@@ -1456,9 +1450,9 @@ static void sequencer_preview_draw_color_render(const SpaceSeq &space_sequencer,
                                                 const Editing &editing,
                                                 ARegion &region,
                                                 const ImBuf *current_ibuf,
-                                                GPUTexture *current_texture,
+                                                blender::gpu::Texture *current_texture,
                                                 const ImBuf *reference_ibuf,
-                                                GPUTexture *reference_texture)
+                                                blender::gpu::Texture *reference_texture)
 {
   preview_draw_color_render_begin(region);
 
@@ -1505,8 +1499,8 @@ static void sequencer_preview_draw_overlays(const bContext *C,
                                             const ColorManagedViewSettings &view_settings,
                                             const ColorManagedDisplaySettings &display_settings,
                                             ARegion &region,
-                                            GPUTexture *current_texture,
-                                            GPUTexture *reference_texture,
+                                            blender::gpu::Texture *current_texture,
+                                            blender::gpu::Texture *reference_texture,
                                             const ImBuf *overlay_ibuf,
                                             const int timeline_frame)
 {
@@ -1667,8 +1661,8 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
    *
    * When non-nullptr they are to be drawn (in other words, when they are non-nullptr the
    * corresponding draw_current_frame and draw_reference_frame is true). */
-  GPUTexture *current_texture = nullptr;
-  GPUTexture *reference_texture = nullptr;
+  blender::gpu::Texture *current_texture = nullptr;
+  blender::gpu::Texture *reference_texture = nullptr;
 
   /* Get image buffers before setting up GPU state for drawing.  This is because
    * sequencer_ibuf_get() might not properly restore the state.

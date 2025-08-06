@@ -9,6 +9,7 @@
 
 #include <iomanip>
 
+#include "BKE_idprop.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_light_types.h"
@@ -31,6 +32,7 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -92,6 +94,7 @@
 #include "NOD_geometry_nodes_log.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_extra_info.hh"
+#include "NOD_sync_sockets.hh"
 
 #include "GEO_fillet_curves.hh"
 
@@ -154,6 +157,18 @@ struct TreeDrawContext {
    * during drawing. The array is indexed by `bNode::index()`.
    */
   Array<Vector<NodeExtraInfoRow>> extra_info_rows_per_node;
+
+  ~TreeDrawContext()
+  {
+    for (MutableSpan<NodeExtraInfoRow> rows : this->extra_info_rows_per_node) {
+      for (NodeExtraInfoRow &row : rows) {
+        if (row.tooltip_fn_free_arg) {
+          BLI_assert(row.tooltip_fn_copy_arg);
+          row.tooltip_fn_free_arg(row.tooltip_fn_arg);
+        }
+      }
+    }
+  }
 };
 
 float grid_size_get()
@@ -1462,8 +1477,11 @@ static void node_socket_outline_color_get(const bool selected,
                                           const int socket_type,
                                           float r_outline_color[4])
 {
+  /* Explicitly use the node editor theme for the outline color to ensure consistency even when
+   * sockets are drawn in other editors.
+   */
   if (selected) {
-    UI_GetThemeColor4fv(TH_ACTIVE, r_outline_color);
+    UI_GetThemeColorType4fv(TH_ACTIVE, SPACE_NODE, r_outline_color);
   }
   else if (socket_type == SOCK_CUSTOM) {
     /* Until there is a better place for per socket color,
@@ -1471,7 +1489,7 @@ static void node_socket_outline_color_get(const bool selected,
     copy_v4_v4(r_outline_color, virtual_node_socket_outline_color);
   }
   else {
-    UI_GetThemeColor4fv(TH_WIRE, r_outline_color);
+    UI_GetThemeColorType4fv(TH_WIRE, SPACE_NODE, r_outline_color);
     r_outline_color[3] = 1.0f;
   }
 }
@@ -2002,70 +2020,18 @@ static std::string node_errors_tooltip_fn(const Span<geo_log::NodeWarning> warni
 
 #define NODE_HEADER_ICON_SIZE (0.8f * U.widget_unit)
 
-static void node_add_unsupported_compositor_operation_error_message_button(const bNode &node,
-                                                                           uiBlock &block,
-                                                                           const rctf &rect,
-                                                                           float &icon_offset)
+static uiBut *add_error_message_button(uiBlock &block,
+                                       const rctf &rect,
+                                       const int icon,
+                                       float &icon_offset,
+                                       const char *tooltip = nullptr)
 {
-  icon_offset -= NODE_HEADER_ICON_SIZE;
-  UI_block_emboss_set(&block, ui::EmbossType::None);
-  uiDefIconBut(&block,
-               ButType::But,
-               0,
-               ICON_ERROR,
-               icon_offset,
-               rect.ymax - NODE_DY,
-               NODE_HEADER_ICON_SIZE,
-               UI_UNIT_Y,
-               nullptr,
-               0,
-               0,
-               TIP_(node.typeinfo->compositor_unsupported_message));
-  UI_block_emboss_set(&block, ui::EmbossType::Emboss);
-}
-
-static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
-                                          const bNode &node,
-                                          uiBlock &block,
-                                          const rctf &rect,
-                                          float &icon_offset)
-{
-  if (tree_draw_ctx.used_by_compositor && node.typeinfo->compositor_unsupported_message) {
-    node_add_unsupported_compositor_operation_error_message_button(node, block, rect, icon_offset);
-    return;
-  }
-
-  geo_log::GeoTreeLog *geo_tree_log = [&]() -> geo_log::GeoTreeLog * {
-    const bNodeTreeZones *zones = node.owner_tree().zones();
-    if (!zones) {
-      return nullptr;
-    }
-    const bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
-    if (zone && ELEM(node.identifier, zone->input_node_id, zone->output_node_id)) {
-      zone = zone->parent_zone;
-    }
-    return tree_draw_ctx.tree_logs.get_main_tree_log(zone);
-  }();
-
-  Span<geo_log::NodeWarning> warnings;
-  if (geo_tree_log) {
-    geo_log::GeoNodeLog *node_log = geo_tree_log->nodes.lookup_ptr(node.identifier);
-    if (node_log != nullptr) {
-      warnings = node_log->warnings;
-    }
-  }
-  if (warnings.is_empty()) {
-    return;
-  }
-
-  const nodes::NodeWarningType display_type = node_error_highest_priority(warnings);
-
   icon_offset -= NODE_HEADER_ICON_SIZE;
   UI_block_emboss_set(&block, ui::EmbossType::None);
   uiBut *but = uiDefIconBut(&block,
                             ButType::But,
                             0,
-                            nodes::node_warning_type_icon(display_type),
+                            icon,
                             icon_offset,
                             rect.ymax - NODE_DY,
                             NODE_HEADER_ICON_SIZE,
@@ -2073,12 +2039,59 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
                             nullptr,
                             0,
                             0,
-                            nullptr);
-  UI_but_func_quick_tooltip_set(
-      but, [warnings = Array<geo_log::NodeWarning>(warnings)](const uiBut * /*but*/) {
-        return node_errors_tooltip_fn(warnings);
-      });
+                            tooltip);
   UI_block_emboss_set(&block, ui::EmbossType::Emboss);
+  return but;
+}
+
+static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
+                                          const bNodeTree &ntree,
+                                          const bNode &node,
+                                          uiBlock &block,
+                                          const rctf &rect,
+                                          float &icon_offset)
+{
+  if (ntree.type == NTREE_COMPOSIT) {
+    if (tree_draw_ctx.used_by_compositor && node.typeinfo->compositor_unsupported_message) {
+      add_error_message_button(
+          block, rect, ICON_ERROR, icon_offset, node.typeinfo->compositor_unsupported_message);
+    }
+    return;
+  }
+  if (ntree.type == NTREE_GEOMETRY) {
+    geo_log::GeoTreeLog *geo_tree_log = [&]() -> geo_log::GeoTreeLog * {
+      const bNodeTreeZones *zones = node.owner_tree().zones();
+      if (!zones) {
+        return nullptr;
+      }
+      const bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
+      if (zone && ELEM(node.identifier, zone->input_node_id, zone->output_node_id)) {
+        zone = zone->parent_zone;
+      }
+      return tree_draw_ctx.tree_logs.get_main_tree_log(zone);
+    }();
+
+    Span<geo_log::NodeWarning> warnings;
+    if (geo_tree_log) {
+      geo_log::GeoNodeLog *node_log = geo_tree_log->nodes.lookup_ptr(node.identifier);
+      if (node_log != nullptr) {
+        warnings = node_log->warnings;
+      }
+    }
+    if (warnings.is_empty()) {
+      return;
+    }
+
+    const nodes::NodeWarningType display_type = node_error_highest_priority(warnings);
+
+    uiBut *but = add_error_message_button(
+        block, rect, nodes::node_warning_type_icon(display_type), icon_offset);
+    UI_but_func_quick_tooltip_set(
+        but, [warnings = Array<geo_log::NodeWarning>(warnings)](const uiBut * /*but*/) {
+          return node_errors_tooltip_fn(warnings);
+        });
+    return;
+  }
 }
 
 static std::optional<std::chrono::nanoseconds> geo_node_get_execution_time(
@@ -2318,6 +2331,9 @@ static NodeExtraInfoRow row_from_used_named_attribute(
   row.tooltip_fn = named_attribute_tooltip;
   row.tooltip_fn_arg = new NamedAttributeTooltipArg{usage_by_attribute_name};
   row.tooltip_fn_free_arg = [](void *arg) { delete static_cast<NamedAttributeTooltipArg *>(arg); };
+  row.tooltip_fn_copy_arg = [](void *arg) -> void * {
+    return new NamedAttributeTooltipArg(*static_cast<NamedAttributeTooltipArg *>(arg));
+  };
   return row;
 }
 
@@ -2428,7 +2444,7 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_SIMULATION_OUTPUT,
             GEO_NODE_REPEAT_OUTPUT,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
-            GEO_NODE_EVALUATE_CLOSURE) ||
+            NODE_EVALUATE_CLOSURE) ||
        StringRef(node.idname).startswith("GeometryNodeImport")))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
@@ -2466,6 +2482,12 @@ static void node_draw_extra_info_row(const bNode &node,
   const float but_icon_width = NODE_HEADER_ICON_SIZE * 0.8f;
   const float but_icon_right = but_icon_left + but_icon_width;
 
+  void *tooltip_arg = extra_info_row.tooltip_fn_arg;
+  if (tooltip_arg && extra_info_row.tooltip_fn_free_arg) {
+    BLI_assert(extra_info_row.tooltip_fn_copy_arg);
+    tooltip_arg = extra_info_row.tooltip_fn_copy_arg(tooltip_arg);
+  }
+
   UI_block_emboss_set(&block, ui::EmbossType::None);
   uiBut *but_icon = uiDefIconBut(&block,
                                  ButType::But,
@@ -2479,20 +2501,20 @@ static void node_draw_extra_info_row(const bNode &node,
                                  0,
                                  0,
                                  extra_info_row.tooltip);
-  if (extra_info_row.tooltip_fn != nullptr) {
-    UI_but_func_tooltip_set(but_icon,
-                            extra_info_row.tooltip_fn,
-                            extra_info_row.tooltip_fn_arg,
-                            extra_info_row.tooltip_fn_free_arg);
+  if (extra_info_row.set_execute_fn) {
+    extra_info_row.set_execute_fn(*but_icon);
   }
-  UI_block_emboss_set(&block, ui::EmbossType::Emboss);
+  if (extra_info_row.tooltip_fn != nullptr) {
+    UI_but_func_tooltip_set(
+        but_icon, extra_info_row.tooltip_fn, tooltip_arg, extra_info_row.tooltip_fn_free_arg);
+  }
 
   const float but_text_left = but_icon_right + 6.0f * UI_SCALE_FAC;
   const float but_text_right = rect.xmax;
   const float but_text_width = but_text_right - but_text_left;
 
   uiBut *but_text = uiDefBut(&block,
-                             ButType::Label,
+                             extra_info_row.set_execute_fn ? ButType::But : ButType::Label,
                              0,
                              extra_info_row.text.c_str(),
                              int(but_text_left),
@@ -2503,17 +2525,21 @@ static void node_draw_extra_info_row(const bNode &node,
                              0,
                              0,
                              extra_info_row.tooltip);
-
+  UI_but_drawflag_enable(but_text, UI_BUT_TEXT_LEFT);
+  if (extra_info_row.set_execute_fn) {
+    extra_info_row.set_execute_fn(*but_text);
+  }
   if (extra_info_row.tooltip_fn != nullptr) {
     /* Don't pass tooltip free function because it's already used on the uiBut above. */
-    UI_but_func_tooltip_set(
-        but_text, extra_info_row.tooltip_fn, extra_info_row.tooltip_fn_arg, nullptr);
+    UI_but_func_tooltip_set(but_text, extra_info_row.tooltip_fn, tooltip_arg, nullptr);
   }
 
   if (node.is_muted()) {
     UI_but_flag_enable(but_text, UI_BUT_INACTIVE);
     UI_but_flag_enable(but_icon, UI_BUT_INACTIVE);
   }
+
+  UI_block_emboss_set(&block, ui::EmbossType::Emboss);
 }
 
 static void node_draw_extra_info_panel_back(const bNode &node, const rctf &extra_info_rect)
@@ -2835,6 +2861,31 @@ static void node_draw_basis(const bContext &C,
     }
     UI_block_emboss_set(&block, ui::EmbossType::Emboss);
   }
+
+  if (nodes::node_can_sync_sockets(C, ntree, node)) {
+    iconofs -= iconbutw;
+    UI_block_emboss_set(&block, ui::EmbossType::None);
+    uiBut *but = uiDefIconBut(&block,
+                              ButType::ButToggle,
+                              0,
+                              ICON_FILE_REFRESH,
+                              iconofs,
+                              rct.ymax - NODE_DY,
+                              iconbutw,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              "");
+
+    wmOperatorType *ot = WM_operatortype_find("NODE_OT_sockets_sync", false);
+    UI_but_operator_set(but, ot, wm::OpCallContext::InvokeDefault);
+    PointerRNA *opptr = UI_but_operator_ptr_ensure(but);
+    opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
+    RNA_string_set(opptr, "node_name", node.name);
+    UI_block_emboss_set(&block, ui::EmbossType::Emboss);
+  }
+
   /* Preview. */
   if (node_is_previewable(snode, ntree, node)) {
     const bool is_active = node.flag & NODE_PREVIEW;
@@ -2953,7 +3004,7 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(&block, ui::EmbossType::Emboss);
   }
 
-  node_add_error_message_button(tree_draw_ctx, node, block, rct, iconofs);
+  node_add_error_message_button(tree_draw_ctx, ntree, node, block, rct, iconofs);
 
   /* Title. */
   if (node.flag & SELECT) {
@@ -4315,8 +4366,8 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
       return 1e5f + distance_to_center;
     }
     return
-        /* The larger the distance to the link center, the higher the cost. The importance of this
-           distance decreases the further the center is away. */
+        /* The larger the distance to the link center, the higher the cost.
+         * The importance of this distance decreases the further the center is away. */
         std::sqrt(distance_to_center)
         /* The larger the distance to the inner rectangle, the higher the cost. Apply an additional
          * factor because it's more important that the position stays visible than that it is at
@@ -4698,7 +4749,7 @@ void node_draw_space(const bContext &C, ARegion &region)
                                                                          snode.id;
 
     if (name_id && UNLIKELY(!STREQ(path->display_name, name_id->name + 2))) {
-      STRNCPY(path->display_name, name_id->name + 2);
+      STRNCPY_UTF8(path->display_name, name_id->name + 2);
     }
 
     /* Current View2D center, will be set temporarily for parent node trees. */

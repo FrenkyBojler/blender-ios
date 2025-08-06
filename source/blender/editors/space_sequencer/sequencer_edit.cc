@@ -6,24 +6,25 @@
  * \ingroup spseq
  */
 
-#include "BLI_string_ref.hh"
-#include "BLI_string_utils.hh"
-#include "BLI_vector.hh"
-#include "DNA_sequence_types.h"
-#include "MEM_guardedalloc.h"
-
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
 #include "BKE_context.hh"
@@ -417,7 +418,7 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
   /* Test for effects and overlap. */
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
     if (strip->flag & SELECT && !seq::transform_is_locked(channels, strip)) {
-      strip->flag &= ~SEQ_OVERLAP;
+      strip->runtime.flag &= ~STRIP_OVERLAP;
       if (seq::transform_test_overlap(scene, ed->seqbasep, strip)) {
         seq::transform_seqbase_shuffle(ed->seqbasep, strip, scene);
       }
@@ -585,19 +586,19 @@ static void slip_update_header(const Scene *scene,
   if (hasNumInput(&data->num_input)) {
     char num_str[NUM_STR_REP_LEN];
     outputNumInput(&data->num_input, num_str, scene->unit);
-    SNPRINTF(msg, IFACE_("Slip Offset: Frames: %s"), num_str);
+    SNPRINTF_UTF8(msg, IFACE_("Slip Offset: Frames: %s"), num_str);
   }
   else {
     int frame_offset = std::trunc(offset);
     if (data->show_subframe) {
       float subframe_offset_sec = (offset - std::trunc(offset)) / FPS;
-      SNPRINTF(msg,
-               IFACE_("Slip Offset: Frames: %d Sound Offset: %.3f"),
-               frame_offset,
-               subframe_offset_sec);
+      SNPRINTF_UTF8(msg,
+                    IFACE_("Slip Offset: Frames: %d Sound Offset: %.3f"),
+                    frame_offset,
+                    subframe_offset_sec);
     }
     else {
-      SNPRINTF(msg, IFACE_("Slip Offset: Frames: %d"), frame_offset);
+      SNPRINTF_UTF8(msg, IFACE_("Slip Offset: Frames: %d"), frame_offset);
     }
   }
 
@@ -625,7 +626,7 @@ static SlipData *slip_data_init(const Scene *scene)
 
   data->clamp = true;
   for (Strip *strip : strips) {
-    strip->flag |= SEQ_SHOW_OFFSETS;
+    strip->runtime.flag |= STRIP_SHOW_OFFSETS;
 
     /* If any strips start out with hold offsets visible, disable clamping on initialization. */
     if (strip->startofs < 0 || strip->endofs < 0) {
@@ -729,7 +730,7 @@ static void slip_cleanup(bContext *C, wmOperator *op, Scene *scene)
 
   for (Strip *strip : data->strips) {
     strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
-    strip->flag &= ~SEQ_SHOW_OFFSETS;
+    strip->runtime.flag &= ~STRIP_SHOW_OFFSETS;
   }
 
   MEM_SAFE_DELETE(data);
@@ -1086,7 +1087,7 @@ void SEQUENCER_OT_lock(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Lock Strips";
   ot->idname = "SEQUENCER_OT_lock";
-  ot->description = "Lock strips so they can't be transformed";
+  ot->description = "Lock strips so they cannot be transformed";
 
   /* API callbacks. */
   ot->exec = sequencer_lock_exec;
@@ -1783,7 +1784,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
       seq::select_active_set(scene, strip);
     }
     strip->flag &= ~(SEQ_LEFTSEL + SEQ_RIGHTSEL + SEQ_LOCK);
-    strip->flag |= SEQ_IGNORE_CHANNEL_LOCK;
+    strip->runtime.flag |= STRIP_IGNORE_CHANNEL_LOCK;
 
     seq::animation_duplicate_backup_to_scene(scene, strip, &animation_backup);
     seq::ensure_unique_name(strip, scene);
@@ -1796,7 +1797,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
       if (seq::transform_test_overlap(scene, ed->seqbasep, strip)) {
         seq::transform_seqbase_shuffle(ed->seqbasep, strip, scene);
       }
-      strip->flag &= ~SEQ_IGNORE_CHANNEL_LOCK;
+      strip->runtime.flag &= ~STRIP_IGNORE_CHANNEL_LOCK;
     }
   }
 
@@ -2007,7 +2008,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
       Strip *strip_next;
 
       /* TODO: remove f-curve and assign to split image strips.
-       * The old animation system would remove the user of `strip->ipo`. */
+       * The old animation system would remove the user of `strip->ipo_legacy`. */
 
       start_ofs = timeline_frame = seq::time_left_handle_frame_get(scene, strip);
       frame_end = seq::time_right_handle_frame_get(scene, strip);
@@ -2033,11 +2034,11 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
         /* Note this assume all elements (images) have the same dimension,
          * since we only copy the name here. */
         se_new = static_cast<StripElem *>(MEM_reallocN(data_new->stripdata, sizeof(*se_new)));
-        STRNCPY(se_new->filename, se->filename);
+        STRNCPY_UTF8(se_new->filename, se->filename);
         data_new->stripdata = se_new;
 
         if (step > 1) {
-          strip_new->flag &= ~SEQ_OVERLAP;
+          strip_new->runtime.flag &= ~STRIP_OVERLAP;
           if (seq::transform_test_overlap(scene, seqbase, strip_new)) {
             seq::transform_seqbase_shuffle(seqbase, strip_new, scene);
           }
@@ -2188,13 +2189,13 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   for (int i = channel_min; i <= channel_max; i++) {
     SeqTimelineChannel *channel_cur = seq::channel_get_by_index(channels_cur, i);
     SeqTimelineChannel *channel_meta = seq::channel_get_by_index(channels_meta, i);
-    STRNCPY(channel_meta->name, channel_cur->name);
+    STRNCPY_UTF8(channel_meta->name, channel_cur->name);
     channel_meta->flag = channel_cur->flag;
   }
 
   const int channel = active_strip ? active_strip->channel : channel_max;
   seq::strip_channel_set(strip_meta, channel);
-  BLI_strncpy(strip_meta->name + 2, DATA_("MetaStrip"), sizeof(strip_meta->name) - 2);
+  BLI_strncpy_utf8(strip_meta->name + 2, DATA_("MetaStrip"), sizeof(strip_meta->name) - 2);
   seq::strip_unique_name_set(scene, &ed->seqbase, strip_meta);
   strip_meta->start = meta_start_frame;
   strip_meta->len = meta_end_frame - meta_start_frame;
@@ -2259,7 +2260,7 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   /* Test for effects and overlap. */
   LISTBASE_FOREACH (Strip *, strip, active_seqbase) {
     if (strip->flag & SELECT) {
-      strip->flag &= ~SEQ_OVERLAP;
+      strip->runtime.flag &= ~STRIP_OVERLAP;
       if (seq::transform_test_overlap(scene, active_seqbase, strip)) {
         seq::transform_seqbase_shuffle(active_seqbase, strip, scene);
       }
@@ -3111,12 +3112,12 @@ static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator 
   if (!BLI_exists(filepath)) {
     BLI_file_ensure_parent_dir_exists(filepath);
     if (!BLI_file_touch(filepath)) {
-      BKE_report(op->reports, RPT_ERROR, "Can't create subtitle file");
+      BKE_report(op->reports, RPT_ERROR, "Cannot create subtitle file");
       return OPERATOR_CANCELLED;
     }
   }
   else if (!BLI_file_is_writable(filepath)) {
-    BKE_report(op->reports, RPT_ERROR, "Can't overwrite export file");
+    BKE_report(op->reports, RPT_ERROR, "Cannot overwrite export file");
     return OPERATOR_CANCELLED;
   }
 
@@ -3236,7 +3237,7 @@ static wmOperatorStatus sequencer_set_range_to_strips_exec(bContext *C, wmOperat
     return OPERATOR_CANCELLED;
   }
   if (efra < 0) {
-    BKE_report(op->reports, RPT_ERROR, "Can't set a negative range");
+    BKE_report(op->reports, RPT_ERROR, "Cannot set a negative range");
     return OPERATOR_CANCELLED;
   }
 
