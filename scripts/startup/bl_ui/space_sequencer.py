@@ -801,6 +801,8 @@ class SEQUENCER_MT_add_scene(Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("sequencer.scene_strip_add_new", text="New Scene", icon='ADD').type = 'NEW'
 
+        layout.menu_contents("SEQUENCER_MT_scene_add_root_catalogs")
+
         bpy_data_scenes_len = len(bpy.data.scenes)
         if bpy_data_scenes_len > 10:
             layout.separator()
@@ -816,9 +818,6 @@ class SEQUENCER_MT_add_scene(Menu):
                 layout.operator_context = 'INVOKE_REGION_WIN'
                 layout.operator("sequencer.scene_strip_add", text=sc_item.name, translate=False).scene = sc_item.name
         
-        layout.separator()
-        layout.menu_contents("SEQUENCER_MT_scene_add_root_catalogs")
-
         del bpy_data_scenes_len
 
 

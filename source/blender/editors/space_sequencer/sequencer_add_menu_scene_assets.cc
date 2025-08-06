@@ -162,6 +162,9 @@ static void sequencer_add_root_catalogs_draw(const bContext *C, Menu *menu)
     layout->menu(
         "SEQUENCER_MT_scene_add_unassigned_assets", IFACE_("Unassigned"), ICON_FILE_HIDDEN);
   }
+
+  /* We expect this to be drawn before another section in the menu. */
+  layout->separator();
 }
 
 MenuType add_catalog_assets_menu_type()
