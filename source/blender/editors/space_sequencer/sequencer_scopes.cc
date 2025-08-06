@@ -105,6 +105,15 @@ static void init_wave_table(int height, uchar wtable[256])
   }
 }
 
+static void rgba_float_to_display_space(ColormanageProcessor *processor,
+                                        const ColorSpace *src_colorspace,
+                                        MutableSpan<float4> pixels)
+{
+  IMB_colormanagement_colorspace_to_scene_linear(
+      &pixels.data()->x, pixels.size(), 1, 4, src_colorspace, false);
+  IMB_colormanagement_processor_apply(processor, &pixels.data()->x, pixels.size(), 1, 4, false);
+}
+
 static Array<float4> pixels_to_display_space(ColormanageProcessor *processor,
                                              const ColorSpace *src_colorspace,
                                              int64_t num,
@@ -116,9 +125,7 @@ static Array<float4> pixels_to_display_space(ColormanageProcessor *processor,
     premul_to_straight_v4_v4(result[i], src);
     src += stride;
   }
-  IMB_colormanagement_colorspace_to_scene_linear(
-      &result.data()->x, result.size(), 1, 4, src_colorspace, false);
-  IMB_colormanagement_processor_apply(processor, &result.data()->x, result.size(), 1, 4, false);
+  rgba_float_to_display_space(processor, src_colorspace, result);
   return result;
 }
 
@@ -133,9 +140,7 @@ static Array<float4> pixels_to_display_space(ColormanageProcessor *processor,
     rgba_uchar_to_float(result[i], src);
     src += stride;
   }
-  IMB_colormanagement_colorspace_to_scene_linear(
-      &result.data()->x, result.size(), 1, 4, src_colorspace, false);
-  IMB_colormanagement_processor_apply(processor, &result.data()->x, result.size(), 1, 4, false);
+  rgba_float_to_display_space(processor, src_colorspace, result);
   return result;
 }
 
@@ -459,6 +464,7 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
         }
         return res;
       },
+      /* Merge histograms computed per-thread. */
       [&](const Array<uint3> &a, const Array<uint3> &b) {
         BLI_assert(a.size() == b.size());
         Array<uint3> res(a.size());
@@ -478,57 +484,122 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
   }
 }
 
-ImBuf *make_vectorscope_view_from_ibuf(const ImBuf *ibuf)
+ImBuf *make_vectorscope_view_from_ibuf(const ImBuf *ibuf,
+                                       const ColorManagedViewSettings &view_settings,
+                                       const ColorManagedDisplaySettings &display_settings)
 {
 #ifdef DEBUG_TIME
   SCOPED_TIMER(__func__);
 #endif
-  const int size = 512;
+  constexpr int size = 512;
   const float size_mul = size - 1.0f;
-  ImBuf *rval = IMB_allocImBuf(size, size, 32, IB_byte_data);
 
-  uchar *dst = rval->byte_buffer.data;
-  float rgb[3];
+  ColormanageProcessor *cm_processor = IMB_colormanagement_display_processor_for_imbuf(
+      ibuf, &view_settings, &display_settings);
 
+  const bool is_float = ibuf->float_buffer.data != nullptr;
+  /* Vector scope is calculated by scattering writes into the resulting scope image. Do it with
+   * parallel reduce, by filling a separate image per job and merging them. Since the payload
+   * of each job is fairly large, make the jobs large enough too. */
+  constexpr int64_t grain_size = 256 * 1024;
+  Array<uint8_t> counts(size * size, uint8_t(0));
+  Array<uint8_t> data = threading::parallel_reduce(
+      IndexRange(IMB_get_pixel_count(ibuf)),
+      grain_size,
+      counts,
+      [&](const IndexRange range, const Array<uint8_t> &init) {
+        Array<uint8_t> res = init;
+
+        const float *src_f = is_float ? ibuf->float_buffer.data + range.first() * 4 : nullptr;
+        const uchar *src_b = !is_float ? ibuf->byte_buffer.data + range.first() * 4 : nullptr;
+        if (cm_processor) {
+          /* Byte or float image, color space conversions needed. Do them in smaller chunks
+           * than the whole job size, so they fit into CPU cache and can be on the stack. */
+          constexpr int64_t chunk_size = 4 * 1024;
+          float4 pixels[chunk_size];
+          for (int64_t index = 0; index < range.size(); index += chunk_size) {
+            const int64_t sub_size = std::min(range.size() - index, chunk_size);
+            if (is_float) {
+              for (int64_t i = 0; i < sub_size; i++) {
+                premul_to_straight_v4_v4(pixels[i], src_f);
+                src_f += 4;
+              }
+            }
+            else {
+              for (int64_t i = 0; i < sub_size; i++) {
+                rgba_uchar_to_float(pixels[i], src_b);
+                src_b += 4;
+              }
+            }
+            MutableSpan<float4> pixels_span = MutableSpan<float4>(pixels, sub_size);
+            rgba_float_to_display_space(cm_processor,
+                                        is_float ? ibuf->float_buffer.colorspace :
+                                                   ibuf->byte_buffer.colorspace,
+                                        pixels_span);
+            for (float4 pixel : pixels_span) {
+              clamp_v3(pixel, 0.0f, 1.0f);
+              float2 uv = rgb_to_uv_normalized(pixel) * size_mul;
+              int offset = size * int(uv.y) + int(uv.x);
+              res[offset] = std::min<int>(res[offset] + 1, 255);
+            }
+          }
+        }
+        else if (is_float) {
+          /* Float image, no color space conversions needed. */
+          for ([[maybe_unused]] const int64_t index : range) {
+            float4 pixel;
+            premul_to_straight_v4_v4(pixel, src_f);
+            clamp_v3(pixel, 0.0f, 1.0f);
+            float2 uv = rgb_to_uv_normalized(pixel) * size_mul;
+            int offset = size * int(uv.y) + int(uv.x);
+            res[offset] = std::min<int>(res[offset] + 1, 255);
+            src_f += 4;
+          }
+        }
+        else {
+          /* Byte image, no color space conversions needed. */
+          for ([[maybe_unused]] const int64_t index : range) {
+            float4 pixel;
+            rgb_uchar_to_float(pixel, src_b);
+            float2 uv = rgb_to_uv_normalized(pixel) * size_mul;
+            int offset = size * int(uv.y) + int(uv.x);
+            res[offset] = std::min<int>(res[offset] + 1, 255);
+            src_b += 4;
+          }
+        }
+        return res;
+      },
+      /* Merge scopes computed per-thread. */
+      [&](const Array<uint8_t> &a, const Array<uint8_t> &b) {
+        BLI_assert(a.size() == b.size());
+        Array<uint8_t> res(a.size(), NoInitialization());
+        for (int64_t i : a.index_range()) {
+          res[i] = std::min<int>(a[i] + b[i], 255);
+        }
+        return res;
+      });
+
+  /* Fill the vector scope image from the computed data. */
   uchar wtable[256];
   init_wave_table(math::midpoint(ibuf->x, ibuf->y), wtable);
 
-  if (ibuf->float_buffer.data) {
-    /* Float image. */
-    const float *src = ibuf->float_buffer.data;
-    for (int y = 0; y < ibuf->y; y++) {
-      for (int x = 0; x < ibuf->x; x++) {
-        memcpy(rgb, src, sizeof(float[3]));
-        clamp_v3(rgb, 0.0f, 1.0f);
-
-        float2 uv = rgb_to_uv_normalized(rgb) * size_mul;
-
-        uchar *p = dst + 4 * (size * int(uv.y) + int(uv.x));
-        scope_put_pixel(wtable, p);
-
-        src += 4;
-      }
+  ImBuf *rval = IMB_allocImBuf(size, size, 32, IB_byte_data | IB_uninitialized_pixels);
+  uchar *dst = rval->byte_buffer.data;
+  for (int i = 0; i < size * size; i++) {
+    uint8_t val = data[i];
+    if (val != 0) {
+      val = wtable[val];
     }
-  }
-  else {
-    /* Byte image. */
-    const uchar *src = ibuf->byte_buffer.data;
-    for (int y = 0; y < ibuf->y; y++) {
-      for (int x = 0; x < ibuf->x; x++) {
-        rgb[0] = float(src[0]) * (1.0f / 255.0f);
-        rgb[1] = float(src[1]) * (1.0f / 255.0f);
-        rgb[2] = float(src[2]) * (1.0f / 255.0f);
-
-        float2 uv = rgb_to_uv_normalized(rgb) * size_mul;
-
-        uchar *p = dst + 4 * (size * int(uv.y) + int(uv.x));
-        scope_put_pixel(wtable, p);
-
-        src += 4;
-      }
-    }
+    dst[0] = val;
+    dst[1] = val;
+    dst[2] = val;
+    dst[3] = 255;
+    dst += 4;
   }
 
+  if (cm_processor) {
+    IMB_colormanagement_processor_free(cm_processor);
+  }
   return rval;
 }
 
