@@ -7,40 +7,36 @@ import argparse
 import os
 import sys
 
-
-# When run from inside Blender, render and exit.
-try:
-    import bpy
-    inside_blender = True
-except ImportError:
-    inside_blender = False
+from modules import render_report
 
 
-def get_compositor_device_setter_script(execution_device):
-    return f"import bpy; bpy.data.scenes[0].render.compositor_device = '{execution_device}'"
+class CompositorReport(render_report.Report):
+    def __init__(self, title, outdir, oiiotool, backend):
+        super().__init__(title, outdir, oiiotool)
+        self.backend = backend
 
+    def get_arguments(self, filepath, output_filepath):
+        arguments = [
+            "--background",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error"]
 
-def get_arguments(filepath, output_filepath, backend):
-    arguments = [
-        "--background",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error"]
+        execution_device = "CPU"
+        if self.backend != "CPU":
+            execution_device = "GPU"
+            arguments.extend(["--gpu-backend", self.backend])
 
-    execution_device = "CPU"
-    if backend != "CPU":
-        execution_device = "GPU"
-        arguments.extend(["--gpu-backend", backend])
+        expr = f"import bpy; bpy.data.scenes[0].render.compositor_device = '{execution_device}'"
 
-    arguments.extend([
-        filepath,
-        "-P", os.path.realpath(__file__),
-        "--python-expr", get_compositor_device_setter_script(execution_device),
-        "-o", output_filepath,
-        "-F", "PNG",
-        "-f", "1"])
-    return arguments
+        arguments.extend([
+            filepath,
+            "--python-expr", expr,
+            "-o", output_filepath,
+            "-F", "PNG",
+            "-f", "1"])
+        return arguments
 
 
 def create_argparse():
@@ -60,10 +56,9 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    from modules import render_report
     backend = args.gpu_backend if args.gpu_backend else "CPU"
     report_title = f"Compositor {backend.upper()}"
-    report = render_report.Report(report_title, args.outdir, args.oiiotool)
+    report = CompositorReport(report_title, args.outdir, args.oiiotool, backend)
     report.set_pixelated(True)
     report.set_reference_dir("compositor_renders")
 
@@ -78,11 +73,10 @@ def main():
         report.set_fail_threshold(0.06)
         report.set_fail_percent(2)
 
-    def arguments_callback(filepath, output_filepath): return get_arguments(filepath, output_filepath, backend)
-    ok = report.run(args.testdir, args.blender, arguments_callback, batch=args.batch)
+    ok = report.run(args.testdir, args.blender, batch=args.batch)
 
     sys.exit(not ok)
 
 
-if not inside_blender and __name__ == "__main__":
+if __name__ == "__main__":
     main()

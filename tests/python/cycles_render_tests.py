@@ -143,62 +143,58 @@ class CyclesReport(render_report.Report):
 
         super().__init__(title, output_dir, oiiotool, variation, blocklist)
 
-    def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
-        return arguments_cb(filepath, base_output_filepath, self.use_hwrt, self.osl)
+    def get_arguments(self, filepath, output_filepath):
+        dirname = os.path.dirname(filepath)
+        basedir = os.path.dirname(dirname)
+        subject = os.path.basename(dirname)
 
-    def _get_arguments_suffix(self):
+        args = [
+            "--background",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error",
+            filepath,
+            "-E", "CYCLES",
+            "-o", output_filepath,
+            "-F", "PNG"]
+
+        # OSL and GPU examples
+        # custom_args += ["--python-expr", "import bpy; bpy.context.scene.cycles.shading_system = True"]
+        # custom_args += ["--python-expr", "import bpy; bpy.context.scene.cycles.device = 'GPU'"]
+        custom_args = os.getenv('CYCLESTEST_ARGS')
+        if custom_args:
+            args.extend(shlex.split(custom_args))
+
+        spp_multiplier = os.getenv('CYCLESTEST_SPP_MULTIPLIER')
+        if spp_multiplier:
+            args.extend(["--python-expr", f"import bpy; bpy.context.scene.cycles.samples *= {spp_multiplier}"])
+
+        cycles_pref = "bpy.context.preferences.addons['cycles'].preferences"
+        use_hwrt_bool_value = "True" if self.use_hwrt else "False"
+        use_hwrt_on_off_value = "'ON'" if self.use_hwrt else "'OFF'"
+        args.extend([
+            "--python-expr",
+            (f"import bpy;"
+             f"{cycles_pref}.use_hiprt = {use_hwrt_bool_value};"
+             f"{cycles_pref}.use_oneapirt = {use_hwrt_bool_value};"
+             f"{cycles_pref}.metalrt = {use_hwrt_on_off_value}")
+        ])
+
+        if self.osl:
+            args.extend(["--python-expr", "import bpy; bpy.context.scene.cycles.shading_system = True"])
+
+        if subject == 'bake':
+            args.extend(['--python', os.path.join(basedir, "util", "render_bake.py")])
+        elif subject == 'denoise_animation':
+            args.extend(['--python', os.path.join(basedir, "util", "render_denoise.py")])
+        else:
+            args.extend(["-f", "1"])
+
+        return args
+
+    def get_arguments_suffix(self):
         return ['--', '--cycles-device', self.device] if self.device else []
-
-
-def get_arguments(filepath, output_filepath, use_hwrt=False, osl=False):
-    dirname = os.path.dirname(filepath)
-    basedir = os.path.dirname(dirname)
-    subject = os.path.basename(dirname)
-
-    args = [
-        "--background",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error",
-        filepath,
-        "-E", "CYCLES",
-        "-o", output_filepath,
-        "-F", "PNG"]
-
-    # OSL and GPU examples
-    # custom_args += ["--python-expr", "import bpy; bpy.context.scene.cycles.shading_system = True"]
-    # custom_args += ["--python-expr", "import bpy; bpy.context.scene.cycles.device = 'GPU'"]
-    custom_args = os.getenv('CYCLESTEST_ARGS')
-    if custom_args:
-        args.extend(shlex.split(custom_args))
-
-    spp_multiplier = os.getenv('CYCLESTEST_SPP_MULTIPLIER')
-    if spp_multiplier:
-        args.extend(["--python-expr", f"import bpy; bpy.context.scene.cycles.samples *= {spp_multiplier}"])
-
-    cycles_pref = "bpy.context.preferences.addons['cycles'].preferences"
-    use_hwrt_bool_value = "True" if use_hwrt else "False"
-    use_hwrt_on_off_value = "'ON'" if use_hwrt else "'OFF'"
-    args.extend([
-        "--python-expr",
-        (f"import bpy;"
-         f"{cycles_pref}.use_hiprt = {use_hwrt_bool_value};"
-         f"{cycles_pref}.use_oneapirt = {use_hwrt_bool_value};"
-         f"{cycles_pref}.metalrt = {use_hwrt_on_off_value}")
-    ])
-
-    if osl:
-        args.extend(["--python-expr", "import bpy; bpy.context.scene.cycles.shading_system = True"])
-
-    if subject == 'bake':
-        args.extend(['--python', os.path.join(basedir, "util", "render_bake.py")])
-    elif subject == 'denoise_animation':
-        args.extend(['--python', os.path.join(basedir, "util", "render_denoise.py")])
-    else:
-        args.extend(["-f", "1"])
-
-    return args
 
 
 def create_argparse():

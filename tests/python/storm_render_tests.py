@@ -7,6 +7,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from modules import render_report
 
 # Unsupported or broken scenarios for the Storm render engine
 BLOCKLIST_HYDRA = [
@@ -55,9 +56,8 @@ BLOCKLIST_METAL = [
 ]
 
 
-def setup():
-    import bpy
-    import addon_utils
+def setup(bpy):
+    import addon_utils  # pyright: ignore
 
     addon_utils.enable("hydra_storm")
 
@@ -66,34 +66,20 @@ def setup():
         scene.hydra.export_method = os.environ['BLENDER_HYDRA_EXPORT_METHOD']
 
 
-# When run from inside Blender, render and exit.
-try:
-    import bpy
-    inside_blender = True
-except ImportError:
-    inside_blender = False
-
-if inside_blender:
-    try:
-        setup()
-    except Exception as e:
-        print(e)
-        sys.exit(1)
-
-
-def get_arguments(filepath, output_filepath):
-    return [
-        "--background",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error",
-        filepath,
-        "-P",
-        os.path.realpath(__file__),
-        "-o", output_filepath,
-        "-F", "PNG",
-        "-f", "1"]
+class StormReport(render_report.Report):
+    def get_arguments(self, filepath, output_filepath):
+        return [
+            "--background",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error",
+            filepath,
+            "-P",
+            os.path.realpath(__file__),
+            "-o", output_filepath,
+            "-F", "PNG",
+            "-f", "1"]
 
 
 def create_argparse():
@@ -113,16 +99,14 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    from modules import render_report
-
     blocklist = BLOCKLIST_METAL if sys.platform == "darwin" else []
 
     if args.export_method == 'HYDRA':
-        report = render_report.Report("Storm Hydra", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_HYDRA)
+        report = StormReport("Storm Hydra", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_HYDRA)
         report.set_reference_dir("storm_hydra_renders")
         report.set_compare_engine('cycles', 'CPU')
     else:
-        report = render_report.Report("Storm USD", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_USD)
+        report = StormReport("Storm USD", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_USD)
         report.set_reference_dir("storm_usd_renders")
         report.set_compare_engine('storm_hydra')
 
@@ -141,10 +125,11 @@ def main():
 
     os.environ['BLENDER_HYDRA_EXPORT_METHOD'] = args.export_method
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+    ok = report.run(args.testdir, args.blender, batch=args.batch)
 
     sys.exit(not ok)
 
 
-if not inside_blender and __name__ == "__main__":
-    main()
+if __name__ == "__main__":
+    if not render_report.run_inside_blender(setup):
+        main()

@@ -4,10 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import os
 import sys
-from pathlib import Path
 
+from modules import render_report
 
 BLOCKLIST = [
     "hdr_simple_export_hlg_12bit.blend",
@@ -16,23 +15,21 @@ BLOCKLIST = [
 ]
 
 
-def get_arguments(filepath, output_filepath):
-    dirname = os.path.dirname(filepath)
-    basedir = os.path.dirname(dirname)
+class SequencerReport(render_report.Report):
+    def get_arguments(self, filepath, output_filepath):
+        args = [
+            "--background",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error",
+            filepath,
+            "-o", output_filepath,
+            "-F", "PNG",
+            "-f", "1",
+        ]
 
-    args = [
-        "--background",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error",
-        filepath,
-        "-o", output_filepath,
-        "-F", "PNG",
-        "-f", "1",
-    ]
-
-    return args
+        return args
 
 
 def create_argparse():
@@ -51,15 +48,14 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    from modules import render_report
-    report = render_report.Report("Sequencer", args.outdir, args.oiiotool, blocklist=BLOCKLIST)
+    report = SequencerReport("Sequencer", args.outdir, args.oiiotool, blocklist=BLOCKLIST)
     report.set_pixelated(True)
     # Default error tolerances are quite large, lower them.
     report.set_fail_threshold(2.0 / 255.0)
     report.set_fail_percent(0.01)
     report.set_reference_dir("reference")
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+    ok = report.run(args.testdir, args.blender, batch=args.batch)
 
     sys.exit(not ok)
 

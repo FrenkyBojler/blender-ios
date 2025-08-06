@@ -12,26 +12,29 @@ import os
 import sys
 from pathlib import Path
 
+from modules import render_report
 
-def get_arguments(filepath, output_filepath):
-    dirname = os.path.dirname(filepath)
-    basedir = os.path.dirname(dirname)
 
-    args = [
-        "--background",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error",
-        filepath,
-        "-E", "CYCLES",
-        "-o", output_filepath,
-        "-F", "PNG",
-        "--python", os.path.join(basedir, "util", "import_svg.py"),
-        "-f", "1",
-    ]
+class SVGReport(render_report.Report):
+    def get_arguments(self, filepath, output_filepath):
+        dirname = os.path.dirname(filepath)
+        basedir = os.path.dirname(dirname)
 
-    return args
+        args = [
+            "--background",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error",
+            filepath,
+            "-E", "CYCLES",
+            "-o", output_filepath,
+            "-F", "PNG",
+            "--python", os.path.join(basedir, "util", "import_svg.py"),
+            "-f", "1",
+        ]
+
+        return args
 
 
 def create_argparse():
@@ -50,15 +53,14 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    from modules import render_report
-    report = render_report.Report('IO Curve SVG', args.outdir, args.oiiotool)
+    report = SVGReport('IO Curve SVG', args.outdir, args.oiiotool)
     report.set_pixelated(True)
 
     test_dir_name = Path(args.testdir).name
     if test_dir_name == 'complex':
         report.set_fail_percent(0.01)
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+    ok = report.run(args.testdir, args.blender, batch=args.batch)
 
     sys.exit(not ok)
 

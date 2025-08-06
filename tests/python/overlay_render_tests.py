@@ -4,13 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import importlib.util
 import os
 import platform
-import subprocess
 import sys
 from pathlib import Path
-import sys
 
 from modules import render_report
 
@@ -20,39 +17,35 @@ class OverlayReport(render_report.Report):
         super().__init__(title, output_dir, oiiotool, variation=variation, blocklist=blocklist)
         self.gpu_backend = variation
 
-    def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
-        return arguments_cb(filepath, base_output_filepath, gpu_backend=self.gpu_backend)
+    def get_arguments(self, filepath, output_filepath):
+        arguments = [
+            "--no-window-focus",
+            "--window-geometry",
+            "0", "0", "128", "128",
+            "-noaudio",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error"]
 
+        if self.gpu_backend:
+            arguments.extend(["--gpu-backend", self.gpu_backend])
 
-def get_arguments(filepath, output_filepath, gpu_backend):
-    arguments = [
-        "--no-window-focus",
-        "--window-geometry",
-        "0", "0", "128", "128",
-        "-noaudio",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error"]
+        # Windows separators get messed up when passing them inside the python expression
+        output_filepath = output_filepath.replace("\\", "/")
 
-    if gpu_backend:
-        arguments.extend(["--gpu-backend", gpu_backend])
+        script_name = Path(filepath).stem + ".py"
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        script_filepath = os.path.join(current_dir, "overlay", script_name)
 
-    # Windows separators get messed up when passing them inside the python expression
-    output_filepath = output_filepath.replace("\\", "/")
+        arguments.extend([
+            filepath,
+            "--python-expr",
+            f'import bpy; bpy.context.scene.render.filepath = "{output_filepath}"',
+            "-P",
+            script_filepath])
 
-    script_name = Path(filepath).stem + ".py"
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    script_filepath = os.path.join(current_dir, "overlay", script_name)
-
-    arguments.extend([
-        filepath,
-        "--python-expr",
-        f'import bpy; bpy.context.scene.render.filepath = "{output_filepath}"',
-        "-P",
-        script_filepath])
-
-    return arguments
+        return arguments
 
 
 def create_argparse():
@@ -84,7 +77,7 @@ def main():
     if test_dir_name.startswith('hair') and platform.system() == "Darwin":
         report.set_fail_threshold(0.050)
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+    ok = report.run(args.testdir, args.blender, batch=args.batch)
 
     sys.exit(not ok)
 

@@ -6,6 +6,7 @@
 import argparse
 import os
 import sys
+from modules import render_report
 
 
 def set_view3d_context_override(context_override):
@@ -35,7 +36,7 @@ def generate_stroke(context):
 
     The generated stroke covers the full plane diagonal.
     """
-    from mathutils import Vector
+    from mathutils import Vector  # pyright: ignore
 
     template = {
         "name": "stroke",
@@ -65,12 +66,11 @@ def generate_stroke(context):
     return stroke
 
 
-def setup():
+def setup(bpy):
     """
     Prepare the scene for rendering - generates objects then performs a stroke
     """
 
-    import bpy
     context = bpy.context
 
     # Create an undo stack explicitly. This isn't created by default in background mode.
@@ -92,38 +92,20 @@ def setup():
     bpy.ops.object.mode_set(mode='OBJECT')
 
 
-try:
-    import bpy
-    inside_blender = True
-except ImportError:
-    inside_blender = False
-
-
-if inside_blender:
-    try:
-        setup()
-    except Exception as e:
-        print(e)
-        sys.exit(1)
-
-
-def get_arguments(filepath, output_filepath):
-    dirname = os.path.dirname(filepath)
-
-    args = [
-        "--background",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error",
-        filepath,
-        "-E", "BLENDER_WORKBENCH",
-        "-P", os.path.realpath(__file__),
-        "-o", output_filepath,
-        "-f", "1",
-        "-F", "PNG"]
-
-    return args
+class SculptReport(render_report.Report):
+    def get_arguments(self, filepath, output_filepath):
+        return [
+            "--background",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error",
+            filepath,
+            "-E", "BLENDER_WORKBENCH",
+            "-P", os.path.realpath(__file__),
+            "-o", output_filepath,
+            "-f", "1",
+            "-F", "PNG"]
 
 
 def create_argparse():
@@ -142,17 +124,17 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    from modules import render_report
-    report = render_report.Report("Sculpt", args.outdir, args.oiiotool)
+    report = SculptReport("Sculpt", args.outdir, args.oiiotool)
     report.set_pixelated(True)
     report.set_fail_threshold(2.0 / 255.0)
     report.set_fail_percent(1.5)
     report.set_reference_dir("reference")
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+    ok = report.run(args.testdir, args.blender, batch=args.batch)
 
     sys.exit(not ok)
 
 
-if not inside_blender and __name__ == "__main__":
-    main()
+if __name__ == "__main__":
+    if not render_report.run_inside_blender(setup):
+        main()

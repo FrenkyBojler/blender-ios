@@ -20,23 +20,6 @@ def get_movie_file_suffix(filepath):
     return Path(filepath).stem.split("_")[-1]
 
 
-def get_arguments(filepath, output_filepath):
-    suffix = get_movie_file_suffix(filepath)
-
-    args = [
-        "--background",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error",
-        filepath,
-        "-o", f"{output_filepath}.{suffix}",
-        "-a",
-    ]
-
-    return args
-
-
 def create_argparse():
     parser = argparse.ArgumentParser(
         description="Run test script for each blend file in TESTDIR, comparing the render result with known output."
@@ -99,8 +82,24 @@ strip.colorspace_settings.name = 'Non-Color'
 
         try:
             subprocess.check_output(command)
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             pass
+
+    def get_arguments(self, filepath, output_filepath):
+        suffix = get_movie_file_suffix(filepath)
+
+        args = [
+            "--background",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error",
+            filepath,
+            "-o", f"{output_filepath}.{suffix}",
+            "-a",
+        ]
+
+        return args
 
 
 def main():
@@ -114,7 +113,7 @@ def main():
     report.set_fail_percent(0.01)
     report.set_reference_dir("reference")
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+    ok = report.run(args.testdir, args.blender, batch=args.batch)
 
     sys.exit(not ok)
 

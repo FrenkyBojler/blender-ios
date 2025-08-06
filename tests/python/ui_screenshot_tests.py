@@ -7,10 +7,10 @@ import argparse
 import os
 import sys
 
+from modules import render_report
 
-def screenshot():
-    import bpy
 
+def screenshot(bpy):
     output_path = sys.argv[-1]
 
     # Force redraw and take screenshot.
@@ -20,33 +20,22 @@ def screenshot():
     bpy.ops.wm.quit_blender()
 
 
-# When run from inside Blender, take screenshot and exit.
-try:
-    import bpy
-    inside_blender = True
-except ImportError:
-    inside_blender = False
-
-if inside_blender:
-    screenshot()
-    sys.exit(0)
-
-
-def get_arguments(filepath, output_filepath):
-    return [
-        "--no-window-focus",
-        "--window-geometry",
-        "0", "0", "1024", "768",
-        "-noaudio",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error",
-        filepath,
-        "-P",
-        os.path.realpath(__file__),
-        "--",
-        output_filepath + '0001.png']
+class UIReport(render_report.Report):
+    def get_arguments(self, filepath, output_filepath):
+        return [
+            "--no-window-focus",
+            "--window-geometry",
+            "0", "0", "1024", "768",
+            "-noaudio",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error",
+            filepath,
+            "-P",
+            os.path.realpath(__file__),
+            "--",
+            output_filepath + '0001.png']
 
 
 def create_argparse():
@@ -65,12 +54,12 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    from modules import render_report
-    report = render_report.Report("Screenshot", args.outdir, args.oiiotool)
-    ok = report.run(args.testdir, args.blender, get_arguments)
+    report = UIReport("Screenshot", args.outdir, args.oiiotool)
+    ok = report.run(args.testdir, args.blender)
 
     sys.exit(not ok)
 
 
 if __name__ == "__main__":
-    main()
+    if not render_report.run_inside_blender(screenshot):
+        main()

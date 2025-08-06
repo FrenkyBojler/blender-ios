@@ -8,12 +8,17 @@ a HTML report showing the differences, for regression testing.
 """
 
 import glob
+import multiprocessing
 import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import time
-import multiprocessing
+
+from typing import (
+    Optional,
+)
 
 from . import global_report
 from .colored_print import (print_message, use_message_colors)
@@ -22,7 +27,7 @@ from .colored_print import (print_message, use_message_colors)
 def blend_list(dirpath, blocklist):
     import re
 
-    for root, dirs, files in os.walk(dirpath):
+    for root, _, files in os.walk(dirpath):
         for filename in files:
             if not filename.lower().endswith(".blend"):
                 continue
@@ -77,7 +82,7 @@ class TestResult:
     def __init__(self, report, filepath, name):
         self.filepath = filepath
         self.name = name
-        self.error = None
+        self.error: Optional[str] = None
         self.tmp_out_img_base = os.path.join(report.output_dir, "tmp_" + name)
         self.tmp_out_img = self.tmp_out_img_base + '0001.png'
         self.old_img, self.ref_img, self.new_img, self.diff_color_img, self.diff_alpha_img = test_get_images(
@@ -158,7 +163,7 @@ def diff_output(test, oiiotool, fail_threshold, fail_percent, verbose, update):
     try:
         subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        if self.verbose:
+        if verbose:
             msg = e.output.decode("utf-8", 'ignore')
             for line in msg.splitlines():
                 # Ignore warnings for images without alpha channel.
@@ -249,10 +254,10 @@ class Report:
     def set_engine_name(self, engine_name):
         self.engine_name = engine_name
 
-    def run(self, dirpath, blender, arguments_cb, batch=False, fail_silently=False):
+    def run(self, dirpath, blender, batch=False, fail_silently=False):
         # Run tests and output report.
         dirname = os.path.basename(dirpath)
-        ok = self._run_all_tests(dirname, dirpath, blender, arguments_cb, batch, fail_silently)
+        ok = self._run_all_tests(dirname, dirpath, blender, batch, fail_silently)
         self._write_data(dirname)
         self._write_html()
         if self.compare_engine:
@@ -472,13 +477,11 @@ class Report:
 
             self.compare_tests += test_html
 
-    def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
-        # Each render test can override this method to provide extra functionality.
-        # See Cycles render tests for an example.
-        # Do not delete.
-        return arguments_cb(filepath, base_output_filepath)
+    def get_arguments(self, filepath, output_filepath):
+        # Each render test should override this method.
+        return ["-b", filepath, "-o", output_filepath, "-f", "1"]
 
-    def _get_arguments_suffix(self):
+    def get_arguments_suffix(self):
         # Get command line arguments that need to be provided after all file-specific ones.
         # For example the Cycles render device argument needs to be added at the end of
         # the argument list, otherwise tests can't be batched together.
@@ -495,7 +498,7 @@ class Report:
             testname = test_get_name(filepath)
             return [TestResult(self, filepath, testname)]
 
-    def _run_tests(self, filepaths, blender, arguments_cb, batch):
+    def _run_tests(self, filepaths, blender, batch):
         # Run multiple tests in a single Blender process since startup can be
         # a significant factor. In case of crashes, re-run the remaining tests.
         verbose = os.environ.get("BLENDER_VERBOSE") is not None
@@ -519,13 +522,13 @@ class Report:
                 if os.path.exists(output_filepath):
                     os.remove(output_filepath)
 
-                command.extend(self._get_render_arguments(arguments_cb, filepath, base_output_filepath))
+                command.extend(self.get_arguments(filepath, base_output_filepath))
 
                 # Only chain multiple commands for batch
                 if not batch:
                     break
 
-            command.extend(self._get_arguments_suffix())
+            command.extend(self.get_arguments_suffix())
 
             # Run process
             crash = False
@@ -595,10 +598,9 @@ class Report:
         Post-process test result after the Blender has run.
         For example, this function is where conversion from video to a still image suitable for image diffing.
         """
-
         pass
 
-    def _run_all_tests(self, dirname, dirpath, blender, arguments_cb, batch, fail_silently):
+    def _run_all_tests(self, dirname, dirpath, blender, batch, fail_silently):
         passed_tests = []
         failed_tests = []
         silently_failed_tests = []
@@ -612,7 +614,7 @@ class Report:
                       format(len(all_files)),
                       'SUCCESS', "==========")
         time_start = time.time()
-        test_results = self._run_tests(all_files, blender, arguments_cb, batch)
+        test_results = self._run_tests(all_files, blender, batch)
         for test in test_results:
             if test.error:
                 if test.error == "NO_ENGINE":
@@ -646,3 +648,22 @@ class Report:
                 print_message("{}" . format(test), 'FAILURE', "FAILED")
 
         return not bool(failed_tests)
+
+
+def run_inside_blender(setup):
+    """
+    When inside Blender, run the setup callback and return True.
+    Used to have a single script with test creation and test execution inside Blender.
+    """
+    try:
+        import bpy  # pyright: ignore
+    except ImportError:
+        return False
+
+    try:
+        setup(bpy)
+    except Exception as e:
+        print(e)
+        sys.exit(1)
+
+    return True

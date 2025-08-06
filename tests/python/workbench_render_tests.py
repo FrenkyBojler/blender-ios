@@ -8,69 +8,42 @@ import os
 import platform
 import sys
 from pathlib import Path
-try:
-    # Render report is not always available and leads to errors in the console logs that can be ignored.
-    from modules import render_report
-
-    class WorkbenchReport(render_report.Report):
-        def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[]):
-            super().__init__(title, output_dir, oiiotool, variation=variation, blocklist=blocklist)
-            self.gpu_backend = variation
-
-        def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
-            return arguments_cb(filepath, base_output_filepath, gpu_backend=self.gpu_backend)
-
-except ImportError:
-    # render_report can only be loaded when running the render tests. It errors when
-    # this script is run during preparation steps.
-    pass
+from modules import render_report
 
 
-def setup():
-    import bpy
-
+def setup(bpy):
     for scene in bpy.data.scenes:
         scene.render.engine = 'BLENDER_WORKBENCH'
         scene.display.shading.light = 'STUDIO'
         scene.display.shading.color_type = 'TEXTURE'
 
 
-# When run from inside Blender, render and exit.
-try:
-    import bpy
-    inside_blender = True
-except ImportError:
-    inside_blender = False
+class WorkbenchReport(render_report.Report):
+    def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[]):
+        super().__init__(title, output_dir, oiiotool, variation=variation, blocklist=blocklist)
+        self.gpu_backend = variation
 
-if inside_blender:
-    try:
-        setup()
-    except Exception as e:
-        print(e)
-        sys.exit(1)
+    def get_arguments(self, filepath, output_filepath):
+        arguments = [
+            "--background",
+            "--factory-startup",
+            "--enable-autoexec",
+            "--debug-memory",
+            "--debug-exit-on-error"]
 
+        if self.gpu_backend:
+            arguments.extend(["--gpu-backend", self.gpu_backend])
 
-def get_arguments(filepath, output_filepath, gpu_backend):
-    arguments = [
-        "--background",
-        "--factory-startup",
-        "--enable-autoexec",
-        "--debug-memory",
-        "--debug-exit-on-error"]
+        arguments.extend([
+            filepath,
+            "-E", "BLENDER_WORKBENCH",
+            "-P",
+            os.path.realpath(__file__),
+            "-o", output_filepath,
+            "-F", "PNG",
+            "-f", "1"])
 
-    if gpu_backend:
-        arguments.extend(["--gpu-backend", gpu_backend])
-
-    arguments.extend([
-        filepath,
-        "-E", "BLENDER_WORKBENCH",
-        "-P",
-        os.path.realpath(__file__),
-        "-o", output_filepath,
-        "-F", "PNG",
-        "-f", "1"])
-
-    return arguments
+        return arguments
 
 
 def create_argparse():
@@ -102,10 +75,11 @@ def main():
     if test_dir_name.startswith('hair') and platform.system() == "Darwin":
         report.set_fail_threshold(0.050)
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+    ok = report.run(args.testdir, args.blender, batch=args.batch)
 
     sys.exit(not ok)
 
 
-if not inside_blender and __name__ == "__main__":
-    main()
+if __name__ == "__main__":
+    if not render_report.run_inside_blender(setup):
+        main()
