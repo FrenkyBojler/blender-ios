@@ -160,6 +160,11 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     return socket_.name;
   }
 
+  void remove(bContext* C) override
+  {
+    nodetree_.tree_interface.remove_item(socket_.item);
+  }
+
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
   std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override;
 };
@@ -230,6 +235,11 @@ class NodePanelViewItem : public BasicTreeViewItem {
   StringRef get_rename_string() const override
   {
     return panel_.name;
+  }
+
+  void remove(bContext *C) override
+  {
+    nodetree_.tree_interface.remove_item(panel_.item);
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
