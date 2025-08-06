@@ -110,22 +110,18 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   NodeCompositorFileOutput *data = MEM_callocN<NodeCompositorFileOutput>(__func__);
   node->storage = data;
   data->save_as_render = true;
-  data->file_name = BLI_strdup("Image");
+  data->file_name = BLI_strdup("file_name");
+
+  BKE_image_format_init(&data->format, false);
+  BKE_image_format_media_type_set(
+      &data->format, node_pointer->owner_id, MEDIA_TYPE_MULTI_LAYER_IMAGE);
+  BKE_image_format_update_color_space_for_type(&data->format);
 
   Scene *scene = CTX_data_scene(C);
   if (scene) {
-    RenderData *render_data = &scene->r;
+    const RenderData *render_data = &scene->r;
     BLI_strncpy(data->directory, render_data->pic, FILE_MAX);
-    BKE_image_format_copy(&data->format, &render_data->im_format);
-    data->format.color_management = R_IMF_COLOR_MANAGEMENT_FOLLOW_SCENE;
-    if (BKE_imtype_is_movie(data->format.imtype)) {
-      data->format.imtype = R_IMF_IMTYPE_OPENEXR;
-    }
   }
-  else {
-    BKE_image_format_init(&data->format, false);
-  }
-  BKE_image_format_update_color_space_for_type(&data->format);
 }
 
 static void node_free_storage(bNode *node)
@@ -246,7 +242,7 @@ static void output_path_layout(uiLayout *layout,
       directory, file_name, file_name_suffix, view, scene.r.cfra, format, scene, node, image_path);
 
   if (path_errors.is_empty()) {
-    layout->label(image_path, ICON_IMAGE);
+    layout->label(image_path, ICON_FILE_IMAGE);
   }
   else {
     for (const path_templates::Error &error : path_errors) {
