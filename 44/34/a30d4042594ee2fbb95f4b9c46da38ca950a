@@ -1,3 +1,4 @@
 Referenced by pull request #143948, Fix: Grease Pencil Vertex Paint uses old path for `unified_paint_settings`
 Referenced by commit a007c309b37ce72899cb7b913edcf39aa6e4a84d, Fix: Grease Pencil Vertex Paint uses old path for `unified_paint_settings`
 Referenced by pull request #143872, Fix #143110: Custom keymaps missing versioning for unified settings
+Referenced by commit 5066173fbfb1dfe6c4a122df730b5ab11ae3f4a0, Fix #143110: Custom keymaps missing versioning for unified settings
