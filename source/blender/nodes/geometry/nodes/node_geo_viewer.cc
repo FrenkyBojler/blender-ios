@@ -28,6 +28,8 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_viewer_cc {
@@ -367,9 +369,10 @@ void geo_viewer_node_log(const bNode &node,
                          const Span<void *> input_values,
                          geo_eval_log::ViewerNodeLog &r_log)
 {
+  const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
   LinearAllocator<> &allocator = r_log.scope.allocator();
 
-  const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
+  /* Log all input values. */
   for (const int i : IndexRange(storage.items_num)) {
     void *src_value = input_values[i];
     if (!src_value) {
@@ -386,6 +389,54 @@ void geo_viewer_node_log(const bNode &node,
       geometry.ensure_owns_direct_data();
     }
     r_log.items.add_new({item.identifier, &type, owned_value});
+  }
+
+  /* Store the ".viewer" attribute if necessary. */
+  const StringRef viewer_attribute_name = ".viewer";
+  std::optional<int> last_geometry_identifier;
+  for (const int i : IndexRange(storage.items_num)) {
+    if (!input_values[i]) {
+      continue;
+    }
+    const bNodeSocket &bsocket = node.input_socket(i);
+    const NodeGeometryViewerItem &item = storage.items[i];
+    const bke::bNodeSocketType &type = *bsocket.typeinfo;
+
+    if (type.type == SOCK_GEOMETRY) {
+      last_geometry_identifier = item.identifier;
+      continue;
+    }
+    if (!last_geometry_identifier) {
+      continue;
+    }
+    if (!socket_type_supports_fields(type.type)) {
+      continue;
+    }
+    bke::GeometrySet &geometry = *static_cast<bke::GeometrySet *>(
+        r_log.items.lookup_key_as(*last_geometry_identifier).data);
+    const auto &value_variant = *static_cast<const bke::SocketValueVariant *>(
+        r_log.items.lookup_key_as(item.identifier).data);
+    if (!(value_variant.is_single() || value_variant.is_context_dependent_field())) {
+      continue;
+    }
+    const GField field = value_variant.get<GField>();
+    // TODO: Domain selection
+    const AttrDomain domain = AttrDomain::Point;
+    geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
+      for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh,
+                                                      bke::GeometryComponent::Type::PointCloud,
+                                                      bke::GeometryComponent::Type::Curve,
+                                                      bke::GeometryComponent::Type::GreasePencil})
+      {
+        if (!geometry.has(type)) {
+          continue;
+        }
+        bke::GeometryComponent &component = geometry.get_component_for_write(type);
+        bke::try_capture_field_on_geometry(component, viewer_attribute_name, domain, field);
+      }
+    });
+    /* Avoid overriding the viewer attribute with other fields.*/
+    last_geometry_identifier.reset();
   }
 }
 
