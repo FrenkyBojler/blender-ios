@@ -12,15 +12,28 @@ def _run(args):
     device_type, _ = (args['device_type'].split("-") + [""])[:2]
     scene = bpy.context.scene
     scene.render.compositor_device = ('CPU' if device_type == 'CPU' else 'GPU')
-    # Render once to avoid caching effects
-    bpy.ops.render.render()
 
-    start_time = time.time()
+    test_time_start = time.time()
+    measured_times = []
 
-    bpy.ops.render.render()
+    min_measurements = 5
+    max_measurements = 100
+    timeout = 10
 
-    elapsed_time = time.time() - start_time
-    return {'time': elapsed_time}
+    while True:
+        start_time = time.time()
+        bpy.ops.render.render()
+        elapsed_time = time.time() - start_time
+        measured_times.append(elapsed_time)
+
+        if len(measured_times) >= min_measurements and test_time_start + timeout < time.time():
+            break
+        if len(measured_times) >= max_measurements:
+            break
+
+    average_time = sum(measured_times) / len(measured_times)
+    result = {'time': average_time}
+    return result
 
 
 class CompositorTest(api.Test):
