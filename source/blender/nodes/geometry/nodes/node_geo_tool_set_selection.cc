@@ -12,6 +12,8 @@
 
 #include "RNA_enum_types.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "FN_multi_function_builder.hh"
 
 #include "node_geometry_util.hh"
@@ -29,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Geometry to update the selection of");
   b.add_output<decl::Geometry>("Geometry").align_with_previous();
   if (const bNode *node = b.node_or_null()) {
     switch (SelectionType(node->custom2)) {
@@ -62,7 +64,7 @@ static GField clamp_selection(const GField &selection)
   }
   static auto clamp = mf::build::SI1_SO<float, float>(
       "Clamp", [](const float value) { return std::clamp(value, 0.0f, 1.0f); });
-  return Field<float>(FieldOperation::Create(clamp, {selection}));
+  return Field<float>(FieldOperation::from(clamp, {selection}));
 }
 
 static GField invert_selection(const GField &selection)
@@ -70,12 +72,12 @@ static GField invert_selection(const GField &selection)
   if (selection.cpp_type().is<bool>()) {
     static auto invert = mf::build::SI1_SO<bool, bool>("Invert Selection",
                                                        [](const bool value) { return !value; });
-    return GField(FieldOperation::Create(invert, {selection}));
+    return GField(FieldOperation::from(invert, {selection}));
   }
 
   static auto invert = mf::build::SI1_SO<float, float>(
       "Invert Selection", [](const float value) { return 1.0f - value; });
-  return GField(FieldOperation::Create(invert, {selection}));
+  return GField(FieldOperation::from(invert, {selection}));
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -95,7 +97,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const GField selection = params.extract_input<GField>("Selection");
   const AttrDomain domain = AttrDomain(params.node().custom1);
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-  geometry.modify_geometry_sets([&](GeometrySet &geometry) {
+  geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
     if (Mesh *mesh = geometry.get_mesh_for_write()) {
       switch (mode) {
         case OB_MODE_EDIT: {

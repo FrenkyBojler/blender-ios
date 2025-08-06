@@ -827,7 +827,7 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
    * some lag on NVIDIA/Intel GPUs. */
   /* TODO: select the correct presentation mode based on the actual being performed by the user.
    * When low latency is required (paint cursor) we should select mailbox, otherwise we can do FIFO
-   * to reduce CPU/GPU usage.*/
+   * to reduce CPU/GPU usage. */
   for (auto present_mode : presents) {
     if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
       *r_presentMode = present_mode;
@@ -1050,7 +1050,6 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
     create_info.pNext = &vk_swapchain_present_scaling;
-    create_info.flags = VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT;
   }
   create_info.surface = m_surface;
   create_info.minImageCount = image_count_requested;

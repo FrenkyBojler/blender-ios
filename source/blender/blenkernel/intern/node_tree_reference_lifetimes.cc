@@ -55,7 +55,7 @@ std::ostream &operator<<(std::ostream &stream, const ReferenceSetInfo &info)
 
 static bool socket_may_have_reference(const bNodeSocket &socket)
 {
-  return socket.may_be_field();
+  return socket.may_be_field() || ELEM(socket.type, SOCK_BUNDLE, SOCK_CLOSURE);
 }
 
 static bool or_into_each_other_masked(MutableBoundedBitSpan a,
@@ -293,6 +293,27 @@ static Vector<ReferenceSetInfo> find_reference_sets(
       }
     }
   }
+  /* Each output of the Evaluate Closure node may reference data in any other output. We can't know
+   * exactly what references what here. */
+  for (const bNode *node : tree.nodes_by_type("NodeEvaluateClosure")) {
+    const auto &storage = *static_cast<NodeEvaluateClosure *>(node->storage);
+    Vector<const bNodeSocket *> reference_outputs;
+    for (const int i : IndexRange(storage.output_items.items_num)) {
+      const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
+      if (can_contain_referenced_data(eNodeSocketDatatype(item.socket_type))) {
+        reference_outputs.append(&node->output_socket(i));
+      }
+    }
+    if (!reference_outputs.is_empty()) {
+      for (const int i : IndexRange(storage.output_items.items_num)) {
+        const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
+        if (can_contain_reference(eNodeSocketDatatype(item.socket_type))) {
+          reference_sets.append({ReferenceSetType::LocalReferenceSet, &node->output_socket(i)});
+          reference_sets.last().potential_data_origins.extend(reference_outputs);
+        }
+      }
+    }
+  }
 
   const bNodeTreeZones *zones = tree.zones();
   if (!zones) {
@@ -301,10 +322,10 @@ static Vector<ReferenceSetInfo> find_reference_sets(
   for (const bNodeTreeZone *zone : zones->zones) {
     const bNode &input_node = *zone->input_node();
     const bNode &output_node = *zone->output_node();
-    if (output_node.type_legacy != GEO_NODE_CLOSURE_OUTPUT) {
+    if (output_node.type_legacy != NODE_CLOSURE_OUTPUT) {
       continue;
     }
-    const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(output_node.storage);
+    const auto &storage = *static_cast<const NodeClosureOutput *>(output_node.storage);
     const int old_reference_sets_count = reference_sets.size();
     /* Handle references coming from field inputs in the closure. */
     for (const int input_i : IndexRange(storage.input_items.items_num)) {
@@ -493,7 +514,7 @@ static bool pass_left_to_right(const bNodeTree &tree,
         }
         break;
       }
-      case GEO_NODE_CLOSURE_INPUT: {
+      case NODE_CLOSURE_INPUT: {
         const bNodeTreeZone *zone = get_zone_of_node_if_full(zones, *node);
         if (!zone) {
           break;
@@ -509,7 +530,7 @@ static bool pass_left_to_right(const bNodeTree &tree,
         }
         break;
       }
-      case GEO_NODE_CLOSURE_OUTPUT: {
+      case NODE_CLOSURE_OUTPUT: {
         const bNodeTreeZone *zone = get_zone_of_node_if_full(zones, *node);
         if (!zone) {
           break;
@@ -518,12 +539,29 @@ static bool pass_left_to_right(const bNodeTree &tree,
         /* References passed through border links are referenced by the closure. */
         const BitVector<> passed_in_references = get_references_coming_from_outside_zone(
             *zone, {&r_potential_reference_by_socket});
+        const BitVector<> passed_in_data = get_references_coming_from_outside_zone(
+            *zone, {&r_potential_data_by_socket});
         const int dst_index = output_node.output_socket(0).index_in_tree();
-        for (const int i : node->input_sockets().index_range()) {
-          const int src_index = output_node.input_socket(i).index_in_tree();
-          r_potential_data_by_socket[dst_index] |= r_potential_data_by_socket[src_index];
-          r_potential_reference_by_socket[dst_index] |= r_potential_reference_by_socket[src_index];
+        for ([[maybe_unused]] const int i : node->input_sockets().index_range()) {
+          r_potential_data_by_socket[dst_index] |= passed_in_data;
           r_potential_reference_by_socket[dst_index] |= passed_in_references;
+        }
+        break;
+      }
+      case NODE_EVALUATE_CLOSURE: {
+        BitVector<> potential_input_references(r_potential_reference_by_socket.group_size());
+        BitVector<> potential_input_data(r_potential_data_by_socket.group_size());
+        /* Gather all references and data from all inputs, including the once on the closure input.
+         * The output may reference any of those. */
+        for (const bNodeSocket *socket : node->input_sockets()) {
+          const int src_index = socket->index_in_tree();
+          potential_input_references |= r_potential_reference_by_socket[src_index];
+          potential_input_data |= r_potential_data_by_socket[src_index];
+        }
+        for (const bNodeSocket *out_socket : node->output_sockets()) {
+          const int dst_index = out_socket->index_in_tree();
+          r_potential_reference_by_socket[dst_index] |= potential_input_references;
+          r_potential_data_by_socket[dst_index] |= potential_input_data;
         }
         break;
       }
@@ -630,7 +668,7 @@ static void prepare_required_data_for_closure_outputs(
       continue;
     }
     const bNode &output_node = *zone->output_node();
-    if (output_node.type_legacy != GEO_NODE_CLOSURE_OUTPUT) {
+    if (output_node.type_legacy != NODE_CLOSURE_OUTPUT) {
       continue;
     }
     const Span<int> closure_output_set_sources = output_set_sources_by_closure_zone.lookup(zone);
@@ -800,18 +838,22 @@ static bool pass_right_to_left(const bNodeTree &tree,
         }
         break;
       }
-      case GEO_NODE_EVALUATE_CLOSURE: {
+      case NODE_EVALUATE_CLOSURE: {
         /* Data referenced by the closure is required on all the other inputs. */
         const bNodeSocket &closure_socket = node->input_socket(0);
-        const BoundedBitSpan required_references =
+        BitVector<> required_data_on_inputs =
             potential_reference_by_socket[closure_socket.index_in_tree()];
-        for (const bNodeSocket *input_socket : node->input_sockets().drop_front(1)) {
-          const int dst_index = input_socket->index_in_tree();
-          r_required_data_by_socket[dst_index] |= required_references;
+        /* Data required on outputs is also required on inputs. */
+        for (const bNodeSocket *socket : node->output_sockets()) {
+          required_data_on_inputs |= r_required_data_by_socket[socket->index_in_tree()];
+        }
+        for (const bNodeSocket *socket : node->input_sockets()) {
+          const int dst_index = socket->index_in_tree();
+          r_required_data_by_socket[dst_index] |= required_data_on_inputs;
         }
         break;
       }
-      case GEO_NODE_CLOSURE_OUTPUT: {
+      case NODE_CLOSURE_OUTPUT: {
         const bNodeTreeZone *zone = get_zone_of_node_if_full(zones, *node);
         if (!zone) {
           break;
@@ -1004,8 +1046,9 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
 #if 0
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
-                                bNodeTreeBitGroupVectorOptions(
-                                    {potential_reference_by_socket, required_data_by_socket}))
+                                bNodeTreeBitGroupVectorOptions({potential_data_by_socket,
+                                                                potential_reference_by_socket,
+                                                                required_data_by_socket}))
 
             << "\n\n";
 #endif

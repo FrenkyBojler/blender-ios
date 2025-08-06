@@ -40,7 +40,6 @@
 #include "BKE_collection.hh"
 #include "BKE_colortools.hh"
 #include "BKE_deform.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_icons.h"
 #include "BKE_idtype.hh"
@@ -268,8 +267,8 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
     /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_GD_LEGACY,
     /*struct_size*/ sizeof(bGPdata),
-    /*name*/ "GPencil",
-    /*name_plural*/ N_("grease_pencils"),
+    /*name*/ "Annotation",
+    /*name_plural*/ N_("annotations"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_GPENCIL,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,

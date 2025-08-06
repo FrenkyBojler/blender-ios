@@ -296,7 +296,7 @@ static void lineart_bake_startjob(void *customdata, wmJobWorkerStatus *worker_st
 
   guard_modifiers(*bj);
 
-  BKE_spacedata_draw_locks(true);
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
 
   for (int frame = bj->frame_begin; frame <= bj->frame_end; frame += bj->frame_increment) {
 
@@ -334,8 +334,7 @@ static void lineart_bake_endjob(void *customdata)
 {
   LineartBakeJob *bj = static_cast<LineartBakeJob *>(customdata);
 
-  BKE_spacedata_draw_locks(false);
-  WM_set_locked_interface(CTX_wm_manager(bj->C), false);
+  WM_locked_interface_set(CTX_wm_manager(bj->C), false);
 
   WM_main_add_notifier(NC_SCENE | ND_FRAME, bj->scene);
 
@@ -393,7 +392,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
     wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                                 CTX_wm_window(C),
                                 scene,
-                                "Line Art",
+                                "Baking Line Art...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_LINEART);
 
@@ -401,7 +400,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
     WM_jobs_timer(wm_job, 0.1, NC_GPENCIL | ND_DATA | NA_EDITED, NC_GPENCIL | ND_DATA | NA_EDITED);
     WM_jobs_callbacks(wm_job, lineart_bake_startjob, nullptr, nullptr, lineart_bake_endjob);
 
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
     WM_jobs_start(CTX_wm_manager(C), wm_job);
 

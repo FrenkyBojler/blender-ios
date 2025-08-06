@@ -124,36 +124,9 @@ void VKFrameBuffer::vk_render_areas_append(Vector<VkRect2D> &r_render_areas) con
   r_render_areas.append_n_times(render_area, this->multi_viewport_ ? GPU_MAX_VIEWPORTS : 1);
 }
 
-bool VKFrameBuffer::check(char err_out[256])
+bool VKFrameBuffer::check(char /*err_out*/[256])
 {
-  bool success = true;
-
-  if (has_gaps_between_color_attachments()) {
-    success = false;
-
-    BLI_snprintf(err_out,
-                 256,
-                 "Framebuffer '%s' has gaps between color attachments. This is not supported by "
-                 "legacy devices using VkRenderPass natively.\n",
-                 name_);
-  }
-
-  return success;
-}
-
-bool VKFrameBuffer::has_gaps_between_color_attachments() const
-{
-  bool empty_slot = false;
-  for (int attachment_index : IndexRange(GPU_FB_COLOR_ATTACHMENT0, GPU_FB_MAX_COLOR_ATTACHMENT)) {
-    const GPUAttachment &attachment = attachments_[attachment_index];
-    if (attachment.tex == nullptr) {
-      empty_slot = true;
-    }
-    else if (empty_slot) {
-      return true;
-    }
-  }
-  return false;
+  return true;
 }
 
 void VKFrameBuffer::build_clear_attachments_depth_stencil(
@@ -188,7 +161,7 @@ void VKFrameBuffer::build_clear_attachments_color(
         clear_attachments.attachments[clear_attachments.attachment_count++];
     clear_attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     clear_attachment.colorAttachment = color_slot;
-    eGPUDataFormat data_format = to_data_format(GPU_texture_format(attachment.tex));
+    eGPUDataFormat data_format = to_texture_data_format(GPU_texture_format(attachment.tex));
     clear_attachment.clearValue.color = to_vk_clear_color_value(data_format,
                                                                 &clear_colors[color_index]);
 
@@ -635,7 +608,7 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
         srgb_ && enabled_srgb_,
         VKImageViewArrayed::DONT_CARE};
     const VKImageView &image_view = color_texture.image_view_get(image_view_info);
-    // TODO: Use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL for readonly attachments.
+    /* TODO: Use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL for read-only attachments. */
     VkImageLayout vk_image_layout = (attachment_state == GPU_ATTACHMENT_READ) ?
                                         VK_IMAGE_LAYOUT_GENERAL :
                                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
