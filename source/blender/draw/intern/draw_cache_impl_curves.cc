@@ -510,7 +510,7 @@ static void calc_edit_handles_ibo(const OffsetIndices<int> points_by_curve,
   const int points_num = points_by_curve.total_size();
   const int extra_bezier_segments = bezier_offsets.total_size();
 
-  /* TODO: Use linetrip if there is no bezier curves. */
+  /* TODO: Use linestrip if there is no bezier curves. */
   GPUIndexBufBuilder builder;
   GPU_indexbuf_init(&builder,
                     GPU_PRIM_LINES,
