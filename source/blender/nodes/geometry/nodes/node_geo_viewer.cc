@@ -7,9 +7,12 @@
 #include "BKE_context.hh"
 
 #include "BLO_read_write.hh"
+
 #include "NOD_geo_viewer.hh"
 #include "NOD_node_extra_info.hh"
 #include "NOD_rna_define.hh"
+#include "NOD_socket_items_ops.hh"
+#include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "UI_interface_layout.hh"
@@ -29,13 +32,32 @@ NODE_STORAGE_FUNCS(NodeGeometryViewer)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  const bNode *node = b.node_or_null();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
-  b.add_input<decl::Geometry>("Geometry");
-  if (node != nullptr) {
-    const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
-    b.add_input(data_type, "Value").field_on_all().hide_value();
+  const bNode *node = b.node_or_null();
+  const bNodeTree *tree = b.tree_or_null();
+
+  if (!node || !tree) {
+    return;
   }
+
+  const NodeGeometryViewer &storage = node_storage(*node);
+  for (const int i : IndexRange(storage.items_num)) {
+    const NodeGeometryViewerItem &item = storage.items[i];
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    const StringRef name = item.name ? item.name : "";
+    const std::string identifier = GeoViewerItemsAccessor::socket_identifier_for_item(item);
+    auto &input_decl = b.add_input(socket_type, name, identifier)
+                           .socket_name_ptr(
+                               &tree->id, GeoViewerItemsAccessor::item_srna, &item, "name");
+    if (socket_type_supports_fields(socket_type)) {
+      input_decl.supports_field();
+    }
+    input_decl.structure_type(StructureType::Dynamic);
+  }
+
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -46,68 +68,28 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(uiLayout * /*layout*/, bContext * /*C*/, PointerRNA * /*ptr*/) {}
+
+static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  bNode &node = *ptr->data_as<bNode>();
+  bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+
+  if (uiLayout *panel = layout->panel(C, "viewer_items", false, IFACE_("Viewer Items"))) {
+    socket_items::ui::draw_items_list_with_operators<GeoViewerItemsAccessor>(
+        C, panel, ntree, node);
+    socket_items::ui::draw_active_item_props<GeoViewerItemsAccessor>(
+        ntree, node, [&](PointerRNA *item_ptr) {
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        });
+  }
 }
 
-static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_gather_link_searches(GatherLinkSearchOpParams & /*params*/)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-}
-
-static void node_gather_link_searches(GatherLinkSearchOpParams &params)
-{
-  auto set_active_fn = [](LinkSearchOpParams &params, bNode &viewer_node) {
-    /* Set this new viewer node active in spreadsheet editors. */
-    SpaceNode *snode = CTX_wm_space_node(&params.C);
-    Main *bmain = CTX_data_main(&params.C);
-    ED_node_set_active(bmain, snode, &params.node_tree, &viewer_node, nullptr);
-    ed::viewer_path::activate_geometry_node(*bmain, *snode, viewer_node);
-  };
-
-  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
-  const std::optional<eCustomDataType> type = bke::socket_type_to_custom_data_type(socket_type);
-  if (params.in_out() == SOCK_OUT) {
-    /* The viewer node only has inputs. */
-    return;
-  }
-  if (params.other_socket().type == SOCK_GEOMETRY) {
-    params.add_item(IFACE_("Geometry"), [set_active_fn](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeViewer");
-      params.connect_available_socket(node, "Geometry");
-      set_active_fn(params, node);
-    });
-  }
-  if (type && ELEM(*type,
-                   CD_PROP_FLOAT,
-                   CD_PROP_BOOL,
-                   CD_PROP_INT32,
-                   CD_PROP_FLOAT3,
-                   CD_PROP_COLOR,
-                   CD_PROP_QUATERNION,
-                   CD_PROP_FLOAT4X4))
-  {
-    params.add_item(IFACE_("Value"), [type, set_active_fn](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeViewer");
-      node_storage(node).data_type = *type;
-      params.update_and_connect_available_socket(node, "Value");
-
-      /* If the source node has a geometry socket, connect it to the new viewer node as well. */
-      LISTBASE_FOREACH (bNodeSocket *, socket, &params.node.outputs) {
-        if (socket->type == SOCK_GEOMETRY && socket->is_visible()) {
-          bke::node_add_link(params.node_tree,
-                             params.node,
-                             *socket,
-                             node,
-                             *static_cast<bNodeSocket *>(node.inputs.first));
-          break;
-        }
-      }
-
-      set_active_fn(params, node);
-    });
-  }
+  // TODO
 }
 
 static void node_extra_info(NodeExtraInfoParams &params)
@@ -121,6 +103,17 @@ static void node_extra_info(NodeExtraInfoParams &params)
         "Rotation values can only be displayed with the text overlay in the 3D view");
     params.rows.append(std::move(row));
   }
+}
+
+static void node_operators()
+{
+  socket_items::ops::make_common_operators<GeoViewerItemsAccessor>();
+}
+
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
+{
+  return socket_items::try_add_item_via_any_extend_socket<GeoViewerItemsAccessor>(
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_register()
@@ -138,8 +131,10 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
+  ntype.register_operators = node_operators;
   ntype.get_extra_info = node_extra_info;
   blender::bke::node_register_type(ntype);
 }
