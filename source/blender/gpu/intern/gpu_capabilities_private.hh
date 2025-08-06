@@ -48,7 +48,6 @@ struct GPUCapabilities {
   bool geometry_shader_support = false;
   bool hdr_viewport_support = false;
   bool stencil_export_support = false;
-  bool clip_control_support = false;
 
   int max_parallel_compilations = -1;
 
