@@ -34,8 +34,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_memory_counter.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_task.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
