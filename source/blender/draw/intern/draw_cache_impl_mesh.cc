@@ -24,7 +24,6 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_material.hh"
@@ -161,53 +160,10 @@ static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
   }
 }
 
-struct BMeshAttributeLookup {
-  const int offset = -1;
-  bke::AttrDomain domain;
-  bke::AttrType type;
-  operator bool() const
-  {
-    return offset != -1;
-  }
-};
-
-static BMeshAttributeLookup lookup_bmesh_attribute(const BMesh &bm, const StringRef name)
-{
-  for (const CustomDataLayer &layer : Span(bm.vdata.layers, bm.vdata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset,
-              bke::AttrDomain::Point,
-              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.edata.layers, bm.edata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset,
-              bke::AttrDomain::Edge,
-              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.pdata.layers, bm.pdata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset,
-              bke::AttrDomain::Face,
-              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
-    }
-  }
-  for (const CustomDataLayer &layer : Span(bm.ldata.layers, bm.ldata.totlayer)) {
-    if (layer.name == name) {
-      return {layer.offset,
-              bke::AttrDomain::Corner,
-              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
-    }
-  }
-  return {};
-}
-
 static bool attribute_exists(const Mesh &mesh, const StringRef name)
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
-    return bool(lookup_bmesh_attribute(*em->bm, name));
+    return bool(BM_data_layer_lookup(*em->bm, name));
   }
   return mesh.attributes().contains(name);
 };
@@ -216,7 +172,7 @@ static std::optional<bke::AttributeMetaData> lookup_meta_data(const Mesh &mesh,
                                                               const StringRef name)
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
-    if (const BMeshAttributeLookup &attr = lookup_bmesh_attribute(*em->bm, name)) {
+    if (const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, name)) {
       return bke::AttributeMetaData{attr.domain, attr.type};
     }
   }
