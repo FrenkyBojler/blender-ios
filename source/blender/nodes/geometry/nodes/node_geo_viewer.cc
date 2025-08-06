@@ -73,6 +73,52 @@ static void draw_input_socket(CustomSocketDrawParams &params)
       params.layout.label(label, ICON_NONE);
       break;
     }
+    case SOCK_INT: {
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      if (!value_variant.is_single()) {
+        return;
+      }
+      const int value = value_variant.get<int>();
+      const std::string label = fmt::format("{}", value);
+      params.layout.label(label, ICON_NONE);
+      break;
+    }
+    case SOCK_VECTOR: {
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      if (!value_variant.is_single()) {
+        return;
+      }
+      const float3 value = value_variant.get<float3>();
+      uiLayout &col = params.layout.column(true);
+      col.label(fmt::format("{}: {:.5f}", IFACE_("X"), value.x), ICON_NONE);
+      col.label(fmt::format("{}: {:.5f}", IFACE_("Y"), value.y), ICON_NONE);
+      col.label(fmt::format("{}: {:.5f}", IFACE_("Z"), value.z), ICON_NONE);
+      break;
+    }
+    case SOCK_STRING: {
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      if (!value_variant.is_single()) {
+        return;
+      }
+      std::string value = value_variant.get<std::string>();
+      /* The node doesn't get wider than that anyway. */
+      const int max_display_length = 200;
+      if (value.size() > max_display_length) {
+        value.resize(max_display_length);
+        value.append("...");
+      }
+      params.layout.label(value, ICON_NONE);
+      break;
+    }
+    case SOCK_BOOLEAN: {
+      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(viewer_item.data);
+      if (!value_variant.is_single()) {
+        return;
+      }
+      const bool value = value_variant.get<bool>();
+      params.layout.label(value ? IFACE_("True") : IFACE_("False"), ICON_NONE);
+      break;
+    }
     default: {
       return;
     }
