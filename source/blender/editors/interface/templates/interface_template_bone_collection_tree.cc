@@ -343,7 +343,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     return bone_collection_.name;
   }
 
-  void remove(bContext* C, int index) override
+  void remove(bContext* /*C*/) override
   {
     ANIM_armature_bonecoll_remove(&armature_, &bone_collection_);
   }

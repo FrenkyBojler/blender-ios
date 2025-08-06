@@ -231,13 +231,9 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     return label_;
   }
 
-  void remove(bContext *C, int index) override
+  void remove(bContext *C) override
   {
     Main *bmain = CTX_data_main(C);
-    //KeyBlock *kb = static_cast<KeyBlock *>(BLI_findlink(&shape_key_.key->block, index));
-    //if (!kb) {
-    //  return;
-    //}
     BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
   }
 

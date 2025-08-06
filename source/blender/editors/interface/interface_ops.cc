@@ -2909,14 +2909,14 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
 }
 
 static wmOperatorStatus ui_view_item_delete_invoke(bContext *C,
-                                                   wmOperator *op,
+                                                   wmOperator */*op*/,
                                                    const wmEvent * /*event*/)
 {
   AbstractView *view = get_view_focused(C);
   int index = 0;
   view->foreach_view_item([&](AbstractViewItem &item) {
     if (item.is_active() || item.is_selected()) {
-      item.remove(C, index);
+      item.remove(C);
       return;
     }
     index++;

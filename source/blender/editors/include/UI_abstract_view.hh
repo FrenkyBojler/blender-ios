@@ -326,7 +326,7 @@ class AbstractViewItem {
   void end_renaming();
   void rename_apply(const bContext &C);
 
-  virtual void remove(bContext *C, int index);
+  virtual void remove(bContext *C);
 
  protected:
   AbstractViewItem() = default;

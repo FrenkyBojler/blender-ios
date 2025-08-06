@@ -284,7 +284,7 @@ class LayerViewItem : public AbstractTreeViewItem {
     return layer_.name();
   }
 
-  void remove(bContext *C, int /*index*/) override
+  void remove(bContext * /*C*/) override
   {
     grease_pencil_.remove_layer(layer_);
   }
@@ -451,7 +451,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     return group_.name();
   }
 
-  void remove(bContext* C, int /*index*/) override
+  void remove(bContext * /*C*/) override
   {
     grease_pencil_.remove_group(group_);
   }

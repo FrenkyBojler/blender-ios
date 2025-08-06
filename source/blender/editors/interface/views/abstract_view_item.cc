@@ -240,7 +240,7 @@ void AbstractViewItem::add_rename_button(uiBlock &block)
   }
 }
 
-void AbstractViewItem::remove(bContext *C, int index)
+void AbstractViewItem::remove(bContext */*C*/)
 {
   /* Don't do anything in base class. */
 }
