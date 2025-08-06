@@ -1,1 +1,2 @@
 Referenced by issue #136346, Smoke simulation renders with artifacts in Blender 4.5
+Referenced by issue #144054, EEVEE: Shadows are missing if trasparency of a material is set by Instance or Object attributes
