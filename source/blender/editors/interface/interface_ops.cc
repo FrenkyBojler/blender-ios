@@ -2909,7 +2909,7 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
 }
 
 static wmOperatorStatus ui_view_item_delete_invoke(bContext *C,
-                                                   wmOperator */*op*/,
+                                                   wmOperator * /*op*/,
                                                    const wmEvent * /*event*/)
 {
   AbstractView *view = get_view_focused(C);

@@ -160,7 +160,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     return socket_.name;
   }
 
-  void remove(bContext* C) override
+  void remove(bContext *C) override
   {
     Main *bmain = CTX_data_main(C);
     nodetree_.tree_interface.remove_item(socket_.item);

@@ -20,9 +20,9 @@
 #include "BLT_translation.hh"
 
 #include "ED_asset.hh"
+#include "ED_asset_catalog.hh"
 #include "ED_fileselect.hh"
 #include "ED_undo.hh"
-#include "ED_asset_catalog.hh"
 
 #include "RNA_access.hh"
 
@@ -341,7 +341,7 @@ bool AssetCatalogTreeViewItem::rename(const bContext &C, StringRefNull new_name)
   return true;
 }
 
-void AssetCatalogTreeViewItem::remove(bContext* C)
+void AssetCatalogTreeViewItem::remove(bContext *C)
 {
   const AssetCatalogTreeView &tree_view = static_cast<const AssetCatalogTreeView &>(
       this->get_tree_view());
