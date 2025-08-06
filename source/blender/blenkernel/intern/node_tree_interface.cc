@@ -1536,7 +1536,7 @@ void bNodeTreeInterface::tag_items_changed()
 void bNodeTreeInterface::tag_items_changed_generic()
 {
   /* Perform a full update since we don't know what changed exactly. */
-  tag_items_changed();
+  this->tag_items_changed();
 }
 
 void bNodeTreeInterface::tag_item_property_changed()
