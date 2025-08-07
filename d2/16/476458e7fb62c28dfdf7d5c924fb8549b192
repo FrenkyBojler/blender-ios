@@ -1,1 +1,2 @@
 Referenced by issue #143539, Assertion: BLI_string_ref.hh operator[](), at 'index < size_'
+Referenced by commit 45f3180bc8553e3bfa96f315f38d69170a989ce5, Fix #143539: Assert in UI auto complete after StringRef refactor
