@@ -69,6 +69,8 @@ enum TokenType : char {
   NotEqual = 'e',
   GEqual = 'G',
   LEqual = 'L',
+  Increment = 'P',
+  Decrement = 'D',
 };
 
 enum class ScopeType : char {
@@ -231,6 +233,16 @@ struct ParserData {
         }
         /* If sign is part of float literal after exponent. */
         if ((c == '+' || c == '-') && prev == Literal) {
+          continue;
+        }
+        /* Detect increment. */
+        if (type == '+' && prev == '+') {
+          token_types.back() = Increment;
+          continue;
+        }
+        /* Detect decrement. */
+        if (type == '+' && prev == '+') {
+          token_types.back() = Decrement;
           continue;
         }
         /* Only merge these token. Otherwise, always emit a token. */
