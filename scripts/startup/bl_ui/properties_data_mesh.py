@@ -74,12 +74,12 @@ class MESH_MT_shape_key_context_menu(Menu):
         layout.separator()
         layout.operator("object.shape_key_make_basis", text="Make Basis")
         layout.separator()
-        props = layout.operator("object.shape_key_remove", icon='X', text="Delete All")
-        props.all = True
-        props.apply_mix = False
         props = layout.operator("object.shape_key_remove", text="Apply All")
         props.all = True
         props.apply_mix = True
+        props = layout.operator("object.shape_key_remove", icon='X', text="Delete All")
+        props.all = True
+        props.apply_mix = False
 
 
 class MESH_MT_color_attribute_context_menu(Menu):
