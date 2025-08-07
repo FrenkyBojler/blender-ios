@@ -343,7 +343,7 @@ static void WORKSPACE_OT_delete(wmOperatorType *ot)
   ot->exec = workspace_delete_exec;
 }
 
-static wmOperatorStatus workspace_delete_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus workspace_delete_all_others_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   WorkSpace *workspace = workspace_context_get(C);
@@ -358,16 +358,16 @@ static wmOperatorStatus workspace_delete_all_exec(bContext *C, wmOperator * /*op
   return OPERATOR_FINISHED;
 }
 
-static void WORKSPACE_OT_delete_all(wmOperatorType *ot)
+static void WORKSPACE_OT_delete_all_others(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Delete all Workspaces";
-  ot->description = "Remove all workspaces except this one";
-  ot->idname = "WORKSPACE_OT_delete_all";
+  ot->description = "Delete all workspaces except this one";
+  ot->idname = "WORKSPACE_OT_delete_all_others";
 
   /* api callbacks */
   ot->poll = workspace_context_poll;
-  ot->exec = workspace_delete_all_exec;
+  ot->exec = workspace_delete_all_others_exec;
 }
 
 static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *op)
@@ -672,7 +672,7 @@ void ED_operatortypes_workspace()
 {
   WM_operatortype_append(WORKSPACE_OT_duplicate);
   WM_operatortype_append(WORKSPACE_OT_delete);
-  WM_operatortype_append(WORKSPACE_OT_delete_all);
+  WM_operatortype_append(WORKSPACE_OT_delete_all_others);
   WM_operatortype_append(WORKSPACE_OT_add);
   WM_operatortype_append(WORKSPACE_OT_append_activate);
   WM_operatortype_append(WORKSPACE_OT_reorder_to_back);
