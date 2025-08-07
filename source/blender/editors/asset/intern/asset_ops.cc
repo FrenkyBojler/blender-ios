@@ -1541,26 +1541,24 @@ static wmOperatorStatus asset_edit_metadata_exec(bContext *C, wmOperator *op)
   if (!asset) {
     return OPERATOR_CANCELLED;
   }
+  AssetMetaData &metadata = asset->get_metadata();
   asset_system::AssetLibrary &library = asset->owner_asset_library();
-
-  char catalog_path_c[MAX_NAME];
-  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
 
   AssetWeakReference asset_reference = asset->make_weak_reference();
   ID *asset_id = bke::asset_edit_id_from_weak_reference(
       *bmain, asset->get_id_type(), asset_reference);
-  AssetMetaData &meta_data = *asset_id->asset_data;
-  MEM_SAFE_FREE(meta_data.author);
-  meta_data.author = RNA_string_get_alloc(op->ptr, "author", nullptr, 0, nullptr);
-  MEM_SAFE_FREE(meta_data.description);
-  meta_data.description = RNA_string_get_alloc(op->ptr, "description", nullptr, 0, nullptr);
 
-  if (catalog_path_c[0]) {
-    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
-    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
-        library, catalog_path);
-    BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
-  }
+  MEM_SAFE_FREE(asset_id->asset_data->author);
+  asset_id->asset_data->author = (char *)MEM_dupallocN(metadata.author);
+
+  MEM_SAFE_FREE(asset_id->asset_data->description);
+  asset_id->asset_data->description = (char *)MEM_dupallocN(metadata.description);
+
+  MEM_SAFE_FREE(asset_id->asset_data->copyright);
+  asset_id->asset_data->copyright = (char *)MEM_dupallocN(metadata.copyright);
+
+  MEM_SAFE_FREE(asset_id->asset_data->license);
+  asset_id->asset_data->license = (char *)MEM_dupallocN(metadata.license);
 
   if (!bke::asset_edit_id_save(*bmain, *asset_id, *op->reports)) {
     return OPERATOR_CANCELLED;
@@ -1574,68 +1572,14 @@ static wmOperatorStatus asset_edit_metadata_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus asset_edit_metadata_invoke(bContext *C,
-                                                   wmOperator *op,
-                                                   const wmEvent * /*event*/)
-{
-  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
-  if (!asset) {
-    return OPERATOR_CANCELLED;
-  }
-  const asset_system::AssetLibrary &library = asset->owner_asset_library();
-  const AssetMetaData &meta_data = asset->get_metadata();
-
-  if (!RNA_struct_property_is_set(op->ptr, "catalog_path")) {
-    const asset_system::CatalogID &id = meta_data.catalog_id;
-    if (const asset_system::AssetCatalog *catalog = library.catalog_service().find_catalog(id)) {
-      RNA_string_set(op->ptr, "catalog_path", catalog->path.c_str());
-    }
-  }
-  if (!RNA_struct_property_is_set(op->ptr, "author")) {
-    RNA_string_set(op->ptr, "author", meta_data.author ? meta_data.author : "");
-  }
-  if (!RNA_struct_property_is_set(op->ptr, "description")) {
-    RNA_string_set(op->ptr, "description", meta_data.description ? meta_data.description : "");
-  }
-
-  return WM_operator_props_dialog_popup(C, op, 400, std::nullopt, IFACE_("Edit Metadata"));
-}
-
-static void visit_active_library_catalogs_catalog_for_search_fn(
-    const bContext *C,
-    PointerRNA * /*ptr*/,
-    PropertyRNA * /*prop*/,
-    const char *edit_text,
-    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
-{
-  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
-  if (!asset) {
-    return;
-  }
-
-  const asset_system::AssetLibrary &library = asset->owner_asset_library();
-
-  /* NOTE: Using the all library would also be a valid choice. */
-  asset::visit_library_catalogs_catalog_for_search(
-      *CTX_data_main(C), *library.library_reference(), edit_text, visit_fn);
-}
-
 static void ASSET_OT_asset_edit_metadata(wmOperatorType *ot)
 {
-  ot->name = "Edit Metadata";
-  ot->description = "Edit asset information like the catalog, author or description";
+  ot->name = "Save Metadata";
+  ot->description = "Save asset information like the author or description";
   ot->idname = "ASSET_OT_asset_edit_metadata";
 
   ot->exec = asset_edit_metadata_exec;
-  ot->invoke = asset_edit_metadata_invoke;
   ot->poll = asset_editable_poll;
-
-  PropertyRNA *prop = RNA_def_string(
-      ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "The asset's catalog path");
-  RNA_def_property_string_search_func_runtime(
-      prop, visit_active_library_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
-  RNA_def_string(ot->srna, "author", nullptr, 0, "Author", "");
-  RNA_def_string(ot->srna, "description", nullptr, 0, "Description", "");
 }
 
 /* -------------------------------------------------------------------- */

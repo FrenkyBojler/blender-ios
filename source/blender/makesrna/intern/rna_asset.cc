@@ -86,11 +86,12 @@ static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
   return false;
 }
 
-int rna_AssetMetaData_editable(const PointerRNA *ptr, const char **r_info)
+int rna_AssetMetaData_editable(const PointerRNA * /* ptr */, const char ** /* r_info */)
 {
   /* Ideally the metadata would not be editable if the asset is from a library that cannot be
-   * edited. But since the AssetMetaData does not know anything about that we just make it editable
-   * and deal with the disabling of properties on the GUI/operator side. */
+   * edited. But since the AssetMetaData does not know anything about the asset or library it is
+   * for we just make it editable and deal with the disabling of properties on the GUI/operator
+   * side. */
   return PROP_EDITABLE;
 }
 
