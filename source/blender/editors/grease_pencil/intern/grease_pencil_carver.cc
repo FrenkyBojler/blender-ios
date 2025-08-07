@@ -1470,6 +1470,101 @@ static void cut_caps(bke::CurvesGeometry &dst,
   dst_end_caps.finish();
 }
 
+static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
+                                                       const Span<Segment> segments,
+                                                       const Span<bool> segment_reversed,
+                                                       const Span<bool> cyclic,
+                                                       const OffsetIndices<int> segment_offsets)
+{
+  Array<int> point_offsets(segment_offsets.size() + 1);
+  calculate_offsets_from_segments(
+      segments, segment_offsets, cyclic, point_offsets.as_mutable_span());
+
+  const bke::AttributeAccessor src_attributes = src.attributes();
+
+  const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
+
+  if (dst_points_by_curve.total_size() == 0) {
+    return bke::CurvesGeometry();
+  }
+
+  bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
+  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+
+  dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
+  dst_curves.cyclic_for_write().copy_from(cyclic);
+
+  Array<int> old_by_new_map(dst_points_by_curve.size());
+
+  for (const int i : dst_points_by_curve.index_range()) {
+    const IndexRange segment_range = segment_offsets[i];
+    old_by_new_map[i] = segments[segment_range.first()].curve;
+  }
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Curve,
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         old_by_new_map,
+                         dst_attributes);
+
+  /* Copy/Interpolate point attributes. */
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, {}))
+  {
+    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      auto src_attr = attribute.src.typed<T>();
+      auto dst_attr = attribute.dst.span.typed<T>();
+
+      int i = 0;
+
+      for (const int curve_i : segment_offsets.index_range()) {
+        const IndexRange segment_range = segment_offsets[curve_i];
+        for (const int seg_i : segment_range) {
+          const Segment &segment = segments[seg_i];
+          const bool reversed = segment_reversed[seg_i];
+
+          if (reversed ? segment.has_intersection(Side::End) :
+                         segment.has_intersection(Side::Start) && !segment.is_loop())
+          {
+            const float start_alpha = reversed ? segment.alpha[Side::End] :
+                                                 segment.alpha[Side::Start];
+            const int2 start_edge = reversed ? segment.edge(Side::End) : segment.edge(Side::Start);
+            dst_attr[i++] = bke::attribute_math::mix2<T>(
+                start_alpha, src_attr[start_edge.x], src_attr[start_edge.y]);
+          }
+
+          segment.foreach_point(
+              [&](const int index, const int pos) { dst_attr[pos + i] = src_attr[index]; });
+
+          if (reversed) {
+            dst_attr.slice(IndexRange::from_begin_size(i, segment.points_num())).reverse();
+          }
+
+          i += segment.points_num();
+
+          if (seg_i == segment_range.last() &&
+              (reversed ? segment.has_intersection(Side::Start) :
+                          segment.has_intersection(Side::End)) &&
+              !cyclic[curve_i])
+          {
+            const float end_alpha = reversed ? segment.alpha[Side::Start] :
+                                               segment.alpha[Side::End];
+            const int2 end_edge = reversed ? segment.edge(Side::Start) : segment.edge(Side::End);
+            dst_attr[i++] = bke::attribute_math::mix2<T>(
+                end_alpha, src_attr[end_edge.x], src_attr[end_edge.y]);
+          }
+        }
+      }
+    });
+
+    attribute.dst.finish();
+  }
+
+  return dst_curves;
+}
+
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
                                   const IndexMask &mask_shapes,
@@ -1509,92 +1604,8 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
     return bke::CurvesGeometry();
   }
 
-  bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
-  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-
-  dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
-  dst_curves.cyclic_for_write().copy_from(result.cyclic);
-
-  bke::SpanAttributeWriter<int> shape_id_writer = dst_attributes.lookup_or_add_for_write_span<int>(
-      "shape_id", bke::AttrDomain::Curve);
-  shape_id_writer.span.copy_from(result.shape_ids);
-  shape_id_writer.finish();
-
-  Array<int> old_by_new_map(dst_points_by_curve.size());
-
-  for (const int i : dst_points_by_curve.index_range()) {
-    const IndexRange segment_range = dst_segments_by_curve[i];
-    old_by_new_map[i] = result.segments[segment_range.first()].curve;
-
-    /* Find the first segment that is not clipping. */
-    for (const int segment_i : segment_range) {
-      if (!clipping_shapes.contains(result.segments[segment_i].curve)) {
-        old_by_new_map[i] = result.segments[segment_i].curve;
-        break;
-      }
-    }
-  }
-
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Curve,
-                         bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic", "shape_id"}),
-                         old_by_new_map,
-                         dst_attributes);
-
-  /* Copy/Interpolate point attributes. */
-  for (auto &attribute : bke::retrieve_attributes_for_transfer(
-           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, {}))
-  {
-    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      auto src_attr = attribute.src.typed<T>();
-      auto dst_attr = attribute.dst.span.typed<T>();
-
-      int i = 0;
-
-      for (const int curve_i : dst_segments_by_curve.index_range()) {
-        const IndexRange segment_range = dst_segments_by_curve[curve_i];
-        for (const int seg_i : segment_range) {
-          const Segment &segment = result.segments[seg_i];
-          const bool reversed = result.segment_reversed[seg_i];
-
-          if (reversed ? segment.has_intersection(Side::End) :
-                         segment.has_intersection(Side::Start))
-          {
-            const float start_alpha = reversed ? segment.alpha[Side::End] :
-                                                 segment.alpha[Side::Start];
-            const int2 start_edge = reversed ? segment.end_edge() : segment.edge(Side::Start);
-            dst_attr[i++] = bke::attribute_math::mix2<T>(
-                start_alpha, src_attr[start_edge.x], src_attr[start_edge.y]);
-          }
-
-          segment.foreach_point(
-              [&](const int index, const int pos) { dst_attr[pos + i] = src_attr[index]; });
-
-          if (reversed) {
-            dst_attr.slice(IndexRange::from_begin_size(i, segment.points_num())).reverse();
-          }
-
-          i += segment.points_num();
-
-          if (seg_i == segment_range.last() &&
-              (reversed ? segment.has_intersection(Side::Start) :
-                          segment.has_intersection(Side::End)) &&
-              !result.cyclic[curve_i])
-          {
-            const float end_alpha = reversed ? segment.alpha[Side::Start] :
-                                               segment.alpha[Side::End];
-            const int2 end_edge = reversed ? segment.edge(Side::Start) : segment.end_edge();
-            dst_attr[i++] = bke::attribute_math::mix2<T>(
-                end_alpha, src_attr[end_edge.x], src_attr[end_edge.y]);
-          }
-        }
-      }
-    });
-
-    attribute.dst.finish();
-  }
+  bke::CurvesGeometry dst_curves = create_curves_from_segments(
+      curves, result.segments, result.segment_reversed, result.cyclic, dst_segments_by_curve);
 
   if (!keep_caps) {
     cut_caps(dst_curves,
