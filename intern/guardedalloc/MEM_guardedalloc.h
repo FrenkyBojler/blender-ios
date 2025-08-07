@@ -374,7 +374,7 @@ inline T *MEM_new(const char *allocation_name, Args &&...args)
  * Both #MEM_delete and #MEM_freeN can be used to delete the object.
  *
  * Designed to be used with 'pseudo-POD' types, that are trivially copyable and destructible, but
- * not trivially contstructible. Once constructed, this data can be managed as a C-type one (using
+ * not trivially constructible. Once constructed, this data can be managed as a C-type one (using
  * `MEM_dupallocN`, `MEM_freeN`, safely assigned to a void pointer and freed as such, etc.).
  *
  * The typical use-cases are C-like structs containing only trivial data, that define default
