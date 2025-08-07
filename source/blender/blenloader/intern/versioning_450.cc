@@ -15,7 +15,6 @@
 #include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_screen_types.h"
@@ -5942,17 +5941,6 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
-
-    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
-        if (modifier->type != eModifierType_GreasePencilLineart) {
-          continue;
-        }
-        GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
-            modifier);
-        lmd->radius = float(lmd->thickness_legacy) / 1000.0f;
-      }
-    }
   }
 
   /**

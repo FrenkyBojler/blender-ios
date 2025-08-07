@@ -17,6 +17,7 @@
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
@@ -2104,6 +2105,20 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         node->storage = data;
       }
       FOREACH_NODETREE_END;
+    }
+
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
+        if (modifier->type != eModifierType_GreasePencilLineart) {
+          continue;
+        }
+        GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
+            modifier);
+        if (lmd->radius != 0) {
+          continue;
+        }
+        lmd->radius = float(lmd->thickness_legacy) / 1000.0f;
+      }
     }
   }
 
