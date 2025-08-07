@@ -1,9 +1,34 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup glsl_preprocess
+ *
+ * Very simple parsing of our shader file that are a subset of C++. It allows to traverse the
+ * semantic using tokens and scopes instead of trying to match string patterns throughout the whole
+ * input string.
+ *
+ * The goal of this representation is to output code that doesn't modify the style of the input
+ * string and keep the same line numbers (to match compilation error with input source).
+ *
+ * The `Parser` class contain a copy of the given string to apply string substitutions (called
+ * `Mutation`). It is usually faster to record all of them and apply them all at once after
+ * scanning through the whole semantic representation. In the rare case where mutation need to
+ * overlap (recursive processing), it is better to do them in passes until there is no mutation to
+ * do.
+ *
+ * `Token` and `Scope` are read only interfaces to the data stored inside the `ParserData`.
+ * The data is stored as SoA (Structure of Arrays) for fast traversal.
+ * The types of token and scopes are defined as readable chars to easily create sequences of token
+ * type.
+ *
+ * The `Parser` object needs to be fed a well formed source (without preprocessor directive, see
+ * below), otherwise a crash can occur. The `Parser` doesn't apply any preprocessor. All
+ * preprocessor directive are parsed as `Preprocessor` scope but they are not expanded.
+ *
+ * By default, whitespaces are merged with the previous token. Only a handful of processing
+ * requires access to whitespaces as individual tokens.
  */
 
 #pragma once
@@ -122,7 +147,7 @@ struct OffsetIndices {
   };
 };
 
-struct ScopeRef;
+struct Scope;
 
 struct ParserData {
   std::string str;
@@ -538,7 +563,7 @@ struct ParserData {
   }
 };
 
-struct TokenRef {
+struct Token {
   const ParserData *data;
   size_t index;
 
@@ -548,16 +573,16 @@ struct TokenRef {
     return data->token_offsets[index];
   }
 
-  TokenRef prev() const
+  Token prev() const
   {
     return {data, index - 1};
   }
-  TokenRef next() const
+  Token next() const
   {
     return {data, index + 1};
   }
 
-  ScopeRef scope() const;
+  Scope scope() const;
 
   size_t str_index_start() const
   {
@@ -593,16 +618,16 @@ struct TokenRef {
   }
 };
 
-struct ScopeRef {
+struct Scope {
   const ParserData *data;
   size_t index;
 
-  TokenRef start() const
+  Token start() const
   {
     return {data, range().start};
   }
 
-  TokenRef end() const
+  Token end() const
   {
     return {data, range().last()};
   }
@@ -619,17 +644,17 @@ struct ScopeRef {
   }
 
   void foreach_match(const std::string &pattern,
-                     std::function<void(const std::vector<TokenRef>)> callback) const
+                     std::function<void(const std::vector<Token>)> callback) const
   {
     const std::string scope_tokens = data->token_types.substr(range().start, range().size);
 
-    std::vector<TokenRef> match;
+    std::vector<Token> match;
     match.resize(pattern.size());
 
     size_t pos = 0;
     while ((pos = scope_tokens.find(pattern, pos)) != std::string::npos) {
       for (int i = 0; i < pattern.size(); i++) {
-        match[i] = TokenRef{data, range().start + pos + i};
+        match[i] = Token{data, range().start + pos + i};
       }
       callback(match);
       pos += 1;
@@ -637,7 +662,7 @@ struct ScopeRef {
   }
 };
 
-inline ScopeRef TokenRef::scope() const
+inline Scope Token::scope() const
 {
   return {data, size_t(data->token_scope[index])};
 }
@@ -672,23 +697,23 @@ struct Parser {
   }
 
   /* Run a callback for all existing scopes of a given type. */
-  void foreach_scope(ScopeType type, std::function<void(ScopeRef)> callback)
+  void foreach_scope(ScopeType type, std::function<void(Scope)> callback)
   {
     size_t pos = 0;
     while ((pos = data_.scope_types.find(char(type), pos)) != std::string::npos) {
-      callback(ScopeRef{&data_, pos});
+      callback(Scope{&data_, pos});
       pos += 1;
     }
   }
 
-  std::string substr_range_inclusive(TokenRef start, TokenRef end)
+  std::string substr_range_inclusive(Token start, Token end)
   {
     return data_.str.substr(start.str_index_start(),
                             end.str_index_last() - start.str_index_start() + 1);
   }
 
   /* Return true on success. */
-  bool add_mutation_try(TokenRef from, TokenRef to, const std::string &replacement)
+  bool add_mutation_try(Token from, Token to, const std::string &replacement)
   {
     IndexRange range = IndexRange(from.str_index_start(),
                                   to.str_index_last() + 1 - from.str_index_start());
@@ -701,7 +726,7 @@ struct Parser {
     return true;
   }
 
-  void add_mutation(TokenRef from, TokenRef to, const std::string &replacement)
+  void add_mutation(Token from, Token to, const std::string &replacement)
   {
     bool success = add_mutation_try(from, to, replacement);
     assert(success);

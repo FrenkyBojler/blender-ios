@@ -1162,13 +1162,13 @@ class Preprocessor {
     Parser parser(str);
 
     do {
-      parser.foreach_scope(ScopeType::Function, [&](ScopeRef scope) {
-        scope.foreach_match(".w(", [&](const std::vector<TokenRef> &tokens) {
-          const TokenRef dot = tokens[0];
-          const TokenRef func = tokens[1];
-          const TokenRef par_open = tokens[2];
-          const TokenRef end_of_this = dot.prev();
-          TokenRef start_of_this = end_of_this;
+      parser.foreach_scope(ScopeType::Function, [&](Scope scope) {
+        scope.foreach_match(".w(", [&](const std::vector<Token> &tokens) {
+          const Token dot = tokens[0];
+          const Token func = tokens[1];
+          const Token par_open = tokens[2];
+          const Token end_of_this = dot.prev();
+          Token start_of_this = end_of_this;
           while (true) {
             if (start_of_this == ')') {
               /* Function call. Take argument scope and function name. No recursion. */
@@ -1494,7 +1494,7 @@ class Preprocessor {
 
     Parser parser(str);
 
-    auto add_mutation = [&](TokenRef type, TokenRef arg_name, TokenRef last_tok) {
+    auto add_mutation = [&](Token type, Token arg_name, Token last_tok) {
       if (type.prev() == Const) {
         parser.add_mutation(type.prev(), last_tok, type.str() + arg_name.str());
       }
@@ -1503,13 +1503,11 @@ class Preprocessor {
       }
     };
 
-    parser.foreach_scope(ScopeType::FunctionArgs, [&](const ScopeRef scope) {
-      scope.foreach_match("w(&w)", [&](const std::vector<TokenRef> toks) {
-        add_mutation(toks[0], toks[3], toks[4]);
-      });
-      scope.foreach_match("w&w", [&](const std::vector<TokenRef> toks) {
-        add_mutation(toks[0], toks[2], toks[2]);
-      });
+    parser.foreach_scope(ScopeType::FunctionArgs, [&](const Scope scope) {
+      scope.foreach_match(
+          "w(&w)", [&](const vector<Token> toks) { add_mutation(toks[0], toks[3], toks[4]); });
+      scope.foreach_match(
+          "w&w", [&](const vector<Token> toks) { add_mutation(toks[0], toks[2], toks[2]); });
     });
     return parser.result_get();
   }
