@@ -1812,8 +1812,6 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
 
 void SEQUENCER_OT_duplicate(wmOperatorType *ot)
 {
-  PropertyRNA *prop;
-
   /* Identifiers. */
   ot->name = "Duplicate Strips";
   ot->idname = "SEQUENCER_OT_duplicate";
@@ -1825,13 +1823,6 @@ void SEQUENCER_OT_duplicate(wmOperatorType *ot)
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  prop = RNA_def_boolean(ot->srna,
-                         "linked",
-                         false,
-                         "Linked",
-                         "Duplicate strip but not strip data, linking to the original data");
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
