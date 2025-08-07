@@ -12,7 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -278,7 +278,11 @@ static void file_refresh(const bContext *C, ScrArea *area)
   }
 
   filelist_sort(sfile->files);
-  filelist_filter(sfile->files);
+
+  if (filelist_needs_filtering(sfile->files)) {
+    filelist_filter(sfile->files);
+    params->active_file = -1;
+  }
 
   if (params->display == FILE_IMGDISPLAY) {
     filelist_cache_previews_set(sfile->files, true);
@@ -940,7 +944,7 @@ void ED_spacetype_file()
   ARegionType *art;
 
   st->spaceid = SPACE_FILE;
-  STRNCPY(st->name, "File");
+  STRNCPY_UTF8(st->name, "File");
 
   st->create = file_create;
   st->free = file_free;

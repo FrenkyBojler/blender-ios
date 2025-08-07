@@ -19,7 +19,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
@@ -61,7 +61,7 @@ static void update_paint_modes_for_brush_assets(Main &bmain)
   LISTBASE_FOREACH (WorkSpace *, workspace, &bmain.workspaces) {
     LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
       if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
-        STRNCPY(tref->idname, "builtin.brush");
+        STRNCPY_UTF8(tref->idname, "builtin.brush");
         continue;
       }
       if (tref->space_type != SPACE_VIEW3D) {
@@ -84,7 +84,7 @@ static void update_paint_modes_for_brush_assets(Main &bmain)
       {
         continue;
       }
-      STRNCPY(tref->idname, "builtin.brush");
+      STRNCPY_UTF8(tref->idname, "builtin.brush");
     }
   }
 }
@@ -98,14 +98,14 @@ static void fix_built_in_curve_attribute_defaults(Main *bmain)
   LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
     const int curves_num = curves->geometry.curve_num;
     if (int *resolutions = static_cast<int *>(CustomData_get_layer_named_for_write(
-            &curves->geometry.curve_data, CD_PROP_INT32, "resolution", curves_num)))
+            &curves->geometry.curve_data_legacy, CD_PROP_INT32, "resolution", curves_num)))
     {
       for (int &resolution : blender::MutableSpan{resolutions, curves_num}) {
         resolution = std::max(resolution, 1);
       }
     }
     if (int8_t *nurb_orders = static_cast<int8_t *>(CustomData_get_layer_named_for_write(
-            &curves->geometry.curve_data, CD_PROP_INT8, "nurbs_order", curves_num)))
+            &curves->geometry.curve_data_legacy, CD_PROP_INT8, "nurbs_order", curves_num)))
     {
       for (int8_t &nurbs_order : blender::MutableSpan{nurb_orders, curves_num}) {
         nurbs_order = std::max<int8_t>(nurbs_order, 1);
@@ -129,11 +129,11 @@ static void node_reroute_add_storage(bNodeTree &tree)
        * identifiers were sometimes all lower case. Fixing those wrong socket identifiers is
        * important because otherwise they loose links now that the reroute node also uses node
        * declarations. */
-      STRNCPY(input.identifier, "Input");
-      STRNCPY(output.identifier, "Output");
+      STRNCPY_UTF8(input.identifier, "Input");
+      STRNCPY_UTF8(output.identifier, "Output");
 
       NodeReroute *data = MEM_callocN<NodeReroute>(__func__);
-      STRNCPY(data->type_idname, input.idname);
+      STRNCPY_UTF8(data->type_idname, input.idname);
       node->storage = data;
     }
   }
@@ -483,7 +483,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         continue;
       }
       LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-        if (ELEM(node->type_legacy, CMP_NODE_VIEWER, CMP_NODE_COMPOSITE)) {
+        if (ELEM(node->type_legacy, CMP_NODE_VIEWER, CMP_NODE_COMPOSITE_DEPRECATED)) {
           node->flag &= ~NODE_PREVIEW;
         }
       }
@@ -508,7 +508,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (tref->space_type != SPACE_SEQ) {
           continue;
         }
-        STRNCPY(tref->idname, "builtin.select_box");
+        STRNCPY_UTF8(tref->idname, "builtin.select_box");
       }
     }
   }

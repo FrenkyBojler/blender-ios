@@ -17,16 +17,6 @@ void VKResourcePool::init(VKDevice &device)
   descriptor_pools.init(device);
 }
 
-void VKResourcePool::deinit(VKDevice &device)
-{
-  immediate.deinit(device);
-}
-
-void VKResourcePool::reset()
-{
-  immediate.reset();
-}
-
 void VKDiscardPool::deinit(VKDevice &device)
 {
   destroy_discarded_resources(device, true);
@@ -34,7 +24,6 @@ void VKDiscardPool::deinit(VKDevice &device)
 
 void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
 {
-  std::scoped_lock mutex(mutex_);
   src_pool.buffer_views_.update_timeline(timeline);
   src_pool.buffers_.update_timeline(timeline);
   src_pool.image_views_.update_timeline(timeline);
@@ -158,7 +147,7 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
     vkDestroyRenderPass(device.vk_handle(), vk_render_pass, nullptr);
   });
 
-  // TODO: Introduce reuse_old as the allocations can all be reused by resetting the pool.
+  /* TODO: Introduce reuse_old as the allocations can all be reused by resetting the pool. */
   descriptor_pools_.remove_old(current_timeline, [&](VkDescriptorPool vk_descriptor_pool) {
     vkResetDescriptorPool(device.vk_handle(), vk_descriptor_pool, 0);
     vkDestroyDescriptorPool(device.vk_handle(), vk_descriptor_pool, nullptr);

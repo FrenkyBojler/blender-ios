@@ -8,7 +8,7 @@
 
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
@@ -22,7 +22,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_c.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "COM_keying_screen.hh"
@@ -45,7 +46,9 @@ static void cmp_node_keyingscreen_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .description("Specifies the smoothness of the keying screen");
 
-  b.add_output<decl::Color>("Screen").translation_context(BLT_I18NCONTEXT_ID_SCREEN);
+  b.add_output<decl::Color>("Screen")
+      .translation_context(BLT_I18NCONTEXT_ID_SCREEN)
+      .structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_keyingscreen(const bContext *C, PointerRNA *ptr)
@@ -63,7 +66,7 @@ static void node_composit_init_keyingscreen(const bContext *C, PointerRNA *ptr)
     id_us_plus(&clip->id);
 
     const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-    STRNCPY(data->tracking_object, tracking_object->name);
+    STRNCPY_UTF8(data->tracking_object, tracking_object->name);
   }
 }
 
@@ -80,7 +83,7 @@ static void node_composit_buts_keyingscreen(uiLayout *layout, bContext *C, Point
         &clip->id, &RNA_MovieTracking, &clip->tracking);
 
     col = &layout->column(true);
-    uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+    col->prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
   }
 }
 

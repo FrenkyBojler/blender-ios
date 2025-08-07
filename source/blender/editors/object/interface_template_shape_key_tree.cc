@@ -6,25 +6,28 @@
  * \ingroup edinterface
  */
 
+#include <fmt/format.h>
+
 #include "BKE_context.hh"
 #include "BKE_key.hh"
 
 #include "BLI_listbase.h"
 #include "BLT_translation.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
+
 #include "DNA_key_types.h"
+
 #include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "ED_undo.hh"
-#include "WM_types.hh"
-#include <fmt/format.h>
 
 namespace blender::ed::object::shapekey {
 
@@ -33,7 +36,10 @@ class ShapeKeyTreeView : public ui::AbstractTreeView {
   Object &object_;
 
  public:
-  ShapeKeyTreeView(Object &ob) : object_(ob){};
+  ShapeKeyTreeView(Object &ob) : object_(ob)
+  {
+    is_flat_ = true;
+  };
 
   void build_tree() override;
 };
@@ -166,9 +172,14 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   {
     uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
         &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
+
+    if (shape_key_.index > 0) {
+      sub->prop(&shapekey_ptr, "value", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    }
+
     sub->prop(&shapekey_ptr, "mute", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
     sub->prop(&shapekey_ptr, "lock_shape", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
   }
@@ -187,6 +198,17 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     RNA_property_update(&C, &object_ptr, prop);
 
     ED_undo_push(&C, "Set Active Shape Key");
+  }
+
+  std::optional<bool> should_be_selected() const override
+  {
+    return shape_key_.kb->flag & KEYBLOCK_SEL;
+  }
+
+  void set_selected(const bool select) override
+  {
+    AbstractViewItem::set_selected(select);
+    SET_FLAG_FROM_TEST(shape_key_.kb->flag, select, KEYBLOCK_SEL);
   }
 
   bool supports_renaming() const override
@@ -240,7 +262,7 @@ void template_tree(uiLayout *layout, bContext *C)
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
@@ -248,6 +270,7 @@ void template_tree(uiLayout *layout, bContext *C)
       std::make_unique<ed::object::shapekey::ShapeKeyTreeView>(*ob));
   tree_view->set_context_menu_title("Shape Key");
   tree_view->set_default_rows(4);
+  tree_view->allow_multiselect_items();
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

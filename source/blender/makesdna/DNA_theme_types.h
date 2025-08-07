@@ -11,8 +11,8 @@
 /**
  * Scaling factor for all UI elements, based on the "Resolution Scale" user preference and the
  * DPI/OS Scale of each monitor. This is a read-only, run-time value calculated by
- * `WM_window_set_dpi` at various times, including between the drawing of each window and so can
- * vary between monitors.
+ * `WM_window_dpi_set_userdef` at various times, including between the drawing of each window and
+ * so can vary between monitors.
  */
 #define UI_SCALE_FAC ((void)0, U.scale_factor)
 
@@ -106,15 +106,26 @@ typedef struct uiStyle {
   char _pad0[2];
 } uiStyle;
 
+typedef struct ThemeCommonAnim {
+  /** Preview range overlay. */
+  unsigned char preview_range[4];
+} ThemeCommonAnim;
+
+typedef struct ThemeCommon {
+  ThemeCommonAnim anim;
+  char _pad[4];
+} ThemeCommon;
+
 typedef struct uiWidgetColors {
   unsigned char outline[4];
+  unsigned char outline_sel[4];
   unsigned char inner[4];
   unsigned char inner_sel[4];
   unsigned char item[4];
   unsigned char text[4];
   unsigned char text_sel[4];
   unsigned char shaded;
-  char _pad0[7];
+  char _pad0[3];
   short shadetop, shadedown;
   float roundness;
 } uiWidgetColors;
@@ -137,13 +148,6 @@ typedef struct uiWidgetStateColors {
   float blend;
   char _pad0[4];
 } uiWidgetStateColors;
-
-typedef struct uiPanelColors {
-  unsigned char header[4];
-  unsigned char back[4];
-  unsigned char sub_back[4];
-  char _pad0[4];
-} uiPanelColors;
 
 typedef struct ThemeUI {
   /* Interface Elements (buttons, menus, icons) */
@@ -168,14 +172,14 @@ typedef struct ThemeUI {
   /* Transparent Grid */
   unsigned char transparent_checker_primary[4], transparent_checker_secondary[4];
   unsigned char transparent_checker_size;
-  char _pad1[1];
+  char _pad1[5];
 
   float icon_alpha;
   float icon_saturation;
   unsigned char widget_text_cursor[4];
 
   /* Axis Colors */
-  unsigned char xaxis[4], yaxis[4], zaxis[4];
+  unsigned char xaxis[4], yaxis[4], zaxis[4], waxis[4];
 
   /* Gizmo Colors. */
   unsigned char gizmo_hi[4];
@@ -206,7 +210,14 @@ typedef struct ThemeUI {
   /** Intensity of the border icons. >0 will render an border around themed
    * icons. */
   float icon_border_intensity;
+  /* Panels. */
   float panel_roundness;
+  unsigned char panel_header[4];
+  unsigned char panel_back[4];
+  unsigned char panel_sub_back[4];
+  unsigned char panel_outline[4];
+  unsigned char panel_title[4];
+  unsigned char panel_text[4];
   char _pad2[4];
 
 } ThemeUI;
@@ -241,18 +252,13 @@ typedef struct ThemeSpace {
   unsigned char header_text_hi[4];
 
   /* region tabs */
-  unsigned char tab_active[4];
-  unsigned char tab_inactive[4];
   unsigned char tab_back[4];
-  unsigned char tab_outline[4];
+  char _pad2[4];
 
   /* button/tool regions */
   /** Region background. */
   unsigned char button[4];
-  /** Panel title. */
-  unsigned char button_title[4];
-  unsigned char button_text[4];
-  unsigned char button_text_hi[4];
+  unsigned char _pad3[4];
 
   /* List-view regions. */
   /** Region background. */
@@ -261,17 +267,6 @@ typedef struct ThemeSpace {
   unsigned char list_title[4];
   unsigned char list_text[4];
   unsigned char list_text_hi[4];
-
-  /* navigation bar regions */
-  /** Region background. */
-  unsigned char navigation_bar[4];
-  /** Region background. */
-  unsigned char execution_buts[4];
-
-  /* NOTE: cannot use name 'panel' because of DNA mapping old files. */
-  uiPanelColors panelcolors;
-
-  ThemeAssetShelf asset_shelf;
 
   unsigned char shade1[4];
   unsigned char shade2[4];
@@ -416,8 +411,7 @@ typedef struct ThemeSpace {
   unsigned char anim_active[4];
   /** Active Action = NULL. */
   unsigned char anim_non_active[4];
-  /** Preview range overlay. */
-  unsigned char anim_preview_range[4];
+  char _pad8[4];
 
   /** NLA 'Tweaking' action/strip. */
   unsigned char nla_tweaking[4];
@@ -506,6 +500,8 @@ typedef struct bTheme {
 
   ThemeUI tui;
 
+  ThemeCommon common;
+
   /**
    * Individual Space-types:
    * \note Ensure #UI_THEMESPACE_END is updated when adding.
@@ -528,6 +524,8 @@ typedef struct bTheme {
   ThemeSpace space_topbar;
   ThemeSpace space_statusbar;
   ThemeSpace space_spreadsheet;
+
+  ThemeAssetShelf asset_shelf;
 
   /* 20 sets of bone colors for this theme */
   ThemeWireColor tarm[20];

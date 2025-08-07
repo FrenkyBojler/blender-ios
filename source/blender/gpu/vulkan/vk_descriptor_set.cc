@@ -48,11 +48,13 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
 void VKDescriptorSetTracker::upload_descriptor_sets()
 {
   VKDevice &device = VKBackend::get().device;
-  VKDescriptorSetUpdator &updator = descriptor_sets;
   if (device.extensions_get().descriptor_buffer) {
-    updator = descriptor_buffers;
+    descriptor_buffers.upload_descriptor_sets();
   }
-  updator.upload_descriptor_sets();
+  else {
+    descriptor_sets.upload_descriptor_sets();
+  }
+  vk_descriptor_set_layout_ = VK_NULL_HANDLE;
 }
 
 /* -------------------------------------------------------------------- */
@@ -90,7 +92,13 @@ void VKDescriptorSetUpdator::bind_texture_resource(const VKDevice &device,
                                                    const VKResourceBinding &resource_binding,
                                                    render_graph::VKResourceAccessInfo &access_info)
 {
-  const BindSpaceTextures::Elem &elem = state_manager.textures_.get(resource_binding.binding);
+  const BindSpaceTextures::Elem *elem_ptr = state_manager.textures_.get(resource_binding.binding);
+  if (!elem_ptr) {
+    /* Unbound resource. */
+    BLI_assert_unreachable();
+    return;
+  }
+  const BindSpaceTextures::Elem &elem = *elem_ptr;
   switch (elem.resource_type) {
     case BindSpaceTextures::Type::VertexBuffer: {
       VKVertexBuffer &vertex_buffer = *static_cast<VKVertexBuffer *>(elem.resource);
@@ -160,7 +168,14 @@ void VKDescriptorSetUpdator::bind_input_attachment_resource(
   }
   else {
     bool supports_dynamic_rendering = device.extensions_get().dynamic_rendering;
-    const BindSpaceTextures::Elem &elem = state_manager.textures_.get(resource_binding.binding);
+    const BindSpaceTextures::Elem *elem_ptr = state_manager.textures_.get(
+        resource_binding.binding);
+    if (!elem_ptr) {
+      /* Unbound resource. */
+      BLI_assert_unreachable();
+      return;
+    }
+    const BindSpaceTextures::Elem &elem = *elem_ptr;
     VKTexture *texture = static_cast<VKTexture *>(elem.resource);
     BLI_assert(texture);
     BLI_assert(elem.resource_type == BindSpaceTextures::Type::Texture);
@@ -529,19 +544,21 @@ void VKDescriptorBufferUpdator::allocate_new_descriptor_set(
       vk_descriptor_set_layout);
 
   /* Ensure if there is still place left in the current buffer. */
-  if (buffers.is_empty() || layout.size > buffers.last().size_in_bytes() - descriptor_set_head) {
+  if (buffers.is_empty() ||
+      layout.size > buffers.last().get()->size_in_bytes() - descriptor_set_head)
+  {
     const VkDeviceSize default_buffer_size = 8 * 1024 * 1024;
-    buffers.append({});
-    VKBuffer &buffer = buffers.last();
-    buffer.create(default_buffer_size,
-                  VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
-                      VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
-                  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                  0,
-                  VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
-    debug::object_label(buffer.vk_handle(), "DescriptorBuffer");
-    descriptor_buffer_data = static_cast<uint8_t *>(buffer.mapped_memory_get());
-    descriptor_buffer_device_address = buffer.device_address_get();
+    buffers.append(std::make_unique<VKBuffer>());
+    VKBuffer *buffer = buffers.last().get();
+    buffer->create(default_buffer_size,
+                   VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
+                       VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
+                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                   0,
+                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
+    debug::object_label(buffer->vk_handle(), "DescriptorBuffer");
+    descriptor_buffer_data = static_cast<uint8_t *>(buffer->mapped_memory_get());
+    descriptor_buffer_device_address = buffer->device_address_get();
     descriptor_buffer_offset = 0;
     descriptor_set_head = 0;
     descriptor_set_tail = 0;

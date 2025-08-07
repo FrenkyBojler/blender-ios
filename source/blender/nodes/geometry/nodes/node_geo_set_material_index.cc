@@ -10,6 +10,8 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 namespace blender::nodes::node_geo_set_material_index_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -17,7 +19,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Geometry")
-      .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::GreasePencil});
+      .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::GreasePencil})
+      .description("Geometry to update the material indices on");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Int>("Material Index").min(0).field_on_all();
@@ -49,7 +52,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<int> material_index = params.extract_input<Field<int>>("Material Index");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
       bke::try_capture_field_on_geometry(mesh->attributes_for_write(),
                                          bke::MeshFieldContext(*mesh, AttrDomain::Face),

@@ -71,14 +71,6 @@ struct Global {
   bool background;
 
   /**
-   * When true, suppress any non-error print messages such as files saves, loaded, quitting etc.
-   * This is used so command line tools can control output without unnecessary noise.
-   *
-   * \note This should only be used to suppress printing (not reports or other kinds of logging).
-   */
-  bool quiet;
-
-  /**
    * Skip reading the startup file and user preferences.
    * Also disable saving the preferences on exit (see #G_FLAG_USERPREF_NO_SAVE_ON_EXIT),
    * see via the command line argument: `--factory-startup`.
@@ -172,13 +164,6 @@ struct Global {
    * Typically Python drivers.
    */
   char autoexec_fail[200];
-
-  /**
-   * Has there been an opengl deprecation call detected when running on a none OpenGL backend.
-   */
-  bool opengl_deprecation_usage_detected;
-  const char *opengl_deprecation_usage_filename;
-  int opengl_deprecation_usage_lineno;
 
   /**
    * Triggers a GPU capture if the name matches a DebugScope.

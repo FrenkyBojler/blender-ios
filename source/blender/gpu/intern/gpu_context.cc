@@ -130,7 +130,7 @@ VertBuf *Context::dummy_vbo_get()
 
   /* TODO(fclem): get rid of this dummy VBO. */
   GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32);
   this->dummy_vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*this->dummy_vbo, 1);
   return this->dummy_vbo;
@@ -515,6 +515,24 @@ eGPUBackendType GPU_backend_get_type()
   return GPU_BACKEND_NONE;
 }
 
+const char *GPU_backend_get_name()
+{
+  switch (GPU_backend_get_type()) {
+    case GPU_BACKEND_OPENGL:
+      return "OpenGL";
+    case GPU_BACKEND_VULKAN:
+      return "Vulkan";
+    case GPU_BACKEND_METAL:
+      return "Metal";
+    case GPU_BACKEND_NONE:
+      return "None";
+    case GPU_BACKEND_ANY:
+      break;
+  }
+
+  return "Unknown";
+}
+
 GPUBackend *GPUBackend::get()
 {
   return g_backend;
@@ -573,6 +591,9 @@ GPUSecondaryContext::GPUSecondaryContext()
   /* Create a Ghost GPU Context using the system handle. */
   ghost_context_ = GHOST_CreateGPUContext(ghost_system, gpu_settings);
   BLI_assert(ghost_context_);
+
+  /* Activate it so GPU_context_create has a valid device for info queries. */
+  GHOST_ActivateGPUContext(reinterpret_cast<GHOST_ContextHandle>(ghost_context_));
 
   /* Create a GPU context for the secondary thread to use. */
   gpu_context_ = GPU_context_create(nullptr, ghost_context_);

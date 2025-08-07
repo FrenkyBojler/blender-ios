@@ -8,6 +8,10 @@
  * \ingroup bke
  */
 
+#include "BKE_attribute_storage.hh"
+
+#include "BLI_vector.hh"
+
 struct CustomData;
 struct Main;
 struct Mesh;
@@ -19,6 +23,13 @@ namespace blender::bke {
 void mesh_custom_normals_to_generic(Mesh &mesh);
 
 void mesh_sculpt_mask_to_generic(Mesh &mesh);
+
+void mesh_freestyle_marks_to_generic(Mesh &mesh);
+void mesh_freestyle_marks_to_legacy(AttributeStorage::BlendWriteData &attr_write_data,
+                                    CustomData &edge_data,
+                                    CustomData &face_data,
+                                    Vector<CustomDataLayer, 16> &edge_layers,
+                                    Vector<CustomDataLayer, 16> &face_layers);
 
 }  // namespace blender::bke
 
@@ -89,7 +100,7 @@ void BKE_mesh_tessface_ensure(Mesh *mesh);
 
 /**
  * Rotates the vertices of a face in case v[2] or v[3] (vertex index) is = 0.
- * this is necessary to make the if #MFace.v4 check for quads work.
+ * this is necessary to make the `if #MFace.v4` check for quads work.
  */
 int BKE_mesh_mface_index_validate(MFace *mface, CustomData *mfdata, int mfindex, int nr);
 

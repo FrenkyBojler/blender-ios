@@ -19,6 +19,7 @@
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -44,6 +45,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_c.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "BLO_read_write.hh"
@@ -200,7 +202,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 void ED_buttons_navbar_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 {
   ED_screens_region_flip_menu_create(C, layout, nullptr);
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 }
 
@@ -310,8 +312,12 @@ static void buttons_main_region_layout_properties(const bContext *C,
 
   const char *contexts[2] = {buttons_main_region_context_string(sbuts->mainb), nullptr};
 
-  ED_region_panels_layout_ex(
-      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
+  ED_region_panels_layout_ex(C,
+                             region,
+                             &region->runtime->type->paneltypes,
+                             blender::wm::OpCallContext::InvokeRegionWin,
+                             contexts,
+                             nullptr);
 }
 
 /** \} */
@@ -333,7 +339,7 @@ int ED_buttons_search_string_length(SpaceProperties *sbuts)
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)
 {
   if (sbuts->runtime) {
-    STRNCPY(sbuts->runtime->search_string, value);
+    STRNCPY_UTF8(sbuts->runtime->search_string, value);
   }
 }
 
@@ -890,6 +896,11 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
             ED_area_tag_redraw(area);
           }
           break;
+        case ND_ANIMCHAN:
+          if (wmn->action == NA_SELECTED) {
+            ED_area_tag_redraw(area);
+          }
+          break;
       }
       break;
     case NC_GPENCIL:
@@ -1070,7 +1081,7 @@ void ED_spacetype_buttons()
   ARegionType *art;
 
   st->spaceid = SPACE_PROPERTIES;
-  STRNCPY(st->name, "Buttons");
+  STRNCPY_UTF8(st->name, "Buttons");
 
   st->create = buttons_create;
   st->free = buttons_free;
@@ -1094,7 +1105,7 @@ void ED_spacetype_buttons()
   art->draw = ED_region_panels_draw;
   art->listener = buttons_main_region_listener;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
-  art->lock = true;
+  art->lock = REGION_DRAW_LOCK_ALL;
   buttons_context_register(art);
   BLI_addhead(&st->regiontypes, art);
 

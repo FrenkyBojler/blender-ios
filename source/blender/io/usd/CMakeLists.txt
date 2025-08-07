@@ -83,14 +83,15 @@ set(SRC
   intern/usd_writer_material.cc
   intern/usd_writer_mesh.cc
   intern/usd_writer_metaball.cc
+  intern/usd_writer_pointinstancer.cc
   intern/usd_writer_points.cc
   intern/usd_writer_text.cc
   intern/usd_writer_transform.cc
   intern/usd_writer_volume.cc
 
   intern/usd_reader_camera.cc
-  intern/usd_reader_domelight.cc
   intern/usd_reader_curve.cc
+  intern/usd_reader_domelight.cc
   intern/usd_reader_geom.cc
   intern/usd_reader_instance.cc
   intern/usd_reader_light.cc
@@ -134,6 +135,7 @@ set(SRC
   intern/usd_writer_material.hh
   intern/usd_writer_mesh.hh
   intern/usd_writer_metaball.hh
+  intern/usd_writer_pointinstancer.hh
   intern/usd_writer_points.hh
   intern/usd_writer_text.hh
   intern/usd_writer_transform.hh
@@ -163,6 +165,7 @@ set(SRC
 
 if(WITH_HYDRA)
   list(APPEND SRC
+    hydra/camera_delegate.cc
     hydra/curves.cc
     hydra/hydra_scene_delegate.cc
     hydra/id.cc
@@ -177,6 +180,7 @@ if(WITH_HYDRA)
     hydra/volume_modifier.cc
     hydra/world.cc
 
+    hydra/camera_delegate.hh
     hydra/curves.hh
     hydra/hydra_scene_delegate.hh
     hydra/id.hh

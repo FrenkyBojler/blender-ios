@@ -17,6 +17,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_geometry_set.hh"
@@ -204,7 +205,7 @@ static void refresh_node_socket(bNodeTree &ntree,
     SET_FLAG_FROM_TEST(new_socket->flag, hide_new_sockets, SOCK_HIDDEN);
   }
   else {
-    STRNCPY(old_socket_with_same_identifier->name, socket_decl.name.c_str());
+    STRNCPY_UTF8(old_socket_with_same_identifier->name, socket_decl.name.c_str());
     if (socket_decl.matches(*old_socket_with_same_identifier)) {
       /* The existing socket matches exactly, just use it. */
       new_socket = old_socket_with_same_identifier;
@@ -216,7 +217,7 @@ static void refresh_node_socket(bNodeTree &ntree,
 
       if (new_socket == old_socket_with_same_identifier) {
         /* The existing socket has been updated, set the correct identifier again. */
-        STRNCPY(new_socket->identifier, socket_decl.identifier.c_str());
+        STRNCPY_UTF8(new_socket->identifier, socket_decl.identifier.c_str());
       }
       else {
         /* Move links to new socket with same identifier. */
@@ -381,7 +382,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
       if (const char *new_identifier = get_current_socket_identifier_for_future_socket(
               node, *socket, node_decl.inputs))
       {
-        STRNCPY(socket->identifier, new_identifier);
+        STRNCPY_UTF8(socket->identifier, new_identifier);
       }
     }
   }
@@ -390,7 +391,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
       if (const char *new_identifier = get_current_socket_identifier_for_future_socket(
               node, *socket, node_decl.outputs))
       {
-        STRNCPY(socket->identifier, new_identifier);
+        STRNCPY_UTF8(socket->identifier, new_identifier);
       }
     }
   }
@@ -536,6 +537,34 @@ bool socket_type_supports_fields(const eNodeSocketDatatype socket_type)
 bool socket_type_supports_grids(const eNodeSocketDatatype socket_type)
 {
   return ELEM(socket_type, SOCK_FLOAT, SOCK_VECTOR);
+}
+
+bool socket_type_always_single(const eNodeSocketDatatype socket_type)
+{
+  switch (socket_type) {
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_GEOMETRY:
+    case SOCK_COLLECTION:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+    case SOCK_CLOSURE:
+    case SOCK_BUNDLE:
+    case SOCK_STRING:
+      return true;
+    case SOCK_CUSTOM:
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_SHADER:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_ROTATION:
+    case SOCK_MENU:
+    case SOCK_MATRIX:
+      return false;
+  }
+  return false;
 }
 
 }  // namespace blender::nodes
@@ -819,7 +848,7 @@ void node_socket_copy_default_value(bNodeSocket *to, const bNodeSocket *from)
 
   /* use label instead of name if it has been set */
   if (from->label[0] != '\0') {
-    STRNCPY(to->name, from->label);
+    STRNCPY_UTF8(to->name, from->label);
   }
 
   node_socket_copy_default_value_data(to->typeinfo->type, to->default_value, from->default_value);
@@ -995,9 +1024,9 @@ static bke::bNodeSocketType *make_socket_type_bundle()
   };
   socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
   socktype->get_geometry_nodes_cpp_value = [](const void * /*socket_value*/, void *r_value) {
-    new (r_value) SocketValueVariant(nodes::BundlePtr());
+    SocketValueVariant::ConstructIn(r_value, nodes::BundlePtr());
   };
-  static SocketValueVariant default_value{nodes::BundlePtr()};
+  static SocketValueVariant default_value = SocketValueVariant::From(nodes::BundlePtr());
   socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
@@ -1011,9 +1040,9 @@ static bke::bNodeSocketType *make_socket_type_closure()
   };
   socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
   socktype->get_geometry_nodes_cpp_value = [](const void * /*socket_value*/, void *r_value) {
-    new (r_value) SocketValueVariant(nodes::ClosurePtr());
+    SocketValueVariant::ConstructIn(r_value, nodes::ClosurePtr());
   };
-  static SocketValueVariant default_value{nodes::ClosurePtr()};
+  static SocketValueVariant default_value = SocketValueVariant::From(nodes::ClosurePtr());
   socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
