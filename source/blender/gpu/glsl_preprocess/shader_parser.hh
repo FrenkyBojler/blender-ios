@@ -38,12 +38,14 @@ enum TokenType : char {
   AngleClose = '>',
   Equal = '=',
   SemiColon = ';',
+  Question = '?',
   Colon = ':',
   Comma = ',',
   Star = '*',
   Plus = '+',
   Minus = '-',
   Divide = '/',
+  Tilde = '~',
   Backslash = '\\',
   /* Keywords */
   Namespace = 'n',
@@ -173,6 +175,22 @@ struct ParserData {
         if (type == Literal && prev == Word) {
           continue;
         }
+        /* If 'x' is part of hex literal. */
+        if (c == 'x' && prev == Literal) {
+          continue;
+        }
+        /* If 'A-F' is part of hex literal. */
+        if (c >= 'A' && c <= 'F' && prev == Literal) {
+          continue;
+        }
+        /* If 'a-f' is part of hex literal. */
+        if (c >= 'a' && c <= 'f' && prev == Literal) {
+          continue;
+        }
+        /* If 'u' is part of unsigned int literal. */
+        if (c == 'u' && prev == Literal) {
+          continue;
+        }
         /* If dot is part of float literal. */
         if (type == Dot && prev == Literal) {
           continue;
@@ -214,7 +232,10 @@ struct ParserData {
           IndexRange range = token_offsets[tok_id];
           std::string word = str.substr(range.start, range.size);
           if (!keep_whitespace) {
-            word.substr(0, word.find_last_not_of(" \n"));
+            size_t last_non_whitespace = word.find_last_not_of(" \n");
+            if (last_non_whitespace != std::string::npos) {
+              word = word.substr(0, last_non_whitespace + 1);
+            }
           }
 
           if (word == "namespace") {
@@ -426,8 +447,12 @@ struct ParserData {
         return TokenType::Plus;
       case '/':
         return TokenType::Divide;
+      case '~':
+        return TokenType::Tilde;
       case '\\':
         return TokenType::Backslash;
+      case '?':
+        return TokenType::Question;
       case ':':
         return TokenType::Colon;
       case ',':
