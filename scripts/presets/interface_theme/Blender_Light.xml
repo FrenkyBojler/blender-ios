@@ -387,14 +387,14 @@
       <ThemeCommon>
         <anim>
           <ThemeCommonAnim
-            frame_current="#5680c2"
+            playhead="#5680c2"
             preview_range="#a14d0066"
             time_marker="#00000060"
             time_marker_selected="#ffffff60"
-            dopesheet_channel="#2e639924"
-            dopesheet_subchannel="#7aa4cc24"
+            channel="#2e639924"
+            channel_sub="#7aa4cc24"
             channel_group="#278c0e37"
-            active_channels_group="#4eb33555"
+            channel_group_active="#4eb33555"
             >
           </ThemeCommonAnim>
         </anim>

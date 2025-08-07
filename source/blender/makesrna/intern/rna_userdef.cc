@@ -2155,7 +2155,7 @@ static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "ThemeCommonAnim");
   RNA_def_struct_ui_text(srna, "Common Animation Properties", "Shared animation theme properties");
 
-  prop = RNA_def_property(srna, "frame_current", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "playhead", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "playhead");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Playhead", "");
@@ -2179,13 +2179,13 @@ static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Channel properties */
-  prop = RNA_def_property(srna, "dopesheet_channel", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "channel", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "channel");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Channel", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "dopesheet_subchannel", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "channel_sub", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "channel_sub");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Sub-channel", "");
@@ -2197,7 +2197,7 @@ static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Channel Group", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "active_channels_group", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "channel_group_active", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "channel_group_active");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Active Channel Group", "");
