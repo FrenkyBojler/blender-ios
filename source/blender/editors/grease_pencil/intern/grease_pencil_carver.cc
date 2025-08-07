@@ -1424,10 +1424,57 @@ bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves,
   return curves_copy_curve_selection(curves, to_keep, {});
 }
 
+static void cut_caps(bke::CurvesGeometry &dst,
+                     const Span<Segment> segments,
+                     const Span<bool> segment_reversed,
+                     const Span<bool> cyclic,
+                     const OffsetIndices<int> segment_offsets)
+{
+  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+  bke::SpanAttributeWriter<int8_t> dst_start_caps =
+      dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter<int8_t> dst_end_caps =
+      dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
+
+  for (const int curve_i : segment_offsets.index_range()) {
+    /* If the curve connects back to it's self, don't cut it. */
+    if (cyclic[curve_i]) {
+      continue;
+    }
+
+    const IndexRange segment_range = segment_offsets[curve_i];
+
+    const int segment_index_first = segment_range.first();
+    const bool reversed_first = segment_reversed[segment_index_first];
+    const Segment &segment_first = segments[segment_index_first];
+    const Side direction_first = reversed_first ? Side::End : Side::Start;
+    const int inter_index_first = segment_first.intersection_index[direction_first];
+
+    const int segment_index_last = segment_range.last();
+    const bool reversed_last = segment_reversed[segment_index_last];
+    const Segment &segment_last = segments[segment_index_last];
+    const Side direction_last = reversed_last ? Side::Start : Side::End;
+    const int inter_index_last = segment_last.intersection_index[direction_last];
+
+    /* Check if there is intersection and therefor the segment should be cut. */
+    if (inter_index_first != -1) {
+      dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+    }
+    if (inter_index_last != -1) {
+      dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+    }
+  }
+
+  dst_start_caps.finish();
+  dst_end_caps.finish();
+}
+
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
                                   const IndexMask &mask_shapes,
-                                  const IndexMask &clipping_shapes)
+                                  const IndexMask &clipping_shapes,
+                                  const bool keep_caps)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
 
@@ -1547,6 +1594,14 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
     });
 
     attribute.dst.finish();
+  }
+
+  if (!keep_caps) {
+    cut_caps(dst_curves,
+             result.segments,
+             result.segment_reversed,
+             result.cyclic,
+             dst_segments_by_curve);
   }
 
   if (op_params.output_rule == FillRule::NoHoles) {
@@ -1699,7 +1754,7 @@ static bool execute_carver_on_drawing(const int layer_index,
   op_params.boolean_mode = geometry::boolean::Operation::Difference;
 
   bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
-      op_params, input_curves, input_curves.curves_range(), clipping_curves);
+      op_params, input_curves, input_curves.curves_range(), clipping_curves, keep_caps);
 
   /* TODO. */
   // placement.reproject(carved_strokes.positions(), carved_strokes.positions_for_write());
