@@ -1470,10 +1470,6 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
       segments, segment_offsets, cyclic, point_offsets.as_mutable_span());
   const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
 
-  if (dst_points_by_curve.total_size() == 0) {
-    return bke::CurvesGeometry();
-  }
-
   const bke::AttributeAccessor src_attributes = src.attributes();
   bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
@@ -1512,12 +1508,9 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
           const Segment &segment = segments[seg_i];
           const bool reversed = segment_reversed[seg_i];
 
-          if (reversed ? segment.has_intersection(Side::End) :
-                         segment.has_intersection(Side::Start) && !segment.is_loop())
-          {
-            const float start_alpha = reversed ? segment.alpha[Side::End] :
-                                                 segment.alpha[Side::Start];
-            const int2 start_edge = reversed ? segment.edge(Side::End) : segment.edge(Side::Start);
+          if (segment.has_intersection(reversed ? Side::End : Side::Start) && !segment.is_loop()) {
+            const float start_alpha = segment.alpha[reversed ? Side::End : Side::Start];
+            const int2 start_edge = segment.edge(reversed ? Side::End : Side::Start);
             dst_attr[i++] = bke::attribute_math::mix2<T>(
                 start_alpha, src_attr[start_edge.x], src_attr[start_edge.y]);
           }
@@ -1532,13 +1525,10 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
           i += segment.points_num();
 
           if (seg_i == segment_range.last() &&
-              (reversed ? segment.has_intersection(Side::Start) :
-                          segment.has_intersection(Side::End)) &&
-              !cyclic[curve_i])
+              segment.has_intersection(reversed ? Side::Start : Side::End) && !cyclic[curve_i])
           {
-            const float end_alpha = reversed ? segment.alpha[Side::Start] :
-                                               segment.alpha[Side::End];
-            const int2 end_edge = reversed ? segment.edge(Side::Start) : segment.edge(Side::End);
+            const float end_alpha = segment.alpha[reversed ? Side::Start : Side::End];
+            const int2 end_edge = segment.edge(reversed ? Side::Start : Side::End);
             dst_attr[i++] = bke::attribute_math::mix2<T>(
                 end_alpha, src_attr[end_edge.x], src_attr[end_edge.y]);
           }
