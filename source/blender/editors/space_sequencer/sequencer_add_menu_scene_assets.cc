@@ -149,6 +149,8 @@ static void sequencer_add_root_catalogs_draw(const bContext *C, Menu *menu)
 
   layout->separator();
 
+  layout->label(IFACE_("Assets"), ICON_NONE);
+
   if (!loading_finished) {
     layout->label(IFACE_("Loading Asset Libraries"), ICON_INFO);
   }
