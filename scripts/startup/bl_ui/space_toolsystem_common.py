@@ -1073,20 +1073,25 @@ def _activate_by_item(context, space_type, item, index, *, as_fallback=False):
     WindowManager = bpy.types.WindowManager
 
     handle_map = _activate_by_item._cursor_draw_handle
-    handle = handle_map.pop(space_type, None)
+    # view_type used when in VSE but need to check if it exists because not every space_data has view_type.
+    if hasattr(context.space_data, "view_type"):
+        handle = handle_map.pop(bpy.context.space_data.view_type, None)
+    else:
+        handle = handle_map.pop(space_type, None)
     if handle is not None:
         WindowManager.draw_cursor_remove(handle)
     if item.draw_cursor is not None:
         def handle_fn(context, item, tool, xy):
             item.draw_cursor(context, tool, xy)
-        # Check if tool is sequencer.select_circle because select circle is a vse preview tool and the region_type has
-        # to be PREVIEW not WINDOW.
-        # if item.idname == "sequencer.select_circle":
-        if bpy.context.space_data.view_type == 'PREVIEW':
-            handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'PREVIEW')
+        if hasattr(context.space_data, "view_type"):
+            if context.space_data.view_type == 'PREVIEW':
+                handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'PREVIEW')
+            else:
+                handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'WINDOW')
+            handle_map[context.space_data.view_type] = handle
         else:
             handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'WINDOW')
-        handle_map[space_type] = handle
+            handle_map[space_type] = handle
 
 
 _activate_by_item._cursor_draw_handle = {}
