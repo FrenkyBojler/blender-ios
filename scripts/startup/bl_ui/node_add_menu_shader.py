@@ -428,9 +428,9 @@ class NODE_MT_shader_node_add_all(Menu):
         layout.menu("NODE_MT_category_layout")
         node_add_menu.add_repeat_zone(layout, label="Repeat")
         node_add_menu.add_closure_zone(layout, label="Closure")
-        node_add_menu.add_node_type(layout, "GeometryNodeEvaluateClosure")
-        node_add_menu.add_node_type(layout, "GeometryNodeCombineBundle")
-        node_add_menu.add_node_type(layout, "GeometryNodeSeparateBundle")
+        node_add_menu.add_node_type(layout, "NodeEvaluateClosure")
+        node_add_menu.add_node_type(layout, "NodeCombineBundle")
+        node_add_menu.add_node_type(layout, "NodeSeparateBundle")
 
         node_add_menu.draw_root_assets(layout)
 
