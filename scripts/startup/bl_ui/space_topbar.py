@@ -652,7 +652,7 @@ class TOPBAR_MT_workspace_menu(Menu):
 
         layout.separator()
 
-        layout.operator("workspace.delete_all_others", text="Delete other Workspaces")
+        layout.operator("workspace.delete_all_others")
 
 
 # Grease Pencil Object - Primitive curve
