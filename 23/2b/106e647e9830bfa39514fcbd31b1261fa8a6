@@ -1,2 +1,3 @@
 Referenced by issue #76428, GHOST/Wayland Support
 Referenced by issue #142871, Regression: Two cursors visible when panning area header while hovering over input field
+Referenced by issue #144112, Wayland: Continuous Grab Cursor jumps to initial pan start position
