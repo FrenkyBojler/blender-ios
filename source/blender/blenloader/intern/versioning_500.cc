@@ -1530,7 +1530,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 51)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 54)) {
     LISTBASE_FOREACH (Object *, object, &bmain->objects) {
       if (object->type != OB_ARMATURE) {
         continue;
