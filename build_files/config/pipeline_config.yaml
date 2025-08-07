@@ -1,6 +1,7 @@
 #
 # Buildbot only configs
 #
+# TODO: Add configuration for GPU workers
 buildbot:
     gcc:
         version: '11.0.0'
