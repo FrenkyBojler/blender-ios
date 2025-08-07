@@ -1776,6 +1776,12 @@ static void rna_def_bone(BlenderRNA *brna)
 
   RNA_define_lib_overridable(true);
 
+  prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_HIDDEN_A);
+  RNA_def_property_ui_text(prop, "Hide", "Bone is not visible when it is in Edit Mode");
+  RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
+  RNA_def_property_update(prop, 0, "rna_EditBone_hide_update");
+
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_SELECTED);
   RNA_def_property_ui_text(prop, "Select", "");
@@ -1795,12 +1801,6 @@ static void rna_def_bone(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Select Tail", "");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
-
-  prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_HIDDEN_A);
-  RNA_def_property_ui_text(prop, "Hide", "Bone is not visible when it is in Edit Mode");
-  RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
-  RNA_def_property_update(prop, 0, "rna_EditBone_hide_update");
 
   /* XXX better matrix descriptions possible (Arystan) */
   prop = RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
