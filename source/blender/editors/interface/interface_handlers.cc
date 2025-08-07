@@ -8263,7 +8263,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 
   const bool is_disabled = but->flag & UI_BUT_DISABLED || data->disable_force;
 
-  /* if but->pointype is set, but->poin should be too */
+  /* If `but->pointype` is set, `but->poin` should be too. */
   BLI_assert(!bool(but->pointype) || but->poin);
 
   /* Only hard-coded stuff here, button interactions with configurable
@@ -10274,7 +10274,7 @@ static bool ui_mouse_motion_towards_check(uiBlock *block,
    * don't mouse-out of a menu if another menu has been created after it.
    * if this causes problems we could remove it and check on a different fix - campbell */
   if (menu->region->next) {
-    /* am I the last menu (test) */
+    /* Test if this is the last menu. */
     ARegion *region = menu->region->next;
     do {
       uiBlock *block_iter = static_cast<uiBlock *>(region->runtime->uiblocks.first);

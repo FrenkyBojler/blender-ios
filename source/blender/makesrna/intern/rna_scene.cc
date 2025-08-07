@@ -3170,7 +3170,7 @@ static void rna_def_view3d_cursor(BlenderRNA *brna)
       prop,
       "Rotation Mode",
       /* This description is shared by other "rotation_mode" properties. */
-      "The kind of rotation to apply, values from other rotation modes aren't used");
+      "The kind of rotation to apply, values from other rotation modes are not used");
   RNA_def_property_update(prop, NC_WINDOW, nullptr);
 
   /* Matrix access to avoid having to check current rotation mode. */
@@ -3756,6 +3756,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_snap_playhead", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag_playhead", SCE_SNAP);
+  RNA_def_property_ui_icon(prop, ICON_PLAYHEAD_SNAP_OFF, 1);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(prop, "Use Snapping", "Snap playhead when scrubbing");
   RNA_def_property_boolean_default(prop, false);
@@ -7790,8 +7791,9 @@ static void rna_def_scene_keying_sets(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_ui_description(func, "Add a new Keying Set to Scene");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   /* name */
-  RNA_def_string(func, "idname", "KeyingSet", 64, "IDName", "Internal identifier of Keying Set");
-  RNA_def_string(func, "name", "KeyingSet", 64, "Name", "User visible name of Keying Set");
+  RNA_def_string(
+      func, "idname", "KeyingSet", MAX_NAME, "IDName", "Internal identifier of Keying Set");
+  RNA_def_string(func, "name", "KeyingSet", MAX_NAME, "Name", "User visible name of Keying Set");
   /* returns the new KeyingSet */
   parm = RNA_def_pointer(func, "keyingset", "KeyingSet", "", "Newly created Keying Set");
   RNA_def_function_return(func, parm);
@@ -8897,14 +8899,6 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE, nullptr);
 
   /* Nodes (Compositing) */
-  prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "compositing_node_group");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_PTR_NO_OWNERSHIP);
-  RNA_def_property_struct_type(prop, "NodeTree");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
-  RNA_def_property_ui_text(
-      prop, "Node Tree", "Compositor Nodes. (Deprecated: Use compositing_node_group)");
-
   prop = RNA_def_property(srna, "compositing_node_group", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "compositing_node_group");
   RNA_def_property_struct_type(prop, "NodeTree");
