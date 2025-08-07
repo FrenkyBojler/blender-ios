@@ -13,8 +13,6 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
-#include <regex>
-#include <sstream>
 #include <stack>
 #include <string>
 #include <vector>
@@ -63,6 +61,7 @@ enum TokenType : char {
   Do = 'd',
   Template = 't',
   Static = 'm',
+  PreprocessorNewline = 'N',
 };
 
 enum class ScopeType : char {
@@ -74,6 +73,7 @@ enum class ScopeType : char {
   FunctionArgs = 'f',
   Template = 'T',
   Subscript = 'A',
+  Preprocessor = 'P',
   /* Added scope inside function body. */
   Local = 'L',
 };
@@ -126,6 +126,7 @@ struct ParserData {
   /* Range of token per scope. */
   std::vector<IndexRange> scope_ranges;
 
+  /* If keep_whitespace is false, whitespaces are merged with the previous token. */
   void tokenize(const bool keep_whitespace)
   {
     {
@@ -140,6 +141,7 @@ struct ParserData {
       /* When doing whitespace merging, keep knowledge about whether previous char was whitespace.
        * This allows to still split words on spaces. */
       bool prev_was_whitespace = true;
+      bool inside_preprocessor_directive = false;
 
       int offset = -1;
       for (const char &c : str) {
@@ -147,6 +149,22 @@ struct ParserData {
         TokenType type = to_type(c);
         TokenType prev = TokenType(token_types.back());
 
+        /* Detect preprocessor directive newlines `\\\n`. */
+        if (prev == Backslash && type == NewLine) {
+          token_types.back() = PreprocessorNewline;
+          continue;
+        }
+        /* Make sure to keep the ending newline for a preprocessor directive. */
+        if (inside_preprocessor_directive && type == NewLine) {
+          inside_preprocessor_directive = false;
+          token_types += char(type);
+          token_offsets.offsets.emplace_back(offset);
+          continue;
+        }
+        if (type == Hash) {
+          inside_preprocessor_directive = true;
+        }
+        /* Merge newlines and spaces with previous token. */
         if (!keep_whitespace && (type == NewLine || type == Space)) {
           prev_was_whitespace = true;
           continue;
@@ -283,7 +301,20 @@ struct ParserData {
       for (char &c : token_types) {
         tok_id++;
 
+        if (scopes.top().type == ScopeType::Preprocessor) {
+          if (TokenType(c) == NewLine) {
+            exit_scope(tok_id);
+          }
+          else {
+            /* Do nothing. Enclose all preprocessor lines together. */
+            continue;
+          }
+        }
+
         switch (TokenType(c)) {
+          case Hash:
+            enter_scope(ScopeType::Preprocessor, tok_id);
+            break;
           case BracketOpen:
             if (token_types[tok_id - 2] == Struct) {
               enter_scope(ScopeType::Local, tok_id);

@@ -8,14 +8,12 @@
 
 #pragma once
 
-#include <cassert>
 #include <cctype>
 #include <cstdint>
 #include <functional>
 #include <iostream>
 #include <regex>
 #include <sstream>
-#include <stack>
 #include <string>
 #include <vector>
 
