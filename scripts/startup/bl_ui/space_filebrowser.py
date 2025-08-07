@@ -787,13 +787,14 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
         row.prop(wm, "asset_path_dummy", text="Source", icon='CURRENT_FILE' if is_local_asset else 'NONE')
         row.operator("asset.open_containing_blend_file", text="", icon='TOOL_SETTINGS')
 
-        if not is_local_asset:
-            layout.operator("asset.asset_edit_metadata")
         metadata = asset.metadata
         self.metadata_prop(layout, metadata, "description")
         self.metadata_prop(layout, metadata, "license")
         self.metadata_prop(layout, metadata, "copyright")
         self.metadata_prop(layout, metadata, "author")
+        if not is_local_asset:
+            # For a local asset, the operator is not needed because the fields can be edited directly.
+            layout.operator("asset.asset_edit_metadata")
 
 
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):

@@ -88,11 +88,10 @@ static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
 
 int rna_AssetMetaData_editable(const PointerRNA *ptr, const char **r_info)
 {
-  AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
-
-  return rna_AssetMetaData_editable_from_owner_id(ptr->owner_id, asset_data, r_info) ?
-             PROP_EDITABLE :
-             PropertyFlag(0);
+  /* Ideally the metadata would not be editable if the asset is from a library that cannot be
+   * edited. But since the AssetMetaData does not know anything about that we just make it editable
+   * and deal with the disabling of properties on the GUI/operator side. */
+  return PROP_EDITABLE;
 }
 
 static std::optional<std::string> rna_AssetTag_path(const PointerRNA *ptr)
