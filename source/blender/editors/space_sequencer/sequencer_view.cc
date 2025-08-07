@@ -27,7 +27,6 @@
 
 #include "RNA_define.hh"
 
-// #include "UI_interface_icons.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
