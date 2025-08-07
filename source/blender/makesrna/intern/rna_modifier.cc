@@ -2009,16 +2009,6 @@ static void rna_Lineart_end_level_set(PointerRNA *ptr, int value)
   lmd->level_start = std::min(value, int(lmd->level_start));
 }
 
-static void rna_Lineart_thickness_set(PointerRNA *ptr, int value)
-{
-  GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
-      ptr->data);
-
-  /* Moving to use radius to represent line thickness, old GPv2 from before 4.3 uses integer value
-   * which needs correction. */
-  lmd->radius = float(value) / 1000.0f;
-}
-
 static const NodesModifierData *find_nodes_modifier_by_bake(const Object &object,
                                                             const NodesModifierBake &bake)
 {
@@ -9061,13 +9051,6 @@ static void rna_def_modifier_grease_pencil_lineart(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Radius", "The radius for the generated strokes");
   RNA_def_property_ui_range(prop, 0.0f, 0.25f, 0.01f, 2);
   RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-  prop = RNA_def_property(srna, "thickness", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Thickness", "The thickness for the generated strokes");
-  RNA_def_property_ui_range(prop, 1, 100, 1, 1);
-  RNA_def_property_int_funcs(prop, 0, "rna_Lineart_thickness_set", 0);
-  RNA_def_property_range(prop, 1, 200);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "opacity", PROP_FLOAT, PROP_FACTOR);

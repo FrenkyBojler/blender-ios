@@ -5950,7 +5950,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
         GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
             modifier);
-        lmd->radius = float(lmd->thickness) / 1000.0f;
+        lmd->radius = float(lmd->thickness_legacy) / 1000.0f;
       }
     }
   }

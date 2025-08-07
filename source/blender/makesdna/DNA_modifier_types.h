@@ -3195,7 +3195,7 @@ typedef struct GreasePencilLineartModifierData {
   float opacity;
   float radius;
 
-  short thickness; /* Deprecated, use `radius`. */
+  short thickness_legacy; /* Deprecated, use `radius`. */
 
   unsigned char mask_switches; /* #eGreasePencilLineartMaskSwitches */
   unsigned char material_mask_bits;
