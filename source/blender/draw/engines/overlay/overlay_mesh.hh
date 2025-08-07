@@ -819,8 +819,8 @@ class MeshUVs : Overlay {
                                     CTX_MODE_PAINT_VERTEX,
                                     CTX_MODE_PAINT_WEIGHT);
     const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
-    const bool is_uv_selectable = (is_edit_object || (is_paint_mode && use_face_selection)) &&
-                                  space_image->mode != SI_MODE_UV;
+    const bool is_face_selectable = (is_edit_object || (is_paint_mode && use_face_selection)) &&
+                                    space_image->mode != SI_MODE_UV;
     const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
                                                                      CD_PROP_FLOAT2) != -1;
     const bool has_active_edit_uvmap = is_edit_object && (CustomData_get_active_layer(
@@ -829,6 +829,7 @@ class MeshUVs : Overlay {
 
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
+    /* Case #1: Fully editable UVs in the UV Editor. */
     if (has_active_edit_uvmap && is_uv_editable) {
       if (show_uv_edit_) {
         gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_edges(ob, mesh);
@@ -868,18 +869,25 @@ class MeshUVs : Overlay {
       }
     }
 
-    if ((has_active_object_uvmap || has_active_edit_uvmap) && is_uv_selectable) {
+    /* Case #2: Selectable faces in 3D viewport that change sync with Image Editor Paint Mode. */
+    if ((has_active_object_uvmap || has_active_edit_uvmap) && is_face_selectable) {
       if (show_wireframe_) {
         gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_wireframe(ob, mesh);
         wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
       }
-      if ((show_face_overlay_ && space_image->uv_face_opacity > 0.0f ) || select_face_) {
+      if ((show_face_overlay_ && space_image->uv_face_opacity > 0.0f) || select_face_) {
+        /* TODO: This batch does not draw correctly in Texture Paint mode, as a dummy empty batch
+         * is used in non-edit modes. Supporting this is arguably not a bug fix but a feature that
+         * hasn't been implemented. */
         gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_faces(ob, mesh);
         faces_ps_.draw(geom, res_handle);
       }
     }
 
-    if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable && !is_uv_selectable) {
+    /* Case #3: Non-selectable & Non-editable faces in Image Editor Paint Mode. */
+    if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable &&
+        !is_face_selectable)
+    {
       if (show_wireframe_) {
         gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(ob, mesh);
         wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
