@@ -256,22 +256,12 @@ void SEQUENCER_OT_view_all_preview(wmOperatorType *ot)
 static wmOperatorStatus sequencer_fullscreen_preview_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win_cur = CTX_wm_window(C);
-  const int monitor = RNA_int_get(op->ptr, "monitor");
+  const int monitor_x = RNA_int_get(op->ptr, "monitor_x");
+  const int monitor_y = RNA_int_get(op->ptr, "monitor_y");
   rcti window_rect;
 
-  if (monitor == 2) {
-    window_rect.xmin = 3000;
-    window_rect.ymin = 600;
-  }
-  else if (monitor == 3) {
-    window_rect.xmin = -800;
-    window_rect.ymin = 600;
-  }
-  else {
-    window_rect.xmin = 800;
-    window_rect.ymin = 600;
-  }
-
+  window_rect.xmin = monitor_x;
+  window_rect.ymin = monitor_y;
   window_rect.xmax = window_rect.xmin + 200;
   window_rect.ymax = window_rect.ymin + 200;
 
@@ -335,7 +325,64 @@ void SEQUENCER_OT_fullscreen_preview(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER;
 
   /* Properties. */
-  RNA_def_int(ot->srna, "monitor", 0, 0, 6, "Monitor", "Monitor to show fullscreen preview", 1, 6);
+  RNA_def_int(ot->srna,
+              "monitor_x",
+              0,
+              INT_MIN,
+              INT_MAX,
+              "Monitor X",
+              "X position in monitor to show fullscreen preview",
+              INT_MIN,
+              INT_MAX);
+  RNA_def_int(ot->srna,
+              "monitor_y",
+              0,
+              INT_MIN,
+              INT_MAX,
+              "Monitor Y",
+              "Y position in monitor to show fullscreen preview",
+              INT_MIN,
+              INT_MAX);
+}
+
+static const char *sequencer_monitor_desc(rcti *monitor, rcti *desktop)
+{
+  if (monitor->ymin > desktop->ymin) {
+    if (monitor->xmin == desktop->xmin) {
+      return "Top Left";
+    }
+    if (monitor->xmax == desktop->xmax) {
+      return "Top Right";
+    }
+    return "Top Middle";
+  }
+  if (monitor->ymin == desktop->ymin && monitor->ymax < desktop->ymax) {
+    if (monitor->xmin == desktop->xmin) {
+      return "Bottom Left";
+    }
+    if (monitor->xmax == desktop->xmax) {
+      return "Bottom Right";
+    }
+    return "Bottom Middle";
+  }
+  if (monitor->ymin == desktop->ymin && monitor->ymax < desktop->ymax &&
+      monitor->ymin > desktop->ymin)
+  {
+    if (monitor->xmin == desktop->xmin) {
+      return "Middle Left";
+    }
+    if (monitor->xmax == desktop->xmax) {
+      return "Middle Right";
+    }
+    return "Middle Middle";
+  }
+  if (monitor->xmin == desktop->xmin) {
+    return "Left";
+  }
+  if (monitor->xmax == desktop->xmax) {
+    return "Right";
+  }
+  return "Middle";
 }
 
 static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu *menu)
@@ -353,16 +400,32 @@ static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu
   RNA_int_set(&ptr, "monitor", 0);
 
   size_t displays = wm_get_num_displays();
+
+  rcti desktop = {0};
+  for (size_t i = 0; i < displays; i++) {
+    rcti rect;
+    if (!wm_get_display_rect(i, &rect)) {
+      continue;
+    }
+    BLI_rcti_union(&desktop, &rect);
+  }
+
   if (displays > 1) {
     layout->separator();
     for (size_t i = 0; i < displays; i++) {
 
+      rcti rect;
+      if (!wm_get_display_rect(i, &rect)) {
+        continue;
+      }
+
       ptr = layout->op("SEQUENCER_OT_fullscreen_preview",
-                       IFACE_("Monitor Name"),
+                       IFACE_(sequencer_monitor_desc(&rect, &desktop)),
                        ICON_MONITOR_1 + i,
                        blender::wm::OpCallContext::InvokeDefault,
                        UI_ITEM_NONE);
-      RNA_int_set(&ptr, "monitor", i + 1);
+      RNA_int_set(&ptr, "monitor_x", rect.xmin + 10);
+      RNA_int_set(&ptr, "monitor_y", rect.ymin + 10);
     }
   }
 }

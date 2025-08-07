@@ -138,6 +138,17 @@ GHOST_TSuccess GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
   return (*r_width == 0 && *r_height == 0) ? GHOST_kFailure : GHOST_kSuccess;
 }
 
+GHOST_TSuccess GHOST_GetDisplayDimensions(GHOST_SystemHandle systemhandle,
+                                          uint32_t display_index,
+                                          int32_t *left,
+                                          int32_t *top,
+                                          int32_t *right,
+                                          int32_t *bottom)
+{
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
+  return system->getDisplayDimensions(display_index, left, top, right, bottom);
+}
+
 GHOST_ContextHandle GHOST_CreateGPUContext(GHOST_SystemHandle systemhandle,
                                            GHOST_GPUSettings gpuSettings)
 {

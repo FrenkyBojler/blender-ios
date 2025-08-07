@@ -256,6 +256,47 @@ void GHOST_SystemWin32::getAllDisplayDimensions(uint32_t &width, uint32_t &heigh
   height = ::GetSystemMetrics(SM_CYVIRTUALSCREEN);
 }
 
+struct sEnumInfo {
+  int index;
+  int target;
+  HMONITOR hMonitor;
+};
+
+BOOL CALLBACK GetMonitorByIndex(HMONITOR hMonitor,
+                                HDC hdcMonitor,
+                                LPRECT lprcMonitor,
+                                LPARAM dwData)
+{
+  sEnumInfo *info = (sEnumInfo *)dwData;
+  if (info->target == info->index) {
+    info->hMonitor = hMonitor;
+    return FALSE;
+  }
+  info->index++;
+  return TRUE;
+}
+
+GHOST_TSuccess GHOST_SystemWin32::getDisplayDimensions(
+    uint32_t display_index, int32_t *left, int32_t *top, int32_t *right, int32_t *bottom) const
+{
+  sEnumInfo info = {0};
+  info.target = display_index;
+  MONITORINFO mi = {0};
+  mi.cbSize = sizeof(MONITORINFO);
+  EnumDisplayMonitors(nullptr, nullptr, GetMonitorByIndex, (LPARAM)&info);
+  if (info.hMonitor != nullptr) {
+    if (GetMonitorInfo(info.hMonitor, &mi)) {
+      *left = mi.rcMonitor.left;
+      *top = mi.rcMonitor.bottom;
+      *right = mi.rcMonitor.right;
+      *bottom = mi.rcMonitor.top;
+      return GHOST_kSuccess;
+    }
+  }
+
+  return GHOST_kFailure;
+}
+
 GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
                                                int32_t left,
                                                int32_t top,

@@ -109,6 +109,14 @@ class GHOST_SystemHeadless : public GHOST_System {
   void getAllDisplayDimensions(uint32_t & /*width*/, uint32_t & /*height*/) const override
   { /* nop */
   }
+  GHOST_TSuccess getDisplayDimensions(uint32_t display_index,
+                                      int32_t *left,
+                                      int32_t *top,
+                                      int32_t *right,
+                                      int32_t *bottom) const override
+  {
+    return GHOST_kFailure;
+  }
   GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings) override
   {
     switch (gpuSettings.context_type) {

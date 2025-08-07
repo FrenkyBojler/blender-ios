@@ -90,6 +90,12 @@ class GHOST_SystemWin32 : public GHOST_System {
    */
   void getAllDisplayDimensions(uint32_t &width, uint32_t &height) const override;
 
+  GHOST_TSuccess getDisplayDimensions(uint32_t display_index,
+                                      int32_t *left,
+                                      int32_t *top,
+                                      int32_t *right,
+                                      int32_t *bottom) const override;
+
   /**
    * Create a new window.
    * The new window is added to the list of windows managed.

@@ -46,6 +46,11 @@ bool wm_get_desktopsize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
  */
 size_t wm_get_num_displays() ATTR_WARN_UNUSED_RESULT;
 /**
+ * Rectangle defined by the display coordinates.
+ * \return true on success.
+ */
+bool wm_get_display_rect(int display_index, rcti *r_rect) ATTR_WARN_UNUSED_RESULT;
+/**
  * Don't change context itself.
  */
 wmWindow *wm_window_new(const Main *bmain, wmWindowManager *wm, wmWindow *parent, bool dialog);
