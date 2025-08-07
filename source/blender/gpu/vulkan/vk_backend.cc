@@ -642,6 +642,7 @@ VertBuf *VKBackend::vertbuf_alloc()
 void VKBackend::render_begin()
 {
   VKThreadData &thread_data = device.current_thread_data();
+  CLOG_TRACE(&LOG, "Begin rendering scope (level=%d)", thread_data.rendering_depth);
   BLI_assert_msg(thread_data.rendering_depth >= 0, "Unbalanced `GPU_render_begin/end`");
   thread_data.rendering_depth += 1;
 }
@@ -651,26 +652,37 @@ void VKBackend::render_end()
   VKThreadData &thread_data = device.current_thread_data();
   thread_data.rendering_depth -= 1;
   BLI_assert_msg(thread_data.rendering_depth >= 0, "Unbalanced `GPU_render_begin/end`");
-  if (G.background) {
-    /* Garbage collection when performing background rendering. */
-    if (thread_data.rendering_depth == 0) {
-      VKContext *context = VKContext::get();
-      if (context != nullptr) {
-        context->flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-      }
-      device.orphaned_data.destroy_discarded_resources(device);
+
+  const bool do_flush_render_graph = G.background && thread_data.rendering_depth == 0;
+  const bool do_move_discarded_render_resources = G.is_rendering &&
+                                                  thread_data.rendering_depth == 0;
+  const bool do_wait_queue_idle = G.background && thread_data.rendering_depth == 0 &&
+                                  !BLI_thread_is_main();
+  const bool do_destroy_discarded_resources = (G.background && thread_data.rendering_depth == 0) ||
+                                              (!G.background && G.is_rendering &&
+                                               thread_data.rendering_depth < 2);
+  CLOG_TRACE(
+      &LOG,
+      "End rendering scope (level=%d%s%s%s%s)",
+      thread_data.rendering_depth,
+      do_flush_render_graph ? ", flush render graph" : "",
+      do_move_discarded_render_resources ? ", move discarded resource to global discard pile" : "",
+      do_wait_queue_idle ? ", wait idle queue" : "",
+      do_destroy_discarded_resources ? ", destroyed discarded resources" : "");
+
+  if (do_flush_render_graph) {
+    VKContext *context = VKContext::get();
+    if (context != nullptr) {
+      context->flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
     }
   }
 
-  /* When performing animation render we want to release any discarded resources during rendering
-   * after each frame.
-   */
-  if (G.is_rendering && thread_data.rendering_depth == 0 && !BLI_thread_is_main()) {
-    {
-      std::scoped_lock lock(device.orphaned_data.mutex_get());
-      device.orphaned_data.move_data(device.orphaned_data_render,
-                                     device.orphaned_data.timeline_ + 1);
-    }
+  if (do_move_discarded_render_resources) {
+    std::scoped_lock lock(device.orphaned_data.mutex_get());
+    device.orphaned_data.move_data(device.orphaned_data_render,
+                                   device.orphaned_data.timeline_ + 1);
+  }
+
     /* Fix #139284: During rendering when main thread is blocked or all screens are minimized the
      * garbage collection will not happen resulting in crashes as resources are not freed.
      *
@@ -681,7 +693,10 @@ void VKBackend::render_end()
      * resource tracker. That would only handle images and buffers, but it would solve the most
      * resource hungry issues.
      */
+  if (do_wait_queue_idle) {
     device.wait_queue_idle();
+  }
+  if (do_destroy_discarded_resources) {
     device.orphaned_data.destroy_discarded_resources(device);
   }
 }
