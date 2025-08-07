@@ -15,6 +15,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_listBase.h"
+#include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
@@ -565,7 +566,7 @@ static Strip *strip_duplicate(Main *bmain,
     channels_duplicate(&strip_new->channels, &strip->channels);
   }
   else if (strip->type == STRIP_TYPE_SCENE) {
-    if (dupe_flag & STRIP_DUPE_DATA) {
+    if ((dupe_flag & STRIP_DUPE_DATA) != 0 && strip_new->scene != nullptr) {
       Scene *scene_old = strip_new->scene;
       strip_new->scene = BKE_scene_duplicate(bmain, scene_old, SCE_COPY_FULL);
     }
@@ -575,10 +576,24 @@ static Strip *strip_duplicate(Main *bmain,
     }
   }
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
-    /* avoid assert */
+    if ((dupe_flag & STRIP_DUPE_DATA) != 0 && strip_new->clip != nullptr) {
+      MovieClip *clip_old = strip_new->clip;
+      strip_new->clip = reinterpret_cast<MovieClip *>(
+          BKE_id_copy(bmain, reinterpret_cast<ID *>(clip_old)));
+      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+        id_us_min(&strip_new->clip->id);
+      }
+    }
   }
   else if (strip->type == STRIP_TYPE_MASK) {
-    /* avoid assert */
+    if ((dupe_flag & STRIP_DUPE_DATA) != 0 && strip_new->mask != nullptr) {
+      Mask *mask_old = strip_new->mask;
+      strip_new->mask = reinterpret_cast<Mask *>(
+          BKE_id_copy(bmain, reinterpret_cast<ID *>(mask_old)));
+      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+        id_us_min(&strip_new->mask->id);
+      }
+    }
   }
   else if (strip->type == STRIP_TYPE_MOVIE) {
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
