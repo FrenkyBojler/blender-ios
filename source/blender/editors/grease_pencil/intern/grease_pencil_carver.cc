@@ -1743,7 +1743,7 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   geometry::boolean::CurveBooleanOpParameters op_params;
   op_params.subject_rule = geometry::boolean::FillRule::EvenOdd;
   op_params.clipping_rule = geometry::boolean::FillRule::EvenOdd;
-  op_params.output_rule = geometry::boolean::FillRule::EvenOdd;
+  op_params.output_rule = geometry::boolean::FillRule::NoHoles;
   op_params.boolean_mode = geometry::boolean::Operation::Difference;
 
   bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
