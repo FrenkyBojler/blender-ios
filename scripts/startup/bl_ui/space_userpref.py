@@ -1233,6 +1233,7 @@ class USERPREF_PT_theme_interface_gizmos(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "axis_x", text="Axis X")
         col.prop(ui, "axis_y", text="Y")
         col.prop(ui, "axis_z", text="Z")
+        col.prop(ui, "axis_w", text="W")
 
         col = flow.column()
         col.prop(ui, "gizmo_primary")
@@ -2467,7 +2468,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
         prefs = context.preferences
 
         if self.is_extended():
-            # Rely on the draw function being appended to by the extensions add-on.
+            # Rely on the draw function being extended by the extensions add-on (`bl_pkg`).
             return
 
         layout = self.layout

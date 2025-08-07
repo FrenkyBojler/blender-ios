@@ -1865,6 +1865,17 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
 #ifdef WIN32
   const FileExternalOperation operation = (FileExternalOperation)RNA_enum_get(op->ptr,
                                                                               "operation");
+
+  if (!(fileentry->typeflag & FILE_TYPE_DIR) &&
+      ELEM(operation, FILE_EXTERNAL_OPERATION_FOLDER_OPEN, FILE_EXTERNAL_OPERATION_FOLDER_CMD))
+  {
+    /* Not a folder path, so for these operations use the root. */
+    const char *root = filelist_dir(sfile->files);
+    if (BLI_file_external_operation_execute(root, operation)) {
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
+      return OPERATOR_FINISHED;
+    }
+  }
   if (BLI_file_external_operation_execute(filepath, operation)) {
     WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
     return OPERATOR_FINISHED;
@@ -2498,7 +2509,7 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
                               (min_curr_scroll - min_tot_scroll < 1.0f) &&
                               (middle_offset - min_middle_offset < items_block_size));
   /* OR edited item must be towards the end, and we are scrolled fully to the end.
-   * This one is crucial (unlike the one for the beginning), because without it we won't scroll
+   * This one is crucial (unlike the one for the beginning), because without it scrolling
    * fully to the end, and last column or row will end up only partially drawn. */
   const bool is_full_end = ((sfile->scroll_offset > max_middle_offset) &&
                             (max_tot_scroll - max_curr_scroll < 1.0f) &&

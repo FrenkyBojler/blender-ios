@@ -575,10 +575,10 @@ typedef struct bNode {
   bNodeSocket &output_socket(int index);
   const bNodeSocket &output_socket(int index) const;
   /** Lookup socket of this node by its identifier. */
-  const bNodeSocket &input_by_identifier(blender::StringRef identifier) const;
-  const bNodeSocket &output_by_identifier(blender::StringRef identifier) const;
-  bNodeSocket &input_by_identifier(blender::StringRef identifier);
-  bNodeSocket &output_by_identifier(blender::StringRef identifier);
+  const bNodeSocket *input_by_identifier(blender::StringRef identifier) const;
+  const bNodeSocket *output_by_identifier(blender::StringRef identifier) const;
+  bNodeSocket *input_by_identifier(blender::StringRef identifier);
+  bNodeSocket *output_by_identifier(blender::StringRef identifier);
   /** Lookup socket by its declaration. */
   const bNodeSocket &socket_by_decl(const blender::nodes::SocketDeclaration &decl) const;
   bNodeSocket &socket_by_decl(const blender::nodes::SocketDeclaration &decl);
@@ -1581,15 +1581,35 @@ typedef struct NodeTranslateData {
   short interpolation;
 } NodeTranslateData;
 
+typedef struct NodeRotateData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeRotateData;
+
 typedef struct NodeScaleData {
   short interpolation;
   char extension_x;
   char extension_y;
 } NodeScaleData;
 
+typedef struct NodeCornerPinData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeCornerPinData;
+
 typedef struct NodeDisplaceData {
   short interpolation;
+  char extension_x;
+  char extension_y;
 } NodeDisplaceData;
+
+typedef struct NodeMapUVData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeMapUVData;
 
 typedef struct NodePlaneTrackDeformData {
   char tracking_object[64];
@@ -2186,12 +2206,12 @@ typedef struct NodeGeometryForeachGeometryElementOutput {
   char _pad[3];
 } NodeGeometryForeachGeometryElementOutput;
 
-typedef struct NodeGeometryClosureInput {
+typedef struct NodeClosureInput {
   /** bNode.identifier of the corresponding output node. */
   int32_t output_node_id;
-} NodeGeometryClosureInput;
+} NodeClosureInput;
 
-typedef struct NodeGeometryClosureInputItem {
+typedef struct NodeClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
@@ -2199,45 +2219,38 @@ typedef struct NodeGeometryClosureInputItem {
   int8_t structure_type;
   char _pad[1];
   int identifier;
-} NodeGeometryClosureInputItem;
+} NodeClosureInputItem;
 
-typedef struct NodeGeometryClosureOutputItem {
+typedef struct NodeClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
   char _pad[2];
   int identifier;
-} NodeGeometryClosureOutputItem;
+} NodeClosureOutputItem;
 
-typedef struct NodeGeometryClosureInputItems {
-  NodeGeometryClosureInputItem *items;
+typedef struct NodeClosureInputItems {
+  NodeClosureInputItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeGeometryClosureInputItems;
+} NodeClosureInputItems;
 
-typedef struct NodeGeometryClosureOutputItems {
-  NodeGeometryClosureOutputItem *items;
+typedef struct NodeClosureOutputItems {
+  NodeClosureOutputItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeGeometryClosureOutputItems;
+} NodeClosureOutputItems;
 
-typedef enum NodeGeometryClosureFlag {
-  NODE_GEO_CLOSURE_FLAG_MAY_NEED_SYNC = 1 << 0,
-} NodeGeometryClosureFlag;
+typedef struct NodeClosureOutput {
+  NodeClosureInputItems input_items;
+  NodeClosureOutputItems output_items;
+} NodeClosureOutput;
 
-typedef struct NodeGeometryClosureOutput {
-  NodeGeometryClosureInputItems input_items;
-  NodeGeometryClosureOutputItems output_items;
-  /** #NodeGeometryClosureFlag */
-  uint32_t flag;
-  char _pad[4];
-} NodeGeometryClosureOutput;
-
-typedef struct NodeGeometryEvaluateClosureInputItem {
+typedef struct NodeEvaluateClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
@@ -2245,9 +2258,9 @@ typedef struct NodeGeometryEvaluateClosureInputItem {
   int8_t structure_type;
   char _pad[1];
   int identifier;
-} NodeGeometryEvaluateClosureInputItem;
+} NodeEvaluateClosureInputItem;
 
-typedef struct NodeGeometryEvaluateClosureOutputItem {
+typedef struct NodeEvaluateClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
@@ -2255,35 +2268,28 @@ typedef struct NodeGeometryEvaluateClosureOutputItem {
   int8_t structure_type;
   char _pad[1];
   int identifier;
-} NodeGeometryEvaluateClosureOutputItem;
+} NodeEvaluateClosureOutputItem;
 
-typedef struct NodeGeometryEvaluateClosureInputItems {
-  NodeGeometryEvaluateClosureInputItem *items;
+typedef struct NodeEvaluateClosureInputItems {
+  NodeEvaluateClosureInputItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeGeometryEvaluateClosureInputItems;
+} NodeEvaluateClosureInputItems;
 
-typedef struct NodeGeometryEvaluateClosureOutputItems {
-  NodeGeometryEvaluateClosureOutputItem *items;
+typedef struct NodeEvaluateClosureOutputItems {
+  NodeEvaluateClosureOutputItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeGeometryEvaluateClosureOutputItems;
+} NodeEvaluateClosureOutputItems;
 
-typedef enum NodeGeometryEvaluateClosureFlag {
-  NODE_GEO_EVALUATE_CLOSURE_FLAG_MAY_NEED_SYNC = 1 << 0,
-} NodeGeometryEvaluateClosureFlag;
-
-typedef struct NodeGeometryEvaluateClosure {
-  NodeGeometryEvaluateClosureInputItems input_items;
-  NodeGeometryEvaluateClosureOutputItems output_items;
-  /** #NodeGeometryEvaluateClosureFlag */
-  uint32_t flag;
-  char _pad[4];
-} NodeGeometryEvaluateClosure;
+typedef struct NodeEvaluateClosure {
+  NodeEvaluateClosureInputItems input_items;
+  NodeEvaluateClosureOutputItems output_items;
+} NodeEvaluateClosure;
 
 typedef struct IndexSwitchItem {
   /** Generated unique identifier which stays the same even when the item order or names change. */
@@ -2399,45 +2405,35 @@ typedef struct NodeGeometryBake {
   char _pad[4];
 } NodeGeometryBake;
 
-typedef struct NodeGeometryCombineBundleItem {
+typedef struct NodeCombineBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
   char _pad[2];
-} NodeGeometryCombineBundleItem;
+} NodeCombineBundleItem;
 
-typedef enum NodeGeometryCombineBundleFlag {
-  NODE_GEO_COMBINE_BUNDLE_FLAG_MAY_NEED_SYNC = 1 << 0,
-} NodeGeometryCombineBundleFlag;
-
-typedef struct NodeGeometryCombineBundle {
-  NodeGeometryCombineBundleItem *items;
+typedef struct NodeCombineBundle {
+  NodeCombineBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  /** #NodeGeometryCombineBundleFlag */
-  uint32_t flag;
-} NodeGeometryCombineBundle;
+  char _pad[4];
+} NodeCombineBundle;
 
-typedef struct NodeGeometrySeparateBundleItem {
+typedef struct NodeSeparateBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
   char _pad[2];
-} NodeGeometrySeparateBundleItem;
+} NodeSeparateBundleItem;
 
-typedef enum NodeGeometrySeparateBundleFlag {
-  NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC = 1 << 0,
-} NodeGeometrySeparateBundleFlag;
-
-typedef struct NodeGeometrySeparateBundle {
-  NodeGeometrySeparateBundleItem *items;
+typedef struct NodeSeparateBundle {
+  NodeSeparateBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  /** #NodeGeometrySeparateBundleFlag */
-  uint32_t flag;
-} NodeGeometrySeparateBundle;
+  char _pad[4];
+} NodeSeparateBundle;
 
 typedef struct NodeFunctionFormatStringItem {
   char *name;
