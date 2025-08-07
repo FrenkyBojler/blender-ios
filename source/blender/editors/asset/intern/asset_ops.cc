@@ -1453,21 +1453,29 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool screenshot_preview_poll(bContext *C)
+static bool asset_editable_poll(bContext *C)
 {
-  if (G.background) {
-    return false;
-  }
-
   const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
   if (!asset_handle) {
     CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;
   }
+
   if (asset_handle->is_local_id()) {
     return WM_operator_winactive(C);
   }
 
+  const std::optional<AssetLibraryReference> library_ref =
+      asset_handle->owner_asset_library().library_reference();
+  if (!library_ref) {
+    BLI_assert_unreachable();
+    return false;
+  }
+
+  if (library_ref.value().type == ASSET_LIBRARY_ESSENTIALS) {
+    CTX_wm_operator_poll_msg_set(C, "Asset library is not editable");
+    return false;
+  }
   std::string lib_path = asset_handle->full_library_path();
   if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
     return true;
@@ -1475,6 +1483,15 @@ static bool screenshot_preview_poll(bContext *C)
 
   CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
   return false;
+}
+
+static bool screenshot_preview_poll(bContext *C)
+{
+  if (G.background) {
+    return false;
+  }
+
+  return asset_editable_poll(C);
 }
 
 static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
@@ -1603,34 +1620,6 @@ static void visit_active_library_catalogs_catalog_for_search_fn(
       *CTX_data_main(C), *library.library_reference(), edit_text, visit_fn);
 }
 
-static bool asset_edit_metadata_poll(bContext *C)
-{
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  if (!asset_handle) {
-    CTX_wm_operator_poll_msg_set(C, "No selected asset");
-    return false;
-  }
-  if (asset_handle->is_local_id()) {
-    return WM_operator_winactive(C);
-  }
-
-  const std::optional<AssetLibraryReference> library_ref =
-      asset_handle->owner_asset_library().library_reference();
-  if (!library_ref) {
-    BLI_assert_unreachable();
-    return false;
-  }
-  if (library_ref.value().type == ASSET_LIBRARY_ESSENTIALS) {
-    CTX_wm_operator_poll_msg_set(C, "Asset library is not editable");
-    return false;
-  }
-  std::string lib_path = asset_handle->full_library_path();
-  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
-    return true;
-  }
-  return true;
-}
-
 static void ASSET_OT_asset_edit_metadata(wmOperatorType *ot)
 {
   ot->name = "Edit Metadata";
@@ -1639,7 +1628,7 @@ static void ASSET_OT_asset_edit_metadata(wmOperatorType *ot)
 
   ot->exec = asset_edit_metadata_exec;
   ot->invoke = asset_edit_metadata_invoke;
-  ot->poll = asset_edit_metadata_poll;
+  ot->poll = asset_editable_poll;
 
   PropertyRNA *prop = RNA_def_string(
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "The asset's catalog path");
