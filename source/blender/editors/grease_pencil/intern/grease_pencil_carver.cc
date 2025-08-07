@@ -103,16 +103,16 @@ struct CurveBooleanOpParameters {
   FillRule output_rule;
 };
 
+enum Side : uint8_t { Start = 0, End = 1 };
+
 class Segment {
  public:
   int curve = -1;
-  IndexRange points;
+  IndexRange src_points;
 
-  int point_1 = -1;
-  int point_2 = -1;
+  int points[2] = {-1, -1};
 
-  float alpha_1 = 0.0;
-  float alpha_2 = 0.0;
+  float alpha[2] = {0.0f, 0.0f};
 
   int intersection_index[2] = {-1, -1};
 
@@ -121,45 +121,30 @@ class Segment {
  public:
   bool is_loop() const
   {
-    return alpha_2 == 1.0f;
+    return alpha[Side::End] == 1.0f;
   }
 
-  bool has_start_intersection() const
+  bool has_intersection(const Side side) const
   {
-    return this->start_alpha() != 0.0f && this->start_alpha() != 1.0f;
+    return alpha[side] != 0.0f && alpha[side] != 1.0f;
   }
 
-  bool has_end_intersection() const
+  int2 edge(const Side side) const
   {
-    return this->end_alpha() != 0.0f && this->end_alpha() != 1.0f;
-  }
-
-  float start_alpha() const
-  {
-    return alpha_1;
-  }
-
-  float end_alpha() const
-  {
-    return alpha_2;
-  }
-
-  int2 start_edge() const
-  {
-    return int2(point_1, this->wrap_index(point_1 + 1));
+    return int2(points[Side::Start], this->wrap_index(points[Side::Start] + 1));
   }
 
   int2 end_edge() const
   {
-    return int2(point_2, this->wrap_index(point_2 + 1));
+    return int2(points[Side::End], this->wrap_index(points[Side::End] + 1));
   }
 
   int start_point() const
   {
-    if (!this->has_start_intersection()) {
-      return points.first();
+    if (!this->has_intersection(Side::Start)) {
+      return src_points.first();
     }
-    return this->start_edge().y;
+    return this->edge(Side::Start).y;
   }
 
   int end_point() const
@@ -169,37 +154,38 @@ class Segment {
 
   int wrap_index(const int i) const
   {
-    return math::mod_periodic(i - points.first(), points.size()) + points.first();
+    return math::mod_periodic(i - src_points.first(), src_points.size()) + src_points.first();
   }
 
   IndexRange point_range() const
   {
     if (this->is_loop()) {
-      return points;
+      return src_points;
     }
 
-    if (!this->has_start_intersection() && this->has_end_intersection()) {
-      return IndexRange::from_begin_end_inclusive(points.first(), point_2);
+    if (!this->has_intersection(Side::Start) && this->has_intersection(Side::End)) {
+      return IndexRange::from_begin_end_inclusive(src_points.first(), points[Side::End]);
     }
 
-    if (!this->has_start_intersection() && !this->has_end_intersection()) {
-      return points;
+    if (!this->has_intersection(Side::Start) && !this->has_intersection(Side::End)) {
+      return src_points;
     }
 
     /* If both intersection points are on the same edge, there's ether no points between or
      * all of the points are. */
-    if (point_1 == point_2) {
-      if (alpha_1 > alpha_2) {
-        return points.shift(point_1 - points.first() + 1);
+    if (points[Side::Start] == points[Side::End]) {
+      if (alpha[Side::Start] > alpha[Side::End]) {
+        return src_points.shift(points[Side::Start] - src_points.first() + 1);
       }
       return IndexRange(0);
     }
 
-    if (point_1 > point_2) {
-      return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2 + points.size());
+    if (points[Side::Start] > points[Side::End]) {
+      return IndexRange::from_begin_end_inclusive(points[Side::Start] + 1,
+                                                  points[Side::End] + src_points.size());
     }
 
-    return IndexRange::from_begin_end_inclusive(point_1 + 1, point_2);
+    return IndexRange::from_begin_end_inclusive(points[Side::Start] + 1, points[Side::End]);
   }
 
   int points_num() const
@@ -224,26 +210,26 @@ class Segment {
   }
 
   constexpr static Segment from_curve(const int curve_i,
-                                      const IndexRange points,
+                                      const IndexRange src_points,
                                       const bool cyclical)
   {
     Segment segment;
     segment.curve = curve_i;
-    segment.points = points;
+    segment.src_points = src_points;
 
-    segment.point_1 = points.first();
-    segment.point_2 = points.last();
+    segment.points[Side::Start] = src_points.first();
+    segment.points[Side::End] = src_points.last();
 
     if (cyclical) {
-      segment.alpha_1 = 0.0f;
-      segment.alpha_2 = 1.0f;
+      segment.alpha[Side::Start] = 0.0f;
+      segment.alpha[Side::End] = 1.0f;
     }
 
     return segment;
   }
 
   static Segment from_intersections(const int curve_i,
-                                    const IndexRange points,
+                                    const IndexRange src_points,
                                     const float parameter_first,
                                     const float parameter_last,
                                     const int inter_index_first,
@@ -251,52 +237,52 @@ class Segment {
   {
     Segment segment;
     segment.curve = curve_i;
-    segment.points = points;
+    segment.src_points = src_points;
 
-    segment.point_1 = int(math::floor(parameter_first));
-    segment.alpha_1 = math::fract(parameter_first);
+    segment.points[Side::Start] = int(math::floor(parameter_first));
+    segment.alpha[Side::Start] = math::fract(parameter_first);
     segment.intersection_index[0] = inter_index_first;
 
-    segment.point_2 = int(math::floor(parameter_last));
-    segment.alpha_2 = math::fract(parameter_last);
+    segment.points[Side::End] = int(math::floor(parameter_last));
+    segment.alpha[Side::End] = math::fract(parameter_last);
     segment.intersection_index[1] = inter_index_last;
 
     return segment;
   }
 
   static Segment from_start_to_intersection(const int curve_i,
-                                            const IndexRange points,
+                                            const IndexRange src_points,
                                             const float parameter_2,
                                             const int inter_index)
   {
     Segment segment;
     segment.curve = curve_i;
-    segment.points = points;
+    segment.src_points = src_points;
 
-    segment.point_1 = points.first();
+    segment.points[Side::Start] = src_points.first();
 
-    segment.point_2 = int(math::floor(parameter_2));
-    segment.alpha_2 = math::fract(parameter_2);
+    segment.points[Side::End] = int(math::floor(parameter_2));
+    segment.alpha[Side::End] = math::fract(parameter_2);
     segment.intersection_index[1] = inter_index;
 
     return segment;
   }
 
   static Segment from_intersection_to_end(const int curve_i,
-                                          const IndexRange points,
+                                          const IndexRange src_points,
                                           const float parameter_1,
                                           const int inter_index)
   {
     Segment segment;
     segment.curve = curve_i;
-    segment.points = points;
+    segment.src_points = src_points;
 
-    segment.point_1 = int(math::floor(parameter_1));
-    segment.alpha_1 = math::fract(parameter_1);
+    segment.points[Side::Start] = int(math::floor(parameter_1));
+    segment.alpha[Side::Start] = math::fract(parameter_1);
 
     segment.intersection_index[0] = inter_index;
 
-    segment.point_2 = points.last();
+    segment.points[Side::End] = src_points.last();
 
     return segment;
   }
@@ -560,12 +546,13 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   if (is_fill[curve_i]) {
     if (!segment.is_loop()) {
-      const float2 first_point_i = math::interpolate(
-          points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
+      const float2 first_point_i = math::interpolate(points[segment.edge(Side::Start).x],
+                                                     points[segment.edge(Side::Start).y],
+                                                     segment.alpha[Side::Start]);
       const IndexRange points_i = points_by_curve[curve_i];
       const Span<float2> poly_i = points.slice(points_i);
       const int winding_twice_i = edge_in_polygon_winding_twice(
-          segment.start_edge().x - points_i.first(), poly_i);
+          segment.edge(Side::Start).x - points_i.first(), poly_i);
 
       /* The point should be exactly on the edge. */
       BLI_assert(math::abs(winding_twice_i) % 2 == 1);
@@ -582,8 +569,9 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   /* If there are no control points in the segment calculate the starting point. */
   if (segment.points_num() == 0) {
-    first_point = math::interpolate(
-        points[segment.start_edge().x], points[segment.start_edge().y], segment.start_alpha());
+    first_point = math::interpolate(points[segment.edge(Side::Start).x],
+                                    points[segment.edge(Side::Start).y],
+                                    segment.alpha[Side::Start]);
   }
 
   mask_shapes.foreach_index([&](const int shape_id) {
@@ -706,8 +694,8 @@ static int get_next_segment(const int current_i,
                             const Span<bool> all_inside_right)
 {
   const Segment current_segment = all_segments[current_i];
-  if (!(current_reversed ? current_segment.has_start_intersection() :
-                           current_segment.has_end_intersection()))
+  if (!(current_reversed ? current_segment.has_intersection(Side::Start) :
+                           current_segment.has_intersection(Side::End)))
   {
     return -1;
   }
@@ -770,11 +758,12 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
     for (const int seg_i : segment_range) {
       const Segment &segment = segments[seg_i];
 
-      if (segment.has_start_intersection()) {
+      if (segment.has_intersection(Side::Start)) {
         offset++;
       }
       offset += segment.points_num();
-      if (seg_i == segment_range.last() && segment.has_end_intersection() && !cyclic[curve_i]) {
+      if (seg_i == segment_range.last() && segment.has_intersection(Side::End) && !cyclic[curve_i])
+      {
         offset++;
       }
     }
@@ -825,7 +814,7 @@ void check_segments(const CurveBooleanOpParameters &op_params,
           clipping_shapes, shapes, op_params.clipping_rule);
     }
 
-    if (!this_segment.has_end_intersection()) {
+    if (!this_segment.has_intersection(Side::End)) {
       continue;
     }
     const int int_p_end = this_segment.intersection_index[1];
@@ -960,8 +949,8 @@ bool check_and_join_segments(Segment &first, const Segment &second)
   if (first.intersection_index[1] == second.intersection_index[0] &&
       first.intersection_index[1] != -1)
   {
-    first.point_2 = second.point_2;
-    first.alpha_2 = second.alpha_2;
+    first.points[Side::End] = second.points[Side::End];
+    first.alpha[Side::End] = second.alpha[Side::End];
 
     first.intersection_index[1] = second.intersection_index[1];
     return true;
@@ -969,8 +958,8 @@ bool check_and_join_segments(Segment &first, const Segment &second)
   if (first.intersection_index[0] == second.intersection_index[1] &&
       first.intersection_index[0] != -1)
   {
-    first.point_1 = second.point_1;
-    first.alpha_1 = second.alpha_1;
+    first.points[Side::Start] = second.points[Side::Start];
+    first.alpha[Side::Start] = second.alpha[Side::Start];
 
     first.intersection_index[0] = second.intersection_index[0];
     return true;
@@ -1232,7 +1221,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
     const Segment &segment = all_segments[seg_i];
     const int curve_i = segment.curve;
 
-    if (segment.has_start_intersection()) {
+    if (segment.has_intersection(Side::Start)) {
       IntersectionPoint &inter_start = intersections[segment.intersection_index[0]];
       if (curve_i == inter_start.curve_a) {
         inter_start.end_a = SegmentEndPoint(seg_i, true);
@@ -1242,7 +1231,7 @@ BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
       }
     }
 
-    if (segment.has_end_intersection()) {
+    if (segment.has_intersection(Side::End)) {
       IntersectionPoint &inter_end = intersections[segment.intersection_index[1]];
       if (curve_i == inter_end.curve_a) {
         inter_end.start_a = SegmentEndPoint(seg_i, false);
@@ -1536,9 +1525,12 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
           const Segment &segment = result.segments[seg_i];
           const bool reversed = result.segment_reversed[seg_i];
 
-          if (reversed ? segment.has_end_intersection() : segment.has_start_intersection()) {
-            const float start_alpha = reversed ? segment.alpha_2 : segment.alpha_1;
-            const int2 start_edge = reversed ? segment.end_edge() : segment.start_edge();
+          if (reversed ? segment.has_intersection(Side::End) :
+                         segment.has_intersection(Side::Start))
+          {
+            const float start_alpha = reversed ? segment.alpha[Side::End] :
+                                                 segment.alpha[Side::Start];
+            const int2 start_edge = reversed ? segment.end_edge() : segment.edge(Side::Start);
             dst_attr[i++] = bke::attribute_math::mix2<T>(
                 start_alpha, src_attr[start_edge.x], src_attr[start_edge.y]);
           }
@@ -1553,11 +1545,13 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
           i += segment.points_num();
 
           if (seg_i == segment_range.last() &&
-              (reversed ? segment.has_start_intersection() : segment.has_end_intersection()) &&
+              (reversed ? segment.has_intersection(Side::Start) :
+                          segment.has_intersection(Side::End)) &&
               !result.cyclic[curve_i])
           {
-            const float end_alpha = reversed ? segment.alpha_1 : segment.alpha_2;
-            const int2 end_edge = reversed ? segment.start_edge() : segment.end_edge();
+            const float end_alpha = reversed ? segment.alpha[Side::Start] :
+                                               segment.alpha[Side::End];
+            const int2 end_edge = reversed ? segment.edge(Side::Start) : segment.end_edge();
             dst_attr[i++] = bke::attribute_math::mix2<T>(
                 end_alpha, src_attr[end_edge.x], src_attr[end_edge.y]);
           }
