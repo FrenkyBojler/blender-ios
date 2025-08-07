@@ -22,6 +22,7 @@
 
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_tree_update.hh"
 
 #include "DNA_array_utils.hh"
 
@@ -192,10 +193,11 @@ template<typename Accessor> inline typename Accessor::ItemT &add_item_to_array(b
  */
 template<typename Accessor>
 inline typename Accessor::ItemT *add_item_with_socket_type_and_name(
-    bNode &node, const eNodeSocketDatatype socket_type, const char *name)
+    bNodeTree &ntree, bNode &node, const eNodeSocketDatatype socket_type, const char *name)
 {
   using ItemT = typename Accessor::ItemT;
-  BLI_assert(Accessor::supports_socket_type(socket_type));
+  BLI_assert(Accessor::supports_socket_type(socket_type, ntree.type));
+  UNUSED_VARS_NDEBUG(ntree);
   ItemT &new_item = detail::add_item_to_array<Accessor>(node);
   Accessor::init_with_socket_type_and_name(node, new_item, socket_type, name);
   return &new_item;
@@ -266,14 +268,15 @@ template<typename Accessor>
   const ItemT *item = nullptr;
   if constexpr (Accessor::has_name && Accessor::has_type) {
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(src_socket->type);
-    if (!Accessor::supports_socket_type(socket_type)) {
+    if (!Accessor::supports_socket_type(socket_type, ntree.type)) {
       return false;
     }
     std::string name = src_socket->name;
     if constexpr (Accessor::has_custom_initial_name) {
       name = Accessor::custom_initial_name(storage_node, name);
     }
-    item = add_item_with_socket_type_and_name<Accessor>(storage_node, socket_type, name.c_str());
+    item = add_item_with_socket_type_and_name<Accessor>(
+        ntree, storage_node, socket_type, name.c_str());
   }
   else if constexpr (Accessor::has_name && !Accessor::has_type) {
     item = add_item_with_name<Accessor>(storage_node, src_socket->name);
@@ -297,6 +300,7 @@ template<typename Accessor>
         extend_node, SOCK_OUT, item_identifier.c_str());
     link.fromsock = new_socket;
   }
+  BKE_ntree_update_tag_node_property(&ntree, &storage_node);
   return true;
 }
 

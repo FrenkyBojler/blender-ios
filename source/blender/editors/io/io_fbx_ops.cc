@@ -13,6 +13,7 @@
 #  include "BKE_report.hh"
 
 #  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "WM_api.hh"
 
@@ -26,6 +27,7 @@
 #  include "BLT_translation.hh"
 
 #  include "UI_interface.hh"
+#  include "UI_interface_layout.hh"
 
 #  include "IO_fbx.hh"
 #  include "io_fbx_ops.hh"
@@ -88,8 +90,8 @@ static bool wm_fbx_import_check(bContext * /*C*/, wmOperator * /*op*/)
 
 static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "FBX_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -110,7 +112,7 @@ static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerR
 
   {
     PanelLayout panel = layout->panel(C, "FBX_import_anim", true);
-    uiLayoutSetPropSep(panel.header, false);
+    panel.header->use_property_split_set(false);
     panel.header->prop(ptr, "use_anim", UI_ITEM_NONE, "", ICON_NONE);
     panel.header->label(IFACE_("Animation"), ICON_NONE);
     if (panel.body) {
@@ -134,7 +136,7 @@ void WM_OT_fbx_import(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
-  ot->name = "Import FBX (experimental)";
+  ot->name = "Import FBX";
   ot->description = "Import FBX file into current scene";
   ot->idname = "WM_OT_fbx_import";
 
@@ -217,10 +219,11 @@ namespace blender::ed::io {
 void fbx_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_fbx_experimental");
-  STRNCPY(fh->import_operator, "WM_OT_fbx_import");
-  STRNCPY(fh->label, "FBX");
-  STRNCPY(fh->file_extensions_str, ".fbx");
+  STRNCPY_UTF8(fh->idname, "IO_FH_fbx");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_fbx_import");
+  STRNCPY_UTF8(fh->export_operator, "export_scene.fbx"); /* Use Python add-on for export. */
+  STRNCPY_UTF8(fh->label, "FBX");
+  STRNCPY_UTF8(fh->file_extensions_str, ".fbx");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

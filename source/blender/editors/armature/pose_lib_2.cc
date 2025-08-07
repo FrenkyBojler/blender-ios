@@ -144,9 +144,14 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
     blender::Set<bPoseChannel *> keyed_pose_bones;
     auto autokey_pose_bones = [&](FCurve * /* fcu */, const char *bone_name) {
       bPoseChannel *pchan = BKE_pose_channel_find_name(pose, bone_name);
-      BLI_assert(pchan != nullptr);
+      if (!pchan) {
+        /* This bone cannot be found any more. This is fine, this can happen
+         * when F-Curves for a bone are included in a pose asset, and later the
+         * bone itself was renamed or removed. */
+        return;
+      }
       if (BKE_pose_backup_is_selection_relevant(pbd->pose_backup) &&
-          !PBONE_SELECTED(armature, pchan->bone))
+          !blender::animrig::bone_is_selected(armature, pchan))
       {
         return;
       }
@@ -347,11 +352,11 @@ static bAction *flip_pose(bContext *C, blender::Span<Object *> objects, bAction 
    * pose, which can cause unwanted visual glitches. */
   wmWindowManager *wm = CTX_wm_manager(C);
   const bool interface_was_locked = CTX_wm_interface_locked(C);
-  WM_set_locked_interface(wm, true);
+  WM_locked_interface_set(wm, true);
 
   BKE_action_flip_with_pose(action_copy, objects);
 
-  WM_set_locked_interface(wm, interface_was_locked);
+  WM_locked_interface_set(wm, interface_was_locked);
   return action_copy;
 }
 

@@ -480,7 +480,7 @@ const EnumPropertyItem rna_enum_event_value_items[] = {
     {KM_RELEASE, "RELEASE", 0, "Release", ""},
     {KM_CLICK, "CLICK", 0, "Click", ""},
     {KM_DBL_CLICK, "DOUBLE_CLICK", 0, "Double Click", ""},
-    {KM_CLICK_DRAG, "CLICK_DRAG", 0, "Click Drag", ""},
+    {KM_PRESS_DRAG, "CLICK_DRAG", 0, "Drag", ""},
     /* Used for NDOF and trackpad events. */
     {KM_NOTHING, "NOTHING", 0, "Nothing", ""},
     {0, nullptr, 0, nullptr, nullptr},
@@ -2256,7 +2256,10 @@ static void rna_def_operator(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "OperatorProperties", nullptr);
   RNA_def_struct_ui_text(srna, "Operator Properties", "Input properties of an operator");
   RNA_def_struct_refine_func(srna, "rna_OperatorProperties_refine");
+  /* NOTE: `RNA_def_struct_idprops_func` should be removed once #132129 is implemented.
+   * Similar to the issue with the nodes modifiers, see #rna_def_modifier_nodes. */
   RNA_def_struct_idprops_func(srna, "rna_OperatorProperties_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_OperatorProperties_idprops");
   RNA_def_struct_property_tags(srna, rna_enum_operator_property_tag_items);
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES | STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID);
 }
@@ -2901,7 +2904,7 @@ static void rna_def_keyconfig_prefs(BlenderRNA *brna)
   RNA_def_struct_refine_func(srna, "rna_wmKeyConfigPref_refine");
   RNA_def_struct_register_funcs(
       srna, "rna_wmKeyConfigPref_register", "rna_wmKeyConfigPref_unregister", nullptr);
-  RNA_def_struct_idprops_func(srna, "rna_wmKeyConfigPref_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_wmKeyConfigPref_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES); /* Mandatory! */
 
   /* registration */
@@ -3223,7 +3226,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "User Defined",
-      "Is this keymap item user defined (doesn't just replace a builtin item)");
+      "Is this keymap item user defined (does not just replace a builtin item)");
   RNA_def_property_boolean_funcs(prop, "rna_KeyMapItem_userdefined_get", nullptr);
 
   RNA_api_keymapitem(srna);

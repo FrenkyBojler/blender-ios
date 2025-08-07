@@ -29,7 +29,7 @@
 #  include "BKE_report.hh"
 
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 #  include "BLI_utildefines.h"
 #  include "BLI_vector.hh"
 
@@ -54,6 +54,7 @@
 #  include "io_utils.hh"
 
 #  include "ABC_alembic.h"
+#  include "UI_interface_layout.hh"
 
 const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
     {DAG_EVAL_RENDER,
@@ -148,8 +149,8 @@ static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
 
 static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "ABC_export_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -363,7 +364,7 @@ void WM_OT_alembic_export(wmOperatorType *ot)
                   "Flatten Hierarchy",
                   "Do not preserve objects' parent/children relationship");
 
-  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_IDPROP_NAME, "Collection", nullptr);
+  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
   RNA_def_boolean(ot->srna, "uvs", true, "UV Coordinates", "Export UV coordinates");
@@ -565,8 +566,8 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
 static void ui_alembic_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "ABC_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -726,11 +727,11 @@ namespace blender::ed::io {
 void alembic_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_alembic");
-  STRNCPY(fh->import_operator, "WM_OT_alembic_import");
-  STRNCPY(fh->export_operator, "WM_OT_alembic_export");
-  STRNCPY(fh->label, "Alembic");
-  STRNCPY(fh->file_extensions_str, ".abc");
+  STRNCPY_UTF8(fh->idname, "IO_FH_alembic");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_alembic_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_alembic_export");
+  STRNCPY_UTF8(fh->label, "Alembic");
+  STRNCPY_UTF8(fh->file_extensions_str, ".abc");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

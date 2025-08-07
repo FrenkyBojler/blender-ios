@@ -31,6 +31,8 @@
 
 #include <Python.h>
 
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+
 #include "../mathutils/mathutils.hh"
 
 #include "../generic/py_capi_utils.hh"
@@ -334,7 +336,8 @@ static PyObject *bpy_bmesh_is_wrapped_get(BPy_BMesh *self, void * /*closure*/)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmesh_select_mode_doc,
-    "The selection mode, values can be {'VERT', 'EDGE', 'FACE'}, can't be assigned an empty set.\n"
+    "The selection mode, values can be {'VERT', 'EDGE', 'FACE'}, cannot be assigned an empty "
+    "set.\n"
     "\n"
     ":type: set");
 static PyObject *bpy_bmesh_select_mode_get(BPy_BMesh *self, void * /*closure*/)
@@ -355,7 +358,7 @@ static int bpy_bmesh_select_mode_set(BPy_BMesh *self, PyObject *value, void * /*
     return -1;
   }
   if (flag == 0) {
-    PyErr_SetString(PyExc_TypeError, "bm.select_mode: can't assign an empty value");
+    PyErr_SetString(PyExc_TypeError, "bm.select_mode: cannot assign an empty value");
     return -1;
   }
 
@@ -3819,12 +3822,12 @@ static void bpy_bmelemseq_dealloc(BPy_BMElemSeq *self)
 /* not sure where this should go */
 static Py_hash_t bpy_bm_elem_hash(PyObject *self)
 {
-  return _Py_HashPointer(((BPy_BMElem *)self)->ele);
+  return Py_HashPointer(((BPy_BMElem *)self)->ele);
 }
 
 static Py_hash_t bpy_bm_hash(PyObject *self)
 {
-  return _Py_HashPointer(((BPy_BMesh *)self)->bm);
+  return Py_HashPointer(((BPy_BMesh *)self)->bm);
 }
 
 /* Type Doc-strings

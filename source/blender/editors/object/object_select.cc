@@ -57,6 +57,7 @@
 #include "ANIM_keyingsets.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -1157,7 +1158,7 @@ static wmOperatorStatus object_select_same_collection_exec(bContext *C, wmOperat
 {
   Main *bmain = CTX_data_main(C);
   Collection *collection;
-  char collection_name[MAX_ID_NAME];
+  char collection_name[MAX_ID_NAME - 2];
 
   /* passthrough if no objects are visible */
   if (CTX_DATA_COUNT(C, visible_bases) == 0) {
@@ -1208,7 +1209,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
   RNA_def_string(ot->srna,
                  "collection",
                  nullptr,
-                 MAX_ID_NAME,
+                 MAX_ID_NAME - 2,
                  "Collection",
                  "Name of the collection to select");
 }

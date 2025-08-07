@@ -418,8 +418,9 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c->gop_size = 10;
   rv->c->max_b_frames = 0;
 
-  if (rv->codec->pix_fmts) {
-    rv->c->pix_fmt = rv->codec->pix_fmts[0];
+  const enum AVPixelFormat *pix_fmts = ffmpeg_get_pix_fmts(rv->c, rv->codec);
+  if (pix_fmts) {
+    rv->c->pix_fmt = pix_fmts[0];
   }
   else {
     rv->c->pix_fmt = AV_PIX_FMT_YUVJ420P;
@@ -470,8 +471,6 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c->color_trc = codec_ctx->color_trc;
   rv->c->colorspace = codec_ctx->colorspace;
 
-  ffmpeg_copy_display_matrix(st, rv->st);
-
   int ret = avio_open(&rv->of->pb, filepath, AVIO_FLAG_WRITE);
 
   if (ret < 0) {
@@ -504,6 +503,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   }
 
   avcodec_parameters_from_context(rv->st->codecpar, rv->c);
+  ffmpeg_copy_display_matrix(st, rv->st);
 
   rv->orig_height = st->codecpar->height;
 
@@ -520,9 +520,13 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     rv->sws_ctx = ffmpeg_sws_get_context(st->codecpar->width,
                                          rv->orig_height,
                                          AVPixelFormat(st->codecpar->format),
+                                         codec_ctx->color_range == AVCOL_RANGE_JPEG,
+                                         -1,
                                          width,
                                          height,
                                          rv->c->pix_fmt,
+                                         codec_ctx->color_range == AVCOL_RANGE_JPEG,
+                                         -1,
                                          SWS_FAST_BILINEAR);
   }
 
@@ -1254,8 +1258,11 @@ MovieReader *movie_open_proxy(MovieReader *anim, IMB_Proxy_Size preview_size)
 
   get_proxy_filepath(anim, preview_size, filepath, false);
 
-  /* proxies are generated in the same color space as animation itself */
-  anim->proxy_anim[i] = MOV_open_file(filepath, 0, 0, anim->colorspace);
+  /* Proxies are generated in the same color space as animation itself.
+   *
+   * Also skip any colorspace conversion to the color pipeline design as it helps performance and
+   * the image buffers from the proxy builder are not used anywhere else in Blender. */
+  anim->proxy_anim[i] = MOV_open_file(filepath, 0, 0, true, anim->colorspace);
 
   anim->proxies_tried |= preview_size;
 

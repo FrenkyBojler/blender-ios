@@ -21,6 +21,8 @@
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
@@ -37,6 +39,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -234,7 +237,7 @@ static void init_output_file(const bContext *C, PointerRNA *ptr)
   BKE_image_format_update_color_space_for_type(&nimf->format);
 
   /* add one socket by default */
-  ntreeCompositOutputFileAddSocket(ntree, node, "Image", format);
+  ntreeCompositOutputFileAddSocket(ntree, node, DATA_("Image"), format);
 }
 
 static void free_output_file(bNode *node)
@@ -305,15 +308,6 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
 
 static void node_composit_buts_file_output(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  PointerRNA imfptr = RNA_pointer_get(ptr, "format");
-  const bool multilayer = RNA_enum_get(&imfptr, "file_format") == R_IMF_IMTYPE_MULTILAYER;
-
-  if (multilayer) {
-    layout->label(IFACE_("Path:"), ICON_NONE);
-  }
-  else {
-    layout->label(IFACE_("Base Path:"), ICON_NONE);
-  }
   layout->prop(ptr, "base_path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
@@ -330,17 +324,18 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   {
     uiLayout *column = &layout->column(true);
-    uiLayoutSetPropSep(column, true);
-    uiLayoutSetPropDecorate(column, false);
+    column->use_property_split_set(true);
+    column->use_property_decorate_set(false);
     column->prop(ptr, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
   const bool save_as_render = RNA_boolean_get(ptr, "save_as_render");
-  uiTemplateImageSettings(layout, &imfptr, save_as_render);
+
+  uiTemplateImageSettings(layout, C, &imfptr, save_as_render);
 
   if (!save_as_render) {
     uiLayout *col = &layout->column(true);
-    uiLayoutSetPropSep(col, true);
-    uiLayoutSetPropDecorate(col, false);
+    col->use_property_split_set(true);
+    col->use_property_decorate_set(false);
 
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imfptr, "linear_colorspace_settings");
     col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
@@ -354,14 +349,15 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   layout->separator();
 
-  layout->op("NODE_OT_output_file_add_socket", IFACE_("Add Input"), ICON_ADD);
-
+  uiLayout *header = &layout->row(false);
   row = &layout->row(false);
   col = &row->column(true);
 
   const int active_index = RNA_int_get(ptr, "active_input_index");
+  PropertyRNA *slots_prop = nullptr;
   /* using different collection properties if multilayer format is enabled */
   if (multilayer) {
+    header->label(IFACE_("Layers"), ICON_NONE);
     uiTemplateList(col,
                    C,
                    "UI_UL_list",
@@ -378,8 +374,10 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
                    UI_TEMPLATE_LIST_FLAG_NONE);
     RNA_property_collection_lookup_int(
         ptr, RNA_struct_find_property(ptr, "layer_slots"), active_index, &active_input_ptr);
+    slots_prop = RNA_struct_find_property(ptr, "layer_slots");
   }
   else {
+    header->label(IFACE_("File Subpaths"), ICON_NONE);
     uiTemplateList(col,
                    C,
                    "UI_UL_list",
@@ -396,48 +394,49 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
                    UI_TEMPLATE_LIST_FLAG_NONE);
     RNA_property_collection_lookup_int(
         ptr, RNA_struct_find_property(ptr, "file_slots"), active_index, &active_input_ptr);
+    slots_prop = RNA_struct_find_property(ptr, "file_slots");
   }
+
+  col = &row->column(true);
+
+  col->op("NODE_OT_output_file_add_socket",
+          "",
+          ICON_ADD,
+          wm::OpCallContext::ExecDefault,
+          UI_ITEM_NONE);
+  col->op("NODE_OT_output_file_remove_active_socket",
+          "",
+          ICON_REMOVE,
+          wm::OpCallContext::ExecDefault,
+          UI_ITEM_NONE);
+  col->separator();
+
   /* XXX collection lookup does not return the ID part of the pointer,
    * setting this manually here */
   active_input_ptr.owner_id = ptr->owner_id;
 
-  col = &row->column(true);
-  wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
-  op_ptr = col->op(ot, "", ICON_TRIA_UP, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
-  RNA_enum_set(&op_ptr, "direction", 1);
-  op_ptr = col->op(ot, "", ICON_TRIA_DOWN, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
-  RNA_enum_set(&op_ptr, "direction", 2);
+  int slots_len = RNA_property_collection_length(ptr, slots_prop);
+  if (slots_len > 0) {
+    wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
+
+    uiLayout *sub = &col->column(true);
+    if (slots_len < 2) {
+      sub->active_set(false);
+    }
+
+    op_ptr = sub->op(ot, "", ICON_TRIA_UP, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+    RNA_enum_set(&op_ptr, "direction", 1);
+
+    op_ptr = sub->op(ot, "", ICON_TRIA_DOWN, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+    RNA_enum_set(&op_ptr, "direction", 2);
+  }
 
   if (active_input_ptr.data) {
-    if (multilayer) {
-      col = &layout->column(true);
-
-      col->label(IFACE_("Layer:"), ICON_NONE);
-      row = &col->row(false);
-      row->prop(&active_input_ptr, "name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-      row->op("NODE_OT_output_file_remove_active_socket",
-              "",
-              ICON_X,
-              WM_OP_EXEC_DEFAULT,
-              UI_ITEM_R_ICON_ONLY);
-    }
-    else {
-      col = &layout->column(true);
-
-      col->label(IFACE_("File Subpath:"), ICON_NONE);
-      row = &col->row(false);
-      row->prop(&active_input_ptr, "path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-      row->op("NODE_OT_output_file_remove_active_socket",
-              "",
-              ICON_X,
-              WM_OP_EXEC_DEFAULT,
-              UI_ITEM_R_ICON_ONLY);
-
+    if (!multilayer) {
       /* format details for individual files */
       imfptr = RNA_pointer_get(&active_input_ptr, "format");
 
       col = &layout->column(true);
-      col->label(IFACE_("Format:"), ICON_NONE);
       col->prop(&active_input_ptr,
                 "use_node_format",
                 UI_ITEM_R_SPLIT_EMPTY_NAME,
@@ -449,8 +448,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       if (!use_node_format) {
         {
           uiLayout *column = &layout->column(true);
-          uiLayoutSetPropSep(column, true);
-          uiLayoutSetPropDecorate(column, false);
+          column->use_property_split_set(true);
+          column->use_property_decorate_set(false);
           column->prop(&active_input_ptr,
                        "save_as_render",
                        UI_ITEM_R_SPLIT_EMPTY_NAME,
@@ -461,12 +460,13 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
         const bool use_color_management = RNA_boolean_get(&active_input_ptr, "save_as_render");
 
         col = &layout->column(false);
-        uiTemplateImageSettings(col, &imfptr, use_color_management);
+        uiTemplateImageSettings(
+            col, C, &imfptr, use_color_management, "node_settings_color_management");
 
         if (!use_color_management) {
           uiLayout *col = &layout->column(true);
-          uiLayoutSetPropSep(col, true);
-          uiLayoutSetPropDecorate(col, false);
+          col->use_property_split_set(true);
+          col->use_property_decorate_set(false);
 
           PointerRNA linear_settings_ptr = RNA_pointer_get(&imfptr, "linear_colorspace_settings");
           col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
@@ -608,6 +608,12 @@ class FileOutputOperation : public NodeOperation {
 
   void execute_multi_layer()
   {
+    /* We only write images, not single values. */
+    const int2 size = this->compute_domain().size;
+    if (size == int2(1)) {
+      return;
+    }
+
     const bool store_views_in_single_file = is_multi_view_exr();
     const char *view = context().get_view_name().data();
 
@@ -622,7 +628,6 @@ class FileOutputOperation : public NodeOperation {
       return;
     }
 
-    const int2 size = compute_domain().size;
     const ImageFormatData format = node_storage(bnode()).format;
     FileOutput &file_output = context().render_context()->get_file_output(
         image_path, format, size, true);
@@ -714,6 +719,9 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Bool:
         file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
+      case ResultType::Menu:
+        file_output.add_pass(pass_name, view_name, "V", buffer);
+        break;
     }
   }
 
@@ -749,6 +757,11 @@ class FileOutputOperation : public NodeOperation {
       }
       case ResultType::Bool: {
         const float value = float(result.get_single_value<bool>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Menu: {
+        const float value = float(result.get_single_value<int32_t>());
         CPPType::get<float>().fill_assign_n(&value, buffer, length);
         return buffer;
       }
@@ -798,6 +811,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int2:
       case ResultType::Int:
       case ResultType::Bool:
+      case ResultType::Menu:
         /* Not supported. */
         BLI_assert_unreachable();
         break;
@@ -870,8 +884,10 @@ class FileOutputOperation : public NodeOperation {
    */
   bool get_single_layer_image_base_path(const char *base_name, char *r_base_path)
   {
-    const path_templates::VariableMap template_variables =
-        BKE_build_template_variables_for_render_path(&context().get_render_data());
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
+    BKE_add_template_variables_for_render_path(template_variables, context().get_scene());
+    BKE_add_template_variables_for_node(template_variables, this->bnode());
 
     /* Do template expansion on the node's base path. */
     char node_base_path[FILE_MAX] = "";
@@ -937,7 +953,7 @@ class FileOutputOperation : public NodeOperation {
    * If there are any errors processing the path, the resulting path will be
    * empty.
    *
-   * \param apply_template Whether to run templating on the path or not. This is
+   * \param apply_template: Whether to run templating on the path or not. This is
    * needed because this function is called from more than one place, some of
    * which have already applied templating to the path and some of which
    * haven't. Double-applying templating can give incorrect results.
@@ -950,11 +966,15 @@ class FileOutputOperation : public NodeOperation {
                                       const bool apply_template,
                                       char *r_image_path)
   {
+    const Scene *scene = &context().get_scene();
     const RenderData &render_data = context().get_render_data();
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
+    BKE_add_template_variables_for_render_path(template_variables, *scene);
+    BKE_add_template_variables_for_node(template_variables, this->bnode());
+
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
     const char *relbase = BKE_main_blendfile_path_from_global();
-    const path_templates::VariableMap template_variables =
-        BKE_build_template_variables_for_render_path(&render_data);
     blender::Vector<path_templates::Error> errors = BKE_image_path_from_imtype(
         r_image_path,
         base_path,

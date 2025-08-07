@@ -23,7 +23,7 @@
 #endif
 
 #ifdef WITH_METAL_BACKEND
-#  include "GHOST_ContextCGL.hh"
+#  include "GHOST_ContextMTL.hh"
 #endif
 
 #ifdef WITH_VULKAN_BACKEND
@@ -686,10 +686,8 @@ uint64_t GHOST_SystemCocoa::getMilliSeconds() const
 
 uint8_t GHOST_SystemCocoa::getNumDisplays() const
 {
-  /* Note that OS X supports monitor hot plug.
-   * We do not support multiple monitors at the moment. */
   @autoreleasepool {
-    return NSScreen.screens.count;
+    return [[NSScreen screens] count];
   }
 }
 
@@ -697,7 +695,7 @@ void GHOST_SystemCocoa::getMainDisplayDimensions(uint32_t &width, uint32_t &heig
 {
   @autoreleasepool {
     /* Get visible frame, that is frame excluding dock and top menu bar. */
-    const NSRect frame = [[NSScreen mainScreen] visibleFrame];
+    const NSRect frame = [GHOST_WindowCocoa::getPrimaryScreen() visibleFrame];
 
     /* Returns max window contents (excluding title bar...). */
     const NSRect contentRect = [NSWindow
@@ -730,18 +728,13 @@ GHOST_IWindow *GHOST_SystemCocoa::createWindow(const char *title,
   GHOST_IWindow *window = nullptr;
   @autoreleasepool {
     /* Get the available rect for including window contents. */
-    const NSRect frame = [[NSScreen mainScreen] visibleFrame];
-    const NSRect contentRect = [NSWindow
-        contentRectForFrameRect:frame
+    const NSRect primaryScreenFrame = [GHOST_WindowCocoa::getPrimaryScreen() visibleFrame];
+    const NSRect primaryScreenContentRect = [NSWindow
+        contentRectForFrameRect:primaryScreenFrame
                       styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                                  NSWindowStyleMaskMiniaturizable)];
 
-    int32_t bottom = (contentRect.size.height - 1) - height - top;
-
-    /* Ensures window top left is inside this available rect. */
-    left = left > contentRect.origin.x ? left : contentRect.origin.x;
-    /* Add `contentRect.origin.y` to respect dock-size. */
-    bottom = bottom > contentRect.origin.y ? bottom + contentRect.origin.y : contentRect.origin.y;
+    const int32_t bottom = primaryScreenContentRect.size.height - top - height;
 
     window = new GHOST_WindowCocoa(this,
                                    title,
@@ -800,8 +793,7 @@ GHOST_IContext *GHOST_SystemCocoa::createOffscreenContext(GHOST_GPUSettings gpuS
 
 #ifdef WITH_METAL_BACKEND
     case GHOST_kDrawingContextTypeMetal: {
-      /* TODO(fclem): Remove OpenGL support and rename context to ContextMTL */
-      GHOST_Context *context = new GHOST_ContextCGL(false, nullptr, nullptr, debug_context);
+      GHOST_Context *context = new GHOST_ContextMTL(false, nullptr, nullptr, debug_context);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -978,12 +970,17 @@ GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
 {
   return GHOST_TCapabilityFlag(
       GHOST_CAPABILITY_FLAG_ALL &
+      /* NOTE: order the following flags as they they're declared in the source. */
       ~(
           /* Cocoa has no support for a primary selection clipboard. */
-          GHOST_kCapabilityPrimaryClipboard |
+          GHOST_kCapabilityClipboardPrimary |
           /* Cocoa doesn't define a Hyper modifier key,
            * it's possible another modifier could be optionally used in it's place. */
-          GHOST_kCapabilityKeyboardHyperKey));
+          GHOST_kCapabilityKeyboardHyperKey |
+          /* No support yet for RGBA mouse cursors. */
+          GHOST_kCapabilityCursorRGBA |
+          /* No support yet for dynamic cursor generation. */
+          GHOST_kCapabilityCursorGenerator));
 }
 
 /* --------------------------------------------------------------------

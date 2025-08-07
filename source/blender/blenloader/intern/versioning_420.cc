@@ -28,6 +28,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_colortools.hh"
@@ -37,6 +38,7 @@
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_report.hh"
 
 #include "MOV_enums.hh"
 
@@ -350,7 +352,7 @@ static bool versioning_eevee_material_blend_mode_settings(bNodeTree *ntree, floa
 
       bNode *math_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMath");
       math_node->custom1 = NODE_MATH_GREATER_THAN;
-      math_node->flag |= NODE_HIDDEN;
+      math_node->flag |= NODE_COLLAPSED;
       math_node->parent = to_node->parent;
       math_node->locx_legacy = to_node->locx_legacy - math_node->width - 30;
       math_node->locy_legacy = min_ff(to_node->locy_legacy, from_node->locy_legacy);
@@ -446,7 +448,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
   /* Add mix node for mixing between original material, and transparent BSDF for shadows */
   bNode *mix_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMixShader");
   STRNCPY(mix_node->label, "Disable Shadow");
-  mix_node->flag |= NODE_HIDDEN;
+  mix_node->flag |= NODE_COLLAPSED;
   mix_node->parent = output_node->parent;
   mix_node->locx_legacy = output_node->locx_legacy;
   mix_node->locy_legacy = output_node->locy_legacy - output_node->height - 120;
@@ -468,7 +470,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
 
   /* Add light path node to control shadow visibility */
   bNode *lp_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeLightPath");
-  lp_node->flag |= NODE_HIDDEN;
+  lp_node->flag |= NODE_COLLAPSED;
   lp_node->parent = output_node->parent;
   lp_node->locx_legacy = output_node->locx_legacy;
   lp_node->locy_legacy = mix_node->locy_legacy + 35;
@@ -483,7 +485,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
 
   /* Add transparent BSDF to make shadows transparent. */
   bNode *bsdf_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeBsdfTransparent");
-  bsdf_node->flag |= NODE_HIDDEN;
+  bsdf_node->flag |= NODE_COLLAPSED;
   bsdf_node->parent = output_node->parent;
   bsdf_node->locx_legacy = output_node->locx_legacy;
   bsdf_node->locy_legacy = mix_node->locy_legacy - 35;
@@ -577,14 +579,6 @@ void do_versions_after_linking_420(FileData *fd, Main *bmain)
                                                                            MA_BM_BLEND;
         material->blend_shadow = (material->blend_shadow == MA_BS_SOLID) ? MA_BS_SOLID :
                                                                            MA_BS_HASHED;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 52)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE)) {
-        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
       }
     }
   }
@@ -753,17 +747,20 @@ static void convert_grease_pencil_stroke_hardness_to_softness(GreasePencil *grea
     }
     bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
     const int layer_index = CustomData_get_named_layer_index(
-        &drawing.geometry.curve_data, CD_PROP_FLOAT, "hardness");
+        &drawing.geometry.curve_data_legacy, CD_PROP_FLOAT, "hardness");
     if (layer_index == -1) {
       continue;
     }
-    float *data = static_cast<float *>(CustomData_get_layer_named_for_write(
-        &drawing.geometry.curve_data, CD_PROP_FLOAT, "hardness", drawing.geometry.curve_num));
+    float *data = static_cast<float *>(
+        CustomData_get_layer_named_for_write(&drawing.geometry.curve_data_legacy,
+                                             CD_PROP_FLOAT,
+                                             "hardness",
+                                             drawing.geometry.curve_num));
     for (const int i : IndexRange(drawing.geometry.curve_num)) {
       data[i] = 1.0f - data[i];
     }
     /* Rename the layer. */
-    STRNCPY(drawing.geometry.curve_data.layers[layer_index].name, "softness");
+    STRNCPY_UTF8(drawing.geometry.curve_data_legacy.layers[layer_index].name, "softness");
   }
 }
 

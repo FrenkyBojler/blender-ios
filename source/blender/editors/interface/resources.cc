@@ -18,7 +18,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_addon.h"
@@ -30,7 +30,6 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 
 #include "GPU_framebuffer.hh"
@@ -203,8 +202,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           setting = ts->background_type;
           break;
         case TH_TEXT:
-          if (g_theme_state.regionid == RGN_TYPE_WINDOW) {
-            cp = ts->text;
+          if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS) ||
+              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF))
+          {
+            cp = btheme->tui.panel_text;
           }
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_text;
@@ -217,14 +218,11 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->header_text;
           }
           else {
-            cp = ts->button_text;
+            cp = ts->text;
           }
           break;
         case TH_TEXT_HI:
-          if (g_theme_state.regionid == RGN_TYPE_WINDOW) {
-            cp = ts->text_hi;
-          }
-          else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
+          if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_text_hi;
           }
           else if (ELEM(g_theme_state.regionid,
@@ -235,12 +233,14 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->header_text_hi;
           }
           else {
-            cp = ts->button_text_hi;
+            cp = ts->text_hi;
           }
           break;
         case TH_TITLE:
-          if (g_theme_state.regionid == RGN_TYPE_WINDOW) {
-            cp = ts->title;
+          if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS) ||
+              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF))
+          {
+            cp = btheme->tui.panel_title;
           }
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_title;
@@ -253,7 +253,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->header_title;
           }
           else {
-            cp = ts->button_title;
+            cp = ts->title;
           }
           break;
 
@@ -283,12 +283,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 
         case TH_BUTBACK:
           cp = ts->button;
-          break;
-        case TH_BUTBACK_TEXT:
-          cp = ts->button_text;
-          break;
-        case TH_BUTBACK_TEXT_HI:
-          cp = ts->button_text_hi;
           break;
 
         case TH_TAB_TEXT:
@@ -933,7 +927,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->anim_non_active;
           break;
         case TH_ANIM_PREVIEW_RANGE:
-          cp = ts->anim_preview_range;
+          cp = btheme->common.anim.preview_range;
           break;
 
         case TH_NLA_TWEAK:
@@ -1006,6 +1000,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_AXIS_Z:
           cp = btheme->tui.zaxis;
+          break;
+        case TH_AXIS_W:
+          cp = btheme->tui.waxis;
           break;
 
         case TH_GIZMO_HI:
@@ -1112,7 +1109,7 @@ void UI_theme_init_default()
       BLI_findstring(&U.themes, U_theme_default.name, offsetof(bTheme, name)));
   if (btheme == nullptr) {
     btheme = MEM_callocN<bTheme>(__func__);
-    STRNCPY(btheme->name, U_theme_default.name);
+    STRNCPY_UTF8(btheme->name, U_theme_default.name);
     BLI_addhead(&U.themes, btheme);
   }
 
