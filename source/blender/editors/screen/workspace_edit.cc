@@ -361,7 +361,7 @@ static wmOperatorStatus workspace_delete_all_others_exec(bContext *C, wmOperator
 static void WORKSPACE_OT_delete_all_others(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Delete all Workspaces";
+  ot->name = "Delete other Workspaces";
   ot->description = "Delete all workspaces except this one";
   ot->idname = "WORKSPACE_OT_delete_all_others";
 
