@@ -894,7 +894,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
 
   bNode *frame = blender::bke::node_add_static_node(nullptr, *node_tree, NODE_FRAME);
   frame->parent = node->parent;
-  STRNCPY(frame->label, IFACE_("Versioning: Map Value node was removed"));
+  STRNCPY(frame->label, RPT_("Versioning: Map Value node was removed"));
   NodeFrame *frame_data = static_cast<NodeFrame *>(frame->storage);
   frame_data->label_size = 10;
 
