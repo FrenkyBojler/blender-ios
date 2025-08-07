@@ -6,14 +6,24 @@
  * \ingroup edgreasepencil
  */
 
+#include <algorithm>
+#include <functional>
+
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_lasso_2d.hh"
+#include "BLI_map.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
+#include "BLI_math_vector_types.hh"
+#include "BLI_offset_indices.hh"
 #include "BLI_rect.h"
+#include "BLI_sort.hh"
 #include "BLI_task.hh"
+#include "BLI_vector.hh"
 
+#include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
@@ -36,10 +46,6 @@
 #include "DNA_material_types.h"
 
 #include "WM_api.hh"
-
-/* SPDX-FileCopyrightText: 2025 Blender Authors
- *
- * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * This is a heavily modified implementation of the Greiner-Hormann clipping algorithm.
@@ -68,25 +74,6 @@
  *  3: Follow each segment until it loops or terminates.
  *  4: Repeat for every `subject` shape.
  */
-
-#include <algorithm>
-#include <functional>
-
-#include "BLI_array.hh"
-#include "BLI_array_utils.hh"
-#include "BLI_map.hh"
-#include "BLI_math_base.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_vector_types.hh"
-#include "BLI_offset_indices.hh"
-#include "BLI_sort.hh"
-#include "BLI_vector.hh"
-
-#include "BKE_attribute.hh"
-#include "BKE_attribute_math.hh"
-#include "BKE_curves.hh"
-
-// #include "GEO_boolean_curves.hh"
 
 namespace blender::geometry::boolean {
 
