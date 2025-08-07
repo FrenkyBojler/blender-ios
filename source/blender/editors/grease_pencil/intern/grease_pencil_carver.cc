@@ -210,79 +210,58 @@ class Segment {
   }
 
   constexpr static Segment from_curve(const int curve_i,
-                                      const IndexRange src_points,
+                                      const IndexRange points,
                                       const bool cyclical)
   {
     Segment segment;
     segment.curve = curve_i;
-    segment.src_points = src_points;
+    segment.src_points = points;
 
-    segment.points[Side::Start] = src_points.first();
-    segment.points[Side::End] = src_points.last();
+    segment.points[Side::Start] = points.first();
+    segment.points[Side::End] = points.last();
 
-    if (cyclical) {
-      segment.alpha[Side::Start] = 0.0f;
-      segment.alpha[Side::End] = 1.0f;
-    }
+    segment.alpha[Side::Start] = 0.0f;
+    segment.alpha[Side::End] = cyclical ? 1.0f : 0.0f;
 
     return segment;
   }
 
   static Segment from_intersections(const int curve_i,
-                                    const IndexRange src_points,
-                                    const float parameter_first,
-                                    const float parameter_last,
-                                    const int inter_index_first,
-                                    const int inter_index_last)
+                                    const IndexRange points,
+                                    const std::optional<float> parameter_start,
+                                    const std::optional<float> parameter_end,
+                                    const std::optional<int> inter_index_start,
+                                    const std::optional<int> inter_index_end)
   {
     Segment segment;
     segment.curve = curve_i;
-    segment.src_points = src_points;
+    segment.src_points = points;
 
-    segment.points[Side::Start] = int(math::floor(parameter_first));
-    segment.alpha[Side::Start] = math::fract(parameter_first);
-    segment.intersection_index[0] = inter_index_first;
+    if (parameter_start) {
+      segment.points[Side::Start] = int(math::floor(*parameter_start));
+      segment.alpha[Side::Start] = math::fract(*parameter_start);
+    }
+    else {
+      segment.points[Side::Start] = points.first();
+      segment.alpha[Side::Start] = 0.0f;
+    }
 
-    segment.points[Side::End] = int(math::floor(parameter_last));
-    segment.alpha[Side::End] = math::fract(parameter_last);
-    segment.intersection_index[1] = inter_index_last;
+    if (inter_index_start) {
+      segment.intersection_index[Side::Start] = *inter_index_start;
+    }
 
-    return segment;
-  }
+    if (parameter_end) {
+      segment.points[Side::End] = int(math::floor(*parameter_end));
+      segment.alpha[Side::End] = math::fract(*parameter_end);
+    }
+    else {
+      segment.points[Side::End] = points.last();
+      segment.alpha[Side::End] = 0.0f;
+    }
 
-  static Segment from_start_to_intersection(const int curve_i,
-                                            const IndexRange src_points,
-                                            const float parameter_2,
-                                            const int inter_index)
-  {
-    Segment segment;
-    segment.curve = curve_i;
-    segment.src_points = src_points;
-
-    segment.points[Side::Start] = src_points.first();
-
-    segment.points[Side::End] = int(math::floor(parameter_2));
-    segment.alpha[Side::End] = math::fract(parameter_2);
-    segment.intersection_index[1] = inter_index;
-
-    return segment;
-  }
-
-  static Segment from_intersection_to_end(const int curve_i,
-                                          const IndexRange src_points,
-                                          const float parameter_1,
-                                          const int inter_index)
-  {
-    Segment segment;
-    segment.curve = curve_i;
-    segment.src_points = src_points;
-
-    segment.points[Side::Start] = int(math::floor(parameter_1));
-    segment.alpha[Side::Start] = math::fract(parameter_1);
-
-    segment.intersection_index[0] = inter_index;
-
-    segment.points[Side::End] = src_points.last();
+    if (inter_index_end) {
+      segment.intersection_index[Side::End] = *inter_index_end;
+    }
 
     return segment;
   }
@@ -1021,8 +1000,12 @@ void add_segments(const int curve_k,
     const int int_p_1 = new_inters[inter_sorted_ids.first()];
     const IntersectionPoint &inter_first = intersections[int_p_1];
 
-    all_segments.append(Segment::from_start_to_intersection(
-        curve_k, points_k, inter_first.parameter_for_curve(curve_k), int_p_1));
+    all_segments.append(Segment::from_intersections(curve_k,
+                                                    points_k,
+                                                    std::nullopt,
+                                                    inter_first.parameter_for_curve(curve_k),
+                                                    std::nullopt,
+                                                    int_p_1));
   }
 
   for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
@@ -1044,8 +1027,12 @@ void add_segments(const int curve_k,
     const int int_p_2 = new_inters[inter_sorted_ids.last()];
     const IntersectionPoint &inter_last = intersections[int_p_2];
 
-    all_segments.append(Segment::from_intersection_to_end(
-        curve_k, points_k, inter_last.parameter_for_curve(curve_k), int_p_2));
+    all_segments.append(Segment::from_intersections(curve_k,
+                                                    points_k,
+                                                    inter_last.parameter_for_curve(curve_k),
+                                                    std::nullopt,
+                                                    int_p_2,
+                                                    std::nullopt));
   }
 
   all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
