@@ -507,9 +507,6 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   if (is_fill[curve_i]) {
     if (!segment.is_loop()) {
-      const float2 first_point_i = math::interpolate(points[segment.edge(Side::Start).x],
-                                                     points[segment.edge(Side::Start).y],
-                                                     segment.alpha[Side::Start]);
       const IndexRange points_i = points_by_curve[curve_i];
       const Span<float2> poly_i = points.slice(points_i);
       const int winding_twice_i = edge_in_polygon_winding_twice(
@@ -737,20 +734,20 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
   offsets.last() = offset;
 }
 
-void check_segments(const CurveBooleanOpParameters &op_params,
-                    const int curve_k,
-                    const bool is_subj,
-                    const int subj_shape_id,
-                    const Span<float2> points,
-                    const Vector<IndexMask> &shapes,
-                    const OffsetIndices<int> points_by_curve,
-                    const IndexMask &clipping_shapes,
-                    const Span<Segment> all_segments,
-                    const Span<IndexRange> all_segments_by_curve,
-                    const Span<IntersectionPoint> &intersections,
-                    const VArray<bool> &is_fill,
-                    MutableSpan<bool> all_inside_left,
-                    MutableSpan<bool> all_inside_right)
+static void check_segments(const CurveBooleanOpParameters &op_params,
+                           const int curve_k,
+                           const bool is_subj,
+                           const int subj_shape_id,
+                           const Span<float2> points,
+                           const Vector<IndexMask> &shapes,
+                           const OffsetIndices<int> points_by_curve,
+                           const IndexMask &clipping_shapes,
+                           const Span<Segment> all_segments,
+                           const Span<IndexRange> all_segments_by_curve,
+                           const Span<IntersectionPoint> &intersections,
+                           const VArray<bool> &is_fill,
+                           MutableSpan<bool> all_inside_left,
+                           MutableSpan<bool> all_inside_right)
 {
   const IndexRange segments = all_segments_by_curve[curve_k];
 
@@ -828,16 +825,16 @@ struct BooleanResult {
   }
 };
 
-void find_intersections_between_curves(const Span<float2> points_i,
-                                       const Span<float2> points_j,
-                                       const int curve_i,
-                                       const int curve_j,
-                                       const bool cyclic_i,
-                                       const bool cyclic_j,
-                                       const int point_offset_i,
-                                       const int point_offset_j,
-                                       Array<Vector<int>> &r_inters_per_curves,
-                                       Vector<IntersectionPoint> &r_intersections)
+static void find_intersections_between_curves(const Span<float2> points_i,
+                                              const Span<float2> points_j,
+                                              const int curve_i,
+                                              const int curve_j,
+                                              const bool cyclic_i,
+                                              const bool cyclic_j,
+                                              const int point_offset_i,
+                                              const int point_offset_j,
+                                              Array<Vector<int>> &r_inters_per_curves,
+                                              Vector<IntersectionPoint> &r_intersections)
 {
   for (const int i : points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
     for (const int j : points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
@@ -862,15 +859,15 @@ void find_intersections_between_curves(const Span<float2> points_i,
   }
 }
 
-void find_intersections_between_shapes(const Span<float2> points,
-                                       const Vector<IndexMask> &shapes,
-                                       const IndexMask &shapes_i,
-                                       const IndexMask &shapes_j,
-                                       const OffsetIndices<int> points_by_curve,
-                                       const VArray<bool> &cyclic,
-                                       const bool self_intersection,
-                                       Array<Vector<int>> &r_inters_per_curves,
-                                       Vector<IntersectionPoint> &r_intersections)
+static void find_intersections_between_shapes(const Span<float2> points,
+                                              const Vector<IndexMask> &shapes,
+                                              const IndexMask &shapes_i,
+                                              const IndexMask &shapes_j,
+                                              const OffsetIndices<int> points_by_curve,
+                                              const VArray<bool> &cyclic,
+                                              const bool self_intersection,
+                                              Array<Vector<int>> &r_inters_per_curves,
+                                              Vector<IntersectionPoint> &r_intersections)
 {
   shapes_i.foreach_index([&](const int shape_i) {
     const IndexMask &curves_i = shapes[shape_i];
@@ -904,7 +901,7 @@ void find_intersections_between_shapes(const Span<float2> points,
   });
 }
 
-bool check_and_join_segments(Segment &first, const Segment &second)
+static bool check_and_join_segments(Segment &first, const Segment &second)
 {
   if (first.curve != second.curve) {
     return false;
@@ -932,14 +929,14 @@ bool check_and_join_segments(Segment &first, const Segment &second)
   return false;
 }
 
-void add_segments(const int curve_k,
-                  const Span<Vector<int>> inters_per_curves,
-                  const Span<Vector<int>> self_clipping_inters_per_curves,
-                  const OffsetIndices<int> points_by_curve,
-                  const Span<IntersectionPoint> &intersections,
-                  const VArray<bool> &cyclic,
-                  Vector<Segment> &all_segments,
-                  MutableSpan<IndexRange> all_segments_by_curve)
+static void add_segments(const int curve_k,
+                         const Span<Vector<int>> inters_per_curves,
+                         const Span<Vector<int>> self_clipping_inters_per_curves,
+                         const OffsetIndices<int> points_by_curve,
+                         const Span<IntersectionPoint> &intersections,
+                         const VArray<bool> &cyclic,
+                         Vector<Segment> &all_segments,
+                         MutableSpan<IndexRange> all_segments_by_curve)
 {
   const IndexRange points_k = points_by_curve[curve_k];
   const Span<int> other_inter = inters_per_curves[curve_k];
@@ -1140,16 +1137,17 @@ static BooleanResult follow_segments(const Span<Segment> all_segments,
   return result;
 }
 
-BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
-                                     const int subj_shape_id,
-                                     const Span<float2> points,
-                                     const Vector<IndexMask> &shapes,
-                                     const OffsetIndices<int> points_by_curve,
-                                     const IndexMask &clipping_shapes,
-                                     const Array<Vector<int>> &self_clipping_inters_per_curves,
-                                     const Span<IntersectionPoint> clipping_intersections,
-                                     const VArray<bool> &is_fill,
-                                     const VArray<bool> &cyclic)
+static BooleanResult execute_single_boolean(
+    const CurveBooleanOpParameters op_params,
+    const int subj_shape_id,
+    const Span<float2> points,
+    const Vector<IndexMask> &shapes,
+    const OffsetIndices<int> points_by_curve,
+    const IndexMask &clipping_shapes,
+    const Array<Vector<int>> &self_clipping_inters_per_curves,
+    const Span<IntersectionPoint> clipping_intersections,
+    const VArray<bool> &is_fill,
+    const VArray<bool> &cyclic)
 {
   const IndexMask &curves_i = shapes[subj_shape_id];
 
@@ -1370,7 +1368,8 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
   return results_all;
 }
 
-bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves, const Span<int> shape_ids)
+static bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves,
+                                        const Span<int> shape_ids)
 {
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const VArray<float2> positions_2d_attribute = *curves.attributes().lookup<float2>(
@@ -1553,11 +1552,11 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   return dst_curves;
 }
 
-bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
-                                  const bke::CurvesGeometry &curves,
-                                  const IndexMask &mask_shapes,
-                                  const IndexMask &clipping_shapes,
-                                  const bool keep_caps)
+static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
+                                         const bke::CurvesGeometry &curves,
+                                         const IndexMask &mask_shapes,
+                                         const IndexMask &clipping_shapes,
+                                         const bool keep_caps)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
 
@@ -1612,20 +1611,20 @@ namespace blender::ed::greasepencil {
 /**
  * Apply the stroke carver to a drawing.
  */
-static bool execute_carver_on_drawing(const int layer_index,
-                                      const int frame_number,
+static bool execute_carver_on_drawing(const int /*layer_index*/,
+                                      const int /*frame_number*/,
                                       const Object &ob_eval,
                                       Object &obact,
                                       const ARegion &region,
                                       const float4x4 &projection,
-                                      const float4x4 &layer_to_world,
+                                      const float4x4 & /*layer_to_world*/,
                                       const DrawingPlacement &placement,
                                       const Span<int2> mcoords,
                                       const bool keep_caps,
                                       bke::greasepencil::Drawing &drawing)
 {
   const bke::CurvesGeometry &src = drawing.strokes();
-  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+  // const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
 
   /* Get evaluated geometry. */
   bke::crazyspace::GeometryDeformation deformation =
