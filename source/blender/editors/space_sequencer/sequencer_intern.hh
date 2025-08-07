@@ -322,6 +322,7 @@ void SEQUENCER_OT_view_selected(wmOperatorType *ot);
 void SEQUENCER_OT_view_ghost_border(wmOperatorType *ot);
 
 void SEQUENCER_OT_fullscreen_preview(wmOperatorType *ot);
+void sequencer_fullscreen_preview_menu_register();
 
 /* `sequencer_channels_edit.cc` */
 

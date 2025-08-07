@@ -41,7 +41,11 @@ bool wm_get_screensize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
  * \return true on success.
  */
 bool wm_get_desktopsize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
-
+/**
+ * Size of all screens (desktop), useful since the mouse is bound by this.
+ * \return true on success.
+ */
+size_t wm_get_num_displays() ATTR_WARN_UNUSED_RESULT;
 /**
  * Don't change context itself.
  */

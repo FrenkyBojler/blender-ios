@@ -1244,6 +1244,8 @@ void ED_spacetype_sequencer()
   art = ED_area_type_hud(st->spaceid);
   BLI_addhead(&st->regiontypes, art);
 
+  sequencer_fullscreen_preview_menu_register();
+
   BKE_spacetype_register(std::move(st));
 
   /* Set the sequencer callback when not in background mode. */

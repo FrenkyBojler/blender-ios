@@ -196,6 +196,11 @@ bool wm_get_desktopsize(int r_size[2])
   return true;
 }
 
+size_t wm_get_num_displays()
+{
+  return GHOST_GetNumDisplays(g_system);
+}
+
 /** Keeps size within monitor bounds. */
 static void wm_window_check_size(rcti *rect)
 {

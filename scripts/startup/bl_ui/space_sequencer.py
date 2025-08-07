@@ -459,18 +459,6 @@ class SEQUENCER_MT_proxy(Menu):
         layout.prop(st, "proxy_render_size", text="")
 
 
-class SEQUENCER_MT_fullscreen_preview(Menu):
-    bl_label = "Fullscreen Preview"
-
-    def draw(self, _context):
-        layout = self.layout
-
-        layout.operator("sequencer.fullscreen_preview", text="This Monitor")
-        layout.separator()
-        layout.operator("sequencer.fullscreen_preview", text="Right").monitor = 'RIGHT'
-        layout.operator("sequencer.fullscreen_preview", text="Left").monitor = 'LEFT'
-
-
 class SEQUENCER_MT_view(Menu):
     bl_label = "View"
 
@@ -3222,7 +3210,6 @@ classes = (
     SEQUENCER_MT_retiming,
     SEQUENCER_MT_view_pie,
     SEQUENCER_MT_preview_view_pie,
-    SEQUENCER_MT_fullscreen_preview,
 
     SEQUENCER_PT_color_tag_picker,
 

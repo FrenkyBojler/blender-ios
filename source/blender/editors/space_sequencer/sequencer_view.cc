@@ -8,20 +8,28 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
+
+#include "BLT_translation.hh"
 
 #include "GHOST_C-api.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+#include "WM_window.hh"
 
 #include "RNA_define.hh"
 
+// #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 #include "SEQ_sequencer.hh"
@@ -245,44 +253,17 @@ void SEQUENCER_OT_view_all_preview(wmOperatorType *ot)
 /** \name Fullscreen Preview Operator
  * \{ */
 
-static const EnumPropertyItem sequencer_fullscreen_monitors[] = {
-    {-1, "CURRENT", 0, "Current", ""},
-    {0, "MONITOR_0", 0, "Monitor ID 0", ""},
-    {1, "MONITOR_1", 0, "Monitor ID 1", ""},
-    {2, "MONITOR_2", 0, "Monitor ID 2", ""},
-    {3, "MONITOR_3", 0, "Monitor ID 3", ""},
-    {4, "MONITOR_4", 0, "Monitor ID 4", ""},
-    {5, "MONITOR_5", 0, "Monitor ID 5", ""},
-    {6, "MONITOR_6", 0, "Monitor ID 6", ""},
-    {7, "MONITOR_7", 0, "Monitor ID 7", ""},
-    {8, "MONITOR_8", 0, "Monitor ID 8", ""},
-    {9, "MONITOR_9", 0, "Monitor ID 9", ""},
-    {1000, "LEFT", 0, "Left", ""},
-    {1001, "RIGHT", 0, "Right", ""},
-    {1002, "ABOVE", 0, "Above", ""},
-    {1003, "BELOW", 0, "Below", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 static wmOperatorStatus sequencer_fullscreen_preview_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win_cur = CTX_wm_window(C);
-  const int monitor = RNA_enum_get(op->ptr, "monitor");
-
-  bool wm_get_screensize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
-  /**
-   * Size of all screens (desktop), useful since the mouse is bound by this.
-   * \return true on success.
-   */
-  bool wm_get_desktopsize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
-
+  const int monitor = RNA_int_get(op->ptr, "monitor");
   rcti window_rect;
 
-  if (monitor == 1001) {
+  if (monitor == 2) {
     window_rect.xmin = 3000;
     window_rect.ymin = 600;
   }
-  else if (monitor == 1000) {
+  else if (monitor == 3) {
     window_rect.xmin = -800;
     window_rect.ymin = 600;
   }
@@ -354,12 +335,54 @@ void SEQUENCER_OT_fullscreen_preview(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER;
 
   /* Properties. */
-  RNA_def_enum(ot->srna,
-               "monitor",
-               sequencer_fullscreen_monitors,
-               -1,
-               "Monitor",
-               "Monitor to show fullscreen preview");
+  RNA_def_int(ot->srna, "monitor", 0, 0, 6, "Monitor", "Monitor to show fullscreen preview", 1, 6);
+}
+
+static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu *menu)
+{
+  bContext *C = (bContext *)C_const;
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  uiLayout *layout = menu->layout;
+
+  PointerRNA ptr;
+  ptr = layout->op("SEQUENCER_OT_fullscreen_preview",
+                   IFACE_("This Monitor"),
+                   ICON_RESTRICT_VIEW_OFF,
+                   blender::wm::OpCallContext::InvokeDefault,
+                   UI_ITEM_NONE);
+  RNA_int_set(&ptr, "monitor", 0);
+
+  size_t displays = wm_get_num_displays();
+  if (displays > 1) {
+    layout->separator();
+    for (size_t i = 0; i < displays; i++) {
+
+      ptr = layout->op("SEQUENCER_OT_fullscreen_preview",
+                       IFACE_("Monitor Name"),
+                       ICON_MONITOR_1 + i,
+                       blender::wm::OpCallContext::InvokeDefault,
+                       UI_ITEM_NONE);
+      RNA_int_set(&ptr, "monitor", i + 1);
+    }
+  }
+}
+
+static bool sequencer_fullscreen_preview_menu_poll(const bContext *C_const, MenuType * /*mt*/)
+{
+  return true;
+}
+
+void sequencer_fullscreen_preview_menu_register()
+{
+  MenuType *mt;
+
+  mt = MEM_callocN<MenuType>("spacetype file menu file operations");
+  STRNCPY_UTF8(mt->idname, "SEQUENCER_MT_fullscreen_preview");
+  STRNCPY_UTF8(mt->label, N_("Fullscreen Preview"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  mt->draw = sequencer_fullscreen_preview_menu_draw;
+  mt->poll = sequencer_fullscreen_preview_menu_poll;
+  WM_menutype_add(mt);
 }
 
 /** \} */
