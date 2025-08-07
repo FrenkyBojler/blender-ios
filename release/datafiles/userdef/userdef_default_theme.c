@@ -278,14 +278,14 @@ const bTheme U_theme_default = {
   },
   .common = {
     .anim = {
-      .cframe = RGBA(0x4772b3ff),
+      .playhead = RGBA(0x4772b3ff),
       .preview_range = RGBA(0xa14d0066),
-      .time_marker_line = RGBA(0xffffff4d),
-      .time_marker_line_selected = RGBA(0xffffffb3),
-      .ds_channel = RGBA(0x194e8080),
-      .ds_subchannel = RGBA(0x0f2c4d80),
-      .group = RGBA(0x1a332d37),
-      .group_active = RGBA(0x216d5b67),
+      .time_marker = RGBA(0xffffff4d),
+      .time_marker_selected = RGBA(0xffffffb3),
+      .channel = RGBA(0x194e8080),
+      .channel_sub = RGBA(0x0f2c4d80),
+      .channel_group = RGBA(0x1a332d37),
+      .channel_group_active = RGBA(0x216d5b67),
     },
   },
   .space_properties = {

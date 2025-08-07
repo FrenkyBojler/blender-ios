@@ -325,10 +325,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->time_scrub_background;
           break;
         case TH_TIME_MARKER_LINE:
-          cp = btheme->common.anim.time_marker_line;
+          cp = btheme->common.anim.time_marker;
           break;
         case TH_TIME_MARKER_LINE_SELECTED:
-          cp = btheme->common.anim.time_marker_line_selected;
+          cp = btheme->common.anim.time_marker_selected;
           break;
         case TH_VIEW_OVERLAY:
           cp = ts->view_overlay;
@@ -361,10 +361,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->active;
           break;
         case TH_GROUP:
-          cp = btheme->common.anim.group;
+          cp = btheme->common.anim.channel_group;
           break;
         case TH_GROUP_ACTIVE:
-          cp = btheme->common.anim.group_active;
+          cp = btheme->common.anim.channel_group_active;
           break;
         case TH_TRANSFORM:
           cp = ts->transform;
@@ -529,7 +529,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->keyborder_select;
           break;
         case TH_CFRAME:
-          cp = btheme->common.anim.cframe;
+          cp = btheme->common.anim.playhead;
           break;
         case TH_FRAME_BEFORE:
           cp = ts->before_current_frame;
@@ -794,10 +794,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
 
         case TH_DOPESHEET_CHANNELOB:
-          cp = btheme->common.anim.ds_channel;
+          cp = btheme->common.anim.channel;
           break;
         case TH_DOPESHEET_CHANNELSUBOB:
-          cp = btheme->common.anim.ds_subchannel;
+          cp = btheme->common.anim.channel_sub;
           break;
         case TH_DOPESHEET_IPOLINE:
           cp = ts->ds_ipoline;

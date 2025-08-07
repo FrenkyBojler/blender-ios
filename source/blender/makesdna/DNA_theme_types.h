@@ -107,13 +107,13 @@ typedef struct uiStyle {
 } uiStyle;
 
 typedef struct ThemeCommonAnim {
-  unsigned char cframe[4];
+  unsigned char playhead[4];
   unsigned char preview_range[4];
 
-  unsigned char time_marker_line[4], time_marker_line_selected[4];
+  unsigned char time_marker[4], time_marker_selected[4];
 
-  unsigned char ds_channel[4], ds_subchannel[4];
-  unsigned char group[4], group_active[4];
+  unsigned char channel[4], channel_sub[4];
+  unsigned char channel_group[4], channel_group_active[4];
 } ThemeCommonAnim;
 
 typedef struct ThemeCommon {
