@@ -340,6 +340,13 @@ void MEM_use_guarded_allocator(void);
  *
  * \{ */
 
+namespace mem_guarded::internal {
+/* Note that we intentionally don't care about a non-trivial default constructor here. */
+template<typename T>
+constexpr bool is_trivial_after_construction = std::is_trivially_copyable_v<T> &&
+                                               std::is_trivially_destructible_v<T>;
+}  // namespace mem_guarded::internal
+
 /**
  * Allocate new memory for an object of type #T, and construct it.
  * #MEM_delete must be used to delete the object. Calling #MEM_freeN on it is illegal.
@@ -360,6 +367,53 @@ inline T *MEM_new(const char *allocation_name, Args &&...args)
   void *buffer = mem_guarded::internal::mem_mallocN_aligned_ex(
       sizeof(T), alignof(T), allocation_name, mem_guarded::internal::AllocationType::NEW_DELETE);
   return new (buffer) T(std::forward<Args>(args)...);
+}
+
+/**
+ * Allocate new memory for an object of type #T, and construct it with its default constructor.
+ * Both #MEM_delete and #MEM_freeN can be used to delete the object.
+ *
+ * Designed to be used with 'pseudo-POD' types, that are trivially copyable and destructible, but
+ * not trivially contstructible. Once constructed, this data can be managed as a C-type one (using
+ * `MEM_dupallocN`, `MEM_freeN`, safely assigned to a void pointer and freed as such, etc.).
+ *
+ * The typical use-cases are C-like structs containing only trivial data, that define default
+ * values for (some of) their members.
+ *
+ * \note This function uses 'default initialization' on zero-initialized memory by default, _not_
+ * 'value initialization'. This means that even if a user-defined default constructor is provided,
+ * non-explicitely initialized data will be zero-initialized. For POD types (e.g. pure C-style
+ * structs), its behavior is functionnally identical to using `MEM_callocN<T>()`.
+ *
+ * \note The 'zero-initialized' default behavior can be turned off by passing `false` to the
+ * `use_zero_init` second template argument. For POD types (e.g. pure C-style structs), its
+ * behavior will then be functionnally identical to using `MEM_mallocN<T>()`.
+ *
+ * \warning This function is intended as a temporary work-around during the process of converting
+ * Blender data management from C-style (alloc/free) to C++-style (new/delete). It will be removed
+ * once not needed anymore (i.e. mainly when there is no more need to dupalloc and free untyped
+ * data stored in void pointers).
+ */
+template<typename T, const bool use_zero_init = true>
+inline T *MEM_new_for_free(const char *allocation_name)
+{
+  static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
+                "MEM_new_for_free can only construct types that are trivially copyable and "
+                "destructible, use MEM_new instead.");
+  void *buffer;
+  /* There is no lower level #calloc with an alignment parameter, so unless the alignment is less
+   * than or equal to what we'd get by default, we have to fall back to #memset unfortunately. */
+  if (use_zero_init && alignof(T) <= MEM_MIN_CPP_ALIGNMENT) {
+    buffer = MEM_callocN(sizeof(T), allocation_name);
+  }
+  else {
+    buffer = mem_guarded::internal::mem_mallocN_aligned_ex(
+        sizeof(T), alignof(T), allocation_name, mem_guarded::internal::AllocationType::ALLOC_FREE);
+    if (use_zero_init) {
+      memset(buffer, 0, sizeof(T));
+    }
+  }
+  return new (buffer) T;
 }
 
 /**
@@ -563,12 +617,9 @@ template<typename T> inline T *MEM_malloc_arrayN(const size_t length, const char
  */
 template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const T &other)
 {
-#  ifdef _MSC_VER
-  static_assert(std::is_trivially_constructible_v<T>,
-                "For non-trivial types, MEM_new must be used.");
-#  else
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
-#  endif
+  static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
+                "MEM_dupallocN can only duplicate types that are trivially copyable and "
+                "destructible, use MEM_new instead.");
   T *new_object = static_cast<T *>(MEM_mallocN_aligned(sizeof(T), alignof(T), allocation_name));
   if (new_object) {
     memcpy(new_object, &other, sizeof(T));
@@ -578,12 +629,9 @@ template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const 
 
 template<typename T> inline void MEM_freeN(T *ptr)
 {
-#  ifdef _MSC_VER
-  static_assert(std::is_trivially_destructible_v<T>,
-                "For non-trivial types, MEM_delete must be used.");
-#  else
-  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_delete must be used.");
-#  endif
+  static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
+                "MEM_freeN can only free types that are trivially copyable and destructible, use "
+                "MEM_delete instead.");
   mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),
                                       mem_guarded::internal::AllocationType::ALLOC_FREE);
 }
