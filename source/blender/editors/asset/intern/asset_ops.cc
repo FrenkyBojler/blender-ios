@@ -1572,14 +1572,25 @@ static wmOperatorStatus asset_edit_metadata_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void ASSET_OT_asset_edit_metadata(wmOperatorType *ot)
+static bool asset_save_metadata_poll(bContext *C)
+{
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+
+  if (asset_handle && asset_handle->is_local_id()) {
+    /* This operator makes no sense for local assets. Just saving the file is enough. */
+    return false;
+  }
+  return asset_editable_poll(C);
+}
+
+static void ASSET_OT_asset_save_metadata(wmOperatorType *ot)
 {
   ot->name = "Save Metadata";
-  ot->description = "Save asset information like the author or description";
-  ot->idname = "ASSET_OT_asset_edit_metadata";
+  ot->description = "Save asset information like the author or description to Asset System Files";
+  ot->idname = "ASSET_OT_asset_save_metadata";
 
   ot->exec = asset_edit_metadata_exec;
-  ot->poll = asset_editable_poll;
+  ot->poll = asset_save_metadata_poll;
 }
 
 /* -------------------------------------------------------------------- */
@@ -1602,7 +1613,7 @@ void operatortypes_asset()
   WM_operatortype_append(ASSET_OT_library_refresh);
 
   WM_operatortype_append(ASSET_OT_screenshot_preview);
-  WM_operatortype_append(ASSET_OT_asset_edit_metadata);
+  WM_operatortype_append(ASSET_OT_asset_save_metadata);
 }
 
 }  // namespace blender::ed::asset

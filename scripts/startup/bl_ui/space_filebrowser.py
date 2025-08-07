@@ -794,7 +794,7 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
         self.metadata_prop(layout, metadata, "author")
         if not is_local_asset:
             # For a local asset, the operator is not needed because the fields can be edited directly.
-            layout.operator("asset.asset_edit_metadata")
+            layout.operator("asset.asset_save_metadata")
 
 
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
