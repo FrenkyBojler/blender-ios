@@ -330,6 +330,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
       MovieReader *cur_anim = nullptr;
       std::string cur_anim_path;
       int cur_stream = 0;
+      IMB_Proxy_Size cur_proxy_size = IMB_PROXY_NONE;
       for (const ThumbnailCache::Request &request : requests) {
         if (worker_status->stop) {
           break;
@@ -363,11 +364,23 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
             cur_stream = request.stream_index;
             cur_anim = MOV_open_file(
                 cur_anim_path.c_str(), IB_byte_data, cur_stream, true, nullptr);
+            cur_proxy_size = IMB_PROXY_NONE;
+            if (cur_anim != nullptr) {
+              /* Find the lowest proxy resolution available.
+               * `x & -x` leaves only the lowest bit set. */
+              int proxies_mask = MOV_get_existing_proxies(cur_anim);
+              cur_proxy_size = IMB_Proxy_Size(proxies_mask & -proxies_mask);
+            }
           }
 
           /* Decode the movie frame. */
           if (cur_anim != nullptr) {
-            thumb = MOV_decode_frame(cur_anim, request.frame_index, IMB_TC_NONE, IMB_PROXY_NONE);
+            thumb = MOV_decode_frame(cur_anim, request.frame_index, IMB_TC_NONE, cur_proxy_size);
+            if (thumb == nullptr && cur_proxy_size != IMB_PROXY_NONE) {
+              /* Broken proxy file, switch to non-proxy. */
+              cur_proxy_size = IMB_PROXY_NONE;
+              thumb = MOV_decode_frame(cur_anim, request.frame_index, IMB_TC_NONE, cur_proxy_size);
+            }
             if (thumb != nullptr) {
               seq_imbuf_assign_spaces(job->scene_, thumb);
             }
