@@ -701,8 +701,8 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
    * used in other areas as well. */
   if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS && sima->flag & SI_DRAW_METADATA) {
     void *lock;
-    /* `ED_space_image_get_zoom` temporarily locks the image, so this needs to be done before
-     * the image is locked when calling `ED_space_image_acquire_buffer`. */
+    /* #ED_space_image_get_zoom temporarily locks the image, so this needs to be done before
+     * the image is locked when calling #ED_space_image_acquire_buffer. */
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
@@ -804,6 +804,11 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
         ED_region_tag_redraw(region);
       }
       WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+      break;
+    case NC_MASK:
+      if (ELEM(wmn->data, ND_DATA, ND_SELECT)) {
+        WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+      }
       break;
     case NC_MATERIAL:
       if (wmn->data == ND_SHADING_LINKS) {
