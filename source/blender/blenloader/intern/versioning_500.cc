@@ -1506,6 +1506,7 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
   version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
   new_output.flag |= NODE_DO_OUTPUT;
 
+#if 0
   // todo(habib): use version_node_add_empty and add the 500 bsdf sockets :(
   bNode &shader = *blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(shader, SOCK_OUT, "BSDF");
@@ -1514,6 +1515,14 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
       shader, SOCK_IN, "Specular IOR Level");
   bNodeSocket &metallic_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Metallic");
   bNodeSocket &roughness_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Roughness");
+#endif
+
+  // todo(habib): Cycles needs Diffuse BSDF node, EEVEE needs principled BSDF (because of specular,
+  // metallic and roughness inputs). Find a common way for both, might need to change defaults when
+  // creating materials...
+  bNode &shader = *blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_DIFFUSE);
+  bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(shader, SOCK_OUT, "BSDF");
+  bNodeSocket &shader_color_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Color");
 
   // bNode &shader = version_node_add_empty(*ntree, "ShaderNodeBsdfPrincipled");
   // bNodeSocket &shader_bsdf_output = version_node_add_socket(
@@ -1537,9 +1546,9 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
   rgba->value[1] = material->g;
   rgba->value[2] = material->b;
   rgba->value[3] = material->a;
-  roughness_input.default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
-  metallic_input.default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
-  specular_input.default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
+  // roughness_input.default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
+  // metallic_input.default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
+  // specular_input.default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
 
   if (old_output != nullptr) {
     /* Position the newly created node after the old output. Assume the old output node is at
