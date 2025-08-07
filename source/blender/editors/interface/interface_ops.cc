@@ -2913,16 +2913,14 @@ static wmOperatorStatus ui_view_item_delete_invoke(bContext *C,
                                                    const wmEvent * /*event*/)
 {
   AbstractView *view = get_view_focused(C);
-  int index = 0;
+
   view->foreach_view_item([&](AbstractViewItem &item) {
     if (item.is_active() || item.is_selected()) {
       item.remove(C);
       return;
     }
-    index++;
   });
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -2935,7 +2933,7 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
   ot->invoke = ui_view_item_delete_invoke;
   ot->poll = ui_view_focused_poll;
 
-  ot->flag = OPTYPE_INTERNAL | OPTYPE_UNDO;
+  ot->flag = OPTYPE_INTERNAL;
 }
 /** \} */
 
