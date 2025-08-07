@@ -834,22 +834,22 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
     return false;
   }
 
-  if (first.intersection_index[1] == second.intersection_index[0] &&
-      first.intersection_index[1] != -1)
+  if (first.intersection_index[Side::End] == second.intersection_index[Side::Start] &&
+      first.intersection_index[Side::End] != -1)
   {
     first.points[Side::End] = second.points[Side::End];
     first.alpha[Side::End] = second.alpha[Side::End];
 
-    first.intersection_index[1] = second.intersection_index[1];
+    first.intersection_index[Side::End] = second.intersection_index[Side::End];
     return true;
   }
-  if (first.intersection_index[0] == second.intersection_index[1] &&
-      first.intersection_index[0] != -1)
+  if (first.intersection_index[Side::Start] == second.intersection_index[Side::End] &&
+      first.intersection_index[Side::Start] != -1)
   {
     first.points[Side::Start] = second.points[Side::Start];
     first.alpha[Side::Start] = second.alpha[Side::Start];
 
-    first.intersection_index[0] = second.intersection_index[0];
+    first.intersection_index[Side::Start] = second.intersection_index[Side::Start];
     return true;
   }
 
