@@ -179,7 +179,8 @@ int TextureMapping::compile_begin(SVMCompiler &compiler, ShaderInput *vector_in)
 {
   if (!skip()) {
     const int offset_in = compiler.stack_assign(vector_in);
-    const int offset_out = compiler.stack_find_offset(SocketType::VECTOR);
+    assert(vector_in->type() == SocketType::VECTOR || vector_in->type() == SocketType::POINT);
+    const int offset_out = compiler.stack_find_offset(vector_in);
 
     compile(compiler, offset_in, offset_out);
 
@@ -194,7 +195,7 @@ void TextureMapping::compile_end(SVMCompiler &compiler,
                                  const int vector_offset)
 {
   if (!skip()) {
-    compiler.stack_clear_offset(vector_in->type(), vector_offset);
+    compiler.stack_clear_offset(vector_in, vector_offset);
   }
 }
 
@@ -370,18 +371,21 @@ ShaderNodeType ImageTextureNode::shader_node_type() const
   return NODE_TEX_IMAGE_BOX;
 }
 
-void ImageTextureNode::compile(SVMCompiler &compiler)
+void ImageTextureNode::update_images(const SVMCompiler &compiler)
 {
-  ShaderInput *vector_in = input("Vector");
-  ShaderOutput *color_out = output("Color");
-  ShaderOutput *alpha_out = output("Alpha");
-
   if (handle.empty()) {
     // TODO: Use for OSL as well, or don't bother culling with texture cache?
     cull_tiles(compiler.scene, compiler.current_graph);
     ImageManager *image_manager = compiler.scene->image_manager.get();
     handle = image_manager->add_image(filename.string(), image_params(), tiles);
   }
+}
+
+void ImageTextureNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderOutput *color_out = output("Color");
+  ShaderOutput *alpha_out = output("Alpha");
 
   /* All tiles have the same metadata. */
   const ImageMetaData metadata = handle.metadata(compiler.progress);
@@ -536,16 +540,19 @@ void EnvironmentTextureNode::attributes(Shader *shader, AttributeRequestSet *att
   ShaderNode::attributes(shader, attributes);
 }
 
+void EnvironmentTextureNode::update_images(const SVMCompiler &compiler)
+{
+  if (handle.empty()) {
+    ImageManager *image_manager = compiler.scene->image_manager.get();
+    handle = image_manager->add_image(filename.string(), image_params());
+  }
+}
+
 void EnvironmentTextureNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *vector_in = input("Vector");
   ShaderOutput *color_out = output("Color");
   ShaderOutput *alpha_out = output("Alpha");
-
-  if (handle.empty()) {
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    handle = image_manager->add_image(filename.string(), image_params());
-  }
 
   const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool compress_as_srgb = metadata.compress_as_srgb;
@@ -1966,8 +1973,7 @@ void ConvertNode::compile(SVMCompiler &compiler)
     }
     else {
       /* set 0,0,0 value */
-      compiler.add_node(NODE_VALUE_V, compiler.stack_assign(out));
-      compiler.add_node(NODE_VALUE_V, value_color);
+      compiler.add_value_node(this, value_color, compiler.stack_assign(out));
     }
   }
 }
@@ -3687,6 +3693,7 @@ static AttributeNode attr_node_copy_from(const ShaderNode *node)
 {
   AttributeNode attr_node;
   attr_node.bump = node->bump;
+  attr_node.set_need_derivatives(node->need_derivatives());
   return attr_node;
 }
 
@@ -3695,6 +3702,7 @@ static GeometryNode geom_node_copy_from(const ShaderNode *node)
 {
   GeometryNode geom_node;
   geom_node.bump = node->bump;
+  geom_node.set_need_derivatives(node->need_derivatives());
   return geom_node;
 }
 
@@ -3754,7 +3762,7 @@ void GeometryNode::compile(SVMCompiler &compiler)
                         __float_as_uint(bump_filter_width));
     }
     else {
-      compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(out));
+      compiler.add_value_node(this, __float_as_int(0.0f), compiler.stack_assign(out));
     }
   }
 
@@ -3767,7 +3775,7 @@ void GeometryNode::compile(SVMCompiler &compiler)
                         __float_as_uint(bump_filter_width));
     }
     else {
-      compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(out));
+      compiler.add_value_node(this, __float_as_int(0.0f), compiler.stack_assign(out));
     }
   }
 }
@@ -4740,7 +4748,7 @@ void ValueNode::compile(SVMCompiler &compiler)
 {
   ShaderOutput *val_out = output("Value");
 
-  compiler.add_node(NODE_VALUE_F, __float_as_int(value), compiler.stack_assign(val_out));
+  compiler.add_value_node(this, __float_as_int(value), compiler.stack_assign(val_out));
 }
 
 void ValueNode::compile(OSLCompiler &compiler)
@@ -4773,8 +4781,7 @@ void ColorNode::compile(SVMCompiler &compiler)
   ShaderOutput *color_out = output("Color");
 
   if (!color_out->links.empty()) {
-    compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
-    compiler.add_node(NODE_VALUE_V, value);
+    compiler.add_value_node(this, value, compiler.stack_assign(color_out));
   }
 }
 

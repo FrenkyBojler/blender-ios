@@ -107,8 +107,9 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
 
   while (true) {
     uint4 node = read_node(kg, &offset);
+    const uint node_type = node.x & ~DERIVATIVE_MASK;
 
-    switch (node.x) {
+    switch (node_type) {
       SVM_CASE(NODE_END)
       return;
       SVM_CASE(NODE_SHADER_JUMP)
