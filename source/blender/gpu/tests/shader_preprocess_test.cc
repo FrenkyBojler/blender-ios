@@ -1023,4 +1023,53 @@ void main()
 }
 GPU_TEST(preprocess_struct_methods);
 
+static void test_shader_parser()
+{
+  using namespace std;
+  using namespace shader::parser;
+
+  {
+    string input = R"(
+1;
+1.0;
+2e10;
+2e10f;
+2.e10f;
+2.0e-1f;
+2.0e-1;
+2.0e-1f;
+0xFF;
+0xFFu;
+)";
+    EXPECT_EQ(Parser(input).data_get().token_types, R"( 0;0;0;0;0;0;0;0;0;0; )");
+  }
+  {
+    string input = R"(
+struct T {
+    int t = 1;
+};
+class B {
+    T t;
+};
+)";
+    EXPECT_EQ(Parser(input).data_get().token_types, R"( sw{ww=0;};sw{ww;}; )");
+  }
+  {
+    string input = R"(
+void f(int t = 0) {
+  int i = 0, u = 2, v = {1.0f};
+  {
+    v = i = u, v++;
+    if (v == i) {
+      return;
+    }
+  }
+}
+)";
+    EXPECT_EQ(Parser(input).data_get().token_types,
+              R"( ww(ww=0){ww=0,w=0,w={0};{w=w=w,w}};sw{ww;}; )");
+  }
+}
+GPU_TEST(shader_parser);
+
 }  // namespace blender::gpu::tests
