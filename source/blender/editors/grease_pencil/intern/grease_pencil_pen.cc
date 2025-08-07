@@ -258,7 +258,6 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
     const IndexRange src_points = points_by_curve[curve_i];
     const IndexRange eval_points = evaluated_points_by_curve[curve_i];
 
-    const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
     const bool cyclic = curve_cyclic[curve_i];
     for (const int src_i : src_points.index_range().drop_back(cyclic ? 0 : 1)) {
       if (types[curve_i] != CURVE_TYPE_BEZIER) {
@@ -284,6 +283,7 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
         }
       }
       else {
+        const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
         const IndexRange eval_range = IndexRange::from_begin_end_inclusive(offsets[src_i],
                                                                            offsets[src_i + 1])
                                           .shift(eval_points.first());
