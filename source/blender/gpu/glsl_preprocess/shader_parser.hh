@@ -413,23 +413,28 @@ struct ParserData {
               exit_scope(tok_id);
             }
             break;
-          case ParClose:
           case BracketClose:
+          case ParClose:
+            if (scopes.top().type == ScopeType::Assignment) {
+              exit_scope(tok_id - 1);
+            }
+            exit_scope(tok_id);
+            break;
           case SquareClose:
             exit_scope(tok_id);
             break;
           case SemiColon:
           case Comma:
             if (scopes.top().type == ScopeType::Assignment) {
-              exit_scope(tok_id);
+              exit_scope(tok_id - 1);
             }
             break;
           default:
             break;
         }
       }
-
       exit_scope(tok_id);
+      assert(scopes.empty());
     }
     {
       token_scope.clear();
@@ -615,7 +620,7 @@ struct ScopeRef {
   }
 };
 
-ScopeRef TokenRef::scope() const
+inline ScopeRef TokenRef::scope() const
 {
   return {data, size_t(data->token_scope[index])};
 }
