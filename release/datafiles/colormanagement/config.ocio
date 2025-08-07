@@ -462,7 +462,7 @@ colorspaces:
         - !<ColorSpaceTransform> {src: Linear Rec.709, dst: sRGB}
 
   - !<ColorSpace>
-    name: Rec.2100-PQ
+    name: Rec.2100-PQ (100 nits reference white)
     aliases: [rec2100_pq_display, Rec.2100-PQ - Display, pq_rec2020_display]
     family: Display
     equalitygroup: ""
@@ -478,7 +478,7 @@ colorspaces:
         - !<BuiltinTransform> {style: DISPLAY - CIE-XYZ-D65_to_REC.2100-PQ}
 
   - !<ColorSpace>
-    name: Rec.2100-HLG
+    name: Rec.2100-HLG (100 nits reference white)
     aliases: [rec2100_hlg_display, Rec.2100-HLG - Display, hlg_rec2020_display]
     family: Display
     equalitygroup: ""

@@ -53,14 +53,14 @@ const char *IMB_colormanagement_space_from_filepath_rules(const char *filepath);
 
 /* Get colorspace name used for Rec.2100 PQ Display conversion.
  *
- * Searches for one of the color spaces or aliases: Rec.2100-PQ, Rec.2100-PQ - Display, rec2100_pq,
- * rec2100_pq_display. If none found returns nullptr. */
+ * Searches for one of the color spaces or aliases: Rec.2100-PQ (100 nits reference white), Rec.2100-PQ - Display,
+ * rec2100_pq_display, pq_rec2020_display. If none found returns nullptr. */
 const char *IMB_colormanagement_get_rec2100_pq_display_colorspace();
 
 /* Get colorspace name used for Rec.2100 HLG Display conversion.
  *
- * Searches for one of the color spaces or aliases: Rec.2100-HLG, Rec.2100-HLG - Display,
- * rec2100_hlg, rec2100_hlg_display. If none found returns nullptr. */
+ * Searches for one of the color spaces or aliases: Rec.2100-HLG (100 nits reference white), Rec.2100-HLG - Display,
+ * rec2100_hlg_display, hlg_rec2020_display. If none found returns nullptr. */
 const char *IMB_colormanagement_get_rec2100_hlg_display_colorspace();
 
 const ColorSpace *IMB_colormanagement_space_get_named(const char *name);

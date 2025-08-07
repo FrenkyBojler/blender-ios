@@ -1155,18 +1155,16 @@ static const char *get_first_resolved_colorspace_name(const blender::Span<const 
 
 const char *IMB_colormanagement_get_rec2100_pq_display_colorspace()
 {
-  return get_first_resolved_colorspace_name({"Rec.2100-PQ",
-                                             "Rec.2100-PQ - Display",
-                                             "rec2100_pq",
+  return get_first_resolved_colorspace_name({"Rec.2100-PQ - Display",
+                                             "Rec.2100-PQ (100 nits reference white)",
                                              "rec2100_pq_display",
                                              "pq_rec2020_display"});
 }
 
 const char *IMB_colormanagement_get_rec2100_hlg_display_colorspace()
 {
-  return get_first_resolved_colorspace_name({"Rec.2100-HLG",
-                                             "Rec.2100-HLG - Display",
-                                             "rec2100_hlg",
+  return get_first_resolved_colorspace_name({"Rec.2100-HLG - Display",
+                                             "Rec.2100-HLG (100 nits reference white)",
                                              "rec2100_hlg_display",
                                              "hlg_rec2020_display"});
 }

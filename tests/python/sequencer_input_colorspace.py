@@ -30,12 +30,12 @@ class FFmpegHDRColorspace(MovieInputTest):
     def test_pq(self):
         prefix = TEST_DIR / Path("ffmpeg") / "media"
 
-        self.assertEqual(self.get_movie_colorspace(prefix / "hdr_simple_export_pq_12bit.mov"), "Rec.2100-PQ")
+        self.assertEqual(self.get_movie_colorspace(prefix / "hdr_simple_export_pq_12bit.mov"), "Rec.2100-PQ (100 nits reference white)")
 
     def test_hlg(self):
         prefix = TEST_DIR / Path("ffmpeg") / "media"
 
-        self.assertEqual(self.get_movie_colorspace(prefix / "hdr_simple_export_hlg_12bit.mov"), "Rec.2100-HLG")
+        self.assertEqual(self.get_movie_colorspace(prefix / "hdr_simple_export_hlg_12bit.mov"), "Rec.2100-HLG (100 nits reference white)")
 
 
 def main():
