@@ -2928,7 +2928,7 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
 {
   ot->name = "Delete";
   ot->idname = "UI_OT_view_item_delete";
-  ot->description = "Delete selected view item";
+  ot->description = "Delete selected list item";
 
   ot->invoke = ui_view_item_delete_invoke;
   ot->poll = ui_view_focused_poll;
