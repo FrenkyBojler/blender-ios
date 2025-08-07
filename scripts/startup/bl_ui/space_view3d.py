@@ -7210,6 +7210,7 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
         row = col.row(align=True)
         row.prop(overlay, "show_edge_bevel_weight", text="Bevel", icon="EDGE_BEVEL", toggle=True)
         row.prop(overlay, "show_edge_crease", text="Crease", icon="EDGE_CREASE", toggle=True)
+        row.prop(overlay, "show_edge_seams", text="Seam", icon="EDGE_SEAM", toggle=True)
         row.prop(
             overlay,
             "show_edge_sharp",
@@ -7217,7 +7218,6 @@ class VIEW3D_PT_overlay_edit_mesh(Panel):
             icon="EDGE_SHARP",
             text_ctxt=i18n_contexts.plural,
             toggle=True)
-        row.prop(overlay, "show_edge_seams", text="Seam", icon="EDGE_SEAM", toggle=True)
 
         col.separator()
         split = col.split()
