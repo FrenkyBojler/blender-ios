@@ -1048,7 +1048,20 @@ static BooleanResult follow_segments(const Span<Segment> all_segments,
     }
   }
 
-  int start_segment = processed_segments.as_span().first_index_try(false);
+  int start_segment = 0;
+
+  auto get_next_unprocessed_segment = [&]() {
+    /* All segment before `start_segment` are guaranteed to be processed, so skip search them.
+     * This optimization make the algorithm `O(N)` instead of `O(N^2)`.*/
+    const int empty_num = start_segment;
+    const int first_segment = processed_segments.as_span().drop_front(empty_num).first_index_try(
+        false);
+
+    if (first_segment == -1) {
+      return -1;
+    }
+    return first_segment + empty_num;
+  };
 
   BooleanResult result;
   result.segment_offsets.append(0);
@@ -1121,8 +1134,7 @@ static BooleanResult follow_segments(const Span<Segment> all_segments,
     result.segment_offsets.append(result.segments.size());
     result.cyclic.append(PolygonClosed);
 
-    /* Get the next unprocessed segment. */
-    start_segment = processed_segments.as_span().first_index_try(false);
+    start_segment = get_next_unprocessed_segment();
   }
 
   return result;
