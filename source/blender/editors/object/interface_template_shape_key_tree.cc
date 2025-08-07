@@ -237,7 +237,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
     DEG_id_tag_update(&shape_key_.object->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
-    ED_undo_grouped_push(C, "Delete shape key");
+    ED_undo_grouped_push(C, "Delete Shape Key");
   }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override

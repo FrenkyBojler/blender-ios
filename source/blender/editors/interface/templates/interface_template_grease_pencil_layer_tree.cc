@@ -289,7 +289,7 @@ class LayerViewItem : public AbstractTreeViewItem {
     grease_pencil_.remove_layer(layer_);
     DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
-    ED_undo_push(C, "Delete grease pencil layer");
+    ED_undo_push(C, "Delete Grease Pencil Layer");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
@@ -459,7 +459,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     grease_pencil_.remove_group(group_);
     DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
-    ED_undo_push(C, "Delete grease pencil group");
+    ED_undo_push(C, "Delete Grease Pencil Group");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override

@@ -166,7 +166,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     nodetree_.tree_interface.remove_item(socket_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
-    ED_undo_push(C, "Delete node interface socket");
+    ED_undo_push(C, "Delete Node Interface Socket");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
@@ -247,7 +247,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
     nodetree_.tree_interface.remove_item(panel_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
-    ED_undo_push(C, "Delete node interface panel");
+    ED_undo_push(C, "Delete Node Interface Panel");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
