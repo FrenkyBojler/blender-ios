@@ -549,41 +549,6 @@ DEF_ICON_STRIP_COLOR_DRAW(09, STRIP_COLOR_09);
 
 #  undef DEF_ICON_STRIP_COLOR_DRAW
 
-static void vicon_monitor_draw(
-    short index, float x, float y, float w, float /*h*/, float /*alpha*/)
-{
-  bTheme *btheme = UI_GetTheme();
-  const ThemeStripColor *strip_color = &btheme->strip_color[index];
-
-  const float aspect = float(ICON_DEFAULT_WIDTH) / w;
-
-  UI_icon_draw_ex(x,
-                  y,
-                  ICON_RESTRICT_VIEW_OFF,
-                  aspect,
-                  1.0f,
-                  0.0f,
-                  nullptr,
-                  btheme->tui.icon_border_intensity > 0.0f,
-                  UI_NO_ICON_OVERLAY_TEXT);
-}
-
-#  define DEF_ICON_MONITOR_DRAW(index) \
-    static void vicon_monitor_draw_##index( \
-        float x, float y, float w, float h, float alpha, const uchar * /*mono_rgba[4]*/) \
-    { \
-      vicon_monitor_draw(index, x, y, w, h, alpha); \
-    }
-
-DEF_ICON_MONITOR_DRAW(01);
-DEF_ICON_MONITOR_DRAW(02);
-DEF_ICON_MONITOR_DRAW(03);
-DEF_ICON_MONITOR_DRAW(04);
-DEF_ICON_MONITOR_DRAW(05);
-DEF_ICON_MONITOR_DRAW(06);
-
-#  undef DEF_ICON_MONITOR_DRAW
-
 #  define ICON_INDIRECT_DATA_ALPHA 0.6f
 
 static void vicon_strip_color_draw_library_data_indirect(
@@ -993,13 +958,6 @@ static void init_internal_icons()
   def_internal_vicon(ICON_RGB_RED, vicon_rgb_red_draw);
   def_internal_vicon(ICON_RGB_GREEN, vicon_rgb_green_draw);
   def_internal_vicon(ICON_RGB_BLUE, vicon_rgb_blue_draw);
-
-  def_internal_vicon(ICON_MONITOR_1, vicon_monitor_draw_01);
-  def_internal_vicon(ICON_MONITOR_2, vicon_monitor_draw_02);
-  def_internal_vicon(ICON_MONITOR_3, vicon_monitor_draw_03);
-  def_internal_vicon(ICON_MONITOR_4, vicon_monitor_draw_04);
-  def_internal_vicon(ICON_MONITOR_5, vicon_monitor_draw_05);
-  def_internal_vicon(ICON_MONITOR_6, vicon_monitor_draw_06);
 
   def_internal_vicon(ICON_KEYTYPE_KEYFRAME_VEC, vicon_keytype_keyframe_draw);
   def_internal_vicon(ICON_KEYTYPE_BREAKDOWN_VEC, vicon_keytype_breakdown_draw);

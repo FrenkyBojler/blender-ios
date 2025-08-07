@@ -421,7 +421,7 @@ static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu
 
       ptr = layout->op("SEQUENCER_OT_fullscreen_preview",
                        IFACE_(sequencer_monitor_desc(&rect, &desktop)),
-                       ICON_MONITOR_1 + i,
+                       ICON_RESTRICT_VIEW_OFF,
                        blender::wm::OpCallContext::InvokeDefault,
                        UI_ITEM_NONE);
       RNA_int_set(&ptr, "monitor_x", rect.xmin + 10);
