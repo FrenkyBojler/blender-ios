@@ -36,9 +36,10 @@ enum TokenType : char {
   SquareClose = ']',
   AngleOpen = '<',
   AngleClose = '>',
-  Equal = '=',
+  Assign = '=',
   SemiColon = ';',
   Question = '?',
+  Not = '!',
   Colon = ':',
   Comma = ',',
   Star = '*',
@@ -64,6 +65,10 @@ enum TokenType : char {
   Template = 't',
   Static = 'm',
   PreprocessorNewline = 'N',
+  Equal = 'E',
+  NotEqual = 'e',
+  GEqual = 'G',
+  LEqual = 'L',
 };
 
 enum class ScopeType : char {
@@ -76,6 +81,7 @@ enum class ScopeType : char {
   Template = 'T',
   Subscript = 'A',
   Preprocessor = 'P',
+  Assignment = 'a',
   /* Added scope inside function body. */
   Local = 'L',
 };
@@ -169,6 +175,26 @@ struct ParserData {
         /* Merge newlines and spaces with previous token. */
         if (!keep_whitespace && (type == NewLine || type == Space)) {
           prev_was_whitespace = true;
+          continue;
+        }
+        /* Merge '=='. */
+        if (prev == Assign && type == Assign) {
+          token_types.back() = Equal;
+          continue;
+        }
+        /* Merge '!='. */
+        if (prev == '!' && type == Assign) {
+          token_types.back() = NotEqual;
+          continue;
+        }
+        /* Merge '>='. */
+        if (prev == '>' && type == Assign) {
+          token_types.back() = GEqual;
+          continue;
+        }
+        /* Merge '<='. */
+        if (prev == '<' && type == Assign) {
+          token_types.back() = LEqual;
           continue;
         }
         /* If digit is part of word. */
@@ -336,6 +362,9 @@ struct ParserData {
           case Hash:
             enter_scope(ScopeType::Preprocessor, tok_id);
             break;
+          case Assign:
+            enter_scope(ScopeType::Assignment, tok_id);
+            break;
           case BracketOpen:
             if (token_types[tok_id - 2] == Struct) {
               enter_scope(ScopeType::Local, tok_id);
@@ -384,6 +413,12 @@ struct ParserData {
           case BracketClose:
           case SquareClose:
             exit_scope(tok_id);
+            break;
+          case SemiColon:
+          case Comma:
+            if (scopes.top().type == ScopeType::Assignment) {
+              exit_scope(tok_id);
+            }
             break;
           default:
             break;
@@ -438,7 +473,9 @@ struct ParserData {
       case '>':
         return TokenType::AngleClose;
       case '=':
-        return TokenType::Equal;
+        return TokenType::Assign;
+      case '!':
+        return TokenType::Not;
       case '*':
         return TokenType::Star;
       case '-':
