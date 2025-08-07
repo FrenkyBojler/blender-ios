@@ -594,6 +594,10 @@ class SegmentEndPoint {
   {
     return index_ == 0;
   }
+  Side get_side() const
+  {
+    return this->is_start() ? Side::Start : Side::End;
+  }
 
   int segment_index() const
   {
@@ -644,66 +648,6 @@ static IntersectionPoint create_intersection(const int point_a,
   inter_point.curve_b = curve_b;
 
   return inter_point;
-}
-
-/* Will return -1 if there is no next segment. */
-static int get_next_segment(const int current_i,
-                            const bool current_reversed,
-                            const Span<Segment> all_segments,
-                            const Span<IntersectionPoint> intersections,
-                            const VArray<bool> &is_fill,
-                            const Span<bool> all_inside_left,
-                            const Span<bool> all_inside_right)
-{
-  const Segment current_segment = all_segments[current_i];
-  if (!(current_reversed ? current_segment.has_intersection(Side::Start) :
-                           current_segment.has_intersection(Side::End)))
-  {
-    return -1;
-  }
-
-  const int current_end_index = current_reversed ? current_segment.intersection_index[0] :
-                                                   current_segment.intersection_index[1];
-  const IntersectionPoint &end_int = intersections[current_end_index];
-  const SegmentEndPoint endpoint = SegmentEndPoint(current_i, current_reversed);
-
-  const SegmentEndPoint all_ends[4] = {
-      end_int.start_a, end_int.end_a, end_int.start_b, end_int.end_b};
-
-  if (!is_fill[current_segment.curve]) {
-    return -1;
-
-    for (const int i : IndexRange(2)) {
-      const SegmentEndPoint &nex_end = all_ends[i];
-      const int seg_i = nex_end.segment_index();
-
-      if (nex_end == endpoint) {
-        continue;
-      }
-
-      BLI_assert(all_inside_left[seg_i] == all_inside_right[seg_i]);
-      if (!all_inside_left[seg_i]) {
-        return seg_i;
-      }
-    }
-
-    return -1;
-  }
-
-  for (const int i : IndexRange(4)) {
-    const SegmentEndPoint &nex_end = all_ends[i];
-    const int seg_i = nex_end.segment_index();
-
-    if (nex_end == endpoint) {
-      continue;
-    }
-
-    if (all_inside_left[seg_i] ^ all_inside_right[seg_i]) {
-      return seg_i;
-    }
-  }
-
-  return -1;
 }
 
 static void calculate_offsets_from_segments(const Span<Segment> segments,
@@ -1020,13 +964,31 @@ static void add_segments(const int curve_k,
   all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 }
 
-static BooleanResult follow_segments(const Span<Segment> all_segments,
-                                     const Span<bool> segments_to_keep,
-                                     const VArray<bool> &is_fill,
-                                     const Span<IntersectionPoint> intersections,
-                                     const Span<bool> all_inside_left,
-                                     const Span<bool> all_inside_right)
+static constexpr int SEGMENT_CONNECTION_NULL = 0;
+
+/* We store the side as sign, but because a segment with index zero is valid, we shift by one. */
+static int encode_index_and_side(const int index, const Side side)
 {
+  return side == Side::Start ? index + 1 : -(index + 1);
+}
+
+static int decode_index(const int encoded)
+{
+  return math::abs(encoded) - 1;
+}
+
+static Side decode_side(const int encoded)
+{
+  return encoded < 0 ? Side::End : Side::Start;
+}
+
+static BooleanResult follow_segment_connections(const Span<Segment> all_segments,
+                                                const Span<bool> segments_to_keep,
+                                                const Span<int2> segment_connections)
+{
+  BLI_assert(all_segments.size() == segments_to_keep.size());
+  BLI_assert(all_segments.size() == segment_connections.size());
+
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
 
@@ -1055,14 +1017,17 @@ static BooleanResult follow_segments(const Span<Segment> all_segments,
   BooleanResult result;
   result.segment_offsets.append(0);
 
+  start_segment = get_next_unprocessed_segment();
+
   while (start_segment != -1) {
     int current_i = start_segment;
+    bool current_backwards = false;
 
     bool PolygonDone = false;
     bool PolygonClosed = false;
-    bool last_reversed = false;
     while (!PolygonDone) {
       if (processed_segments[current_i] == true) {
+        BLI_assert(segments_to_keep[current_i]);
         BLI_assert_unreachable();
         break;
       }
@@ -1072,31 +1037,31 @@ static BooleanResult follow_segments(const Span<Segment> all_segments,
 
       if (result.segments.size() == 0) {
         result.segments.append(current_segment);
-        result.segment_reversed.append(last_reversed);
+        result.segment_reversed.append(current_backwards);
       }
       /* Check if the last segment can be joined with this one. */
       else if (!check_and_join_segments(result.segments.last(), current_segment)) {
         result.segments.append(current_segment);
-        result.segment_reversed.append(last_reversed);
+        result.segment_reversed.append(current_backwards);
       }
 
-      const int next_segment = get_next_segment(current_i,
-                                                last_reversed,
-                                                all_segments,
-                                                intersections,
-                                                is_fill,
-                                                all_inside_left,
-                                                all_inside_right);
+      const int next_encoded =
+          segment_connections[current_i][current_backwards ? Side::Start : Side::End];
 
-      if (next_segment == -1) {
+      if (next_encoded == SEGMENT_CONNECTION_NULL) {
         PolygonDone = true;
         PolygonClosed = current_segment.is_loop();
         break;
       }
 
+      const int next_segment = decode_index(next_encoded);
+      const Side next_side = decode_side(next_encoded);
+
       if (next_segment == start_segment) {
         PolygonDone = true;
         PolygonClosed = true;
+
+        BLI_assert(next_side == Side::Start);
 
         /* Check if the last segment can be joined to the first one. */
         if ((!result.segments.index_range().is_empty()) &&
@@ -1112,13 +1077,10 @@ static BooleanResult follow_segments(const Span<Segment> all_segments,
         break;
       }
 
-      const int current_end_index = last_reversed ? current_segment.intersection_index[0] :
-                                                    current_segment.intersection_index[1];
-      const Segment &next_seg = all_segments[next_segment];
-      const bool next_reversed = next_seg.intersection_index[0] != current_end_index;
+      BLI_assert(segments_to_keep[next_segment]);
 
-      last_reversed = next_reversed;
       current_i = next_segment;
+      current_backwards = next_side == Side::End;
     }
     result.segment_offsets.append(result.segments.size());
     result.cyclic.append(PolygonClosed);
@@ -1277,8 +1239,81 @@ static BooleanResult execute_single_boolean(
 
   /* -------------------- */
 
-  const BooleanResult result = follow_segments(
-      all_segments, segments_to_keep, is_fill, intersections, all_inside_left, all_inside_right);
+  Array<int2> segment_connections(all_segments.size(), int2(SEGMENT_CONNECTION_NULL));
+
+  for (const int inter_id : intersections.index_range()) {
+    const IntersectionPoint &inter = intersections[inter_id];
+
+    const SegmentEndPoint start_a = inter.start_a;
+    const SegmentEndPoint end_a = inter.end_a;
+    const SegmentEndPoint start_b = inter.start_b;
+    const SegmentEndPoint end_b = inter.end_b;
+    const bool is_start_a = start_a.is_null() ? false : segments_to_keep[start_a.segment_index()];
+    const bool is_end_a = end_a.is_null() ? false : segments_to_keep[end_a.segment_index()];
+    const bool is_start_b = start_b.is_null() ? false : segments_to_keep[start_b.segment_index()];
+    const bool is_end_b = end_b.is_null() ? false : segments_to_keep[end_b.segment_index()];
+
+    auto connect = [&](const SegmentEndPoint point_1, const SegmentEndPoint point_2) {
+      segment_connections[point_1.segment_index()][point_1.get_side()] = encode_index_and_side(
+          point_2.segment_index(), point_2.get_side());
+      segment_connections[point_2.segment_index()][point_2.get_side()] = encode_index_and_side(
+          point_1.segment_index(), point_1.get_side());
+    };
+
+    /* TODO: Use left and right. */
+    if (is_start_a && is_end_a && is_start_b && is_end_b) {
+      connect(start_a, end_a);
+      connect(start_b, end_b);
+    }
+    else if (is_start_a && is_end_a && is_start_b && !is_end_b) {
+      connect(start_a, end_a);
+    }
+    else if (is_start_a && is_end_a && !is_start_b && is_end_b) {
+      connect(start_a, end_a);
+    }
+    else if (is_start_a && is_end_a && !is_start_b && !is_end_b) {
+      connect(start_a, end_a);
+    }
+
+    else if (is_start_a && !is_end_a && is_start_b && is_end_b) {
+      connect(start_b, end_b);
+    }
+    else if (is_start_a && !is_end_a && is_start_b && !is_end_b) {
+      connect(start_a, start_b);
+    }
+    else if (is_start_a && !is_end_a && !is_start_b && is_end_b) {
+      connect(start_a, end_b);
+    }
+    else if (is_start_a && !is_end_a && !is_start_b && !is_end_b) {
+    }
+
+    else if (!is_start_a && is_end_a && is_start_b && is_end_b) {
+      connect(start_b, end_b);
+    }
+    else if (!is_start_a && is_end_a && is_start_b && !is_end_b) {
+      connect(end_a, start_b);
+    }
+    else if (!is_start_a && is_end_a && !is_start_b && is_end_b) {
+      connect(end_a, end_b);
+    }
+    else if (!is_start_a && is_end_a && !is_start_b && !is_end_b) {
+    }
+
+    else if (!is_start_a && !is_end_a && is_start_b && is_end_b) {
+      connect(start_b, end_b);
+    }
+    else if (!is_start_a && !is_end_a && is_start_b && !is_end_b) {
+    }
+    else if (!is_start_a && !is_end_a && !is_start_b && is_end_b) {
+    }
+    else if (!is_start_a && !is_end_a && !is_start_b && !is_end_b) {
+    }
+  }
+
+  /* -------------------- */
+
+  const BooleanResult result = follow_segment_connections(
+      all_segments, segments_to_keep, segment_connections);
 
   return result;
 }
