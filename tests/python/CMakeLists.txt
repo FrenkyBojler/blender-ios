@@ -209,6 +209,11 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_bundled_modules.py -- --inside-blender
 )
 
+add_blender_test(
+  script_http_downloader
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_http_downloader.py
+)
+
 # test running operators doesn't segfault under various conditions
 if(WITH_TESTS_EXPERIMENTAL)
   add_blender_test(
@@ -220,6 +225,11 @@ endif()
 # ------------------------------------------------------------------------------
 # PY API TESTS
 # ------------------------------------------------------------------------------
+
+add_blender_test(
+  script_pyapi_bpy_app_tempdir
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app_tempdir.py
+)
 
 add_blender_test(
   script_pyapi_bpy_path
@@ -1035,6 +1045,11 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
   endif()
 endif()
 
+add_blender_test(
+  compositing_node_group
+  --python ${CMAKE_CURRENT_LIST_DIR}/compositing_node_group.py
+)
+
 # ------------------------------------------------------------------------------
 # GEOMETRY NODE TESTS
 # ------------------------------------------------------------------------------
@@ -1051,6 +1066,7 @@ if(TEST_SRC_DIR_EXISTS)
     grease_pencil
     import
     instance
+    list
     repeat_zone
     mesh_primitives
     mesh
@@ -1295,6 +1311,12 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/sequencer_input_colorspace.py
     --
     --testdir "${TEST_SRC_DIR}/sequence_editing"
+  )
+
+  add_blender_test(
+    sequencer_load_meta_stack
+    ${TEST_SRC_DIR}/sequence_editing/vse_load_meta_stack.blend
+    --python ${TEST_PYTHON_DIR}/sequencer_load_meta_stack.py
   )
 endif()
 
