@@ -460,7 +460,7 @@ class IMAGE_MT_uvs(Menu):
 
         layout.separator()
 
-        layout.operator("uv.mark_seam").clear = False
+        layout.operator("uv.mark_seam", icon="ICON_EDGE_SEAM").clear = False
         layout.operator("uv.mark_seam", text="Clear Seam").clear = True
         layout.operator("uv.seams_from_islands")
 
@@ -731,11 +731,11 @@ class IMAGE_HT_tool_header(Header):
         if tool_mode == 'PAINT':
             if (tool is not None) and tool.use_brushes:
                 layout.popover("IMAGE_PT_paint_settings_advanced")
+                layout.popover("IMAGE_PT_tools_brush_texture")
+                layout.popover("IMAGE_PT_tools_mask_texture")
                 layout.popover("IMAGE_PT_paint_stroke")
                 layout.popover("IMAGE_PT_paint_curve")
                 layout.popover("IMAGE_PT_tools_brush_display")
-                layout.popover("IMAGE_PT_tools_brush_texture")
-                layout.popover("IMAGE_PT_tools_mask_texture")
 
     def draw_mode_settings(self, context):
         layout = self.layout

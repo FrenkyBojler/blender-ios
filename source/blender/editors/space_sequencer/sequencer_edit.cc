@@ -6,25 +6,25 @@
  * \ingroup spseq
  */
 
-#include "BLI_string_ref.hh"
-#include "BLI_string_utils.hh"
-#include "BLI_vector.hh"
-#include "DNA_sequence_types.h"
-#include "MEM_guardedalloc.h"
-
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
 #include "BKE_context.hh"
@@ -591,7 +591,7 @@ static void slip_update_header(const Scene *scene,
   else {
     int frame_offset = std::trunc(offset);
     if (data->show_subframe) {
-      float subframe_offset_sec = (offset - std::trunc(offset)) / FPS;
+      float subframe_offset_sec = (offset - std::trunc(offset)) / scene->frames_per_second();
       SNPRINTF_UTF8(msg,
                     IFACE_("Slip Offset: Frames: %d Sound Offset: %.3f"),
                     frame_offset,
@@ -1087,7 +1087,7 @@ void SEQUENCER_OT_lock(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Lock Strips";
   ot->idname = "SEQUENCER_OT_lock";
-  ot->description = "Lock strips so they can't be transformed";
+  ot->description = "Lock strips so they cannot be transformed";
 
   /* API callbacks. */
   ot->exec = sequencer_lock_exec;
@@ -2008,7 +2008,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
       Strip *strip_next;
 
       /* TODO: remove f-curve and assign to split image strips.
-       * The old animation system would remove the user of `strip->ipo`. */
+       * The old animation system would remove the user of `strip->ipo_legacy`. */
 
       start_ofs = timeline_frame = seq::time_left_handle_frame_get(scene, strip);
       frame_end = seq::time_right_handle_frame_get(scene, strip);
@@ -3112,12 +3112,12 @@ static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator 
   if (!BLI_exists(filepath)) {
     BLI_file_ensure_parent_dir_exists(filepath);
     if (!BLI_file_touch(filepath)) {
-      BKE_report(op->reports, RPT_ERROR, "Can't create subtitle file");
+      BKE_report(op->reports, RPT_ERROR, "Cannot create subtitle file");
       return OPERATOR_CANCELLED;
     }
   }
   else if (!BLI_file_is_writable(filepath)) {
-    BKE_report(op->reports, RPT_ERROR, "Can't overwrite export file");
+    BKE_report(op->reports, RPT_ERROR, "Cannot overwrite export file");
     return OPERATOR_CANCELLED;
   }
 
@@ -3147,14 +3147,14 @@ static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator 
         sizeof(timecode_str_start),
         -2,
         FRA2TIME(max_ii(seq::time_left_handle_frame_get(scene, strip) - scene->r.sfra, 0)),
-        FPS,
+        scene->frames_per_second(),
         USER_TIMECODE_SUBRIP);
     BLI_timecode_string_from_time(
         timecode_str_end,
         sizeof(timecode_str_end),
         -2,
         FRA2TIME(seq::time_right_handle_frame_get(scene, strip) - scene->r.sfra),
-        FPS,
+        scene->frames_per_second(),
         USER_TIMECODE_SUBRIP);
 
     fprintf(file,
@@ -3237,7 +3237,7 @@ static wmOperatorStatus sequencer_set_range_to_strips_exec(bContext *C, wmOperat
     return OPERATOR_CANCELLED;
   }
   if (efra < 0) {
-    BKE_report(op->reports, RPT_ERROR, "Can't set a negative range");
+    BKE_report(op->reports, RPT_ERROR, "Cannot set a negative range");
     return OPERATOR_CANCELLED;
   }
 

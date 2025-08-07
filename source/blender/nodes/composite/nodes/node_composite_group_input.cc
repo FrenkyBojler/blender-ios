@@ -32,10 +32,9 @@ class GroupInputOperation : public NodeOperation {
         continue;
       }
 
-      const char *name = StringRef(output->name) == "Image" ? "Combined" : output->name;
-      this->context().populate_meta_data_for_pass(&scene, 0, name, result.meta_data);
+      this->context().populate_meta_data_for_pass(&scene, 0, output->name, result.meta_data);
 
-      const Result pass = this->context().get_input(&scene, 0, name);
+      const Result pass = this->context().get_input(&scene, 0, output->name);
       this->execute_pass(pass, result);
     }
   }
@@ -45,7 +44,6 @@ class GroupInputOperation : public NodeOperation {
     if (!pass.is_allocated()) {
       /* Pass not rendered yet, or not supported by viewport. */
       result.allocate_invalid();
-      this->context().set_info_message("Viewport compositor setup not fully supported");
       return;
     }
 

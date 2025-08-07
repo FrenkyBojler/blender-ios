@@ -1186,7 +1186,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       /* We include PROP_NONE here because some plain string properties are used
        * as parts of paths. For example, the sub-paths in the compositor's File
        * Output node. */
-      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE)) {
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME, PROP_NONE)) {
         /* Template parse errors, for paths that support it. */
         if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
           const std::string path = RNA_property_string_get(&but->rnapoin, rnaprop);
@@ -1373,7 +1373,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   wmWindow *win = CTX_wm_window(C);
   const blender::int2 win_size = WM_window_native_pixel_size(win);
   rcti rect_i;
-  int font_flag = 0;
+  FontFlags font_flag = BLF_NONE;
 
   /* Create area region. */
   ARegion *region = ui_region_temp_add(CTX_wm_screen(C));

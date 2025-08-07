@@ -79,8 +79,21 @@ class MESH_MT_shape_key_context_menu(Menu):
         layout.operator("object.shape_key_lock", icon='LOCKED', text="Lock All").action = 'LOCK'
         layout.operator("object.shape_key_lock", icon='UNLOCKED', text="Unlock All").action = 'UNLOCK'
         layout.separator()
+        layout.operator("object.shape_key_make_basis", text="Make Basis")
         layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move to Top").type = 'TOP'
         layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move to Bottom").type = 'BOTTOM'
+
+
+class MESH_MT_shape_key_tree_context_menu(Menu):
+    bl_label = "Shape Key context menu"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("object.shape_key_make_basis", text="Make Basis")
+        layout.operator("object.shape_key_copy", icon='DUPLICATE', text="Duplicate")
+        layout.separator()
+        layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move After Basis").type = 'TOP'
+        layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move to Last").type = 'BOTTOM'
 
 
 class MESH_MT_color_attribute_context_menu(Menu):
@@ -689,6 +702,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
 classes = (
     MESH_MT_vertex_group_context_menu,
     MESH_MT_shape_key_context_menu,
+    MESH_MT_shape_key_tree_context_menu,
     MESH_MT_color_attribute_context_menu,
     MESH_MT_attribute_context_menu,
     MESH_UL_vgroups,

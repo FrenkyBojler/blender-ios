@@ -244,7 +244,7 @@ static void node_socket_add_replace(const bContext *C,
     }
     else {
       sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
-      bke::node_position_relative(*node_from, *node_to, *sock_from_tmp, *sock_to);
+      bke::node_position_relative(*node_from, *node_to, sock_from_tmp, *sock_to);
     }
 
     node_link_item_apply(ntree, node_from, item);
@@ -584,8 +584,6 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
                              UI_UNIT_X * 4,
                              UI_UNIT_Y,
                              nullptr,
-                             0.0,
-                             0.0,
                              TIP_("Add node to input"));
 
       argN = (NodeLinkArg *)MEM_dupallocN(arg);

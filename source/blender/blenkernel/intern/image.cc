@@ -1777,8 +1777,12 @@ static void stampdata(
 
   if (use_dynamic && scene->r.stamp & R_STAMP_TIME) {
     const short timecode_style = USER_TIMECODE_SMPTE_FULL;
-    BLI_timecode_string_from_time(
-        text, sizeof(text), 0, FRA2TIME(scene->r.cfra), FPS, timecode_style);
+    BLI_timecode_string_from_time(text,
+                                  sizeof(text),
+                                  0,
+                                  FRA2TIME(scene->r.cfra),
+                                  scene->frames_per_second(),
+                                  timecode_style);
     SNPRINTF_UTF8(stamp_data->time, do_prefix ? "Timecode %s" : "%s", text);
   }
   else {
@@ -2951,7 +2955,7 @@ static void image_walk_id_all_users(
     }
     case ID_WO: {
       World *world = (World *)id;
-      if (world->nodetree && world->use_nodes && !skip_nested_nodes) {
+      if (world->nodetree && !skip_nested_nodes) {
         image_walk_ntree_all_users(world->nodetree, &world->id, customdata, callback);
       }
       image_walk_gpu_materials(id, &world->gpumaterial, customdata, callback);
@@ -4166,7 +4170,6 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
     ibuf = IMB_makeSingleUser(MOV_decode_frame(ia->anim, fra, IMB_TC_RECORD_RUN, IMB_PROXY_NONE));
 
     if (ibuf) {
-      colormanage_imbuf_make_linear(ibuf, ima->colorspace_settings.name);
       image_init_after_load(ima, iuser, ibuf);
     }
   }
