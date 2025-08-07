@@ -373,6 +373,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   const bke::AttributeAccessor src_attributes = src.attributes();
   const OffsetIndices<int> points_by_curve = src.points_by_curve();
   const VArray<bool> &src_cyclic = src.cyclic();
+  const VArray<int8_t> types = src.curve_types();
   const int old_points_num = src.points_num();
 
   const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
@@ -386,6 +387,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
 
   Vector<bool> dst_selected_start(old_points_num, false);
+  Vector<bool> dst_selected_center(old_points_num, false);
   Vector<bool> dst_selected_end(old_points_num, false);
 
   Vector<int> dst_curve_counts(src.curves_num());
@@ -404,26 +406,37 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
     if (src_cyclic[curve_index] && curve_points.size() != 1) {
       return;
     }
+    const bool is_bezier = types[curve_index] == CURVE_TYPE_BEZIER;
 
-    if (point_selection[curve_points.first()] || left_selected[curve_points.first()] ||
-        right_selected[curve_points.first()])
-    {
+    bool first_selected = point_selection[curve_points.first()];
+    if (is_bezier) {
+      first_selected |= left_selected[curve_points.first()];
+      first_selected |= right_selected[curve_points.first()];
+    }
+
+    bool last_selected = point_selection[curve_points.last()];
+    if (is_bezier) {
+      last_selected |= left_selected[curve_points.last()];
+      last_selected |= right_selected[curve_points.last()];
+    }
+
+    if (first_selected) {
       if (curve_points.size() != 1) {
         /* Start-point extruded, we insert a new point at the beginning of the curve. */
         dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
         dst_selected_start.insert(curve_points.first() + point_offset, true);
+        dst_selected_center.insert(curve_points.first() + point_offset, !is_bezier);
         dst_selected_end.insert(curve_points.first() + point_offset, false);
         dst_curve_counts[curve_index]++;
         point_offset++;
       }
     }
 
-    if (point_selection[curve_points.last()] || left_selected[curve_points.last()] ||
-        right_selected[curve_points.last()])
-    {
+    if (last_selected) {
       /* End-point extruded, we insert a new point at the end of the curve. */
       dst_to_src_points.insert(curve_points.last() + point_offset + 1, curve_points.last());
       dst_selected_end.insert(curve_points.last() + point_offset + 1, true);
+      dst_selected_center.insert(curve_points.last() + point_offset + 1, !is_bezier);
       dst_selected_start.insert(curve_points.last() + point_offset + 1, false);
       dst_curve_counts[curve_index]++;
       point_offset++;
@@ -453,11 +466,11 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
       dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_left");
   bke::GSpanAttributeWriter selection_right = ed::curves::ensure_selection_attribute(
       dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_right");
-  ed::curves::fill_selection_false(selection.span);
   selection_left.span.copy_from(dst_selected_start.as_span());
+  selection.span.copy_from(dst_selected_center.as_span());
   selection_right.span.copy_from(dst_selected_end.as_span());
-  selection.finish();
   selection_left.finish();
+  selection.finish();
   selection_right.finish();
 
   bke::copy_attributes(
@@ -759,10 +772,13 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
     const VArray<bool> &cyclic = curves.cyclic();
 
     IndexMaskMemory memory;
+    const IndexMask selection = ed::greasepencil::retrieve_editable_and_selected_points(
+        *ptd.vc.obact, info.drawing, info.layer_index, memory);
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
         *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
+    const IndexMask all_points = IndexMask::from_union(selection, bezier_points, memory);
 
-    bezier_points.foreach_index([&](const int64_t point_i) {
+    all_points.foreach_index([&](const int64_t point_i) {
       if (ends_only) {
         const int curve_i = point_to_curve_map[point_i];
         const IndexRange points = points_by_curve[curve_i];
