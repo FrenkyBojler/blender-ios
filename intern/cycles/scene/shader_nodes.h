@@ -84,7 +84,18 @@ class ImageSlotTextureNode : public TextureNode {
     return TextureNode::equals(other) && handle == other_node.handle;
   }
 
+  virtual void update_images(const SVMCompiler &compiler) = 0;
+
+  bool is_texture_node_and_needs_derivatives(const SVMCompiler &compiler) override
+  {
+    update_images(compiler);
+    return need_derivatives_;
+  }
+
   ImageHandle handle;
+
+ protected:
+  bool need_derivatives_ = false;
 };
 
 class ImageTextureNode : public ImageSlotTextureNode {
@@ -104,6 +115,8 @@ class ImageTextureNode : public ImageSlotTextureNode {
   }
 
   ImageParams image_params() const;
+
+  void update_images(const SVMCompiler &compiler) override;
 
   ShaderNodeType shader_node_type() const override;
 
@@ -140,6 +153,8 @@ class EnvironmentTextureNode : public ImageSlotTextureNode {
   }
 
   ImageParams image_params() const;
+
+  void update_images(const SVMCompiler &compiler) override;
 
   ShaderNodeType shader_node_type() const override
   {
