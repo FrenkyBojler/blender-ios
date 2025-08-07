@@ -2329,7 +2329,7 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
       (ID_IS_OVERRIDE_LIBRARY_REAL(ob) &&
        (ob->id.override_library->flag & LIBOVERRIDE_FLAG_SYSTEM_DEFINED) != 0))
   {
-    UI_but_disable(but, "Can't edit library or non-editable override data");
+    UI_but_disable(but, "Cannot edit library or non-editable override data");
   }
 }
 
