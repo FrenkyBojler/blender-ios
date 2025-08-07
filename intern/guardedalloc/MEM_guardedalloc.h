@@ -618,7 +618,7 @@ template<typename T> inline T *MEM_malloc_arrayN(const size_t length, const char
 template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const T &other)
 {
 #  ifdef _MSC_VER
-  static_assert(std::is_trivially_assignable_v<T, T> && std::is_trivially_destructible_v<T>,
+  static_assert(std::is_trivially_assignable_v<T &, T> && std::is_trivially_destructible_v<T>,
                 "MEM_dupallocN can only duplicate types that are trivially copyable and "
                 "destructible, use MEM_new instead.");
 #  else
