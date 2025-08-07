@@ -93,7 +93,7 @@ static float view2d_major_step_y__continuous(const View2D *v2d)
 static float view2d_major_step_x__time(const View2D *v2d, const Scene *scene)
 {
   /* If we don't have a scene available, pick an arbitrary framerate to show *something*. */
-  const double fps = scene ? FPS : 25;
+  const double fps = scene ? scene->frames_per_second() : 25;
 
   blender::Vector<float, 32> possible_distances;
 
@@ -420,12 +420,16 @@ static void view_to_string__time(
   const Scene *scene = (const Scene *)user_data;
 
   int brevity_level = -1;
-  if (U.timecode_style == USER_TIMECODE_MINIMAL && v2d_step >= FPS) {
+  if (U.timecode_style == USER_TIMECODE_MINIMAL && v2d_step >= scene->frames_per_second()) {
     brevity_level = 1;
   }
 
-  BLI_timecode_string_from_time(
-      r_str, str_maxncpy, brevity_level, v2d_pos / float(FPS), FPS, U.timecode_style);
+  BLI_timecode_string_from_time(r_str,
+                                str_maxncpy,
+                                brevity_level,
+                                v2d_pos / float(scene->frames_per_second()),
+                                scene->frames_per_second(),
+                                U.timecode_style);
 }
 
 static void view_to_string__value(
