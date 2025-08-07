@@ -1021,6 +1021,7 @@ static void add_segments(const int curve_k,
 }
 
 static BooleanResult follow_segments(const Span<Segment> all_segments,
+                                     const Span<bool> segments_to_keep,
                                      const VArray<bool> &is_fill,
                                      const Span<IntersectionPoint> intersections,
                                      const Span<bool> all_inside_left,
@@ -1030,18 +1031,9 @@ static BooleanResult follow_segments(const Span<Segment> all_segments,
   Array<bool> processed_segments(all_segments.size(), false);
 
   /* Remove all noncontributing segments. */
-  for (const int segment_i : all_segments.index_range()) {
-    const Segment &segment = all_segments[segment_i];
-    if (is_fill[segment.curve]) {
-      if (!all_inside_left[segment_i] ^ all_inside_right[segment_i]) {
-        processed_segments[segment_i] = true;
-      }
-    }
-    else {
-      BLI_assert(all_inside_left[segment_i] == all_inside_right[segment_i]);
-      if (all_inside_left[segment_i]) {
-        processed_segments[segment_i] = true;
-      }
+  for (const int seg_i : all_segments.index_range()) {
+    if (!segments_to_keep[seg_i]) {
+      processed_segments[seg_i] = true;
     }
   }
 
@@ -1267,8 +1259,26 @@ static BooleanResult execute_single_boolean(
 
   /* -------------------- */
 
+  Array<bool> segments_to_keep(all_segments.size(), true);
+  for (const int segment_i : all_segments.index_range()) {
+    const Segment &segment = all_segments[segment_i];
+    if (is_fill[segment.curve]) {
+      if (!all_inside_left[segment_i] ^ all_inside_right[segment_i]) {
+        segments_to_keep[segment_i] = false;
+      }
+    }
+    else {
+      BLI_assert(all_inside_left[segment_i] == all_inside_right[segment_i]);
+      if (all_inside_left[segment_i]) {
+        segments_to_keep[segment_i] = false;
+      }
+    }
+  }
+
+  /* -------------------- */
+
   const BooleanResult result = follow_segments(
-      all_segments, is_fill, intersections, all_inside_left, all_inside_right);
+      all_segments, segments_to_keep, is_fill, intersections, all_inside_left, all_inside_right);
 
   return result;
 }
