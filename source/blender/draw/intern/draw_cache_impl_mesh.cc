@@ -175,9 +175,10 @@ static std::optional<bke::AttributeMetaData> lookup_meta_data(const Mesh &mesh,
     if (const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, name)) {
       return bke::AttributeMetaData{attr.domain, attr.type};
     }
+    return std::nullopt;
   }
   return mesh.attributes().lookup_meta_data(name);
-};
+}
 
 static std::optional<StringRef> get_default_uv_name(const Mesh &mesh)
 {
@@ -198,6 +199,7 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
                                          VectorSet<std::string> *r_attributes,
                                          DRW_MeshCDMask *r_cd_used)
 {
+  constexpr bke::AttributeMetaData UV_METADATA{bke::AttrDomain::Corner, bke::AttrType::Float2};
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
 
   for (const GPUMaterial *gpumat : materials) {
@@ -220,39 +222,39 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         continue;
       }
 
-      const StringRef name = gpu_attr->name;
+      StringRef name = gpu_attr->name;
 
       if (gpu_attr->type == CD_TANGENT) {
         if (name.is_empty()) {
           if (const std::optional<StringRef> default_name = get_default_uv_name(me_final)) {
-            r_cd_used->tan.add(*default_name);
+            name = *default_name;
           }
-          else {
-            r_cd_used->tan_orco = true;
-            r_cd_used->orco = true;
-          }
+        }
+        if (lookup_meta_data(mesh, name) == UV_METADATA) {
+          r_cd_used->tan.add(name);
         }
         else {
-          if (attribute_exists(me_final, name)) {
-            r_cd_used->tan.add(name);
-          }
+          r_cd_used->tan_orco = true;
+          r_cd_used->orco = true;
         }
+
         continue;
       }
 
       if (name.is_empty()) {
         if (const std::optional<StringRef> default_name = get_default_uv_name(me_final)) {
-          r_cd_used->uv.add(*default_name);
+          if (lookup_meta_data(mesh, *default_name) == UV_METADATA) {
+            r_cd_used->uv.add(*default_name);
+          }
         }
         continue;
       }
+
       const std::optional<bke::AttributeMetaData> meta_data = lookup_meta_data(mesh, name);
       if (!meta_data) {
         continue;
       }
-      if (meta_data->domain == bke::AttrDomain::Corner &&
-          meta_data->data_type == bke::AttrType::Float2)
-      {
+      if (meta_data == UV_METADATA) {
         r_cd_used->uv.add(name);
         continue;
       }
@@ -1115,7 +1117,9 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     const bool orco_overlap = cache.cd_used.orco == cache.cd_needed.orco;
     const bool tan_orco_overlap = cache.cd_used.tan_orco == cache.cd_needed.tan_orco;
     const bool sculpt_overlap = cache.cd_used.sculpt_overlays == cache.cd_needed.sculpt_overlays;
-    if (!uvs_overlap || !tan_overlap || !attr_overlap || !orco_overlap || !sculpt_overlap) {
+    if (!uvs_overlap || !tan_overlap || !attr_overlap || !orco_overlap || !tan_orco_overlap ||
+        !sculpt_overlap)
+    {
       FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
         if (!uvs_overlap) {
           mbc->buff.vbos.remove(VBOType::UVs);
