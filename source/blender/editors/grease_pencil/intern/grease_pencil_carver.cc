@@ -285,16 +285,6 @@ static float point_in_tri_winding(const float2 pt,
   const float side23 = line_point_side_v2(v2, v3, pt);
   const float side31 = line_point_side_v2(v3, v1, pt);
 
-  /* The point is on a corner. */
-  if ((side12 == 0.0f && side23 == 0.0f) || (side23 == 0.0f && side31 == 0.0f) ||
-      (side12 == 0.0f && side31 == 0.0f))
-  {
-    BLI_assert_unreachable();
-    /* Note: The correct value would be the corner's signed angle, but the landing on an point is
-     * error for the rest of the algorithm. */
-    return 0.0f;
-  }
-
   /* The point is on an edge. */
   if ((side12 == 0.0f && side23 >= 0.0f && side31 >= 0.0f) ||
       (side12 >= 0.0f && side23 == 0.0f && side31 >= 0.0f) ||
@@ -361,7 +351,6 @@ static int point_in_polygon_winding_twice(const float2 &point, const Span<float2
 static int point_in_polygon_winding_int(const float2 &point, const Span<float2> poly)
 {
   const int twice_winding = point_in_polygon_winding_twice(point, poly);
-  BLI_assert(math::abs(twice_winding) % 2 == 0);
   return int(twice_winding / 2);
 }
 
@@ -512,8 +501,6 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
       const int winding_twice_i = edge_in_polygon_winding_twice(
           segment.edge(Side::Start).x - points_i.first(), poly_i);
 
-      /* The point should be exactly on the edge. */
-      BLI_assert(math::abs(winding_twice_i) % 2 == 1);
       /* Each state represents a point infinitesimally offset to the left and right. */
       state_L.add_to_curve(curve_i, int((winding_twice_i + 1) / 2));
       state_R.add_to_curve(curve_i, int((winding_twice_i - 1) / 2));
@@ -789,15 +776,11 @@ static void find_intersections_between_curves(const Span<float2> points_i,
                                 points_j[(j + 1) % points_j.size()],
                                 &alpha_a,
                                 &alpha_b);
-      if (val == ISECT_LINE_LINE_CROSS) {
+      if (val == ISECT_LINE_LINE_CROSS || val == ISECT_LINE_LINE_EXACT) {
         r_inters_per_curves[curve_i].append(r_intersections.size());
         r_inters_per_curves[curve_j].append(r_intersections.size());
         r_intersections.append(create_intersection(
             i + point_offset_i, j + point_offset_j, alpha_a, alpha_b, curve_i, curve_j));
-      }
-      else if (val == ISECT_LINE_LINE_EXACT) {
-        /* TODO(@casey-bianco-davis): Properly handle degeneracy. */
-        BLI_assert_unreachable();
       }
     }
   }
@@ -1027,7 +1010,6 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
     bool PolygonClosed = false;
     while (!PolygonDone) {
       if (processed_segments[current_i] == true) {
-        BLI_assert(segments_to_keep[current_i]);
         BLI_assert_unreachable();
         break;
       }
@@ -1078,6 +1060,7 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
       }
 
       BLI_assert(segments_to_keep[next_segment]);
+      BLI_assert(!processed_segments[next_segment]);
 
       current_i = next_segment;
       current_backwards = next_side == Side::End;
