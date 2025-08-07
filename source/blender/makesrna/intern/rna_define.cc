@@ -1569,6 +1569,26 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
 
 void RNA_def_property_flag(PropertyRNA *prop, PropertyFlag flag)
 {
+#if 0
+  switch (prop->type) {
+    case PROP_ENUM: {
+      if (flag & PROP_ENUM_FLAG) {
+        EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+        if (eprop->item) {
+          StructRNA *srna = DefRNA.laststruct;
+          CLOG_ERROR(&LOG,
+                     "\"%s.%s\", PROP_ENUM_FLAG must be set before setting items",
+                     srna->identifier,
+                     prop->identifier);
+          DefRNA.error = true;
+        }
+      }
+    }
+    default:
+      break;
+  }
+#endif
+
   prop->flag |= flag;
   if (flag & PROP_ID_REFCOUNT) {
     prop->flag_internal |= PROP_INTERN_PTR_ID_REFCOUNT_FORCED;
@@ -2025,7 +2045,7 @@ void RNA_def_property_enum_native_type(PropertyRNA *prop, const char *native_enu
 void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item)
 {
   StructRNA *srna = DefRNA.laststruct;
-  int i, defaultfound = 0;
+  int i, defaultfound = 0, defaultflag = 0;
 
   switch (prop->type) {
     case PROP_ENUM: {
@@ -2116,17 +2136,30 @@ void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item
             }
           }
 
-          if (item[i].value == eprop->defaultvalue) {
-            defaultfound = 1;
+          if (prop->flag & PROP_ENUM_FLAG) {
+            defaultflag |= item[i].value;
+          }
+          else {
+            if (item[i].value == eprop->defaultvalue) {
+              defaultfound = 1;
+            }
           }
         }
       }
-
-      if (!defaultfound) {
-        for (i = 0; item[i].identifier; i++) {
-          if (item[i].identifier[0]) {
-            eprop->defaultvalue = item[i].value;
-            break;
+      //
+      if (prop->flag & PROP_ENUM_FLAG) {
+        /* This may have been initialized from the DNA defaults.
+         * In rare cases the DNA defaults define flags assigned to other RNA properties.
+         * In this case it's necessary to mask the default. */
+        eprop->defaultvalue &= defaultflag;
+      }
+      else {
+        if (!defaultfound) {
+          for (i = 0; item[i].identifier; i++) {
+            if (item[i].identifier[0]) {
+              eprop->defaultvalue = item[i].value;
+              break;
+            }
           }
         }
       }
