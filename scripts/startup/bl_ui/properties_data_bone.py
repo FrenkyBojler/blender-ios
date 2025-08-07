@@ -325,9 +325,7 @@ class BONE_PT_display(BoneButtonsPanel, Panel):
         col = layout.column()
         # Figure out the pose bone.
         ob = context.object
-        pose_bone = None
-        if ob:
-            pose_bone = ob.pose.bones[bone.name]
+        pose_bone = ob and ob.pose.bones[bone.name]
         hide_select_sub = col.column()
         if pose_bone:
             col.prop(pose_bone, "hide", text="Hide", toggle=False)
