@@ -38,6 +38,7 @@
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
@@ -2116,10 +2117,11 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
         GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
             modifier);
-        if (lmd->radius != 0) {
+        if (lmd->radius != 0.0f) {
           continue;
         }
-        lmd->radius = float(lmd->thickness_legacy) / 1000.0f;
+        lmd->radius = float(lmd->thickness_legacy) *
+                      bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
       }
     }
   }
