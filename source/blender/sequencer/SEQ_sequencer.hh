@@ -37,6 +37,7 @@ enum {
 
 /* strip_duplicate' flags */
 enum class StripDuplicate : uint8_t {
+  /* Note: Technically, the selected strips are duplicated when `All` is not set. */
   Selected = 0,
   UniqueName = (1 << 0),
   All = (1 << 3),
