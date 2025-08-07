@@ -380,6 +380,9 @@ void ImageTextureNode::update_images(const SVMCompiler &compiler)
     ImageManager *image_manager = compiler.scene->image_manager.get();
     handle = image_manager->add_image(filename.string(), image_params(), tiles);
   }
+
+  /* TODO(weizhen): temporarily enable for testing. */
+  set_need_derivatives();
 }
 
 void ImageTextureNode::compile(SVMCompiler &compiler)
@@ -587,6 +590,9 @@ void EnvironmentTextureNode::update_images(const SVMCompiler &compiler)
     ImageManager *image_manager = compiler.scene->image_manager.get();
     handle = image_manager->add_image(filename.string(), image_params());
   }
+
+  /* TODO(weizhen): temporarily enable for testing. */
+  set_need_derivatives();
 }
 
 void EnvironmentTextureNode::compile(SVMCompiler &compiler)
