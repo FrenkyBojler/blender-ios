@@ -434,6 +434,9 @@ struct ParserData {
         }
       }
       exit_scope(tok_id);
+      /* Some syntax confuses the parser. Bisect the error by removing things in the source file
+       * until the error is found. Then either fix the unsupported syntax in the parser or use
+       * alternative syntax. */
       assert(scopes.empty());
     }
     {
