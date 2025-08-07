@@ -38,6 +38,7 @@ enum {
 /* strip_duplicate' flags */
 #define STRIP_DUPE_UNIQUE_NAME (1 << 0)
 #define STRIP_DUPE_ALL (1 << 3) /* otherwise only selected are copied */
+#define STRIP_DUPE_DATA (1 << 4)
 
 SequencerToolSettings *tool_settings_init();
 SequencerToolSettings *tool_settings_ensure(Scene *scene);
@@ -88,9 +89,14 @@ void meta_stack_set(const Scene *scene, Strip *dst);
  * \param ed: sequence editor data
  */
 Strip *meta_stack_pop(Editing *ed);
-Strip *strip_duplicate_recursive(
-    const Scene *scene_src, Scene *scene_dst, ListBase *new_seq_list, Strip *strip, int dupe_flag);
-void seqbase_duplicate_recursive(const Scene *scene_src,
+Strip *strip_duplicate_recursive(Main *bmain,
+                                 const Scene *scene_src,
+                                 Scene *scene_dst,
+                                 ListBase *new_seq_list,
+                                 Strip *strip,
+                                 int dupe_flag);
+void seqbase_duplicate_recursive(Main *bmain,
+                                 const Scene *scene_src,
                                  Scene *scene_dst,
                                  ListBase *nseqbase,
                                  const ListBase *seqbase,

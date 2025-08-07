@@ -1730,11 +1730,14 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 /** \name Duplicate Strips Operator
  * \{ */
 
-static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ARegion *region = CTX_wm_region(C);
+
+  const bool linked = RNA_boolean_get(op->ptr, "linked");
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
@@ -1755,7 +1758,9 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
     }
   }
 
-  seq::seqbase_duplicate_recursive(scene, scene, &duplicated_strips, ed->seqbasep, 0, 0);
+  const int dupe_flag = linked ? 0 : STRIP_DUPE_DATA;
+  seq::seqbase_duplicate_recursive(
+      bmain, scene, scene, &duplicated_strips, ed->seqbasep, dupe_flag, 0);
   deselect_all_strips(scene);
 
   if (duplicated_strips.first == nullptr) {
@@ -1811,6 +1816,8 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator * /
 
 void SEQUENCER_OT_duplicate(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* Identifiers. */
   ot->name = "Duplicate Strips";
   ot->idname = "SEQUENCER_OT_duplicate";
@@ -1822,6 +1829,13 @@ void SEQUENCER_OT_duplicate(wmOperatorType *ot)
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  prop = RNA_def_boolean(ot->srna,
+                         "linked",
+                         false,
+                         "Linked",
+                         "Duplicate strip but not strip data, linking to the original data");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -1989,6 +2003,7 @@ void SEQUENCER_OT_offset_clear(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBase *seqbase = seq::active_seqbase_get(ed);
@@ -2018,7 +2033,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
         se = seq::render_give_stripelem(scene, strip, timeline_frame);
 
         strip_new = seq::strip_duplicate_recursive(
-            scene, scene, seqbase, strip, STRIP_DUPE_UNIQUE_NAME);
+            bmain, scene, scene, seqbase, strip, STRIP_DUPE_UNIQUE_NAME);
 
         strip_new->start = start_ofs;
         strip_new->type = STRIP_TYPE_IMAGE;
