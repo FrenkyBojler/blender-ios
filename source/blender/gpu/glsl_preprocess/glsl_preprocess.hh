@@ -1154,45 +1154,45 @@ class Preprocessor {
   }
 
   enum TokenType : char {
-    Word = 'A', /* Use ascii chars to store them in string. */
-    NewLine,
-    Space,
-    Arithmetic,
-    Dot,
-    Hash,
-    Literal,
-    ParOpen,
-    ParClose,
-    BracketOpen,
-    BracketClose,
-    SquareOpen,
-    SquareClose,
-    AngleOpen,
-    AngleClose,
-    Equal,
-    SemiColon,
-    Colon,
-    Comma,
-    Star,
+    Word = 'w', /* Use ascii chars to store them in string. */
+    NewLine = '\n',
+    Space = ' ',
+    Arithmetic = 'a',
+    Dot = '.',
+    Hash = '#',
+    Literal = '0',
+    ParOpen = '(',
+    ParClose = ')',
+    BracketOpen = '{',
+    BracketClose = '}',
+    SquareOpen = '[',
+    SquareClose = ']',
+    AngleOpen = '<',
+    AngleClose = '>',
+    Equal = '=',
+    SemiColon = ';',
+    Colon = ':',
+    Comma = ',',
+    Star = '*',
     /* Keywords */
-    Namespace,
-    Struct,
-    Class,
-    Const,
-    Constexpr,
-    Return,
-    Case,
-    Switch,
-    If,
-    Else,
-    While,
-    Do,
-    For,
-    Template,
-    Static,
+    Namespace = 'n',
+    Struct = 's',
+    Class = 'S',
+    Const = 'c',
+    Constexpr = 'C',
+    Return = 'r',
+    Switch = 'h',
+    Case = 'H',
+    If = 'i',
+    Else = 'I',
+    For = 'f',
+    While = 'F',
+    Do = 'd',
+    Template = 't',
+    Static = 'm',
   };
 
-  const char *to_string(TokenType c)
+  static const char *to_string(TokenType c)
   {
     switch (c) {
       case TokenType::NewLine:
@@ -1275,31 +1275,34 @@ class Preprocessor {
     Namespace,
     Struct,
     Function,
+    FunctionArgs,
     Template,
     Subscript,
     /* Added scope inside function body. */
     Local,
   };
 
-  const char *to_string(ScopeType c)
+  static const char *to_string(ScopeType c)
   {
     switch (c) {
       case ScopeType::Global:
-        return "Global      ";
+        return "Global       ";
       case ScopeType::Namespace:
-        return "Namespace   ";
+        return "Namespace    ";
       case ScopeType::Struct:
-        return "Struct      ";
+        return "Struct       ";
       case ScopeType::Function:
-        return "Function    ";
+        return "Function     ";
+      case ScopeType::FunctionArgs:
+        return "FunctionArgs ";
       case ScopeType::Template:
-        return "Template    ";
+        return "Template     ";
       case ScopeType::Subscript:
-        return "Subscript   ";
+        return "Subscript    ";
       case ScopeType::Local:
-        return "Local       ";
+        return "Local        ";
       default:
-        return "Error";
+        return "Error ";
     }
   }
 
@@ -1430,9 +1433,33 @@ class Preprocessor {
         return {parser, size_t(parser->token_index[parser->scope_ranges[index].last()])};
       }
 
+      IndexRange range() const
+      {
+        return parser->scope_ranges[index];
+      }
+
       std::string str() const
       {
         return parser->scope_str(index);
+      }
+
+      void foreach_match(const std::string &pattern,
+                         std::function<void(const std::vector<TokenRef>)> callback) const
+      {
+        IndexRange range = this->range();
+        std::string scope_tokens = parser->token_no_whitespace_types.substr(range.start,
+                                                                            range.size);
+
+        std::vector<TokenRef> match;
+        match.reserve(pattern.size());
+        size_t pos = 0;
+        while ((pos = scope_tokens.find(pattern, pos)) != std::string::npos) {
+          for (int i = 0; i < pattern.size(); i++) {
+            match[i] = TokenRef{parser, pos};
+          }
+          callback(match);
+          pos += 1;
+        }
       }
     };
 
@@ -1459,6 +1486,15 @@ class Preprocessor {
         if (ScopeType(scope_types[scope_per_no_whitespace_token[pos]]) == type) {
           callback(TokenRef{this, pos});
         }
+        pos += 1;
+      }
+    }
+
+    void foreach_scope(ScopeType type, std::function<void(ScopeRef)> callback)
+    {
+      size_t pos = 0;
+      while ((pos = scope_types.find(char(type), pos)) != std::string::npos) {
+        callback(ScopeRef{this, pos});
         pos += 1;
       }
     }
@@ -1618,7 +1654,7 @@ class Preprocessor {
         enter_scope(ScopeType::Global, 0);
 
         int tok_id = -1;
-        for (char &c : token_types) {
+        for (char &c : token_no_whitespace_types) {
           tok_id++;
           scope_per_no_whitespace_token.emplace_back(scopes.top().index);
 
@@ -1641,7 +1677,15 @@ class Preprocessor {
               }
               break;
             case ParOpen:
-              enter_scope(ScopeType::Local, tok_id);
+              if (scopes.top().type == ScopeType::Global) {
+                enter_scope(ScopeType::FunctionArgs, tok_id);
+              }
+              else if (scopes.top().type == ScopeType::Struct) {
+                enter_scope(ScopeType::FunctionArgs, tok_id);
+              }
+              else {
+                enter_scope(ScopeType::Local, tok_id);
+              }
               break;
             case SquareOpen:
               enter_scope(ScopeType::Subscript, tok_id);
@@ -1676,7 +1720,7 @@ class Preprocessor {
 
       auto end = std::chrono::high_resolution_clock::now();
       auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
+#define PRINT
 #ifdef PRINT
       for (int i = 0; i < token_no_whitespace_types.size(); i++) {
         TokenRef tok{this, size_t(i)};
@@ -1686,9 +1730,7 @@ class Preprocessor {
 
       for (int i = 0; i < scope_ranges.size(); i++) {
         ScopeType type = ScopeType(scope_types[i]);
-        // if (type != ScopeType::Local) {
         std::cout << to_string(type) << " " << scope_str(i) << std::endl;
-        // }
       }
 #endif
 #ifdef TIME_IT
