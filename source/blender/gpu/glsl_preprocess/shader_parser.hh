@@ -363,6 +363,10 @@ struct ParserData {
             enter_scope(ScopeType::Preprocessor, tok_id);
             break;
           case Assign:
+            if (scopes.top().type == ScopeType::Assignment) {
+              /* Chained assignments. */
+              exit_scope(tok_id - 1);
+            }
             enter_scope(ScopeType::Assignment, tok_id);
             break;
           case BracketOpen:
