@@ -2161,29 +2161,30 @@ class Preprocessor {
   /* To be run before `argument_decorator_macro_injection()`. */
   std::string argument_reference_mutation(std::string &str)
   {
-    /* Next two REGEX checks are expensive. Check if they are needed at all. */
-    bool valid_match = false;
-    reference_search(str, [&](int parenthesis_depth, int bracket_depth, char &c) {
-      /* Check if inside a function signature.
-       * Check parenthesis_depth == 2 for array references. */
-      if ((parenthesis_depth == 1 || parenthesis_depth == 2) && bracket_depth == 0) {
-        valid_match = true;
-        /* Modify the & into @ to make sure we only match these references in the regex
-         * below. @ being forbidden in the shader language, it is safe to use a temp
-         * character. */
-        c = '@';
+    using TokenRef = Parser::TokenRef;
+    using ScopeRef = Parser::ScopeRef;
+
+    Parser parser(str);
+
+    auto add_mutation = [&](TokenRef type, TokenRef arg_name, TokenRef last_tok) {
+      if (type.prev() == Const) {
+        parser.add_mutation(type.prev(), last_tok, type.str() + " " + arg_name.str());
       }
+      else {
+        parser.add_mutation(type, last_tok, "inout " + type.str() + " " + arg_name.str());
+      }
+    };
+
+    parser.foreach_scope(ScopeType::FunctionArgs, [&](const ScopeRef scope) {
+      scope.foreach_match("w(&w)", [&](const std::vector<TokenRef> toks) {
+        add_mutation(toks[0], toks[3], toks[4]);
+      });
+      scope.foreach_match("w&w", [&](const std::vector<TokenRef> toks) {
+        add_mutation(toks[0], toks[2], toks[2]);
+      });
     });
-    if (!valid_match) {
-      return str;
-    }
-    /* Remove parenthesis first. */
-    /* Example: `float (&var)[2]` > `float &var[2]` */
-    std::regex regex_parenthesis(R"((\w+ )\(@(\w+)\))");
-    std::string out = std::regex_replace(str, regex_parenthesis, "$1@$2");
-    /* Example: `const float &var[2]` > `inout float var[2]` */
-    std::regex regex(R"((?:const)?(\s*)(\w+)\s+\@(\w+)(\[\d*\])?)");
-    return std::regex_replace(out, regex, "$1 inout $2 $3$4");
+    parser.apply_mutations();
+    return parser.str;
   }
 
   /* To be run after `argument_reference_mutation()`. */
