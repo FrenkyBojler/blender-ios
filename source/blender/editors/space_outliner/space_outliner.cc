@@ -61,7 +61,7 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   ListBase *lb;
   wmKeyMap *keymap;
 
-  region->flag |= RGN_FLAG_INDICATE_OVERFLOW_LINE;
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 
   /* make sure we keep the hide flags */
   region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
@@ -108,7 +108,7 @@ static void outliner_main_region_draw(const bContext *C, ARegion *region)
   /* reset view matrix */
   UI_view2d_view_restore(C);
 
-  ED_region_draw_overflow_indicators(CTX_wm_area(C), region);
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 
   /* scrollers */
   UI_view2d_scrollers_draw(v2d, nullptr);

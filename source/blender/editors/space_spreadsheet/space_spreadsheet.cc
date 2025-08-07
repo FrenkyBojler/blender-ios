@@ -192,7 +192,7 @@ static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
-  region->flag |= RGN_FLAG_INDICATE_OVERFLOW_LINE;
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 
   {
     wmKeyMap *keymap = WM_keymap_ensure(
@@ -519,7 +519,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   rcti mask;
   UI_view2d_mask_from_win(&region->v2d, &mask);
   mask.ymax -= sspreadsheet->runtime->top_row_height;
-  ED_region_draw_overflow_indicators(CTX_wm_area(C), region, &mask);
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &mask);
 
   /* Tag other regions for redraw, because the main region updates data for them. */
   ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);

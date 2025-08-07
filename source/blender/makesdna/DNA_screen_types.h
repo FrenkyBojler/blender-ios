@@ -797,8 +797,7 @@ enum {
    * wouldn't exist. Runtime only flag. */
   RGN_FLAG_POLL_FAILED = (1 << 10),
   RGN_FLAG_RESIZE_RESPECT_BUTTON_SECTIONS = (1 << 11),
-  RGN_FLAG_INDICATE_OVERFLOW_LINE = (1 << 12),
-  RGN_FLAG_INDICATE_OVERFLOW_GRADIENT = (1 << 13),
+  RGN_FLAG_INDICATE_OVERFLOW = (1 << 12),
 };
 
 /** #ARegion.do_draw */

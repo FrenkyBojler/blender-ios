@@ -3316,17 +3316,18 @@ void ED_region_panels_layout_ex(const bContext *C,
   }
 }
 
-void ED_region_draw_overflow_indicators(const ScrArea *area, ARegion *region, rcti *mask)
+void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rcti *mask)
 {
-  if (!(region->flag & (RGN_FLAG_INDICATE_OVERFLOW_LINE | RGN_FLAG_INDICATE_OVERFLOW_GRADIENT))) {
+  if (!(region->flag & RGN_FLAG_INDICATE_OVERFLOW)) {
     return;
   }
 
-  rctf rect{};
-  const float gradient_width = (region->flag & RGN_FLAG_INDICATE_OVERFLOW_LINE) ?
-                                   4.0f * UI_SCALE_FAC :
-                                   12.0f * UI_SCALE_FAC;
+  const bool use_gradient = !(region->v2d.scroll & (V2D_SCROLL_VERTICAL | V2D_SCROLL_HORIZONTAL));
+  const bool is_overlap = ED_region_is_overlap(area->spacetype, region->regiontype);
+  const float gradient_width = (use_gradient ? 12.0f : 4.0f) * UI_SCALE_FAC;
   const float transition = 40.0f * UI_SCALE_FAC;
+
+  rctf rect{};
 
   if (!mask) {
     mask = &region->v2d.mask;
@@ -3336,7 +3337,7 @@ void ED_region_draw_overflow_indicators(const ScrArea *area, ARegion *region, rc
   int height = BLI_rcti_size_y(mask) + 1;
   float offset_x = mask->xmin;
   float offset_y = mask->ymin;
-  if (ED_region_is_overlap(area->spacetype, region->regiontype)) {
+  if (is_overlap) {
     offset_x = UI_PANEL_MARGIN_X;
     width -= (2 * UI_PANEL_MARGIN_X);
   }
@@ -3344,7 +3345,7 @@ void ED_region_draw_overflow_indicators(const ScrArea *area, ARegion *region, rc
   float opaque[4];
   UI_GetThemeColor4fv(TH_BACK, opaque);
   opaque[3] = 1.0f;
-  mul_v3_fl(opaque, 0.6f);
+  mul_v3_fl(opaque, use_gradient ? 0.9f : 0.7f);
   float transparent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   UI_GetThemeColor4fv(TH_BACK, transparent);
   transparent[3] = 0.0f;
@@ -3449,7 +3450,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     }
   }
 
-  ED_region_draw_overflow_indicators(CTX_wm_area(C), region, use_mask ? &mask : nullptr);
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, use_mask ? &mask : nullptr);
 
   /* Hide scrollbars below a threshold. */
   const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
