@@ -319,20 +319,18 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
                 return a.frame_index < b.frame_index;
               });
 
-    /* Process the requests in parallel. Split requests into approximately 4 groups:
-     * we don't want to go too wide since that would potentially mean that a single input
-     * movie gets assigned to more than one thread, and the thumbnail loading itself
-     * is somewhat-threaded already. */
-    int64_t grain_size = math::max<int64_t>(8, requests.size() / 4);
-    threading::parallel_for(requests.index_range(), grain_size, [&](IndexRange range) {
+    /* Note: we could process thumbnail cache requests somewhat in parallel,
+     * but let's not do that so that UI responsiveness is not affected much.
+     * Some of video/image loading code parts are multi-threaded internally already,
+     * and that does provide some parallelism. */
+    {
       /* Often the same movie file is chopped into multiple strips next to each other.
        * Since the requests are sorted by file path and frame index, we can reuse MovieReader
        * objects between them for performance. */
       MovieReader *cur_anim = nullptr;
       std::string cur_anim_path;
       int cur_stream = 0;
-      for (const int i : range) {
-        const ThumbnailCache::Request &request = requests[i];
+      for (const ThumbnailCache::Request &request : requests) {
         if (worker_status->stop) {
           break;
         }
@@ -405,7 +403,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
         MOV_close(cur_anim);
         cur_anim = nullptr;
       }
-    });
+    }
   }
 
 #ifdef DEBUG_PRINT_THUMB_JOB_TIMES
