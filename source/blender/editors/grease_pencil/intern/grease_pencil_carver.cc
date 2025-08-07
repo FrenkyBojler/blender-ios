@@ -131,25 +131,7 @@ class Segment {
 
   int2 edge(const Side side) const
   {
-    return int2(points[Side::Start], this->wrap_index(points[Side::Start] + 1));
-  }
-
-  int2 end_edge() const
-  {
-    return int2(points[Side::End], this->wrap_index(points[Side::End] + 1));
-  }
-
-  int start_point() const
-  {
-    if (!this->has_intersection(Side::Start)) {
-      return src_points.first();
-    }
-    return this->edge(Side::Start).y;
-  }
-
-  int end_point() const
-  {
-    return this->end_edge().x;
+    return int2(points[side], this->wrap_index(points[side] + 1));
   }
 
   int wrap_index(const int i) const
@@ -544,7 +526,11 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
     }
   }
 
-  float2 first_point = points[segment.start_point()];
+  float2 first_point = points[segment.src_points.first()];
+
+  if (segment.has_intersection(Side::Start)) {
+    first_point = points[segment.edge(Side::Start).y];
+  }
 
   /* If there are no control points in the segment calculate the starting point. */
   if (segment.points_num() == 0) {
