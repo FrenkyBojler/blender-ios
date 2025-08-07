@@ -255,7 +255,7 @@ func_TEMPLATE(float, 1)/*float a*/)";
     EXPECT_EQ(error, "");
   }
   {
-    string input = R"(template<typename T, int i = 0> void func(T a) {a;)";
+    string input = R"(template<typename T, int i = 0> void func(T a) {a;})";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(error, "Template declaration unsupported syntax");
@@ -486,6 +486,7 @@ int func2(int a)
     string expect = R"(
 
 struct A_S {};
+#line 4
 int A_func(int a)
 {
   A_S s;
@@ -623,6 +624,7 @@ void test() {
 
 void A_B_func() {}
 struct A_B_S {};
+#line 5
 
 
 
@@ -1023,7 +1025,7 @@ void main()
 }
 GPU_TEST(preprocess_struct_methods);
 
-static void test_shader_parser()
+static void test_preprocess_parser()
 {
   using namespace std;
   using namespace shader::parser;
@@ -1041,7 +1043,9 @@ static void test_shader_parser()
 0xFF;
 0xFFu;
 )";
-    EXPECT_EQ(Parser(input).data_get().token_types, R"( 0;0;0;0;0;0;0;0;0;0; )");
+    string expect = R"(
+0;0;0;0;0;0;0;0;0;0;)";
+    EXPECT_EQ(Parser(input).data_get().token_types, expect);
   }
   {
     string input = R"(
@@ -1052,7 +1056,9 @@ class B {
     T t;
 };
 )";
-    EXPECT_EQ(Parser(input).data_get().token_types, R"( sw{ww=0;};sw{ww;}; )");
+    string expect = R"(
+sw{ww=0;};Sw{ww;};)";
+    EXPECT_EQ(Parser(input).data_get().token_types, expect);
   }
   {
     string input = R"(
@@ -1066,10 +1072,11 @@ void f(int t = 0) {
   }
 }
 )";
-    EXPECT_EQ(Parser(input).data_get().token_types,
-              R"( ww(ww=0){ww=0,w=0,w={0};{w=w=w,w}};sw{ww;}; )");
+    string expect = R"(
+ww(ww=0){ww=0,w=0,w={0};{w=w=w,wP;i(wEw){r;}}})";
+    EXPECT_EQ(Parser(input).data_get().token_types, expect);
   }
 }
-GPU_TEST(shader_parser);
+GPU_TEST(preprocess_parser);
 
 }  // namespace blender::gpu::tests

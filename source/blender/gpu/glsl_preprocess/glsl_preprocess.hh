@@ -807,7 +807,7 @@ class Preprocessor {
             out_str + '}', '{', '}', true);
         if (parent_scope.empty()) {
           report_error(match, "The `using` keyword is not allowed in global scope.");
-          break;
+          return str;
         }
         /* Ensure we are bringing symbols from the same namespace.
          * Otherwise we can have different shadowing outcome between shader and C++. */
@@ -815,7 +815,7 @@ class Preprocessor {
         size_t pos = out_str.rfind(ns_keyword, out_str.size() - parent_scope.size());
         if (pos == string::npos) {
           report_error(match, "Couldn't find `namespace` keyword at beginning of scope.");
-          break;
+          return str;
         }
         size_t start = pos + ns_keyword.size();
         size_t end = out_str.size() - parent_scope.size() - start - 2;
@@ -826,7 +826,7 @@ class Preprocessor {
               "The `using` keyword is only allowed in namespace scope to make visible symbols "
               "from the same namespace declared in another scope, potentially from another "
               "file.");
-          break;
+          return str;
         }
       }
       /** IMPORTANT: `match` is invalid after the assignment. */

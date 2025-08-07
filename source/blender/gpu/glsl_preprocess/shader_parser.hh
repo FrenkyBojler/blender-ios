@@ -144,17 +144,16 @@ struct ParserData {
       token_types.clear();
       token_offsets.clear();
 
-      token_types = char(TokenType::Space);
-      token_offsets.offsets = {0};
-      assert(str[0] == ' ' || str[0] == '\n');
+      token_types += char(to_type(str[0]));
+      token_offsets.offsets.emplace_back(0);
 
       /* When doing whitespace merging, keep knowledge about whether previous char was whitespace.
        * This allows to still split words on spaces. */
-      bool prev_was_whitespace = true;
+      bool prev_was_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
       bool inside_preprocessor_directive = false;
 
-      int offset = -1;
-      for (const char &c : str) {
+      int offset = 0;
+      for (const char &c : str.substr(1)) {
         offset++;
         TokenType type = to_type(c);
         TokenType prev = TokenType(token_types.back());
@@ -356,6 +355,8 @@ struct ParserData {
 
       enter_scope(ScopeType::Global, 0);
 
+      bool in_template = false;
+
       int tok_id = -1;
       for (char &c : token_types) {
         tok_id++;
@@ -413,14 +414,15 @@ struct ParserData {
             enter_scope(ScopeType::Subscript, tok_id);
             break;
           case AngleOpen:
-            if (scopes.top().type == ScopeType::Global ||
-                scopes.top().type == ScopeType::Namespace ||
-                scopes.top().type == ScopeType::Struct)
-            {
+            if (token_types[tok_id - 1] == Template) {
               enter_scope(ScopeType::Template, tok_id);
+              in_template = true;
             }
             break;
           case AngleClose:
+            if (in_template && scopes.top().type == ScopeType::Assignment) {
+              exit_scope(tok_id - 1);
+            }
             if (scopes.top().type == ScopeType::Template) {
               exit_scope(tok_id);
             }
