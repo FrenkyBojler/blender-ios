@@ -157,41 +157,6 @@ static void node_operators()
   socket_items::ops::make_common_operators<FileOutputItemsAccessor>();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*context*/, PointerRNA *node_pointer)
-{
-  layout->prop(node_pointer, "directory", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout->prop(node_pointer, "file_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-}
-
-static void format_layout(uiLayout *layout,
-                          bContext *context,
-                          PointerRNA *format_pointer,
-                          PointerRNA *node_or_item_pointer)
-{
-  uiLayout *column = &layout->column(true);
-  column->use_property_split_set(true);
-  column->use_property_decorate_set(false);
-  column->prop(
-      node_or_item_pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  const bool save_as_render = RNA_boolean_get(node_or_item_pointer, "save_as_render");
-  uiTemplateImageSettings(layout, context, format_pointer, save_as_render);
-
-  if (!save_as_render) {
-    uiLayout *column = &layout->column(true);
-    column->use_property_split_set(true);
-    column->use_property_decorate_set(false);
-
-    PointerRNA linear_settings_ptr = RNA_pointer_get(format_pointer, "linear_colorspace_settings");
-    column->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
-  }
-
-  Scene *scene = CTX_data_scene(context);
-  const bool is_multiview = scene->r.scemode & R_MULTIVIEW;
-  if (is_multiview) {
-    uiTemplateImageFormatViews(layout, format_pointer, nullptr);
-  }
-}
-
 /* Computes the path of the image to be saved based on the given parameters. The given file name
  * suffix, if not empty, will be added to the file name. If the given view is not empty, its file
  * suffix will be appended to the name. The frame number, scene, and node are provides for variable
@@ -227,6 +192,41 @@ static Vector<path_templates::Error> compute_image_path(const std::string direct
                                       BKE_scene_multiview_view_suffix_get(&scene.r, view));
 }
 
+static void node_layout(uiLayout *layout, bContext * /*context*/, PointerRNA *node_pointer)
+{
+  layout->prop(node_pointer, "directory", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(node_pointer, "file_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+}
+
+static void format_layout(uiLayout *layout,
+                          bContext *context,
+                          PointerRNA *format_pointer,
+                          PointerRNA *node_or_item_pointer)
+{
+  uiLayout *column = &layout->column(true);
+  column->use_property_split_set(true);
+  column->use_property_decorate_set(false);
+  column->prop(
+      node_or_item_pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  const bool save_as_render = RNA_boolean_get(node_or_item_pointer, "save_as_render");
+  uiTemplateImageSettings(layout, context, format_pointer, save_as_render);
+
+  if (!save_as_render) {
+    uiLayout *column = &layout->column(true);
+    column->use_property_split_set(true);
+    column->use_property_decorate_set(false);
+
+    PointerRNA linear_settings_ptr = RNA_pointer_get(format_pointer, "linear_colorspace_settings");
+    column->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+  }
+
+  Scene *scene = CTX_data_scene(context);
+  const bool is_multiview = scene->r.scemode & R_MULTIVIEW;
+  if (is_multiview) {
+    uiTemplateImageFormatViews(layout, format_pointer, nullptr);
+  }
+}
+
 static void output_path_layout(uiLayout *layout,
                                const std::string directory,
                                const std::string file_name,
@@ -254,13 +254,12 @@ static void output_path_layout(uiLayout *layout,
 static void output_paths_layout(uiLayout *layout,
                                 bContext *context,
                                 const std::string file_name_suffix,
-                                PointerRNA *node_pointer,
-                                PointerRNA *format_pointer)
+                                const bNode &node,
+                                const ImageFormatData &format)
 {
-  const std::string directory = RNA_string_get(node_pointer, "directory");
-  const std::string file_name = RNA_string_get(node_pointer, "file_name");
-  const bNode &node = *node_pointer->data_as<bNode>();
-  const ImageFormatData &format = *format_pointer->data_as<ImageFormatData>();
+  const NodeCompositorFileOutput &storage = node_storage(node);
+  const std::string directory = storage.directory;
+  const std::string file_name = storage.file_name ? storage.file_name : "";
   const Scene &scene = *CTX_data_scene(context);
 
   if (bool(scene.r.scemode & R_MULTIVIEW) && format.views_format == R_IMF_VIEWS_MULTIVIEW) {
@@ -308,12 +307,6 @@ static void item_layout(uiLayout *layout,
       format_layout(panel, context, format_pointer, item_pointer);
     }
   }
-
-  if (uiLayout *panel = layout->panel(context, "item_output_paths", true, IFACE_("Output Paths")))
-  {
-    const std::string layer_name = RNA_string_get(item_pointer, "name");
-    output_paths_layout(panel, context, layer_name, node_pointer, format_pointer);
-  }
 }
 
 static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *node_pointer)
@@ -340,9 +333,20 @@ static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *node
         });
   }
 
-  if (is_multi_layer) {
-    if (uiLayout *panel = layout->panel(context, "output_paths", true, IFACE_("Output Paths"))) {
-      output_paths_layout(panel, context, "", node_pointer, &format_pointer);
+  if (uiLayout *panel = layout->panel(context, "output_paths", true, IFACE_("Output Paths"))) {
+    const bNode &node = *node_pointer->data_as<bNode>();
+    const ImageFormatData &node_format = *format_pointer.data_as<ImageFormatData>();
+
+    if (is_multi_layer) {
+      output_paths_layout(panel, context, "", node, node_format);
+    }
+    else {
+      const NodeCompositorFileOutput &storage = node_storage(node);
+      for (const int i : IndexRange(storage.items_count)) {
+        const NodeCompositorFileOutputItem &item = storage.items[i];
+        const auto &format = item.override_node_format ? item.format : storage.format;
+        output_paths_layout(panel, context, item.name, node, format);
+      }
     }
   }
 }
