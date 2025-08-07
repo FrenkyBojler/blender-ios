@@ -821,7 +821,6 @@ struct BooleanResult {
   Vector<bool> segment_reversed;
   Vector<int> segment_offsets;
   Vector<bool> cyclic;
-  Vector<int> point_offsets;
   Vector<int> shape_ids;
 
   void append_result(const BooleanResult &other_result, const int shape_id)
@@ -1370,19 +1369,12 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
     return results_all;
   }
 
-  results_all.point_offsets.resize(results_all.segment_offsets.size());
-  calculate_offsets_from_segments(results_all.segments,
-                                  OffsetIndices<int>(results_all.segment_offsets),
-                                  results_all.cyclic,
-                                  results_all.point_offsets.as_mutable_span());
-
   return results_all;
 }
 
-bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves,
-                                 const Span<int> shape_ids,
-                                 const OffsetIndices<int> points_by_curve)
+bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves, const Span<int> shape_ids)
 {
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const VArray<float2> positions_2d_attribute = *curves.attributes().lookup<float2>(
       ".positions_2d", bke::AttrDomain::Point);
 
@@ -1479,15 +1471,13 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   Array<int> point_offsets(segment_offsets.size() + 1);
   calculate_offsets_from_segments(
       segments, segment_offsets, cyclic, point_offsets.as_mutable_span());
-
-  const bke::AttributeAccessor src_attributes = src.attributes();
-
   const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
 
   if (dst_points_by_curve.total_size() == 0) {
     return bke::CurvesGeometry();
   }
 
+  const bke::AttributeAccessor src_attributes = src.attributes();
   bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
@@ -1598,11 +1588,6 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
   }
 
   const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(result.segment_offsets);
-  const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(result.point_offsets);
-
-  if (dst_points_by_curve.total_size() == 0) {
-    return bke::CurvesGeometry();
-  }
 
   bke::CurvesGeometry dst_curves = create_curves_from_segments(
       curves, result.segments, result.segment_reversed, result.cyclic, dst_segments_by_curve);
@@ -1616,7 +1601,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
   }
 
   if (op_params.output_rule == FillRule::NoHoles) {
-    dst_curves = remove_holes(dst_curves, result.shape_ids, dst_points_by_curve);
+    dst_curves = remove_holes(dst_curves, result.shape_ids);
   }
 
   return dst_curves;
