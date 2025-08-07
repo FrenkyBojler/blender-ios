@@ -241,9 +241,9 @@ class Preprocessor {
         str = namespace_mutation(str, report_error);
         str = namespace_separator_mutation(str);
       }
+      str = argument_reference_mutation(str);
       str = enum_macro_injection(str);
       str = default_argument_mutation(str);
-      str = argument_reference_mutation(str);
       str = variable_reference_mutation(str, report_error);
       str = template_definition_mutation(str, report_error);
       str = template_call_mutation(str);
