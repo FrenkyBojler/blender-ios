@@ -617,9 +617,15 @@ template<typename T> inline T *MEM_malloc_arrayN(const size_t length, const char
  */
 template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const T &other)
 {
+#  ifdef _MSC_VER
+  static_assert(std::is_trivially_assignable_v<T, T> &&,
+                "MEM_dupallocN can only duplicate types that are trivially copyable and "
+                "destructible, use MEM_new instead.");
+#  else
   static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
                 "MEM_dupallocN can only duplicate types that are trivially copyable and "
                 "destructible, use MEM_new instead.");
+#  endif
   T *new_object = static_cast<T *>(MEM_mallocN_aligned(sizeof(T), alignof(T), allocation_name));
   if (new_object) {
     memcpy(new_object, &other, sizeof(T));
@@ -629,9 +635,15 @@ template<typename T> inline T *MEM_dupallocN(const char *allocation_name, const 
 
 template<typename T> inline void MEM_freeN(T *ptr)
 {
+#  ifdef _MSC_VER
+  static_assert(std::is_trivially_destructible_v<T>,
+                "MEM_freeN can only free types that are trivially copyable and destructible, use "
+                "MEM_delete instead.");
+#  else
   static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
                 "MEM_freeN can only free types that are trivially copyable and destructible, use "
                 "MEM_delete instead.");
+#  endif
   mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),
                                       mem_guarded::internal::AllocationType::ALLOC_FREE);
 }
