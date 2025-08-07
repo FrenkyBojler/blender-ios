@@ -2106,7 +2106,9 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
       FOREACH_NODETREE_END;
     }
+  }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 54)) {
     LISTBASE_FOREACH (Object *, object, &bmain->objects) {
       LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
         if (modifier->type != eModifierType_GreasePencilLineart) {
