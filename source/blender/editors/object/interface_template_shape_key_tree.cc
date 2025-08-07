@@ -239,6 +239,15 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
     ED_undo_grouped_push(C, "Delete Shape Key");
   }
+  
+  void build_context_menu(bContext &C, uiLayout &layout) const override
+  {
+    MenuType *mt = WM_menutype_find("MESH_MT_shape_key_tree_context_menu", true);
+    if (!mt) {
+      return;
+    }
+    UI_menutype_draw(&C, mt, &layout);
+  }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
