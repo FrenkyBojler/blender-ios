@@ -753,6 +753,7 @@ static wmOperatorStatus clear_anim_v3d_exec(bContext *C, wmOperator * /*op*/)
         });
         for (FCurve *fcurve : fcurves_to_delete) {
           action_fcurve_remove(action, *fcurve);
+          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
           changed = true;
         }
       }
