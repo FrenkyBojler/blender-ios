@@ -1063,7 +1063,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
 }
 
 /* The compositor Value, Color Ramp, Mix Color, Map Range, Map Value, Math, Combine XYZ, Separate
- * XYZ, and Vector Curves nodes are now deprecated and should be replaced by their generic Shader
+ * XYZ, Vector Curves and Gamma nodes are now deprecated and should be replaced by their generic Shader
  * node counterpart. */
 static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 {
@@ -2302,6 +2302,16 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
                       bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
       }
     }
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 55)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ELEM(ntree->type == NTREE_COMPOSIT)) {
+        version_node_input_socket_name(ntree, CMP_NODE_GAMMA_DEPRECATED, "Image", "Color");
+
+        version_node_output_socket_name(ntree, CMP_NODE_GAMMA_DEPRECATED, "Image", "Color");
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
