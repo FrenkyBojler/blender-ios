@@ -311,10 +311,23 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  Field<float3> positions = params.extract_input<Field<float3>>("Sample Position");
-  auto fn = std::make_shared<SampleNearestFunction>(std::move(geometry), domain);
-  auto op = FieldOperation::from(std::move(fn), {std::move(positions)});
-  params.set_output<Field<int>>("Index", Field<int>(std::move(op)));
+  bke::SocketValueVariant sample_position = params.extract_input<bke::SocketValueVariant>(
+      "Sample Position");
+
+  auto fn_ptr = std::make_shared<SampleNearestFunction>(std::move(geometry), domain);
+  const mf::MultiFunction &fn = *fn_ptr;
+
+  bke::SocketValueVariant index;
+  std::string error_message;
+  const bool success = execute_multi_function_on_value_variant(
+      fn, std::move(fn_ptr), {&sample_position}, {&index}, params.user_data(), error_message);
+  if (!success) {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
+
+  params.set_output("Index", std::move(index));
 }
 
 static void node_rna(StructRNA *srna)
