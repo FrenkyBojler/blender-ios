@@ -39,9 +39,9 @@ void main()
 #elif !defined(SELECT_ENABLE)
   line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
   frag_color = final_color;
-  gl_FragDepth = gl_FragCoord.z;
 
 #  if !defined(CURVES)
+  gl_FragDepth = gl_FragCoord.z;
   if (use_custom_depth_bias) {
     float2 dir = line_output.xy * 2.0f - 1.0f;
     bool dir_horiz = abs(dir.x) > abs(dir.y);
