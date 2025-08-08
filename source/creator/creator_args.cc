@@ -811,6 +811,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--register-allusers");
   BLI_args_print_arg_doc(ba, "--unregister");
   BLI_args_print_arg_doc(ba, "--unregister-allusers");
+  BLI_args_print_arg_doc(ba, "--highqos");
 
   BLI_args_print_arg_doc(ba, "--version");
 
@@ -1909,6 +1910,15 @@ static int arg_handle_unregister_extension_all(int argc, const char **argv, void
   return 0;
 }
 
+static const char arg_handle_highqos_set_doc[] =
+    "\n\t"
+    "Use Windows HighQoS mode for maximum performance under all circumstances (Windows only).";
+static int arg_handle_highqos_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  BLI_windows_process_set_qos(QoSMode::HIGH, QoSPrecedence::CMDLINE_ARG);
+  return 0;
+}
+
 static const char arg_handle_audio_disable_doc[] =
     "\n\t"
     "Force sound system to None.";
@@ -2943,6 +2953,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, nullptr, "--unregister", CB(arg_handle_unregister_extension), nullptr);
   BLI_args_add(
       ba, nullptr, "--unregister-allusers", CB(arg_handle_unregister_extension_all), nullptr);
+  BLI_args_add(ba, nullptr, "--highqos", CB(arg_handle_highqos_set), nullptr);
   BLI_args_add(ba, nullptr, "--no-native-pixels", CB(arg_handle_native_pixels_set), ba);
 
   /* Pass: Disabling Things & Forcing Settings. */

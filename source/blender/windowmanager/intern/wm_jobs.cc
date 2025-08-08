@@ -20,6 +20,10 @@
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
+#ifdef _WIN32
+#include "BLI_winstuff.h"
+#endif
+
 #include "BKE_global.hh"
 #include "BKE_report.hh"
 
@@ -155,6 +159,17 @@ static void wm_job_main_thread_yield(wmJob *wm_job)
   BLI_ticket_mutex_lock(wm_job->main_thread_mutex);
 }
 
+static void wm_jobs_update_qos(const wmWindowManager *wm)
+{
+  LISTBASE_FOREACH (wmJob *, wm_job, &wm->jobs) {
+    if (wm_job->flag & WM_JOB_PRIORITY) {
+      BLI_windows_process_set_qos(QoSMode::HIGH, QoSPrecedence::JOB);
+      return;
+    }
+  }
+
+  BLI_windows_process_set_qos(QoSMode::DEFAULT, QoSPrecedence::JOB);
+}
 /**
  * Finds if type or owner, compare for it, otherwise any matching job.
  */
@@ -212,6 +227,8 @@ wmJob *WM_jobs_get(wmWindowManager *wm,
     wm_job->worker_status.reports = MEM_callocN<ReportList>(__func__);
     BKE_reports_init(wm_job->worker_status.reports, RPT_STORE | RPT_PRINT);
     BKE_report_print_level_set(wm_job->worker_status.reports, RPT_WARNING);
+
+    wm_jobs_update_qos(wm);
   }
   /* Else: a running job, be careful. */
 
@@ -538,6 +555,8 @@ static void wm_job_free(wmWindowManager *wm, wmJob *wm_job)
   BKE_reports_free(wm_job->worker_status.reports);
   MEM_delete(wm_job->worker_status.reports);
   MEM_freeN(wm_job);
+
+  wm_jobs_update_qos(wm);
 }
 
 /* Stop job, end thread, free data completely. */

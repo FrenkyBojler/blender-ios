@@ -113,3 +113,29 @@ bool BLI_windows_execute_self(const char *parameters,
                               const bool wait,
                               const bool elevated,
                               const bool silent);
+
+/** Quality of Service (QoS) modes as defined in the Windows documentation at: https://learn.microsoft.com/en-us/windows/win32/procthread/quality-of-service */
+enum class QoSMode {
+  /** Default mode uses heuristics described in Windows docs. */
+  DEFAULT = 0,
+  /** HighQoS mode for performance critical scenarios. */
+  HIGH = 1,
+  /** EcoQoS mode for preserving energy. */
+  ECO = 2
+};
+
+/** QoS precedence (to make sure command line args overwrite what is set by jobs). Higher values have more precedence. */
+enum class QoSPrecedence {
+  /** QoS mode requested set via the job system. */
+  JOB = 0,
+  /** QoS mode requested set via a command line argument. */
+  CMDLINE_ARG = 1,
+};
+
+/**
+ * Sets the Quality of Service (QoS) mode of the process.
+ *
+ * \param qos_mode: The QoS mode to use for the process.
+ * \param qos_precedence: The precedence of the caller (higher wins).
+ */
+void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence);

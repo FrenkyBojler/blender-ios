@@ -516,6 +516,29 @@ bool BLI_windows_get_directx_driver_version(const wchar_t *deviceSubString,
   return false;
 }
 
+void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence)
+{
+  static QoSPrecedence qos_precedence_last = QoSPrecedence::JOB;
+  if (int(qos_precedence) < int(qos_precedence_last)) {
+    return;
+  }
+  PROCESS_POWER_THROTTLING_STATE processPowerThrottlingState{};
+  processPowerThrottlingState.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
+  /* Leaving ControlMask as 0 reverts to default behavior. */
+  if (qos_mode != QoSMode::DEFAULT) {
+    processPowerThrottlingState.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
+  }
+  if (qos_mode == QoSMode::ECO) {
+    processPowerThrottlingState.StateMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+  }
+  HANDLE hProcess = GetCurrentProcess();
+  if (!SetProcessInformation(hProcess, ProcessPowerThrottling, &processPowerThrottlingState, sizeof(PROCESS_POWER_THROTTLING_STATE))) {
+    fprintf(stderr, "BLI_windows_set_process_qos: SetProcessInformation failed: %d\n", GetLastError());
+    return;
+  }
+  qos_precedence_last = qos_precedence;
+}
+
 #else
 
 /* intentionally empty for UNIX */
