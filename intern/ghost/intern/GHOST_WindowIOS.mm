@@ -262,7 +262,6 @@ typedef struct UserInputEvent {
   int touch_stack;
   std::unordered_map<uint64_t, TouchData> touchmap;
 
-  GHOSTUITapGestureRecognizer *tap_gesture_recognizer;
   GHOSTUITapGestureRecognizer *tap2f_gesture_recognizer;
   GHOSTUITapGestureRecognizer *tap3f_gesture_recognizer;
   GHOSTUITapGestureRecognizer *tap4f_gesture_recognizer;
@@ -293,6 +292,10 @@ typedef struct UserInputEvent {
   UIBarButtonItem *toolbar_live_text_item;
   UIBarButtonItem *toolbar_done_editing_item;
   UIBarButtonItem *toolbar_cancel_editing_item;
+
+  /* Left-click tap / drag touch event tracking. */
+  UITouch *tracked_down_touch;
+  bool left_click_down;
 }
 
 - (void)setSystemAndWindowIOS:(GHOST_SystemIOS *)sysCocoa windowIOS:(GHOST_WindowIOS *)winCocoa;
@@ -367,15 +370,6 @@ typedef struct UserInputEvent {
 - (void)registerGestureRecognizers
 {
   /** Create Gesture recognisers. */
-  /* Tap gesture recognizer. */
-  tap_gesture_recognizer = [[GHOSTUITapGestureRecognizer alloc]
-      initWithTarget:self
-              action:@selector(handleTap:)];
-  tap_gesture_recognizer.delegate = self;
-  tap_gesture_recognizer.cancelsTouchesInView = false;
-  tap_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypePencil), @(UITouchTypeDirect) ];
-  [window->getView() addGestureRecognizer:tap_gesture_recognizer];
-
   /* Two-finger tap gesture recognizer. */
   tap2f_gesture_recognizer = [[GHOSTUITapGestureRecognizer alloc]
       initWithTarget:self
@@ -572,7 +566,20 @@ typedef struct UserInputEvent {
   for (UITouch *touch in touches) {
     if (touch.type == UITouchTypePencil) {
       current_pencil_touch = touch;
-      break;
+    }
+
+    if (!tracked_down_touch) {
+      tracked_down_touch = touch;
+
+      CGPoint touch_point = [touch locationInView:window->getView()];
+      CGPoint scaled_point = window->scalePointToWindow(touch_point);
+
+      UserInputEvent event_info(&scaled_point, nullptr, nullptr, touch.type == UITouchTypePencil);
+      event_info.add_event(UserInputEvent::EventTypes::CURSOR_MOVE);
+      event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_DOWN);
+      [self generateUserInputEvents:event_info];
+
+      left_click_down = YES;
     }
   }
 }
@@ -610,38 +617,67 @@ typedef struct UserInputEvent {
       }
     }
   }
+
+  if (tracked_down_touch && [touches containsObject:tracked_down_touch]) {
+    CGPoint touch_point = [tracked_down_touch locationInView:window->getView()];
+    CGPoint scaled_point = window->scalePointToWindow(touch_point);
+
+    UserInputEvent event_info(
+        &scaled_point, nullptr, nullptr, tracked_down_touch.type == UITouchTypePencil);
+    event_info.add_event(UserInputEvent::EventTypes::CURSOR_MOVE);
+  }
 }
 
 /* Reset tablet data. */
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
   [super touchesEnded:touches withEvent:event];
-  current_pencil_touch = nil;
-  tablet_data = GHOST_TABLET_DATA_NONE;
+
+  if (tracked_down_touch && [touches containsObject:tracked_down_touch]) {
+    if (left_click_down) {
+      CGPoint touch_point = [tracked_down_touch locationInView:window->getView()];
+      CGPoint scaled_point = window->scalePointToWindow(touch_point);
+
+      UserInputEvent event_info(
+          &scaled_point, nullptr, nullptr, tracked_down_touch.type == UITouchTypePencil);
+      event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_UP);
+      [self generateUserInputEvents:event_info];
+    }
+
+    left_click_down = NO;
+    tracked_down_touch = nil;
+  }
+
+  if ([touches containsObject:current_pencil_touch]) {
+    current_pencil_touch = nil;
+    tablet_data = GHOST_TABLET_DATA_NONE;
+  }
 }
 
 /* Reset tablet data. */
 - (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
   [super touchesCancelled:touches withEvent:event];
-  current_pencil_touch = nil;
-  tablet_data = GHOST_TABLET_DATA_NONE;
-}
 
-- (void)handleTap:(GHOSTUITapGestureRecognizer *)sender
-{
-  CGPoint touch_point = [sender getScaledTouchPoint:window];
-  last_tap_with_pencil = current_pencil_touch ? true : false;
-  UserInputEvent event_info(&touch_point, nullptr, nullptr, last_tap_with_pencil);
+  if (tracked_down_touch && [touches containsObject:tracked_down_touch]) {
+    if (left_click_down) {
+      CGPoint touch_point = [tracked_down_touch locationInView:window->getView()];
+      CGPoint scaled_point = window->scalePointToWindow(touch_point);
 
-  /* Send events to indicate a 'click' on event end. */
-  if (sender.state == UIGestureRecognizerStateEnded) {
-    event_info.add_event(UserInputEvent::EventTypes::CURSOR_MOVE);
-    event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_DOWN);
-    event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_UP);
+      UserInputEvent event_info(
+          &scaled_point, nullptr, nullptr, tracked_down_touch.type == UITouchTypePencil);
+      event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_UP);
+      [self generateUserInputEvents:event_info];
+    }
+
+    left_click_down = NO;
+    tracked_down_touch = nil;
   }
 
-  [self generateUserInputEvents:event_info];
+  if ([touches containsObject:current_pencil_touch]) {
+    current_pencil_touch = nil;
+    tablet_data = GHOST_TABLET_DATA_NONE;
+  }
 }
 
 - (void)handleTap2F:(GHOSTUITapGestureRecognizer *)sender
@@ -700,12 +736,9 @@ typedef struct UserInputEvent {
   if (sender.state == UIGestureRecognizerStateBegan ||
       sender.state == UIGestureRecognizerStateChanged)
   {
-    /* Register initial click for click and drag support. */
     if (sender.state == UIGestureRecognizerStateBegan) {
       /* Set inital translation */
       [sender setCachedTranslation:translation];
-      event_info.add_event(UserInputEvent::EventTypes::CURSOR_MOVE);
-      event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_DOWN);
     }
 
     /* Calculate translation change since last begin/change event */
@@ -724,13 +757,6 @@ typedef struct UserInputEvent {
     }
   }
 
-  /* Mouse release for pan. */
-  if (sender.state == UIGestureRecognizerStateEnded ||
-      sender.state == UIGestureRecognizerStateCancelled ||
-      sender.state == UIGestureRecognizerStateFailed)
-  {
-    event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_UP);
-  }
   [self generateUserInputEvents:event_info];
 }
 
