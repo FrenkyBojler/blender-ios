@@ -578,7 +578,7 @@ static void init_socket_cpp_value_from_property(const IDProperty &property,
     case SOCK_OBJECT: {
       ID *id = IDP_Id(&property);
       Object *object = (id && GS(id->name) == ID_OB) ? (Object *)id : nullptr;
-      *(Object **)r_value = object;
+      bke::SocketValueVariant::ConstructIn(r_value, object);
       break;
     }
     case SOCK_COLLECTION: {

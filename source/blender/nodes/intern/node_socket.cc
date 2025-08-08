@@ -1156,8 +1156,11 @@ static bke::bNodeSocketType *make_socket_type_object()
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
     *(Object **)r_value = ((bNodeSocketValueObject *)socket_value)->value;
   };
-  socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
-  socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
+  socktype->get_geometry_nodes_cpp_value = [](const void *socket_value, void *r_value) {
+    Object *object = static_cast<const bNodeSocketValueObject *>(socket_value)->value;
+    SocketValueVariant::ConstructIn(r_value, object);
+  };
   return socktype;
 }
 

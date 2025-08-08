@@ -68,6 +68,9 @@ template<typename T> static std::optional<eNodeSocketDatatype> static_type_to_so
   if constexpr (is_same_any_v<T, nodes::ClosurePtr>) {
     return SOCK_CLOSURE;
   }
+  if constexpr (is_same_any_v<T, Object *>) {
+    return SOCK_OBJECT;
+  }
   return std::nullopt;
 }
 
@@ -100,9 +103,10 @@ static bool static_type_is_base_socket_type(const eNodeSocketDatatype socket_typ
       return std::is_same_v<T, nodes::BundlePtr>;
     case SOCK_CLOSURE:
       return std::is_same_v<T, nodes::ClosurePtr>;
+    case SOCK_OBJECT:
+      return std::is_same_v<T, Object *>;
     case SOCK_CUSTOM:
     case SOCK_SHADER:
-    case SOCK_OBJECT:
     case SOCK_IMAGE:
     case SOCK_GEOMETRY:
     case SOCK_COLLECTION:
@@ -291,6 +295,10 @@ void SocketValueVariant::store_single(const eNodeSocketDatatype socket_type, con
       value_.emplace<nodes::ClosurePtr>(*static_cast<const nodes::ClosurePtr *>(value));
       break;
     }
+    case SOCK_OBJECT: {
+      value_.emplace<Object *>(*static_cast<Object *const *>(value));
+      break;
+    }
     default: {
       BLI_assert_unreachable();
       break;
@@ -397,6 +405,8 @@ void *SocketValueVariant::allocate_single(const eNodeSocketDatatype socket_type)
       return value_.allocate<nodes::BundlePtr>();
     case SOCK_CLOSURE:
       return value_.allocate<nodes::ClosurePtr>();
+    case SOCK_OBJECT:
+      return value_.allocate<Object *>();
     default: {
       BLI_assert_unreachable();
       return nullptr;
@@ -461,6 +471,7 @@ INSTANTIATE(fn::GField)
 INSTANTIATE(blender::nodes::BundlePtr)
 INSTANTIATE(blender::nodes::ClosurePtr)
 INSTANTIATE(blender::nodes::ListPtr)
+INSTANTIATE(Object *)
 
 INSTANTIATE(float4x4)
 INSTANTIATE(fn::Field<float4x4>)
