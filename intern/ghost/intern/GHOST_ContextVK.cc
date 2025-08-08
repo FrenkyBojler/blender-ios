@@ -329,9 +329,7 @@ class GHOST_DeviceVK {
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
     dynamic_rendering.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
     dynamic_rendering.dynamicRendering = VK_TRUE;
-    if (extension_enabled(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)) {
-      feature_struct_ptr.push_back(&dynamic_rendering);
-    }
+    feature_struct_ptr.push_back(&dynamic_rendering);
 
     VkPhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
         dynamic_rendering_unused_attachments = {};
@@ -1050,7 +1048,6 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
     create_info.pNext = &vk_swapchain_present_scaling;
-    create_info.flags = VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT;
   }
   create_info.surface = m_surface;
   create_info.minImageCount = image_count_requested;
@@ -1242,7 +1239,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #else
   required_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
 #endif
-  optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+  required_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);

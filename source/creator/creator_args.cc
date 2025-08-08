@@ -874,7 +874,6 @@ static void print_help(bArgs *ba, bool all)
     PRINT("  $TEMP                      Store temporary files here (MS-Windows).\n");
   }
   if (!defs.win32 || all) {
-    /* NOTE: while `TMP` checked, don't include here as it's non-standard & may be removed. */
     PRINT("  $TMPDIR                    Store temporary files here (UNIX Systems).\n");
   }
   PRINT(
@@ -2027,7 +2026,7 @@ static const char arg_handle_image_type_set_doc[] =
     "<format>\n"
     "\tSet the render format.\n"
     "\tValid options are:\n"
-    "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'AVIRAW' 'AVIJPEG' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
+    "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
     "\n"
     "\tFormats that can be compiled into Blender, not available on all systems:\n"
     "\t'OPEN_EXR' 'OPEN_EXR_MULTILAYER' 'FFMPEG' 'CINEON' 'DPX' 'JP2' 'WEBP'.";

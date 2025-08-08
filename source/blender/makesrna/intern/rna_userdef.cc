@@ -2045,6 +2045,12 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Z Axis", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "axis_w", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "waxis");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "W Axis", "W-axis for quaternion and axis-angle rotations");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   /* Generic gizmo colors. */
   prop = RNA_def_property(srna, "gizmo_hi", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "gizmo_hi");
@@ -2418,23 +2424,23 @@ static void rna_def_userdef_theme_spaces_edge(StructRNA *srna)
   prop = RNA_def_property(srna, "edge_seam", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Edge Seam", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "edge_sharp", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Edge Sharp", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "edge_crease", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Edge Crease", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_WINDOWMANAGER);
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "edge_bevel", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Edge Bevel", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "edge_facesel", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -4143,7 +4149,7 @@ static void rna_def_userdef_theme_space_nla(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "anim_non_active");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
-      prop, "No Active Action", "Animation data-block doesn't have active action");
+      prop, "No Active Action", "Animation data-block does not have active action");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "strips", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -5739,9 +5745,9 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 
   /* keyframing settings */
   prop = RNA_def_property(srna, "key_insert_channels", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "key_insert_channels");
   RNA_def_property_enum_items(prop, rna_enum_key_insert_channels);
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop,
                            "Default Key Channels",
                            "Which channels to insert keys at when no keying set is active");
@@ -7603,12 +7609,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_bundle_and_closure_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop, "Bundle and Closure Nodes", "Enables bundle and closure nodes in Geometry Nodes");
-
-  prop = RNA_def_property(srna, "use_socket_structure_type", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop,
-      "Node Structure Types",
-      "Enables new visualization of socket data compatibility in Geometry Nodes");
 
   prop = RNA_def_property(srna, "use_geometry_nodes_lists", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(prop, "Geometry Nodes Lists", "Enable new list types and nodes");
