@@ -1045,24 +1045,6 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
     return GHOST_kFailure;
   }
 
-  /* Windows/NVIDIA doesn't support creating a surface image with resolution 0,0.
-   * Minimized windows have an extent of 0,0. Although it fits in the specs returned by
-   * #vkGetPhysicalDeviceSurfaceCapabilitiesKHR.
-   *
-   * The fix is limited to NVIDIA. AMD drivers finds the swapchain to be sub-optimal and
-   * asks Blender to recreate the swapchain over and over again until it gets out of memory.
-   *
-   * Ref #138032, #139815
-   */
-  if (vulkan_device->properties_12.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
-    if (m_render_extent.width == 0) {
-      m_render_extent.width = 1;
-    }
-    if (m_render_extent.height == 0) {
-      m_render_extent.height = 1;
-    }
-  }
-
   /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
    * actions that require low latency (paint cursor, UI resizing). MAILBOX prefers triple
    * buffering. */
