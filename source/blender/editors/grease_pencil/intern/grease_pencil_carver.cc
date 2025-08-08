@@ -549,10 +549,10 @@ class SegmentEndPoint {
  public:
   constexpr SegmentEndPoint() = default;
 
-  constexpr explicit SegmentEndPoint(int segment_i, bool is_end)
+  constexpr explicit SegmentEndPoint(const int segment_i, const Side side)
   {
     BLI_assert(segment_i >= 0);
-    if (is_end) {
+    if (side == Side::End) {
       index_ = -(segment_i + 1);
     }
     else {
@@ -569,21 +569,13 @@ class SegmentEndPoint {
     return !(a == b);
   }
 
-  bool is_start() const
-  {
-    return index_ > 0;
-  }
-  bool is_end() const
-  {
-    return index_ < 0;
-  }
   bool is_null() const
   {
     return index_ == 0;
   }
   Side get_side() const
   {
-    return this->is_start() ? Side::Start : Side::End;
+    return index_ > 0 ? Side::Start : Side::End;
   }
 
   int segment_index() const
@@ -1153,22 +1145,22 @@ static BooleanResult execute_single_boolean(
     const int curve_i = segment.curve;
 
     if (segment.has_intersection(Side::Start)) {
-      IntersectionPoint &inter_start = intersections[segment.intersection_index[0]];
+      IntersectionPoint &inter_start = intersections[segment.intersection_index[Side::Start]];
       if (curve_i == inter_start.curve_a) {
-        inter_start.end_a = SegmentEndPoint(seg_i, true);
+        inter_start.end_a = SegmentEndPoint(seg_i, Side::Start);
       }
       else {
-        inter_start.end_b = SegmentEndPoint(seg_i, true);
+        inter_start.end_b = SegmentEndPoint(seg_i, Side::Start);
       }
     }
 
     if (segment.has_intersection(Side::End)) {
-      IntersectionPoint &inter_end = intersections[segment.intersection_index[1]];
+      IntersectionPoint &inter_end = intersections[segment.intersection_index[Side::End]];
       if (curve_i == inter_end.curve_a) {
-        inter_end.start_a = SegmentEndPoint(seg_i, false);
+        inter_end.start_a = SegmentEndPoint(seg_i, Side::End);
       }
       else {
-        inter_end.start_b = SegmentEndPoint(seg_i, false);
+        inter_end.start_b = SegmentEndPoint(seg_i, Side::End);
       }
     }
   }
@@ -1249,6 +1241,9 @@ static BooleanResult execute_single_boolean(
     const bool is_end_b = end_b.is_null() ? false : segments_to_keep[end_b.segment_index()];
 
     auto connect = [&](const SegmentEndPoint point_1, const SegmentEndPoint point_2) {
+      BLI_assert(all_segments[point_1.segment_index()].intersection_index[point_1.get_side()] ==
+                 all_segments[point_2.segment_index()].intersection_index[point_2.get_side()]);
+
       segment_connections[point_1.segment_index()][point_1.get_side()] = encode_index_and_side(
           point_2.segment_index(), point_2.get_side());
       segment_connections[point_2.segment_index()][point_2.get_side()] = encode_index_and_side(
