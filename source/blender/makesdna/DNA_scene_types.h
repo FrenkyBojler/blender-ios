@@ -533,8 +533,8 @@ enum {
   // R_MOVIE = 5, /* DEPRECATED */
   R_IMF_IMTYPE_IRIZ = 7,
   R_IMF_IMTYPE_RAWTGA = 14,
-  R_IMF_IMTYPE_AVIRAW = 15,
-  R_IMF_IMTYPE_AVIJPEG = 16,
+  /* R_IMF_IMTYPE_AVIRAW = 15, DEPRECATED */
+  /* R_IMF_IMTYPE_AVIJPEG = 16, DEPRECATED */
   R_IMF_IMTYPE_PNG = 17,
   // R_IMF_IMTYPE_AVICODEC = 18,  /* DEPRECATED */
   // R_IMF_IMTYPE_QUICKTIME = 19, /* DEPRECATED */
@@ -549,12 +549,12 @@ enum {
   R_IMF_IMTYPE_MULTILAYER = 28,
   R_IMF_IMTYPE_DDS = 29,
   R_IMF_IMTYPE_JP2 = 30,
-  R_IMF_IMTYPE_H264 = 31,
-  R_IMF_IMTYPE_XVID = 32,
-  R_IMF_IMTYPE_THEORA = 33,
+  /* R_IMF_IMTYPE_H264 = 31, DEPRECATED */
+  /* R_IMF_IMTYPE_XVID = 32, DEPRECATED */
+  /* R_IMF_IMTYPE_THEORA = 33, DEPRECATED */
   R_IMF_IMTYPE_PSD = 34,
   R_IMF_IMTYPE_WEBP = 35,
-  R_IMF_IMTYPE_AV1 = 36,
+  /* R_IMF_IMTYPE_AV1 = 36, DEPRECATED */
 
   R_IMF_IMTYPE_INVALID = 255,
 };
@@ -564,8 +564,6 @@ enum {
   // R_IMF_FLAG_ZBUF = 1 << 0, /* DEPRECATED, and cleared. */
   R_IMF_FLAG_PREVIEW_JPG = 1 << 1,
 };
-
-/*  */
 
 /**
  * #ImageFormatData::depth
@@ -859,8 +857,8 @@ typedef struct RenderData {
   float bake_biasdist, bake_user_scale;
 
   /**
-   *  Path to render output.
-   * \note  Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
+   * Path to render output.
+   * \note Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
    */
   char pic[/*FILE_MAX*/ 1024];
 
@@ -2185,6 +2183,10 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
+#ifdef __cplusplus
+  /* Return the frame rate of the scene. */
+  double frames_per_second() const;
+#endif
 } Scene;
 
 /** \} */
@@ -2419,7 +2421,6 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 #define PEFRA ((PRVRANGEON) ? (scene->r.pefra) : (scene->r.efra))
 #define FRA2TIME(a) ((((double)scene->r.frs_sec_base) * (double)(a)) / (double)scene->r.frs_sec)
 #define TIME2FRA(a) ((((double)scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
-#define FPS (((double)scene->r.frs_sec) / (double)scene->r.frs_sec_base)
 
 /** \} */
 
