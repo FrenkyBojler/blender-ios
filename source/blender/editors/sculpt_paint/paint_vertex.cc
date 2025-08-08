@@ -537,7 +537,11 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, PaintMode::Sculpt))
   {
-    cache->radius = cache->initial_radius * cache->pressure;
+    /* This constant factor of 0.5f is an arbitrary value used as a stop-gap to provide more
+     * sensible pressure behavior without the extensive work needed for exposing customizable
+     * curves to the end user for now */
+    constexpr float min_radius_pressure_factor = 0.5f;
+    cache->radius = cache->initial_radius * std::max(min_radius_pressure_factor, cache->pressure);
   }
   else {
     cache->radius = cache->initial_radius;

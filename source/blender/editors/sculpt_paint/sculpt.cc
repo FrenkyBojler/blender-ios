@@ -4073,7 +4073,7 @@ static float brush_dynamic_size_get(const Brush &brush,
       return initial_size * clay_stabilized_pressure;
     }
     default:
-      return initial_size * cache.pressure;
+      return std::max(initial_size * 0.25f, initial_size * cache.pressure);
   }
 }
 
