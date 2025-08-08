@@ -72,6 +72,10 @@ struct wmXrSessionState {
   struct wmXrActionSet *active_action_set;
   /* Name of the action set (if any) to activate before the next actions sync. */
   char active_action_set_next[64]; /* #MAX_NAME. */
+
+
+  float vignette_aperture_velocity;
+  float vignette_aperture;
 };
 
 struct wmXrRuntimeData {

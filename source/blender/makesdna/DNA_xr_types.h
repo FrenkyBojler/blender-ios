@@ -38,6 +38,10 @@ typedef struct XrSessionSettings {
   /** Object type settings to apply to VR view (unlike shading, not shared with window 3D-View). */
   int object_type_exclude_viewport;
   int object_type_exclude_select;
+
+  /** Itensity of vignette that appears when moving. */
+  float vignette_intensity;
+  float padding;
 } XrSessionSettings;
 
 typedef enum eXrSessionFlag {

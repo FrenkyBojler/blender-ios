@@ -329,13 +329,16 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
 
 static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionState *state)
 {
+  float color[4] = { 0, 0, 0, 1 }, aperture = state->vignette_aperture, falloff = 0.15f;
+
+  if (aperture > M_SQRT1_2)
+  {
+    return;
+  }
+
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_blend(GPU_BLEND_ALPHA);
 
-  float color[4], aperture = 0.1, falloff = 0.3;
-  copy_v4_fl4(color, 0.0, 0.0, 0.0, 1.0);
-
-  // Calculate camera forward vector
   // TODO: Determine a more robust method to determine depth / scale
   float camera_mat[4][4], offset[3], depth = 1.0f, scale = 3.0f;
   invert_m4_m4(camera_mat, state->viewer_viewmat);  
@@ -351,13 +354,13 @@ static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionSt
 
   GPU_matrix_mul(camera_mat);
 
-  // Position in front of camera
+  /* Position in front of camera */
   GPU_matrix_translate_3fv(offset);
 
-  // Rotate quad backward
+  /* Rotate quad backward */
   GPU_matrix_rotate_3f(180, 0, 1, 0);
   
-  // Scale to fit screen
+  /* Scale to fit screen */
   GPU_matrix_scale_1f(scale);
 
   GPU_batch_draw(quad);
