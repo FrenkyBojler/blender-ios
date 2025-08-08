@@ -539,15 +539,7 @@ class IMAGE_MT_uvs_select_mode(Menu):
 
         layout.separator()
 
-        is_select_island_supported = True
-        if tool_settings.use_uv_select_sync:
-            mesh_select_mode = tool_settings.mesh_select_mode
-            if mesh_select_mode[0] or mesh_select_mode[1]:
-                is_select_island_supported = False
-
-        row = layout.row()
-        row.active = is_select_island_supported
-        row.prop(tool_settings, "use_uv_select_island", text="Island")
+        layout.prop(tool_settings, "use_uv_select_island", text="Island")
 
 
 class IMAGE_MT_uvs_context_menu(Menu):
