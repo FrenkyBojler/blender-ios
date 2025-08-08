@@ -507,7 +507,7 @@ static Strip *strip_duplicate(Main *bmain,
                               Scene *scene_dst,
                               ListBase *new_seq_list,
                               Strip *strip,
-                              int dupe_flag,
+                              const StripDuplicate dupe_flag,
                               const int flag,
                               blender::Map<Strip *, Strip *> &strip_map)
 {
@@ -566,7 +566,7 @@ static Strip *strip_duplicate(Main *bmain,
     channels_duplicate(&strip_new->channels, &strip->channels);
   }
   else if (strip->type == STRIP_TYPE_SCENE) {
-    if ((dupe_flag & STRIP_DUPE_DATA) != 0 && strip_new->scene != nullptr) {
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->scene != nullptr) {
       Scene *scene_old = strip_new->scene;
       strip_new->scene = BKE_scene_duplicate(bmain, scene_old, SCE_COPY_FULL);
     }
@@ -576,7 +576,7 @@ static Strip *strip_duplicate(Main *bmain,
     }
   }
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
-    if ((dupe_flag & STRIP_DUPE_DATA) != 0 && strip_new->clip != nullptr) {
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->clip != nullptr) {
       MovieClip *clip_old = strip_new->clip;
       strip_new->clip = reinterpret_cast<MovieClip *>(
           BKE_id_copy(bmain, reinterpret_cast<ID *>(clip_old)));
@@ -586,7 +586,7 @@ static Strip *strip_duplicate(Main *bmain,
     }
   }
   else if (strip->type == STRIP_TYPE_MASK) {
-    if ((dupe_flag & STRIP_DUPE_DATA) != 0 && strip_new->mask != nullptr) {
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->mask != nullptr) {
       Mask *mask_old = strip_new->mask;
       strip_new->mask = reinterpret_cast<Mask *>(
           BKE_id_copy(bmain, reinterpret_cast<ID *>(mask_old)));
@@ -623,7 +623,7 @@ static Strip *strip_duplicate(Main *bmain,
     BLI_assert_unreachable();
   }
 
-  /* When using #STRIP_DUPE_UNIQUE_NAME, it is mandatory to add new strips in relevant container
+  /* When using StripDuplicate::UniqueName, it is mandatory to add new strips in relevant container
    * (scene or meta's one), *before* checking for unique names. Otherwise the meta's list is empty
    * and hence we miss all sequencer strips in that meta that have already been duplicated,
    * (see #55668). Note that unique name check itself could be done at a later step in calling
@@ -634,7 +634,7 @@ static Strip *strip_duplicate(Main *bmain,
   }
 
   if (scene_src == scene_dst) {
-    if (dupe_flag & STRIP_DUPE_UNIQUE_NAME) {
+    if (int(dupe_flag & StripDuplicate::UniqueName) != 0) {
       strip_unique_name_set(scene_dst, &scene_dst->ed->seqbase, strip_new);
     }
   }
@@ -652,7 +652,7 @@ static Strip *strip_duplicate_recursive_impl(Main *bmain,
                                              Scene *scene_dst,
                                              ListBase *new_seq_list,
                                              Strip *strip,
-                                             const int dupe_flag,
+                                             const StripDuplicate dupe_flag,
                                              blender::Map<Strip *, Strip *> &strip_map)
 {
   Strip *strip_new = strip_duplicate(
@@ -671,7 +671,7 @@ Strip *strip_duplicate_recursive(Main *bmain,
                                  Scene *scene_dst,
                                  ListBase *new_seq_list,
                                  Strip *strip,
-                                 int dupe_flag)
+                                 const StripDuplicate dupe_flag)
 {
   blender::Map<Strip *, Strip *> strip_map;
 
@@ -691,12 +691,12 @@ static void seqbase_dupli_recursive(Main *bmain,
                                     Scene *scene_dst,
                                     ListBase *nseqbase,
                                     const ListBase *seqbase,
-                                    int dupe_flag,
+                                    const StripDuplicate dupe_flag,
                                     const int flag,
                                     blender::Map<Strip *, Strip *> &strip_map)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) == 0 && (dupe_flag & STRIP_DUPE_ALL) == 0) {
+    if ((strip->flag & SELECT) == 0 && int(dupe_flag & StripDuplicate::All) == 0) {
       continue;
     }
 
@@ -706,7 +706,7 @@ static void seqbase_dupli_recursive(Main *bmain,
 
     if (strip->type == STRIP_TYPE_META) {
       /* Always include meta all strip children. */
-      int dupe_flag_recursive = dupe_flag | STRIP_DUPE_ALL;
+      const StripDuplicate dupe_flag_recursive = dupe_flag | StripDuplicate::All;
       seqbase_dupli_recursive(bmain,
                               scene_src,
                               scene_dst,
@@ -724,7 +724,7 @@ void seqbase_duplicate_recursive(Main *bmain,
                                  Scene *scene_dst,
                                  ListBase *nseqbase,
                                  const ListBase *seqbase,
-                                 int dupe_flag,
+                                 const StripDuplicate dupe_flag,
                                  const int flag)
 {
   blender::Map<Strip *, Strip *> strip_map;

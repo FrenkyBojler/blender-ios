@@ -706,7 +706,7 @@ static void slip_strips_delta(wmOperator *op, Scene *scene, SlipData *data, cons
     seq::relations_invalidate_cache(scene, strip);
 
     strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
-    /* Reconstruct handle clamp state from first principles.  */
+    /* Reconstruct handle clamp state from first principles. */
     if (data->clamp == true) {
       if (seq::time_left_handle_frame_get(scene, strip) == seq::time_start_frame_get(strip)) {
         strip->runtime.flag |= STRIP_CLAMPED_LH;
@@ -1758,7 +1758,9 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op
     }
   }
 
-  const int dupe_flag = linked ? 0 : STRIP_DUPE_DATA;
+  const seq::StripDuplicate dupe_flag = linked ? seq::StripDuplicate::Selected :
+                                                 (seq::StripDuplicate::Selected |
+                                                  seq::StripDuplicate::Data);
   seq::seqbase_duplicate_recursive(
       bmain, scene, scene, &duplicated_strips, ed->seqbasep, dupe_flag, 0);
   deselect_all_strips(scene);
@@ -1923,7 +1925,7 @@ void SEQUENCER_OT_delete(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /*  Properties. */
+  /* Properties. */
   ot->prop = RNA_def_boolean(ot->srna,
                              "delete_data",
                              false,
@@ -2033,7 +2035,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
         se = seq::render_give_stripelem(scene, strip, timeline_frame);
 
         strip_new = seq::strip_duplicate_recursive(
-            bmain, scene, scene, seqbase, strip, STRIP_DUPE_UNIQUE_NAME);
+            bmain, scene, scene, seqbase, strip, seq::StripDuplicate::UniqueName);
 
         strip_new->start = start_ofs;
         strip_new->type = STRIP_TYPE_IMAGE;
