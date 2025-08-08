@@ -154,9 +154,9 @@ enum eGPUShaderConfig {
 };
 #define GPU_SHADER_CFG_LEN (GPU_SHADER_CFG_CLIPPED + 1)
 
-GPUShader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
-                                                     eGPUShaderConfig sh_cfg);
-GPUShader *GPU_shader_get_builtin_shader(eGPUBuiltinShader shader);
+blender::gpu::Shader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
+                                                                eGPUShaderConfig sh_cfg);
+blender::gpu::Shader *GPU_shader_get_builtin_shader(eGPUBuiltinShader shader);
 
 void GPU_shader_builtin_warm_up();
 

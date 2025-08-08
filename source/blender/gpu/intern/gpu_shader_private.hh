@@ -117,7 +117,7 @@ class Shader {
     return parent_shader_;
   }
 
-  static void set_srgb_uniform(Context *ctx, GPUShader *shader);
+  static void set_srgb_uniform(Context *ctx, gpu::Shader *shader);
   static void set_framebuffer_srgb_target(int use_srgb_to_linear);
 
  protected:
@@ -129,15 +129,15 @@ class Shader {
 };
 
 /* Syntactic sugar. */
-static inline GPUShader *wrap(Shader *vert)
+static inline gpu::Shader *wrap(Shader *vert)
 {
-  return reinterpret_cast<GPUShader *>(vert);
+  return reinterpret_cast<gpu::Shader *>(vert);
 }
-static inline Shader *unwrap(GPUShader *vert)
+static inline Shader *unwrap(gpu::Shader *vert)
 {
   return reinterpret_cast<Shader *>(vert);
 }
-static inline const Shader *unwrap(const GPUShader *vert)
+static inline const Shader *unwrap(const gpu::Shader *vert)
 {
   return reinterpret_cast<const Shader *>(vert);
 }
@@ -352,4 +352,4 @@ void printf_end(Context *ctx);
 }  // namespace blender::gpu
 
 /* XXX do not use it. Special hack to use OCIO with batch API. */
-GPUShader *immGetShader();
+gpu::Shader *immGetShader();

@@ -42,7 +42,7 @@ GPUVertFormat *immVertexFormat()
   return &imm->vertex_format;
 }
 
-void immBindShader(GPUShader *shader)
+void immBindShader(blender::gpu::Shader *shader)
 {
   BLI_assert(imm->shader == nullptr);
 
@@ -60,7 +60,7 @@ void immBindShader(GPUShader *shader)
 
 void immBindBuiltinProgram(eGPUBuiltinShader shader_id)
 {
-  GPUShader *shader = GPU_shader_get_builtin_shader(shader_id);
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader(shader_id);
   immBindShader(shader);
   imm->builtin_shader_bound = shader_id;
 }
@@ -78,7 +78,7 @@ bool immIsShaderBound()
   return imm->shader != nullptr;
 }
 
-GPUShader *immGetShader()
+blender::gpu::Shader *immGetShader()
 {
   return imm->shader;
 }

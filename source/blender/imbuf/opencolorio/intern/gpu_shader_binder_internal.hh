@@ -135,7 +135,7 @@ class GPUDisplayShader : NonCopyable, NonMovable {
    * re-trying to build the same failing shader. */
   bool is_valid = false;
 
-  GPUShader *shader = nullptr;
+  gpu::Shader *shader = nullptr;
 
   /* Uniform parameters. */
   OCIO_GPUParameters parameters = {};

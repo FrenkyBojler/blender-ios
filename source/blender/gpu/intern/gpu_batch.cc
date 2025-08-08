@@ -245,7 +245,7 @@ void GPU_batch_resource_id_buf_set(Batch *batch, GPUStorageBuf *resource_id_buf)
  * \{ */
 
 void GPU_batch_set_shader(Batch *batch,
-                          GPUShader *shader,
+                          blender::gpu::Shader *shader,
                           const shader::SpecializationConstants *constants_state)
 {
   batch->shader = shader;
@@ -253,7 +253,7 @@ void GPU_batch_set_shader(Batch *batch,
 }
 
 static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
-                                       GPUShader *shader,
+                                       blender::gpu::Shader *shader,
                                        VertBuf *vbo)
 {
   const GPUVertFormat *format = &vbo->format;
@@ -306,7 +306,7 @@ static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
 }
 
 void GPU_batch_bind_as_resources(Batch *batch,
-                                 GPUShader *shader,
+                                 blender::gpu::Shader *shader,
                                  const shader::SpecializationConstants *constants)
 {
   const ShaderInterface *interface = unwrap(shader)->interface;
@@ -539,7 +539,7 @@ void GPU_batch_program_set_builtin_with_config(Batch *batch,
                                                eGPUBuiltinShader shader_id,
                                                eGPUShaderConfig sh_cfg)
 {
-  GPUShader *shader = GPU_shader_get_builtin_shader_with_config(shader_id, sh_cfg);
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader_with_config(shader_id, sh_cfg);
   GPU_batch_set_shader(batch, shader);
 }
 

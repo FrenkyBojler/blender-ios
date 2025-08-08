@@ -17,15 +17,15 @@ class Shader;
 
 /* draw_shader.cc */
 
-GPUShader *DRW_shader_hair_refine_get(ParticleRefineShader refinement);
+blender::gpu::Shader *DRW_shader_hair_refine_get(ParticleRefineShader refinement);
 
-GPUShader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader type);
+blender::gpu::Shader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader type);
 
-GPUShader *DRW_shader_debug_draw_display_get();
-GPUShader *DRW_shader_draw_visibility_compute_get();
-GPUShader *DRW_shader_draw_view_finalize_get();
-GPUShader *DRW_shader_draw_resource_finalize_get();
-GPUShader *DRW_shader_draw_command_generate_get();
+blender::gpu::Shader *DRW_shader_debug_draw_display_get();
+blender::gpu::Shader *DRW_shader_draw_visibility_compute_get();
+blender::gpu::Shader *DRW_shader_draw_view_finalize_get();
+blender::gpu::Shader *DRW_shader_draw_resource_finalize_get();
+blender::gpu::Shader *DRW_shader_draw_command_generate_get();
 
 /* Subdivision */
 enum class SubdivShaderType {
@@ -49,8 +49,8 @@ enum class SubdivShaderType {
 };
 constexpr int SUBDIVISION_MAX_SHADERS = 17;
 
-GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type);
-GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dimensions);
-GPUShader *DRW_shader_subdiv_interp_corner_normals_get();
+blender::gpu::Shader *DRW_shader_subdiv_get(SubdivShaderType shader_type);
+blender::gpu::Shader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dimensions);
+blender::gpu::Shader *DRW_shader_subdiv_interp_corner_normals_get();
 
 void DRW_shaders_free();

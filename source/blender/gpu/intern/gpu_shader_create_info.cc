@@ -608,7 +608,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
   }
 
   BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
-  Vector<GPUShader *> result = GPU_shader_batch_finalize(batch);
+  Vector<blender::gpu::Shader *> result = GPU_shader_batch_finalize(batch);
 
   for (int i : result.index_range()) {
     const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(infos[i]);
