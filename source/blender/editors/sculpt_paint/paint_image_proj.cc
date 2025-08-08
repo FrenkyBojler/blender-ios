@@ -486,7 +486,10 @@ struct ProjPixel {
 
   short x_px, y_px;
 
-  /** if anyone wants to paint onto more than 65535 images they can bite me. */
+  /**
+   * Use a short to reduce memory use.
+   * This limits the total number of supported images to 65535 which seems reasonable.
+   */
   ushort image_index;
   uchar bb_cell_index;
 
@@ -6786,7 +6789,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       if (in_sock != nullptr && link == nullptr) {
         blender::bke::node_add_link(*ntree, *out_node, *out_sock, *in_node, *in_sock);
 
-        blender::bke::node_position_relative(*out_node, *in_node, *out_sock, *in_sock);
+        blender::bke::node_position_relative(*out_node, *in_node, out_sock, *in_sock);
       }
     }
 

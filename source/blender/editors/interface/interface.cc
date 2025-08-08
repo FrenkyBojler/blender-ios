@@ -2508,7 +2508,7 @@ void ui_but_v3_get(uiBut *but, float vec[3])
   }
   else {
     if (but->editvec == nullptr) {
-      fprintf(stderr, "%s: can't get color, should never happen\n", __func__);
+      fprintf(stderr, "%s: cannot get color, should never happen\n", __func__);
       zero_v3(vec);
     }
   }
@@ -5188,7 +5188,7 @@ void UI_autocomplete_update_name(AutoComplete *autocpl, const StringRef name)
     }
     else {
       /* remove from truncate what is not in bone->name */
-      for (int a = 0; a < autocpl->maxncpy - 1; a++) {
+      for (int a = 0; a < std::min<size_t>(name.size(), autocpl->maxncpy) - 1; a++) {
         if (name[a] == 0) {
           truncate[a] = 0;
           break;
