@@ -1019,6 +1019,14 @@ bool inline_shader_node_tree(const bNodeTree &src_tree,
 
   if (inliner.do_inline()) {
     /* Update deprecated bNodeSocket.link pointers because some code still depends on it. */
+    LISTBASE_FOREACH (bNode *, node, &dst_tree.nodes) {
+      LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+        sock->link = nullptr;
+      }
+      LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
+        sock->link = nullptr;
+      }
+    }
     LISTBASE_FOREACH (bNodeLink *, link, &dst_tree.links) {
       link->tosock->link = link;
     }
