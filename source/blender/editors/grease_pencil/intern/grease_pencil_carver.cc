@@ -1022,7 +1022,32 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
       }
     };
 
-    int current_i = start_segment;
+    /* Loop backwards to find the first segment. */
+    auto find_first = [&]() {
+      int current_i = start_segment;
+      bool current_backwards = true;
+      while (true) {
+        const int next_encoded =
+            segment_connections[current_i][current_backwards ? Side::Start : Side::End];
+
+        if (next_encoded == SEGMENT_CONNECTION_NULL) {
+          return current_i;
+        }
+
+        const int next_segment = decode_index(next_encoded);
+        const Side next_side = decode_side(next_encoded);
+
+        current_i = next_segment;
+
+        if (next_segment == start_segment) {
+          return start_segment;
+        }
+
+        current_backwards = next_side == Side::End;
+      }
+    };
+
+    int current_i = find_first();
     bool current_backwards = false;
     bool PolygonDone = false;
     bool PolygonClosed = false;
