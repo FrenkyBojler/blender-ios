@@ -3082,7 +3082,7 @@ class _defs_sequencer_select:
             label="Select Circle",
             icon="ops.generic.select_circle",
             widget=None,
-            keymap="Preview Tool: Select Circle",
+            keymap="Sequencer Tool: Select Circle",
             draw_settings=draw_settings,
             draw_cursor=draw_cursor,
         )
