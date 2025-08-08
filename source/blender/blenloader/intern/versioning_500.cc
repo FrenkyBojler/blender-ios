@@ -1496,73 +1496,107 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
     }
   }
 
-  bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputMaterial");
-  bNodeSocket &output_surface_input = version_node_add_socket(
-      *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
-  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
-  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketVector", "Displacement");
-  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketFloat", "Thickness");
+  bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
+  STRNCPY(frame->label, RPT_("Versioning: Use Nodes was removed"));
 
-  version_node_add_socket(*ntree, new_output, SOCK_IN, "NodeSocketShader", "Volume");
-  new_output.flag |= NODE_DO_OUTPUT;
+  {
+    /* For EEVEE, we use a principled BSDF shader because we need to recreate the metallic,
+     * specular and roughness properties of the material for use_nodes = false.*/
+    bNode &new_output_eevee = version_node_add_empty(*ntree, "ShaderNodeOutputMaterial");
+    bNodeSocket &output_surface_input = version_node_add_socket(
+        *ntree, new_output_eevee, SOCK_IN, "NodeSocketShader", "Surface");
+    version_node_add_socket(*ntree, new_output_eevee, SOCK_IN, "NodeSocketShader", "Volume");
+    version_node_add_socket(*ntree, new_output_eevee, SOCK_IN, "NodeSocketVector", "Displacement");
+    version_node_add_socket(*ntree, new_output_eevee, SOCK_IN, "NodeSocketFloat", "Thickness");
 
-#if 0
-  // todo(habib): use version_node_add_empty and add the 500 bsdf sockets :(
-  bNode &shader = *blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
-  bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(shader, SOCK_OUT, "BSDF");
-  bNodeSocket &shader_color_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Base Color");
-  bNodeSocket &specular_input = *blender::bke::node_find_socket(
-      shader, SOCK_IN, "Specular IOR Level");
-  bNodeSocket &metallic_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Metallic");
-  bNodeSocket &roughness_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Roughness");
-#endif
+    version_node_add_socket(*ntree, new_output_eevee, SOCK_IN, "NodeSocketShader", "Volume");
+    new_output_eevee.flag |= NODE_DO_OUTPUT;
+    new_output_eevee.custom1 = SHD_OUTPUT_EEVEE;
 
-  // todo(habib): Cycles needs Diffuse BSDF node, EEVEE needs principled BSDF (because of specular,
-  // metallic and roughness inputs). Find a common way for both, might need to change defaults when
-  // creating materials...
-  bNode &shader = *blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_DIFFUSE);
-  bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(shader, SOCK_OUT, "BSDF");
-  bNodeSocket &shader_color_input = *blender::bke::node_find_socket(shader, SOCK_IN, "Color");
+    // todo(habib): use version_node_add_empty and add the 500 bsdf sockets :(
+    bNode &shader_eevee = *blender::bke::node_add_static_node(
+        nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
+    bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_OUT, "BSDF");
+    bNodeSocket &shader_color_input = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Base Color");
+    bNodeSocket &specular_input = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Specular IOR Level");
+    bNodeSocket &metallic_input = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Metallic");
+    bNodeSocket &roughness_input = *blender::bke::node_find_socket(
+        shader_eevee, SOCK_IN, "Roughness");
 
-  // bNode &shader = version_node_add_empty(*ntree, "ShaderNodeBsdfPrincipled");
-  // bNodeSocket &shader_bsdf_output = version_node_add_socket(
-  //     *ntree, shader, SOCK_OUT, "NodeSocketShader", "BSDF");
-  // bNodeSocket &shader_color_input = version_node_add_socket(
-  //     *ntree, shader, SOCK_IN, "NodeSocketColor", "Base Color");
-  // bNodeSocket &specular_input = version_node_add_socket(
-  //     *ntree, shader, SOCK_IN, "NodeSocketFloat", "Specular IOR Level");
-  // bNodeSocket &metallic_input = version_node_add_socket(
-  //     *ntree, shader, SOCK_IN, "NodeSocketFloat", "Metallic");
-  // bNodeSocket &roughness_input = version_node_add_socket(
-  //     *ntree, shader, SOCK_IN, "NodeSocketFloat", "Roughness");
+    // todo(habib): use version_node_add_link()
+    blender::bke::node_add_link(
+        *ntree, shader_eevee, shader_bsdf_output, new_output_eevee, output_surface_input);
+    // version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);
 
-  // todo(habib): use version_node_add_link()
-  blender::bke::node_add_link(
-      *ntree, shader, shader_bsdf_output, new_output, output_surface_input);
-  // version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);
+    bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
+    rgba->value[0] = material->r;
+    rgba->value[1] = material->g;
+    rgba->value[2] = material->b;
+    rgba->value[3] = material->a;
+    roughness_input.default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
+    metallic_input.default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
+    specular_input.default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
 
-  bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
-  rgba->value[0] = material->r;
-  rgba->value[1] = material->g;
-  rgba->value[2] = material->b;
-  rgba->value[3] = material->a;
-  // roughness_input.default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
-  // metallic_input.default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
-  // specular_input.default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
+    if (old_output != nullptr) {
+      /* Position the newly created node after the old output. Assume the old output node is at
+       * the far right of the node tree. */
+      shader_eevee.location[0] = old_output->location[0] + 1.5f * old_output->width;
+      shader_eevee.location[1] = old_output->location[1];
+    }
 
-  if (old_output != nullptr) {
-    /* Position the newly created node after the old output. Assume the old output node is at
-     * the far right of the node tree. */
-    shader.location[0] = old_output->location[0] + 1.5f * old_output->width;
-    shader.location[1] = old_output->location[1];
+    new_output_eevee.location[0] = shader_eevee.location[0] + 2.0f * shader_eevee.width;
+    new_output_eevee.location[1] = shader_eevee.location[1];
+
+    shader_eevee.parent = frame;
+    new_output_eevee.parent = frame;
   }
 
-  new_output.location[0] = shader.location[0] + 2.0f * shader.width;
-  new_output.location[1] = shader.location[1];
+  {
+    /* For Cycles, a simple diffuse BSDF is sufficient. */
+    bNode &new_output_cycles = version_node_add_empty(*ntree, "ShaderNodeOutputMaterial");
+    bNodeSocket &output_surface_input = version_node_add_socket(
+        *ntree, new_output_cycles, SOCK_IN, "NodeSocketShader", "Surface");
+    version_node_add_socket(*ntree, new_output_cycles, SOCK_IN, "NodeSocketShader", "Volume");
+    version_node_add_socket(
+        *ntree, new_output_cycles, SOCK_IN, "NodeSocketVector", "Displacement");
+    version_node_add_socket(*ntree, new_output_cycles, SOCK_IN, "NodeSocketFloat", "Thickness");
+    /* We don't activate the output explicitly to avoid having two active outputs. We assume
+     * `node_tree.get_output_node('Cycles')` will return this node.  */
+    new_output_cycles.custom1 = SHD_OUTPUT_CYCLES;
 
-  bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
-  shader.parent = frame;
-  new_output.parent = frame;
+    bNode &shader_cycles = *blender::bke::node_add_static_node(
+        nullptr, *ntree, SH_NODE_BSDF_DIFFUSE);
+    bNodeSocket &shader_bsdf_output = *blender::bke::node_find_socket(
+        shader_cycles, SOCK_OUT, "BSDF");
+    bNodeSocket &shader_color_input = *blender::bke::node_find_socket(
+        shader_cycles, SOCK_IN, "Color");
+
+    // todo(habib): use version_node_add_link()
+    blender::bke::node_add_link(
+        *ntree, shader_cycles, shader_bsdf_output, new_output_cycles, output_surface_input);
+    // version_node_add_link(*ntree, shader, shader_bsdf_output, new_output, output_surface_input);
+
+    bNodeSocketValueRGBA *rgba = shader_color_input.default_value_typed<bNodeSocketValueRGBA>();
+    rgba->value[0] = material->r;
+    rgba->value[1] = material->g;
+    rgba->value[2] = material->b;
+    rgba->value[3] = material->a;
+
+    if (old_output != nullptr) {
+      shader_cycles.location[0] = old_output->location[0] + 1.5f * old_output->width;
+      shader_cycles.location[1] = old_output->location[1] + 2.0f * old_output->height;
+    }
+
+    new_output_cycles.location[0] = shader_cycles.location[0] + 3.0f * shader_cycles.width;
+    new_output_cycles.location[1] = shader_cycles.location[1];
+
+    shader_cycles.parent = frame;
+    new_output_cycles.parent = frame;
+  }
 }
 
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
