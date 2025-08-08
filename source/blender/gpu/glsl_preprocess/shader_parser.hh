@@ -229,7 +229,7 @@ struct ParserData {
         }
         /* Merge '->'. */
         if (prev == '-' && type == '>') {
-          token_types.back() = LEqual;
+          token_types.back() = Deref;
           continue;
         }
         /* If digit is part of word. */
@@ -647,7 +647,7 @@ struct Token {
     size_t line_count = 1;
     if (nearest_line_directive != std::string::npos) {
       sub_str = sub_str.substr(nearest_line_directive + directive.size());
-      line_count = std::stoll(sub_str);
+      line_count = std::stoll(sub_str) - 1;
     }
     return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
   }
@@ -688,6 +688,11 @@ struct Scope {
   IndexRange range() const
   {
     return data->scope_ranges[index];
+  }
+
+  size_t token_count() const
+  {
+    return range().size;
   }
 
   ScopeType type() const
@@ -784,8 +789,9 @@ struct Parser {
     return substr_range_inclusive(start.str_index_start(), end.str_index_last());
   }
 
-  /* Return true on success. */
-  bool add_mutation_try(size_t from, size_t to, const std::string &replacement)
+  /* Replace everything from `from` to `to` (inclusive).
+   * Return true on success. */
+  bool replace_try(size_t from, size_t to, const std::string &replacement)
   {
     IndexRange range = IndexRange(from, to + 1 - from);
     for (const Mutation &mut : mutations_) {
@@ -796,44 +802,60 @@ struct Parser {
     mutations_.emplace_back(range, replacement);
     return true;
   }
-  bool add_mutation_try(Token from, Token to, const std::string &replacement)
+  /* Replace everything from `from` to `to` (inclusive).
+   * Return true on success. */
+  bool replace_try(Token from, Token to, const std::string &replacement)
   {
-    return add_mutation_try(from.str_index_start(), to.str_index_last(), replacement);
+    return replace_try(from.str_index_start(), to.str_index_last(), replacement);
   }
 
-  void add_mutation(size_t from, size_t to, const std::string &replacement)
+  /* Replace everything from `from` to `to` (inclusive). */
+  void replace(size_t from, size_t to, const std::string &replacement)
   {
-    bool success = add_mutation_try(from, to, replacement);
+    bool success = replace_try(from, to, replacement);
     assert(success);
     (void)success;
   }
-  void add_mutation(Token from, Token to, const std::string &replacement)
+  /* Replace everything from `from` to `to` (inclusive). */
+  void replace(Token from, Token to, const std::string &replacement)
   {
-    add_mutation(from.str_index_start(), to.str_index_last(), replacement);
+    replace(from.str_index_start(), to.str_index_last(), replacement);
   }
 
-  /* Replace the content between the two token and the two tokens by whitespaces without changing
-   * line count. */
-  void add_erase_mutation(size_t from, size_t to)
+  /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing
+   * line count and keep the remaining indentation spaces. */
+  void erase(size_t from, size_t to)
   {
     IndexRange range = IndexRange(from, to + 1 - from);
     std::string content = data_.str.substr(range.start, range.size);
     size_t lines = std::count(content.begin(), content.end(), '\n');
-    add_mutation(from, to, std::string(lines, '\n'));
+    size_t spaces = content.find_last_not_of(" ");
+    if (spaces != std::string::npos) {
+      spaces = content.length() - (spaces + 1);
+    }
+    replace(from, to, std::string(lines, '\n') + std::string(spaces, ' '));
   }
-  void add_erase_mutation(Token from, Token to)
+  /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing
+   * line count and keep the remaining indentation spaces. */
+  void erase(Token from, Token to)
   {
-    add_erase_mutation(from.str_index_start(), to.str_index_last());
+    erase(from.str_index_start(), to.str_index_last());
+  }
+  /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing
+   * line count and keep the remaining indentation spaces. */
+  void erase(Token tok)
+  {
+    erase(tok, tok);
   }
 
-  void add_mutation_insert_after(size_t at, const std::string &content)
+  void insert_after(size_t at, const std::string &content)
   {
     IndexRange range = IndexRange(at + 1, 0);
     mutations_.emplace_back(range, content);
   }
-  void add_mutation_insert_after(Token at, const std::string &content)
+  void insert_after(Token at, const std::string &content)
   {
-    add_mutation_insert_after(at.str_index_last(), content);
+    insert_after(at.str_index_last(), content);
   }
 
   /* Return true if any mutation was applied. */
@@ -843,15 +865,11 @@ struct Parser {
       return false;
     }
 
-    /* Order mutations so that they are valid. */
+    /* Order mutations so that they can be applied in one pass. */
     std::sort(mutations_.begin(), mutations_.end());
 
     int64_t offset = 0;
     for (const Mutation &mut : mutations_) {
-      std::cout << "Replacing :"
-                << data_.str.substr(mut.src_range.start + offset, mut.src_range.size)
-                << ": by :" << mut.replacement << ":\n";
-
       data_.str.replace(mut.src_range.start + offset, mut.src_range.size, mut.replacement);
       offset += mut.replacement.size() - mut.src_range.size;
     }
@@ -919,6 +937,7 @@ struct Parser {
     }
   }
 
+ public:
   void print_stats()
   {
     std::cout << "Tokenize time: " << tokenize_time.count() << " µs" << std::endl;
@@ -926,6 +945,13 @@ struct Parser {
     std::cout << "String len: " << std::to_string(data_.str.size()) << std::endl;
     std::cout << "Token len:  " << std::to_string(data_.token_types.size()) << std::endl;
     std::cout << "Scope len:  " << std::to_string(data_.scope_types.size()) << std::endl;
+  }
+
+  void debug_print()
+  {
+    std::cout << "Input: \n" << data_.str << " \nEnd of Input\n" << std::endl;
+    std::cout << "Token Types: \"" << data_.token_types << "\"" << std::endl;
+    std::cout << "Scope Types: \"" << data_.scope_types << "\"" << std::endl;
   }
 };
 

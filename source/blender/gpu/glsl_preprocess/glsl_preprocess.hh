@@ -1068,7 +1068,7 @@ class Preprocessor {
     parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
       /* `class` -> `struct` */
       scope.foreach_match("S", [&](const std::vector<Token> &tokens) {
-        parser.add_mutation(tokens[0], tokens[0], "struct ");
+        parser.replace(tokens[0], tokens[0], "struct ");
       });
     });
 
@@ -1099,10 +1099,10 @@ class Preprocessor {
 
         /* Erase `public:` and `private:` keywords. */
         struct_scope.foreach_match("v:", [&](const std::vector<Token> &tokens) {
-          parser.add_erase_mutation(tokens[0], tokens[1]);
+          parser.erase(tokens[0].line_start(), tokens[1].line_end());
         });
         struct_scope.foreach_match("V:", [&](const std::vector<Token> &tokens) {
-          parser.add_erase_mutation(tokens[0], tokens[1]);
+          parser.erase(tokens[0].line_start(), tokens[1].line_end());
         });
 
         struct_scope.foreach_match("ww(", [&](const std::vector<Token> &tokens) {
@@ -1121,40 +1121,55 @@ class Preprocessor {
           const bool is_const = after_args == Const;
           const Scope fn_body = (is_const ? after_args.next() : after_args).scope();
 
-          string fn_content = parser.substr_range_inclusive(fn_start.str_index_start(),
+          string fn_content = parser.substr_range_inclusive(fn_start.line_start(),
                                                             fn_body.end().line_end() + 1);
 
           Parser fn_parser(fn_content);
-
           fn_parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
             if (is_static) {
-              const Token fn_name = scope.start().next().next();
-              fn_parser.add_mutation(
-                  fn_name, fn_name, struct_name.str_no_whitespace() + "::" + fn_name.str());
+              scope.foreach_match("mww(", [&](const std::vector<Token> &tokens) {
+                const Token fn_name = tokens[2];
+                fn_parser.replace(
+                    fn_name, fn_name, struct_name.str_no_whitespace() + "::" + fn_name.str());
+              });
             }
+            else {
+              scope.foreach_match("ww(", [&](const std::vector<Token> &tokens) {
+                const Scope args = tokens[2].scope();
+                const bool has_no_args = args.token_count() == 2;
+                const char *suffix = (has_no_args ? "" : ", ");
+
+                if (is_const) {
+                  fn_parser.erase(args.end().next());
+                  fn_parser.insert_after(
+                      args.start(), "const " + struct_name.str_no_whitespace() + " this" + suffix);
+                }
+                else {
+                  fn_parser.insert_after(args.start(),
+                                         struct_name.str_no_whitespace() + " &this" + suffix);
+                }
+              });
+            }
+
             /* `*this` -> `this` */
             scope.foreach_match("*T", [&](const std::vector<Token> &tokens) {
-              fn_parser.add_mutation(tokens[0], tokens[1], tokens[1].str());
+              fn_parser.replace(tokens[0], tokens[1], tokens[1].str());
             });
             /* `this->` -> `this.` */
             scope.foreach_match("TD", [&](const std::vector<Token> &tokens) {
-              fn_parser.add_mutation(tokens[0], tokens[1], tokens[0].str() + ".");
+              fn_parser.replace(tokens[0], tokens[1], tokens[0].str() + ".");
             });
           });
 
           string line_directive = "#line " + std::to_string(fn_start.line_number()) + '\n';
-
-          parser.add_erase_mutation(fn_start, fn_body.end());
-          parser.add_mutation_insert_after(struct_end.line_end() + 1,
-                                           line_directive + fn_parser.result_get());
+          parser.erase(fn_start.line_start(), fn_body.end().line_end());
+          parser.insert_after(struct_end.line_end() + 1, line_directive + fn_parser.result_get());
         });
 
         string line_directive = "#line " + std::to_string(struct_end.line_number() + 1) + '\n';
-        parser.add_mutation_insert_after(struct_end.line_end() + 1, line_directive);
+        parser.insert_after(struct_end.line_end() + 1, line_directive);
       });
     });
-
-    std::cout << "parser.mutations_serialize() " << parser.serialize_mutations() << std::endl;
 
     return parser.result_get();
   }
@@ -1205,7 +1220,7 @@ class Preprocessor {
           string func_str = func.str();
           const bool has_no_arg = par_open.next() == ')';
           /* `a.fn(b)` -> `fn(a, b)` */
-          parser.add_mutation_try(
+          parser.replace_try(
               start_of_this, par_open, func_str + "(" + this_str + (has_no_arg ? "" : ", "));
         });
       });
@@ -1502,10 +1517,10 @@ class Preprocessor {
 
     auto add_mutation = [&](Token type, Token arg_name, Token last_tok) {
       if (type.prev() == Const) {
-        parser.add_mutation(type.prev(), last_tok, type.str() + arg_name.str());
+        parser.replace(type.prev(), last_tok, type.str() + arg_name.str());
       }
       else {
-        parser.add_mutation(type, last_tok, "inout " + type.str() + arg_name.str());
+        parser.replace(type, last_tok, "inout " + type.str() + arg_name.str());
       }
     };
 
@@ -1514,6 +1529,8 @@ class Preprocessor {
           "w(&w)", [&](const vector<Token> toks) { add_mutation(toks[0], toks[3], toks[4]); });
       scope.foreach_match(
           "w&w", [&](const vector<Token> toks) { add_mutation(toks[0], toks[2], toks[2]); });
+      scope.foreach_match(
+          "w&T", [&](const vector<Token> toks) { add_mutation(toks[0], toks[2], toks[2]); });
     });
     return parser.result_get();
   }

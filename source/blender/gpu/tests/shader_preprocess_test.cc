@@ -979,14 +979,13 @@ struct S {
 
 };
 #line 8
-  S S_construct()
+  static S S_construct()
   {
     S a;
     a.member = 0;
     a.this_member = 0;
     return a;
   }
-
 #line 18
   S function(inout S _inout_sta this _inout_end, int i)
   {
@@ -994,13 +993,11 @@ struct S {
     this_member++;
     return this;
   }
-
 #line 25
-  int size(const S this)
+  int size(const S this) 
   {
     return this.member;
   }
-
 #line 30
 
 void main()
@@ -1078,8 +1075,8 @@ ww(ww=0){ww=0,w=0,w={0};{w=w=w,wP;i(wEw){r;}}})";
   }
   {
     Parser parser("float i;");
-    parser.add_mutation_insert_after(Token{&parser.data_get(), 0}, "A ");
-    parser.add_mutation_insert_after(Token{&parser.data_get(), 0}, "B  ");
+    parser.insert_after(Token{&parser.data_get(), 0}, "A ");
+    parser.insert_after(Token{&parser.data_get(), 0}, "B  ");
     EXPECT_EQ(parser.result_get(), "float A B  i;");
   }
   {
