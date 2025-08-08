@@ -1806,6 +1806,37 @@ class USDExportTest(AbstractUSDTest):
                     self.compareVec3d(Gf.Vec3d(extent[0]), expected_min)
                     self.compareVec3d(Gf.Vec3d(extent[1]), expected_max)
 
+    def test_export_usdz(self):
+        """Validate USDZ files are packaged correctly."""
+
+        # USDZ export will modify the working directory during the export process, but it should
+        # return to normal once complete
+        original_cwd = pathlib.Path.cwd()
+
+        # USDZ export will not create the output directory if it does not already exist
+        self.tempdir.mkdir()
+        export_path = str(self.tempdir / "output_こんにちは.usdz")
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usdz_export_test.blend"))
+        self.export_and_validate(filepath=export_path)
+
+        final_cwd = pathlib.Path.cwd()
+        self.assertEqual(original_cwd, final_cwd)
+
+        # Validate stage content
+        stage = Usd.Stage.Open(export_path)
+        self.assertTrue(stage.GetPrimAtPath("/root/Cube/Cube").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Cylinder/Cylinder").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Icosphere/Icosphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Sphere/Sphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/env_light").IsValid())
+
+        # USDZ is just a zip file. Validate that it contains what we expect
+        import zipfile
+        with zipfile.ZipFile(export_path, 'r') as zfile:
+            file_list = zfile.namelist()
+            self.assertTrue('0/color_0C0C0C.exr' in file_list)
+
 
 class USDHookBase:
     instructions = {}
