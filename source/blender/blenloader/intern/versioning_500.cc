@@ -17,6 +17,7 @@
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
@@ -39,6 +40,7 @@
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
@@ -898,7 +900,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
 
   bNode *frame = blender::bke::node_add_static_node(nullptr, *node_tree, NODE_FRAME);
   frame->parent = node->parent;
-  STRNCPY(frame->label, IFACE_("Versioning: Map Value node was removed"));
+  STRNCPY(frame->label, RPT_("Versioning: Map Value node was removed"));
   NodeFrame *frame_data = static_cast<NodeFrame *>(frame->storage);
   frame_data->label_size = 10;
 
@@ -1525,6 +1527,7 @@ static void do_version_world_remove_use_nodes(Main *bmain, World *world)
   new_output.location[1] = background.location[1];
 
   bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
+  STRNCPY(frame->label, IFACE_("Versioning: Use Nodes was removed"));
   background.parent = frame;
   new_output.parent = frame;
 }
@@ -1587,7 +1590,23 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 55)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 54)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      if (object->type != OB_ARMATURE) {
+        continue;
+      }
+      LISTBASE_FOREACH (bPoseChannel *, pose_bone, &object->pose->chanbase) {
+        if (pose_bone->bone->flag & BONE_HIDDEN_P) {
+          pose_bone->drawflag |= PCHAN_DRAW_HIDDEN;
+        }
+        else {
+          pose_bone->drawflag &= ~PCHAN_DRAW_HIDDEN;
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 56)) {
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
         Scene *scene = WM_window_get_active_scene(win);
@@ -2175,6 +2194,21 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 54)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, modifier, &object->modifiers) {
+        if (modifier->type != eModifierType_GreasePencilLineart) {
+          continue;
+        }
+        GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
+            modifier);
+        if (lmd->radius != 0.0f) {
+          continue;
+        }
+        lmd->radius = float(lmd->thickness_legacy) *
+                      bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
+    }
+
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type != NTREE_COMPOSIT) {
         continue;
