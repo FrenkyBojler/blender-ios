@@ -573,59 +573,6 @@ class CosseratRodConstraintSet : public CurveConstraintSet {
   {
   }
 
-  void ensure_rotation(MutableSpan<SimGeometry> sim_geometries) const
-  {
-    for (SimGeometry &sim_geometry : sim_geometries) {
-      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
-        continue;
-      }
-      Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
-      if (!curves_ptr) {
-        continue;
-      }
-      Curves &curves_id = **curves_ptr;
-      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-      bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-      if (!attributes.contains(sim_geometry.src.rotation_attribute)) {
-        bke::SpanAttributeWriter<math::Quaternion> rotation_writer =
-            attributes.lookup_or_add_for_write_only_span<math::Quaternion>(
-                sim_geometry.src.rotation_attribute, bke::AttrDomain::Point);
-        const OffsetIndices points_by_curve = curves.points_by_curve();
-        const Span<float3> positions = curves.positions();
-        const VArraySpan<bool> cyclic = curves.cyclic();
-        const VArraySpan<float3> curve_normals = bke::curve_normals_varray(curves,
-                                                                           bke::AttrDomain::Point);
-
-        threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
-          for (const int curve_i : range) {
-            const IndexRange points = points_by_curve[curve_i];
-            if (points.size() < 2) {
-              rotation_writer.span.slice(points).fill(math::Quaternion::identity());
-            }
-
-            auto rotation_from_points = [&](const int point0,
-                                            const int point1) -> math::Quaternion {
-              const float3 tangent = math::normalize(positions[point1] - positions[point0]);
-              const float3 &normal = curve_normals[point0] + curve_normals[point1];
-              const float3 binormal = math::normalize(math::cross(tangent, normal));
-              return math::to_quaternion(math::from_orthonormal_axes<float3x3>(binormal, tangent));
-            };
-
-            for (const int point : points.drop_back(1)) {
-              rotation_writer.span[point] = rotation_from_points(point, point + 1);
-            }
-            rotation_writer.span[points.last()] = cyclic[curve_i] ?
-                                                      rotation_from_points(points.last(),
-                                                                           points.first()) :
-                                                      math::Quaternion::identity();
-          }
-        });
-
-        rotation_writer.finish();
-      }
-    }
-  }
-
   void ensure_moment_of_inertia(MutableSpan<SimGeometry> sim_geometries) const
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
@@ -705,7 +652,6 @@ class RodLengthConstraintSet : public CosseratRodConstraintSet {
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
     ensure_rest_length(sim_geometries);
-    ensure_rotation(sim_geometries);
     ensure_moment_of_inertia(sim_geometries);
   }
 
@@ -830,8 +776,10 @@ class RodBendingConstraintSet : public CosseratRodConstraintSet {
         bke::SpanAttributeWriter<math::Quaternion> rest_shape_writer =
             attributes.lookup_or_add_for_write_only_span<math::Quaternion>(rest_shape_attribute_,
                                                                            bke::AttrDomain::Point);
-        const VArraySpan<math::Quaternion> rotations = *attributes.lookup<math::Quaternion>(
-            sim_geometry.src.rotation_attribute);
+        const VArraySpan<math::Quaternion> rotations =
+            *attributes.lookup_or_default<math::Quaternion>(sim_geometry.src.rotation_attribute,
+                                                            bke::AttrDomain::Point,
+                                                            math::Quaternion::identity());
         const OffsetIndices points_by_curve = curves.points_by_curve();
         const VArraySpan<bool> cyclic = curves.cyclic();
 
@@ -867,7 +815,6 @@ class RodBendingConstraintSet : public CosseratRodConstraintSet {
 
   void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
   {
-    ensure_rotation(sim_geometries);
     ensure_moment_of_inertia(sim_geometries);
     ensure_rest_shape(sim_geometries);
   }
@@ -1070,11 +1017,10 @@ class FixedRotationsConstraintSet : public ConstraintSet {
           if (!attributes) {
             return;
           }
-          if (!attributes->contains(sim_geometry.src.rotation_attribute)) {
-            return;
-          }
-          const VArraySpan<math::Quaternion> rotations = *attributes->lookup<math::Quaternion>(
-              sim_geometry.src.rotation_attribute, bke::AttrDomain::Point);
+          const VArraySpan<math::Quaternion> rotations =
+              *attributes->lookup_or_default<math::Quaternion>(sim_geometry.src.rotation_attribute,
+                                                               bke::AttrDomain::Point,
+                                                               math::Quaternion::identity());
 
           LocalConstraintCorrections &local_corrections = params.corrections.local();
           mask.foreach_index([&](const int point_i) {
