@@ -1003,11 +1003,38 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
   start_segment = get_next_unprocessed_segment();
 
   while (start_segment != -1) {
+    Vector<Segment> segments;
+    Vector<bool> segment_reversed;
+
+    auto append_segment = [&](const Segment &current_segment, const bool current_backwards) {
+      if (segments.size() == 0) {
+        segments.append(current_segment);
+        segment_reversed.append(current_backwards);
+        return;
+      }
+      /* Check if the last segment can be joined with this one. */
+      if (!check_and_join_segments(segments.last(), current_segment)) {
+        segments.append(current_segment);
+        segment_reversed.append(current_backwards);
+      }
+    };
+
+    auto join_last = [&]() {
+      if (segments.size() == 1) {
+        return;
+      }
+      /* Check if the last segment can be joined to the first one. */
+      if (check_and_join_segments(segments.first(), segments.last())) {
+        segments.remove_last();
+        segment_reversed.remove_last();
+      }
+    };
+
     int current_i = start_segment;
     bool current_backwards = false;
-
     bool PolygonDone = false;
     bool PolygonClosed = false;
+
     while (!PolygonDone) {
       if (processed_segments[current_i] == true) {
         BLI_assert_unreachable();
@@ -1016,16 +1043,7 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
 
       const Segment &current_segment = all_segments[current_i];
       processed_segments[current_i] = true;
-
-      if (result.segments.size() == 0) {
-        result.segments.append(current_segment);
-        result.segment_reversed.append(current_backwards);
-      }
-      /* Check if the last segment can be joined with this one. */
-      else if (!check_and_join_segments(result.segments.last(), current_segment)) {
-        result.segments.append(current_segment);
-        result.segment_reversed.append(current_backwards);
-      }
+      append_segment(current_segment, current_backwards);
 
       const int next_encoded =
           segment_connections[current_i][current_backwards ? Side::Start : Side::End];
@@ -1044,17 +1062,7 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
         PolygonClosed = true;
 
         BLI_assert(next_side == Side::Start);
-
-        /* Check if the last segment can be joined to the first one. */
-        if ((!result.segments.index_range().is_empty()) &&
-            result.segment_offsets.last() != result.segments.index_range().last())
-        {
-          if (check_and_join_segments(result.segments[result.segment_offsets.last()],
-                                      result.segments.last()))
-          {
-            result.segments.remove_last();
-          }
-        }
+        join_last();
 
         break;
       }
@@ -1065,6 +1073,10 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
       current_i = next_segment;
       current_backwards = next_side == Side::End;
     }
+
+    result.segments.extend(segments);
+    result.segment_reversed.extend(segment_reversed);
+
     result.segment_offsets.append(result.segments.size());
     result.cyclic.append(PolygonClosed);
 
