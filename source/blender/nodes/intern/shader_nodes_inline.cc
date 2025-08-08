@@ -245,7 +245,10 @@ class ShaderNodesInliner {
       }
     };
 
-    switch (GS(src_tree_.owner_id->name)) {
+    /* owner_id can be null for DefaultSurfaceNodeTree. */
+    ID_Type tree_type = src_tree_.owner_id ? GS(src_tree_.owner_id->name) : ID_MA;
+
+    switch (tree_type) {
       case ID_MA:
         add_output_type("ShaderNodeOutputMaterial");
         add_output_type("ShaderNodeOutputAOV");
