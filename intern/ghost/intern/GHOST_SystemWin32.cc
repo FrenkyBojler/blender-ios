@@ -633,8 +633,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
   /* Determine whether this system has a high frequency performance counter. */
   m_hasPerformanceCounter = ::QueryPerformanceFrequency((LARGE_INTEGER *)&m_freq) == TRUE;
 
-  static bool GHOST_WindowClass_registered = false;
-  if (success && !GHOST_WindowClass_registered) {
+  if (success) {
     WNDCLASSW wc = {0};
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = s_wndProc;
@@ -654,9 +653,6 @@ GHOST_TSuccess GHOST_SystemWin32::init()
     /* Use #RegisterClassEx for setting small icon. */
     if (::RegisterClassW(&wc) == 0) {
       success = GHOST_kFailure;
-    }
-    else {
-      GHOST_WindowClass_registered = true;
     }
   }
 
