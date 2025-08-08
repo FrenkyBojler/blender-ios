@@ -161,26 +161,58 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  GField value_field = params.extract_input<GField>("Value");
+
   /* Do reverse sampling of the UV map first. */
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   const CPPType &float2_type = CPPType::get<float2>();
-  Field<float2> source_uv_map = conversions.try_convert(
+  Field<float2> mesh_uv_field = conversions.try_convert(
       params.extract_input<Field<float3>>("Source UV Map"), float2_type);
-  Field<float2> sample_uvs = conversions.try_convert(
-      params.extract_input<Field<float3>>("Sample UV"), float2_type);
-  auto uv_op = FieldOperation::from(
-      std::make_shared<ReverseUVSampleFunction>(geometry, std::move(source_uv_map)),
-      {std::move(sample_uvs)});
-  params.set_output("Is Valid", Field<bool>(uv_op, 0));
 
-  /* Use the output of the UV sampling to interpolate the mesh attribute. */
-  GField field = params.extract_input<GField>("Value");
+  // TODO: float3 -> float2 conversion
+  bke::SocketValueVariant sample_uv = params.extract_input<bke::SocketValueVariant>("Sample UV");
 
-  auto sample_op = FieldOperation::from(
-      std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(std::move(geometry),
-                                                                     std::move(field)),
-      {Field<int>(uv_op, 1), Field<float3>(uv_op, 2)});
-  params.set_output("Value", GField(sample_op, 0));
+  bke::SocketValueVariant is_valid;
+  bke::SocketValueVariant triangle_index;
+  bke::SocketValueVariant bary_weights;
+  {
+    auto fn_ptr = std::make_shared<ReverseUVSampleFunction>(geometry, std::move(mesh_uv_field));
+    const mf::MultiFunction &fn = *fn_ptr;
+    std::string error_message;
+    const bool success = execute_multi_function_on_value_variant(
+        fn,
+        std::move(fn_ptr),
+        {&sample_uv},
+        {&is_valid, &triangle_index, &bary_weights},
+        params.user_data(),
+        error_message);
+    if (!success) {
+      params.set_default_remaining_outputs();
+      params.error_message_add(NodeWarningType::Error, std::move(error_message));
+      return;
+    }
+  }
+  bke::SocketValueVariant sample_value;
+  {
+    auto fn_ptr = std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(
+        geometry, std::move(value_field));
+    const mf::MultiFunction &fn = *fn_ptr;
+    std::string error_message;
+    const bool success = execute_multi_function_on_value_variant(fn,
+                                                                 std::move(fn_ptr),
+                                                                 {&triangle_index, &bary_weights},
+                                                                 {&sample_value},
+                                                                 params.user_data(),
+                                                                 error_message);
+    if (!success) {
+      params.set_default_remaining_outputs();
+      params.error_message_add(NodeWarningType::Error, std::move(error_message));
+      return;
+    }
+  }
+
+  params.set_output("Value", std::move(sample_value));
+  params.set_output("Is Valid", std::move(is_valid));
 }
 
 static void node_rna(StructRNA *srna)
