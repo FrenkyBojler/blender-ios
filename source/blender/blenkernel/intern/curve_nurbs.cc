@@ -256,26 +256,23 @@ void calculate_basis_cache(const int points_num,
   MutableSpan<float> basis_weights(basis_cache.weights);
   MutableSpan<int> basis_start_indices(basis_cache.start_indices);
 
-  /* Find breakpoint offsets. */
+  /* Find the offset index to each span breakpoint. */
   const int breakpoint_num = (evaluated_num - !cyclic) / resolution;
-  Array<int, 20> evaluation_offsets(breakpoint_num);
-  Array<int, 20> breakpoint_offsets(breakpoint_num);
+  Array<int, 20> span_offsets(breakpoint_num);
 
   int breakpoint_count = 0;
   for (const int span_index : IndexRange::from_begin_end(degree, wrapped_points_num)) {
     if (is_breakpoint(knots, span_index)) {
-      evaluation_offsets[breakpoint_count] = breakpoint_count;
-      breakpoint_offsets[breakpoint_count] = span_index;
-      breakpoint_count++;
+      span_offsets[breakpoint_count++] = span_index;
     }
   }
   BLI_assert(breakpoint_count == breakpoint_num);
 
   /* Build basis cache. */
-  threading::parallel_for(breakpoint_offsets.index_range(), 4096, [&](const IndexRange range) {
+  threading::parallel_for(span_offsets.index_range(), 4096, [&](const IndexRange range) {
     for (const int index : range) {
-      const int span_index = breakpoint_offsets[index];
-      int eval_point = evaluation_offsets[index] * resolution;
+      const int span_index = span_offsets[index];
+      int eval_point = index * resolution;
 
       const float knot_delta = knots[span_index + 1] - knots[span_index];
       const float knot_step = knot_delta / resolution;
@@ -299,7 +296,7 @@ void calculate_basis_cache(const int points_num,
                               degree,
                               wrapped_points_num,
                               knots[wrapped_points_num],
-                              breakpoint_offsets.last(),
+                              span_offsets.last(),
                               basis_weights.slice(basis_weights.size() - order, order),
                               basis_start_indices.last());
   }
