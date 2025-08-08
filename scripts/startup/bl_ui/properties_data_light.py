@@ -89,6 +89,11 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
             layout.row().prop(light, "type")
 
         col = layout.column()
+        col.prop(light, "unit_system")
+
+        layout.separator()
+
+        col = layout.column()
         heading = col.column(align=True, heading="Temperature")
         row = heading.column(align=True).row(align=True)
         row.prop(light, "use_temperature", text="")
@@ -113,12 +118,16 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
         layout.separator()
 
         col = layout.column()
-        row = col.row(align=True)
-        split = row.split(factor=0.8, align=True)
-        split.prop(light, "energy")
-        split.prop(light, "energy_unit", text="")
+        #row = col.row(align=True)
+        #split = row.split(factor=0.8, align=True)
+        col.prop(light, "energy")
+        # split.prop(light, "energy_unit", text="")
         col.prop(light, "exposure")
-        col.prop(light, "normalize")
+        if light.type != "SUN":
+            col.prop(light, "normalize")
+        else:
+            col.prop(light, "normalize")
+            col.enabled = False
 
         layout.separator()
 

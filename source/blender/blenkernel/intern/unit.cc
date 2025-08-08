@@ -20,6 +20,7 @@
 
 #include "DNA_scene_types.h"
 
+#include "../../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Foundation.framework/Versions/C/Headers/NSNull.h"
 #include "BKE_unit.hh" /* own include */
 
 #ifdef WIN32
@@ -1303,7 +1304,7 @@ static bUnitCollection buCameraLenCollection = {
     /*length*/ UNIT_COLLECTION_LENGTH(buCameraLenDef),
 };
 
-/* (Light) Power. */
+/* Electric Power. */
 static bUnitDef buPowerDef[] = {
     {
         /*name*/ "gigawatt",
@@ -1390,6 +1391,504 @@ static bUnitCollection buPowerCollection = {
     /*base_unit*/ 3,
     /*flag*/ 0,
     /*length*/ UNIT_COLLECTION_LENGTH(buPowerDef),
+};
+
+/* (Light) Radiometric Power. */
+static bUnitDef buRadiometricPowerDef[] = {
+    {
+        /*name*/ "gigawatt",
+        /*name_plural*/ "gigawatts",
+        /*name_short*/ "GW",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Gigawatts",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e9f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "megawatt",
+        /*name_plural*/ "megawatts",
+        /*name_short*/ "MW",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Megawatts",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e6f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+    },
+    {
+        /*name*/ "kilowatt",
+        /*name_plural*/ "kilowatts",
+        /*name_short*/ "kW",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Kilowatts",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_SUPPRESS,
+    },
+    /* Base unit. */
+    {
+        /*name*/ "watt",
+        /*name_plural*/ "watts",
+        /*name_short*/ "W",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Watts",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "milliwatt",
+        /*name_plural*/ "milliwatts",
+        /*name_short*/ "mW",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Milliwatts",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+    },
+    {
+        /*name*/ "microwatt",
+        /*name_plural*/ "microwatts",
+        /*name_short*/ "µW",
+        /*name_alt*/ "uW",
+        /*name_display*/ "Microwatts",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-6f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "nanowatt",
+        /*name_plural*/ "nanowatts",
+        /*name_short*/ "nW",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Nanowatts",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-9f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+
+static bUnitCollection buRadiometricPowerCollection = {
+    /*units*/ buRadiometricPowerDef,
+    /*base_unit*/ 3,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buRadiometricPowerDef),
+};
+
+/* (Light) Radiometric Radiant Intensity. */
+static bUnitDef buRadiometricIntensityDef[] = {
+    {
+      /*name*/ "intensity",
+      /*name_plural*/ nullptr,
+      /*name_short*/ "W/sr",
+      /*name_alt*/ nullptr,
+      /*name_display*/ "Intensity",
+      /*identifier*/ nullptr,
+      /*scalar*/ 1.0f,
+      /*bias*/ 0.0,
+      /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+
+static bUnitCollection buRadiometricIntensityCollection = {
+    /*units*/ buRadiometricIntensityDef,
+    /*base_unit*/ 0,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buRadiometricIntensityDef),
+};
+
+/* (Light) Radiometric Irradiance. */
+static bUnitDef buRadiometricIrradianceDef[] = {
+    {
+      /*name*/ "irradiance",
+      /*name_plural*/ nullptr,
+      /*name_short*/ "W/m²",
+      /*name_alt*/ nullptr,
+      /*name_display*/ "Irradiance",
+      /*identifier*/ nullptr,
+      /*scalar*/ 1.0f,
+      /*bias*/ 0.0,
+      /*flag*/ B_UNIT_DEF_NONE,
+  },
+    NULL_UNIT,
+};
+
+static bUnitCollection buRadiometricIrradianceCollection = {
+    /*units*/ buRadiometricIrradianceDef,
+    /*base_unit*/ 0,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buRadiometricIrradianceDef),
+};
+
+/* (Light) Radiometric Radiosity */
+static bUnitDef buRadiometricRadiosityDef[] = {
+  {
+    /*name*/ "radiosity",
+    /*name_plural*/ nullptr,
+    /*name_short*/ "W/m²",
+    /*name_alt*/ nullptr,
+    /*name_display*/ "Radiosity",
+    /*identifier*/ nullptr,
+    /*scalar*/ 1.0f,
+    /*bias*/ 0.0,
+    /*flag*/ B_UNIT_DEF_NONE,
+},
+  NULL_UNIT,
+};
+
+static bUnitCollection buRadiometricRadiosityCollection = {
+  /*units*/ buRadiometricRadiosityDef,
+  /*base_unit*/ 0,
+  /*flag*/ 0,
+  /*length*/ UNIT_COLLECTION_LENGTH(buRadiometricRadiosityDef),
+};
+
+/* (Light) Radiometric Radiance */
+static bUnitDef buRadiometricRadianceDef[] = {
+    {
+      /*name*/ "radiance",
+      /*name_plural*/ nullptr,
+      /*name_short*/ "W/(sr*m²)",
+      /*name_alt*/ nullptr,
+      /*name_display*/ "Radiance",
+      /*identifier*/ nullptr,
+      /*scalar*/ 1.0f,
+      /*bias*/ 0.0,
+      /*flag*/ B_UNIT_DEF_NONE,
+    },
+  NULL_UNIT,
+};
+
+static bUnitCollection buRadiometricRadianceCollection = {
+  /*units*/ buRadiometricRadianceDef,
+  /*base_unit*/ 0,
+  /*flag*/ 0,
+  /*length*/ UNIT_COLLECTION_LENGTH(buRadiometricRadianceDef),
+};
+
+/* (Light) Photometric (Radiant Flux) Luminous Flux. */
+static bUnitDef buPhotometricPowerDef[] = {
+      {
+          /*name*/ "gigalumen",
+          /*name_plural*/ "gigalumens",
+          /*name_short*/ "Glm",
+          /*name_alt*/ nullptr,
+          /*name_display*/ "Gigalumens",
+          /*identifier*/ nullptr,
+          /*scalar*/ 1e9f,
+          /*bias*/ 0.0,
+          /*flag*/ B_UNIT_DEF_NONE,
+      },
+      {
+          /*name*/ "megalumen",
+          /*name_plural*/ "megalumens",
+          /*name_short*/ "Mlm",
+          /*name_alt*/ nullptr,
+          /*name_display*/ "Megalumens",
+          /*identifier*/ nullptr,
+          /*scalar*/ 1e6f,
+          /*bias*/ 0.0,
+          /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+      },
+      {
+          /*name*/ "kilolumen",
+          /*name_plural*/ "kilolumens",
+          /*name_short*/ "klm",
+          /*name_alt*/ nullptr,
+          /*name_display*/ "Kilolumens",
+          /*identifier*/ nullptr,
+          /*scalar*/ 1e3f,
+          /*bias*/ 0.0,
+          /*flag*/ B_UNIT_DEF_SUPPRESS,
+      },
+      /* Base unit. */
+      {
+          /*name*/ "lumen",
+          /*name_plural*/ "lumens",
+          /*name_short*/ "lm",
+          /*name_alt*/ nullptr,
+          /*name_display*/ "Lumens",
+          /*identifier*/ nullptr,
+          /*scalar*/ 1.0f,
+          /*bias*/ 0.0,
+          /*flag*/ B_UNIT_DEF_NONE,
+      },
+      {
+          /*name*/ "millilumen",
+          /*name_plural*/ "millilumens",
+          /*name_short*/ "mlm",
+          /*name_alt*/ nullptr,
+          /*name_display*/ "Millilumens",
+          /*identifier*/ nullptr,
+          /*scalar*/ 1e-3f,
+          /*bias*/ 0.0,
+          /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+      },
+      {
+          /*name*/ "microlumen",
+          /*name_plural*/ "microlumens",
+          /*name_short*/ "µlm",
+          /*name_alt*/ "ulm",
+          /*name_display*/ "Microlumens",
+          /*identifier*/ nullptr,
+          /*scalar*/ 1e-6f,
+          /*bias*/ 0.0,
+          /*flag*/ B_UNIT_DEF_NONE,
+      },
+      {
+          /*name*/ "nanolumen",
+          /*name_plural*/ "nanolumens",
+          /*name_short*/ "nlm",
+          /*name_alt*/ nullptr,
+          /*name_display*/ "Nanolumens",
+          /*identifier*/ nullptr,
+          /*scalar*/ 1e-9f,
+          /*bias*/ 0.0,
+          /*flag*/ B_UNIT_DEF_NONE,
+      },
+    NULL_UNIT,
+};
+
+static bUnitCollection buPhotometricPowerCollection = {
+    /*units*/ buPhotometricPowerDef,
+    /*base_unit*/ 3,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buPhotometricPowerDef),
+};
+
+/* (Light) Photometric (Radiant Intensity) Luminous Intensity. */
+static bUnitDef buPhotometricIntensityDef[] = {
+    {
+        /*name*/ "gigacandela",
+        /*name_plural*/ "gigacandelas",
+        /*name_short*/ "Gcd",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Gigacandelas",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e9f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "megacandela",
+        /*name_plural*/ "megacandelas",
+        /*name_short*/ "Mcd",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Megacandelas",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e6f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+    },
+    {
+        /*name*/ "kilocandela",
+        /*name_plural*/ "kilocandelas",
+        /*name_short*/ "kcd",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Kilocandelas",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_SUPPRESS,
+    },
+    /* Base unit. */
+    {
+        /*name*/ "candela",
+        /*name_plural*/ "candelas",
+        /*name_short*/ "cd",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Candelas",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "millicandela",
+        /*name_plural*/ "millicandelas",
+        /*name_short*/ "mcd",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Millicandelas",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+    },
+    {
+        /*name*/ "microcandela",
+        /*name_plural*/ "microcandelas",
+        /*name_short*/ "µcd",
+        /*name_alt*/ "ucd",
+        /*name_display*/ "Microcandelas",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-6f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "nanocandela",
+        /*name_plural*/ "nanocandelas",
+        /*name_short*/ "ncd",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Nanocandelas",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-9f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+
+static bUnitCollection buPhotometricIntensityCollection = {
+    /*units*/ buPhotometricIntensityDef,
+    /*base_unit*/ 3,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buPhotometricIntensityDef),
+};
+
+/* (Light) Photometric (Irradiance) Illuminance */
+static bUnitDef buPhotometricIlluminanceDef[] = {
+        {
+          /*name*/ "gigalux",
+          /*name_plural*/ nullptr,
+          /*name_short*/ "Glx",
+          /*name_alt*/ nullptr,
+          /*name_display*/ "Gigalux",
+          /*identifier*/ nullptr,
+          /*scalar*/ 1e9f,
+          /*bias*/ 0.0,
+          /*flag*/ B_UNIT_DEF_NONE,
+      },
+      {
+        /*name*/ "megalux",
+        /*name_plural*/ nullptr,
+        /*name_short*/ "Mlx",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Megalux",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e6f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+      },
+      {
+        /*name*/ "kilolux",
+        /*name_plural*/ nullptr,
+        /*name_short*/ "klx",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Kilolux",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_SUPPRESS,
+      },
+      /* Base unit. */
+      {
+        /*name*/ "lux",
+        /*name_plural*/ nullptr,
+        /*name_short*/ "lx",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Lux",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+      },
+      {
+        /*name*/ "millilux",
+        /*name_plural*/ nullptr,
+        /*name_short*/ "mlx",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Millilux",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_CASE_SENSITIVE,
+      },
+      {
+        /*name*/ "microlux",
+        /*name_plural*/ nullptr,
+        /*name_short*/ "µlx",
+        /*name_alt*/ "ulx",
+        /*name_display*/ "Microlux",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-6f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+      },
+      {
+        /*name*/ "nanolux",
+        /*name_plural*/ nullptr,
+        /*name_short*/ "nlx",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Nanolux",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-9f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+      },
+    NULL_UNIT,
+};
+
+static bUnitCollection buPhotometricIlluminanceCollection = {
+    /*units*/ buPhotometricIlluminanceDef,
+    /*base_unit*/ 3,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buPhotometricIlluminanceDef),
+};
+
+/* (Light) Photometric (Radiosity) Luminous Exitance */
+static bUnitDef buPhotometricLuminousExitanceDef[] = {
+    {
+      /*name*/ "luminous exitance",
+      /*name_plural*/ nullptr,
+      /*name_short*/ "lm/m²",
+      /*name_alt*/ nullptr,
+      /*name_display*/ "Luminous Exitance",
+      /*identifier*/ nullptr,
+      /*scalar*/ 1.0f,
+      /*bias*/ 0.0,
+      /*flag*/ B_UNIT_DEF_NONE,
+    },
+  NULL_UNIT,
+};
+
+static bUnitCollection buPhotometricLuminousExitanceCollection = {
+  /*units*/ buPhotometricLuminousExitanceDef,
+  /*base_unit*/ 0,
+  /*flag*/ 0,
+  /*length*/ UNIT_COLLECTION_LENGTH(buPhotometricLuminousExitanceDef),
+};
+
+/* (Light) Photometric (Radiance) Nits */
+static bUnitDef buPhotometricNitsDef[] = {
+    {
+      /*name*/ "nits",
+      /*name_plural*/ nullptr,
+      /*name_short*/ "cd/m²",
+      /*name_alt*/ nullptr,
+      /*name_display*/ "Nits",
+      /*identifier*/ nullptr,
+      /*scalar*/ 1.0f,
+      /*bias*/ 0.0,
+      /*flag*/ B_UNIT_DEF_NONE,
+    },
+  NULL_UNIT,
+};
+
+static bUnitCollection buPhotometricNitsCollection = {
+  /*units*/ buPhotometricNitsDef,
+  /*base_unit*/ 0,
+  /*flag*/ 0,
+  /*length*/ UNIT_COLLECTION_LENGTH(buPhotometricNitsDef),
 };
 
 /* Temperature */
@@ -1532,6 +2031,16 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_ACCELERATION*/ nullptr,
         /*B_UNIT_CAMERA*/ nullptr,
         /*B_UNIT_POWER*/ nullptr,
+        /*B_UNIT_RADIO_POWER*/ nullptr,
+        /*B_UNIT_RADIO_INTENSITY*/ nullptr,
+        /*B_UNIT_RADIO_IRRADIANCE*/ nullptr,
+        /*B_UNIT_RADIO_RADIOSITY*/ nullptr,
+        /*B_UNIT_RADIO_RADIANCE*/ nullptr,
+        /*B_UNIT_PHOTO_POWER*/ nullptr,
+        /*B_UNIT_PHOTO_INTENSITY*/ nullptr,
+        /*B_UNIT_PHOTO_ILLUMINANCE*/ nullptr,
+        /*B_UNIT_PHOTO_LUMINOUS_EXITANCE*/ nullptr,
+        /*B_UNIT_PHOTO_NITS*/ nullptr,
         /*B_UNIT_TEMPERATURE*/ nullptr,
         /*B_UNIT_WAVELENGTH*/ nullptr,
         /*B_UNIT_COLOR_TEMPERATURE*/ nullptr,
@@ -1551,6 +2060,16 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_ACCELERATION*/ &buMetricAclCollection,
         /*B_UNIT_CAMERA*/ &buCameraLenCollection,
         /*B_UNIT_POWER*/ &buPowerCollection,
+        /*B_UNIT_RADIO_POWER*/ &buRadiometricPowerCollection,
+        /*B_UNIT_RADIO_INTENSITY*/ &buRadiometricIntensityCollection,
+        /*B_UNIT_RADIO_IRRADIANCE*/ &buRadiometricIrradianceCollection,
+        /*B_UNIT_RADIO_RADIOSITY*/ &buRadiometricRadiosityCollection,
+        /*B_UNIT_RADIO_RADIANCE*/ &buRadiometricRadianceCollection,
+        /*B_UNIT_PHOTO_POWER*/ &buPhotometricPowerCollection,
+        /*B_UNIT_PHOTO_INTENSITY*/ &buPhotometricIntensityCollection,
+        /*B_UNIT_PHOTO_ILLUMINANCE*/ &buPhotometricIlluminanceCollection,
+        /*B_UNIT_PHOTO_LUMINOUS_EXITANCE*/ &buPhotometricLuminousExitanceCollection,
+        /*B_UNIT_PHOTO_NITS*/ &buPhotometricNitsCollection,
         /*B_UNIT_TEMPERATURE*/ &buMetricTempCollection,
         /*B_UNIT_WAVELENGTH*/ &buWavelengthLenCollection,
         /*B_UNIT_COLOR_TEMPERATURE*/ &buColorTempCollection,
@@ -1570,6 +2089,16 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_ACCELERATION*/ &buImperialAclCollection,
         /*B_UNIT_CAMERA*/ &buCameraLenCollection,
         /*B_UNIT_POWER*/ &buPowerCollection,
+        /*B_UNIT_RADIO_POWER*/ &buRadiometricPowerCollection,
+        /*B_UNIT_RADIO_INTENSITY*/ &buRadiometricIntensityCollection,
+        /*B_UNIT_RADIO_IRRADIANCE*/ &buRadiometricIrradianceCollection,
+        /*B_UNIT_RADIO_RADIOSITY*/ &buRadiometricRadiosityCollection,
+        /*B_UNIT_RADIO_RADIANCE*/ &buRadiometricRadianceCollection,
+        /*B_UNIT_PHOTO_POWER*/ &buPhotometricPowerCollection,
+        /*B_UNIT_PHOTO_INTENSITY*/ &buPhotometricIntensityCollection,
+        /*B_UNIT_PHOTO_ILLUMINANCE*/ &buPhotometricIlluminanceCollection,
+        /*B_UNIT_PHOTO_LUMINOUS_EXITANCE*/ &buPhotometricLuminousExitanceCollection,
+        /*B_UNIT_PHOTO_NITS*/ &buPhotometricNitsCollection,
         /*B_UNIT_TEMPERATURE*/ &buImperialTempCollection,
         /*B_UNIT_WAVELENGTH*/ &buWavelengthLenCollection,
         /*B_UNIT_COLOR_TEMPERATURE*/ &buColorTempCollection,
