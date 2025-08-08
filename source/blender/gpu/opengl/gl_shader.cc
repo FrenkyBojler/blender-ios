@@ -1889,8 +1889,7 @@ Shader *GLSubprocessShaderCompiler::compile_shader(const shader::ShaderCreateInf
 
   /* This path is always called for the default shader compilation. Not for specialization.
    * Use the default constant template. */
-  const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(
-      wrap(shader));
+  const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(shader);
 
   if (!worker->load_program_binary(shader->program_cache_.lookup(constants.values)->program_id) ||
       !shader->post_finalize(&info))

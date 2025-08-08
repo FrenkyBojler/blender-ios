@@ -205,12 +205,12 @@ blender::gpu::Shader *GPU_shader_create_ex(const std::optional<StringRefNull> ve
     return nullptr;
   };
 
-  return wrap(shader);
+  return shader;
 }
 
 void GPU_shader_free(blender::gpu::Shader *shader)
 {
-  delete unwrap(shader);
+  delete shader;
 }
 
 /** \} */
@@ -273,7 +273,7 @@ blender::gpu::Shader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_in
 {
   using namespace blender::gpu::shader;
   const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
-  return wrap(GPUBackend::get()->get_compiler()->compile(info, false));
+  return GPUBackend::get()->get_compiler()->compile(info, false);
 }
 
 std::string GPU_shader_preprocess_source(StringRefNull original)
@@ -301,7 +301,7 @@ blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateIn
   info.geometry_source_generated = GPU_shader_preprocess_source(info.geometry_source_generated);
   info.compute_source_generated = GPU_shader_preprocess_source(info.compute_source_generated);
 
-  blender::gpu::Shader *result = wrap(GPUBackend::get()->get_compiler()->compile(info, false));
+  blender::gpu::Shader *result = GPUBackend::get()->get_compiler()->compile(info, false);
 
   info.vertex_source_generated = vertex_source_original;
   info.fragment_source_generated = fragment_source_original;
@@ -423,7 +423,7 @@ void GPU_shader_cache_dir_clear_old()
 void GPU_shader_bind(blender::gpu::Shader *gpu_shader,
                      const shader::SpecializationConstants *constants_state)
 {
-  Shader *shader = unwrap(gpu_shader);
+  Shader *shader = gpu_shader;
 
   BLI_assert_msg(constants_state != nullptr || shader->constants->is_empty(),
                  "Shader requires specialization constants but none was passed");
@@ -472,7 +472,7 @@ blender::gpu::Shader *GPU_shader_get_bound()
 {
   Context *ctx = Context::get();
   if (ctx) {
-    return wrap(ctx->shader);
+    return ctx->shader;
   }
   return nullptr;
 }
@@ -485,7 +485,7 @@ blender::gpu::Shader *GPU_shader_get_bound()
 
 const char *GPU_shader_get_name(blender::gpu::Shader *shader)
 {
-  return unwrap(shader)->name_get().c_str();
+  return shader->name_get().c_str();
 }
 
 /** \} */
@@ -499,15 +499,15 @@ void GPU_shader_set_parent(blender::gpu::Shader *shader, blender::gpu::Shader *p
   BLI_assert(shader != nullptr);
   BLI_assert(shader != parent);
   if (shader != parent) {
-    Shader *shd_child = unwrap(shader);
-    Shader *shd_parent = unwrap(parent);
+    Shader *shd_child = shader;
+    Shader *shd_parent = parent;
     shd_child->parent_set(shd_parent);
   }
 }
 
 void GPU_shader_warm_cache(blender::gpu::Shader *shader, int limit)
 {
-  unwrap(shader)->warm_cache(limit);
+  shader->warm_cache(limit);
 }
 
 /** \} */
@@ -519,7 +519,7 @@ void GPU_shader_warm_cache(blender::gpu::Shader *shader, int limit)
 const shader::SpecializationConstants &GPU_shader_get_default_constant_state(
     blender::gpu::Shader *sh)
 {
-  return *unwrap(sh)->constants;
+  return *sh->constants;
 }
 
 void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
@@ -557,73 +557,73 @@ void GPU_shader_batch_specializations_cancel(SpecializationBatchHandle &handle)
 
 int GPU_shader_get_uniform(blender::gpu::Shader *shader, const char *name)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   const ShaderInput *uniform = interface->uniform_get(name);
   return uniform ? uniform->location : -1;
 }
 
 int GPU_shader_get_constant(blender::gpu::Shader *shader, const char *name)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   const ShaderInput *constant = interface->constant_get(name);
   return constant ? constant->location : -1;
 }
 
 int GPU_shader_get_builtin_uniform(blender::gpu::Shader *shader, int builtin)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   return interface->uniform_builtin((GPUUniformBuiltin)builtin);
 }
 
 int GPU_shader_get_builtin_block(blender::gpu::Shader *shader, int builtin)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   return interface->ubo_builtin((GPUUniformBlockBuiltin)builtin);
 }
 
 int GPU_shader_get_ssbo_binding(blender::gpu::Shader *shader, const char *name)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   const ShaderInput *ssbo = interface->ssbo_get(name);
   return ssbo ? ssbo->location : -1;
 }
 
 int GPU_shader_get_uniform_block(blender::gpu::Shader *shader, const char *name)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   const ShaderInput *ubo = interface->ubo_get(name);
   return ubo ? ubo->location : -1;
 }
 
 int GPU_shader_get_ubo_binding(blender::gpu::Shader *shader, const char *name)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   const ShaderInput *ubo = interface->ubo_get(name);
   return ubo ? ubo->binding : -1;
 }
 
 int GPU_shader_get_sampler_binding(blender::gpu::Shader *shader, const char *name)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   const ShaderInput *tex = interface->uniform_get(name);
   return tex ? tex->binding : -1;
 }
 
 uint GPU_shader_get_attribute_len(const blender::gpu::Shader *shader)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   return interface->valid_bindings_get(interface->inputs_, interface->attr_len_);
 }
 
 uint GPU_shader_get_ssbo_input_len(const blender::gpu::Shader *shader)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   return interface->ssbo_len_;
 }
 
 int GPU_shader_get_attribute(const blender::gpu::Shader *shader, const char *name)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   const ShaderInput *attr = interface->attr_get(name);
   return attr ? attr->location : -1;
 }
@@ -633,7 +633,7 @@ bool GPU_shader_get_attribute_info(const blender::gpu::Shader *shader,
                                    char r_name[256],
                                    int *r_type)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
 
   const ShaderInput *attr = interface->attr_get(attr_location);
   if (!attr) {
@@ -649,7 +649,7 @@ bool GPU_shader_get_ssbo_input_info(const blender::gpu::Shader *shader,
                                     int ssbo_location,
                                     char r_name[256])
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
 
   const ShaderInput *ssbo_input = interface->ssbo_get(ssbo_location);
   if (!ssbo_input) {
@@ -669,13 +669,13 @@ bool GPU_shader_get_ssbo_input_info(const blender::gpu::Shader *shader,
 void GPU_shader_uniform_float_ex(
     blender::gpu::Shader *shader, int loc, int len, int array_size, const float *value)
 {
-  unwrap(shader)->uniform_float(loc, len, array_size, value);
+  shader->uniform_float(loc, len, array_size, value);
 }
 
 void GPU_shader_uniform_int_ex(
     blender::gpu::Shader *shader, int loc, int len, int array_size, const int *value)
 {
-  unwrap(shader)->uniform_int(loc, len, array_size, value);
+  shader->uniform_int(loc, len, array_size, value);
 }
 
 void GPU_shader_uniform_1i(blender::gpu::Shader *sh, const char *name, int value)

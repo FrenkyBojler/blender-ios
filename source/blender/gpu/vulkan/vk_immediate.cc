@@ -60,7 +60,7 @@ void VKImmediate::end()
   }
 
   VKContext &context = *VKContext::get();
-  BLI_assert(context.shader == unwrap(shader));
+  BLI_assert(context.shader == shader);
   Shader &shader = *unwrap(this->shader);
   if (shader.is_polyline) {
     VKBuffer &buffer = active_buffer_.value();

@@ -190,7 +190,7 @@ blender::gpu::Shader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShade
       GPU_shader_bind(sh);
       GPU_shader_uniform_1i(sh, "lineSmooth", 1);
       /* WORKAROUND: See is_polyline declaration. */
-      blender::gpu::unwrap(sh)->is_polyline = true;
+      sh->is_polyline = true;
     }
   }
 

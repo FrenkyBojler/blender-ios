@@ -128,20 +128,6 @@ class Shader {
                  GPULogParser *parser);
 };
 
-/* Syntactic sugar. */
-static inline gpu::Shader *wrap(Shader *vert)
-{
-  return reinterpret_cast<gpu::Shader *>(vert);
-}
-static inline Shader *unwrap(gpu::Shader *vert)
-{
-  return reinterpret_cast<Shader *>(vert);
-}
-static inline const Shader *unwrap(const gpu::Shader *vert)
-{
-  return reinterpret_cast<const Shader *>(vert);
-}
-
 class ShaderCompiler {
   struct Sources {
     std::string vert;
@@ -174,7 +160,7 @@ class ShaderCompiler {
     {
       for (Shader *shader : shaders) {
         if (shader) {
-          GPU_shader_free(wrap(shader));
+          GPU_shader_free(shader);
         }
       }
       shaders.clear();
