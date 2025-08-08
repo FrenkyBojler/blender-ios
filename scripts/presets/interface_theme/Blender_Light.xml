@@ -403,6 +403,9 @@
             handle_sel_align="#f090a0"
             handle_auto_clamped="#994030"
             handle_sel_auto_clamped="#f0af90"
+            handle_vertex="#000000"
+            handle_vertex_select="#ff8500"
+            handle_vertex_size="5"
             >
           </ThemeCommonCurves>
         </curves>

@@ -291,6 +291,7 @@ const bTheme U_theme_default = {
       .handle_sel_vect = RGBA(0x40c030ff),
       .handle_sel_align = RGBA(0xf090a0ff),
       .handle_sel_auto_clamped = RGBA(0xf0af90ff),
+      .handle_vertex = RGBA(0x000000ff),
       .handle_vertex_select = RGBA(0xff8500ff),
       .handle_vertex_size = 5,
     },
