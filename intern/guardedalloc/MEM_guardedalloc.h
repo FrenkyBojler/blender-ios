@@ -380,22 +380,17 @@ inline T *MEM_new(const char *allocation_name, Args &&...args)
  * The typical use-cases are C-like structs containing only trivial data, that define default
  * values for (some of) their members.
  *
- * \note This function uses 'default initialization' on zero-initialized memory by default, _not_
- * 'value initialization'. This means that even if a user-defined default constructor is provided,
+ * \note This function uses 'default initialization' on zero-initialized memory, _not_ 'value
+ * initialization'. This means that even if a user-defined default constructor is provided,
  * non-explicitely initialized data will be zero-initialized. For POD types (e.g. pure C-style
  * structs), its behavior is functionnally identical to using `MEM_callocN<T>()`.
- *
- * \note The 'zero-initialized' default behavior can be turned off by passing `false` to the
- * `use_zero_init` second template argument. For POD types (e.g. pure C-style structs), its
- * behavior will then be functionnally identical to using `MEM_mallocN<T>()`.
  *
  * \warning This function is intended as a temporary work-around during the process of converting
  * Blender data management from C-style (alloc/free) to C++-style (new/delete). It will be removed
  * once not needed anymore (i.e. mainly when there is no more need to dupalloc and free untyped
  * data stored in void pointers).
  */
-template<typename T, const bool use_zero_init = true>
-inline T *MEM_new_for_free(const char *allocation_name)
+template<typename T> inline T *MEM_new_for_free(const char *allocation_name)
 {
   static_assert(mem_guarded::internal::is_trivial_after_construction<T>,
                 "MEM_new_for_free can only construct types that are trivially copyable and "
@@ -403,15 +398,13 @@ inline T *MEM_new_for_free(const char *allocation_name)
   void *buffer;
   /* There is no lower level #calloc with an alignment parameter, so unless the alignment is less
    * than or equal to what we'd get by default, we have to fall back to #memset unfortunately. */
-  if (use_zero_init && alignof(T) <= MEM_MIN_CPP_ALIGNMENT) {
+  if (alignof(T) <= MEM_MIN_CPP_ALIGNMENT) {
     buffer = MEM_callocN(sizeof(T), allocation_name);
   }
   else {
     buffer = mem_guarded::internal::mem_mallocN_aligned_ex(
         sizeof(T), alignof(T), allocation_name, mem_guarded::internal::AllocationType::ALLOC_FREE);
-    if (use_zero_init) {
-      memset(buffer, 0, sizeof(T));
-    }
+    memset(buffer, 0, sizeof(T));
   }
   return new (buffer) T;
 }
