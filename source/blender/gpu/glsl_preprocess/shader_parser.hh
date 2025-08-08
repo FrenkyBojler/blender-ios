@@ -586,6 +586,16 @@ struct Token {
   const ParserData *data;
   size_t index;
 
+  static Token invalid()
+  {
+    return {nullptr, 0};
+  }
+
+  bool is_valid() const
+  {
+    return data != nullptr;
+  }
+
   /* String index range. */
   IndexRange index_range() const
   {
@@ -601,6 +611,7 @@ struct Token {
     return {data, index + 1};
   }
 
+  /* Returns the scope that contains this token. */
   Scope scope() const;
 
   size_t str_index_start() const
@@ -617,14 +628,14 @@ struct Token {
   size_t line_start() const
   {
     size_t pos = data->str.rfind('\n', str_index_start());
-    return (pos == std::string::npos) ? 0 : pos + 1;
+    return (pos == std::string::npos) ? 0 : (pos + 1);
   }
 
   /* Index of the last character of the line this token is, excluding `\n`. */
   size_t line_end() const
   {
     size_t pos = data->str.find('\n', str_index_start());
-    return (pos == std::string::npos) ? data->str.size() - 1 : pos - 1;
+    return (pos == std::string::npos) ? (data->str.size() - 1) : (pos - 1);
   }
 
   std::string str() const
@@ -699,6 +710,12 @@ struct Scope {
   ScopeType type() const
   {
     return ScopeType(data->scope_types[index]);
+  }
+
+  /* Returns the scope that contains this scope. */
+  Scope scope() const
+  {
+    return start().prev().scope();
   }
 
   std::string str() const
@@ -781,6 +798,26 @@ struct Parser {
     }
   }
 
+  /* Run a callback for all existing function scopes. */
+  void foreach_function(
+      std::function<void(
+          bool is_static, Token type, Token name, Scope args, bool is_const, Scope body)> callback)
+  {
+    foreach_scope(ScopeType::FunctionArgs, [&](const Scope args) {
+      const bool is_const = args.end().next() == Const;
+      Token next = (is_const ? args.end().next() : args.end()).next();
+      if (next != '{') {
+        /* Function Prototype. */
+        return;
+      }
+      const bool is_static = args.start().prev().prev().prev() == Static;
+      Token type = args.start().prev().prev();
+      Token name = args.start().prev();
+      Scope body = next.scope();
+      callback(is_static, type, name, args, is_const, body);
+    });
+  }
+
   std::string substr_range_inclusive(size_t start, size_t end)
   {
     return data_.str.substr(start, end - start + 1);
@@ -857,6 +894,16 @@ struct Parser {
   void insert_after(Token at, const std::string &content)
   {
     insert_after(at.str_index_last(), content);
+  }
+
+  void insert_before(size_t at, const std::string &content)
+  {
+    IndexRange range = IndexRange(at, 0);
+    mutations_.emplace_back(range, content);
+  }
+  void insert_before(Token at, const std::string &content)
+  {
+    insert_after(at.str_index_start(), content);
   }
 
   /* Return true if any mutation was applied. */
