@@ -3322,15 +3322,21 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     return;
   }
 
-  const bool scrollbars = region->v2d.scroll & (V2D_SCROLL_VERTICAL | V2D_SCROLL_HORIZONTAL);
+  const bool narrow = region->v2d.scroll & (V2D_SCROLL_VERTICAL | V2D_SCROLL_HORIZONTAL);
   const bool is_overlap = ED_region_is_overlap(area->spacetype, region->regiontype);
-  const float gradient_width = (scrollbars ? 4.0f : 16.0f) * UI_SCALE_FAC;
-  const float transition = 16.0f * UI_SCALE_FAC;
+  const float gradient_width = (narrow ? 4.0f : 16.0f) * UI_SCALE_FAC;
+  const float transition = 30.0f * UI_SCALE_FAC;
 
   float opaque[4];
-  UI_GetThemeColor4fv(TH_BACK, opaque);
-  opaque[3] = 1.0f;
-  mul_v3_fl(opaque, scrollbars ? 0.95f : 0.85f);
+  if (narrow) {
+    UI_GetThemeColor4fv(TH_BLACK, opaque);
+    opaque[3] = 0.2f;
+  }
+  else {
+    UI_GetThemeColor4fv(TH_BACK, opaque);
+    opaque[3] = 1.0f;
+    mul_v3_fl(opaque, 0.85f);
+  }
 
   float transparent[4] = {0};
   copy_v3_v3(transparent, opaque);
@@ -3345,7 +3351,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
   int height = BLI_rcti_size_y(mask) + 1;
   float offset_x = mask->xmin;
   float offset_y = mask->ymin;
-  if (is_overlap) {
+  if (region->panels.first && is_overlap) {
     offset_x = UI_PANEL_MARGIN_X;
     width -= (2 * UI_PANEL_MARGIN_X);
   }
@@ -3358,7 +3364,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     rect.xmin = offset_x + rect.xmax - gradient_width;
     rect.ymin = 0.0f;
     rect.ymax = height;
-    opaque[3] = std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
+    opaque[3] *= std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 0.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.xmin > region->v2d.tot.xmin) {
@@ -3367,7 +3373,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     rect.xmax = offset_x + gradient_width;
     rect.ymin = 0.0f;
     rect.ymax = height;
-    opaque[3] = std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
+    opaque[3] *= std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 0.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.ymax < region->v2d.tot.ymax) {
@@ -3376,7 +3382,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     rect.xmax = offset_x + width;
     rect.ymax = offset_y + height;
     rect.ymin = rect.ymax - gradient_width;
-    opaque[3] = std::min((region->v2d.tot.ymax - region->v2d.cur.ymax) / transition, 1.0f);
+    opaque[3] *= std::min((region->v2d.tot.ymax - region->v2d.cur.ymax) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 1.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.ymin > region->v2d.tot.ymin) {
@@ -3385,7 +3391,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     rect.xmax = offset_x + width;
     rect.ymin = offset_y;
     rect.ymax = rect.ymin + gradient_width;
-    opaque[3] = std::min((region->v2d.cur.ymin - region->v2d.tot.ymin) / transition, 1.0f);
+    opaque[3] *= std::min((region->v2d.cur.ymin - region->v2d.tot.ymin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 1.0f, nullptr, 0.0f, 0.0f);
   }
 }
@@ -3770,6 +3776,7 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
   /* clear */
   ED_region_clear(C, region, region_background_color_id(C, region));
   region_draw_blocks_in_view2d(C, region);
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 }
 
 void ED_region_header_draw_with_button_sections(const bContext *C,
@@ -3808,6 +3815,7 @@ void ED_region_header_with_button_sections(const bContext *C,
 void ED_region_header_init(ARegion *region)
 {
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_HEADER, region->winx, region->winy);
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 }
 
 int ED_area_headersize()
