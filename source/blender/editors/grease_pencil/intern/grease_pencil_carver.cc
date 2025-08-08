@@ -629,34 +629,6 @@ static IntersectionPoint create_intersection(const int point_a,
   return inter_point;
 }
 
-static void calculate_offsets_from_segments(const Span<Segment> segments,
-                                            const OffsetIndices<int> segment_offsets,
-                                            const Span<bool> cyclic,
-                                            MutableSpan<int> offsets)
-{
-  int offset = 0;
-
-  for (const int curve_i : segment_offsets.index_range()) {
-    offsets[curve_i] = offset;
-
-    const IndexRange segment_range = segment_offsets[curve_i];
-    for (const int seg_i : segment_range) {
-      const Segment &segment = segments[seg_i];
-
-      if (segment.has_intersection(Side::Start)) {
-        offset++;
-      }
-      offset += segment.points_num();
-      if (seg_i == segment_range.last() && segment.has_intersection(Side::End) && !cyclic[curve_i])
-      {
-        offset++;
-      }
-    }
-  }
-
-  offsets.last() = offset;
-}
-
 static void check_segments(const CurveBooleanOpParameters &op_params,
                            const int curve_k,
                            const bool is_subj,
@@ -1525,9 +1497,55 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                                                        const Span<bool> cyclic,
                                                        const OffsetIndices<int> segment_offsets)
 {
+  struct InterpolatePoint {
+    int dst_point;
+    int src_point_1;
+    int src_point_2;
+    float factor;
+  };
+
   Array<int> point_offsets(segment_offsets.size() + 1);
-  calculate_offsets_from_segments(
-      segments, segment_offsets, cyclic, point_offsets.as_mutable_span());
+  Vector<int2> points_to_copy;
+  Vector<IndexRange> ranges_to_reverse;
+  Vector<InterpolatePoint> point_to_interpolate;
+
+  int i = 0;
+  for (const int curve_i : segment_offsets.index_range()) {
+    point_offsets[curve_i] = i;
+
+    const IndexRange segment_range = segment_offsets[curve_i];
+    for (const int seg_i : segment_range) {
+      const Segment &segment = segments[seg_i];
+      const bool reversed = segment_reversed[seg_i];
+
+      if (segment.has_intersection(reversed ? Side::End : Side::Start) && !segment.is_loop()) {
+        const float start_alpha = segment.alpha[reversed ? Side::End : Side::Start];
+        const int2 start_edge = segment.edge(reversed ? Side::End : Side::Start);
+        point_to_interpolate.append({i, start_edge.x, start_edge.y, start_alpha});
+        i++;
+      }
+
+      segment.foreach_point(
+          [&](const int index, const int pos) { points_to_copy.append(int2(pos + i, index)); });
+
+      if (reversed) {
+        ranges_to_reverse.append(IndexRange::from_begin_size(i, segment.points_num()));
+      }
+
+      i += segment.points_num();
+
+      if (seg_i == segment_range.last() &&
+          segment.has_intersection(reversed ? Side::Start : Side::End) && !cyclic[curve_i])
+      {
+        const float end_alpha = segment.alpha[reversed ? Side::Start : Side::End];
+        const int2 end_edge = segment.edge(reversed ? Side::Start : Side::End);
+        point_to_interpolate.append({i, end_edge.x, end_edge.y, end_alpha});
+        i++;
+      }
+    }
+  }
+  point_offsets.last() = i;
+
   const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
 
   const bke::AttributeAccessor src_attributes = src.attributes();
@@ -1560,39 +1578,17 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
       auto src_attr = attribute.src.typed<T>();
       auto dst_attr = attribute.dst.span.typed<T>();
 
-      int i = 0;
-
-      for (const int curve_i : segment_offsets.index_range()) {
-        const IndexRange segment_range = segment_offsets[curve_i];
-        for (const int seg_i : segment_range) {
-          const Segment &segment = segments[seg_i];
-          const bool reversed = segment_reversed[seg_i];
-
-          if (segment.has_intersection(reversed ? Side::End : Side::Start) && !segment.is_loop()) {
-            const float start_alpha = segment.alpha[reversed ? Side::End : Side::Start];
-            const int2 start_edge = segment.edge(reversed ? Side::End : Side::Start);
-            dst_attr[i++] = bke::attribute_math::mix2<T>(
-                start_alpha, src_attr[start_edge.x], src_attr[start_edge.y]);
-          }
-
-          segment.foreach_point(
-              [&](const int index, const int pos) { dst_attr[pos + i] = src_attr[index]; });
-
-          if (reversed) {
-            dst_attr.slice(IndexRange::from_begin_size(i, segment.points_num())).reverse();
-          }
-
-          i += segment.points_num();
-
-          if (seg_i == segment_range.last() &&
-              segment.has_intersection(reversed ? Side::Start : Side::End) && !cyclic[curve_i])
-          {
-            const float end_alpha = segment.alpha[reversed ? Side::Start : Side::End];
-            const int2 end_edge = segment.edge(reversed ? Side::Start : Side::End);
-            dst_attr[i++] = bke::attribute_math::mix2<T>(
-                end_alpha, src_attr[end_edge.x], src_attr[end_edge.y]);
-          }
-        }
+      for (const InterpolatePoint &interpolate_point : point_to_interpolate) {
+        dst_attr[interpolate_point.dst_point] = bke::attribute_math::mix2<T>(
+            interpolate_point.factor,
+            src_attr[interpolate_point.src_point_1],
+            src_attr[interpolate_point.src_point_2]);
+      }
+      for (const int2 index : points_to_copy) {
+        dst_attr[index.x] = src_attr[index.y];
+      }
+      for (const IndexRange range : ranges_to_reverse) {
+        dst_attr.slice(range).reverse();
       }
     });
 
