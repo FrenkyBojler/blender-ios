@@ -363,6 +363,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.waxis);
   }
 
+  if (!USER_VERSION_ATLEAST(405, 55)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_repeat);
+  }
+
   if (!USER_VERSION_ATLEAST(500, 100)) {
     FROM_DEFAULT_V4_UCHAR(common.anim.playhead);
     FROM_DEFAULT_V4_UCHAR(common.anim.time_marker);
