@@ -1076,6 +1076,27 @@ void f(int t = 0) {
 ww(ww=0){ww=0,w=0,w={0};{w=w=w,wP;i(wEw){r;}}})";
     EXPECT_EQ(Parser(input).data_get().token_types, expect);
   }
+  {
+    Parser parser("float i;");
+    parser.add_mutation_insert_after(Token{&parser.data_get(), 0}, "A ");
+    parser.add_mutation_insert_after(Token{&parser.data_get(), 0}, "B  ");
+    EXPECT_EQ(parser.result_get(), "float A B  i;");
+  }
+  {
+    string input = R"(
+A
+#line 100
+B
+)";
+    Parser parser(input);
+    Token A = {&parser.data_get(), 1};
+    Token B = {&parser.data_get(), 5};
+
+    EXPECT_EQ(A.str_no_whitespace(), "A");
+    EXPECT_EQ(B.str_no_whitespace(), "B");
+    EXPECT_EQ(A.line_number(), 2);
+    EXPECT_EQ(B.line_number(), 100);
+  }
 }
 GPU_TEST(preprocess_parser);
 

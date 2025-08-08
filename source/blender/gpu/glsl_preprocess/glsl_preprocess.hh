@@ -1061,96 +1061,102 @@ class Preprocessor {
   std::string struct_method_mutation(const std::string &str, report_callback report_error)
   {
     using namespace std;
+    using namespace shader::parser;
 
-    if (str.find("struct") == string::npos && str.find("class") == string::npos) {
-      return str;
-    }
+    Parser parser(str);
 
-    string out = str;
-
-    /* TODO(fclem): Template support. */
-    regex regex_struct(R"(\n(struct|class)\s+(\w+)\s+(: \w+)?)");
-    regex_global_search(str, regex_struct, [&](const smatch &match, int64_t line) {
-      if (match[3].matched) {
-        report_error(match, "class inheritance is not supported");
-      }
-
-      const string struct_suffix = match.suffix().str();
-      const string struct_begin = match[0].str();
-      const string struct_name = match[2].str();
-      const string struct_body = '{' + get_content_between_balanced_pair(struct_suffix, '{', '}') +
-                                 "};";
-      string modified_struct_begin = struct_begin;
-      string modified_struct_body = struct_body;
-      string modified_functions;
-
-      int struct_declaration_line = line + 1;
-
-      replace_all(modified_struct_begin, "\nclass ", "\nstruct ");
-      replace_all(modified_struct_body, " private:", "");
-      replace_all(modified_struct_body, " public:", "");
-
-      /* TODO(fclem): Template support. */
-      regex regex_func(R"(\n +(static )?(const )?(\w+)\s+(\w+)\()");
-      regex_global_search(struct_body, regex_func, [&](const smatch &match_fn, int64_t fn_line) {
-        if (match_fn[2].matched) {
-          report_error(match,
-                       "function return type is marked `const` but it makes no sense for values "
-                       "and returning reference is not supported");
-        }
-        const bool is_static = match_fn[1].matched;
-        const string prefix = match_fn.prefix().str();
-        const string suffix = match_fn.suffix().str();
-        const string fn_name = match_fn[4].str();
-        const string fn_args = get_content_between_balanced_pair('(' + suffix, '(', ')');
-        const string suffix_after_args = suffix.substr(fn_args.size());
-        const string fn_body = get_content_between_balanced_pair(suffix_after_args, '{', '}');
-        const string fn_name_and_type = match_fn[0].str();
-
-        size_t body_start = suffix_after_args.find("{");
-        const bool is_const = suffix_after_args.substr(0, body_start).find("const") !=
-                              string::npos;
-
-        size_t suffix_size = fn_args.size() + 1 + body_start + 1 + fn_body.size() + 1;
-
-        const string original_fn_definition = fn_name_and_type + suffix.substr(0, suffix_size);
-        replace_all(modified_struct_body,
-                    original_fn_definition,
-                    string(line_count(original_fn_definition), '\n'));
-
-        const string modified_fn_args = is_static ?
-                                            fn_args :
-                                            ((is_const ? "const " : "inout ") + struct_name +
-                                             " this" + (fn_args.empty() ? "" : (", " + fn_args)));
-
-        string modified_fn_body = fn_body;
-        /* Use regex to check word boundaries. */
-        modified_fn_body = std::regex_replace(modified_fn_body, regex(R"(\bthis\b)"), "@");
-        replace_all(modified_fn_body, "*@", "this");
-        replace_all(modified_fn_body, "@->", "this.");
-
-        string modified_fn_name_and_type = fn_name_and_type;
-        if (is_static) {
-          replace_all(modified_fn_name_and_type,
-                      " " + fn_name + "(",
-                      " " + struct_name + "::" + fn_name + "(");
-          replace_all(modified_fn_name_and_type, " static ", " ");
-        }
-
-        modified_functions += "\n#line " + std::to_string(struct_declaration_line + fn_line);
-        modified_functions += modified_fn_name_and_type + modified_fn_args + ")\n";
-        modified_functions += "  {" + modified_fn_body + "}\n";
+    parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
+      /* `class` -> `struct` */
+      scope.foreach_match("S", [&](const std::vector<Token> &tokens) {
+        parser.add_mutation(tokens[0], tokens[0], "struct ");
       });
-
-      modified_functions += "\n#line " +
-                            std::to_string(struct_declaration_line + line_count(struct_body) + 1);
-
-      replace_all(out,
-                  struct_begin + struct_body,
-                  modified_struct_begin + modified_struct_body + modified_functions);
     });
 
-    return out;
+    parser.apply_mutations();
+
+    parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
+      scope.foreach_match("sw", [&](const std::vector<Token> &tokens) {
+        const Token struct_name = tokens[1];
+
+        if (struct_name.next() == ':') {
+          /* TODO(fclem): Good report. */
+          report_error(smatch(), "class inheritance is not supported");
+          return;
+        }
+        if (struct_name.next() == '<') {
+          /* TODO(fclem): Good report. */
+          report_error(smatch(), "class template is not supported");
+          return;
+        }
+        if (struct_name.next() != '{') {
+          /* TODO(fclem): Good report. */
+          report_error(smatch(), "Expected `{`");
+          return;
+        }
+
+        const Scope struct_scope = struct_name.next().scope();
+        const Token struct_end = struct_scope.end().next();
+
+        /* Erase `public:` and `private:` keywords. */
+        struct_scope.foreach_match("v:", [&](const std::vector<Token> &tokens) {
+          parser.add_erase_mutation(tokens[0], tokens[1]);
+        });
+        struct_scope.foreach_match("V:", [&](const std::vector<Token> &tokens) {
+          parser.add_erase_mutation(tokens[0], tokens[1]);
+        });
+
+        struct_scope.foreach_match("ww(", [&](const std::vector<Token> &tokens) {
+          if (tokens[0].prev() == Const) {
+            /* TODO(fclem): Good report. */
+            report_error(smatch(),
+                         "function return type is marked `const` but it makes no sense for values "
+                         "and returning reference is not supported");
+            return;
+          }
+
+          const bool is_static = tokens[0].prev() == Static;
+          const Token fn_start = is_static ? tokens[0].prev() : tokens[0];
+          const Scope fn_args = tokens[2].scope();
+          const Token after_args = fn_args.end().next();
+          const bool is_const = after_args == Const;
+          const Scope fn_body = (is_const ? after_args.next() : after_args).scope();
+
+          string fn_content = parser.substr_range_inclusive(fn_start.str_index_start(),
+                                                            fn_body.end().line_end() + 1);
+
+          Parser fn_parser(fn_content);
+
+          fn_parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
+            if (is_static) {
+              const Token fn_name = scope.start().next().next();
+              fn_parser.add_mutation(
+                  fn_name, fn_name, struct_name.str_no_whitespace() + "::" + fn_name.str());
+            }
+            /* `*this` -> `this` */
+            scope.foreach_match("*T", [&](const std::vector<Token> &tokens) {
+              fn_parser.add_mutation(tokens[0], tokens[1], tokens[1].str());
+            });
+            /* `this->` -> `this.` */
+            scope.foreach_match("TD", [&](const std::vector<Token> &tokens) {
+              fn_parser.add_mutation(tokens[0], tokens[1], tokens[0].str() + ".");
+            });
+          });
+
+          string line_directive = "#line " + std::to_string(fn_start.line_number()) + '\n';
+
+          parser.add_erase_mutation(fn_start, fn_body.end());
+          parser.add_mutation_insert_after(struct_end.line_end() + 1,
+                                           line_directive + fn_parser.result_get());
+        });
+
+        string line_directive = "#line " + std::to_string(struct_end.line_number() + 1) + '\n';
+        parser.add_mutation_insert_after(struct_end.line_end() + 1, line_directive);
+      });
+    });
+
+    std::cout << "parser.mutations_serialize() " << parser.serialize_mutations() << std::endl;
+
+    return parser.result_get();
   }
 
   /* Transform `a.fn(b)` into `fn(a, b)`. */

@@ -88,6 +88,8 @@ enum TokenType : char {
   While = 'F',
   Do = 'd',
   Template = 't',
+  This = 'T',
+  Deref = 'D',
   Static = 'm',
   PreprocessorNewline = 'N',
   Equal = 'E',
@@ -96,6 +98,8 @@ enum TokenType : char {
   LEqual = 'L',
   Increment = 'P',
   Decrement = 'D',
+  Private = 'v',
+  Public = 'V',
 };
 
 enum class ScopeType : char {
@@ -223,6 +227,11 @@ struct ParserData {
           token_types.back() = LEqual;
           continue;
         }
+        /* Merge '->'. */
+        if (prev == '-' && type == '>') {
+          token_types.back() = LEqual;
+          continue;
+        }
         /* If digit is part of word. */
         if (type == Literal && prev == Word) {
           continue;
@@ -342,8 +351,17 @@ struct ParserData {
           else if (word == "template") {
             c = Template;
           }
+          else if (word == "this") {
+            c = This;
+          }
           else if (word == "static") {
             c = Static;
+          }
+          else if (word == "private") {
+            c = Private;
+          }
+          else if (word == "public") {
+            c = Public;
           }
         }
       }
@@ -594,9 +612,44 @@ struct Token {
     return index_range().last();
   }
 
+  /* Index of the first character of the line this token is. */
+  size_t line_start() const
+  {
+    size_t pos = data->str.rfind('\n', str_index_start());
+    return (pos == std::string::npos) ? 0 : pos + 1;
+  }
+
+  /* Index of the last character of the line this token is, excluding `\n`. */
+  size_t line_end() const
+  {
+    size_t pos = data->str.find('\n', str_index_start());
+    return (pos == std::string::npos) ? data->str.size() - 1 : pos - 1;
+  }
+
   std::string str() const
   {
     return data->str.substr(index_range().start, index_range().size);
+  }
+
+  std::string str_no_whitespace() const
+  {
+    std::string str = this->str();
+    return str.substr(0, str.find_last_not_of(" \n") + 1);
+  }
+
+  /* Return the line number this token is found at. Take into account the #line directives. */
+  size_t line_number() const
+  {
+    std::string directive = "#line ";
+    /* String to count the number of line. */
+    std::string sub_str = data->str.substr(0, str_index_start());
+    size_t nearest_line_directive = sub_str.rfind(directive);
+    size_t line_count = 1;
+    if (nearest_line_directive != std::string::npos) {
+      sub_str = sub_str.substr(nearest_line_directive + directive.size());
+      line_count = std::stoll(sub_str);
+    }
+    return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
   }
 
   TokenType type() const
@@ -637,6 +690,11 @@ struct Scope {
     return data->scope_ranges[index];
   }
 
+  ScopeType type() const
+  {
+    return ScopeType(data->scope_types[index]);
+  }
+
   std::string str() const
   {
     return data->str.substr(start().str_index_start(),
@@ -653,10 +711,14 @@ struct Scope {
 
     size_t pos = 0;
     while ((pos = scope_tokens.find(pattern, pos)) != std::string::npos) {
-      for (int i = 0; i < pattern.size(); i++) {
-        match[i] = Token{data, range().start + pos + i};
+      match[0] = {data, range().start + pos};
+      /* Do not match preprocessor directive by default. */
+      if (match[0].scope().type() != ScopeType::Preprocessor) {
+        for (int i = 1; i < pattern.size(); i++) {
+          match[i] = Token{data, range().start + pos + i};
+        }
+        callback(match);
       }
-      callback(match);
       pos += 1;
     }
   }
@@ -685,6 +747,13 @@ struct Parser {
         : src_range(src_range), replacement(replacement)
     {
     }
+
+    /* Define operator in order to sort the mutation by starting position.
+     * Otherwise, applying them in one pass will not work. */
+    friend bool operator<(const Mutation &a, const Mutation &b)
+    {
+      return a.src_range.start < b.src_range.start;
+    }
   };
   std::vector<Mutation> mutations_;
 
@@ -706,17 +775,19 @@ struct Parser {
     }
   }
 
+  std::string substr_range_inclusive(size_t start, size_t end)
+  {
+    return data_.str.substr(start, end - start + 1);
+  }
   std::string substr_range_inclusive(Token start, Token end)
   {
-    return data_.str.substr(start.str_index_start(),
-                            end.str_index_last() - start.str_index_start() + 1);
+    return substr_range_inclusive(start.str_index_start(), end.str_index_last());
   }
 
   /* Return true on success. */
-  bool add_mutation_try(Token from, Token to, const std::string &replacement)
+  bool add_mutation_try(size_t from, size_t to, const std::string &replacement)
   {
-    IndexRange range = IndexRange(from.str_index_start(),
-                                  to.str_index_last() + 1 - from.str_index_start());
+    IndexRange range = IndexRange(from, to + 1 - from);
     for (const Mutation &mut : mutations_) {
       if (mut.src_range.overlaps(range)) {
         return false;
@@ -725,12 +796,44 @@ struct Parser {
     mutations_.emplace_back(range, replacement);
     return true;
   }
+  bool add_mutation_try(Token from, Token to, const std::string &replacement)
+  {
+    return add_mutation_try(from.str_index_start(), to.str_index_last(), replacement);
+  }
 
-  void add_mutation(Token from, Token to, const std::string &replacement)
+  void add_mutation(size_t from, size_t to, const std::string &replacement)
   {
     bool success = add_mutation_try(from, to, replacement);
     assert(success);
     (void)success;
+  }
+  void add_mutation(Token from, Token to, const std::string &replacement)
+  {
+    add_mutation(from.str_index_start(), to.str_index_last(), replacement);
+  }
+
+  /* Replace the content between the two token and the two tokens by whitespaces without changing
+   * line count. */
+  void add_erase_mutation(size_t from, size_t to)
+  {
+    IndexRange range = IndexRange(from, to + 1 - from);
+    std::string content = data_.str.substr(range.start, range.size);
+    size_t lines = std::count(content.begin(), content.end(), '\n');
+    add_mutation(from, to, std::string(lines, '\n'));
+  }
+  void add_erase_mutation(Token from, Token to)
+  {
+    add_erase_mutation(from.str_index_start(), to.str_index_last());
+  }
+
+  void add_mutation_insert_after(size_t at, const std::string &content)
+  {
+    IndexRange range = IndexRange(at + 1, 0);
+    mutations_.emplace_back(range, content);
+  }
+  void add_mutation_insert_after(Token at, const std::string &content)
+  {
+    add_mutation_insert_after(at.str_index_last(), content);
   }
 
   /* Return true if any mutation was applied. */
@@ -740,8 +843,15 @@ struct Parser {
       return false;
     }
 
+    /* Order mutations so that they are valid. */
+    std::sort(mutations_.begin(), mutations_.end());
+
     int64_t offset = 0;
     for (const Mutation &mut : mutations_) {
+      std::cout << "Replacing :"
+                << data_.str.substr(mut.src_range.start + offset, mut.src_range.size)
+                << ": by :" << mut.replacement << ":\n";
+
       data_.str.replace(mut.src_range.start + offset, mut.src_range.size, mut.replacement);
       offset += mut.replacement.size() - mut.src_range.size;
     }
