@@ -694,8 +694,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
 
   CLOG_DEBUG(&LOG,
-             "Acquire swapchain image (swapchain=%lu, render_frame=%lu, image_index=%u)",
-             m_swapchain,
+             "Acquired swapchain image (render_frame=%lu, image_index=%u)",
              m_render_frame,
              image_index);
   GHOST_SwapchainImage &swapchain_image = m_swapchain_images[image_index];
