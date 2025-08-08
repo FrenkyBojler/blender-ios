@@ -308,6 +308,8 @@ static void copy_xpbd_simulated_attributes(
   Vector<std::string> attributes_to_copy;
   attributes_to_copy.append("position");
   attributes_to_copy.append(sim_geometry_params.velocity_attribute);
+  attributes_to_copy.append(sim_geometry_params.rotation_attribute);
+  attributes_to_copy.append(sim_geometry_params.angular_velocity_attribute);
   src.foreach_attribute([&](const AttributeIter &iter) {
     if (!dst.contains(iter.name)) {
       attributes_to_copy.append(iter.name);
