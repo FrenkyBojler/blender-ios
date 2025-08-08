@@ -12,7 +12,9 @@
 #include "BLI_math_vector_types.hh"
 #include "GPU_shader_shared.hh"
 
-struct GPUShader;
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
 struct GPUUniformBuf;
 struct View2D;
 

@@ -149,9 +149,9 @@ inline constexpr DataFormat to_data_format(VertAttrType format)
   return DataFormat(int(format));
 }
 
-}  // namespace blender::gpu
+class Shader;
 
-struct GPUShader;
+}  // namespace blender::gpu
 
 constexpr static int GPU_VERT_ATTR_MAX_LEN = 16;
 constexpr static int GPU_VERT_ATTR_MAX_NAMES = 6;

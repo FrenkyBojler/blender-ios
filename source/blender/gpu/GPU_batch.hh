@@ -26,7 +26,9 @@
 #include "GPU_storage_buffer.hh"
 #include "GPU_vertex_buffer.hh"
 
-struct GPUShader;
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
 
 constexpr static int GPU_BATCH_VBO_MAX_LEN = 16;
 constexpr static int GPU_BATCH_INST_VBO_MAX_LEN = 2;

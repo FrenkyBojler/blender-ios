@@ -11,7 +11,9 @@
 #include "draw_curves_private.hh"
 #include "draw_hair_private.hh"
 
-struct GPUShader;
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
 
 /* draw_shader.cc */
 

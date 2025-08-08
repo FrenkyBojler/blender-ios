@@ -11,7 +11,9 @@
 
 #include "COM_cached_resource.hh"
 
-struct GPUShader;
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
 
 namespace blender::compositor {
 

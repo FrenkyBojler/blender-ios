@@ -8,7 +8,9 @@
 
 #pragma once
 
-struct GPUShader;
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
 
 /**
  * To Identity transform & empty stack.

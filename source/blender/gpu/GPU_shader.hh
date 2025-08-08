@@ -22,12 +22,11 @@
 
 namespace blender::gpu {
 class VertBuf;
-}
+class Shader;
+}  // namespace blender::gpu
 
 /** Opaque type hiding #blender::gpu::shader::ShaderCreateInfo */
 struct GPUShaderCreateInfo;
-/** Opaque type hiding #blender::gpu::Shader */
-struct GPUShader;
 
 /* Hardware limit is 16. Position attribute is always needed so we reduce to 15.
  * This makes sure the GPUVertexFormat name buffer does not overflow. */

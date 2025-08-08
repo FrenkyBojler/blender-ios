@@ -20,7 +20,9 @@
 
 #pragma once
 
-struct GPUShader;
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
 
 enum eGPUBuiltinShader {
   /** Glyph drawing shader used by the BLF module. */

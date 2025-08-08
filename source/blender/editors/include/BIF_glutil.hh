@@ -16,7 +16,9 @@ struct ColorManagedDisplaySettings;
 struct ColorManagedViewSettings;
 struct ImBuf;
 struct bContext;
-struct GPUShader;
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
 
 struct IMMDrawPixelsTexState {
   GPUShader *shader;

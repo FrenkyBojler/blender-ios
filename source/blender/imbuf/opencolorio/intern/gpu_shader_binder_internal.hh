@@ -26,10 +26,10 @@
 
 struct CurveMapping;
 struct GPUUniformBuf;
-struct GPUShader;
 namespace blender::gpu {
+class Shader;
 class Texture;
-}
+}  // namespace blender::gpu
 
 namespace blender::ocio {
 
