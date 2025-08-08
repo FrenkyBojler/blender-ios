@@ -256,7 +256,7 @@ func_TEMPLATE(float, 1)/*float a*/)";
   }
   {
     string input = R"(template<> void func<T, Q>(T a) {a};)";
-    string expect = R"(void func_T_Q_(T a) {a};)";
+    string expect = R"( void func_T_Q_(T a) {a};)";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);

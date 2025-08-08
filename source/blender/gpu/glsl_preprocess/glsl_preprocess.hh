@@ -413,19 +413,26 @@ class Preprocessor {
       }
     }
     {
-      /* Replace full specialization by simple functions. */
-      std::regex regex(R"(template<>(\s\w+\s\w+)\s*<[\w\d\n\,\ ]+>\s*\()");
-      out_str = std::regex_replace(out_str, regex, "$1@$3@(");
+      using namespace std;
+      using namespace shader::parser;
+      Parser parser(out_str);
 
-      while (true) {
-        const std::string args = get_content_between_balanced_pair(out_str, '@', '@');
-        if (args.empty()) {
-          break;
-        }
-        std::string args_concat = std::regex_replace(args, std::regex(R"(\s)"), "");
-        replace_all(args_concat, ",", "_");
-        replace_all(out_str, "@" + args + "@", "_" + args_concat + "_");
-      }
+      parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
+        /* Replace full specialization by simple functions. */
+        scope.foreach_match("t<>ww<", [&](const std::vector<Token> &tokens) {
+          const Scope template_args = tokens[5].scope();
+          const Token fn_name = tokens[4];
+          string fn_name_str = fn_name.str_no_whitespace() + "_";
+          template_args.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
+            fn_name_str += arg.start().str_no_whitespace() + "_";
+          });
+          parser.erase(template_args);
+          parser.erase(tokens[0], tokens[2]);
+          parser.replace(fn_name, fn_name_str);
+        });
+      });
+
+      out_str = parser.result_get();
     }
     {
       /* Replace explicit instantiation by macro call. */
