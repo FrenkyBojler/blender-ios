@@ -35,6 +35,7 @@
 
 #include <cassert>
 #include <cctype>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <iostream>
