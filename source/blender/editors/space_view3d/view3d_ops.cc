@@ -19,6 +19,8 @@
 #include "BKE_context.hh"
 #include "BKE_report.hh"
 
+#include "BLO_readfile.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
@@ -72,7 +74,17 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
   /* Explicitly adding an object to the copy/paste buffer _may_ add others as dependencies (e.g. a
    * parent object). So count to total amount of objects added, to get a matching number with the
    * one reported by the "paste" operation. */
-  const int num_copied = BLI_listbase_count(&copybuffer.bmain.objects);
+  int num_copied = 0;
+
+  /* Count & mark the active as done (when set). */
+  Object *obact = CTX_data_active_object(C);
+  LISTBASE_FOREACH (Object *, ob, &copybuffer.bmain.objects) {
+    ob->flag &= ~OB_FLAG_ACTIVE_CLIPBOARD;
+    if (obact && STREQ(ob->id.name + 2, obact->id.name + 2)) {
+      ob->flag |= OB_FLAG_ACTIVE_CLIPBOARD;
+    }
+    num_copied += 1;
+  }
 
   char filepath[FILE_MAX];
   view3d_copybuffer_filepath_get(filepath, sizeof(filepath));
@@ -104,10 +116,10 @@ static void VIEW3D_OT_copybuffer(wmOperatorType *ot)
 static wmOperatorStatus view3d_pastebuffer_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
-  short flag = 0;
+  int flag = 0;
 
   if (RNA_boolean_get(op->ptr, "autoselect")) {
-    flag |= FILE_AUTOSELECT;
+    flag |= FILE_AUTOSELECT | BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD;
   }
   if (RNA_boolean_get(op->ptr, "active_collection")) {
     flag |= FILE_ACTIVE_COLLECTION;
