@@ -77,6 +77,9 @@ static constexpr bool geo_nodes_type_stored_as_SocketValueVariant_v =
                                                    const bke::bNodeSocketType &to_type,
                                                    void *r_to_value);
 
+bke::SocketValueVariant implicitly_convert_socket_value_variant(bke::SocketValueVariant src,
+                                                                const CPPType &dst_type);
+
 /**
  * Builds a lazy-function that can convert between socket types. Returns null if the conversion is
  * never possible.

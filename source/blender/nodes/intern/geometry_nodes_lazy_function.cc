@@ -614,6 +614,14 @@ bool implicitly_convert_socket_value(const bke::bNodeSocketType &from_type,
   return false;
 }
 
+bke::SocketValueVariant implicitly_convert_socket_value_variant(bke::SocketValueVariant src,
+                                                                const CPPType &dst_type)
+{
+  /* TODO: Have to refactor SocketValueVariant first so that it can e.g. store float2 and float3
+   * for vector sockets. */
+  return src;
+}
+
 class LazyFunctionForImplicitConversion : public LazyFunction {
  private:
   const MultiFunction &fn_;
