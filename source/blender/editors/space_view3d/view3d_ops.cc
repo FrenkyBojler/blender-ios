@@ -60,14 +60,22 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
 
+  Object *obact = CTX_data_active_object(C);
+  Object *obact_copy = nullptr;
+
   /* context, selection, could be generalized */
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
-    copybuffer.id_add(&ob->id,
-                      PartialWriteContext::IDAddOptions{
-                          (PartialWriteContext::IDAddOperations::SET_FAKE_USER |
-                           PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
-                           PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
-                      nullptr);
+    ID *ob_id_copy = copybuffer.id_add(
+        &ob->id,
+        PartialWriteContext::IDAddOptions{
+            (PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+             PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
+             PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
+        nullptr);
+
+    if (obact && (obact == ob)) {
+      obact_copy = reinterpret_cast<Object *>(ob_id_copy);
+    }
   }
   CTX_DATA_END;
 
@@ -77,13 +85,12 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
   int num_copied = 0;
 
   /* Count & mark the active as done (when set). */
-  Object *obact = CTX_data_active_object(C);
   LISTBASE_FOREACH (Object *, ob, &copybuffer.bmain.objects) {
     ob->flag &= ~OB_FLAG_ACTIVE_CLIPBOARD;
-    if (obact && STREQ(ob->id.name + 2, obact->id.name + 2)) {
-      ob->flag |= OB_FLAG_ACTIVE_CLIPBOARD;
-    }
     num_copied += 1;
+  }
+  if (obact_copy) {
+    obact_copy->flag |= OB_FLAG_ACTIVE_CLIPBOARD;
   }
 
   char filepath[FILE_MAX];
