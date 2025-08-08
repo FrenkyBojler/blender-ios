@@ -6,6 +6,8 @@
  * \ingroup edinterface
  */
 
+#include <fmt/format.h>
+
 #include "BKE_context.hh"
 #include "BKE_key.hh"
 
@@ -19,12 +21,13 @@
 #include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
+
 #include "DNA_key_types.h"
+
 #include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "ED_undo.hh"
-#include "WM_types.hh"
-#include <fmt/format.h>
 
 namespace blender::ed::object::shapekey {
 
@@ -225,6 +228,15 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   StringRef get_rename_string() const override
   {
     return label_;
+  }
+
+  void build_context_menu(bContext &C, uiLayout &layout) const override
+  {
+    MenuType *mt = WM_menutype_find("MESH_MT_shape_key_tree_context_menu", true);
+    if (!mt) {
+      return;
+    }
+    UI_menutype_draw(&C, mt, &layout);
   }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
