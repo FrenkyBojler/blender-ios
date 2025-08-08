@@ -1809,15 +1809,16 @@ class USDExportTest(AbstractUSDTest):
     def test_export_usdz(self):
         """Validate USDZ files are packaged correctly."""
 
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usdz_export_test.blend"))
+
+        # USDZ export will not create the output directory if it does not already exist
+        self.tempdir.mkdir()
+
         # USDZ export will modify the working directory during the export process, but it should
         # return to normal once complete
         original_cwd = pathlib.Path.cwd()
 
-        # USDZ export will not create the output directory if it does not already exist
-        self.tempdir.mkdir()
         export_path = str(self.tempdir / "output_こんにちは.usdz")
-
-        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usdz_export_test.blend"))
         self.export_and_validate(filepath=export_path)
 
         final_cwd = pathlib.Path.cwd()
@@ -1835,7 +1836,7 @@ class USDExportTest(AbstractUSDTest):
         import zipfile
         with zipfile.ZipFile(export_path, 'r') as zfile:
             file_list = zfile.namelist()
-            self.assertTrue('0/color_0C0C0C.exr' in file_list)
+            self.assertIn('0/color_0C0C0C.exr', file_list)
 
 
 class USDHookBase:
