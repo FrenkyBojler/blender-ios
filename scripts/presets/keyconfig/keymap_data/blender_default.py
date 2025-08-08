@@ -1549,6 +1549,7 @@ def km_view3d(params):
             ("view3d.move", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
         ) if params.use_v3d_mmb_pan else (
             ("view3d.rotate", {"type": 'MIDDLEMOUSE', "value": 'PRESS'}, None),
+            ("view3d.rotate", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),  # TODO: Make iOS only
             ("view3d.move", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "shift": True}, None),
             ("view3d.rotate", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
             ("view3d.move", {"type": 'TRACKPADPAN', "value": 'ANY', "shift": True}, None),
