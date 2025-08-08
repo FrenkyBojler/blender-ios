@@ -1687,7 +1687,7 @@ GLSourcesBaked GLShader::get_sources()
 
 void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 {
-  dynamic_cast<GLShader *>(unwrap(specialization.shader))->program_get(&specialization.constants);
+  dynamic_cast<GLShader *>(specialization.shader)->program_get(&specialization.constants);
 }
 
 /** \} */
@@ -1914,7 +1914,7 @@ void GLSubprocessShaderCompiler::specialize_shader(ShaderSpecialization &special
 {
   static std::mutex mutex;
 
-  GLShader *shader = static_cast<GLShader *>(unwrap(specialization.shader));
+  GLShader *shader = static_cast<GLShader *>(specialization.shader);
 
   auto program_get = [&]() -> GLShader::GLProgram * {
     if (shader->program_cache_.contains(specialization.constants.values)) {
