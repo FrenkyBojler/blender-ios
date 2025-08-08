@@ -285,7 +285,7 @@ void GPU_batch_resource_id_buf_set(blender::gpu::Batch *batch, GPUStorageBuf *re
 /* TODO(fclem): These should be removed and replaced by `GPU_shader_bind()`. */
 void GPU_batch_set_shader(
     blender::gpu::Batch *batch,
-    gpu::Shader *shader,
+    blender::gpu::Shader *shader,
     const blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
 void GPU_batch_program_set_builtin(blender::gpu::Batch *batch, eGPUBuiltinShader shader_id);
 void GPU_batch_program_set_builtin_with_config(blender::gpu::Batch *batch,
@@ -330,7 +330,7 @@ void GPU_batch_program_set_imm_shader(blender::gpu::Batch *batch);
  */
 void GPU_batch_bind_as_resources(
     blender::gpu::Batch *batch,
-    gpu::Shader *shader,
+    blender::gpu::Shader *shader,
     const blender::gpu::shader::SpecializationConstants *constants = nullptr);
 
 /** \} */

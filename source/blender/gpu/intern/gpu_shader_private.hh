@@ -352,4 +352,4 @@ void printf_end(Context *ctx);
 }  // namespace blender::gpu
 
 /* XXX do not use it. Special hack to use OCIO with batch API. */
-gpu::Shader *immGetShader();
+blender::gpu::Shader *immGetShader();

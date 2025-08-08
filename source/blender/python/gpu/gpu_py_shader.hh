@@ -14,6 +14,10 @@
 #  include "../generic/py_capi_utils.hh"
 #endif
 
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
+
 struct GPUShaderCreateInfo;
 struct GPUStageInterfaceInfo;
 
@@ -29,12 +33,11 @@ extern PyTypeObject BPyGPUShader_Type;
 
 struct BPyGPUShader {
   PyObject_VAR_HEAD
-  struct blender::gpu::Shader *shader;
+  blender::gpu::Shader *shader;
   bool is_builtin;
 };
 
-[[nodiscard]] PyObject *BPyGPUShader_CreatePyObject(struct blender::gpu::Shader *shader,
-                                                    bool is_builtin);
+[[nodiscard]] PyObject *BPyGPUShader_CreatePyObject(blender::gpu::Shader *shader, bool is_builtin);
 [[nodiscard]] PyObject *bpygpu_shader_init();
 
 /* gpu_py_shader_create_info.cc */
