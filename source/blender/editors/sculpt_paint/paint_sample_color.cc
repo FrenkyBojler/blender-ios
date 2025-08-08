@@ -184,6 +184,23 @@ static void paint_sample_color(
 
   bool is_data = false;
 
+  if (v3d) {
+    const ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
+    if (imapaint->mode == IMAGEPAINT_MODE_MATERIAL) {
+      ViewLayer *view_layer = CTX_data_view_layer(C);
+      Object *object = BKE_view_layer_active_object_get(view_layer);
+      const Material *material = BKE_object_material_get(object, object->actcol);
+      if (material && material->texpaintslot) {
+        const Image *image = material->texpaintslot[material->paint_active_slot].ima;
+        is_data = image && IMB_colormanagement_space_name_is_data(image->colorspace_settings.name);
+      }
+    }
+    else {
+      const Image *image = imapaint->canvas;
+      is_data = image && IMB_colormanagement_space_name_is_data(image->colorspace_settings.name);
+    }
+  }
+
   if (v3d && texpaint_proj) {
     /* first try getting a color directly from the mesh faces if possible */
     ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -294,20 +311,6 @@ static void paint_sample_color(
 
             BKE_image_release_ibuf(image, ibuf, nullptr);
           }
-        }
-
-        if (use_material) {
-          const Material *material = BKE_object_material_get(ob, ob->actcol);
-          if (material && material->texpaintslot) {
-            const Image *image = material->texpaintslot[material->paint_active_slot].ima;
-            is_data = image &&
-                      IMB_colormanagement_space_name_is_data(image->colorspace_settings.name);
-          }
-        }
-        else {
-          const Image *image = imapaint->canvas;
-          is_data = image &&
-                    IMB_colormanagement_space_name_is_data(image->colorspace_settings.name);
         }
       }
     }
