@@ -234,7 +234,7 @@ class ShaderNodesInliner {
 
   Vector<SocketInContext> find_final_output_sockets() const
   {
-    /* TODO: Handle other output nodes and outputs within node groups. */
+    /* TODO: Handle outputs within node groups. */
     Vector<SocketInContext> output_sockets;
 
     auto add_output_type = [&](const char *output_type) {
