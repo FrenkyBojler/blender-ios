@@ -368,7 +368,6 @@ const bTheme U_theme_default = {
     .bone_locked_weight = RGBA(0xff000080),
     .before_current_frame = RGBA(0xf22e23ff),
     .after_current_frame = RGBA(0x78f244ff),
-    .time_keyframe = RGBA(0xddd700ff),
     .time_gp_keyframe = RGBA(0x7a9b14ff),
     .freestyle_edge_mark = RGBA(0x7fff7fff),
     .freestyle_face_mark = RGBA(0x7fff7f4d),
