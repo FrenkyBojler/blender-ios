@@ -60,10 +60,14 @@ static void track_channel_color(MovieTrackingTrack *track,
 static void draw_keyframe_shape(
     float x, float y, bool sel, float alpha, uint pos_id, uint color_id)
 {
-  float color[4] = {0.91f, 0.91f, 0.91f, alpha};
+  float color[4];
   if (sel) {
-    UI_GetThemeColorShadeAlpha4fv(TH_LONGKEY_SELECT, 50, -255 * (1.0f - alpha), color);
+    UI_GetThemeColor4fv(TH_KEYTYPE_KEYFRAME_SELECT, color);
   }
+  else {
+    UI_GetThemeColor4fv(TH_KEYTYPE_KEYFRAME, color);
+  }
+  color[3] = alpha;
 
   immAttr4fv(color_id, color);
   immVertex2f(pos_id, x, y);
