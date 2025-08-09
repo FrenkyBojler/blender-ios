@@ -850,7 +850,7 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *d
   /* Clear search on each menu creation */
   *search = '\0';
 
-  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
@@ -2096,11 +2096,11 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
     pchan->bone->flag &= ~BONE_SELECTED;
   }
   else if (event == OL_DOP_HIDE) {
-    pchan->bone->flag |= BONE_HIDDEN_P;
+    pchan->drawflag |= PCHAN_DRAW_HIDDEN;
     pchan->bone->flag &= ~BONE_SELECTED;
   }
   else if (event == OL_DOP_UNHIDE) {
-    pchan->bone->flag &= ~BONE_HIDDEN_P;
+    pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
   }
 }
 

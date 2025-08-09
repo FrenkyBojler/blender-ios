@@ -31,6 +31,7 @@
  * support SYCL. */
 extern "C" RTCDevice rtcNewSYCLDevice(sycl::context context, const char *config);
 extern "C" bool rtcIsSYCLDeviceSupported(const sycl::device sycl_device);
+extern "C" void rtcSetDeviceSYCLDevice(RTCDevice device, const sycl::device sycl_device);
 #  endif
 
 CCL_NAMESPACE_BEGIN
@@ -1019,6 +1020,9 @@ bool OneapiDevice::create_queue(SyclQueue *&external_queue,
             "Hardware Raytracing is not available; please install "
             "\"intel-level-zero-gpu-raytracing\" to enable it or disable Embree on GPU.";
       }
+      else {
+        rtcSetDeviceSYCLDevice(*device_object_ptr, devices[device_index]);
+      }
     }
 #  else
     (void)embree_device_pointer;
@@ -1337,7 +1341,7 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
 static const int lowest_supported_driver_version_win = 1016554;
 #  ifdef _WIN32
 /* For Windows driver 101.6557, compute-runtime version is 31896.
- * This information is returned by `ocloc query OCL_DRIVER_VERSION`.*/
+ * This information is returned by `ocloc query OCL_DRIVER_VERSION`. */
 static const int lowest_supported_driver_version_neo = 31896;
 #  else
 static const int lowest_supported_driver_version_neo = 31740;
