@@ -874,7 +874,6 @@ static void print_help(bArgs *ba, bool all)
     PRINT("  $TEMP                      Store temporary files here (MS-Windows).\n");
   }
   if (!defs.win32 || all) {
-    /* NOTE: while `TMP` checked, don't include here as it's non-standard & may be removed. */
     PRINT("  $TMPDIR                    Store temporary files here (UNIX Systems).\n");
   }
   PRINT(
@@ -1552,7 +1551,7 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (false) {
-    /* Just a dummy if to make the following ifdef blocks work. */
+    /* Use a dummy block to make the following `ifdef` blocks work. */
   }
 #  ifdef WITH_OPENGL_BACKEND
   else if (STREQ(argv[1], (backends_supported[backends_supported_num++] = "opengl"))) {
@@ -2027,7 +2026,7 @@ static const char arg_handle_image_type_set_doc[] =
     "<format>\n"
     "\tSet the render format.\n"
     "\tValid options are:\n"
-    "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'AVIRAW' 'AVIJPEG' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
+    "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
     "\n"
     "\tFormats that can be compiled into Blender, not available on all systems:\n"
     "\t'OPEN_EXR' 'OPEN_EXR_MULTILAYER' 'FFMPEG' 'CINEON' 'DPX' 'JP2' 'WEBP'.";

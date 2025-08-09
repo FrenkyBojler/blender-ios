@@ -4612,9 +4612,9 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
                                   (jd->start_y > event->xy[1] && jd->split_fac < 0.5f));
 
             if (large_v || large_h) {
-              /* Swap areas to follow old behavior of new area added based on starting location. If
-               * from above the new area is above, if from below the new area is below, etc. Note
-               * that this preserves runtime data, unlike ED_area_swapspace. */
+              /* Swap areas to follow old behavior of new area added based on starting location.
+               * When from above the new area is above, when from below the new area is below, etc.
+               * Note that this preserves runtime data, unlike #ED_area_swapspace. */
               std::swap(jd->sa1->v1, jd->sa2->v1);
               std::swap(jd->sa1->v2, jd->sa2->v2);
               std::swap(jd->sa1->v3, jd->sa2->v3);
@@ -5738,7 +5738,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   else if ((scene->audio.flag & AUDIO_SYNC) && (sad->flag & ANIMPLAY_FLAG_REVERSE) == false &&
            isfinite(time = BKE_sound_sync_scene(scene_eval)))
   {
-    scene->r.cfra = round(time * FPS);
+    scene->r.cfra = round(time * scene->frames_per_second());
 
 #ifdef PROFILE_AUDIO_SYNC
     newfra_int = scene->r.cfra;
@@ -5757,7 +5757,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
       /* Try to keep the playback in realtime by dropping frames. */
 
       /* How much time (in frames) has passed since the last frame was drawn? */
-      double delta_frames = wt->time_delta * FPS;
+      double delta_frames = wt->time_delta * scene->frames_per_second();
 
       /* Add the remaining fraction from the last time step. */
       delta_frames += sad->lagging_frame_count;
@@ -5891,7 +5891,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
    */
   /* TODO: this may make evaluation a bit slower if the value doesn't change...
    * any way to avoid this? */
-  wt->time_step = (1.0 / FPS);
+  wt->time_step = (1.0 / scene->frames_per_second());
 
   return OPERATOR_FINISHED;
 }

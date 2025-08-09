@@ -3603,7 +3603,7 @@ static void data_device_handle_drop(void *data, wl_data_device * /*wl_data_devic
    * Failure to set this to a known type just means the file won't have any special handling.
    * GHOST still generates a dropped file event.
    * NOTE: this string can be compared with `mime_text_plain`, `mime_text_uri` etc...
-   * as the this always points to the same values. */
+   * as this always points to the same values. */
   const char *mime_receive = "";
   for (size_t i = 0; i < ARRAY_SIZE(ghost_wl_mime_preference_order); i++) {
     const char *type = ghost_wl_mime_preference_order[i];
@@ -4055,7 +4055,7 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
             /* We never want mouse wheel events to be treated as smooth scrolling as this
              * causes mouse wheel scroll to orbit the view, see #120587.
              * Although it could be supported if the event system would forward
-             * the source of the scroll action (a wheel or touch device).  */
+             * the source of the scroll action (a wheel or touch device). */
             ps.smooth_xy[0] = 0;
             ps.smooth_xy[1] = 0;
           }
@@ -7691,7 +7691,7 @@ GHOST_SystemWayland::GHOST_SystemWayland(const bool background)
     gwl_display_event_thread_create(display_);
   }
   /* Could be null in background mode, however there are enough
-   * references to this that it's safer to create it. */
+   * references to the timer-manager that it's safer to create it. */
   display_->ghost_timer_manager = new GHOST_TimerManager();
 #endif
 }
