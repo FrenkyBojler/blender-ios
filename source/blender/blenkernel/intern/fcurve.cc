@@ -2401,6 +2401,7 @@ float evaluate_fcurve_unmodified(const FCurve *fcu, float evaltime)
   }
 
   BLI_assert_unreachable();
+  return 0;
 }
 
 float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,

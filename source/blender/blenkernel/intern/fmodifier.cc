@@ -1008,11 +1008,11 @@ static void fcm_smooth_new_data(void *mdata)
   data->filter_width = 6;
 }
 
-static void fcm_smooth_evaluate(const FCurve *fcu,
-                                const FModifier *fcm,
-                                float *cvalue,
-                                float evaltime,
-                                void * /*storage*/)
+/* This function smooths a certain frame on curve. It is separate because the modifier evaluate function may call it multiple times if we are interpolating for a sub-frame. */
+static void fcm_smooth_frame(const FCurve *fcu,
+                                    const FModifier *fcm,
+                                    float *cvalue,
+                                    float evaltime)
 {
   FMod_Smooth *data = (FMod_Smooth *)fcm->data;
 
@@ -1054,6 +1054,37 @@ static void fcm_smooth_evaluate(const FCurve *fcu,
 
     /* Blend the influcence by the factor property. */
     *cvalue = orig * (1.0f - factor) + (smoothed * factor);
+  }
+}
+
+static void fcm_smooth_evaluate(const FCurve *fcu,
+                                const FModifier *fcm,
+                                float *cvalue,
+                                float evaltime,
+                                void * /*storage*/)
+{
+  /* Check if evaltime is an integer, with FLT_EPSILON tolerance. */ 
+  bool is_subframe = (fabs(roundf(evaltime) - evaltime) > FLT_EPSILON);
+
+  /* If the evaltime is a sub-frame, we linearly interpolate. */ 
+  if (is_subframe) {
+    const float prev_time = floorf(evaltime);
+    const float next_time = ceilf(evaltime);
+
+    float prev_value = evaluate_fcurve_unmodified(fcu, prev_time);
+    float next_value = evaluate_fcurve_unmodified(fcu, next_time);
+
+    fcm_smooth_frame(fcu, fcm, &prev_value, prev_time);
+    fcm_smooth_frame(fcu, fcm, &next_value, next_time);
+
+    const float lerp_factor = evaltime - prev_time;
+    const float current_value = prev_value + (next_value - prev_value) * lerp_factor;
+    *cvalue = current_value;
+  }
+
+  /* Otherwise, we directly calcuate the value. */
+  else {
+    fcm_smooth_frame(fcu, fcm, cvalue, evaltime);
   }
 }
 
