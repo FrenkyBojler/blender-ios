@@ -762,6 +762,10 @@ if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(bf_gpu PUBLIC rt)
 endif()
 
+if(HAVE_EXECINFO_H AND CMAKE_SYSTEM_NAME MATCHES "FreeBSD|NetBSD|OpenBSD|DragonFly")
+  target_link_libraries(bf_gpu PUBLIC execinfo)
+endif()
+
 if(WITH_OPENSUBDIV)
   target_link_libraries(bf_gpu PUBLIC bf_osd_shaders)
 endif()
