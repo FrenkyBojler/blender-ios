@@ -1518,6 +1518,12 @@ static wmOperatorStatus area_primary_exec(bContext *C, wmOperator *op)
     }
   }
 
+  if (primary_area && primary_area->spacetype == area_value &&
+      primary_area->butspacetype_subtype == subtype)
+  {
+    return OPERATOR_CANCELLED;
+  }
+
   if (primary_area) {
     primary_area->butspacetype_subtype = subtype;
     screen_area_animate_out(C, primary_area, SCREEN_DIR_S, 0.3f);
