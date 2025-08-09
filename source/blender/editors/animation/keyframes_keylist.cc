@@ -871,6 +871,16 @@ static void compute_keyblock_data(ActKeyBlockInfo *info,
   /* Remember non-bezier interpolation info. */
   if (prev->ipo != BEZT_IPO_BEZ) {
     info->flag |= ACTKEYBLOCK_FLAG_NON_BEZIER;
+
+    if (prev->ipo == BEZT_IPO_LIN) {
+      info->flag |= ACTKEYBLOCK_FLAG_IPO_LINEAR;
+    }
+    else if (prev->ipo == BEZT_IPO_CONST) {
+      info->flag |= ACTKEYBLOCK_FLAG_IPO_CONSTANT;
+    }
+    else if (prev->ipo != BEZT_IPO_BEZ) {
+      info->flag |= ACTKEYBLOCK_FLAG_IPO_BEZIER;
+    }
   }
 
   info->sel = BEZT_ISSEL_ANY(prev) || BEZT_ISSEL_ANY(beztn);
