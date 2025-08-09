@@ -310,6 +310,24 @@ int SVMCompiler::stack_assign_if_linked(ShaderOutput *output)
   return SVM_STACK_INVALID;
 }
 
+int SVMCompiler::stack_assign_if_not_equal(ShaderInput *input, const float value)
+{
+  if (is_linked(input) || input->parent->get_float(input->socket_type) != value) {
+    return stack_assign(input);
+  }
+
+  return SVM_STACK_INVALID;
+}
+
+int SVMCompiler::stack_assign_if_not_equal(ShaderInput *input, const float3 value)
+{
+  if (is_linked(input) || input->parent->get_float3(input->socket_type) != value) {
+    return stack_assign(input);
+  }
+
+  return SVM_STACK_INVALID;
+}
+
 void SVMCompiler::stack_link(ShaderInput *input, ShaderOutput *output)
 {
   if (output->stack_offset == SVM_STACK_INVALID) {
@@ -495,7 +513,7 @@ void SVMCompiler::generate_closure_node(ShaderNode *node, CompilerState *state)
 {
   /* Skip generating closure that are not supported or needed for a particular
    * type of shader. For example a BSDF in a volume shader. */
-  const int node_feature = node->get_feature();
+  const uint node_feature = node->get_feature();
   if ((state->node_feature_mask & node_feature) != node_feature) {
     return;
   }

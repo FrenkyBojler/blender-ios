@@ -41,7 +41,7 @@ class AssetRepresentation;
 class AssetLibrary {
   eAssetLibraryType library_type_;
   /**
-   * The name this asset library will be displayed in the UI as. Will also be used as a weak way
+   * The name this asset library will be displayed as in the UI. Will also be used as a weak way
    * to identify an asset library (e.g. by #AssetWeakReference).
    */
   std::string name_;
@@ -299,7 +299,7 @@ void AS_asset_library_remap_ids(const blender::bke::id::IDRemapper &mappings);
  * \param r_name: Returns the ID name on success. Optional (passing null is allowed).
  */
 void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_reference,
-                                              char r_path_buffer[1282 /* FILE_MAX_LIBEXTRA */],
+                                              char r_path_buffer[/*FILE_MAX_LIBEXTRA*/ 1282],
                                               char **r_dir,
                                               char **r_group,
                                               char **r_name);

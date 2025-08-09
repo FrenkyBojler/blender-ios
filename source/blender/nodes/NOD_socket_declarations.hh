@@ -8,7 +8,10 @@
 
 #include "RNA_types.hh"
 
+#include "BKE_node_enum.hh"
+
 #include "BLI_color.hh"
+#include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -227,6 +230,7 @@ class Menu : public SocketDeclaration {
 
   int32_t default_value;
   bool is_expanded = false;
+  ImplicitSharingPtr<bke::RuntimeNodeEnumItems> items;
 
   friend MenuBuilder;
 
@@ -244,6 +248,9 @@ class MenuBuilder : public SocketDeclarationBuilder<Menu> {
 
   /** Draw the menu items next to each other instead of as a drop-down menu. */
   MenuBuilder &expanded(bool value = true);
+
+  /** Set the available items in the menu. The items array must have static lifetime. */
+  MenuBuilder &static_items(const EnumPropertyItem *items);
 };
 
 class BundleBuilder;
@@ -251,6 +258,11 @@ class BundleBuilder;
 class Bundle : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_BUNDLE;
+  /**
+   * Index of a corresponding input socket. If set, the output is assumed to have the same bundle
+   * structure as the input.
+   */
+  std::optional<int> pass_through_input_index;
 
   friend BundleBuilder;
 
@@ -262,7 +274,11 @@ class Bundle : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
-class BundleBuilder : public SocketDeclarationBuilder<Bundle> {};
+class BundleBuilder : public SocketDeclarationBuilder<Bundle> {
+ public:
+  /** On output sockets, indicate that the bundle structure is passed through from an input. */
+  BundleBuilder &pass_through_input_index(std::optional<int> index);
+};
 
 class ClosureBuilder;
 

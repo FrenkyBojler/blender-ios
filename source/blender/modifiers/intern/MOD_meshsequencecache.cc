@@ -136,6 +136,8 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
       {
         return true;
       }
+#  else
+      UNUSED_VARS(frame_offset);
 #  endif
       break;
     case CACHE_FILE_TYPE_INVALID:
@@ -177,7 +179,8 @@ static void modify_geometry_set(ModifierData *md,
   CacheFile *cache_file = mcmd->cache_file;
   const double frame = double(DEG_get_ctime(ctx->depsgraph));
   const double frame_offset = BKE_cachefile_frame_offset(cache_file, frame);
-  const double time_offset = BKE_cachefile_time_offset(cache_file, frame, FPS);
+  const double time_offset = BKE_cachefile_time_offset(
+      cache_file, frame, scene->frames_per_second());
   const char *err_str = nullptr;
 
   if (!mcmd->reader || !STREQ(mcmd->reader_object_path, mcmd->object_path)) {
@@ -220,7 +223,7 @@ static void modify_geometry_set(ModifierData *md,
 #  ifdef WITH_ALEMBIC
   float velocity_scale = mcmd->velocity_scale;
   if (mcmd->cache_file->velocity_unit == CACHEFILE_VELOCITY_UNIT_FRAME) {
-    velocity_scale *= FPS;
+    velocity_scale *= scene->frames_per_second();
   }
 #  endif
 
@@ -273,7 +276,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   CacheFile *cache_file = mcmd->cache_file;
   const double frame = double(DEG_get_ctime(ctx->depsgraph));
   const double frame_offset = BKE_cachefile_frame_offset(cache_file, frame);
-  const double time_offset = BKE_cachefile_time_offset(cache_file, frame, FPS);
+  const double time_offset = BKE_cachefile_time_offset(
+      cache_file, frame, scene->frames_per_second());
   const char *err_str = nullptr;
 
   if (!mcmd->reader || !STREQ(mcmd->reader_object_path, mcmd->object_path)) {

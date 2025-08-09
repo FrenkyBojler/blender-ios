@@ -98,9 +98,9 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
      * timelines that have not been provided by Blender. As Blender uses timelines for resource
      * management this resulted in resources to be destroyed, that are still in use. */
 
-    /* Public version 31.0.112 uses vulkan driver version 512.827.14. */
+    /* Public version 31.0.112 uses vulkan driver version 512.827.0. */
     const uint32_t driver_version = vk_physical_device_properties.properties.driverVersion;
-    constexpr uint32_t version_31_0_112 = VK_MAKE_VERSION(512, 827, 14);
+    constexpr uint32_t version_31_0_112 = VK_MAKE_VERSION(512, 827, 0);
     if (driver_version < version_31_0_112) {
       CLOG_WARN(&LOG,
                 "Detected qualcomm driver is not supported. To run the Vulkan backend "
@@ -174,6 +174,9 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
 
   if (!extensions.contains(VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
     missing_capabilities.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+  }
+  if (!extensions.contains(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)) {
+    missing_capabilities.append(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   }
 #ifndef __APPLE__
   /* Metal doesn't support provoking vertex. */
@@ -403,12 +406,9 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.shader_output_layer = false;
     extensions.shader_output_viewport_index = false;
     extensions.fragment_shader_barycentric = false;
-    extensions.dynamic_rendering = false;
     extensions.dynamic_rendering_local_read = false;
     extensions.dynamic_rendering_unused_attachments = false;
     extensions.descriptor_buffer = false;
-
-    GCaps.render_pass_workaround = true;
 
     device.workarounds_ = workarounds;
     device.extensions_ = extensions;
@@ -421,8 +421,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
       device.physical_device_vulkan_12_features_get().shaderOutputViewportIndex;
   extensions.fragment_shader_barycentric = device.supports_extension(
       VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-  extensions.dynamic_rendering = device.supports_extension(
-      VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   extensions.dynamic_rendering_local_read = device.supports_extension(
       VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
   extensions.dynamic_rendering_unused_attachments = device.supports_extension(
@@ -490,8 +488,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
       device.physical_device_get(), VK_FORMAT_R8G8B8_UNORM, &format_properties);
   workarounds.vertex_formats.r8g8b8 = (format_properties.bufferFeatures &
                                        VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) == 0;
-
-  GCaps.render_pass_workaround = !extensions.dynamic_rendering;
 
 #ifdef __APPLE__
   /* Due to a limitation in MoltenVK, attachments should be sequential even when using

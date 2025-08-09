@@ -77,6 +77,14 @@ void ED_region_tag_refresh_ui(ARegion *region);
 void ED_region_tag_redraw_editor_overlays(ARegion *region);
 
 /**
+ * If the region has tag RGN_FLAG_INDICATE_OVERFLOW then draw
+ * a line or gradient on edges if there is content overflowing.
+ */
+void ED_region_draw_overflow_indication(const ScrArea *area,
+                                        ARegion *region,
+                                        rcti *mask = nullptr);
+
+/**
  * Set the temporary update flag for property search.
  */
 void ED_region_search_filter_update(const ScrArea *area, ARegion *region);
@@ -377,7 +385,7 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
                                    const rcti *rect_unscaled,
                                    eSpace_Type space_type,
                                    int display_type,
-                                   bool dialog) ATTR_NONNULL(1, 2, 3);
+                                   bool dialog) ATTR_NONNULL(1, 3);
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void *arg);
 void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void *arg);
 void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void *arg);
