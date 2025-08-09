@@ -23,6 +23,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -78,9 +79,10 @@ void add_load_data_init(LoadData *load_data,
 static void strip_add_generic_update(Scene *scene, Strip *strip)
 {
   strip_unique_name_set(scene, &scene->ed->seqbase, strip);
+  /* Set effect time range values before cache invalidation. */
+  strip_time_effect_range_set(scene, strip);
   relations_invalidate_cache(scene, strip);
   strip_lookup_invalidate(scene->ed);
-  strip_time_effect_range_set(scene, strip);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
@@ -121,7 +123,7 @@ static void strip_add_set_view_transform(Scene *scene, Strip *strip, LoadData *l
           scene->display_settings.display_device);
       const char *default_view_transform =
           IMB_colormanagement_display_get_default_view_transform_name(display);
-      STRNCPY(scene->view_settings.view_transform, default_view_transform);
+      STRNCPY_UTF8(scene->view_settings.view_transform, default_view_transform);
     }
   }
 }
@@ -252,7 +254,8 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     strip->views_format = load_data->views_format;
   }
   if (load_data->stereo3d_format) {
-    strip->stereo3d_format = load_data->stereo3d_format;
+    strip->stereo3d_format = MEM_mallocN<Stereo3dFormat>("strip stereo3d format");
+    *strip->stereo3d_format = *load_data->stereo3d_format;
   }
 
   /* Set initial scale based on load_data->fit_method. */
@@ -275,8 +278,6 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     IMB_freeImBuf(ibuf);
   }
 
-  /* Set Last active directory. */
-  STRNCPY(scene->ed->act_imagedir, strip->data->dirpath);
   strip_add_set_view_transform(scene, strip, load_data);
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
@@ -294,9 +295,10 @@ void add_sound_av_sync(Main *bmain, Scene *scene, Strip *strip, LoadData *load_d
   }
 
   const double av_stream_offset = sound_stream.start - load_data->r_video_stream_start;
-  const int frame_offset = av_stream_offset * FPS;
+  const int frame_offset = av_stream_offset * scene->frames_per_second();
   /* Set sub-frame offset. */
-  strip->sound->offset_time = (double(frame_offset) / FPS) - av_stream_offset;
+  strip->sound->offset_time = (double(frame_offset) / scene->frames_per_second()) -
+                              av_stream_offset;
   transform_translate_strip(scene, strip, frame_offset);
 }
 
@@ -326,7 +328,8 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
    * nearest frame as the audio track usually overshoots or undershoots the
    * end frame of the video by a little bit.
    * See #47135 for under shoot example. */
-  strip->len = std::max(1, int(round((info.length - sound->offset_time) * FPS)));
+  strip->len = std::max(
+      1, int(round((info.length - sound->offset_time) * scene->frames_per_second())));
 
   StripData *data = strip->data;
   /* We only need 1 element to store the filename. */
@@ -349,8 +352,6 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     strip->flag |= SEQ_AUDIO_DRAW_WAVEFORM;
   }
 
-  /* Set Last active directory. */
-  BLI_strncpy(scene->ed->act_sounddir, data->dirpath, FILE_MAXDIR);
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
 
@@ -399,7 +400,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   STRNCPY(filepath, load_data->path);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
-  char colorspace[64] = "\0"; /* MAX_COLORSPACE_NAME */
+  char colorspace[/*MAX_COLORSPACE_NAME*/ 64] = "\0";
   bool is_multiview_loaded = false;
   const int totfiles = seq_num_files(scene, load_data->views_format, load_data->use_multiview);
   MovieReader **anim_arr = MEM_calloc_arrayN<MovieReader *>(totfiles, "Video files");
@@ -419,7 +420,9 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
         char filepath_view[FILE_MAX];
 
         seq_multiview_name(scene, i, prefix, ext, filepath_view, sizeof(filepath_view));
-        anim_arr[j] = openanim(filepath_view, IB_byte_data, 0, colorspace);
+        /* Sequencer takes care of colorspace conversion of the result. The input is the best to be
+         * kept unchanged for the performance reasons. */
+        anim_arr[j] = openanim(filepath_view, IB_byte_data, 0, true, colorspace);
 
         if (anim_arr[j]) {
           seq_anim_add_suffix(scene, anim_arr[j], i);
@@ -431,7 +434,9 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   }
 
   if (is_multiview_loaded == false) {
-    anim_arr[0] = openanim(filepath, IB_byte_data, 0, colorspace);
+    /* Sequencer takes care of colorspace conversion of the result. The input is the best to be
+     * kept unchanged for the performance reasons. */
+    anim_arr[0] = openanim(filepath, IB_byte_data, 0, true, colorspace);
   }
 
   if (anim_arr[0] == nullptr && !load_data->allow_invalid_file) {
@@ -469,7 +474,8 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     strip->views_format = load_data->views_format;
   }
   if (load_data->stereo3d_format) {
-    strip->stereo3d_format = load_data->stereo3d_format;
+    strip->stereo3d_format = MEM_mallocN<Stereo3dFormat>("strip stereo3d format");
+    *strip->stereo3d_format = *load_data->stereo3d_format;
   }
 
   for (i = 0; i < totfiles; i++) {
@@ -505,7 +511,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     strip->flag |= SEQ_AUTO_PLAYBACK_RATE;
   }
 
-  STRNCPY(strip->data->colorspace_settings.name, colorspace);
+  STRNCPY_UTF8(strip->data->colorspace_settings.name, colorspace);
 
   StripData *data = strip->data;
   /* We only need 1 element for MOVIE strips. */
@@ -586,9 +592,12 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
             char filepath_view[FILE_MAX];
 
             seq_multiview_name(scene, i, prefix, ext, filepath_view, sizeof(filepath_view));
+            /* Sequencer takes care of colorspace conversion of the result. The input is the best
+             * to be kept unchanged for the performance reasons. */
             anim = openanim(filepath_view,
                             IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
                             strip->streamindex,
+                            true,
                             strip->data->colorspace_settings.name);
 
             if (anim) {
@@ -603,11 +612,14 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       }
 
       if (is_multiview_loaded == false) {
-        MovieReader *anim;
-        anim = openanim(filepath,
-                        IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-                        strip->streamindex,
-                        strip->data->colorspace_settings.name);
+        /* Sequencer takes care of colorspace conversion of the result. The input is the best to be
+         * kept unchanged for the performance reasons. */
+        MovieReader *anim = openanim(filepath,
+                                     IB_byte_data |
+                                         ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                                     strip->streamindex,
+                                     true,
+                                     strip->data->colorspace_settings.name);
         if (anim) {
           sanim = MEM_mallocN<StripAnim>("Strip Anim");
           BLI_addtail(&strip->anims, sanim);
@@ -659,7 +671,8 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       if (!strip->sound) {
         return;
       }
-      strip->len = ceil(double(BKE_sound_get_length(bmain, strip->sound)) * FPS);
+      strip->len = ceil(double(BKE_sound_get_length(bmain, strip->sound)) *
+                        scene->frames_per_second());
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);

@@ -16,7 +16,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 
 #include "BKE_colortools.hh"
@@ -283,10 +283,10 @@ static void image_refresh(const bContext *C, ScrArea *area)
 
   /* Check if we have to set the image from the edit-mesh. */
   if (ima && (ima->source == IMA_SRC_VIEWER && sima->mode == SI_MODE_MASK)) {
-    if (scene->nodetree) {
+    if (scene->compositing_node_group) {
       Mask *mask = ED_space_image_get_mask(sima);
       if (mask) {
-        ED_node_composite_job(C, scene->nodetree, scene);
+        ED_node_composite_job(C, scene->compositing_node_group, scene);
       }
     }
   }
@@ -411,7 +411,9 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
             }
           }
           else if (ob) {
-            if (sima->lock && !(sima->flag & SI_NO_DRAW_UV_GUIDE)) {
+            if (sima->lock && !(sima->flag & SI_NO_DRAW_UV_GUIDE) &&
+                ELEM(sima->mode, SI_MODE_PAINT, SI_MODE_UV))
+            {
               ED_area_tag_refresh(area);
               ED_area_tag_redraw(area);
             }
@@ -699,8 +701,8 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
    * used in other areas as well. */
   if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS && sima->flag & SI_DRAW_METADATA) {
     void *lock;
-    /* `ED_space_image_get_zoom` temporarily locks the image, so this needs to be done before
-     * the image is locked when calling `ED_space_image_acquire_buffer`. */
+    /* #ED_space_image_get_zoom temporarily locks the image, so this needs to be done before
+     * the image is locked when calling #ED_space_image_acquire_buffer. */
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
@@ -803,11 +805,18 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       }
       WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
       break;
+    case NC_MASK:
+      if (ELEM(wmn->data, ND_DATA, ND_SELECT)) {
+        WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+      }
+      break;
     case NC_MATERIAL:
       if (wmn->data == ND_SHADING_LINKS) {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
-        if (sima->iuser.scene && (sima->iuser.scene->toolsettings->uv_flag & UV_SHOW_SAME_IMAGE)) {
+        if (sima->iuser.scene &&
+            (sima->iuser.scene->toolsettings->uv_flag & UV_FLAG_SHOW_SAME_IMAGE))
+        {
           ED_region_tag_redraw(region);
         }
       }
@@ -860,7 +869,7 @@ static void image_buttons_region_layout(const bContext *C, ARegion *region)
   ED_region_panels_layout_ex(C,
                              region,
                              &region->runtime->type->paneltypes,
-                             WM_OP_INVOKE_REGION_WIN,
+                             blender::wm::OpCallContext::InvokeRegionWin,
                              contexts_base,
                              nullptr);
 }
@@ -1204,7 +1213,7 @@ void ED_spacetype_image()
   ARegionType *art;
 
   st->spaceid = SPACE_IMAGE;
-  STRNCPY(st->name, "Image");
+  STRNCPY_UTF8(st->name, "Image");
 
   st->create = image_create;
   st->free = image_free;
@@ -1235,6 +1244,7 @@ void ED_spacetype_image()
   art->init = image_main_region_init;
   art->draw = image_main_region_draw;
   art->listener = image_main_region_listener;
+  art->lock = REGION_DRAW_LOCK_BAKING;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons/scopes */
@@ -1245,6 +1255,7 @@ void ED_spacetype_image()
   art->listener = image_buttons_region_listener;
   art->message_subscribe = ED_area_do_mgs_subscribe_for_tool_ui;
   art->init = image_buttons_region_init;
+  art->snap_size = ED_region_generic_panel_region_snap_size;
   art->layout = image_buttons_region_layout;
   art->draw = image_buttons_region_draw;
   BLI_addhead(&st->regiontypes, art);

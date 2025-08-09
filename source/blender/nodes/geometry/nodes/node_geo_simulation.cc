@@ -17,7 +17,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "NOD_common.hh"
 #include "NOD_geo_bake.hh"
@@ -192,8 +192,8 @@ static void draw_simulation_state(const bContext *C,
     socket_items::ui::draw_active_item_props<SimulationItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
           NodeSimulationItem &active_item = storage.items[storage.active_index];
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
             panel->prop(item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -225,13 +225,14 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!get_bake_draw_context(C, output_node, ctx)) {
     return;
   }
+  layout->active_set(ctx.is_bakeable_in_current_context);
 
   draw_simulation_state(C, layout, ntree, output_node);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
-  uiLayoutSetEnabled(layout, ID_IS_EDITABLE(ctx.object));
+  layout->enabled_set(ID_IS_EDITABLE(ctx.object));
 
   {
     uiLayout *col = &layout->column(false);
@@ -460,17 +461,17 @@ static void node_label(const bNodeTree * /*ntree*/,
                        char *label,
                        const int label_maxncpy)
 {
-  BLI_strncpy_utf8(label, IFACE_("Simulation"), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Simulation"), label_maxncpy);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  bNode *output_node = ntree->node_by_id(node_storage(*node).output_node_id);
+  bNode *output_node = params.ntree.node_by_id(node_storage(params.node).output_node_id);
   if (!output_node) {
     return true;
   }
   return socket_items::try_add_item_via_any_extend_socket<SimulationItemsAccessor>(
-      *ntree, *node, *output_node, *link);
+      params.ntree, params.node, *output_node, params.link);
 }
 
 static void node_register()
@@ -591,9 +592,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
               user_data))
       {
-        const StringRefNull message = U.experimental.use_bundle_and_closure_nodes ?
-                                          TIP_("Simulation must not be in a loop or closure") :
-                                          TIP_("Simulation must not be in a loop");
+        const StringRefNull message = TIP_("Simulation must not be in a loop or closure");
         tree_logger->node_warnings.append(*tree_logger->allocator,
                                           {node_.identifier, {NodeWarningType::Error, message}});
       }
@@ -853,10 +852,10 @@ static void node_operators()
   socket_items::ops::make_common_operators<SimulationItemsAccessor>();
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<SimulationItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_extra_info(NodeExtraInfoParams &params)
@@ -864,6 +863,12 @@ static void node_extra_info(NodeExtraInfoParams &params)
   BakeDrawContext ctx;
   if (!get_bake_draw_context(&params.C, params.node, ctx)) {
     return;
+  }
+  if (!ctx.is_bakeable_in_current_context) {
+    NodeExtraInfoRow row;
+    row.text = TIP_("Cannot bake in zone");
+    row.icon = ICON_ERROR;
+    params.rows.append(std::move(row));
   }
   if (ctx.is_baked) {
     NodeExtraInfoRow row;
@@ -875,7 +880,9 @@ static void node_extra_info(NodeExtraInfoParams &params)
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
-  if (!SimulationItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type))) {
+  if (!SimulationItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type),
+                                                     params.node_tree().type))
+  {
     return;
   }
   params.add_item_full_name(IFACE_("Simulation"), [](LinkSearchOpParams &params) {
@@ -888,7 +895,10 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
     socket_items::clear<SimulationItemsAccessor>(output_node);
     socket_items::add_item_with_socket_type_and_name<SimulationItemsAccessor>(
-        output_node, eNodeSocketDatatype(params.socket.type), params.socket.name);
+        params.node_tree,
+        output_node,
+        eNodeSocketDatatype(params.socket.type),
+        params.socket.name);
     update_node_declaration_and_sockets(params.node_tree, input_node);
     update_node_declaration_and_sockets(params.node_tree, output_node);
     if (params.socket.in_out == SOCK_IN) {

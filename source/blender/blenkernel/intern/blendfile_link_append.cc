@@ -42,7 +42,6 @@
 #include "RNA_prototypes.hh"
 
 #include "BKE_callbacks.hh"
-#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
@@ -52,6 +51,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -64,7 +64,7 @@
 
 #include "BLO_writefile.hh"
 
-static CLG_LogRef LOG = {"bke.blendfile_link_append"};
+static CLG_LogRef LOG = {"lib.link_append"};
 
 using namespace blender::bke;
 
@@ -371,6 +371,8 @@ void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp
                   BlendfileLinkAppendContext::ProcessStage::Instantiating));
   lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Done;
 
+  BKE_main_ensure_invariants(*lapp_context->params->bmain);
+
   PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendImportContext, lapp_context);
   PointerRNA *pointers[1] = {&ctx_ptr};
   BKE_callback_exec(lapp_context->params->bmain, pointers, 1, BKE_CB_EVT_BLENDIMPORT_POST);
@@ -575,7 +577,7 @@ static void loose_data_instantiate_obdata_preprocess(
 static bool loose_data_instantiate_collection_parents_check_recursive(Collection *collection)
 {
   for (CollectionParent *parent_collection =
-           static_cast<CollectionParent *>(collection->runtime.parents.first);
+           static_cast<CollectionParent *>(collection->runtime->parents.first);
        parent_collection != nullptr;
        parent_collection = parent_collection->next)
   {
@@ -709,14 +711,16 @@ static void loose_data_instantiate_collection_process(
       BKE_view_layer_synced_ensure(scene, view_layer);
 
       if ((lapp_context->params->flag & FILE_AUTOSELECT) != 0) {
-        LISTBASE_FOREACH (CollectionObject *, coll_ob, &collection->gobject) {
-          Object *ob = coll_ob->ob;
+        /* All objects contained in this collection need to be processed, including the ones
+         * belonging to children collections. */
+        FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, ob) {
           Base *base = BKE_view_layer_base_find(view_layer, ob);
           if (base) {
             base->flag |= BASE_SELECTED;
             BKE_scene_object_base_flag_sync_from_base(base);
           }
         }
+        FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
       }
     }
   }
@@ -730,9 +734,12 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
   ViewLayer *view_layer = lapp_context->params->context.view_layer;
   const View3D *v3d = lapp_context->params->context.v3d;
 
+  const bool do_object_active_done = (lapp_context->params->flag &
+                                      BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD);
+
   /* Do NOT make base active here! screws up GUI stuff,
-   * if you want it do it at the editor level. */
-  const bool object_set_active = false;
+   * if you want it do it at the editor level (unless `do_object_active_done` is set). */
+  bool object_set_active = false;
 
   const bool is_linking = (lapp_context->params->flag & FILE_LINK) != 0;
 
@@ -766,6 +773,8 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
 
     CLAMP_MIN(ob->id.us, 0);
     ob->mode = OB_MODE_OBJECT;
+
+    object_set_active = do_object_active_done && (ob->flag & OB_FLAG_ACTIVE_CLIPBOARD);
 
     loose_data_instantiate_object_base_instance_init(bmain,
                                                      active_collection,
@@ -1053,11 +1062,10 @@ static int foreach_libblock_append_finalize_action_callback(LibraryIDLinkCallbac
   BLI_assert(data->item->action == LINK_APPEND_ACT_KEEP_LINKED);
 
   if (item->action == LINK_APPEND_ACT_MAKE_LOCAL) {
-    CLOG_INFO(&LOG,
-              3,
-              "Appended ID '%s' was to be made directly local, but is also used by data that is "
-              "kept linked, so duplicating it instead.",
-              id->name);
+    CLOG_DEBUG(&LOG,
+               "Appended ID '%s' was to be made directly local, but is also used by data that is "
+               "kept linked, so duplicating it instead.",
+               id->name);
     item->action = LINK_APPEND_ACT_COPY_LOCAL;
   }
   return IDWALK_RET_NOP;
@@ -1138,9 +1146,8 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
     }
     /* IDs exclusively used as liboverride reference should not be made local at all. */
     if ((item.tag & LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY_ONLY) != 0) {
-      CLOG_INFO(
+      CLOG_DEBUG(
           &LOG,
-          3,
           "Appended ID '%s' is only used as a liboverride linked dependency, keeping it linked.",
           id->name);
       item.action = LINK_APPEND_ACT_KEEP_LINKED;
@@ -1149,11 +1156,10 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
     /* In non-recursive append case, only IDs from the same libraries as the directly appended
      * ones are made local. All dependencies from other libraries are kept linked. */
     if (!do_recursive && !direct_libraries.contains(id->lib)) {
-      CLOG_INFO(&LOG,
-                3,
-                "Appended ID '%s' belongs to another library and recursive append is disabled, "
-                "keeping it linked.",
-                id->name);
+      CLOG_DEBUG(&LOG,
+                 "Appended ID '%s' belongs to another library and recursive append is disabled, "
+                 "keeping it linked.",
+                 id->name);
       item.action = LINK_APPEND_ACT_KEEP_LINKED;
       item.reusable_local_id = nullptr;
     }
@@ -1213,19 +1219,27 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
     BLI_assert((item.tag & LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY_ONLY) == 0);
 
     if (do_reuse_local_id && item.reusable_local_id != nullptr) {
-      CLOG_INFO(&LOG, 3, "Appended ID '%s' as a matching local one, re-using it.", id->name);
+      CLOG_DEBUG(&LOG, "Appended ID '%s' as a matching local one, re-using it.", id->name);
       item.action = LINK_APPEND_ACT_REUSE_LOCAL;
     }
     else if (id->tag & ID_TAG_PRE_EXISTING) {
-      CLOG_INFO(&LOG, 3, "Appended ID '%s' was already linked, duplicating it.", id->name);
+      CLOG_DEBUG(&LOG, "Appended ID '%s' was already linked, duplicating it.", id->name);
       item.action = LINK_APPEND_ACT_COPY_LOCAL;
     }
     else if (item.tag & LINK_APPEND_TAG_LIBOVERRIDE_DEPENDENCY) {
-      CLOG_INFO(
+      CLOG_DEBUG(
           &LOG,
-          3,
           "Appended ID '%s' is also used as a liboverride linked dependency, duplicating it.",
           id->name);
+      item.action = LINK_APPEND_ACT_COPY_LOCAL;
+    }
+    else if (ID_IS_LINKED(id) && ID_IS_OVERRIDE_LIBRARY(id)) {
+      /* While in theory liboverrides can be directly made local, this causes complex potential
+       * problems, e.g. because hierarchy roots can become temporarily invalid when the root is
+       * made local, etc.
+       *
+       * So for now, simpler to always duplicate linked liboverrides. */
+      CLOG_DEBUG(&LOG, "Appended ID '%s' is a liboverride, duplicating it.", id->name);
       item.action = LINK_APPEND_ACT_COPY_LOCAL;
     }
     else {
@@ -1233,7 +1247,7 @@ static void blendfile_append_define_actions(BlendfileLinkAppendContext &lapp_con
        * #LINK_APPEND_ACT_COPY_LOCAL in the last checks below. This can happen in rare cases with
        * complex relationships involving IDs that are kept linked and IDs that are made local,
        * both using some same dependencies. */
-      CLOG_INFO(&LOG, 3, "Appended ID '%s' will be made local.", id->name);
+      CLOG_DEBUG(&LOG, "Appended ID '%s' will be made local.", id->name);
       item.action = LINK_APPEND_ACT_MAKE_LOCAL;
     }
   }
@@ -1591,7 +1605,7 @@ void BKE_blendfile_link(BlendfileLinkAppendContext *lapp_context, ReportList *re
       }
     }
 
-    BLO_library_link_end(mainl, &lib_context.blo_handle, lapp_context->params);
+    BLO_library_link_end(mainl, &lib_context.blo_handle, lapp_context->params, reports);
     link_append_context_library_blohandle_release(*lapp_context, lib_context);
   }
 
@@ -1701,12 +1715,11 @@ static void blendfile_library_relocate_id_remap_do(Main *bmain,
     BLI_assert(new_id);
   }
   if (new_id) {
-    CLOG_INFO(&LOG,
-              4,
-              "Before remap of %s, old_id users: %d, new_id users: %d",
-              old_id->name,
-              old_id->us,
-              new_id->us);
+    CLOG_DEBUG(&LOG,
+               "Before remap of %s, old_id users: %d, new_id users: %d",
+               old_id->name,
+               old_id->us,
+               new_id->us);
     BKE_libblock_remap_locked(bmain, old_id, new_id, remap_flags);
 
     if (old_id->flag & ID_FLAG_FAKEUSER) {
@@ -1714,12 +1727,11 @@ static void blendfile_library_relocate_id_remap_do(Main *bmain,
       id_fake_user_set(new_id);
     }
 
-    CLOG_INFO(&LOG,
-              4,
-              "After remap of %s, old_id users: %d, new_id users: %d",
-              old_id->name,
-              old_id->us,
-              new_id->us);
+    CLOG_DEBUG(&LOG,
+               "After remap of %s, old_id users: %d, new_id users: %d",
+               old_id->name,
+               old_id->us,
+               new_id->us);
 
     /* In some cases, new_id might become direct link, remove parent of library in this case. */
     if (new_id->lib->runtime->parent && (new_id->tag & ID_TAG_INDIRECT) == 0) {
@@ -1975,7 +1987,7 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
             lapp_context, BKE_id_name(*id), idcode, id);
         item->libraries.fill(true);
 
-        CLOG_INFO(&LOG, 4, "Datablock to seek for: %s", id->name);
+        CLOG_DEBUG(&LOG, "Data-block to seek for: %s", id->name);
       }
     }
   }

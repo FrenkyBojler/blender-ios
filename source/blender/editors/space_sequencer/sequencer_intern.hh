@@ -125,6 +125,8 @@ struct TimelineDrawContext {
 
 /* `sequencer_timeline_draw.cc` */
 
+/* Returns value in frames (view-space), 5px for large strips, 1/4 of the strip for smaller. */
+float strip_handle_draw_size_get(const Scene *scene, Strip *strip, float pixelx);
 void draw_timeline_seq(const bContext *C, ARegion *region);
 void draw_timeline_seq_display(const bContext *C, ARegion *region);
 
@@ -137,13 +139,8 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region);
  * region.
  */
 void sequencer_preview_region_draw(const bContext *C, ARegion *region);
-
-bool sequencer_draw_get_transform_preview(SpaceSeq *sseq, Scene *scene);
 int sequencer_draw_get_transform_preview_frame(const Scene *scene);
-
 void sequencer_special_update_set(Strip *strip);
-/* Get handle width in 2d-View space. */
-float strip_handle_draw_size_get(const Scene *scene, Strip *strip, float pixelx);
 
 /* UNUSED */
 /* void seq_reset_imageofs(SpaceSeq *sseq); */
@@ -235,7 +232,6 @@ void SEQUENCER_OT_swap(wmOperatorType *ot);
 void SEQUENCER_OT_swap_data(wmOperatorType *ot);
 void SEQUENCER_OT_rendersize(wmOperatorType *ot);
 
-void SEQUENCER_OT_change_effect_input(wmOperatorType *ot);
 void SEQUENCER_OT_change_effect_type(wmOperatorType *ot);
 void SEQUENCER_OT_change_path(wmOperatorType *ot);
 void SEQUENCER_OT_change_scene(wmOperatorType *ot);
@@ -259,7 +255,7 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 /* `sequencer_select.cc` */
 
 void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
-Strip *find_neighboring_strip(Scene *scene, Strip *test, int lr, int sel);
+Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel);
 void recurs_sel_strip(Strip *strip_meta);
 
 void SEQUENCER_OT_select_all(wmOperatorType *ot);

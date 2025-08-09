@@ -110,6 +110,10 @@ blender::Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle);
  */
 void GPU_shader_batch_cancel(BatchHandle &handle);
 /**
+ *  Returns true if there's any batch still being compiled.
+ */
+bool GPU_shader_batch_is_compiling();
+/**
  *  Wait until all the requested batches have been compiled.
  */
 void GPU_shader_batch_wait_for_all();
@@ -459,6 +463,7 @@ class StaticShader : NonCopyable {
     /* No std::swap support for atomics. */
     shader_.exchange(other.shader_.exchange(shader_));
     failed_.exchange(other.failed_.exchange(failed_));
+    std::swap(compilation_handle_, other.compilation_handle_);
   }
 
  public:

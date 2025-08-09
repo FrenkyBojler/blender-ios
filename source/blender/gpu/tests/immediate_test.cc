@@ -21,7 +21,7 @@ static void test_immediate_one_plane()
   GPUOffScreen *offscreen = GPU_offscreen_create(Size,
                                                  Size,
                                                  false,
-                                                 GPU_RGBA16F,
+                                                 TextureFormat::SFLOAT_16_16_16_16,
                                                  GPU_TEXTURE_USAGE_ATTACHMENT |
                                                      GPU_TEXTURE_USAGE_HOST_READ,
                                                  false,
@@ -30,7 +30,7 @@ static void test_immediate_one_plane()
   GPU_offscreen_bind(offscreen, false);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -70,7 +70,7 @@ static void test_immediate_two_planes()
   GPUOffScreen *offscreen = GPU_offscreen_create(Size,
                                                  Size,
                                                  false,
-                                                 GPU_RGBA16F,
+                                                 TextureFormat::SFLOAT_16_16_16_16,
                                                  GPU_TEXTURE_USAGE_ATTACHMENT |
                                                      GPU_TEXTURE_USAGE_HOST_READ,
                                                  false,
@@ -79,7 +79,7 @@ static void test_immediate_two_planes()
   GPU_offscreen_bind(offscreen, false);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 

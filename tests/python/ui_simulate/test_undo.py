@@ -27,7 +27,6 @@ def _keep_open():
 def _test_window(windows_exclude=None):
     import bpy
     wm = bpy.data.window_managers[0]
-    # Use -1 so the last added window is always used.
     if windows_exclude is None:
         return wm.windows[0]
     for window in wm.windows:
@@ -288,6 +287,39 @@ def text_editor_edit_mode_mix():
     yield e.ctrl.shift.z(4 * 3)
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8 * 4)
     t.assertEqual(text.as_string(), "AABBCC")
+
+# -----------------------------------------------------------------------------
+# Node Editor
+
+
+def _compositor_startup_area(e):
+    """
+    Set up the compositor node editor
+    """
+    yield e.shift.f3(2)                # Compositor
+#    yield e.ctrl.alt.space()           # Full-screen.
+
+
+def compositor_make_group():
+    import bpy
+    e, t = _test_vars(window := _test_window())
+    yield from _compositor_startup_area(e)
+
+    # Create a node tree with multiple nodes and select all nodes.
+    # TODO: Node tree should be created through the UI
+    node_group = bpy.data.node_groups.new(name="comp ntree", type="CompositorNodeTree")
+    window.scene.compositing_node_group = node_group
+    yield from _call_menu(e, "Add -> Color -> Alpha Convert")
+    yield e.ret()  # Confirm adding node.
+    yield from _call_menu(e, "Add -> Filter -> Filter")
+    yield e.ret()
+    yield e.a()  # Select all.
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
+    yield e.ctrl.g()  # Make group.
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 1)
+    yield e.ctrl.z()
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
+    yield e.ctrl.z(5)  # Revert to original state
 
 
 # -----------------------------------------------------------------------------

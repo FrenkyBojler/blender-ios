@@ -54,7 +54,6 @@ struct GPUCapabilities {
   int max_parallel_compilations = -1;
 
   /* OpenGL related workarounds. */
-  bool mip_render_workaround = false;
   bool depth_blitting_workaround = false;
   bool use_main_context_workaround = false;
   bool broken_amd_driver = false;
@@ -63,8 +62,7 @@ struct GPUCapabilities {
   bool node_link_instancing_workaround = false;
   bool line_directive_workaround = false;
 
-  /* Vulkan related workarounds. */
-  bool render_pass_workaround = false;
+  bool use_subprocess_shader_compilations = false;
 
   /* Metal related workarounds. */
   /* Minimum per-vertex stride in bytes (For a vertex buffer). */
