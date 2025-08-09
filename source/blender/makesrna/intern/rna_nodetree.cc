@@ -89,6 +89,27 @@ const EnumPropertyItem rna_enum_node_color_tag_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static EnumPropertyItem rna_enum_node_class_items[] = {
+  {NODE_CLASS_INPUT, "INPUT", ICON_NONE, "Input", ""},
+  {NODE_CLASS_OUTPUT, "OUTPUT", ICON_NONE, "Output", ""},
+  {NODE_CLASS_OP_COLOR, "OP_COLOR", ICON_NONE, "Color", ""},
+  {NODE_CLASS_OP_VECTOR, "OP_VECTOR", ICON_NONE, "Vector", ""},
+  {NODE_CLASS_OP_FILTER, "OP_FILTER", ICON_NONE, "Filter", ""},
+  {NODE_CLASS_GROUP, "GROUP", ICON_NONE, "Group", ""},
+  {NODE_CLASS_CONVERTER, "CONVERTER", ICON_NONE, "Converter", ""},
+  {NODE_CLASS_MATTE, "MATTE", ICON_NONE, "Matte", ""},
+  {NODE_CLASS_DISTORT, "DISTORT", ICON_NONE, "Distort", ""},
+  {NODE_CLASS_PATTERN, "PATTERN", ICON_NONE, "Pattern", ""},
+  {NODE_CLASS_TEXTURE, "TEXTURE", ICON_NONE, "Texture", ""},
+  {NODE_CLASS_SCRIPT, "SCRIPT", ICON_NONE, "Script", ""},
+  {NODE_CLASS_INTERFACE, "INTERFACE", ICON_NONE, "Interface", ""},
+  {NODE_CLASS_SHADER, "SHADER", ICON_NONE, "Shader", ""},
+  {NODE_CLASS_GEOMETRY, "GEOMETRY", ICON_NONE, "Geometry", ""},
+  {NODE_CLASS_ATTRIBUTE, "ATTRIBUTE", ICON_NONE, "Attribute", ""},
+  {NODE_CLASS_LAYOUT, "LAYOUT", ICON_NONE, "Layout", ""},
+  {0, nullptr, 0, nullptr, nullptr}
+};
+
 const EnumPropertyItem rna_enum_mapping_type_items[] = {
     {NODE_MAPPING_TYPE_POINT, "POINT", 0, "Point", "Transform a point"},
     {NODE_MAPPING_TYPE_TEXTURE,
@@ -9670,6 +9691,13 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, ICON_NODE);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(prop, "Icon", "The node icon");
+
+  prop = RNA_def_property(srna, "bl_nclass", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_class_items);
+  RNA_def_property_enum_sdna(prop, nullptr, "typeinfo->nclass");
+  RNA_def_property_enum_default(prop, NODE_CLASS_INPUT);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(prop, "Class", "The node class");
 
   prop = RNA_def_property(srna, "bl_static_type", PROP_STRING, PROP_NONE);
   RNA_def_property_string_funcs(prop, "rna_node_type_get", "rna_node_type_length", nullptr);
