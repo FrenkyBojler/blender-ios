@@ -224,12 +224,8 @@ typedef struct ThemeUI {
   unsigned char panel_text[4];
   char _pad2[4];
 
+  unsigned char asset_shelf_header[4], asset_shelf_background[4];
 } ThemeUI;
-
-typedef struct ThemeAssetShelf {
-  unsigned char header_back[4];
-  unsigned char back[4];
-} ThemeAssetShelf;
 
 /* try to put them all in one, if needed a special struct can be created as well
  * for example later on, when we introduce wire colors for ob types or so...
@@ -527,8 +523,6 @@ typedef struct bTheme {
   ThemeSpace space_topbar;
   ThemeSpace space_statusbar;
   ThemeSpace space_spreadsheet;
-
-  ThemeAssetShelf asset_shelf;
 
   /* 20 sets of bone colors for this theme */
   ThemeWireColor tarm[20];

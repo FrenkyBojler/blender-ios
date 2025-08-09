@@ -1267,6 +1267,22 @@ class USERPREF_PT_theme_interface_icons(ThemePanel, CenterAlignMixIn, Panel):
         flow.prop(ui, "icon_border_intensity")
 
 
+class USERPREF_PT_theme_interface_asset_shelf(ThemePanel, CenterAlignMixIn, Panel):
+    bl_label = "Asset Shelf"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "USERPREF_PT_theme_user_interface"
+
+    def draw_centered(self, context, layout):
+        theme = context.preferences.themes[0]
+        ui = theme.user_interface
+
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=True, align=False)
+
+        col = flow.column(align=True)
+        col.prop(ui, "asset_shelf_header", text="Header")
+        col.prop(ui, "asset_shelf_background", text="Background")
+
+
 class USERPREF_PT_theme_text_style(ThemePanel, CenterAlignMixIn, Panel):
     bl_label = "Text Style"
     bl_options = {'DEFAULT_CLOSED'}
@@ -2984,6 +3000,7 @@ classes = (
     USERPREF_MT_interface_theme_presets,
     USERPREF_PT_theme,
     USERPREF_PT_theme_interface_panel,
+    USERPREF_PT_theme_interface_asset_shelf,
     USERPREF_PT_theme_interface_gizmos,
     USERPREF_PT_theme_interface_icons,
     USERPREF_PT_theme_interface_state,

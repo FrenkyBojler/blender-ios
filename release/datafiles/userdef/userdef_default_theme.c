@@ -275,6 +275,8 @@ const bTheme U_theme_default = {
     .panel_outline = RGBA(0xffffff11),
     .panel_title = RGBA(0xe6e6e6ff),
     .panel_text = RGBA(0xe6e6e6ff),
+    .asset_shelf_header = RGBA(0x1d1d1dff),
+    .asset_shelf_background = RGBA(0x303030ff),
   },
   .common = {
     .anim = {
@@ -870,10 +872,6 @@ const bTheme U_theme_default = {
     .active_object = RGBA(0xffaf29ff),
     .edited_object = RGBA(0x00806266),
     .row_alternate = RGBA(0xffffff04),
-  },
-  .asset_shelf = {
-    .header_back = RGBA(0x1d1d1dff),
-    .back = RGBA(0x303030ff),
   },
   .tarm = {
     {

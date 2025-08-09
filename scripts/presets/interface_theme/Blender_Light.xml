@@ -40,6 +40,8 @@
         icon_folder="#e3c16eff"
         icon_autokey="#ab3c48ff"
         icon_border_intensity="0.7"
+        asset_shelf_header="#adadadff"
+        asset_shelf_background="#999999ff"
         >
         <wcol_regular>
           <ThemeWidgetColors
@@ -1166,13 +1168,6 @@
         </space_region>
       </ThemeSpreadsheet>
     </spreadsheet>
-    <asset_shelf>
-      <ThemeAssetShelf
-        header_back="#adadadff"
-        back="#999999ff"
-        >
-      </ThemeAssetShelf>
-    </asset_shelf>
     <bone_color_sets>
       <ThemeBoneColorSet
         normal="#9a0000"
