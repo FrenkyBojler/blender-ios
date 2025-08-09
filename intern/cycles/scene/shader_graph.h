@@ -232,7 +232,7 @@ class ShaderNode : public Node {
    * so it's possible to disable huge nodes inside of the required
    * nodes group.
    */
-  virtual int get_feature()
+  virtual uint get_feature()
   {
     return bump == SHADER_BUMP_NONE ? 0 : KERNEL_FEATURE_NODE_BUMP;
   }
@@ -253,6 +253,11 @@ class ShaderNode : public Node {
    * is to be handled in the subclass.
    */
   virtual bool equals(const ShaderNode &other);
+
+ protected:
+  /* Disconnect the input with the given name if it is connected.
+   * Used to optimize away unused inputs. */
+  void disconnect_unused_input(const char *name);
 };
 
 /* Node definition utility macros */
@@ -294,7 +299,7 @@ class ShaderNodeIDAndBoolComparator {
   bool operator()(const std::pair<ShaderNode *, bool> p1,
                   const std::pair<ShaderNode *, bool> p2) const
   {
-    return p1.first->id < p2.first->id || p1.second < p2.second;
+    return p1.first->id < p2.first->id || (p1.first->id == p2.first->id && p1.second < p2.second);
   }
 };
 

@@ -10,23 +10,22 @@
 
 #define DNA_DEPRECATED_ALLOW
 
-#include "BKE_duplilist.hh"
-#include "BLI_assert.h"
-#include "BLI_map.hh"
-#include "DNA_listBase.h"
-#include "SEQ_transform.hh"
 #include <cstddef>
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_listBase.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string_utf8.h"
 
+#include "BKE_duplilist.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -52,6 +51,7 @@
 #include "SEQ_sound.hh"
 #include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
+#include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
 #include "BLO_read_write.hh"
@@ -505,7 +505,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
                               Scene *scene_dst,
                               ListBase *new_seq_list,
                               Strip *strip,
-                              int dupe_flag,
+                              const StripDuplicate dupe_flag,
                               const int flag,
                               blender::Map<Strip *, Strip *> &strip_map)
 {
@@ -603,7 +603,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
     BLI_assert_unreachable();
   }
 
-  /* When using #STRIP_DUPE_UNIQUE_NAME, it is mandatory to add new strips in relevant container
+  /* When using StripDuplicate::UniqueName, it is mandatory to add new strips in relevant container
    * (scene or meta's one), *before* checking for unique names. Otherwise the meta's list is empty
    * and hence we miss all sequencer strips in that meta that have already been duplicated,
    * (see #55668). Note that unique name check itself could be done at a later step in calling
@@ -614,7 +614,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
   }
 
   if (scene_src == scene_dst) {
-    if (dupe_flag & STRIP_DUPE_UNIQUE_NAME) {
+    if (int(dupe_flag & StripDuplicate::UniqueName) != 0) {
       strip_unique_name_set(scene_dst, &scene_dst->ed->seqbase, strip_new);
     }
   }
@@ -631,7 +631,7 @@ static Strip *strip_duplicate_recursive_impl(const Scene *scene_src,
                                              Scene *scene_dst,
                                              ListBase *new_seq_list,
                                              Strip *strip,
-                                             const int dupe_flag,
+                                             const StripDuplicate dupe_flag,
                                              blender::Map<Strip *, Strip *> &strip_map)
 {
   Strip *strip_new = strip_duplicate(
@@ -645,8 +645,11 @@ static Strip *strip_duplicate_recursive_impl(const Scene *scene_src,
   return strip_new;
 }
 
-Strip *strip_duplicate_recursive(
-    const Scene *scene_src, Scene *scene_dst, ListBase *new_seq_list, Strip *strip, int dupe_flag)
+Strip *strip_duplicate_recursive(const Scene *scene_src,
+                                 Scene *scene_dst,
+                                 ListBase *new_seq_list,
+                                 Strip *strip,
+                                 const StripDuplicate dupe_flag)
 {
   blender::Map<Strip *, Strip *> strip_map;
 
@@ -665,12 +668,12 @@ static void seqbase_dupli_recursive(const Scene *scene_src,
                                     Scene *scene_dst,
                                     ListBase *nseqbase,
                                     const ListBase *seqbase,
-                                    int dupe_flag,
+                                    const StripDuplicate dupe_flag,
                                     const int flag,
                                     blender::Map<Strip *, Strip *> &strip_map)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) == 0 && (dupe_flag & STRIP_DUPE_ALL) == 0) {
+    if ((strip->flag & SELECT) == 0 && int(dupe_flag & StripDuplicate::All) == 0) {
       continue;
     }
 
@@ -680,7 +683,7 @@ static void seqbase_dupli_recursive(const Scene *scene_src,
 
     if (strip->type == STRIP_TYPE_META) {
       /* Always include meta all strip children. */
-      int dupe_flag_recursive = dupe_flag | STRIP_DUPE_ALL;
+      const StripDuplicate dupe_flag_recursive = dupe_flag | StripDuplicate::All;
       seqbase_dupli_recursive(scene_src,
                               scene_dst,
                               &strip_new->seqbase,
@@ -696,7 +699,7 @@ void seqbase_duplicate_recursive(const Scene *scene_src,
                                  Scene *scene_dst,
                                  ListBase *nseqbase,
                                  const ListBase *seqbase,
-                                 int dupe_flag,
+                                 const StripDuplicate dupe_flag,
                                  const int flag)
 {
   blender::Map<Strip *, Strip *> strip_map;
@@ -938,7 +941,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
     }
 
     /* need to load color balance to it could be converted to modifier */
-    BLO_read_struct(reader, StripColorBalance, &strip->data->color_balance);
+    BLO_read_struct(reader, StripColorBalance, &strip->data->color_balance_legacy);
   }
 
   modifier_blend_read_data(reader, &strip->modifiers);

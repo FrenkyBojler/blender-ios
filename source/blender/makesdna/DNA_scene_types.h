@@ -462,6 +462,8 @@ typedef enum eStereo3dInterlaceType {
  * RNA ensures these enum's are only selectable for render output.
  */
 typedef struct ImageFormatData {
+  /** MediaType. */
+  char media_type;
   /**
    * R_IMF_IMTYPE_PNG, R_...
    * \note Video types should only ever be set from this structure when used from #RenderData.
@@ -487,11 +489,6 @@ typedef struct ImageFormatData {
   /** OpenEXR: R_IMF_EXR_CODEC_* values in low OPENEXR_CODEC_MASK bits. */
   char exr_codec;
 
-  /** CINEON. */
-  char cineon_flag;
-  short cineon_white, cineon_black;
-  float cineon_gamma;
-
   /** Jpeg2000. */
   char jp2_flag;
   char jp2_codec;
@@ -499,7 +496,12 @@ typedef struct ImageFormatData {
   /** TIFF. */
   char tiff_codec;
 
-  char _pad[4];
+  /** CINEON. */
+  char cineon_flag;
+  short cineon_white, cineon_black;
+  float cineon_gamma;
+
+  char _pad[3];
 
   /** Multi-view. */
   char views_format;
@@ -514,6 +516,13 @@ typedef struct ImageFormatData {
   ColorManagedColorspaceSettings linear_colorspace_settings;
 } ImageFormatData;
 
+/** #ImageFormatData::media_type */
+typedef enum MediaType {
+  MEDIA_TYPE_IMAGE = 0,
+  MEDIA_TYPE_MULTI_LAYER_IMAGE = 1,
+  MEDIA_TYPE_VIDEO = 2,
+} MediaType;
+
 /** #ImageFormatData::imtype */
 enum {
   R_IMF_IMTYPE_TARGA = 0,
@@ -524,8 +533,8 @@ enum {
   // R_MOVIE = 5, /* DEPRECATED */
   R_IMF_IMTYPE_IRIZ = 7,
   R_IMF_IMTYPE_RAWTGA = 14,
-  R_IMF_IMTYPE_AVIRAW = 15,
-  R_IMF_IMTYPE_AVIJPEG = 16,
+  /* R_IMF_IMTYPE_AVIRAW = 15, DEPRECATED */
+  /* R_IMF_IMTYPE_AVIJPEG = 16, DEPRECATED */
   R_IMF_IMTYPE_PNG = 17,
   // R_IMF_IMTYPE_AVICODEC = 18,  /* DEPRECATED */
   // R_IMF_IMTYPE_QUICKTIME = 19, /* DEPRECATED */
@@ -540,12 +549,12 @@ enum {
   R_IMF_IMTYPE_MULTILAYER = 28,
   R_IMF_IMTYPE_DDS = 29,
   R_IMF_IMTYPE_JP2 = 30,
-  R_IMF_IMTYPE_H264 = 31,
-  R_IMF_IMTYPE_XVID = 32,
-  R_IMF_IMTYPE_THEORA = 33,
+  /* R_IMF_IMTYPE_H264 = 31, DEPRECATED */
+  /* R_IMF_IMTYPE_XVID = 32, DEPRECATED */
+  /* R_IMF_IMTYPE_THEORA = 33, DEPRECATED */
   R_IMF_IMTYPE_PSD = 34,
   R_IMF_IMTYPE_WEBP = 35,
-  R_IMF_IMTYPE_AV1 = 36,
+  /* R_IMF_IMTYPE_AV1 = 36, DEPRECATED */
 
   R_IMF_IMTYPE_INVALID = 255,
 };
@@ -555,8 +564,6 @@ enum {
   // R_IMF_FLAG_ZBUF = 1 << 0, /* DEPRECATED, and cleared. */
   R_IMF_FLAG_PREVIEW_JPG = 1 << 1,
 };
-
-/*  */
 
 /**
  * #ImageFormatData::depth
@@ -847,11 +854,12 @@ typedef struct RenderData {
   short bake_margin, bake_samples;
   short bake_margin_type;
   char _pad9[6];
-  float bake_biasdist, bake_user_scale;
+  float bake_biasdist;
+  char _pad10[4];
 
   /**
-   *  Path to render output.
-   * \note  Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
+   * Path to render output.
+   * \note Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
    */
   char pic[/*FILE_MAX*/ 1024];
 
@@ -2176,6 +2184,10 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
+#ifdef __cplusplus
+  /* Return the frame rate of the scene. */
+  double frames_per_second() const;
+#endif
 } Scene;
 
 /** \} */
@@ -2327,7 +2339,7 @@ enum {
   R_BAKE_MULTIRES = 1 << 4,
   R_BAKE_LORES_MESH = 1 << 5,
   // R_BAKE_VCOL = 1 << 6, /* Deprecated. */
-  R_BAKE_USERSCALE = 1 << 7,
+  // R_BAKE_USERSCALE = 1 << 7, /* Deprecated. */
   R_BAKE_CAGE = 1 << 8,
   R_BAKE_SPLIT_MAT = 1 << 9,
   R_BAKE_AUTO_NAME = 1 << 10,
@@ -2410,7 +2422,6 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 #define PEFRA ((PRVRANGEON) ? (scene->r.pefra) : (scene->r.efra))
 #define FRA2TIME(a) ((((double)scene->r.frs_sec_base) * (double)(a)) / (double)scene->r.frs_sec)
 #define TIME2FRA(a) ((((double)scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
-#define FPS (((double)scene->r.frs_sec) / (double)scene->r.frs_sec_base)
 
 /** \} */
 
