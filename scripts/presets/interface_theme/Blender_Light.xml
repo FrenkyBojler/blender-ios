@@ -407,6 +407,8 @@
             keyframe_movehold_selected="#ffaf23"
             keyframe_generated="#a7a7a7"
             keyframe_generated_selected="#c4a05f"
+            long_key="#1a151580"
+            long_key_selected="#ff8c00cc"
             >
           </ThemeCommonAnim>
         </anim>
@@ -660,8 +662,6 @@
         view_sliders="#969696"
         channels="#707070ff"
         channels_selected="#60c04044"
-        long_key="#1a151580"
-        long_key_selected="#ff8c00cc"
         keyframe_border="#000000ff"
         keyframe_border_selected="#000000ff"
         keyframe_scale_factor="1"
@@ -1052,8 +1052,6 @@
         path_keyframe_before="#ffc4c4"
         path_keyframe_after="#c4c4ff"
         time_scrub_background="#292929e6"
-        strips="#0c0a0a"
-        strips_selected="#ff8c00"
         metadatabg="#000000"
         metadatatext="#ffffff"
         handle_free="#000000"

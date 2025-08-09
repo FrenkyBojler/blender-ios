@@ -375,6 +375,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.keytype_jitter_select);
     FROM_DEFAULT_V4_UCHAR(common.anim.keytype_movehold_select);
     FROM_DEFAULT_V4_UCHAR(common.anim.keytype_generated_select);
+    FROM_DEFAULT_V4_UCHAR(common.anim.long_key);
+    FROM_DEFAULT_V4_UCHAR(common.anim.long_key_selected);
   }
 
   /**

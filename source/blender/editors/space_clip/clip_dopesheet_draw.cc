@@ -62,7 +62,7 @@ static void draw_keyframe_shape(
 {
   float color[4] = {0.91f, 0.91f, 0.91f, alpha};
   if (sel) {
-    UI_GetThemeColorShadeAlpha4fv(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha), color);
+    UI_GetThemeColorShadeAlpha4fv(TH_LONGKEY_SELECT, 50, -255 * (1.0f - alpha), color);
   }
 
   immAttr4fv(color_id, color);
@@ -125,8 +125,8 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
     float y = (CHANNEL_FIRST);
 
     /* setup colors for regular and selected strips */
-    UI_GetThemeColor3fv(TH_STRIP, strip);
-    UI_GetThemeColor3fv(TH_STRIP_SELECT, selected_strip);
+    UI_GetThemeColor3fv(TH_LONGKEY, strip);
+    UI_GetThemeColor3fv(TH_LONGKEY_SELECT, selected_strip);
 
     strip[3] = 0.5f;
     selected_strip[3] = 1.0f;

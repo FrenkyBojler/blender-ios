@@ -486,6 +486,12 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_BONE_LOCKED_WEIGHT:
           cp = ts->bone_locked_weight;
           break;
+        case TH_LONGKEY:
+          cp = btheme->common.anim.long_key;
+          break;
+        case TH_LONGKEY_SELECT:
+          cp = btheme->common.anim.long_key_selected;
+          break;
         case TH_STRIP:
           cp = ts->strip;
           break;

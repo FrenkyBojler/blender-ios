@@ -120,6 +120,7 @@ typedef struct ThemeCommonAnim {
       keytype_movehold[4], keytype_generated[4];
   unsigned char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4],
       keytype_jitter_select[4], keytype_movehold_select[4], keytype_generated_select[4];
+  unsigned char long_key[4], long_key_selected[4];
 } ThemeCommonAnim;
 
 typedef struct ThemeCommon {
