@@ -3329,11 +3329,15 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
 
   float opaque[4];
   if (narrow) {
-    UI_GetThemeColor4fv(TH_BLACK, opaque);
+    UI_GetThemeColor3fv(TH_BLACK, opaque);
     opaque[3] = 0.2f;
   }
+  else if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
+    UI_GetThemeColor3fv(TH_HEADER, opaque);
+    opaque[3] = 1.0f;
+  }
   else {
-    UI_GetThemeColor4fv(TH_BACK, opaque);
+    UI_GetThemeColor3fv(TH_BACK, opaque);
     opaque[3] = 1.0f;
     mul_v3_fl(opaque, 0.85f);
   }
