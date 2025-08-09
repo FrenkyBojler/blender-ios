@@ -29,7 +29,11 @@ namespace blender::nodes::node_composite_masked_maximum_cc {
 
 static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Mask").default_value(0.5f).min(0.0f).compositor_domain_priority(0);
+  b.add_input<decl::Float>("Mask")
+      .default_value(0.5f)
+      .min(0.0f)
+      .compositor_domain_priority(0)
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Size")
       .dimensions(2)
       .default_value({0.0f, 0.0f, 0.0f})
@@ -37,33 +41,39 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .compositor_domain_priority(1)
       .description(
           "Size from the center of the constant part of the rounded square mask to its "
-          "boundaries");
+          "boundaries. If the Size value is negative in any dimension, an erosion is "
+          "performed instead of a dilation")
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("Rotation")
       .default_value(0.0f)
       .subtype(PROP_ANGLE)
       .compositor_domain_priority(2)
-      .description("Angle to rotate the rounded square mask by");
+      .description("Angle to rotate the rounded square mask by")
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Translation")
       .dimensions(2)
       .default_value({0.0f, 0.0f, 0.0f})
       .compositor_domain_priority(3)
-      .description("Translation of the rounded square mask");
+      .description("Translation of the rounded square mask")
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("Roundness")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .compositor_domain_priority(4)
-      .description("Roundness of the rounded square mask");
+      .description("Roundness of the rounded square mask")
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("Falloff")
       .default_value(1.0f)
       .min(0.0f)
       .compositor_domain_priority(5)
       .description(
           "Maximal range of the linear falloff starting at the boundaries of the constant part of "
-          "the rounded square mask");
+          "the rounded square mask")
+      .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Float>("Mask");
+  b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -76,14 +86,13 @@ class MaskedMaximumOperation : public NodeOperation {
   {
     const Result &input_mask = this->get_input("Mask");
     Result &output_mask = this->get_result("Mask");
-    float3 size_single_value = get_input("Size").get_single_value_default(
-        float3(1.0f, 1.0f, 0.0f));
-    float3 translation_single_value =
-        get_input("Translation").get_single_value_default(float3(1.0f, 1.0f, 0.0f));
+    float2 size_single_value = get_input("Size").get_single_value_default(float2(1.0f, 1.0f));
+    float2 translation_single_value =
+        get_input("Translation").get_single_value_default(float2(1.0f, 1.0f));
 
     if (input_mask.is_single_value() ||
-        ((size_single_value.x <= 0.0f) && (size_single_value.y <= 0.0f) &&
-         (translation_single_value.x == 0.0f) && (translation_single_value.y == 0.0f) &&
+        ((size_single_value == float2(0.0f, 0.0f)) &&
+         (translation_single_value == float2(0.0f, 0.0f)) &&
          (get_input("Falloff").get_single_value_default(1.0f) <= 0.0f)))
     {
       /* Operation does nothing and the input can be passed through. */
@@ -146,10 +155,11 @@ class MaskedMaximumOperation : public NodeOperation {
     output_mask.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float3 size = math::max(get_input("Size").load_pixel_zero<float3, true>(texel),
-                              float3(0.0f, 0.0f, 0.0f));
+      float2 size = get_input("Size").load_pixel_zero<float2, true>(texel);
+      bool is_dilate = (size.x >= 0.0f) && (size.y >= 0.0f);
+      float2 abs_size = math::abs(size);
       float rotation = get_input("Rotation").load_pixel_zero<float, true>(texel);
-      float3 translation = get_input("Translation").load_pixel_zero<float3, true>(texel);
+      float2 translation = get_input("Translation").load_pixel_zero<float2, true>(texel);
       float roundness = math::clamp(
           get_input("Roundness").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float falloff = math::max(get_input("Falloff").load_pixel_zero<float, true>(texel), 0.0f);
@@ -157,20 +167,20 @@ class MaskedMaximumOperation : public NodeOperation {
       /* Calculate top right and bottom left corner of the bounding box of the rounded square mask.
        */
       float2 bounding_box_top_right_corner_float;
-      if (size.x == size.y) {
-        bounding_box_top_right_corner_float = float2(math::ceil(size.x + falloff),
-                                                     math::ceil(size.y + falloff));
+      if (abs_size.x == abs_size.y) {
+        bounding_box_top_right_corner_float = float2(math::ceil(abs_size.x + falloff),
+                                                     math::ceil(abs_size.y + falloff));
       }
-      else if (size.x == 0.0f) {
-        bounding_box_top_right_corner_float = float2(0.0f, math::ceil(size.y + falloff));
+      else if (abs_size.x == 0.0f) {
+        bounding_box_top_right_corner_float = float2(0.0f, math::ceil(abs_size.y + falloff));
       }
-      else if (size.y == 0.0f) {
-        bounding_box_top_right_corner_float = float2(math::ceil(size.x + falloff), 0.0f);
+      else if (abs_size.y == 0.0f) {
+        bounding_box_top_right_corner_float = float2(math::ceil(abs_size.x + falloff), 0.0f);
       }
       else {
         bounding_box_top_right_corner_float = float2(
-            math::ceil(size.x + (falloff * math::min(size.x / size.y, 1.0f))),
-            math::ceil(size.y + (falloff * math::min(size.y / size.x, 1.0f))));
+            math::ceil(abs_size.x + (falloff * math::min(abs_size.x / abs_size.y, 1.0f))),
+            math::ceil(abs_size.y + (falloff * math::min(abs_size.y / abs_size.x, 1.0f))));
       }
       if (rotation != 0.0f) {
         float2 rotated_top_right_corner = rotate_vector_2d(
@@ -204,23 +214,53 @@ class MaskedMaximumOperation : public NodeOperation {
       bounding_box_bottom_left_corner = math::max(bounding_box_bottom_left_corner, int2(0, 0));
       bounding_box_top_right_corner -= texel;
       bounding_box_bottom_left_corner -= texel;
-      /* Initiating masked_maximum to -1.0f works because the output is always non-negative. */
-      float masked_maximum = -1.0f;
-      for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
-        for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++)
+      float masked_maximum = -FLT_MAX;
+      if (is_dilate) {
+        for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++)
         {
-          float2 coord = float2(x, y) - float2(translation.x, translation.y);
-          if (rotation != 0.0f) {
-            coord = rotate_vector_2d(coord, -rotation);
+          for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x;
+               x++)
+          {
+            float2 coord = float2(x, y) - float2(translation.x, translation.y);
+            if (rotation != 0.0f) {
+              coord = rotate_vector_2d(coord, -rotation);
+            }
+            float rounded_square_mask = compute_rounded_square_mask(
+                coord, abs_size, roundness, falloff);
+            /* Only operate on the support of the rounded square mask. */
+            if (rounded_square_mask != 0.0f) {
+              masked_maximum = math::max(
+                  masked_maximum,
+                  rounded_square_mask *
+                      input_mask.load_pixel_zero<float, true>(texel + int2(x, y)));
+            }
           }
-          masked_maximum = math::max(
-              masked_maximum,
-              compute_rounded_square_mask(coord, float2(size.x, size.y), roundness, falloff) *
-                  math::max(input_mask.load_pixel_zero<float, true>(texel + int2(x, y)), 0.0f));
         }
+        output_mask.store_pixel(texel, masked_maximum);
       }
-
-      output_mask.store_pixel(texel, masked_maximum);
+      else {
+        for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++)
+        {
+          for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x;
+               x++)
+          {
+            float2 coord = float2(x, y) - float2(translation.x, translation.y);
+            if (rotation != 0.0f) {
+              coord = rotate_vector_2d(coord, -rotation);
+            }
+            float rounded_square_mask = compute_rounded_square_mask(
+                coord, abs_size, roundness, falloff);
+            /* Only operate on the support of the rounded square mask. */
+            if (rounded_square_mask != 0.0f) {
+              masked_maximum = math::max(
+                  masked_maximum,
+                  rounded_square_mask *
+                      (1.0f - input_mask.load_pixel_zero<float, true>(texel + int2(x, y))));
+            }
+          }
+        }
+        output_mask.store_pixel(texel, 1.0f - masked_maximum);
+      }
     });
   }
 
@@ -287,20 +327,21 @@ class MaskedMaximumOperation : public NodeOperation {
   }
 
   float compute_rounded_square_mask(float2 coord,
-                                    float2 size,
+                                    float2 abs_size,
                                     const float roundness,
                                     const float falloff)
   {
-    /* Swap x and y names if size.y > size.x. This is done because the following code excpects
-     * size.x to be greater or equal to size.y. This makes sure that the falloff is calculated
-     * based on the larger size, making the Falloff input an upper limit to the falloff range. */
-    if (size.y > size.x) {
+    /* Swap x and y names if abs_size.y > abs_size.x. This is done because the following code
+     * expects abs_size.x to be greater or equal to abs_size.y. This makes sure that the falloff is
+     * calculated based on the larger abs_size, making the Falloff input an upper limit to the
+     * falloff range. */
+    if (abs_size.y > abs_size.x) {
       std::swap(coord.x, coord.y);
-      std::swap(size.x, size.y);
+      std::swap(abs_size.x, abs_size.y);
     }
 
-    if (size.y == 0.0f) {
-      if (size.x == 0.0f) {
+    if (abs_size.y == 0.0f) {
+      if (abs_size.x == 0.0f) {
         if ((coord.x == 0.0f) && (coord.y == 0.0f)) {
           /* coord is in the constant part of the mask. */
           return 1.0f;
@@ -318,28 +359,29 @@ class MaskedMaximumOperation : public NodeOperation {
       }
       else {
         /* Mask is a 1 dimensional line. */
-        if ((coord.y != 0.0f) || (math::abs(coord.x) > (size.x + falloff))) {
+        if ((coord.y != 0.0f) || (math::abs(coord.x) > (abs_size.x + falloff))) {
           /* coord is outside of the mask. */
           return 0.0f;
         }
-        else if (math::abs(coord.x) <= (size.x)) {
+        else if (math::abs(coord.x) <= (abs_size.x)) {
           /* coord is in the constant part of the mask. */
           return 1.0f;
         }
         else {
           /* coord is in the linear falloff part of the mask. */
-          return math::inverse_mix(size.x + falloff, size.x, math::abs(coord.x));
+          return math::inverse_mix(abs_size.x + falloff, abs_size.x, math::abs(coord.x));
         }
       }
     }
     else {
-      if (is_in_unit_rounded_square(coord / size, roundness)) {
+      if (is_in_unit_rounded_square(coord / abs_size, roundness)) {
         /* coord is in the constant part of the mask. */
         return 1.0f;
       }
       else if ((falloff == 0.0f) ||
                !is_in_unit_rounded_square(
-                   coord / (size + float2(falloff, falloff * size.y / size.x)), roundness))
+                   coord / (abs_size + float2(falloff, falloff * abs_size.y / abs_size.x)),
+                   roundness))
       {
         /* coord is outside of the mask. */
         return 0.0f;
@@ -347,9 +389,10 @@ class MaskedMaximumOperation : public NodeOperation {
       else {
         /* coord is in the linear falloff part of the mask. */
         return math::inverse_mix(
-            size.x + falloff,
-            size.x,
-            compute_rounded_square_radius(float2(coord.x, coord.y * size.x / size.y), roundness));
+            abs_size.x + falloff,
+            abs_size.x,
+            compute_rounded_square_radius(float2(coord.x, coord.y * abs_size.x / abs_size.y),
+                                          roundness));
       }
     }
   }
