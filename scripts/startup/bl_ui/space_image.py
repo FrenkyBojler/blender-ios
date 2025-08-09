@@ -460,7 +460,7 @@ class IMAGE_MT_uvs(Menu):
 
         layout.separator()
 
-        layout.operator("uv.mark_seam").clear = False
+        layout.operator("uv.mark_seam", icon='EDGE_SEAM').clear = False
         layout.operator("uv.mark_seam", text="Clear Seam").clear = True
         layout.operator("uv.seams_from_islands")
 
@@ -535,15 +535,7 @@ class IMAGE_MT_uvs_select_mode(Menu):
 
         layout.separator()
 
-        is_select_island_supported = True
-        if tool_settings.use_uv_select_sync:
-            mesh_select_mode = tool_settings.mesh_select_mode
-            if mesh_select_mode[0] or mesh_select_mode[1]:
-                is_select_island_supported = False
-
-        row = layout.row()
-        row.active = is_select_island_supported
-        row.prop(tool_settings, "use_uv_select_island", text="Island")
+        layout.prop(tool_settings, "use_uv_select_island", text="Island")
 
 
 class IMAGE_MT_uvs_context_menu(Menu):
@@ -731,11 +723,11 @@ class IMAGE_HT_tool_header(Header):
         if tool_mode == 'PAINT':
             if (tool is not None) and tool.use_brushes:
                 layout.popover("IMAGE_PT_paint_settings_advanced")
+                layout.popover("IMAGE_PT_tools_brush_texture")
+                layout.popover("IMAGE_PT_tools_mask_texture")
                 layout.popover("IMAGE_PT_paint_stroke")
                 layout.popover("IMAGE_PT_paint_curve")
                 layout.popover("IMAGE_PT_tools_brush_display")
-                layout.popover("IMAGE_PT_tools_brush_texture")
-                layout.popover("IMAGE_PT_tools_mask_texture")
 
     def draw_mode_settings(self, context):
         layout = self.layout
@@ -873,15 +865,11 @@ class IMAGE_HT_header(Header):
             if tool_settings.use_uv_select_sync:
                 layout.template_edit_mode_selection()
 
-                # Currently this only works for face-select mode.
-                mesh_select_mode = tool_settings.mesh_select_mode
-                row = layout.row()
-                if mesh_select_mode[0] or mesh_select_mode[1]:
-                    row.active = False
-                row.prop(tool_settings, "use_uv_select_island", icon_only=True)
+                layout.prop(tool_settings, "use_uv_select_island", icon_only=True)
 
                 # Currently this only works for edge-select & face-select modes.
                 row = layout.row()
+                mesh_select_mode = tool_settings.mesh_select_mode
                 if mesh_select_mode[0]:
                     row.active = False
                 row.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)

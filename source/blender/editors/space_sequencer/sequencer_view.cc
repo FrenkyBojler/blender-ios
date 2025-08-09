@@ -253,8 +253,8 @@ static wmOperatorStatus sequencer_view_zoom_ratio_exec(bContext *C, wmOperator *
   int winx, winy;
   BKE_render_resolution(rd, false, &winx, &winy);
 
-  float facx = BLI_rcti_size_x(&v2d->mask) / float(winx);
-  float facy = BLI_rcti_size_y(&v2d->mask) / float(winy);
+  float facx = (BLI_rcti_size_x(&v2d->mask) + 1) / float(winx);
+  float facy = (BLI_rcti_size_y(&v2d->mask) + 1) / float(winy);
 
   BLI_rctf_resize(&v2d->cur, ceilf(winx * facx / ratio + 0.5f), ceilf(winy * facy / ratio + 0.5f));
 
@@ -326,7 +326,7 @@ static void seq_view_collection_rect_timeline(const bContext *C,
   int xmax = -MAXFRAME * 2;
   int ymin = seq::MAX_CHANNELS + 1;
   int ymax = 0;
-  int xmargin = FPS;
+  int xmargin = scene->frames_per_second();
 
   for (Strip *strip : strips) {
     xmin = min_ii(xmin, seq::time_left_handle_frame_get(scene, strip));

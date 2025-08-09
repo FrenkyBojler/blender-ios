@@ -270,8 +270,8 @@ static void vicon_keytype_draw_wrapper(const float x,
 
   /* The "x" and "y" given are the bottom-left coordinates of the icon,
    * while the #draw_keyframe_shape() function needs the midpoint for the keyframe. */
-  const float xco = x + (w / 2.0f) + 0.5f;
-  const float yco = y + (h / 2.0f) + 0.5f;
+  const float xco = x + (w / 2.0f);
+  const float yco = y + (h / 2.0f);
 
   GPUVertFormat *format = immVertexFormat();
   KeyframeShaderBindings sh_bindings;
@@ -402,7 +402,9 @@ static void icon_node_socket_draw(
   float color_inner[4];
   blender::ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
 
-  float color_outer[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  float color_outer[4] = {0};
+  UI_GetThemeColorType4fv(TH_WIRE, SPACE_NODE, color_outer);
+  color_outer[3] = 1.0f;
 
   blender::ed::space_node::node_draw_nodesocket(
       &rect, color_inner, color_outer, U.pixelsize, SOCK_DISPLAY_SHAPE_CIRCLE, 1.0f);
@@ -691,13 +693,13 @@ int UI_icon_from_event_type(short event_type, short event_value)
     if (event_value == KM_DBL_CLICK) {
       return ICON_MOUSE_LMB_2X;
     }
-    return (event_value == KM_CLICK_DRAG) ? ICON_MOUSE_LMB_DRAG : ICON_MOUSE_LMB;
+    return (event_value == KM_PRESS_DRAG) ? ICON_MOUSE_LMB_DRAG : ICON_MOUSE_LMB;
   }
   if (event_type == MIDDLEMOUSE) {
-    return (event_value == KM_CLICK_DRAG) ? ICON_MOUSE_MMB_DRAG : ICON_MOUSE_MMB;
+    return (event_value == KM_PRESS_DRAG) ? ICON_MOUSE_MMB_DRAG : ICON_MOUSE_MMB;
   }
   if (event_type == RIGHTMOUSE) {
-    return (event_value == KM_CLICK_DRAG) ? ICON_MOUSE_MMB_DRAG : ICON_MOUSE_RMB;
+    return (event_value == KM_PRESS_DRAG) ? ICON_MOUSE_MMB_DRAG : ICON_MOUSE_RMB;
   }
 
   return ICON_NONE;
@@ -1275,7 +1277,7 @@ void ui_icon_ensure_deferred(const bContext *C, const int icon_id, const bool bi
           wmJob *wm_job = WM_jobs_get(wm,
                                       CTX_wm_window(C),
                                       icon,
-                                      "StudioLight Icon",
+                                      "Generating StudioLight icon...",
                                       eWM_JobFlag(0),
                                       WM_JOB_TYPE_STUDIOLIGHT);
           Icon **tmp = MEM_callocN<Icon *>(__func__);
@@ -1464,8 +1466,19 @@ static void icon_draw_rect(float x,
     immUniform1f("factor", desaturate);
   }
 
-  immDrawPixelsTexScaledFullSize(
-      &state, draw_x, draw_y, rw, rh, GPU_RGBA8, true, rect, scale_x, scale_y, 1.0f, 1.0f, col);
+  immDrawPixelsTexScaledFullSize(&state,
+                                 draw_x,
+                                 draw_y,
+                                 rw,
+                                 rh,
+                                 blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                                 true,
+                                 rect,
+                                 scale_x,
+                                 scale_y,
+                                 1.0f,
+                                 1.0f,
+                                 col);
 }
 
 /* Drawing size for preview images */
@@ -1535,6 +1548,10 @@ static void svg_replace_color_attributes(std::string &svg,
       {"blender_tool_transform", tool_transform},
       {"blender_tool_white", tool_white},
       {"blender_tool_red", tool_red},
+      {"blender_bevel_weight", nullptr, TH_EDGE_BEVEL},
+      {"blender_mesh_crease", nullptr, TH_EDGE_CREASE},
+      {"blender_edge_seam", nullptr, TH_EDGE_SEAM},
+      {"blender_edge_sharp", nullptr, TH_EDGE_SHARP},
   };
 
   for (const ColorItem &item : items) {
