@@ -806,7 +806,13 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = btheme->common.anim.channel_sub;
           break;
         case TH_DOPESHEET_IPOLINE:
-          cp = ts->ds_ipoline;
+          cp = ts->interpolation_linear;
+          break;
+        case TH_DOPESHEET_IPOCONST:
+          cp = ts->interpolation_constant;
+          break;
+        case TH_DOPESHEET_IPOBEZ:
+          cp = ts->interpolation_bezier;
           break;
 
         case TH_PREVIEW_BACK:

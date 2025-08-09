@@ -302,7 +302,6 @@ typedef struct ThemeSpace {
   unsigned char time_keyframe[4], time_gp_keyframe[4];
   unsigned char freestyle_edge_mark[4], freestyle_face_mark[4];
   unsigned char time_scrub_background[4];
-  char _pad9[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4], lastsel_point[4];
@@ -313,7 +312,7 @@ typedef struct ThemeSpace {
       handle_sel_auto_clamped[4];
 
   /** Dope-sheet. */
-  unsigned char ds_ipoline[4];
+  unsigned char interpolation_bezier[4], interpolation_constant[4], interpolation_linear[4];
   /** Key-types. */
   unsigned char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4],
       keytype_movehold[4], keytype_generated[4];
@@ -414,7 +413,6 @@ typedef struct ThemeSpace {
   unsigned char anim_active[4];
   /** Active Action = NULL. */
   unsigned char anim_non_active[4];
-  char _pad8[4];
 
   /** NLA 'Tweaking' action/strip. */
   unsigned char nla_tweaking[4];
