@@ -227,6 +227,11 @@ endif()
 # ------------------------------------------------------------------------------
 
 add_blender_test(
+  script_pyapi_bpy_app_tempdir
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app_tempdir.py
+)
+
+add_blender_test(
   script_pyapi_bpy_path
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_path.py
 )
@@ -597,13 +602,6 @@ add_blender_test(
 # ------------------------------------------------------------------------------
 
 if(TEST_SRC_DIR_EXISTS)
-  add_blender_test(
-    bl_node_field_type_inference
-    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_field_type_inference.py
-    --
-    --testdir "${TEST_SRC_DIR}/node_group"
-  )
-
   add_blender_test(
     bl_node_structure_type_inference
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_structure_type_inference.py
