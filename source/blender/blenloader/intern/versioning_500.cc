@@ -1063,8 +1063,8 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
 }
 
 /* The compositor Value, Color Ramp, Mix Color, Map Range, Map Value, Math, Combine XYZ, Separate
- * XYZ, Vector Curves and Gamma nodes are now deprecated and should be replaced by their generic Shader
- * node counterpart. */
+ * XYZ, Vector Curves and Gamma nodes are now deprecated and should be replaced by their generic
+ * Shader node counterpart. */
 static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 {
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
@@ -1457,7 +1457,7 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
 
   bNodeSocket *image_input = static_cast<bNodeSocket *>(group_output_node->inputs.first);
   if (STREQ(image_input->name, "Imagem")) {
-  STRNCPY_UTF8(image_input->name, "Image");
+    STRNCPY_UTF8(image_input->name, "Image");
   }
   BLI_assert(blender::StringRef(image_input->name) == "Image");
   copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
