@@ -4,4 +4,4 @@ Referenced by issue #140396, bmesh.ops.dissolve_edges() - keeps verts even with 
 Referenced by issue #142285, 3D cursor placement ignores objects, which have their selection restricted
 Referenced by issue #142399, When Subdiv is enabled, the size in dimension remain the same (GPU Subdiv off)
 Referenced by issue #142738, WORKBENCH with MATCAPS Rendering Issues in Blender 4.5 and 5.0 Alpha
-Referenced by issue #144254, Video Editing Proxy doesn't work for strips made from image sequences
+Referenced by issue #144254, VSE proxies for image sequences do not work (since 4.5)
