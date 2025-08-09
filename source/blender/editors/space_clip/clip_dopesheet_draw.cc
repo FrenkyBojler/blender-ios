@@ -129,11 +129,8 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
     float y = (CHANNEL_FIRST);
 
     /* setup colors for regular and selected strips */
-    UI_GetThemeColor3fv(TH_LONGKEY, strip);
-    UI_GetThemeColor3fv(TH_LONGKEY_SELECT, selected_strip);
-
-    strip[3] = 0.5f;
-    selected_strip[3] = 1.0f;
+    UI_GetThemeColor4fv(TH_LONGKEY, strip);
+    UI_GetThemeColor4fv(TH_LONGKEY_SELECT, selected_strip);
 
     GPU_blend(GPU_BLEND_ALPHA);
 
