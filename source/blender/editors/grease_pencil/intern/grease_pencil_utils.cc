@@ -1887,13 +1887,12 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   Set<StringRef> new_vgroup_names;
   for (auto [layer_eval, layer_orig] : eval_to_orig_layer_map.items()) {
-    const Drawing *drawing_eval = merged_layers_grease_pencil.get_drawing_at(*layer_eval,
+    Drawing *drawing_eval = merged_layers_grease_pencil.get_drawing_at(*layer_eval,
                                                                              eval_frame);
     Drawing *drawing_orig = orig_grease_pencil.get_drawing_at(*layer_orig, eval_frame);
 
     if (drawing_orig && drawing_eval) {
-      /* Write the data to the original drawing. */
-      const CurvesGeometry &eval_strokes = drawing_eval->strokes();
+      CurvesGeometry &eval_strokes = drawing_eval->strokes_for_write();
 
       /* Check for new vertex groups in CurvesGeometry. */
       LISTBASE_FOREACH (bDeformGroup *, dg, &eval_strokes.vertex_group_names) {
@@ -1902,7 +1901,8 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
         }
       }
 
-      drawing_orig->strokes_for_write() = eval_strokes;
+      /* Write the data to the original drawing. */
+      drawing_orig->strokes_for_write() = std::move(eval_strokes);
       /* Anonymous attributes shouldn't be available on original geometry. */
       drawing_orig->strokes_for_write().attributes_for_write().remove_anonymous();
       drawing_orig->tag_topology_changed();
