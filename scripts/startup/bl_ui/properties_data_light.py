@@ -118,16 +118,95 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
         layout.separator()
 
         col = layout.column()
-        #row = col.row(align=True)
-        #split = row.split(factor=0.8, align=True)
-        col.prop(light, "energy")
-        # split.prop(light, "energy_unit", text="")
+
+        # Mapping table : (unit_system, normalize) -> {light_type: prop}
+        # Sun is always normalized, so no units when normalize is False
+        prop_map = {
+            ('RADIOMETRIC', True): {
+                'SUN': "radiometric_irradiance",
+                'POINT': "radiometric_power",
+                'AREA': "radiometric_power",
+                'SPOT': "radiometric_intensity",
+            },
+            ('RADIOMETRIC', False): {
+                'POINT': "radiometric_radiosity",
+                'AREA': "radiometric_radiosity",
+                'SPOT': "radiometric_radiance",
+            },
+            ('PHOTOMETRIC', True): {
+                'SUN': "photometric_illuminance",
+                'POINT': "photometric_power",
+                'AREA': "photometric_power",
+                'SPOT': "photometric_intensity",
+            },
+            ('PHOTOMETRIC', False): {
+                'POINT': "photometric_luminous_exitance",
+                'AREA': "photometric_luminous_exitance",
+                'SPOT': "photometric_luminance",
+            },
+        }
+
+        if light.unit_system == 'NONE':
+            prop = "energy"
+        else:
+            prop = prop_map.get((light.unit_system, light.normalize), {}).get(light.type, "energy")
+
+        col.prop(light, prop)
+
+        '''
+        Two solution to display the properties. Don't know witch one is the best
+        Is Brecht or someone from the UI team have an opinion ?
+        At this point, there is no convertion during units switch
+        '''
+
+        '''        
+        if light.unit_system == 'NONE':
+            col.prop(light, "energy")
+        elif light.unit_system == 'RADIOMETRIC':
+            if light.normalize:
+                if light.type == 'SUN':
+                    col.prop(light, "radiometric_irradiance")
+                elif light.type == 'POINT' or light.type == 'AREA':
+                    col.prop(light, "radiometric_power")
+                elif light.type == 'SPOT':
+                    col.prop(light, "radiometric_intensity")
+                else: #security return to avoid empty prop
+                    col.prop(light, "energy")
+            else:
+                # if light.type == SUN Is not possible because SUN is always normalized
+                if light.type == 'POINT' or light.type == 'AREA':
+                    col.prop(light, "radiometric_radiosity")
+                elif light.type == 'SPOT':
+                    col.prop(light, "radiometric_radiance")
+                else: #security return to avoid empty prop
+                    col.prop(light, "energy")
+        elif light.unit_system == 'PHOTOMETRIC':
+            if light.normalize:
+                if light.type == 'SUN':
+                    col.prop(light, "photometric_illuminance")
+                elif light.type == 'POINT' or light.type == 'AREA':
+                    col.prop(light, "photometric_power")
+                elif light.type == 'SPOT':
+                    col.prop(light, "photometric_intensity")
+                else: #security return to avoid empty prop
+                    col.prop(light, "energy")
+            else:
+                # if light.type == SUN Is not possible because SUN is always normalized
+                if light.type == 'POINT' or light.type == 'AREA':
+                    col.prop(light, "photometric_luminous_exitance")
+                elif light.type == 'SPOT':
+                    col.prop(light, "photometric_luminance")
+                else: #security return to avoid empty prop
+                    col.prop(light, "energy")
+        '''
+
         col.prop(light, "exposure")
         if light.type != "SUN":
             col.prop(light, "normalize")
         else:
-            col.prop(light, "normalize")
-            col.enabled = False
+            col_bis = layout.column()
+            col_bis.prop(light, "normalize")
+            col_bis.enabled = False
 
         layout.separator()
 

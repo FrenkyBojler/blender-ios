@@ -39,6 +39,16 @@ typedef struct Light {
   float r, g, b;
   float temperature;
   float energy;
+  float radiometric_power;
+  float radiometric_intensity;
+  float radiometric_irradiance;
+  float radiometric_radiosity;
+  float radiometric_radiance;
+  float photometric_power;
+  float photometric_intensity;
+  float photometric_illuminance;
+  float photometric_luminous_exitance;
+  float photometric_luminance;
   float exposure;
   float _pad4;
   // float energy_conversion_factor;

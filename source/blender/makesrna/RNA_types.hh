@@ -159,34 +159,34 @@ enum PropertyType {
 /* also update rna_property_subtype_unit when you change this */
 enum PropertyUnit {
   PROP_UNIT_NONE = (0 << 16),
-  PROP_UNIT_LENGTH = (1 << 16),                         /* m */
-  PROP_UNIT_AREA = (2 << 16),                           /* m^2 */
-  PROP_UNIT_VOLUME = (3 << 16),                         /* m^3 */
-  PROP_UNIT_MASS = (4 << 16),                           /* kg */
-  PROP_UNIT_ROTATION = (5 << 16),                       /* radians */
-  PROP_UNIT_TIME = (6 << 16),                           /* frame */
-  PROP_UNIT_TIME_ABSOLUTE = (7 << 16),                  /* time in seconds (independent of scene) */
-  PROP_UNIT_VELOCITY = (8 << 16),                       /* m/s */
-  PROP_UNIT_ACCELERATION = (9 << 16),                   /* m/(s^2) */
-  PROP_UNIT_CAMERA = (10 << 16),                        /* mm */
-  PROP_UNIT_POWER = (11 << 16),                         /* W */
+  PROP_UNIT_LENGTH = (1 << 16),        /* m */
+  PROP_UNIT_AREA = (2 << 16),          /* m^2 */
+  PROP_UNIT_VOLUME = (3 << 16),        /* m^3 */
+  PROP_UNIT_MASS = (4 << 16),          /* kg */
+  PROP_UNIT_ROTATION = (5 << 16),      /* radians */
+  PROP_UNIT_TIME = (6 << 16),          /* frame */
+  PROP_UNIT_TIME_ABSOLUTE = (7 << 16), /* time in seconds (independent of scene) */
+  PROP_UNIT_VELOCITY = (8 << 16),      /* m/s */
+  PROP_UNIT_ACCELERATION = (9 << 16),  /* m/(s^2) */
+  PROP_UNIT_CAMERA = (10 << 16),       /* mm */
+  PROP_UNIT_POWER = (11 << 16),        /* W */
   /* Radiometric */
-  PROP_UNIT_RADIOMETRIC_POWER = (12 << 16),             /* W */
-  PROP_UNIT_RADIOMETRIC_INTENSITY = (13 << 16),         /* W/sr (steradian) */
-  PROP_UNIT_RADIOMETRIC_IRRADIANCE = (14 << 16),        /* W/m^2 */
-  PROP_UNIT_RADIOMETRIC_RADIOSITY = (15 << 16),         /* W/m^2 */
-  PROP_UNIT_RADIOMETRIC_RADIANCE = (16 << 16),          /* W/(sr*m^2) */
+  PROP_UNIT_RADIOMETRIC_POWER = (12 << 16),      /* W */
+  PROP_UNIT_RADIOMETRIC_INTENSITY = (13 << 16),  /* W/sr (steradian) */
+  PROP_UNIT_RADIOMETRIC_IRRADIANCE = (14 << 16), /* W/m^2 */
+  PROP_UNIT_RADIOMETRIC_RADIOSITY = (15 << 16),  /* W/m^2 */
+  PROP_UNIT_RADIOMETRIC_RADIANCE = (16 << 16),   /* W/(sr*m^2) */
   /* Photometric */
   PROP_UNIT_PHOTOMETRIC_POWER = (17 << 16),             /* lm */
   PROP_UNIT_PHOTOMETRIC_INTENSITY = (18 << 16),         /* cd */
   PROP_UNIT_PHOTOMETRIC_ILLUMINANCE = (19 << 16),       /* lx */
   PROP_UNIT_PHOTOMETRIC_LUMINOUS_EXITANCE = (20 << 16), /* lm/m^2 */
-  PROP_UNIT_PHOTOMETRIC_NITS = (21 << 16),              /* cd/m^2 */
+  PROP_UNIT_PHOTOMETRIC_LUMINANCE = (21 << 16),              /* cd/m^2 */
   /* Others */
-  PROP_UNIT_TEMPERATURE = (22 << 16),                   /* C */
-  PROP_UNIT_WAVELENGTH = (23 << 16),                    /* `nm` (independent of scene). */
-  PROP_UNIT_COLOR_TEMPERATURE = (24 << 16),             /* K */
-  PROP_UNIT_FREQUENCY = (25 << 16),                     /* Hz */
+  PROP_UNIT_TEMPERATURE = (22 << 16),       /* C */
+  PROP_UNIT_WAVELENGTH = (23 << 16),        /* `nm` (independent of scene). */
+  PROP_UNIT_COLOR_TEMPERATURE = (24 << 16), /* K */
+  PROP_UNIT_FREQUENCY = (25 << 16),         /* Hz */
 };
 ENUM_OPERATORS(PropertyUnit, PROP_UNIT_TEMPERATURE)
 
@@ -291,7 +291,7 @@ enum PropertySubType {
   PROP_PHOTOMETRIC_INTENSITY = 49 | PROP_UNIT_PHOTOMETRIC_INTENSITY,
   PROP_PHOTOMETRIC_ILLUMINANCE = 50 | PROP_UNIT_PHOTOMETRIC_ILLUMINANCE,
   PROP_PHOTOMETRIC_LUMINOUS_EXITANCE = 51 | PROP_UNIT_PHOTOMETRIC_LUMINOUS_EXITANCE,
-  PROP_PHOTOMETRIC_NITS = 52 | PROP_UNIT_PHOTOMETRIC_NITS,
+  PROP_PHOTOMETRIC_LUMINANCE = 52 | PROP_UNIT_PHOTOMETRIC_LUMINANCE,
 
   /* temperature */
   PROP_TEMPERATURE = 53 | PROP_UNIT_TEMPERATURE,

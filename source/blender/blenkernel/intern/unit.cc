@@ -20,7 +20,6 @@
 
 #include "DNA_scene_types.h"
 
-#include "../../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Foundation.framework/Versions/C/Headers/NSNull.h"
 #include "BKE_unit.hh" /* own include */
 
 #ifdef WIN32
@@ -1868,14 +1867,14 @@ static bUnitCollection buPhotometricLuminousExitanceCollection = {
   /*length*/ UNIT_COLLECTION_LENGTH(buPhotometricLuminousExitanceDef),
 };
 
-/* (Light) Photometric (Radiance) Nits */
-static bUnitDef buPhotometricNitsDef[] = {
+/* (Light) Photometric (Radiance) Luminance */
+static bUnitDef buPhotometricLuminanceDef[] = {
     {
-      /*name*/ "nits",
+      /*name*/ "luminance",
       /*name_plural*/ nullptr,
-      /*name_short*/ "cd/m²",
+      /*name_short*/ "nits",
       /*name_alt*/ nullptr,
-      /*name_display*/ "Nits",
+      /*name_display*/ "Luminance",
       /*identifier*/ nullptr,
       /*scalar*/ 1.0f,
       /*bias*/ 0.0,
@@ -1884,11 +1883,11 @@ static bUnitDef buPhotometricNitsDef[] = {
   NULL_UNIT,
 };
 
-static bUnitCollection buPhotometricNitsCollection = {
-  /*units*/ buPhotometricNitsDef,
+static bUnitCollection buPhotometricLuminanceCollection = {
+  /*units*/ buPhotometricLuminanceDef,
   /*base_unit*/ 0,
   /*flag*/ 0,
-  /*length*/ UNIT_COLLECTION_LENGTH(buPhotometricNitsDef),
+  /*length*/ UNIT_COLLECTION_LENGTH(buPhotometricLuminanceDef),
 };
 
 /* Temperature */
@@ -2069,7 +2068,7 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_PHOTO_INTENSITY*/ &buPhotometricIntensityCollection,
         /*B_UNIT_PHOTO_ILLUMINANCE*/ &buPhotometricIlluminanceCollection,
         /*B_UNIT_PHOTO_LUMINOUS_EXITANCE*/ &buPhotometricLuminousExitanceCollection,
-        /*B_UNIT_PHOTO_NITS*/ &buPhotometricNitsCollection,
+        /*B_UNIT_PHOTO_NITS*/ &buPhotometricLuminanceCollection,
         /*B_UNIT_TEMPERATURE*/ &buMetricTempCollection,
         /*B_UNIT_WAVELENGTH*/ &buWavelengthLenCollection,
         /*B_UNIT_COLOR_TEMPERATURE*/ &buColorTempCollection,
@@ -2098,7 +2097,7 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_PHOTO_INTENSITY*/ &buPhotometricIntensityCollection,
         /*B_UNIT_PHOTO_ILLUMINANCE*/ &buPhotometricIlluminanceCollection,
         /*B_UNIT_PHOTO_LUMINOUS_EXITANCE*/ &buPhotometricLuminousExitanceCollection,
-        /*B_UNIT_PHOTO_NITS*/ &buPhotometricNitsCollection,
+        /*B_UNIT_PHOTO_NITS*/ &buPhotometricLuminanceCollection,
         /*B_UNIT_TEMPERATURE*/ &buImperialTempCollection,
         /*B_UNIT_WAVELENGTH*/ &buWavelengthLenCollection,
         /*B_UNIT_COLOR_TEMPERATURE*/ &buColorTempCollection,
