@@ -114,6 +114,12 @@ typedef struct ThemeCommonAnim {
 
   unsigned char channel[4], channel_sub[4];
   unsigned char channel_group[4], channel_group_active[4];
+
+  /** Key-types. */
+  unsigned char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4],
+      keytype_movehold[4], keytype_generated[4];
+  unsigned char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4],
+      keytype_jitter_select[4], keytype_movehold_select[4], keytype_generated_select[4];
 } ThemeCommonAnim;
 
 typedef struct ThemeCommon {
@@ -315,11 +321,6 @@ typedef struct ThemeSpace {
   /** Dope-sheet. */
   unsigned char ds_ipoline[4];
   /** Key-types. */
-  unsigned char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4],
-      keytype_movehold[4], keytype_generated[4];
-  /** Key-types. */
-  unsigned char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4],
-      keytype_jitter_select[4], keytype_movehold_select[4], keytype_generated_select[4];
   unsigned char keyborder[4], keyborder_select[4];
   char _pad4[3];
 
