@@ -3322,8 +3322,9 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     return;
   }
 
-  const bool narrow = region->v2d.scroll & (V2D_SCROLL_VERTICAL | V2D_SCROLL_HORIZONTAL);
   const bool is_overlap = ED_region_is_overlap(area->spacetype, region->regiontype);
+  const bool is_header = ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER);
+  const bool narrow = region->v2d.scroll & (V2D_SCROLL_VERTICAL | V2D_SCROLL_HORIZONTAL);
   const float gradient_width = (narrow ? 4.0f : 16.0f) * UI_SCALE_FAC;
   const float transition = 30.0f * UI_SCALE_FAC;
 
@@ -3332,20 +3333,13 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     UI_GetThemeColor3fv(TH_BLACK, opaque);
     opaque[3] = 0.2f;
   }
-  else if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
-    UI_GetThemeColor3fv(TH_HEADER, opaque);
-    opaque[3] = 1.0f;
-  }
   else {
     UI_GetThemeColor3fv(TH_BACK, opaque);
     opaque[3] = 1.0f;
-    mul_v3_fl(opaque, 0.85f);
+    if (!is_header) {
+      mul_v3_fl(opaque, 0.85f);
+    }
   }
-
-  float transparent[4] = {0};
-  copy_v3_v3(transparent, opaque);
-
-  rctf rect{};
 
   if (!mask) {
     mask = &region->v2d.mask;
@@ -3355,10 +3349,22 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
   int height = BLI_rcti_size_y(mask) + 1;
   float offset_x = mask->xmin;
   float offset_y = mask->ymin;
-  if (region->panels.first && is_overlap) {
-    offset_x = UI_PANEL_MARGIN_X;
-    width -= (2 * UI_PANEL_MARGIN_X);
+
+  if (is_overlap) {
+    if (is_header) {
+      offset_y += 3.0f * UI_SCALE_FAC;
+    }
+    else if (region->panels.first) {
+      offset_x = UI_PANEL_MARGIN_X;
+      width -= (2 * UI_PANEL_MARGIN_X);
+    }
   }
+
+  rctf rect{};
+  float transparent[4];
+  copy_v3_v3(transparent, opaque);
+  transparent[3] = 0.0f;
+  float grad_color[4];
 
   if (region->v2d.cur.xmax < region->v2d.tot.xmax &&
       !(area->spacetype == SPACE_OUTLINER && region->regiontype == RGN_TYPE_WINDOW))
@@ -3366,19 +3372,21 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     /* Right Edge. */
     rect.xmax = offset_x + width;
     rect.xmin = offset_x + rect.xmax - gradient_width;
-    rect.ymin = 0.0f;
+    rect.ymin = offset_y;
     rect.ymax = height;
-    opaque[3] *= std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
-    UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 0.0f, nullptr, 0.0f, 0.0f);
+    copy_v4_v4(grad_color, opaque);
+    grad_color[3] *= std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
+    UI_draw_roundbox_4fv_ex(&rect, grad_color, transparent, 0.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.xmin > region->v2d.tot.xmin) {
     /* Left Edge. */
     rect.xmin = offset_x;
     rect.xmax = offset_x + gradient_width;
-    rect.ymin = 0.0f;
+    rect.ymin = offset_y;
     rect.ymax = height;
-    opaque[3] *= std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
-    UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 0.0f, nullptr, 0.0f, 0.0f);
+    copy_v4_v4(grad_color, opaque);
+    grad_color[3] *= std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
+    UI_draw_roundbox_4fv_ex(&rect, transparent, grad_color, 0.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.ymax < region->v2d.tot.ymax) {
     /* Top Edge. */
@@ -3386,8 +3394,9 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     rect.xmax = offset_x + width;
     rect.ymax = offset_y + height;
     rect.ymin = rect.ymax - gradient_width;
-    opaque[3] *= std::min((region->v2d.tot.ymax - region->v2d.cur.ymax) / transition, 1.0f);
-    UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 1.0f, nullptr, 0.0f, 0.0f);
+    copy_v4_v4(grad_color, opaque);
+    grad_color[3] *= std::min((region->v2d.tot.ymax - region->v2d.cur.ymax) / transition, 1.0f);
+    UI_draw_roundbox_4fv_ex(&rect, grad_color, transparent, 1.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.ymin > region->v2d.tot.ymin) {
     /* Bottom Edge. */
@@ -3395,8 +3404,9 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
     rect.xmax = offset_x + width;
     rect.ymin = offset_y;
     rect.ymax = rect.ymin + gradient_width;
-    opaque[3] *= std::min((region->v2d.cur.ymin - region->v2d.tot.ymin) / transition, 1.0f);
-    UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 1.0f, nullptr, 0.0f, 0.0f);
+    copy_v4_v4(grad_color, opaque);
+    grad_color[3] *= std::min((region->v2d.cur.ymin - region->v2d.tot.ymin) / transition, 1.0f);
+    UI_draw_roundbox_4fv_ex(&rect, transparent, grad_color, 1.0f, nullptr, 0.0f, 0.0f);
   }
 }
 
