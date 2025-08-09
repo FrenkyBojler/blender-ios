@@ -378,6 +378,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.channel_group_active);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 100)) {
+    FROM_DEFAULT_V4_UCHAR(space_clip.track_selected);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
