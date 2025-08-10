@@ -5,6 +5,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_delaunay_2d.hh"
 #include "BLI_index_mask.hh"
+#include <iostream>
 
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
@@ -67,6 +68,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Group ID")
       .field_on_all()
       .description("The group ID of each triangulation group");
+  b.add_output<decl::Int>("Intersection Points")
+      .field_on_all()
+      .description("A selection of newly created intersection points");
 }
 
 static CDT_output_type get_cdt_output_type(const TriangulationMode mode)
@@ -173,7 +177,6 @@ static std::optional<CDTGeometrySetInput> cdt_input_from_geometry_set(
             total_edge_num += bke::curves::segments_num(points.size(), cyclic[curve]);
           }
         }
-        
         if (total_edge_num > 0) {
           input.edge_components.append(component_i);
           input.edge_offsets.append(total_edge_num);
@@ -514,8 +517,24 @@ static Vector<CDTGeometrySetInput> cdt_inputs_from_groups(const GeometrySet &geo
   return inputs;
 }
 
-static Mesh *cdts_to_mesh(const Span<meshintersect::CDT_result<double>> results,
-                          const std::optional<std::string> dst_group_id_attribute_id)
+struct CDTGeometryResult {
+  meshintersect::CDT_result<double> cdt_result;
+  Array<const GeometryComponent *> components;
+
+  Vector<int> component_points_offsets;
+  Array<int> dst_points_to_src_points_map;
+  IndexRange intersection_points;
+
+  OffsetIndices<int> dst_points_range_by_component() const
+  {
+    return OffsetIndices<int>(component_points_offsets.as_span());
+  }
+};
+
+static Mesh *cdts_to_mesh(const Span<CDTGeometryResult> results,
+                          const std::optional<std::string> dst_group_id_attribute_id,
+                          const std::optional<std::string> dst_intersection_points_attribute_id,
+                          const AttributeFilter &attribute_filter)
 {
   Array<int> vert_groups_data(results.size() + 1);
   Array<int> edge_groups_data(results.size() + 1);
@@ -523,7 +542,7 @@ static Mesh *cdts_to_mesh(const Span<meshintersect::CDT_result<double>> results,
   Array<int> loop_groups_data(results.size() + 1);
   threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
     for (const int i_result : results_range) {
-      const meshintersect::CDT_result<double> &result = results[i_result];
+      const meshintersect::CDT_result<double> &result = results[i_result].cdt_result;
       vert_groups_data[i_result] = result.vert.size();
       edge_groups_data[i_result] = result.edge.size();
       face_groups_data[i_result] = result.face.size();
@@ -552,7 +571,7 @@ static Mesh *cdts_to_mesh(const Span<meshintersect::CDT_result<double>> results,
 
   threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
     for (const int i_result : results_range) {
-      const meshintersect::CDT_result<double> &result = results[i_result];
+      const meshintersect::CDT_result<double> &result = results[i_result].cdt_result;
       const IndexRange verts_range = vert_groups[i_result];
       const IndexRange edges_range = edge_groups[i_result];
       const IndexRange faces_range = face_groups[i_result];
@@ -582,17 +601,72 @@ static Mesh *cdts_to_mesh(const Span<meshintersect::CDT_result<double>> results,
     }
   });
 
-  if (dst_group_id_attribute_id) {
-    SpanAttributeWriter<int> dst_group_id =
-        mesh->attributes_for_write().lookup_or_add_for_write_span<int>(*dst_group_id_attribute_id,
-                                                                       AttrDomain::Point);
-    threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
-      for (const int i_result : results_range) {
-        const IndexRange verts_range = vert_groups[i_result];
-        dst_group_id.span.slice(verts_range).fill(i_result);
+  MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
+  threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
+    for (const int i_result : results_range) {
+      const IndexRange verts_range = vert_groups[i_result];
+
+      const CDTGeometryResult &result = results[i_result];
+      const OffsetIndices dst_points_range_by_component = result.dst_points_range_by_component();
+      const Span<int> dst_points_to_src_points_map = result.dst_points_to_src_points_map.as_span();
+      for (const int component_i : result.components.index_range()) {
+        const GeometryComponent *component = result.components[component_i];
+        const IndexRange dst_range = dst_points_range_by_component[component_i];
+        const Span<int> dst_to_src_map = dst_points_to_src_points_map.slice(dst_range);
+        BLI_assert(component->attributes().has_value());
+        const AttributeAccessor src_attributes = *component->attributes();
+        src_attributes.foreach_attribute([&](const AttributeIter &iter) {
+          if (iter.domain != bke::AttrDomain::Point) {
+            return;
+          }
+          if (iter.data_type == bke::AttrType::String) {
+            return;
+          }
+          if (attribute_filter.allow_skip(iter.name)) {
+            return;
+          }
+          const GAttributeReader src = iter.get(bke::AttrDomain::Point);
+          GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_span(
+              iter.name, bke::AttrDomain::Point, iter.data_type);
+          if (!dst) {
+            return;
+          }
+          bke::attribute_math::gather(
+              src.varray, dst_to_src_map, dst.span.slice(verts_range).slice(dst_range));
+          dst.finish();
+        });
       }
-    });
-    dst_group_id.finish();
+    }
+  });
+
+  if (dst_group_id_attribute_id) {
+    if (SpanAttributeWriter<int> dst_group_id = dst_attributes.lookup_or_add_for_write_span<int>(
+            *dst_group_id_attribute_id, AttrDomain::Point))
+    {
+      threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
+        for (const int i_result : results_range) {
+          const IndexRange verts_range = vert_groups[i_result];
+          dst_group_id.span.slice(verts_range).fill(i_result);
+        }
+      });
+      dst_group_id.finish();
+    }
+  }
+
+  if (dst_intersection_points_attribute_id) {
+    if (SpanAttributeWriter<bool> dst_intersection_points =
+            dst_attributes.lookup_or_add_for_write_span<bool>(
+                *dst_intersection_points_attribute_id, AttrDomain::Point))
+    {
+      threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
+        for (const int i_result : results_range) {
+          const IndexRange verts_range = vert_groups[i_result];
+          const IndexRange intersection_points = results[i_result].intersection_points;
+          dst_intersection_points.span.slice(verts_range).slice(intersection_points).fill(true);
+        }
+      });
+      dst_intersection_points.finish();
+    }
   }
 
   /* The delaunay triangulation doesn't seem to return all of the necessary all_edges, even in
@@ -616,13 +690,106 @@ static void node_geo_exec(GeoNodeExecParams params)
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
   std::optional<std::string> dst_group_id_attribute_id =
       params.get_output_anonymous_attribute_id_if_needed("Group ID");
+  std::optional<std::string> dst_intersection_points_attribute_id =
+      params.get_output_anonymous_attribute_id_if_needed("Intersection Points");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     Vector<CDTGeometrySetInput> cdt_inputs_by_group = cdt_inputs_from_groups(
         geometry_set, group_index, attribute_filter);
     Array<meshintersect::CDT_result<double>> results = calculate_cdts(cdt_inputs_by_group,
                                                                       output_type);
-    Mesh *mesh = cdts_to_mesh(results.as_span(), dst_group_id_attribute_id);
+    Array<CDTGeometryResult> geometry_results(results.size());
+    for (const int result_i : geometry_results.index_range()) {
+      const CDTGeometrySetInput &input = cdt_inputs_by_group[result_i];
+      const Vector<const GeometryComponent *> &all_components = input.geometry.get_components();
+
+      CDTGeometryResult result;
+      result.cdt_result = std::move(results[result_i]);
+      result.components = all_components.as_span();
+
+      const int total_dst_verts = result.cdt_result.vert_orig.size();
+      const OffsetIndices src_points_by_component = input.points_by_components();
+      const Span<Vector<int>> verts_orig = result.cdt_result.vert_orig.as_span();
+
+      Array<int> dst_point_to_src_point(total_dst_verts, -1);
+      Vector<int, 4> component_points_offsets;
+      int64_t component_i = 0;
+      int64_t count = 0;
+      for (const int dst_point : verts_orig.index_range()) {
+        const Span<int> verts = verts_orig[dst_point].as_span();
+        if (!verts.is_empty()) {
+          /* Only use the first point and discard the rest of potentially merged vertices. */
+          const int src_point = verts.first();
+          if (!src_points_by_component[component_i].contains(src_point)) {
+            BLI_assert(component_i + 1 < result.components.size());
+            BLI_assert(src_points_by_component[component_i + 1].contains(src_point));
+            component_i++;
+            component_points_offsets.append(count);
+            count = 0;
+          }
+          const IndexRange src_range = src_points_by_component[component_i];
+          dst_point_to_src_point[dst_point] = src_point - src_range.start();
+          count++;
+        }
+        else {
+          result.intersection_points = IndexRange::from_begin_end(dst_point, verts_orig.size());
+          break;
+        }
+      }
+      component_points_offsets.append(count);
+      /* Append one more element to account for the final offset. */
+      component_points_offsets.append(0);
+      offset_indices::accumulate_counts_to_offsets(component_points_offsets.as_mutable_span());
+
+      result.component_points_offsets = std::move(component_points_offsets);
+      result.dst_points_to_src_points_map = std::move(dst_point_to_src_point);
+
+      // IndexMaskMemory memory;
+      // const IndexMask mapped_indices = IndexMask::from_predicate(
+      //     IndexRange(total_dst_verts), GrainSize(8192), memory, [&](const int64_t index) {
+      //       return dst_point_to_src_point[index] != -1;
+      //     });
+      // BLI_assert(mapped_indices.to_range().has_value());
+      // VectorSet<int> component_index_by_component;
+      // const Vector<IndexMask> dst_points_by_component = IndexMask::from_group_ids(
+      //     mapped_indices,
+      //     VArray<int>::from_span(dst_point_to_component),
+      //     memory,
+      //     component_index_by_component);
+      // for (const int i : component_index_by_component.index_range()) {
+      //   const int component_i = component_index_by_component[i];
+      //   const IndexMask &dst_points = dst_points_by_component[i];
+      //   const GeometryComponent *component = all_components[component_i];
+      //   component->attributes();
+      // }
+
+      std::cout << "Original verts:" << std::endl;
+      for (const Vector<int> &verts : result.cdt_result.vert_orig) {
+        std::cout << "{";
+        for (const int vert : verts) {
+          std::cout << vert << ", ";
+        }
+        std::cout << "}, ";
+      }
+      std::cout << std::endl;
+      std::cout << "component_points_offsets:" << std::endl;
+      for (const int i : result.dst_points_range_by_component().index_range()) {
+        std::cout << result.dst_points_range_by_component()[i] << ", ";
+      }
+      std::cout << std::endl;
+      std::cout << "dst_point_to_src_point:" << std::endl;
+      for (const int vert : result.dst_points_to_src_points_map) {
+        std::cout << vert << ", ";
+      }
+      std::cout << std::endl;
+      std::cout << "Intersection points:" << result.intersection_points << std::endl;
+
+      geometry_results[result_i] = std::move(result);
+    }
+    Mesh *mesh = cdts_to_mesh(geometry_results.as_span(),
+                              dst_group_id_attribute_id,
+                              dst_intersection_points_attribute_id,
+                              attribute_filter);
     geometry_set.replace_mesh(mesh);
     geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
   });
