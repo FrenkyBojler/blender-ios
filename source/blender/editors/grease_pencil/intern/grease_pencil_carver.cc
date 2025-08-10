@@ -1671,10 +1671,24 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   return dst_curves;
 }
 
+static float4 transform_plane(const float4x4 &mat, const float4 &plane)
+{
+  float3 normal = float3(plane);
+  float3 point = -normal * plane.w;
+
+  normal = math::transform_direction(mat, normal);
+  point = math::transform_point(mat, point);
+
+  return float4(normal, -math::dot(normal, point));
+}
+
 static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                          const bke::CurvesGeometry &curves,
+                                         const Span<float4> normal_planes,
                                          const IndexMask &mask_shapes,
                                          const IndexMask &clipping_shapes,
+                                         const float4x4 &layer_to_world,
+                                         const ARegion &region,
                                          const bool keep_caps)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
@@ -1708,8 +1722,10 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
   Array<bool> is_segments_clipping(result.segments.size(), false);
   for (const int seg_i : result.segments.index_range()) {
     const Segment &segment = result.segments[seg_i];
-    const int shape_id = shape_ids[segment.curve];
-    if (clipping_shapes.contains(shape_id)) {
+    // const int shape_id = shape_ids[segment.curve];
+    // if (clipping_shapes.contains(shape_id)) {
+    /* TODO. */
+    if (segment.curve == curves.curves_range().last()) {
       is_segments_clipping[seg_i] = true;
     }
   }
@@ -1722,6 +1738,36 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
                                                                is_segments_clipping,
                                                                dst_segments_by_curve,
                                                                is_point_clipping);
+
+  const VArray<float2> dst_positions_2d_attribute = *dst_curves.attributes().lookup<float2>(
+      ".positions_2d", bke::AttrDomain::Point);
+
+  Array<int> src_by_dst_map(dst_curves.curves_num());
+
+  for (const int i : dst_curves.curves_range()) {
+    const IndexRange segment_range = dst_segments_by_curve[i];
+    src_by_dst_map[i] = result.segments[segment_range.first()].curve;
+  }
+
+  const OffsetIndices<int> points_by_curve = dst_curves.points_by_curve();
+  BLI_assert(dst_positions_2d_attribute.is_span());
+  const Span<float2> positions_2d = dst_positions_2d_attribute.get_internal_span();
+
+  MutableSpan<float3> positions = dst_curves.positions_for_write();
+  const float4x4 world_to_layer = math::invert(layer_to_world);
+  for (const int curve_i : dst_curves.curves_range()) {
+    const int src_curve = src_by_dst_map[curve_i];
+    const float4 &plane = transform_plane(layer_to_world, normal_planes[src_curve]);
+    const IndexRange points = points_by_curve[curve_i];
+
+    for (const int point_i : points) {
+      if (is_point_clipping[point_i]) {
+        ED_view3d_win_to_3d_on_plane(
+            &region, plane, positions_2d[point_i], false, positions[point_i]);
+        positions[point_i] = math::transform_point(world_to_layer, positions[point_i]);
+      }
+    }
+  }
 
   if (!keep_caps) {
     cut_caps(dst_curves,
@@ -1751,14 +1797,14 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
                                       Object &obact,
                                       const ARegion &region,
                                       const float4x4 &projection,
-                                      const float4x4 & /*layer_to_world*/,
+                                      const float4x4 &layer_to_world,
                                       const DrawingPlacement &placement,
                                       const Span<int2> mcoords,
                                       const bool keep_caps,
                                       bke::greasepencil::Drawing &drawing)
 {
   const bke::CurvesGeometry &src = drawing.strokes();
-  // const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
 
   /* Get evaluated geometry. */
   bke::crazyspace::GeometryDeformation deformation =
@@ -1780,28 +1826,17 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
     }
   });
 
-  // const Span<float3> normals = drawing.curve_plane_normals();
+  const Span<float3> normals = drawing.curve_plane_normals();
 
-  // Array<float4> normal_planes(src.points_num());
-  // threading::parallel_for(src.curves_range(), 4096, [&](const IndexRange src_curves) {
-  //   for (const int src_curve : src_curves) {
-  //     const float3 &normal = normals[src_curve];
-  //     for (const int src_point : src_points_by_curve[src_curves]) {
-  //       normal_planes[src_point] = float4(normal,
-  //                                         -math::dot(deformation.positions[src_point], normal));
-  //     }
-  //   }
-  // });
-
-  // bke::CurvesGeometry carved_strokes = ed::curves::clipping::curves_geometry_cut(
-  //     src,
-  //     use_fill,
-  //     keep_caps,
-  //     region,
-  //     layer_to_world,
-  //     normal_planes,
-  //     screen_space_positions,
-  //     cut_pos2d);
+  Array<float4> normal_planes(src.curves_num());
+  threading::parallel_for(src.curves_range(), 4096, [&](const IndexRange src_curves) {
+    for (const int src_curve : src_curves) {
+      const float3 &normal = normals[src_curve];
+      const IndexRange points = src_points_by_curve[src_curve];
+      const float3 &point = deformation.positions[points.first()];
+      normal_planes[src_curve] = float4(normal, -math::dot(point, normal));
+    }
+  });
 
   bke::CurvesGeometry input_curves = bke::CurvesGeometry(src);
   input_curves.resize(src.points_num() + mcoords.size(), src.curves_num() + 1);
@@ -1881,10 +1916,14 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   op_params.boolean_mode = geometry::boolean::Operation::Difference;
 
   bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
-      op_params, input_curves, input_curves.curves_range(), clipping_curves, keep_caps);
-
-  /* TODO. */
-  // placement.reproject(carved_strokes.positions(), carved_strokes.positions_for_write());
+      op_params,
+      input_curves,
+      normal_planes,
+      input_curves.curves_range(),
+      clipping_curves,
+      layer_to_world,
+      region,
+      keep_caps);
 
   carved_strokes.attributes_for_write().remove(".positions_2d");
   carved_strokes.attributes_for_write().remove("shape_id");
