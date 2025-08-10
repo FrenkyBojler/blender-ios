@@ -875,6 +875,9 @@ std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sens
     const OrderWeights *weights = bli_str_utf32_orderweights(wc);
     const bool ucase = case_sensitive && weights && weights->uppercase;
     int normalized = weights ? bli_str_utf32_weight(weights, false, false) : wc;
+    if (weights && normalized == 0) {
+      normalized = wc; /* For search use original codepoint if no weight is defined. */
+    }
     if (!weights && mk_wcwidth(wc) < 1) {
       normalized = 0; /* No weight for combining characters. */
     }

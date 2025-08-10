@@ -127,7 +127,7 @@ int get_fuzzy_match_errors(StringRef query_ref, StringRef full_ref)
   const char *window_begin = full.c_str();
   const char *window_end = window_begin;
   const int window_size = std::min(query_size + max_errors, full_size);
-  const int extra_chars = window_size - query_size;
+  const int extra_chars = std::max(window_size - query_size, 0);
   const int max_acceptable_distance = max_errors + extra_chars;
 
   for (int i = 0; i < window_size; i++) {

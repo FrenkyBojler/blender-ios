@@ -32,6 +32,7 @@
 #include "NOD_geo_closure.hh"
 #include "NOD_socket_items.hh"
 #include "NOD_sync_sockets.hh"
+#include "NOD_trace_values.hh"
 
 namespace blender::nodes {
 
@@ -52,19 +53,23 @@ struct ClosureSyncState {
   std::optional<nodes::ClosureSignature> source_signature;
 };
 
-static BundleSyncState get_sync_state_separate_bundle(const SpaceNode &snode,
-                                                      const bNode &separate_bundle_node)
+static BundleSyncState get_sync_state_separate_bundle(
+    const SpaceNode &snode,
+    const bNode &separate_bundle_node,
+    const bNodeSocket *src_bundle_socket = nullptr)
 {
-  BLI_assert(separate_bundle_node.is_type("GeometryNodeSeparateBundle"));
+  BLI_assert(separate_bundle_node.is_type("NodeSeparateBundle"));
   snode.edittree->ensure_topology_cache();
-  const bNodeSocket &bundle_socket = separate_bundle_node.input_socket(0);
+  if (!src_bundle_socket) {
+    src_bundle_socket = &separate_bundle_node.input_socket(0);
+  }
+  BLI_assert(src_bundle_socket->type == SOCK_BUNDLE);
 
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, bundle_socket);
-  const Vector<nodes::BundleSignature> source_signatures =
-      ed::space_node::gather_linked_origin_bundle_signatures(
-          current_context, bundle_socket, compute_context_cache);
+      snode, compute_context_cache, *src_bundle_socket);
+  const Vector<nodes::BundleSignature> source_signatures = gather_linked_origin_bundle_signatures(
+      current_context, *src_bundle_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
@@ -80,19 +85,23 @@ static BundleSyncState get_sync_state_separate_bundle(const SpaceNode &snode,
   return {NodeSyncState::Synced};
 }
 
-static BundleSyncState get_sync_state_combine_bundle(const SpaceNode &snode,
-                                                     const bNode &combine_bundle_node)
+static BundleSyncState get_sync_state_combine_bundle(
+    const SpaceNode &snode,
+    const bNode &combine_bundle_node,
+    const bNodeSocket *src_bundle_socket = nullptr)
 {
-  BLI_assert(combine_bundle_node.is_type("GeometryNodeCombineBundle"));
+  BLI_assert(combine_bundle_node.is_type("NodeCombineBundle"));
   snode.edittree->ensure_topology_cache();
-  const bNodeSocket &bundle_socket = combine_bundle_node.output_socket(0);
+  if (!src_bundle_socket) {
+    src_bundle_socket = &combine_bundle_node.output_socket(0);
+  }
+  BLI_assert(src_bundle_socket->type == SOCK_BUNDLE);
 
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, bundle_socket);
-  const Vector<nodes::BundleSignature> source_signatures =
-      ed::space_node::gather_linked_target_bundle_signatures(
-          current_context, bundle_socket, compute_context_cache);
+      snode, compute_context_cache, *src_bundle_socket);
+  const Vector<nodes::BundleSignature> source_signatures = gather_linked_target_bundle_signatures(
+      current_context, *src_bundle_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
@@ -108,18 +117,23 @@ static BundleSyncState get_sync_state_combine_bundle(const SpaceNode &snode,
   return {NodeSyncState::Synced};
 }
 
-static ClosureSyncState get_sync_state_closure_output(const SpaceNode &snode,
-                                                      const bNode &closure_output_node)
+static ClosureSyncState get_sync_state_closure_output(
+    const SpaceNode &snode,
+    const bNode &closure_output_node,
+    const bNodeSocket *src_closure_socket = nullptr)
 {
   snode.edittree->ensure_topology_cache();
-  const bNodeSocket &closure_socket = closure_output_node.output_socket(0);
+  if (!src_closure_socket) {
+    src_closure_socket = &closure_output_node.output_socket(0);
+  }
+  BLI_assert(src_closure_socket->type == SOCK_CLOSURE);
 
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, closure_socket);
+      snode, compute_context_cache, *src_closure_socket);
   const Vector<nodes::ClosureSignature> source_signatures =
-      ed::space_node::gather_linked_target_closure_signatures(
-          current_context, closure_socket, compute_context_cache);
+      gather_linked_target_closure_signatures(
+          current_context, *src_closure_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
@@ -135,18 +149,23 @@ static ClosureSyncState get_sync_state_closure_output(const SpaceNode &snode,
   return {NodeSyncState::Synced};
 }
 
-static ClosureSyncState get_sync_state_evaluate_closure(const SpaceNode &snode,
-                                                        const bNode &evaluate_closure_node)
+static ClosureSyncState get_sync_state_evaluate_closure(
+    const SpaceNode &snode,
+    const bNode &evaluate_closure_node,
+    const bNodeSocket *src_closure_socket = nullptr)
 {
   snode.edittree->ensure_topology_cache();
-  const bNodeSocket &closure_socket = evaluate_closure_node.input_socket(0);
+  if (!src_closure_socket) {
+    src_closure_socket = &evaluate_closure_node.input_socket(0);
+  }
+  BLI_assert(src_closure_socket->type == SOCK_CLOSURE);
 
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, closure_socket);
+      snode, compute_context_cache, *src_closure_socket);
   const Vector<nodes::ClosureSignature> source_signatures =
-      ed::space_node::gather_linked_origin_closure_signatures(
-          current_context, closure_socket, compute_context_cache);
+      gather_linked_origin_closure_signatures(
+          current_context, *src_closure_socket, compute_context_cache);
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
@@ -164,9 +183,11 @@ static ClosureSyncState get_sync_state_evaluate_closure(const SpaceNode &snode,
 
 void sync_sockets_separate_bundle(SpaceNode &snode,
                                   bNode &separate_bundle_node,
-                                  ReportList *reports)
+                                  ReportList *reports,
+                                  const bNodeSocket *src_bundle_socket)
 {
-  const BundleSyncState sync_state = get_sync_state_separate_bundle(snode, separate_bundle_node);
+  const BundleSyncState sync_state = get_sync_state_separate_bundle(
+      snode, separate_bundle_node, src_bundle_socket);
   switch (sync_state.state) {
     case NodeSyncState::Synced:
       return;
@@ -180,20 +201,19 @@ void sync_sockets_separate_bundle(SpaceNode &snode,
       break;
   }
 
-  auto &storage = *static_cast<NodeGeometrySeparateBundle *>(separate_bundle_node.storage);
+  auto &storage = *static_cast<NodeSeparateBundle *>(separate_bundle_node.storage);
 
   Map<std::string, int> old_identifiers;
   for (const int i : IndexRange(storage.items_num)) {
-    const NodeGeometrySeparateBundleItem &item = storage.items[i];
+    const NodeSeparateBundleItem &item = storage.items[i];
     old_identifiers.add_new(StringRef(item.name), item.identifier);
   }
 
   nodes::socket_items::clear<nodes::SeparateBundleItemsAccessor>(separate_bundle_node);
   for (const nodes::BundleSignature::Item &item : sync_state.source_signature->items) {
-    NodeGeometrySeparateBundleItem &new_item =
-        *nodes::socket_items::add_item_with_socket_type_and_name<
-            nodes ::SeparateBundleItemsAccessor>(
-            separate_bundle_node, item.type->type, item.key.c_str());
+    NodeSeparateBundleItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
+        nodes ::SeparateBundleItemsAccessor>(
+        *snode.edittree, separate_bundle_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -201,9 +221,13 @@ void sync_sockets_separate_bundle(SpaceNode &snode,
   BKE_ntree_update_tag_node_property(snode.edittree, &separate_bundle_node);
 }
 
-void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node, ReportList *reports)
+void sync_sockets_combine_bundle(SpaceNode &snode,
+                                 bNode &combine_bundle_node,
+                                 ReportList *reports,
+                                 const bNodeSocket *src_bundle_socket)
 {
-  const BundleSyncState sync_state = get_sync_state_combine_bundle(snode, combine_bundle_node);
+  const BundleSyncState sync_state = get_sync_state_combine_bundle(
+      snode, combine_bundle_node, src_bundle_socket);
   switch (sync_state.state) {
     case NodeSyncState::Synced:
       return;
@@ -217,20 +241,19 @@ void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node, R
       break;
   }
 
-  auto &storage = *static_cast<NodeGeometryCombineBundle *>(combine_bundle_node.storage);
+  auto &storage = *static_cast<NodeCombineBundle *>(combine_bundle_node.storage);
 
   Map<std::string, int> old_identifiers;
   for (const int i : IndexRange(storage.items_num)) {
-    const NodeGeometryCombineBundleItem &item = storage.items[i];
+    const NodeCombineBundleItem &item = storage.items[i];
     old_identifiers.add_new(StringRef(item.name), item.identifier);
   }
 
   nodes::socket_items::clear<nodes::CombineBundleItemsAccessor>(combine_bundle_node);
   for (const nodes::BundleSignature::Item &item : sync_state.source_signature->items) {
-    NodeGeometryCombineBundleItem &new_item =
-        *nodes::socket_items::add_item_with_socket_type_and_name<
-            nodes ::CombineBundleItemsAccessor>(
-            combine_bundle_node, item.type->type, item.key.c_str());
+    NodeCombineBundleItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
+        nodes ::CombineBundleItemsAccessor>(
+        *snode.edittree, combine_bundle_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -241,10 +264,11 @@ void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node, R
 
 void sync_sockets_evaluate_closure(SpaceNode &snode,
                                    bNode &evaluate_closure_node,
-                                   ReportList *reports)
+                                   ReportList *reports,
+                                   const bNodeSocket *src_closure_socket)
 {
-  const ClosureSyncState sync_state = get_sync_state_evaluate_closure(snode,
-                                                                      evaluate_closure_node);
+  const ClosureSyncState sync_state = get_sync_state_evaluate_closure(
+      snode, evaluate_closure_node, src_closure_socket);
   switch (sync_state.state) {
     case NodeSyncState::Synced:
       return;
@@ -258,16 +282,16 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
       break;
   }
 
-  auto &storage = *static_cast<NodeGeometryEvaluateClosure *>(evaluate_closure_node.storage);
+  auto &storage = *static_cast<NodeEvaluateClosure *>(evaluate_closure_node.storage);
 
   Map<std::string, int> old_input_identifiers;
   Map<std::string, int> old_output_identifiers;
   for (const int i : IndexRange(storage.input_items.items_num)) {
-    const NodeGeometryEvaluateClosureInputItem &item = storage.input_items.items[i];
+    const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
     old_input_identifiers.add_new(StringRef(item.name), item.identifier);
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
-    const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
+    const NodeEvaluateClosureOutputItem &item = storage.output_items.items[i];
     old_output_identifiers.add_new(StringRef(item.name), item.identifier);
   }
 
@@ -275,19 +299,19 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
   nodes::socket_items::clear<nodes::EvaluateClosureOutputItemsAccessor>(evaluate_closure_node);
 
   for (const nodes::ClosureSignature::Item &item : sync_state.source_signature->inputs) {
-    NodeGeometryEvaluateClosureInputItem &new_item =
+    NodeEvaluateClosureInputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::EvaluateClosureInputItemsAccessor>(
-            evaluate_closure_node, item.type->type, item.key.c_str());
+            *snode.edittree, evaluate_closure_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_input_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
   }
   for (const nodes::ClosureSignature::Item &item : sync_state.source_signature->outputs) {
-    NodeGeometryEvaluateClosureOutputItem &new_item =
+    NodeEvaluateClosureOutputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<
             nodes::EvaluateClosureOutputItemsAccessor>(
-            evaluate_closure_node, item.type->type, item.key.c_str());
+            *snode.edittree, evaluate_closure_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_output_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -298,9 +322,11 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
 void sync_sockets_closure(SpaceNode &snode,
                           bNode &closure_input_node,
                           bNode &closure_output_node,
-                          ReportList *reports)
+                          ReportList *reports,
+                          const bNodeSocket *src_closure_socket)
 {
-  const ClosureSyncState sync_state = get_sync_state_closure_output(snode, closure_output_node);
+  const ClosureSyncState sync_state = get_sync_state_closure_output(
+      snode, closure_output_node, src_closure_socket);
   switch (sync_state.state) {
     case NodeSyncState::Synced:
       return;
@@ -315,16 +341,16 @@ void sync_sockets_closure(SpaceNode &snode,
   }
   const nodes::ClosureSignature &signature = *sync_state.source_signature;
 
-  auto &storage = *static_cast<NodeGeometryClosureOutput *>(closure_output_node.storage);
+  auto &storage = *static_cast<NodeClosureOutput *>(closure_output_node.storage);
 
   Map<std::string, int> old_input_identifiers;
   Map<std::string, int> old_output_identifiers;
   for (const int i : IndexRange(storage.input_items.items_num)) {
-    const NodeGeometryClosureInputItem &item = storage.input_items.items[i];
+    const NodeClosureInputItem &item = storage.input_items.items[i];
     old_input_identifiers.add_new(StringRef(item.name), item.identifier);
   }
   for (const int i : IndexRange(storage.output_items.items_num)) {
-    const NodeGeometryClosureOutputItem &item = storage.output_items.items[i];
+    const NodeClosureOutputItem &item = storage.output_items.items[i];
     old_output_identifiers.add_new(StringRef(item.name), item.identifier);
   }
 
@@ -332,9 +358,9 @@ void sync_sockets_closure(SpaceNode &snode,
   nodes::socket_items::clear<nodes::ClosureOutputItemsAccessor>(closure_output_node);
 
   for (const nodes::ClosureSignature::Item &item : signature.inputs) {
-    NodeGeometryClosureInputItem &new_item =
+    NodeClosureInputItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureInputItemsAccessor>(
-            closure_output_node, item.type->type, item.key.c_str());
+            *snode.edittree, closure_output_node, item.type->type, item.key.c_str());
     if (item.structure_type) {
       new_item.structure_type = int(*item.structure_type);
     }
@@ -343,10 +369,9 @@ void sync_sockets_closure(SpaceNode &snode,
     }
   }
   for (const nodes::ClosureSignature::Item &item : signature.outputs) {
-    NodeGeometryClosureOutputItem &new_item =
-        *nodes::socket_items::add_item_with_socket_type_and_name<
-            nodes::ClosureOutputItemsAccessor>(
-            closure_output_node, item.type->type, item.key.c_str());
+    NodeClosureOutputItem &new_item = *nodes::socket_items::add_item_with_socket_type_and_name<
+        nodes::ClosureOutputItemsAccessor>(
+        *snode.edittree, closure_output_node, item.type->type, item.key.c_str());
     if (const std::optional<int> old_identifier = old_output_identifiers.lookup_try(item.key)) {
       new_item.identifier = *old_identifier;
     }
@@ -496,19 +521,18 @@ static std::string get_closure_sync_tooltip(const nodes::ClosureSignature &old_s
 
 void sync_node(bContext &C, bNode &node, ReportList *reports)
 {
-  const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(
-      GEO_NODE_CLOSURE_OUTPUT);
+  const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(NODE_CLOSURE_OUTPUT);
   SpaceNode &snode = *CTX_wm_space_node(&C);
-  if (node.is_type("GeometryNodeEvaluateClosure")) {
+  if (node.is_type("NodeEvaluateClosure")) {
     sync_sockets_evaluate_closure(snode, node, reports);
   }
-  else if (node.is_type("GeometryNodeSeparateBundle")) {
+  else if (node.is_type("NodeSeparateBundle")) {
     sync_sockets_separate_bundle(snode, node, reports);
   }
-  else if (node.is_type("GeometryNodeCombineBundle")) {
+  else if (node.is_type("NodeCombineBundle")) {
     sync_sockets_combine_bundle(snode, node, reports);
   }
-  else if (node.is_type("GeometryNodeClosureInput")) {
+  else if (node.is_type("NodeClosureInput")) {
     bNode &closure_input_node = node;
     if (bNode *closure_output_node = closure_zone_type.get_corresponding_output(
             *snode.edittree, closure_input_node))
@@ -516,7 +540,7 @@ void sync_node(bContext &C, bNode &node, ReportList *reports)
       sync_sockets_closure(snode, closure_input_node, *closure_output_node, reports);
     }
   }
-  else if (node.is_type("GeometryNodeClosureOutput")) {
+  else if (node.is_type("NodeClosureOutput")) {
     bNode &closure_output_node = node;
     if (bNode *closure_input_node = closure_zone_type.get_corresponding_input(*snode.edittree,
                                                                               closure_output_node))
@@ -533,7 +557,7 @@ std::string sync_node_description_get(const bContext &C, const bNode &node)
     return "";
   }
 
-  if (node.is_type("GeometryNodeSeparateBundle")) {
+  if (node.is_type("NodeSeparateBundle")) {
     const nodes::BundleSignature old_signature = nodes::BundleSignature::from_separate_bundle_node(
         node);
     if (const std::optional<nodes::BundleSignature> new_signature =
@@ -542,7 +566,7 @@ std::string sync_node_description_get(const bContext &C, const bNode &node)
       return get_bundle_sync_tooltip(old_signature, *new_signature);
     }
   }
-  else if (node.is_type("GeometryNodeCombineBundle")) {
+  else if (node.is_type("NodeCombineBundle")) {
     const nodes::BundleSignature old_signature = nodes::BundleSignature::from_combine_bundle_node(
         node);
     if (const std::optional<nodes::BundleSignature> new_signature =
@@ -551,7 +575,7 @@ std::string sync_node_description_get(const bContext &C, const bNode &node)
       return get_bundle_sync_tooltip(old_signature, *new_signature);
     }
   }
-  else if (node.is_type("GeometryNodeEvaluateClosure")) {
+  else if (node.is_type("NodeEvaluateClosure")) {
     const nodes::ClosureSignature old_signature =
         nodes::ClosureSignature::from_evaluate_closure_node(node);
     if (const std::optional<nodes::ClosureSignature> new_signature =
@@ -560,7 +584,7 @@ std::string sync_node_description_get(const bContext &C, const bNode &node)
       return get_closure_sync_tooltip(old_signature, *new_signature);
     }
   }
-  else if (node.is_type("GeometryNodeClosureOutput")) {
+  else if (node.is_type("NodeClosureOutput")) {
     const nodes::ClosureSignature old_signature =
         nodes::ClosureSignature::from_closure_output_node(node);
     if (const std::optional<nodes::ClosureSignature> new_signature =
@@ -580,16 +604,16 @@ bool node_can_sync_sockets(const bContext &C, const bNodeTree & /*tree*/, const 
   }
   Map<int, bool> &cache = ed::space_node::node_can_sync_cache_get(*snode);
   const bool can_sync = cache.lookup_or_add_cb(node.identifier, [&]() {
-    if (node.is_type("GeometryNodeEvaluateClosure")) {
+    if (node.is_type("NodeEvaluateClosure")) {
       return get_sync_state_evaluate_closure(*snode, node).source_signature.has_value();
     }
-    if (node.is_type("GeometryNodeClosureOutput")) {
+    if (node.is_type("NodeClosureOutput")) {
       return get_sync_state_closure_output(*snode, node).source_signature.has_value();
     }
-    if (node.is_type("GeometryNodeCombineBundle")) {
+    if (node.is_type("NodeCombineBundle")) {
       return get_sync_state_combine_bundle(*snode, node).source_signature.has_value();
     }
-    if (node.is_type("GeometryNodeSeparateBundle")) {
+    if (node.is_type("NodeSeparateBundle")) {
       return get_sync_state_separate_bundle(*snode, node).source_signature.has_value();
     }
     return false;

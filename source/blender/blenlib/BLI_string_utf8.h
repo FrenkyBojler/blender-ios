@@ -8,8 +8,8 @@
  * \ingroup bli
  */
 
-#include <string>
 #include <stdarg.h>
+#include <string>
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_string_ref.hh"
