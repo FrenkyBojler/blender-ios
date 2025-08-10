@@ -352,8 +352,6 @@ class GHOST_WindowIOS : public GHOST_Window {
   bool isSoftwareKeyboardVisible();
   std::string getExternalKeyboardModel();
   void logKeyboardState();
-  bool shouldBypassUIKitForKeyboard();
-  void setKeyboardBypassEnabled(bool enabled);
 
   // --- Enhanced Mouse/Trackpad Detection ---
   bool external_mouse_connected;

@@ -50,9 +50,6 @@
 #  define IOS_WINDOW_LOG(format, ...)
 #endif
 
-/* Flag to bypass UIKit for external keyboard input and handle directly */
-#define BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD true
-
 extern "C" {
 
 struct bContext;
@@ -424,8 +421,7 @@ typedef struct UserInputEvent {
 - (BOOL)shouldBypassUIKitForTouch:(UITouch *)touch;
 - (GHOST_TButton)getMouseButtonFromTouch:(UITouch *)touch withEvent:(UIEvent *)event;
 
-/* Direct keyboard handling bypass methods */
-- (BOOL)shouldBypassUIKitForKeyboard;
+/* Direct keyboard handling methods */
 - (void)handleDirectKeyboardEvent:(UIEvent *)event;
 - (GHOST_TKey)convertIOSKeyToGHOST:(NSString *)key;
 - (void)handleKeyPress:(UIPress *)press withEvent:(UIPressesEvent *)event;
@@ -1263,27 +1259,7 @@ typedef struct UserInputEvent {
   }
 }
 
-/* Direct keyboard handling bypass methods */
-- (BOOL)shouldBypassUIKitForKeyboard
-{
-  if (!BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD) {
-    NSLog(@"KEYBOARD BYPASS: Feature disabled");
-    return NO;
-  }
-
-  /* Only bypass UIKit for external/physical keyboards when we want system-level control
-   * For now, let's be more conservative and allow normal keyboard input to flow through UIKit */
-  BOOL hasExternalKeyboard = [self isExternalKeyboardConnected] ||
-                             [self isPhysicalKeyboardAvailable];
-
-  /* For now, disable keyboard bypass to ensure normal typing works */
-  NSLog(
-      @"KEYBOARD BYPASS: External keyboard detected: %@, but bypassing disabled for app "
-      @"compatibility",
-      hasExternalKeyboard ? @"YES" : @"NO");
-  return NO;
-}
-
+/* Direct keyboard handling methods */
 - (void)handleDirectKeyboardEvent:(UIEvent *)event
 {
   NSLog(@"KEYBOARD BYPASS: Handling direct keyboard event");
@@ -3603,28 +3579,8 @@ bool GHOST_WindowIOS::supportsMiddleButton()
 
 void GHOST_WindowIOS::logMouseState()
 {
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  [ghost_rootWindow logMouseState];
-}
-
-bool GHOST_WindowIOS::shouldBypassUIKitForKeyboard()
-{
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  return [ghost_rootWindow shouldBypassUIKitForKeyboard];
-}
-
-void GHOST_WindowIOS::setKeyboardBypassEnabled(bool enabled)
-{
-  /* Note: This method allows dynamic control of keyboard bypass.
-   * For now, the bypass is controlled by the compile-time flag BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD.
-   * In the future, this could be made runtime configurable. */
-
-  /* Only log if bypass setting is actually being changed/used */
-  if (enabled != BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD) {
-    NSLog(@"KEYBOARD: setKeyboardBypassEnabled called with %@", enabled ? @"YES" : @"NO");
-    NSLog(@"KEYBOARD: Current bypass flag value: %@",
-          BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD ? @"YES" : @"NO");
-  }
+    GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
+    [ghost_rootWindow logMouseState];
 }
 
 UITextField *GHOST_WindowIOS::getUITextField()
