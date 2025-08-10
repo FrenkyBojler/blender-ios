@@ -757,8 +757,7 @@ GVArray RadiusFieldInput::get_varray_for_context(const GeometryFieldContext &con
 {
   const AttrDomain domain = context.domain();
   if (auto attributes = context.attributes()) {
-    const StringRef name("radius");
-    if (GVArray attribute = *attributes->lookup<float>(name, domain)) {
+    if (GVArray attribute = *attributes->lookup<float>("radius", domain)) {
       return attribute;
     }
   }
@@ -787,7 +786,7 @@ uint64_t RadiusFieldInput::hash() const
 bool RadiusFieldInput::is_equal_to(const fn::FieldNode &other) const
 {
   const RadiusFieldInput *other_typed = dynamic_cast<const RadiusFieldInput *>(&other);
-  return other_typed != NULL;
+  return other_typed != nullptr;
 }
 
 /** \} */
