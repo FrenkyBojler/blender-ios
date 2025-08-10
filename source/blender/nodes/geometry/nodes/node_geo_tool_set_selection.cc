@@ -96,6 +96,22 @@ static void remove_with_wrong_domain(bke::MutableAttributeAccessor attributes,
   }
 }
 
+/**
+ * After conversion to and from other geometry types, the selection attributes can end up on the
+ * wrong domain (usually the point domain). Since the node requires certain domains to work, just
+ * remove the attributes in this case.
+ */
+static void remove_with_wrong_domain(bke::MutableAttributeAccessor attributes,
+                                     const StringRef name,
+                                     const bke::AttrDomain domain)
+{
+  if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name)) {
+    if (meta_data->domain != domain) {
+      attributes.remove(name);
+    }
+  }
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   if (!check_tool_context_and_error(params)) {
