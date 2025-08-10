@@ -577,6 +577,37 @@ static Vector<CDTGeometrySetInput> cdt_inputs_from_groups(const GeometrySet &geo
   return inputs;
 }
 
+static void gather_attributes_for_result_for_component(const AttributeAccessor &src_attributes,
+                                                       const bke::AttrDomain domain,
+                                                       const IndexRange result_range,
+                                                       const IndexRange component_range,
+                                                       const Span<int> dst_to_src_map,
+                                                       const AttributeFilter &attribute_filter,
+                                                       MutableAttributeAccessor &dst_attributes)
+{
+  src_attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (iter.domain != domain) {
+      return;
+    }
+    if (iter.data_type == bke::AttrType::String) {
+      return;
+    }
+    if (attribute_filter.allow_skip(iter.name)) {
+      return;
+    }
+    const GAttributeReader src = iter.get(domain);
+    /* We might not write to the full range, so ensure that we default initialize the attribute. */
+    GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_span(
+        iter.name, domain, iter.data_type, bke::AttributeInitDefaultValue());
+    if (!dst) {
+      return;
+    }
+    bke::attribute_math::gather(
+        src.varray, dst_to_src_map, dst.span.slice(result_range).slice(component_range));
+    dst.finish();
+  });
+}
+
 static Mesh *cdts_to_mesh(const Span<CDTGeometryResult> results,
                           const std::optional<std::string> dst_intersection_points_attribute_id,
                           const AttributeFilter &attribute_filter)
@@ -657,29 +688,17 @@ static Mesh *cdts_to_mesh(const Span<CDTGeometryResult> results,
       for (const int component_i : result.components.index_range()) {
         const GeometryComponent *component = result.components[component_i];
         const IndexRange dst_range = dst_points_range_by_component[component_i];
-        const Span<int> dst_to_src_map = dst_points_to_src_points_map.slice(dst_range);
+
         BLI_assert(component->attributes().has_value());
         const AttributeAccessor src_attributes = *component->attributes();
-        src_attributes.foreach_attribute([&](const AttributeIter &iter) {
-          if (iter.domain != bke::AttrDomain::Point) {
-            return;
-          }
-          if (iter.data_type == bke::AttrType::String) {
-            return;
-          }
-          if (attribute_filter.allow_skip(iter.name)) {
-            return;
-          }
-          const GAttributeReader src = iter.get(bke::AttrDomain::Point);
-          GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_span(
-              iter.name, bke::AttrDomain::Point, iter.data_type);
-          if (!dst) {
-            return;
-          }
-          bke::attribute_math::gather(
-              src.varray, dst_to_src_map, dst.span.slice(verts_range).slice(dst_range));
-          dst.finish();
-        });
+        gather_attributes_for_result_for_component(
+            src_attributes,
+            bke::AttrDomain::Point,
+            verts_range,
+            dst_range,
+            dst_points_to_src_points_map.slice(dst_range),
+            bke::attribute_filter_with_skip_ref(attribute_filter, {"position"}),
+            dst_attributes);
       }
     }
   });
