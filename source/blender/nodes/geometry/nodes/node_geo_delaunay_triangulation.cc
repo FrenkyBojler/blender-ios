@@ -65,10 +65,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .static_items(mode_items)
       .default_value(int(TriangulationMode::Full));
   b.add_output<decl::Geometry>("Mesh").propagate_all();
-  b.add_output<decl::Int>("Group ID")
-      .field_on_all()
-      .description("The group ID of each triangulation group");
-  b.add_output<decl::Int>("Intersection Points")
+  b.add_output<decl::Bool>("Intersection Points")
       .field_on_all()
       .description("A selection of newly created intersection points");
 }
@@ -111,8 +108,22 @@ struct CDTGeometrySetInput {
   }
 };
 
-static Array<meshintersect::CDT_result<double>> calculate_cdts(
-    const Span<CDTGeometrySetInput> inputs, const CDT_output_type output_type)
+struct CDTGeometryResult {
+  meshintersect::CDT_result<double> cdt_result;
+  Array<const GeometryComponent *> components;
+
+  Vector<int> component_points_offsets;
+  Array<int> dst_points_to_src_points_map;
+  IndexRange intersection_points;
+
+  OffsetIndices<int> dst_points_range_by_component() const
+  {
+    return OffsetIndices<int>(component_points_offsets.as_span());
+  }
+};
+
+static Array<CDTGeometryResult> calculate_cdts(const Span<CDTGeometrySetInput> inputs,
+                                               const CDT_output_type output_type)
 {
   Array<meshintersect::CDT_result<double>> outputs(inputs.size());
   /* TODO: Use better grain size. */
@@ -122,7 +133,55 @@ static Array<meshintersect::CDT_result<double>> calculate_cdts(
     }
   });
 
-  return outputs;
+  Array<CDTGeometryResult> geometry_results(outputs.size());
+  for (const int result_i : geometry_results.index_range()) {
+    const CDTGeometrySetInput &input = inputs[result_i];
+    const Vector<const GeometryComponent *> &all_components = input.geometry.get_components();
+
+    CDTGeometryResult result;
+    result.cdt_result = std::move(outputs[result_i]);
+    result.components = all_components.as_span();
+
+    const int total_dst_verts = result.cdt_result.vert_orig.size();
+    const OffsetIndices src_points_by_component = input.points_by_components();
+    const Span<Vector<int>> verts_orig = result.cdt_result.vert_orig.as_span();
+
+    Array<int> dst_point_to_src_point(total_dst_verts, -1);
+    Vector<int, 4> component_points_offsets;
+    int64_t component_i = 0;
+    int64_t count = 0;
+    for (const int dst_point : verts_orig.index_range()) {
+      const Span<int> verts = verts_orig[dst_point].as_span();
+      if (!verts.is_empty()) {
+        /* Only use the first point and discard the rest of potentially merged vertices. */
+        const int src_point = verts.first();
+        if (!src_points_by_component[component_i].contains(src_point)) {
+          BLI_assert(component_i + 1 < result.components.size());
+          BLI_assert(src_points_by_component[component_i + 1].contains(src_point));
+          component_i++;
+          component_points_offsets.append(count);
+          count = 0;
+        }
+        const IndexRange src_range = src_points_by_component[component_i];
+        dst_point_to_src_point[dst_point] = src_point - src_range.start();
+        count++;
+      }
+      else {
+        result.intersection_points = IndexRange::from_begin_end(dst_point, verts_orig.size());
+        break;
+      }
+    }
+    component_points_offsets.append(count);
+    /* Append one more element to account for the final offset. */
+    component_points_offsets.append(0);
+    offset_indices::accumulate_counts_to_offsets(component_points_offsets.as_mutable_span());
+
+    result.component_points_offsets = std::move(component_points_offsets);
+    result.dst_points_to_src_points_map = std::move(dst_point_to_src_point);
+    geometry_results[result_i] = std::move(result);
+  }
+
+  return geometry_results;
 }
 
 static void copy_positions_float3_to_double2(const Span<float3> src_positions,
@@ -517,22 +576,7 @@ static Vector<CDTGeometrySetInput> cdt_inputs_from_groups(const GeometrySet &geo
   return inputs;
 }
 
-struct CDTGeometryResult {
-  meshintersect::CDT_result<double> cdt_result;
-  Array<const GeometryComponent *> components;
-
-  Vector<int> component_points_offsets;
-  Array<int> dst_points_to_src_points_map;
-  IndexRange intersection_points;
-
-  OffsetIndices<int> dst_points_range_by_component() const
-  {
-    return OffsetIndices<int>(component_points_offsets.as_span());
-  }
-};
-
 static Mesh *cdts_to_mesh(const Span<CDTGeometryResult> results,
-                          const std::optional<std::string> dst_group_id_attribute_id,
                           const std::optional<std::string> dst_intersection_points_attribute_id,
                           const AttributeFilter &attribute_filter)
 {
@@ -639,20 +683,6 @@ static Mesh *cdts_to_mesh(const Span<CDTGeometryResult> results,
     }
   });
 
-  if (dst_group_id_attribute_id) {
-    if (SpanAttributeWriter<int> dst_group_id = dst_attributes.lookup_or_add_for_write_span<int>(
-            *dst_group_id_attribute_id, AttrDomain::Point))
-    {
-      threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
-        for (const int i_result : results_range) {
-          const IndexRange verts_range = vert_groups[i_result];
-          dst_group_id.span.slice(verts_range).fill(i_result);
-        }
-      });
-      dst_group_id.finish();
-    }
-  }
-
   if (dst_intersection_points_attribute_id) {
     if (SpanAttributeWriter<bool> dst_intersection_points =
             dst_attributes.lookup_or_add_for_write_span<bool>(
@@ -688,108 +718,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   const CDT_output_type output_type = get_cdt_output_type(mode);
 
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
-  std::optional<std::string> dst_group_id_attribute_id =
-      params.get_output_anonymous_attribute_id_if_needed("Group ID");
   std::optional<std::string> dst_intersection_points_attribute_id =
       params.get_output_anonymous_attribute_id_if_needed("Intersection Points");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     Vector<CDTGeometrySetInput> cdt_inputs_by_group = cdt_inputs_from_groups(
         geometry_set, group_index, attribute_filter);
-    Array<meshintersect::CDT_result<double>> results = calculate_cdts(cdt_inputs_by_group,
-                                                                      output_type);
-    Array<CDTGeometryResult> geometry_results(results.size());
-    for (const int result_i : geometry_results.index_range()) {
-      const CDTGeometrySetInput &input = cdt_inputs_by_group[result_i];
-      const Vector<const GeometryComponent *> &all_components = input.geometry.get_components();
 
-      CDTGeometryResult result;
-      result.cdt_result = std::move(results[result_i]);
-      result.components = all_components.as_span();
+    Array<CDTGeometryResult> geometry_results = calculate_cdts(cdt_inputs_by_group, output_type);
 
-      const int total_dst_verts = result.cdt_result.vert_orig.size();
-      const OffsetIndices src_points_by_component = input.points_by_components();
-      const Span<Vector<int>> verts_orig = result.cdt_result.vert_orig.as_span();
+    Mesh *mesh = cdts_to_mesh(
+        geometry_results, dst_intersection_points_attribute_id, attribute_filter);
 
-      Array<int> dst_point_to_src_point(total_dst_verts, -1);
-      Vector<int, 4> component_points_offsets;
-      int64_t component_i = 0;
-      int64_t count = 0;
-      for (const int dst_point : verts_orig.index_range()) {
-        const Span<int> verts = verts_orig[dst_point].as_span();
-        if (!verts.is_empty()) {
-          /* Only use the first point and discard the rest of potentially merged vertices. */
-          const int src_point = verts.first();
-          if (!src_points_by_component[component_i].contains(src_point)) {
-            BLI_assert(component_i + 1 < result.components.size());
-            BLI_assert(src_points_by_component[component_i + 1].contains(src_point));
-            component_i++;
-            component_points_offsets.append(count);
-            count = 0;
-          }
-          const IndexRange src_range = src_points_by_component[component_i];
-          dst_point_to_src_point[dst_point] = src_point - src_range.start();
-          count++;
-        }
-        else {
-          result.intersection_points = IndexRange::from_begin_end(dst_point, verts_orig.size());
-          break;
-        }
-      }
-      component_points_offsets.append(count);
-      /* Append one more element to account for the final offset. */
-      component_points_offsets.append(0);
-      offset_indices::accumulate_counts_to_offsets(component_points_offsets.as_mutable_span());
-
-      result.component_points_offsets = std::move(component_points_offsets);
-      result.dst_points_to_src_points_map = std::move(dst_point_to_src_point);
-
-      // IndexMaskMemory memory;
-      // const IndexMask mapped_indices = IndexMask::from_predicate(
-      //     IndexRange(total_dst_verts), GrainSize(8192), memory, [&](const int64_t index) {
-      //       return dst_point_to_src_point[index] != -1;
-      //     });
-      // BLI_assert(mapped_indices.to_range().has_value());
-      // VectorSet<int> component_index_by_component;
-      // const Vector<IndexMask> dst_points_by_component = IndexMask::from_group_ids(
-      //     mapped_indices,
-      //     VArray<int>::from_span(dst_point_to_component),
-      //     memory,
-      //     component_index_by_component);
-      // for (const int i : component_index_by_component.index_range()) {
-      //   const int component_i = component_index_by_component[i];
-      //   const IndexMask &dst_points = dst_points_by_component[i];
-      //   const GeometryComponent *component = all_components[component_i];
-      //   component->attributes();
-      // }
-
-      std::cout << "Original verts:" << std::endl;
-      for (const Vector<int> &verts : result.cdt_result.vert_orig) {
-        std::cout << "{";
-        for (const int vert : verts) {
-          std::cout << vert << ", ";
-        }
-        std::cout << "}, ";
-      }
-      std::cout << std::endl;
-      std::cout << "component_points_offsets:" << std::endl;
-      for (const int i : result.dst_points_range_by_component().index_range()) {
-        std::cout << result.dst_points_range_by_component()[i] << ", ";
-      }
-      std::cout << std::endl;
-      std::cout << "dst_point_to_src_point:" << std::endl;
-      for (const int vert : result.dst_points_to_src_points_map) {
-        std::cout << vert << ", ";
-      }
-      std::cout << std::endl;
-      std::cout << "Intersection points:" << result.intersection_points << std::endl;
-
-      geometry_results[result_i] = std::move(result);
-    }
-    Mesh *mesh = cdts_to_mesh(geometry_results.as_span(),
-                              dst_group_id_attribute_id,
-                              dst_intersection_points_attribute_id,
-                              attribute_filter);
     geometry_set.replace_mesh(mesh);
     geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
   });
