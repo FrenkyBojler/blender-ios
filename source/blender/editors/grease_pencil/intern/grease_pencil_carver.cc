@@ -1600,11 +1600,18 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
   dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
-  Array<int> src_by_dst_map(dst_points_by_curve.size());
-
+  Array<int> src_by_dst_map(dst_points_by_curve.size(), -1);
   for (const int i : dst_points_by_curve.index_range()) {
     const IndexRange segment_range = segment_offsets[i];
-    src_by_dst_map[i] = segments[segment_range.first()].curve;
+    src_by_dst_map[i] = segment_range.first();
+    for (const int seg_i : segment_range) {
+      const int curve_i = segments[seg_i].curve;
+      /* TODO. */
+      if (curve_i != src.curves_range().last()) {
+        src_by_dst_map[i] = curve_i;
+        break;
+      }
+    }
   }
 
   Vector<InterpolatePoint> clipping_point_to_interpolate;
@@ -1783,11 +1790,18 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
   const VArray<float2> dst_positions_2d_attribute = *dst_curves.attributes().lookup<float2>(
       ".positions_2d", bke::AttrDomain::Point);
 
-  Array<int> src_by_dst_map(dst_curves.curves_num());
-
+  Array<int> src_by_dst_map(dst_curves.curves_num(), -1);
   for (const int i : dst_curves.curves_range()) {
     const IndexRange segment_range = dst_segments_by_curve[i];
-    src_by_dst_map[i] = result.segments[segment_range.first()].curve;
+    src_by_dst_map[i] = segment_range.first();
+    for (const int seg_i : segment_range) {
+      const int curve_i = result.segments[seg_i].curve;
+      /* TODO. */
+      if (curve_i != curves.curves_range().last()) {
+        src_by_dst_map[i] = curve_i;
+        break;
+      }
+    }
   }
 
   const OffsetIndices<int> points_by_curve = dst_curves.points_by_curve();
