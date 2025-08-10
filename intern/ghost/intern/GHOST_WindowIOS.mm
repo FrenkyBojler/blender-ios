@@ -53,14 +53,6 @@
 /* Flag to bypass UIKit for external keyboard input and handle directly */
 #define BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD true
 
-/* Debug function to log flag states */
-static void logInputSystemFlags()
-{
-  NSLog(@"INPUT SYSTEM FLAGS:");
-  NSLog(@"  BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD: %s",
-        BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD ? "true" : "false");
-}
-
 extern "C" {
 
 struct bContext;
@@ -76,14 +68,6 @@ GHOST_WindowIOS *current_active_window = nullptr;
 void WM_main_loop_body(bContext *C);
 int main_ios_callback(int argc, const char **argv);
 
-/* Input device management modes */
-typedef enum {
-  INPUT_MODE_TOUCH_ONLY,      // Touch gestures only (iPad mode)
-  INPUT_MODE_KEYBOARD_MOUSE,  // External keyboard and mouse only
-  INPUT_MODE_MIXED,           // Touch + keyboard/mouse simultaneously
-  INPUT_MODE_ADAPTIVE         // Auto-switch based on active input
-} InputDeviceMode;
-
 struct TouchData {
   CGPoint pos;
   bool part_of_multitouch = false;
@@ -95,6 +79,7 @@ typedef struct UserInputEvent {
     PAN_GESTURE,
     PAN_GESTURE_TWO_FINGERS,
     PINCH_GESTURE,
+    ORBIT_GESTURE,
     LEFT_BUTTON_DOWN,
     LEFT_BUTTON_UP,
     MIDDLE_BUTTON_DOWN,
@@ -103,7 +88,7 @@ typedef struct UserInputEvent {
     SHIFT_BUTTON_UP,
     ALT_BUTTON_DOWN,
     ALT_BUTTON_UP,
-    ORBIT_GESTURE
+    PENCIL_TAP
   };
   EventTypes event_list[10];
   int num_events;
@@ -160,6 +145,8 @@ typedef struct UserInputEvent {
         return @"ALT-UP";
       case ORBIT_GESTURE:
         return @"ORBIT";
+      case PENCIL_TAP:
+        return @"PENCIL-TAP";
     }
     BLI_assert_unreachable();
     return @"Event undefined";
@@ -396,11 +383,6 @@ typedef struct UserInputEvent {
   bool supports_scroll_wheel;
   bool supports_middle_button;
 
-  /* Input device mode management */
-  InputDeviceMode current_input_mode;
-  bool mixed_input_enabled;
-  bool adaptive_input_enabled;
-
   /* Toolbar */
   bool toolbar_enabled;
   UIToolbar *toolbar;
@@ -478,14 +460,6 @@ typedef struct UserInputEvent {
 - (BOOL)supportsMiddleButton;
 - (void)logMouseState;
 
-/* Input device mode management */
-- (void)setInputDeviceMode:(InputDeviceMode)mode;
-- (InputDeviceMode)getCurrentInputMode;
-- (void)enableMixedInput:(BOOL)enabled;
-- (void)enableAdaptiveInput:(BOOL)enabled;
-- (BOOL)shouldAllowConcurrentInput;
-- (void)detectOptimalInputMode;
-
 /* Enhanced keyboard notification handlers */
 - (void)keyboardWillShow:(NSNotification *)notification;
 - (void)keyboardWillHide:(NSNotification *)notification;
@@ -501,9 +475,6 @@ typedef struct UserInputEvent {
 @implementation GHOSTUIWindow
 - (void)setSystemAndWindowIOS:(GHOST_SystemIOS *)sys windowIOS:(GHOST_WindowIOS *)win
 {
-  /* Log input system flag states for debugging */
-  logInputSystemFlags();
-
   system = sys;
   window = win;
   touch_stack = 0;
@@ -533,21 +504,6 @@ typedef struct UserInputEvent {
   mouse_button_count = 0;
   supports_scroll_wheel = false;
   supports_middle_button = false;
-
-  /* Initialize input device mode management */
-  current_input_mode = INPUT_MODE_MIXED; /* Default to mixed input for simultaneous use */
-  mixed_input_enabled = true;
-  adaptive_input_enabled = true;
-
-  /* Perform initial device detection */
-  [self detectKeyboardTypes];
-  [self detectMouseTypes];
-
-  /* Detect optimal input mode based on available devices */
-  [self detectOptimalInputMode];
-
-  /* Log initial input device state for debugging (one-time only) */
-  NSLog(@"INPUT DEVICE SYSTEM INITIALIZED - Mode: %d", current_input_mode);
 
   /* Initialize direct event handling state */
   current_mouse_button = GHOST_kButtonMaskNone;
@@ -671,8 +627,7 @@ typedef struct UserInputEvent {
   /* Two finger gestures only.  */
   pan2f_gesture_recognizer.minimumNumberOfTouches = 2;
   pan2f_gesture_recognizer.maximumNumberOfTouches = 2;
-  pan2f_gesture_recognizer.allowedTouchTypes =
-      @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
+  pan2f_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypeDirect), @(UITouchTypeIndirect) ];
   [window->getView() addGestureRecognizer:pan2f_gesture_recognizer];
 
   /* Pinch/Zoom gesture recognizer. */
@@ -681,8 +636,7 @@ typedef struct UserInputEvent {
               action:@selector(handleZoom:)];
   zoom_gesture_recognizer.delegate = self;
   zoom_gesture_recognizer.cancelsTouchesInView = false;
-  zoom_gesture_recognizer.allowedTouchTypes =
-      @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
+  zoom_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypeDirect), @(UITouchTypeIndirect) ];
   [window->getView() addGestureRecognizer:zoom_gesture_recognizer];
 
   /* Rotation gesture recognizer for 2-finger rotation. */
@@ -692,7 +646,7 @@ typedef struct UserInputEvent {
   rotation_gesture_recognizer.delegate = self;
   rotation_gesture_recognizer.cancelsTouchesInView = false;
   rotation_gesture_recognizer.allowedTouchTypes =
-      @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
+      @[ @(UITouchTypeDirect), @(UITouchTypeIndirect) ];
   [window->getView() addGestureRecognizer:rotation_gesture_recognizer];
 
   /* Apple Pencil hover recognizer. */
@@ -702,7 +656,6 @@ typedef struct UserInputEvent {
   hover_gesture_recognizer.allowedTouchTypes =
       @[ @(UITouchTypePencil), @(UITouchTypeIndirectPointer) ];
   hover_gesture_recognizer.delegate = self;
-
   [window->getView() addGestureRecognizer:hover_gesture_recognizer];
   current_pencil_touch = nil;
 
@@ -847,9 +800,14 @@ typedef struct UserInputEvent {
                                                false,
                                                nullptr));
           break;
-                                    GHOST_kButtonMaskLeft,
+        case UserInputEvent::EventTypes::PENCIL_TAP:
+          system->pushEvent(
+              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                    GHOST_kEventButtonDown,
+                                    window,
+                                    GHOST_kButtonMaskRight,
                                     tablet_data));
-                                    break;
+          break;
         default:
           GHOST_ASSERT(FALSE, "GHOST_SystemIOS::generateUserInputEvents unsupported event type");
       }
@@ -906,13 +864,6 @@ typedef struct UserInputEvent {
 /* Control gesture priority - rotation, zoom, and pan need careful coordination */
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
 {
-  NSString *gestureType = @"Unknown";
-  if (gestureRecognizer == rotation_gesture_recognizer)
-    gestureType = @"Rotation";
-  else if (gestureRecognizer == zoom_gesture_recognizer)
-    gestureType = @"Zoom";
-  else if (gestureRecognizer == pan2f_gesture_recognizer)
-    gestureType = @"Pan2F";
   /* For rotation gesture, check if there's significant rotation happening */
   if (gestureRecognizer == rotation_gesture_recognizer) {
     /* Check if zoom or pan are already active with significant motion */
@@ -1084,98 +1035,24 @@ typedef struct UserInputEvent {
 }
 
 /* Direct event handling bypass methods */
-- (void)sendEvent:(UIEvent *)event
-{
-  BOOL mouseEventHandled = NO;
-  BOOL keyboardEventHandled = NO;
-
-  /* Check if we should allow concurrent input */
-  BOOL allowConcurrent = [self shouldAllowConcurrentInput];
-
-  /* Handle touch events (trackpad/mouse) bypass */
-  if (event.type == UIEventTypeTouches) {
-    /* Only bypass if we're in a mode that supports mouse input */
-    if (current_input_mode != INPUT_MODE_TOUCH_ONLY) {
-      BOOL shouldBypass = NO;
-
-      /* Check if any touch should bypass UIKit */
-      for (UITouch *touch in event.allTouches) {
-        if ([self shouldBypassUIKitForTouch:touch]) {
-          shouldBypass = YES;
-          break;
-        }
-      }
-
-      if (shouldBypass) {
-        NSLog(@"MOUSE EVENT: Bypassing UIKit for external pointing device (mode:%d)",
-              current_input_mode);
-        /* Handle directly without UIKit gesture recognizers */
-        [self handleDirectTouchEvent:event];
-        mouseEventHandled = YES;
-      }
-    }
-  }
-
-  /* Handle keyboard events bypass for external keyboards */
-  if (BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD && event.type == UIEventTypePresses &&
-      [self shouldBypassUIKitForKeyboard])
-  {
-    /* Only bypass if we're in a mode that supports keyboard input */
-    if (current_input_mode != INPUT_MODE_TOUCH_ONLY) {
-      NSLog(@"KEYBOARD EVENT: Bypassing UIKit for external keyboard (mode:%d)",
-            current_input_mode);
-      [self handleDirectKeyboardEvent:event];
-      keyboardEventHandled = YES;
-    }
-  }
-
-  /* Handle event completion based on input mode */
-  if (mouseEventHandled || keyboardEventHandled) {
-    if (allowConcurrent) {
-      NSLog(@"CONCURRENT INPUT: Handled mouse:%d keyboard:%d simultaneously",
-            mouseEventHandled,
-            keyboardEventHandled);
-      /* In concurrent mode, don't send to UIKit if we handled it directly */
-      return;
-    }
-    else {
-      NSLog(@"EXCLUSIVE INPUT: Handled %s event exclusively",
-            mouseEventHandled ? "mouse" : "keyboard");
-      return;
-    }
-  }
-  else {
-    /* Default behavior - let UIKit handle the event */
-    [super sendEvent:event];
-  }
-}
-
 - (BOOL)shouldBypassUIKitForTouch:(UITouch *)touch
 {
-  /* Bypass UIKit for trackpad and indirect pointer input */
-  BOOL shouldBypass = (touch.type == UITouchTypeIndirect ||
-                       touch.type == UITouchTypeIndirectPointer);
-  NSString *touchType = @"Unknown";
-  switch (touch.type) {
-    case UITouchTypeDirect:
-      touchType = @"Direct";
-      break;
-    case UITouchTypePencil:
-      touchType = @"Pencil";
-      break;
-    case UITouchTypeIndirect:
-      touchType = @"Indirect";
-      break;
-    case UITouchTypeIndirectPointer:
-      touchType = @"IndirectPointer";
-      break;
+  // Only bypass for mouse button *actions*, not gestures
+  if (touch.type == UITouchTypeIndirectPointer && touch.phase != UITouchPhaseStationary) {
+    return YES;  // We still forward to UIKit later
+  }
+  // Let UIKit always process trackpad gestures
+  return NO;
+}
+
+- (void)sendEvent:(UIEvent *)event
+{
+  if (event.type == UIEventTypeTouches) {
+    [self handleDirectTouchEvent:event];
   }
 
-  /* Only log bypass check for non-finger touches to reduce spam */
-  if (touch.type != UITouchTypeDirect || shouldBypass) {
-    NSLog(@"BYPASS CHECK: Touch type=%@ shouldBypass=%d", touchType, shouldBypass);
-  }
-  return shouldBypass;
+  // Always forward the event to UIKit so gestures don't break
+  [super sendEvent:event];
 }
 
 - (GHOST_TButton)getMouseButtonFromTouch:(UITouch *)touch withEvent:(UIEvent *)event
@@ -1296,184 +1173,92 @@ typedef struct UserInputEvent {
 
 - (void)handleDirectTouchEvent:(UIEvent *)event
 {
-  /* Handle single touch events first */
   for (UITouch *touch in event.allTouches) {
-    if ([self shouldBypassUIKitForTouch:touch]) {
-      CGPoint location = [touch locationInView:window->getView()];
-      CGPoint scaledLocation = window->scalePointToWindow(location);
-
-      /* Log the direct input type */
-      NSString *inputType = @"Unknown";
-      switch (touch.type) {
-        case UITouchTypeIndirect:
-          inputType = @"Trackpad Gesture (Direct)";
-          break;
-        case UITouchTypeIndirectPointer:
-          inputType = @"Trackpad Click (Direct)";
-          break;
-        default:
-          inputType = @"Other (Direct)";
-          break;
-      }
-      NSLog(@"DIRECT INPUT: %@ at (%f, %f) phase:%ld force:%f",
-            inputType,
-            scaledLocation.x,
-            scaledLocation.y,
-            (long)touch.phase,
-            touch.force);
-
-      /* Handle single touch events (clicks and cursor movement) */
-      switch (touch.phase) {
-        case UITouchPhaseBegan:
-          NSLog(@"TOUCH BEGAN: Sending cursor move and checking for button down");
-          /* Always send cursor move first */
-          system->pushEvent(
-              new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                    GHOST_kEventCursorMove,
-                                    window,
-                                    scaledLocation.x,
-                                    scaledLocation.y,
-                                    GHOST_TABLET_DATA_NONE));
-
-          /* For pointer clicks, determine button type and send button down */
-          if (touch.type == UITouchTypeIndirectPointer) {
-            NSLog(@"INDIRECT POINTER: Determining button type");
-            /* Determine button type using enhanced detection */
-            GHOST_TButton buttonMask = [self getMouseButtonFromTouch:touch withEvent:event];
-
-            /* Store button for this touch */
-            touch_button_map[(uint64_t)touch] = buttonMask;
-
-            NSLog(@"SENDING BUTTON DOWN EVENT: button=%d for touch %p", buttonMask, touch);
-            system->pushEvent(
-                new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                      GHOST_kEventButtonDown,
-                                      window,
-                                      buttonMask,
-                                      GHOST_TABLET_DATA_NONE));
-
-            NSLog(@"BUTTON DOWN: %d for touch %p", buttonMask, touch);
-          }
-          else {
-            NSLog(@"NOT INDIRECT POINTER: touch type=%ld, no button event", (long)touch.type);
-          }
-          break;
-
-        case UITouchPhaseMoved:
-          /* Generate cursor move event for all types */
-          system->pushEvent(
-              new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                    GHOST_kEventCursorMove,
-                                    window,
-                                    scaledLocation.x,
-                                    scaledLocation.y,
-                                    GHOST_TABLET_DATA_NONE));
-          break;
-
-        case UITouchPhaseEnded:
-        case UITouchPhaseCancelled:
-          NSLog(@"TOUCH ENDED/CANCELLED: Checking for button up event");
-          /* Generate mouse up event for clicks */
-          if (touch.type == UITouchTypeIndirectPointer) {
-            NSLog(@"INDIRECT POINTER END: Sending button up");
-            /* Retrieve stored button for this touch */
-            uint64_t touchKey = (uint64_t)touch;
-            GHOST_TButton buttonMask = GHOST_kButtonMaskLeft; /* Default fallback */
-
-            auto it = touch_button_map.find(touchKey);
-            if (it != touch_button_map.end()) {
-              buttonMask = it->second;
-              touch_button_map.erase(it); /* Clean up */
-              NSLog(@"BUTTON UP: Found stored button %d for touch %p", buttonMask, touch);
-            }
-            else {
-              NSLog(@"BUTTON UP: No stored button found for touch %p, using default left", touch);
-            }
-
-            NSLog(@"SENDING BUTTON UP EVENT: button=%d for touch %p", buttonMask, touch);
-            system->pushEvent(
-                new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                      GHOST_kEventButtonUp,
-                                      window,
-                                      buttonMask,
-                                      GHOST_TABLET_DATA_NONE));
-
-            NSLog(@"BUTTON UP: %d for touch %p", buttonMask, touch);
-          }
-          else {
-            NSLog(@"NOT INDIRECT POINTER END: touch type=%ld, no button up event",
-                  (long)touch.type);
-          }
-          break;
-
-        default:
-          break;
-      }
+    if (![self shouldBypassUIKitForTouch:touch]) {
+      continue;
     }
-  }
 
-  /* Handle multi-touch scroll events - improved detection */
-  NSArray *trackpadTouches = [[event.allTouches allObjects]
-      filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(UITouch *touch,
-                                                                        NSDictionary *bindings) {
-        return [self shouldBypassUIKitForTouch:touch] && touch.type == UITouchTypeIndirect;
-      }]];
+    CGPoint location = [touch locationInView:window->getView()];
+    CGPoint scaledLocation = window->scalePointToWindow(location);
 
-  if (trackpadTouches.count >= 2) {
-    /* Process all combinations of touches to get best scroll data */
-    UITouch *touch1 = trackpadTouches[0];
-    UITouch *touch2 = trackpadTouches[1];
+    NSString *inputType = @"Unknown";
+    switch (touch.type) {
+      case UITouchTypeDirect:
+        inputType = @"Finger (Direct)";
+        break;
+      case UITouchTypeIndirect:
+        inputType = @"Trackpad Gesture (Direct)";
+        break;
+      case UITouchTypeIndirectPointer:
+        inputType = @"Trackpad Click (Direct)";
+        break;
+      default:
+        inputType = @"Other (Direct)";
+        break;
+    }
 
-    /* Only process scroll during move phase and if both touches are moving */
-    if ((touch1.phase == UITouchPhaseMoved || touch2.phase == UITouchPhaseMoved) &&
-        touch1.phase != UITouchPhaseEnded && touch2.phase != UITouchPhaseEnded &&
-        touch1.phase != UITouchPhaseCancelled && touch2.phase != UITouchPhaseCancelled)
-    {
+    NSLog(@"DIRECT INPUT: %@ at (%f, %f) phase:%ld force:%f",
+          inputType,
+          scaledLocation.x,
+          scaledLocation.y,
+          (long)touch.phase,
+          touch.force);
 
-      CGPoint location1 = [touch1 locationInView:window->getView()];
-      CGPoint prevLocation1 = [touch1 previousLocationInView:window->getView()];
-      CGPoint location2 = [touch2 locationInView:window->getView()];
-      CGPoint prevLocation2 = [touch2 previousLocationInView:window->getView()];
+    switch (touch.phase) {
+      case UITouchPhaseBegan: {
+        // Always send cursor move first
+        system->pushEvent(new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                                GHOST_kEventCursorMove,
+                                                window,
+                                                scaledLocation.x,
+                                                scaledLocation.y,
+                                                GHOST_TABLET_DATA_NONE));
 
-      /* Calculate average movement for scroll */
-      CGFloat deltaX = ((location1.x - prevLocation1.x) + (location2.x - prevLocation2.x)) / 2.0f;
-      CGFloat deltaY = ((location1.y - prevLocation1.y) + (location2.y - prevLocation2.y)) / 2.0f;
-
-      /* Apply scaling factor and invert Y for natural scrolling */
-      deltaX *= 2.0f;
-      deltaY *= -2.0f; /* Invert Y for natural scrolling */
-
-      /* Lower threshold for more responsive scrolling */
-      if (fabs(deltaX) > 0.1f || fabs(deltaY) > 0.1f) {
-        CGPoint centerPoint = CGPointMake((location1.x + location2.x) / 2.0f,
-                                          (location1.y + location2.y) / 2.0f);
-        CGPoint scaledCenter = window->scalePointToWindow(centerPoint);
-
-        /* Send separate scroll wheel events for X and Y axes */
-        if (fabs(deltaX) > 0.1f) {
-          system->pushEvent(new GHOST_EventWheel(
-              GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-              window,
-              GHOST_kEventWheelAxisHorizontal,
-              (int32_t)(deltaX * 10.0f))); /* Scale up for better sensitivity */
-          NSLog(@"SCROLL X: %f -> %d", deltaX, (int32_t)(deltaX * 10.0f));
+        if (touch.type == UITouchTypeIndirectPointer) {
+          GHOST_TButton buttonMask = [self getMouseButtonFromTouch:touch withEvent:event];
+          touch_button_map[(uint64_t)touch] = buttonMask;
+          system->pushEvent(
+              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                    GHOST_kEventButtonDown,
+                                    window,
+                                    buttonMask,
+                                    GHOST_TABLET_DATA_NONE));
         }
-
-        if (fabs(deltaY) > 0.1f) {
-          system->pushEvent(new GHOST_EventWheel(
-              GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-              window,
-              GHOST_kEventWheelAxisVertical,
-              (int32_t)(deltaY * 10.0f))); /* Scale up for better sensitivity */
-          NSLog(@"SCROLL Y: %f -> %d", deltaY, (int32_t)(deltaY * 10.0f));
-        }
-
-        NSLog(@"DIRECT SCROLL: delta(%f, %f) at (%f, %f)",
-              deltaX,
-              deltaY,
-              scaledCenter.x,
-              scaledCenter.y);
+        break;
       }
+
+      case UITouchPhaseMoved:
+        // Send cursor move for all touch types
+        system->pushEvent(new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                                GHOST_kEventCursorMove,
+                                                window,
+                                                scaledLocation.x,
+                                                scaledLocation.y,
+                                                GHOST_TABLET_DATA_NONE));
+        break;
+
+      case UITouchPhaseEnded:
+      case UITouchPhaseCancelled: {
+        if (touch.type == UITouchTypeIndirectPointer) {
+          uint64_t touchKey = (uint64_t)touch;
+          GHOST_TButton buttonMask = GHOST_kButtonMaskLeft;
+          auto it = touch_button_map.find(touchKey);
+          if (it != touch_button_map.end()) {
+            buttonMask = it->second;
+            touch_button_map.erase(it);
+          }
+          system->pushEvent(
+              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                    GHOST_kEventButtonUp,
+                                    window,
+                                    buttonMask,
+                                    GHOST_TABLET_DATA_NONE));
+        }
+        break;
+      }
+
+      default:
+        break;
     }
   }
 }
@@ -2070,15 +1855,6 @@ typedef struct UserInputEvent {
   }
 }
 
-- (void)handleFingerPan:(GHOSTUIPanGestureRecognizer *)sender
-{
-  /* TODO: Implement new input system logic for 4-finger tap */
-  NSLog(@"NEW INPUT SYSTEM: 4-finger tap detected");
-
-  /* For now, fall back to legacy behavior */
-  [self handleTap4FLegacy:sender];
-}
-
 - (void)handleTap4FLegacy:(GHOSTUITapGestureRecognizer *)sender
 {
   if (sender.state != UIGestureRecognizerStateEnded) {
@@ -2087,24 +1863,6 @@ typedef struct UserInputEvent {
 
   system->pushEvent(new GHOST_Event(
       GHOST_GetMilliSeconds((GHOST_SystemHandle)system), GHOST_kEventFourFingerTap, window));
-}
-
-- (void)handlePencilPan:(GHOSTUIPanGestureRecognizer *)sender
-{
-  bool is_pencil = current_pencil_touch ? true : false;
-
-  NSLog(@"INPUT SYSTEM: 1-finger pan - %@ - state: %ld",
-        is_pencil ? @"pencil" : @"finger",
-        (long)sender.state);
-
-  if (is_pencil) {
-    /* Pencil drag = Box selection - redirect to dedicated pencil handler */
-    [self handlePencilPan:sender];
-  }
-  else {
-    /* Finger drag = Orbit (maps to legacy 2-finger drag) */
-    [self handleFingerPan:sender];
-  }
 }
 
 - (void)handleFingerPan:(GHOSTUIPanGestureRecognizer *)sender
@@ -2869,8 +2627,6 @@ typedef struct UserInputEvent {
 
   /* Update mouse state */
   [self updateMouseState];
-
-  NSLog(@"MOUSE DETECTION: Detection complete");
 }
 
 - (void)updateMouseState
@@ -2949,97 +2705,6 @@ typedef struct UserInputEvent {
   NSLog(@"============================");
 }
 
-/* Input device mode management methods */
-- (void)setInputDeviceMode:(InputDeviceMode)mode
-{
-  if (current_input_mode != mode) {
-    NSLog(@"INPUT MODE: Changing from %d to %d", current_input_mode, mode);
-
-    current_input_mode = mode;
-
-    /* Update input handling based on new mode */
-    switch (mode) {
-      case INPUT_MODE_TOUCH_ONLY:
-        mixed_input_enabled = NO;
-        NSLog(@"INPUT MODE: Touch-only mode enabled");
-        break;
-      case INPUT_MODE_KEYBOARD_MOUSE:
-        mixed_input_enabled = NO;
-        NSLog(@"INPUT MODE: Keyboard/mouse-only mode enabled");
-        break;
-      case INPUT_MODE_MIXED:
-        mixed_input_enabled = YES;
-        NSLog(@"INPUT MODE: Mixed input mode enabled (touch + keyboard/mouse)");
-        break;
-      case INPUT_MODE_ADAPTIVE:
-        mixed_input_enabled = YES;
-        adaptive_input_enabled = YES;
-        [self detectOptimalInputMode];
-        NSLog(@"INPUT MODE: Adaptive input mode enabled");
-        break;
-    }
-  }
-}
-
-- (InputDeviceMode)getCurrentInputMode
-{
-  return current_input_mode;
-}
-
-- (void)enableMixedInput:(BOOL)enabled
-{
-  if (mixed_input_enabled != enabled) {
-    NSLog(@"INPUT MODE: Mixed input %@ (was %@)",
-          enabled ? @"ENABLED" : @"DISABLED",
-          mixed_input_enabled ? @"ENABLED" : @"DISABLED");
-    mixed_input_enabled = enabled;
-  }
-}
-
-- (void)enableAdaptiveInput:(BOOL)enabled
-{
-  adaptive_input_enabled = enabled;
-  NSLog(@"INPUT MODE: Adaptive input %@", enabled ? @"ENABLED" : @"DISABLED");
-}
-
-- (BOOL)shouldAllowConcurrentInput
-{
-  /* Allow concurrent input in mixed or adaptive modes */
-  return mixed_input_enabled &&
-         (current_input_mode == INPUT_MODE_MIXED || current_input_mode == INPUT_MODE_ADAPTIVE);
-}
-
-- (void)detectOptimalInputMode
-{
-  if (!adaptive_input_enabled) {
-    return;
-  }
-
-  InputDeviceMode optimal_mode = INPUT_MODE_TOUCH_ONLY;
-
-  /* Check what devices are available */
-  BOOL has_keyboard = external_keyboard_connected;
-  BOOL has_mouse = external_mouse_connected || external_trackpad_connected;
-
-  if (has_keyboard && has_mouse) {
-    optimal_mode = INPUT_MODE_MIXED; /* Best of both worlds */
-  }
-  else if (has_keyboard || has_mouse) {
-    optimal_mode = INPUT_MODE_MIXED; /* Hybrid mode */
-  }
-  else {
-    optimal_mode = INPUT_MODE_TOUCH_ONLY; /* Fallback to touch */
-  }
-
-  if (optimal_mode != current_input_mode) {
-    NSLog(@"INPUT MODE: Auto-detected optimal mode: %d (keyboard:%d mouse:%d)",
-          optimal_mode,
-          has_keyboard,
-          has_mouse);
-    [self setInputDeviceMode:optimal_mode];
-  }
-}
-
 /* Enhanced keyboard notification handlers */
 - (void)keyboardWillShow:(NSNotification *)notification
 {
@@ -3109,16 +2774,6 @@ typedef struct UserInputEvent {
 /* UIKit keyboard press handling (fallback when not bypassing) */
 - (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
-  NSLog(@"🔥 KEYBOARD DEBUG: pressesBegan called with %lu presses", (unsigned long)presses.count);
-  NSLog(@"KEYBOARD: pressesBegan - external keyboard bypass: %@",
-        [self shouldBypassUIKitForKeyboard] ? @"YES" : @"NO");
-
-  if ([self shouldBypassUIKitForKeyboard]) {
-    /* When bypassing, this shouldn't be called, but handle just in case */
-    NSLog(@"KEYBOARD: pressesBegan called despite bypass enabled");
-    return;
-  }
-
   /* Handle keyboard input via UIKit when not bypassing */
   NSLog(@"KEYBOARD: Processing %lu key presses via UIKit", (unsigned long)presses.count);
   for (UIPress *press in presses) {
@@ -3134,15 +2789,6 @@ typedef struct UserInputEvent {
 
 - (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
-  NSLog(@"KEYBOARD: pressesEnded - external keyboard bypass: %@",
-        [self shouldBypassUIKitForKeyboard] ? @"YES" : @"NO");
-
-  if ([self shouldBypassUIKitForKeyboard]) {
-    /* When bypassing, this shouldn't be called, but handle just in case */
-    NSLog(@"KEYBOARD: pressesEnded called despite bypass enabled");
-    return;
-  }
-
   /* Handle keyboard input via UIKit when not bypassing */
   NSLog(@"KEYBOARD: Processing %lu key releases via UIKit", (unsigned long)presses.count);
   for (UIPress *press in presses) {
@@ -3158,15 +2804,6 @@ typedef struct UserInputEvent {
 
 - (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
-  NSLog(@"KEYBOARD: pressesCancelled - external keyboard bypass: %@",
-        [self shouldBypassUIKitForKeyboard] ? @"YES" : @"NO");
-
-  if ([self shouldBypassUIKitForKeyboard]) {
-    /* When bypassing, this shouldn't be called, but handle just in case */
-    NSLog(@"KEYBOARD: pressesCancelled called despite bypass enabled");
-    return;
-  }
-
   /* Handle cancelled keyboard input via UIKit when not bypassing */
   for (UIPress *press in presses) {
     /* Treat cancelled as key up */
@@ -3394,7 +3031,7 @@ typedef struct UserInputEvent {
 
     /* Was drawInMTKView() being invoked for the active window?
      * (We can get called when a MTKView is in the process of being shut down). */
-    if (MTKView == context->getMTKView()) {
+    if (drawInMTKView == context->getMTKView()) {
       /* Update the windows contents if required. */
       if (context->swapBuffersRequested()) {
         context->metalSwapBuffers();
@@ -3538,7 +3175,7 @@ GHOST_WindowIOS::GHOST_WindowIOS(GHOST_SystemIOS *systemIos,
   if (parent_window_) {
     parent_window_->deactivateWindow();
   }
-  activateWindow()
+  activateWindow();
 }
 
 GHOST_WindowIOS::~GHOST_WindowIOS()
@@ -3968,36 +3605,6 @@ void GHOST_WindowIOS::logMouseState()
 {
   GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
   [ghost_rootWindow logMouseState];
-}
-
-void GHOST_WindowIOS::setInputDeviceMode(int mode)
-{
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  [ghost_rootWindow setInputDeviceMode:(InputDeviceMode)mode];
-}
-
-int GHOST_WindowIOS::getCurrentInputMode()
-{
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  return (int)[ghost_rootWindow getCurrentInputMode];
-}
-
-void GHOST_WindowIOS::enableMixedInput(bool enabled)
-{
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  [ghost_rootWindow enableMixedInput:enabled];
-}
-
-void GHOST_WindowIOS::enableAdaptiveInput(bool enabled)
-{
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  [ghost_rootWindow enableAdaptiveInput:enabled];
-}
-
-bool GHOST_WindowIOS::shouldAllowConcurrentInput()
-{
-  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
-  return [ghost_rootWindow shouldAllowConcurrentInput];
 }
 
 bool GHOST_WindowIOS::shouldBypassUIKitForKeyboard()
