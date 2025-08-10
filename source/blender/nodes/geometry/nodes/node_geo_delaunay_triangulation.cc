@@ -13,6 +13,7 @@
 
 #include "FN_field.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_copy_selection.hh"
 
 #include "node_geometry_util.hh"
@@ -721,17 +722,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::optional<std::string> dst_intersection_points_attribute_id =
       params.get_output_anonymous_attribute_id_if_needed("Intersection Points");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &sub_geometry) {
     Vector<CDTGeometrySetInput> cdt_inputs_by_group = cdt_inputs_from_groups(
-        geometry_set, group_index, attribute_filter);
+        sub_geometry, group_index, attribute_filter);
 
     Array<CDTGeometryResult> geometry_results = calculate_cdts(cdt_inputs_by_group, output_type);
 
     Mesh *mesh = cdts_to_mesh(
         geometry_results, dst_intersection_points_attribute_id, attribute_filter);
 
-    geometry_set.replace_mesh(mesh);
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
+    sub_geometry.replace_mesh(mesh);
+    sub_geometry.keep_only({GeometryComponent::Type::Mesh});
   });
 
   params.set_output("Mesh", std::move(geometry_set));
