@@ -1495,7 +1495,9 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                                                        const Span<Segment> segments,
                                                        const Span<bool> segment_reversed,
                                                        const Span<bool> cyclic,
-                                                       const OffsetIndices<int> segment_offsets)
+                                                       const Span<bool> is_segments_clipping,
+                                                       const OffsetIndices<int> segment_offsets,
+                                                       Vector<bool> &is_point_clipping)
 {
   Array<bool> unchanged_curves(segment_offsets.size(), false);
 
@@ -1525,6 +1527,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
 
   Array<int> point_offsets(segment_offsets.size() + 1);
   Vector<int2> points_to_copy;
+  Vector<int2> clipping_points_to_copy;
   Vector<IndexRange> ranges_to_reverse;
   Vector<InterpolatePoint> point_to_interpolate;
 
@@ -1538,24 +1541,41 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
     for (const int seg_i : segment_range) {
       const Segment &segment = segments[seg_i];
       const bool reversed = segment_reversed[seg_i];
+      const bool is_clipping = is_segments_clipping[seg_i];
+      const int point_num = segment.points_num();
 
       if (segment.has_intersection(reversed ? Side::End : Side::Start) && !segment.is_loop()) {
         const float start_alpha = segment.alpha[reversed ? Side::End : Side::Start];
         const int2 start_edge = segment.edge(reversed ? Side::End : Side::Start);
         point_to_interpolate.append({i, start_edge.x, start_edge.y, start_alpha});
+        is_point_clipping.append(is_clipping);
         i++;
       }
 
-      if (!unchanged) {
+      is_point_clipping.append_n_times(is_clipping, point_num);
+
+      if (!unchanged && !is_clipping) {
         segment.foreach_point(
             [&](const int index, const int pos) { points_to_copy.append(int2(pos + i, index)); });
 
         if (reversed) {
-          ranges_to_reverse.append(IndexRange::from_begin_size(i, segment.points_num()));
+          ranges_to_reverse.append(IndexRange::from_begin_size(i, point_num));
+        }
+      }
+      if (is_clipping) {
+        if (reversed) {
+          segment.foreach_point([&](const int index, const int pos) {
+            clipping_points_to_copy.append(int2(point_num - 1 - pos + i, index));
+          });
+        }
+        else {
+          segment.foreach_point([&](const int index, const int pos) {
+            clipping_points_to_copy.append(int2(pos + i, index));
+          });
         }
       }
 
-      i += segment.points_num();
+      i += point_num;
 
       if (seg_i == segment_range.last() &&
           segment.has_intersection(reversed ? Side::Start : Side::End) && !cyclic[curve_i])
@@ -1563,6 +1583,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
         const float end_alpha = segment.alpha[reversed ? Side::Start : Side::End];
         const int2 end_edge = segment.edge(reversed ? Side::Start : Side::End);
         point_to_interpolate.append({i, end_edge.x, end_edge.y, end_alpha});
+        is_point_clipping.append(is_clipping);
         i++;
       }
     }
@@ -1614,6 +1635,9 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
             src_attr[interpolate_point.src_point_2]);
       }
       for (const int2 index : points_to_copy) {
+        dst_attr[index.x] = src_attr[index.y];
+      }
+      for (const int2 index : clipping_points_to_copy) {
         dst_attr[index.x] = src_attr[index.y];
       }
       for (const IndexRange range : ranges_to_reverse) {
@@ -1681,8 +1705,23 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
 
   const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(result.segment_offsets);
 
-  bke::CurvesGeometry dst_curves = create_curves_from_segments(
-      curves, result.segments, result.segment_reversed, result.cyclic, dst_segments_by_curve);
+  Array<bool> is_segments_clipping(result.segments.size(), false);
+  for (const int seg_i : result.segments.index_range()) {
+    const Segment &segment = result.segments[seg_i];
+    const int shape_id = shape_ids[segment.curve];
+    if (clipping_shapes.contains(shape_id)) {
+      is_segments_clipping[seg_i] = true;
+    }
+  }
+
+  Vector<bool> is_point_clipping;
+  bke::CurvesGeometry dst_curves = create_curves_from_segments(curves,
+                                                               result.segments,
+                                                               result.segment_reversed,
+                                                               result.cyclic,
+                                                               is_segments_clipping,
+                                                               dst_segments_by_curve,
+                                                               is_point_clipping);
 
   if (!keep_caps) {
     cut_caps(dst_curves,
