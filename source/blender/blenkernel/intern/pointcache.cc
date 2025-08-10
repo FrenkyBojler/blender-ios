@@ -73,7 +73,7 @@
 #  include "RBI_api.h"
 #endif
 
-#ifdef WITH_LZO
+#if 0  // #ifdef WITH_LZO
 #  ifdef WITH_SYSTEM_LZO
 #    include <lzo/lzo1x.h>
 #  else
@@ -85,7 +85,7 @@
 
 #define LZO_OUT_LEN(size) ((size) + (size) / 16 + 64 + 3)
 
-#ifdef WITH_LZMA
+#if 0  // #ifdef WITH_LZMA
 #  include "LzmaLib.h"
 #endif
 
@@ -133,7 +133,7 @@ static void ptcache_file_compressed_write(PTCacheFile *pf,
                                           const void *data,
                                           uint items_num,
                                           uint item_size,
-                                          ePointCacheCompression compression);
+                                          PointCacheCompression compression);
 static int ptcache_file_write(PTCacheFile *pf, const void *data, uint items_num, uint item_size);
 static bool ptcache_file_read(PTCacheFile *pf, void *f, uint items_num, uint item_size);
 
@@ -1516,7 +1516,7 @@ static int ptcache_file_compressed_read(PTCacheFile *pf, uchar *result, uint len
 
   uchar compressed_val = 0;
   ptcache_file_read(pf, &compressed_val, 1, sizeof(uchar));
-  const ePointCacheCompression compressed = ePointCacheCompression(compressed_val);
+  const PointCacheCompression compressed = PointCacheCompression(compressed_val);
   if (compressed != PTCACHE_COMPRESS_NO) {
     uint size;
     ptcache_file_read(pf, &size, 1, sizeof(uint));
@@ -1528,13 +1528,13 @@ static int ptcache_file_compressed_read(PTCacheFile *pf, uchar *result, uint len
       in = MEM_calloc_arrayN<uchar>(in_len, "pointcache_compressed_buffer");
       ptcache_file_read(pf, in, in_len, sizeof(uchar));
 #if 0  // #ifdef WITH_LZO
-      if (compressed == 1) {
+      if (compressed == PTCACHE_COMPRESS_LZO_DEPRECATED) {
         size_t out_len = len;
         r = lzo1x_decompress_safe(in, (lzo_uint)in_len, result, (lzo_uint *)&out_len, nullptr);
       }
 #endif
 #if 0  // #ifdef WITH_LZMA
-      if (compressed == 2) {
+      if (compressed == PTCACHE_COMPRESS_LZMA_DEPRECATED) {
         size_t leni = in_len, leno = len;
         uchar lzma_props[16] = {};
         uint lzma_props_size = 0;
@@ -1564,7 +1564,7 @@ static void ptcache_file_compressed_write(PTCacheFile *pf,
                                           const void *data,
                                           uint items_num,
                                           uint item_size,
-                                          ePointCacheCompression compression)
+                                          PointCacheCompression compression)
 {
   /* Allocate space for compressed data. */
   const uint data_size = items_num * item_size;
@@ -1586,7 +1586,7 @@ static void ptcache_file_compressed_write(PTCacheFile *pf,
   uchar lzma_props[16] = {};
   size_t lzma_props_size = 5;
 
-#ifdef WITH_LZO
+#if 0  // #ifdef WITH_LZO
   if (compression == PTCACHE_COMPRESS_LZO_DEPRECATED) {
     LZO_HEAP_ALLOC(wrkmem, LZO1X_MEM_COMPRESS);
 
@@ -1597,7 +1597,7 @@ static void ptcache_file_compressed_write(PTCacheFile *pf,
     }
   }
 #endif
-#ifdef WITH_LZMA
+#if 0  // #ifdef WITH_LZMA
   if (compression == PTCACHE_COMPRESS_LZMA_DEPRECATED) {
     r = LzmaCompress(out.data(),
                      &out_len,
@@ -2077,7 +2077,7 @@ static int ptcache_mem_frame_to_disk(PTCacheID *pid, PTCacheMem *pm)
     pf->flag |= PTCACHE_TYPEFLAG_EXTRADATA;
   }
 
-  const ePointCacheCompression compression = ePointCacheCompression(pid->cache->compression);
+  const PointCacheCompression compression = PointCacheCompression(pid->cache->compression);
   if (compression != PTCACHE_COMPRESS_NO) {
     pf->flag |= PTCACHE_TYPEFLAG_COMPRESS;
   }
