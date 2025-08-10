@@ -1730,7 +1730,7 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
         if ((bm->selectmode & SCE_SELECT_VERTEX) == 0) {
           /* Check edges first, since a selected edge also indicates a selected vertex. */
           if (!BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE) &&
-              BM_loop_vert_uvselect_check_other_loop_edge(
+              BM_loop_edge_uvselect_check_other_loop_edge(
                   l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
           {
             /* Check the other radial edge. */
