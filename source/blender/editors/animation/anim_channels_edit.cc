@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -1635,7 +1636,7 @@ static void split_groups_action_temp(bAction *act, bActionGroup *tgrp)
   *tgrp = bActionGroup{};
   tgrp->cs = ThemeWireColor{};
   tgrp->flag |= (AGRP_EXPANDED | AGRP_TEMP | AGRP_EXPANDED_G);
-  STRNCPY(tgrp->name, "#TempGroup");
+  STRNCPY_UTF8(tgrp->name, "#TempGroup");
 
   /* Move any action-channels not already moved, to the temp group */
   if (act->curves.first) {
@@ -4509,6 +4510,10 @@ static int click_select_channel_shapekey(bAnimContext *ac,
                                          const short /* eEditKeyframes_Select or -1 */ selectmode)
 {
   KeyBlock *kb = static_cast<KeyBlock *>(ale->data);
+  Key *key = reinterpret_cast<Key *>(ale->id);
+  Object &ob = *ac->obact;
+
+  ob.shapenr = BLI_findindex(&key->block, kb) + 1;
 
   /* select/deselect */
   if (selectmode == SELECT_INVERT) {
@@ -5436,7 +5441,7 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
   Main *bmain = CTX_data_main(C);
   if (slots.size() == 1) {
     char actname[MAX_ID_NAME - 2];
-    SNPRINTF(actname, DATA_("%sAction"), slots[0].first->identifier + 2);
+    SNPRINTF_UTF8(actname, DATA_("%sAction"), slots[0].first->identifier + 2);
     target_action = &action_add(*bmain, actname);
   }
   else {
@@ -5504,7 +5509,7 @@ static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
   while (action->slot_array_num) {
     Slot *slot = action->slot(action->slot_array_num - 1);
     char actname[MAX_ID_NAME - 2];
-    SNPRINTF(actname, DATA_("%sAction"), slot->identifier + 2);
+    SNPRINTF_UTF8(actname, DATA_("%sAction"), slot->identifier + 2);
     Action &target_action = action_add(*bmain, actname);
     created_actions++;
     Layer &layer = target_action.layer_add(std::nullopt);

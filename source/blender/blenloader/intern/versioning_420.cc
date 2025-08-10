@@ -28,6 +28,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_colortools.hh"
@@ -37,6 +38,7 @@
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_report.hh"
 
 #include "MOV_enums.hh"
 
@@ -584,7 +586,10 @@ void do_versions_after_linking_420(FileData *fd, Main *bmain)
 
 static void image_settings_avi_to_ffmpeg(Scene *scene)
 {
-  if (ELEM(scene->r.im_format.imtype, R_IMF_IMTYPE_AVIRAW, R_IMF_IMTYPE_AVIJPEG)) {
+  /* R_IMF_IMTYPE_AVIRAW and R_IMF_IMTYPE_AVIJPEG. */
+  constexpr char deprecated_avi_raw_imtype = 15;
+  constexpr char deprecated_avi_jpeg_imtype = 16;
+  if (ELEM(scene->r.im_format.imtype, deprecated_avi_raw_imtype, deprecated_avi_jpeg_imtype)) {
     scene->r.im_format.imtype = R_IMF_IMTYPE_FFMPEG;
   }
 }
@@ -758,7 +763,7 @@ static void convert_grease_pencil_stroke_hardness_to_softness(GreasePencil *grea
       data[i] = 1.0f - data[i];
     }
     /* Rename the layer. */
-    STRNCPY(drawing.geometry.curve_data_legacy.layers[layer_index].name, "softness");
+    STRNCPY_UTF8(drawing.geometry.curve_data_legacy.layers[layer_index].name, "softness");
   }
 }
 

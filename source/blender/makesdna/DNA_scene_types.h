@@ -44,15 +44,18 @@ struct bNodeTree;
 #ifdef __cplusplus
 namespace blender {
 namespace bke {
+struct PaintRuntime;
 class SceneRuntime;
-}
+}  // namespace bke
 namespace ocio {
 class ColorSpace;
 }
 }  // namespace blender
+using PaintRuntimeHandle = blender::bke::PaintRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
 using ColorSpaceHandle = blender::ocio::ColorSpace;
 #else   // __cplusplus
+typedef struct PaintRuntimeHandle PaintRuntimeHandle;
 typedef struct SceneRuntimeHandle SceneRuntimeHandle;
 typedef struct ColorSpaceHandle ColorSpaceHandle;
 #endif  // __cplusplus
@@ -152,6 +155,12 @@ typedef enum IMB_Ffmpeg_Codec_ID {
   FFMPEG_CODEC_ID_OPUS = 86076,
 } IMB_Ffmpeg_Codec_ID;
 
+typedef enum eFFMpegVideoHdr {
+  FFM_VIDEO_HDR_NONE = 0,
+  FFM_VIDEO_HDR_REC2100_HLG = 1,
+  FFM_VIDEO_HDR_REC2100_PQ = 2,
+} eFFMpegVideoHdr;
+
 typedef struct FFMpegCodecData {
   int type;
   int codec;       /* Use `codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
@@ -175,7 +184,7 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  char _pad0[4];
+  int video_hdr; /* eFFMpegVideoHdr */
 
 #ifdef __cplusplus
   IMB_Ffmpeg_Codec_ID codec_id_get() const
@@ -286,7 +295,7 @@ enum {
 /** #SceneRenderLayer::passflag */
 typedef enum eScenePassType {
   SCE_PASS_COMBINED = (1 << 0),
-  SCE_PASS_Z = (1 << 1),
+  SCE_PASS_DEPTH = (1 << 1),
   SCE_PASS_UNUSED_1 = (1 << 2), /* RGBA */
   SCE_PASS_UNUSED_2 = (1 << 3), /* DIFFUSE */
   SCE_PASS_UNUSED_3 = (1 << 4), /* SPEC */
@@ -322,7 +331,7 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_DEPRECATED "Deprecated"
 
 #define RE_PASSNAME_COMBINED "Combined"
-#define RE_PASSNAME_Z "Depth"
+#define RE_PASSNAME_DEPTH "Depth"
 #define RE_PASSNAME_VECTOR "Vector"
 #define RE_PASSNAME_POSITION "Position"
 #define RE_PASSNAME_NORMAL "Normal"
@@ -453,6 +462,8 @@ typedef enum eStereo3dInterlaceType {
  * RNA ensures these enum's are only selectable for render output.
  */
 typedef struct ImageFormatData {
+  /** MediaType. */
+  char media_type;
   /**
    * R_IMF_IMTYPE_PNG, R_...
    * \note Video types should only ever be set from this structure when used from #RenderData.
@@ -478,11 +489,6 @@ typedef struct ImageFormatData {
   /** OpenEXR: R_IMF_EXR_CODEC_* values in low OPENEXR_CODEC_MASK bits. */
   char exr_codec;
 
-  /** CINEON. */
-  char cineon_flag;
-  short cineon_white, cineon_black;
-  float cineon_gamma;
-
   /** Jpeg2000. */
   char jp2_flag;
   char jp2_codec;
@@ -490,7 +496,12 @@ typedef struct ImageFormatData {
   /** TIFF. */
   char tiff_codec;
 
-  char _pad[4];
+  /** CINEON. */
+  char cineon_flag;
+  short cineon_white, cineon_black;
+  float cineon_gamma;
+
+  char _pad[3];
 
   /** Multi-view. */
   char views_format;
@@ -505,6 +516,13 @@ typedef struct ImageFormatData {
   ColorManagedColorspaceSettings linear_colorspace_settings;
 } ImageFormatData;
 
+/** #ImageFormatData::media_type */
+typedef enum MediaType {
+  MEDIA_TYPE_IMAGE = 0,
+  MEDIA_TYPE_MULTI_LAYER_IMAGE = 1,
+  MEDIA_TYPE_VIDEO = 2,
+} MediaType;
+
 /** #ImageFormatData::imtype */
 enum {
   R_IMF_IMTYPE_TARGA = 0,
@@ -515,8 +533,8 @@ enum {
   // R_MOVIE = 5, /* DEPRECATED */
   R_IMF_IMTYPE_IRIZ = 7,
   R_IMF_IMTYPE_RAWTGA = 14,
-  R_IMF_IMTYPE_AVIRAW = 15,
-  R_IMF_IMTYPE_AVIJPEG = 16,
+  /* R_IMF_IMTYPE_AVIRAW = 15, DEPRECATED */
+  /* R_IMF_IMTYPE_AVIJPEG = 16, DEPRECATED */
   R_IMF_IMTYPE_PNG = 17,
   // R_IMF_IMTYPE_AVICODEC = 18,  /* DEPRECATED */
   // R_IMF_IMTYPE_QUICKTIME = 19, /* DEPRECATED */
@@ -531,12 +549,12 @@ enum {
   R_IMF_IMTYPE_MULTILAYER = 28,
   R_IMF_IMTYPE_DDS = 29,
   R_IMF_IMTYPE_JP2 = 30,
-  R_IMF_IMTYPE_H264 = 31,
-  R_IMF_IMTYPE_XVID = 32,
-  R_IMF_IMTYPE_THEORA = 33,
+  /* R_IMF_IMTYPE_H264 = 31, DEPRECATED */
+  /* R_IMF_IMTYPE_XVID = 32, DEPRECATED */
+  /* R_IMF_IMTYPE_THEORA = 33, DEPRECATED */
   R_IMF_IMTYPE_PSD = 34,
   R_IMF_IMTYPE_WEBP = 35,
-  R_IMF_IMTYPE_AV1 = 36,
+  /* R_IMF_IMTYPE_AV1 = 36, DEPRECATED */
 
   R_IMF_IMTYPE_INVALID = 255,
 };
@@ -546,8 +564,6 @@ enum {
   // R_IMF_FLAG_ZBUF = 1 << 0, /* DEPRECATED, and cleared. */
   R_IMF_FLAG_PREVIEW_JPG = 1 << 1,
 };
-
-/*  */
 
 /**
  * #ImageFormatData::depth
@@ -838,11 +854,12 @@ typedef struct RenderData {
   short bake_margin, bake_samples;
   short bake_margin_type;
   char _pad9[6];
-  float bake_biasdist, bake_user_scale;
+  float bake_biasdist;
+  char _pad10[4];
 
   /**
-   *  Path to render output.
-   * \note  Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
+   * Path to render output.
+   * \note Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
    */
   char pic[/*FILE_MAX*/ 1024];
 
@@ -1055,73 +1072,6 @@ typedef struct UnifiedPaintSettings {
 
   /** User preferences for sculpt and paint. */
   int flag;
-  char _pad[4];
-
-  /* TODO: Many of the following values should not be on this struct, as it causes them to be
-   * persisted. PaintRuntime may be a better choice for some of these. */
-
-  /* Rake rotation. */
-
-  /** Record movement of mouse so that rake can start at an intuitive angle. */
-  float last_rake[2];
-  float last_rake_angle;
-
-  int last_stroke_valid;
-  float average_stroke_accum[3];
-  int average_stroke_counter;
-
-  /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
-   * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
-   * mouse curve, Bezier curve, etc.) */
-  float brush_rotation;
-  float brush_rotation_sec;
-
-  /*******************************************************************************
-   * all data below are used to communicate with cursor drawing and tex sampling *
-   *******************************************************************************/
-  int anchored_size;
-
-  /**
-   * Normalization factor due to accumulated value of curve along spacing.
-   * Calculated when brush spacing changes to dampen strength of stroke
-   * if space attenuation is used.
-   */
-  float overlap_factor;
-  char draw_inverted;
-  /** Check is there an ongoing stroke right now. */
-  char stroke_active;
-
-  char draw_anchored;
-  char do_linear_conversion;
-
-  /**
-   * Store last location of stroke or whether the mesh was hit.
-   * Valid only while stroke is active.
-   */
-  float last_location[3];
-  int last_hit;
-
-  float anchored_initial_mouse[2];
-
-  /**
-   * Radius of brush, pre-multiplied with pressure.
-   * In case of anchored brushes contains the anchored radius.
-   */
-  float pixel_radius;
-  float initial_pixel_radius;
-  float start_pixel_radius;
-
-  /** Drawing pressure. */
-  float size_pressure_value;
-
-  /** Position of mouse, used to sample the texture. */
-  float tex_mouse[2];
-
-  /** Position of mouse, used to sample the mask texture. */
-  float mask_tex_mouse[2];
-
-  /** ColorSpace cache to avoid locking up during sampling. */
-  const ColorSpaceHandle *colorspace;
 } UnifiedPaintSettings;
 
 /** \} */
@@ -1131,15 +1081,6 @@ typedef struct UnifiedPaintSettings {
  * \{ */
 
 #define PAINT_MAX_INPUT_SAMPLES 64
-
-typedef struct Paint_Runtime {
-  /** Avoid having to compare with scene pointer everywhere. */
-  unsigned int initialized;
-  unsigned short ob_mode;
-  char _pad[2];
-  /** The last brush that was active. Used to support toggling. */
-  struct AssetWeakReference *previous_active_brush_reference;
-} Paint_Runtime;
 
 typedef struct NamedBrushAssetReference {
   struct NamedBrushAssetReference *next, *prev;
@@ -1220,7 +1161,7 @@ typedef struct Paint {
   char _pad2[4];
   struct UnifiedPaintSettings unified_paint_settings;
 
-  struct Paint_Runtime runtime;
+  PaintRuntimeHandle *runtime;
 } Paint;
 
 /** \} */
@@ -2243,6 +2184,10 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
+#ifdef __cplusplus
+  /* Return the frame rate of the scene. */
+  double frames_per_second() const;
+#endif
 } Scene;
 
 /** \} */
@@ -2394,7 +2339,7 @@ enum {
   R_BAKE_MULTIRES = 1 << 4,
   R_BAKE_LORES_MESH = 1 << 5,
   // R_BAKE_VCOL = 1 << 6, /* Deprecated. */
-  R_BAKE_USERSCALE = 1 << 7,
+  // R_BAKE_USERSCALE = 1 << 7, /* Deprecated. */
   R_BAKE_CAGE = 1 << 8,
   R_BAKE_SPLIT_MAT = 1 << 9,
   R_BAKE_AUTO_NAME = 1 << 10,
@@ -2477,7 +2422,6 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 #define PEFRA ((PRVRANGEON) ? (scene->r.pefra) : (scene->r.efra))
 #define FRA2TIME(a) ((((double)scene->r.frs_sec_base) * (double)(a)) / (double)scene->r.frs_sec)
 #define TIME2FRA(a) ((((double)scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
-#define FPS (((double)scene->r.frs_sec) / (double)scene->r.frs_sec_base)
 
 /** \} */
 

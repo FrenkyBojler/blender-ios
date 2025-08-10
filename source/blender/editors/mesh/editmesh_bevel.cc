@@ -14,7 +14,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -93,6 +93,9 @@ struct BevelData {
   float segments;   /* Segments as float so smooth mouse pan works in small increments */
 
   CurveProfile *custom_profile;
+
+  bool use_automerge;
+  double automerge_threshold;
 };
 
 enum {
@@ -130,7 +133,7 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
 
   char offset_str[NUM_STR_REP_LEN];
   if (RNA_enum_get(op->ptr, "offset_type") == BEVEL_AMT_PERCENT) {
-    SNPRINTF(offset_str, "%.1f%%", RNA_float_get(op->ptr, "offset_pct"));
+    SNPRINTF_UTF8(offset_str, "%.1f%%", RNA_float_get(op->ptr, "offset_pct"));
   }
   else {
     double offset_val = double(RNA_float_get(op->ptr, "offset"));
@@ -242,6 +245,9 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
   /* Put the Curve Profile from the toolsettings into the opdata struct */
   opdata->custom_profile = ts->custom_bevel_profile_preset;
 
+  opdata->use_automerge = scene->toolsettings->automerge & AUTO_MERGE;
+  opdata->automerge_threshold = scene->toolsettings->doublimit;
+
   {
     const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
         scene, view_layer, v3d);
@@ -303,7 +309,7 @@ static bool edbm_bevel_calc(wmOperator *op)
 {
   BevelData *opdata = static_cast<BevelData *>(op->customdata);
   BMOperator bmop;
-  bool changed = false;
+  bool changed_multi = false;
 
   const float offset = get_bevel_offset(op);
   const int offset_type = RNA_enum_get(op->ptr, "offset_type");
@@ -370,21 +376,39 @@ static bool edbm_bevel_calc(wmOperator *op)
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(
           em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+      if (affect == BEVEL_AFFECT_VERTICES) {
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+
+        if ((em->bm->selectmode & SCE_SELECT_VERTEX) == 0) {
+          BM_mesh_select_mode_flush_ex(em->bm, SCE_SELECT_VERTEX, BM_SELECT_LEN_FLUSH_RECALC_EDGE);
+        }
+      }
     }
+
+    bool changed = false;
+
+    if (opdata->use_automerge) {
+      changed |= EDBM_automerge_connected(
+          obedit, false, BM_ELEM_SELECT, opdata->automerge_threshold);
+    }
+
+    changed |= EDBM_op_finish(em, &bmop, op, true);
 
     /* no need to de-select existing geometry */
-    if (!EDBM_op_finish(em, &bmop, op, true)) {
-      continue;
+    if (changed) {
+      EDBMUpdate_Params params{};
+      params.calc_looptris = true;
+      params.calc_normals = true;
+      params.is_destructive = true;
+      EDBM_update(static_cast<Mesh *>(obedit->data), &params);
     }
 
-    EDBMUpdate_Params params{};
-    params.calc_looptris = true;
-    params.calc_normals = true;
-    params.is_destructive = true;
-    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
-    changed = true;
+    changed_multi |= changed;
   }
-  return changed;
+  return changed_multi;
 }
 
 static void edbm_bevel_exit(bContext *C, wmOperator *op)

@@ -192,7 +192,10 @@ class SEQUENCER_HT_header(Header):
         sub = row.row(align=True)
         sub.popover(panel="SEQUENCER_PT_snapping")
         if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
-            layout.popover(panel="SEQUENCER_PT_playhead_snapping")
+            row = layout.row(align=True)
+            row.prop(tool_settings, "use_snap_playhead", text="")
+            sub = row.row(align=True)
+            sub.popover(panel="SEQUENCER_PT_playhead_snapping", text="")
         layout.separator_spacer()
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
@@ -796,7 +799,7 @@ class SEQUENCER_MT_add_scene(Menu):
 
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("sequencer.scene_strip_add_new", text="New Scene", icon='ADD').type = 'NEW'
+        layout.operator("sequencer.scene_strip_add_new", text="Empty Scene", icon='ADD').type = 'EMPTY'
 
         bpy_data_scenes_len = len(bpy.data.scenes)
         if bpy_data_scenes_len > 10:
@@ -985,6 +988,7 @@ class SEQUENCER_MT_strip_animation(Menu):
         layout.operator("anim.keyframe_insert", text="Insert Keyframe")
         layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set").always_prompt = True
         layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
+        layout.operator("anim.keyframe_delete_vse", text="Delete Keyframes...")
 
 
 class SEQUENCER_MT_strip_input(Menu):

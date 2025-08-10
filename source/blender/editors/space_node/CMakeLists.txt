@@ -12,6 +12,7 @@ set(INC
   ../../compositor/utilities
   ../../makesrna
   ../../nodes/geometry/include
+  ../asset
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -37,6 +38,7 @@ set(SRC
   node_relationships.cc
   node_select.cc
   node_shader_preview.cc
+  node_socket_tooltip.cc
   node_sync_sockets.cc
   node_templates.cc
   node_view.cc
