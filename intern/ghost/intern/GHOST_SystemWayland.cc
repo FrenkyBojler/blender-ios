@@ -4055,7 +4055,7 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
             /* We never want mouse wheel events to be treated as smooth scrolling as this
              * causes mouse wheel scroll to orbit the view, see #120587.
              * Although it could be supported if the event system would forward
-             * the source of the scroll action (a wheel or touch device).  */
+             * the source of the scroll action (a wheel or touch device). */
             ps.smooth_xy[0] = 0;
             ps.smooth_xy[1] = 0;
           }
@@ -8760,15 +8760,16 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
 
   if (seat->wl.pointer) {
     /* Set cursor for the pointer device. */
-    if (!seat->cursor.shape.device) {
+    if (seat->cursor.shape.device == nullptr) {
       seat->cursor.shape.device = wp_cursor_shape_manager_v1_get_pointer(
           display_->wp.cursor_shape_manager, seat->wl.pointer);
-      if (!seat->cursor.shape.device) {
-        return GHOST_kFailure;
+    }
+    if (seat->cursor.shape.device) {
+      if (seat->cursor.is_hardware) {
+        wp_cursor_shape_device_v1_set_shape(
+            seat->cursor.shape.device, seat->pointer.serial, *wl_shape);
       }
     }
-    wp_cursor_shape_device_v1_set_shape(
-        seat->cursor.shape.device, seat->pointer.serial, *wl_shape);
     /* Set this to make sure we remember which shape we set when unhiding cursors. */
     seat->cursor.shape.enum_id = *wl_shape;
 
@@ -8781,14 +8782,16 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
   for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
     GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
         zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-    if (!tablet_tool->shape.device) {
+    if (tablet_tool->shape.device == nullptr) {
       tablet_tool->shape.device = wp_cursor_shape_manager_v1_get_tablet_tool_v2(
           display_->wp.cursor_shape_manager, zwp_tablet_tool_v2);
-      if (!tablet_tool->shape.device) {
-        return GHOST_kFailure;
+    }
+    if (tablet_tool->shape.device) {
+      if (seat->cursor.is_hardware) {
+        wp_cursor_shape_device_v1_set_shape(
+            tablet_tool->shape.device, tablet_tool->serial, *wl_shape);
       }
     }
-    wp_cursor_shape_device_v1_set_shape(tablet_tool->shape.device, tablet_tool->serial, *wl_shape);
     /* Set this to make sure we remember which shape we set when unhiding cursors. */
     tablet_tool->shape.enum_id = *wl_shape;
   }
