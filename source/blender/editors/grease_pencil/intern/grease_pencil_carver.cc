@@ -1572,13 +1572,11 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
 
   const bke::AttributeAccessor src_attributes = src.attributes();
+  const VArray<bool> src_cyclic = src.cyclic();
   bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
   dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
-  dst_curves.cyclic_for_write().copy_from(cyclic);
-  array_utils::copy(src.cyclic(), unchanged_curves_mask, dst_curves.cyclic_for_write());
-
   Array<int> src_by_dst_map(dst_points_by_curve.size());
 
   for (const int i : dst_points_by_curve.index_range()) {
@@ -1592,6 +1590,11 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                          bke::attribute_filter_from_skip_ref({"cyclic"}),
                          src_by_dst_map,
                          dst_attributes);
+
+  MutableSpan<bool> dst_cyclic = dst_curves.cyclic_for_write();
+  dst_cyclic.copy_from(cyclic);
+  unchanged_curves_mask.foreach_index(
+      GrainSize(512), [&](const int i) { dst_cyclic[i] = src_cyclic[src_by_dst_map[i]]; });
 
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
 
