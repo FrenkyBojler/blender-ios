@@ -21,6 +21,15 @@ struct FresnelThinFilm {
   float ior;
 };
 
+struct FresnelF82Tint {
+  FresnelThinFilm thin_film;
+
+  /* Perpendicular reflectivity. */
+  Spectrum f0;
+  /* Precomputed (1-cos)^6 factor for edge tint. */
+  Spectrum b;
+};
+
 template<typename T> struct ComplexIOR {
   T eta;
   T k;
@@ -238,7 +247,18 @@ ccl_device float ior_from_F0(const float f0)
   return (1.0f + sqrt_f0) / (1.0f - sqrt_f0);
 }
 
+ccl_device float3 ior_from_F0(const float3 f0)
+{
+  const float3 sqrt_f0 = sqrt(clamp(f0, zero_float3(), make_float3(0.99f)));
+  return (1.0f + sqrt_f0) / (1.0f - sqrt_f0);
+}
+
 ccl_device float F0_from_ior(const float ior)
+{
+  return sqr((ior - 1.0f) / (ior + 1.0f));
+}
+
+ccl_device float3 F0_from_ior(const float3 ior)
 {
   return sqr((ior - 1.0f) / (ior + 1.0f));
 }
@@ -472,7 +492,7 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
                                         const float ambient_ior,
                                         const FresnelThinFilm thin_film,
                                         const ComplexIOR<SpectrumOrFloat> substrate_ior,
-                                        ccl_private const SpectrumOrFloat *R23,
+                                        ccl_private const FresnelF82Tint *f82_tint,
                                         const float cos_theta_1,
                                         ccl_private float *r_cos_theta_3)
 {
@@ -498,12 +518,15 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   SpectrumOrFloat R23_s, R23_p, phi23_s, phi23_p;
   if constexpr (fresnel_info<SpectrumOrFloat>::conductive) {
     /* Material is a conductor. */
-    if (R23 != nullptr) {
-      /* If reflectances were provided by the caller, only calculate phase shifts. */
+    if (f82_tint != nullptr) {
+      /* Calculate reflectance based on F82 Tint values if the caller provided them. */
+      const Spectrum f0 = F0_from_ior(ior_from_F0(f82_tint->f0) / film_ior);
+      const Spectrum R23 = fresnel_f82(-cos_theta_2, f0, f82_tint->b);
+      R23_s = R23;
+      R23_p = R23;
+
       fresnel_conductor_polarized(
           -cos_theta_2, film_ior, substrate_ior, nullptr, nullptr, &phi23_s, &phi23_p);
-      R23_s = *R23;
-      R23_p = *R23;
     }
     else {
       fresnel_conductor_polarized(

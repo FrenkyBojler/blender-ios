@@ -52,15 +52,6 @@ struct FresnelGeneralizedSchlick {
   float exponent;
 };
 
-struct FresnelF82Tint {
-  FresnelThinFilm thin_film;
-
-  /* Perpendicular reflectivity. */
-  Spectrum f0;
-  /* Precomputed (1-cos)^6 factor for edge tint. */
-  Spectrum b;
-};
-
 struct MicrofacetBsdf {
   SHADER_CLOSURE_BASE;
 
@@ -277,7 +268,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
       const Spectrum k = safe_sqrt((r * sqr(n + 1) - sqr(n - 1)) / (1.0f - r));
 
       *r_reflectance = fresnel_iridescence<Spectrum>(
-          kg, 1.0f, fresnel->thin_film, {n, k}, &reflectance, cos_theta_i, r_cos_theta_t);
+          kg, 1.0f, fresnel->thin_film, {n, k}, fresnel, cos_theta_i, r_cos_theta_t);
     }
     else {
       *r_reflectance = reflectance;
