@@ -1605,6 +1605,29 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
     src_by_dst_map[i] = segments[segment_range.first()].curve;
   }
 
+  Vector<InterpolatePoint> clipping_point_to_interpolate;
+  for (const int curve_i : dst_points_by_curve.index_range()) {
+    const IndexRange points = dst_points_by_curve[curve_i];
+    const Span<bool> range_is_clipping = is_point_clipping.as_span().slice(points);
+
+    const IndexMask clipping_ranges = IndexMask::from_bools(range_is_clipping, memory);
+    clipping_ranges.foreach_range([&](const IndexRange &range) {
+      const IndexRange full_range = range.shift(points.first());
+      int range_first = int(full_range.first() - 1);
+      int range_last = int(full_range.last() + 1);
+      if (range_first == points.first() - 1) {
+        range_first = points.last();
+      }
+      if (range_last == points.last() + 1) {
+        range_last = points.first();
+      }
+      for (const int i : range.index_range()) {
+        const float t = (i + 1.0f) / (range.size() + 1.0f);
+        clipping_point_to_interpolate.append({int(full_range[i]), range_first, range_last, t});
+      }
+    });
+  }
+
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
@@ -1665,6 +1688,22 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
       dst.span.slice(dst_points_by_curve[i])
           .copy_from(src.slice(src_points_by_curve[src_by_dst_map[i]]));
     });
+
+    if (iter.name != ".positions_2d") {
+      GMutableSpan attribute_data = dst.span;
+      bke::attribute_math::convert_to_static_type(attribute_data.type(), [&](auto dummy) {
+        using T = decltype(dummy);
+        MutableSpan<T> span_data = attribute_data.typed<T>();
+
+        for (const InterpolatePoint &interpolate_point : clipping_point_to_interpolate) {
+          span_data[interpolate_point.dst_point] = bke::attribute_math::mix2<T>(
+              interpolate_point.factor,
+              span_data[interpolate_point.src_point_1],
+              span_data[interpolate_point.src_point_2]);
+        }
+      });
+    }
+
     dst.finish();
   });
 
