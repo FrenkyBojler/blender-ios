@@ -27,8 +27,8 @@ struct ScopeHistogram {
   Array<uint3> data;
   /* Maximum R,G,B counts across all bins. */
   uint3 max_value = uint3(0);
-  /* Inclusive min..max range bin range with any data. */
-  uint2 bin_range = uint2(0);
+  /* Maximum R,G,B bins used. */
+  uint3 max_bin = uint3(0);
 
   void calc_from_ibuf(const ImBuf *ibuf,
                       const ColorManagedViewSettings &view_settings,

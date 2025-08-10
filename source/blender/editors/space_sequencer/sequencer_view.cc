@@ -8,6 +8,7 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_vector.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
@@ -187,7 +188,7 @@ static bool view_frame_preview_histogram(bContext *C, wmOperator *op, ARegion *r
 
   const View2D *v2d = UI_view2d_fromcontext(C);
   rctf cur_new = v2d->tot;
-  const float val_max = ScopeHistogram::bin_to_float(hist.bin_range.y);
+  const float val_max = ScopeHistogram::bin_to_float(math::reduce_max(hist.max_bin));
   cur_new.xmax = cur_new.xmin + (cur_new.xmax - cur_new.xmin) * val_max;
 
   /* Add some padding around whole histogram. */

@@ -473,15 +473,19 @@ void ScopeHistogram::calc_from_ibuf(const ImBuf *ibuf,
   }
 
   max_value = uint3(0);
-  for (const uint3 &v : data) {
-    max_value = math::max(max_value, v);
-  }
-  bin_range = uint2(0, data.size() - 1);
-  while (bin_range.x < data.size() - 1 && data[bin_range.x] == uint3(0)) {
-    bin_range.x++;
-  }
-  while (bin_range.y > 0 && data[bin_range.y] == uint3(0)) {
-    bin_range.y--;
+  max_bin = uint3(0);
+  for (int64_t i : data.index_range()) {
+    const uint3 &val = data[i];
+    max_value = math::max(max_value, val);
+    if (val.x != 0) {
+      max_bin.x = i;
+    }
+    if (val.y != 0) {
+      max_bin.y = i;
+    }
+    if (val.z != 0) {
+      max_bin.z = i;
+    }
   }
 }
 
