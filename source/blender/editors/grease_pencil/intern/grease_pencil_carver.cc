@@ -1532,6 +1532,8 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   for (const int curve_i : segment_offsets.index_range()) {
     point_offsets[curve_i] = i;
 
+    const bool unchanged = unchanged_curves[curve_i];
+
     const IndexRange segment_range = segment_offsets[curve_i];
     for (const int seg_i : segment_range) {
       const Segment &segment = segments[seg_i];
@@ -1544,11 +1546,13 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
         i++;
       }
 
-      segment.foreach_point(
-          [&](const int index, const int pos) { points_to_copy.append(int2(pos + i, index)); });
+      if (!unchanged) {
+        segment.foreach_point(
+            [&](const int index, const int pos) { points_to_copy.append(int2(pos + i, index)); });
 
-      if (reversed) {
-        ranges_to_reverse.append(IndexRange::from_begin_size(i, segment.points_num()));
+        if (reversed) {
+          ranges_to_reverse.append(IndexRange::from_begin_size(i, segment.points_num()));
+        }
       }
 
       i += segment.points_num();
