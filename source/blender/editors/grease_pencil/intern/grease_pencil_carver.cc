@@ -1497,6 +1497,25 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                                                        const Span<bool> cyclic,
                                                        const OffsetIndices<int> segment_offsets)
 {
+  Array<bool> unchanged_curves(segment_offsets.size(), false);
+
+  for (const int curve_i : segment_offsets.index_range()) {
+    const IndexRange segment_range = segment_offsets[curve_i];
+    if (segment_range.size() != 1) {
+      continue;
+    }
+
+    const Segment &segment = segments[segment_range.first()];
+    if (segment.has_intersection(Side::Start) || segment.has_intersection(Side::End)) {
+      continue;
+    }
+
+    unchanged_curves[curve_i] = true;
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask unchanged_curves_mask = IndexMask::from_bools(unchanged_curves, memory);
+
   struct InterpolatePoint {
     int dst_point;
     int src_point_1;
@@ -1554,20 +1573,23 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
 
   dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
   dst_curves.cyclic_for_write().copy_from(cyclic);
+  array_utils::copy(src.cyclic(), unchanged_curves_mask, dst_curves.cyclic_for_write());
 
-  Array<int> old_by_new_map(dst_points_by_curve.size());
+  Array<int> src_by_dst_map(dst_points_by_curve.size());
 
   for (const int i : dst_points_by_curve.index_range()) {
     const IndexRange segment_range = segment_offsets[i];
-    old_by_new_map[i] = segments[segment_range.first()].curve;
+    src_by_dst_map[i] = segments[segment_range.first()].curve;
   }
 
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
                          bke::attribute_filter_from_skip_ref({"cyclic"}),
-                         old_by_new_map,
+                         src_by_dst_map,
                          dst_attributes);
+
+  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
 
   /* Copy/Interpolate point attributes. */
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
@@ -1594,6 +1616,26 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
 
     attribute.dst.finish();
   }
+
+  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain != bke::AttrDomain::Point) {
+      return;
+    }
+    if (iter.data_type == bke::AttrType::String) {
+      return;
+    }
+    const GVArraySpan src = *iter.get(bke::AttrDomain::Point);
+    bke::GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
+        iter.name, bke::AttrDomain::Point, iter.data_type);
+    if (!dst) {
+      return;
+    }
+    unchanged_curves_mask.foreach_index(GrainSize(512), [&](const int i) {
+      dst.span.slice(dst_points_by_curve[i])
+          .copy_from(src.slice(src_points_by_curve[src_by_dst_map[i]]));
+    });
+    dst.finish();
+  });
 
   return dst_curves;
 }
