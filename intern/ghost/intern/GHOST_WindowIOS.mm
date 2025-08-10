@@ -54,9 +54,11 @@
 #define BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD true
 
 /* Debug function to log flag states */
-static void logInputSystemFlags() {
+static void logInputSystemFlags()
+{
   NSLog(@"INPUT SYSTEM FLAGS:");
-  NSLog(@"  BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD: %s", BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD ? "true" : "false");
+  NSLog(@"  BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD: %s",
+        BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD ? "true" : "false");
 }
 
 extern "C" {
@@ -76,10 +78,10 @@ int main_ios_callback(int argc, const char **argv);
 
 /* Input device management modes */
 typedef enum {
-  INPUT_MODE_TOUCH_ONLY,        // Touch gestures only (iPad mode)
-  INPUT_MODE_KEYBOARD_MOUSE,    // External keyboard and mouse only
-  INPUT_MODE_MIXED,             // Touch + keyboard/mouse simultaneously
-  INPUT_MODE_ADAPTIVE           // Auto-switch based on active input
+  INPUT_MODE_TOUCH_ONLY,      // Touch gestures only (iPad mode)
+  INPUT_MODE_KEYBOARD_MOUSE,  // External keyboard and mouse only
+  INPUT_MODE_MIXED,           // Touch + keyboard/mouse simultaneously
+  INPUT_MODE_ADAPTIVE         // Auto-switch based on active input
 } InputDeviceMode;
 
 struct TouchData {
@@ -318,7 +320,7 @@ typedef struct UserInputEvent {
   touch_point0 = window->scalePointToWindow(touch_point0);
   touch_point1 = window->scalePointToWindow(touch_point1);
   CGPoint centerPoint = CGPointMake((touch_point0.x + touch_point1.x) / 2.0f,
-                                   (touch_point0.y + touch_point1.y) / 2.0f);
+                                    (touch_point0.y + touch_point1.y) / 2.0f);
   return centerPoint;
 }
 
@@ -356,7 +358,7 @@ typedef struct UserInputEvent {
   GHOSTUITapGestureRecognizer *tap2f_gesture_recognizer;
   GHOSTUITapGestureRecognizer *tap3f_gesture_recognizer;
   GHOSTUITapGestureRecognizer *tap4f_gesture_recognizer;
-  GHOSTUIPanGestureRecognizer *pan_gesture_recognizer;  // Finger pan for orbit
+  GHOSTUIPanGestureRecognizer *pan_gesture_recognizer;         // Finger pan for orbit
   GHOSTUIPanGestureRecognizer *pan_pencil_gesture_recognizer;  // Pencil pan for box selection
   GHOSTUIPanGestureRecognizer *pan2f_gesture_recognizer;
   GHOSTUIPinchGestureRecognizer *zoom_gesture_recognizer;
@@ -377,7 +379,7 @@ typedef struct UserInputEvent {
   const char *text_field_string;
   GHOST_KeyboardProperties current_keyboard_properties;
   bool external_keyboard_connected;
-  
+
   /* Enhanced keyboard detection */
   NSString *external_keyboard_model;
   bool bluetooth_keyboard_connected;
@@ -406,7 +408,7 @@ typedef struct UserInputEvent {
   UIBarButtonItem *toolbar_live_text_item;
   UIBarButtonItem *toolbar_done_editing_item;
   UIBarButtonItem *toolbar_cancel_editing_item;
-  
+
   /* Direct event handling state tracking */
   GHOST_TButton current_mouse_button;
   std::unordered_map<uint64_t, GHOST_TButton> touch_button_map;
@@ -501,7 +503,7 @@ typedef struct UserInputEvent {
 {
   /* Log input system flag states for debugging */
   logInputSystemFlags();
-  
+
   system = sys;
   window = win;
   touch_stack = 0;
@@ -515,13 +517,13 @@ typedef struct UserInputEvent {
   toolbar = nil;
   last_tap_with_pencil = false;
   external_keyboard_connected = [GCKeyboard coalescedKeyboard] != nil;
-  
+
   /* Initialize enhanced keyboard detection */
   external_keyboard_model = nil;
   bluetooth_keyboard_connected = false;
   physical_keyboard_available = false;
   software_keyboard_visible = false;
-  
+
   /* Initialize enhanced mouse/trackpad detection */
   external_mouse_connected = false;
   external_trackpad_connected = false;
@@ -531,22 +533,22 @@ typedef struct UserInputEvent {
   mouse_button_count = 0;
   supports_scroll_wheel = false;
   supports_middle_button = false;
-  
+
   /* Initialize input device mode management */
   current_input_mode = INPUT_MODE_MIXED; /* Default to mixed input for simultaneous use */
   mixed_input_enabled = true;
   adaptive_input_enabled = true;
-  
+
   /* Perform initial device detection */
   [self detectKeyboardTypes];
   [self detectMouseTypes];
-  
+
   /* Detect optimal input mode based on available devices */
   [self detectOptimalInputMode];
-  
+
   /* Log initial input device state for debugging (one-time only) */
   NSLog(@"INPUT DEVICE SYSTEM INITIALIZED - Mode: %d", current_input_mode);
-  
+
   /* Initialize direct event handling state */
   current_mouse_button = GHOST_kButtonMaskNone;
   touch_button_map.clear();
@@ -564,7 +566,7 @@ typedef struct UserInputEvent {
                                            selector:@selector(keyboardWillHide:)
                                                name:UIKeyboardWillHideNotification
                                              object:nil];
-  
+
   /* Additional keyboard state notifications */
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(keyboardDidShow:)
@@ -592,8 +594,6 @@ typedef struct UserInputEvent {
 
 - (void)registerGestureRecognizers
 {
-  NSLog(@"REGISTERING GESTURE RECOGNIZERS - BYPASS_UIKIT_FOR_TRACKPAD: %s", BYPASS_UIKIT_FOR_TRACKPAD ? "true" : "false");
-  
   /** Create Gesture recognisers. */
   /* Tap gesture recognizer. */
   tap_gesture_recognizer = [[GHOSTUITapGestureRecognizer alloc]
@@ -646,7 +646,8 @@ typedef struct UserInputEvent {
   pan_gesture_recognizer.minimumNumberOfTouches = 1;
   pan_gesture_recognizer.maximumNumberOfTouches = 1;
   /* Only allow finger input for orbit */
-  pan_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
+  pan_gesture_recognizer.allowedTouchTypes =
+      @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
   [window->getView() addGestureRecognizer:pan_gesture_recognizer];
 
   /* Pan gesture recognizer for pencil input - box selection */
@@ -670,7 +671,8 @@ typedef struct UserInputEvent {
   /* Two finger gestures only.  */
   pan2f_gesture_recognizer.minimumNumberOfTouches = 2;
   pan2f_gesture_recognizer.maximumNumberOfTouches = 2;
-  pan2f_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
+  pan2f_gesture_recognizer.allowedTouchTypes =
+      @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
   [window->getView() addGestureRecognizer:pan2f_gesture_recognizer];
 
   /* Pinch/Zoom gesture recognizer. */
@@ -679,7 +681,8 @@ typedef struct UserInputEvent {
               action:@selector(handleZoom:)];
   zoom_gesture_recognizer.delegate = self;
   zoom_gesture_recognizer.cancelsTouchesInView = false;
-  zoom_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
+  zoom_gesture_recognizer.allowedTouchTypes =
+      @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
   [window->getView() addGestureRecognizer:zoom_gesture_recognizer];
 
   /* Rotation gesture recognizer for 2-finger rotation. */
@@ -688,16 +691,18 @@ typedef struct UserInputEvent {
               action:@selector(handleRotation:)];
   rotation_gesture_recognizer.delegate = self;
   rotation_gesture_recognizer.cancelsTouchesInView = false;
-  rotation_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
+  rotation_gesture_recognizer.allowedTouchTypes =
+      @[ @(UITouchTypeDirect), @(UITouchTypeIndirectPointer), @(UITouchTypeIndirect) ];
   [window->getView() addGestureRecognizer:rotation_gesture_recognizer];
 
   /* Apple Pencil hover recognizer. */
   hover_gesture_recognizer = [[GHOSTUIHoverGestureRecognizer alloc]
       initWithTarget:self
               action:@selector(handleHover:)];
-  hover_gesture_recognizer.allowedTouchTypes = @[ @(UITouchTypePencil), @(UITouchTypeIndirectPointer) ];
+  hover_gesture_recognizer.allowedTouchTypes =
+      @[ @(UITouchTypePencil), @(UITouchTypeIndirectPointer) ];
   hover_gesture_recognizer.delegate = self;
-  
+
   [window->getView() addGestureRecognizer:hover_gesture_recognizer];
   current_pencil_touch = nil;
 
@@ -811,62 +816,40 @@ typedef struct UserInputEvent {
                                       2));
           break;
         case UserInputEvent::EventTypes::SHIFT_BUTTON_DOWN:
-          system->pushEvent(
-              new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                 GHOST_kEventKeyDown,
-                                 window,
-                                 GHOST_kKeyLeftShift,
-                                 false,
-                                 nullptr));
+          system->pushEvent(new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                               GHOST_kEventKeyDown,
+                                               window,
+                                               GHOST_kKeyLeftShift,
+                                               false,
+                                               nullptr));
           break;
         case UserInputEvent::EventTypes::SHIFT_BUTTON_UP:
-          system->pushEvent(
-              new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                 GHOST_kEventKeyUp,
-                                 window,
-                                 GHOST_kKeyLeftShift,
-                                 false,
-                                 nullptr));
+          system->pushEvent(new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                               GHOST_kEventKeyUp,
+                                               window,
+                                               GHOST_kKeyLeftShift,
+                                               false,
+                                               nullptr));
           break;
         case UserInputEvent::EventTypes::ALT_BUTTON_DOWN:
-          system->pushEvent(
-              new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                 GHOST_kEventKeyDown,
-                                 window,
-                                 GHOST_kKeyLeftAlt,
-                                 false,
-                                 nullptr));
+          system->pushEvent(new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                               GHOST_kEventKeyDown,
+                                               window,
+                                               GHOST_kKeyLeftAlt,
+                                               false,
+                                               nullptr));
           break;
         case UserInputEvent::EventTypes::ALT_BUTTON_UP:
-          system->pushEvent(
-              new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                 GHOST_kEventKeyUp,
-                                 window,
-                                 GHOST_kKeyLeftAlt,
-                                 false,
-                                 nullptr));
+          system->pushEvent(new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                               GHOST_kEventKeyUp,
+                                               window,
+                                               GHOST_kKeyLeftAlt,
+                                               false,
+                                               nullptr));
           break;
                                     GHOST_kButtonMaskLeft,
                                     tablet_data));
-          break;
-        case UserInputEvent::EventTypes::ALT_BUTTON_DOWN:
-          system->pushEvent(
-              new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                 GHOST_kEventKeyDown,
-                                 window,
-                                 GHOST_kKeyLeftAlt,
-                                 false,
-                                 nullptr));
-          break;
-        case UserInputEvent::EventTypes::ALT_BUTTON_UP:
-          system->pushEvent(
-              new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                 GHOST_kEventKeyUp,
-                                 window,
-                                 GHOST_kKeyLeftAlt,
-                                 false,
-                                 nullptr));
-          break;
+                                    break;
         default:
           GHOST_ASSERT(FALSE, "GHOST_SystemIOS::generateUserInputEvents unsupported event type");
       }
@@ -880,13 +863,18 @@ typedef struct UserInputEvent {
         (UIGestureRecognizer *)otherGestureRecognizer
 {
   /* Allow tap gestures to work alongside any other gesture */
-  if (gestureRecognizer == tap_gesture_recognizer || otherGestureRecognizer == tap_gesture_recognizer ||
-      gestureRecognizer == tap2f_gesture_recognizer || otherGestureRecognizer == tap2f_gesture_recognizer ||
-      gestureRecognizer == tap3f_gesture_recognizer || otherGestureRecognizer == tap3f_gesture_recognizer ||
-      gestureRecognizer == tap4f_gesture_recognizer || otherGestureRecognizer == tap4f_gesture_recognizer) {
+  if (gestureRecognizer == tap_gesture_recognizer ||
+      otherGestureRecognizer == tap_gesture_recognizer ||
+      gestureRecognizer == tap2f_gesture_recognizer ||
+      otherGestureRecognizer == tap2f_gesture_recognizer ||
+      gestureRecognizer == tap3f_gesture_recognizer ||
+      otherGestureRecognizer == tap3f_gesture_recognizer ||
+      gestureRecognizer == tap4f_gesture_recognizer ||
+      otherGestureRecognizer == tap4f_gesture_recognizer)
+  {
     return YES;
   }
-  
+
   if (gestureRecognizer == pan2f_gesture_recognizer &&
       otherGestureRecognizer == zoom_gesture_recognizer)
   {
@@ -919,24 +907,30 @@ typedef struct UserInputEvent {
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
 {
   NSString *gestureType = @"Unknown";
-  if (gestureRecognizer == rotation_gesture_recognizer) gestureType = @"Rotation";
-  else if (gestureRecognizer == zoom_gesture_recognizer) gestureType = @"Zoom";
-  else if (gestureRecognizer == pan2f_gesture_recognizer) gestureType = @"Pan2F";
+  if (gestureRecognizer == rotation_gesture_recognizer)
+    gestureType = @"Rotation";
+  else if (gestureRecognizer == zoom_gesture_recognizer)
+    gestureType = @"Zoom";
+  else if (gestureRecognizer == pan2f_gesture_recognizer)
+    gestureType = @"Pan2F";
   /* For rotation gesture, check if there's significant rotation happening */
   if (gestureRecognizer == rotation_gesture_recognizer) {
     /* Check if zoom or pan are already active with significant motion */
     if (zoom_gesture_recognizer.state == UIGestureRecognizerStateBegan ||
-        zoom_gesture_recognizer.state == UIGestureRecognizerStateChanged) {
+        zoom_gesture_recognizer.state == UIGestureRecognizerStateChanged)
+    {
       CGFloat scale = zoom_gesture_recognizer.scale;
       if (fabs(scale - 1.0) > 0.03) { /* 3% scale threshold */
         return NO;
       }
     }
-    
+
     if (pan2f_gesture_recognizer.state == UIGestureRecognizerStateBegan ||
-        pan2f_gesture_recognizer.state == UIGestureRecognizerStateChanged) {
+        pan2f_gesture_recognizer.state == UIGestureRecognizerStateChanged)
+    {
       CGPoint translation = [pan2f_gesture_recognizer getScaledTranslation:window];
-      CGFloat translationMagnitude = sqrt(translation.x * translation.x + translation.y * translation.y);
+      CGFloat translationMagnitude = sqrt(translation.x * translation.x +
+                                          translation.y * translation.y);
       if (translationMagnitude > 5.0) { /* Translation threshold */
         return NO;
       }
@@ -948,49 +942,55 @@ typedef struct UserInputEvent {
     /* If zoom gesture is also active and has significant scale change, don't start pan */
     if (zoom_gesture_recognizer.state == UIGestureRecognizerStatePossible ||
         zoom_gesture_recognizer.state == UIGestureRecognizerStateBegan ||
-        zoom_gesture_recognizer.state == UIGestureRecognizerStateChanged) {
-      
+        zoom_gesture_recognizer.state == UIGestureRecognizerStateChanged)
+    {
+
       /* Check if there's significant scale change indicating zoom intent */
       CGFloat scale = zoom_gesture_recognizer.scale;
       if (fabs(scale - 1.0) > 0.05) { /* 5% scale change threshold */
         return NO;
       }
     }
-    
+
     /* If rotation gesture is active with significant rotation, don't start pan */
     if (rotation_gesture_recognizer.state == UIGestureRecognizerStateBegan ||
-        rotation_gesture_recognizer.state == UIGestureRecognizerStateChanged) {
+        rotation_gesture_recognizer.state == UIGestureRecognizerStateChanged)
+    {
       CGFloat rotation = fabs([rotation_gesture_recognizer getScaledRotation]);
       if (rotation > 0.05) { /* Small rotation threshold */
         return NO;
       }
     }
   }
-  
-  /* For zoom gesture, check if there's significant parallel movement or rotation indicating other intent */
+
+  /* For zoom gesture, check if there's significant parallel movement or rotation indicating other
+   * intent */
   if (gestureRecognizer == zoom_gesture_recognizer) {
     /* If pan is active and has significant translation, prioritize pan over zoom */
     if (pan2f_gesture_recognizer.state == UIGestureRecognizerStateBegan ||
-        pan2f_gesture_recognizer.state == UIGestureRecognizerStateChanged) {
-      
+        pan2f_gesture_recognizer.state == UIGestureRecognizerStateChanged)
+    {
+
       CGPoint translation = [pan2f_gesture_recognizer getScaledTranslation:window];
-      CGFloat translationMagnitude = sqrt(translation.x * translation.x + translation.y * translation.y);
-      
+      CGFloat translationMagnitude = sqrt(translation.x * translation.x +
+                                          translation.y * translation.y);
+
       if (translationMagnitude > 10.0) { /* Translation threshold */
         return NO;
       }
     }
-    
+
     /* If rotation is active and has significant rotation, prioritize rotation over zoom */
     if (rotation_gesture_recognizer.state == UIGestureRecognizerStateBegan ||
-        rotation_gesture_recognizer.state == UIGestureRecognizerStateChanged) {
+        rotation_gesture_recognizer.state == UIGestureRecognizerStateChanged)
+    {
       CGFloat rotation = fabs([rotation_gesture_recognizer getScaledRotation]);
       if (rotation > 0.05) { /* Rotation threshold */
         return NO;
       }
     }
   }
-  
+
   /* Allow all other gestures to begin normally */
   return YES;
 }
@@ -1024,7 +1024,7 @@ typedef struct UserInputEvent {
     if (touch.type != UITouchTypeDirect) {
       NSLog(@"INPUT TYPE DETECTED: %@", inputType);
     }
-    
+
     if (touch.type == UITouchTypePencil) {
       current_pencil_touch = touch;
       break;
@@ -1088,16 +1088,16 @@ typedef struct UserInputEvent {
 {
   BOOL mouseEventHandled = NO;
   BOOL keyboardEventHandled = NO;
-  
+
   /* Check if we should allow concurrent input */
   BOOL allowConcurrent = [self shouldAllowConcurrentInput];
-  
+
   /* Handle touch events (trackpad/mouse) bypass */
   if (event.type == UIEventTypeTouches) {
     /* Only bypass if we're in a mode that supports mouse input */
     if (current_input_mode != INPUT_MODE_TOUCH_ONLY) {
       BOOL shouldBypass = NO;
-      
+
       /* Check if any touch should bypass UIKit */
       for (UITouch *touch in event.allTouches) {
         if ([self shouldBypassUIKitForTouch:touch]) {
@@ -1105,37 +1105,46 @@ typedef struct UserInputEvent {
           break;
         }
       }
-      
+
       if (shouldBypass) {
-        NSLog(@"MOUSE EVENT: Bypassing UIKit for external pointing device (mode:%d)", current_input_mode);
+        NSLog(@"MOUSE EVENT: Bypassing UIKit for external pointing device (mode:%d)",
+              current_input_mode);
         /* Handle directly without UIKit gesture recognizers */
         [self handleDirectTouchEvent:event];
         mouseEventHandled = YES;
       }
     }
   }
-  
+
   /* Handle keyboard events bypass for external keyboards */
-  if (BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD && event.type == UIEventTypePresses && [self shouldBypassUIKitForKeyboard]) {
+  if (BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD && event.type == UIEventTypePresses &&
+      [self shouldBypassUIKitForKeyboard])
+  {
     /* Only bypass if we're in a mode that supports keyboard input */
     if (current_input_mode != INPUT_MODE_TOUCH_ONLY) {
-      NSLog(@"KEYBOARD EVENT: Bypassing UIKit for external keyboard (mode:%d)", current_input_mode);
+      NSLog(@"KEYBOARD EVENT: Bypassing UIKit for external keyboard (mode:%d)",
+            current_input_mode);
       [self handleDirectKeyboardEvent:event];
       keyboardEventHandled = YES;
     }
   }
-  
+
   /* Handle event completion based on input mode */
   if (mouseEventHandled || keyboardEventHandled) {
     if (allowConcurrent) {
-      NSLog(@"CONCURRENT INPUT: Handled mouse:%d keyboard:%d simultaneously", mouseEventHandled, keyboardEventHandled);
+      NSLog(@"CONCURRENT INPUT: Handled mouse:%d keyboard:%d simultaneously",
+            mouseEventHandled,
+            keyboardEventHandled);
       /* In concurrent mode, don't send to UIKit if we handled it directly */
       return;
-    } else {
-      NSLog(@"EXCLUSIVE INPUT: Handled %s event exclusively", mouseEventHandled ? "mouse" : "keyboard");
+    }
+    else {
+      NSLog(@"EXCLUSIVE INPUT: Handled %s event exclusively",
+            mouseEventHandled ? "mouse" : "keyboard");
       return;
     }
-  } else {
+  }
+  else {
     /* Default behavior - let UIKit handle the event */
     [super sendEvent:event];
   }
@@ -1144,15 +1153,24 @@ typedef struct UserInputEvent {
 - (BOOL)shouldBypassUIKitForTouch:(UITouch *)touch
 {
   /* Bypass UIKit for trackpad and indirect pointer input */
-  BOOL shouldBypass = (touch.type == UITouchTypeIndirect || touch.type == UITouchTypeIndirectPointer);
+  BOOL shouldBypass = (touch.type == UITouchTypeIndirect ||
+                       touch.type == UITouchTypeIndirectPointer);
   NSString *touchType = @"Unknown";
   switch (touch.type) {
-    case UITouchTypeDirect: touchType = @"Direct"; break;
-    case UITouchTypePencil: touchType = @"Pencil"; break;
-    case UITouchTypeIndirect: touchType = @"Indirect"; break;
-    case UITouchTypeIndirectPointer: touchType = @"IndirectPointer"; break;
+    case UITouchTypeDirect:
+      touchType = @"Direct";
+      break;
+    case UITouchTypePencil:
+      touchType = @"Pencil";
+      break;
+    case UITouchTypeIndirect:
+      touchType = @"Indirect";
+      break;
+    case UITouchTypeIndirectPointer:
+      touchType = @"IndirectPointer";
+      break;
   }
-  
+
   /* Only log bypass check for non-finger touches to reduce spam */
   if (touch.type != UITouchTypeDirect || shouldBypass) {
     NSLog(@"BYPASS CHECK: Touch type=%@ shouldBypass=%d", touchType, shouldBypass);
@@ -1163,86 +1181,93 @@ typedef struct UserInputEvent {
 - (GHOST_TButton)getMouseButtonFromTouch:(UITouch *)touch withEvent:(UIEvent *)event
 {
   /* Use native iOS UIEventButtonMask for reliable mouse button detection */
-  
+
   NSLog(@"BUTTON DETECTION START: Touch type=%ld force=%f", (long)touch.type, touch.force);
-  
+
   /* Check if the event has button mask information (iOS 13.4+) */
   if (@available(iOS 13.4, *)) {
     if ([event respondsToSelector:@selector(buttonMask)]) {
       UIEventButtonMask buttonMask = event.buttonMask;
-      
-      NSLog(@"BUTTON DETECTION: UIEventButtonMask = %lu (binary: %s)", 
-            (unsigned long)buttonMask, 
+
+      NSLog(@"BUTTON DETECTION: UIEventButtonMask = %lu (binary: %s)",
+            (unsigned long)buttonMask,
             [[NSString stringWithFormat:@"%08b", (unsigned int)buttonMask] UTF8String]);
-      
+
       /* UIEventButtonMask values (iOS 13.4+):
        * UIEventButtonMaskPrimary = 1 (0x1) = Left button
-       * UIEventButtonMaskSecondary = 2 (0x2) = Right button  
+       * UIEventButtonMaskSecondary = 2 (0x2) = Right button
        * Additional buttons use higher bits for middle/extra buttons
        */
-      
+
       /* Check for middle button (bit 2 = value 4) */
       if (buttonMask & (1 << 2)) {
         NSLog(@"DETECTED: Middle click (bit 2)");
         return GHOST_kButtonMaskMiddle;
       }
-      
+
       /* Check for right button (UIEventButtonMaskSecondary) */
       if (buttonMask & UIEventButtonMaskSecondary) {
         NSLog(@"DETECTED: Right click (UIEventButtonMaskSecondary)");
         return GHOST_kButtonMaskRight;
       }
-      
+
       /* Check for left button (UIEventButtonMaskPrimary) */
       if (buttonMask & UIEventButtonMaskPrimary) {
         NSLog(@"DETECTED: Left click (UIEventButtonMaskPrimary)");
         return GHOST_kButtonMaskLeft;
       }
-      
+
       /* Check for additional mouse buttons */
       if (buttonMask & (1 << 3)) { /* Fourth button - could be middle on some mice */
         NSLog(@"DETECTED: Middle click (bit 3 - fourth button)");
         return GHOST_kButtonMaskMiddle;
       }
-      
+
       if (buttonMask & (1 << 4)) { /* Fifth button */
         NSLog(@"DETECTED: Extra button (bit 4) - treating as right");
         return GHOST_kButtonMaskRight;
       }
-      
+
       /* If no specific button mask, fall back to touch-based detection */
       if (buttonMask == 0) {
         NSLog(@"BUTTON DETECTION: No buttonMask, falling back to touch detection");
-      } else {
-        NSLog(@"BUTTON DETECTION: Unknown buttonMask pattern %lu, falling back", (unsigned long)buttonMask);
       }
-    } else {
+      else {
+        NSLog(@"BUTTON DETECTION: Unknown buttonMask pattern %lu, falling back",
+              (unsigned long)buttonMask);
+      }
+    }
+    else {
       NSLog(@"BUTTON DETECTION: Event does not respond to buttonMask selector");
     }
-  } else {
+  }
+  else {
     NSLog(@"BUTTON DETECTION: iOS version < 13.4, using fallback");
   }
-  
+
   /* Fallback for older iOS versions or when buttonMask is not available */
-  NSArray *allPointerTouches = [[event.allTouches allObjects] filteredArrayUsingPredicate:
-                               [NSPredicate predicateWithBlock:^BOOL(UITouch *t, NSDictionary *bindings) {
-                                 return t.type == UITouchTypeIndirectPointer;
-                               }]];
-  
-  NSLog(@"BUTTON DETECTION FALLBACK: Total pointer touches: %lu, force: %f, tapCount: %ld", 
-        (unsigned long)allPointerTouches.count, touch.force, (long)touch.tapCount);
-  
+  NSArray *allPointerTouches = [[event.allTouches allObjects]
+      filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(UITouch *t,
+                                                                        NSDictionary *bindings) {
+        return t.type == UITouchTypeIndirectPointer;
+      }]];
+
+  NSLog(@"BUTTON DETECTION FALLBACK: Total pointer touches: %lu, force: %f, tapCount: %ld",
+        (unsigned long)allPointerTouches.count,
+        touch.force,
+        (long)touch.tapCount);
+
   /* Multi-finger fallback detection */
   if (allPointerTouches.count >= 3) {
     NSLog(@"DETECTED FALLBACK: Middle click (3+ finger)");
     return GHOST_kButtonMaskMiddle;
   }
-  
+
   if (allPointerTouches.count == 2) {
     NSLog(@"DETECTED FALLBACK: Right click (2-finger)");
     return GHOST_kButtonMaskRight;
   }
-  
+
   /* Single finger fallback - check force for middle click */
   if (allPointerTouches.count == 1) {
     if (touch.force > 0.0f && touch.maximumPossibleForce > 0.0f) {
@@ -1252,7 +1277,7 @@ typedef struct UserInputEvent {
         return GHOST_kButtonMaskMiddle;
       }
     }
-    
+
     /* Tap count fallback */
     if (touch.tapCount == 3) {
       NSLog(@"DETECTED FALLBACK: Middle click (triple tap)");
@@ -1263,7 +1288,7 @@ typedef struct UserInputEvent {
       return GHOST_kButtonMaskRight;
     }
   }
-  
+
   /* Default to left click */
   NSLog(@"DETECTED: Left click (default)");
   return GHOST_kButtonMaskLeft;
@@ -1276,7 +1301,7 @@ typedef struct UserInputEvent {
     if ([self shouldBypassUIKitForTouch:touch]) {
       CGPoint location = [touch locationInView:window->getView()];
       CGPoint scaledLocation = window->scalePointToWindow(location);
-      
+
       /* Log the direct input type */
       NSString *inputType = @"Unknown";
       switch (touch.type) {
@@ -1290,8 +1315,13 @@ typedef struct UserInputEvent {
           inputType = @"Other (Direct)";
           break;
       }
-      NSLog(@"DIRECT INPUT: %@ at (%f, %f) phase:%ld force:%f", inputType, scaledLocation.x, scaledLocation.y, (long)touch.phase, touch.force);
-      
+      NSLog(@"DIRECT INPUT: %@ at (%f, %f) phase:%ld force:%f",
+            inputType,
+            scaledLocation.x,
+            scaledLocation.y,
+            (long)touch.phase,
+            touch.force);
+
       /* Handle single touch events (clicks and cursor movement) */
       switch (touch.phase) {
         case UITouchPhaseBegan:
@@ -1304,16 +1334,16 @@ typedef struct UserInputEvent {
                                     scaledLocation.x,
                                     scaledLocation.y,
                                     GHOST_TABLET_DATA_NONE));
-          
+
           /* For pointer clicks, determine button type and send button down */
           if (touch.type == UITouchTypeIndirectPointer) {
             NSLog(@"INDIRECT POINTER: Determining button type");
             /* Determine button type using enhanced detection */
             GHOST_TButton buttonMask = [self getMouseButtonFromTouch:touch withEvent:event];
-            
+
             /* Store button for this touch */
             touch_button_map[(uint64_t)touch] = buttonMask;
-            
+
             NSLog(@"SENDING BUTTON DOWN EVENT: button=%d for touch %p", buttonMask, touch);
             system->pushEvent(
                 new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1321,13 +1351,14 @@ typedef struct UserInputEvent {
                                       window,
                                       buttonMask,
                                       GHOST_TABLET_DATA_NONE));
-            
+
             NSLog(@"BUTTON DOWN: %d for touch %p", buttonMask, touch);
-          } else {
+          }
+          else {
             NSLog(@"NOT INDIRECT POINTER: touch type=%ld, no button event", (long)touch.type);
           }
           break;
-          
+
         case UITouchPhaseMoved:
           /* Generate cursor move event for all types */
           system->pushEvent(
@@ -1338,7 +1369,7 @@ typedef struct UserInputEvent {
                                     scaledLocation.y,
                                     GHOST_TABLET_DATA_NONE));
           break;
-          
+
         case UITouchPhaseEnded:
         case UITouchPhaseCancelled:
           NSLog(@"TOUCH ENDED/CANCELLED: Checking for button up event");
@@ -1348,16 +1379,17 @@ typedef struct UserInputEvent {
             /* Retrieve stored button for this touch */
             uint64_t touchKey = (uint64_t)touch;
             GHOST_TButton buttonMask = GHOST_kButtonMaskLeft; /* Default fallback */
-            
+
             auto it = touch_button_map.find(touchKey);
             if (it != touch_button_map.end()) {
               buttonMask = it->second;
               touch_button_map.erase(it); /* Clean up */
               NSLog(@"BUTTON UP: Found stored button %d for touch %p", buttonMask, touch);
-            } else {
+            }
+            else {
               NSLog(@"BUTTON UP: No stored button found for touch %p, using default left", touch);
             }
-            
+
             NSLog(@"SENDING BUTTON UP EVENT: button=%d for touch %p", buttonMask, touch);
             system->pushEvent(
                 new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1365,73 +1397,82 @@ typedef struct UserInputEvent {
                                       window,
                                       buttonMask,
                                       GHOST_TABLET_DATA_NONE));
-            
+
             NSLog(@"BUTTON UP: %d for touch %p", buttonMask, touch);
-          } else {
-            NSLog(@"NOT INDIRECT POINTER END: touch type=%ld, no button up event", (long)touch.type);
+          }
+          else {
+            NSLog(@"NOT INDIRECT POINTER END: touch type=%ld, no button up event",
+                  (long)touch.type);
           }
           break;
-          
+
         default:
           break;
       }
     }
   }
-  
+
   /* Handle multi-touch scroll events - improved detection */
-  NSArray *trackpadTouches = [[event.allTouches allObjects] filteredArrayUsingPredicate:
-                             [NSPredicate predicateWithBlock:^BOOL(UITouch *touch, NSDictionary *bindings) {
-                               return [self shouldBypassUIKitForTouch:touch] && touch.type == UITouchTypeIndirect;
-                             }]];
-  
+  NSArray *trackpadTouches = [[event.allTouches allObjects]
+      filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(UITouch *touch,
+                                                                        NSDictionary *bindings) {
+        return [self shouldBypassUIKitForTouch:touch] && touch.type == UITouchTypeIndirect;
+      }]];
+
   if (trackpadTouches.count >= 2) {
     /* Process all combinations of touches to get best scroll data */
     UITouch *touch1 = trackpadTouches[0];
     UITouch *touch2 = trackpadTouches[1];
-    
+
     /* Only process scroll during move phase and if both touches are moving */
     if ((touch1.phase == UITouchPhaseMoved || touch2.phase == UITouchPhaseMoved) &&
         touch1.phase != UITouchPhaseEnded && touch2.phase != UITouchPhaseEnded &&
-        touch1.phase != UITouchPhaseCancelled && touch2.phase != UITouchPhaseCancelled) {
-      
+        touch1.phase != UITouchPhaseCancelled && touch2.phase != UITouchPhaseCancelled)
+    {
+
       CGPoint location1 = [touch1 locationInView:window->getView()];
       CGPoint prevLocation1 = [touch1 previousLocationInView:window->getView()];
       CGPoint location2 = [touch2 locationInView:window->getView()];
       CGPoint prevLocation2 = [touch2 previousLocationInView:window->getView()];
-      
+
       /* Calculate average movement for scroll */
       CGFloat deltaX = ((location1.x - prevLocation1.x) + (location2.x - prevLocation2.x)) / 2.0f;
       CGFloat deltaY = ((location1.y - prevLocation1.y) + (location2.y - prevLocation2.y)) / 2.0f;
-      
+
       /* Apply scaling factor and invert Y for natural scrolling */
       deltaX *= 2.0f;
       deltaY *= -2.0f; /* Invert Y for natural scrolling */
-      
+
       /* Lower threshold for more responsive scrolling */
       if (fabs(deltaX) > 0.1f || fabs(deltaY) > 0.1f) {
-        CGPoint centerPoint = CGPointMake((location1.x + location2.x) / 2.0f, (location1.y + location2.y) / 2.0f);
+        CGPoint centerPoint = CGPointMake((location1.x + location2.x) / 2.0f,
+                                          (location1.y + location2.y) / 2.0f);
         CGPoint scaledCenter = window->scalePointToWindow(centerPoint);
-        
+
         /* Send separate scroll wheel events for X and Y axes */
         if (fabs(deltaX) > 0.1f) {
-          system->pushEvent(
-              new GHOST_EventWheel(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                   window,
-                                   GHOST_kEventWheelAxisHorizontal,
-                                   (int32_t)(deltaX * 10.0f))); /* Scale up for better sensitivity */
+          system->pushEvent(new GHOST_EventWheel(
+              GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              window,
+              GHOST_kEventWheelAxisHorizontal,
+              (int32_t)(deltaX * 10.0f))); /* Scale up for better sensitivity */
           NSLog(@"SCROLL X: %f -> %d", deltaX, (int32_t)(deltaX * 10.0f));
         }
-        
+
         if (fabs(deltaY) > 0.1f) {
-          system->pushEvent(
-              new GHOST_EventWheel(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                                   window,
-                                   GHOST_kEventWheelAxisVertical,
-                                   (int32_t)(deltaY * 10.0f))); /* Scale up for better sensitivity */
+          system->pushEvent(new GHOST_EventWheel(
+              GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+              window,
+              GHOST_kEventWheelAxisVertical,
+              (int32_t)(deltaY * 10.0f))); /* Scale up for better sensitivity */
           NSLog(@"SCROLL Y: %f -> %d", deltaY, (int32_t)(deltaY * 10.0f));
         }
-        
-        NSLog(@"DIRECT SCROLL: delta(%f, %f) at (%f, %f)", deltaX, deltaY, scaledCenter.x, scaledCenter.y);
+
+        NSLog(@"DIRECT SCROLL: delta(%f, %f) at (%f, %f)",
+              deltaX,
+              deltaY,
+              scaledCenter.x,
+              scaledCenter.y);
       }
     }
   }
@@ -1444,24 +1485,27 @@ typedef struct UserInputEvent {
     NSLog(@"KEYBOARD BYPASS: Feature disabled");
     return NO;
   }
-  
+
   /* Only bypass UIKit for external/physical keyboards when we want system-level control
    * For now, let's be more conservative and allow normal keyboard input to flow through UIKit */
-  BOOL hasExternalKeyboard = [self isExternalKeyboardConnected] || [self isPhysicalKeyboardAvailable];
-  
+  BOOL hasExternalKeyboard = [self isExternalKeyboardConnected] ||
+                             [self isPhysicalKeyboardAvailable];
+
   /* For now, disable keyboard bypass to ensure normal typing works */
-  NSLog(@"KEYBOARD BYPASS: External keyboard detected: %@, but bypassing disabled for app compatibility", 
-        hasExternalKeyboard ? @"YES" : @"NO");
-    return NO;
+  NSLog(
+      @"KEYBOARD BYPASS: External keyboard detected: %@, but bypassing disabled for app "
+      @"compatibility",
+      hasExternalKeyboard ? @"YES" : @"NO");
+  return NO;
 }
 
 - (void)handleDirectKeyboardEvent:(UIEvent *)event
 {
   NSLog(@"KEYBOARD BYPASS: Handling direct keyboard event");
-  
+
   if (event.type == UIEventTypePresses) {
     UIPressesEvent *pressEvent = (UIPressesEvent *)event;
-    
+
     for (UIPress *press in pressEvent.allPresses) {
       [self handleKeyPress:press withEvent:pressEvent];
     }
@@ -1470,8 +1514,10 @@ typedef struct UserInputEvent {
 
 - (void)handleKeyPress:(UIPress *)press withEvent:(UIPressesEvent *)event
 {
-  NSLog(@"🔥 KEYBOARD DEBUG: handleKeyPress called - key: %@, phase: %ld", press.key.charactersIgnoringModifiers, (long)press.phase);
-  
+  NSLog(@"KEYBOARD DEBUG: handleKeyPress called - key: %@, phase: %ld",
+        press.key.charactersIgnoringModifiers,
+        (long)press.phase);
+
   GHOST_TEventType eventType;
   switch (press.phase) {
     case UIPressPhaseStationary:
@@ -1488,23 +1534,25 @@ typedef struct UserInputEvent {
       NSLog(@"KEYBOARD: Ignoring key phase %ld", (long)press.phase);
       return; /* Ignore other phases */
   }
-  
+
   /* Get current modifier flags from the press event */
   UIKeyModifierFlags modifiers = press.key.modifierFlags;
-  
+
   /* Convert iOS key to GHOST key */
   NSString *keyString = press.key.charactersIgnoringModifiers;
-  
+
   /* Handle modifier keys when no character is produced */
   if (!keyString || keyString.length == 0) {
     /* For pure modifier presses, we need to determine which specific modifier key */
     /* was pressed/released by examining the key code, not the current flags */
-    NSLog(@"KEYBOARD: Handling modifier key - phase: %ld, key code: %ld, flags: %lu", 
-          (long)press.phase, (long)press.key.keyCode, (unsigned long)modifiers);
-    
+    NSLog(@"KEYBOARD: Handling modifier key - phase: %ld, key code: %ld, flags: %lu",
+          (long)press.phase,
+          (long)press.key.keyCode,
+          (unsigned long)modifiers);
+
     /* Map iOS key codes to GHOST keys for modifier detection */
     GHOST_TKey ghostModifierKey = GHOST_kKeyUnknown;
-    
+
     /* Common iOS modifier key codes */
     switch (press.key.keyCode) {
       case 225: /* Left Shift */
@@ -1512,7 +1560,7 @@ typedef struct UserInputEvent {
         ghostModifierKey = GHOST_kKeyLeftShift;
         break;
       case 224: /* Left Control */
-      case 228: /* Right Control */  
+      case 228: /* Right Control */
         ghostModifierKey = GHOST_kKeyLeftControl;
         break;
       case 226: /* Left Alt/Option */
@@ -1527,7 +1575,7 @@ typedef struct UserInputEvent {
         NSLog(@"KEYBOARD: Unknown modifier key code: %ld", (long)press.key.keyCode);
         return;
     }
-    
+
     /* Send the specific modifier key event */
     GHOST_EventKey *keyEvent = new GHOST_EventKey(
         GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1537,26 +1585,38 @@ typedef struct UserInputEvent {
         false,
         nullptr);
     system->pushEvent(keyEvent);
-    
+
     const char *keyName = "";
     switch (ghostModifierKey) {
-      case GHOST_kKeyLeftShift: keyName = "Shift"; break;
-      case GHOST_kKeyLeftControl: keyName = "Ctrl"; break;
-      case GHOST_kKeyLeftAlt: keyName = "Alt"; break;
-      case GHOST_kKeyLeftOS: keyName = "Cmd"; break;
-      default: keyName = "Unknown"; break;
+      case GHOST_kKeyLeftShift:
+        keyName = "Shift";
+        break;
+      case GHOST_kKeyLeftControl:
+        keyName = "Ctrl";
+        break;
+      case GHOST_kKeyLeftAlt:
+        keyName = "Alt";
+        break;
+      case GHOST_kKeyLeftOS:
+        keyName = "Cmd";
+        break;
+      default:
+        keyName = "Unknown";
+        break;
     }
-    
-    NSLog(@"KEYBOARD: Sent %s %s (keycode: %ld)", keyName, 
-          eventType == GHOST_kEventKeyDown ? "down" : "up", (long)press.key.keyCode);
-    
+
+    NSLog(@"KEYBOARD: Sent %s %s (keycode: %ld)",
+          keyName,
+          eventType == GHOST_kEventKeyDown ? "down" : "up",
+          (long)press.key.keyCode);
+
     return;
   }
-  
+
   /* Handle regular keys (with or without modifiers) */
   GHOST_TKey ghostKey = [self convertIOSKeyToGHOST:keyString];
   NSLog(@"KEYBOARD: Converted key '%@' to GHOST key %d", keyString, ghostKey);
-  
+
   /* Send modifier events first for combinations like Cmd+C */
   if (eventType == GHOST_kEventKeyDown) {
     if (modifiers & UIKeyModifierCommand) {
@@ -1570,7 +1630,7 @@ typedef struct UserInputEvent {
       system->pushEvent(modEvent);
       NSLog(@"KEYBOARD: Sent Cmd down for combination");
     }
-    
+
     if (modifiers & UIKeyModifierControl) {
       GHOST_EventKey *modEvent = new GHOST_EventKey(
           GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1582,7 +1642,7 @@ typedef struct UserInputEvent {
       system->pushEvent(modEvent);
       NSLog(@"KEYBOARD: Sent Ctrl down for combination");
     }
-    
+
     if (modifiers & UIKeyModifierAlternate) {
       GHOST_EventKey *modEvent = new GHOST_EventKey(
           GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1594,7 +1654,7 @@ typedef struct UserInputEvent {
       system->pushEvent(modEvent);
       NSLog(@"KEYBOARD: Sent Alt down for combination");
     }
-    
+
     if (modifiers & UIKeyModifierShift) {
       GHOST_EventKey *modEvent = new GHOST_EventKey(
           GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1607,28 +1667,27 @@ typedef struct UserInputEvent {
       NSLog(@"KEYBOARD: Sent Shift down for combination");
     }
   }
-    
+
   /* Create and send GHOST keyboard event with modifier information */
   NSLog(@"KEYBOARD: Sending GHOST key event - type:%d key:%d", eventType, ghostKey);
-  
+
   /* Create GHOST event with UTF8 string for character input */
   NSString *utf8String = nil;
   if (eventType == GHOST_kEventKeyDown && press.key.characters.length > 0) {
     utf8String = press.key.characters;
   }
   const char *utf8CString = utf8String ? [utf8String UTF8String] : nullptr;
-  
-  GHOST_EventKey *keyEvent = new GHOST_EventKey(
-      GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-      eventType,
-      window,
-      ghostKey,
-      false, /* No repeat detection for now */
-      utf8CString);
-  
+
+  GHOST_EventKey *keyEvent = new GHOST_EventKey(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                                eventType,
+                                                window,
+                                                ghostKey,
+                                                false, /* No repeat detection for now */
+                                                utf8CString);
+
   system->pushEvent(keyEvent);
   NSLog(@"KEYBOARD: GHOST key event sent successfully");
-  
+
   /* Send modifier key up events after the main key for combinations */
   if (eventType == GHOST_kEventKeyUp) {
     if (modifiers & UIKeyModifierShift) {
@@ -1642,7 +1701,7 @@ typedef struct UserInputEvent {
       system->pushEvent(modEvent);
       NSLog(@"KEYBOARD: Sent Shift up for combination");
     }
-    
+
     if (modifiers & UIKeyModifierAlternate) {
       GHOST_EventKey *modEvent = new GHOST_EventKey(
           GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1654,7 +1713,7 @@ typedef struct UserInputEvent {
       system->pushEvent(modEvent);
       NSLog(@"KEYBOARD: Sent Alt up for combination");
     }
-    
+
     if (modifiers & UIKeyModifierControl) {
       GHOST_EventKey *modEvent = new GHOST_EventKey(
           GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1666,7 +1725,7 @@ typedef struct UserInputEvent {
       system->pushEvent(modEvent);
       NSLog(@"KEYBOARD: Sent Ctrl up for combination");
     }
-    
+
     if (modifiers & UIKeyModifierCommand) {
       GHOST_EventKey *modEvent = new GHOST_EventKey(
           GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -1686,7 +1745,7 @@ typedef struct UserInputEvent {
   if (!key || key.length == 0) {
     return GHOST_kKeyUnknown;
   }
-  
+
   /* Handle special modifier symbols first */
   if ([key isEqualToString:@"⇧"]) {
     return GHOST_kKeyLeftShift;
@@ -1700,7 +1759,7 @@ typedef struct UserInputEvent {
   if ([key isEqualToString:@"⌘"]) {
     return GHOST_kKeyLeftOS;
   }
-  
+
   /* Handle special keys using string comparison (iOS 7.0+) */
   if (@available(iOS 7.0, *)) {
     if ([key isEqualToString:UIKeyInputEscape]) {
@@ -1722,75 +1781,127 @@ typedef struct UserInputEvent {
       return GHOST_kKeyBackSpace;
     }
   }
-  
+
   /* Handle additional special keys by string name */
-  if ([key isEqualToString:@"F1"]) return GHOST_kKeyF1;
-  if ([key isEqualToString:@"F2"]) return GHOST_kKeyF2;
-  if ([key isEqualToString:@"F3"]) return GHOST_kKeyF3;
-  if ([key isEqualToString:@"F4"]) return GHOST_kKeyF4;
-  if ([key isEqualToString:@"F5"]) return GHOST_kKeyF5;
-  if ([key isEqualToString:@"F6"]) return GHOST_kKeyF6;
-  if ([key isEqualToString:@"F7"]) return GHOST_kKeyF7;
-  if ([key isEqualToString:@"F8"]) return GHOST_kKeyF8;
-  if ([key isEqualToString:@"F9"]) return GHOST_kKeyF9;
-  if ([key isEqualToString:@"F10"]) return GHOST_kKeyF10;
-  if ([key isEqualToString:@"F11"]) return GHOST_kKeyF11;
-  if ([key isEqualToString:@"F12"]) return GHOST_kKeyF12;
-  if ([key isEqualToString:@"F13"]) return GHOST_kKeyF13;
-  if ([key isEqualToString:@"F14"]) return GHOST_kKeyF14;
-  if ([key isEqualToString:@"F15"]) return GHOST_kKeyF15;
-  if ([key isEqualToString:@"F16"]) return GHOST_kKeyF16;
-  if ([key isEqualToString:@"F17"]) return GHOST_kKeyF17;
-  if ([key isEqualToString:@"F18"]) return GHOST_kKeyF18;
-  if ([key isEqualToString:@"F19"]) return GHOST_kKeyF19;
-  if ([key isEqualToString:@"F20"]) return GHOST_kKeyF20;
-  if ([key isEqualToString:@"F21"]) return GHOST_kKeyF21;
-  if ([key isEqualToString:@"F22"]) return GHOST_kKeyF22;
-  if ([key isEqualToString:@"F23"]) return GHOST_kKeyF23;
-  if ([key isEqualToString:@"F24"]) return GHOST_kKeyF24;
-  
+  if ([key isEqualToString:@"F1"])
+    return GHOST_kKeyF1;
+  if ([key isEqualToString:@"F2"])
+    return GHOST_kKeyF2;
+  if ([key isEqualToString:@"F3"])
+    return GHOST_kKeyF3;
+  if ([key isEqualToString:@"F4"])
+    return GHOST_kKeyF4;
+  if ([key isEqualToString:@"F5"])
+    return GHOST_kKeyF5;
+  if ([key isEqualToString:@"F6"])
+    return GHOST_kKeyF6;
+  if ([key isEqualToString:@"F7"])
+    return GHOST_kKeyF7;
+  if ([key isEqualToString:@"F8"])
+    return GHOST_kKeyF8;
+  if ([key isEqualToString:@"F9"])
+    return GHOST_kKeyF9;
+  if ([key isEqualToString:@"F10"])
+    return GHOST_kKeyF10;
+  if ([key isEqualToString:@"F11"])
+    return GHOST_kKeyF11;
+  if ([key isEqualToString:@"F12"])
+    return GHOST_kKeyF12;
+  if ([key isEqualToString:@"F13"])
+    return GHOST_kKeyF13;
+  if ([key isEqualToString:@"F14"])
+    return GHOST_kKeyF14;
+  if ([key isEqualToString:@"F15"])
+    return GHOST_kKeyF15;
+  if ([key isEqualToString:@"F16"])
+    return GHOST_kKeyF16;
+  if ([key isEqualToString:@"F17"])
+    return GHOST_kKeyF17;
+  if ([key isEqualToString:@"F18"])
+    return GHOST_kKeyF18;
+  if ([key isEqualToString:@"F19"])
+    return GHOST_kKeyF19;
+  if ([key isEqualToString:@"F20"])
+    return GHOST_kKeyF20;
+  if ([key isEqualToString:@"F21"])
+    return GHOST_kKeyF21;
+  if ([key isEqualToString:@"F22"])
+    return GHOST_kKeyF22;
+  if ([key isEqualToString:@"F23"])
+    return GHOST_kKeyF23;
+  if ([key isEqualToString:@"F24"])
+    return GHOST_kKeyF24;
+
   /* Additional navigation and editing keys */
-  if ([key isEqualToString:@"Home"]) return GHOST_kKeyHome;
-  if ([key isEqualToString:@"End"]) return GHOST_kKeyEnd;
-  if ([key isEqualToString:@"Page Up"]) return GHOST_kKeyUpPage;
-  if ([key isEqualToString:@"Page Down"]) return GHOST_kKeyDownPage;
-  if ([key isEqualToString:@"Insert"]) return GHOST_kKeyInsert;
-  if ([key isEqualToString:@"Delete"]) return GHOST_kKeyDelete;
-  if ([key isEqualToString:@"Clear"]) return GHOST_kKeyDelete;
-  if ([key isEqualToString:@"Help"]) return GHOST_kKeyUnknown; /* No direct GHOST equivalent */
-  
+  if ([key isEqualToString:@"Home"])
+    return GHOST_kKeyHome;
+  if ([key isEqualToString:@"End"])
+    return GHOST_kKeyEnd;
+  if ([key isEqualToString:@"Page Up"])
+    return GHOST_kKeyUpPage;
+  if ([key isEqualToString:@"Page Down"])
+    return GHOST_kKeyDownPage;
+  if ([key isEqualToString:@"Insert"])
+    return GHOST_kKeyInsert;
+  if ([key isEqualToString:@"Delete"])
+    return GHOST_kKeyDelete;
+  if ([key isEqualToString:@"Clear"])
+    return GHOST_kKeyDelete;
+  if ([key isEqualToString:@"Help"])
+    return GHOST_kKeyUnknown; /* No direct GHOST equivalent */
+
   /* Keypad/Numeric keys */
-  if ([key isEqualToString:@"Keypad 0"]) return GHOST_kKeyNumpad0;
-  if ([key isEqualToString:@"Keypad 1"]) return GHOST_kKeyNumpad1;
-  if ([key isEqualToString:@"Keypad 2"]) return GHOST_kKeyNumpad2;
-  if ([key isEqualToString:@"Keypad 3"]) return GHOST_kKeyNumpad3;
-  if ([key isEqualToString:@"Keypad 4"]) return GHOST_kKeyNumpad4;
-  if ([key isEqualToString:@"Keypad 5"]) return GHOST_kKeyNumpad5;
-  if ([key isEqualToString:@"Keypad 6"]) return GHOST_kKeyNumpad6;
-  if ([key isEqualToString:@"Keypad 7"]) return GHOST_kKeyNumpad7;
-  if ([key isEqualToString:@"Keypad 8"]) return GHOST_kKeyNumpad8;
-  if ([key isEqualToString:@"Keypad 9"]) return GHOST_kKeyNumpad9;
-  if ([key isEqualToString:@"Keypad ."]) return GHOST_kKeyNumpadPeriod;
-  if ([key isEqualToString:@"Keypad +"]) return GHOST_kKeyNumpadPlus;
-  if ([key isEqualToString:@"Keypad -"]) return GHOST_kKeyNumpadMinus;
-  if ([key isEqualToString:@"Keypad *"]) return GHOST_kKeyNumpadAsterisk;
-  if ([key isEqualToString:@"Keypad /"]) return GHOST_kKeyNumpadSlash;
-  if ([key isEqualToString:@"Keypad Enter"]) return GHOST_kKeyNumpadEnter;
-  
+  if ([key isEqualToString:@"Keypad 0"])
+    return GHOST_kKeyNumpad0;
+  if ([key isEqualToString:@"Keypad 1"])
+    return GHOST_kKeyNumpad1;
+  if ([key isEqualToString:@"Keypad 2"])
+    return GHOST_kKeyNumpad2;
+  if ([key isEqualToString:@"Keypad 3"])
+    return GHOST_kKeyNumpad3;
+  if ([key isEqualToString:@"Keypad 4"])
+    return GHOST_kKeyNumpad4;
+  if ([key isEqualToString:@"Keypad 5"])
+    return GHOST_kKeyNumpad5;
+  if ([key isEqualToString:@"Keypad 6"])
+    return GHOST_kKeyNumpad6;
+  if ([key isEqualToString:@"Keypad 7"])
+    return GHOST_kKeyNumpad7;
+  if ([key isEqualToString:@"Keypad 8"])
+    return GHOST_kKeyNumpad8;
+  if ([key isEqualToString:@"Keypad 9"])
+    return GHOST_kKeyNumpad9;
+  if ([key isEqualToString:@"Keypad ."])
+    return GHOST_kKeyNumpadPeriod;
+  if ([key isEqualToString:@"Keypad +"])
+    return GHOST_kKeyNumpadPlus;
+  if ([key isEqualToString:@"Keypad -"])
+    return GHOST_kKeyNumpadMinus;
+  if ([key isEqualToString:@"Keypad *"])
+    return GHOST_kKeyNumpadAsterisk;
+  if ([key isEqualToString:@"Keypad /"])
+    return GHOST_kKeyNumpadSlash;
+  if ([key isEqualToString:@"Keypad Enter"])
+    return GHOST_kKeyNumpadEnter;
+
   /* For regular character keys, get the first character */
   unichar character = [key characterAtIndex:0];
-  
+
   /* Handle common control characters */
   switch (character) {
     case '\r':
-    case '\n': return GHOST_kKeyEnter;
-    case '\t': return GHOST_kKeyTab;
-    case ' ': return GHOST_kKeySpace;
-    case 0x1B: return GHOST_kKeyEsc; /* ESC character */
+    case '\n':
+      return GHOST_kKeyEnter;
+    case '\t':
+      return GHOST_kKeyTab;
+    case ' ':
+      return GHOST_kKeySpace;
+    case 0x1B:
+      return GHOST_kKeyEsc; /* ESC character */
     default:
       break;
   }
-  
+
   /* Handle alphanumeric keys - convert to uppercase for consistency */
   if (character >= 'a' && character <= 'z') {
     return (GHOST_TKey)(GHOST_kKeyA + (character - 'a'));
@@ -1801,52 +1912,86 @@ typedef struct UserInputEvent {
   if (character >= '0' && character <= '9') {
     return (GHOST_TKey)(GHOST_kKey0 + (character - '0'));
   }
-  
+
   /* Handle function keys - would need UIKey.keyCode for this */
-  
+
   /* Handle other special characters */
   switch (character) {
-    case '-': return GHOST_kKeyMinus;
-    case '=': return GHOST_kKeyEqual;
-    case '[': return GHOST_kKeyLeftBracket;
-    case ']': return GHOST_kKeyRightBracket;
-    case '\\': return GHOST_kKeyBackslash;
-    case ';': return GHOST_kKeySemicolon;
-    case '\'': return GHOST_kKeyQuote;
-    case '`': return GHOST_kKeyAccentGrave;
-    case ',': return GHOST_kKeyComma;
-    case '.': return GHOST_kKeyPeriod;
-    case '/': return GHOST_kKeySlash;
-    
+    case '-':
+      return GHOST_kKeyMinus;
+    case '=':
+      return GHOST_kKeyEqual;
+    case '[':
+      return GHOST_kKeyLeftBracket;
+    case ']':
+      return GHOST_kKeyRightBracket;
+    case '\\':
+      return GHOST_kKeyBackslash;
+    case ';':
+      return GHOST_kKeySemicolon;
+    case '\'':
+      return GHOST_kKeyQuote;
+    case '`':
+      return GHOST_kKeyAccentGrave;
+    case ',':
+      return GHOST_kKeyComma;
+    case '.':
+      return GHOST_kKeyPeriod;
+    case '/':
+      return GHOST_kKeySlash;
+
     /* Additional shifted characters */
-    case '_': return GHOST_kKeyMinus; /* Shifted minus */
-    case '+': return GHOST_kKeyEqual; /* Shifted equal */
-    case '{': return GHOST_kKeyLeftBracket; /* Shifted [ */
-    case '}': return GHOST_kKeyRightBracket; /* Shifted ] */
-    case '|': return GHOST_kKeyBackslash; /* Shifted \ */
-    case ':': return GHOST_kKeySemicolon; /* Shifted ; */
-    case '"': return GHOST_kKeyQuote; /* Shifted ' */
-    case '~': return GHOST_kKeyAccentGrave; /* Shifted ` */
-    case '<': return GHOST_kKeyComma; /* Shifted , */
-    case '>': return GHOST_kKeyPeriod; /* Shifted . */
-    case '?': return GHOST_kKeySlash; /* Shifted / */
-    
+    case '_':
+      return GHOST_kKeyMinus; /* Shifted minus */
+    case '+':
+      return GHOST_kKeyEqual; /* Shifted equal */
+    case '{':
+      return GHOST_kKeyLeftBracket; /* Shifted [ */
+    case '}':
+      return GHOST_kKeyRightBracket; /* Shifted ] */
+    case '|':
+      return GHOST_kKeyBackslash; /* Shifted \ */
+    case ':':
+      return GHOST_kKeySemicolon; /* Shifted ; */
+    case '"':
+      return GHOST_kKeyQuote; /* Shifted ' */
+    case '~':
+      return GHOST_kKeyAccentGrave; /* Shifted ` */
+    case '<':
+      return GHOST_kKeyComma; /* Shifted , */
+    case '>':
+      return GHOST_kKeyPeriod; /* Shifted . */
+    case '?':
+      return GHOST_kKeySlash; /* Shifted / */
+
     /* Shifted number row */
-    case '!': return GHOST_kKey1; /* Shifted 1 */
-    case '@': return GHOST_kKey2; /* Shifted 2 */
-    case '#': return GHOST_kKey3; /* Shifted 3 */
-    case '$': return GHOST_kKey4; /* Shifted 4 */
-    case '%': return GHOST_kKey5; /* Shifted 5 */
-    case '^': return GHOST_kKey6; /* Shifted 6 */
-    case '&': return GHOST_kKey7; /* Shifted 7 */
-    case '*': return GHOST_kKey8; /* Shifted 8 */
-    case '(': return GHOST_kKey9; /* Shifted 9 */
-    case ')': return GHOST_kKey0; /* Shifted 0 */
-    
+    case '!':
+      return GHOST_kKey1; /* Shifted 1 */
+    case '@':
+      return GHOST_kKey2; /* Shifted 2 */
+    case '#':
+      return GHOST_kKey3; /* Shifted 3 */
+    case '$':
+      return GHOST_kKey4; /* Shifted 4 */
+    case '%':
+      return GHOST_kKey5; /* Shifted 5 */
+    case '^':
+      return GHOST_kKey6; /* Shifted 6 */
+    case '&':
+      return GHOST_kKey7; /* Shifted 7 */
+    case '*':
+      return GHOST_kKey8; /* Shifted 8 */
+    case '(':
+      return GHOST_kKey9; /* Shifted 9 */
+    case ')':
+      return GHOST_kKey0; /* Shifted 0 */
+
     /* Additional control characters */
-    case 0x08: return GHOST_kKeyBackSpace; /* Backspace */
-    case 0x7F: return GHOST_kKeyDelete; /* Delete */
-    
+    case 0x08:
+      return GHOST_kKeyBackSpace; /* Backspace */
+    case 0x7F:
+      return GHOST_kKeyDelete; /* Delete */
+
     default:
       NSLog(@"KEYBOARD: Unknown key character: %C (code: %d)", character, (int)character);
       return GHOST_kKeyUnknown;
@@ -1858,18 +2003,21 @@ typedef struct UserInputEvent {
   /* Handle tap gesture for selection (both finger and pencil) */
   if (sender.state == UIGestureRecognizerStateEnded) {
     CGPoint touch_point = [sender getScaledTouchPoint:window];
-    
+
     bool is_pencil = current_pencil_touch ? true : false;
-    
+
     /* Simplified logging for taps */
-    NSLog(@"TAP: %@ selection at (%f, %f)", is_pencil ? @"Pencil" : @"Finger", touch_point.x, touch_point.y);
-    
+    NSLog(@"TAP: %@ selection at (%f, %f)",
+          is_pencil ? @"Pencil" : @"Finger",
+          touch_point.x,
+          touch_point.y);
+
     /* Create selection event: cursor move + button down + button up */
     UserInputEvent event_info(&touch_point, nullptr, nullptr, is_pencil);
     event_info.add_event(UserInputEvent::EventTypes::CURSOR_MOVE);
     event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_DOWN);
     event_info.add_event(UserInputEvent::EventTypes::LEFT_BUTTON_UP);
-    
+
     [self generateUserInputEvents:event_info];
   }
 }
@@ -1909,12 +2057,14 @@ typedef struct UserInputEvent {
   bool is_pencil = current_pencil_touch ? true : false;
 
   NSLog(@"INPUT SYSTEM: 1-finger pan - %@ - state: %ld",
-        is_pencil ? @"pencil" : @"finger", (long)sender.state);
+        is_pencil ? @"pencil" : @"finger",
+        (long)sender.state);
 
   if (is_pencil) {
     /* Pencil drag = Box selection - redirect to dedicated pencil handler */
     [self handlePencilPan:sender];
-  } else {
+  }
+  else {
     /* Finger drag = Orbit (maps to legacy 2-finger drag) */
     [self handleFingerPan:sender];
   }
@@ -1924,7 +2074,7 @@ typedef struct UserInputEvent {
 {
   /* TODO: Implement new input system logic for 4-finger tap */
   NSLog(@"NEW INPUT SYSTEM: 4-finger tap detected");
-  
+
   /* For now, fall back to legacy behavior */
   [self handleTap4FLegacy:sender];
 }
@@ -1944,12 +2094,14 @@ typedef struct UserInputEvent {
   bool is_pencil = current_pencil_touch ? true : false;
 
   NSLog(@"INPUT SYSTEM: 1-finger pan - %@ - state: %ld",
-        is_pencil ? @"pencil" : @"finger", (long)sender.state);
+        is_pencil ? @"pencil" : @"finger",
+        (long)sender.state);
 
   if (is_pencil) {
     /* Pencil drag = Box selection - redirect to dedicated pencil handler */
     [self handlePencilPan:sender];
-  } else {
+  }
+  else {
     /* Finger drag = Orbit (maps to legacy 2-finger drag) */
     [self handleFingerPan:sender];
   }
@@ -1961,7 +2113,6 @@ typedef struct UserInputEvent {
   CGPoint touch_point = [sender getScaledTouchPoint:window];
   CGPoint translation = [sender getScaledTranslation:window];
   bool is_pencil = false;  // This is definitely finger input
-    
 
   if (sender.state == UIGestureRecognizerStateBegan ||
       sender.state == UIGestureRecognizerStateChanged)
@@ -1980,11 +2131,11 @@ typedef struct UserInputEvent {
     }
   }
   else if (sender.state == UIGestureRecognizerStateEnded ||
-             sender.state == UIGestureRecognizerStateCancelled ||
-             sender.state == UIGestureRecognizerStateFailed)
+           sender.state == UIGestureRecognizerStateCancelled ||
+           sender.state == UIGestureRecognizerStateFailed)
   {
-      /* Set translation back to zero. */
-      [sender setCachedTranslation:CGPointMake(0.0f, 0.0f)];
+    /* Set translation back to zero. */
+    [sender setCachedTranslation:CGPointMake(0.0f, 0.0f)];
   }
 }
 
@@ -2047,17 +2198,18 @@ typedef struct UserInputEvent {
     /* Cache new translation. */
     [sender setCachedTranslation:translation];
 
-    /* Generate shift+orbit events if translation is non zero (2-finger pan = shift key + 1-finger orbit). */
+    /* Generate shift+orbit events if translation is non zero (2-finger pan = shift key + 1-finger
+     * orbit). */
     if (!CGPointEqualToPoint(relative_translation, CGPointMake(0.0f, 0.0f))) {
       CGPoint touch_point = [sender getScaledTouchPoint:window];
       bool pencil_pan = current_pencil_touch ? true : false;
       UserInputEvent event_info(&touch_point, &relative_translation, nullptr, pencil_pan);
-      
+
       /* Send shift key down on first movement if we haven't already */
       if (sender.state == UIGestureRecognizerStateBegan) {
         event_info.add_event(UserInputEvent::EventTypes::SHIFT_BUTTON_DOWN);
       }
-      
+
       /* Send regular orbit gesture (which will be interpreted as pan because shift is held) */
       event_info.add_event(UserInputEvent::EventTypes::ORBIT_GESTURE);
       [self generateUserInputEvents:event_info];
@@ -2069,7 +2221,7 @@ typedef struct UserInputEvent {
   {
     /* Set translation back to zero. */
     [sender setCachedTranslation:CGPointMake(0.0f, 0.0f)];
-    
+
     /* Send shift key up when gesture ends */
     CGPoint touch_point = [sender getScaledTouchPoint:window];
     bool pencil_pan = current_pencil_touch ? true : false;
@@ -2084,19 +2236,19 @@ typedef struct UserInputEvent {
   /* Handle gesture ending states first - don't access touches if they may not exist */
   if (sender.state == UIGestureRecognizerStateEnded ||
       sender.state == UIGestureRecognizerStateCancelled ||
-      sender.state == UIGestureRecognizerStateFailed ||
-      [sender numberOfTouches] < 2) {
-    
+      sender.state == UIGestureRecognizerStateFailed || [sender numberOfTouches] < 2)
+  {
+
     /* Use safe fallback center point - DO NOT access touch data when ending */
     CGPoint centerPoint = CGPointMake(0.0f, 0.0f);
-    
+
     UserInputEvent event_info(&centerPoint, nullptr, nullptr, false);
     event_info.add_event(UserInputEvent::EventTypes::MIDDLE_BUTTON_UP);
     event_info.add_event(UserInputEvent::EventTypes::ALT_BUTTON_UP);
     [self generateUserInputEvents:event_info];
     return;
   }
-  
+
   /* Now safe to access touch data since we know we have at least 2 touches */
   CGPoint centerPoint = [sender getRotationCenter:window];
 
@@ -2124,13 +2276,12 @@ typedef struct UserInputEvent {
       /* Convert rotation to cursor movement (horizontal drag for rotation) */
       float movement_pixels = -relative_rotation * 100.0f; /* Scale and invert */
       CGPoint movement = CGPointMake(movement_pixels, 0);
-      
+
       UserInputEvent event_info(&centerPoint, &movement, nullptr, false);
       event_info.add_event(UserInputEvent::EventTypes::CURSOR_MOVE);
       [self generateUserInputEvents:event_info];
     }
   }
-  
 }
 
 - (void)handleHover:(GHOSTUIHoverGestureRecognizer *)sender
@@ -2153,18 +2304,18 @@ typedef struct UserInputEvent {
   }
 
   /* Always send cursor move (desktop-style hover). */
-  system->pushEvent(
-      new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
-                            GHOST_kEventCursorMove,
-                            window,
-                            hover_point.x,
-                            hover_point.y,
-                            tablet_data));
+  system->pushEvent(new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                          GHOST_kEventCursorMove,
+                                          window,
+                                          hover_point.x,
+                                          hover_point.y,
+                                          tablet_data));
 
   /* Reset tablet data when hover ends. */
   if (sender.state == UIGestureRecognizerStateEnded ||
       sender.state == UIGestureRecognizerStateCancelled ||
-      sender.state == UIGestureRecognizerStateFailed) {
+      sender.state == UIGestureRecognizerStateFailed)
+  {
     tablet_data = GHOST_TABLET_DATA_NONE;
   }
 }
@@ -2566,12 +2717,12 @@ typedef struct UserInputEvent {
 - (void)externalKeyboardChange:(NSNotification *)notification
 {
   NSLog(@"KEYBOARD: External keyboard notification received: %@", notification.name);
-  
+
   /* Update keyboard detection state */
   [self detectKeyboardTypes];
   [self updateKeyboardState];
   [self logKeyboardState];
-  
+
   /* Legacy compatibility */
   external_keyboard_connected = [GCKeyboard coalescedKeyboard] != nil;
   IOS_INPUT_LOG(@"External Keyboard %@",
@@ -2584,19 +2735,21 @@ typedef struct UserInputEvent {
   /* Detect external/physical keyboard using GameController framework */
   GCKeyboard *keyboard = [GCKeyboard coalescedKeyboard];
   external_keyboard_connected = (keyboard != nil);
-  
+
   if (keyboard) {
     /* Get keyboard model information if available */
     if (keyboard.vendorName) {
       external_keyboard_model = [NSString stringWithString:keyboard.vendorName];
       NSLog(@"KEYBOARD DETECTED: External keyboard model: %@", external_keyboard_model);
-    } else {
+    }
+    else {
       external_keyboard_model = @"Unknown External Keyboard";
     }
-  } else {
+  }
+  else {
     external_keyboard_model = nil;
   }
-  
+
   /* Detect Bluetooth keyboards by checking for Bluetooth connectivity */
   bluetooth_keyboard_connected = false;
   if (keyboard) {
@@ -2605,19 +2758,21 @@ typedef struct UserInputEvent {
      * but we can infer from the presence of an external keyboard */
     bluetooth_keyboard_connected = true; /* Most external keyboards are Bluetooth */
   }
-  
+
   /* Physical keyboard availability (includes built-in and external) */
   physical_keyboard_available = external_keyboard_connected;
-  
-  NSLog(@"KEYBOARD DETECTION: External=%d, Bluetooth=%d, Physical=%d", 
-        external_keyboard_connected, bluetooth_keyboard_connected, physical_keyboard_available);
+
+  NSLog(@"KEYBOARD DETECTION: External=%d, Bluetooth=%d, Physical=%d",
+        external_keyboard_connected,
+        bluetooth_keyboard_connected,
+        physical_keyboard_available);
 }
 
 - (void)updateKeyboardState
 {
   /* Update software keyboard visibility state */
   BOOL new_state = onscreen_keyboard_active;
-  
+
   /* Only update if state actually changed to reduce unnecessary operations */
   if (software_keyboard_visible != new_state) {
     software_keyboard_visible = new_state;
@@ -2656,20 +2811,20 @@ typedef struct UserInputEvent {
   static BOOL last_software_visible = NO;
   static BOOL last_external_connected = NO;
   static BOOL last_onscreen_active = NO;
-  
+
   BOOL state_changed = (software_keyboard_visible != last_software_visible) ||
                        (external_keyboard_connected != last_external_connected) ||
                        (onscreen_keyboard_active != last_onscreen_active);
-  
+
   if (!state_changed) {
     return; /* No change, skip logging */
   }
-  
+
   /* Update last known state */
   last_software_visible = software_keyboard_visible;
   last_external_connected = external_keyboard_connected;
   last_onscreen_active = onscreen_keyboard_active;
-  
+
   NSLog(@"=== KEYBOARD STATE CHANGED ===");
   NSLog(@"External Keyboard Connected: %@", external_keyboard_connected ? @"YES" : @"NO");
   NSLog(@"Software Keyboard Visible: %@", software_keyboard_visible ? @"YES" : @"NO");
@@ -2684,7 +2839,7 @@ typedef struct UserInputEvent {
 - (void)detectMouseTypes
 {
   NSLog(@"MOUSE DETECTION: Starting mouse/trackpad detection");
-  
+
   /* Check for external mouse via UIPointerInteraction (iOS 13.4+) */
   if (@available(iOS 13.4, *)) {
     /* Check if pointer interaction is available */
@@ -2694,26 +2849,27 @@ typedef struct UserInputEvent {
     mouse_button_count = 3; /* Assume 3-button mouse */
     supports_scroll_wheel = YES;
     supports_middle_button = YES;
-    
+
     NSLog(@"MOUSE DETECTION: iOS 13.4+ pointer interaction available");
-  } else {
+  }
+  else {
     pointer_device_available = NO;
     external_mouse_connected = NO;
     external_mouse_model = nil;
     mouse_button_count = 0;
     supports_scroll_wheel = NO;
     supports_middle_button = NO;
-    
+
     NSLog(@"MOUSE DETECTION: iOS 13.4+ pointer interaction not available");
   }
-  
+
   /* Check for trackpad via UIKit gesture recognizers */
   external_trackpad_connected = NO; /* Will be detected through touch events */
   external_trackpad_model = nil;
-  
+
   /* Update mouse state */
   [self updateMouseState];
-  
+
   NSLog(@"MOUSE DETECTION: Detection complete");
 }
 
@@ -2722,14 +2878,14 @@ typedef struct UserInputEvent {
   /* Only log if mouse state has actually changed */
   static BOOL last_mouse_connected = NO;
   static BOOL last_trackpad_connected = NO;
-  
+
   BOOL state_changed = (external_mouse_connected != last_mouse_connected) ||
                        (external_trackpad_connected != last_trackpad_connected);
-  
+
   if (state_changed) {
     last_mouse_connected = external_mouse_connected;
     last_trackpad_connected = external_trackpad_connected;
-    
+
     NSLog(@"MOUSE STATE: Mouse/trackpad state changed");
     [self logMouseState];
   }
@@ -2740,7 +2896,7 @@ typedef struct UserInputEvent {
   return external_mouse_connected;
 }
 
-- (BOOL)isExternalTrackpadConnected  
+- (BOOL)isExternalTrackpadConnected
 {
   return external_trackpad_connected;
 }
@@ -2798,9 +2954,9 @@ typedef struct UserInputEvent {
 {
   if (current_input_mode != mode) {
     NSLog(@"INPUT MODE: Changing from %d to %d", current_input_mode, mode);
-    
+
     current_input_mode = mode;
-    
+
     /* Update input handling based on new mode */
     switch (mode) {
       case INPUT_MODE_TOUCH_ONLY:
@@ -2833,7 +2989,7 @@ typedef struct UserInputEvent {
 - (void)enableMixedInput:(BOOL)enabled
 {
   if (mixed_input_enabled != enabled) {
-    NSLog(@"INPUT MODE: Mixed input %@ (was %@)", 
+    NSLog(@"INPUT MODE: Mixed input %@ (was %@)",
           enabled ? @"ENABLED" : @"DISABLED",
           mixed_input_enabled ? @"ENABLED" : @"DISABLED");
     mixed_input_enabled = enabled;
@@ -2849,7 +3005,8 @@ typedef struct UserInputEvent {
 - (BOOL)shouldAllowConcurrentInput
 {
   /* Allow concurrent input in mixed or adaptive modes */
-  return mixed_input_enabled && (current_input_mode == INPUT_MODE_MIXED || current_input_mode == INPUT_MODE_ADAPTIVE);
+  return mixed_input_enabled &&
+         (current_input_mode == INPUT_MODE_MIXED || current_input_mode == INPUT_MODE_ADAPTIVE);
 }
 
 - (void)detectOptimalInputMode
@@ -2857,24 +3014,28 @@ typedef struct UserInputEvent {
   if (!adaptive_input_enabled) {
     return;
   }
-  
+
   InputDeviceMode optimal_mode = INPUT_MODE_TOUCH_ONLY;
-  
+
   /* Check what devices are available */
   BOOL has_keyboard = external_keyboard_connected;
   BOOL has_mouse = external_mouse_connected || external_trackpad_connected;
-  
+
   if (has_keyboard && has_mouse) {
     optimal_mode = INPUT_MODE_MIXED; /* Best of both worlds */
-  } else if (has_keyboard || has_mouse) {
+  }
+  else if (has_keyboard || has_mouse) {
     optimal_mode = INPUT_MODE_MIXED; /* Hybrid mode */
-  } else {
+  }
+  else {
     optimal_mode = INPUT_MODE_TOUCH_ONLY; /* Fallback to touch */
   }
-  
+
   if (optimal_mode != current_input_mode) {
-    NSLog(@"INPUT MODE: Auto-detected optimal mode: %d (keyboard:%d mouse:%d)", 
-          optimal_mode, has_keyboard, has_mouse);
+    NSLog(@"INPUT MODE: Auto-detected optimal mode: %d (keyboard:%d mouse:%d)",
+          optimal_mode,
+          has_keyboard,
+          has_mouse);
     [self setInputDeviceMode:optimal_mode];
   }
 }
@@ -2883,7 +3044,7 @@ typedef struct UserInputEvent {
 - (void)keyboardWillShow:(NSNotification *)notification
 {
   NSLog(@"KEYBOARD: Software keyboard will show");
-  
+
   /* Dispatch UI updates to avoid snapshot warnings */
   dispatch_async(dispatch_get_main_queue(), ^{
     self->software_keyboard_visible = true;
@@ -2895,7 +3056,7 @@ typedef struct UserInputEvent {
 - (void)keyboardWillHide:(NSNotification *)notification
 {
   NSLog(@"KEYBOARD: Software keyboard will hide");
-  
+
   /* Dispatch UI updates to avoid snapshot warnings */
   dispatch_async(dispatch_get_main_queue(), ^{
     self->software_keyboard_visible = false;
@@ -2907,12 +3068,12 @@ typedef struct UserInputEvent {
 - (void)keyboardDidShow:(NSNotification *)notification
 {
   NSLog(@"KEYBOARD: Software keyboard did show");
-  
+
   /* Dispatch UI updates to avoid snapshot warnings */
   dispatch_async(dispatch_get_main_queue(), ^{
     self->software_keyboard_visible = true;
     [self updateKeyboardState];
-    
+
     /* Extract keyboard frame information */
     CGRect keyboardRect = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
     NSLog(@"KEYBOARD: Software keyboard frame: %@", NSStringFromCGRect(keyboardRect));
@@ -2922,7 +3083,7 @@ typedef struct UserInputEvent {
 - (void)keyboardDidHide:(NSNotification *)notification
 {
   NSLog(@"KEYBOARD: Software keyboard did hide");
-  
+
   /* Dispatch UI updates to avoid snapshot warnings */
   dispatch_async(dispatch_get_main_queue(), ^{
     self->software_keyboard_visible = false;
@@ -2934,13 +3095,13 @@ typedef struct UserInputEvent {
 - (void)keyboardWillChange:(NSNotification *)notification
 {
   NSLog(@"KEYBOARD: Keyboard frame will change");
-  
+
   CGRect keyboardRect = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
   /* Sometimes we see a zero value for the end-frame value, possibly because... timing? */
   if (keyboardRect.size.width == 0 || keyboardRect.size.height == 0) {
     keyboardRect = [notification.userInfo[UIKeyboardFrameBeginUserInfoKey] CGRectValue];
   }
-  
+
   NSLog(@"KEYBOARD: Frame change - keyboard rect: %@", NSStringFromCGRect(keyboardRect));
   [self updateKeyboardState];
 }
@@ -2949,67 +3110,69 @@ typedef struct UserInputEvent {
 - (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   NSLog(@"🔥 KEYBOARD DEBUG: pressesBegan called with %lu presses", (unsigned long)presses.count);
-  NSLog(@"KEYBOARD: pressesBegan - external keyboard bypass: %@", 
+  NSLog(@"KEYBOARD: pressesBegan - external keyboard bypass: %@",
         [self shouldBypassUIKitForKeyboard] ? @"YES" : @"NO");
-  
+
   if ([self shouldBypassUIKitForKeyboard]) {
     /* When bypassing, this shouldn't be called, but handle just in case */
     NSLog(@"KEYBOARD: pressesBegan called despite bypass enabled");
     return;
   }
-  
+
   /* Handle keyboard input via UIKit when not bypassing */
   NSLog(@"KEYBOARD: Processing %lu key presses via UIKit", (unsigned long)presses.count);
   for (UIPress *press in presses) {
-    NSLog(@"KEYBOARD: Key press detected - key: %@, phase: %ld", 
-          press.key.charactersIgnoringModifiers, (long)press.phase);
+    NSLog(@"KEYBOARD: Key press detected - key: %@, phase: %ld",
+          press.key.charactersIgnoringModifiers,
+          (long)press.phase);
     [self handleKeyPress:press withEvent:event];
   }
-  
+
   /* Call super to maintain UIKit compatibility */
   [super pressesBegan:presses withEvent:event];
 }
 
 - (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
-  NSLog(@"KEYBOARD: pressesEnded - external keyboard bypass: %@", 
+  NSLog(@"KEYBOARD: pressesEnded - external keyboard bypass: %@",
         [self shouldBypassUIKitForKeyboard] ? @"YES" : @"NO");
-  
+
   if ([self shouldBypassUIKitForKeyboard]) {
     /* When bypassing, this shouldn't be called, but handle just in case */
     NSLog(@"KEYBOARD: pressesEnded called despite bypass enabled");
     return;
   }
-  
+
   /* Handle keyboard input via UIKit when not bypassing */
   NSLog(@"KEYBOARD: Processing %lu key releases via UIKit", (unsigned long)presses.count);
   for (UIPress *press in presses) {
-    NSLog(@"KEYBOARD: Key release detected - key: %@, phase: %ld", 
-          press.key.charactersIgnoringModifiers, (long)press.phase);
+    NSLog(@"KEYBOARD: Key release detected - key: %@, phase: %ld",
+          press.key.charactersIgnoringModifiers,
+          (long)press.phase);
     [self handleKeyPress:press withEvent:event];
   }
-  
+
   /* Call super to maintain UIKit compatibility */
   [super pressesEnded:presses withEvent:event];
 }
 
 - (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
-  NSLog(@"KEYBOARD: pressesCancelled - external keyboard bypass: %@", 
+  NSLog(@"KEYBOARD: pressesCancelled - external keyboard bypass: %@",
         [self shouldBypassUIKitForKeyboard] ? @"YES" : @"NO");
-  
+
   if ([self shouldBypassUIKitForKeyboard]) {
     /* When bypassing, this shouldn't be called, but handle just in case */
     NSLog(@"KEYBOARD: pressesCancelled called despite bypass enabled");
     return;
   }
-  
+
   /* Handle cancelled keyboard input via UIKit when not bypassing */
   for (UIPress *press in presses) {
     /* Treat cancelled as key up */
     NSLog(@"KEYBOARD: Key cancelled - %@", press.key.charactersIgnoringModifiers);
   }
-  
+
   /* Call super to maintain UIKit compatibility */
   [super pressesCancelled:presses withEvent:event];
 }
@@ -3024,10 +3187,10 @@ typedef struct UserInputEvent {
   @synchronized(self) {
     NSLog(@"KEYBOARD: Popup onscreen keyboard request received");
     IOS_INPUT_LOG(@"Keyboard popup request received %@", text_field.text);
-    
+
     /* Log current keyboard state before showing */
     [self logKeyboardState];
-    
+
     [self setupKeyboard:keyboard_properties];
 
     if (!onscreen_keyboard_active) {
@@ -3039,7 +3202,8 @@ typedef struct UserInputEvent {
       software_keyboard_visible = true;
       [self updateKeyboardState];
       NSLog(@"KEYBOARD: Onscreen keyboard activated successfully");
-    } else {
+    }
+    else {
       NSLog(@"KEYBOARD: Onscreen keyboard was already active");
     }
   }
@@ -3084,12 +3248,13 @@ typedef struct UserInputEvent {
 
       /* Delete the text field copy of the string */
       text_field.text = nil;
-      
+
       /* Update keyboard state and log */
       [self updateKeyboardState];
       NSLog(@"KEYBOARD: Onscreen keyboard hidden successfully");
       [self logKeyboardState];
-    } else {
+    }
+    else {
       NSLog(@"KEYBOARD: Onscreen keyboard was already inactive");
     }
   }
@@ -3846,11 +4011,12 @@ void GHOST_WindowIOS::setKeyboardBypassEnabled(bool enabled)
   /* Note: This method allows dynamic control of keyboard bypass.
    * For now, the bypass is controlled by the compile-time flag BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD.
    * In the future, this could be made runtime configurable. */
-  
+
   /* Only log if bypass setting is actually being changed/used */
   if (enabled != BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD) {
     NSLog(@"KEYBOARD: setKeyboardBypassEnabled called with %@", enabled ? @"YES" : @"NO");
-    NSLog(@"KEYBOARD: Current bypass flag value: %@", BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD ? @"YES" : @"NO");
+    NSLog(@"KEYBOARD: Current bypass flag value: %@",
+          BYPASS_UIKIT_FOR_EXTERNAL_KEYBOARD ? @"YES" : @"NO");
   }
 }
 
