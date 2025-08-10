@@ -624,6 +624,18 @@ void GreasePencilStrokeOperationCommon::init_stroke(const bContext &C,
   this->prev_mouse_position = start_sample.mouse_position;
 }
 
+static float closest_distance_to_points(const IndexRange points,
+                                        const Span<float2> view_positions,
+                                        const int2 screen_pos)
+{
+  float closest_distance = FLT_MAX;
+  for (const int point_i : points) {
+    const float distance = math::distance(screen_pos, int2(view_positions[point_i]));
+    closest_distance = math::min(closest_distance, distance);
+  }
+  return closest_distance;
+}
+
 void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
                                                           const InputSample &start_sample)
 {
@@ -718,11 +730,19 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
         masked_layer_indices.add(drawing_info.layer_index);
       }
 
-      if (use_auto_mask_stroke) {
+      if (use_auto_mask_stroke && !strokes_under_brush.is_empty()) {
+        int64_t closest_curve = strokes_under_brush.first();
+        float closest_distance = FLT_MAX;
+        strokes_under_brush.foreach_index([&](const int64_t curve_i) {
+          const float distance = closest_distance_to_points(
+              points_by_curve[curve_i], view_positions, mval_i);
+          if (distance < closest_distance) {
+            closest_curve = curve_i;
+            closest_distance = distance;
+          }
+        });
         automask_info.point_mask = IndexMask::from_intersection(
-            automask_info.point_mask,
-            IndexMask::from_ranges(curves.points_by_curve(), strokes_under_brush, memory),
-            automask_info.memory);
+            automask_info.point_mask, points_by_curve[closest_curve], automask_info.memory);
       }
 
       if (use_auto_mask_material) {
