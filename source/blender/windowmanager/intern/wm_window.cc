@@ -206,9 +206,9 @@ bool wm_get_display_rect(int display_index, rcti *r_rect)
   return GHOST_GetDisplayDimensions(g_system,
                                     display_index,
                                     &r_rect->xmin,
-                                    &r_rect->ymax,
                                     &r_rect->xmax,
-                                    &r_rect->ymin) == GHOST_kSuccess;
+                                    &r_rect->ymin,
+                                    &r_rect->ymax) == GHOST_kSuccess;
 }
 
 /** Keeps size within monitor bounds. */

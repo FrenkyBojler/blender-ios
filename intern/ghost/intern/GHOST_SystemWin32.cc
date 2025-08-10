@@ -277,7 +277,7 @@ BOOL CALLBACK GetMonitorByIndex(HMONITOR hMonitor,
 }
 
 GHOST_TSuccess GHOST_SystemWin32::getDisplayDimensions(
-    uint32_t display_index, int32_t *left, int32_t *top, int32_t *right, int32_t *bottom) const
+    uint32_t display_index, int32_t *r_xmin, int32_t *r_xmax, int32_t *r_ymin, int32_t *r_ymax) const
 {
   sEnumInfo info = {0};
   info.target = display_index;
@@ -286,10 +286,11 @@ GHOST_TSuccess GHOST_SystemWin32::getDisplayDimensions(
   EnumDisplayMonitors(nullptr, nullptr, GetMonitorByIndex, (LPARAM)&info);
   if (info.hMonitor != nullptr) {
     if (GetMonitorInfo(info.hMonitor, &mi)) {
-      *left = mi.rcMonitor.left;
-      *top = mi.rcMonitor.bottom;
-      *right = mi.rcMonitor.right;
-      *bottom = mi.rcMonitor.top;
+      *r_xmin = mi.rcMonitor.left;
+      *r_ymax = mi.rcMonitor.bottom;
+      /* Windows is top-down. */
+      *r_ymin = mi.rcMonitor.top;
+      *r_xmax = mi.rcMonitor.right;
       return GHOST_kSuccess;
     }
   }

@@ -91,10 +91,10 @@ class GHOST_SystemWin32 : public GHOST_System {
   void getAllDisplayDimensions(uint32_t &width, uint32_t &height) const override;
 
   GHOST_TSuccess getDisplayDimensions(uint32_t display_index,
-                                      int32_t *left,
-                                      int32_t *top,
-                                      int32_t *right,
-                                      int32_t *bottom) const override;
+                                      int32_t *r_xmin,
+                                      int32_t *r_xmax,
+                                      int32_t *r_ymin,
+                                      int32_t *r_ymax) const override;
 
   /**
    * Create a new window.

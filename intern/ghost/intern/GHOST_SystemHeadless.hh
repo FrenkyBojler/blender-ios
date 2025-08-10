@@ -110,10 +110,10 @@ class GHOST_SystemHeadless : public GHOST_System {
   { /* nop */
   }
   GHOST_TSuccess getDisplayDimensions(uint32_t display_index,
-                                      int32_t *left,
-                                      int32_t *top,
-                                      int32_t *right,
-                                      int32_t *bottom) const override
+                                      int32_t *r_xmin,
+                                      int32_t *r_xmax,
+                                      int32_t *r_ymin,
+                                      int32_t *r_ymax) const override
   {
     return GHOST_kFailure;
   }

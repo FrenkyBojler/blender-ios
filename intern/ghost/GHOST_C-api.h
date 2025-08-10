@@ -151,10 +151,10 @@ extern GHOST_TSuccess GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhan
 
 extern GHOST_TSuccess GHOST_GetDisplayDimensions(GHOST_SystemHandle systemhandle,
                                                  uint32_t display_index,
-                                                 int32_t *left,
-                                                 int32_t *top,
-                                                 int32_t *right,
-                                                 int32_t *bottom);
+                                                 int32_t *r_xmin,
+                                                 int32_t *r_xmax,
+                                                 int32_t *r_ymin,
+                                                 int32_t *r_ymax);
 /**
  * Create a new window.
  * The new window is added to the list of windows managed.

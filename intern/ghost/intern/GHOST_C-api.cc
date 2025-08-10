@@ -140,13 +140,13 @@ GHOST_TSuccess GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
 
 GHOST_TSuccess GHOST_GetDisplayDimensions(GHOST_SystemHandle systemhandle,
                                           uint32_t display_index,
-                                          int32_t *left,
-                                          int32_t *top,
-                                          int32_t *right,
-                                          int32_t *bottom)
+                                          int32_t *r_xmin,
+                                          int32_t *r_xmax,
+                                          int32_t *r_ymin,
+                                          int32_t *r_ymax)
 {
   const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
-  return system->getDisplayDimensions(display_index, left, top, right, bottom);
+  return system->getDisplayDimensions(display_index, r_xmin, r_xmax, r_ymin, r_ymax);
 }
 
 GHOST_ContextHandle GHOST_CreateGPUContext(GHOST_SystemHandle systemhandle,
