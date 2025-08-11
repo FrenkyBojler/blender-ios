@@ -778,7 +778,7 @@ class ShaderNodesInliner {
   void handle_output_socket__eval_copy_node(const NodeInContext &node)
   {
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
-    const int identifier = ++dst_node_counter_;
+    const int identifier = this->get_next_node_identifier();
     const std::string unique_name = fmt::format("{}_{}", identifier, node.node->name);
     bNode &copied_node = *bke::node_copy_with_mapping(
         &dst_tree_,
@@ -837,7 +837,7 @@ class ShaderNodesInliner {
 
   SocketValue handle_implicit_conversion(const SocketValue &src_value,
                                          const bke::bNodeSocketType &from_socket_type,
-                                         const bke::bNodeSocketType &to_socket_type) const
+                                         const bke::bNodeSocketType &to_socket_type)
   {
     if (from_socket_type.type == to_socket_type.type) {
       return src_value;
@@ -862,7 +862,7 @@ class ShaderNodesInliner {
       }
     }
     if (src_primitive_value && to_socket_type.type == SOCK_SHADER) {
-      bNode *color_node = bke::node_add_node(nullptr, dst_tree_, "ShaderNodeRGB");
+      bNode *color_node = this->add_node("ShaderNodeRGB");
       const void *src_buffer = src_primitive_value->buffer();
       ColorGeometry4f color;
       data_type_conversions_.convert_to_uninitialized(
@@ -967,8 +967,12 @@ class ShaderNodesInliner {
 
   bNode *add_node(const StringRefNull idname)
   {
-    bNode *node = bke::node_add_node(nullptr, dst_tree_, idname);
-    return node;
+    return bke::node_add_node(nullptr, dst_tree_, idname, this->get_next_node_identifier());
+  }
+
+  int get_next_node_identifier()
+  {
+    return ++dst_node_counter_;
   }
 
   void set_primitive_value_on_socket(bNodeSocket &socket, const PrimitiveSocketValue &value)

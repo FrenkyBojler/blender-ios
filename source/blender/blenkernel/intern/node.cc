@@ -3265,12 +3265,21 @@ void node_unique_id(bNodeTree &ntree, bNode &node)
   BLI_assert(node.runtime->index_in_tree == ntree.runtime->nodes_by_id.index_of(&node));
 }
 
-bNode *node_add_node(const bContext *C, bNodeTree &ntree, const StringRef idname)
+bNode *node_add_node(const bContext *C,
+                     bNodeTree &ntree,
+                     const StringRef idname,
+                     std::optional<int> unique_identifier)
 {
   bNode *node = MEM_callocN<bNode>(__func__);
   node->runtime = MEM_new<bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
-  node_unique_id(ntree, *node);
+  if (unique_identifier) {
+    node->identifier = *unique_identifier;
+    ntree.runtime->nodes_by_id.add_new(node);
+  }
+  else {
+    node_unique_id(ntree, *node);
+  }
   node->ui_order = ntree.all_nodes().size();
 
   idname.copy_utf8_truncated(node->idname);
