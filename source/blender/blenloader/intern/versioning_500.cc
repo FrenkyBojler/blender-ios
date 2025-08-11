@@ -1396,10 +1396,10 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
 
   copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
              old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
-  copy_v4_v4(size_input->default_value_typed<bNodeSocketValueVector>()->value,
-             old_length_input->default_value_typed<bNodeSocketValueVector>()->value);
-  copy_v4_v4(source_input->default_value_typed<bNodeSocketValueVector>()->value,
-             old_source_input->default_value_typed<bNodeSocketValueVector>()->value);
+  size_input->default_value_typed<bNodeSocketValueFloat>()->value =
+      old_length_input->default_value_typed<bNodeSocketValueFloat>()->value;
+  copy_v2_v2(&source_input->default_value_typed<bNodeSocketValueFloat>()->value,
+             &old_source_input->default_value_typed<bNodeSocketValueFloat>()->value);
 
   if (image_link) {
     version_node_add_link(
@@ -1425,6 +1425,7 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
     blender::bke::node_remove_link(&node_tree, *output_to);
   }
 
+  MEM_freeN(node.storage);
   version_node_remove(node_tree, node);
 }
 
@@ -2289,19 +2290,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /**
-   * Always bump subversion in BKE_blender_version.h when adding versioning
-   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-
-  /* Keep this versioning always enabled at the bottom of the function; it can only be moved
-   * behind a subversion bump when the file format is changed. */
-  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-    bke::mesh_freestyle_marks_to_generic(*mesh);
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
@@ -2313,5 +2301,18 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  /**
+   * Always bump subversion in BKE_blender_version.h when adding versioning
+   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+
+  /* Keep this versioning always enabled at the bottom of the function; it can only be moved
+   * behind a subversion bump when the file format is changed. */
+  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+    bke::mesh_freestyle_marks_to_generic(*mesh);
   }
 }
