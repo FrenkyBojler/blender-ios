@@ -1439,9 +1439,6 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
   group_output_node->location[1] = node.location[1];
 
   bNodeSocket *image_input = static_cast<bNodeSocket *>(group_output_node->inputs.first);
-  if (STREQ(image_input->name, "Imagem")) {
-    STRNCPY_UTF8(image_input->name, "Image");
-  }
   BLI_assert(blender::StringRef(image_input->name) == "Image");
   copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
              old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
