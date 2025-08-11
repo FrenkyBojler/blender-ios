@@ -326,6 +326,7 @@ class GHOST_WindowIOS : public GHOST_Window {
   const GHOST_TabletData getTabletData();
   UITextField *getUITextField();
   const char *getLastKeyboardString();
+  bool external_keyboard_connected;
   /* This is the size of the window pre-scaled */
   CGSize getLogicalWindowSize();
   /* This is the size of the window post-scaled */
@@ -336,44 +337,6 @@ class GHOST_WindowIOS : public GHOST_Window {
   {
     return m_is_active_window;
   }
-
-  // --- Enhanced Keyboard Detection ---
-  bool external_keyboard_connected;
-  bool bluetooth_keyboard_connected;
-  bool physical_keyboard_available;
-  bool software_keyboard_visible;
-  std::string external_keyboard_model;
-
-  void detectKeyboardTypes();
-  void updateKeyboardState();
-  bool isExternalKeyboardConnected();
-  bool isBluetoothKeyboardConnected();
-  bool isPhysicalKeyboardAvailable();
-  bool isSoftwareKeyboardVisible();
-  std::string getExternalKeyboardModel();
-  void logKeyboardState();
-
-  // --- Enhanced Mouse/Trackpad Detection ---
-  bool external_mouse_connected;
-  bool external_trackpad_connected;
-  bool pointer_device_available;
-  std::string external_mouse_model;
-  std::string external_trackpad_model;
-  int mouse_button_count;
-  bool supports_scroll_wheel;
-  bool supports_middle_button;
-
-  void detectMouseTypes();
-  void updateMouseState();
-  bool isExternalMouseConnected();
-  bool isExternalTrackpadConnected();
-  bool isPointerDeviceConnected();
-  std::string getMouseModel();
-  std::string getTrackpadModel();
-  int getMouseButtonCount();
-  bool supportsScrollWheel();
-  bool supportsMiddleButton();
-  void logMouseState();
 };
 
 #ifdef WITH_INPUT_IME
