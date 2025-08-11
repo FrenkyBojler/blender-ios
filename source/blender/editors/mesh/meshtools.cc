@@ -1567,13 +1567,7 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
     return OPERATOR_CANCELLED;
   }
 
-  if (mesh->faces_num == 0) {
-    if (mesh->verts_num == 0) {
-      BKE_report(op->reports, RPT_INFO, "Cannot reorder an empty mesh");
-    }
-    else {
-      BKE_report(op->reports, RPT_INFO, "Cannot reorder a mesh without faces");
-    }
+  if (mesh->faces_num == 0 || mesh->verts_num == 0) {
     return OPERATOR_CANCELLED;
   }
 
