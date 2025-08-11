@@ -25,6 +25,7 @@ struct ListBase;
 struct MaskLayer;
 struct Object;
 struct Scene;
+struct Strip;
 struct bAction;
 struct bActionGroup;
 struct bAnimContext;
@@ -138,6 +139,7 @@ void ED_keylist_prepare_for_direct_access(AnimKeylist *keylist);
 const ActKeyColumn *ED_keylist_find_exact(const AnimKeylist *keylist, float cfra);
 const ActKeyColumn *ED_keylist_find_next(const AnimKeylist *keylist, float cfra);
 const ActKeyColumn *ED_keylist_find_prev(const AnimKeylist *keylist, float cfra);
+const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, float cfra);
 const ActKeyColumn *ED_keylist_find_any_between(const AnimKeylist *keylist,
                                                 const blender::Bounds<float> frame_range);
 bool ED_keylist_is_empty(const AnimKeylist *keylist);
@@ -259,7 +261,7 @@ void gpencil_to_keylist(bDopeSheet *ads, bGPdata *gpd, AnimKeylist *keylist, boo
 
 /* Grease Pencil Cels. */
 void grease_pencil_cels_to_keylist(AnimData *adt,
-                                   const GreasePencilLayer *layer,
+                                   const GreasePencilLayer *gpl,
                                    AnimKeylist *keylist,
                                    int saction_flag);
 
@@ -279,6 +281,9 @@ void gpl_to_keylist(bDopeSheet *ads, bGPDlayer *gpl, AnimKeylist *keylist);
 
 /* Mask */
 void mask_to_keylist(bDopeSheet *ads, MaskLayer *masklay, AnimKeylist *keylist);
+
+/* Sequencer strip data. */
+void sequencer_strip_to_keylist(const Strip &strip, AnimKeylist &keylist, Scene &scene);
 
 /* ActKeyColumn API ---------------- */
 

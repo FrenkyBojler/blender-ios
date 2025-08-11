@@ -11,6 +11,7 @@
 #include "SEQ_channels.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
+#include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
@@ -37,8 +38,8 @@ static ImBuf *do_adjustment_impl(const RenderData *context, Strip *strip, float 
 
   ed = context->scene->ed;
 
-  ListBase *seqbasep = get_seqbase_by_seq(context->scene, strip);
-  ListBase *channels = get_channels_by_seq(&ed->seqbase, &ed->channels, strip);
+  ListBase *seqbasep = get_seqbase_by_strip(context->scene, strip);
+  ListBase *channels = get_channels_by_strip(ed, strip);
 
   /* Clamp timeline_frame to strip range so it behaves as if it had "still frame" offset (last
    * frame is static after end of strip). This is how most strips behave. This way transition
@@ -47,9 +48,9 @@ static ImBuf *do_adjustment_impl(const RenderData *context, Strip *strip, float 
                            time_left_handle_frame_get(context->scene, strip),
                            time_right_handle_frame_get(context->scene, strip) - 1);
 
-  if (strip->machine > 1) {
+  if (strip->channel > 1) {
     i = seq_render_give_ibuf_seqbase(
-        context, timeline_frame, strip->machine - 1, channels, seqbasep);
+        context, timeline_frame, strip->channel - 1, channels, seqbasep);
   }
 
   /* Found nothing? so let's work the way up the meta-strip stack, so
@@ -59,7 +60,7 @@ static ImBuf *do_adjustment_impl(const RenderData *context, Strip *strip, float 
   if (!i) {
     Strip *meta;
 
-    meta = find_metastrip_by_sequence(&ed->seqbase, nullptr, strip);
+    meta = lookup_meta_by_strip(ed, strip);
 
     if (meta) {
       i = do_adjustment_impl(context, meta, timeline_frame);

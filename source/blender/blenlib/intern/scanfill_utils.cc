@@ -9,6 +9,7 @@
 #include <cstdlib>
 
 #include "DNA_listBase.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
@@ -191,7 +192,7 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
               isect_hash = BLI_ghash_ptr_new(__func__);
             }
 
-            isect = static_cast<ScanFillIsect *>(MEM_mallocN(sizeof(ScanFillIsect), __func__));
+            isect = MEM_mallocN<ScanFillIsect>(__func__);
 
             BLI_addtail(&isect_lb, isect);
 

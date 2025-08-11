@@ -38,7 +38,7 @@
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 using blender::Array;
 
@@ -2273,7 +2273,7 @@ static StructRNA *bpy_prop_deferred_data_or_srna(PyObject *self,
     self = PyTuple_GET_ITEM(args, 0);
     args = PyTuple_New(0);
 
-    /* This will be #BPy_BoolProperty` or one of the functions that define a type. */
+    /* This will be #BPy_BoolProperty or one of the functions that define a type. */
     PyCFunctionWithKeywords method_fn = (PyCFunctionWithKeywords)(void *)method_def->ml_meth;
     *r_deferred_result = method_fn(self, args, kw);
     Py_DECREF(args);
@@ -3886,14 +3886,14 @@ PyDoc_STRVAR(
     "         Python must keep a reference to the strings returned by the callback or Blender\n"
     "         will misbehave or even crash."
     "\n"
-    "   :type items: Sequence["
+    "   :type items: Iterable["
     "tuple[str, str, str] | "
     "tuple[str, str, str, int] | "
     "tuple[str, str, str, int, int] | "
     "None] | "
     "Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.Context` | None], "
     /* NOTE(@ideasman42): a type alias would be useful here (same as above). */
-    "Sequence["
+    "Iterable["
     "tuple[str, str, str] | "
     "tuple[str, str, str, int] | "
     "tuple[str, str, str, int, int] | "
@@ -4095,7 +4095,7 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
      * otherwise if this is a generator it may free the strings before we copy them */
     Py_DECREF(items_fast);
 
-    MEM_freeN((void *)eitems);
+    MEM_freeN(eitems);
   }
 
   Py_RETURN_NONE;
@@ -4492,9 +4492,14 @@ static PyObject *BPy_RemoveProperty(PyObject *self, PyObject *args, PyObject *kw
 /** \name Main Module `bpy.props`
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef props_methods[] = {
@@ -4546,8 +4551,12 @@ static PyMethodDef props_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static int props_visit(PyObject * /*self*/, visitproc visit, void *arg)
@@ -4602,7 +4611,7 @@ PyObject *BPY_rna_props()
   submodule = PyModule_Create(&props_module);
   PyDict_SetItemString(PyImport_GetModuleDict(), props_module.m_name, submodule);
 
-  /* api needs the PyObjects internally */
+  /* API needs the PyObjects internally. */
   submodule_dict = PyModule_GetDict(submodule);
 
 #define ASSIGN_STATIC(_name) pymeth_##_name = PyDict_GetItemString(submodule_dict, #_name)

@@ -61,7 +61,7 @@ bool ED_mask_find_nearest_diff_point(const bContext *C,
   float scalex, scaley;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
   ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
@@ -223,7 +223,7 @@ MaskSplinePoint *ED_mask_point_find_nearest(const bContext *C,
   int width, height;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
   ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
@@ -380,7 +380,7 @@ bool ED_mask_feather_find_nearest(const bContext *C,
   int width, height;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
   ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
@@ -625,7 +625,7 @@ bool ED_mask_selected_minmax(const bContext *C,
   /* Use evaluated mask to take animation into account.
    * The animation of splines is not "flushed" back to original, so need to explicitly
    * use evaluated data-block here. */
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask);
 
   INIT_MINMAX2(min, max);
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask_eval->masklayers) {
@@ -671,6 +671,25 @@ bool ED_mask_selected_minmax(const bContext *C,
     }
   }
   return ok;
+}
+
+void ED_mask_center_from_pivot_ex(
+    const bContext *C, ScrArea *area, float r_center[2], char mode, bool *r_has_select)
+{
+  float min[2], max[2];
+  const bool mask_selected = ED_mask_selected_minmax(C, min, max, false);
+
+  switch (mode) {
+    case V3D_AROUND_CURSOR:
+      ED_mask_cursor_location_get(area, r_center);
+      break;
+    default:
+      mid_v2_v2v2(r_center, min, max);
+      break;
+  }
+  if (r_has_select != nullptr) {
+    *r_has_select = mask_selected;
+  }
 }
 
 /** \} */

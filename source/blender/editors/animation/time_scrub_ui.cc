@@ -20,6 +20,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -27,7 +28,7 @@
 
 #include "BLI_math_base.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_timecode.h"
 
 #include "RNA_access.hh"
@@ -48,7 +49,8 @@ static int get_centered_text_y(const rcti *rect)
 
 static void draw_background(const rcti *rect)
 {
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   immUniformThemeColor(TH_TIME_SCRUB_BACKGROUND);
@@ -66,10 +68,11 @@ static void get_current_time_str(
     const Scene *scene, bool display_seconds, int frame, char *r_str, uint str_maxncpy)
 {
   if (display_seconds) {
-    BLI_timecode_string_from_time(r_str, str_maxncpy, -1, FRA2TIME(frame), FPS, U.timecode_style);
+    BLI_timecode_string_from_time(
+        r_str, str_maxncpy, -1, FRA2TIME(frame), scene->frames_per_second(), U.timecode_style);
   }
   else {
-    BLI_snprintf(r_str, str_maxncpy, "%d", frame);
+    BLI_snprintf_utf8(r_str, str_maxncpy, "%d", frame);
   }
 }
 
@@ -77,7 +80,8 @@ static void draw_current_frame(const Scene *scene,
                                bool display_seconds,
                                const View2D *v2d,
                                const rcti *scrub_region_rect,
-                               int current_frame)
+                               int current_frame,
+                               bool display_stalk = true)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
   int frame_x = UI_view2d_view_to_region_x(v2d, current_frame);
@@ -87,36 +91,40 @@ static void draw_current_frame(const Scene *scene,
   float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   float box_width = std::max(text_width + 8 * UI_SCALE_FAC, 24 * UI_SCALE_FAC);
   float box_padding = 3 * UI_SCALE_FAC;
-  const int line_outline = max_ii(1, round_fl_to_int(1 * UI_SCALE_FAC));
 
   float bg_color[4];
   UI_GetThemeColorShade4fv(TH_CFRAME, -5, bg_color);
 
-  /* Draw vertical line from the bottom of the current frame box to the bottom of the screen. */
-  const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  if (display_stalk) {
+    /* Draw vertical line from the bottom of the current frame box to the bottom of the screen. */
+    const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
+    GPUVertFormat *format = immVertexFormat();
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    GPU_blend(GPU_BLEND_ALPHA);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-  GPU_blend(GPU_BLEND_ALPHA);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    /* There are two usages of "1.0f" below that are not scaled. This is
+     * used to force an odd width (but still pixel-aligned) to better
+     * line up with the odd widths of the keyframe icons. #98089. */
 
-  /* Outline. */
-  immUniformThemeColorShadeAlpha(TH_BACK, -25, -100);
-  immRectf(pos,
-           subframe_x - (line_outline + U.pixelsize),
-           scrub_region_rect->ymax - box_padding,
-           subframe_x + (line_outline + U.pixelsize),
-           0.0f);
+    /* Outline. */
+    immUniformThemeColorShadeAlpha(TH_BACK, -25, -100);
+    immRectf(pos,
+             floor(subframe_x - U.pixelsize - U.pixelsize),
+             scrub_region_rect->ymax - box_padding - U.pixelsize,
+             floor(subframe_x + U.pixelsize + 1.0f + U.pixelsize),
+             0.0f);
 
-  /* Line. */
-  immUniformThemeColor(TH_CFRAME);
-  immRectf(pos,
-           subframe_x - U.pixelsize,
-           scrub_region_rect->ymax - box_padding,
-           subframe_x + U.pixelsize,
-           0.0f);
-  immUnbindProgram();
-  GPU_blend(GPU_BLEND_NONE);
+    /* Line. */
+    immUniformThemeColor(TH_CFRAME);
+    immRectf(pos,
+             floor(subframe_x - U.pixelsize),
+             scrub_region_rect->ymax - box_padding - U.pixelsize,
+             floor(subframe_x + U.pixelsize + 1.0f),
+             0.0f);
+    immUnbindProgram();
+    GPU_blend(GPU_BLEND_NONE);
+  }
 
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
@@ -124,25 +132,26 @@ static void draw_current_frame(const Scene *scene,
   UI_GetThemeColorShade4fv(TH_CFRAME, 5, outline_color);
 
   rctf rect{};
-  rect.xmin = frame_x - box_width / 2 + U.pixelsize / 2;
-  rect.xmax = frame_x + box_width / 2 + U.pixelsize / 2;
-  rect.ymin = scrub_region_rect->ymin + box_padding;
-  rect.ymax = scrub_region_rect->ymax - box_padding;
+  rect.xmin = floor(frame_x - (box_width / 2.0f) + U.pixelsize + 1.0f);
+  rect.xmax = ceil(frame_x + (box_width / 2.0f));
+  rect.ymin = floor(scrub_region_rect->ymin + box_padding);
+  rect.ymax = ceil(scrub_region_rect->ymax - box_padding);
   UI_draw_roundbox_4fv_ex(
       &rect, bg_color, nullptr, 1.0f, outline_color, U.pixelsize, 4 * UI_SCALE_FAC);
 
   uchar text_color[4];
   UI_GetThemeColor4ubv(TH_HEADER_TEXT_HI, text_color);
 
-  const int y = BLI_rcti_cent_y(scrub_region_rect) - int(fstyle->points * UI_SCALE_FAC * 0.35f);
+  const int y = BLI_rcti_cent_y(scrub_region_rect) - int(fstyle->points * UI_SCALE_FAC * 0.38f);
 
   UI_fontstyle_draw_simple(
-      +fstyle, frame_x - text_width / 2 + U.pixelsize / 2, y, frame_str, text_color);
+      fstyle, ceil(frame_x - (text_width / 2.0f) + 1.0f), y, frame_str, text_color);
 }
 
 void ED_time_scrub_draw_current_frame(const ARegion *region,
                                       const Scene *scene,
-                                      bool display_seconds)
+                                      bool display_seconds,
+                                      bool display_stalk)
 {
   const View2D *v2d = &region->v2d;
   GPU_matrix_push_projection();
@@ -151,7 +160,8 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
   rcti scrub_region_rect;
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
 
-  draw_current_frame(scene, display_seconds, v2d, &scrub_region_rect, scene->r.cfra);
+  draw_current_frame(
+      scene, display_seconds, v2d, &scrub_region_rect, scene->r.cfra, display_stalk);
   GPU_matrix_pop_projection();
 }
 
@@ -217,7 +227,8 @@ void ED_time_scrub_channel_search_draw(const bContext *C, ARegion *region, bDope
   rect.ymin = region->winy - UI_TIME_SCRUB_MARGIN_Y;
   rect.ymax = region->winy;
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColor(TH_BACK);
   immRectf(pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
@@ -229,23 +240,23 @@ void ED_time_scrub_channel_search_draw(const bContext *C, ARegion *region, bDope
   const float padding_x = 2 * UI_SCALE_FAC;
   const float padding_y = UI_SCALE_FAC;
 
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
-  uiLayout *layout = UI_block_layout(block,
-                                     UI_LAYOUT_VERTICAL,
-                                     UI_LAYOUT_HEADER,
-                                     rect.xmin + padding_x,
-                                     rect.ymin + UI_UNIT_Y + padding_y,
-                                     BLI_rcti_size_x(&rect) - 2 * padding_x,
-                                     1,
-                                     0,
-                                     style);
-  uiLayoutSetScaleY(layout, (UI_UNIT_Y - padding_y) / UI_UNIT_Y);
-  UI_block_layout_set_current(block, layout);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Header,
+                                               rect.xmin + padding_x,
+                                               rect.ymin + UI_UNIT_Y + padding_y,
+                                               BLI_rcti_size_x(&rect) - 2 * padding_x,
+                                               1,
+                                               0,
+                                               style);
+  layout.scale_y_set((UI_UNIT_Y - padding_y) / UI_UNIT_Y);
+  blender::ui::block_layout_set_current(block, &layout);
   UI_block_align_begin(block);
-  uiItemR(layout, &ptr, "filter_text", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, &ptr, "use_filter_invert", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
+  layout.prop(&ptr, "filter_text", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(&ptr, "use_filter_invert", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   UI_block_align_end(block);
-  UI_block_layout_resolve(block, nullptr, nullptr);
+  blender::ui::block_layout_resolve(block);
 
   /* Make sure the events are consumed from the search and don't reach other UI blocks since this
    * is drawn on top of animation-channels. */

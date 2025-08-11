@@ -168,7 +168,7 @@ static void view2d_masks(View2D *v2d, const rcti *mask_scroll)
     if (scroll & V2D_SCROLL_LEFT) {
       /* on left-hand edge of region */
       v2d->vert = *mask_scroll;
-      v2d->vert.xmax = scroll_width;
+      v2d->vert.xmax = v2d->vert.xmin + scroll_width;
     }
     else if (scroll & V2D_SCROLL_RIGHT) {
       /* on right-hand edge of region */
@@ -383,9 +383,9 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
  * Ensure View2D rects remain in a viable configuration
  * 'cur' is not allowed to be: larger than max, smaller than min, or outside of 'tot'
  */
-/* XXX pre2.5 -> this used to be called #test_view2d() */
 static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
 {
+  /* NOTE: #calculateZfac uses this logic, keep in sync. */
   float totwidth, totheight, curwidth, curheight, width, height;
   float winx, winy;
   rctf *cur, *tot;
@@ -437,8 +437,14 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
   }
   winx = std::max<float>(winx, 1);
   winy = std::max<float>(winy, 1);
+  if (v2d->oldwinx == 0) {
+    v2d->oldwinx = winx;
+  }
+  if (v2d->oldwiny == 0) {
+    v2d->oldwiny = winy;
+  }
 
-  /* V2D_LIMITZOOM indicates that zoom level should be preserved when the window size changes */
+  /* V2D_KEEPZOOM indicates that zoom level should be preserved when the window size changes. */
   if (resize && (v2d->keepzoom & V2D_KEEPZOOM)) {
     float zoom, oldzoom;
 
@@ -581,14 +587,15 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
         height = width * winRatio;
       }
     }
-
-    /* store region size for next time */
-    v2d->oldwinx = short(winx);
-    v2d->oldwiny = short(winy);
   }
+
+  /* Store region size for next time. */
+  v2d->oldwinx = short(winx);
+  v2d->oldwiny = short(winy);
 
   /* Step 2: apply new sizes to cur rect,
    * but need to take into account alignment settings here... */
+  const bool do_keepofs = resize || !(v2d->flag & V2D_ZOOM_IGNORE_KEEPOFS);
   if ((width != curwidth) || (height != curheight)) {
     float temp, dh;
 
@@ -597,7 +604,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
       if (v2d->keepofs & V2D_LOCKOFS_X) {
         cur->xmax += width - BLI_rctf_size_x(cur);
       }
-      else if (v2d->keepofs & V2D_KEEPOFS_X) {
+      else if ((v2d->keepofs & V2D_KEEPOFS_X) && do_keepofs) {
         if (v2d->align & V2D_ALIGN_NO_POS_X) {
           cur->xmin -= width - BLI_rctf_size_x(cur);
         }
@@ -617,7 +624,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
       if (v2d->keepofs & V2D_LOCKOFS_Y) {
         cur->ymax += height - BLI_rctf_size_y(cur);
       }
-      else if (v2d->keepofs & V2D_KEEPOFS_Y) {
+      else if ((v2d->keepofs & V2D_KEEPOFS_Y) && do_keepofs) {
         if (v2d->align & V2D_ALIGN_NO_POS_Y) {
           cur->ymin -= height - BLI_rctf_size_y(cur);
         }
@@ -1097,7 +1104,7 @@ void UI_view2d_view_ortho(const View2D *v2d)
    * correspondence with pixels for smooth UI drawing,
    * but only applied where requested.
    */
-  /* XXX brecht: instead of zero at least use a tiny offset, otherwise
+  /* XXX(@brecht): instead of zero at least use a tiny offset, otherwise
    * pixel rounding is effectively random due to float inaccuracy */
   if (sizex > 0) {
     xofs = eps * BLI_rctf_size_x(&v2d->cur) / sizex;
@@ -1188,9 +1195,9 @@ void UI_view2d_multi_grid_draw(
   vertex_count += 2 * (int((v2d->cur.ymax - v2d->cur.ymin) / lstep) + 1);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint color = GPU_vertformat_attr_add(format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
 
   GPU_line_width(1.0f);
 
@@ -1215,7 +1222,7 @@ void UI_view2d_multi_grid_draw(
 
       immAttrSkip(color);
       immVertex2f(pos, start, v2d->cur.ymin);
-      immAttr3ubv(color, grid_line_color);
+      immAttr4ub(color, UNPACK3(grid_line_color), 255);
       immVertex2f(pos, start, v2d->cur.ymax);
     }
 
@@ -1232,7 +1239,7 @@ void UI_view2d_multi_grid_draw(
 
       immAttrSkip(color);
       immVertex2f(pos, v2d->cur.xmin, start);
-      immAttr3ubv(color, grid_line_color);
+      immAttr4ub(color, UNPACK3(grid_line_color), 255);
       immVertex2f(pos, v2d->cur.xmax, start);
     }
 
@@ -1246,12 +1253,12 @@ void UI_view2d_multi_grid_draw(
 
   immAttrSkip(color);
   immVertex2f(pos, 0.0f, v2d->cur.ymin);
-  immAttr3ubv(color, grid_line_color);
+  immAttr4ub(color, UNPACK3(grid_line_color), 255);
   immVertex2f(pos, 0.0f, v2d->cur.ymax);
 
   immAttrSkip(color);
   immVertex2f(pos, v2d->cur.xmin, 0.0f);
-  immAttr3ubv(color, grid_line_color);
+  immAttr4ub(color, UNPACK3(grid_line_color), 255);
   immVertex2f(pos, v2d->cur.xmax, 0.0f);
 
   immEnd();
@@ -1290,7 +1297,8 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
   const float zoom_x = float(BLI_rcti_size_x(&v2d->mask) + 1) / BLI_rctf_size_x(&v2d->cur);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
 
@@ -1493,7 +1501,7 @@ void view2d_scrollers_calc(View2D *v2d, const rcti *mask_custom, View2DScrollers
   }
 }
 
-void UI_view2d_scrollers_draw_ex(View2D *v2d, const rcti *mask_custom, bool use_full_hide)
+void UI_view2d_scrollers_draw(View2D *v2d, const rcti *mask_custom)
 {
   View2DScrollers scrollers;
   view2d_scrollers_calc(v2d, mask_custom, &scrollers);
@@ -1501,7 +1509,7 @@ void UI_view2d_scrollers_draw_ex(View2D *v2d, const rcti *mask_custom, bool use_
   rcti vert, hor;
   const int scroll = view2d_scroll_mapped(v2d->scroll);
   const char emboss_alpha = btheme->tui.widget_emboss[3];
-  const float alpha_min = use_full_hide ? 0.0f : V2D_SCROLL_MIN_ALPHA;
+  const float alpha_min = V2D_SCROLL_MIN_ALPHA;
 
   uchar scrollers_back_color[4];
 
@@ -1604,11 +1612,6 @@ void UI_view2d_scrollers_draw_ex(View2D *v2d, const rcti *mask_custom, bool use_
   btheme->tui.widget_emboss[3] = emboss_alpha;
 }
 
-void UI_view2d_scrollers_draw(View2D *v2d, const rcti *mask_custom)
-{
-  UI_view2d_scrollers_draw_ex(v2d, mask_custom, false);
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1687,13 +1690,13 @@ void UI_view2d_region_to_view_rctf(const View2D *v2d, const rctf *rect_src, rctf
 
 float UI_view2d_view_to_region_x(const View2D *v2d, float x)
 {
-  return (v2d->mask.xmin +
-          (((x - v2d->cur.xmin) / BLI_rctf_size_x(&v2d->cur)) * BLI_rcti_size_x(&v2d->mask)));
+  return (v2d->mask.xmin + (((x - v2d->cur.xmin) / BLI_rctf_size_x(&v2d->cur)) *
+                            float(BLI_rcti_size_x(&v2d->mask) + 1)));
 }
 float UI_view2d_view_to_region_y(const View2D *v2d, float y)
 {
-  return (v2d->mask.ymin +
-          (((y - v2d->cur.ymin) / BLI_rctf_size_y(&v2d->cur)) * BLI_rcti_size_y(&v2d->mask)));
+  return (v2d->mask.ymin + (((y - v2d->cur.ymin) / BLI_rctf_size_y(&v2d->cur)) *
+                            float(BLI_rcti_size_y(&v2d->mask) + 1)));
 }
 
 bool UI_view2d_view_to_region_clip(
@@ -1813,8 +1816,8 @@ void UI_view2d_view_to_region_m4(const View2D *v2d, float matrix[4][4])
 bool UI_view2d_view_to_region_rcti_clip(const View2D *v2d, const rctf *rect_src, rcti *rect_dst)
 {
   const float cur_size[2] = {BLI_rctf_size_x(&v2d->cur), BLI_rctf_size_y(&v2d->cur)};
-  const float mask_size[2] = {float(BLI_rcti_size_x(&v2d->mask)),
-                              float(BLI_rcti_size_y(&v2d->mask))};
+  const float mask_size[2] = {float(BLI_rcti_size_x(&v2d->mask) + 1),
+                              float(BLI_rcti_size_y(&v2d->mask) + 1)};
   rctf rect_tmp;
 
   BLI_assert(rect_src->xmin <= rect_src->xmax && rect_src->ymin <= rect_src->ymax);
@@ -2097,7 +2100,7 @@ void UI_view2d_text_cache_add(
 
     v2s->col.pack = *((const int *)col);
 
-    memset(&v2s->rect, 0, sizeof(v2s->rect));
+    v2s->rect = rcti{};
 
     v2s->mval[0] = mval[0];
     v2s->mval[1] = mval[1];

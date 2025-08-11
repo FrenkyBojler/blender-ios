@@ -49,10 +49,8 @@
 
 #define MAX_TREETYPE 32
 
-/* Setting zero so we can catch bugs in BLI_task/KDOPBVH.
- * TODO(sergey): Deduplicate the limits with #blender::bke::pbvh::Tree from BKE.
- */
 #ifndef NDEBUG
+/* Setting zero so we can catch bugs in BLI_task/KDOPBVH. */
 #  define KDOPBVH_THREAD_LEAF_THRESHOLD 0
 #else
 #  define KDOPBVH_THREAD_LEAF_THRESHOLD 1024
@@ -1405,8 +1403,7 @@ BVHTreeOverlap *BLI_bvhtree_overlap_ex(
       total += BLI_stack_count(data[j].overlap);
     }
 
-    to = overlap = static_cast<BVHTreeOverlap *>(
-        MEM_mallocN(sizeof(BVHTreeOverlap) * total, "BVHTreeOverlap"));
+    to = overlap = MEM_malloc_arrayN<BVHTreeOverlap>(total, "BVHTreeOverlap");
 
     for (j = 0; j < thread_num; j++) {
       uint count = uint(BLI_stack_count(data[j].overlap));
@@ -1510,7 +1507,7 @@ int *BLI_bvhtree_intersect_plane(const BVHTree *tree, float plane[4], uint *r_in
 
     total = BLI_stack_count(data.intersect);
     if (total) {
-      intersect = static_cast<int *>(MEM_mallocN(sizeof(int) * total, __func__));
+      intersect = MEM_malloc_arrayN<int>(total, __func__);
       BLI_stack_pop_n(data.intersect, intersect, uint(total));
     }
     BLI_stack_free(data.intersect);

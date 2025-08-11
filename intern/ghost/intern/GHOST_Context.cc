@@ -29,6 +29,11 @@
 #include <cstdio>
 #include <cstring>
 
+GHOST_IContext *GHOST_IContext::getActiveDrawingContext()
+{
+  return GHOST_Context::getActiveDrawingContext();
+}
+
 #ifdef _WIN32
 
 bool win32_silent_chk(bool result)
@@ -137,3 +142,9 @@ void GHOST_Context::initClearGL()
   glClearColor(0.000, 0.000, 0.000, 0.000);
 }
 #endif
+
+const char *GHOST_Context::getEnvVarVsyncString()
+{
+  const char *ghost_vsync_string = getenv("GHOST_VSYNC");
+  return ghost_vsync_string;
+}

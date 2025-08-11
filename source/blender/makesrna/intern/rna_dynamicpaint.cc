@@ -312,7 +312,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
   PropertyRNA *parm;
   FunctionRNA *func;
 
-  /*  Surface format */
+  /* Surface format */
   static const EnumPropertyItem prop_dynamicpaint_surface_format[] = {
       // {MOD_DPAINT_SURFACE_F_PTEX, "PTEX", ICON_TEXTURE_SHADED, "Ptex", ""},
       {MOD_DPAINT_SURFACE_F_VERTEX, "VERTEX", ICON_OUTLINER_DATA_MESH, "Vertex", ""},
@@ -320,13 +320,13 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  /*  Surface type - generated dynamically based on surface format */
+  /* Surface type - generated dynamically based on surface format */
   static const EnumPropertyItem prop_dynamicpaint_surface_type[] = {
       {MOD_DPAINT_SURFACE_T_PAINT, "PAINT", 0, "Paint", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  /*  Initial color setting */
+  /* Initial color setting */
   static const EnumPropertyItem prop_dynamicpaint_init_color_type[] = {
       {MOD_DPAINT_INITIAL_NONE, "NONE", 0, "None", ""},
       {MOD_DPAINT_INITIAL_COLOR, "COLOR", ICON_COLOR, "Color", ""},
@@ -347,7 +347,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
   /* Displace-map file format. */
   static const EnumPropertyItem prop_dynamicpaint_image_fileformat[] = {
       {MOD_DPAINT_IMGFORMAT_PNG, "PNG", 0, "PNG", ""},
-#  ifdef WITH_OPENEXR
+#  ifdef WITH_IMAGE_OPENEXR
       {MOD_DPAINT_IMGFORMAT_OPENEXR, "OPENEXR", 0, "OpenEXR", ""},
 #  endif
       {0, nullptr, 0, nullptr, nullptr},
@@ -612,6 +612,7 @@ static void rna_def_canvas_surface(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "image_output_path", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "image_output_path");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "Output Path", "Directory to save the textures");
 
   /* output for primary surface data */

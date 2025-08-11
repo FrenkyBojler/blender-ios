@@ -291,6 +291,7 @@ EGLContext GHOST_ContextEGL::getContext() const
 GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 {
   if (m_display) {
+    active_context_ = this;
     bindAPI(m_api);
     return EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)) ? GHOST_kSuccess :
                                                                                    GHOST_kFailure;
@@ -301,6 +302,7 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 GHOST_TSuccess GHOST_ContextEGL::releaseDrawingContext()
 {
   if (m_display) {
+    active_context_ = nullptr;
     bindAPI(m_api);
 
     return EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) ?
@@ -623,11 +625,20 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
     goto error;
   }
 
+  {
+    const char *ghost_vsync_string = getEnvVarVsyncString();
+    if (ghost_vsync_string) {
+      int swapInterval = atoi(ghost_vsync_string);
+      setSwapInterval(swapInterval);
+    }
+  }
+
   if (m_nativeWindow != 0) {
     initClearGL();
     ::eglSwapBuffers(m_display, m_surface);
   }
 
+  active_context_ = this;
   return GHOST_kSuccess;
 
 error:

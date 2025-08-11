@@ -39,6 +39,7 @@
 #include "ED_gizmo_library.hh"
 #include "ED_gizmo_utils.hh"
 #include "ED_image.hh"
+#include "ED_mask.hh"
 #include "ED_screen.hh"
 #include "ED_uvedit.hh"
 
@@ -81,7 +82,7 @@ static bool gizmo2d_generic_poll(const bContext *C, wmGizmoGroupType *gzgt)
     case SPACE_IMAGE: {
       const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
       Object *obedit = CTX_data_edit_object(C);
-      if (!ED_space_image_show_uvedit(sima, obedit)) {
+      if (!(ED_space_image_show_uvedit(sima, obedit) || ED_space_image_show_mask(sima))) {
         return false;
       }
       break;
@@ -205,7 +206,7 @@ static GizmoGroup2D *gizmogroup2d_init(wmGizmoGroup *gzgroup)
   const wmGizmoType *gzt_cage = WM_gizmotype_find("GIZMO_GT_cage_2d", true);
   const wmGizmoType *gzt_button = WM_gizmotype_find("GIZMO_GT_button_2d", true);
 
-  GizmoGroup2D *ggd = static_cast<GizmoGroup2D *>(MEM_callocN(sizeof(GizmoGroup2D), __func__));
+  GizmoGroup2D *ggd = MEM_callocN<GizmoGroup2D>(__func__);
 
   ggd->translate_xy[0] = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
   ggd->translate_xy[1] = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
@@ -216,6 +217,10 @@ static GizmoGroup2D *gizmogroup2d_init(wmGizmoGroup *gzgroup)
                "transform",
                ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE |
                    ED_GIZMO_CAGE_XFORM_FLAG_ROTATE);
+  RNA_enum_set(ggd->cage->ptr,
+               "draw_options",
+               ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE |
+                   ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES);
 
   return ggd;
 }
@@ -236,12 +241,27 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
   ScrArea *area = CTX_wm_area(C);
   bool has_select = false;
   if (area->spacetype == SPACE_IMAGE) {
-    Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-        scene, view_layer, nullptr);
-    if (ED_uvedit_minmax_multi(scene, objects, r_min, r_max)) {
-      has_select = true;
+    const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
+    switch (sima->mode) {
+      case SI_MODE_UV: {
+        Scene *scene = CTX_data_scene(C);
+        ViewLayer *view_layer = CTX_data_view_layer(C);
+        Vector<Object *> objects =
+            BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+                scene, view_layer, nullptr);
+        if (ED_uvedit_minmax_multi(scene, objects, r_min, r_max)) {
+          has_select = true;
+        }
+        break;
+      }
+      case SI_MODE_MASK: {
+        if (ED_mask_selected_minmax(C, r_min, r_max, false)) {
+          has_select = true;
+        }
+        break;
+      }
+      default:
+        break;
     }
   }
   else if (area->spacetype == SPACE_SEQ) {
@@ -369,9 +389,19 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
   bool has_select = false;
 
   if (area->spacetype == SPACE_IMAGE) {
-    SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+    const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    ED_uvedit_center_from_pivot_ex(sima, scene, view_layer, r_pivot, sima->around, &has_select);
+    switch (sima->mode) {
+      case SI_MODE_UV:
+        ED_uvedit_center_from_pivot_ex(
+            sima, scene, view_layer, r_pivot, sima->around, &has_select);
+        break;
+      case SI_MODE_MASK:
+        ED_mask_center_from_pivot_ex(C, area, r_pivot, sima->around, &has_select);
+        break;
+      default:
+        break;
+    }
   }
   else if (area->spacetype == SPACE_SEQ) {
     SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
@@ -412,10 +442,10 @@ BLI_INLINE void gizmo2d_origin_to_region(ARegion *region, float *r_origin)
 /**
  * Custom handler for gizmo widgets
  */
-static int gizmo2d_modal(bContext *C,
-                         wmGizmo *widget,
-                         const wmEvent * /*event*/,
-                         eWM_GizmoFlagTweak /*tweak_flag*/)
+static wmOperatorStatus gizmo2d_modal(bContext *C,
+                                      wmGizmo *widget,
+                                      const wmEvent * /*event*/,
+                                      eWM_GizmoFlagTweak /*tweak_flag*/)
 {
   ARegion *region = CTX_wm_region(C);
   float origin[3];
@@ -785,8 +815,7 @@ static GizmoGroup_Resize2D *gizmogroup2d_resize_init(wmGizmoGroup *gzgroup)
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
   const wmGizmoType *gzt_button = WM_gizmotype_find("GIZMO_GT_button_2d", true);
 
-  GizmoGroup_Resize2D *ggd = static_cast<GizmoGroup_Resize2D *>(
-      MEM_callocN(sizeof(GizmoGroup_Resize2D), __func__));
+  GizmoGroup_Resize2D *ggd = MEM_callocN<GizmoGroup_Resize2D>(__func__);
 
   ggd->gizmo_xy[0] = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
   ggd->gizmo_xy[1] = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
@@ -948,8 +977,7 @@ static GizmoGroup_Rotate2D *gizmogroup2d_rotate_init(wmGizmoGroup *gzgroup)
 {
   const wmGizmoType *gzt_button = WM_gizmotype_find("GIZMO_GT_button_2d", true);
 
-  GizmoGroup_Rotate2D *ggd = static_cast<GizmoGroup_Rotate2D *>(
-      MEM_callocN(sizeof(GizmoGroup_Rotate2D), __func__));
+  GizmoGroup_Rotate2D *ggd = MEM_callocN<GizmoGroup_Rotate2D>(__func__);
 
   ggd->gizmo = WM_gizmo_new_ptr(gzt_button, gzgroup, nullptr);
 

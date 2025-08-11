@@ -73,6 +73,7 @@ GHOST_TSuccess GHOST_ContextSDL::activateDrawingContext()
   if (m_context == nullptr) {
     return GHOST_kFailure;
   }
+  active_context_ = this;
   return SDL_GL_MakeCurrent(m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
@@ -81,6 +82,7 @@ GHOST_TSuccess GHOST_ContextSDL::releaseDrawingContext()
   if (m_context == nullptr) {
     return GHOST_kFailure;
   }
+  active_context_ = nullptr;
   /* Untested, may not work. */
   return SDL_GL_MakeCurrent(nullptr, nullptr) ? GHOST_kSuccess : GHOST_kFailure;
 }
@@ -132,9 +134,16 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
 
     success = (SDL_GL_MakeCurrent(m_window, m_context) < 0) ? GHOST_kFailure : GHOST_kSuccess;
 
+    const char *ghost_vsync_string = getEnvVarVsyncString();
+    if (ghost_vsync_string) {
+      int swapInterval = atoi(ghost_vsync_string);
+      setSwapInterval(swapInterval);
+    }
+
     initClearGL();
     SDL_GL_SwapWindow(m_window);
 
+    active_context_ = this;
     success = GHOST_kSuccess;
   }
   else {

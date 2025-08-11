@@ -24,6 +24,8 @@
 
 #include "ED_keyframing.hh"
 
+#include <fmt/format.h>
+
 const EnumPropertyItem rna_enum_fmodifier_type_items[] = {
     {FMODIFIER_TYPE_NULL, "NULL", 0, "Invalid", ""},
     {FMODIFIER_TYPE_GENERATOR,
@@ -349,13 +351,6 @@ static void rna_DriverVariable_update_data(Main *bmain, Scene *scene, PointerRNA
 
 /* ----------- */
 
-/* NOTE: this function exists only to avoid id reference-counting. */
-static void rna_DriverTarget_id_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
-{
-  DriverTarget *dtar = (DriverTarget *)ptr->data;
-  dtar->id = static_cast<ID *>(value.data);
-}
-
 static StructRNA *rna_DriverTarget_id_typef(PointerRNA *ptr)
 {
   DriverTarget *dtar = (DriverTarget *)ptr->data;
@@ -550,6 +545,41 @@ static void rna_FKeyframe_ctrlpoint_ui_set(PointerRNA *ptr, const float *values)
 
 /* ****************************** */
 
+static std::optional<std::string> rna_FCurve_path(const PointerRNA *ptr)
+{
+  using namespace blender;
+  FCurve *fcurve = reinterpret_cast<FCurve *>(ptr->data);
+
+  /* If the F-Curve is not owned by an Action, bail out early. It could be a driver, NLA control
+   * curve, or stored in some place that's yet unknown at the time of writing of this code. */
+  if (GS(ptr->owner_id) != ID_AC) {
+    return {};
+  }
+
+  animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
+
+  for (animrig::Layer *layer : action.layers()) {
+    for (animrig::Strip *strip : layer->strips()) {
+      if (strip->type() != animrig::Strip::Type::Keyframe) {
+        continue;
+      }
+
+      animrig::StripKeyframeData &strip_data = strip->data<animrig::StripKeyframeData>(action);
+      for (animrig::Channelbag *channelbag : strip_data.channelbags()) {
+        const int fcurve_index = channelbag->fcurves().first_index_try(fcurve);
+        if (fcurve_index != -1) {
+          PointerRNA channelbag_ptr = RNA_pointer_create_discrete(
+              &action.id, &RNA_ActionChannelbag, channelbag);
+          const std::optional<std::string> channelbag_path = rna_Channelbag_path(&channelbag_ptr);
+          return fmt::format("{}.fcurves[{}]", *channelbag_path, fcurve_index);
+        }
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
 static void rna_FCurve_RnaPath_get(PointerRNA *ptr, char *value)
 {
   FCurve *fcu = (FCurve *)ptr->data;
@@ -650,8 +680,8 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value, ReportList *
     /* try to remove F-Curve from action (including from any existing groups) */
     action_groups_remove_channel(act, fcu);
 
-    /* add the F-Curve back to the action now in the right place */
-    /* TODO: make the api function handle the case where there isn't any group to assign to. */
+    /* Add the F-Curve back to the action now in the right place. */
+    /* TODO: make the API function handle the case where there isn't any group to assign to. */
     if (value.data) {
       /* add to its group using API function, which makes sure everything goes ok */
       action_groups_add_channel(act, static_cast<bActionGroup *>(value.data), fcu);
@@ -1939,11 +1969,10 @@ static void rna_def_drivertarget(BlenderRNA *brna)
   prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ID");
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_DriverTarget_id_editable");
-  /* NOTE: custom set function is ONLY to avoid rna setting a user for this. */
-  RNA_def_property_pointer_funcs(
-      prop, nullptr, "rna_DriverTarget_id_set", "rna_DriverTarget_id_typef", nullptr);
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, "rna_DriverTarget_id_typef", nullptr);
   RNA_def_property_ui_text(prop,
                            "ID",
                            "ID-block that the specific property used can be found from "
@@ -2004,14 +2033,14 @@ static void rna_def_drivertarget(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "options", DTAR_OPTION_USE_FALLBACK);
   RNA_def_property_ui_text(prop,
                            "Use Fallback",
-                           "Use the fallback value if the data path can't be resolved, instead of "
-                           "failing to evaluate the driver");
+                           "Use the fallback value if the data path cannot be resolved, instead "
+                           "of failing to evaluate the driver");
   RNA_def_property_update(prop, 0, "rna_DriverTarget_update_data");
 
   prop = RNA_def_property(srna, "fallback_value", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fallback_value");
   RNA_def_property_ui_text(
-      prop, "Fallback", "The value to use if the data path can't be resolved");
+      prop, "Fallback", "The value to use if the data path cannot be resolved");
   RNA_def_property_update(prop, 0, "rna_DriverTarget_update_data");
 
   prop = RNA_def_property(srna, "is_fallback_used", PROP_BOOLEAN, PROP_NONE);
@@ -2081,7 +2110,7 @@ static void rna_def_drivervar(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_DriverVariable_update_data");
 
   /* Targets */
-  /* TODO: for nicer api, only expose the relevant props via subclassing,
+  /* TODO: for nicer API, only expose the relevant props via subclassing,
    *       instead of exposing the collection of targets */
   prop = RNA_def_property(srna, "targets", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "targets", "num_targets");
@@ -2526,7 +2555,8 @@ static void rna_def_fcurve(BlenderRNA *brna)
        "AUTO_YRGB",
        0,
        "Auto WXYZ to YRGB",
-       "Use axis colors for XYZ parts of transform, and yellow for the 'W' channel"},
+       "Use WXYZ axis colors for quaternion/axis-angle rotations, XYZ axis colors for other "
+       "transform and color properties, and auto-rainbow for the rest"},
       {FCURVE_COLOR_CUSTOM,
        "CUSTOM",
        0,
@@ -2538,6 +2568,7 @@ static void rna_def_fcurve(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "FCurve", nullptr);
   RNA_def_struct_ui_text(srna, "F-Curve", "F-Curve defining values of a period of time");
   RNA_def_struct_ui_icon(srna, ICON_ANIM_DATA);
+  RNA_def_struct_path_func(srna, "rna_FCurve_path");
 
   /* Enums */
   prop = RNA_def_property(srna, "extrapolation", PROP_ENUM, PROP_NONE);

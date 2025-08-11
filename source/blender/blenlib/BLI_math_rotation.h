@@ -11,6 +11,7 @@
 #include "BLI_math_base.h"       // IWYU pragma: keep
 #include "BLI_math_constants.h"  // IWYU pragma: keep
 #include "BLI_utildefines.h"
+
 #include "DNA_vec_types.h"
 
 /* -------------------------------------------------------------------- */
@@ -396,6 +397,10 @@ void rotate_eulO(float beul[3], short order, char axis, float angle);
 void copy_dq_dq(DualQuat *r, const DualQuat *dq);
 void normalize_dq(DualQuat *dq, float totweight);
 void add_weighted_dq_dq(DualQuat *dq_sum, const DualQuat *dq, float weight);
+/**
+ * Add the transformation defined by the given dual quaternion to the accumulator,
+ * using the specified pivot point for combining scale transformations.
+ */
 void add_weighted_dq_dq_pivot(DualQuat *dq_sum,
                               const DualQuat *dq,
                               const float pivot[3],

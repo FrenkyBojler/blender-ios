@@ -433,7 +433,7 @@ static void distortion_model_parameters_from_tracking(
   }
 
   /* Unknown distortion model, which might be due to opening newer file in older Blender.
-   * Fallback to a known and supported model with 0 distortion. */
+   * Fall back to a known and supported model with 0 distortion. */
   camera_intrinsics_options->distortion_model = LIBMV_DISTORTION_MODEL_POLYNOMIAL;
   camera_intrinsics_options->polynomial_k1 = 0.0;
   camera_intrinsics_options->polynomial_k2 = 0.0;
@@ -493,8 +493,6 @@ void tracking_cameraIntrinscisOptionsFromTracking(
   tracking_principal_point_normalized_to_pixel(
       camera->principal_point, calibration_width, calibration_height, principal_px);
 
-  camera_intrinsics_options->num_threads = BLI_system_thread_count();
-
   camera_intrinsics_options->focal_length = camera->focal;
 
   camera_intrinsics_options->principal_point_x = principal_px[0];
@@ -546,16 +544,14 @@ MovieTrackingMarker *tracking_get_keyframed_marker(MovieTrackingTrack *track,
 
     if ((cur_marker->flag & MARKER_DISABLED) == 0) {
       /* If it'll happen so we didn't find a real keyframe marker,
-       * fallback to the first marker in current tracked segment
-       * as a keyframe.
-       */
+       * fall back to the first marker in current tracked segment
+       * as a keyframe. */
       if (next_marker == nullptr) {
         /* Could happen when trying to get reference marker for the fist
          * one on the segment which isn't surrounded by disabled markers.
          *
          * There's no really good choice here, just use the reference
-         * marker which looks correct..
-         */
+         * marker which looks correct.. */
         if (marker_keyed_fallback == nullptr) {
           marker_keyed_fallback = cur_marker;
         }
