@@ -10,6 +10,7 @@
  * Utilities for lossless data compression.
  */
 
+#include <cstddef>
 #include <cstdint>
 
 namespace blender {
