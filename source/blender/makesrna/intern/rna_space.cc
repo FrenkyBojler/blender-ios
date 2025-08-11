@@ -8113,6 +8113,7 @@ static void rna_def_space_node(BlenderRNA *brna)
                                  "rna_SpaceNodeEditor_node_tree_poll");
   RNA_def_property_pointer_sdna(prop, nullptr, "nodetree");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
   RNA_def_property_ui_text(prop, "Node Tree", "Base node tree from context");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_node_tree_update");
 
@@ -8277,6 +8278,7 @@ static void rna_def_space_clip(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Movie Clip", "Movie clip displayed and edited in this space");
   RNA_def_property_pointer_funcs(prop, nullptr, "rna_SpaceClipEditor_clip_set", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   /* clip user */
