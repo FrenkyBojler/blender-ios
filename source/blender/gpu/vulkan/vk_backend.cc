@@ -60,22 +60,6 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
       vk_physical_device_driver_properties.conformanceVersion.subminor,
       vk_physical_device_driver_properties.conformanceVersion.patch);
 
-  VkPhysicalDeviceFeatures2 features = {};
-  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  VkPhysicalDeviceVulkan11Features features_11 = {};
-  features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-  VkPhysicalDeviceVulkan12Features features_12 = {};
-  features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-  features.pNext = &features_11;
-  features_11.pNext = &features_12;
-
-  vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
-
-  if (features_11.shaderDrawParameters == false) {
-    CLOG_WARN(&LOG, "shaderDrawParameters not available.");
-    return false;
-  }
-
   /* Intel IRIS on 10th gen CPU (and older) crashes due to multiple driver issues.
    *
    * 1) Workbench is working, but EEVEE pipelines are failing. Calling vkCreateGraphicsPipelines
@@ -135,8 +119,10 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   /* Check device features. */
   VkPhysicalDeviceVulkan12Features features_12 = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
+  VkPhysicalDeviceVulkan11Features features_11 = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES, &features_12};
   VkPhysicalDeviceFeatures2 features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-                                        &features_12};
+                                        &features_11};
 
   vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
 
@@ -168,6 +154,9 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   }
   if (features.features.fragmentStoresAndAtomics == VK_FALSE) {
     missing_capabilities.append("fragment stores and atomics");
+  }
+  if (features_11.shaderDrawParameters == VK_FALSE) {
+    missing_capabilities.append("shader draw parameters");
   }
   if (features_12.timelineSemaphore == VK_FALSE) {
     missing_capabilities.append("timeline semaphores");
