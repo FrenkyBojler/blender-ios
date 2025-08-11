@@ -1063,7 +1063,7 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
 }
 
 /* The compositor Value, Color Ramp, Mix Color, Map Range, Map Value, Math, Combine XYZ, Separate
- * XYZ, Vector Curves and Gamma nodes are now deprecated and should be replaced by their generic
+ * XYZ, and Vector Curves nodes are now deprecated and should be replaced by their generic
  * Shader node counterpart. */
 static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 {
@@ -1155,23 +1155,6 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
       }
       case CMP_NODE_MAP_VALUE_DEPRECATED: {
         do_version_map_value_node(node_tree, node);
-        break;
-      }
-      case CMP_NODE_GAMMA_DEPRECATED: {
-        node->type_legacy = SH_NODE_GAMMA;
-        STRNCPY_UTF8(node->idname, "ShaderNodeGamma");
-
-        /* The Compositor node uses "Image" and "Gamma" as socket names and identifiers while the
-         * Shader node uses "Color" and "Gamma" as socket names and identifiers. */
-        bNodeSocket *gamma_input = blender::bke::node_find_socket(*node, SOCK_IN, "Image");
-        STRNCPY_UTF8(gamma_input->identifier, "Color");
-        STRNCPY_UTF8(gamma_input->name, "Color");
-        bNodeSocket *gamma_factor = blender::bke::node_find_socket(*node, SOCK_IN, "Gamma");
-        STRNCPY_UTF8(gamma_factor->identifier, "Gamma");
-        STRNCPY_UTF8(gamma_factor->name, "Gamma");
-        bNodeSocket *gamma_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Image");
-        STRNCPY_UTF8(gamma_output->identifier, "Color");
-        STRNCPY_UTF8(gamma_output->name, "Color");
         break;
       }
       default:
