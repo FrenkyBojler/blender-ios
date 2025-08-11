@@ -1007,6 +1007,10 @@ class FixedRotationsConstraintSet : public ConstraintSet {
 
   void solve(ConstraintSetSolveParams &params) override
   {
+    float compliance_term = 0.0f;
+    if (params.delta_time > 0.0f) {
+      compliance_term = compliance_ / pow2f(params.delta_time);
+    }
     this->foreach_fixed_rotation(
         params.sim_geometries,
         [&](const int geometry_i,
@@ -1041,7 +1045,7 @@ class FixedRotationsConstraintSet : public ConstraintSet {
                                      0.0f,
                                      1.0f,
                                      lambda_prev,
-                                     compliance_,
+                                     compliance_term,
                                      rest_shape,
                                      local_corrections);
           });
