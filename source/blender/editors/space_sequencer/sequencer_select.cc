@@ -2418,57 +2418,15 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  // rctf rectf;
-  // const bool handles = RNA_boolean_get(op->ptr, "include_handles");
   float x_radius = radius / UI_view2d_scale_get_x(v2d);
   float y_radius = radius / UI_view2d_scale_get_y(v2d);
   bool changed;
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
     rctf rq;
     strip_rectf(scene, strip, &rq);
-    // if (BLI_rctf_isect_circle(&rq, view_mval, pixel_radius)) {
-    /* Use custom function to check the distance because in timeline the circle is a ellipse */
+    /* Use custom function to check the distance because in timeline the circle is a ellipse. */
     if (check_circle_intersection_in_timeline(&rq, view_mval, x_radius, y_radius)) {
-      // Hide this if statement for now.
-      //
-      // if (handles) {
-      //   /* Get the clickable handle size, ignoring padding. */
-      //   float handsize = inner_clickable_handle_size_get(scene, strip, v2d) * 4;
-
-      //   /* Right handle. */
-      //   if (rectf.xmax > (seq::time_right_handle_frame_get(scene, strip) - handsize)) {
-      //     if (select) {
-      //       strip->flag |= SELECT | SEQ_RIGHTSEL;
-      //     }
-      //     else {
-      //       /* Deselect the strip if it's left with no handles selected. */
-      //       if ((strip->flag & SEQ_RIGHTSEL) && ((strip->flag & SEQ_LEFTSEL) == 0)) {
-      //         strip->flag &= ~SELECT;
-      //       }
-      //       strip->flag &= ~SEQ_RIGHTSEL;
-      //     }
-
-      //     changed = true;
-      //   }
-      //   /* Left handle. */
-      //   if (rectf.xmin < (seq::time_left_handle_frame_get(scene, strip) + handsize)) {
-      //     if (select) {
-      //       strip->flag |= SELECT | SEQ_LEFTSEL;
-      //     }
-      //     else {
-      //       /* Deselect the strip if it's left with no handles selected. */
-      //       if ((strip->flag & SEQ_LEFTSEL) && ((strip->flag & SEQ_RIGHTSEL) == 0)) {
-      //         strip->flag &= ~SELECT;
-      //       }
-      //       strip->flag &= ~SEQ_LEFTSEL;
-      //     }
-      //   }
-
-      //   changed = true;
-      // }
-
-      // /* Regular box selection. */
-      // else {
+      changed = true;
       if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
         strip->flag |= SELECT;
       }
@@ -2477,7 +2435,6 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
         strip->flag &= ~SELECT;
       }
       changed = true;
-      // }
 
       const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
       if (!ignore_connections) {
