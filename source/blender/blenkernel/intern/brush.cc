@@ -1134,7 +1134,7 @@ std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(cons
       return std::nullopt;
     }
 
-    const UnifiedPaintSettings settings = paint->unified_paint_settings;
+    const UnifiedPaintSettings &settings = paint->unified_paint_settings;
     return BrushColorJitterSettings{
         settings.color_jitter_flag,
         settings.hsv_jitter[0],

@@ -1720,10 +1720,10 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
                       (Paint *)ts->curves_sculpt,
                       (Paint *)&ts->imapaint));
 #ifndef NDEBUG
-      Paint paint_test = **r_paint;
+      Paint paint_test = blender::dna::shallow_copy(**r_paint);
       paint_runtime_init(ts, *r_paint);
       /* Swap so debug doesn't hide errors when release fails. */
-      std::swap(**r_paint, paint_test);
+      blender::dna::shallow_swap(**r_paint, paint_test);
       BLI_assert(paint_test.runtime->ob_mode == (*r_paint)->runtime->ob_mode);
 #endif
     }
@@ -1738,7 +1738,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   else if ((Sculpt **)r_paint == &ts->sculpt) {
     Sculpt *data = MEM_callocN<Sculpt>(__func__);
 
-    *data = *DNA_struct_default_get(Sculpt);
+    *data = blender::dna::shallow_copy(*DNA_struct_default_get(Sculpt));
 
     paint = &data->paint;
     paint_init_data(*paint);

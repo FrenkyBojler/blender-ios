@@ -1205,7 +1205,7 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
   /* Set up automasking settings. */
-  Sculpt scene_copy = sd;
+  Sculpt scene_copy = dna::shallow_copy(sd);
 
   MaskSettingsSource src = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
   switch (src) {
@@ -1399,7 +1399,7 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
   /* Set up automasking settings. */
-  Sculpt scene_copy = sd;
+  Sculpt scene_copy = dna::shallow_copy(sd);
 
   MaskSettingsSource src = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
   switch (src) {

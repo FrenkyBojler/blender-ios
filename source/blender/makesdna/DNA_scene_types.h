@@ -1118,6 +1118,8 @@ typedef struct ToolSystemBrushBindings {
 
 /** Paint Tool Base. */
 typedef struct Paint {
+  DNA_DEFINE_CXX_METHODS(Paint)
+
   /**
    * The active brush. Possibly null. Possibly stored in a separate #Main data-base and not user-
    * counted.
@@ -1268,6 +1270,8 @@ typedef struct ParticleEditSettings {
 
 /** Sculpt. */
 typedef struct Sculpt {
+  DNA_DEFINE_CXX_METHODS(Sculpt)
+
   Paint paint;
 
   /** For rotating around a pivot point. */
@@ -1612,6 +1616,8 @@ enum {
 };
 
 typedef struct ToolSettings {
+  DNA_DEFINE_CXX_METHODS(ToolSettings)
+
   /** Vertex paint. */
   VPaint *vpaint;
   /** Weight paint. */
