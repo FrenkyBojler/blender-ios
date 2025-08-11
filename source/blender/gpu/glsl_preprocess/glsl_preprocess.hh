@@ -1427,6 +1427,24 @@ class Preprocessor {
   std::string default_argument_mutation(std::string str)
   {
     using namespace std;
+    using namespace shader::parser;
+
+    Parser parser(str);
+    parser.foreach_function([&](bool, Token fn_type, Token, Scope fn_args, bool, Scope fn_body) {
+      if (!fn_args.contains_token('=')) {
+        return;
+      }
+
+      string accumulated_args;
+
+      fn_args.foreach_scope(ScopeType::FunctionArg, [&](Scope arg) {
+        std::cout << "arg " << arg.str() << std::endl;
+        if (arg.contains_token('=')) {
+        }
+        Token end_of_args = arg.start();
+      });
+    });
+
     int match = 0;
     default_argument_search(
         str, [&](int /*parenthesis_depth*/, int /*bracket_depth*/, char & /*c*/) { match++; });
