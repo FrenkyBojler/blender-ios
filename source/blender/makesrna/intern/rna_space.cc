@@ -3853,10 +3853,11 @@ static void rna_def_space_generic_show_region_toggles(StructRNA *srna, int regio
     RNA_def_property_boolean_funcs(
         prop, "rna_Space_show_region_asset_shelf_get", "rna_Space_show_region_asset_shelf_set");
     RNA_def_property_editable_func(prop, "rna_Space_show_region_asset_shelf_editable");
-    RNA_def_property_ui_text(prop,
-                             "Asset Shelf",
-                             "Display a region with assets may currently be relevant (such as "
-                             "brushes in paint modes, or poses in Pose Mode)");
+    RNA_def_property_ui_text(
+        prop,
+        "Asset Shelf",
+        "Display a region with assets that may currently be relevant (such as "
+        "brushes in paint modes, or poses in Pose Mode)");
     RNA_def_property_update(prop, 0, "rna_Space_show_region_asset_shelf_update");
   }
   BLI_assert(region_type_mask == 0);
