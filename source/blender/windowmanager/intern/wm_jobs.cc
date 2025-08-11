@@ -21,7 +21,7 @@
 #include "BLI_utildefines.h"
 
 #ifdef _WIN32
-#include "BLI_winstuff.h"
+#  include "BLI_winstuff.h"
 #endif
 
 #include "BKE_global.hh"
@@ -161,6 +161,8 @@ static void wm_job_main_thread_yield(wmJob *wm_job)
 
 static void wm_jobs_update_qos(const wmWindowManager *wm)
 {
+  /* A QoS API is currently only available for Windows. */
+#ifdef _WIN32
   LISTBASE_FOREACH (wmJob *, wm_job, &wm->jobs) {
     if (wm_job->flag & WM_JOB_PRIORITY) {
       BLI_windows_process_set_qos(QoSMode::HIGH, QoSPrecedence::JOB);
@@ -169,6 +171,7 @@ static void wm_jobs_update_qos(const wmWindowManager *wm)
   }
 
   BLI_windows_process_set_qos(QoSMode::DEFAULT, QoSPrecedence::JOB);
+#endif
 }
 /**
  * Finds if type or owner, compare for it, otherwise any matching job.

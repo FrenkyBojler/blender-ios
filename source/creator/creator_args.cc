@@ -1915,9 +1915,9 @@ static const char arg_handle_highqos_set_doc[] =
     "Use Windows HighQoS mode for maximum performance under all circumstances (Windows only).";
 static int arg_handle_highqos_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-#ifdef _WIN32
+#  ifdef _WIN32
   BLI_windows_process_set_qos(QoSMode::HIGH, QoSPrecedence::CMDLINE_ARG);
-#endif
+#  endif
   return 0;
 }
 
