@@ -27,6 +27,11 @@ using BundleSocketValuePtr = std::shared_ptr<BundleSocketValue>;
 
 struct FallbackValue {};
 
+struct NodeAndSocket {
+  bNode *node = nullptr;
+  bNodeSocket *socket = nullptr;
+};
+
 struct PrimitiveSocketValue {
   std::variant<int, float, bool, ColorGeometry4f, float3> value;
 
@@ -877,36 +882,14 @@ class ShaderNodesInliner {
     if (const std::optional<PrimitiveSocketValue> primitive_value = value.to_primitive(
             *dst_socket.typeinfo))
     {
-      switch (dst_socket.type) {
-        case SOCK_FLOAT: {
-          dst_socket.default_value_typed<bNodeSocketValueFloat>()->value = std::get<float>(
-              primitive_value->value);
-          break;
-        }
-        case SOCK_INT: {
-          dst_socket.default_value_typed<bNodeSocketValueInt>()->value = std::get<int>(
-              primitive_value->value);
-          break;
-        }
-        case SOCK_BOOLEAN: {
-          dst_socket.default_value_typed<bNodeSocketValueBoolean>()->value = std::get<bool>(
-              primitive_value->value);
-          break;
-        }
-        case SOCK_VECTOR: {
-          copy_v3_v3(dst_socket.default_value_typed<bNodeSocketValueVector>()->value,
-                     std::get<float3>(primitive_value->value));
-          break;
-        }
-        case SOCK_RGBA: {
-          copy_v4_v4(dst_socket.default_value_typed<bNodeSocketValueRGBA>()->value,
-                     std::get<ColorGeometry4f>(primitive_value->value));
-          break;
-        }
-        default: {
-          BLI_assert_unreachable();
-          break;
-        }
+      if (dst_socket.flag & SOCK_HIDE_VALUE) {
+        const NodeAndSocket node_and_socket = this->primitive_value_to_output_socket(
+            *primitive_value);
+        bke::node_add_link(
+            dst_tree_, *node_and_socket.node, *node_and_socket.socket, dst_node, dst_socket);
+      }
+      else {
+        this->set_primitive_value_on_socket(dst_socket, *primitive_value);
       }
       return;
     }
@@ -937,6 +920,87 @@ class ShaderNodesInliner {
       return;
     }
     BLI_assert_unreachable();
+  }
+
+  NodeAndSocket primitive_value_to_output_socket(const PrimitiveSocketValue &value)
+  {
+    if (const float *value_float = std::get_if<float>(&value.value)) {
+      bNode *node = this->add_node("ShaderNodeValue");
+      bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
+      socket->default_value_typed<bNodeSocketValueFloat>()->value = *value_float;
+      return {node, socket};
+    }
+    if (const int *value_int = std::get_if<int>(&value.value)) {
+      bNode *node = this->add_node("ShaderNodeValue");
+      bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
+      socket->default_value_typed<bNodeSocketValueFloat>()->value = *value_int;
+      return {node, socket};
+    }
+    if (const bool *value_bool = std::get_if<bool>(&value.value)) {
+      bNode *node = this->add_node("ShaderNodeValue");
+      bNodeSocket *socket = static_cast<bNodeSocket *>(node->outputs.first);
+      socket->default_value_typed<bNodeSocketValueFloat>()->value = *value_bool;
+      return {node, socket};
+    }
+    if (const float3 *value_float3 = std::get_if<float3>(&value.value)) {
+      bNode *node = this->add_node("ShaderNodeCombineXYZ");
+      bNodeSocket *output_socket = static_cast<bNodeSocket *>(node->outputs.first);
+      bNodeSocket *input_x = static_cast<bNodeSocket *>(node->inputs.first);
+      bNodeSocket *input_y = input_x->next;
+      bNodeSocket *input_z = input_y->next;
+      input_x->default_value_typed<bNodeSocketValueFloat>()->value = value_float3->x;
+      input_y->default_value_typed<bNodeSocketValueFloat>()->value = value_float3->y;
+      input_z->default_value_typed<bNodeSocketValueFloat>()->value = value_float3->z;
+      return {node, output_socket};
+    }
+    if (const ColorGeometry4f *value_color = std::get_if<ColorGeometry4f>(&value.value)) {
+      bNode *node = this->add_node("ShaderNodeRGB");
+      bNodeSocket *output_socket = static_cast<bNodeSocket *>(node->outputs.first);
+      auto *socket_storage = static_cast<bNodeSocketValueRGBA *>(output_socket->default_value);
+      copy_v3_v3(socket_storage->value, *value_color);
+      socket_storage->value[3] = 1.0f;
+      return {node, output_socket};
+    }
+    BLI_assert_unreachable();
+    return {};
+  }
+
+  bNode *add_node(const StringRefNull idname)
+  {
+    bNode *node = bke::node_add_node(nullptr, dst_tree_, idname);
+    return node;
+  }
+
+  void set_primitive_value_on_socket(bNodeSocket &socket, const PrimitiveSocketValue &value)
+  {
+    switch (socket.type) {
+      case SOCK_FLOAT: {
+        socket.default_value_typed<bNodeSocketValueFloat>()->value = std::get<float>(value.value);
+        break;
+      }
+      case SOCK_INT: {
+        socket.default_value_typed<bNodeSocketValueInt>()->value = std::get<int>(value.value);
+        break;
+      }
+      case SOCK_BOOLEAN: {
+        socket.default_value_typed<bNodeSocketValueBoolean>()->value = std::get<bool>(value.value);
+        break;
+      }
+      case SOCK_VECTOR: {
+        copy_v3_v3(socket.default_value_typed<bNodeSocketValueVector>()->value,
+                   std::get<float3>(value.value));
+        break;
+      }
+      case SOCK_RGBA: {
+        copy_v4_v4(socket.default_value_typed<bNodeSocketValueRGBA>()->value,
+                   std::get<ColorGeometry4f>(value.value));
+        break;
+      }
+      default: {
+        BLI_assert_unreachable();
+        break;
+      }
+    }
   }
 
   void restore_zones_in_output_tree()
