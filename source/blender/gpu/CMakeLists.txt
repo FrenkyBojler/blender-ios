@@ -179,7 +179,6 @@ set(OPENGL_SRC
   opengl/gl_compute.cc
   opengl/gl_context.cc
   opengl/gl_debug.cc
-  opengl/gl_debug_layer.cc
   opengl/gl_framebuffer.cc
   opengl/gl_immediate.cc
   opengl/gl_index_buffer.cc
@@ -766,7 +765,7 @@ target_link_libraries(bf_gpu PUBLIC
   bf_imbuf_opencolorio_shaders
 )
 
-if(WITH_OPENGL_BACKEND AND UNIX)
+if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_libraries(bf_gpu PUBLIC rt)
 endif()
 

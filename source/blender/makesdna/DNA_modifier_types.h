@@ -1420,7 +1420,7 @@ typedef enum {
   MOD_SCREW_NORMAL_FLIP = (1 << 0),
   MOD_SCREW_NORMAL_CALC = (1 << 1),
   MOD_SCREW_OBJECT_OFFSET = (1 << 2),
-  /*  MOD_SCREW_OBJECT_ANGLE   = (1 << 4), */
+  // MOD_SCREW_OBJECT_ANGLE = (1 << 4),
   MOD_SCREW_SMOOTH_SHADING = (1 << 5),
   MOD_SCREW_UV_STRETCH_U = (1 << 6),
   MOD_SCREW_UV_STRETCH_V = (1 << 7),
@@ -1778,12 +1778,6 @@ typedef enum {
   MOD_WVG_PROXIMITY_INVERT_VGROUP_MASK = (1 << 3),
   MOD_WVG_PROXIMITY_INVERT_FALLOFF = (1 << 4),
   MOD_WVG_PROXIMITY_WEIGHTS_NORMALIZE = (1 << 5),
-
-  /* Having an "all flags" name for geometry modes because these bits are accessed with RNA via a
-     different property and this makes it easier to do bit setting/testing. See
-     `rna_VertexWeightProximityModifier_proximity_geometry_set` in rna_modifier.cc */
-  MOD_WVG_PROXIMITY_GEOM_ALL = (MOD_WVG_PROXIMITY_GEOM_VERTS | MOD_WVG_PROXIMITY_GEOM_EDGES |
-                                MOD_WVG_PROXIMITY_GEOM_FACES),
 } WeightVGProximityModifierFlag;
 
 /* Defines common to all WeightVG modifiers. */
@@ -2107,7 +2101,7 @@ typedef enum {
 typedef enum {
   MOD_MESHCACHE_INTERP_NONE = 0,
   MOD_MESHCACHE_INTERP_LINEAR = 1,
-  /*  MOD_MESHCACHE_INTERP_CARDINAL  = 2, */
+  // MOD_MESHCACHE_INTERP_CARDINAL = 2,
 } MeshCacheModifierInterpolation;
 
 typedef enum {
@@ -3199,7 +3193,9 @@ typedef struct GreasePencilLineartModifierData {
   float shadow_camera_far;
 
   float opacity;
-  short thickness;
+  float radius;
+
+  short thickness_legacy; /* Deprecated, use `radius`. */
 
   unsigned char mask_switches; /* #eGreasePencilLineartMaskSwitches */
   unsigned char material_mask_bits;
@@ -3207,7 +3203,7 @@ typedef struct GreasePencilLineartModifierData {
 
   unsigned char shadow_selection;
   unsigned char silhouette_selection;
-  char _pad[1];
+  char _pad[5];
 
   /** `0..1` range for cosine angle */
   float crease_threshold;

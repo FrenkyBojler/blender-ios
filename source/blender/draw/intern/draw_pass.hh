@@ -139,7 +139,7 @@ class PassBase {
   /** Reference to sub-pass commands buffer. Either own or from parent pass. */
   SubPassVector<PassBase<DrawCommandBufType>> &sub_passes_;
   /** Currently bound shader. Used for interface queries. */
-  GPUShader *shader_;
+  gpu::Shader *shader_;
 
   uint64_t manager_fingerprint_ = 0;
   uint64_t view_fingerprint_ = 0;
@@ -154,7 +154,7 @@ class PassBase {
   PassBase(const char *name,
            DrawCommandBufType &draw_command_buf,
            SubPassVector<PassBase<DrawCommandBufType>> &sub_passes,
-           GPUShader *shader = nullptr)
+           gpu::Shader *shader = nullptr)
       : draw_commands_buf_(draw_command_buf),
         sub_passes_(sub_passes),
         shader_(shader),
@@ -221,7 +221,7 @@ class PassBase {
   /**
    * Bind a shader. Any following bind() or push_constant() call will use its interface.
    */
-  void shader_set(GPUShader *shader);
+  void shader_set(gpu::Shader *shader);
 
   /**
    * Bind a framebuffer. This is equivalent to a deferred GPU_framebuffer_bind() call.
@@ -362,14 +362,14 @@ class PassBase {
   void bind_texture(int slot, gpu::VertBuf *buffer);
   void bind_texture(int slot, gpu::VertBuf **buffer);
   void bind_texture(int slot, gpu::VertBufPtr &buffer);
-  void bind_ssbo(const char *name, GPUStorageBuf *buffer);
-  void bind_ssbo(const char *name, GPUStorageBuf **buffer);
-  void bind_ssbo(int slot, GPUStorageBuf *buffer);
-  void bind_ssbo(int slot, GPUStorageBuf **buffer);
-  void bind_ssbo(const char *name, GPUUniformBuf *buffer);
-  void bind_ssbo(const char *name, GPUUniformBuf **buffer);
-  void bind_ssbo(int slot, GPUUniformBuf *buffer);
-  void bind_ssbo(int slot, GPUUniformBuf **buffer);
+  void bind_ssbo(const char *name, gpu::StorageBuf *buffer);
+  void bind_ssbo(const char *name, gpu::StorageBuf **buffer);
+  void bind_ssbo(int slot, gpu::StorageBuf *buffer);
+  void bind_ssbo(int slot, gpu::StorageBuf **buffer);
+  void bind_ssbo(const char *name, gpu::UniformBuf *buffer);
+  void bind_ssbo(const char *name, gpu::UniformBuf **buffer);
+  void bind_ssbo(int slot, gpu::UniformBuf *buffer);
+  void bind_ssbo(int slot, gpu::UniformBuf **buffer);
   void bind_ssbo(const char *name, gpu::VertBuf *buffer);
   void bind_ssbo(const char *name, gpu::VertBuf **buffer);
   void bind_ssbo(const char *name, gpu::VertBufPtr &buffer);
@@ -380,10 +380,10 @@ class PassBase {
   void bind_ssbo(const char *name, gpu::IndexBuf **buffer);
   void bind_ssbo(int slot, gpu::IndexBuf *buffer);
   void bind_ssbo(int slot, gpu::IndexBuf **buffer);
-  void bind_ubo(const char *name, GPUUniformBuf *buffer);
-  void bind_ubo(const char *name, GPUUniformBuf **buffer);
-  void bind_ubo(int slot, GPUUniformBuf *buffer);
-  void bind_ubo(int slot, GPUUniformBuf **buffer);
+  void bind_ubo(const char *name, gpu::UniformBuf *buffer);
+  void bind_ubo(const char *name, gpu::UniformBuf **buffer);
+  void bind_ubo(int slot, gpu::UniformBuf *buffer);
+  void bind_ubo(int slot, gpu::UniformBuf **buffer);
 
   /**
    * Update a shader constant.
@@ -428,14 +428,14 @@ class PassBase {
    * IMPORTANT: Will keep a reference to the data and dereference it upon drawing. Make sure data
    * still alive until pass submission.
    */
-  void specialize_constant(GPUShader *shader, const char *name, const float &data);
-  void specialize_constant(GPUShader *shader, const char *name, const int &data);
-  void specialize_constant(GPUShader *shader, const char *name, const uint &data);
-  void specialize_constant(GPUShader *shader, const char *name, const bool &data);
-  void specialize_constant(GPUShader *shader, const char *name, const float *data);
-  void specialize_constant(GPUShader *shader, const char *name, const int *data);
-  void specialize_constant(GPUShader *shader, const char *name, const uint *data);
-  void specialize_constant(GPUShader *shader, const char *name, const bool *data);
+  void specialize_constant(gpu::Shader *shader, const char *name, const float &data);
+  void specialize_constant(gpu::Shader *shader, const char *name, const int &data);
+  void specialize_constant(gpu::Shader *shader, const char *name, const uint &data);
+  void specialize_constant(gpu::Shader *shader, const char *name, const bool &data);
+  void specialize_constant(gpu::Shader *shader, const char *name, const float *data);
+  void specialize_constant(gpu::Shader *shader, const char *name, const int *data);
+  void specialize_constant(gpu::Shader *shader, const char *name, const uint *data);
+  void specialize_constant(gpu::Shader *shader, const char *name, const bool *data);
 
   /**
    * Custom resource binding.
@@ -1100,7 +1100,7 @@ inline void PassBase<T>::state_stencil(uint8_t write_mask, uint8_t reference, ui
   create_command(Type::StencilSet).stencil_set = {write_mask, compare_mask, reference};
 }
 
-template<class T> inline void PassBase<T>::shader_set(GPUShader *shader)
+template<class T> inline void PassBase<T>::shader_set(gpu::Shader *shader)
 {
   shader_ = shader;
   create_command(Type::ShaderBind).shader_bind = {shader};
@@ -1182,7 +1182,7 @@ inline void PassBase<T>::material_set(Manager &manager,
     }
   }
 
-  GPUUniformBuf *ubo = GPU_material_uniform_buffer_get(material);
+  gpu::UniformBuf *ubo = GPU_material_uniform_buffer_get(material);
   if (ubo != nullptr) {
     bind_ubo(GPU_NODE_TREE_UBO_SLOT, ubo);
   }
@@ -1199,19 +1199,19 @@ template<class T> inline int PassBase<T>::push_constant_offset(const char *name)
   return GPU_shader_get_uniform(shader_, name);
 }
 
-template<class T> inline void PassBase<T>::bind_ssbo(const char *name, GPUStorageBuf *buffer)
+template<class T> inline void PassBase<T>::bind_ssbo(const char *name, gpu::StorageBuf *buffer)
 {
   BLI_assert(buffer != nullptr);
   this->bind_ssbo(GPU_shader_get_ssbo_binding(shader_, name), buffer);
 }
 
-template<class T> inline void PassBase<T>::bind_ssbo(const char *name, GPUUniformBuf *buffer)
+template<class T> inline void PassBase<T>::bind_ssbo(const char *name, gpu::UniformBuf *buffer)
 {
   BLI_assert(buffer != nullptr);
   this->bind_ssbo(GPU_shader_get_ssbo_binding(shader_, name), buffer);
 }
 
-template<class T> inline void PassBase<T>::bind_ssbo(const char *name, GPUUniformBuf **buffer)
+template<class T> inline void PassBase<T>::bind_ssbo(const char *name, gpu::UniformBuf **buffer)
 {
   BLI_assert(buffer != nullptr);
   this->bind_ssbo(GPU_shader_get_ssbo_binding(shader_, name), buffer);
@@ -1247,7 +1247,7 @@ template<class T> inline void PassBase<T>::bind_ssbo(const char *name, gpu::Inde
   this->bind_ssbo(GPU_shader_get_ssbo_binding(shader_, name), buffer);
 }
 
-template<class T> inline void PassBase<T>::bind_ubo(const char *name, GPUUniformBuf *buffer)
+template<class T> inline void PassBase<T>::bind_ubo(const char *name, gpu::UniformBuf *buffer)
 {
   BLI_assert(buffer != nullptr);
   this->bind_ubo(GPU_shader_get_ubo_binding(shader_, name), buffer);
@@ -1286,20 +1286,20 @@ template<class T> inline void PassBase<T>::bind_image(const char *name, gpu::Tex
   this->bind_image(GPU_shader_get_sampler_binding(shader_, name), image);
 }
 
-template<class T> inline void PassBase<T>::bind_ssbo(int slot, GPUStorageBuf *buffer)
+template<class T> inline void PassBase<T>::bind_ssbo(int slot, gpu::StorageBuf *buffer)
 {
   BLI_assert(buffer != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, buffer};
 }
 
-template<class T> inline void PassBase<T>::bind_ssbo(int slot, GPUUniformBuf *buffer)
+template<class T> inline void PassBase<T>::bind_ssbo(int slot, gpu::UniformBuf *buffer)
 {
   BLI_assert(buffer != nullptr);
   create_command(Type::ResourceBind).resource_bind = {
       slot, buffer, ResourceBind::Type::UniformAsStorageBuf};
 }
 
-template<class T> inline void PassBase<T>::bind_ssbo(int slot, GPUUniformBuf **buffer)
+template<class T> inline void PassBase<T>::bind_ssbo(int slot, gpu::UniformBuf **buffer)
 {
   BLI_assert(buffer != nullptr);
   create_command(Type::ResourceBind).resource_bind = {
@@ -1341,7 +1341,7 @@ template<class T> inline void PassBase<T>::bind_ssbo(int slot, gpu::IndexBuf **b
       slot, buffer, ResourceBind::Type::IndexAsStorageBuf};
 }
 
-template<class T> inline void PassBase<T>::bind_ubo(int slot, GPUUniformBuf *buffer)
+template<class T> inline void PassBase<T>::bind_ubo(int slot, gpu::UniformBuf *buffer)
 {
   BLI_assert(buffer != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, buffer};
@@ -1378,13 +1378,13 @@ template<class T> inline void PassBase<T>::bind_image(int slot, gpu::Texture *im
   create_command(Type::ResourceBind).resource_bind = {slot, as_image(image)};
 }
 
-template<class T> inline void PassBase<T>::bind_ssbo(const char *name, GPUStorageBuf **buffer)
+template<class T> inline void PassBase<T>::bind_ssbo(const char *name, gpu::StorageBuf **buffer)
 {
   BLI_assert(buffer != nullptr);
   this->bind_ssbo(GPU_shader_get_ssbo_binding(shader_, name), buffer);
 }
 
-template<class T> inline void PassBase<T>::bind_ubo(const char *name, GPUUniformBuf **buffer)
+template<class T> inline void PassBase<T>::bind_ubo(const char *name, gpu::UniformBuf **buffer)
 {
   BLI_assert(buffer != nullptr);
   this->bind_ubo(GPU_shader_get_ubo_binding(shader_, name), buffer);
@@ -1405,14 +1405,14 @@ template<class T> inline void PassBase<T>::bind_image(const char *name, gpu::Tex
   this->bind_image(GPU_shader_get_sampler_binding(shader_, name), image);
 }
 
-template<class T> inline void PassBase<T>::bind_ssbo(int slot, GPUStorageBuf **buffer)
+template<class T> inline void PassBase<T>::bind_ssbo(int slot, gpu::StorageBuf **buffer)
 {
 
   BLI_assert(buffer != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, buffer};
 }
 
-template<class T> inline void PassBase<T>::bind_ubo(int slot, GPUUniformBuf **buffer)
+template<class T> inline void PassBase<T>::bind_ubo(int slot, gpu::UniformBuf **buffer)
 {
   BLI_assert(buffer != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, buffer};
@@ -1561,7 +1561,7 @@ template<class T> inline void PassBase<T>::push_constant(const char *name, const
  * \{ */
 
 template<class T>
-inline void PassBase<T>::specialize_constant(GPUShader *shader,
+inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
                                              const char *constant_name,
                                              const int &constant_value)
 {
@@ -1570,7 +1570,7 @@ inline void PassBase<T>::specialize_constant(GPUShader *shader,
 }
 
 template<class T>
-inline void PassBase<T>::specialize_constant(GPUShader *shader,
+inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
                                              const char *constant_name,
                                              const uint &constant_value)
 {
@@ -1579,7 +1579,7 @@ inline void PassBase<T>::specialize_constant(GPUShader *shader,
 }
 
 template<class T>
-inline void PassBase<T>::specialize_constant(GPUShader *shader,
+inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
                                              const char *constant_name,
                                              const float &constant_value)
 {
@@ -1588,7 +1588,7 @@ inline void PassBase<T>::specialize_constant(GPUShader *shader,
 }
 
 template<class T>
-inline void PassBase<T>::specialize_constant(GPUShader *shader,
+inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
                                              const char *constant_name,
                                              const bool &constant_value)
 {
@@ -1597,7 +1597,7 @@ inline void PassBase<T>::specialize_constant(GPUShader *shader,
 }
 
 template<class T>
-inline void PassBase<T>::specialize_constant(GPUShader *shader,
+inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
                                              const char *constant_name,
                                              const int *constant_value)
 {
@@ -1606,7 +1606,7 @@ inline void PassBase<T>::specialize_constant(GPUShader *shader,
 }
 
 template<class T>
-inline void PassBase<T>::specialize_constant(GPUShader *shader,
+inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
                                              const char *constant_name,
                                              const uint *constant_value)
 {
@@ -1615,7 +1615,7 @@ inline void PassBase<T>::specialize_constant(GPUShader *shader,
 }
 
 template<class T>
-inline void PassBase<T>::specialize_constant(GPUShader *shader,
+inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
                                              const char *constant_name,
                                              const float *constant_value)
 {
@@ -1624,7 +1624,7 @@ inline void PassBase<T>::specialize_constant(GPUShader *shader,
 }
 
 template<class T>
-inline void PassBase<T>::specialize_constant(GPUShader *shader,
+inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
                                              const char *constant_name,
                                              const bool *constant_value)
 {

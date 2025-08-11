@@ -19,9 +19,9 @@
 struct GPUMaterial;
 namespace blender::gpu {
 class Batch;
+class UniformBuf;
 class VertBuf;
 }  // namespace blender::gpu
-struct GPUUniformBuf;
 struct ModifierData;
 struct PTCacheEdit;
 struct ParticleSystem;

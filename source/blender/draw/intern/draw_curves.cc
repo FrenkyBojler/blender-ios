@@ -135,7 +135,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
   BLI_assert(input_buf != nullptr);
   BLI_assert(output_buf != nullptr);
 
-  GPUShader *shader = DRW_shader_curves_refine_get(shader_type);
+  gpu::Shader *shader = DRW_shader_curves_refine_get(shader_type);
 
   const char *pass_name = nullptr;
 

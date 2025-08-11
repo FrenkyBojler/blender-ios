@@ -158,19 +158,10 @@ CCL_NAMESPACE_BEGIN
    KERNEL_FEATURE_NODE_BUMP_STATE | KERNEL_FEATURE_NODE_PORTAL)
 #define KERNEL_FEATURE_NODE_MASK_BUMP KERNEL_FEATURE_NODE_MASK_DISPLACEMENT
 
-/* Must be constexpr on the CPU to avoid compile errors because the state types
- * are different depending on the main, shadow or null path. For GPU we don't have
- * C++17 everywhere so need to check it. */
-#if __cplusplus < 201703L
-#  define IF_KERNEL_FEATURE(feature) if ((node_feature_mask & (KERNEL_FEATURE_##feature)) != 0U)
-#  define IF_KERNEL_NODES_FEATURE(feature) \
-    if ((node_feature_mask & (KERNEL_FEATURE_NODE_##feature)) != 0U)
-#else
-#  define IF_KERNEL_FEATURE(feature) \
-    if constexpr ((node_feature_mask & (KERNEL_FEATURE_##feature)) != 0U)
-#  define IF_KERNEL_NODES_FEATURE(feature) \
-    if constexpr ((node_feature_mask & (KERNEL_FEATURE_NODE_##feature)) != 0U)
-#endif
+#define IF_KERNEL_FEATURE(feature) \
+  if constexpr ((node_feature_mask & (KERNEL_FEATURE_##feature)) != 0U)
+#define IF_KERNEL_NODES_FEATURE(feature) \
+  if constexpr ((node_feature_mask & (KERNEL_FEATURE_NODE_##feature)) != 0U)
 
 /* Kernel features */
 #define __AO__
@@ -879,6 +870,8 @@ enum AttributeStandard {
   ATTR_STD_UV,
   ATTR_STD_UV_TANGENT,
   ATTR_STD_UV_TANGENT_SIGN,
+  ATTR_STD_UV_TANGENT_UNDISPLACED,
+  ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED,
   ATTR_STD_VERTEX_COLOR,
   ATTR_STD_GENERATED,
   ATTR_STD_GENERATED_TRANSFORM,
@@ -1017,7 +1010,7 @@ enum ShaderDataFlag {
   SD_HOLDOUT = (1 << 5),
   /* Shader has non-zero volume extinction. */
   SD_EXTINCTION = (1 << 6),
-  /* Shader has have volume phase (scatter) closure. */
+  /* Shader has a volume phase (scatter) closure. */
   SD_SCATTER = (1 << 7),
   /* Shader is being evaluated in a volume. */
   SD_IS_VOLUME_SHADER_EVAL = (1 << 8),

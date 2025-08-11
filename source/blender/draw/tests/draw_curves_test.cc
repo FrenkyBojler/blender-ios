@@ -21,7 +21,7 @@ static void test_draw_curves_lib()
 {
   Manager manager;
 
-  GPUShader *sh = GPU_shader_create_from_info_name("draw_curves_test");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("draw_curves_test");
 
   struct Indirection {
     int index;
@@ -267,7 +267,7 @@ static void test_draw_curves_topology()
 {
   Manager manager;
 
-  GPUShader *sh = GPU_shader_create_from_info_name("draw_curves_topology");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("draw_curves_topology");
 
   struct IntBuf {
     int data;
@@ -358,7 +358,7 @@ static void test_draw_curves_interpolate_position()
 {
   Manager manager;
 
-  GPUShader *sh = GPU_shader_create_from_info_name("draw_curves_interpolate_position");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("draw_curves_interpolate_position");
 
   const int curve_resolution = 2;
 
@@ -998,14 +998,14 @@ static void test_draw_curves_interpolate_attributes()
   bezier_offsets_buf->data<int>().copy_from(bezier_offsets);
 
   auto dispatch =
-      [&](const char *attr_type, gpu::VertBuf *attr_buf, GPUStorageBuf *evaluated_attr_buf) {
+      [&](const char *attr_type, gpu::VertBuf *attr_buf, gpu::StorageBuf *evaluated_attr_buf) {
         std::string pass_name = std::string("Curves ") + attr_type + " Interpolation";
         std::string sh_name = std::string("draw_curves_interpolate_") + attr_type + "_attribute";
         std::string attr_buf_name = std::string("attribute_") + attr_type + "_buf";
         std::string eval_buf_name = std::string("evaluated_") + attr_type + "_buf";
         /* Make sure all references to the strings are deleted before the strings themselves. */
         {
-          GPUShader *sh = GPU_shader_create_from_info_name(sh_name.c_str());
+          gpu::Shader *sh = GPU_shader_create_from_info_name(sh_name.c_str());
 
           PassSimple pass(pass_name.c_str());
           pass.init();
