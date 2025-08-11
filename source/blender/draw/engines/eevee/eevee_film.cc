@@ -494,11 +494,11 @@ void Film::init(const int2 &extent, const rcti *output_rect)
                              data_.extent :
                              int2(1);
 
-    eGPUTextureFormat color_format = GPU_RGBA16F;
-    eGPUTextureFormat float_format = GPU_R16F;
-    eGPUTextureFormat weight_format = GPU_R32F;
-    eGPUTextureFormat depth_format = GPU_R32F;
-    eGPUTextureFormat cryptomatte_format = GPU_RGBA32F;
+    gpu::TextureFormat color_format = gpu::TextureFormat::SFLOAT_16_16_16_16;
+    gpu::TextureFormat float_format = gpu::TextureFormat::SFLOAT_16;
+    gpu::TextureFormat weight_format = gpu::TextureFormat::SFLOAT_32;
+    gpu::TextureFormat depth_format = gpu::TextureFormat::SFLOAT_32;
+    gpu::TextureFormat cryptomatte_format = gpu::TextureFormat::SFLOAT_32_32_32_32;
 
     int reset = 0;
     reset += depth_tx_.ensure_2d(depth_format, data_.extent);
@@ -550,7 +550,7 @@ void Film::sync()
 
   /* TODO(fclem): Shader variation for panoramic & scaled resolution. */
 
-  GPUShader *sh = inst_.shaders.static_shader_get(shader);
+  gpu::Shader *sh = inst_.shaders.static_shader_get(shader);
   accumulate_ps_.init();
   init_pass(accumulate_ps_, sh);
   /* Sync with rendering passes. */
@@ -586,7 +586,7 @@ void Film::sync()
   }
 }
 
-void Film::init_pass(PassSimple &pass, GPUShader *sh)
+void Film::init_pass(PassSimple &pass, gpu::Shader *sh)
 {
   GPUSamplerState filter = {GPU_SAMPLER_FILTERING_LINEAR};
   RenderBuffers &rbuffers = inst_.render_buffers;

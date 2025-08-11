@@ -7,6 +7,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
@@ -190,6 +191,8 @@ static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.minzoom = region->v2d.maxzoom = 1.0f;
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 
   {
     wmKeyMap *keymap = WM_keymap_ensure(
@@ -513,6 +516,11 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   sspreadsheet->runtime->top_row_height = drawer->top_row_height;
   sspreadsheet->runtime->left_column_width = drawer->left_column_width;
 
+  rcti mask;
+  UI_view2d_mask_from_win(&region->v2d, &mask);
+  mask.ymax -= sspreadsheet->runtime->top_row_height;
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &mask);
+
   /* Tag other regions for redraw, because the main region updates data for them. */
   ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);
   ED_region_tag_redraw(footer);
@@ -775,7 +783,7 @@ void register_spacetype()
   ARegionType *art;
 
   st->spaceid = SPACE_SPREADSHEET;
-  STRNCPY(st->name, "Spreadsheet");
+  STRNCPY_UTF8(st->name, "Spreadsheet");
 
   st->create = spreadsheet_create;
   st->free = spreadsheet_free;

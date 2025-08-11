@@ -1234,6 +1234,7 @@ class USERPREF_PT_theme_interface_gizmos(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "axis_x", text="Axis X")
         col.prop(ui, "axis_y", text="Y")
         col.prop(ui, "axis_z", text="Z")
+        col.prop(ui, "axis_w", text="W")
 
         col = flow.column()
         col.prop(ui, "gizmo_primary")
@@ -2101,16 +2102,20 @@ class USERPREF_PT_ndof_settings(Panel):
 
         if show_3dview_settings:
             col = layout.column(heading="Orbit Center")
+            col.active = props.ndof_navigation_mode == 'OBJECT'
             col.prop(props, "ndof_orbit_center_auto")
             colsub = col.column()
+            colsub.active = props.ndof_orbit_center_auto
             colsub.prop(props, "ndof_orbit_center_selected")
-            colsub.enabled = props.ndof_orbit_center_auto
             del colsub
             col.separator()
 
             col = layout.column(heading="Show")
             col.prop(props, "ndof_show_guide_orbit_axis", text="Orbit Axis")
-            col.prop(props, "ndof_show_guide_orbit_center", text="Orbit Center")
+            colsub = col.column()
+            colsub.active = props.ndof_navigation_mode == 'OBJECT'
+            colsub.prop(props, "ndof_show_guide_orbit_center", text="Orbit Center")
+            del colsub
 
         layout.separator()
 
@@ -2464,7 +2469,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
         prefs = context.preferences
 
         if self.is_extended():
-            # Rely on the draw function being appended to by the extensions add-on.
+            # Rely on the draw function being extended by the extensions add-on (`bl_pkg`).
             return
 
         layout = self.layout
@@ -2864,8 +2869,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_new_volume_nodes"}, ("blender/blender/issues/103248", "#103248")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
-                ({"property": "use_bundle_and_closure_nodes"}, ("blender/blender/issues/134029", "#134029")),
-                ({"property": "use_socket_structure_type"}, ("blender/blender/issues/127106", "#127106")),
+                ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
             ),
         )
 

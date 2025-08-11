@@ -52,6 +52,7 @@
 #include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
@@ -727,8 +728,9 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
     const double4x3 strokemat4x3 = double4x3(expand_4x2_mat(strokemat));
 
     /*
-     * We want to solve for `texture_matrix` in the equation: `texspace = texture_matrix *
-     * strokemat4x3` Because these matrices are not square we can not use a standard inverse.
+     * We want to solve for `texture_matrix` in the equation:
+     * `texspace = texture_matrix * strokemat4x3`
+     * Because these matrices are not square we can not use a standard inverse.
      *
      * Our problem has the form of: `X = A * Y`
      * We can solve for `A` using: `A = X * B`
@@ -2131,7 +2133,7 @@ void BKE_grease_pencil_vgroup_name_update(Object *ob, const char *old_name, cons
     CurvesGeometry &curves = drawing.strokes_for_write();
     LISTBASE_FOREACH (bDeformGroup *, vgroup, &curves.vertex_group_names) {
       if (STREQ(vgroup->name, old_name)) {
-        STRNCPY(vgroup->name, new_name);
+        STRNCPY_UTF8(vgroup->name, new_name);
       }
     }
   }
@@ -3162,10 +3164,6 @@ void GreasePencil::remove_drawings_with_no_users()
   using namespace blender;
   using namespace blender::bke::greasepencil;
 
-#ifndef NDEBUG
-  this->validate_drawing_user_counts();
-#endif
-
   /* Compress the drawings array by finding unused drawings.
    * In every step two indices are found:
    *   - The next unused drawing from the start
@@ -3735,6 +3733,8 @@ blender::bke::greasepencil::Layer &GreasePencil::add_layer(const blender::String
   const int numLayers = layers().size();
   this->attribute_storage.wrap().resize(bke::AttrDomain::Layer, numLayers + 1);
   bke::greasepencil::Layer *new_layer = MEM_new<bke::greasepencil::Layer>(__func__, unique_name);
+  /* Enable Lights by default. */
+  new_layer->base.flag |= GP_LAYER_TREE_NODE_USE_LIGHTS;
   /* Hide masks by default. */
   new_layer->base.flag |= GP_LAYER_TREE_NODE_HIDE_MASKS;
   bke::greasepencil::Layer &layer = root_group().add_node(new_layer->as_node()).as_layer();
@@ -4175,21 +4175,21 @@ void GreasePencil::rename_node(Main &bmain,
     /* Update the layer name of the influence data of the modifiers. */
     LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
       char *dst_layer_name = nullptr;
-      size_t dst_layer_name_len = 0;
+      size_t dst_layer_name_maxncpy = 0;
       /* LineArt doesn't use the `GreasePencilModifierInfluenceData` struct. */
       if (md->type == eModifierType_GreasePencilLineart) {
         auto *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
         dst_layer_name = lmd->target_layer;
-        dst_layer_name_len = sizeof(lmd->target_layer);
+        dst_layer_name_maxncpy = sizeof(lmd->target_layer);
       }
       else if (GreasePencilModifierInfluenceData *influence_data = influence_data_from_modifier(
                    md))
       {
         dst_layer_name = influence_data->layer_name;
-        dst_layer_name_len = sizeof(influence_data->layer_name);
+        dst_layer_name_maxncpy = sizeof(influence_data->layer_name);
       }
       if (dst_layer_name && STREQ(dst_layer_name, old_name.c_str())) {
-        BLI_strncpy(dst_layer_name, node.name().c_str(), dst_layer_name_len);
+        BLI_strncpy(dst_layer_name, node.name().c_str(), dst_layer_name_maxncpy);
       }
     }
   }

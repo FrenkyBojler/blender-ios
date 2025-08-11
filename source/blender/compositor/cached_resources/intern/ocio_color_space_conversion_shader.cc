@@ -231,8 +231,11 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
     const std::string &resource_name = *resource_names_[resource_names_.size() - 1];
 
     blender::gpu::Texture *texture;
-    const eGPUTextureFormat base_format = (channel == TEXTURE_RGB_CHANNEL) ? GPU_RGB32F : GPU_R32F;
-    const eGPUTextureFormat texture_format = Result::gpu_texture_format(base_format, precision_);
+    const blender::gpu::TextureFormat base_format =
+        (channel == TEXTURE_RGB_CHANNEL) ? blender::gpu::TextureFormat::SFLOAT_32_32_32 :
+                                           blender::gpu::TextureFormat::SFLOAT_32;
+    const blender::gpu::TextureFormat texture_format = Result::gpu_texture_format(base_format,
+                                                                                  precision_);
     /* A height of 1 indicates a 1D texture according to the OCIO API. */
 #  if OCIO_VERSION_HEX >= 0x02030000
     if (dimensions == OCIO::GpuShaderDesc::TEXTURE_1D)
@@ -276,7 +279,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
         size,
         size,
         1,
-        Result::gpu_texture_format(GPU_RGB32F, precision_),
+        Result::gpu_texture_format(blender::gpu::TextureFormat::SFLOAT_32_32_32, precision_),
         GPU_TEXTURE_USAGE_SHADER_READ,
         values);
     GPU_texture_filter_mode(texture, interpolation != OCIO::INTERP_NEAREST);
@@ -320,7 +323,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
     shader_ = GPU_shader_create_from_info(info);
   }
 
-  GPUShader *bind_shader_and_resources()
+  gpu::Shader *bind_shader_and_resources()
   {
     if (!shader_) {
       return nullptr;
@@ -341,7 +344,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
     }
 
     for (auto item : float_buffers_.items()) {
-      GPUUniformBuf *buffer = GPU_uniformbuf_create_ex(
+      gpu::UniformBuf *buffer = GPU_uniformbuf_create_ex(
           buffers_sizes_.lookup(item.key)(), item.value(), item.key.c_str());
       const int ubo_location = GPU_shader_get_ubo_binding(shader_, item.key.c_str());
       GPU_uniformbuf_bind(buffer, ubo_location);
@@ -349,7 +352,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
     }
 
     for (auto item : int_buffers_.items()) {
-      GPUUniformBuf *buffer = GPU_uniformbuf_create_ex(
+      gpu::UniformBuf *buffer = GPU_uniformbuf_create_ex(
           buffers_sizes_.lookup(item.key)(), item.value(), item.key.c_str());
       const int ubo_location = GPU_shader_get_ubo_binding(shader_, item.key.c_str());
       GPU_uniformbuf_bind(buffer, ubo_location);
@@ -366,7 +369,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 
   void unbind_shader_and_resources()
   {
-    for (GPUUniformBuf *buffer : uniform_buffers_) {
+    for (gpu::UniformBuf *buffer : uniform_buffers_) {
       GPU_uniformbuf_unbind(buffer);
       GPU_uniformbuf_free(buffer);
     }
@@ -400,7 +403,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
  private:
   /* The processor shader and the ShaderCreateInfo used to construct it. Constructed and
    * initialized in the finalize() method. */
-  GPUShader *shader_ = nullptr;
+  gpu::Shader *shader_ = nullptr;
   ShaderCreateInfo shader_create_info_ = ShaderCreateInfo("OCIO Processor");
 
   /* Stores the generated OCIOMain function as well as a number of helper functions. Initialized in
@@ -434,7 +437,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 
   /* A vectors that stores the created uniform buffers when bind_shader_and_resources() is called,
    * so that they can be properly unbound and freed in the unbind_shader_and_resources() method. */
-  Vector<GPUUniformBuf *> uniform_buffers_;
+  Vector<gpu::UniformBuf *> uniform_buffers_;
 
 #  if OCIO_VERSION_HEX >= 0x02030000
   /* Allow creating 1D textures, or only use 2D textures. */
@@ -455,7 +458,7 @@ class GPUShaderCreator {
     return std::make_shared<GPUShaderCreator>();
   }
 
-  GPUShader *bind_shader_and_resources()
+  gpu::Shader *bind_shader_and_resources()
   {
     return nullptr;
   }
@@ -504,7 +507,7 @@ OCIOColorSpaceConversionShader::OCIOColorSpaceConversionShader(Context &context,
 #endif
 }
 
-GPUShader *OCIOColorSpaceConversionShader::bind_shader_and_resources()
+gpu::Shader *OCIOColorSpaceConversionShader::bind_shader_and_resources()
 {
   return shader_creator_->bind_shader_and_resources();
 }

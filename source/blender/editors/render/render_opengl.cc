@@ -771,7 +771,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   ofs = GPU_offscreen_create(sizex,
                              sizey,
                              true,
-                             GPU_RGBA16F,
+                             blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
                              GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
                              false,
                              err_out);
@@ -1334,7 +1334,7 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
     wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                                 CTX_wm_window(C),
                                 oglrender->scene,
-                                "Viewport Render",
+                                "Rendering viewport...",
                                 WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_RENDER);
     WM_jobs_customdata_set(wm_job, oglrender, opengl_render_freejob);

@@ -160,7 +160,7 @@ class Result {
 
   /* Construct a result of an appropriate type and precision based on the given GPU texture format
    * within the given context. */
-  Result(Context &context, eGPUTextureFormat format);
+  Result(Context &context, blender::gpu::TextureFormat format);
 
   /* Returns true if the given type can only be used with single value results. Consequently, it is
    * always allocated on the CPU and GPU code paths needn't support the type. */
@@ -170,20 +170,22 @@ class Result {
    * special case is given to ResultType::Float3, because 3-component textures can't be used as
    * write targets in shaders, so we need to allocate 4-component textures for them, and ignore the
    * fourth channel during processing. */
-  static eGPUTextureFormat gpu_texture_format(ResultType type, ResultPrecision precision);
+  static blender::gpu::TextureFormat gpu_texture_format(ResultType type,
+                                                        ResultPrecision precision);
 
   /* Returns the GPU data format that corresponds to the give result type. */
   static eGPUDataFormat gpu_data_format(const ResultType type);
 
   /* Returns the GPU texture format that corresponds to the give one, but whose precision is the
    * given precision. */
-  static eGPUTextureFormat gpu_texture_format(eGPUTextureFormat format, ResultPrecision precision);
+  static blender::gpu::TextureFormat gpu_texture_format(blender::gpu::TextureFormat format,
+                                                        ResultPrecision precision);
 
   /* Returns the precision of the given GPU texture format. */
-  static ResultPrecision precision(eGPUTextureFormat format);
+  static ResultPrecision precision(blender::gpu::TextureFormat format);
 
   /* Returns the type of the given GPU texture format. */
-  static ResultType type(eGPUTextureFormat format);
+  static ResultType type(blender::gpu::TextureFormat format);
 
   /* Returns the float type of the result given the channels count. */
   static ResultType float_type(const int channels_count);
@@ -205,7 +207,7 @@ class Result {
    * texture, with one exception. Results of type ResultType::Float3 that wrap external textures
    * might hold a 3-component texture as opposed to a 4-component one, which would have been
    * created by uploading data from CPU. */
-  eGPUTextureFormat get_gpu_texture_format() const;
+  blender::gpu::TextureFormat get_gpu_texture_format() const;
 
   /* Identical to gpu_data_format but assumes the result's type. */
   eGPUDataFormat get_gpu_data_format() const;
@@ -236,12 +238,12 @@ class Result {
   /* Bind the GPU texture of the result to the texture image unit with the given name in the
    * currently bound given shader. This also inserts a memory barrier for texture fetches to ensure
    * any prior writes to the texture are reflected before reading from it. */
-  void bind_as_texture(GPUShader *shader, const char *texture_name) const;
+  void bind_as_texture(gpu::Shader *shader, const char *texture_name) const;
 
   /* Bind the GPU texture of the result to the image unit with the given name in the currently
    * bound given shader. If read is true, a memory barrier will be inserted for image reads to
    * ensure any prior writes to the images are reflected before reading from it. */
-  void bind_as_image(GPUShader *shader, const char *image_name, bool read = false) const;
+  void bind_as_image(gpu::Shader *shader, const char *image_name, bool read = false) const;
 
   /* Unbind the GPU texture which was previously bound using bind_as_texture. */
   void unbind_as_texture() const;

@@ -164,7 +164,7 @@ class Meshes : Overlay {
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(pass_state, state.clipping_plane_count);
 
-      auto shader_pass = [&](GPUShader *shader, const char *name) {
+      auto shader_pass = [&](gpu::Shader *shader, const char *name) {
         auto &sub = pass.sub(name);
         sub.shader_set(shader);
         sub.bind_texture("depth_tx", depth_tex);
@@ -684,7 +684,7 @@ class MeshUVs : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
                      DRW_STATE_BLEND_ALPHA);
 
-      GPUShader *sh = res.shaders->uv_edit_edge.get();
+      gpu::Shader *sh = res.shaders->uv_edit_edge.get();
       pass.specialize_constant(sh, "use_edge_select", select_edge_);
       pass.shader_set(sh);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
@@ -1086,7 +1086,8 @@ class MeshUVs : Overlay {
     BKE_maskrasterize_handle_free(handle);
 
     mask_texture_.free();
-    mask_texture_.ensure_2d(GPU_R16F, int2(width, height), GPU_TEXTURE_USAGE_SHADER_READ, buffer);
+    mask_texture_.ensure_2d(
+        gpu::TextureFormat::SFLOAT_16, int2(width, height), GPU_TEXTURE_USAGE_SHADER_READ, buffer);
 
     MEM_freeN(buffer);
   }

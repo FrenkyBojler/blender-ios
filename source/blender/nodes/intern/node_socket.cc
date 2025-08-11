@@ -17,6 +17,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_geometry_set.hh"
@@ -204,7 +205,7 @@ static void refresh_node_socket(bNodeTree &ntree,
     SET_FLAG_FROM_TEST(new_socket->flag, hide_new_sockets, SOCK_HIDDEN);
   }
   else {
-    STRNCPY(old_socket_with_same_identifier->name, socket_decl.name.c_str());
+    STRNCPY_UTF8(old_socket_with_same_identifier->name, socket_decl.name.c_str());
     if (socket_decl.matches(*old_socket_with_same_identifier)) {
       /* The existing socket matches exactly, just use it. */
       new_socket = old_socket_with_same_identifier;
@@ -216,7 +217,7 @@ static void refresh_node_socket(bNodeTree &ntree,
 
       if (new_socket == old_socket_with_same_identifier) {
         /* The existing socket has been updated, set the correct identifier again. */
-        STRNCPY(new_socket->identifier, socket_decl.identifier.c_str());
+        STRNCPY_UTF8(new_socket->identifier, socket_decl.identifier.c_str());
       }
       else {
         /* Move links to new socket with same identifier. */
@@ -381,7 +382,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
       if (const char *new_identifier = get_current_socket_identifier_for_future_socket(
               node, *socket, node_decl.inputs))
       {
-        STRNCPY(socket->identifier, new_identifier);
+        STRNCPY_UTF8(socket->identifier, new_identifier);
       }
     }
   }
@@ -390,7 +391,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
       if (const char *new_identifier = get_current_socket_identifier_for_future_socket(
               node, *socket, node_decl.outputs))
       {
-        STRNCPY(socket->identifier, new_identifier);
+        STRNCPY_UTF8(socket->identifier, new_identifier);
       }
     }
   }
@@ -847,7 +848,7 @@ void node_socket_copy_default_value(bNodeSocket *to, const bNodeSocket *from)
 
   /* use label instead of name if it has been set */
   if (from->label[0] != '\0') {
-    STRNCPY(to->name, from->label);
+    STRNCPY_UTF8(to->name, from->label);
   }
 
   node_socket_copy_default_value_data(to->typeinfo->type, to->default_value, from->default_value);
@@ -1155,8 +1156,14 @@ static bke::bNodeSocketType *make_socket_type_object()
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
     *(Object **)r_value = ((bNodeSocketValueObject *)socket_value)->value;
   };
-  socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
-  socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
+  socktype->get_geometry_nodes_cpp_value = [](const void *socket_value, void *r_value) {
+    Object *object = static_cast<const bNodeSocketValueObject *>(socket_value)->value;
+    SocketValueVariant::ConstructIn(r_value, object);
+  };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<Object *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
@@ -1179,8 +1186,14 @@ static bke::bNodeSocketType *make_socket_type_collection()
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
     *(Collection **)r_value = ((bNodeSocketValueCollection *)socket_value)->value;
   };
-  socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
-  socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
+  socktype->get_geometry_nodes_cpp_value = [](const void *socket_value, void *r_value) {
+    Collection *collection = static_cast<const bNodeSocketValueCollection *>(socket_value)->value;
+    SocketValueVariant::ConstructIn(r_value, collection);
+  };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<Collection *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
@@ -1191,8 +1204,13 @@ static bke::bNodeSocketType *make_socket_type_texture()
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
     *(Tex **)r_value = ((bNodeSocketValueTexture *)socket_value)->value;
   };
-  socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
-  socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
+  socktype->get_geometry_nodes_cpp_value = [](const void *socket_value, void *r_value) {
+    Tex *texture = static_cast<const bNodeSocketValueTexture *>(socket_value)->value;
+    SocketValueVariant::ConstructIn(r_value, texture);
+  };
+  static SocketValueVariant default_value = SocketValueVariant::From(static_cast<Tex *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
@@ -1203,8 +1221,14 @@ static bke::bNodeSocketType *make_socket_type_image()
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
     *(Image **)r_value = ((bNodeSocketValueImage *)socket_value)->value;
   };
-  socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
-  socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
+  socktype->get_geometry_nodes_cpp_value = [](const void *socket_value, void *r_value) {
+    Image *image = static_cast<const bNodeSocketValueImage *>(socket_value)->value;
+    SocketValueVariant::ConstructIn(r_value, image);
+  };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<Image *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
@@ -1215,8 +1239,14 @@ static bke::bNodeSocketType *make_socket_type_material()
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
     *(Material **)r_value = ((bNodeSocketValueMaterial *)socket_value)->value;
   };
-  socktype->geometry_nodes_cpp_type = socktype->base_cpp_type;
-  socktype->get_geometry_nodes_cpp_value = socktype->get_base_cpp_value;
+  socktype->geometry_nodes_cpp_type = &blender::CPPType::get<SocketValueVariant>();
+  socktype->get_geometry_nodes_cpp_value = [](const void *socket_value, void *r_value) {
+    Material *material = static_cast<const bNodeSocketValueMaterial *>(socket_value)->value;
+    SocketValueVariant::ConstructIn(r_value, material);
+  };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<Material *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
