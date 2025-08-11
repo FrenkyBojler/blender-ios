@@ -2420,13 +2420,12 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 
   float x_radius = radius / UI_view2d_scale_get_x(v2d);
   float y_radius = radius / UI_view2d_scale_get_y(v2d);
-  bool changed;
+  bool changed = false;
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
     rctf rq;
     strip_rectf(scene, strip, &rq);
     /* Use custom function to check the distance because in timeline the circle is a ellipse. */
     if (check_circle_intersection_in_timeline(&rq, view_mval, x_radius, y_radius)) {
-      changed = true;
       if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {
         strip->flag |= SELECT;
       }
@@ -2444,6 +2443,8 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
         sequencer_select_connected_strips(selection);
       }
     }
+  }
+  if (changed){
     sequencer_select_do_updates(C, scene);
   }
   return OPERATOR_FINISHED;
