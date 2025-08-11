@@ -1925,7 +1925,6 @@ class USDImportTest(AbstractUSDTest):
 
     def test_material_import_usd_hook(self):
         """Test importing color from an mtlx shader."""
-
         bpy.utils.register_class(ImportMtlxColorUSDHook)
         bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_simple_mtlx.usda"))
         bpy.utils.unregister_class(ImportMtlxColorUSDHook)
@@ -2063,6 +2062,7 @@ class ImportMtlxColorUSDHook(bpy.types.USDHook):
         # Add a Principled BSDF shader and set its 'Base Color' input to
         # the color we read from mtlx.
         node_tree = bl_material.node_tree
+        assert node_tree
         nodes = node_tree.nodes
         bsdf = nodes.new("ShaderNodeBsdfPrincipled")
         output = nodes.new("ShaderNodeOutputMaterial")
