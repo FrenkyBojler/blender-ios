@@ -2283,42 +2283,23 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type == NTREE_COMPOSIT) {
+    if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
+      FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+        if (ntree->type != NTREE_COMPOSIT) {
+          continue;
+        }
         version_node_input_socket_name(ntree, CMP_NODE_GAMMA_DEPRECATED, "Image", "Color");
-
         version_node_output_socket_name(ntree, CMP_NODE_GAMMA_DEPRECATED, "Image", "Color");
 
-        /* Transfer compositor Gamma node to its shader counterpart and ensure socket names. */
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == CMP_NODE_GAMMA_DEPRECATED) {
-            /* Ensure the first input is named "Color" (legacy was "Image").*/
-            if (bNodeSocket *gamma_input = blender::bke::node_find_socket(*node, SOCK_IN, "Image"))
-            {
-              STRNCPY_UTF8(gamma_input->identifier, "Color");
-              STRNCPY_UTF8(gamma_input->name, "Color");
-            }
-            if (bNodeSocket *gamma_factor = blender::bke::node_find_socket(
-                    *node, SOCK_IN, "Gamma"))
-            {
-              STRNCPY_UTF8(gamma_factor->identifier, "Gamma");
-              STRNCPY_UTF8(gamma_factor->name, "Gamma");
-            }
-            if (bNodeSocket *gamma_output = blender::bke::node_find_socket(
-                    *node, SOCK_OUT, "Image"))
-            {
-              STRNCPY_UTF8(gamma_output->identifier, "Color");
-              STRNCPY_UTF8(gamma_output->name, "Color");
-            }
             node->type_legacy = SH_NODE_GAMMA;
             STRNCPY_UTF8(node->idname, "ShaderNodeGamma");
           }
         }
       }
+      FOREACH_NODETREE_END;
     }
-    FOREACH_NODETREE_END;
-  }
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
