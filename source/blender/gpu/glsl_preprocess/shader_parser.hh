@@ -444,6 +444,9 @@ struct ParserData {
             else if (scopes.top().type == ScopeType::Struct) {
               enter_scope(ScopeType::Function, tok_id);
             }
+            else if (scopes.top().type == ScopeType::Namespace) {
+              enter_scope(ScopeType::Function, tok_id);
+            }
             else {
               enter_scope(ScopeType::Local, tok_id);
             }
