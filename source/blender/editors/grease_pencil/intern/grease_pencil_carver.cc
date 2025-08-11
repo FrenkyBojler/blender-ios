@@ -1767,15 +1767,21 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
 
   const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(result.segment_offsets);
 
-  Array<bool> is_segments_clipping(result.segments.size(), false);
+  Array<bool> is_src_curve_clipping(curves.curves_range(), false);
+  for (const int curve_i : curves.curves_range()) {
+    /* TODO. */
+    // const int shape_id = shape_ids[curve_i];
+    // if (clipping_shapes.contains(shape_id)) {
+
+    if (segment.curve == curves.curves_range().last()) {
+      is_src_curve_clipping[curve_i] = true;
+    }
+  }
+
+  Array<bool> is_segments_clipping(result.segments.size());
   for (const int seg_i : result.segments.index_range()) {
     const Segment &segment = result.segments[seg_i];
-    // const int shape_id = shape_ids[segment.curve];
-    // if (clipping_shapes.contains(shape_id)) {
-    /* TODO. */
-    if (segment.curve == curves.curves_range().last()) {
-      is_segments_clipping[seg_i] = true;
-    }
+    is_segments_clipping[seg_i] = is_src_curve_clipping[segment.curve];
   }
 
   Vector<bool> is_point_clipping;
@@ -1796,8 +1802,7 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
     src_by_dst_map[i] = segment_range.first();
     for (const int seg_i : segment_range) {
       const int curve_i = result.segments[seg_i].curve;
-      /* TODO. */
-      if (curve_i != curves.curves_range().last()) {
+      if (!is_src_curve_clipping[curve_i]) {
         src_by_dst_map[i] = curve_i;
         break;
       }
