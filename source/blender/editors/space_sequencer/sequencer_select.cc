@@ -2339,6 +2339,22 @@ static bool do_lasso_select_strip_is_origin_inside(const ARegion *region,
   return false;
 }
 
+bool lasso_rect_edge_intersection(const rcti rect, const Span<int2> mcoords)
+{
+  if (BLI_lasso_is_edge_inside(
+          mcoords, rect.xmin, rect.ymin, rect.xmax, rect.ymin, V2D_IS_CLIPPED) ||
+      BLI_lasso_is_edge_inside(
+          mcoords, rect.xmax, rect.ymin, rect.xmax, rect.ymax, V2D_IS_CLIPPED) ||
+      BLI_lasso_is_edge_inside(
+          mcoords, rect.xmax, rect.ymax, rect.xmin, rect.ymax, V2D_IS_CLIPPED) ||
+      BLI_lasso_is_edge_inside(
+          mcoords, rect.xmin, rect.ymax, rect.xmin, rect.ymin, V2D_IS_CLIPPED))
+  {
+    return true;
+  }
+  return false;
+}
+
 static bool do_lasso_select_timeline(bContext *C,
                                      const Span<int2> mcoords,
                                      ARegion *region,
@@ -2353,19 +2369,15 @@ static bool do_lasso_select_timeline(bContext *C,
   const bool select = (sel_op != SEL_OP_SUB);
 
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
-    rctf rq;
-    strip_rectf(scene, strip, &rq);
-    int v1[2], v2[2], v3[2], v4[2];
-    UI_view2d_view_to_region_clip(&region->v2d, rq.xmin, rq.ymin, &v1[0], &v1[1]);
-    UI_view2d_view_to_region_clip(&region->v2d, rq.xmax, rq.ymin, &v2[0], &v2[1]);
-    UI_view2d_view_to_region_clip(&region->v2d, rq.xmax, rq.ymax, &v3[0], &v3[1]);
-    UI_view2d_view_to_region_clip(&region->v2d, rq.xmin, rq.ymax, &v4[0], &v4[1]);
+    rctf strip_rct;
+    rcti region_rct;
+    strip_rectf(scene, strip, &strip_rct);
+    UI_view2d_view_to_region_clip(
+        &region->v2d, strip_rct.xmin, strip_rct.ymin, &region_rct.xmin, &region_rct.ymin);
+    UI_view2d_view_to_region_clip(
+        &region->v2d, strip_rct.xmax, strip_rct.ymax, &region_rct.xmax, &region_rct.ymax);
 
-    if (BLI_lasso_is_edge_inside(mcoords, v1[0], v1[1], v2[0], v2[1], V2D_IS_CLIPPED) ||
-        BLI_lasso_is_edge_inside(mcoords, v2[0], v2[1], v3[0], v3[1], V2D_IS_CLIPPED) ||
-        BLI_lasso_is_edge_inside(mcoords, v3[0], v3[1], v4[0], v4[1], V2D_IS_CLIPPED) ||
-        BLI_lasso_is_edge_inside(mcoords, v4[0], v4[1], v1[0], v1[1], V2D_IS_CLIPPED))
-    {
+    if (lasso_rect_edge_intersection(region_rct, mcoords)) {
       SET_FLAG_FROM_TEST(strip->flag, select, SELECT);
       strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
       changed = true;
