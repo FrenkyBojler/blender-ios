@@ -354,23 +354,13 @@ class LazyFunctionForMultiInput : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
   {
-    /* Currently we only have multi-inputs for geometry and value sockets. This could be
-     * generalized in the future. */
-    base_type_->to_static_type_tag<GeometrySet, SocketValueVariant>([&](auto type_tag) {
-      using T = typename decltype(type_tag)::type;
-      if constexpr (std::is_void_v<T>) {
-        /* This type is not supported in this node for now. */
-        BLI_assert_unreachable();
-      }
-      else {
-        void *output_ptr = params.get_output_data_ptr(0);
-        Vector<T> &values = *new (output_ptr) Vector<T>();
-        for (const int i : inputs_.index_range()) {
-          values.append(params.extract_input<T>(i));
-        }
-        params.output_set(0);
-      }
-    });
+    BLI_assert(base_type_ == &CPPType::get<SocketValueVariant>());
+    void *output_ptr = params.get_output_data_ptr(0);
+    auto &values = *new (output_ptr) Vector<SocketValueVariant>();
+    for (const int i : inputs_.index_range()) {
+      values.append(params.extract_input<SocketValueVariant>(i));
+    }
+    params.output_set(0);
   }
 };
 
@@ -893,7 +883,7 @@ class LazyFunctionForViewerNode : public LazyFunction {
       return;
     }
 
-    GeometrySet geometry = params.extract_input<GeometrySet>(0);
+    GeometrySet geometry = params.extract_input<SocketValueVariant>(0).extract<GeometrySet>();
     const NodeGeometryViewer *storage = static_cast<NodeGeometryViewer *>(bnode_.storage);
 
     if (use_field_input_) {
@@ -1025,7 +1015,7 @@ class LazyFunctionForGizmoNode : public LazyFunction {
           socket->identifier, *socket->typeinfo->geometry_nodes_cpp_type, lf::ValueUsage::Maybe);
     }
     r_lf_index_by_bsocket[bnode.output_socket(0).index_in_tree()] =
-        outputs_.append_and_get_index_as("Transform", CPPType::get<GeometrySet>());
+        outputs_.append_and_get_index_as("Transform", CPPType::get<SocketValueVariant>());
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
@@ -1042,7 +1032,7 @@ class LazyFunctionForGizmoNode : public LazyFunction {
       edit_data.gizmo_edit_hints_ = std::make_unique<bke::GizmoEditHints>();
       edit_data.gizmo_edit_hints_->gizmo_transforms.add(
           {user_data.compute_context->hash(), bnode_.identifier}, float4x4::identity());
-      params.set_output(0, std::move(geometry));
+      params.set_output(0, SocketValueVariant::From(std::move(geometry)));
     }
 
     /* Request all inputs so that their values can be logged. */
