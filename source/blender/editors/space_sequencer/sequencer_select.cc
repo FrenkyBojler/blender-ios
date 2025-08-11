@@ -2366,9 +2366,9 @@ static void seq_circle_select_strip_from_preview(bContext *C,
 }
 
 bool check_circle_intersection_in_timeline(const rctf *rect,
-                                        const float xy[2],
-                                        const float x_radius,
-                                        const float y_radius)
+                                           const float xy[2],
+                                           const float x_radius,
+                                           const float y_radius)
 {
   float dx, dy;
 
