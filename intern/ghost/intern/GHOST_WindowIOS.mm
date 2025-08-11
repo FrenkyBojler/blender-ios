@@ -1622,47 +1622,49 @@ typedef struct UserInputEvent {
   /* Handle gesture ending states first - don't access touches if they may not exist */
   if (sender.state == UIGestureRecognizerStateEnded ||
       sender.state == UIGestureRecognizerStateCancelled ||
-      sender.state == UIGestureRecognizerStateFailed || [sender numberOfTouches] != 2)
-  {
-    /* Use safe fallback center point - DO NOT access touch data when ending. */
+      sender.state == UIGestureRecognizerStateFailed ||
+      [sender numberOfTouches] < 2) {
+    
+    /* Use safe fallback center point - DO NOT access touch data when ending */
     CGPoint centerPoint = CGPointMake(0.0f, 0.0f);
-
-    /* Send the total accumulated rotation as the final value */
-    CGFloat final_rotation = [sender getCachedRotation];
-    UserInputEvent event_info(&centerPoint, nullptr, nullptr, false, &final_rotation);
+    
+    UserInputEvent event_info(&centerPoint, nullptr, nullptr, false);
     event_info.add_event(UserInputEvent::EventTypes::MIDDLE_BUTTON_UP);
-    event_info.add_event(UserInputEvent::EventTypes::ALT_KEY_UP);
+    event_info.add_event(UserInputEvent::EventTypes::ALT_BUTTON_UP);
     [self generateUserInputEvents:event_info];
     return;
   }
-
-  /* Now safe to access touch data since we know we have at least 2 touches. */
+  
+  /* Now safe to access touch data since we know we have at least 2 touches */
   CGPoint centerPoint = [sender getRotationCenter:window];
 
   if (sender.state == UIGestureRecognizerStateBegan) {
-    [sender setCachedRotation:0.0f];
+    /* Set initial rotation value */
+    CGFloat rotation_angle = [sender getScaledRotation];
+    [sender setCachedRotation:rotation_angle];
 
-    CGFloat initial_rotation = 0.0f;
-    IOS_INPUT_LOG(@"set cached: @s", rotation_angle);
-    /* Send Alt down + Middle button down to start rotation. */
-    UserInputEvent event_info(&centerPoint, nullptr, nullptr, false, &initial_rotation);
-    event_info.add_event(UserInputEvent::EventTypes::ALT_KEY_DOWN);
+    /* Send Alt down + Middle button down to start rotation */
+    UserInputEvent event_info(&centerPoint, nullptr, nullptr, false);
+    event_info.add_event(UserInputEvent::EventTypes::ALT_BUTTON_DOWN);
     event_info.add_event(UserInputEvent::EventTypes::MIDDLE_BUTTON_DOWN);
     [self generateUserInputEvents:event_info];
   }
   else if (sender.state == UIGestureRecognizerStateChanged) {
-    CGFloat total_rotation = [sender getScaledRotation];
-    CGFloat previous_rotation = [sender getCachedRotation];
+    /* Calculate change in rotation since last event */
+    CGFloat rotation_angle = [sender getScaledRotation];
+    CGFloat relative_rotation = [sender getRelativeRotation:rotation_angle];
 
-    CGFloat rotation_delta = total_rotation - previous_rotation;
+    /* Update cached rotation */
+    [sender setCachedRotation:rotation_angle];
 
-    [sender setCachedRotation:total_rotation];
+    /* Send cursor movement if change is significant */
+    if (fabs(relative_rotation) > 0.01) { /* 0.01 radian threshold (~0.6 degrees) */
+      /* Convert rotation to cursor movement (horizontal drag for rotation) */
+      float movement_pixels = -relative_rotation * 100.0f;
+      CGPoint movement = CGPointMake(movement_pixels, 0);
 
-    if (fabs(rotation_delta) > 0.01) {
-      /* Send Alt down + Middle button down to stop rotation. */
-      UserInputEvent event_info(&centerPoint, nullptr, nullptr, false, &rotation_delta);
-      event_info.add_event(UserInputEvent::EventTypes::ALT_KEY_UP);
-      event_info.add_event(UserInputEvent::EventTypes::MIDDLE_BUTTON_UP);
+      UserInputEvent event_info(&centerPoint, &movement, nullptr, false);
+      event_info.add_event(UserInputEvent::EventTypes::CURSOR_MOVE);
       [self generateUserInputEvents:event_info];
     }
   }
