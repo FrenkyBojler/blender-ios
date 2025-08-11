@@ -256,7 +256,7 @@ set(GLSL_SRC
   shaders/compositor_summed_area_table_compute_complete_x_prologues.glsl
   shaders/compositor_summed_area_table_compute_complete_y_prologues.glsl
   shaders/compositor_summed_area_table_compute_incomplete_prologues.glsl
-  shaders/compositor_sun_beams.glsl
+  shaders/compositor_glare_sun_beams.glsl
   shaders/compositor_symmetric_blur.glsl
   shaders/compositor_symmetric_blur_variable_size.glsl
   shaders/compositor_symmetric_separable_blur.glsl

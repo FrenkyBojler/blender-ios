@@ -1683,27 +1683,6 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, scene);
-      if (node_tree) {
-        /* Add a default interface for the node tree. See the versioning function below for more
-         * details. */
-        node_tree->tree_interface.clear_items();
-        node_tree->tree_interface.add_socket(
-            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
-        node_tree->tree_interface.add_socket(
-            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
-
-        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
-          if (node->type_legacy == CMP_NODE_SUNBEAMS_DEPRECATED) {
-            do_version_sun_beams(*node_tree, *node);
-          }
-        }
-      }
-    }
-  }
-
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -2321,5 +2300,18 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
    * behind a subversion bump when the file format is changed. */
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     bke::mesh_freestyle_marks_to_generic(*mesh);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_SUNBEAMS_DEPRECATED) {
+            do_version_sun_beams(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 }
