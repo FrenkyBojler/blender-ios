@@ -2365,7 +2365,7 @@ static void seq_circle_select_strip_from_preview(bContext *C,
   }
 }
 
-bool check_circle_selection_in_timeline(const rctf *rect,
+bool check_circle_intersection_in_timeline(const rctf *rect,
                                         const float xy[2],
                                         const float x_radius,
                                         const float y_radius)
@@ -2428,7 +2428,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
     strip_rectf(scene, strip, &rq);
     // if (BLI_rctf_isect_circle(&rq, view_mval, pixel_radius)) {
     /* Use custom function to check the distance because in timeline the circle is a ellipse */
-    if (check_circle_selection_in_timeline(&rq, view_mval, x_radius, y_radius)) {
+    if (check_circle_intersection_in_timeline(&rq, view_mval, x_radius, y_radius)) {
       // Hide this if statement for now.
       //
       // if (handles) {
