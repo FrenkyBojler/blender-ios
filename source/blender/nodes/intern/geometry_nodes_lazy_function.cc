@@ -2159,7 +2159,8 @@ struct GeometryNodesLazyFunctionBuilder {
         lf_graph.add_link(lf_from, lf_to);
       }
       else {
-        lf_to.set_default_value(lf_to.type().default_value());
+        const bNodeSocket &bsocket = zone.output_node()->input_socket(i + 1);
+        lf_to.set_default_value(bsocket.typeinfo->geometry_nodes_default_cpp_value);
       }
     }
 
@@ -3228,8 +3229,8 @@ struct GeometryNodesLazyFunctionBuilder {
           const bNodeLink *link = multi_input_lazy_function.links[i];
           graph_params.lf_input_by_multi_input_link.add(link, &lf_multi_input_socket);
           mapping_->bsockets_by_lf_socket_map.add(&lf_multi_input_socket, bsocket);
-          const void *default_value = lf_multi_input_socket.type().default_value();
-          lf_multi_input_socket.set_default_value(default_value);
+          lf_multi_input_socket.set_default_value(
+              bsocket->typeinfo->geometry_nodes_default_cpp_value);
         }
       }
       else {
@@ -3803,7 +3804,6 @@ struct GeometryNodesLazyFunctionBuilder {
         continue;
       }
       const bke::bNodeSocketType &to_typeinfo = *type_with_links.typeinfo;
-      const CPPType &to_type = *to_typeinfo.geometry_nodes_cpp_type;
       const Span<const bNodeLink *> links = type_with_links.links;
 
       lf::OutputSocket *converted_from_lf_socket = this->insert_type_conversion_if_necessary(
@@ -3813,9 +3813,8 @@ struct GeometryNodesLazyFunctionBuilder {
         const Vector<lf::InputSocket *> lf_link_targets = this->find_link_targets(*link,
                                                                                   graph_params);
         if (converted_from_lf_socket == nullptr) {
-          const void *default_value = to_type.default_value();
           for (lf::InputSocket *to_lf_socket : lf_link_targets) {
-            to_lf_socket->set_default_value(default_value);
+            to_lf_socket->set_default_value(to_typeinfo.geometry_nodes_default_cpp_value);
           }
         }
         else {
