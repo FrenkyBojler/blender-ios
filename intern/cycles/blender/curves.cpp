@@ -1030,11 +1030,14 @@ void BlenderSync::sync_hair(Hair *hair, BObjectInfo &b_ob_info, bool motion, con
     export_hair_curves(scene, hair, b_curves, need_motion, motion_scale);
   }
 
+  /* TODO: OptiX crashes with this currently, disable for now. See #143714. */
+#if 0
   const blender::VArray<int8_t> b_types = b_curves.curve_types();
   /* This does not handle cases where the curve type is not the same across all curves */
   if (!b_types.is_empty() && b_types[0] == CURVE_TYPE_POLY) {
     hair->curve_shape = CURVE_THICK_LINEAR;
   }
+#endif
 }
 
 void BlenderSync::sync_hair(BObjectInfo &b_ob_info, Hair *hair)
