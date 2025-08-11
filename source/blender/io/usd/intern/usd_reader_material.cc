@@ -330,9 +330,8 @@ static void set_viewport_material_props(Material *mtl, const pxr::UsdShadeShader
         diffuse_color_input.GetAttr().Get(&val) && val.IsHolding<pxr::GfVec3f>())
     {
       pxr::GfVec3f color = val.UncheckedGet<pxr::GfVec3f>();
-      // todo(habib): create node tree
-      printf("set_viewport_material_props\n");
-      printf("\tmtl->nodetree: %p\n", mtl->nodetree);
+      /* Note: The material is expected to be rendered by the Workbench render engine (Viewport
+       * Display), so no need to define a material node tree. */
       mtl->r = color[0];
       mtl->g = color[1];
       mtl->b = color[2];
