@@ -2047,6 +2047,12 @@ ImBuf *render_give_ibuf_direct(const RenderData *context, float timeline_frame, 
 {
   SeqRenderState state;
 
+  ImBuf *cached_buf = source_image_cache_get(context, strip, timeline_frame);
+  if (cached_buf != nullptr) {
+    return cached_buf;
+  }
+
+  intra_frame_cache_invalidate(context->scene);
   ImBuf *ibuf = seq_render_strip(context, &state, strip, timeline_frame);
   return ibuf;
 }
