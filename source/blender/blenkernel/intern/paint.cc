@@ -6,6 +6,10 @@
  * \ingroup bke
  */
 
+/* ALlow using deprecated color for sync legacy. */
+#include "IMB_colormanagement.hh"
+#define DNA_DEPRECATED_ALLOW
+
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -1384,6 +1388,17 @@ void BKE_palette_clear(Palette *palette)
   palette->active_color = 0;
 }
 
+void BKE_palette_color_set(PaletteColor *color, const float rgb[3])
+{
+  copy_v3_v3(color->color, rgb);
+  BKE_palette_color_sync_legacy(color);
+}
+
+void BKE_palette_color_sync_legacy(PaletteColor *color)
+{
+  linearrgb_to_srgb_v3_v3(color->rgb, color->color);
+}
+
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {
   Palette *palette = BKE_id_new<Palette>(bmain, name);
@@ -1537,7 +1552,7 @@ void BKE_palette_sort_luminance(tPaletteColorHSV *color_array, const int totcol)
   qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_luminance);
 }
 
-bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, const bool linear)
+bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
 {
   tPaletteColorHSV *color_array = nullptr;
   tPaletteColorHSV *col_elm = nullptr;
@@ -1579,10 +1594,8 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, co
         col_elm = &color_array[i];
         PaletteColor *palcol = BKE_palette_color_add(palette);
         if (palcol) {
-          copy_v3_v3(palcol->rgb, col_elm->rgb);
-          if (linear) {
-            linearrgb_to_srgb_v3_v3(palcol->rgb, palcol->rgb);
-          }
+          /* Hex was stored as sRGB. */
+          IMB_colormanagement_srgb_to_scene_linear_v3(palcol->color, col_elm->rgb);
         }
       }
       done = true;
@@ -1693,8 +1706,8 @@ static void paint_init_data(Paint &paint)
   if (!paint.unified_paint_settings.curve_rand_value) {
     paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
-  copy_v3_v3(paint.unified_paint_settings.rgb, default_ups.rgb);
-  copy_v3_v3(paint.unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+  copy_v3_v3(paint.unified_paint_settings.color, default_ups.color);
+  copy_v3_v3(paint.unified_paint_settings.secondary_color, default_ups.secondary_color);
 }
 
 bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)

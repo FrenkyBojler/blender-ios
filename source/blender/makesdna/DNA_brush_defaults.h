@@ -49,9 +49,9 @@
  \
     /* BRUSH PAINT BRUSH SETTINGS */ \
     /* Default rgb color of the brush when painting - white. */ \
-    .rgb = {1.0f, 1.0f, 1.0f}, \
+    .color = {1.0f, 1.0f, 1.0f}, \
  \
-    .secondary_rgb = {0, 0, 0}, \
+    .secondary_color = {0, 0, 0}, \
  \
     /* BRUSH STROKE SETTINGS */ \
     /* How far each brush dot should be spaced as a percentage of brush diameter. */ \

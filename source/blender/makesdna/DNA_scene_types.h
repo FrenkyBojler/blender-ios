@@ -1041,6 +1041,8 @@ typedef struct TimeMarker {
  * values are used
  */
 typedef struct UnifiedPaintSettings {
+  DNA_DEFINE_CXX_METHODS(UnifiedPaintSettings)
+
   /** Unified radius of brush in pixels. */
   int size;
 
@@ -1054,9 +1056,13 @@ typedef struct UnifiedPaintSettings {
   float weight;
 
   /** Unified brush color. */
-  float rgb[3];
+  float color[3];
   /** Unified brush secondary color. */
-  float secondary_rgb[3];
+  float secondary_color[3];
+
+  /* Deprecated sRGB color for forward compatibility. */
+  float rgb[3] DNA_DEPRECATED;
+  float secondary_rgb[3] DNA_DEPRECATED;
 
   /** Unified color jitter settings */
   int color_jitter_flag;

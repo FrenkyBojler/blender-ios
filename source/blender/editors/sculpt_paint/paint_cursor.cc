@@ -8,6 +8,7 @@
 
 #include <algorithm>
 
+#include "BLI_math_color.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -1657,7 +1658,13 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
                                              ELEM(brush->gpencil_settings->vertex_mode,
                                                   GPPAINT_MODE_STROKE,
                                                   GPPAINT_MODE_BOTH);
-        color = use_vertex_color_stroke ? float3(brush->rgb) : float4(gp_style->stroke_rgba).xyz();
+        if (use_vertex_color_stroke) {
+          IMB_colormanagement_scene_linear_to_srgb_v3(color, brush->color);
+          color[3] = 1.0f;
+        }
+        else {
+          color = float4(gp_style->stroke_rgba).xyz();
+        }
       }
     }
 
@@ -1669,6 +1676,7 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
   else if (pcontext.mode == PaintMode::VertexGPencil) {
     pcontext.pixel_radius = BKE_brush_size_get(pcontext.paint, brush);
     color = BKE_brush_color_get(paint, brush);
+    IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
   }
 
   GPU_line_width(1.0f);

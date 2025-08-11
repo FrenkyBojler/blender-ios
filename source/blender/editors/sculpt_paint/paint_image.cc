@@ -366,11 +366,9 @@ bool paint_use_opacity_masking(const Paint *paint, const Brush *brush)
 void paint_brush_color_get(const Paint *paint,
                            Brush *br,
                            std::optional<blender::float3> &initial_hsv_jitter,
-                           bool color_correction,
                            bool invert,
                            float distance,
                            float pressure,
-                           const ColorManagedDisplay *display,
                            float r_color[3])
 {
   if (invert) {
@@ -395,9 +393,7 @@ void paint_brush_color_get(const Paint *paint,
           break;
         }
       }
-      /* Gradient / Color-band colors are not considered #PROP_COLOR_GAMMA.
-       * Brush colors are expected to be in sRGB though. */
-      IMB_colormanagement_scene_linear_to_srgb_v3(r_color, color_gr);
+      copy_v3_v3(r_color, color_gr);
     }
     else if (color_jitter_settings) {
       copy_v3_v3(r_color,
@@ -410,9 +406,6 @@ void paint_brush_color_get(const Paint *paint,
     else {
       copy_v3_v3(r_color, BKE_brush_color_get(paint, br));
     }
-  }
-  if (color_correction) {
-    IMB_colormanagement_display_to_scene_linear_v3(r_color, display);
   }
 }
 
@@ -871,10 +864,12 @@ static wmOperatorStatus brush_colors_flip_exec(bContext *C, wmOperator * /*op*/)
 
   if (BKE_paint_use_unified_color(paint)) {
     UnifiedPaintSettings &ups = paint->unified_paint_settings;
-    swap_v3_v3(ups.rgb, ups.secondary_rgb);
+    swap_v3_v3(ups.color, ups.secondary_color);
+    BKE_brush_color_sync_legacy(&ups);
   }
   else if (br) {
-    swap_v3_v3(br->rgb, br->secondary_rgb);
+    swap_v3_v3(br->color, br->secondary_color);
+    BKE_brush_color_sync_legacy(br);
     BKE_brush_tag_unsaved_changes(br);
   }
   else {
