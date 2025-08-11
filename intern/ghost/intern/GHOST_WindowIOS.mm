@@ -1622,19 +1622,19 @@ typedef struct UserInputEvent {
   /* Handle gesture ending states first - don't access touches if they may not exist */
   if (sender.state == UIGestureRecognizerStateEnded ||
       sender.state == UIGestureRecognizerStateCancelled ||
-      sender.state == UIGestureRecognizerStateFailed ||
-      [sender numberOfTouches] < 2) {
-    
+      sender.state == UIGestureRecognizerStateFailed || [sender numberOfTouches] < 2)
+  {
+
     /* Use safe fallback center point - DO NOT access touch data when ending */
     CGPoint centerPoint = CGPointMake(0.0f, 0.0f);
-    
+
     UserInputEvent event_info(&centerPoint, nullptr, nullptr, false);
     event_info.add_event(UserInputEvent::EventTypes::MIDDLE_BUTTON_UP);
-    event_info.add_event(UserInputEvent::EventTypes::ALT_BUTTON_UP);
+    event_info.add_event(UserInputEvent::EventTypes::ALT_KEY_UP);
     [self generateUserInputEvents:event_info];
     return;
   }
-  
+
   /* Now safe to access touch data since we know we have at least 2 touches */
   CGPoint centerPoint = [sender getRotationCenter:window];
 
@@ -1645,7 +1645,7 @@ typedef struct UserInputEvent {
 
     /* Send Alt down + Middle button down to start rotation */
     UserInputEvent event_info(&centerPoint, nullptr, nullptr, false);
-    event_info.add_event(UserInputEvent::EventTypes::ALT_BUTTON_DOWN);
+    event_info.add_event(UserInputEvent::EventTypes::ALT_KEY_DOWN);
     event_info.add_event(UserInputEvent::EventTypes::MIDDLE_BUTTON_DOWN);
     [self generateUserInputEvents:event_info];
   }
