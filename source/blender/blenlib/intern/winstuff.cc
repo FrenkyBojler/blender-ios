@@ -28,8 +28,6 @@
 #  include "utf_winfunc.hh"
 #  include "utfconv.hh"
 
-NTSTATUS WINAPI RtlGetVersion(PRTL_OSVERSIONINFOW);
-
 /* FILE_MAXDIR + FILE_MAXFILE */
 
 int BLI_windows_get_executable_dir(char r_dirpath[/*FILE_MAXDIR*/])
@@ -518,10 +516,47 @@ bool BLI_windows_get_directx_driver_version(const wchar_t *deviceSubString,
   return false;
 }
 
+bool BLI_windows_is_build_version_greater_or_equal(DWORD majorVersion,
+                                                   DWORD minorVersion,
+                                                   DWORD buildNumber)
+{
+  HMODULE hMod = ::GetModuleHandleW(L"ntdll.dll");
+  if (hMod == 0) {
+    return false;
+  }
+
+  typedef NTSTATUS(WINAPI * RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
+  RtlGetVersionPtr rtl_get_version = (RtlGetVersionPtr)::GetProcAddress(hMod, "RtlGetVersion");
+  if (rtl_get_version == nullptr) {
+    return false;
+  }
+
+  RTL_OSVERSIONINFOW osVersioninfo{};
+  osVersioninfo.dwOSVersionInfoSize = sizeof(RTL_OSVERSIONINFOW);
+  if (rtl_get_version(&osVersioninfo) != 0) {
+    fprintf(stderr, "BLI_windows_is_build_version_greater_or_equal: RtlGetVersion failed.");
+    return false;
+  }
+  if (majorVersion != osVersioninfo.dwMajorVersion) {
+    return osVersioninfo.dwMajorVersion > majorVersion;
+  }
+  if (minorVersion != osVersioninfo.dwMinorVersion) {
+    return osVersioninfo.dwMajorVersion > minorVersion;
+  }
+  return osVersioninfo.dwBuildNumber >= buildNumber;
+}
+
 void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence)
 {
   static QoSPrecedence qos_precedence_last = QoSPrecedence::JOB;
   if (int(qos_precedence) < int(qos_precedence_last)) {
+    return;
+  }
+
+  /* Only supported on Windows build >= 10.0.22000, i.e., Windows 11 21H2:
+   * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ne-processthreadsapi-process_information_class
+   */
+  if (!BLI_windows_is_build_version_greater_or_equal(10, 0, 22000)) {
     return;
   }
 
@@ -547,7 +582,8 @@ void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence)
                              &processPowerThrottlingState,
                              sizeof(PROCESS_POWER_THROTTLING_STATE)))
   {
-    /* Only supported on Windows 10.0.22000, i.e., Windows 11 21H2. */
+    fprintf(
+        stderr, "BLI_windows_set_process_qos: SetProcessInformation failed: %d\n", GetLastError());
     return;
   }
   qos_precedence_last = qos_precedence;

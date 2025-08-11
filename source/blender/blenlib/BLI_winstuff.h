@@ -88,6 +88,12 @@ bool BLI_windows_update_pinned_launcher(const char *launcher_path);
 bool BLI_windows_get_directx_driver_version(const wchar_t *deviceSubString,
                                             long long *r_driverVersion);
 
+/* Checks the version of the Windows build in the format "major.minor.build".
+ * Example: 10.0.22000 corresponds to Windows 11 21H2. */
+bool BLI_windows_is_build_version_greater_or_equal(DWORD majorVersion,
+                                                   DWORD minorVersion,
+                                                   DWORD buildNumber);
+
 /**
  * Set the `root_dir` to the default root directory on MS-Windows,
  * The string is guaranteed to be set with a length of 3 & null terminated,
