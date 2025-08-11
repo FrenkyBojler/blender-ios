@@ -275,7 +275,7 @@ void GLBatch::draw_indirect(blender::gpu::StorageBuf *indirect_buf, intptr_t off
   GL_CHECK_RESOURCES("Batch");
 
   this->bind();
-  dynamic_cast<GLStorageBuf *>(unwrap(indirect_buf))->bind_as(GL_DRAW_INDIRECT_BUFFER);
+  dynamic_cast<GLStorageBuf *>(indirect_buf)->bind_as(GL_DRAW_INDIRECT_BUFFER);
 
   GLenum gl_type = to_gl(prim_type);
   if (elem) {
@@ -298,7 +298,7 @@ void GLBatch::multi_draw_indirect(blender::gpu::StorageBuf *indirect_buf,
   GL_CHECK_RESOURCES("Batch");
 
   this->bind();
-  dynamic_cast<GLStorageBuf *>(unwrap(indirect_buf))->bind_as(GL_DRAW_INDIRECT_BUFFER);
+  dynamic_cast<GLStorageBuf *>(indirect_buf)->bind_as(GL_DRAW_INDIRECT_BUFFER);
 
   GLenum gl_type = to_gl(prim_type);
   if (elem) {
