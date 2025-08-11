@@ -11,7 +11,7 @@
 #include "gpu_backend.hh"
 #include "gpu_debug_private.hh"
 
-void GPU_compute_dispatch(GPUShader *shader,
+void GPU_compute_dispatch(blender::gpu::Shader *shader,
                           uint groups_x_len,
                           uint groups_y_len,
                           uint groups_z_len,
@@ -26,8 +26,8 @@ void GPU_compute_dispatch(GPUShader *shader,
 }
 
 void GPU_compute_dispatch_indirect(
-    GPUShader *shader,
-    GPUStorageBuf *indirect_buf_,
+    blender::gpu::Shader *shader,
+    blender::gpu::StorageBuf *indirect_buf_,
     const blender::gpu::shader::SpecializationConstants *constants_state)
 {
   blender::gpu::GPUBackend &gpu_backend = *blender::gpu::GPUBackend::get();

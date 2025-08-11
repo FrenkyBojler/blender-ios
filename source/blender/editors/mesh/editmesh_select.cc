@@ -2801,7 +2801,7 @@ bool EDBM_selectmode_set_multi(bContext *C, const short selectmode)
  * it's not guaranteed because objects can be shared across scenes and each
  * scene has its own select-mode which is applied to the object when entering edit-mode.
  *
- * This function should only be used when the an operation would cause errors
+ * This function should only be used when an operation would cause errors
  * when applied in the wrong selection mode.
  *
  * \return True when a change was made.
@@ -4304,7 +4304,7 @@ static wmOperatorStatus edbm_select_mirror_exec(bContext *C, wmOperator *op)
   }
 
   if (tot_mirr || tot_fail) {
-    ED_mesh_report_mirror_ex(op, tot_mirr, tot_fail, select_mode);
+    ED_mesh_report_mirror_ex(*op->reports, tot_mirr, tot_fail, select_mode);
   }
   return OPERATOR_FINISHED;
 }

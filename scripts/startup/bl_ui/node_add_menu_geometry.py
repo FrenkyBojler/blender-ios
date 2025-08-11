@@ -658,9 +658,8 @@ class NODE_MT_category_GEO_UTILITIES(Menu):
         layout.menu("NODE_MT_category_GEO_TEXT")
         layout.menu("NODE_MT_category_GEO_VECTOR")
         layout.separator()
-        if context.preferences.experimental.use_bundle_and_closure_nodes:
-            layout.menu("NODE_MT_category_utilities_bundle")
-            layout.menu("NODE_MT_category_utilities_closure")
+        layout.menu("NODE_MT_category_utilities_bundle")
+        layout.menu("NODE_MT_category_utilities_closure")
         layout.menu("NODE_MT_category_GEO_UTILITIES_FIELD")
         if context.preferences.experimental.use_geometry_nodes_lists:
             layout.menu("NODE_MT_category_utilities_list")
@@ -750,8 +749,8 @@ class NODE_MT_category_utilities_bundle(Menu):
 
     def draw(self, context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "GeometryNodeCombineBundle")
-        node_add_menu.add_node_type(layout, "GeometryNodeSeparateBundle")
+        node_add_menu.add_node_type(layout, "NodeCombineBundle")
+        node_add_menu.add_node_type(layout, "NodeSeparateBundle")
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Bundle")
 
 
@@ -762,7 +761,7 @@ class NODE_MT_category_utilities_closure(Menu):
     def draw(self, context):
         layout = self.layout
         node_add_menu.add_closure_zone(layout, label="Closure")
-        node_add_menu.add_node_type(layout, "GeometryNodeEvaluateClosure")
+        node_add_menu.add_node_type(layout, "NodeEvaluateClosure")
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Closure")
 
 

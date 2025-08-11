@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a7042ca30c82')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'6dca66d606ed')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-29 08:51+0000\n"
+"POT-Creation-Date: 2025-08-11 08:28+0000\n"
 "PO-Revision-Date: 2025-07-23 14:57+0000\n"
 "Last-Translator: Michael Tribayu Jatnika Natawiria <mike.natawiria@gmail.com>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -4262,10 +4262,6 @@ msgid "Radius of head of bone (for Envelope deform only)"
 msgstr "Radius tulang kepala (untuk Amplop deform/merusak bentuk saja)"
 
 
-msgid "Bone is not visible when it is not in Edit Mode (i.e. in Object or Pose Modes)"
-msgstr "Tulang tidak terlihat saat tidak di Mode Edit (i.e di Mode Objek atau Pose)"
-
-
 msgid "Selectable"
 msgstr "Terseleksi"
 
@@ -4392,10 +4388,6 @@ msgstr "Saat tulang ada induk, kepala tulang terjebak ke ekor induk"
 
 msgid "Cyclic Offset"
 msgstr "Offset Siklik"
-
-
-msgid "When bone doesn't have a parent, it receives cyclic offset effects (Deprecated)"
-msgstr "Saat tulang tidak mempunyai induk, tulang tersebut menerima efek offset siklik (Ditinggalkan)"
 
 
 msgid "Deform"
@@ -6682,10 +6674,6 @@ msgstr "Posisi"
 
 msgid "Set position of selected color stop"
 msgstr "Set posisi stop warna yang terseleksi"
-
-
-msgid "File Output Slots"
-msgstr "Slot Keluaran Dokumen"
 
 
 msgid "Console Input"
@@ -12584,18 +12572,6 @@ msgid "Color Space Settings"
 msgstr "Partikel"
 
 
-msgid "JPEG 2000"
-msgstr "JPEG 2000"
-
-
-msgid "TIFF"
-msgstr "TIFF"
-
-
-msgid "WebP"
-msgstr "WebP"
-
-
 msgid "Duration"
 msgstr "Durasi"
 
@@ -14737,10 +14713,6 @@ msgid "Double Click"
 msgstr "Klik Dua Kali"
 
 
-msgid "Click Drag"
-msgstr "Klik Seret"
-
-
 msgid "KeyMap Items"
 msgstr "Item PetaKunci"
 
@@ -15347,6 +15319,18 @@ msgid "Mask"
 msgstr "Masker"
 
 
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
+
+
 msgid "Select Linked"
 msgstr "Seleksi yang Terhubung"
 
@@ -15397,18 +15381,6 @@ msgstr "Menggabungkan"
 
 msgid "Text"
 msgstr "Teks"
-
-
-msgid "Snap"
-msgstr "Jepret"
-
-
-msgid "Mirror"
-msgstr "Cermin"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
 
 
 msgctxt "MovieClip"
@@ -18049,22 +18021,6 @@ msgid "File Output"
 msgstr "Keluaran Dokumen"
 
 
-msgid "Active Input Index"
-msgstr "Indeks Masukan Aktif"
-
-
-msgid "Base Path"
-msgstr "Jalur Dasar"
-
-
-msgid "File Slots"
-msgstr "Slot Dokumen"
-
-
-msgid "EXR Layer Slots"
-msgstr "Slot Layer EXR"
-
-
 msgid "To Straight"
 msgstr "Ke Lurus"
 
@@ -18242,14 +18198,6 @@ msgid "Fill Curve"
 msgstr "Isi Kurva"
 
 
-msgid "Triangles"
-msgstr "Segitiga"
-
-
-msgid "How to choose number of vertices on fillet"
-msgstr "Bagaimana memilih angka simpul di fillet"
-
-
 msgid "Flip Faces"
 msgstr "Membalikkan Wajah"
 
@@ -18335,6 +18283,10 @@ msgid "Fill Type"
 msgstr "Tipe Isi"
 
 
+msgid "Triangles"
+msgstr "Segitiga"
+
+
 msgid "Ico Sphere"
 msgstr "Ico Bola"
 
@@ -18377,10 +18329,6 @@ msgstr "Sampel Permukaan Terdekat"
 
 msgid "Sample UV Surface"
 msgstr "Sampel Permukaan UV"
-
-
-msgid "Scale Mode"
-msgstr "Mode Skala"
 
 
 msgid "Scale Instances"
@@ -21554,9 +21502,8 @@ msgid "Current"
 msgstr "Setelah Ini"
 
 
-msgctxt "Operator"
-msgid "Move File Node Socket"
-msgstr "Induk"
+msgid "TIFF"
+msgstr "TIFF"
 
 
 msgctxt "Operator"
@@ -23188,10 +23135,6 @@ msgstr "Vertex Aktif"
 
 msgid "Mouse Position X"
 msgstr "Posisi X Tetikus"
-
-
-msgid "Position of the mouse used for \"Surface\" mode"
-msgstr "Posisi tetikus digunakan untuk mode \"Permukaan\""
 
 
 msgid "Mouse Position Y"
@@ -25762,10 +25705,6 @@ msgid "Text Color"
 msgstr "Warna Standar"
 
 
-msgid "User Scale"
-msgstr "Skala Pengguna"
-
-
 msgid "Render Region"
 msgstr "Wilayah Render"
 
@@ -27884,11 +27823,6 @@ msgstr "Ukuran Panah"
 
 
 msgctxt "Operator"
-msgid "Delete All Shape Keys"
-msgstr "Hapus Semua Kunci Bentuk"
-
-
-msgctxt "Operator"
 msgid "Sort by Name"
 msgstr "Urut dari Nama"
 
@@ -27909,18 +27843,8 @@ msgstr "Hapus Semua Kelompok"
 
 
 msgctxt "Operator"
-msgid "New Shape from Mix"
-msgstr "Bentuk Baru dari Campuran"
-
-
-msgctxt "Operator"
-msgid "Move to Top"
-msgstr "Pindah ke Atas"
-
-
-msgctxt "Operator"
-msgid "Move to Bottom"
-msgstr "Pindah ke Bawah"
+msgid "Flip"
+msgstr "Balik"
 
 
 msgid "Update on Edit"
@@ -28868,6 +28792,16 @@ msgstr "Blender ID"
 
 
 msgctxt "Operator"
+msgid "Move to Top"
+msgstr "Pindah ke Atas"
+
+
+msgctxt "Operator"
+msgid "Move to Bottom"
+msgstr "Pindah ke Bawah"
+
+
+msgctxt "Operator"
 msgid "Increase Number"
 msgstr "Menambahkan Angka"
 
@@ -29206,6 +29140,11 @@ msgstr "Gambar/Sequence"
 
 msgid "No Items Available"
 msgstr "Tidak ada Item yang Tersedia"
+
+
+msgctxt "Operator"
+msgid "Delete Keyframes..."
+msgstr "Hapus Keyframe..."
 
 
 msgid "Raw"
@@ -29602,11 +29541,6 @@ msgstr "Tambah Gambar"
 
 
 msgctxt "Operator"
-msgid "Delete Keyframes..."
-msgstr "Hapus Keyframe..."
-
-
-msgctxt "Operator"
 msgid "Clear Keyframes..."
 msgstr "Kosongkan Keyframe..."
 
@@ -29753,11 +29687,6 @@ msgstr "Lemah"
 msgctxt "Operator"
 msgid "Strong"
 msgstr "Kuat"
-
-
-msgctxt "Operator"
-msgid "Flip"
-msgstr "Balik"
 
 
 msgctxt "Operator"
@@ -30704,10 +30633,6 @@ msgid "Object not found"
 msgstr "Benda tidak ketemu"
 
 
-msgid "Object \"%s\" is not a mesh or can't be converted to a mesh (Curve, Text, Surface or Metaball)"
-msgstr "Objek \"%s\" bukan mesh atau tidak dapat diubah ke mesh (Kurva, Teks, Permukaan atau Metabola)"
-
-
 msgid "Bone already has an IK constraint"
 msgstr "Kamera"
 
@@ -31064,10 +30989,6 @@ msgid "Select Pass"
 msgstr "Seleksi"
 
 
-msgid "Can't Load Image"
-msgstr "Gambar"
-
-
 msgid "Can only save sequence on image sequences"
 msgstr "Orientasi Transformasi"
 
@@ -31122,10 +31043,6 @@ msgstr "Penyunting Logika"
 
 msgid "Mask not found"
 msgstr "Gambar Latar"
-
-
-msgid "Can't overwrite export file"
-msgstr "Tidak dapat menimpa file ekspor"
 
 
 msgid "Columns:"
@@ -31744,6 +31661,10 @@ msgid "Intersecting Edges"
 msgstr "Tepi Persimpangan"
 
 
+msgid "How to choose number of vertices on fillet"
+msgstr "Bagaimana memilih angka simpul di fillet"
+
+
 msgid "Point Index"
 msgstr "Indeks Titik"
 
@@ -31862,6 +31783,10 @@ msgstr "Panjang Sinar"
 
 msgid "Which top-level instances to realize"
 msgstr "Dimana contoh-contoh level-atas yang perlu disadari"
+
+
+msgid "Scale Mode"
+msgstr "Mode Skala"
 
 
 msgid "Inverted"
@@ -32156,14 +32081,6 @@ msgstr "Bukan perpustakaan"
 
 msgid "Nothing indicated"
 msgstr "Tidak ada yang berindikasi"
-
-
-msgid "Can't append data-block '%s' of type '%s'"
-msgstr "Tidak dapat menambahkan tipe '%s' dari data-blok '%s'"
-
-
-msgid "Can't link data-block '%s' of type '%s'"
-msgstr "Tidak dapat menghubungkan tipe '%s' dari data-blok '%s'"
 
 
 msgid "'%s': cannot use current file as library"
