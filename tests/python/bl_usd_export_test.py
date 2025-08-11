@@ -1810,6 +1810,7 @@ class USDExportTest(AbstractUSDTest):
         """Validate USDZ files are packaged correctly."""
 
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usdz_export_test.blend"))
+        export_path = str(self.tempdir / "output_こんにちは.usdz")
 
         # USDZ export will not create the output directory if it does not already exist
         self.tempdir.mkdir()
@@ -1817,11 +1818,9 @@ class USDExportTest(AbstractUSDTest):
         # USDZ export will modify the working directory during the export process, but it should
         # return to normal once complete
         original_cwd = pathlib.Path.cwd()
-
-        export_path = str(self.tempdir / "output_こんにちは.usdz")
         self.export_and_validate(filepath=export_path)
-
         final_cwd = pathlib.Path.cwd()
+
         self.assertEqual(original_cwd, final_cwd)
 
         # Validate stage content
@@ -1832,11 +1831,11 @@ class USDExportTest(AbstractUSDTest):
         self.assertTrue(stage.GetPrimAtPath("/root/Sphere/Sphere").IsValid())
         self.assertTrue(stage.GetPrimAtPath("/root/env_light").IsValid())
 
-        # USDZ is just a zip file. Validate that it contains what we expect
+        # Validate that the archive itself contains what we expect (it is just a ZIP file)
         import zipfile
         with zipfile.ZipFile(export_path, 'r') as zfile:
             file_list = zfile.namelist()
-            self.assertIn('0/color_0C0C0C.exr', file_list)
+            self.assertIn('textures/color_0C0C0C.exr', file_list)
 
 
 class USDHookBase:
