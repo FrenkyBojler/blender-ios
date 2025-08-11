@@ -528,6 +528,7 @@ bool BLI_windows_is_build_version_greater_or_equal(DWORD majorVersion,
   typedef NTSTATUS(WINAPI * RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
   RtlGetVersionPtr rtl_get_version = (RtlGetVersionPtr)::GetProcAddress(hMod, "RtlGetVersion");
   if (rtl_get_version == nullptr) {
+    fprintf(stderr, "BLI_windows_is_build_version_greater_or_equal: RtlGetVersion not found.");
     return false;
   }
 
