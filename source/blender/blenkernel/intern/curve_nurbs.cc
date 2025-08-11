@@ -256,7 +256,13 @@ void calculate_basis_cache(const int points_num,
   MutableSpan<float> basis_weights(basis_cache.weights);
   MutableSpan<int> basis_start_indices(basis_cache.start_indices);
 
-  /* Find the offset index to each span breakpoint. */
+  /* Find the 'span index' for each breakpoint that define the 'evaluated spans'.
+   * An evaluated span (or 'segment') in this context is the parameter interval 
+   * between two consecutive knots [i, i + 1], where the knot at index `i` is a 
+   * breakpoint and is stricly less than the value of following knot. For repeated 
+   * knots, with multiplicity > 1, only the rightmost is considered a breakpoint 
+   * as the spans between repeated knot values are zero lenght!
+   */
   const int breakpoint_num = (evaluated_num - !cyclic) / resolution;
   Array<int, 20> span_offsets(breakpoint_num);
 
@@ -268,7 +274,7 @@ void calculate_basis_cache(const int points_num,
   }
   BLI_assert(breakpoint_count == breakpoint_num);
 
-  /* Build basis cache. */
+  /* Build the basis cache, sampling each evaluated span at intervals. */
   threading::parallel_for(span_offsets.index_range(), 4096, [&](const IndexRange range) {
     for (const int index : range) {
       const int span_index = span_offsets[index];
