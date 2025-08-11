@@ -373,3 +373,14 @@ void BLI_ewa_filter(int width,
                     ewa_filter_read_pixel_cb read_pixel_cb,
                     void *userdata,
                     float result[4]);
+
+void BLI_ewa_baseline_filter(int width,
+                             int height,
+                             bool intpol,
+                             bool use_alpha,
+                             const float uv[2],
+                             const float du[2],
+                             const float dv[2],
+                             ewa_filter_read_pixel_cb read_pixel_cb,
+                             void *userdata,
+                             float result[4]);

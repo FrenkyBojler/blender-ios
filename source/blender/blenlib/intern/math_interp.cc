@@ -6,6 +6,7 @@
  * \ingroup bli
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -958,122 +959,113 @@ void BLI_ewa_filter(const int width,
   result[3] = use_alpha ? result[3] * d : 1.0f;
 }
 
-/**
- * @brief High-quality Elliptical Weighted Average texture filter.
- *
- * This function implements the weighted EWA algorithm. It filters a texture based on an elliptical
- * footprint defined by the partial derivatives of the texture coordinates.
- *
- * @param image_buffer Raw pointer to the source image data (4 float RGBA).
- * @param width The width of the source image.
- * @param height The height of the source image.
- * @param intpol (Unused) Flag for interpolation. EWA uses its own high-quality sampling.
- * @param use_alpha Whether to use the alpha channel in calculations.
- * @param uv The center of the filter ellipse in normalized [0, 1] texture coordinates.
- * @param du The partial derivative of uv with respect to screen-space x.
- * @param dv The partial derivative of uv with respect to screen-space y.
- * @param result Output array of 4 floats to store the final RGBA color.
- */
-void BLI_ewa_baseline(const int width,
-                      const int height,
-                      const bool use_alpha,
-                      const bool use_gaussian_weight,
-                      const float uv[2],
-                      const float du[2],
-                      const float dv[2],
-                      ewa_filter_read_pixel_cb read_pixel_cb,
-                      void *userdata,
-                      float result[4])
+void BLI_ewa_baseline_filter(const int width,
+                             const int height,
+                             const bool intpol,
+                             const bool use_alpha,
+                             const float uv[2],
+                             const float du[2], /* (du/dx, dv/dx) in normalized UV */
+                             const float dv[2], /* (du/dy, dv/dy) in normalized UV */
+                             ewa_filter_read_pixel_cb read_pixel_cb,
+                             void *userdata,
+                             float result[4])
 {
-  // --- 1. Unpack derivatives and scale coordinates to pixel space ---
-  // The derivatives define the transformation from screen space to texture space.
-  // du/dx = (du[0], dv[0]), du/dy = (du[1], dv[1])
-  // We need the inverse mapping's derivatives: dx/du, dy/du, etc.
-  // However, the ellipse equation is more easily formulated with the forward derivatives.
-  const float ux = du[0] * width;
-  const float uy = du[1] * width;
-  const float vx = dv[0] * height;
-  const float vy = dv[1] * height;
+  const float Ux = du[0] * float(width);
+  const float Vx = du[1] * float(width);
+  const float Uy = dv[0] * float(height);
+  const float Vy = dv[1] * float(height);
 
-  const float u_c = uv[0] * width;
-  const float v_c = uv[1] * height;
+  float A = Vx * Vx + Vy * Vy;
+  float B = -2.0f * (Ux * Vx + Uy * Vy);
+  float C = Ux * Ux + Uy * Uy;
 
-  // --- 2. Calculate ellipse coefficients ---
-  // These define the equation of the ellipse: A*du^2 + B*du*dv + C*dv^2 = F
-  const float A = vx * vx + vy * vy;
-  const float B = -2.0f * (ux * vx + uy * vy);
-  const float C = ux * ux + uy * uy;
-  float F = (ux * vy - uy * vx);
-  F = F * F;
-
-  // --- 3. Define bounding box ---
-  const float denominator = 4 * A * C - B * B;
-  if (denominator <= 1e-9) {  // Check for degenerate ellipse (line or parabola)
-    // Fallback: simple nearest neighbor sample at the center
-    get_pixel_from_buffer(image_buffer, width, height, int(u_c), int(v_c), result);
-    return;
+  float F = A * C - 0.25f * B * B;
+  if (!(F > 1e-12f)) {
+    A = 1.0f;
+    B = 0.0f;
+    C = 1.0f;
+    F = 1.0f;
   }
 
-  const float inv_denom = 1.0f / denominator;
-  const float u_extent = 2.0f * std::sqrt(C * F * inv_denom);
-  const float v_extent = 2.0f * std::sqrt(A * F * inv_denom);
+  /* minimum isotropic radius in source pixels */
+  const float rmin = intpol ? 1.0f : 0.75f;
+  if (rmin > 0.0f) {
+    const float lam = 1.0f / (rmin * rmin);
+    A += lam;
+    C += lam;
+    F = A * C - 0.25f * B * B;
+  }
 
-  const int u_min = static_cast<int>(std::floor(u_c - u_extent));
-  const int u_max = static_cast<int>(std::ceil(u_c + u_extent));
-  const int v_min = static_cast<int>(std::floor(v_c - v_extent));
-  const int v_max = static_cast<int>(std::ceil(v_c + v_extent));
+  const float U0 = uv[0] * float(width) - 0.5f;
+  const float V0 = uv[1] * float(height) - 0.5f;
 
-  // --- 4. Integrate by point-sampling every texel in the bounding box ---
-  double r_sum = 0.0, g_sum = 0.0, b_sum = 0.0, a_sum = 0.0;
-  double total_weight = 0.0;
+  const float du_max = (A > 0.0f) ? std::sqrt(F / A) : 0.0f;
+  const float dv_max = (C > 0.0f) ? std::sqrt(F / C) : 0.0f;
 
-  for (int v = v_min; v <= v_max; ++v) {
-    for (int u = u_min; u <= u_max; ++u) {
-      const float du_tex = static_cast<float>(u) + 0.5f - u_c;
-      const float dv_tex = static_cast<float>(v) + 0.5f - v_c;
+  int u1 = int(std::floor(U0 - du_max));
+  int u2 = int(std::ceil(U0 + du_max));
+  int v1 = int(std::floor(V0 - dv_max));
+  int v2 = int(std::ceil(V0 + dv_max));
 
-      // Check if the texel center is inside the ellipse
-      const float ellipse_val = A * du_tex * du_tex + B * du_tex * dv_tex + C * dv_tex * dv_tex;
-      if (ellipse_val > F) {
-        continue;
+  const int max_span = EWA_MAXIDX; /* cap to LUT resolution */
+  if (U0 - float(u1) > float(max_span)) {
+    u1 = int(std::floor(U0)) - max_span;
+  }
+  if (float(u2) - U0 > float(max_span)) {
+    u2 = int(std::ceil(U0)) + max_span;
+  }
+  if (V0 - float(v1) > float(max_span)) {
+    v1 = int(std::floor(V0)) - max_span;
+  }
+  if (float(v2) - V0 > float(max_span)) {
+    v2 = int(std::ceil(V0)) + max_span;
+  }
+
+  float accum[4] = {0, 0, 0, 0};
+  float wsum = 0.0f;
+
+  const float idx_scale = float(EWA_MAXIDX) / F;
+
+  for (int y = v1; y <= v2; ++y) {
+    const float dv = float(y) - V0;
+    float du0 = float(u1) - U0;
+
+    float Q = A * du0 * du0 + B * du0 * dv + C * dv * dv;
+    float dQ = A * (2.0f * du0 + 1.0f) + B * dv;
+    const float ddQ = 2.0f * A;
+
+    for (int x = u1; x <= u2; ++x) {
+      if (Q >= 0.0f && Q <= F) {
+        int idx = int(Q * idx_scale);
+        idx = std::max(idx, 0);
+        idx = std::min(idx, EWA_MAXIDX);
+
+        float tex[4];
+        read_pixel_cb(userdata, x, y, tex);
+
+        const float wt = EWA_WTS[idx];
+        accum[0] += tex[0] * wt;
+        accum[1] += tex[1] * wt;
+        accum[2] += tex[2] * wt;
+        if (use_alpha) {
+          accum[3] += tex[3] * wt;
+        }
+        wsum += wt;
       }
-
-      // Calculate Gaussian weight.
-      // The value `ellipse_val / F` gives the squared screen-space distance (where 1.0 is the
-      // edge).
-      const float alpha = 2.0;  // Controls sharpness of the Gaussian falloff
-      const double weight = std::exp(-alpha * ellipse_val / F);
-
-      float texel_color[4];
-      read_pixel_cb(userdata, u, v, tc);
-
-      // Accumulate weighted colors
-      r_sum += texel_color[0] * weight;
-      g_sum += texel_color[1] * weight;
-      b_sum += texel_color[2] * weight;
-
-      if (use_alpha) {
-        a_sum += texel_color[3] * weight;
-      }
-      total_weight += weight;
+      Q += dQ;
+      dQ += ddQ;
     }
   }
 
-  // --- 5. Normalize and write to result ---
-  if (total_weight > 1e-9) {
-    const double inv_weight = 1.0 / total_weight;
-    result[0] = static_cast<float>(r_sum * inv_weight);
-    result[1] = static_cast<float>(g_sum * inv_weight);
-    result[2] = static_cast<float>(b_sum * inv_weight);
-    if (use_alpha) {
-      result[3] = static_cast<float>(a_sum * inv_weight);
-    }
-    else {
-      result[3] = 1.0f;
-    }
+  if (wsum > 0.0f) {
+    const float inv = 1.0f / wsum;
+    result[0] = accum[0] * inv;
+    result[1] = accum[1] * inv;
+    result[2] = accum[2] * inv;
+    result[3] = use_alpha ? (accum[3] * inv) : 1.0f;
   }
   else {
-    // Fallback for cases where no samples were found in the ellipse
-    // read_pixel_cb(userdata, u, v, tc);
+    result[0] = result[1] = result[2] = 0.0f;
+    result[3] = use_alpha ? 0.0f : 1.0f;
   }
 }

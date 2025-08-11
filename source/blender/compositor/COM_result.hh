@@ -905,16 +905,26 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
   }
 
   const int2 size = domain_.size;
-  BLI_ewa_filter(size.x,
-                 size.y,
-                 false,
-                 true,
-                 coordinates,
-                 x_gradient,
-                 y_gradient,
-                 sample_ewa_extended_read_callback,
-                 const_cast<Result *>(this),
-                 pixel_value);
+  BLI_ewa_baseline_filter(size.x,
+                          size.y,
+                          false,
+                          true,
+                          coordinates,
+                          x_gradient,
+                          y_gradient,
+                          sample_ewa_extended_read_callback,
+                          const_cast<Result *>(this),
+                          pixel_value);
+  // BLI_ewa_filter(size.x,
+  //                size.y,
+  //                false,
+  //                true,
+  //                coordinates,
+  //                x_gradient,
+  //                y_gradient,
+  //                sample_ewa_extended_read_callback,
+  //                const_cast<Result *>(this),
+  //                pixel_value);
   return pixel_value;
 }
 
