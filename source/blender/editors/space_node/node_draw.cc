@@ -1695,6 +1695,57 @@ static void node_draw_shadow(const SpaceNode &snode,
   UI_draw_roundbox_4fv(&rect, false, radius + 0.5f, color);
 }
 
+static void node_draw_node_group_indicator(const SpaceNode &snode,
+                                           const bNode &node,
+                                           const rctf &rect,
+                                           const float radius,
+                                           const float color[4])
+{
+  /* Node groups draw copies of the body underneath but slightly smaller. */
+  if (node.type_legacy == NODE_GROUP) {
+    const float offset = 4.0f;
+    const rctf rect_group_first = {
+        rect.xmin + offset * 2,
+        rect.xmax - offset * 2,
+        rect.ymin - offset,
+        rect.ymin,
+    };
+
+    const rctf rect_group_second = {
+        rect.xmin + offset * 4,
+        rect.xmax - offset * 4,
+        rect.ymin - offset * 2,
+        rect.ymin - offset,
+    };
+
+    const rctf rect_group_original = {
+        rect.xmin + offset,
+        rect.xmax - offset,
+        rect.ymin,
+        rect.ymin,
+    };
+
+    /* Use the backdrop color but slightly transparent. */
+    float color_group[4];
+
+    const float shadow_width = 0.6f * U.widget_unit;
+    const float shadow_alpha = 0.33f;
+
+    UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+
+    ui_draw_dropshadow(
+        &rect_group_second, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
+    UI_draw_roundbox_4fv(&rect_group_second, true, radius * 0.66f, color);
+
+    ui_draw_dropshadow(
+        &rect_group_first, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
+    UI_draw_roundbox_4fv(&rect_group_first, true, radius * 0.66f, color);
+
+    ui_draw_dropshadow(
+        &rect_group_original, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
+  }
+}
+
 static void node_draw_socket(const bContext &C,
                              const bNodeTree &ntree,
                              const bNode &node,
@@ -2815,33 +2866,6 @@ static void node_draw_basis(const bContext &C,
   /* Show/hide icons. */
   float iconofs = rct.xmax - 0.35f * U.widget_unit;
 
-  /* Group edit. This icon should be the first for the node groups. Note that we intentionally
-   * don't check for NODE_GROUP_CUSTOM here. */
-  if (node.type_legacy == NODE_GROUP) {
-    iconofs -= iconbutw;
-    UI_block_emboss_set(&block, ui::EmbossType::None);
-    uiBut *but = uiDefIconBut(&block,
-                              ButType::ButToggle,
-                              0,
-                              ICON_NODETREE,
-                              iconofs,
-                              rct.ymax - NODE_DY,
-                              iconbutw,
-                              UI_UNIT_Y,
-                              nullptr,
-                              0,
-                              0,
-                              "");
-    UI_but_func_set(but,
-                    node_toggle_button_cb,
-                    POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_group_edit");
-    if (node.id) {
-      UI_but_icon_indicator_number_set(but, ID_REAL_USERS(node.id));
-    }
-    UI_block_emboss_set(&block, ui::EmbossType::Emboss);
-  }
-
   if (nodes::node_can_sync_sockets(C, ntree, node)) {
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, ui::EmbossType::None);
@@ -3079,6 +3103,8 @@ static void node_draw_basis(const bContext &C,
         rct.ymin - padding,
         rct.ymax - (NODE_DY + outline_width) + padding,
     };
+
+    node_draw_node_group_indicator(snode, node, rect, corner_radius, color);
 
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
     UI_draw_roundbox_4fv(&rect, true, corner_radius, color);
