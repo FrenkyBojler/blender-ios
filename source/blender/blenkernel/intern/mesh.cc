@@ -858,6 +858,13 @@ void mesh_apply_spatial_organization(Mesh &mesh)
       }
     }
 
+    for (const int vert_idx : IndexRange(mesh.verts_num)) {
+      if (!added_verts[vert_idx]) {
+        new_vert_order.append(vert_idx);
+        added_verts[vert_idx].set();
+      }
+    }
+
     for (const int face_idx : local_group.faces) {
       new_face_order.append(face_idx);
     }
