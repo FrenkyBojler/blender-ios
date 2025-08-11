@@ -1398,8 +1398,8 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
              old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
   size_input->default_value_typed<bNodeSocketValueFloat>()->value =
       old_length_input->default_value_typed<bNodeSocketValueFloat>()->value;
-  copy_v2_v2(&source_input->default_value_typed<bNodeSocketValueFloat>()->value,
-             &old_source_input->default_value_typed<bNodeSocketValueFloat>()->value);
+  copy_v2_v2(source_input->default_value_typed<bNodeSocketValueVector>()->value,
+             old_source_input->default_value_typed<bNodeSocketValueVector>()->value);
 
   if (image_link) {
     version_node_add_link(
