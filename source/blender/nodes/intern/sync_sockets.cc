@@ -105,14 +105,25 @@ static BundleSyncState get_sync_state_combine_bundle(
   if (source_signatures.is_empty()) {
     return {NodeSyncState::NoSyncSource};
   }
-  if (!nodes::BundleSignature::all_matching_exactly(source_signatures)) {
-    return {NodeSyncState::ConflictingSyncSources};
+
+  nodes::BundleSignature combined_signature;
+  for (const nodes::BundleSignature &src_signature : source_signatures) {
+    for (const nodes::BundleSignature::Item &src_item : src_signature.items) {
+      if (const nodes::BundleSignature::Item *existing_item =
+              combined_signature.items.lookup_key_ptr_as(src_item.key))
+      {
+        if (existing_item->type != src_item.type) {
+          return {NodeSyncState::ConflictingSyncSources};
+        }
+      }
+      combined_signature.items.add(src_item);
+    }
   }
-  const nodes::BundleSignature &source_signature = source_signatures[0];
+
   const nodes::BundleSignature &current_signature =
       nodes::BundleSignature::from_combine_bundle_node(combine_bundle_node);
-  if (!source_signature.matches_exactly(current_signature)) {
-    return {NodeSyncState::CanBeSynced, source_signature};
+  if (!combined_signature.matches_exactly(current_signature)) {
+    return {NodeSyncState::CanBeSynced, combined_signature};
   }
   return {NodeSyncState::Synced};
 }
