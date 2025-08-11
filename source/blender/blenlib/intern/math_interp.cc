@@ -957,3 +957,123 @@ void BLI_ewa_filter(const int width,
   /* Clipping can be ignored if alpha used, `texr->trgba[3]` already includes filtered edge. */
   result[3] = use_alpha ? result[3] * d : 1.0f;
 }
+
+/**
+ * @brief High-quality Elliptical Weighted Average texture filter.
+ *
+ * This function implements the weighted EWA algorithm. It filters a texture based on an elliptical
+ * footprint defined by the partial derivatives of the texture coordinates.
+ *
+ * @param image_buffer Raw pointer to the source image data (4 float RGBA).
+ * @param width The width of the source image.
+ * @param height The height of the source image.
+ * @param intpol (Unused) Flag for interpolation. EWA uses its own high-quality sampling.
+ * @param use_alpha Whether to use the alpha channel in calculations.
+ * @param uv The center of the filter ellipse in normalized [0, 1] texture coordinates.
+ * @param du The partial derivative of uv with respect to screen-space x.
+ * @param dv The partial derivative of uv with respect to screen-space y.
+ * @param result Output array of 4 floats to store the final RGBA color.
+ */
+void BLI_ewa_baseline(const int width,
+                      const int height,
+                      const bool use_alpha,
+                      const bool use_gaussian_weight,
+                      const float uv[2],
+                      const float du[2],
+                      const float dv[2],
+                      ewa_filter_read_pixel_cb read_pixel_cb,
+                      void *userdata,
+                      float result[4])
+{
+  // --- 1. Unpack derivatives and scale coordinates to pixel space ---
+  // The derivatives define the transformation from screen space to texture space.
+  // du/dx = (du[0], dv[0]), du/dy = (du[1], dv[1])
+  // We need the inverse mapping's derivatives: dx/du, dy/du, etc.
+  // However, the ellipse equation is more easily formulated with the forward derivatives.
+  const float ux = du[0] * width;
+  const float uy = du[1] * width;
+  const float vx = dv[0] * height;
+  const float vy = dv[1] * height;
+
+  const float u_c = uv[0] * width;
+  const float v_c = uv[1] * height;
+
+  // --- 2. Calculate ellipse coefficients ---
+  // These define the equation of the ellipse: A*du^2 + B*du*dv + C*dv^2 = F
+  const float A = vx * vx + vy * vy;
+  const float B = -2.0f * (ux * vx + uy * vy);
+  const float C = ux * ux + uy * uy;
+  float F = (ux * vy - uy * vx);
+  F = F * F;
+
+  // --- 3. Define bounding box ---
+  const float denominator = 4 * A * C - B * B;
+  if (denominator <= 1e-9) {  // Check for degenerate ellipse (line or parabola)
+    // Fallback: simple nearest neighbor sample at the center
+    get_pixel_from_buffer(image_buffer, width, height, int(u_c), int(v_c), result);
+    return;
+  }
+
+  const float inv_denom = 1.0f / denominator;
+  const float u_extent = 2.0f * std::sqrt(C * F * inv_denom);
+  const float v_extent = 2.0f * std::sqrt(A * F * inv_denom);
+
+  const int u_min = static_cast<int>(std::floor(u_c - u_extent));
+  const int u_max = static_cast<int>(std::ceil(u_c + u_extent));
+  const int v_min = static_cast<int>(std::floor(v_c - v_extent));
+  const int v_max = static_cast<int>(std::ceil(v_c + v_extent));
+
+  // --- 4. Integrate by point-sampling every texel in the bounding box ---
+  double r_sum = 0.0, g_sum = 0.0, b_sum = 0.0, a_sum = 0.0;
+  double total_weight = 0.0;
+
+  for (int v = v_min; v <= v_max; ++v) {
+    for (int u = u_min; u <= u_max; ++u) {
+      const float du_tex = static_cast<float>(u) + 0.5f - u_c;
+      const float dv_tex = static_cast<float>(v) + 0.5f - v_c;
+
+      // Check if the texel center is inside the ellipse
+      const float ellipse_val = A * du_tex * du_tex + B * du_tex * dv_tex + C * dv_tex * dv_tex;
+      if (ellipse_val > F) {
+        continue;
+      }
+
+      // Calculate Gaussian weight.
+      // The value `ellipse_val / F` gives the squared screen-space distance (where 1.0 is the
+      // edge).
+      const float alpha = 2.0;  // Controls sharpness of the Gaussian falloff
+      const double weight = std::exp(-alpha * ellipse_val / F);
+
+      float texel_color[4];
+      read_pixel_cb(userdata, u, v, tc);
+
+      // Accumulate weighted colors
+      r_sum += texel_color[0] * weight;
+      g_sum += texel_color[1] * weight;
+      b_sum += texel_color[2] * weight;
+
+      if (use_alpha) {
+        a_sum += texel_color[3] * weight;
+      }
+      total_weight += weight;
+    }
+  }
+
+  // --- 5. Normalize and write to result ---
+  if (total_weight > 1e-9) {
+    const double inv_weight = 1.0 / total_weight;
+    result[0] = static_cast<float>(r_sum * inv_weight);
+    result[1] = static_cast<float>(g_sum * inv_weight);
+    result[2] = static_cast<float>(b_sum * inv_weight);
+    if (use_alpha) {
+      result[3] = static_cast<float>(a_sum * inv_weight);
+    }
+    else {
+      result[3] = 1.0f;
+    }
+  }
+  else {
+    // Fallback for cases where no samples were found in the ellipse
+    // read_pixel_cb(userdata, u, v, tc);
+  }
+}
