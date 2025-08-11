@@ -8214,7 +8214,7 @@ def km_sequencer_tool_generic_select_circle(params, *, fallback):
             *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
                 "sequencer.select_circle",
                 **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
-                   {"type": params.select_mouse, "value": 'PRESS'}),
+                   {"type": params.tool_mouse, "value": 'PRESS'}),
                 properties=[("wait_for_input", False)])),
         ]},
     )
