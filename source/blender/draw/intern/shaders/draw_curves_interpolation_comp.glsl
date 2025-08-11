@@ -158,31 +158,88 @@ template void output_set_zero<float3>(int, float3);
 template void output_set_zero<float2>(int, float2);
 template void output_set_zero<float>(int, float);
 
-struct IndexRange {
-  int start;
-  int size;
+class IndexRange {
+ private:
+  int start_;
+  int size_;
 
-  METAL_CONSTRUCTOR_2(IndexRange, int, start, int, size)
+ public:
+  METAL_CONSTRUCTOR_2(IndexRange, int, start_, int, size_)
+
+  static IndexRange from_begin_end(int begin, int end)
+  {
+    return IndexRange(begin, end - begin);
+  }
+
+  /**
+   * Get the first element in the range.
+   */
+  int first() const
+  {
+    return this->start_;
+  }
+
+  /**
+   * Get the first element in the range. The returned value is undefined when the range is empty.
+   */
+  int start() const
+  {
+    return this->start_;
+  }
+
+  /**
+   * Get the nth last element in the range.
+   */
+  int last(int n = 0) const
+  {
+    return this->start_ + this->size_ - 1 - n;
+  }
+
+  /**
+   * Get the amount of numbers in the range.
+   */
+  int size() const
+  {
+    return this->size_;
+  }
+
+  /**
+   * Returns a new range, that contains a sub-interval of the current one.
+   */
+  IndexRange slice(int start, int size) const
+  {
+    int new_start = this->start_ + start;
+    return IndexRange(new_start, size);
+  }
+  IndexRange slice(IndexRange range) const
+  {
+    return this->slice(range.start(), range.size());
+  }
 };
 
-int size(const IndexRange range)
-{
-  return range.size;
-}
+/**
+ * See `OffsetIndices` C++ definition for formal definition.
+ *
+ * OffsetIndices cannot be implemented on GPU because of the lack of operator overloading and
+ * buffer reference in GLSL. So we simply interpret a given integer buffer as a `OffsetIndices`
+ * buffer and load a specific item as a range.
+ */
+namespace offset_indices {
 
-IndexRange from_begin_end(int begin, int end)
+#ifdef GLSL_CPP_STUBS
+/* Equivalent of `IndexRange OffsetIndices<int>operator[]`.
+ * Implementation for C++ compilation. */
+static IndexRange load_range_from_buffer(const int (&buf)[], int i)
 {
-  return IndexRange(begin, end - begin);
+  return IndexRange::from_begin_end(buf[i], buf[i + 1]);
 }
+#endif
 
-/* Returns a.slice(b). */
-IndexRange slice(IndexRange a, IndexRange b)
-{
-  return IndexRange(a.start + b.start, b.size);
-}
+}  // namespace offset_indices
 
-/* Equivalent of `IndexRange OffsetIndices<int>operator[]`. */
-#define OffsetIndices_read(buf_, i_) from_begin_end(buf_[i_], buf_[i_ + 1]);
+/* Shader implementation because of missing buffer reference as argument in GLSL. */
+#define offset_indices_load_range_from_buffer(buf_, i_) \
+  IndexRange::from_begin_end(buf_[i_], buf_[i_ + 1]);
 
 /* Copy of DNA enum in `DNA_curves_types.h`. */
 enum CurveType : uint32_t {
@@ -226,7 +283,7 @@ int4 get_points(uint point_id, IndexRange points)
 {
   int4 point_ids = int(point_id) + int4(-1, +0, +1, +2);
   return clamp(
-      int(points.start) + point_ids, int4(points.start), int4(points.start + points.size - 1));
+      int(points.start()) + point_ids, int4(points.start()), int4(points.start() + points.last()));
 }
 
 template<typename InterpType>
@@ -237,8 +294,8 @@ void evaluate_curve(const InterpType interp_type,
 {
   const uint curve_resolution = curves_resolution_buf[curve_index];
 
-  for (uint i = 0; i < evaluated_points.size; i++) {
-    const int evaluated_point_id = evaluated_points.start + int(i);
+  for (uint i = 0; i < evaluated_points.size(); i++) {
+    const int evaluated_point_id = evaluated_points.start() + int(i);
     const uint point_id = i / curve_resolution;
     const float parameter = float(i % curve_resolution) / float(curve_resolution);
     const float4 weights = calculate_basis(parameter);
@@ -283,7 +340,7 @@ void evaluate_segment(const InterpPosition interp_type, const int2 points, const
   const float rad_1 = p1.data.w;
 
   assert(result.size > 0);
-  const float inv_len = 1.0f / float(result.size);
+  const float inv_len = 1.0f / float(result.size());
   const float inv_len_squared = inv_len * inv_len;
   const float inv_len_cubed = inv_len_squared * inv_len;
 
@@ -295,11 +352,11 @@ void evaluate_segment(const InterpPosition interp_type, const int2 points, const
   float3 q1 = rt1 + rt2 + rt3;
   float3 q2 = 2.0f * rt2 + 6.0f * rt3;
   float3 q3 = 6.0f * rt3;
-  for (int i = 0; i < result.size; i++) {
+  for (int i = 0; i < result.size(); i++) {
     float rad = mix(rad_0, rad_1, float(i) * inv_len);
     InterpPosition interp;
     interp.data = float4(q0, rad);
-    output_write(result.start + i, interp);
+    output_write(result.start() + i, interp);
     q0 += q1;
     q1 += q2;
     q2 += q3;
@@ -312,9 +369,9 @@ void evaluate_segment(const InterpType interp_type, const int2 points, const Ind
   InterpType p0 = input_load(points.x, interp_type);
   InterpType p1 = input_load(points.y, interp_type);
 
-  const float step = 1.0f / float(result.size);
-  for (int i = 0; i < result.size; i++) {
-    output_write(result.start + i, mix(p0, p1, float(i) * step));
+  const float step = 1.0f / float(result.size());
+  for (int i = 0; i < result.size(); i++) {
+    output_write(result.start() + i, mix(p0, p1, float(i) * step));
   }
 }
 
@@ -325,14 +382,15 @@ template void evaluate_segment<float4>(float4, int2, IndexRange);
 
 IndexRange per_curve_point_offsets_range(const IndexRange points, const int curve_index)
 {
-  return IndexRange(curve_index + points.start, points.size + 1);
+  return IndexRange(curve_index + points.start(), points.size() + 1);
 }
 
 int2 get_points(uint point_id, IndexRange points)
 {
   int2 point_ids = int(point_id) + int2(+0, +1);
-  return clamp(
-      int(points.start) + point_ids, int2(points.start), int2(points.start + points.size - 1));
+  return clamp(int(points.start()) + point_ids,
+               int2(points.start()),
+               int2(points.start() + points.size() - 1));
 }
 
 template<typename InterpType>
@@ -344,10 +402,11 @@ void evaluate_curve(const InterpType interp_type,
   /* Range used for indexing bezier offsets. */
   const IndexRange offsets = per_curve_point_offsets_range(points, curve_index);
 
-  for (int i = 0; i < points.size; i++) {
+  for (int i = 0; i < points.size(); i++) {
     /* Bezier curves can have different number of evaluated segment per curve segment. */
-    const IndexRange segment_range = OffsetIndices_read(bezier_offsets_buf, offsets.start + i);
-    const IndexRange evaluated_segment_range = slice(evaluated_points, segment_range);
+    const IndexRange segment_range = offset_indices::load_range_from_buffer(bezier_offsets_buf,
+                                                                            offsets.start() + i);
+    const IndexRange evaluated_segment_range = evaluated_points.slice(segment_range);
     const int2 point_ids = get_points(i, points);
 
     evaluate_segment(interp_type, point_ids, evaluated_segment_range);
@@ -368,8 +427,8 @@ void copy_curve_data(const InterpType interp_type,
                      const IndexRange evaluated_points)
 {
   assert(points.size == evaluated_points.size);
-  for (int i = 0; i < points.size; i++) {
-    output_write(evaluated_points.start + i, input_load(points.start + i, interp_type));
+  for (int i = 0; i < points.size(); i++) {
+    output_write(evaluated_points.start() + i, input_load(points.start() + i, interp_type));
   }
 }
 
@@ -402,14 +461,14 @@ void evaluate_curve(const InterpType interp_type,
   }
 
   const int start_indices_range_start = basis_cache_start;
-  const int weights_range_start = basis_cache_start + evaluated_points.size;
+  const int weights_range_start = basis_cache_start + evaluated_points.size();
 
   /* Buffer aliasing to same bind point. We cannot dispatch with different type of curve. */
   const auto &basis_cache_buf = handles_positions_left_buf;
   const auto &control_weights_buf = handles_positions_right_buf;
 
-  for (int i = 0; i < evaluated_points.size; i++) {
-    int evaluated_point_index = evaluated_points.start + i;
+  for (int i = 0; i < evaluated_points.size(); i++) {
+    int evaluated_point_index = evaluated_points.start() + i;
     /* Equivalent to `attribute_math::DefaultMixer<T> mixer{dst}`. */
     output_set_zero(evaluated_point_index, interp_type);
     float total_weight = 0.0f;
@@ -417,9 +476,9 @@ void evaluate_curve(const InterpType interp_type,
     const IndexRange point_weights = IndexRange(weights_range_start + i * order, order);
     const int start_index = floatBitsToInt(basis_cache_buf[start_indices_range_start + i]);
 
-    for (int j = 0; j < point_weights.size; j++) {
-      const int point_index = points.start + (start_index + j) % points.size;
-      const float point_weight = basis_cache_buf[point_weights.start + j];
+    for (int j = 0; j < point_weights.size(); j++) {
+      const int point_index = points.start() + (start_index + j) % points.size();
+      const float point_weight = basis_cache_buf[point_weights.start() + j];
       const float control_weight = use_point_weight ? control_weights_buf[point_index] : 1.0f;
       const float weight = point_weight * control_weight;
       /* Equivalent to `mixer.mix_in()`. */
@@ -450,14 +509,14 @@ void evaluate_length_and_time(const IndexRange evaluated_points, const int curve
 
   float distance_along_curve = 0.0f;
   evaluated_time[0] = 0.0f;
-  for (int i = 1; i < evaluated_points.size; i++) {
-    int p = evaluated_points.start + i;
+  for (int i = 1; i < evaluated_points.size(); i++) {
+    int p = evaluated_points.start() + i;
     distance_along_curve += distance(evaluated_positions_radii[p].xyz,
                                      evaluated_positions_radii[p - 1].xyz);
     evaluated_time[p] = distance_along_curve;
   }
-  for (int i = 1; i < evaluated_points.size; i++) {
-    int p = evaluated_points.start + i;
+  for (int i = 1; i < evaluated_points.size(); i++) {
+    int p = evaluated_points.start() + i;
     evaluated_time[p] /= distance_along_curve;
   }
   curves_length[curve_index] = distance_along_curve;
@@ -474,8 +533,9 @@ template<typename InterpType> void evaluate_curve(const InterpType interp_type)
   if (curve_type != CurveType(evaluated_type)) {
     return;
   }
-  IndexRange points = OffsetIndices_read(points_by_curve_buf, curve_index);
-  IndexRange evaluated_points = OffsetIndices_read(evaluated_points_by_curve_buf, curve_index);
+  IndexRange points = offset_indices::load_range_from_buffer(points_by_curve_buf, curve_index);
+  IndexRange evaluated_points = offset_indices::load_range_from_buffer(
+      evaluated_points_by_curve_buf, curve_index);
 
   if (CurveType(evaluated_type) == CURVE_TYPE_CATMULL_ROM) {
     catmull_rom::evaluate_curve(interp_type, points, evaluated_points, curve_index);
