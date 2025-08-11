@@ -2451,6 +2451,8 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 
 void SEQUENCER_OT_select_circle(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   ot->name = "Circle Select";
   ot->description = "Select strips using circle selection";
   ot->idname = "SEQUENCER_OT_select_circle";
@@ -2469,6 +2471,13 @@ void SEQUENCER_OT_select_circle(wmOperatorType *ot)
   /* properties */
   WM_operator_properties_gesture_circle(ot);
   WM_operator_properties_select_operation_simple(ot);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "ignore_connections",
+                         false,
+                         "Ignore Connections",
+                         "Select strips individually whether or not they are connected");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
