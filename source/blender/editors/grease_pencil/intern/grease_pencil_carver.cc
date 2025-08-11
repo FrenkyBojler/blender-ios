@@ -1498,6 +1498,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                                                        const Span<bool> segment_reversed,
                                                        const Span<bool> cyclic,
                                                        const Span<bool> is_segments_clipping,
+                                                       const Span<int> dst_to_src_curves,
                                                        const OffsetIndices<int> segment_offsets,
                                                        Vector<bool> &is_point_clipping)
 {
@@ -1600,19 +1601,6 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
   dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
-  Array<int> src_by_dst_map(dst_points_by_curve.size(), -1);
-  for (const int i : dst_points_by_curve.index_range()) {
-    const IndexRange segment_range = segment_offsets[i];
-    src_by_dst_map[i] = segment_range.first();
-    for (const int seg_i : segment_range) {
-      const int curve_i = segments[seg_i].curve;
-      /* TODO. */
-      if (curve_i != src.curves_range().last()) {
-        src_by_dst_map[i] = curve_i;
-        break;
-      }
-    }
-  }
 
   Vector<InterpolatePoint> clipping_point_to_interpolate;
   for (const int curve_i : dst_points_by_curve.index_range()) {
@@ -1641,13 +1629,13 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
                          bke::attribute_filter_from_skip_ref({"cyclic"}),
-                         src_by_dst_map,
+                         dst_to_src_curves,
                          dst_attributes);
 
   MutableSpan<bool> dst_cyclic = dst_curves.cyclic_for_write();
   dst_cyclic.copy_from(cyclic);
   unchanged_curves_mask.foreach_index(
-      GrainSize(512), [&](const int i) { dst_cyclic[i] = src_cyclic[src_by_dst_map[i]]; });
+      GrainSize(512), [&](const int i) { dst_cyclic[i] = src_cyclic[dst_to_src_curves[i]]; });
 
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
 
@@ -1695,7 +1683,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
     }
     unchanged_curves_mask.foreach_index(GrainSize(512), [&](const int i) {
       dst.span.slice(dst_points_by_curve[i])
-          .copy_from(src.slice(src_points_by_curve[src_by_dst_map[i]]));
+          .copy_from(src.slice(src_points_by_curve[dst_to_src_curves[i]]));
     });
 
     if (iter.name != ".positions_2d") {
@@ -1767,13 +1755,13 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
 
   const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(result.segment_offsets);
 
-  Array<bool> is_src_curve_clipping(curves.curves_range(), false);
+  Array<bool> is_src_curve_clipping(curves.curves_num(), false);
   for (const int curve_i : curves.curves_range()) {
     /* TODO. */
     // const int shape_id = shape_ids[curve_i];
     // if (clipping_shapes.contains(shape_id)) {
 
-    if (segment.curve == curves.curves_range().last()) {
+    if (curve_i == curves.curves_range().last()) {
       is_src_curve_clipping[curve_i] = true;
     }
   }
@@ -1784,30 +1772,33 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
     is_segments_clipping[seg_i] = is_src_curve_clipping[segment.curve];
   }
 
+  Array<int> dst_to_src_curves(dst_segments_by_curve.size());
+  for (const int i : dst_segments_by_curve.index_range()) {
+    const IndexRange segment_range = dst_segments_by_curve[i];
+    dst_to_src_curves[i] = result.segments[segment_range.first()].curve;
+
+    /* Prioritize non-clipping curves. */
+    for (const int seg_i : segment_range) {
+      const int curve_i = result.segments[seg_i].curve;
+      if (!is_src_curve_clipping[curve_i]) {
+        dst_to_src_curves[i] = curve_i;
+        break;
+      }
+    }
+  }
+
   Vector<bool> is_point_clipping;
   bke::CurvesGeometry dst_curves = create_curves_from_segments(curves,
                                                                result.segments,
                                                                result.segment_reversed,
                                                                result.cyclic,
                                                                is_segments_clipping,
+                                                               dst_to_src_curves,
                                                                dst_segments_by_curve,
                                                                is_point_clipping);
 
   const VArray<float2> dst_positions_2d_attribute = *dst_curves.attributes().lookup<float2>(
       ".positions_2d", bke::AttrDomain::Point);
-
-  Array<int> src_by_dst_map(dst_curves.curves_num(), -1);
-  for (const int i : dst_curves.curves_range()) {
-    const IndexRange segment_range = dst_segments_by_curve[i];
-    src_by_dst_map[i] = segment_range.first();
-    for (const int seg_i : segment_range) {
-      const int curve_i = result.segments[seg_i].curve;
-      if (!is_src_curve_clipping[curve_i]) {
-        src_by_dst_map[i] = curve_i;
-        break;
-      }
-    }
-  }
 
   const OffsetIndices<int> points_by_curve = dst_curves.points_by_curve();
   BLI_assert(dst_positions_2d_attribute.is_span());
@@ -1816,7 +1807,7 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
   MutableSpan<float3> positions = dst_curves.positions_for_write();
   const float4x4 world_to_layer = math::invert(layer_to_world);
   for (const int curve_i : dst_curves.curves_range()) {
-    const int src_curve = src_by_dst_map[curve_i];
+    const int src_curve = dst_to_src_curves[curve_i];
     const float4 &plane = transform_plane(layer_to_world, normal_planes[src_curve]);
     const IndexRange points = points_by_curve[curve_i];
 
