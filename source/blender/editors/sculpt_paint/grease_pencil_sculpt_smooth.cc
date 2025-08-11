@@ -155,8 +155,6 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
                                            false,
                                            false);
 
-          point_mask.foreach_index([&](const int i) { printf(",%i", i); });
-
           params.drawing.tag_positions_changed();
           changed = true;
         }
