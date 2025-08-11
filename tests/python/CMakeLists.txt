@@ -1370,6 +1370,7 @@ if(WITH_UI_TESTS)
     test_workspace.sanity_check_sculpting
     test_workspace.sanity_check_vfx
     test_workspace.sanity_check_video_editing
+    test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
     test_undo.text_editor_simple
