@@ -1349,6 +1349,85 @@ static void do_version_convert_gp_jitter_values(Brush *brush)
   }
 }
 
+/* The Sun beams node was removed and the Glare node should be used instead, so we need to
+ * make the replacement. */
+static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
+{
+  blender::bke::node_tree_set_type(node_tree);
+
+  bNodeSocket *old_image_input = blender::bke::node_find_socket(node, SOCK_IN, "Image");
+  bNodeSocket *old_source_input = blender::bke::node_find_socket(node, SOCK_IN, "Source");
+  bNodeSocket *old_length_input = blender::bke::node_find_socket(node, SOCK_IN, "Length");
+  bNodeSocket *old_image_output = blender::bke::node_find_socket(node, SOCK_OUT, "Image");
+
+  /* Find the links of inputs going into the Sun Beams node. */
+  bNodeLink *image_link = nullptr;
+  bNodeLink *source_link = nullptr;
+  bNodeLink *length_link = nullptr;
+  bNodeLink *output_to = nullptr;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
+    if (link->tosock == old_image_input) {
+      image_link = link;
+    }
+
+    if (link->tosock == old_source_input) {
+      source_link = link;
+    }
+
+    if (link->tosock == old_length_input) {
+      length_link = link;
+    }
+
+    if (link->fromsock == old_image_output) {
+      output_to = link;
+    }
+  }
+
+  bNode *glare_node = blender::bke::node_add_node(nullptr, node_tree, "CompositorNodeGlare");
+  static_cast<NodeGlare *>(glare_node->storage)->type = CMP_NODE_GLARE_SUN_BEAMS;
+  glare_node->parent = node.parent;
+  glare_node->location[0] = node.location[0];
+  glare_node->location[1] = node.location[1];
+
+  bNodeSocket *image_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Image");
+  bNodeSocket *size_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Size");
+  bNodeSocket *source_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Sun Position");
+  bNodeSocket *image_output = blender::bke::node_find_socket(*glare_node, SOCK_OUT, "Image");
+
+  copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
+             old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+  copy_v4_v4(size_input->default_value_typed<bNodeSocketValueVector>()->value,
+             old_length_input->default_value_typed<bNodeSocketValueVector>()->value);
+  copy_v4_v4(source_input->default_value_typed<bNodeSocketValueVector>()->value,
+             old_source_input->default_value_typed<bNodeSocketValueVector>()->value);
+
+  if (image_link) {
+    version_node_add_link(
+        node_tree, *image_link->fromnode, *image_link->fromsock, *glare_node, *image_input);
+    blender::bke::node_remove_link(&node_tree, *image_link);
+  }
+
+  if (source_link) {
+    version_node_add_link(
+        node_tree, *source_link->fromnode, *source_link->fromsock, *glare_node, *source_input);
+    blender::bke::node_remove_link(&node_tree, *source_link);
+  }
+
+  if (length_link) {
+    version_node_add_link(
+        node_tree, *length_link->fromnode, *length_link->fromsock, *glare_node, *size_input);
+    blender::bke::node_remove_link(&node_tree, *length_link);
+  }
+
+  if (output_to) {
+    version_node_add_link(
+        node_tree, *output_to->tonode, *output_to->tosock, *glare_node, *image_output);
+    blender::bke::node_remove_link(&node_tree, *output_to);
+  }
+
+  version_node_remove(node_tree, node);
+}
+
 /* The Composite node was removed and a Group Output node should be used instead, so we need to
  * make the replacement. But first note that the Group Output node relies on the node tree
  * interface, so we ensure a default interface with a single input and output. This is only for
@@ -1599,6 +1678,27 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
         }
         else {
           pose_bone->drawflag &= ~PCHAN_DRAW_HIDDEN;
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, scene);
+      if (node_tree) {
+        /* Add a default interface for the node tree. See the versioning function below for more
+         * details. */
+        node_tree->tree_interface.clear_items();
+        node_tree->tree_interface.add_socket(
+            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+        node_tree->tree_interface.add_socket(
+            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
+        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_SUNBEAMS_DEPRECATED) {
+            do_version_sun_beams(*node_tree, *node);
+          }
         }
       }
     }
@@ -1972,8 +2072,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /* ImageFormatData gained a new media type which we need to be set according to the existing
-   * imtype. */
+  /* ImageFormatData gained a new media type which we need to be set according to the
+   * existing imtype. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 42)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       update_format_media_type(&scene->r.im_format);
@@ -2217,8 +2317,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
    * \note Keep this message at the bottom of the function.
    */
 
-  /* Keep this versioning always enabled at the bottom of the function; it can only be moved behind
-   * a subversion bump when the file format is changed. */
+  /* Keep this versioning always enabled at the bottom of the function; it can only be moved
+   * behind a subversion bump when the file format is changed. */
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     bke::mesh_freestyle_marks_to_generic(*mesh);
   }
