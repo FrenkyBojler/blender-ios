@@ -25,11 +25,9 @@ struct InterpPosition {
 
 InterpPosition input_load(int point_index, InterpPosition interp)
 {
-  {
-    const auto &positions = buffer_get(draw_curves_interpolate_position, positions_buf);
-    interp.data.xyz = gpu_attr_load_float3(positions, int2(3, 0), point_index);
-    interp.data.w = buffer_get(draw_curves_interpolate_position, radii_buf)[point_index];
-  }
+  const auto &positions = buffer_get(draw_curves_interpolate_position, positions_buf);
+  interp.data.xyz = gpu_attr_load_float3(positions, int2(3, 0), point_index);
+  interp.data.w = buffer_get(draw_curves_interpolate_position, radii_buf)[point_index];
   return interp;
 }
 
@@ -56,79 +54,50 @@ void output_set_zero(int evaluated_point_index, InterpPosition interp)
 
 float4 input_load(int point_index, float4 interp)
 {
-  StoredFloat4 data = as_data(float4(0.0));
-  {
-    data = buffer_get(draw_curves_interpolate_float4_attribute, attribute_float4_buf)[point_index];
-  }
-  return load_data(data);
+  return load_data(
+      buffer_get(draw_curves_interpolate_float4_attribute, attribute_float4_buf)[point_index]);
 }
 
 float3 input_load(int point_index, float3 interp)
 {
-  StoredFloat3 data = as_data(float3(0.0));
-  {
-    data = buffer_get(draw_curves_interpolate_float3_attribute, attribute_float3_buf)[point_index];
-  }
-  return load_data(data);
+  return load_data(
+      buffer_get(draw_curves_interpolate_float3_attribute, attribute_float3_buf)[point_index]);
 }
 
 float2 input_load(int point_index, float2 interp)
 {
-  StoredFloat2 data = as_data(float2(0.0));
-  {
-    data = buffer_get(draw_curves_interpolate_float2_attribute, attribute_float2_buf)[point_index];
-  }
-  return load_data(data);
+  return load_data(
+      buffer_get(draw_curves_interpolate_float2_attribute, attribute_float2_buf)[point_index]);
 }
 
 float input_load(int point_index, float interp)
 {
-  StoredFloat data = as_data(0.0);
-  ;
-  {
-    data = buffer_get(draw_curves_interpolate_float_attribute, attribute_float_buf)[point_index];
-  }
-  return load_data(data);
+  return load_data(
+      buffer_get(draw_curves_interpolate_float_attribute, attribute_float_buf)[point_index]);
 }
 
 float4 output_load(int evaluated_point_index, float4 interp)
 {
-  StoredFloat4 data = as_data(float4(0.0));
-  {
-    data = buffer_get(draw_curves_interpolate_float4_attribute,
-                      evaluated_float4_buf)[evaluated_point_index];
-  }
-  return load_data(data);
+  return load_data(buffer_get(draw_curves_interpolate_float4_attribute,
+                              evaluated_float4_buf)[evaluated_point_index]);
 }
 
 float3 output_load(int evaluated_point_index, float3 interp)
 {
-  StoredFloat3 data = as_data(float3(0.0));
-  {
-    data = buffer_get(draw_curves_interpolate_float3_attribute,
-                      evaluated_float3_buf)[evaluated_point_index];
-  }
-  return load_data(data);
+  return load_data(buffer_get(draw_curves_interpolate_float3_attribute,
+                              evaluated_float3_buf)[evaluated_point_index]);
 }
 
 float2 output_load(int evaluated_point_index, float2 interp)
 {
-  StoredFloat2 data = as_data(float2(0.0));
-  {
-    data = buffer_get(draw_curves_interpolate_float2_attribute,
-                      evaluated_float2_buf)[evaluated_point_index];
-  }
-  return load_data(data);
+  return load_data(buffer_get(draw_curves_interpolate_float2_attribute,
+                              evaluated_float2_buf)[evaluated_point_index]);
 }
 
 float output_load(int evaluated_point_index, float interp)
 {
-  StoredFloat data = as_data(0.0);
-  {
-    data = buffer_get(draw_curves_interpolate_float_attribute,
-                      evaluated_float_buf)[evaluated_point_index];
-  }
-  return load_data(data);
+  return load_data(buffer_get(draw_curves_interpolate_float_attribute,
+                              evaluated_float_buf)[evaluated_point_index]);
 }
 
 void output_write(int evaluated_point_index, const float4 interp)
