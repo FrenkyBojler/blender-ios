@@ -2386,7 +2386,6 @@ bool check_circle_selection_in_timeline(const rctf *rect,
     dy = (xy[1] < rect->ymin) ? (rect->ymin - xy[1]) : (xy[1] - rect->ymax);
   }
 
-  // return dx * dx + dy * dy <= radius * radius;
   return ((dx * dx) / (x_radius * x_radius) + (dy * dy) / (y_radius * y_radius) <= 1.0f);
 }
 static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
