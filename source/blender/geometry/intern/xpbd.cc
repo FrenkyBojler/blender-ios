@@ -1025,11 +1025,18 @@ class FixedRotationsConstraintSet : public ConstraintSet {
               *attributes->lookup_or_default<math::Quaternion>(sim_geometry.src.rotation_attribute,
                                                                bke::AttrDomain::Point,
                                                                math::Quaternion::identity());
+          const VArraySpan<float3> inertias = *attributes->lookup_or_default<float3>(
+              sim_geometry.src.inertia_attribute, bke::AttrDomain::Point, float3(1.0f));
 
           LocalConstraintCorrections &local_corrections = params.corrections.local();
           mask.foreach_index([&](const int point_i) {
             /* No relative offset, any additional rotation can be baked into the fixed rotation. */
             const math::Quaternion &rest_shape = math::Quaternion::identity();
+
+            const float3 inertia1 = inertias[point_i];
+            const float lumped_inertia1 = 0.5f * (inertia1.x + inertia1.y + inertia1.z);
+            /* Inverse inertia as weight factors. */
+            BLI_assert(lumped_inertia1 > 0.0f);
 
             /* TODO carry over from previous iteration, use for warm-starting. */
             const float4 lambda_prev = float4(0.0f);
@@ -1043,7 +1050,7 @@ class FixedRotationsConstraintSet : public ConstraintSet {
                                      fixed_rotations[point_i],
                                      rotations[point_i],
                                      0.0f,
-                                     1.0f,
+                                     1 / lumped_inertia1,
                                      lambda_prev,
                                      compliance_term,
                                      rest_shape,
