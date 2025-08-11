@@ -430,6 +430,13 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   group_descs[PG_HITV].hitgroup.moduleAH = optix_module;
   group_descs[PG_HITV].hitgroup.entryFunctionNameAH = "__anyhit__kernel_optix_volume_test";
 
+  OptixProgramGroupDesc ignore_desc = {};
+  ignore_desc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+  ignore_desc.hitgroup.moduleCH = optix_module;
+  ignore_desc.hitgroup.entryFunctionNameCH = "__closesthit__kernel_optix_ignore";
+  ignore_desc.hitgroup.moduleAH = optix_module;
+  ignore_desc.hitgroup.entryFunctionNameAH = "__anyhit__kernel_optix_ignore";
+
   if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
     /* Built-in thick curve intersection. */
     OptixBuiltinISOptions builtin_options = {};
@@ -469,6 +476,8 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_HITD_CURVE_LINEAR].hitgroup.moduleIS = builtin_modules[2];
     group_descs[PG_HITS_CURVE_LINEAR] = group_descs[PG_HITS];
     group_descs[PG_HITS_CURVE_LINEAR].hitgroup.moduleIS = builtin_modules[2];
+    group_descs[PG_HITV_CURVE_LINEAR] = ignore_desc;
+    group_descs[PG_HITL_CURVE_LINEAR] = ignore_desc;
 
     if (pipeline_options.usesMotionBlur) {
       builtin_options.usesMotionBlur = true;
@@ -480,6 +489,8 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       group_descs[PG_HITD_CURVE_LINEAR_MOTION].hitgroup.moduleIS = builtin_modules[3];
       group_descs[PG_HITS_CURVE_LINEAR_MOTION] = group_descs[PG_HITS_CURVE_LINEAR];
       group_descs[PG_HITS_CURVE_LINEAR_MOTION].hitgroup.moduleIS = builtin_modules[3];
+      group_descs[PG_HITV_CURVE_LINEAR_MOTION] = ignore_desc;
+      group_descs[PG_HITL_CURVE_LINEAR_MOTION] = ignore_desc;
     }
   }
   if (kernel_features & KERNEL_FEATURE_HAIR_RIBBON) {
@@ -494,6 +505,8 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_HITS_CURVE_RIBBON].hitgroup.moduleIS = optix_module;
     group_descs[PG_HITS_CURVE_RIBBON].hitgroup.entryFunctionNameIS =
         "__intersection__curve_ribbon";
+    group_descs[PG_HITV_CURVE_RIBBON] = ignore_desc;
+    group_descs[PG_HITL_CURVE_RIBBON] = ignore_desc;
   }
 
   if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
@@ -505,6 +518,8 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_HITS_POINTCLOUD].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
     group_descs[PG_HITS_POINTCLOUD].hitgroup.moduleIS = optix_module;
     group_descs[PG_HITS_POINTCLOUD].hitgroup.entryFunctionNameIS = "__intersection__point";
+    group_descs[PG_HITV_POINTCLOUD] = ignore_desc;
+    group_descs[PG_HITL_POINTCLOUD] = ignore_desc;
   }
 
   /* Add hit group for local intersections. */
@@ -680,22 +695,32 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     if (pipeline_options.usesMotionBlur) {
       pipeline_groups.push_back(groups[PG_HITD_MOTION]);
       pipeline_groups.push_back(groups[PG_HITS_MOTION]);
+      pipeline_groups.push_back(groups[PG_HITV_MOTION]);
+      pipeline_groups.push_back(groups[PG_HITL_MOTION]);
     }
     if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
       pipeline_groups.push_back(groups[PG_HITD_CURVE_LINEAR]);
       pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR]);
+      pipeline_groups.push_back(groups[PG_HITV_CURVE_LINEAR]);
+      pipeline_groups.push_back(groups[PG_HITL_CURVE_LINEAR]);
       if (pipeline_options.usesMotionBlur) {
         pipeline_groups.push_back(groups[PG_HITD_CURVE_LINEAR_MOTION]);
         pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR_MOTION]);
+        pipeline_groups.push_back(groups[PG_HITV_CURVE_LINEAR_MOTION]);
+        pipeline_groups.push_back(groups[PG_HITL_CURVE_LINEAR_MOTION]);
       }
     }
     if (kernel_features & KERNEL_FEATURE_HAIR_RIBBON) {
       pipeline_groups.push_back(groups[PG_HITD_CURVE_RIBBON]);
       pipeline_groups.push_back(groups[PG_HITS_CURVE_RIBBON]);
+      pipeline_groups.push_back(groups[PG_HITV_CURVE_RIBBON]);
+      pipeline_groups.push_back(groups[PG_HITL_CURVE_RIBBON]);
     }
     if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
       pipeline_groups.push_back(groups[PG_HITD_POINTCLOUD]);
       pipeline_groups.push_back(groups[PG_HITS_POINTCLOUD]);
+      pipeline_groups.push_back(groups[PG_HITV_POINTCLOUD]);
+      pipeline_groups.push_back(groups[PG_HITL_POINTCLOUD]);
     }
 
     optix_assert(optixPipelineCreate(context,
