@@ -1175,6 +1175,8 @@ static bke::bNodeSocketType *make_socket_type_geometry()
   socktype->get_geometry_nodes_cpp_value = [](const void * /*socket_value*/, void *r_value) {
     SocketValueVariant::ConstructIn(r_value, bke::GeometrySet());
   };
+  static SocketValueVariant default_value = SocketValueVariant::From(bke::GeometrySet());
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
