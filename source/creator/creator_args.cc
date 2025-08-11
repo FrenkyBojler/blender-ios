@@ -1912,7 +1912,7 @@ static int arg_handle_unregister_extension_all(int argc, const char **argv, void
 
 static const char arg_handle_highqos_set_doc[] =
     "\n\t"
-    "Use Windows HighQoS mode for maximum performance under all circumstances (Windows only).";
+    "Always make use of performance cores on hybrid CPU architectures (Windows only).";
 static int arg_handle_highqos_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
 #  ifdef _WIN32

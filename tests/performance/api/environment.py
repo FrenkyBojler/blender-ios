@@ -244,7 +244,7 @@ class TestEnvironment:
     def call_blender(self, args: list[str], foreground=False) -> list[str]:
         # Execute Blender command with arguments.
         common_args = ['--factory-startup', '-noaudio', '--enable-autoexec', '--python-exit-code', '1']
-        if os.name == 'nt':
+        if sys.platform == 'win32':
             # Set HighQoS level on Windows to avoid reduced performance when the window is out of focus.
             # See: https://learn.microsoft.com/en-us/windows/win32/procthread/quality-of-service
             common_args += ['--highqos']

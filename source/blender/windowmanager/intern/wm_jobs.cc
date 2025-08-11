@@ -14,13 +14,14 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_build_config.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#ifdef _WIN32
+#ifdef OS_WINDOWS
 #  include "BLI_winstuff.h"
 #endif
 
@@ -162,7 +163,7 @@ static void wm_job_main_thread_yield(wmJob *wm_job)
 static void wm_jobs_update_qos(const wmWindowManager *wm)
 {
   /* A QoS API is currently only available for Windows. */
-#ifdef _WIN32
+#ifdef OS_WINDOWS
   LISTBASE_FOREACH (wmJob *, wm_job, &wm->jobs) {
     if (wm_job->flag & WM_JOB_PRIORITY) {
       BLI_windows_process_set_qos(QoSMode::HIGH, QoSPrecedence::JOB);

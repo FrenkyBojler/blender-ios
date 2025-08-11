@@ -28,6 +28,8 @@
 #  include "utf_winfunc.hh"
 #  include "utfconv.hh"
 
+NTSTATUS WINAPI RtlGetVersion(PRTL_OSVERSIONINFOW);
+
 /* FILE_MAXDIR + FILE_MAXFILE */
 
 int BLI_windows_get_executable_dir(char r_dirpath[/*FILE_MAXDIR*/])
@@ -522,14 +524,22 @@ void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence)
   if (int(qos_precedence) < int(qos_precedence_last)) {
     return;
   }
+
   PROCESS_POWER_THROTTLING_STATE processPowerThrottlingState{};
   processPowerThrottlingState.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-  /* Leaving ControlMask as 0 reverts to default behavior. */
-  if (qos_mode != QoSMode::DEFAULT) {
-    processPowerThrottlingState.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-  }
-  if (qos_mode == QoSMode::ECO) {
-    processPowerThrottlingState.StateMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+  switch (qos_mode) {
+    case QoSMode::DEFAULT:
+      processPowerThrottlingState.ControlMask = 0;
+      processPowerThrottlingState.StateMask = 0;
+      break;
+    case QoSMode::HIGH:
+      processPowerThrottlingState.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+      processPowerThrottlingState.StateMask = 0;
+      break;
+    case QoSMode::ECO:
+      processPowerThrottlingState.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+      processPowerThrottlingState.StateMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+      break;
   }
   HANDLE hProcess = GetCurrentProcess();
   if (!SetProcessInformation(hProcess,
@@ -537,8 +547,7 @@ void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence)
                              &processPowerThrottlingState,
                              sizeof(PROCESS_POWER_THROTTLING_STATE)))
   {
-    fprintf(
-        stderr, "BLI_windows_set_process_qos: SetProcessInformation failed: %d\n", GetLastError());
+    /* Only supported on Windows 10.0.22000, i.e., Windows 11 21H2. */
     return;
   }
   qos_precedence_last = qos_precedence;
