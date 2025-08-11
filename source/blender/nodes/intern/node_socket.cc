@@ -1161,6 +1161,9 @@ static bke::bNodeSocketType *make_socket_type_object()
     Object *object = static_cast<const bNodeSocketValueObject *>(socket_value)->value;
     SocketValueVariant::ConstructIn(r_value, object);
   };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<Object *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
@@ -1192,6 +1195,9 @@ static bke::bNodeSocketType *make_socket_type_collection()
     Collection *collection = static_cast<const bNodeSocketValueCollection *>(socket_value)->value;
     SocketValueVariant::ConstructIn(r_value, collection);
   };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<Collection *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
@@ -1207,6 +1213,8 @@ static bke::bNodeSocketType *make_socket_type_texture()
     Tex *texture = static_cast<const bNodeSocketValueTexture *>(socket_value)->value;
     SocketValueVariant::ConstructIn(r_value, texture);
   };
+  static SocketValueVariant default_value = SocketValueVariant::From(static_cast<Tex *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
@@ -1222,6 +1230,9 @@ static bke::bNodeSocketType *make_socket_type_image()
     Image *image = static_cast<const bNodeSocketValueImage *>(socket_value)->value;
     SocketValueVariant::ConstructIn(r_value, image);
   };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<Image *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
@@ -1237,6 +1248,9 @@ static bke::bNodeSocketType *make_socket_type_material()
     Material *material = static_cast<const bNodeSocketValueMaterial *>(socket_value)->value;
     SocketValueVariant::ConstructIn(r_value, material);
   };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<Material *>(nullptr));
+  socktype->geometry_nodes_default_cpp_value = &default_value;
   return socktype;
 }
 
