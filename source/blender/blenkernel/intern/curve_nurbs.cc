@@ -261,7 +261,7 @@ void calculate_basis_cache(const int points_num,
    * between two consecutive knots [i, i + 1], where the knot at index `i` is a
    * breakpoint and is stricly less than the value of following knot. For repeated
    * knots, with multiplicity > 1, only the rightmost is considered a breakpoint
-   * as the spans between repeated knot values are zero lenght!
+   * as the spans between repeated knot values are zero length!
    */
   const int breakpoint_num = (evaluated_num - !cyclic) / resolution;
   Array<int, 20> span_offsets(breakpoint_num);
