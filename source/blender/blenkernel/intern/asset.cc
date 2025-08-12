@@ -63,6 +63,7 @@ AssetMetaData::AssetMetaData(const AssetMetaData &other)
   description = BLI_strdup_null(other.description);
   copyright = BLI_strdup_null(other.copyright);
   license = BLI_strdup_null(other.license);
+  runtime_flag = other.runtime_flag;
 
   BLI_duplicatelist(&tags, &other.tags);
 }
@@ -80,6 +81,7 @@ AssetMetaData::AssetMetaData(AssetMetaData &&other)
 {
   STRNCPY(catalog_simple_name, other.catalog_simple_name);
   tags = other.tags;
+  runtime_flag = other.runtime_flag;
   BLI_listbase_clear(&other.tags);
 }
 

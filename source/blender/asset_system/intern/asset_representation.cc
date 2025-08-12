@@ -173,4 +173,25 @@ AssetLibrary &AssetRepresentation::owner_asset_library() const
   return owner_asset_library_;
 }
 
+bool AssetRepresentation::is_editable() const
+{
+  if (this->is_local_id()) {
+    return true;
+  }
+
+  const std::optional<AssetLibraryReference> library_ref =
+      this->owner_asset_library().library_reference();
+
+  if (!library_ref) {
+    BLI_assert_unreachable();
+    return false;
+  }
+
+  if (library_ref.value().type == ASSET_LIBRARY_ESSENTIALS) {
+    return false;
+  }
+
+  return blender::StringRef(this->full_library_path()).endswith(BLENDER_ASSET_FILE_SUFFIX);
+}
+
 }  // namespace blender::asset_system

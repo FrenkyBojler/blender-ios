@@ -118,6 +118,12 @@ class AssetRepresentation : NonCopyable, NonMovable {
   /** Returns if this asset is stored inside this current file, and as such fully editable. */
   bool is_local_id() const;
   AssetLibrary &owner_asset_library() const;
+
+  /**
+   * Returns true if the asset can be edited and saved. This is true for local assets and asset
+   * system files.
+   */
+  bool is_editable() const;
 };
 
 }  // namespace blender::asset_system

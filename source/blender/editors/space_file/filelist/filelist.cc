@@ -2304,6 +2304,11 @@ static void filelist_readjob_list_lib_add_datablock(FileListReadJob *job_params,
          * update the asset index). */
         datablock_info->asset_data = metadata.get();
         datablock_info->free_asset_data = false;
+        if (StringRef(job_params->cur_relbase)
+                .endswith(StringRef(BLENDER_ASSET_FILE_SUFFIX) + "/"))
+        {
+          metadata->runtime_flag |= ASSET_METADATA_FLAG_EDITABLE;
+        }
 
         entry->asset = job_params->load_asset_library->add_external_asset(
             entry->relpath, datablock_info->name, idcode, std::move(metadata));

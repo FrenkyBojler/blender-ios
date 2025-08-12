@@ -88,13 +88,19 @@ static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
   return false;
 }
 
-int rna_AssetMetaData_editable(const PointerRNA * /* ptr */, const char ** /* r_info */)
+int rna_AssetMetaData_editable(const PointerRNA *ptr, const char ** /* r_info */)
 {
   /* Ideally the metadata would not be editable if the asset is from a library that cannot be
    * edited. But since the AssetMetaData does not know anything about the asset or library,
    *  we just make it editable and deal with the disabling of properties on the GUI/operator
    * side. */
-  return PROP_EDITABLE;
+  AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
+  if (ptr->owner_id && asset_data && (ptr->owner_id->asset_data == asset_data)) {
+    /* Local assets. */
+    return PROP_EDITABLE;
+  }
+
+  return asset_data->runtime_flag & ASSET_METADATA_FLAG_EDITABLE ? PROP_EDITABLE : PropertyFlag(0);
 }
 
 static std::optional<std::string> rna_AssetTag_path(const PointerRNA *ptr)
@@ -428,10 +434,8 @@ static void rna_AssetRepresentation_full_library_path_get(PointerRNA *ptr, char 
 static bool rna_AssetRepresentation_is_editable_get(PointerRNA *ptr)
 {
   const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
-  if (asset->is_local_id()) {
-    return true;
-  }
-  return blender::StringRef(asset->full_library_path()).endswith(BLENDER_ASSET_FILE_SUFFIX);
+  const bool foo = asset->is_editable();
+  return foo;
 }
 
 static int rna_AssetRepresentation_full_library_path_length(PointerRNA *ptr)

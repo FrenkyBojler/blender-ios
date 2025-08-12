@@ -34,6 +34,10 @@ typedef struct AssetTag {
   char name[/*MAX_NAME*/ 64];
 } AssetTag;
 
+typedef enum AssetMetadataRuntimeFlags {
+  ASSET_METADATA_FLAG_EDITABLE = 1 << 0,
+} AssetMetadataRuntimeFlags;
+
 /**
  * \brief The meta-data of an asset.
  * By creating and giving this for a data-block (#ID.asset_data), the data-block becomes an asset.
@@ -83,7 +87,9 @@ typedef struct AssetMetaData {
    * can always reliably reconstruct it from the list. */
   short tot_tags;
 
-  char _pad[4];
+  short runtime_flag;
+
+  char _pad[2];
 
 #ifdef __cplusplus
   AssetMetaData() = default;

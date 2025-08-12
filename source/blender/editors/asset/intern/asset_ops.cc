@@ -1465,24 +1465,11 @@ static bool asset_editable_poll(bContext *C)
     return WM_operator_winactive(C);
   }
 
-  const std::optional<AssetLibraryReference> library_ref =
-      asset_handle->owner_asset_library().library_reference();
-  if (!library_ref) {
-    BLI_assert_unreachable();
+  if (!asset_handle->is_editable()) {
+    CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
     return false;
   }
-
-  if (library_ref.value().type == ASSET_LIBRARY_ESSENTIALS) {
-    CTX_wm_operator_poll_msg_set(C, "Asset library is not editable");
-    return false;
-  }
-  std::string lib_path = asset_handle->full_library_path();
-  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
-    return true;
-  }
-
-  CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
-  return false;
+  return true;
 }
 
 static bool screenshot_preview_poll(bContext *C)
