@@ -20,6 +20,7 @@
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_threads.h"
@@ -299,6 +300,44 @@ static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
     }
   }
 }
+
+static bool is_zone_input_node(bNode *node)
+{
+  using namespace blender::bke;
+  if (const bNodeZoneType *zone_type = zone_type_by_node_type(node->type_legacy)) {
+    return node->type_legacy == zone_type->input_type;
+  }
+  return false;
+}
+
+static bool is_zone_output_node(bNode *node)
+{
+  using namespace blender::bke;
+  if (const bNodeZoneType *zone_type = zone_type_by_node_type(node->type_legacy)) {
+    return node->type_legacy == zone_type->output_type;
+  }
+  return false;
+}
+
+static bool is_zone_node(bNode *node)
+{
+  using namespace blender::bke;
+  return zone_type_by_node_type(node->type_legacy) != nullptr;
+}
+
+static int &node_zone_id(bNode *node)
+{
+  switch (node->type_legacy) {
+    case GEO_NODE_REPEAT_INPUT:
+      return static_cast<NodeGeometryRepeatInput *>(node->storage)->output_node_id;
+    case GEO_NODE_REPEAT_OUTPUT:
+      return node->identifier;
+    default:
+      BLI_assert_unreachable();
+      return node->identifier;
+  }
+}
+
 struct branchIterData {
   bool (*node_filter)(const bNode *node);
   int node_count;
