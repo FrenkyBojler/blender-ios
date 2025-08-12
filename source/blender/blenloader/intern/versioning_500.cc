@@ -1387,17 +1387,20 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
       version_node_add_link(
           node_tree, *link->fromnode, *link->fromsock, *glare_node, *image_input);
       blender::bke::node_remove_link(&node_tree, *link);
+      continue;
     }
 
     if (link->tosock == old_source_input) {
       version_node_add_link(
           node_tree, *link->fromnode, *link->fromsock, *glare_node, *source_input);
       blender::bke::node_remove_link(&node_tree, *link);
+      continue;
     }
 
     if (link->tosock == old_length_input) {
       version_node_add_link(node_tree, *link->fromnode, *link->fromsock, *glare_node, *size_input);
       blender::bke::node_remove_link(&node_tree, *link);
+      continue;
     }
 
     if (link->fromsock == old_image_output) {
