@@ -1606,12 +1606,6 @@ void *GHOST_WindowIOS::getOSWindow() const
 GHOST_TSuccess GHOST_WindowIOS::swapBuffers()
 {
   deferred_swap_buffers_count++;
-
-  /* We treat a swapbuffers call as an indication from Blender that this
-   * is the current window we should be focussing on. Hence we need to
-   * call activateWindow() to make this the key visible window from the iOS POV.
-   * (It will already be active.) */
-  // requestToActivateWindow();
   return GHOST_kSuccess;
 }
 
