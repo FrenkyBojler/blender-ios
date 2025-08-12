@@ -1628,6 +1628,46 @@ static PyObject *Vector_str(VectorObject *self)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Vector Type: Buffer Protocol
+ * \{ */
+
+static int Vector__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
+{
+
+  if (UNLIKELY(view == nullptr)) {
+    PyErr_SetString(PyExc_ValueError, "nullptr view in getbuffer");
+    return -1;
+  }
+
+  VectorObject *self = (VectorObject *)obj;
+  if (UNLIKELY(BaseMath_ReadCallback(self) == -1)) {
+    return -1;
+  }
+
+  view->obj = (PyObject *)self;
+  view->buf = (void *)self->vec;
+  view->len = Py_ssize_t(self->vec_num * sizeof(float));
+  view->readonly = 1;
+  view->itemsize = sizeof(float);
+  view->format = (char *)"f";
+  view->ndim = 1;
+  view->shape = nullptr;
+  view->strides = nullptr;
+  view->suboffsets = nullptr;
+  view->internal = nullptr;
+
+  Py_INCREF(self);
+  return 0;
+}
+
+static PyBufferProcs Vector_as_buffer = {
+    (getbufferproc)Vector__bf_getbuffer,
+    (releasebufferproc)0,
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Vector Type: Rich Compare
  * \{ */
 
@@ -3443,7 +3483,7 @@ PyTypeObject vector_Type = {
     /*tp_str*/ (reprfunc)Vector_str,
     /*tp_getattro*/ nullptr,
     /*tp_setattro*/ nullptr,
-    /*tp_as_buffer*/ nullptr,
+    /*tp_as_buffer*/ &Vector_as_buffer,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ vector_doc,
     /*tp_traverse*/ (traverseproc)BaseMathObject_traverse,

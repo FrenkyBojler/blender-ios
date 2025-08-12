@@ -306,6 +306,18 @@ class VectorTesting(unittest.TestCase):
         vec *= 2
         self.assertEqual(vec, prod2)
 
+    def test_buffer_protocol(self):
+        import numpy as np
+        n = 10
+        vec = Vector(range(n))
+
+        np_from_vec = np.array(vec)
+        np_from_tuple = np.array(vec.to_tuple(), dtype=np.float32)
+
+        self.assertEqual(np_from_vec.shape, (n,))
+        self.assertEqual(np_from_vec.dtype, np.float32)
+        self.assertTrue(np.array_equal(np_from_vec, np_from_tuple))
+
 
 class QuaternionTesting(unittest.TestCase):
 
