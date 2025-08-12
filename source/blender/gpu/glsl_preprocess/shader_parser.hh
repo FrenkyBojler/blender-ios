@@ -112,6 +112,7 @@ enum class ScopeType : char {
   Struct = 'S',
   Function = 'F',
   FunctionArgs = 'f',
+  FunctionCall = 'c',
   Template = 'T',
   TemplateArg = 't',
   Subscript = 'A',
@@ -457,6 +458,11 @@ struct ParserData {
             }
             else if (scopes.top().type == ScopeType::Struct) {
               enter_scope(ScopeType::FunctionArgs, tok_id);
+            }
+            else if (scopes.top().type == ScopeType::Function &&
+                     (tok_id >= 1 && token_types[tok_id - 1] == Word))
+            {
+              enter_scope(ScopeType::FunctionCall, tok_id);
             }
             else {
               enter_scope(ScopeType::Local, tok_id);
