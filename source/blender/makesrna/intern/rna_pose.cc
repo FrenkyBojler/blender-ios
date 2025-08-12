@@ -732,11 +732,12 @@ static const EnumPropertyItem pose_bone_gizmo_mode[] = {
      0,
      "Location",
      "The Gizmo will follow the location of the Override Transform"},
-    {PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM,
-     "TRANSFORM",
+    {PCHAN_GIZMO_MODE_PARENT_SPACE,
+     "PARENT",
      0,
-     "Full Transform",
-     "The Gizmo will be placed into the parent space of the bone specified in Override Transform"},
+     "Parent",
+     "The Gizmo will be placed into the parent space of the bone specified in Override Transform "
+     "but at the location of that bone"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
