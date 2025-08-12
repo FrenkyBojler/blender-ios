@@ -1360,72 +1360,52 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
   bNodeSocket *old_length_input = blender::bke::node_find_socket(node, SOCK_IN, "Length");
   bNodeSocket *old_image_output = blender::bke::node_find_socket(node, SOCK_OUT, "Image");
 
-  /* Find the links of inputs going into the Sun Beams node. */
-  bNodeLink *image_link = nullptr;
-  bNodeLink *source_link = nullptr;
-  bNodeLink *length_link = nullptr;
-  bNodeLink *output_to = nullptr;
-  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
-    if (link->tosock == old_image_input) {
-      image_link = link;
-    }
-
-    if (link->tosock == old_source_input) {
-      source_link = link;
-    }
-
-    if (link->tosock == old_length_input) {
-      length_link = link;
-    }
-
-    if (link->fromsock == old_image_output) {
-      output_to = link;
-    }
-  }
-
   bNode *glare_node = blender::bke::node_add_node(nullptr, node_tree, "CompositorNodeGlare");
   static_cast<NodeGlare *>(glare_node->storage)->type = CMP_NODE_GLARE_SUN_BEAMS;
+  static_cast<NodeGlare *>(glare_node->storage)->quality = 0;
   glare_node->parent = node.parent;
   glare_node->location[0] = node.location[0];
   glare_node->location[1] = node.location[1];
 
   bNodeSocket *image_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Image");
+  bNodeSocket *threshold_input = blender::bke::node_find_socket(
+      *glare_node, SOCK_IN, "Highlights Threshold");
   bNodeSocket *size_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Size");
   bNodeSocket *source_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Sun Position");
-  bNodeSocket *image_output = blender::bke::node_find_socket(*glare_node, SOCK_OUT, "Image");
+  bNodeSocket *glare_output = blender::bke::node_find_socket(*glare_node, SOCK_OUT, "Glare");
 
   copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
              old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+  threshold_input->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
   size_input->default_value_typed<bNodeSocketValueFloat>()->value =
       old_length_input->default_value_typed<bNodeSocketValueFloat>()->value;
   copy_v2_v2(source_input->default_value_typed<bNodeSocketValueVector>()->value,
              old_source_input->default_value_typed<bNodeSocketValueVector>()->value);
 
-  if (image_link) {
-    version_node_add_link(
-        node_tree, *image_link->fromnode, *image_link->fromsock, *glare_node, *image_input);
-    blender::bke::node_remove_link(&node_tree, *image_link);
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
+    if (link->tosock == old_image_input) {
+      version_node_add_link(
+          node_tree, *link->fromnode, *link->fromsock, *glare_node, *image_input);
+      blender::bke::node_remove_link(&node_tree, *link);
+    }
+
+    if (link->tosock == old_source_input) {
+      version_node_add_link(
+          node_tree, *link->fromnode, *link->fromsock, *glare_node, *source_input);
+      blender::bke::node_remove_link(&node_tree, *link);
+    }
+
+    if (link->tosock == old_length_input) {
+      version_node_add_link(node_tree, *link->fromnode, *link->fromsock, *glare_node, *size_input);
+      blender::bke::node_remove_link(&node_tree, *link);
+    }
+
+    if (link->fromsock == old_image_output) {
+      version_node_add_link(node_tree, *link->tonode, *link->tosock, *glare_node, *glare_output);
+      blender::bke::node_remove_link(&node_tree, *link);
+    }
   }
 
-  if (source_link) {
-    version_node_add_link(
-        node_tree, *source_link->fromnode, *source_link->fromsock, *glare_node, *source_input);
-    blender::bke::node_remove_link(&node_tree, *source_link);
-  }
-
-  if (length_link) {
-    version_node_add_link(
-        node_tree, *length_link->fromnode, *length_link->fromsock, *glare_node, *size_input);
-    blender::bke::node_remove_link(&node_tree, *length_link);
-  }
-
-  if (output_to) {
-    version_node_add_link(
-        node_tree, *output_to->tonode, *output_to->tosock, *glare_node, *image_output);
-    blender::bke::node_remove_link(&node_tree, *output_to);
-  }
-
-  MEM_freeN(node.storage);
   version_node_remove(node_tree, node);
 }
 
@@ -1682,6 +1662,19 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_SUNBEAMS_DEPRECATED) {
+            do_version_sun_beams(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
@@ -2288,19 +2281,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
       FOREACH_NODETREE_END;
     }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type == NTREE_COMPOSIT) {
-        LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
-          if (node->type_legacy == CMP_NODE_SUNBEAMS_DEPRECATED) {
-            do_version_sun_beams(*node_tree, *node);
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
   }
 
   /**
