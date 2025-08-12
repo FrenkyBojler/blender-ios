@@ -1949,11 +1949,13 @@ static wmOperatorStatus sequencer_add_scene_asset_invoke(bContext *C,
                                                          const wmEvent *event)
 {
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Editing *ed = seq::editing_get(scene);
-  if (!scene || !ed) {
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
     return OPERATOR_CANCELLED;
   }
+  Editing *ed = seq::editing_ensure(scene);
+  BLI_assert(ed != nullptr);
+
   sequencer_disable_one_time_properties(C, op);
 
   sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_SCENE, event);
