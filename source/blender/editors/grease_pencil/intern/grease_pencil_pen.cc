@@ -1176,145 +1176,147 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
   std::atomic<bool> changed = false;
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
-  threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
-    const int drawing_index = (&info - ptd.drawings.data());
 
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    MutableSpan<float3> positions = curves.positions_for_write();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-    const bke::AttributeAccessor attributes = curves.attributes();
-    const Array<int> point_to_curve_map = curves.point_to_curve_map();
+  if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
+    const MutableDrawingInfo &info = ptd.drawings[ptd.closest_element.drawing_index];
     const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-    const float4x4 layer_to_object = layer.local_transform();
     const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
-
-    MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
-    MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
-    MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
-    MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
-
-    if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
-      if (ptd.closest_element.drawing_index == drawing_index) {
-        move_segment(ptd, curves, layer_to_world);
-        info.drawing.tag_topology_changed();
-        changed.store(true, std::memory_order_relaxed);
-        return;
-      }
-    }
-
-    IndexMaskMemory memory;
-    const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        *object, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
-    if (bezier_points.is_empty()) {
-      return;
-    }
-
-    const VArray<bool> left_selected = *attributes.lookup_or_default<bool>(
-        ".selection_handle_left", bke::AttrDomain::Point, true);
-    const VArray<bool> right_selected = *attributes.lookup_or_default<bool>(
-        ".selection_handle_right", bke::AttrDomain::Point, true);
-
-    bezier_points.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
-      const float3 depth_point = positions[point_i];
-      float2 offset = float2(event->xy) - float2(event->prev_xy);
-
-      if ((ptd.move_point && !ptd.point_added &&
-           !(left_selected[point_i] || right_selected[point_i])) ||
-          ptd.move_entire)
-      {
-        const float2 pos = pen_layer_to_screen(ptd, layer_to_object, positions[point_i]);
-        const float2 pos_left = pen_layer_to_screen(ptd, layer_to_object, handles_left[point_i]);
-        const float2 pos_right = pen_layer_to_screen(ptd, layer_to_object, handles_right[point_i]);
-        positions[point_i] = pen_screen_to_layer(ptd, layer_to_world, pos + offset, depth_point);
-        handles_left[point_i] = pen_screen_to_layer(
-            ptd, layer_to_world, pos_left + offset, depth_point);
-        handles_right[point_i] = pen_screen_to_layer(
-            ptd, layer_to_world, pos_right + offset, depth_point);
-        return;
-      }
-
-      if (ptd.move_adjacent) {
-        handle_types_left[point_i] = BEZIER_HANDLE_FREE;
-        handle_types_right[point_i] = BEZIER_HANDLE_FREE;
-        const float2 pos_left = pen_layer_to_screen(ptd, layer_to_object, handles_left[point_i]);
-        handles_left[point_i] = pen_screen_to_layer(
-            ptd, layer_to_world, pos_left + offset, depth_point);
-
-        const int curve_i = point_to_curve_map[point_i];
-        const IndexRange points = points_by_curve[curve_i];
-        if (point_i != points.first()) {
-          const float2 pos_right = pen_layer_to_screen(
-              ptd, layer_to_object, handles_right[point_i - 1]);
-          handle_types_left[point_i - 1] = BEZIER_HANDLE_FREE;
-          handle_types_right[point_i - 1] = BEZIER_HANDLE_FREE;
-          handles_right[point_i - 1] = pen_screen_to_layer(
-              ptd, layer_to_world, pos_right + offset, depth_point);
-        }
-        return;
-      }
-
-      const bool is_left = !right_selected[point_i];
-      const float2 center_point = pen_layer_to_screen(ptd, layer_to_object, depth_point);
-      offset = ptd.mouse_co - ptd.center_of_mass_co;
-
-      if (ptd.snap_angle) {
-        offset = snap_8_angles(offset);
-      }
-
-      if (ptd.point_added) {
-        handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
-        handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
-      }
-
-      if (is_left) {
-        if (handle_types_right[point_i] == BEZIER_HANDLE_AUTO) {
-          handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
-        }
-        handle_types_left[point_i] = handle_types_right[point_i];
-        if (handle_types_right[point_i] == BEZIER_HANDLE_VECTOR) {
-          handle_types_left[point_i] = BEZIER_HANDLE_FREE;
-        }
-
-        if (ptd.point_added) {
-          handles_left[point_i] = ptd.placement.project(center_point + offset);
-        }
-        else {
-          handles_left[point_i] = pen_screen_to_layer(
-              ptd, layer_to_world, center_point + offset, depth_point);
-        }
-
-        if (handle_types_right[point_i] == BEZIER_HANDLE_ALIGN) {
-          handles_right[point_i] = 2.0f * depth_point - handles_left[point_i];
-        }
-      }
-      else {
-        if (handle_types_left[point_i] == BEZIER_HANDLE_AUTO) {
-          handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
-        }
-        handle_types_right[point_i] = handle_types_left[point_i];
-        if (handle_types_left[point_i] == BEZIER_HANDLE_VECTOR) {
-          handle_types_right[point_i] = BEZIER_HANDLE_FREE;
-        }
-
-        if (ptd.point_added) {
-          handles_right[point_i] = ptd.placement.project(center_point + offset);
-        }
-        else {
-          handles_right[point_i] = pen_screen_to_layer(
-              ptd, layer_to_world, center_point + offset, depth_point);
-        }
-
-        if (handle_types_left[point_i] == BEZIER_HANDLE_ALIGN) {
-          handles_left[point_i] = 2.0f * depth_point - handles_right[point_i];
-        }
-      }
-    });
-
-    curves.calculate_bezier_auto_handles();
-
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    move_segment(ptd, curves, layer_to_world);
     info.drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
-  });
+  }
+  else {
+    threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      MutableSpan<float3> positions = curves.positions_for_write();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      const bke::AttributeAccessor attributes = curves.attributes();
+      const Array<int> point_to_curve_map = curves.point_to_curve_map();
+      const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+      const float4x4 layer_to_object = layer.local_transform();
+      const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+
+      MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
+      MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
+      MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+      MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+
+      IndexMaskMemory memory;
+      const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+          *object, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
+      if (bezier_points.is_empty()) {
+        return;
+      }
+
+      const VArray<bool> left_selected = *attributes.lookup_or_default<bool>(
+          ".selection_handle_left", bke::AttrDomain::Point, true);
+      const VArray<bool> right_selected = *attributes.lookup_or_default<bool>(
+          ".selection_handle_right", bke::AttrDomain::Point, true);
+
+      bezier_points.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
+        const float3 depth_point = positions[point_i];
+        float2 offset = float2(event->xy) - float2(event->prev_xy);
+
+        if ((ptd.move_point && !ptd.point_added &&
+             !(left_selected[point_i] || right_selected[point_i])) ||
+            ptd.move_entire)
+        {
+          const float2 pos = pen_layer_to_screen(ptd, layer_to_object, positions[point_i]);
+          const float2 pos_left = pen_layer_to_screen(ptd, layer_to_object, handles_left[point_i]);
+          const float2 pos_right = pen_layer_to_screen(
+              ptd, layer_to_object, handles_right[point_i]);
+          positions[point_i] = pen_screen_to_layer(ptd, layer_to_world, pos + offset, depth_point);
+          handles_left[point_i] = pen_screen_to_layer(
+              ptd, layer_to_world, pos_left + offset, depth_point);
+          handles_right[point_i] = pen_screen_to_layer(
+              ptd, layer_to_world, pos_right + offset, depth_point);
+          return;
+        }
+
+        if (ptd.move_adjacent) {
+          handle_types_left[point_i] = BEZIER_HANDLE_FREE;
+          handle_types_right[point_i] = BEZIER_HANDLE_FREE;
+          const float2 pos_left = pen_layer_to_screen(ptd, layer_to_object, handles_left[point_i]);
+          handles_left[point_i] = pen_screen_to_layer(
+              ptd, layer_to_world, pos_left + offset, depth_point);
+
+          const int curve_i = point_to_curve_map[point_i];
+          const IndexRange points = points_by_curve[curve_i];
+          if (point_i != points.first()) {
+            const float2 pos_right = pen_layer_to_screen(
+                ptd, layer_to_object, handles_right[point_i - 1]);
+            handle_types_left[point_i - 1] = BEZIER_HANDLE_FREE;
+            handle_types_right[point_i - 1] = BEZIER_HANDLE_FREE;
+            handles_right[point_i - 1] = pen_screen_to_layer(
+                ptd, layer_to_world, pos_right + offset, depth_point);
+          }
+          return;
+        }
+
+        const bool is_left = !right_selected[point_i];
+        const float2 center_point = pen_layer_to_screen(ptd, layer_to_object, depth_point);
+        offset = ptd.mouse_co - ptd.center_of_mass_co;
+
+        if (ptd.snap_angle) {
+          offset = snap_8_angles(offset);
+        }
+
+        if (ptd.point_added) {
+          handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+          handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+        }
+
+        if (is_left) {
+          if (handle_types_right[point_i] == BEZIER_HANDLE_AUTO) {
+            handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+          }
+          handle_types_left[point_i] = handle_types_right[point_i];
+          if (handle_types_right[point_i] == BEZIER_HANDLE_VECTOR) {
+            handle_types_left[point_i] = BEZIER_HANDLE_FREE;
+          }
+
+          if (ptd.point_added) {
+            handles_left[point_i] = ptd.placement.project(center_point + offset);
+          }
+          else {
+            handles_left[point_i] = pen_screen_to_layer(
+                ptd, layer_to_world, center_point + offset, depth_point);
+          }
+
+          if (handle_types_right[point_i] == BEZIER_HANDLE_ALIGN) {
+            handles_right[point_i] = 2.0f * depth_point - handles_left[point_i];
+          }
+        }
+        else {
+          if (handle_types_left[point_i] == BEZIER_HANDLE_AUTO) {
+            handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+          }
+          handle_types_right[point_i] = handle_types_left[point_i];
+          if (handle_types_left[point_i] == BEZIER_HANDLE_VECTOR) {
+            handle_types_right[point_i] = BEZIER_HANDLE_FREE;
+          }
+
+          if (ptd.point_added) {
+            handles_right[point_i] = ptd.placement.project(center_point + offset);
+          }
+          else {
+            handles_right[point_i] = pen_screen_to_layer(
+                ptd, layer_to_world, center_point + offset, depth_point);
+          }
+
+          if (handle_types_left[point_i] == BEZIER_HANDLE_ALIGN) {
+            handles_left[point_i] = 2.0f * depth_point - handles_right[point_i];
+          }
+        }
+      });
+
+      curves.calculate_bezier_auto_handles();
+
+      info.drawing.tag_topology_changed();
+      changed.store(true, std::memory_order_relaxed);
+    });
+  }
 
   pen_status_indicators(C, op, ptd);
   if (changed) {
