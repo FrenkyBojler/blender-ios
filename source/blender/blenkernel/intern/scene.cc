@@ -1607,7 +1607,7 @@ constexpr IDTypeInfo get_type_info()
   info.name = "Scene";
   info.name_plural = "scenes";
   info.translation_context = BLT_I18NCONTEXT_ID_SCENE;
-  info.flags = IDTYPE_FLAGS_NEVER_UNUSED /* | IDTYPE_FLAGS_APPEND_IS_REUSABLE */;
+  info.flags = IDTYPE_FLAGS_NEVER_UNUSED;
   info.asset_type_info = nullptr;
 
   info.init_data = scene_init_data;

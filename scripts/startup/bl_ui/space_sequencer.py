@@ -817,7 +817,7 @@ class SEQUENCER_MT_add_scene(Menu):
 
                 layout.operator_context = 'INVOKE_REGION_WIN'
                 layout.operator("sequencer.scene_strip_add", text=sc_item.name, translate=False).scene = sc_item.name
-        
+
         del bpy_data_scenes_len
 
 
