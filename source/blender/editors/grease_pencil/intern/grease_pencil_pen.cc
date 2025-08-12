@@ -654,6 +654,95 @@ struct PenToolOperation {
 
     src = std::move(dst);
   }
+
+  void add_single_point_and_curve() const
+  {
+    bke::greasepencil::Layer &layer = *this->grease_pencil->get_active_layer();
+    bke::greasepencil::Drawing *drawing = this->grease_pencil->get_editable_drawing_at(
+        layer, this->vc.scene->r.cfra);
+    bke::CurvesGeometry &curves = drawing->strokes_for_write();
+    const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
+
+    ed::greasepencil::add_single_curve(curves, true);
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    const float4x4 layer_to_world = layer.to_world_space(*this->vc.obact);
+
+    curves.positions_for_write().last() = this->placement.project(this->mouse_co);
+    curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
+    curves.handle_types_left_for_write().last() = this->extrude_handle;
+    curves.handle_types_right_for_write().last() = this->extrude_handle;
+    drawing->opacities_for_write().last() = 1.0f;
+    curves.update_curve_types();
+
+    const int material_index = this->vc.obact->actcol - 1;
+    bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
+        "material_index",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
+    material_indexes.span.last() = material_index;
+    material_indexes.finish();
+
+    bke::SpanAttributeWriter<float> aspect_ratios = attributes.lookup_or_add_for_write_span<float>(
+        "aspect_ratio",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
+    aspect_ratios.span.last() = 1.0f;
+    aspect_ratios.finish();
+
+    bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
+        "u_scale",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
+    u_scales.span.last() = 1.0f;
+    u_scales.finish();
+
+    MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+    MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+    handles_left.last() = this->screen_to_layer(
+        layer_to_world,
+        this->mouse_co - float2(default_handle_px_distance / 2.0f, 0.0f),
+        depth_point);
+    handles_right.last() = this->screen_to_layer(
+        layer_to_world,
+        this->mouse_co + float2(default_handle_px_distance / 2.0f, 0.0f),
+        depth_point);
+    curves.radius_for_write().last() = this->radius;
+
+    for (const StringRef selection_attribute_name :
+         ed::curves::get_curves_selection_attribute_names(curves))
+    {
+      bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+          curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+
+      ed::curves::fill_selection_true(selection.span,
+                                      IndexRange::from_single(curves.points_range().last()));
+      selection.finish();
+    }
+
+    /* Initialize the rest of the attributes with default values. */
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref({"position",
+                                             "opacity",
+                                             "radius",
+                                             "handle_left",
+                                             "handle_right",
+                                             "handle_type_left",
+                                             "handle_type_right",
+                                             ".selection",
+                                             ".selection_handle_left",
+                                             ".selection_handle_right"}),
+        curves.points_range().take_back(1));
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Curve,
+        bke::attribute_filter_from_skip_ref(
+            {"curve_type", "material_index", "aspect_ratio", "u_scale"}),
+        curves.curves_range().take_back(1));
+
+    drawing->tag_topology_changed();
+  }
 };
 
 static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
@@ -896,91 +985,6 @@ static bool pen_report_new_curve_errors(const PenToolOperation &ptd, wmOperator 
   }
 
   return true;
-}
-
-static void pen_add_single(const PenToolOperation &ptd)
-{
-  bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
-  bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
-      layer, ptd.vc.scene->r.cfra);
-  bke::CurvesGeometry &curves = drawing->strokes_for_write();
-  const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
-
-  ed::greasepencil::add_single_curve(curves, true);
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
-
-  curves.positions_for_write().last() = ptd.placement.project(ptd.mouse_co);
-  curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
-  curves.handle_types_left_for_write().last() = ptd.extrude_handle;
-  curves.handle_types_right_for_write().last() = ptd.extrude_handle;
-  drawing->opacities_for_write().last() = 1.0f;
-  curves.update_curve_types();
-
-  const int material_index = ptd.vc.obact->actcol - 1;
-  bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
-      "material_index",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
-  material_indexes.span.last() = material_index;
-  material_indexes.finish();
-
-  bke::SpanAttributeWriter<float> aspect_ratios = attributes.lookup_or_add_for_write_span<float>(
-      "aspect_ratio",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
-  aspect_ratios.span.last() = 1.0f;
-  aspect_ratios.finish();
-
-  bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
-      "u_scale",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
-  u_scales.span.last() = 1.0f;
-  u_scales.finish();
-
-  MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
-  MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
-  handles_left.last() = ptd.screen_to_layer(
-      layer_to_world, ptd.mouse_co - float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
-  handles_right.last() = ptd.screen_to_layer(
-      layer_to_world, ptd.mouse_co + float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
-  curves.radius_for_write().last() = ptd.radius;
-
-  for (const StringRef selection_attribute_name :
-       ed::curves::get_curves_selection_attribute_names(curves))
-  {
-    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-        curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-
-    ed::curves::fill_selection_true(selection.span,
-                                    IndexRange::from_single(curves.points_range().last()));
-    selection.finish();
-  }
-
-  /* Initialize the rest of the attributes with default values. */
-  bke::fill_attribute_range_default(
-      attributes,
-      bke::AttrDomain::Point,
-      bke::attribute_filter_from_skip_ref({"position",
-                                           "opacity",
-                                           "radius",
-                                           "handle_left",
-                                           "handle_right",
-                                           "handle_type_left",
-                                           "handle_type_right",
-                                           ".selection",
-                                           ".selection_handle_left",
-                                           ".selection_handle_right"}),
-      curves.points_range().take_back(1));
-  bke::fill_attribute_range_default(
-      attributes,
-      bke::AttrDomain::Curve,
-      bke::attribute_filter_from_skip_ref(
-          {"curve_type", "material_index", "aspect_ratio", "u_scale"}),
-      curves.curves_range().take_back(1));
-
-  drawing->tag_topology_changed();
 }
 
 static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool ends_only)
@@ -1245,7 +1249,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   if (add_single) {
     const bool successful = pen_report_new_curve_errors(ptd, op);
     if (successful) {
-      pen_add_single(ptd);
+      ptd.add_single_point_and_curve();
       changed.store(true, std::memory_order_relaxed);
       point_added = true;
     }
