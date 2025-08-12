@@ -205,8 +205,8 @@ static void solve_distance_constraint(const int geometry0,
                                       const int i1,
                                       const float3 &p0,
                                       const float3 &p1,
-                                      const float m0,
-                                      const float m1,
+                                      const float weight_pos0,
+                                      const float weight_pos1,
                                       const float compliance_term,
                                       const float rest_distance,
                                       LocalConstraintCorrections &local_corrections)
@@ -216,11 +216,10 @@ static void solve_distance_constraint(const int geometry0,
   const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
 
   float length_diff = length - rest_distance;
-  const float lambda = length_diff / (1.0f / m0 + 1.0f / m1 + compliance_term);
+  const float lambda = length_diff / (weight_pos0 + weight_pos1 + compliance_term);
 
-  const float m_sum = m0 + m1;
-  const float3 correction0 = lambda * m0 / m_sum * normalized_dir;
-  const float3 correction1 = -lambda * m1 / m_sum * normalized_dir;
+  const float3 correction0 = lambda * weight_pos0 * normalized_dir;
+  const float3 correction1 = -lambda * weight_pos1 * normalized_dir;
   local_corrections.add_position_correction(geometry0, i0, correction0);
   local_corrections.add_position_correction(geometry1, i1, correction1);
 }
@@ -392,14 +391,19 @@ class EdgeLengthConstraintSet : public ConstraintSet {
           const int2 edge = edges[edge_i];
           const int i0 = edge[0];
           const int i1 = edge[1];
+          const float mass0 = masses.varray[i0];
+          const float mass1 = masses.varray[i1];
+          if (mass0 <= 0.0f || mass1 <= 0.0f) {
+            continue;
+          }
           solve_distance_constraint(geometry_i,
                                     geometry_i,
                                     i0,
                                     i1,
                                     positions[i0],
                                     positions[i1],
-                                    masses.varray[i0],
-                                    masses.varray[i1],
+                                    1 / mass0,
+                                    1 / mass1,
                                     compliance_term,
                                     rest_lengths.varray[edge_i],
                                     local_corrections);
@@ -529,14 +533,19 @@ class CurveLengthConstraintSet : public CurveConstraintSet {
           }
           for (const int point_i : points.drop_back(1)) {
             const int next_point_i = point_i + 1;
+            const float mass0 = masses.varray[point_i];
+            const float mass1 = masses.varray[next_point_i];
+            if (mass0 <= 0.0f || mass1 <= 0.0f) {
+              continue;
+            }
             solve_distance_constraint(geometry_i,
                                       geometry_i,
                                       point_i,
                                       next_point_i,
                                       positions[point_i],
                                       positions[next_point_i],
-                                      masses.varray[point_i],
-                                      masses.varray[next_point_i],
+                                      1 / mass0,
+                                      1 / mass1,
                                       compliance_term,
                                       rest_lengths.varray[point_i],
                                       local_corrections);
@@ -544,14 +553,19 @@ class CurveLengthConstraintSet : public CurveConstraintSet {
           if (cyclic[curve_i]) {
             const int first_point_i = points.first();
             const int last_point_i = points.last();
+            const float mass0 = masses.varray[last_point_i];
+            const float mass1 = masses.varray[first_point_i];
+            if (mass0 <= 0.0f || mass1 <= 0.0f) {
+              continue;
+            }
             solve_distance_constraint(geometry_i,
                                       geometry_i,
                                       first_point_i,
                                       last_point_i,
-                                      positions[first_point_i],
                                       positions[last_point_i],
-                                      masses.varray[first_point_i],
-                                      masses.varray[last_point_i],
+                                      positions[first_point_i],
+                                      1 / mass0,
+                                      1 / mass1,
                                       compliance_term,
                                       rest_lengths.varray[last_point_i],
                                       local_corrections);
@@ -692,13 +706,13 @@ class RodLengthConstraintSet : public CosseratRodConstraintSet {
 
         const float mass0 = masses[point_i];
         const float mass1 = masses[next_point_i];
-        const float rest_distance = rest_lengths[point_i];
         const float3 inertia = inertias[point_i];
         const float lumped_inertia = 0.5f * (inertia.x + inertia.y + inertia.z);
         /* Inverse mass as weight factors. */
-        BLI_assert(mass0 > 0.0f);
-        BLI_assert(mass1 > 0.0f);
-        BLI_assert(lumped_inertia > 0.0f);
+        if (mass0 <= 0.0f || mass1 <= 0.0f || lumped_inertia <= 0.0f) {
+          return;
+        }
+        const float rest_distance = rest_lengths[point_i];
 
         /* TODO carry over from previous iteration, use for warm-starting. */
         const float3 lambda_prev = float3(0.0f);
@@ -856,10 +870,11 @@ class RodBendingConstraintSet : public CosseratRodConstraintSet {
         const float3 inertia1 = inertias[next_point_i];
         const float lumped_inertia0 = 0.5f * (inertia0.x + inertia0.y + inertia0.z);
         const float lumped_inertia1 = 0.5f * (inertia1.x + inertia1.y + inertia1.z);
-        const math::Quaternion &rest_shape = rest_shapes[point_i];
         /* Inverse inertia as weight factors. */
-        BLI_assert(lumped_inertia0 > 0.0f);
-        BLI_assert(lumped_inertia1 > 0.0f);
+        if (lumped_inertia0 <= 0.0f || lumped_inertia1 <= 0.0f) {
+          return;
+        }
+        const math::Quaternion &rest_shape = rest_shapes[point_i];
 
         /* TODO carry over from previous iteration, use for warm-starting. */
         const float4 lambda_prev = float4(0.0f);
@@ -1035,8 +1050,9 @@ class FixedRotationsConstraintSet : public ConstraintSet {
 
             const float3 inertia1 = inertias[point_i];
             const float lumped_inertia1 = 0.5f * (inertia1.x + inertia1.y + inertia1.z);
-            /* Inverse inertia as weight factors. */
-            BLI_assert(lumped_inertia1 > 0.0f);
+            if (lumped_inertia1 <= 0.0f) {
+              return;
+            }
 
             /* TODO carry over from previous iteration, use for warm-starting. */
             const float4 lambda_prev = float4(0.0f);
@@ -1254,14 +1270,22 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
 
       float lambda_divisor = 0.0f;
       for (const int i : IndexRange(mesh.verts_num)) {
-        lambda_divisor += math::length_squared(gradients[i]) / masses[i];
+        const float mass = masses[i];
+        if (mass <= 0.0f) {
+          continue;
+        }
+        lambda_divisor += math::length_squared(gradients[i]) / mass;
       }
       const float lambda = math::safe_divide(volume_diff, lambda_divisor);
 
       threading::parallel_for(IndexRange(mesh.verts_num), 512, [&](const IndexRange range) {
         LocalConstraintCorrections &local_corrections = params.corrections.local();
         for (const int i : range) {
-          const float3 offset = -lambda / masses[i] * gradients[i];
+          const float mass = masses[i];
+          if (mass <= 0.0f) {
+            continue;
+          }
+          const float3 offset = -lambda / mass * gradients[i];
           local_corrections.add_position_correction(geometry_i, i, offset);
         }
       });
