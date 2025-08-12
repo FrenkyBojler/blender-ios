@@ -692,7 +692,7 @@ static EditBone *get_nearest_editbonepoint(
     rcti rect;
     BLI_rcti_init_pt_radius(&rect, vc->mval, 12);
     /* VIEW3D_SELECT_PICK_ALL needs to be used or unselectable bones can block selectability of
-     * bones further back. See #123963.  */
+     * bones further back. See #123963. */
     const int hits12 = view3d_gpu_select_with_id_filter(
         vc, &buffer, &rect, VIEW3D_SELECT_PICK_ALL, select_filter, select_id_ignore);
 
@@ -1111,7 +1111,7 @@ bool ED_armature_edit_select_pick_bone(
 
     ED_armature_edit_sync_selection(arm->edbo);
 
-    /* Then now check for active status. */
+    /* Now check for active status. */
     if (ED_armature_ebone_selectflag_get(ebone)) {
       arm->act_edbone = ebone;
     }

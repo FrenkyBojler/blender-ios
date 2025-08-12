@@ -249,18 +249,13 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   }
 
   uiLayout *col = &layout->column(false);
-  uiItemPointerR(col,
-                 ptr,
-                 "target_layer",
-                 &obj_data_ptr,
-                 "layers",
-                 std::nullopt,
-                 ICON_OUTLINER_DATA_GP_LAYER);
-  uiItemPointerR(
-      col, ptr, "target_material", &obj_data_ptr, "materials", std::nullopt, ICON_MATERIAL);
+  col->prop_search(
+      ptr, "target_layer", &obj_data_ptr, "layers", std::nullopt, ICON_OUTLINER_DATA_GP_LAYER);
+  col->prop_search(
+      ptr, "target_material", &obj_data_ptr, "materials", std::nullopt, ICON_MATERIAL);
 
   col = &layout->column(false);
-  col->prop(ptr, "thickness", UI_ITEM_R_SLIDER, IFACE_("Line Thickness"), ICON_NONE);
+  col->prop(ptr, "radius", UI_ITEM_R_SLIDER, IFACE_("Line Radius"), ICON_NONE);
   col->prop(ptr, "opacity", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
@@ -646,7 +641,7 @@ static void vgroup_panel_draw(const bContext * /*C*/, Panel *panel)
 
   col->prop(ptr, "use_output_vertex_group_match_by_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemPointerR(col, ptr, "vertex_group", &ob_ptr, "vertex_groups", IFACE_("Target"), ICON_NONE);
+  col->prop_search(ptr, "vertex_group", &ob_ptr, "vertex_groups", IFACE_("Target"), ICON_NONE);
 }
 
 static void bake_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -807,7 +802,7 @@ static void generate_strokes(ModifierData &md,
         lmd.mask_switches,
         lmd.material_mask_bits,
         lmd.intersection_mask,
-        float(lmd.thickness) / 1000.0f,
+        lmd.radius,
         lmd.opacity,
         lmd.shadow_selection,
         lmd.silhouette_selection,

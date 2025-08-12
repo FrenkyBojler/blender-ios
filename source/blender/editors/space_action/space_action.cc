@@ -17,7 +17,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -219,7 +219,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_ortho(v2d);
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
+  UI_ThemeClearColor(TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
@@ -254,7 +254,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   marker_flag = ((ac.markers && (ac.markers != &ac.scene->markers)) ? DRAW_MARKERS_LOCAL : 0) |
                 DRAW_MARKERS_MARGIN;
 
-  if (saction->flag & SACTION_SHOW_MARKERS) {
+  if (saction->flag & SACTION_SHOW_MARKERS && region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
     ED_markers_draw(C, marker_flag);
   }
 
@@ -285,12 +285,10 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* caches */
-  if (saction->mode == SACTCONT_TIMELINE) {
-    GPU_matrix_push_projection();
-    UI_view2d_view_orthoSpecial(region, v2d, true);
-    timeline_draw_cache(saction, obact, scene);
-    GPU_matrix_pop_projection();
-  }
+  GPU_matrix_push_projection();
+  UI_view2d_view_orthoSpecial(region, v2d, true);
+  timeline_draw_cache(saction, obact, scene);
+  GPU_matrix_pop_projection();
 
   /* scrubbing region */
   ED_time_scrub_draw_current_frame(
@@ -447,9 +445,9 @@ static void saction_channel_region_message_subscribe(const wmRegionMessageSubscr
         &RNA_Keyframe,
         &RNA_FCurveSample,
 
-        &RNA_GreasePencil, /* Grease Pencil */
-        &RNA_GPencilLayer,
-        &RNA_GPencilFrame,
+        &RNA_Annotation, /* Grease Pencil */
+        &RNA_AnnotationLayer,
+        &RNA_AnnotationFrame,
     };
 
     for (int i = 0; i < ARRAY_SIZE(type_array); i++) {
@@ -963,7 +961,7 @@ void ED_spacetype_action()
   ARegionType *art;
 
   st->spaceid = SPACE_ACTION;
-  STRNCPY(st->name, "Action");
+  STRNCPY_UTF8(st->name, "Action");
 
   st->create = action_create;
   st->free = action_free;

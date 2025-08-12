@@ -300,7 +300,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
     data.vert_normals = mesh->vert_normals_true();
   }
   else if (direction == MOD_DISP_DIR_CLNOR) {
-    data.vert_normals = mesh->corner_normals();
+    data.vert_normals = mesh->vert_normals();
   }
   else if (ELEM(direction, MOD_DISP_DIR_X, MOD_DISP_DIR_Y, MOD_DISP_DIR_Z, MOD_DISP_DIR_RGB_XYZ) &&
            use_global_direction)
@@ -361,17 +361,16 @@ static void panel_draw(const bContext *C, Panel *panel)
         (RNA_enum_get(&texture_coords_obj_ptr, "type") == OB_ARMATURE))
     {
       PointerRNA texture_coords_obj_data_ptr = RNA_pointer_get(&texture_coords_obj_ptr, "data");
-      uiItemPointerR(col,
-                     ptr,
-                     "texture_coords_bone",
-                     &texture_coords_obj_data_ptr,
-                     "bones",
-                     IFACE_("Bone"),
-                     ICON_NONE);
+      col->prop_search(ptr,
+                       "texture_coords_bone",
+                       &texture_coords_obj_data_ptr,
+                       "bones",
+                       IFACE_("Bone"),
+                       ICON_NONE);
     }
   }
   else if (texture_coords == MOD_DISP_MAP_UV && RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
-    uiItemPointerR(col, ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
+    col->prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
   }
 
   layout->separator();

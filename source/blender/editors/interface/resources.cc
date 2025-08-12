@@ -18,7 +18,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_addon.h"
@@ -42,6 +42,10 @@ static bThemeState g_theme_state = {
     RGN_TYPE_WINDOW,
 };
 
+/* -------------------------------------------------------------------- */
+/** \name Init/Exit
+ * \{ */
+
 void ui_resources_init()
 {
   UI_icons_init();
@@ -52,9 +56,11 @@ void ui_resources_free()
   UI_icons_free();
 }
 
-/* ******************************************************** */
-/*    THEMES */
-/* ******************************************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Themes
+ * \{ */
 
 const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 {
@@ -328,10 +334,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->time_scrub_background;
           break;
         case TH_TIME_MARKER_LINE:
-          cp = ts->time_marker_line;
+          cp = btheme->common.anim.time_marker;
           break;
         case TH_TIME_MARKER_LINE_SELECTED:
-          cp = ts->time_marker_line_selected;
+          cp = btheme->common.anim.time_marker_selected;
           break;
         case TH_VIEW_OVERLAY:
           cp = ts->view_overlay;
@@ -364,10 +370,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->active;
           break;
         case TH_GROUP:
-          cp = ts->group;
+          cp = btheme->common.anim.channel_group;
           break;
         case TH_GROUP_ACTIVE:
-          cp = ts->group_active;
+          cp = btheme->common.anim.channel_group_active;
           break;
         case TH_TRANSFORM:
           cp = ts->transform;
@@ -408,17 +414,17 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_EDGE_MODE_SELECT:
           cp = ts->edge_mode_select;
           break;
-        case TH_EDGE_SEAM:
-          cp = ts->edge_seam;
-          break;
-        case TH_EDGE_SHARP:
-          cp = ts->edge_sharp;
+        case TH_EDGE_BEVEL:
+          cp = btheme->space_view3d.edge_bevel;
           break;
         case TH_EDGE_CREASE:
-          cp = ts->edge_crease;
+          cp = btheme->space_view3d.edge_crease;
           break;
-        case TH_EDGE_BEVEL:
-          cp = ts->edge_bevel;
+        case TH_EDGE_SEAM:
+          cp = btheme->space_view3d.edge_seam;
+          break;
+        case TH_EDGE_SHARP:
+          cp = btheme->space_view3d.edge_sharp;
           break;
         case TH_EDITMESH_ACTIVE:
           cp = ts->editmesh_active;
@@ -532,7 +538,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->keyborder_select;
           break;
         case TH_CFRAME:
-          cp = ts->cframe;
+          cp = btheme->common.anim.playhead;
           break;
         case TH_FRAME_BEFORE:
           cp = ts->before_current_frame;
@@ -797,10 +803,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
 
         case TH_DOPESHEET_CHANNELOB:
-          cp = ts->ds_channel;
+          cp = btheme->common.anim.channel;
           break;
         case TH_DOPESHEET_CHANNELSUBOB:
-          cp = ts->ds_subchannel;
+          cp = btheme->common.anim.channel_sub;
           break;
         case TH_DOPESHEET_IPOLINE:
           cp = ts->ds_ipoline;
@@ -930,7 +936,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->anim_non_active;
           break;
         case TH_ANIM_PREVIEW_RANGE:
-          cp = ts->anim_preview_range;
+          cp = btheme->common.anim.preview_range;
           break;
 
         case TH_NLA_TWEAK:
@@ -1003,6 +1009,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_AXIS_Z:
           cp = btheme->tui.zaxis;
+          break;
+        case TH_AXIS_W:
+          cp = btheme->tui.waxis;
           break;
 
         case TH_GIZMO_HI:
@@ -1109,7 +1118,7 @@ void UI_theme_init_default()
       BLI_findstring(&U.themes, U_theme_default.name, offsetof(bTheme, name)));
   if (btheme == nullptr) {
     btheme = MEM_callocN<bTheme>(__func__);
-    STRNCPY(btheme->name, U_theme_default.name);
+    STRNCPY_UTF8(btheme->name, U_theme_default.name);
     BLI_addhead(&U.themes, btheme);
   }
 
@@ -1572,3 +1581,5 @@ void UI_make_axis_color(const uchar col[3], const char axis, uchar r_col[3])
       break;
   }
 }
+
+/** \} */

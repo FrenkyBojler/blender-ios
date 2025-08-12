@@ -390,8 +390,8 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
   if (partsys_is_visible && ob != draw_ctx->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
-                                                                         ob->object_to_world());
+          ResourceHandleRange _res_handle = manager->resource_handle_for_psys(
+              ob_ref, ob->object_to_world());
           sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
         };
     foreach_hair_particle_handle(*this, ob_ref, ob_handle, sync_hair);
@@ -538,7 +538,7 @@ void Instance::render_sample()
   DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
 
   {
-    /* Critical section. Potential GPUShader concurrent usage. */
+    /* Critical section. Potential gpu::Shader concurrent usage. */
     DRW_submission_start();
 
     sampling.step();
@@ -699,6 +699,13 @@ void Instance::draw_viewport()
       info_append_i18n("Compiling EEVEE engine shaders");
       DRW_viewport_request_redraw();
     }
+    /* Do not swap if the velocity module didn't go through a full sync cycle. */
+    if (!is_loaded(needed_shaders)) {
+      /* The velocity module can reference some gpu::Batch. Calling this function
+       * make sure we release these references and don't de-reference them later as
+       * they might have been freed. */
+      velocity.step_swap();
+    }
     return;
   }
 
@@ -795,7 +802,7 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   } \
   ((void)0)
 
-  CHECK_PASS_LEGACY(Z, SOCK_FLOAT, 1, "Z");
+  CHECK_PASS_LEGACY(DEPTH, SOCK_FLOAT, 1, "Z");
   CHECK_PASS_LEGACY(MIST, SOCK_FLOAT, 1, "Z");
   CHECK_PASS_LEGACY(NORMAL, SOCK_VECTOR, 3, "XYZ");
   CHECK_PASS_LEGACY(POSITION, SOCK_VECTOR, 3, "XYZ");
@@ -890,7 +897,7 @@ void Instance::light_bake_irradiance(
     sampling.step();
 
     {
-      /* Critical section. Potential GPUShader concurrent usage. */
+      /* Critical section. Potential gpu::Shader concurrent usage. */
       DRW_submission_start();
 
       DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
@@ -928,7 +935,7 @@ void Instance::light_bake_irradiance(
       for (int i = 0; i < 16 && !sampling.finished(); i++) {
         sampling.step();
         {
-          /* Critical section. Potential GPUShader concurrent usage. */
+          /* Critical section. Potential gpu::Shader concurrent usage. */
           DRW_submission_start();
 
           volume_probes.bake.raylists_build();

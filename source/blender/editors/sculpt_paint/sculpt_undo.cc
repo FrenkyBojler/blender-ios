@@ -32,7 +32,8 @@
 #include "BLI_bit_group_vector.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
-#include "BLI_string.h"
+#include "BLI_memory_counter.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -42,6 +43,7 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_ccg.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -74,14 +76,12 @@
 #include "bmesh.hh"
 #include "mesh_brush_common.hh"
 #include "paint_hide.hh"
-#include "paint_intern.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_color.hh"
 #include "sculpt_dyntopo.hh"
 #include "sculpt_face_set.hh"
 #include "sculpt_intern.hh"
 
-static CLG_LogRef LOG = {"ed.sculpt.undo"};
+static CLG_LogRef LOG = {"undo.sculpt"};
 
 namespace blender::ed::sculpt_paint::undo {
 
@@ -173,9 +173,9 @@ struct NodeGeometry {
   CustomData face_data;
   int *face_offset_indices;
   const ImplicitSharingInfo *face_offsets_sharing_info;
-  int totvert;
-  int totedge;
-  int totloop;
+  int verts_num;
+  int edges_num;
+  int corners_num;
   int faces_num;
 };
 
@@ -692,9 +692,9 @@ static void store_geometry_data(NodeGeometry *geometry, const Object &object)
                                         &geometry->face_offset_indices,
                                         &geometry->face_offsets_sharing_info);
 
-  geometry->totvert = mesh->verts_num;
-  geometry->totedge = mesh->edges_num;
-  geometry->totloop = mesh->corners_num;
+  geometry->verts_num = mesh->verts_num;
+  geometry->edges_num = mesh->edges_num;
+  geometry->corners_num = mesh->corners_num;
   geometry->faces_num = mesh->faces_num;
 }
 
@@ -704,18 +704,18 @@ static void restore_geometry_data(const NodeGeometry *geometry, Mesh *mesh)
 
   BKE_mesh_clear_geometry(mesh);
 
-  mesh->verts_num = geometry->totvert;
-  mesh->edges_num = geometry->totedge;
-  mesh->corners_num = geometry->totloop;
+  mesh->verts_num = geometry->verts_num;
+  mesh->edges_num = geometry->edges_num;
+  mesh->corners_num = geometry->corners_num;
   mesh->faces_num = geometry->faces_num;
   mesh->totface_legacy = 0;
 
   CustomData_init_from(
-      &geometry->vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, geometry->totvert);
+      &geometry->vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, geometry->verts_num);
   CustomData_init_from(
-      &geometry->edge_data, &mesh->edge_data, CD_MASK_MESH.emask, geometry->totedge);
+      &geometry->edge_data, &mesh->edge_data, CD_MASK_MESH.emask, geometry->edges_num);
   CustomData_init_from(
-      &geometry->corner_data, &mesh->corner_data, CD_MASK_MESH.lmask, geometry->totloop);
+      &geometry->corner_data, &mesh->corner_data, CD_MASK_MESH.lmask, geometry->corners_num);
   CustomData_init_from(
       &geometry->face_data, &mesh->face_data, CD_MASK_MESH.pmask, geometry->faces_num);
   implicit_sharing::copy_shared_pointer(geometry->face_offset_indices,
@@ -1150,7 +1150,7 @@ static const Node *get_node(const bke::pbvh::Node *node, const Type type)
   }
   /* This access does not need to be locked because this function is not expected to be called
    * while the per-node undo data is being pushed. In other words, this must not be called
-   * concurrently with #push_node.*/
+   * concurrently with #push_node. */
   std::unique_ptr<Node> *node_ptr = step_data->undo_nodes_by_pbvh_node.lookup_ptr(node);
   if (!node_ptr) {
     return nullptr;
@@ -1671,13 +1671,13 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
     return;
   }
   if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & ATTR_DOMAIN_MASK_COLOR) ||
-      !(CD_TYPE_AS_MASK(meta_data->data_type) & CD_MASK_COLOR_ALL))
+      !ELEM(meta_data->data_type, bke::AttrType::ColorFloat, bke::AttrType::ColorByte))
   {
     return;
   }
   attr->domain = meta_data->domain;
-  STRNCPY(attr->name, name);
-  attr->type = meta_data->data_type;
+  STRNCPY_UTF8(attr->name, name);
+  attr->type = *bke::attr_type_to_custom_data_type(meta_data->data_type);
 }
 
 /**
@@ -1880,7 +1880,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
                                           mesh->attributes_for_write(),
                                           attr->name,
                                           attr->domain,
-                                          eCustomDataType(attr->type),
+                                          *bke::custom_data_type_to_attr_type(attr->type),
                                           nullptr))
       {
         layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
@@ -1890,8 +1890,10 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
 
   if (!layer) {
     /* Memfile undo killed the layer; re-create it. */
-    mesh->attributes_for_write().add(
-        attr->name, attr->domain, attr->type, bke::AttributeInitDefaultValue());
+    mesh->attributes_for_write().add(attr->name,
+                                     attr->domain,
+                                     *bke::custom_data_type_to_attr_type(attr->type),
+                                     bke::AttributeInitDefaultValue());
     layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
@@ -2079,9 +2081,43 @@ void geometry_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   geometry_push(ob);
 }
 
+static size_t calculate_node_geometry_allocated_size(const NodeGeometry &node_geometry)
+{
+  BLI_assert(node_geometry.is_initialized);
+
+  MemoryCount memory;
+  MemoryCounter memory_counter(memory);
+
+  memory_counter.add_shared(node_geometry.face_offsets_sharing_info,
+                            sizeof(int) * (node_geometry.faces_num + 1));
+
+  CustomData_count_memory(node_geometry.corner_data, node_geometry.corners_num, memory_counter);
+  CustomData_count_memory(node_geometry.face_data, node_geometry.faces_num, memory_counter);
+  CustomData_count_memory(node_geometry.vert_data, node_geometry.verts_num, memory_counter);
+  CustomData_count_memory(node_geometry.edge_data, node_geometry.edges_num, memory_counter);
+
+  return memory.total_bytes;
+}
+
+static size_t estimate_geometry_step_size(const StepData &step_data)
+{
+  size_t step_size = 0;
+
+  /* TODO: This calculation is not entirely accurate, as the current amount of memory consumed by
+   * Sculpt Undo is not updated when elements are evicted. Further changes to the overall undo
+   * system would be needed to measure this accurately. */
+  step_size += calculate_node_geometry_allocated_size(step_data.geometry_original);
+  step_size += calculate_node_geometry_allocated_size(step_data.geometry_modified);
+
+  return step_size;
+}
+
 void geometry_end(Object &ob)
 {
   geometry_push(ob);
+
+  StepData *step_data = get_step_data();
+  step_data->undo_size = estimate_geometry_step_size(*step_data);
 
   /* We could remove this and enforce all callers run in an operator using 'OPTYPE_UNDO'. */
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
