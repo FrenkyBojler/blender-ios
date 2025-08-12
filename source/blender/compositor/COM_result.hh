@@ -957,7 +957,7 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
                        coordinates,
                        x_gradient,
                        y_gradient,
-                       sample_ewa_extended_read_callback,
+                       sample_ewa_zero_read_callback,
                        const_cast<Result *>(this),
                        pixel_value);
   // BLI_ewa_filter(size.x,
