@@ -60,6 +60,13 @@ enum class ElementMode : int8_t {
   HandleRight = 4,
 };
 
+/* Used to scale the default select distance. */
+constexpr float selection_distance_factor = 0.9f;
+constexpr float selection_distance_factor_edge = 0.5f;
+
+/* Edges are prioritized less than all other types. */
+constexpr float selection_edge_priority_factor = 0.1f;
+
 struct ClosestElement {
   float distance_squared = std::numeric_limits<float>::max();
   ElementMode element_mode;
@@ -67,11 +74,43 @@ struct ClosestElement {
   int curve_index = -1;
   float edge_t = -1.0f;
   int drawing_index = -1;
-};
 
-/* Used to scale the default select distance. */
-constexpr float selection_distance_factor = 0.9f;
-constexpr float selection_distance_factor_edge = 0.5f;
+  bool is_closer(const float other_distance_squared,
+                 const ElementMode new_element_mode,
+                 const float threshold_distance) const
+  {
+    if (other_distance_squared > threshold_distance * threshold_distance) {
+      return false;
+    }
+
+    if (this->element_mode == ElementMode::Edge) {
+      if (new_element_mode == ElementMode::Edge) {
+        if (other_distance_squared < this->distance_squared) {
+          return true;
+        }
+      }
+      else {
+        if (other_distance_squared * selection_edge_priority_factor < this->distance_squared) {
+          return true;
+        }
+      }
+    }
+    else {
+      if (new_element_mode == ElementMode::Edge) {
+        if (other_distance_squared < this->distance_squared * selection_edge_priority_factor) {
+          return true;
+        }
+      }
+      else {
+        if (other_distance_squared < this->distance_squared) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+};
 
 /* Used when creating a single curve from nothing. */
 constexpr float default_handle_px_distance = 16.0f;
@@ -385,8 +424,7 @@ static void pen_find_closest_point_or_handle(const PenToolOperation &ptd,
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
-    if (distance_squared < r_closest_element.distance_squared &&
-        distance_squared < ptd.threshold_distance * ptd.threshold_distance)
+    if (r_closest_element.is_closer(distance_squared, ElementMode::Point, ptd.threshold_distance))
     {
       r_closest_element.curve_index = point_to_curve_map[point_i];
       r_closest_element.point_index = point_i;
@@ -406,8 +444,8 @@ static void pen_find_closest_point_or_handle(const PenToolOperation &ptd,
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
-    if (distance_squared < r_closest_element.distance_squared &&
-        distance_squared < ptd.threshold_distance * ptd.threshold_distance)
+    if (r_closest_element.is_closer(
+            distance_squared, ElementMode::HandleLeft, ptd.threshold_distance))
     {
       r_closest_element.curve_index = point_to_curve_map[point_i];
       r_closest_element.point_index = point_i;
@@ -422,8 +460,8 @@ static void pen_find_closest_point_or_handle(const PenToolOperation &ptd,
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
-    if (distance_squared < r_closest_element.distance_squared &&
-        distance_squared < ptd.threshold_distance * ptd.threshold_distance)
+    if (r_closest_element.is_closer(
+            distance_squared, ElementMode::HandleRight, ptd.threshold_distance))
     {
       r_closest_element.curve_index = point_to_curve_map[point_i];
       r_closest_element.point_index = point_i;
@@ -489,8 +527,8 @@ static void pen_find_closest_edge_point(const PenToolOperation &ptd,
         const float t = local_t;
 
         /* Save the closest point. */
-        if (distance_squared < r_closest_element.distance_squared &&
-            distance_squared < ptd.threshold_distance_edge * ptd.threshold_distance_edge)
+        if (r_closest_element.is_closer(
+                distance_squared, ElementMode::Edge, ptd.threshold_distance_edge))
         {
           r_closest_element.point_index = src_points.first() + src_i;
           r_closest_element.edge_t = t;
@@ -524,8 +562,8 @@ static void pen_find_closest_edge_point(const PenToolOperation &ptd,
           const float t = (eval_i + local_t) / float(point_num);
 
           /* Save the closest point. */
-          if (distance_squared < r_closest_element.distance_squared &&
-              distance_squared < ptd.threshold_distance_edge * ptd.threshold_distance_edge)
+          if (r_closest_element.is_closer(
+                  distance_squared, ElementMode::Edge, ptd.threshold_distance_edge))
           {
             r_closest_element.point_index = src_points.first() + src_i;
             r_closest_element.element_mode = ElementMode::Edge;
