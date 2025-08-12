@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <variant>
 
 #include "BLI_assert.h"
@@ -40,9 +41,10 @@ enum class ResultType : uint8_t {
   Int2,
   Color,
   Bool,
+  Menu,
 
   /* Single value only types. See Result::is_single_value_only_type. */
-  Menu,
+  String,
 };
 
 /* The precision of the data. CPU data is always stored using full precision at the moment. */
@@ -131,7 +133,8 @@ class Result {
    * which will be identical to that stored in the data_ member. The active variant member depends
    * on the type of the result. This member is uninitialized and should not be used if the result
    * is not a single value. */
-  std::variant<float, float2, float3, float4, int32_t, int2, bool> single_value_ = 0.0f;
+  std::variant<float, float2, float3, float4, int32_t, int2, bool, std::string> single_value_ =
+      0.0f;
   /* The domain of the result. This only matters if the result was not a single value. See the
    * discussion in COM_domain.hh for more information. */
   Domain domain_ = Domain::identity();
@@ -238,12 +241,12 @@ class Result {
   /* Bind the GPU texture of the result to the texture image unit with the given name in the
    * currently bound given shader. This also inserts a memory barrier for texture fetches to ensure
    * any prior writes to the texture are reflected before reading from it. */
-  void bind_as_texture(GPUShader *shader, const char *texture_name) const;
+  void bind_as_texture(gpu::Shader *shader, const char *texture_name) const;
 
   /* Bind the GPU texture of the result to the image unit with the given name in the currently
    * bound given shader. If read is true, a memory barrier will be inserted for image reads to
    * ensure any prior writes to the images are reflected before reading from it. */
-  void bind_as_image(GPUShader *shader, const char *image_name, bool read = false) const;
+  void bind_as_image(gpu::Shader *shader, const char *image_name, bool read = false) const;
 
   /* Unbind the GPU texture which was previously bound using bind_as_texture. */
   void unbind_as_texture() const;
@@ -484,6 +487,7 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
     case ResultType::Float:
     case ResultType::Int:
     case ResultType::Bool:
+    case ResultType::Menu:
       return 1;
     case ResultType::Float2:
     case ResultType::Int2:
@@ -493,7 +497,7 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
     case ResultType::Color:
     case ResultType::Float4:
       return 4;
-    case ResultType::Menu:
+    case ResultType::String:
       /* Single only types do not have channels. */
       BLI_assert(Result::is_single_value_only_type(type_));
       BLI_assert_unreachable();

@@ -236,7 +236,6 @@ struct FSMenuEntry {
   char *path;
   char name[/*FILE_MAXFILE*/ 256];
   short save;
-  short valid;
   int icon;
 };
 
@@ -256,8 +255,6 @@ enum FSMenuInsert {
   FS_INSERT_FIRST = (1 << 2),
   /** just append to preserve delivered order */
   FS_INSERT_LAST = (1 << 3),
-  /** Do not validate the link when inserted. */
-  FS_INSERT_NO_VALIDATE = (1 << 4),
 };
 
 FSMenu *ED_fsmenu_get();

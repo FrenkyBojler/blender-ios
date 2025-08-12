@@ -139,8 +139,42 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
   }
 
   if (U.render_display_type == USER_RENDER_DISPLAY_WINDOW) {
+    int sizex, sizey;
+    BKE_render_resolution(&scene->r, false, &sizex, &sizey);
+    sizex += 30 * UI_SCALE_FAC;
+    sizey += 60 * UI_SCALE_FAC;
+    /* arbitrary... miniature image window views don't make much sense */
+    sizex = std::max(sizex, 320);
+    sizey = std::max(sizey, 256);
+
+    WM_window_dpi_set_userdef(CTX_wm_window(C));
+    rctf *stored_bounds = &U.stored_bounds.image;
+    const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 150.0f) &&
+                               (BLI_rctf_size_y(stored_bounds) > 100.0f));
+    const bool mm_placement = WM_capabilities_flag() & WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
+    if (bounds_valid && mm_placement) {
+      mx = (int)(stored_bounds->xmin * UI_SCALE_FAC);
+      my = (int)(stored_bounds->ymin * UI_SCALE_FAC);
+    }
+
+    const rcti window_rect = {
+        /*xmin*/ mx,
+        /*xmax*/ mx + sizex,
+        /*ymin*/ my,
+        /*ymax*/ my + sizey,
+    };
     /* changes context! */
-    if (!WM_window_open_temp(C, IFACE_("Blender Render"), SPACE_IMAGE, false)) {
+    if (WM_window_open(C,
+                       IFACE_("Blender Render"),
+                       &window_rect,
+                       SPACE_IMAGE,
+                       true,
+                       false,
+                       true,
+                       WIN_ALIGN_ABSOLUTE,
+                       nullptr,
+                       nullptr) == nullptr)
+    {
       BKE_report(reports, RPT_ERROR, "Failed to open window!");
       return nullptr;
     }
