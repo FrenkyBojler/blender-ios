@@ -752,7 +752,7 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   shader_create_info.compute_source_generated +=
       store_float_function.str() + store_int_function.str() + store_bool_function.str() +
       store_float3_function.str() + store_color_function.str() + store_float4_function.str() +
-      store_float2_function.str() + store_int2_function.str();
+      store_float2_function.str() + store_int2_function.str() + store_menu_function.str();
 }
 
 static const char *glsl_type_from_result_type(ResultType type)
