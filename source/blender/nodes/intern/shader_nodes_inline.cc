@@ -958,7 +958,7 @@ class ShaderNodesInliner {
             *dst_socket.typeinfo))
     {
       if (dst_socket.flag & SOCK_HIDE_VALUE) {
-        /* Can't store the primitiave value directly on the socket. So create a new input node and
+        /* Can't store the primitive value directly on the socket. So create a new input node and
          * link it instead. */
         const NodeAndSocket node_and_socket = this->primitive_value_to_output_socket(
             *primitive_value);
