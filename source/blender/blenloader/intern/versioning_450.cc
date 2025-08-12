@@ -141,12 +141,18 @@ static void do_version_new_glare_clamp_input(bNodeTree *node_tree)
       continue;
     }
 
-    bNodeSocket *clamp_input = blender::bke::node_find_socket(*node, SOCK_IN, "Clamp Highlights");
+    /* Socket already exist, so this is already versioned. */
+    if (blender::bke::node_find_socket(*node, SOCK_IN, "Clamp Highlights")) {
+      continue;
+    }
+
     bNodeSocket *maximum_input = blender::bke::node_find_socket(
         *node, SOCK_IN, "Maximum Highlights");
 
     const float maximum = maximum_input->default_value_typed<bNodeSocketValueFloat>()->value;
     if (version_node_socket_is_used(maximum_input) || maximum != 0.0) {
+      bNodeSocket *clamp_input = blender::bke::node_add_static_socket(
+          *node_tree, *node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Clamp Highlights", "Clamp");
       clamp_input->default_value_typed<bNodeSocketValueBoolean>()->value = true;
     }
   }

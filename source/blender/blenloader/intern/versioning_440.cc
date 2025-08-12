@@ -94,6 +94,11 @@ static void do_version_glare_node_options_to_inputs(const Scene *scene,
     return;
   }
 
+  /* Socket already exists, so this was already versioned. */
+  if (blender::bke::node_find_socket(*node, SOCK_IN, "Highlights Threshold")) {
+    return;
+  }
+
   /* Get the newly added inputs. */
   bNodeSocket *threshold = version_node_add_socket_if_not_exist(
       node_tree, node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Highlights Threshold", "Threshold");
