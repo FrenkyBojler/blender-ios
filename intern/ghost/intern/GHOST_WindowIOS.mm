@@ -42,7 +42,7 @@
 #  define IOS_INPUT_LOG(...)
 #endif
 
-//#define IOS_WINDOW_LOGGING
+// #define IOS_WINDOW_LOGGING
 #if defined(IOS_WINDOW_LOGGING)
 #  define IOS_WINDOW_LOG(...) NSLog(__VA_ARGS__)
 #else
@@ -1383,22 +1383,22 @@ typedef struct UserInputEvent {
 
 - (void)drawInMTKView:(nonnull MTKView *)MTKView
 {
- /* We should always have a window.. */
+  /* We should always have a window.. */
   if (current_active_window) {
 
     current_active_window->beginFrame();
   }
-  
+
   /* Run the main loop to handle all events. */
   if (C) {
     WM_main_loop_body(C);
   }
-  
+
   if (current_active_window) {
     current_active_window->flushDeferredSwapBuffers();
     current_active_window->endFrame();
   }
-  
+
   /* Was there a request to switch windows? */
   if (next_active_window != nullptr) {
     if (current_active_window) {
@@ -1524,14 +1524,14 @@ GHOST_WindowIOS::GHOST_WindowIOS(GHOST_SystemIOS *systemIos,
 
   /* Gesture recognizers. */
   [ghost_rootWindow registerGestureRecognizers];
-  
+
   deferred_swap_buffers_count = 0;
-  
+
   /* Deactive the parent (if it exists) and activate this one. */
   if (parent_window_) {
     parent_window_->requestToDeactivateWindow();
   }
-  
+
   /* Make it the key window if there is no other window.
    * (Otherwise there will never be a call to drawInMTKView) */
   if (!current_active_window) {
@@ -1561,7 +1561,7 @@ GHOST_WindowIOS::~GHOST_WindowIOS()
     requestToDeactivateWindow();
     resignKeyWindow();
   }
-  
+
   if (m_metalView) {
     m_metalView.delegate = nil;
     [m_metalView release];
@@ -1611,31 +1611,31 @@ GHOST_TSuccess GHOST_WindowIOS::swapBuffers()
    * is the current window we should be focussing on. Hence we need to
    * call activateWindow() to make this the key visible window from the iOS POV.
    * (It will already be active.) */
-  //requestToActivateWindow();
+  // requestToActivateWindow();
   return GHOST_kSuccess;
 }
 
 void GHOST_WindowIOS::flushDeferredSwapBuffers()
 {
   if (deferred_swap_buffers_count) {
-    
+
     /* These two messages should be made asserts when we've fixed all the issues. */
     if (!getValid()) {
       IOS_WINDOW_LOG(@"Ignoring swap (invalid) con(%p) (win=%p)", getContext(), this);
       return;
     }
-    
+
     if (!m_is_active_window) {
       IOS_WINDOW_LOG(@"Ignoring swap (not active window) con(%p) (win=%p)", getContext(), this);
       return;
     }
-    
+
     IOS_WINDOW_LOG(@"Swapping (ui_View)%p (mtkView)%p con(%p) (win=%p)",
                    m_uiview,
                    m_metalView,
                    getContext(),
                    this);
-    
+
     GHOST_ContextIOS *context = reinterpret_cast<GHOST_ContextIOS *>(getContext());
     context->swapBuffers();
     deferred_swap_buffers_count = 0;
@@ -1954,7 +1954,7 @@ float GHOST_WindowIOS::getWindowScaleFactor()
 /* Indicate that we want this window to be the next active one. */
 void GHOST_WindowIOS::requestToActivateWindow()
 {
- /* Check we're not already active. */
+  /* Check we're not already active. */
   if (current_active_window != this) {
     /* Replace any outstanding requests. */
     if (next_active_window) {
@@ -1972,7 +1972,6 @@ void GHOST_WindowIOS::requestToDeactivateWindow()
     next_active_window = nullptr;
   }
   m_request_to_make_active = false;
-
 }
 
 bool GHOST_WindowIOS::makeKeyWindow()
@@ -1981,23 +1980,24 @@ bool GHOST_WindowIOS::makeKeyWindow()
     IOS_WINDOW_LOG(@"Failed to activate (invalid) con(%p) (win=%p)", getContext(), this);
     return false;
   }
-  
+
   GHOST_ContextIOS *context = reinterpret_cast<GHOST_ContextIOS *>(getContext());
   GHOST_ASSERT(rootWindow != nil, "GHOST_WindowIOS::makeKeyWindow() root window required");
   GHOST_ASSERT(context != nullptr, "GHOST_WindowIOS::makeKeyWindow() context required");
-  GHOST_ASSERT(m_request_to_make_active, "GHOST_WindowIOS::makeKeyWindow() must request activation first");
-  
-   /* Make window primary visible window. */
+  GHOST_ASSERT(m_request_to_make_active,
+               "GHOST_WindowIOS::makeKeyWindow() must request activation first");
+
+  /* Make window primary visible window. */
   [rootWindow makeKeyAndVisible];
   /* Enable the drawInMTKView() calls for this window. */
   m_metalView.paused = NO;
-  
+
   IOS_WINDOW_LOG(@"Activating (ui_View)%p (mtkView)%p con(%p) (win=%p)",
                  m_uiview,
                  m_metalView,
                  getContext(),
                  this);
-  
+
   current_active_window = this;
   m_is_active_window = true;
   m_request_to_make_active = false;
@@ -2006,14 +2006,18 @@ bool GHOST_WindowIOS::makeKeyWindow()
 
 void GHOST_WindowIOS::resignKeyWindow()
 {
-  GHOST_ASSERT(current_active_window == this, "GHOST_WindowIOS::resignKeyWindow(): Can only resign current active window");
-  GHOST_ASSERT(m_is_active_window, "GHOST_WindowIOS::resignKeyWindow(): Can't resign non active window");
-  GHOST_ASSERT(!m_request_to_make_active, "GHOST_WindowIOS::resignKeyWindow(): activation request outstanding");
-  
+  GHOST_ASSERT(current_active_window == this,
+               "GHOST_WindowIOS::resignKeyWindow(): Can only resign current active window");
+  GHOST_ASSERT(m_is_active_window,
+               "GHOST_WindowIOS::resignKeyWindow(): Can't resign non active window");
+  GHOST_ASSERT(!m_request_to_make_active,
+               "GHOST_WindowIOS::resignKeyWindow(): activation request outstanding");
+
   /* Disable the drawInMTKView() calls for this window. */
   m_metalView.paused = YES;
   /* Wait until any outstanding presents in flight are done. */
-  while (m_uiview_controller.beingPresented) { }
+  while (m_uiview_controller.beingPresented) {
+  }
   IOS_WINDOW_LOG(@"Deactivating (ui_View)%p (mtkView)%p con(%p) (win=%p)",
                  m_uiview,
                  m_metalView,

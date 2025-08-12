@@ -398,14 +398,14 @@ void GHOST_ContextIOS::metalSwapBuffers()
       attachment.clearColor = MTLClearColorMake(0.294, 0.294, 0.294, 1.000);
       attachment.storeAction = MTLStoreActionStore;
     }
-    
+
     /* Get the next drawable. */
     id<CAMetalDrawable> current_drawable = m_metalView.currentDrawable;
     if (!current_drawable) {
       NSLog(@"Failed to acquire CAMetalDrawable");
       return;
     }
-    
+
     /* Double presents indicate that we are trying to present updates faster
      * than the display's refresh rate. We should always display the latest update
      * (or the screen will lag Blender's view of the world) but output a message

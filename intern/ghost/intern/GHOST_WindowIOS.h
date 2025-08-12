@@ -76,7 +76,7 @@ class GHOST_WindowIOS : public GHOST_Window {
    * \return The associated NSWindow object
    */
   void *getOSWindow() const;
-  
+
   /**
    * Swaps the current framebuffer to the screen
    * \return Success or failure
@@ -339,7 +339,7 @@ class GHOST_WindowIOS : public GHOST_Window {
    * sub windows then we may need to revisit this.
    */
   void flushDeferredSwapBuffers();
-  int  deferred_swap_buffers_count;
+  int deferred_swap_buffers_count;
 
   /* Keyboard handling */
   GHOST_TSuccess popupOnscreenKeyboard(const GHOST_KeyboardProperties &keyboard_properties);
