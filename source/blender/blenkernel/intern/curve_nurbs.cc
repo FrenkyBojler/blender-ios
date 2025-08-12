@@ -256,7 +256,7 @@ void calculate_basis_cache(const int points_num,
   MutableSpan<float> basis_weights(basis_cache.weights);
   MutableSpan<int> basis_start_indices(basis_cache.start_indices);
 
-  /* Find the 'span index' for each breakpoint that define the 'evaluated spans'.
+  /* Find the 'span index' for each breakpoint that defines the 'evaluated spans'.
    * An evaluated span (or 'segment') in this context is the parameter interval
    * between two consecutive knots [i, i + 1], where the knot at index `i` is a
    * breakpoint and is stricly less than the value of following knot. For repeated
