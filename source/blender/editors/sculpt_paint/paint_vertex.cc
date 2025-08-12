@@ -720,8 +720,8 @@ static Color vpaint_blend(const VPaint &vp,
  * If in accumulate mode, blend brush mark directly onto mesh, else blend into temporary
  * stroke_buffer and blend the stroke onto the mesh.
  *
- * \param brush_mark_alpha Modulated strength on a per-vertex basis
- * \param brush_strength Unmodified raw value of the brush
+ * \param brush_mark_alpha: Modulated strength on a per-vertex basis
+ * \param brush_strength: Unmodified raw value of the brush
  */
 template<typename Color, typename Traits>
 static Color vpaint_blend_stroke(const VPaint &vp,
