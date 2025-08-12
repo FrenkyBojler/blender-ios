@@ -904,14 +904,9 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
     return pixel_value;
   }
 
-  const int2 size = domain_.size;
-  math::BLI_ewa_single_level(size,
-                             coordinates,
-                             x_gradient,
-                             y_gradient,
-                             sample_ewa_extended_read_callback,
-                             const_cast<Result *>(this),
-                             pixel_value);
+  const int3 size = {domain_.size, static_cast<int>(this->channels_count())};
+  const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  math::BLI_ewa_single_level(size, coordinates, x_gradient, y_gradient, buffer, pixel_value);
   return pixel_value;
 }
 
@@ -938,14 +933,9 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
     return pixel_value;
   }
 
-  const int2 size = domain_.size;
-  math::BLI_ewa_single_level(size,
-                             coordinates,
-                             x_gradient,
-                             y_gradient,
-                             sample_ewa_zero_read_callback,
-                             const_cast<Result *>(this),
-                             pixel_value);
+  const int3 size = {domain_.size, static_cast<int>(this->channels_count())};
+  const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  math::BLI_ewa_single_level(size, coordinates, x_gradient, y_gradient, buffer, pixel_value);
   return pixel_value;
 }
 

@@ -1169,7 +1169,7 @@ inline Ellipse build_ellipse(const int2 &image_dimensions,
   float sty = coordinates.y * image_dimensions.y - 0.5f;
 
   float det = -B * B + 4.0f * A * C;
-  if (!(det > 0.0f)) {
+  if (det < 0.0f) {
     return Ellipse{};
   }
   float invDet = 1.0f / det;
@@ -1183,23 +1183,21 @@ inline Ellipse build_ellipse(const int2 &image_dimensions,
   return {A, B, C, s0, s1, t0, t1, stx, sty, true};
 }
 
-void BLI_ewa_single_level(const int2 &image_dimensions,
+void BLI_ewa_single_level(const int3 &image_dimensions,
                           const float2 &coordinates,
                           const float2 &du,
                           const float2 &dv,
-                          ewa_filter_read_pixel_cb read_pixel_cb,
-                          void *userdata,
+                          const float *buffer,
                           float4 &result,
                           const float &max_anisotropy,
                           const bool &interpolate_lut)
 {
-  const Ellipse E = build_ellipse(image_dimensions, coordinates, du, dv, max_anisotropy);
+  const Ellipse E = build_ellipse(image_dimensions.xy(), coordinates, du, dv, max_anisotropy);
   if (!E.valid) {
     result = {0.0f, 0.0f, 0.0f, 0.0f};
     return;
   }
 
-  // Clip bbox to image so callback isn't called OOB (adjust to your addressing mode)
   int s0 = std::max(E.s0, 0), s1 = std::min(E.s1, image_dimensions.x - 1);
   int t0 = std::max(E.t0, 0), t1 = std::min(E.t1, image_dimensions.y - 1);
   if (s0 > s1 || t0 > t1) {
@@ -1210,7 +1208,6 @@ void BLI_ewa_single_level(const int2 &image_dimensions,
   float4 accum = {0.0f, 0.0f, 0.0f, 0.0f};
   float wsum = 0.0f;
 
-  // Incremental evaluation along x: r2_next = r2 + A*(2*ss+1) + B*tt
   for (int y = t0; y <= t1; ++y) {
     float tt = float(y) - E.sty;
 
@@ -1223,8 +1220,8 @@ void BLI_ewa_single_level(const int2 &image_dimensions,
       if (r2 < 1.0f) {
         float wt = ewa_weight(r2, interpolate_lut);
         if (wt > 0.0f) {
-          float4 rgba = {0.0f, 0.0f, 0.0f, 0.0f};
-          read_pixel_cb(userdata, x, y, rgba);
+          /* z value contains number of channels */
+          const float4 rgba = buffer + (image_dimensions.x * y + x) * image_dimensions.z;
           accum += wt * rgba;
           wsum += wt;
         }

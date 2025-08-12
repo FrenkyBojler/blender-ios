@@ -375,12 +375,11 @@ void BLI_ewa_filter(int width,
                     float result[4]);
 
 namespace blender::math {
-void BLI_ewa_single_level(const int2 &image_dimensions,
+void BLI_ewa_single_level(const int3 &image_dimensions,
                           const float2 &coordinates,
                           const float2 &du,
                           const float2 &dv,
-                          ewa_filter_read_pixel_cb read_pixel_cb,
-                          void *userdata,
+                          const float *buffer,
                           float4 &result,
                           const float &max_anisotropy = 8.0f,
                           const bool &interpolate_lut = true);
