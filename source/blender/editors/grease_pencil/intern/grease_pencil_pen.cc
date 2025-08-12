@@ -47,8 +47,11 @@ static const EnumPropertyItem prop_handle_types[] = {
 };
 
 enum class PenModal : int8_t {
+  /* Move the handles of the adjacent control point. */
   MoveAdjacent = 0,
+  /* Move the entire point even if only the handles are selected. */
   MoveEntire = 1,
+  /* Snap the handles to multiples of 45 degrees. */
   SnapAngle = 2,
 };
 
