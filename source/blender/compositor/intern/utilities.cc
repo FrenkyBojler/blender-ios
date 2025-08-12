@@ -39,6 +39,13 @@ DSocket get_input_origin_socket(DInputSocket input)
   /* Only a single origin socket is guaranteed to exist. */
   DSocket socket;
   input.foreach_origin_socket([&](const DSocket origin) { socket = origin; });
+
+  /* The origin socket might be null if it is an output of a group node whose group has no Group
+   * Output node. The input is thus considered to be unlinked logically. */
+  if (!socket) {
+    return input;
+  }
+
   return socket;
 }
 
@@ -84,6 +91,8 @@ ResultType socket_data_type_to_result_type(const eNodeSocketDatatype data_type,
       return ResultType::Color;
     case SOCK_MENU:
       return ResultType::Menu;
+    case SOCK_STRING:
+      return ResultType::String;
     default:
       BLI_assert_unreachable();
       return ResultType::Float;
@@ -184,7 +193,7 @@ InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket)
   return input_descriptor;
 }
 
-void compute_dispatch_threads_at_least(GPUShader *shader, int2 threads_range, int2 local_size)
+void compute_dispatch_threads_at_least(gpu::Shader *shader, int2 threads_range, int2 local_size)
 {
   /* If the threads range is divisible by the local size, dispatch the number of needed groups,
    * which is their division. If it is not divisible, then dispatch an extra group to cover the

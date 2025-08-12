@@ -195,6 +195,10 @@ GHOST_SystemWin32::~GHOST_SystemWin32()
   if (isStartedFromCommandPrompt()) {
     setConsoleWindowState(GHOST_kConsoleWindowStateShow);
   }
+
+  /* We must call exit from here, since by the time ~GHOST_System calls it, the GHOST_SystemWin32
+   * override is no longer reachable.   */
+  exit();
 }
 
 uint64_t GHOST_SystemWin32::performanceCounterToMillis(__int64 perf_ticks) const
@@ -661,7 +665,10 @@ GHOST_TSuccess GHOST_SystemWin32::init()
 
 GHOST_TSuccess GHOST_SystemWin32::exit()
 {
-  return GHOST_System::exit();
+  GHOST_TSuccess success = GHOST_System::exit();
+  /* All windows created with the specified class must be destroyed before unregistering it. */
+  ::UnregisterClassW(L"GHOST_WindowClass", ::GetModuleHandle(0));
+  return success;
 }
 
 GHOST_TKey GHOST_SystemWin32::hardKey(RAWINPUT const &raw, bool *r_key_down)
@@ -1342,9 +1349,9 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     }
   }
 
-  /* We used to check `if (key != GHOST_kKeyUnknown)`, but since the message
-   * values `WM_SYSKEYUP`, `WM_KEYUP` and `WM_CHAR` are ignored, we capture
-   * those events here as well. */
+  /* We used to check `if (key != GHOST_kKeyUnknown)`, however,
+   * given the message values `WM_SYSKEYUP`, `WM_KEYUP` and `WM_CHAR` are ignored,
+   * we capture those events here as well. */
   if (!is_repeated_modifier) {
     char utf8_char[6] = {0};
     BYTE state[256];

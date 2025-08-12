@@ -17,7 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_mutex.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
@@ -78,9 +78,13 @@
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
 
+#include "CLG_log.h"
+
 #include "render_intern.hh"
 
 namespace path_templates = blender::bke::path_templates;
+
+static CLG_LogRef LOG = {"render"};
 
 /* TODO(sergey): Find better approximation of the scheduled frames.
  * For really high-resolution renders it might fail still. */
@@ -232,7 +236,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
       if (rv == nullptr) {
         rv = MEM_callocN<RenderView>("new opengl render view");
-        STRNCPY(rv->name, srv->name);
+        STRNCPY_UTF8(rv->name, srv->name);
         BLI_addtail(&rr->views, rv);
       }
     }
@@ -380,7 +384,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
       ibuf_result = ibuf_view;
     }
     else {
-      fprintf(stderr, "%s: failed to get buffer, %s\n", __func__, err_out);
+      CLOG_ERROR(&LOG, "%s: failed to get buffer, %s", __func__, err_out);
     }
   }
 
@@ -449,10 +453,10 @@ static void screen_opengl_render_write(OGLRender *oglrender)
   }
 
   if (ok) {
-    printf("OpenGL Render written to '%s'\n", filepath);
+    CLOG_INFO_NOCHECK(&LOG, "OpenGL Render written to '%s'", filepath);
   }
   else {
-    printf("OpenGL Render failed to write '%s'\n", filepath);
+    CLOG_ERROR(&LOG, "OpenGL Render failed to write '%s'", filepath);
   }
 }
 
@@ -771,7 +775,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   ofs = GPU_offscreen_create(sizex,
                              sizey,
                              true,
-                             GPU_RGBA16F,
+                             blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
                              GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
                              false,
                              err_out);
@@ -1334,7 +1338,7 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
     wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                                 CTX_wm_window(C),
                                 oglrender->scene,
-                                "Viewport Render",
+                                "Rendering viewport...",
                                 WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_RENDER);
     WM_jobs_customdata_set(wm_job, oglrender, opengl_render_freejob);

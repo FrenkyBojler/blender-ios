@@ -14,11 +14,15 @@
 #  include <sys/types.h>
 #endif
 
+#include <cstdlib>
+
 #include "BLI_fileops.h"
 #include "BLI_mmap.h"
 #include "BLI_path_utils.hh" /* For assertions. */
 #include "BLI_string.h"
-#include <cstdlib>
+#include "BLI_string_utf8.h"
+
+#include "CLG_log.h"
 
 #include "IMB_allocimbuf.hh"
 #include "IMB_filetype.hh"
@@ -31,6 +35,8 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_colormanagement_intern.hh"
 
+static CLG_LogRef LOG = {"image.read"};
+
 static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
                                             const int flags,
                                             const char *filepath,
@@ -42,32 +48,33 @@ static void imb_handle_colorspace_and_alpha(ImBuf *ibuf,
 
   if (r_colorspace && r_colorspace[0]) {
     /* Existing configured colorspace has priority. */
-    STRNCPY(new_colorspace, r_colorspace);
+    STRNCPY_UTF8(new_colorspace, r_colorspace);
   }
   else if (file_colorspace.metadata_colorspace[0] &&
            colormanage_colorspace_get_named(file_colorspace.metadata_colorspace))
   {
     /* Use colorspace from file metadata if provided. */
-    STRNCPY(new_colorspace, file_colorspace.metadata_colorspace);
+    STRNCPY_UTF8(new_colorspace, file_colorspace.metadata_colorspace);
   }
   else {
+    /* The color-space from the file-path (not a file-path). */
     const char *filepath_colorspace = (filepath) ?
                                           IMB_colormanagement_space_from_filepath_rules(filepath) :
                                           nullptr;
     if (filepath_colorspace) {
       /* Use colorspace from OpenColorIO file rules. */
-      STRNCPY(new_colorspace, filepath_colorspace);
+      STRNCPY_UTF8(new_colorspace, filepath_colorspace);
     }
     else {
       /* Use float colorspace if the image may contain HDR colors, byte otherwise. */
       const char *role_colorspace = IMB_colormanagement_role_colorspace_name_get(
           file_colorspace.is_hdr_float ? COLOR_ROLE_DEFAULT_FLOAT : COLOR_ROLE_DEFAULT_BYTE);
-      STRNCPY(new_colorspace, role_colorspace);
+      STRNCPY_UTF8(new_colorspace, role_colorspace);
     }
   }
 
   if (r_colorspace) {
-    BLI_strncpy(r_colorspace, new_colorspace, IM_MAX_SPACE);
+    BLI_strncpy_utf8(r_colorspace, new_colorspace, IM_MAX_SPACE);
   }
 
   if (r_colorspace) {
@@ -124,7 +131,7 @@ ImBuf *IMB_load_image_from_memory(const uchar *mem,
   const ImFileType *type;
 
   if (mem == nullptr) {
-    fprintf(stderr, "%s: nullptr pointer\n", __func__);
+    CLOG_ERROR(&LOG, "%s: nullptr pointer", __func__);
     return nullptr;
   }
 
@@ -141,7 +148,7 @@ ImBuf *IMB_load_image_from_memory(const uchar *mem,
   }
 
   if ((flags & IB_test) == 0) {
-    fprintf(stderr, "%s: unknown file-format (%s)\n", __func__, descr);
+    CLOG_ERROR(&LOG, "%s: unknown file-format (%s)", __func__, descr);
   }
 
   return nullptr;
@@ -162,7 +169,7 @@ ImBuf *IMB_load_image_from_file_descriptor(const int file,
   BLI_mmap_file *mmap_file = BLI_mmap_open(file);
   imb_mmap_unlock();
   if (mmap_file == nullptr) {
-    fprintf(stderr, "%s: couldn't get mapping %s\n", __func__, filepath);
+    CLOG_ERROR(&LOG, "%s: couldn't get mapping for \"%s\"", __func__, filepath);
     return nullptr;
   }
 
@@ -270,8 +277,8 @@ ImBuf *IMB_thumb_load_image(const char *filepath,
       /* Save dimensions of original image into the thumbnail metadata. */
       char cwidth[40];
       char cheight[40];
-      SNPRINTF(cwidth, "%zu", width);
-      SNPRINTF(cheight, "%zu", height);
+      SNPRINTF_UTF8(cwidth, "%zu", width);
+      SNPRINTF_UTF8(cheight, "%zu", height);
       IMB_metadata_ensure(&ibuf->metadata);
       IMB_metadata_set_field(ibuf->metadata, "Thumb::Image::Width", cwidth);
       IMB_metadata_set_field(ibuf->metadata, "Thumb::Image::Height", cheight);

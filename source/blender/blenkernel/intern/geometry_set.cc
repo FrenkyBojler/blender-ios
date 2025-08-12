@@ -164,19 +164,6 @@ void GeometrySet::keep_only(const Span<GeometryComponent::Type> component_types)
   }
 }
 
-void GeometrySet::keep_only_during_modify(const Span<GeometryComponent::Type> component_types)
-{
-  Vector<GeometryComponent::Type> extended_types = component_types;
-  extended_types.append_non_duplicates(GeometryComponent::Type::Instance);
-  extended_types.append_non_duplicates(GeometryComponent::Type::Edit);
-  this->keep_only(extended_types);
-}
-
-void GeometrySet::remove_geometry_during_modify()
-{
-  this->keep_only_during_modify({});
-}
-
 void GeometrySet::add(const GeometryComponent &component)
 {
   BLI_assert(!components_[size_t(component.type())]);
@@ -197,14 +184,20 @@ Vector<const GeometryComponent *> GeometrySet::get_components() const
 }
 
 std::optional<Bounds<float3>> GeometrySet::compute_boundbox_without_instances(
-    const bool use_radius) const
+    const bool use_radius, const bool use_subdiv) const
 {
   std::optional<Bounds<float3>> bounds;
   if (const PointCloud *pointcloud = this->get_pointcloud()) {
     bounds = bounds::merge(bounds, pointcloud->bounds_min_max(use_radius));
   }
   if (const Mesh *mesh = this->get_mesh()) {
-    bounds = bounds::merge(bounds, mesh->bounds_min_max());
+    /* Use tessellated subdivision mesh if it exists. */
+    if (use_subdiv && mesh->runtime->mesh_eval) {
+      bounds = bounds::merge(bounds, mesh->runtime->mesh_eval->bounds_min_max());
+    }
+    else {
+      bounds = bounds::merge(bounds, mesh->bounds_min_max());
+    }
   }
   if (const Volume *volume = this->get_volume()) {
     bounds = bounds::merge(bounds, BKE_volume_min_max(volume));
@@ -788,39 +781,6 @@ Vector<GeometryComponent::Type> GeometrySet::gather_component_types(const bool i
   Vector<GeometryComponent::Type> types;
   gather_component_types_recursive(*this, include_instances, ignore_empty, types);
   return types;
-}
-
-static void gather_mutable_geometry_sets(GeometrySet &geometry_set,
-                                         Vector<GeometrySet *> &r_geometry_sets)
-{
-  r_geometry_sets.append(&geometry_set);
-  if (!geometry_set.has_instances()) {
-    return;
-  }
-  /* In the future this can be improved by deduplicating instance references across different
-   * instances. */
-  Instances &instances = *geometry_set.get_instances_for_write();
-  instances.ensure_geometry_instances();
-  for (const int handle : instances.references().index_range()) {
-    if (instances.references()[handle].type() == InstanceReference::Type::GeometrySet) {
-      GeometrySet &instance_geometry = instances.geometry_set_from_reference(handle);
-      gather_mutable_geometry_sets(instance_geometry, r_geometry_sets);
-    }
-  }
-}
-
-void GeometrySet::modify_geometry_sets(ForeachSubGeometryCallback callback)
-{
-  Vector<GeometrySet *> geometry_sets;
-  gather_mutable_geometry_sets(*this, geometry_sets);
-  if (geometry_sets.size() == 1) {
-    /* Avoid possible overhead and a large call stack when multithreading is pointless. */
-    callback(*geometry_sets.first());
-  }
-  else {
-    threading::parallel_for_each(geometry_sets,
-                                 [&](GeometrySet *geometry_set) { callback(*geometry_set); });
-  }
 }
 
 bool object_has_geometry_set_instances(const Object &object)

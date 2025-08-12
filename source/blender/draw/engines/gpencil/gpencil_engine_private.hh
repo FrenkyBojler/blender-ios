@@ -8,11 +8,11 @@
 
 #pragma once
 
+#include "BLI_bitmap.h"
 #include "BLI_memblock.h"
+
 #include "DNA_shader_fx_types.h"
 #include "DRW_render.hh"
-
-#include "BLI_bitmap.h"
 
 #include "BKE_grease_pencil.hh"
 
@@ -45,14 +45,14 @@ namespace blender::draw::gpencil {
 
 struct MaterialPool {
   /* Single linked-list. */
-  struct MaterialPool *next;
+  MaterialPool *next;
   /* GPU representation of materials. */
   gpMaterial mat_data[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Matching ubo. */
-  struct GPUUniformBuf *ubo;
+  gpu::UniformBuf *ubo;
   /* Texture per material. NULL means none. */
-  struct GPUTexture *tex_fill[GPENCIL_MATERIAL_BUFFER_LEN];
-  struct GPUTexture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
+  gpu::Texture *tex_fill[GPENCIL_MATERIAL_BUFFER_LEN];
+  gpu::Texture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Number of material used in this pool. */
   int used_count;
 };
@@ -61,7 +61,7 @@ struct LightPool {
   /* GPU representation of materials. */
   gpLight light_data[GPENCIL_LIGHT_BUFFER_LEN];
   /* Matching ubo. */
-  struct GPUUniformBuf *ubo;
+  gpu::UniformBuf *ubo;
   /* Number of light in the pool. */
   int light_used;
 };
@@ -209,13 +209,13 @@ struct Instance final : public DrawEngine {
    * pass rendering to avoid generating infinite lists. */
   bool is_sorted;
   /* Pointer to dtxl->depth */
-  GPUTexture *scene_depth_tx;
+  gpu::Texture *scene_depth_tx;
   GPUFrameBuffer *scene_fb;
   /* Used for render accumulation antialiasing. */
   Texture accumulation_tx = {"gp_accumulation_tx"};
   Framebuffer accumulation_fb = {"gp_accumulation_fb"};
   /* Copy of txl->dummy_tx */
-  GPUTexture *dummy_tx;
+  gpu::Texture *dummy_tx;
   /* Copy of v3d->shading.single_color. */
   float v3d_single_color[3];
   /* Copy of v3d->shading.color_type or -1 to ignore. */
@@ -279,7 +279,7 @@ struct Instance final : public DrawEngine {
    * pass. */
   bool use_separate_pass;
   /* Some blend mode needs to add negative values.
-   * This is only supported if target texture is signed. */
+   * This is only supported if target texture is signed. Only switch for the `reveal_tex`. */
   bool use_signed_fb;
   /* Use only lines for multiedit and not active frame. */
   bool use_multiedit_lines_only;
@@ -353,15 +353,15 @@ struct Instance final : public DrawEngine {
   struct VfxFramebufferRef {
     /* These may not be allocated yet, use address of future pointer. */
     GPUFrameBuffer **fb;
-    GPUTexture **color_tx;
-    GPUTexture **reveal_tx;
+    gpu::Texture **color_tx;
+    gpu::Texture **reveal_tx;
   };
 
   SwapChain<VfxFramebufferRef, 2> vfx_swapchain_;
 
   PassSimple &vfx_pass_create(const char *name,
                               DRWState state,
-                              GPUShader *sh,
+                              gpu::Shader *sh,
                               tObject *tgp_ob,
                               GPUSamplerState sampler = GPUSamplerState::internal_sampler());
 
@@ -425,9 +425,9 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
                                            bool is_vertex_mode);
 void gpencil_material_resources_get(MaterialPool *first_pool,
                                     int mat_id,
-                                    struct GPUTexture **r_tex_stroke,
-                                    struct GPUTexture **r_tex_fill,
-                                    struct GPUUniformBuf **r_ubo_mat);
+                                    gpu::Texture **r_tex_stroke,
+                                    gpu::Texture **r_tex_fill,
+                                    gpu::UniformBuf **r_ubo_mat);
 
 void gpencil_light_ambient_add(LightPool *lightpool, const float color[3]);
 void gpencil_light_pool_populate(LightPool *lightpool, Object *ob);

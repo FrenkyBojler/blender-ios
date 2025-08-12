@@ -48,18 +48,25 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
   const bool supports_fields = socket_type_supports_fields(data_type) &&
                                ntree->type == NTREE_GEOMETRY;
 
-  StructureType compositor_structure_type = StructureType::Dynamic;
+  StructureType value_structure_type = socket_type_always_single(data_type) ?
+                                           StructureType::Single :
+                                           StructureType::Dynamic;
+  StructureType menu_structure_type = value_structure_type;
+
   if (ntree->type == NTREE_COMPOSIT) {
     const bool is_single_compositor_type = compositor::Result::is_single_value_only_type(
         compositor::socket_data_type_to_result_type(data_type));
-    compositor_structure_type = is_single_compositor_type ? StructureType::Single :
-                                                            StructureType::Dynamic;
+    if (is_single_compositor_type) {
+      value_structure_type = StructureType::Single;
+    }
+    menu_structure_type = StructureType::Single;
   }
 
   auto &menu = b.add_input<decl::Menu>("Menu");
   if (supports_fields) {
     menu.supports_field();
   }
+  menu.structure_type(menu_structure_type);
 
   for (const NodeEnumItem &enum_item : storage.enum_definition.items()) {
     const std::string identifier = MenuSwitchItemsAccessor::socket_identifier_for_item(enum_item);
@@ -70,11 +77,9 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
     if (supports_fields) {
       input.supports_field();
     }
-    if (ntree->type == NTREE_COMPOSIT) {
-      input.structure_type(compositor_structure_type);
-    }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
     input.hide_label(ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
+    input.structure_type(value_structure_type);
   }
 
   auto &output = b.add_output(data_type, "Output");
@@ -84,9 +89,7 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
   else if (data_type == SOCK_GEOMETRY) {
     output.propagate_all();
   }
-  if (ntree->type == NTREE_COMPOSIT) {
-    output.structure_type(compositor_structure_type);
-  }
+  output.structure_type(value_structure_type);
 
   b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
 }
@@ -223,7 +226,6 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
   const bNode &node_;
   bool can_be_field_ = false;
   const NodeEnumDefinition &enum_def_;
-  const CPPType *cpp_type_;
   const CPPType *field_base_type_;
 
  public:
@@ -236,7 +238,6 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     can_be_field_ = socket_type_supports_fields(data_type);
     const bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(data_type);
     BLI_assert(socket_type != nullptr);
-    cpp_type_ = socket_type->geometry_nodes_cpp_type;
     field_base_type_ = socket_type->base_cpp_type;
 
     MutableSpan<int> lf_index_by_bsocket = lf_graph_info.mapping.lf_index_by_bsocket;
@@ -246,10 +247,11 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     for (const int i : enum_def_.items().index_range()) {
       const NodeEnumItem &enum_item = enum_def_.items()[i];
       lf_index_by_bsocket[node.input_socket(i + 1).index_in_tree()] =
-          inputs_.append_and_get_index_as(enum_item.name, *cpp_type_, lf::ValueUsage::Maybe);
+          inputs_.append_and_get_index_as(
+              enum_item.name, CPPType::get<bke::SocketValueVariant>(), lf::ValueUsage::Maybe);
     }
     lf_index_by_bsocket[node.output_socket(0).index_in_tree()] = outputs_.append_and_get_index_as(
-        "Value", *cpp_type_);
+        "Value", CPPType::get<bke::SocketValueVariant>());
   }
 
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
@@ -269,15 +271,14 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
       const NodeEnumItem &enum_item = enum_def_.items_array[i];
       const int input_index = i + 1;
       if (enum_item.identifier == condition) {
-        void *value_to_forward = params.try_get_input_data_ptr_or_request(input_index);
+        SocketValueVariant *value_to_forward =
+            params.try_get_input_data_ptr_or_request<SocketValueVariant>(input_index);
         if (value_to_forward == nullptr) {
           /* Try again when the value is available. */
           return;
         }
 
-        void *output_ptr = params.get_output_data_ptr(0);
-        cpp_type_->move_construct(value_to_forward, output_ptr);
-        params.output_set(0);
+        params.set_output(0, std::move(*value_to_forward));
       }
       else {
         params.set_input_unused(input_index);
@@ -413,10 +414,10 @@ static void node_operators()
   socket_items::ops::make_common_operators<MenuSwitchItemsAccessor>();
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<MenuSwitchItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_blend_write(const bNodeTree & /*ntree*/, const bNode &node, BlendWriter &writer)

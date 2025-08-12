@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -52,6 +53,7 @@
 /* For menu, popup, icons, etc. */
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
+#include "ED_time_scrub_ui.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -492,13 +494,27 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
       RNA_property_boolean_get(op->ptr, prop))
   {
     const wmWindow *win = CTX_wm_window(C);
-    const float2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
-                              win->eventstate->xy[1] - region->winrct.ymin);
+    int2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
+                      win->eventstate->xy[1] - region->winrct.ymin);
+
+    /* Clamp mouse cursor location (strip starting position) to the sequencer region bounds so that
+     * it is immediately visible even if the mouse cursor is out of bounds. For maximums, use 90%
+     * of the bounds instead of 1 frame away, which works well even if zoomed out. */
+    const rcti mask = ED_time_scrub_clamp_scroller_mask(region->v2d.mask);
+    rcti clamp_bounds;
+    BLI_rcti_init(&clamp_bounds,
+                  mask.xmin,
+                  mask.xmin + 0.9 * BLI_rcti_size_x(&mask),
+                  mask.ymin,
+                  mask.ymin + 0.9 * BLI_rcti_size_y(&mask));
+    BLI_rcti_clamp_pt_v(&clamp_bounds, mouse_region);
+
     float2 mouse_view;
     UI_view2d_region_to_view(
         &region->v2d, mouse_region.x, mouse_region.y, &mouse_view.x, &mouse_view.y);
-    load_data->start_frame = mouse_view.x;
-    load_data->channel = mouse_view.y;
+
+    load_data->start_frame = std::trunc(mouse_view.x);
+    load_data->channel = std::trunc(mouse_view.y);
     load_data->image.end_frame = load_data->start_frame + DEFAULT_IMG_STRIP_LENGTH;
     load_data->effect.end_frame = load_data->image.end_frame;
   }
@@ -715,7 +731,7 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext *C, wmOperat
   load_data_init_from_operator(&load_data, C, op);
 
   int type = RNA_enum_get(op->ptr, "type");
-  Scene *scene_new = ED_scene_sequencer_add(bmain, C, eSceneCopyMethod(type), false);
+  Scene *scene_new = ED_scene_sequencer_add(bmain, C, eSceneCopyMethod(type));
   if (scene_new == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -744,44 +760,6 @@ static wmOperatorStatus sequencer_add_scene_strip_new_invoke(bContext *C,
   return sequencer_add_scene_strip_new_exec(C, op);
 }
 
-static const EnumPropertyItem *strip_new_sequencer_enum_itemf(bContext *C,
-                                                              PointerRNA * /*ptr*/,
-                                                              PropertyRNA * /*prop*/,
-                                                              bool *r_free)
-{
-  EnumPropertyItem *item = nullptr;
-  int totitem = 0;
-  uint item_index;
-
-  item_index = RNA_enum_from_value(strip_new_scene_items, SCE_COPY_NEW);
-  RNA_enum_item_add(&item, &totitem, &strip_new_scene_items[item_index]);
-
-  bool has_scene_or_no_context = false;
-  if (C == nullptr) {
-    /* For documentation generation. */
-    has_scene_or_no_context = true;
-  }
-  else {
-    Scene *scene = CTX_data_sequencer_scene(C);
-    Strip *strip = seq::select_active_get(scene);
-    if (strip && (strip->type == STRIP_TYPE_SCENE) && (strip->scene != nullptr)) {
-      has_scene_or_no_context = true;
-    }
-  }
-
-  if (has_scene_or_no_context) {
-    int values[] = {SCE_COPY_EMPTY, SCE_COPY_LINK_COLLECTION, SCE_COPY_FULL};
-    for (int i = 0; i < ARRAY_SIZE(values); i++) {
-      item_index = RNA_enum_from_value(strip_new_scene_items, values[i]);
-      RNA_enum_item_add(&item, &totitem, &strip_new_scene_items[item_index]);
-    }
-  }
-
-  RNA_enum_item_end(&item, &totitem);
-  *r_free = true;
-  return item;
-}
-
 void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -800,7 +778,6 @@ void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
   sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME | SEQPROP_MOVE);
 
   ot->prop = RNA_def_enum(ot->srna, "type", strip_new_scene_items, SCE_COPY_NEW, "Type", "");
-  RNA_def_enum_funcs(ot->prop, strip_new_sequencer_enum_itemf);
 }
 
 static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
@@ -977,7 +954,7 @@ static void sequencer_add_free(bContext * /*C*/, wmOperator *op)
 static IMB_Proxy_Size seq_get_proxy_size_flags(bContext *C)
 {
   bScreen *screen = CTX_wm_screen(C);
-  IMB_Proxy_Size proxy_sizes = IMB_Proxy_Size(0);
+  IMB_Proxy_Size proxy_sizes = IMB_PROXY_NONE;
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
       switch (sl->spacetype) {
@@ -986,7 +963,8 @@ static IMB_Proxy_Size seq_get_proxy_size_flags(bContext *C)
           if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
             continue;
           }
-          proxy_sizes |= IMB_Proxy_Size(seq::rendersize_to_proxysize(sseq->render_size));
+          proxy_sizes |= seq::rendersize_to_proxysize(
+              eSpaceSeq_Proxy_RenderSize(sseq->render_size));
         }
       }
     }
@@ -1034,7 +1012,7 @@ static void sequencer_add_movie_sync_sound_strip(
   strip_sound->len = std::max(strip_movie->len, strip_sound->len);
 
   /* Ensure that length matches the movie strip even if the underlying sound data
-   * doesn't match up (e.g. it is longer).  */
+   * doesn't match up (e.g. it is longer). */
   seq::time_right_handle_frame_set(
       scene, strip_sound, seq::time_right_handle_frame_get(scene, strip_movie));
   seq::time_left_handle_frame_set(
@@ -1209,7 +1187,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
                                                        RNA_struct_find_property(op->ptr, "files"));
 
   char vt_old[64];
-  STRNCPY(vt_old, scene->view_settings.view_transform);
+  STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
   float fps_old = scene->r.frs_sec / scene->r.frs_sec_base;
 
   if (tot_files > 1) {
@@ -1656,7 +1634,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
   }
 
   char vt_old[64];
-  STRNCPY(vt_old, scene->view_settings.view_transform);
+  STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
 
   Strip *strip = seq::add_image_strip(CTX_data_main(C), scene, ed->seqbasep, &load_data);
 

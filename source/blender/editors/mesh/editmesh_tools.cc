@@ -2469,6 +2469,9 @@ static wmOperatorStatus edbm_hide_exec(bContext *C, wmOperator *op)
       }
     }
 
+    /* Only if symmetry is enabled. */
+    EDBM_select_mirrored_extend_all(obedit, em);
+
     if (EDBM_mesh_hide(em, unselected)) {
       EDBMUpdate_Params params{};
       params.calc_looptris = true;
@@ -4781,7 +4784,7 @@ struct FillGridSplitJoin {
  *
  * This is done only when there are faces selected. Once split this way, fill_grid will
  * interpolate using only the data from the selected faces, not the data from the surrounding
- * faces. This matters for  UV edges and face corner colors - the data from the faces being
+ * faces. This matters for UV edges and face corner colors - the data from the faces being
  * replaced is the right data to use for the interpolation. This relies on the fact that the
  * "exterior" edge of an island is topologically the same as the "interior" edge around a hole.
  *
@@ -4813,21 +4816,26 @@ static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
     BLI_assert(e_dst);
 
     /* For edges, flip the selection from the edge of the hole to the edge of the island. */
-    BM_elem_flag_disable(e, BM_ELEM_SELECT);
     BM_elem_flag_enable(e_dst, BM_ELEM_SELECT);
 
-    /* For verts, flip the selection from the edge of the hole to the edge of the island.
-     * Also add it to the weld map. But check selection first. Don't try to add the same vert to
-     * the map more than once. If the selection was changed false, it's already been processed. */
-    if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
-      BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
-    }
-    if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
-      BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
+    /* When these match, the source edge has been deleted. */
+    if (e != e_dst) {
+      BM_elem_flag_disable(e, BM_ELEM_SELECT);
+
+      /* For verts, flip the selection from the edge of the hole to the edge of the island.
+       * Also add it to the weld map. But check selection first. Don't try to add the same vert to
+       * the map more than once. If the selection was changed false, it's already been processed.
+       */
+      if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
+        BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
+        BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
+        BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
+      }
+      if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
+        BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
+        BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
+        BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
+      }
     }
   }
 

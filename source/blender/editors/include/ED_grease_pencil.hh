@@ -342,8 +342,8 @@ float radius_from_input_sample(const RegionView3D *rv3d,
                                const ARegion *region,
                                const Brush *brush,
                                float pressure,
-                               float3 location,
-                               float4x4 to_world,
+                               const float3 &location,
+                               const float4x4 &to_world,
                                const BrushGpencilSettings *settings);
 wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
                                                     wmOperator *op,
@@ -411,14 +411,27 @@ IndexMask retrieve_visible_points(Object &object,
                                   const bke::greasepencil::Drawing &drawing,
                                   IndexMaskMemory &memory);
 
+IndexMask retrieve_visible_bezier_strokes(Object &object,
+                                          const bke::greasepencil::Drawing &drawing,
+                                          IndexMaskMemory &memory);
+IndexMask retrieve_visible_bezier_points(Object &object,
+                                         const bke::greasepencil::Drawing &drawing,
+                                         IndexMaskMemory &memory);
+
+IndexMask retrieve_visible_bezier_handle_strokes(Object &object,
+                                                 const bke::greasepencil::Drawing &drawing,
+                                                 int handle_display,
+                                                 IndexMaskMemory &memory);
 IndexMask retrieve_visible_bezier_handle_points(Object &object,
                                                 const bke::greasepencil::Drawing &drawing,
                                                 int layer_index,
+                                                int handle_display,
                                                 IndexMaskMemory &memory);
 IndexMask retrieve_visible_bezier_handle_elements(Object &object,
                                                   const bke::greasepencil::Drawing &drawing,
                                                   int layer_index,
                                                   bke::AttrDomain selection_domain,
+                                                  int handle_display,
                                                   IndexMaskMemory &memory);
 
 IndexMask retrieve_editable_and_selected_strokes(Object &grease_pencil_object,

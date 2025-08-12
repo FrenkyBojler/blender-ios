@@ -2114,7 +2114,7 @@ static bool face_is_degenerate(const Face *f)
 }
 
 /** Fast check for degenerate tris. It is OK if it returns true for nearly degenerate triangles. */
-static bool any_degenerate_tris_fast(const Array<Face *> triangulation)
+static bool any_degenerate_tris_fast(const Array<Face *> &triangulation)
 {
   for (const Face *f : triangulation) {
     const Vert *v0 = (*f)[0];
@@ -2423,7 +2423,7 @@ static void calc_overlap_itts_range_func(void *__restrict userdata,
 
 /**
  * Fill in itt_map with the vector of ITT_values that result from intersecting the triangles in
- * ov. Use a canonical order for triangles: (a,b) where  a < b.
+ * ov. Use a canonical order for triangles: (a,b) where `a < b`.
  */
 static void calc_overlap_itts(Map<std::pair<int, int>, ITT_value> &itt_map,
                               const IMesh &tm,
