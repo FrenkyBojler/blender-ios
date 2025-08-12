@@ -130,7 +130,8 @@ class VertBuf {
   template<typename T> static VertBufPtr new_from_span(const Span<T> data)
   {
     BLI_assert(!data.is_empty());
-    VertBufPtr buf = VertBufPtr(GPU_vertbuf_create_with_format(GenericVertexFormat<T>::format()));
+    VertBufPtr buf = VertBufPtr(GPU_vertbuf_create_with_format_ex(
+        GenericVertexFormat<T>::format(), GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY));
     /* GPU formats needs to be aligned to 4 bytes. */
     buf->allocate(ceil_to_multiple_u(data.size_in_bytes(), 4) / sizeof(GenericVertexFormat<T>));
     buf->data<T>().slice(0, data.size()).copy_from(data);

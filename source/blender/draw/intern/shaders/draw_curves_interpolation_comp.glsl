@@ -474,6 +474,10 @@ template<typename InterpType> void evaluate_curve(const InterpType interp_type)
   IndexRange evaluated_points = offset_indices::load_range_from_buffer(
       evaluated_points_by_curve_buf, curve_index);
 
+  if (use_cyclic) {
+    evaluated_points = evaluated_points.shift(curve_index);
+  }
+
   if (CurveType(evaluated_type) == CURVE_TYPE_CATMULL_ROM) {
     catmull_rom::evaluate_curve(interp_type, points, evaluated_points, curve_index);
   }

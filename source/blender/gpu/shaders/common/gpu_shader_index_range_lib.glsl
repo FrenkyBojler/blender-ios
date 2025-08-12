@@ -6,6 +6,12 @@
 
 #include "gpu_glsl_cpp_stubs.hh"
 
+/* WORKAROUND: Workaround include order hell. */
+#ifdef GLSL_CPP_STUBS
+#elif defined(GPU_SHADER)
+#  define static
+#endif
+
 class IndexRange {
  private:
   int start_;
@@ -62,5 +68,14 @@ class IndexRange {
   IndexRange slice(IndexRange range) const
   {
     return this->slice(range.start(), range.size());
+  }
+
+  /**
+   * Move the range forward or backward within the larger array. The amount may be negative,
+   * but its absolute value cannot be greater than the existing start of the range.
+   */
+  IndexRange shift(int n) const
+  {
+    return IndexRange(this->start_ + n, this->size_);
   }
 };

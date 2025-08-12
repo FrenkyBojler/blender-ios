@@ -115,7 +115,8 @@ struct CurvesModule {
   gpu::VertBufPtr evaluate_topology_indirection(const int curve_count,
                                                 const int point_count,
                                                 struct CurvesEvalCache &cache,
-                                                bool is_ribbon);
+                                                bool is_ribbon,
+                                                bool has_cyclic);
 
  private:
   gpu::VertBuf *drw_curves_ensure_dummy_vbo();

@@ -33,7 +33,7 @@ void main()
   int num_segment = points.size() + cyclic_offset.size();
 
   int indirection_index_count = num_segment + (is_ribbon_topology ? 1 : -1);
-  index_start += (is_ribbon_topology ? curve_id : -curve_id);
+  index_start += int(is_ribbon_topology ? curve_id : -curve_id);
 
   for (int i = 0; i < indirection_index_count; i++) {
     int value = int((i == 0) ? curve_id : -i);

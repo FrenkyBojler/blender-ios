@@ -621,13 +621,13 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
     }
 
     evaluated_attributes_buf[index] = alloc_evaluated_point_attribute_vbo(
-        format, name, curves.evaluated_points_num());
+        format, name, evaluated_point_count_with_cyclic(curves));
 
     module.evaluate_curve_attribute(curves.has_curve_with_type(CURVE_TYPE_CATMULL_ROM),
                                     curves.has_curve_with_type(CURVE_TYPE_BEZIER),
                                     curves.has_curve_with_type(CURVE_TYPE_POLY),
                                     curves.has_curve_with_type(CURVE_TYPE_NURBS),
-                                    curves.has_cyclic(),
+                                    curves.cyclic_offsets().has_value(),
                                     curves.curves_num(),
                                     *this,
                                     CURVES_EVAL_FLOAT4,
@@ -693,7 +693,15 @@ void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
    * This concerns all varray. */
   curves_type_buf = gpu::VertBuf::new_from_varray(curves.curve_types());
   curves_resolution_buf = gpu::VertBuf::new_from_varray(curves.resolution());
-  cyclic_offsets_buf = gpu::VertBuf::new_from_varray(curves.cyclic());
+
+  std::optional<Span<int>> cyclic_offsets = curves.cyclic_offsets();
+  if (cyclic_offsets.has_value()) {
+    cyclic_offsets_buf = gpu::VertBuf::new_from_span(cyclic_offsets.value());
+  }
+  else {
+    /* Allocate dummy buffer. Content will not be read. */
+    cyclic_offsets_buf = gpu::VertBuf::new_from_varray(VArray<int32_t>::from_single(0, 2));
+  }
 }
 
 void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
@@ -739,6 +747,14 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
   basis_cache_buf = gpu::VertBuf::new_from_span(basis_cache_packed.as_span());
 }
 
+int CurvesEvalCache::evaluated_point_count_with_cyclic(const bke::CurvesGeometry &curves)
+{
+  if (curves.cyclic_offsets().has_value()) {
+    return curves.evaluated_points_num() + curves.curves_num();
+  }
+  return curves.evaluated_points_num();
+}
+
 void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGeometry &curves)
 {
   if (evaluated_pos_rad_buf) {
@@ -758,16 +774,18 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
   gpu::VertBufPtr points_pos_buf = gpu::VertBuf::new_from_span(curves.positions());
   gpu::VertBufPtr points_rad_buf = gpu::VertBuf::new_from_varray(curves.radius());
 
-  evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(curves.evaluated_points_num());
+  evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(
+      evaluated_point_count_with_cyclic(curves));
   /* TODO(fclem): Make time and length optional. */
-  evaluated_time_buf = gpu::VertBuf::new_device_only<float>(curves.evaluated_points_num());
+  evaluated_time_buf = gpu::VertBuf::new_device_only<float>(
+      evaluated_point_count_with_cyclic(curves));
   curves_length_buf = gpu::VertBuf::new_device_only<float>(curves.curves_num());
 
   module.evaluate_positions(curves.has_curve_with_type(CURVE_TYPE_CATMULL_ROM),
                             curves.has_curve_with_type(CURVE_TYPE_BEZIER),
                             curves.has_curve_with_type(CURVE_TYPE_POLY),
                             curves.has_curve_with_type(CURVE_TYPE_NURBS),
-                            curves.has_cyclic(),
+                            curves.cyclic_offsets().has_value(),
                             curves.curves_num(),
                             *this,
                             std::move(points_pos_buf),
@@ -789,8 +807,11 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
 
   ensure_common(curves);
 
-  indirection_buf = module.evaluate_topology_indirection(
-      curves.curves_num(), curves.evaluated_points_num(), *this, is_ribbon);
+  indirection_buf = module.evaluate_topology_indirection(curves.curves_num(),
+                                                         curves.evaluated_points_num(),
+                                                         *this,
+                                                         is_ribbon,
+                                                         curves.cyclic_offsets().has_value());
 
   return indirection_buf;
 }

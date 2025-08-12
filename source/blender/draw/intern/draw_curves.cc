@@ -106,7 +106,8 @@ void CurvesModule::dispatch(const int curve_count, PassSimple::Sub &pass)
 gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_count,
                                                             const int point_count,
                                                             struct CurvesEvalCache &cache,
-                                                            bool is_ribbon)
+                                                            bool is_ribbon,
+                                                            bool has_cyclic)
 {
   int element_count = is_ribbon ? (point_count + curve_count) : (point_count - curve_count);
   gpu::VertBufPtr indirection_buf = gpu::VertBuf::new_device_only<int>(element_count);
@@ -117,6 +118,7 @@ gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_coun
   pass.bind_ssbo("cyclic_offsets_buf", cache.cyclic_offsets_buf);
   pass.bind_ssbo("indirection_buf", indirection_buf);
   pass.push_constant("is_ribbon_topology", is_ribbon);
+  pass.push_constant("use_cyclic", has_cyclic);
   dispatch(curve_count, pass);
 
   return indirection_buf;
@@ -165,7 +167,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
   pass.bind_ssbo(CURVE_TYPE_SLOT, cache.curves_type_buf);
   pass.bind_ssbo(CURVE_RESOLUTION_SLOT, cache.curves_resolution_buf);
   pass.bind_ssbo(EVALUATED_POINT_SLOT, cache.evaluated_points_by_curve_buf);
-  pass.bind_texture(CURVE_CYCLIC_SLOT, has_cyclic ? cache.cyclic_offsets_buf : this->dummy_vbo);
+  pass.bind_texture(CURVE_CYCLIC_SLOT, cache.cyclic_offsets_buf);
 
   switch (shader_type) {
     case CURVES_EVAL_POSITION:

@@ -51,7 +51,7 @@ STORAGE_BUF(6, read, int, bezier_offsets_buf[])
 // STORAGE_BUF(5, read, float, control_weights_buf[])
 // STORAGE_BUF(6, read, int, basis_cache_offset_buf[])
 /* Have to use a sampler because of the limit of 12 SSBOs. */
-SAMPLER(CURVE_CYCLIC_SLOT, usamplerBuffer, cyclic_offsets_tx) /* Actually bool. */
+SAMPLER(CURVE_CYCLIC_SLOT, isamplerBuffer, cyclic_offsets_tx) /* Actually bool. */
 PUSH_CONSTANT(int, curves_start)
 PUSH_CONSTANT(int, curves_count)
 PUSH_CONSTANT(bool, compute_length_and_time)

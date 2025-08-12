@@ -92,9 +92,11 @@ int point_id_get(Segment segment, Indirection indirection)
 {
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
   if (is_cylinder) {
-    return int(segment.id) + indirection.curve_id + int(segment.v_idx & 1u);
+    return int(segment.id) +
+           (drw_curves.use_cyclic ? indirection.curve_id * 2 : indirection.curve_id) +
+           int(segment.v_idx & 1u);
   }
-  return int(segment.id) - indirection.curve_id;
+  return int(segment.id) - (drw_curves.use_cyclic ? 0 : indirection.curve_id);
 }
 
 float azimuthal_offset_get(Segment segment)

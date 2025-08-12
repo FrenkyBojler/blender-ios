@@ -1360,12 +1360,12 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
   auto type_varray = VArray<int8_t>::from_single(CURVE_TYPE_CATMULL_ROM, src.curves_num());
   auto resolution_varray = VArray<int32_t>::from_single(1, src.curves_num());
   /* Not used. */
-  auto cyclic_varray = VArray<bool>::from_single(false, 1);
+  auto cyclic_offsets_varray = VArray<int32_t>::from_single(0, 2);
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
   curves_type_buf = gpu::VertBuf::new_from_varray(type_varray);
   curves_resolution_buf = gpu::VertBuf::new_from_varray(resolution_varray);
-  cyclic_offsets_buf = gpu::VertBuf::new_from_varray(cyclic_varray);
+  cyclic_offsets_buf = gpu::VertBuf::new_from_varray(cyclic_offsets_varray);
 }
 
 /* Copied from cycles. */
@@ -1451,7 +1451,7 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
   ensure_common(src);
 
   indirection_buf = module.evaluate_topology_indirection(
-      src.curves_num(), src.evaluated_points_num(), *this, is_ribbon);
+      src.curves_num(), src.evaluated_points_num(), *this, is_ribbon, false);
 
   return indirection_buf;
 }

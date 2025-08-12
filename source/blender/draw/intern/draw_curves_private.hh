@@ -126,7 +126,7 @@ struct CurvesEvalCache {
   gpu::VertBufPtr curves_type_buf;
   /** Buffer containing `CurveGeometry::resolution()`. */
   gpu::VertBufPtr curves_resolution_buf;
-  /** Buffer containing `CurveGeometry::cyclic_offsets()`. */
+  /** Buffer containing `CurveGeometry::cyclic_offsets()` or dummy data if not needed. */
   gpu::VertBufPtr cyclic_offsets_buf;
 
   /* --- Buffers only needed if geometry has Bezier curves. Dummy sized otherwise. --- */
@@ -211,6 +211,11 @@ struct CurvesEvalCache {
   gpu::VertBufPtr &indirection_buf_get(CurvesModule &module,
                                        ParticleDrawSource &src,
                                        int face_per_segment);
+
+ private:
+  /* In the case where there is cyclic curves, add one padding point per curve to ensure easy
+   * indexing in the drawing shader. */
+  int evaluated_point_count_with_cyclic(const bke::CurvesGeometry &curves);
 };
 
 CurvesEvalCache &curves_get_eval_cache(Curves &curves_id);
