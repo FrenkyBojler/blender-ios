@@ -959,55 +959,117 @@ void BLI_ewa_filter(const int width,
   result[3] = use_alpha ? result[3] * d : 1.0f;
 }
 
+static const int EWA_LUT_SIZE = 256;
+
+// INFO: bigger α drops weight faster → less smoothing.
+static const float EWA_ALPHA = 3.0f;
+/* Precomputed Gaussian LUT: w(r^2) = exp(-alpha * r^2), r^2 sampled at i/255, i=0..255 */
+static const float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {
+    1.000000f, 0.992187f, 0.984436f, 0.976745f, 0.969114f, 0.961543f, 0.954031f, 0.946578f,
+    0.939183f, 0.931846f, 0.924566f, 0.917342f, 0.910176f, 0.903065f, 0.896010f, 0.889010f,
+    0.882064f, 0.875173f, 0.868336f, 0.861552f, 0.854822f, 0.848143f, 0.841518f, 0.834943f,
+    0.828421f, 0.821949f, 0.815528f, 0.809157f, 0.802836f, 0.796565f, 0.790343f, 0.784169f,
+    0.778044f, 0.771966f, 0.765937f, 0.759954f, 0.754018f, 0.748129f, 0.742286f, 0.736489f,
+    0.730738f, 0.725031f, 0.719369f, 0.713752f, 0.708179f, 0.702649f, 0.697163f, 0.691720f,
+    0.686320f, 0.680963f, 0.675647f, 0.670373f, 0.665141f, 0.659950f, 0.654799f, 0.649690f,
+    0.644620f, 0.639590f, 0.634600f, 0.629649f, 0.624738f, 0.619864f, 0.615030f, 0.610233f,
+    0.605474f, 0.600753f, 0.596069f, 0.591421f, 0.586811f, 0.582236f, 0.577698f, 0.573196f,
+    0.568729f, 0.564297f, 0.559901f, 0.555539f, 0.551211f, 0.546918f, 0.542658f, 0.538432f,
+    0.534240f, 0.530081f, 0.525954f, 0.521861f, 0.517799f, 0.513770f, 0.509773f, 0.505807f,
+    0.501873f, 0.497970f, 0.494099f, 0.490257f, 0.486447f, 0.482667f, 0.478917f, 0.475197f,
+    0.471507f, 0.467846f, 0.464215f, 0.460613f, 0.457040f, 0.453495f, 0.449980f, 0.446492f,
+    0.443033f, 0.439602f, 0.436199f, 0.432824f, 0.429476f, 0.426156f, 0.422862f, 0.419596f,
+    0.416357f, 0.413144f, 0.409959f, 0.406799f, 0.403666f, 0.400559f, 0.397477f, 0.394422f,
+    0.391392f, 0.388388f, 0.385410f, 0.382456f, 0.379528f, 0.376625f, 0.373746f, 0.370893f,
+    0.368064f, 0.365259f, 0.362479f, 0.359723f, 0.356991f, 0.354284f, 0.351600f, 0.348940f,
+    0.346303f, 0.343690f, 0.341101f, 0.338535f, 0.335992f, 0.333472f, 0.330976f, 0.328502f,
+    0.326051f, 0.323623f, 0.321217f, 0.318834f, 0.316473f, 0.314135f, 0.311819f, 0.309525f,
+    0.307253f, 0.305003f, 0.302776f, 0.300569f, 0.298385f, 0.296222f, 0.294081f, 0.291961f,
+    0.289863f, 0.287786f, 0.285730f, 0.283695f, 0.281682f, 0.279689f, 0.277717f, 0.275766f,
+    0.273836f, 0.271927f, 0.270038f, 0.268169f, 0.266321f, 0.264494f, 0.262687f, 0.260900f,
+    0.259133f, 0.257386f, 0.255659f, 0.253952f, 0.252265f, 0.250598f, 0.248951f, 0.247323f,
+    0.245715f, 0.244126f, 0.242557f, 0.241008f, 0.239478f, 0.237967f, 0.236475f, 0.235002f,
+    0.233549f, 0.232115f, 0.230699f, 0.229303f, 0.227926f, 0.226567f, 0.225227f, 0.223906f,
+    0.222604f, 0.221320f, 0.220055f, 0.218808f, 0.217580f, 0.216370f, 0.215178f, 0.214005f,
+    0.212850f, 0.211714f, 0.210595f, 0.209495f, 0.208413f, 0.207349f, 0.206303f, 0.205274f,
+    0.204264f, 0.203272f, 0.202297f, 0.201340f, 0.200401f, 0.199480f, 0.198577f, 0.197691f,
+    0.196822f, 0.195972f, 0.195138f, 0.194323f, 0.193525f, 0.192744f, 0.191980f, 0.191234f,
+    0.190506f, 0.189794f, 0.189100f, 0.188423f, 0.187764f, 0.187121f, 0.186496f, 0.185888f,
+    0.185297f, 0.184723f, 0.184166f, 0.183626f, 0.183103f, 0.182597f, 0.182108f, 0.181636f,
+    0.181181f, 0.180742f, 0.180321f, 0.179916f, 0.179529f, 0.179158f, 0.178803f, 0.178466f};
+
+/* Linear-interpolated Gaussian weight from LUT (r2 in [0,1]). */
+static inline float ewa_weight(float r2, bool interpolate = false)
+{
+  if (r2 <= 0.0f) {
+    return EWA_GAUSS_LUT[0];
+  }
+  if (r2 >= 1.0f) {
+    return EWA_GAUSS_LUT[EWA_MAXIDX];
+  }
+  float t = r2 * float(EWA_MAXIDX);
+  int i = int(t);
+
+  if (interpolate) {
+    float f = t - float(i);
+    int i1 = (i < EWA_MAXIDX) ? (i + 1) : EWA_MAXIDX;
+    return EWA_GAUSS_LUT[i] * (1.0f - f) + EWA_GAUSS_LUT[i1] * f;
+  }
+
+  return EWA_GAUSS_LUT[i];
+}
+
 void BLI_ewa_baseline_filter(const int width,
                              const int height,
                              const bool intpol,
                              const bool use_alpha,
                              const float uv[2],
-                             const float du[2], /* (du/dx, dv/dx) in normalized UV */
-                             const float dv[2], /* (du/dy, dv/dy) in normalized UV */
+                             const float du[2],
+                             const float dv[2],
                              ewa_filter_read_pixel_cb read_pixel_cb,
                              void *userdata,
                              float result[4])
 {
+  // jacobian
   const float Ux = du[0] * float(width);
-  const float Vx = du[1] * float(width);
-  const float Uy = dv[0] * float(height);
+  const float Vx = du[1] * float(height);
+  const float Uy = dv[0] * float(width);
   const float Vy = dv[1] * float(height);
 
+  // conic Q = A*du^2 + B*du*dv + C*dv^2; r^2 = Q/F with F = AC - (B^2)/4 = det(J)^2
   float A = Vx * Vx + Vy * Vy;
   float B = -2.0f * (Ux * Vx + Uy * Vy);
   float C = Ux * Ux + Uy * Uy;
 
-  float F = A * C - 0.25f * B * B;
-  if (!(F > 1e-12f)) {
-    A = 1.0f;
-    B = 0.0f;
-    C = 1.0f;
-    F = 1.0f;
-  }
-
-  /* minimum isotropic radius in source pixels */
-  const float rmin = intpol ? 1.0f : 0.75f;
+  // minimum ellipse footprint
+  // INFO: smaller = crisper, larger = smoother
+  const float rmin = intpol ? 1.0f : 0.5f;
   if (rmin > 0.0f) {
     const float lam = 1.0f / (rmin * rmin);
     A += lam;
     C += lam;
-    F = A * C - 0.25f * B * B;
   }
 
+  float F = A * C - 0.25f * B * B;
+  if (!(F > 1e-12f)) {
+    // degenerate → return texel-like sample behavior
+    result[0] = result[1] = result[2] = 0.0f;
+    result[3] = use_alpha ? 0.0f : 1.0f;
+    return;
+  }
+
+  // center in pixel space (texel centers at i+0.5).
   const float U0 = uv[0] * float(width) - 0.5f;
   const float V0 = uv[1] * float(height) - 0.5f;
 
-  const float du_max = (A > 0.0f) ? std::sqrt(F / A) : 0.0f;
-  const float dv_max = (C > 0.0f) ? std::sqrt(F / C) : 0.0f;
-
+  // bbox
+  float du_max = (A > 0.0f) ? std::sqrt(F / A) : 0.0f;
+  float dv_max = (C > 0.0f) ? std::sqrt(F / C) : 0.0f;
   int u1 = int(std::floor(U0 - du_max));
   int u2 = int(std::ceil(U0 + du_max));
   int v1 = int(std::floor(V0 - dv_max));
   int v2 = int(std::ceil(V0 + dv_max));
-
-  const int max_span = EWA_MAXIDX; /* cap to LUT resolution */
+  const int max_span = EWA_MAXIDX;
   if (U0 - float(u1) > float(max_span)) {
     u1 = int(std::floor(U0)) - max_span;
   }
@@ -1021,29 +1083,46 @@ void BLI_ewa_baseline_filter(const int width,
     v2 = int(std::ceil(V0)) + max_span;
   }
 
+  // clip image bounds so no out-of-boundary sampling
+  const int umin = std::max(u1, 0);
+  const int umax = std::min(u2, width - 1);
+  const int vmin = std::max(v1, 0);
+  const int vmax = std::min(v2, height - 1);
+
+  // early return if ellipse is entirely outside the image.
+  if (umin > umax || vmin > vmax) {
+    result[0] = result[1] = result[2] = 0.0f;
+    result[3] = use_alpha ? 0.0f : 1.0f;
+    return;
+  }
+
   float accum[4] = {0, 0, 0, 0};
   float wsum = 0.0f;
 
-  const float idx_scale = float(EWA_MAXIDX) / F;
-
   for (int y = v1; y <= v2; ++y) {
-    const float dv = float(y) - V0;
-    float du0 = float(u1) - U0;
+    const float dvp = float(y) - V0;
+    float dup = float(u1) - U0;
 
-    float Q = A * du0 * du0 + B * du0 * dv + C * dv * dv;
-    float dQ = A * (2.0f * du0 + 1.0f) + B * dv;
+    float Q = A * dup * dup + B * dup * dvp + C * dvp * dvp;
+    float dQ = A * (2.0f * dup + 1.0f) + B * dvp;
     const float ddQ = 2.0f * A;
 
     for (int x = u1; x <= u2; ++x) {
       if (Q >= 0.0f && Q <= F) {
-        int idx = int(Q * idx_scale);
-        idx = std::max(idx, 0);
-        idx = std::min(idx, EWA_MAXIDX);
+        float r2 = Q / F;
+        // INFO: Some potential tweaks
+        // can precondition r2 with some gamma factor
+        // float gamma = 1.25f;
+        // r2 = powf(r2, gamma);
+
+        // INFO: Directly condition the Gauss without needing to precompute the LUT
+        // Only for testing.
+        // const float wt = ewa_weight(-EWA_ALPHA * r2);
+        const float wt = ewa_weight(r2, true);
 
         float tex[4];
         read_pixel_cb(userdata, x, y, tex);
 
-        const float wt = EWA_WTS[idx];
         accum[0] += tex[0] * wt;
         accum[1] += tex[1] * wt;
         accum[2] += tex[2] * wt;
