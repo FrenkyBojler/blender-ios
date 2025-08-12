@@ -799,7 +799,7 @@ class SEQUENCER_MT_add_scene(Menu):
 
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("sequencer.scene_strip_add_new", text="New Scene", icon='ADD').type = 'NEW'
+        layout.operator("sequencer.scene_strip_add_new", text="Empty Scene", icon='ADD').type = 'EMPTY'
 
         layout.menu_contents("SEQUENCER_MT_scene_add_root_catalogs")
 
@@ -1148,6 +1148,8 @@ class SEQUENCER_MT_strip(Menu):
         if has_preview:
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.operator("sequencer.copy", text="Copy")
+            layout.operator("sequencer.paste", text="Paste")
             layout.separator()
             layout.menu("SEQUENCER_MT_strip_animation")
             layout.separator()
@@ -1172,6 +1174,7 @@ class SEQUENCER_MT_strip(Menu):
             layout.operator("sequencer.copy", text="Copy")
             layout.operator("sequencer.paste", text="Paste")
             layout.operator("sequencer.duplicate_move", text="Duplicate")
+            layout.operator("sequencer.duplicate_move_linked", text="Duplicate Linked")
 
         layout.separator()
         layout.operator("sequencer.delete", text="Delete")
