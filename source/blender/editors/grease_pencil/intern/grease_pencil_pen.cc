@@ -389,6 +389,168 @@ struct PenToolOperation {
     info.drawing.tag_topology_changed();
     return true;
   }
+
+  std::optional<bke::CurvesGeometry> extrude_curves(const bke::greasepencil::Drawing &drawing,
+                                                    const int layer_index,
+                                                    const float4x4 &layer_to_object) const
+  {
+    const bke::CurvesGeometry &src = drawing.strokes();
+    const bke::AttributeAccessor src_attributes = src.attributes();
+    const OffsetIndices<int> points_by_curve = src.points_by_curve();
+    const VArray<bool> &src_cyclic = src.cyclic();
+    const VArray<int8_t> types = src.curve_types();
+    const int old_points_num = src.points_num();
+
+    const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
+        ".selection", bke::AttrDomain::Point, true);
+    const VArray<bool> left_selected = *src_attributes.lookup_or_default<bool>(
+        ".selection_handle_left", bke::AttrDomain::Point, true);
+    const VArray<bool> right_selected = *src_attributes.lookup_or_default<bool>(
+        ".selection_handle_right", bke::AttrDomain::Point, true);
+
+    Vector<int> dst_to_src_points(old_points_num);
+    array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
+
+    Vector<bool> dst_selected_start(old_points_num, false);
+    Vector<bool> dst_selected_center(old_points_num, false);
+    Vector<bool> dst_selected_end(old_points_num, false);
+
+    Vector<int> dst_curve_counts(src.curves_num());
+    offset_indices::copy_group_sizes(
+        points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
+
+    IndexMaskMemory memory;
+    const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
+        *this->vc.obact, drawing, layer_index, memory);
+
+    /* Point offset keeps track of the points inserted. */
+    int point_offset = 0;
+    editable_curves.foreach_index([&](const int curve_index) {
+      const IndexRange curve_points = points_by_curve[curve_index];
+      /* Skip cyclic curves unless they only have one point. */
+      if (src_cyclic[curve_index] && curve_points.size() != 1) {
+        return;
+      }
+      const bool is_bezier = types[curve_index] == CURVE_TYPE_BEZIER;
+
+      bool first_selected = point_selection[curve_points.first()];
+      if (is_bezier) {
+        first_selected |= left_selected[curve_points.first()];
+        first_selected |= right_selected[curve_points.first()];
+      }
+
+      bool last_selected = point_selection[curve_points.last()];
+      if (is_bezier) {
+        last_selected |= left_selected[curve_points.last()];
+        last_selected |= right_selected[curve_points.last()];
+      }
+
+      if (first_selected) {
+        if (curve_points.size() != 1) {
+          /* Start-point extruded, we insert a new point at the beginning of the curve. */
+          dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
+          dst_selected_start.insert(curve_points.first() + point_offset, true);
+          dst_selected_center.insert(curve_points.first() + point_offset, !is_bezier);
+          dst_selected_end.insert(curve_points.first() + point_offset, false);
+          dst_curve_counts[curve_index]++;
+          point_offset++;
+        }
+      }
+
+      if (last_selected) {
+        /* End-point extruded, we insert a new point at the end of the curve. */
+        dst_to_src_points.insert(curve_points.last() + point_offset + 1, curve_points.last());
+        dst_selected_end.insert(curve_points.last() + point_offset + 1, true);
+        dst_selected_center.insert(curve_points.last() + point_offset + 1, !is_bezier);
+        dst_selected_start.insert(curve_points.last() + point_offset + 1, false);
+        dst_curve_counts[curve_index]++;
+        point_offset++;
+      }
+    });
+
+    if (point_offset == 0) {
+      return std::nullopt;
+    }
+
+    bke::CurvesGeometry dst(dst_to_src_points.size(), src.curves_num());
+    BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
+
+    /* Setup curve offsets, based on the number of points in each curve. */
+    MutableSpan<int> new_curve_offsets = dst.offsets_for_write();
+    array_utils::copy(dst_curve_counts.as_span(), new_curve_offsets.drop_back(1));
+    offset_indices::accumulate_counts_to_offsets(new_curve_offsets);
+
+    bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+    /* Selection attribute. */
+    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+        dst, bke::AttrDomain::Point, bke::AttrType::Bool);
+    bke::GSpanAttributeWriter selection_left = ed::curves::ensure_selection_attribute(
+        dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_left");
+    bke::GSpanAttributeWriter selection_right = ed::curves::ensure_selection_attribute(
+        dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_right");
+    selection_left.span.copy_from(dst_selected_start.as_span());
+    selection.span.copy_from(dst_selected_center.as_span());
+    selection_right.span.copy_from(dst_selected_end.as_span());
+    selection_left.finish();
+    selection.finish();
+    selection_right.finish();
+
+    bke::copy_attributes(
+        src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
+
+    bke::gather_attributes(
+        src_attributes,
+        bke::AttrDomain::Point,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref(
+            {".selection", ".selection_handle_left", ".selection_handle_right"}),
+        dst_to_src_points,
+        dst_attributes);
+
+    Span<float3> src_positions = src.positions();
+    MutableSpan<float3> dst_positions = dst.positions_for_write();
+    MutableSpan<bool> dst_cyclic = dst.cyclic_for_write();
+    const Array<int> dst_point_to_curve_map = dst.point_to_curve_map();
+    MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
+    MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
+    MutableSpan<float> radius = dst.radius_for_write();
+    for (const int i : dst_to_src_points.index_range()) {
+      if (!(dst_selected_end[i] || dst_selected_start[i])) {
+        continue;
+      }
+      const float3 depth_point = src_positions[dst_to_src_points[i]];
+      const float2 pos = this->layer_to_screen(layer_to_object, depth_point) -
+                         this->center_of_mass_co + this->mouse_co;
+      dst_positions[i] = this->placement.project(pos);
+      handle_types_left[i] = this->extrude_handle;
+      handle_types_right[i] = this->extrude_handle;
+      radius[i] = this->radius;
+      dst_cyclic[dst_point_to_curve_map[i]] = false;
+    }
+
+    dst.update_curve_types();
+    dst.calculate_bezier_auto_handles();
+    if (src.nurbs_has_custom_knots()) {
+      IndexMaskMemory memory;
+      const VArray<int8_t> curve_types = src.curve_types();
+      const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
+      const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
+      const IndexMask include_curves = IndexMask::from_predicate(
+          src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
+            return curve_types[curve_index] == CURVE_TYPE_NURBS &&
+                   knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
+                   points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();
+          });
+      bke::curves::nurbs::update_custom_knot_modes(
+          include_curves.complement(dst.curves_range(), memory),
+          NURBS_KNOT_MODE_ENDPOINT,
+          NURBS_KNOT_MODE_NORMAL,
+          dst);
+      bke::curves::nurbs::gather_custom_knots(src, include_curves, 0, dst);
+    }
+    return dst;
+  }
 };
 
 static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
@@ -592,171 +754,6 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
         ptd, info.drawing, info.layer_index, drawing_index, mouse_co, closest_element);
   }
   return closest_element;
-}
-
-static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
-                                              const bke::greasepencil::Drawing &drawing,
-                                              const int layer_index,
-                                              const float4x4 &layer_to_object,
-                                              bool *r_extruded)
-{
-  const bke::CurvesGeometry &src = drawing.strokes();
-  const bke::AttributeAccessor src_attributes = src.attributes();
-  const OffsetIndices<int> points_by_curve = src.points_by_curve();
-  const VArray<bool> &src_cyclic = src.cyclic();
-  const VArray<int8_t> types = src.curve_types();
-  const int old_points_num = src.points_num();
-
-  const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
-  const VArray<bool> left_selected = *src_attributes.lookup_or_default<bool>(
-      ".selection_handle_left", bke::AttrDomain::Point, true);
-  const VArray<bool> right_selected = *src_attributes.lookup_or_default<bool>(
-      ".selection_handle_right", bke::AttrDomain::Point, true);
-
-  Vector<int> dst_to_src_points(old_points_num);
-  array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
-
-  Vector<bool> dst_selected_start(old_points_num, false);
-  Vector<bool> dst_selected_center(old_points_num, false);
-  Vector<bool> dst_selected_end(old_points_num, false);
-
-  Vector<int> dst_curve_counts(src.curves_num());
-  offset_indices::copy_group_sizes(
-      points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
-
-  IndexMaskMemory memory;
-  const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
-      *ptd.vc.obact, drawing, layer_index, memory);
-
-  /* Point offset keeps track of the points inserted. */
-  int point_offset = 0;
-  editable_curves.foreach_index([&](const int curve_index) {
-    const IndexRange curve_points = points_by_curve[curve_index];
-    /* Skip cyclic curves unless they only have one point. */
-    if (src_cyclic[curve_index] && curve_points.size() != 1) {
-      return;
-    }
-    const bool is_bezier = types[curve_index] == CURVE_TYPE_BEZIER;
-
-    bool first_selected = point_selection[curve_points.first()];
-    if (is_bezier) {
-      first_selected |= left_selected[curve_points.first()];
-      first_selected |= right_selected[curve_points.first()];
-    }
-
-    bool last_selected = point_selection[curve_points.last()];
-    if (is_bezier) {
-      last_selected |= left_selected[curve_points.last()];
-      last_selected |= right_selected[curve_points.last()];
-    }
-
-    if (first_selected) {
-      if (curve_points.size() != 1) {
-        /* Start-point extruded, we insert a new point at the beginning of the curve. */
-        dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
-        dst_selected_start.insert(curve_points.first() + point_offset, true);
-        dst_selected_center.insert(curve_points.first() + point_offset, !is_bezier);
-        dst_selected_end.insert(curve_points.first() + point_offset, false);
-        dst_curve_counts[curve_index]++;
-        point_offset++;
-      }
-    }
-
-    if (last_selected) {
-      /* End-point extruded, we insert a new point at the end of the curve. */
-      dst_to_src_points.insert(curve_points.last() + point_offset + 1, curve_points.last());
-      dst_selected_end.insert(curve_points.last() + point_offset + 1, true);
-      dst_selected_center.insert(curve_points.last() + point_offset + 1, !is_bezier);
-      dst_selected_start.insert(curve_points.last() + point_offset + 1, false);
-      dst_curve_counts[curve_index]++;
-      point_offset++;
-    }
-  });
-
-  if (point_offset == 0) {
-    *r_extruded = false;
-    return src;
-  }
-  *r_extruded = true;
-
-  bke::CurvesGeometry dst(dst_to_src_points.size(), src.curves_num());
-  BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
-
-  /* Setup curve offsets, based on the number of points in each curve. */
-  MutableSpan<int> new_curve_offsets = dst.offsets_for_write();
-  array_utils::copy(dst_curve_counts.as_span(), new_curve_offsets.drop_back(1));
-  offset_indices::accumulate_counts_to_offsets(new_curve_offsets);
-
-  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
-
-  /* Selection attribute. */
-  bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-      dst, bke::AttrDomain::Point, bke::AttrType::Bool);
-  bke::GSpanAttributeWriter selection_left = ed::curves::ensure_selection_attribute(
-      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_left");
-  bke::GSpanAttributeWriter selection_right = ed::curves::ensure_selection_attribute(
-      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_right");
-  selection_left.span.copy_from(dst_selected_start.as_span());
-  selection.span.copy_from(dst_selected_center.as_span());
-  selection_right.span.copy_from(dst_selected_end.as_span());
-  selection_left.finish();
-  selection.finish();
-  selection_right.finish();
-
-  bke::copy_attributes(
-      src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
-
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Point,
-                         bke::AttrDomain::Point,
-                         bke::attribute_filter_from_skip_ref(
-                             {".selection", ".selection_handle_left", ".selection_handle_right"}),
-                         dst_to_src_points,
-                         dst_attributes);
-
-  Span<float3> src_positions = src.positions();
-  MutableSpan<float3> dst_positions = dst.positions_for_write();
-  MutableSpan<bool> dst_cyclic = dst.cyclic_for_write();
-  const Array<int> dst_point_to_curve_map = dst.point_to_curve_map();
-  MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
-  MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
-  MutableSpan<float> radius = dst.radius_for_write();
-  for (const int i : dst_to_src_points.index_range()) {
-    if (!(dst_selected_end[i] || dst_selected_start[i])) {
-      continue;
-    }
-    const float3 depth_point = src_positions[dst_to_src_points[i]];
-    const float2 pos = ptd.layer_to_screen(layer_to_object, depth_point) - ptd.center_of_mass_co +
-                       ptd.mouse_co;
-    dst_positions[i] = ptd.placement.project(pos);
-    handle_types_left[i] = ptd.extrude_handle;
-    handle_types_right[i] = ptd.extrude_handle;
-    radius[i] = ptd.radius;
-    dst_cyclic[dst_point_to_curve_map[i]] = false;
-  }
-
-  dst.update_curve_types();
-  dst.calculate_bezier_auto_handles();
-  if (src.nurbs_has_custom_knots()) {
-    IndexMaskMemory memory;
-    const VArray<int8_t> curve_types = src.curve_types();
-    const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
-    const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
-    const IndexMask include_curves = IndexMask::from_predicate(
-        src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
-          return curve_types[curve_index] == CURVE_TYPE_NURBS &&
-                 knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
-                 points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();
-        });
-    bke::curves::nurbs::update_custom_knot_modes(
-        include_curves.complement(dst.curves_range(), memory),
-        NURBS_KNOT_MODE_ENDPOINT,
-        NURBS_KNOT_MODE_NORMAL,
-        dst);
-    bke::curves::nurbs::gather_custom_knots(src, include_curves, 0, dst);
-  }
-  return dst;
 }
 
 /**
@@ -1137,10 +1134,13 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
         const float4x4 layer_to_object = layer.local_transform();
 
-        bool extruded = false;
-        curves = pen_extrude_curves(
-            ptd, info.drawing, info.layer_index, layer_to_object, &extruded);
-        if (!extruded) {
+        const std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
+            info.drawing, info.layer_index, layer_to_object);
+
+        if (result) {
+          curves = *result;
+        }
+        else {
           for (const StringRef selection_attribute_name :
                ed::curves::get_curves_selection_attribute_names(curves))
           {
@@ -1152,6 +1152,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
           }
           return;
         }
+
         add_single.store(false, std::memory_order_relaxed);
         point_added.store(true, std::memory_order_relaxed);
         info.drawing.tag_topology_changed();
