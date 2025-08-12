@@ -67,7 +67,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-static CLG_LogRef LOG = {"bke.softbody"};
+static CLG_LogRef LOG = {"physics.softbody"};
 
 /* callbacks for errors and interrupts and some goo */
 static int (*SB_localInterruptCallBack)() = nullptr;
@@ -383,7 +383,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
 
   /* rotate current to previous */
   if (pccd_M->vert_positions_prev) {
-    MEM_freeN((void *)pccd_M->vert_positions_prev);
+    MEM_freeN(pccd_M->vert_positions_prev);
   }
   pccd_M->vert_positions_prev = pccd_M->vert_positions;
   /* Allocate and copy verts. */
@@ -477,10 +477,10 @@ static void ccd_mesh_free(ccd_Mesh *ccdm)
 {
   /* Make sure we're not nuking objects we don't know. */
   if (ccdm && (ccdm->safety == CCD_SAFETY)) {
-    MEM_freeN((void *)ccdm->vert_positions);
-    MEM_freeN((void *)ccdm->vert_tris);
+    MEM_freeN(ccdm->vert_positions);
+    MEM_freeN(ccdm->vert_tris);
     if (ccdm->vert_positions_prev) {
-      MEM_freeN((void *)ccdm->vert_positions_prev);
+      MEM_freeN(ccdm->vert_positions_prev);
     }
     MEM_freeN(ccdm->mima);
     MEM_freeN(ccdm);
@@ -628,7 +628,7 @@ static void add_2nd_order_roller(Object *ob, float /*stiffness*/, int *counter, 
   if (!sb->bspring) {
     return;
   } /* we are 2nd order here so 1rst should have been build :) */
-  /* first run counting  second run adding */
+  /* First run counting second run adding. */
   *counter = 0;
   if (addsprings) {
     bs3 = ob->soft->bspring + ob->soft->totspring;
@@ -716,7 +716,7 @@ static void add_bp_springlist(BodyPoint *bp, int springID)
   }
   else {
     bp->nofsprings++;
-    newlist = MEM_calloc_arrayN<int>(size_t(bp->nofsprings), "bpsprings");
+    newlist = MEM_calloc_arrayN<int>(bp->nofsprings, "bpsprings");
     memcpy(newlist, bp->springs, (bp->nofsprings - 1) * sizeof(int));
     MEM_freeN(bp->springs);
     bp->springs = newlist;
@@ -1534,7 +1534,7 @@ static void sb_sfesf_threads_run(Depsgraph *depsgraph,
     totthread--;
   }
 
-  sb_threads = MEM_calloc_arrayN<SB_thread_context>(size_t(totthread), "SBSpringsThread");
+  sb_threads = MEM_calloc_arrayN<SB_thread_context>(totthread, "SBSpringsThread");
   left = totsprings;
   dec = totsprings / totthread + 1;
   for (i = 0; i < totthread; i++) {
@@ -1988,7 +1988,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene,
 
   bp = &sb->bpoint[ifirst];
   for (bb = number_of_points_here; bb > 0; bb--, bp++) {
-    /* clear forces  accumulator */
+    /* Clear forces accumulator. */
     bp->force[0] = bp->force[1] = bp->force[2] = 0.0;
     /* naive ball self collision */
     /* needs to be done if goal snaps or not */
@@ -2214,7 +2214,7 @@ static void sb_cf_threads_run(Scene *scene,
 
   // printf("sb_cf_threads_run spawning %d threads\n", totthread);
 
-  sb_threads = MEM_calloc_arrayN<SB_thread_context>(size_t(totthread), "SBThread");
+  sb_threads = MEM_calloc_arrayN<SB_thread_context>(totthread, "SBThread");
   left = totpoint;
   dec = totpoint / totthread + 1;
   for (i = 0; i < totthread; i++) {
@@ -2672,10 +2672,8 @@ static void mesh_to_softbody(Object *ob)
 {
   SoftBody *sb;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  const blender::int2 *edge = static_cast<const blender::int2 *>(
-      CustomData_get_layer_named(&mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts"));
+  const blender::Span<blender::int2> edges = mesh->edges();
   BodyPoint *bp;
-  BodySpring *bs;
   int a, totedge;
   int defgroup_index, defgroup_index_mass, defgroup_index_spring;
 
@@ -2728,12 +2726,11 @@ static void mesh_to_softbody(Object *ob)
 
   /* but we only optionally add body edge springs */
   if (ob->softflag & OB_SB_EDGES) {
-    if (edge) {
-      bs = sb->bspring;
-      for (a = mesh->edges_num; a > 0; a--, edge++, bs++) {
-        bs->v1 = edge->x;
-        bs->v2 = edge->y;
-        bs->springtype = SB_EDGE;
+    if (!edges.is_empty()) {
+      for (const int i : edges.index_range()) {
+        sb->bspring[i].v1 = edges[i][0];
+        sb->bspring[i].v2 = edges[i][1];
+        sb->bspring[i].springtype = SB_EDGE;
       }
 
       /* insert *diagonal* springs in quads if desired */
@@ -2749,7 +2746,7 @@ static void mesh_to_softbody(Object *ob)
         /* yes we need to do it again. */
         build_bps_springlist(ob);
       }
-      springs_from_mesh(ob); /* write the 'rest'-length of the springs */
+      springs_from_mesh(ob); /* write the *rest*-length of the springs */
       if (ob->softflag & OB_SB_SELF) {
         calculate_collision_balls(ob);
       }
@@ -3140,6 +3137,7 @@ SoftBody *sbNew()
   sb->maxloops = 300;
 
   sb->choke = 3;
+  sb->fuzzyness = 1;
   sb_new_scratch(sb);
   /* TODO: backward file compatibility should set `sb->shearstiff = 1.0f` while reading old files.
    */
@@ -3254,8 +3252,8 @@ void SB_estimate_transform(Object *ob, float lloc[3], float lrot[3][3], float ls
   if (!sb || !sb->bpoint) {
     return;
   }
-  opos = MEM_calloc_arrayN<float[3]>(size_t(sb->totpoint), "SB_OPOS");
-  rpos = MEM_calloc_arrayN<float[3]>(size_t(sb->totpoint), "SB_RPOS");
+  opos = MEM_calloc_arrayN<float[3]>(sb->totpoint, "SB_OPOS");
+  rpos = MEM_calloc_arrayN<float[3]>(sb->totpoint, "SB_RPOS");
   /* might filter vertex selection with a vertex group */
   for (a = 0, bp = sb->bpoint, rp = sb->scratch->Ref.ivert; a < sb->totpoint; a++, bp++, rp++) {
     copy_v3_v3(rpos[a], rp->pos);
@@ -3293,16 +3291,16 @@ static void softbody_reset(Object *ob, SoftBody *sb, float (*vertexCos)[3], int 
     copy_v3_v3(bp->origT, bp->pos);
     bp->vec[0] = bp->vec[1] = bp->vec[2] = 0.0f;
 
-    /* the bp->prev*'s are for rolling back from a canceled try to propagate in time
+    /* The `bp->prev*` 's are for rolling back from a canceled try to propagate in time
      * adaptive step size algorithm in a nutshell:
-     * 1.  set scheduled time step to new dtime
-     * 2.  try to advance the scheduled time step, being optimistic execute it
-     * 3.  check for success
-     * 3.a we 're fine continue, may be we can increase scheduled time again ?? if so, do so!
-     * 3.b we did exceed error limit --> roll back, shorten the scheduled time and try again at 2.
-     * 4.  check if we did reach dtime
-     * 4.a nope we need to do some more at 2.
-     * 4.b yup we're done
+     * 1)  set scheduled time step to new dtime
+     * 2)  try to advance the scheduled time step, being optimistic execute it
+     * 3)  check for success
+     * 3a) we 're fine continue, may be we can increase scheduled time again ?? if so, do so!
+     * 3b) we did exceed error limit --> roll back, shorten the scheduled time and try again at 2.
+     * 4)  check if we did reach dtime
+     * 4a) nope we need to do some more at 2.
+     * 4b) yup we're done
      */
 
     copy_v3_v3(bp->prevpos, bp->pos);
@@ -3498,7 +3496,7 @@ static void sbStoreLastFrame(Depsgraph *depsgraph, Object *object, float framenr
   if (!DEG_is_active(depsgraph)) {
     return;
   }
-  Object *object_orig = DEG_get_original_object(object);
+  Object *object_orig = DEG_get_original(object);
   object->soft->last_frame = framenr;
   object_orig->soft->last_frame = framenr;
 }

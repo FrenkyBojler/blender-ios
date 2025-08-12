@@ -12,7 +12,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -201,7 +201,7 @@ static void ruler_item_as_string(
         ruler_item->co[0], ruler_item->co[1], ruler_item->co[2]);
 
     if (unit.system == USER_UNIT_NONE) {
-      BLI_snprintf(
+      BLI_snprintf_utf8(
           numstr, numstr_size, "%.*f" BLI_STR_UTF8_DEGREE_SIGN, prec, RAD2DEGF(ruler_angle));
     }
     else {
@@ -213,7 +213,7 @@ static void ruler_item_as_string(
     const float ruler_len = len_v3v3(ruler_item->co[0], ruler_item->co[2]);
 
     if (unit.system == USER_UNIT_NONE) {
-      BLI_snprintf(numstr, numstr_size, "%.*f", prec, ruler_len);
+      BLI_snprintf_utf8(numstr, numstr_size, "%.*f", prec, ruler_len);
     }
     else {
       BKE_unit_value_as_string_scaled(
@@ -555,7 +555,7 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
     int j;
 
     /* allocate memory for a new stroke */
-    gps = (bGPDstroke *)MEM_callocN(sizeof(bGPDstroke), "gp_stroke");
+    gps = MEM_callocN<bGPDstroke>("gp_stroke");
     if (ruler_item->flag & RULERITEM_USE_ANGLE) {
       gps->totpoints = 3;
       pt = gps->points = (bGPDspoint *)MEM_callocN(sizeof(bGPDspoint) * gps->totpoints,
@@ -743,7 +743,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   GPU_blend(GPU_BLEND_ALPHA);
 
   const uint shdr_pos_3d = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   if (ruler_item->flag & RULERITEM_USE_ANGLE) {
     immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
@@ -841,7 +841,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   GPU_matrix_pop_projection();
 
   const uint shdr_pos_2d = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   if (ruler_item->flag & RULERITEM_USE_ANGLE) {
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -1145,7 +1145,7 @@ static wmOperatorStatus gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEve
   wmGizmoGroup *gzgroup = gz->parent_gzgroup;
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
   RulerItem *ruler_item_pick = (RulerItem *)gz;
-  RulerInteraction *inter = (RulerInteraction *)MEM_callocN(sizeof(RulerInteraction), __func__);
+  RulerInteraction *inter = MEM_callocN<RulerInteraction>(__func__);
   gz->interaction_data = inter;
 
   ARegion *region = ruler_info->region;
@@ -1258,7 +1258,9 @@ static void gizmo_ruler_exit(bContext *C, wmGizmo *gz, const bool cancel)
     }
   }
 
-  MEM_SAFE_FREE(gz->interaction_data);
+  RulerInteraction *inter = static_cast<RulerInteraction *>(gz->interaction_data);
+  MEM_freeN(inter);
+  gz->interaction_data = nullptr;
 
   ruler_state_set(ruler_info, RULER_STATE_NORMAL);
 }
@@ -1276,7 +1278,7 @@ void VIEW3D_GT_ruler_item(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "VIEW3D_GT_ruler_item";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_ruler_draw;
   gzt->test_select = gizmo_ruler_test_select;
   gzt->modal = gizmo_ruler_modal;
@@ -1295,7 +1297,7 @@ void VIEW3D_GT_ruler_item(wmGizmoType *gzt)
 
 static void WIDGETGROUP_ruler_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  RulerInfo *ruler_info = (RulerInfo *)MEM_callocN(sizeof(RulerInfo), __func__);
+  RulerInfo *ruler_info = MEM_callocN<RulerInfo>(__func__);
 
   wmGizmo *gizmo;
   {
@@ -1389,10 +1391,9 @@ static wmOperatorStatus view3d_ruler_add_invoke(bContext *C, wmOperator *op, con
 
   /* This is a little weak, but there is no real good way to tweak directly. */
   WM_gizmo_highlight_set(gzmap, &ruler_item->gz);
-  if (WM_operator_name_call(
-          C, "GIZMOGROUP_OT_gizmo_tweak", WM_OP_INVOKE_REGION_WIN, nullptr, event) ==
-      OPERATOR_RUNNING_MODAL)
-  {
+  const wmOperatorStatus status = WM_operator_name_call(
+      C, "GIZMOGROUP_OT_gizmo_tweak", blender::wm::OpCallContext::InvokeRegionWin, nullptr, event);
+  if (status == OPERATOR_RUNNING_MODAL) {
     RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
     RulerInteraction *inter = static_cast<RulerInteraction *>(ruler_item->gz.interaction_data);
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);

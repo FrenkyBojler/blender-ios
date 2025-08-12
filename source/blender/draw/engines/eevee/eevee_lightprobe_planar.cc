@@ -19,6 +19,11 @@ void PlanarProbe::set_view(const draw::View &view, int layer_id)
   this->viewmat = from_scale<float4x4>(float3(1, -1, 1)) * view.viewmat() *
                   reflection_matrix_get();
   this->winmat = view.winmat();
+  /* Invert Y offset in the projection matrix to compensate the flip above (see #141112). */
+  this->winmat[2][1] = -this->winmat[2][1];
+
+  this->wininv = invert(this->winmat);
+
   this->world_to_object_transposed = float3x4(transpose(world_to_plane));
   this->normal = normalize(plane_to_world.z_axis());
 
@@ -77,8 +82,8 @@ void PlanarProbeModule::set_view(const draw::View &main_view, int2 main_view_ext
   }
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ;
-  radiance_tx_.ensure_2d_array(GPU_R11F_G11F_B10F, extent, layer_count, usage);
-  depth_tx_.ensure_2d_array(GPU_DEPTH_COMPONENT32F, extent, layer_count, usage);
+  radiance_tx_.ensure_2d_array(gpu::TextureFormat::UFLOAT_11_11_10, extent, layer_count, usage);
+  depth_tx_.ensure_2d_array(gpu::TextureFormat::SFLOAT_32_DEPTH, extent, layer_count, usage);
   depth_tx_.ensure_layer_views();
 
   do_display_draw_ = inst_.draw_overlays && num_probes > 0;
@@ -150,7 +155,8 @@ void PlanarProbeModule::viewport_draw(View &view, GPUFrameBuffer *view_fb)
 
   viewport_display_ps_.init();
   viewport_display_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
-                                 DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK);
+                                 DRW_STATE_CLIP_CONTROL_UNIT_RANGE | inst_.film.depth.test_state |
+                                 DRW_STATE_CULL_BACK);
   viewport_display_ps_.framebuffer_set(&view_fb);
   viewport_display_ps_.shader_set(inst_.shaders.static_shader_get(DISPLAY_PROBE_PLANAR));
   SphereProbeData &world_data = *static_cast<SphereProbeData *>(&inst_.light_probes.world_sphere_);

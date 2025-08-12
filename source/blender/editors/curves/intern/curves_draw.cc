@@ -404,7 +404,8 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
 
     {
       GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      uint pos = GPU_vertformat_attr_add(
+          format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_depth_test(GPU_DEPTH_NONE);
@@ -582,7 +583,7 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
 {
   BLI_assert(op->customdata == nullptr);
 
-  CurveDrawData *cdd = static_cast<CurveDrawData *>(MEM_callocN(sizeof(*cdd), __func__));
+  CurveDrawData *cdd = MEM_callocN<CurveDrawData>(__func__);
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
@@ -785,8 +786,7 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
     int dims = 3;
     const int radius_index = use_pressure_radius ? dims++ : -1;
 
-    float *coords = static_cast<float *>(
-        MEM_mallocN(sizeof(*coords) * stroke_len * dims, __func__));
+    float *coords = MEM_malloc_arrayN<float>(stroke_len * dims, __func__);
 
     float *cubic_spline = nullptr;
     uint cubic_spline_len = 0;
@@ -1116,7 +1116,7 @@ static wmOperatorStatus curves_draw_invoke(bContext *C, wmOperator *op, const wm
         }
       }
 
-      /* use view plane (when set or as fallback when surface can't be found) */
+      /* use view plane (when set or as a fallback when surface can't be found) */
       if (cdd->project.use_depth == false) {
         plane_co = cdd->vc.scene->cursor.location;
         plane_no = rv3d->viewinv[2];
@@ -1228,7 +1228,7 @@ static void curve_draw_exec_precalc(wmOperator *op)
     BLI_mempool_iter iter;
     StrokeElem *selem, *selem_prev;
 
-    float *lengths = static_cast<float *>(MEM_mallocN(sizeof(float) * stroke_len, __func__));
+    float *lengths = MEM_malloc_arrayN<float>(stroke_len, __func__);
     StrokeElem **selem_array = static_cast<StrokeElem **>(
         MEM_mallocN(sizeof(*selem_array) * stroke_len, __func__));
     lengths[0] = 0.0f;

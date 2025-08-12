@@ -10,13 +10,13 @@
 
 #include <atomic>
 #include <cmath>
-#include <mutex>
 
 #include "DNA_vec_types.h"
 
 #include "BLF_api.hh"
 
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
 
 #include "GPU_texture.hh"
@@ -24,7 +24,6 @@
 
 #include <ft2build.h>
 
-struct ColorManagedDisplay;
 struct FontBLF;
 struct GlyphCacheBLF;
 struct GlyphBLF;
@@ -34,6 +33,11 @@ class Batch;
 class VertBuf;
 }  // namespace blender::gpu
 struct GPUVertBufRaw;
+
+namespace blender::ocio {
+class Display;
+}  // namespace blender::ocio
+using ColorManagedDisplay = blender::ocio::Display;
 
 #include FT_MULTIPLE_MASTERS_H /* Variable font support. */
 
@@ -113,7 +117,7 @@ struct BatchBLF {
   unsigned int glyph_len;
   /** Copy of `font->pos`. */
   int ofs[2];
-  /* Previous call `modelmatrix`. */
+  /** Previous call `modelmatrix`. */
   float mat[4][4];
   bool enabled, active, simple_shader;
   GlyphCacheBLF *glyph_cache;
@@ -123,7 +127,7 @@ extern BatchBLF g_batch;
 
 struct KerningCacheBLF {
   /**
-   * Cache a ascii glyph pairs. Only store the x offset we are interested in,
+   * Cache a ASCII glyph pairs. Only store the x offset we are interested in,
    * instead of the full #FT_Vector since it's not used for drawing at the moment.
    */
   int ascii_table[KERNING_CACHE_TABLE_SIZE][KERNING_CACHE_TABLE_SIZE];
@@ -161,7 +165,7 @@ struct GlyphCacheBLF {
   blender::Map<GlyphCacheKey, std::unique_ptr<GlyphBLF>> glyphs;
 
   /** Texture array, to draw the glyphs. */
-  GPUTexture *texture;
+  blender::gpu::Texture *texture;
   char *bitmap_result;
   int bitmap_len;
   int bitmap_len_landed;
@@ -171,7 +175,7 @@ struct GlyphCacheBLF {
 };
 
 struct GlyphBLF {
-  /** The character, as UTF-32. */
+  /** The character, as UTF32. */
   unsigned int c;
 
   /** Freetype2 index, to speed-up the search. */
@@ -227,7 +231,7 @@ struct FontBufInfoBLF {
   int dims[2];
 
   /** Display device used for color management. */
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display;
 
   /** The color, the alphas is get from the glyph! (color is sRGB space). */
   float col_init[4];
@@ -303,10 +307,10 @@ struct FontMetrics {
 };
 
 struct FontBLF {
-  /** Full path to font file or NULL if from memory. */
+  /** The full path to font file or NULL when from memory. */
   char *filepath;
 
-  /** Pointer to in-memory font, or NULL if from file. */
+  /** Pointer to in-memory font, or NULL when from a file. */
   void *mem;
   size_t mem_size;
   /** Handle for in-memory fonts to avoid loading them multiple times. */
@@ -357,21 +361,26 @@ struct FontBLF {
   /** Axes data for Adobe MM, TrueType GX, or OpenType variation fonts. */
   FT_MM_Var *variations;
 
-  /** Character variations. */
-  int char_weight;    /* 100 - 900, 400 = normal. */
-  float char_slant;   /* Slant in clockwise degrees. 0.0 = upright. */
-  float char_width;   /* Factor of normal character width. 1.0 = normal. */
-  float char_spacing; /* Factor of normal character spacing. 0.0 = normal. */
+  /* Character variations. */
+
+  /** Wight in range: 100 - 900, 400 = normal. */
+  int char_weight;
+  /** Slant in clockwise degrees. 0.0 = upright. */
+  float char_slant;
+  /** Factor of normal character width. 1.0 = normal. */
+  float char_width;
+  /** Factor of normal character spacing. 0.0 = normal. */
+  float char_spacing;
 
   /** Max texture size. */
   int tex_size_max;
 
   /** Font options. */
-  int flags;
+  FontFlags flags;
 
   /**
    * List of glyph caches (#GlyphCacheBLF) for this font for size, DPI, bold, italic.
-   * Use blf_glyph_cache_acquire(font) and blf_glyph_cache_release(font) to access cache!
+   * Use `blf_glyph_cache_acquire(font)` and `blf_glyph_cache_release(font)` to access cache!
    */
   blender::Vector<std::unique_ptr<GlyphCacheBLF>> cache;
 
@@ -397,5 +406,5 @@ struct FontBLF {
   FontBufInfoBLF buf_info;
 
   /** Mutex lock for glyph cache. */
-  std::mutex glyph_cache_mutex;
+  blender::Mutex glyph_cache_mutex;
 };

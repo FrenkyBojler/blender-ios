@@ -43,26 +43,52 @@
 
 using namespace blender::bke;
 
-static CLG_LogRef LOG = {"bke.main"};
+static CLG_LogRef LOG = {"lib.main"};
 
-Main *BKE_main_new()
-{
-  Main *bmain = MEM_callocN<Main>("new main");
-  BKE_main_init(*bmain);
-  return bmain;
-}
-
-void BKE_main_init(Main &bmain)
+Main::Main()
 {
   SpinLock *main_lock = MEM_mallocN<SpinLock>("main lock");
   BLI_spin_init(main_lock);
-  bmain.lock = (MainLock *)main_lock;
-  bmain.is_global_main = false;
+  /* Use C-style cast to workaround an issue casting away volatile for builds without TBB. */
+  this->lock = (MainLock *)main_lock;
 
   /* Just rebuilding the Action Slot to ID* map once is likely cheaper than,
    * for every ID, when it's loaded from disk, check whether it's animated or
    * not, and then figure out which Main it went into, and then set the flag. */
-  bmain.is_action_slot_to_id_map_dirty = true;
+  this->is_action_slot_to_id_map_dirty = true;
+}
+
+Main::~Main()
+{
+  /* In case this is called on a 'split-by-libraries' list of mains.
+   *
+   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
+  if (this->split_mains) {
+    for (Main *main_it : *this->split_mains) {
+      if (main_it == this) {
+        continue;
+      }
+      main_it->split_mains.reset();
+      MEM_delete(main_it);
+    }
+  }
+
+  /* Include this check here as the path may be manipulated after creation. */
+  BLI_assert_msg(!(this->filepath[0] == '/' && this->filepath[1] == '/'),
+                 "'.blend' relative \"//\" must not be used in Main!");
+
+  BKE_main_clear(*this);
+
+  BLI_spin_end(reinterpret_cast<SpinLock *>(this->lock));
+  /* The void cast is needed when building without TBB. */
+  MEM_freeN((void *)reinterpret_cast<SpinLock *>(this->lock));
+  this->lock = nullptr;
+}
+
+Main *BKE_main_new()
+{
+  Main *bmain = MEM_new<Main>(__func__);
+  return bmain;
 }
 
 void BKE_main_clear(Main &bmain)
@@ -162,30 +188,9 @@ void BKE_main_clear(Main &bmain)
   BKE_main_namemap_destroy(&bmain.name_map_global);
 }
 
-void BKE_main_destroy(Main &bmain)
-{
-  BKE_main_clear(bmain);
-
-  BLI_spin_end(reinterpret_cast<SpinLock *>(bmain.lock));
-  MEM_freeN(static_cast<void *>(bmain.lock));
-  bmain.lock = nullptr;
-}
-
 void BKE_main_free(Main *bmain)
 {
-  /* In case this is called on a 'split-by-libraries' list of mains.
-   *
-   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
-  if (bmain->next) {
-    BKE_main_free(bmain->next);
-  }
-
-  /* Include this check here as the path may be manipulated after creation. */
-  BLI_assert_msg(!(bmain->filepath[0] == '/' && bmain->filepath[1] == '/'),
-                 "'.blend' relative \"//\" must not be used in Main!");
-
-  BKE_main_destroy(*bmain);
-  MEM_freeN(bmain);
+  MEM_delete(bmain);
 }
 
 static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main *bmain_2, ID *id_2)
@@ -757,14 +762,28 @@ ID *BKE_main_library_weak_reference_find(Main *bmain,
                                          const char *library_filepath,
                                          const char *library_id_name)
 {
+  /* Make filepath absolute so we can compare filepaths that may be either relative or absolute. */
+  char library_filepath_abs[FILE_MAX];
+  STRNCPY(library_filepath_abs, library_filepath);
+  BLI_path_abs(library_filepath_abs, BKE_main_blendfile_path(bmain));
+
   ListBase *id_list = which_libbase(bmain, GS(library_id_name));
   LISTBASE_FOREACH (ID *, existing_id, id_list) {
-    if (existing_id->library_weak_reference &&
-        STREQ(existing_id->library_weak_reference->library_id_name, library_id_name) &&
-        STREQ(existing_id->library_weak_reference->library_filepath, library_filepath))
+    if (!(existing_id->library_weak_reference &&
+          STREQ(existing_id->library_weak_reference->library_id_name, library_id_name)))
     {
-      return existing_id;
+      continue;
     }
+
+    char existing_filepath_abs[FILE_MAX];
+    STRNCPY(existing_filepath_abs, existing_id->library_weak_reference->library_filepath);
+    BLI_path_abs(existing_filepath_abs, BKE_main_blendfile_path(bmain));
+
+    if (!STREQ(existing_filepath_abs, library_filepath_abs)) {
+      continue;
+    }
+
+    return existing_id;
   }
 
   return nullptr;

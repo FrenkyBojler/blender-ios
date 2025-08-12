@@ -12,7 +12,7 @@ namespace blender::nodes {
 
 struct ClosureEagerEvalParams {
   struct InputItem {
-    SocketInterfaceKey key;
+    std::string key;
     const bke::bNodeSocketType *type = nullptr;
     /**
      * The actual socket value of type bNodeSocketType::geometry_nodes_cpp_type.
@@ -22,15 +22,18 @@ struct ClosureEagerEvalParams {
   };
 
   struct OutputItem {
-    SocketInterfaceKey key;
+    std::string key;
     const bke::bNodeSocketType *type = nullptr;
-    /** Where the output value should be stored. */
+    /**
+     * Where the output value should be stored. This is expected to point to uninitialized memory
+     * when it's passed into #evaluate_closure_eagerly which will then construct the value inplace.
+     */
     void *value = nullptr;
   };
 
   Vector<InputItem> inputs;
   Vector<OutputItem> outputs;
-  GeoNodesLFUserData *user_data = nullptr;
+  GeoNodesUserData *user_data = nullptr;
 };
 
 void evaluate_closure_eagerly(const Closure &closure, ClosureEagerEvalParams &params);

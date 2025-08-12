@@ -18,12 +18,9 @@ namespace blender::nodes::node_composite_normalize_cc {
 
 static void cmp_node_normalize_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Value")
-      .default_value(1.0f)
-      .min(0.0f)
-      .max(1.0f)
-      .compositor_domain_priority(0);
-  b.add_output<decl::Float>("Value");
+  b.add_input<decl::Float>("Value").default_value(1.0f).min(0.0f).max(1.0f).structure_type(
+      StructureType::Dynamic);
+  b.add_output<decl::Float>("Value").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -63,7 +60,7 @@ class NormalizeOperation : public NodeOperation {
 
   void execute_gpu(const float minimum, const float scale)
   {
-    GPUShader *shader = this->context().get_shader("compositor_normalize");
+    gpu::Shader *shader = this->context().get_shader("compositor_normalize");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "minimum", minimum);
@@ -108,7 +105,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_normalize_cc
 
-void register_node_type_cmp_normalize()
+static void register_node_type_cmp_normalize()
 {
   namespace file_ns = blender::nodes::node_composite_normalize_cc;
 
@@ -125,3 +122,4 @@ void register_node_type_cmp_normalize()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_normalize)

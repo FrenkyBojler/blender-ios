@@ -7,6 +7,7 @@
 #include "BLI_compute_context.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_resource_scope.hh"
+#include "BLI_vector_set.hh"
 
 #include "DNA_node_types.h"
 
@@ -21,7 +22,7 @@ struct IDProperty;
 namespace blender::nodes {
 struct GeoNodesCallData;
 namespace geo_eval_log {
-class GeoModifierLog;
+class GeoNodesLog;
 }  // namespace geo_eval_log
 }  // namespace blender::nodes
 
@@ -41,7 +42,7 @@ struct IDPropNameGetter {
  * Use a #VectorSet to store properties for constant time lookup, to avoid slowdown with many
  * inputs.
  */
-using PropertiesVectorSet = CustomIDVectorSet<IDProperty *, IDPropNameGetter>;
+using PropertiesVectorSet = CustomIDVectorSet<IDProperty *, IDPropNameGetter, 16>;
 PropertiesVectorSet build_properties_vector_set(const IDProperty *properties);
 
 std::optional<StringRef> input_attribute_name_get(const PropertiesVectorSet &properties,
@@ -63,7 +64,9 @@ bool id_property_type_matches_socket(const bNodeTreeInterfaceSocket &socket,
                                      bool use_name_for_ids = false);
 
 std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_from_socket(
-    const bNodeTreeInterfaceSocket &socket, bool use_name_for_ids);
+    const bNodeTreeInterfaceSocket &socket,
+    nodes::StructureType structure_type,
+    bool use_name_for_ids);
 
 bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
                                                     const PropertiesVectorSet &properties_set,

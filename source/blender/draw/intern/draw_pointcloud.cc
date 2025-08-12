@@ -38,7 +38,8 @@ struct PointCloudModule {
   gpu::VertBuf *create_dummy_vbo()
   {
     GPUVertFormat format = {0};
-    uint dummy_id = GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    uint dummy_id = GPU_vertformat_attr_add(
+        &format, "dummy", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
     gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(
         format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
@@ -72,15 +73,17 @@ gpu::Batch *pointcloud_sub_pass_setup_implementation(PassT &sub_ps,
 {
   BLI_assert(object->type == OB_POINTCLOUD);
   PointCloud &pointcloud = DRW_object_get_data_for_drawing<PointCloud>(*object);
-  /* An empty point cloud should never result in a drawcall. However, the buffer binding commands
+  /* An empty point cloud should never result in a draw-call. However, the buffer binding commands
    * will still be executed. In this case, in order to avoid assertion, we bind dummy VBOs. */
   bool is_empty = pointcloud.totpoint == 0;
 
   PointCloudModule &module = *drw_get().data->pointcloud_module;
-  /* Fix issue with certain driver not drawing anything if there is no texture bound to
-   * "ac", "au", "u" or "c". */
+  /* Ensure we have no unbound resources.
+   * Required for Vulkan.
+   * Fixes issues with certain GL drivers not drawing anything. */
   sub_ps.bind_texture("u", module.dummy_vbo);
   sub_ps.bind_texture("au", module.dummy_vbo);
+  sub_ps.bind_texture("a", module.dummy_vbo);
   sub_ps.bind_texture("c", module.dummy_vbo);
   sub_ps.bind_texture("ac", module.dummy_vbo);
 

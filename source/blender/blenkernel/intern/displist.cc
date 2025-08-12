@@ -166,7 +166,7 @@ static void curve_to_displist(const Curve *cu,
       const bool use_cyclic_sample = is_cyclic && (samples_len != 2);
 
       DispList *dl = MEM_callocN<DispList>(__func__);
-      /* Add one to the length because of 'BKE_curve_forward_diff_bezier'. */
+      /* Add one to the length because of #BKE_curve_forward_diff_bezier. */
       dl->verts = MEM_malloc_arrayN<float>(3 * size_t(samples_len + 1), __func__);
       BLI_addtail(r_dispbase, dl);
       dl->parts = 1;
@@ -1281,12 +1281,18 @@ static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph
 
             if ((cu->flag & CU_FILL_CAPS) && !(nu->flagu & CU_NURB_CYCLIC)) {
               if (a == 1) {
-                fillBevelCap(nu, dlb, cur_data - 3 * dlb->nr, &bottom_capbase);
-                copy_v3_v3(bottom_no, bevp->dir);
+                /* Can occur when the `bevp->vec` is NAN, see: #141612. */
+                if (len_squared_v3(bevp->dir) > 0.0f) {
+                  fillBevelCap(nu, dlb, cur_data - 3 * dlb->nr, &bottom_capbase);
+                  copy_v3_v3(bottom_no, bevp->dir);
+                }
               }
               if (a == steps - 1) {
-                fillBevelCap(nu, dlb, cur_data, &top_capbase);
-                negate_v3_v3(top_no, bevp->dir);
+                /* Can occur when the `bevp->vec` is NAN, see: #141612. */
+                if (len_squared_v3(bevp->dir) > 0.0f) {
+                  fillBevelCap(nu, dlb, cur_data, &top_capbase);
+                  negate_v3_v3(top_no, bevp->dir);
+                }
               }
             }
           }
@@ -1297,8 +1303,10 @@ static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph
 
         if (bottom_capbase.first) {
           BKE_displist_fill(&bottom_capbase, r_dispbase, bottom_no, false);
-          BKE_displist_fill(&top_capbase, r_dispbase, top_no, false);
           BKE_displist_free(&bottom_capbase);
+        }
+        if (top_capbase.first) {
+          BKE_displist_fill(&top_capbase, r_dispbase, top_no, false);
           BKE_displist_free(&top_capbase);
         }
       }

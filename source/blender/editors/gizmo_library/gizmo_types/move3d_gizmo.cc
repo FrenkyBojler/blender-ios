@@ -100,7 +100,7 @@ static void move_geom_draw(const wmGizmo *gz,
 
   GPUVertFormat *format = immVertexFormat();
   /* NOTE(Metal): Prefer using 3D coordinates with 3D shader, even if rendering 2D gizmo's. */
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(filled ? GPU_SHADER_3D_UNIFORM_COLOR :
                                  GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
@@ -108,7 +108,7 @@ static void move_geom_draw(const wmGizmo *gz,
   float viewport[4];
   GPU_viewport_size_get_f(viewport);
   immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", gz->line_width * U.pixelsize);
+  immUniform1f("lineWidth", (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select));
 
   immUniformColor4fv(color);
 
@@ -356,8 +356,7 @@ static wmOperatorStatus gizmo_move_invoke(bContext *C, wmGizmo *gz, const wmEven
 {
   const bool use_snap = RNA_boolean_get(gz->ptr, "use_snap");
 
-  MoveInteraction *inter = static_cast<MoveInteraction *>(
-      MEM_callocN(sizeof(MoveInteraction), __func__));
+  MoveInteraction *inter = MEM_callocN<MoveInteraction>(__func__);
   inter->init.mval[0] = event->mval[0];
   inter->init.mval[1] = event->mval[1];
 
@@ -438,7 +437,7 @@ static void GIZMO_GT_move_3d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_move_3d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_move_draw;
   gzt->draw_select = gizmo_move_draw_select;
   gzt->test_select = gizmo_move_test_select;

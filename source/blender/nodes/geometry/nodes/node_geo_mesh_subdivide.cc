@@ -5,6 +5,7 @@
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_mesh.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -15,7 +16,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to subdivide");
   b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Int>("Level").default_value(1).min(0).max(6);
 }
@@ -58,13 +61,19 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 #ifdef WITH_OPENSUBDIV
   /* See CCGSUBSURF_LEVEL_MAX for max limit. */
-  const int level = clamp_i(params.extract_input<int>("Level"), 0, 11);
+  const int level = std::max(params.extract_input<int>("Level"), 0);
   if (level == 0) {
     params.set_output("Mesh", std::move(geometry_set));
     return;
   }
+  /* At this limit, a subdivided single triangle would be too large to be stored in #Mesh. */
+  if (level >= 16) {
+    params.error_message_add(NodeWarningType::Error, TIP_("The subdivision level is too large"));
+    params.set_default_remaining_outputs();
+    return;
+  }
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
       geometry_set.replace_mesh(simple_subdivide_mesh(*mesh, level));
     }

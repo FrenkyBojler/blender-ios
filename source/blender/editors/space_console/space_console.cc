@@ -13,6 +13,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -40,7 +41,7 @@ static SpaceLink *console_create(const ScrArea * /*area*/, const Scene * /*scene
   ARegion *region;
   SpaceConsole *sconsole;
 
-  sconsole = static_cast<SpaceConsole *>(MEM_callocN(sizeof(SpaceConsole), "initconsole"));
+  sconsole = MEM_callocN<SpaceConsole>("initconsole");
   sconsole->spacetype = SPACE_CONSOLE;
 
   sconsole->lheight = 14;
@@ -213,8 +214,11 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   if (BLI_listbase_is_empty(&sc->scrollback)) {
-    WM_operator_name_call(
-        (bContext *)C, "CONSOLE_OT_banner", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call((bContext *)C,
+                          "CONSOLE_OT_banner",
+                          blender::wm::OpCallContext::ExecDefault,
+                          nullptr,
+                          nullptr);
   }
 
   /* clear and setup matrix */
@@ -346,7 +350,7 @@ void ED_spacetype_console()
   ARegionType *art;
 
   st->spaceid = SPACE_CONSOLE;
-  STRNCPY(st->name, "Console");
+  STRNCPY_UTF8(st->name, "Console");
 
   st->create = console_create;
   st->free = console_free;
@@ -359,7 +363,7 @@ void ED_spacetype_console()
   st->blend_write = console_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype console region"));
+  art = MEM_callocN<ARegionType>("spacetype console region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
 
@@ -372,7 +376,7 @@ void ED_spacetype_console()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype console region"));
+  art = MEM_callocN<ARegionType>("spacetype console region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;

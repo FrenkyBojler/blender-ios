@@ -23,14 +23,10 @@
 #include "IMB_imbuf_types.hh"
 #include "imbuf.hh"
 
-#define UTIL_DEBUG 0
+#include "CLG_log.h"
 
-/**
- * Known image extensions, in most cases these match values
- * for images which Blender creates, there are some exceptions to this.
- *
- * See #BKE_image_path_ext_from_imformat which also stores known extensions.
- */
+static CLG_LogRef LOG = {"image.read"};
+
 const char *imb_ext_image[] = {
     /* #IMB_FTYPE_PNG */
     ".png",
@@ -52,7 +48,7 @@ const char *imb_ext_image[] = {
      * supported by various render engines texture caching systems.
      * These are typically TIFF or EXR images. See the tool `maketx` from OpenImageIO. */
     ".tx",
-#ifdef WITH_OPENJPEG
+#ifdef WITH_IMAGE_OPENJPEG
     /* #IMB_FTYPE_JP2 */
     ".jp2",
     ".j2c",
@@ -61,13 +57,13 @@ const char *imb_ext_image[] = {
     ".hdr",
     /* #IMB_FTYPE_DDS */
     ".dds",
-#ifdef WITH_CINEON
+#ifdef WITH_IMAGE_CINEON
     /* #IMB_FTYPE_DPX */
     ".dpx",
     /* #IMB_FTYPE_CINEON */
     ".cin",
 #endif
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
     /* #IMB_FTYPE_EXR */
     ".exr",
 #endif
@@ -75,7 +71,7 @@ const char *imb_ext_image[] = {
     ".psd",
     ".pdd",
     ".psb",
-#ifdef WITH_WEBP
+#ifdef WITH_IMAGE_WEBP
     /* #IMB_FTYPE_WEBP */
     ".webp",
 #endif
@@ -120,9 +116,7 @@ static int64_t imb_test_image_read_header_from_filepath(const char *filepath,
 
   BLI_assert(!BLI_path_is_rel(filepath));
 
-  if (UTIL_DEBUG) {
-    printf("%s: loading %s\n", __func__, filepath);
-  }
+  CLOG_TRACE(&LOG, "%s: loading %s", __func__, filepath);
 
   if (BLI_stat(filepath, &st) == -1) {
     return -1;

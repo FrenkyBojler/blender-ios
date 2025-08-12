@@ -393,31 +393,6 @@ void cpack_to_rgb(uint col, float *r_r, float *r_g, float *r_b)
   *r_b = float((col >> 16) & 0xFF) * (1.0f / 255.0f);
 }
 
-void rgb_uchar_to_float(float r_col[3], const uchar col_ub[3])
-{
-  r_col[0] = float(col_ub[0]) * (1.0f / 255.0f);
-  r_col[1] = float(col_ub[1]) * (1.0f / 255.0f);
-  r_col[2] = float(col_ub[2]) * (1.0f / 255.0f);
-}
-
-void rgba_uchar_to_float(float r_col[4], const uchar col_ub[4])
-{
-  r_col[0] = float(col_ub[0]) * (1.0f / 255.0f);
-  r_col[1] = float(col_ub[1]) * (1.0f / 255.0f);
-  r_col[2] = float(col_ub[2]) * (1.0f / 255.0f);
-  r_col[3] = float(col_ub[3]) * (1.0f / 255.0f);
-}
-
-void rgb_float_to_uchar(uchar r_col[3], const float col_f[3])
-{
-  unit_float_to_uchar_clamp_v3(r_col, col_f);
-}
-
-void rgba_float_to_uchar(uchar r_col[4], const float col_f[4])
-{
-  unit_float_to_uchar_clamp_v4(r_col, col_f);
-}
-
 /* ********************************* color transforms ********************************* */
 
 float srgb_to_linearrgb(float c)
@@ -721,11 +696,8 @@ static ushort hipart(const float f)
 
   tmp.f = f;
 
-#ifdef __BIG_ENDIAN__
-  return tmp.us[0];
-#else
+  /* NOTE: this is endianness-sensitive. */
   return tmp.us[1];
-#endif
 }
 
 static float index_to_float(const ushort i)
@@ -748,13 +720,9 @@ static float index_to_float(const ushort i)
     return -FLT_MAX;
   }
 
-#ifdef __BIG_ENDIAN__
-  tmp.us[0] = i;
-  tmp.us[1] = 0x8000;
-#else
+  /* NOTE: this is endianness-sensitive. */
   tmp.us[0] = 0x8000;
   tmp.us[1] = i;
-#endif
 
   return tmp.f;
 }

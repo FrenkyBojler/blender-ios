@@ -16,7 +16,8 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_interface_types.hh"
 
 #include "wm_cursors.hh"
 #include "wm_event_types.hh"
@@ -200,12 +201,12 @@ static void rna_progress_begin(wmWindowManager * /*wm*/, float min, float max)
 static void rna_progress_update(wmWindowManager *wm, float value)
 {
   if (wm_progress_state.is_valid) {
-    /* Map to cursor_time range [0,9999] */
+    /* Map to factor 0..1. */
     wmWindow *win = wm->winactive;
     if (win) {
-      int val = int(10000 * (value - wm_progress_state.min) /
-                    (wm_progress_state.max - wm_progress_state.min));
-      WM_cursor_time(win, val);
+      const float progress_factor = (value - wm_progress_state.min) /
+                                    (wm_progress_state.max - wm_progress_state.min);
+      WM_cursor_progress(win, progress_factor);
     }
   }
 }
@@ -588,7 +589,7 @@ static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
   wmKeyMap *km = nullptr;
   wmKeyMapItem *kmi = WM_key_event_operator(C,
                                             idname_bl,
-                                            wmOperatorCallContext(opcontext),
+                                            blender::wm::OpCallContext(opcontext),
                                             static_cast<IDProperty *>(properties->data),
                                             include_mask,
                                             exclude_mask,
@@ -876,13 +877,9 @@ void RNA_api_wm(StructRNA *srna)
   PropertyRNA *parm;
 
   func = RNA_def_function(srna, "fileselect_add", "WM_event_add_fileselect");
-  RNA_def_function_ui_description(
-      func,
-      "Opens a file selector with an operator. "
-      "The string properties 'filepath', 'filename', 'directory' and a 'files' "
-      "collection are assigned when present in the operator. "
-      "If 'filter_glob' property is present in the operator and it's not empty, "
-      "it will be used as a file filter (example value: '*.zip;*.py;*.exe').");
+  /* Note that a full description is located at:
+   * `doc/python_api/examples/bpy.types.WindowManager.fileselect_add.py`. */
+  RNA_def_function_ui_description(func, "Opens a file selector with an operator.");
   rna_generic_op_invoke(func, 0);
 
   func = RNA_def_function(srna, "modal_handler_add", "rna_event_modal_handler_add");
@@ -1095,9 +1092,9 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_ui_text(
       parm,
       "Is Interface Locked",
-      "If true, the interface is currently locked by a running job and data shouldn't be modified "
-      "from application timers. Otherwise, the running job might conflict with the handler "
-      "causing unexpected results or even crashes.");
+      "If true, the interface is currently locked by a running job and data should not be "
+      "modified from application timers. Otherwise, the running job might conflict with the "
+      "handler causing unexpected results or even crashes.");
   RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 }
 

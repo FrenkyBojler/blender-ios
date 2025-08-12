@@ -11,13 +11,13 @@
 namespace blender {
 
 GVectorArray::GVectorArray(const CPPType &type, const int64_t array_size)
-    : type_(type), element_size_(type.size()), items_(array_size)
+    : type_(type), element_size_(type.size), items_(array_size)
 {
 }
 
 GVectorArray::~GVectorArray()
 {
-  if (type_.is_trivially_destructible()) {
+  if (type_.is_trivially_destructible) {
     return;
   }
   for (Item &item : items_) {
@@ -50,7 +50,7 @@ void GVectorArray::extend(const int64_t index, const GVArray &values)
 
 void GVectorArray::extend(const int64_t index, const GSpan values)
 {
-  this->extend(index, GVArray::ForSpan(values));
+  this->extend(index, GVArray::from_span(values));
 }
 
 void GVectorArray::extend(const IndexMask &mask, const GVVectorArray &values)
@@ -92,7 +92,7 @@ void GVectorArray::realloc_to_at_least(Item &item, int64_t min_capacity)
 {
   const int64_t new_capacity = std::max(min_capacity, item.length * 2);
 
-  void *new_buffer = allocator_.allocate(element_size_ * new_capacity, type_.alignment());
+  void *new_buffer = allocator_.allocate(element_size_ * new_capacity, type_.alignment);
   type_.relocate_assign_n(item.start, new_buffer, item.length);
 
   item.start = new_buffer;

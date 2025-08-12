@@ -295,7 +295,7 @@ static float compute_collision_point_tri_tri(const float a1[3],
       }
     }
 
-    /* If no point is found, will fallback onto regular proximity test below. */
+    /* If no point is found, will fall back onto regular proximity test below. */
     if (found) {
       sub_v3_v3v3(r_vec, r_b, r_a);
 
@@ -482,7 +482,7 @@ static float compute_collision_point_edge_tri(const float a1[3],
       }
     }
 
-    /* If no point is found, will fallback onto regular proximity test below. */
+    /* If no point is found, will fall back onto regular proximity test below. */
     if (found) {
       sub_v3_v3v3(r_vec, r_b, r_a);
 
@@ -1297,7 +1297,7 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
 
   LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
     /* Get evaluated object. */
-    Object *ob = (Object *)DEG_get_evaluated_id(depsgraph, &relation->ob->id);
+    Object *ob = DEG_get_evaluated(depsgraph, relation->ob);
 
     if (modifier_type == eModifierType_Collision && !(ob->pd && ob->pd->deflect)) {
       continue;
@@ -1337,7 +1337,7 @@ ListBase *BKE_collider_cache_create(Depsgraph *depsgraph, Object *self, Collecti
 
   LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
     /* Get evaluated object. */
-    Object *ob = (Object *)DEG_get_evaluated_id(depsgraph, &relation->ob->id);
+    Object *ob = DEG_get_evaluated(depsgraph, relation->ob);
 
     if (ob == self) {
       continue;

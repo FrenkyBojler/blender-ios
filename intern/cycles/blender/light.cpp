@@ -4,6 +4,10 @@
 
 #include "scene/light.h"
 
+#include "DNA_light_types.h"
+
+#include "IMB_colormanagement.hh"
+
 #include "blender/sync.h"
 #include "blender/util.h"
 #include "scene/object.h"
@@ -74,9 +78,18 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
     }
   }
 
-  /* strength */
-  const float3 strength = get_float3(b_light.color()) * BL::PointLight(b_light).energy();
+  /* Color and strength. */
+  float3 light_color = get_float3(b_light.color());
+  if (b_light.use_temperature()) {
+    light_color *= get_float3(b_light.temperature_color());
+  }
+
+  const float3 strength = light_color * BL::PointLight(b_light).energy() *
+                          exp2f(b_light.exposure());
   light->set_strength(strength);
+
+  /* normalize */
+  light->set_normalize(b_light.normalize());
 
   /* shadow */
   PointerRNA clight = RNA_pointer_get(&b_light.ptr, "cycles");
@@ -123,6 +136,7 @@ void BlenderSync::sync_background_light(BL::SpaceView3D &b_v3d)
       if (update) {
         /* Lights should be shadow catchers by default. */
         object->set_is_shadow_catcher(true);
+        object->set_lightgroup(ustring(b_world ? b_world.lightgroup() : ""));
       }
 
       /* Create geometry. */

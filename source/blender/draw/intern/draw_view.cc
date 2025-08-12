@@ -18,9 +18,7 @@
 #include "draw_shader.hh"
 #include "draw_view.hh"
 
-#ifdef _DEBUG
-#  include "draw_debug.hh"
-#endif
+#include "draw_debug.hh"
 
 namespace blender::draw {
 
@@ -49,9 +47,9 @@ void View::frustum_boundbox_calc(int view_id)
 {
   /* Extract the 8 corners from a Projection Matrix. */
 #if 0 /* Equivalent to this but it has accuracy problems. */
-  BKE_boundbox_init_from_minmax(&bbox, float3(-1.0f), float3(1.0f));
+  std::array<float3, 8> box = bounds::corners(Bounds<float3>(float3 (-1), float3 (1)));
   for (int i = 0; i < 8; i++) {
-    mul_project_m4_v3(data_.wininv.ptr(), bbox.vec[i]);
+    mul_project_m4_v3(data_.wininv.ptr(), box[i]);
   }
 #endif
 
@@ -246,7 +244,7 @@ void View::compute_procedural_bounds()
 
   GPU_debug_group_begin("View.compute_procedural_bounds");
 
-  GPUShader *shader = DRW_shader_draw_view_finalize_get();
+  gpu::Shader *shader = DRW_shader_draw_view_finalize_get();
   GPU_shader_bind(shader);
   GPU_uniformbuf_bind_as_ssbo(culling_, GPU_shader_get_ssbo_binding(shader, "view_culling_buf"));
   GPU_uniformbuf_bind(data_, DRW_VIEW_UBO_SLOT);
@@ -267,12 +265,10 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
     culling_freeze_[0] = static_cast<ViewCullingData>(culling_[0]);
     culling_freeze_.push_update();
   }
-#ifdef WITH_DRAW_DEBUG
   if (debug_freeze) {
     float4x4 persmat = data_freeze_[0].winmat * data_freeze_[0].viewmat;
     drw_debug_matrix_as_bbox(math::invert(persmat), float4(0, 1, 0, 1));
   }
-#endif
   frozen_ = debug_freeze;
 
   GPU_debug_group_begin("View.compute_visibility");
@@ -291,7 +287,7 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
   GPU_storagebuf_clear(visibility_buf_, data);
 
   if (do_visibility_) {
-    GPUShader *shader = DRW_shader_draw_visibility_compute_get();
+    gpu::Shader *shader = DRW_shader_draw_visibility_compute_get();
     GPU_shader_bind(shader);
     GPU_shader_uniform_1i(shader, "resource_len", resource_len);
     GPU_shader_uniform_1i(shader, "view_len", view_len_);

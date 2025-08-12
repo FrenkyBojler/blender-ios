@@ -15,7 +15,6 @@
 
 #include <fmt/format.h>
 
-#include "BLI_endian_switch.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_set.hh"
@@ -41,7 +40,7 @@
  */
 #define IDP_ARRAY_REALLOC_LIMIT 200
 
-static CLG_LogRef LOG = {"bke.idprop"};
+static CLG_LogRef LOG = {"lib.idprop"};
 
 /** Local size table, aligned with #eIDPropertyType. */
 static size_t idp_size_table[] = {
@@ -325,12 +324,13 @@ static IDProperty *idp_generic_copy(const IDProperty *prop, const int /*flag*/)
 
 static IDProperty *IDP_CopyArray(const IDProperty *prop, const int flag)
 {
+  BLI_assert(prop->type == IDP_ARRAY);
   IDProperty *newp = idp_generic_copy(prop, flag);
 
   if (prop->data.pointer) {
     newp->data.pointer = MEM_dupallocN(prop->data.pointer);
 
-    if (prop->type == IDP_GROUP) {
+    if (prop->subtype == IDP_GROUP) {
       IDProperty **array = static_cast<IDProperty **>(newp->data.pointer);
       int a;
 
@@ -651,14 +651,17 @@ void IDP_ReplaceGroupInGroup(IDProperty *dest, const IDProperty *src)
   }
 }
 
-void IDP_ReplaceInGroup_ex(IDProperty *group, IDProperty *prop, IDProperty *prop_exist)
+void IDP_ReplaceInGroup_ex(IDProperty *group,
+                           IDProperty *prop,
+                           IDProperty *prop_exist,
+                           const int flag)
 {
   BLI_assert(group->type == IDP_GROUP);
   BLI_assert(prop_exist == IDP_GetPropertyFromGroup(group, prop->name));
 
   if (prop_exist != nullptr) {
     BLI_insertlinkreplace(&group->data.group, prop_exist, prop);
-    IDP_FreeProperty(prop_exist);
+    IDP_FreeProperty_ex(prop_exist, (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0);
   }
   else {
     group->len++;
@@ -670,7 +673,7 @@ void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
 {
   IDProperty *prop_exist = IDP_GetPropertyFromGroup(group, prop->name);
 
-  IDP_ReplaceInGroup_ex(group, prop, prop_exist);
+  IDP_ReplaceInGroup_ex(group, prop, prop_exist, 0);
 }
 
 void IDP_MergeGroup_ex(IDProperty *dest,
@@ -693,7 +696,7 @@ void IDP_MergeGroup_ex(IDProperty *dest,
       }
 
       IDProperty *copy = IDP_CopyProperty_ex(prop, flag);
-      IDP_ReplaceInGroup(dest, copy);
+      IDP_ReplaceInGroup_ex(dest, copy, IDP_GetPropertyFromGroup(dest, copy->name), flag);
     }
   }
   else {
@@ -766,6 +769,13 @@ IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop, const blender::Stri
   return BLI_listbase_find<IDProperty>(prop->data.group,
                                        [&](const IDProperty &elem) { return elem.name == name; });
 }
+
+IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop, const char *name)
+{
+  BLI_assert(prop->type == IDP_GROUP);
+  return (IDProperty *)BLI_findstring(&prop->data.group, name, offsetof(IDProperty, name));
+}
+
 IDProperty *IDP_GetPropertyTypeFromGroup(const IDProperty *prop,
                                          const blender::StringRef name,
                                          const char type)
@@ -890,6 +900,24 @@ IDProperty *IDP_EnsureProperties(ID *id)
     // STRNCPY(id->name, "top_level_group");
   }
   return id->properties;
+}
+
+IDProperty *IDP_ID_system_properties_get(ID *id)
+{
+  return id->system_properties;
+}
+
+IDProperty *IDP_ID_system_properties_ensure(ID *id)
+{
+  if (id->system_properties == nullptr) {
+    id->system_properties = MEM_callocN<IDProperty>(__func__);
+    id->system_properties->type = IDP_GROUP;
+    /* NOTE(@ideasman42): Don't overwrite the data's name and type
+     * some functions might need this if they
+     * don't have a real ID, should be named elsewhere. */
+    // STRNCPY(id->name, "top_level_group");
+  }
+  return id->system_properties;
 }
 
 bool IDP_EqualsProperties_ex(const IDProperty *prop1,
@@ -1618,18 +1646,12 @@ static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader)
       IDP_DirectLinkIDPArray(prop, reader);
       break;
     case IDP_DOUBLE:
-      /* Workaround for doubles.
-       * They are stored in the same field as `int val, val2` in the #IDPropertyData struct,
-       * they have to deal with endianness specifically.
+      /* NOTE: this is endianness-sensitive. */
+      /* Doubles are stored in the same field as `int val, val2` in the #IDPropertyData struct.
        *
-       * In theory, val and val2 would've already been swapped
-       * if switch_endian is true, so we have to first un-swap
-       * them then re-swap them as a single 64-bit entity. */
-      if (BLO_read_requires_endian_switch(reader)) {
-        BLI_endian_switch_int32(&prop->data.val);
-        BLI_endian_switch_int32(&prop->data.val2);
-        BLI_endian_switch_int64((int64_t *)&prop->data.val);
-      }
+       * In case of endianness switching, `val` and `val2` would have already been switched by the
+       * generic reading code, so they would need to be first un-switched individually, and then
+       * re-switched as a single 64-bit entity. */
       break;
     case IDP_INT:
     case IDP_FLOAT:

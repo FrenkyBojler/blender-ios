@@ -246,6 +246,9 @@ ViewOpsData *viewops_data_create(bContext *C,
                                  const wmEvent *event,
                                  const ViewOpsType *nav_type,
                                  const bool use_cursor_init);
+/**
+ * \param align_to_quat: When not nullptr, set the axis relative to this rotation.
+ */
 void axis_set_view(bContext *C,
                    View3D *v3d,
                    ARegion *region,
@@ -283,7 +286,7 @@ struct wmNDOFMotionData;
 /**
  * Called from both fly mode and walk mode,
  */
-void view3d_ndof_fly(const wmNDOFMotionData *ndof,
+void view3d_ndof_fly(const wmNDOFMotionData &ndof,
                      View3D *v3d,
                      RegionView3D *rv3d,
                      bool use_precision,

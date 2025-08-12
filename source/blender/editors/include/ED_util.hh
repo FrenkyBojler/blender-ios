@@ -75,7 +75,19 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *region, void *arg_
  * \note Keep in sync with #BKE_image_stamp_buf.
  */
 void ED_region_image_metadata_draw(
-    int x, int y, ImBuf *ibuf, const rctf *frame, float zoomx, float zoomy);
+    int x, int y, const ImBuf *ibuf, const rctf *frame, float zoomx, float zoomy);
+
+void ED_region_image_overlay_info_text_draw(const int render_size_x,
+                                            const int render_size_y,
+
+                                            const int viewer_size_x,
+                                            const int viewer_size_y,
+
+                                            const int draw_offset_x,
+                                            const int draw_offset_y);
+
+void ED_region_image_render_region_draw(
+    int x, int y, const rcti *frame, float zoomx, float zoomy, float passepartout_alpha);
 
 /* Slider */
 
@@ -108,7 +120,7 @@ void ED_slider_factor_set(tSlider *slider, float factor);
 /**
  * By default the increment step is 0.1, which depending on the factor bounds might not be desired.
  * Only has an effect if increment is allowed and enabled.
- * See `ED_slider_allow_increments_set`.
+ * See #ED_slider_allow_increments_set.
  * \param increment_step: cannot be 0.
  */
 void ED_slider_increment_step_set(tSlider *slider, float increment_step);

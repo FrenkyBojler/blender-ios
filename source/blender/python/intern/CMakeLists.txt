@@ -8,7 +8,6 @@ set(INC
   ../../imbuf/intern/oiio
   ../../makesrna
   ../../../../intern/mantaflow/extern
-  ../../../../intern/opencolorio
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -65,7 +64,6 @@ set(SRC
   bpy_traceback.cc
   bpy_utils_previews.cc
   bpy_utils_units.cc
-  stubs.cc
 
   bpy.hh
   bpy_app.hh
@@ -131,6 +129,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   bf_python_gpu
+  PRIVATE bf::imbuf::opencolorio
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
@@ -228,19 +227,19 @@ if(WITH_FREESTYLE)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
-if(WITH_WEBP)
-  add_definitions(-DWITH_WEBP)
+if(WITH_IMAGE_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_INPUT_NDOF)
@@ -301,10 +300,6 @@ if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
 endif()
 
-if(WITH_OPENCOLLADA)
-  add_definitions(-DWITH_COLLADA)
-endif()
-
 if(WITH_IO_WAVEFRONT_OBJ)
   add_definitions(-DWITH_IO_WAVEFRONT_OBJ)
 endif()
@@ -317,16 +312,16 @@ if(WITH_IO_STL)
   add_definitions(-DWITH_IO_STL)
 endif()
 
+if(WITH_IO_FBX)
+  add_definitions(-DWITH_IO_FBX)
+endif()
+
 if(WITH_IO_GREASE_PENCIL)
   add_definitions(-DWITH_IO_GREASE_PENCIL)
 endif()
 
 if(WITH_ALEMBIC)
   add_definitions(-DWITH_ALEMBIC)
-endif()
-
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
 endif()
 
 if(WITH_OPENVDB)
@@ -378,6 +373,10 @@ if(WITH_HYDRA)
     bf_render_hydra
   )
   add_definitions(-DWITH_HYDRA)
+endif()
+
+if(WITH_EXPERIMENTAL_FEATURES)
+  add_definitions(-DWITH_EXPERIMENTAL_FEATURES)
 endif()
 
 blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

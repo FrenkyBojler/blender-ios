@@ -7,12 +7,12 @@
  */
 
 #include "BLI_rand.h"
+#include "BLI_smaa_textures.h"
+
 #include "DNA_scene_types.h"
 #include "DRW_render.hh"
 
 #include "gpencil_engine_private.hh"
-
-#include "BLI_smaa_textures.h"
 
 namespace blender::draw::gpencil {
 
@@ -28,22 +28,24 @@ void Instance::antialiasing_init()
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_CUSTOM);
     pass.shader_set(ShaderCache::get().antialiasing[2].get());
-    pass.bind_texture("blendTex", &this->color_tx);
-    pass.bind_texture("colorTex", &this->color_tx);
-    pass.bind_texture("revealTex", &this->reveal_tx);
-    pass.push_constant("doAntiAliasing", false);
-    pass.push_constant("onlyAlpha", this->draw_wireframe);
-    pass.push_constant("viewportMetrics", metrics);
+    pass.bind_texture("blend_tx", &this->color_tx);
+    pass.bind_texture("color_tx", &this->color_tx);
+    pass.bind_texture("reveal_tx", &this->reveal_tx);
+    pass.push_constant("do_anti_aliasing", false);
+    pass.push_constant("only_alpha", this->draw_wireframe);
+    pass.push_constant("viewport_metrics", metrics);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     return;
   }
 
   if (!this->smaa_search_tx.is_valid()) {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
-    this->smaa_search_tx.ensure_2d(GPU_R8, int2(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT), usage);
+    this->smaa_search_tx.ensure_2d(
+        gpu::TextureFormat::UNORM_8, int2(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT), usage);
     GPU_texture_update(this->smaa_search_tx, GPU_DATA_UBYTE, searchTexBytes);
 
-    this->smaa_area_tx.ensure_2d(GPU_RG8, int2(AREATEX_WIDTH, AREATEX_HEIGHT), usage);
+    this->smaa_area_tx.ensure_2d(
+        gpu::TextureFormat::UNORM_8_8, int2(AREATEX_WIDTH, AREATEX_HEIGHT), usage);
     GPU_texture_update(this->smaa_area_tx, GPU_DATA_UBYTE, areaTexBytes);
 
     GPU_texture_filter_mode(this->smaa_search_tx, true);
@@ -52,8 +54,8 @@ void Instance::antialiasing_init()
 
   {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
-    this->smaa_edge_tx.acquire(size, GPU_RG8, usage);
-    this->smaa_weight_tx.acquire(size, GPU_RGBA8, usage);
+    this->smaa_edge_tx.acquire(size, gpu::TextureFormat::UNORM_8_8, usage);
+    this->smaa_weight_tx.acquire(size, gpu::TextureFormat::UNORM_8_8_8_8, usage);
 
     this->smaa_edge_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(this->smaa_edge_tx));
     this->smaa_weight_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(this->smaa_weight_tx));
@@ -69,10 +71,10 @@ void Instance::antialiasing_init()
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.shader_set(ShaderCache::get().antialiasing[0].get());
-    pass.bind_texture("colorTex", &this->color_tx);
-    pass.bind_texture("revealTex", &this->reveal_tx);
-    pass.push_constant("viewportMetrics", metrics);
-    pass.push_constant("lumaWeight", luma_weight);
+    pass.bind_texture("color_tx", &this->color_tx);
+    pass.bind_texture("reveal_tx", &this->reveal_tx);
+    pass.push_constant("viewport_metrics", metrics);
+    pass.push_constant("luma_weight", luma_weight);
     pass.clear_color(float4(0.0f));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
@@ -82,10 +84,10 @@ void Instance::antialiasing_init()
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR);
     pass.shader_set(ShaderCache::get().antialiasing[1].get());
-    pass.bind_texture("edgesTex", &this->smaa_edge_tx);
-    pass.bind_texture("areaTex", &this->smaa_area_tx);
-    pass.bind_texture("searchTex", &this->smaa_search_tx);
-    pass.push_constant("viewportMetrics", metrics);
+    pass.bind_texture("edges_tx", &this->smaa_edge_tx);
+    pass.bind_texture("area_tx", &this->smaa_area_tx);
+    pass.bind_texture("search_tx", &this->smaa_search_tx);
+    pass.push_constant("viewport_metrics", metrics);
     pass.clear_color(float4(0.0f));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
@@ -95,12 +97,12 @@ void Instance::antialiasing_init()
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_CUSTOM);
     pass.shader_set(ShaderCache::get().antialiasing[2].get());
-    pass.bind_texture("blendTex", &this->smaa_weight_tx);
-    pass.bind_texture("colorTex", &this->color_tx);
-    pass.bind_texture("revealTex", &this->reveal_tx);
-    pass.push_constant("doAntiAliasing", true);
-    pass.push_constant("onlyAlpha", this->draw_wireframe);
-    pass.push_constant("viewportMetrics", metrics);
+    pass.bind_texture("blend_tx", &this->smaa_weight_tx);
+    pass.bind_texture("color_tx", &this->color_tx);
+    pass.bind_texture("reveal_tx", &this->reveal_tx);
+    pass.push_constant("do_anti_aliasing", true);
+    pass.push_constant("only_alpha", this->draw_wireframe);
+    pass.push_constant("viewport_metrics", metrics);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 }
@@ -117,6 +119,12 @@ void Instance::antialiasing_draw(Manager &manager)
 
   GPU_framebuffer_bind(this->scene_fb);
   manager.submit(this->smaa_resolve_ps);
+
+  if (this->use_separate_pass) {
+    GPU_framebuffer_bind(this->gpencil_pass_fb);
+    GPU_framebuffer_clear(this->gpencil_pass_fb, GPU_COLOR_BIT, float4(0, 0, 0, 0), 0, 0);
+    manager.submit(this->smaa_resolve_ps);
+  }
 }
 
 static float erfinv_approx(const float x)
@@ -187,7 +195,7 @@ void Instance::antialiasing_accumulate(Manager &manager, const float alpha)
 
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
                                  GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_ATTACHMENT;
-  accumulation_tx.ensure_2d(GPENCIL_ACCUM_FORMAT, size, usage);
+  accumulation_tx.ensure_2d(gpu::TextureFormat::GPENCIL_ACCUM_FORMAT, size, usage);
 
   {
     PassSimple &pass = this->accumulate_ps;
