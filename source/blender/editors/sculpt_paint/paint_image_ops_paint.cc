@@ -20,6 +20,7 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_undo_system.hh"
+#include "BKE_colortools.hh"
 
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
@@ -363,7 +364,12 @@ static void paint_stroke_update_step(bContext *C,
   }
 
   if (BKE_brush_use_alpha_pressure(brush)) {
-    BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * pressure * alphafac));
+    float pressure_eval = pressure;
+    if (brush->curve_paint_strength) {
+      BKE_curvemapping_init(brush->curve_paint_strength);
+      pressure_eval = BKE_curvemapping_evaluateF(brush->curve_paint_strength, 0, pressure);
+    }
+    BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * pressure_eval * alphafac));
   }
   else {
     BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * alphafac));

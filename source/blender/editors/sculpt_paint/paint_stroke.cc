@@ -346,6 +346,12 @@ bool paint_brush_update(bContext *C,
     copy_v2_v2(paint_runtime.tex_mouse, mouse);
     copy_v2_v2(paint_runtime.mask_tex_mouse, mouse);
     stroke->cached_size_pressure = pressure;
+    /* Remap size pressure via curve if available. */
+    if (brush.curve_paint_size) {
+      BKE_curvemapping_init(brush.curve_paint_size);
+      stroke->cached_size_pressure = BKE_curvemapping_evaluateF(
+          brush.curve_paint_size, 0, stroke->cached_size_pressure);
+    }
   }
 
   /* Truly temporary data that isn't stored in properties */
@@ -530,7 +536,12 @@ void paint_stroke_jitter_pos(const PaintStroke &stroke,
     float factor = stroke.zoom_2d;
 
     if (brush.flag & BRUSH_JITTER_PRESSURE) {
-      factor *= pressure;
+      float pressure_eval = pressure;
+      if (brush.curve_paint_jitter) {
+        BKE_curvemapping_init(brush.curve_paint_jitter);
+        pressure_eval = BKE_curvemapping_evaluateF(brush.curve_paint_jitter, 0, pressure);
+      }
+      factor *= pressure_eval;
     }
 
     BKE_brush_jitter_pos(*stroke.paint, brush, mval, r_mouse_out);
