@@ -192,13 +192,15 @@ Vector<int> calculate_multiplicity_sequence(const Span<float> knots)
 
 static void calculate_basis_for_point(const Span<float> knots,
                                       const int degree,
-                                      const int wrapped_points_num,
                                       const float parameter,
                                       const int span_index,
                                       MutableSpan<float> r_weights,
                                       int &r_start_index)
 {
+  BLI_assert(degree >= 1);
   BLI_assert(span_index >= degree);
+  BLI_assert(span_index + degree < knots.size());
+  BLI_assert(knots[span_index + 1] > knots[span_index]);
   const int order = degree + 1;
 
   r_start_index = span_index - degree;
@@ -277,7 +279,6 @@ void calculate_basis_cache(const int points_num,
         const float parameter = knots[span_index] + step * knot_step;
         calculate_basis_for_point(knots,
                                   degree,
-                                  wrapped_points_num,
                                   parameter,
                                   span_index,
                                   basis_weights.slice(eval_point * order, order),
@@ -289,7 +290,6 @@ void calculate_basis_cache(const int points_num,
   if (!cyclic) {
     calculate_basis_for_point(knots,
                               degree,
-                              wrapped_points_num,
                               knots[wrapped_points_num],
                               span_offsets.last(),
                               basis_weights.slice(basis_weights.size() - order, order),
