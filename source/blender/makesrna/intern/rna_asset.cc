@@ -10,6 +10,8 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_blendfile.hh"
+
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -89,8 +91,8 @@ static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
 int rna_AssetMetaData_editable(const PointerRNA * /* ptr */, const char ** /* r_info */)
 {
   /* Ideally the metadata would not be editable if the asset is from a library that cannot be
-   * edited. But since the AssetMetaData does not know anything about the asset or library it is
-   * for we just make it editable and deal with the disabling of properties on the GUI/operator
+   * edited. But since the AssetMetaData does not know anything about the asset or library,
+   *  we just make it editable and deal with the disabling of properties on the GUI/operator
    * side. */
   return PROP_EDITABLE;
 }
@@ -423,6 +425,15 @@ static void rna_AssetRepresentation_full_library_path_get(PointerRNA *ptr, char 
   BLI_strncpy(value, full_library_path.c_str(), full_library_path.size() + 1);
 }
 
+static bool rna_AssetRepresentation_is_editable_get(PointerRNA *ptr)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  if (asset->is_local_id()) {
+    return true;
+  }
+  return blender::StringRef(asset->full_library_path()).endswith(BLENDER_ASSET_FILE_SUFFIX);
+}
+
 static int rna_AssetRepresentation_full_library_path_length(PointerRNA *ptr)
 {
   const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
@@ -652,6 +663,12 @@ static void rna_def_asset_representation(BlenderRNA *brna)
                            "",
                            "The local data-block this asset represents; only valid if that is a "
                            "data-block in this file");
+
+  prop = RNA_def_property(srna, "is_editable", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_AssetRepresentation_is_editable_get", nullptr);
+  RNA_def_property_ui_text(
+      prop, "Is Editable", "Returns true if this asset can be edited and saved");
 
   prop = RNA_def_property(srna, "full_library_path", PROP_STRING, PROP_FILENAME);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

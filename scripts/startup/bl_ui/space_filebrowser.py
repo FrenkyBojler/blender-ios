@@ -788,13 +788,15 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
         row.operator("asset.open_containing_blend_file", text="", icon='TOOL_SETTINGS')
 
         metadata = asset.metadata
-        self.metadata_prop(layout, metadata, "description")
-        self.metadata_prop(layout, metadata, "license")
-        self.metadata_prop(layout, metadata, "copyright")
-        self.metadata_prop(layout, metadata, "author")
+        column = layout.column()
+        column.enabled = asset.is_editable
+        self.metadata_prop(column, metadata, "description")
+        self.metadata_prop(column, metadata, "license")
+        self.metadata_prop(column, metadata, "copyright")
+        self.metadata_prop(column, metadata, "author")
         if not is_local_asset:
             # For a local asset, the operator is not needed because the fields can be edited directly.
-            layout.operator("asset.asset_save_metadata")
+            column.operator("asset.asset_save_metadata")
 
 
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
