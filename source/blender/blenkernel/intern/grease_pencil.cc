@@ -858,7 +858,7 @@ VArray<bool> Drawing::is_stroke() const
 MutableSpan<bool> Drawing::is_stroke_for_write()
 {
   return get_mutable_attribute<bool>(
-      this->strokes_for_write(), AttrDomain::Curve, "is_stroke", true);
+      this->strokes_for_write().attribute_storage.wrap(), AttrDomain::Curve, "is_stroke", true);
 }
 
 VArray<bool> Drawing::is_fill() const
@@ -869,7 +869,7 @@ VArray<bool> Drawing::is_fill() const
 MutableSpan<bool> Drawing::is_fill_for_write()
 {
   return get_mutable_attribute<bool>(
-      this->strokes_for_write(), AttrDomain::Curve, "is_fill", false);
+      this->strokes_for_write().attribute_storage.wrap(), AttrDomain::Curve, "is_fill", false);
 }
 
 void Drawing::tag_texture_matrices_changed()

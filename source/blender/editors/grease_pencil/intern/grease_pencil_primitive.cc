@@ -592,7 +592,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   bke::SpanAttributeWriter<bool> use_stroke = attributes.lookup_or_add_for_write_span<bool>(
       "is_stroke",
       bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<bool>::ForSingle(true, curves.curves_num())));
+      bke::AttributeInitVArray(VArray<bool>::from_single(true, curves.curves_num())));
   bke::SpanAttributeWriter<bool> use_fill = attributes.lookup_or_add_for_write_span<bool>(
       "is_fill", bke::AttrDomain::Curve);
   use_stroke.span[target_curve_index] = (ptd.settings->flag2 & GP_BRUSH_USE_STROKE) != 0;
