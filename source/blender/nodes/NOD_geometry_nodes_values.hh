@@ -33,6 +33,13 @@ struct GeoNodesUserData;
 
 namespace blender::nodes {
 
+template<typename T> struct GeoNodesMultiInput {
+  using value_type = T;
+  Vector<T> values;
+};
+template<typename T> constexpr bool is_GeoNodesMultiInput_v = false;
+template<typename T> constexpr bool is_GeoNodesMultiInput_v<GeoNodesMultiInput<T>> = true;
+
 /**
  * Executes a multi-function. If all inputs are single values, the results will also be single
  * values. If any input is a field, the outputs will also be fields.

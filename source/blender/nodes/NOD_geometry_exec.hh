@@ -109,21 +109,22 @@ class GeoNodeExecParams {
     this->check_input_access(identifier);
 #endif
     const int index = this->get_input_index(identifier);
-    if constexpr (is_Vector_v<T>) {
+    if constexpr (is_GeoNodesMultiInput_v<T>) {
       using ValueT = typename T::value_type;
       BLI_assert(node_.input_by_identifier(identifier)->is_multi_input());
       if constexpr (std::is_same_v<ValueT, SocketValueVariant>) {
         return params_.extract_input<T>(index);
       }
       else {
-        auto values_variants = params_.extract_input<Vector<SocketValueVariant>>(index);
-        Vector<ValueT> values(values_variants.size());
-        for (const int i : values_variants.index_range()) {
-          values[i] = values_variants[i].extract<ValueT>();
+        auto values_variants = params_.extract_input<GeoNodesMultiInput<SocketValueVariant>>(
+            index);
+        GeoNodesMultiInput<ValueT> values;
+        values.values.reserve(values_variants.values.size());
+        for (const int i : values_variants.values.index_range()) {
+          values.values.append(values_variants.values[i].extract<ValueT>());
         }
         return values;
       }
-      return params_.extract_input<T>(index);
     }
     else {
       SocketValueVariant value_variant = params_.extract_input<SocketValueVariant>(index);
@@ -155,8 +156,20 @@ class GeoNodeExecParams {
     this->check_input_access(identifier);
 #endif
     const int index = this->get_input_index(identifier);
-    if constexpr (is_Vector_v<T>) {
-      return params_.get_input<T>(index);
+    if constexpr (is_GeoNodesMultiInput_v<T>) {
+      using ValueT = typename T::value_type;
+      BLI_assert(node_.input_by_identifier(identifier)->is_multi_input());
+      if constexpr (std::is_same_v<ValueT, SocketValueVariant>) {
+        return params_.get_input<T>(index);
+      }
+      else {
+        auto values_variants = params_.get_input<GeoNodesMultiInput<SocketValueVariant>>(index);
+        Vector<ValueT> values(values_variants.values.size());
+        for (const int i : values_variants.values.index_range()) {
+          values[i] = values_variants.values[i].extract<ValueT>();
+        }
+        return values;
+      }
     }
     else {
       const SocketValueVariant &value_variant = params_.get_input<SocketValueVariant>(index);
