@@ -509,31 +509,6 @@ void fsmenu_free()
   fsmenu_free_ex(&g_fsmenu);
 }
 
-static void fsmenu_copy_category(FSMenu *fsmenu_dst,
-                                 FSMenu *fsmenu_src,
-                                 const FSMenuCategory category)
-{
-  FSMenuEntry *fsm_dst_prev = nullptr, *fsm_dst_head = nullptr;
-  FSMenuEntry *fsm_src_iter = ED_fsmenu_get_category(fsmenu_src, category);
-
-  for (; fsm_src_iter != nullptr; fsm_src_iter = fsm_src_iter->next) {
-    FSMenuEntry *fsm_dst = static_cast<FSMenuEntry *>(MEM_dupallocN(fsm_src_iter));
-    if (fsm_dst->path != nullptr) {
-      fsm_dst->path = static_cast<char *>(MEM_dupallocN(fsm_dst->path));
-    }
-
-    if (fsm_dst_prev != nullptr) {
-      fsm_dst_prev->next = fsm_dst;
-    }
-    else {
-      fsm_dst_head = fsm_dst;
-    }
-    fsm_dst_prev = fsm_dst;
-  }
-
-  ED_fsmenu_set_category(fsmenu_dst, category, fsm_dst_head);
-}
-
 int fsmenu_get_active_indices(FSMenu *fsmenu, enum FSMenuCategory category, const char *dir)
 {
   FSMenuEntry *fsm_iter = ED_fsmenu_get_category(fsmenu, category);
