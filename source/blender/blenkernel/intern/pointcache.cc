@@ -1629,20 +1629,6 @@ static bool ptcache_file_data_read(PTCacheFile *pf)
 
   return true;
 }
-static int ptcache_file_data_write(PTCacheFile *pf)
-{
-  int i;
-
-  for (i = 0; i < BPHYS_TOT_DATA; i++) {
-    if ((pf->data_types & (1 << i)) &&
-        !ptcache_file_write(pf, pf->cur[i], 1, ptcache_data_size[i]))
-    {
-      return 0;
-    }
-  }
-
-  return 1;
-}
 static int ptcache_file_header_begin_read(PTCacheFile *pf)
 {
   uint typeflag = 0;
