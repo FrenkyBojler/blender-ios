@@ -10,8 +10,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_blendfile.hh"
-
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -431,13 +429,6 @@ static void rna_AssetRepresentation_full_library_path_get(PointerRNA *ptr, char 
   BLI_strncpy(value, full_library_path.c_str(), full_library_path.size() + 1);
 }
 
-static bool rna_AssetRepresentation_is_editable_get(PointerRNA *ptr)
-{
-  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
-  const bool foo = asset->is_editable();
-  return foo;
-}
-
 static int rna_AssetRepresentation_full_library_path_length(PointerRNA *ptr)
 {
   const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
@@ -667,12 +658,6 @@ static void rna_def_asset_representation(BlenderRNA *brna)
                            "",
                            "The local data-block this asset represents; only valid if that is a "
                            "data-block in this file");
-
-  prop = RNA_def_property(srna, "is_editable", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_funcs(prop, "rna_AssetRepresentation_is_editable_get", nullptr);
-  RNA_def_property_ui_text(
-      prop, "Is Editable", "Returns true if this asset can be edited and saved");
 
   prop = RNA_def_property(srna, "full_library_path", PROP_STRING, PROP_FILENAME);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
