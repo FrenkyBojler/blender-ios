@@ -4,7 +4,7 @@
 
 /** \file
  * \ingroup edgreasepencil
- * Operator for creating splines in Grease Pencil.
+ * Operator for creating bézier splines in Grease Pencil.
  */
 
 #include "BKE_attribute.hh"
