@@ -61,6 +61,7 @@ enum class ElementMode : int8_t {
 };
 
 struct ClosestElement {
+  float distance_squared = std::numeric_limits<float>::max();
   ElementMode element_mode;
   int point_index = -1;
   int curve_index = -1;
@@ -361,22 +362,20 @@ static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
   ED_region_tag_redraw(ptd.vc.region);
 }
 
-/* Will return -1 if no points are near. */
-static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
-                                            const bke::greasepencil::Drawing &drawing,
-                                            const int layer_index,
-                                            const float2 mouse_co,
-                                            int *r_closest_curve,
-                                            ElementMode *r_element_mode)
+/* Will check if the point or handle is closer than the existing element. */
+static void pen_find_closest_point_or_handle(const PenToolOperation &ptd,
+                                             const bke::greasepencil::Drawing &drawing,
+                                             const int layer_index,
+                                             const int drawing_index,
+                                             const float2 &mouse_co,
+                                             ClosestElement &r_closest_element)
 {
-  float closest_distance_squared = std::numeric_limits<float>::max();
-  int closest_point = -1;
-
   const bke::CurvesGeometry &curves = drawing.strokes();
   const Span<float3> positions = curves.positions();
 
   const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(layer_index);
   const float4x4 layer_to_object = layer.local_transform();
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
   IndexMaskMemory memory;
   const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
@@ -386,14 +385,14 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
-    if (distance_squared < closest_distance_squared &&
+    if (distance_squared < r_closest_element.distance_squared &&
         distance_squared < ptd.threshold_distance * ptd.threshold_distance)
     {
-      closest_point = point_i;
-      const Array<int> point_to_curve_map = curves.point_to_curve_map();
-      *r_closest_curve = point_to_curve_map[point_i];
-      *r_element_mode = ElementMode::Point;
-      closest_distance_squared = distance_squared;
+      r_closest_element.curve_index = point_to_curve_map[point_i];
+      r_closest_element.point_index = point_i;
+      r_closest_element.element_mode = ElementMode::Point;
+      r_closest_element.distance_squared = distance_squared;
+      r_closest_element.drawing_index = drawing_index;
     }
   });
 
@@ -407,14 +406,14 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
-    if (distance_squared < closest_distance_squared &&
+    if (distance_squared < r_closest_element.distance_squared &&
         distance_squared < ptd.threshold_distance * ptd.threshold_distance)
     {
-      closest_point = point_i;
-      const Array<int> point_to_curve_map = curves.point_to_curve_map();
-      *r_closest_curve = point_to_curve_map[point_i];
-      *r_element_mode = ElementMode::HandleLeft;
-      closest_distance_squared = distance_squared;
+      r_closest_element.curve_index = point_to_curve_map[point_i];
+      r_closest_element.point_index = point_i;
+      r_closest_element.element_mode = ElementMode::HandleLeft;
+      r_closest_element.distance_squared = distance_squared;
+      r_closest_element.drawing_index = drawing_index;
     }
   });
 
@@ -423,18 +422,16 @@ static int pen_find_closest_point_or_handle(const PenToolOperation &ptd,
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
 
     /* Save the closest point. */
-    if (distance_squared < closest_distance_squared &&
+    if (distance_squared < r_closest_element.distance_squared &&
         distance_squared < ptd.threshold_distance * ptd.threshold_distance)
     {
-      closest_point = point_i;
-      const Array<int> point_to_curve_map = curves.point_to_curve_map();
-      *r_closest_curve = point_to_curve_map[point_i];
-      *r_element_mode = ElementMode::HandleRight;
-      closest_distance_squared = distance_squared;
+      r_closest_element.curve_index = point_to_curve_map[point_i];
+      r_closest_element.point_index = point_i;
+      r_closest_element.element_mode = ElementMode::HandleRight;
+      r_closest_element.distance_squared = distance_squared;
+      r_closest_element.drawing_index = drawing_index;
     }
   });
-
-  return closest_point;
 }
 
 static float2 line_segment_closest_point(const float2 pos_1,
@@ -451,17 +448,14 @@ static float2 line_segment_closest_point(const float2 pos_1,
   return dif_l * t + pos_1;
 }
 
-/* Will return -1 if no points are near. */
-static int pen_find_closest_edge_point(const PenToolOperation &ptd,
-                                       const bke::greasepencil::Drawing &drawing,
-                                       const int layer_index,
-                                       const float2 mouse_co,
-                                       int *r_closest_curve,
-                                       float *r_closest_t)
+/* Will check if the edge point is closer than the existing element. */
+static void pen_find_closest_edge_point(const PenToolOperation &ptd,
+                                        const bke::greasepencil::Drawing &drawing,
+                                        const int layer_index,
+                                        const int drawing_index,
+                                        const float2 &mouse_co,
+                                        ClosestElement &r_closest_element)
 {
-  float closest_distance_squared = std::numeric_limits<float>::max();
-  int closest_point = -1;
-
   const bke::CurvesGeometry &curves = drawing.strokes();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
@@ -495,13 +489,15 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
         const float t = local_t;
 
         /* Save the closest point. */
-        if (distance_squared < closest_distance_squared &&
+        if (distance_squared < r_closest_element.distance_squared &&
             distance_squared < ptd.threshold_distance_edge * ptd.threshold_distance_edge)
         {
-          closest_point = src_points.first() + src_i;
-          *r_closest_t = t;
-          *r_closest_curve = curve_i;
-          closest_distance_squared = distance_squared;
+          r_closest_element.point_index = src_points.first() + src_i;
+          r_closest_element.edge_t = t;
+          r_closest_element.element_mode = ElementMode::Edge;
+          r_closest_element.curve_index = curve_i;
+          r_closest_element.distance_squared = distance_squared;
+          r_closest_element.drawing_index = drawing_index;
         }
       }
       else {
@@ -528,25 +524,20 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
           const float t = (eval_i + local_t) / float(point_num);
 
           /* Save the closest point. */
-          if (distance_squared < closest_distance_squared &&
+          if (distance_squared < r_closest_element.distance_squared &&
               distance_squared < ptd.threshold_distance_edge * ptd.threshold_distance_edge)
           {
-            closest_point = src_points.first() + src_i;
-            *r_closest_t = t;
-            *r_closest_curve = curve_i;
-            closest_distance_squared = distance_squared;
+            r_closest_element.point_index = src_points.first() + src_i;
+            r_closest_element.element_mode = ElementMode::Edge;
+            r_closest_element.edge_t = t;
+            r_closest_element.curve_index = curve_i;
+            r_closest_element.distance_squared = distance_squared;
+            r_closest_element.drawing_index = drawing_index;
           }
         }
       }
     }
   });
-
-  if (closest_point == -1) {
-    *r_closest_t = -1.0f;
-    *r_closest_curve = -1;
-  }
-
-  return closest_point;
 }
 
 static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, const float2 mouse_co)
@@ -557,30 +548,10 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
   for (const int drawing_index : ptd.drawings.index_range()) {
     const MutableDrawingInfo &info = ptd.drawings[drawing_index];
 
-    int closest_curve;
-    ElementMode element_mode;
-    const int closest_point = pen_find_closest_point_or_handle(
-        ptd, info.drawing, info.layer_index, mouse_co, &closest_curve, &element_mode);
-
-    if (closest_point != -1) {
-      closest_element.element_mode = element_mode;
-      closest_element.curve_index = closest_curve;
-      closest_element.point_index = closest_point;
-      closest_element.drawing_index = drawing_index;
-      continue;
-    }
-
-    float edge_t;
-    const int closest_edge_point = pen_find_closest_edge_point(
-        ptd, info.drawing, info.layer_index, ptd.mouse_co, &closest_curve, &edge_t);
-
-    if (closest_edge_point != -1) {
-      closest_element.element_mode = ElementMode::Edge;
-      closest_element.point_index = closest_edge_point;
-      closest_element.curve_index = closest_curve;
-      closest_element.edge_t = edge_t;
-      closest_element.drawing_index = drawing_index;
-    }
+    pen_find_closest_point_or_handle(
+        ptd, info.drawing, info.layer_index, drawing_index, mouse_co, closest_element);
+    pen_find_closest_edge_point(
+        ptd, info.drawing, info.layer_index, drawing_index, mouse_co, closest_element);
   }
   return closest_element;
 }
