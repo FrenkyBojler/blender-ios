@@ -171,23 +171,6 @@ ImBuf *sequencer_ibuf_get(const bContext *C, const int timeline_frame, const cha
   return ibuf;
 }
 
-static ImBuf *sequencer_make_scope(const ColorManagedViewSettings &view_settings,
-                                   const ColorManagedDisplaySettings &display_settings,
-                                   const ImBuf &ibuf,
-                                   ImBuf *(*make_scope_fn)(const ImBuf *ibuf))
-{
-  ImBuf *display_ibuf = IMB_dupImBuf(&ibuf);
-  ImBuf *scope;
-
-  IMB_colormanagement_imbuf_make_display_space(display_ibuf, &view_settings, &display_settings);
-
-  scope = make_scope_fn(display_ibuf);
-
-  IMB_freeImBuf(display_ibuf);
-
-  return scope;
-}
-
 static void sequencer_display_size(const RenderData &render_data, float r_viewrect[2])
 {
   r_viewrect[0] = float(render_data.xsch);
@@ -792,7 +775,8 @@ static void sequencer_draw_scopes(const SpaceSeq &space_sequencer, ARegion &regi
 static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
                                   const ColorManagedViewSettings &view_settings,
                                   const ColorManagedDisplaySettings &display_settings,
-                                  const ImBuf &ibuf)
+                                  const ImBuf &ibuf,
+                                  const int timeline_frame)
 
 {
   if (space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF && space_sequencer.zebra == 0) {
@@ -800,7 +784,7 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
   }
 
   SeqScopes *scopes = &space_sequencer.runtime->scopes;
-  if (scopes->reference_ibuf != &ibuf) {
+  if (scopes->reference_ibuf != &ibuf || scopes->timeline_frame != timeline_frame) {
     scopes->cleanup();
   }
 
@@ -821,14 +805,14 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
       break;
     case SEQ_DRAW_IMG_WAVEFORM:
       if (!scopes->waveform_ibuf) {
-        scopes->waveform_ibuf = sequencer_make_scope(
-            view_settings, display_settings, ibuf, make_waveform_view_from_ibuf);
+        scopes->waveform_ibuf = make_waveform_view_from_ibuf(
+            &ibuf, view_settings, display_settings);
       }
       break;
     case SEQ_DRAW_IMG_VECTORSCOPE:
       if (!scopes->vector_ibuf) {
-        scopes->vector_ibuf = sequencer_make_scope(
-            view_settings, display_settings, ibuf, make_vectorscope_view_from_ibuf);
+        scopes->vector_ibuf = make_vectorscope_view_from_ibuf(
+            &ibuf, view_settings, display_settings);
       }
       break;
     case SEQ_DRAW_IMG_HISTOGRAM: {
@@ -836,8 +820,8 @@ static bool sequencer_calc_scopes(const SpaceSeq &space_sequencer,
     } break;
     case SEQ_DRAW_IMG_RGBPARADE:
       if (!scopes->sep_waveform_ibuf) {
-        scopes->sep_waveform_ibuf = sequencer_make_scope(
-            view_settings, display_settings, ibuf, make_sep_waveform_view_from_ibuf);
+        scopes->sep_waveform_ibuf = make_sep_waveform_view_from_ibuf(
+            &ibuf, view_settings, display_settings);
       }
       break;
     default: /* Future files might have scopes we don't know about. */
@@ -1511,7 +1495,8 @@ static void sequencer_preview_draw_overlays(const bContext *C,
 
   bool has_scopes = false;
   if (overlay_ibuf &&
-      sequencer_calc_scopes(space_sequencer, view_settings, display_settings, *overlay_ibuf))
+      sequencer_calc_scopes(
+          space_sequencer, view_settings, display_settings, *overlay_ibuf, timeline_frame))
   {
     /* Draw scope. */
     sequencer_draw_scopes(space_sequencer, region);
