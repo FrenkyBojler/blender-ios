@@ -48,7 +48,7 @@ static void cmp_node_crop_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Height")
       .default_value(1080)
       .min(1)
-
+      .compositor_expects_single_value()
       .description("The height of the crop region");
   b.add_input<decl::Bool>("Alpha Crop")
       .default_value(false)
