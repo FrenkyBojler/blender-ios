@@ -989,11 +989,8 @@ class ShaderNodesInliner {
       return;
     }
     if (const auto *src_socket_value = std::get_if<LinkedSocketValue>(&value.value)) {
-      bNodeLink &link = bke::node_add_link(
+      bke::node_add_link(
           dst_tree_, *src_socket_value->node, *src_socket_value->socket, dst_node, dst_socket);
-      BLI_assert(dst_tree_.typeinfo->validate_link(link.fromsock->typeinfo->type,
-                                                   link.tosock->typeinfo->type));
-      link.flag |= NODE_LINK_VALID;
       return;
     }
     BLI_assert_unreachable();
@@ -1184,6 +1181,9 @@ bool inline_shader_node_tree(const bNodeTree &src_tree,
     }
     LISTBASE_FOREACH (bNodeLink *, link, &dst_tree.links) {
       link->tosock->link = link;
+      BLI_assert(dst_tree.typeinfo->validate_link(link->fromsock->typeinfo->type,
+                                                  link->tosock->typeinfo->type));
+      link->flag |= NODE_LINK_VALID;
     }
     return true;
   }
