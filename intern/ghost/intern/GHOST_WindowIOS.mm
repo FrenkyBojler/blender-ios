@@ -42,7 +42,7 @@
 #  define IOS_INPUT_LOG(...)
 #endif
 
-// #define IOS_WINDOW_LOGGING
+#define IOS_WINDOW_LOGGING
 #if defined(IOS_WINDOW_LOGGING)
 #  define IOS_WINDOW_LOG(...) NSLog(__VA_ARGS__)
 #else
@@ -1386,6 +1386,17 @@ typedef struct UserInputEvent {
   /* We should always have a window.. */
   if (current_active_window) {
 
+    /* If the current window has some outstanding swaps we need to
+     * service them before handing control back to Blender otherwise
+     * they may go missing. */
+    if (current_active_window->deferred_swap_buffers_count) {
+      IOS_WINDOW_LOG(@"Issuing oustanding swaps");
+      current_active_window->flushDeferredSwapBuffers();
+      /* Make sure we get another call to draw. */
+      current_active_window->needsDisplayUpdate();
+      return;
+    }
+
     current_active_window->beginFrame();
   }
 
@@ -1624,11 +1635,12 @@ void GHOST_WindowIOS::flushDeferredSwapBuffers()
       return;
     }
 
-    IOS_WINDOW_LOG(@"Swapping (ui_View)%p (mtkView)%p con(%p) (win=%p)",
+    IOS_WINDOW_LOG(@"Swapping (ui_View)%p (mtkView)%p con(%p) (win=%p) (sc=%d)",
                    m_uiview,
                    m_metalView,
                    getContext(),
-                   this);
+                   this,
+                   deferred_swap_buffers_count);
 
     GHOST_ContextIOS *context = reinterpret_cast<GHOST_ContextIOS *>(getContext());
     context->swapBuffers();
@@ -1666,6 +1678,11 @@ void GHOST_WindowIOS::setTitle(const char *title)
 std::string GHOST_WindowIOS::getTitle() const
 {
   return m_window_title;
+}
+
+void GHOST_WindowIOS::needsDisplayUpdate()
+{
+  [m_uiview setNeedsDisplay];
 }
 
 void GHOST_WindowIOS::getWindowBounds(GHOST_Rect &bounds) const
@@ -1986,7 +2003,7 @@ bool GHOST_WindowIOS::makeKeyWindow()
   /* Enable the drawInMTKView() calls for this window. */
   m_metalView.paused = NO;
 
-  IOS_WINDOW_LOG(@"Activating (ui_View)%p (mtkView)%p con(%p) (win=%p)",
+  IOS_WINDOW_LOG(@"Key Window: (ui_View)%p (mtkView)%p con(%p) (win=%p)",
                  m_uiview,
                  m_metalView,
                  getContext(),
@@ -2012,7 +2029,7 @@ void GHOST_WindowIOS::resignKeyWindow()
   /* Wait until any outstanding presents in flight are done. */
   while (m_uiview_controller.beingPresented) {
   }
-  IOS_WINDOW_LOG(@"Deactivating (ui_View)%p (mtkView)%p con(%p) (win=%p)",
+  IOS_WINDOW_LOG(@"Resigning Key Window: (ui_View)%p (mtkView)%p con(%p) (win=%p)",
                  m_uiview,
                  m_metalView,
                  getContext(),

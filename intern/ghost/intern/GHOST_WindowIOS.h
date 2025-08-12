@@ -95,6 +95,11 @@ class GHOST_WindowIOS : public GHOST_Window {
   std::string getTitle() const;
 
   /**
+   * Makes sure we get another draw request.
+   */
+  void needsDisplayUpdate();
+
+  /**
    * Returns the window rectangle dimensions.
    * The dimensions are given in screen coordinates that are
    * relative to the upper-left corner of the screen.
