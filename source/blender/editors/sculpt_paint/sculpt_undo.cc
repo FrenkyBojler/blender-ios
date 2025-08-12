@@ -1943,31 +1943,26 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
    * just one positions array that has a different semantic meaning depending on whether there are
    * deform modifiers. */
 
-  // if (step_data->type == Type::Position) {
-  //   step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data,
-  //                                                                            step_data->nodes);
-  //   step_data->position_step_storage->ensure_compression_complete();
-  //   step_data->undo_size = step_data->position_step_storage->compressed_data.size();
-  //   step_data->nodes.clear_and_shrink();
-  // }
   if (step_data->type == Type::Position) {
     step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data,
                                                                              step_data->nodes);
-    step_data->undo_size = step_data->position_step_storage->mask.size() * sizeof(float3);
+    step_data->position_step_storage->ensure_compression_complete();
+    step_data->undo_size = step_data->position_step_storage->compressed_data.size();
     step_data->nodes.clear_and_shrink();
   }
-
-  step_data->undo_size = threading::parallel_reduce(
-      step_data->nodes.index_range(),
-      16,
-      0,
-      [&](const IndexRange range, size_t size) {
-        for (const int i : range) {
-          size += node_size_in_bytes(*step_data->nodes[i]);
-        }
-        return size;
-      },
-      std::plus<size_t>());
+  else {
+    step_data->undo_size = threading::parallel_reduce(
+        step_data->nodes.index_range(),
+        16,
+        0,
+        [&](const IndexRange range, size_t size) {
+          for (const int i : range) {
+            size += node_size_in_bytes(*step_data->nodes[i]);
+          }
+          return size;
+        },
+        std::plus<size_t>());
+  }
 
   /* We could remove this and enforce all callers run in an operator using 'OPTYPE_UNDO'. */
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
