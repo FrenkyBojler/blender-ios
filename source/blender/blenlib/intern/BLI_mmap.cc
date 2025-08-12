@@ -43,6 +43,9 @@ struct BLI_mmap_file {
   size_t id;
 };
 
+/* General mutex used to protect access to the list of open mapped files, ensure the handler is
+ * initialized only once and to prevent multiple threads from trying to remap the same
+ * memory-mapped region in parallel. */
 static blender::Mutex mmap_mutex;
 
 /* When using memory-mapped files, any IO errors will result in an EXCEPTION_IN_PAGE_ERROR on
@@ -54,8 +57,7 @@ static blender::Mutex mmap_mutex;
  * reads the memory area has to check whether the flag was set after it's done reading. If the
  * error occurred outside of a memory-mapped region or the remapping failed, we call the previous
  * handler if one was initialized and abort the process otherwise on Linux and on Windows let the
- * exception crash the program.
- */
+ * exception crash the program. */
 static blender::Vector<BLI_mmap_file *> &open_mmaps_vector()
 {
   static blender::Vector<BLI_mmap_file *> open_mmaps;
@@ -70,11 +72,11 @@ static void print_error(const char *message);
 
 /* Tries to replace the mapping with zeroes.
  * Returns true on success. */
-static bool try_map_zeros(BLI_mmap_file *file) noexcept;
+static bool try_map_zeros(BLI_mmap_file *file);
 
 /* Find the file mapping containing the address and call try_map_zeroes for it.
  * Returns true when execution can continue. */
-static bool try_handle_error_for_address(const void *address) noexcept
+static bool try_handle_error_for_address(const void *address)
 {
   static thread_local size_t last_handled_file_id = -1;
 
@@ -137,18 +139,21 @@ using VirtualAlloc2Fn = PVOID(WINAPI *)(HANDLE Process,
                                         MEM_EXTENDED_PARAMETER *ExtendedParameters,
                                         ULONG ParameterCount);
 
+/* Pointers to MapViewOfFile3 and VirtualAlloc2, as they need to be run-time dynamic linked because
+ * they are only available on Windows 10 (1803) or newer. If they are not available, error handling
+ * is not used. */
 static MapViewOfFile3Fn mmap_MapViewOfFile3 = nullptr;
 
 static VirtualAlloc2Fn mmap_VirtualAlloc2 = nullptr;
 
-void print_error(const char *message)
+static void print_error(const char *message)
 {
   HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
   WriteFile(stderr_handle, message, strlen(message), nullptr, nullptr);
   WriteFile(stderr_handle, "\r\n", 2, nullptr, nullptr);
 }
 
-static bool try_map_zeros(BLI_mmap_file *file) noexcept
+static bool try_map_zeros(BLI_mmap_file *file)
 {
   if (!UnmapViewOfFileEx(file->memory, MEM_PRESERVE_PLACEHOLDER)) {
     return false;
@@ -239,13 +244,13 @@ static bool ensure_mmap_initialized()
   return true;
 }
 #else
-void print_error(const char *message)
+static void print_error(const char *message)
 {
   write(STDERR_FILENO, message, strlen(message));
   write(STDERR_FILENO, "\n", 1);
 }
 
-static bool try_map_zeros(BLI_mmap_file *file) noexcept
+static bool try_map_zeros(BLI_mmap_file *file)
 {
   /* Replace the mapped memory with zeroes. */
   const void *mapped_memory = mmap(
@@ -385,7 +390,7 @@ BLI_mmap_file *BLI_mmap_open(int fd)
     }
   }
   else {
-    /* Fallback without error handling for versions older than Windows 10 (1803). */
+    /* Fallback without error handling in case MapViewOfFile3 or VirtualAlloc2 is not available. */
     handle = CreateFileMapping(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr);
     if (handle == nullptr) {
       return nullptr;
