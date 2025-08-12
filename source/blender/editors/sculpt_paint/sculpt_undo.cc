@@ -286,31 +286,33 @@ struct StepData {
     applied_ = false;
   }
 };
-class ZstdCompressor {
- public:
-  template<typename T> static Array<std::byte> compress_data(const Span<T> src)
-  {
-    Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
-    const size_t dst_size = ZSTD_compress(
-        dst.data(), dst.size(), src.data(), src.size_in_bytes(), -1);
-    return dst.as_span().take_front(dst_size);
-  }
+namespace zstd_compressor {
 
-  template<typename T> static Array<T> decompress_data(const Span<std::byte> src)
-  {
-    const size_t dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
-    BLI_assert(!ZSTD_isError(dst_size_in_bytes));
-    const int64_t dst_size = dst_size_in_bytes / sizeof(T);
-    Array<T> dst(dst_size, NoInitialization());
-    const size_t result = ZSTD_decompress(
-        dst.data(), dst.as_span().size_in_bytes(), src.data(), src.size());
-    BLI_assert(!ZSTD_isError(result));
-    if (ZSTD_isError(result)) {
-      return Array<T>(0, NoInitialization());
-    }
-    return dst;
+template<typename T> Array<std::byte> compress_data(const Span<T> src)
+{
+  Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
+  const size_t dst_size = ZSTD_compress(
+      dst.data(), dst.size(), src.data(), src.size_in_bytes(), -1);
+  return dst.as_span().take_front(dst_size);
+}
+
+template<typename T> Array<T> decompress_data(const Span<std::byte> src)
+{
+  const size_t dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
+  BLI_assert(!ZSTD_isError(dst_size_in_bytes));
+  const int64_t dst_size = dst_size_in_bytes / sizeof(T);
+  Array<T> dst(dst_size, NoInitialization());
+  const size_t result = ZSTD_decompress(
+      dst.data(), dst.as_span().size_in_bytes(), src.data(), src.size());
+  BLI_assert(!ZSTD_isError(result));
+  if (ZSTD_isError(result)) {
+    return Array<T>(0, NoInitialization());
   }
-};
+  return dst;
+}
+
+}  // namespace zstd_compressor
+
 struct PositionUndoStorage : NonMovable {
   IndexMaskMemory mask_memory;
   IndexMask mask;
@@ -384,7 +386,7 @@ struct PositionUndoStorage : NonMovable {
     SCOPED_TIMER(__func__);
 #endif
     CompressionData *data = static_cast<CompressionData *>(task_data);
-    Array<std::byte> result = ZstdCompressor::compress_data(data->positions.as_span());
+    Array<std::byte> result = zstd_compressor::compress_data(data->positions.as_span());
     data->storage->compressed_data = std::move(result);
     data->storage->compression_ready.store(true, std::memory_order_release);
   }
@@ -497,7 +499,7 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
 
   undo_data.ensure_compression_complete();
 
-  Array<float3> decompressed = ZstdCompressor::decompress_data<float3>(undo_data.compressed_data);
+  Array<float3> decompressed = zstd_compressor::decompress_data<float3>(undo_data.compressed_data);
   BLI_assert(decompressed.size() == undo_data.mask.size());
 
   threading::parallel_for(undo_data.mask.index_range(), 1, [&](const IndexRange range) {
