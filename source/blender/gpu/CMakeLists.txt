@@ -536,11 +536,13 @@ set(GLSL_SRC
   shaders/common/gpu_shader_debug_gradients_lib.glsl
   shaders/common/gpu_shader_fullscreen_vert.glsl
   shaders/common/gpu_shader_index_load_lib.glsl
+  shaders/common/gpu_shader_index_range_lib.glsl
   shaders/common/gpu_shader_math_base_lib.glsl
   shaders/common/gpu_shader_math_fast_lib.glsl
   shaders/common/gpu_shader_math_matrix_lib.glsl
   shaders/common/gpu_shader_math_rotation_lib.glsl
   shaders/common/gpu_shader_math_vector_lib.glsl
+  shaders/common/gpu_shader_offset_indices_lib.glsl
   shaders/common/gpu_shader_print_lib.glsl
   shaders/common/gpu_shader_sequencer_lib.glsl
   shaders/common/gpu_shader_shared_exponent_lib.glsl

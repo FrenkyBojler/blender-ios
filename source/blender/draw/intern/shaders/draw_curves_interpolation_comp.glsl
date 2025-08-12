@@ -16,6 +16,7 @@ COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_position)
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_offset_indices_lib.glsl"
 
 /* We workaround the lack of function pointers by using different type to overload the attribute
  * implementation. */
@@ -161,88 +162,6 @@ template void output_set_zero<float3>(int, float3);
 template void output_set_zero<float2>(int, float2);
 template void output_set_zero<float>(int, float);
 
-class IndexRange {
- private:
-  int start_;
-  int size_;
-
- public:
-  METAL_CONSTRUCTOR_2(IndexRange, int, start_, int, size_)
-
-  static IndexRange from_begin_end(int begin, int end)
-  {
-    return IndexRange(begin, end - begin);
-  }
-
-  /**
-   * Get the first element in the range.
-   */
-  int first() const
-  {
-    return this->start_;
-  }
-
-  /**
-   * Get the first element in the range. The returned value is undefined when the range is empty.
-   */
-  int start() const
-  {
-    return this->start_;
-  }
-
-  /**
-   * Get the nth last element in the range.
-   */
-  int last(int n = 0) const
-  {
-    return this->start_ + this->size_ - 1 - n;
-  }
-
-  /**
-   * Get the amount of numbers in the range.
-   */
-  int size() const
-  {
-    return this->size_;
-  }
-
-  /**
-   * Returns a new range, that contains a sub-interval of the current one.
-   */
-  IndexRange slice(int start, int size) const
-  {
-    int new_start = this->start_ + start;
-    return IndexRange(new_start, size);
-  }
-  IndexRange slice(IndexRange range) const
-  {
-    return this->slice(range.start(), range.size());
-  }
-};
-
-/**
- * See `OffsetIndices` C++ definition for formal definition.
- *
- * OffsetIndices cannot be implemented on GPU because of the lack of operator overloading and
- * buffer reference in GLSL. So we simply interpret a given integer buffer as a `OffsetIndices`
- * buffer and load a specific item as a range.
- */
-namespace offset_indices {
-
-#ifdef GLSL_CPP_STUBS
-/* Equivalent of `IndexRange OffsetIndices<int>operator[]`.
- * Implementation for C++ compilation. */
-static IndexRange load_range_from_buffer(const int (&buf)[], int i)
-{
-  return IndexRange::from_begin_end(buf[i], buf[i + 1]);
-}
-#endif
-
-}  // namespace offset_indices
-
-/* Shader implementation because of missing buffer reference as argument in GLSL. */
-#define offset_indices_load_range_from_buffer(buf_, i_) \
-  IndexRange::from_begin_end(buf_[i_], buf_[i_ + 1]);
 
 /* Copy of DNA enum in `DNA_curves_types.h`. */
 enum CurveType : uint32_t {
