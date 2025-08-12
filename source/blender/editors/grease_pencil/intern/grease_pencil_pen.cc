@@ -78,37 +78,30 @@ struct ClosestElement {
   float edge_t = -1.0f;
   int drawing_index = -1;
 
-  bool is_closer(const float other_distance_squared,
+  bool is_closer(const float new_distance_squared,
                  const ElementMode new_element_mode,
                  const float threshold_distance) const
   {
-    if (other_distance_squared > threshold_distance * threshold_distance) {
+    if (new_distance_squared > threshold_distance * threshold_distance) {
       return false;
     }
 
+    float old_priority = 1.0f;
+    float new_priority = 1.0f;
+
     if (this->element_mode == ElementMode::Edge) {
-      if (new_element_mode == ElementMode::Edge) {
-        if (other_distance_squared < this->distance_squared) {
-          return true;
-        }
-      }
-      else {
-        if (other_distance_squared * selection_edge_priority_factor < this->distance_squared) {
-          return true;
-        }
+      if (new_element_mode != ElementMode::Edge) {
+        old_priority = selection_edge_priority_factor;
       }
     }
     else {
       if (new_element_mode == ElementMode::Edge) {
-        if (other_distance_squared < this->distance_squared * selection_edge_priority_factor) {
-          return true;
-        }
+        new_priority = selection_edge_priority_factor;
       }
-      else {
-        if (other_distance_squared < this->distance_squared) {
-          return true;
-        }
-      }
+    }
+
+    if (new_distance_squared * old_priority < this->distance_squared * new_priority) {
+      return true;
     }
 
     return false;
