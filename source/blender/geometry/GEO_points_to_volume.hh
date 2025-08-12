@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_color.hh"
 #include "BLI_string_ref.hh"
 
 #include "BKE_volume_grid_fwd.hh"
@@ -25,6 +26,7 @@ bke::VolumeGridData *fog_volume_grid_add_from_points(Volume *volume,
                                                      StringRefNull name,
                                                      Span<float3> positions,
                                                      Span<float> radii,
+                                                     Span<ColorGeometry4f> colors,
                                                      float voxel_size,
                                                      float density);
 

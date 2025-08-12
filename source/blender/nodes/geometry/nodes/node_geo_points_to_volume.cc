@@ -9,6 +9,7 @@
 #endif
 
 #include "BLI_bounds.hh"
+#include "BLI_color.hh"
 
 #include "node_geometry_util.hh"
 
@@ -23,14 +24,17 @@ namespace blender::nodes::node_geo_points_to_volume_cc {
 #ifdef WITH_OPENVDB
 
 static void gather_point_data_from_component(Field<float> radius_field,
+                                             Field<ColorGeometry4f> color_field,
                                              const GeometryComponent &component,
                                              Vector<float3> &r_positions,
-                                             Vector<float> &r_radii)
+                                             Vector<float> &r_radii,
+                                             Vector<ColorGeometry4f> &r_colors)
 {
   if (component.is_empty()) {
     return;
   }
   const VArray<float3> positions = *component.attributes()->lookup<float3>("position");
+  const VArray<ColorGeometry4f> colors = *component.attributes()->lookup<ColorGeometry4f>("color");
 
   const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
   const int domain_num = component.attribute_domain_size(AttrDomain::Point);
@@ -39,9 +43,18 @@ static void gather_point_data_from_component(Field<float> radius_field,
   positions.materialize(r_positions.as_mutable_span().take_back(domain_num));
 
   r_radii.resize(r_radii.size() + domain_num);
-  fn::FieldEvaluator evaluator{field_context, domain_num};
-  evaluator.add_with_destination(radius_field, r_radii.as_mutable_span().take_back(domain_num));
-  evaluator.evaluate();
+  fn::FieldEvaluator radii_evaluator{field_context, domain_num};
+  radii_evaluator.add_with_destination(radius_field,
+                                       r_radii.as_mutable_span().take_back(domain_num));
+  radii_evaluator.evaluate();
+
+  if (color_field.node().depends_on_input()) {
+    r_colors.resize(r_colors.size() + domain_num);
+    fn::FieldEvaluator color_evaluator{field_context, domain_num};
+    color_evaluator.add_with_destination(color_field,
+                                         r_colors.as_mutable_span().take_back(domain_num));
+    color_evaluator.evaluate();
+  }
 }
 
 static float compute_voxel_size_from_amount(const float voxel_amount,
@@ -75,14 +88,20 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
   Vector<float3> positions;
   Vector<float> radii;
   Field<float> radius_field = params.get_input<Field<float>>("Radius");
+  Field<ColorGeometry4f> color_field = params.get_input<Field<ColorGeometry4f>>("Color");
+  Vector<ColorGeometry4f> colors;
 
   for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
                                              GeometryComponent::Type::PointCloud,
                                              GeometryComponent::Type::Curve})
   {
     if (r_geometry_set.has(type)) {
-      gather_point_data_from_component(
-          radius_field, *r_geometry_set.get_component(type), positions, radii);
+      gather_point_data_from_component(radius_field,
+                                       color_field,
+                                       *r_geometry_set.get_component(type),
+                                       positions,
+                                       radii,
+                                       colors);
     }
   }
 
@@ -113,8 +132,9 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
   Volume *volume = BKE_id_new_nomain<Volume>(nullptr);
 
   const float density = params.get_input<float>("Density");
+
   blender::geometry::fog_volume_grid_add_from_points(
-      volume, "density", positions, radii, voxel_size, density);
+      volume, "density", positions, radii, colors, voxel_size, density);
 
   r_geometry_set.keep_only({GeometryComponent::Type::Volume, GeometryComponent::Type::Edit});
   r_geometry_set.replace_volume(volume);
@@ -160,6 +180,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .field_on_all();
+  b.add_input<decl::Color>("Color").hide_value().field_on_all();
   b.add_output<decl::Geometry>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
 }
 
