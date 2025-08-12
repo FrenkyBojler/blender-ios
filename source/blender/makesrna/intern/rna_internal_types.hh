@@ -125,7 +125,7 @@ using PropFloatRangeFuncEx = void (*)(
     PointerRNA *ptr, PropertyRNA *prop, float *min, float *max, float *softmin, float *softmax);
 using PropStringGetFuncEx = std::string (*)(PointerRNA *ptr, PropertyRNA *prop);
 using PropStringLengthFuncEx = int (*)(PointerRNA *ptr, PropertyRNA *prop);
-using PropStringSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, std::string value);
+using PropStringSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, const std::string &value);
 using PropEnumGetFuncEx = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using PropEnumSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
 

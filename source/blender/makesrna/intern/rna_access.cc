@@ -3834,7 +3834,7 @@ std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
 
 void RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop, char *value)
 {
-  std::string string_ret = RNA_property_string_get(ptr, prop);
+  const std::string string_ret = RNA_property_string_get(ptr, prop);
 
   memcpy(value, string_ret.c_str(), string_ret.size() + 1);
 }
@@ -3846,7 +3846,7 @@ char *RNA_property_string_get_alloc(
     BLI_string_debug_size(fixedbuf, fixedlen);
   }
 
-  std::string string_ret = RNA_property_string_get(ptr, prop);
+  const std::string string_ret = RNA_property_string_get(ptr, prop);
 
   char *buf;
   if (string_ret.size() < fixedlen) {

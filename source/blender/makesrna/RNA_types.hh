@@ -701,15 +701,17 @@ using FloatPropertyRangeFunc = void (*)(
     PointerRNA *ptr, PropertyRNA *prop, float *min, float *max, float *softmin, float *softmax);
 using StringPropertyGetFunc = std::string (*)(PointerRNA *ptr, PropertyRNA *prop);
 using StringPropertyLengthFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
-using StringPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, std::string value);
+using StringPropertySetFunc = void (*)(PointerRNA *ptr,
+                                       PropertyRNA *prop,
+                                       const std::string &value);
 using StringPropertyGetTransformFunc = std::string (*)(PointerRNA *ptr,
                                                        PropertyRNA *prop,
-                                                       std::string value,
+                                                       const std::string &value,
                                                        bool is_set);
 using StringPropertySetTransformFunc = std::string (*)(PointerRNA *ptr,
                                                        PropertyRNA *prop,
-                                                       std::string new_value,
-                                                       std::string curr_value,
+                                                       const std::string &new_value,
+                                                       const std::string &curr_value,
                                                        bool is_set);
 
 struct StringPropertySearchVisitParams {

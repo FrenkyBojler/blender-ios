@@ -1461,7 +1461,7 @@ static std::string bpy_prop_string_get_transform_locked_fn(PointerRNA *ptr,
 
 static std::string bpy_prop_string_get_transform_fn(PointerRNA *ptr,
                                                     PropertyRNA *prop,
-                                                    std::string curr_value,
+                                                    const std::string &curr_value,
                                                     bool is_set)
 {
   const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
@@ -1487,7 +1487,7 @@ static int bpy_prop_string_length_fn(PointerRNA *ptr, PropertyRNA *prop)
   return length;
 }
 
-static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, std::string value)
+static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, const std::string &value)
 {
   const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
 
@@ -1545,8 +1545,11 @@ static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, std::stri
   bpy_prop_gil_rna_writable_end(bpy_state);
 }
 
-static std::string bpy_prop_string_set_transform_fn(
-    PointerRNA *ptr, PropertyRNA *prop, std::string new_value, std::string curr_value, bool is_set)
+static std::string bpy_prop_string_set_transform_fn(PointerRNA *ptr,
+                                                    PropertyRNA *prop,
+                                                    const std::string &new_value,
+                                                    const std::string &curr_value,
+                                                    bool is_set)
 {
   const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
 
