@@ -481,17 +481,11 @@ typedef struct bNodeTreeInterface {
    * Reset flag to indicate that dependent trees have been updated.
    * Should only be called by #NodeTreeMainUpdater.
    */
-  void set_dependent_trees_updated();
+  void reset_interface_changed();
 
  private:
-  /**
-   * Tag dependent trees and nodes for updates after relevant changes.
-   * - Items added/removed.
-   * - Item order changed.
-   * - Identifiers changed.
-   * - Socket types changed.
-   */
-  void tag_dependent_tree_update();
+  /** Tag after interface changes that require updates to dependent trees. */
+  void tag_interface_changed();
   /** Invalidate caches and force full tree update after loading DNA. */
   void tag_missing_runtime_data();
 

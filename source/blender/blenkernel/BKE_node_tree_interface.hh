@@ -29,10 +29,9 @@ class bNodeTreeInterfaceRuntime {
 
  private:
   /**
-   * True if any trees and nodes depending on the interface have been updated.
-   * Changes to the item order invalidate dependent DNA data and require tree updates.
+   * Changes have been made to the interface items that invalidate dependent trees.
    */
-  std::atomic<bool> dependent_trees_updated_ = true;
+  std::atomic<bool> interface_changed_ = true;
 
   /**
    * Protects access to item cache variables below. This is necessary so that the cache can be

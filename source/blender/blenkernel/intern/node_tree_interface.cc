@@ -1517,19 +1517,19 @@ void bNodeTreeInterface::ensure_items_cache() const
   });
 }
 
-void bNodeTreeInterface::tag_dependent_tree_update()
+void bNodeTreeInterface::tag_interface_changed()
 {
-  this->runtime->dependent_trees_updated_.store(false);
+  this->runtime->interface_changed_.store(true);
 }
 
 bool bNodeTreeInterface::requires_dependent_tree_updates() const
 {
-  return !this->runtime->dependent_trees_updated_.load(std::memory_order_relaxed);
+  return this->runtime->interface_changed_.load(std::memory_order_relaxed);
 }
 
 void bNodeTreeInterface::tag_items_changed()
 {
-  this->tag_dependent_tree_update();
+  this->tag_interface_changed();
   this->runtime->items_cache_mutex_.tag_dirty();
 }
 
@@ -1541,7 +1541,7 @@ void bNodeTreeInterface::tag_items_changed_generic()
 
 void bNodeTreeInterface::tag_item_property_changed()
 {
-  this->tag_dependent_tree_update();
+  this->tag_interface_changed();
 }
 
 void bNodeTreeInterface::tag_missing_runtime_data()
@@ -1549,7 +1549,7 @@ void bNodeTreeInterface::tag_missing_runtime_data()
   this->tag_items_changed();
 }
 
-void bNodeTreeInterface::set_dependent_trees_updated()
+void bNodeTreeInterface::reset_interface_changed()
 {
-  this->runtime->dependent_trees_updated_.store(true);
+  this->runtime->interface_changed_.store(false);
 }

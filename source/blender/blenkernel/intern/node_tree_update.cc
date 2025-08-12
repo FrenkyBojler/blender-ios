@@ -1889,7 +1889,7 @@ class NodeTreeMainUpdater {
       }
     }
 
-    ntree.tree_interface.set_dependent_trees_updated();
+    ntree.tree_interface.reset_interface_changed();
   }
 
   /**
