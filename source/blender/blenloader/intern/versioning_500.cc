@@ -1382,7 +1382,7 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
   copy_v2_v2(source_input->default_value_typed<bNodeSocketValueVector>()->value,
              old_source_input->default_value_typed<bNodeSocketValueVector>()->value);
 
-  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree.links) {
     if (link->tosock == old_image_input) {
       version_node_add_link(
           node_tree, *link->fromnode, *link->fromsock, *glare_node, *image_input);
