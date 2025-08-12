@@ -959,138 +959,206 @@ void BLI_ewa_filter(const int width,
   result[3] = use_alpha ? result[3] * d : 1.0f;
 }
 
-static const int EWA_LUT_SIZE = 256;
+/* INFO: bigger α drops weight faster → less smoothing.
+Precomputed Gaussian LUT: w(r^2) = exp(-alpha * r^2), r^2 sampled at i/512, i=0..511
+Auto-generated Gaussian LUT for EWA: w(r^2) = exp(-alpha * r^2) */
+static constexpr int EWA_LUT_SIZE = 512;
+static constexpr int EWA_GAUSS_MAXIDX = (EWA_LUT_SIZE - 1);
 
-// INFO: bigger α drops weight faster → less smoothing.
-static const float EWA_ALPHA = 3.0f;
-/* Precomputed Gaussian LUT: w(r^2) = exp(-alpha * r^2), r^2 sampled at i/255, i=0..255 */
 static const float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {
-    1.000000f, 0.992187f, 0.984436f, 0.976745f, 0.969114f, 0.961543f, 0.954031f, 0.946578f,
-    0.939183f, 0.931846f, 0.924566f, 0.917342f, 0.910176f, 0.903065f, 0.896010f, 0.889010f,
-    0.882064f, 0.875173f, 0.868336f, 0.861552f, 0.854822f, 0.848143f, 0.841518f, 0.834943f,
-    0.828421f, 0.821949f, 0.815528f, 0.809157f, 0.802836f, 0.796565f, 0.790343f, 0.784169f,
-    0.778044f, 0.771966f, 0.765937f, 0.759954f, 0.754018f, 0.748129f, 0.742286f, 0.736489f,
-    0.730738f, 0.725031f, 0.719369f, 0.713752f, 0.708179f, 0.702649f, 0.697163f, 0.691720f,
-    0.686320f, 0.680963f, 0.675647f, 0.670373f, 0.665141f, 0.659950f, 0.654799f, 0.649690f,
-    0.644620f, 0.639590f, 0.634600f, 0.629649f, 0.624738f, 0.619864f, 0.615030f, 0.610233f,
-    0.605474f, 0.600753f, 0.596069f, 0.591421f, 0.586811f, 0.582236f, 0.577698f, 0.573196f,
-    0.568729f, 0.564297f, 0.559901f, 0.555539f, 0.551211f, 0.546918f, 0.542658f, 0.538432f,
-    0.534240f, 0.530081f, 0.525954f, 0.521861f, 0.517799f, 0.513770f, 0.509773f, 0.505807f,
-    0.501873f, 0.497970f, 0.494099f, 0.490257f, 0.486447f, 0.482667f, 0.478917f, 0.475197f,
-    0.471507f, 0.467846f, 0.464215f, 0.460613f, 0.457040f, 0.453495f, 0.449980f, 0.446492f,
-    0.443033f, 0.439602f, 0.436199f, 0.432824f, 0.429476f, 0.426156f, 0.422862f, 0.419596f,
-    0.416357f, 0.413144f, 0.409959f, 0.406799f, 0.403666f, 0.400559f, 0.397477f, 0.394422f,
-    0.391392f, 0.388388f, 0.385410f, 0.382456f, 0.379528f, 0.376625f, 0.373746f, 0.370893f,
-    0.368064f, 0.365259f, 0.362479f, 0.359723f, 0.356991f, 0.354284f, 0.351600f, 0.348940f,
-    0.346303f, 0.343690f, 0.341101f, 0.338535f, 0.335992f, 0.333472f, 0.330976f, 0.328502f,
-    0.326051f, 0.323623f, 0.321217f, 0.318834f, 0.316473f, 0.314135f, 0.311819f, 0.309525f,
-    0.307253f, 0.305003f, 0.302776f, 0.300569f, 0.298385f, 0.296222f, 0.294081f, 0.291961f,
-    0.289863f, 0.287786f, 0.285730f, 0.283695f, 0.281682f, 0.279689f, 0.277717f, 0.275766f,
-    0.273836f, 0.271927f, 0.270038f, 0.268169f, 0.266321f, 0.264494f, 0.262687f, 0.260900f,
-    0.259133f, 0.257386f, 0.255659f, 0.253952f, 0.252265f, 0.250598f, 0.248951f, 0.247323f,
-    0.245715f, 0.244126f, 0.242557f, 0.241008f, 0.239478f, 0.237967f, 0.236475f, 0.235002f,
-    0.233549f, 0.232115f, 0.230699f, 0.229303f, 0.227926f, 0.226567f, 0.225227f, 0.223906f,
-    0.222604f, 0.221320f, 0.220055f, 0.218808f, 0.217580f, 0.216370f, 0.215178f, 0.214005f,
-    0.212850f, 0.211714f, 0.210595f, 0.209495f, 0.208413f, 0.207349f, 0.206303f, 0.205274f,
-    0.204264f, 0.203272f, 0.202297f, 0.201340f, 0.200401f, 0.199480f, 0.198577f, 0.197691f,
-    0.196822f, 0.195972f, 0.195138f, 0.194323f, 0.193525f, 0.192744f, 0.191980f, 0.191234f,
-    0.190506f, 0.189794f, 0.189100f, 0.188423f, 0.187764f, 0.187121f, 0.186496f, 0.185888f,
-    0.185297f, 0.184723f, 0.184166f, 0.183626f, 0.183103f, 0.182597f, 0.182108f, 0.181636f,
-    0.181181f, 0.180742f, 0.180321f, 0.179916f, 0.179529f, 0.179158f, 0.178803f, 0.178466f};
+    1.000000f, 0.996094f, 0.992203f, 0.988327f, 0.984466f, 0.980621f, 0.976790f, 0.972975f,
+    0.969174f, 0.965388f, 0.961617f, 0.957861f, 0.954119f, 0.950392f, 0.946680f, 0.942982f,
+    0.939298f, 0.935629f, 0.931974f, 0.928334f, 0.924707f, 0.921095f, 0.917497f, 0.913913f,
+    0.910343f, 0.906787f, 0.903245f, 0.899717f, 0.896202f, 0.892702f, 0.889214f, 0.885741f,
+    0.882281f, 0.878835f, 0.875402f, 0.871982f, 0.868576f, 0.865183f, 0.861804f, 0.858437f,
+    0.855084f, 0.851744f, 0.848417f, 0.845102f, 0.841801f, 0.838513f, 0.835238f, 0.831975f,
+    0.828725f, 0.825488f, 0.822263f, 0.819051f, 0.815852f, 0.812665f, 0.809490f, 0.806328f,
+    0.803179f, 0.800041f, 0.796916f, 0.793803f, 0.790702f, 0.787614f, 0.784537f, 0.781472f,
+    0.778420f, 0.775379f, 0.772350f, 0.769333f, 0.766328f, 0.763335f, 0.760353f, 0.757383f,
+    0.754424f, 0.751477f, 0.748542f, 0.745618f, 0.742705f, 0.739804f, 0.736914f, 0.734036f,
+    0.731168f, 0.728312f, 0.725467f, 0.722633f, 0.719811f, 0.716999f, 0.714198f, 0.711408f,
+    0.708629f, 0.705861f, 0.703104f, 0.700357f, 0.697622f, 0.694897f, 0.692182f, 0.689478f,
+    0.686785f, 0.684102f, 0.681430f, 0.678768f, 0.676117f, 0.673476f, 0.670845f, 0.668224f,
+    0.665614f, 0.663014f, 0.660424f, 0.657845f, 0.655275f, 0.652715f, 0.650165f, 0.647626f,
+    0.645096f, 0.642576f, 0.640066f, 0.637566f, 0.635075f, 0.632595f, 0.630123f, 0.627662f,
+    0.625210f, 0.622768f, 0.620335f, 0.617912f, 0.615498f, 0.613094f, 0.610699f, 0.608314f,
+    0.605937f, 0.603571f, 0.601213f, 0.598864f, 0.596525f, 0.594195f, 0.591874f, 0.589562f,
+    0.587259f, 0.584965f, 0.582680f, 0.580404f, 0.578137f, 0.575878f, 0.573629f, 0.571388f,
+    0.569156f, 0.566933f, 0.564718f, 0.562512f, 0.560315f, 0.558126f, 0.555946f, 0.553774f,
+    0.551611f, 0.549456f, 0.547310f, 0.545172f, 0.543043f, 0.540921f, 0.538808f, 0.536704f,
+    0.534607f, 0.532519f, 0.530439f, 0.528367f, 0.526303f, 0.524247f, 0.522199f, 0.520159f,
+    0.518127f, 0.516103f, 0.514087f, 0.512079f, 0.510079f, 0.508086f, 0.506102f, 0.504125f,
+    0.502156f, 0.500194f, 0.498240f, 0.496294f, 0.494355f, 0.492424f, 0.490501f, 0.488585f,
+    0.486676f, 0.484775f, 0.482881f, 0.480995f, 0.479116f, 0.477245f, 0.475380f, 0.473523f,
+    0.471674f, 0.469831f, 0.467996f, 0.466168f, 0.464347f, 0.462533f, 0.460726f, 0.458927f,
+    0.457134f, 0.455348f, 0.453570f, 0.451798f, 0.450033f, 0.448275f, 0.446524f, 0.444780f,
+    0.443042f, 0.441312f, 0.439588f, 0.437871f, 0.436160f, 0.434456f, 0.432759f, 0.431069f,
+    0.429385f, 0.427708f, 0.426037f, 0.424373f, 0.422715f, 0.421064f, 0.419419f, 0.417781f,
+    0.416149f, 0.414523f, 0.412904f, 0.411291f, 0.409685f, 0.408084f, 0.406490f, 0.404902f,
+    0.403321f, 0.401745f, 0.400176f, 0.398613f, 0.397056f, 0.395505f, 0.393960f, 0.392421f,
+    0.390888f, 0.389361f, 0.387840f, 0.386325f, 0.384816f, 0.383313f, 0.381815f, 0.380324f,
+    0.378838f, 0.377358f, 0.375884f, 0.374416f, 0.372954f, 0.371497f, 0.370046f, 0.368600f,
+    0.367160f, 0.365726f, 0.364297f, 0.362874f, 0.361457f, 0.360045f, 0.358639f, 0.357238f,
+    0.355842f, 0.354452f, 0.353068f, 0.351688f, 0.350315f, 0.348946f, 0.347583f, 0.346225f,
+    0.344873f, 0.343526f, 0.342184f, 0.340847f, 0.339516f, 0.338190f, 0.336869f, 0.335553f,
+    0.334242f, 0.332936f, 0.331636f, 0.330340f, 0.329050f, 0.327765f, 0.326484f, 0.325209f,
+    0.323939f, 0.322673f, 0.321413f, 0.320157f, 0.318907f, 0.317661f, 0.316420f, 0.315184f,
+    0.313953f, 0.312726f, 0.311505f, 0.310288f, 0.309076f, 0.307869f, 0.306666f, 0.305468f,
+    0.304275f, 0.303086f, 0.301902f, 0.300723f, 0.299548f, 0.298378f, 0.297213f, 0.296052f,
+    0.294895f, 0.293743f, 0.292596f, 0.291453f, 0.290314f, 0.289180f, 0.288051f, 0.286926f,
+    0.285805f, 0.284688f, 0.283576f, 0.282469f, 0.281365f, 0.280266f, 0.279171f, 0.278081f,
+    0.276995f, 0.275913f, 0.274835f, 0.273761f, 0.272692f, 0.271627f, 0.270566f, 0.269509f,
+    0.268456f, 0.267407f, 0.266363f, 0.265322f, 0.264286f, 0.263253f, 0.262225f, 0.261201f,
+    0.260181f, 0.259164f, 0.258152f, 0.257143f, 0.256139f, 0.255138f, 0.254142f, 0.253149f,
+    0.252160f, 0.251175f, 0.250194f, 0.249217f, 0.248243f, 0.247273f, 0.246308f, 0.245345f,
+    0.244387f, 0.243432f, 0.242482f, 0.241534f, 0.240591f, 0.239651f, 0.238715f, 0.237782f,
+    0.236854f, 0.235928f, 0.235007f, 0.234089f, 0.233174f, 0.232264f, 0.231356f, 0.230453f,
+    0.229552f, 0.228656f, 0.227762f, 0.226873f, 0.225987f, 0.225104f, 0.224224f, 0.223349f,
+    0.222476f, 0.221607f, 0.220741f, 0.219879f, 0.219020f, 0.218165f, 0.217313f, 0.216464f,
+    0.215618f, 0.214776f, 0.213937f, 0.213101f, 0.212269f, 0.211440f, 0.210614f, 0.209791f,
+    0.208971f, 0.208155f, 0.207342f, 0.206532f, 0.205725f, 0.204922f, 0.204121f, 0.203324f,
+    0.202530f, 0.201739f, 0.200950f, 0.200166f, 0.199384f, 0.198605f, 0.197829f, 0.197056f,
+    0.196286f, 0.195520f, 0.194756f, 0.193995f, 0.193237f, 0.192483f, 0.191731f, 0.190982f,
+    0.190236f, 0.189493f, 0.188752f, 0.188015f, 0.187281f, 0.186549f, 0.185820f, 0.185095f,
+    0.184372f, 0.183651f, 0.182934f, 0.182219f, 0.181508f, 0.180799f, 0.180092f, 0.179389f,
+    0.178688f, 0.177990f, 0.177295f, 0.176602f, 0.175912f, 0.175225f, 0.174541f, 0.173859f,
+    0.173180f, 0.172503f, 0.171830f, 0.171158f, 0.170490f, 0.169824f, 0.169160f, 0.168500f,
+    0.167841f, 0.167186f, 0.166533f, 0.165882f, 0.165234f, 0.164589f, 0.163946f, 0.163305f,
+    0.162668f, 0.162032f, 0.161399f, 0.160769f, 0.160141f, 0.159515f, 0.158892f, 0.158271f,
+    0.157653f, 0.157037f, 0.156424f, 0.155813f, 0.155204f, 0.154598f, 0.153994f, 0.153392f,
+    0.152793f, 0.152196f, 0.151602f, 0.151010f, 0.150420f, 0.149832f, 0.149247f, 0.148664f,
+    0.148083f, 0.147505f, 0.146929f, 0.146355f, 0.145783f, 0.145214f, 0.144646f, 0.144081f,
+    0.143518f, 0.142958f, 0.142399f, 0.141843f, 0.141289f, 0.140737f, 0.140187f, 0.139640f,
+    0.139094f, 0.138551f, 0.138010f, 0.137471f, 0.136934f, 0.136399f, 0.135866f, 0.135335f};
 
 /* Linear-interpolated Gaussian weight from LUT (r2 in [0,1]). */
-static inline float ewa_weight(float r2, bool interpolate = false)
+static inline float ewa_weight(float r2, bool interpolate = true)
 {
   if (r2 <= 0.0f) {
     return EWA_GAUSS_LUT[0];
   }
   if (r2 >= 1.0f) {
-    return EWA_GAUSS_LUT[EWA_MAXIDX];
+    return EWA_GAUSS_LUT[EWA_GAUSS_MAXIDX];
   }
-  float t = r2 * float(EWA_MAXIDX);
+  float t = r2 * static_cast<float>(EWA_GAUSS_MAXIDX);
   int i = int(t);
 
   if (interpolate) {
     float f = t - float(i);
-    int i1 = (i < EWA_MAXIDX) ? (i + 1) : EWA_MAXIDX;
+    int i1 = (i < EWA_GAUSS_MAXIDX) ? (i + 1) : EWA_GAUSS_MAXIDX;
     return EWA_GAUSS_LUT[i] * (1.0f - f) + EWA_GAUSS_LUT[i1] * f;
   }
 
   return EWA_GAUSS_LUT[i];
 }
 
-void BLI_ewa_baseline_filter(const int width,
-                             const int height,
-                             const bool intpol,
-                             const bool use_alpha,
-                             const float uv[2],
-                             const float du[2],
-                             const float dv[2],
-                             ewa_filter_read_pixel_cb read_pixel_cb,
-                             void *userdata,
-                             float result[4])
+/* PBRT-style anisotropy clamp on the derivative vectors in *texel* space. */
+static inline void aniso_clamp(float &dx0, float &dy0, float &dx1, float &dy1, float maxAniso)
 {
-  // jacobian
-  const float Ux = du[0] * float(width);
-  const float Vx = du[1] * float(height);
-  const float Uy = dv[0] * float(width);
-  const float Vy = dv[1] * float(height);
+  auto len2 = [](float x, float y) { return x * x + y * y; };
+  // Make (dx0,dy0) the longer axis
+  if (len2(dx0, dy0) < len2(dx1, dy1)) {
+    std::swap(dx0, dx1);
+    std::swap(dy0, dy1);
+  }
+  float longer = std::sqrt(std::max(0.f, len2(dx0, dy0)));
+  float shorter = std::sqrt(std::max(0.f, len2(dx1, dy1)));
+  if (shorter > 0.f && longer > maxAniso * shorter) {
+    float scale = longer / (maxAniso * shorter);
+    dx1 *= scale;
+    dy1 *= scale;
+  }
+}
 
-  // conic Q = A*du^2 + B*du*dv + C*dv^2; r^2 = Q/F with F = AC - (B^2)/4 = det(J)^2
-  float A = Vx * Vx + Vy * Vy;
-  float B = -2.0f * (Ux * Vx + Uy * Vy);
-  float C = Ux * Ux + Uy * Uy;
+/* Build normalized PBRT ellipse coefficients (A,B,C) and bbox in texel space. */
+struct Ellipse {
+  // normalized quadratic r^2 = A*ss^2 + B*ss*tt + C*tt^2
+  float A, B, C;
+  // bbox of integer texels to scan
+  int s0, s1, t0, t1;
+  // center in texel space
+  float stx, sty;
+  bool valid = false;
+};
 
-  // minimum ellipse footprint
-  // INFO: smaller = crisper, larger = smoother
-  const float rmin = intpol ? 1.0f : 0.5f;
-  if (rmin > 0.0f) {
-    const float lam = 1.0f / (rmin * rmin);
-    A += lam;
-    C += lam;
+static inline Ellipse build_ellipse(int width,
+                                    int height,
+                                    float s,
+                                    float t,
+                                    const float du[2],
+                                    const float dv[2],
+                                    float maxAniso = 8.0f)
+{
+  float dx0 = du[0] * width;
+  float dy0 = du[1] * height;
+  float dx1 = dv[0] * width;
+  float dy1 = dv[1] * height;
+
+  if (maxAniso > 1.0f) {
+    aniso_clamp(dx0, dy0, dx1, dy1, maxAniso);
   }
 
-  float F = A * C - 0.25f * B * B;
-  if (!(F > 1e-12f)) {
-    // degenerate → return texel-like sample behavior
+  float A = dy0 * dy0 + dy1 * dy1 + 1.0f;
+  float B = -2.0f * (dx0 * dy0 + dx1 * dy1);
+  float C = dx0 * dx0 + dx1 * dx1 + 1.0f;
+  float invF = 1.0f / (A * C - 0.25f * B * B);
+  A *= invF;
+  B *= invF;
+  C *= invF;
+
+  // Center in texel space (texel centers at i+0.5)
+  float stx = s * width - 0.5f;
+  float sty = t * height - 0.5f;
+
+  // bbox
+  float det = -B * B + 4.0f * A * C;
+  if (!(det > 0.0f)) {
+    return Ellipse{};  // invalid
+  }
+  float invDet = 1.0f / det;
+  float uSqrt = std::sqrt(std::max(0.0f, det * C));
+  float vSqrt = std::sqrt(std::max(0.0f, A * det));
+
+  int s0 = int(std::ceil(stx - 2.0f * invDet * uSqrt));
+  int s1 = int(std::floor(stx + 2.0f * invDet * uSqrt));
+  int t0 = int(std::ceil(sty - 2.0f * invDet * vSqrt));
+  int t1 = int(std::floor(sty + 2.0f * invDet * vSqrt));
+  return {A, B, C, s0, s1, t0, t1, stx, sty, true};
+}
+
+/* -----------------------------------------------------------------------------
+// PBRT-style single-level EWA filtering (no mipmaps)
+//
+// Assumptions:
+//   * uv in [0,1]^2
+//   * du = d(uv)/dx, dv = d(uv)/dy
+//   * ewa_weight(r2, interpolate=true) returns Gaussian LUT weight in [0,1],
+//     e.g. w = exp(-alpha * r^2), with r^2 in [0,1].
+//   * Read callback returns RGBA (alpha optional).
+// ----------------------------------------------------------------------------- */
+void BLI_ewa_single_level(const int width,
+                          const int height,
+                          const bool use_alpha,
+                          const float uv[2],
+                          const float du[2],
+                          const float dv[2],
+                          ewa_filter_read_pixel_cb read_pixel_cb,
+                          void *userdata,
+                          float result[4],
+                          float maxAniso,
+                          bool interpolate_lut)
+{
+  Ellipse E = build_ellipse(width, height, uv[0], uv[1], du, dv, maxAniso);
+  if (!E.valid) {
     result[0] = result[1] = result[2] = 0.0f;
     result[3] = use_alpha ? 0.0f : 1.0f;
     return;
   }
 
-  // center in pixel space (texel centers at i+0.5).
-  const float U0 = uv[0] * float(width) - 0.5f;
-  const float V0 = uv[1] * float(height) - 0.5f;
-
-  // bbox
-  float du_max = (A > 0.0f) ? std::sqrt(F / A) : 0.0f;
-  float dv_max = (C > 0.0f) ? std::sqrt(F / C) : 0.0f;
-  int u1 = int(std::floor(U0 - du_max));
-  int u2 = int(std::ceil(U0 + du_max));
-  int v1 = int(std::floor(V0 - dv_max));
-  int v2 = int(std::ceil(V0 + dv_max));
-  const int max_span = EWA_MAXIDX;
-  if (U0 - float(u1) > float(max_span)) {
-    u1 = int(std::floor(U0)) - max_span;
-  }
-  if (float(u2) - U0 > float(max_span)) {
-    u2 = int(std::ceil(U0)) + max_span;
-  }
-  if (V0 - float(v1) > float(max_span)) {
-    v1 = int(std::floor(V0)) - max_span;
-  }
-  if (float(v2) - V0 > float(max_span)) {
-    v2 = int(std::ceil(V0)) + max_span;
-  }
-
-  // clip image bounds so no out-of-boundary sampling
-  const int umin = std::max(u1, 0);
-  const int umax = std::min(u2, width - 1);
-  const int vmin = std::max(v1, 0);
-  const int vmax = std::min(v2, height - 1);
-
-  // early return if ellipse is entirely outside the image.
-  if (umin > umax || vmin > vmax) {
+  // Clip bbox to image so callback isn't called OOB (adjust to your addressing mode)
+  int s0 = std::max(E.s0, 0), s1 = std::min(E.s1, width - 1);
+  int t0 = std::max(E.t0, 0), t1 = std::min(E.t1, height - 1);
+  if (s0 > s1 || t0 > t1) {
     result[0] = result[1] = result[2] = 0.0f;
     result[3] = use_alpha ? 0.0f : 1.0f;
     return;
@@ -1099,45 +1167,37 @@ void BLI_ewa_baseline_filter(const int width,
   float accum[4] = {0, 0, 0, 0};
   float wsum = 0.0f;
 
-  for (int y = v1; y <= v2; ++y) {
-    const float dvp = float(y) - V0;
-    float dup = float(u1) - U0;
+  // Incremental evaluation along x: r2_next = r2 + A*(2*ss+1) + B*tt
+  for (int y = t0; y <= t1; ++y) {
+    float tt = float(y) - E.sty;
 
-    float Q = A * dup * dup + B * dup * dvp + C * dvp * dvp;
-    float dQ = A * (2.0f * dup + 1.0f) + B * dvp;
-    const float ddQ = 2.0f * A;
+    float ss0 = float(s0) - E.stx;
+    float r2 = E.A * ss0 * ss0 + E.B * ss0 * tt + E.C * tt * tt;
+    float dR = E.A * (2.0f * ss0 + 1.0f) + E.B * tt;
+    const float ddR = 2.0f * E.A;
 
-    for (int x = u1; x <= u2; ++x) {
-      if (Q >= 0.0f && Q <= F) {
-        float r2 = Q / F;
-        // INFO: Some potential tweaks
-        // can precondition r2 with some gamma factor
-        // float gamma = 1.25f;
-        // r2 = powf(r2, gamma);
-
-        // INFO: Directly condition the Gauss without needing to precompute the LUT
-        // Only for testing.
-        // const float wt = ewa_weight(-EWA_ALPHA * r2);
-        const float wt = ewa_weight(r2, true);
-
-        float tex[4];
-        read_pixel_cb(userdata, x, y, tex);
-
-        accum[0] += tex[0] * wt;
-        accum[1] += tex[1] * wt;
-        accum[2] += tex[2] * wt;
-        if (use_alpha) {
-          accum[3] += tex[3] * wt;
+    for (int x = s0; x <= s1; ++x) {
+      if (r2 < 1.0f) {
+        float wt = ewa_weight(r2, interpolate_lut);
+        if (wt > 0.0f) {
+          float rgba[4];
+          read_pixel_cb(userdata, x, y, rgba);
+          accum[0] += wt * rgba[0];
+          accum[1] += wt * rgba[1];
+          accum[2] += wt * rgba[2];
+          if (use_alpha) {
+            accum[3] += wt * rgba[3];
+          }
+          wsum += wt;
         }
-        wsum += wt;
       }
-      Q += dQ;
-      dQ += ddQ;
+      r2 += dR;
+      dR += ddR;
     }
   }
 
   if (wsum > 0.0f) {
-    const float inv = 1.0f / wsum;
+    float inv = 1.0f / wsum;
     result[0] = accum[0] * inv;
     result[1] = accum[1] * inv;
     result[2] = accum[2] * inv;
