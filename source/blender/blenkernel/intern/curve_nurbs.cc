@@ -198,39 +198,26 @@ static void calculate_basis_for_point(const Span<float> knots,
                                       MutableSpan<float> r_weights,
                                       int &r_start_index)
 {
+  BLI_assert(span_index >= degree);
   const int order = degree + 1;
 
-  const int start = std::max(span_index - degree, 0);
-  int end = span_index;
+  r_start_index = span_index - degree;
 
-  Array<float, 12> buffer(order * 2, 0.0f);
-  buffer[end - start] = 1.0f;
+  Array<float, 12> left(order);
+  Array<float, 12> right(order);
+  r_weights[0] = 1.0f;
 
-  for (const int i_order : IndexRange(2, degree)) {
-    if (end + i_order >= knots.size()) {
-      end = wrapped_points_num + degree - i_order;
+  for (const int j : IndexRange(1, degree)) {
+    left[j] = parameter - knots[span_index + 1 - j];
+    right[j] = knots[span_index + j] - parameter;
+    float saved = 0.0f;
+    for (const int r : IndexRange(j)) {
+      const float temp = r_weights[r] / (right[r + 1] + left[j - r]);
+      r_weights[r] = saved + right[r + 1] * temp;
+      saved = left[j - r] * temp;
     }
-    for (const int i : IndexRange(end - start + 1)) {
-      const int knot_index = start + i;
-
-      float new_basis = 0.0f;
-      if (buffer[i] != 0.0f) {
-        new_basis += ((parameter - knots[knot_index]) * buffer[i]) /
-                     (knots[knot_index + i_order - 1] - knots[knot_index]);
-      }
-
-      if (buffer[i + 1] != 0.0f) {
-        new_basis += ((knots[knot_index + i_order] - parameter) * buffer[i + 1]) /
-                     (knots[knot_index + i_order] - knots[knot_index + 1]);
-      }
-
-      buffer[i] = new_basis;
-    }
+    r_weights[j] = saved;
   }
-
-  buffer.as_mutable_span().drop_front(end - start + 1).fill(0.0f);
-  r_weights.copy_from(buffer.as_span().take_front(order));
-  r_start_index = start;
 }
 
 void calculate_basis_cache(const int points_num,
