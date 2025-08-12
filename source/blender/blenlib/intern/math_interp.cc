@@ -1119,6 +1119,24 @@ inline float ewa_weight(const float r2, const bool interpolate = true)
   return EWA_GAUSS_LUT[i];
 }
 
+/* linear ramp to 0 at r=1 (the “bilinear/triangle” kernel in radial form). */
+inline float ewa_tent_from_r2(float r2)
+{
+  float r = std::sqrt(std::max(0.0f, r2));
+  float t = 1.0f - r;
+  return (t > 0.0f) ? t : 0.0f;
+}
+
+/* removes the discontinuity at r^2=1. */
+inline float ewa_weight_bilinear_fade(const float r2, const bool interpolate_lut)
+{
+  if (r2 >= 1.0f) {
+    return 0.0f;
+  }
+  const float g = ewa_weight(r2, interpolate_lut);
+  return g * ewa_tent_from_r2(r2);
+}
+
 inline void aniso_clamp(float &dx0, float &dy0, float &dx1, float &dy1, float max_anisotropy)
 {
   auto len2 = [](float x, float y) { return x * x + y * y; };
@@ -1218,7 +1236,7 @@ void BLI_ewa_single_level(const int3 &image_dimensions,
 
     for (int x = s0; x <= s1; ++x) {
       if (r2 < 1.0f) {
-        float wt = ewa_weight(r2, interpolate_lut);
+        float wt = ewa_weight_bilinear_fade(r2, interpolate_lut);
         if (wt > 0.0f) {
           /* z value contains number of channels */
           const float4 rgba = buffer + (image_dimensions.x * y + x) * image_dimensions.z;
