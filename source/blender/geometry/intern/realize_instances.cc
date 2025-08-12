@@ -1683,7 +1683,7 @@ static void copy_vertex_group_name(ListBase *dst_deform_group,
     return;
   }
   const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
-  if (kind.domain != bke::AttrDomain::Point || kind.data_type != bke::AttrType::Float) {
+  if (kind.domain != bke::AttrDomain::Point || kind.data_type != CD_PROP_FLOAT) {
     /* Skip if the source attribute can't possibly contain vertex weights. */
     return;
   }
