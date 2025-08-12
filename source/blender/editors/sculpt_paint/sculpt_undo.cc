@@ -288,9 +288,6 @@ class ZstdCompressor {
  public:
   template<typename T> static Array<std::byte> compress_data(const Span<T> src)
   {
-#ifdef DEBUG_TIME
-    SCOPED_TIMER(__func__);
-#endif
     Array<std::byte> dst(ZSTD_compressBound(src.size_in_bytes()), NoInitialization());
     const size_t dst_size = ZSTD_compress(
         dst.data(), dst.size(), src.data(), src.size_in_bytes(), -1);
@@ -299,9 +296,6 @@ class ZstdCompressor {
 
   template<typename T> static Array<T> decompress_data(const Span<std::byte> src)
   {
-#ifdef DEBUG_TIME
-    SCOPED_TIMER(__func__);
-#endif
     const size_t dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
     BLI_assert(!ZSTD_isError(dst_size_in_bytes));
     const int64_t dst_size = dst_size_in_bytes / sizeof(T);
@@ -321,8 +315,8 @@ struct PositionUndoStorage : NonMovable {
   Array<std::byte> compressed_data;
 
   TaskPool *compression_task_pool;
-  std::atomic<bool> compression_ready{false};
-  std::atomic<bool> compression_started{false};
+  std::atomic<bool> compression_ready = false;
+  std::atomic<bool> compression_started = false;
 
   PositionUndoStorage() = default;
   PositionUndoStorage(const StepData &step_data, const Span<std::unique_ptr<Node>> nodes)
@@ -399,6 +393,9 @@ struct PositionUndoStorage : NonMovable {
 
   static void compression_task_function(TaskPool * /*pool*/, void *task_data)
   {
+#ifdef DEBUG_TIME
+    SCOPED_TIMER(__func__);
+#endif
     CompressionData *data = static_cast<CompressionData *>(task_data);
     Array<std::byte> result = ZstdCompressor::compress_data(data->positions.as_span());
     data->storage->compressed_data = std::move(result);
@@ -492,14 +489,6 @@ static bool restore_active_shape_key(bContext &C,
   return true;
 }
 
-// static void swap_indexed_data(MutableSpan<T> full, const Span<int> indices, MutableSpan<T>
-// indexed)
-// {
-//   BLI_assert(full.size() == indices.size());
-//   for (const int i : indices.index_range()) {
-//     std::swap(full[i], indexed[indices[i]]);
-//   }
-// }
 template<typename T>
 static void swap_indexed_data(MutableSpan<T> full, const IndexMask &mask, MutableSpan<T> indexed)
 {
@@ -511,6 +500,9 @@ static void swap_indexed_data(MutableSpan<T> full, const IndexMask &mask, Mutabl
 
 static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data)
 {
+#ifdef DEBUG_TIME
+  SCOPED_TIMER(__func__);
+#endif
   SculptSession &ss = *object.sculpt;
   Mesh &mesh = *static_cast<Mesh *>(object.data);
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
