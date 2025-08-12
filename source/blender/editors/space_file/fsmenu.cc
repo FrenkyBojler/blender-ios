@@ -534,19 +534,6 @@ static void fsmenu_copy_category(FSMenu *fsmenu_dst,
   ED_fsmenu_set_category(fsmenu_dst, category, fsm_dst_head);
 }
 
-static FSMenu *fsmenu_copy(FSMenu *fsmenu)
-{
-  FSMenu *fsmenu_copy = static_cast<FSMenu *>(MEM_dupallocN(fsmenu));
-
-  fsmenu_copy_category(fsmenu_copy, fsmenu_copy, FS_CATEGORY_SYSTEM);
-  fsmenu_copy_category(fsmenu_copy, fsmenu_copy, FS_CATEGORY_SYSTEM_BOOKMARKS);
-  fsmenu_copy_category(fsmenu_copy, fsmenu_copy, FS_CATEGORY_BOOKMARKS);
-  fsmenu_copy_category(fsmenu_copy, fsmenu_copy, FS_CATEGORY_RECENT);
-  fsmenu_copy_category(fsmenu_copy, fsmenu_copy, FS_CATEGORY_OTHER);
-
-  return fsmenu_copy;
-}
-
 int fsmenu_get_active_indices(FSMenu *fsmenu, enum FSMenuCategory category, const char *dir)
 {
   FSMenuEntry *fsm_iter = ED_fsmenu_get_category(fsmenu, category);
