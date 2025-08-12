@@ -3542,7 +3542,11 @@ static void rna_auto_types()
             pprop->type = (StructRNA *)rna_find_type(dp->dnatype);
           }
 
-          if (pprop->type) {
+          /* Only automatically define `PROP_ID_REFCOUNT` if it was not already explicitely set or
+           * cleared by calls to `RNA_def_property_flag` or `RNA_def_property_clear_flag`. */
+          if ((pprop->property.flag_internal & PROP_INTERN_PTR_ID_REFCOUNT_FORCED) == 0 &&
+              pprop->type)
+          {
             type = rna_find_struct((const char *)pprop->type);
             if (type && (type->flag & STRUCT_ID_REFCOUNT)) {
               pprop->property.flag |= PROP_ID_REFCOUNT;
@@ -5660,7 +5664,7 @@ static void make_bad_file(const char *file, int line)
 {
   FILE *fp = fopen(file, "w");
   fprintf(fp,
-          "#error \"Error! can't make correct RNA file from %s:%d, "
+          "#error \"Error! cannot make correct RNA file from %s:%d, "
           "check DNA properties.\"\n",
           __FILE__,
           line);
