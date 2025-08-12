@@ -30,9 +30,11 @@
 #include "CLG_log.h"
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_bit_group_vector.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_memory_counter.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -332,32 +334,17 @@ struct PositionUndoStorage : NonMovable {
     });
     this->mask = IndexMask::from_bools(selected_verts, this->mask_memory);
 
-    Array<int> vert_to_mask_pos(step_data.mesh.verts_num, -1);
-    this->mask.foreach_index([&](const int vert_index, const int mask_pos) {
-      vert_to_mask_pos[vert_index] = mask_pos;
-    });
+    Array<float3> all_positions(step_data.mesh.verts_num);
+    for (const std::unique_ptr<Node> &node : nodes) {
+      const Span<float3> node_positions = node->position.as_span().take_front(
+          node->unique_verts_num);
+      const Span<int> node_indices = node->vert_indices.as_span().take_front(
+          node->unique_verts_num);
+      array_utils::scatter(node_positions, node_indices, all_positions.as_mutable_span());
+    }
 
     Array<float3> positions(this->mask.size());
-    MutableSpan<float3> positions_span = positions.as_mutable_span();
-
-    threading::memory_bandwidth_bound_task(positions.as_span().size_in_bytes(), [&]() {
-      threading::parallel_for(nodes.index_range(), 4, [&](const IndexRange range) {
-        for (const std::unique_ptr<Node> &node : nodes.slice(range)) {
-          const Span<float3> node_positions = node->position.as_span().take_front(
-              node->unique_verts_num);
-          const Span<int> node_indices = node->vert_indices.as_span().take_front(
-              node->unique_verts_num);
-
-          for (const int i : node_indices.index_range()) {
-            const int vert_index = node_indices[i];
-            const int mask_pos = vert_to_mask_pos[vert_index];
-            if (mask_pos >= 0) {
-              positions_span[mask_pos] = node_positions[i];
-            }
-          }
-        }
-      });
-    });
+    array_utils::gather(all_positions.as_span(), this->mask, positions.as_mutable_span());
 
     compression_task_pool = BLI_task_pool_create_background(this, TASK_PRIORITY_LOW);
     compression_started = true;
@@ -513,19 +500,25 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
   Array<float3> decompressed = ZstdCompressor::decompress_data<float3>(undo_data.compressed_data);
   BLI_assert(decompressed.size() == undo_data.mask.size());
 
-  threading::parallel_for(undo_data.mask.index_range(), 512, [&](const IndexRange range) {
+  threading::parallel_for(undo_data.mask.index_range(), 1, [&](const IndexRange range) {
     const IndexMask &verts = undo_data.mask.slice(range);
     MutableSpan<float3> undo_positions = decompressed.as_mutable_span().slice(range);
 
     if (!ss.deform_modifiers_active) {
+      /* When original positions aren't written separately in the undo step, there are no
+       * deform modifiers. Therefore the original and evaluated deform positions will be the
+       * same, and modifying the positions from the original mesh is enough. */
       swap_indexed_data(undo_positions, verts, positions);
     }
     else {
+      /* When original positions are stored in the undo step, undo/redo will cause a reevaluation
+       * of the object. The evaluation will recompute the evaluated positions, so dealing with
+       * them here is unnecessary. */
       if (shape_key_data) {
         MutableSpan<float3> active_data = shape_key_data->active_key_data;
 
         if (!shape_key_data->dependent_keys.is_empty()) {
-          Array<float3> translations(verts.size());
+          Array<float3, 1024> translations(verts.size());
           translations_from_new_positions(undo_positions, verts, active_data, translations);
           for (MutableSpan<float3> data : shape_key_data->dependent_keys) {
             apply_translations(translations, verts, data);
@@ -533,11 +526,13 @@ static void restore_position_mesh(Object &object, PositionUndoStorage &undo_data
         }
 
         if (shape_key_data->basis_key_active) {
+          /* The basis key positions and the mesh positions are always kept in sync. */
           scatter_data_mesh(undo_positions.as_span(), verts, positions);
         }
         swap_indexed_data(undo_positions, verts, active_data);
       }
       else {
+        /* There is a deform modifier, but no shape keys. */
         swap_indexed_data(undo_positions, verts, positions);
       }
     }
@@ -1762,7 +1757,7 @@ void push_nodes(const Depsgraph &depsgraph,
           nodes_to_fill.append({&nodes[i], unode});
         }
       });
-      threading::parallel_for(nodes_to_fill.index_range(), 4, [&](const IndexRange range) {
+      threading::parallel_for(nodes_to_fill.index_range(), 1, [&](const IndexRange range) {
         for (const auto &[node, unode] : nodes_to_fill.as_span().slice(range)) {
           fill_node_data_mesh(depsgraph, object, *node, type, *unode);
         }
@@ -1779,7 +1774,7 @@ void push_nodes(const Depsgraph &depsgraph,
           nodes_to_fill.append({&nodes[i], unode});
         }
       });
-      threading::parallel_for(nodes_to_fill.index_range(), 4, [&](const IndexRange range) {
+      threading::parallel_for(nodes_to_fill.index_range(), 1, [&](const IndexRange range) {
         for (const auto &[node, unode] : nodes_to_fill.as_span().slice(range)) {
           fill_node_data_grids(object, *node, type, *unode);
         }
@@ -1948,6 +1943,13 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
    * just one positions array that has a different semantic meaning depending on whether there are
    * deform modifiers. */
 
+  // if (step_data->type == Type::Position) {
+  //   step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data,
+  //                                                                            step_data->nodes);
+  //   step_data->position_step_storage->ensure_compression_complete();
+  //   step_data->undo_size = step_data->position_step_storage->compressed_data.size();
+  //   step_data->nodes.clear_and_shrink();
+  // }
   if (step_data->type == Type::Position) {
     step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data,
                                                                              step_data->nodes);
@@ -2226,9 +2228,43 @@ void geometry_begin_ex(const Scene & /*scene*/, Object &ob, const char *name)
   geometry_push(ob);
 }
 
+static size_t calculate_node_geometry_allocated_size(const NodeGeometry &node_geometry)
+{
+  BLI_assert(node_geometry.is_initialized);
+
+  MemoryCount memory;
+  MemoryCounter memory_counter(memory);
+
+  memory_counter.add_shared(node_geometry.face_offsets_sharing_info,
+                            sizeof(int) * (node_geometry.faces_num + 1));
+
+  CustomData_count_memory(node_geometry.corner_data, node_geometry.corners_num, memory_counter);
+  CustomData_count_memory(node_geometry.face_data, node_geometry.faces_num, memory_counter);
+  CustomData_count_memory(node_geometry.vert_data, node_geometry.verts_num, memory_counter);
+  CustomData_count_memory(node_geometry.edge_data, node_geometry.edges_num, memory_counter);
+
+  return memory.total_bytes;
+}
+
+static size_t estimate_geometry_step_size(const StepData &step_data)
+{
+  size_t step_size = 0;
+
+  /* TODO: This calculation is not entirely accurate, as the current amount of memory consumed by
+   * Sculpt Undo is not updated when elements are evicted. Further changes to the overall undo
+   * system would be needed to measure this accurately. */
+  step_size += calculate_node_geometry_allocated_size(step_data.geometry_original);
+  step_size += calculate_node_geometry_allocated_size(step_data.geometry_modified);
+
+  return step_size;
+}
+
 void geometry_end(Object &ob)
 {
   geometry_push(ob);
+
+  StepData *step_data = get_step_data();
+  step_data->undo_size = estimate_geometry_step_size(*step_data);
 
   /* We could remove this and enforce all callers run in an operator using 'OPTYPE_UNDO'. */
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
