@@ -9,8 +9,8 @@
 #include "BLI_mmap.h"
 #include "BLI_assert.h"
 #include "BLI_fileops.h"
-#include "BLI_listbase.h"
 #include "BLI_mutex.hh"
+#include "BLI_vector.hh"
 #include "MEM_guardedalloc.h"
 
 #include <cstring>
@@ -26,7 +26,6 @@
 #endif
 
 struct BLI_mmap_file {
-  struct BLI_mmap_file *next, *prev;
   /* The address to which the file was mapped. */
   char *memory;
 
@@ -57,8 +56,11 @@ static blender::Mutex mmap_mutex;
  * handler if one was initialized and abort the process otherwise on Linux and on Windows let the
  * exception crash the program.
  */
-
-static ListBase open_mmaps = {nullptr};
+static blender::Vector<BLI_mmap_file *> &open_mmaps_vector()
+{
+  static blender::Vector<BLI_mmap_file *> open_mmaps;
+  return open_mmaps;
+}
 
 /* Print a message to stderr without using the standard library routines.
  * If a mmap error occurs while reading a pointer inside one of the standard library's IO routines,
@@ -79,7 +81,7 @@ static bool try_handle_error_for_address(const void *address) noexcept
   std::unique_lock lock(mmap_mutex);
 
   BLI_mmap_file *file = nullptr;
-  LISTBASE_FOREACH (BLI_mmap_file *, link_file, &open_mmaps) {
+  for (BLI_mmap_file *link_file : open_mmaps_vector()) {
     /* Is the address where the error occurred in this file's mapped range? */
     if (address >= link_file->memory && address < link_file->memory + link_file->length) {
       file = link_file;
@@ -309,14 +311,14 @@ static bool ensure_mmap_initialized()
 static void error_handler_add(BLI_mmap_file *file)
 {
   std::unique_lock lock(mmap_mutex);
-  BLI_addtail(&open_mmaps, file);
+  open_mmaps_vector().append(file);
 }
 
 /* Removes a file from the list that the error handler checks. */
 static void error_handler_remove(BLI_mmap_file *file)
 {
   std::unique_lock lock(mmap_mutex);
-  BLI_remlink(&open_mmaps, file);
+  open_mmaps_vector().remove_first_occurrence_and_reorder(file);
 }
 
 BLI_mmap_file *BLI_mmap_open(int fd)
