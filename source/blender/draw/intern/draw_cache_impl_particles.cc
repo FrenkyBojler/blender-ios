@@ -1414,10 +1414,13 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
   /* TODO subdiv. */
   auto type_varray = VArray<int8_t>::from_single(CURVE_TYPE_CATMULL_ROM, src.curves_num());
   auto resolution_varray = VArray<int32_t>::from_single(1, src.curves_num());
+  /* Not used. */
+  auto cyclic_varray = VArray<bool>::from_single(false, 1);
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
   curves_type_buf = gpu::VertBuf::new_from_varray(type_varray);
   curves_resolution_buf = gpu::VertBuf::new_from_varray(resolution_varray);
+  cyclic_offsets_buf = gpu::VertBuf::new_from_varray(cyclic_varray);
 }
 
 /* Copied from cycles. */

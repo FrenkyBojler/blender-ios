@@ -159,6 +159,7 @@ void CurvesEvalCache::clear()
   this->evaluated_points_by_curve_buf.reset();
   this->curves_type_buf.reset();
   this->curves_resolution_buf.reset();
+  this->cyclic_offsets_buf.reset();
 
   this->handles_positions_left_buf.reset();
   this->handles_positions_right_buf.reset();
@@ -626,6 +627,7 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
                                     curves.has_curve_with_type(CURVE_TYPE_BEZIER),
                                     curves.has_curve_with_type(CURVE_TYPE_POLY),
                                     curves.has_curve_with_type(CURVE_TYPE_NURBS),
+                                    curves.has_cyclic(),
                                     curves.curves_num(),
                                     *this,
                                     CURVES_EVAL_FLOAT4,
@@ -691,6 +693,7 @@ void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
    * This concerns all varray. */
   curves_type_buf = gpu::VertBuf::new_from_varray(curves.curve_types());
   curves_resolution_buf = gpu::VertBuf::new_from_varray(curves.resolution());
+  cyclic_offsets_buf = gpu::VertBuf::new_from_varray(curves.cyclic());
 }
 
 void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
@@ -764,6 +767,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
                             curves.has_curve_with_type(CURVE_TYPE_BEZIER),
                             curves.has_curve_with_type(CURVE_TYPE_POLY),
                             curves.has_curve_with_type(CURVE_TYPE_NURBS),
+                            curves.has_cyclic(),
                             curves.curves_num(),
                             *this,
                             std::move(points_pos_buf),

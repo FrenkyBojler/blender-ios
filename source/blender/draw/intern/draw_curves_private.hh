@@ -126,6 +126,8 @@ struct CurvesEvalCache {
   gpu::VertBufPtr curves_type_buf;
   /** Buffer containing `CurveGeometry::resolution()`. */
   gpu::VertBufPtr curves_resolution_buf;
+  /** Buffer containing `CurveGeometry::cyclic_offsets()`. */
+  gpu::VertBufPtr cyclic_offsets_buf;
 
   /* --- Buffers only needed if geometry has Bezier curves. Dummy sized otherwise. --- */
 

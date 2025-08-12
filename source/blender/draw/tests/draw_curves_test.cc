@@ -285,10 +285,12 @@ static void test_draw_curves_topology()
     pass.init();
     pass.shader_set(sh);
     pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
+    pass.bind_ssbo("cyclic_offsets_buf", curve_offsets_buf);
     pass.bind_ssbo("indirection_buf", indirection_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 3);
     pass.push_constant("is_ribbon_topology", true);
+    pass.push_constant("use_cyclic", false);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
@@ -323,10 +325,12 @@ static void test_draw_curves_topology()
     pass.init();
     pass.shader_set(sh);
     pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
+    pass.bind_ssbo("cyclic_offsets_buf", curve_offsets_buf);
     pass.bind_ssbo("indirection_buf", indirection_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 3);
     pass.push_constant("is_ribbon_topology", false);
+    pass.push_constant("use_cyclic", false);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
@@ -427,6 +431,8 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
     pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
     pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.bind_texture("cyclic_offsets_tx", curves_resolution_buf);
+    pass.push_constant("use_cyclic", false);
     /* Dummy, not used for Catmull-Rom. */
     pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
     pass.bind_ssbo("handles_positions_right_buf", evaluated_points_by_curve_buf);
@@ -525,6 +531,8 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
     pass.bind_ssbo("curves_type_buf", curves_type_bezier_buf);
     pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
+    pass.bind_texture("cyclic_offsets_tx", curves_resolution_buf);
+    pass.push_constant("use_cyclic", false);
     pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
     pass.bind_ssbo("positions_buf", positions_buf);
     pass.bind_ssbo("radii_buf", radii_buf);
@@ -709,6 +717,8 @@ static void test_draw_curves_interpolate_position()
     pass.shader_set(sh);
     pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
     pass.bind_ssbo("curves_type_buf", curves_type_nurbs_buf);
+    pass.bind_texture("cyclic_offsets_tx", curves_order_buf);
+    pass.push_constant("use_cyclic", false);
     pass.bind_ssbo("curves_resolution_buf", curves_order_buf);
     pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
     pass.bind_ssbo("positions_buf", positions_buf);
@@ -1014,6 +1024,8 @@ static void test_draw_curves_interpolate_attributes()
           pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
           pass.bind_ssbo("curves_type_buf", curves_type_buf);
           pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
+          pass.bind_texture("cyclic_offsets_tx", curves_resolution_buf);
+          pass.push_constant("use_cyclic", false);
           pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
           pass.bind_ssbo(attr_buf_name.c_str(), attr_buf);
           pass.bind_ssbo(eval_buf_name.c_str(), evaluated_attr_buf);

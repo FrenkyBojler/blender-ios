@@ -114,6 +114,7 @@ gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_coun
   PassSimple::Sub &pass = refine.sub("Topology");
   pass.shader_set(DRW_shader_curves_topology_get());
   pass.bind_ssbo("evaluated_offsets_buf", cache.evaluated_points_by_curve_buf);
+  pass.bind_ssbo("cyclic_offsets_buf", cache.cyclic_offsets_buf);
   pass.bind_ssbo("indirection_buf", indirection_buf);
   pass.push_constant("is_ribbon_topology", is_ribbon);
   dispatch(curve_count, pass);
@@ -125,6 +126,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
                                             const bool has_bezier,
                                             const bool has_poly,
                                             const bool has_nurbs,
+                                            const bool has_cyclic,
                                             const int curve_count,
                                             CurvesEvalCache &cache,
                                             CurvesEvalShader shader_type,
@@ -163,6 +165,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
   pass.bind_ssbo(CURVE_TYPE_SLOT, cache.curves_type_buf);
   pass.bind_ssbo(CURVE_RESOLUTION_SLOT, cache.curves_resolution_buf);
   pass.bind_ssbo(EVALUATED_POINT_SLOT, cache.evaluated_points_by_curve_buf);
+  pass.bind_texture(CURVE_CYCLIC_SLOT, has_cyclic ? cache.cyclic_offsets_buf : this->dummy_vbo);
 
   switch (shader_type) {
     case CURVES_EVAL_POSITION:
@@ -194,6 +197,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.push_constant("compute_length_and_time", false);
     /* Bake object transform for legacy hair particle. */
     sub.push_constant("transform", transform);
+    sub.push_constant("use_cyclic", has_cyclic);
     dispatch(curve_count, sub);
   }
 
@@ -207,6 +211,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.push_constant("compute_length_and_time", false);
     /* Bake object transform for legacy hair particle. */
     sub.push_constant("transform", transform);
+    sub.push_constant("use_cyclic", has_cyclic);
     dispatch(curve_count, sub);
   }
 
@@ -224,6 +229,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.push_constant("use_point_weight", cache.control_weights_buf.get() != nullptr);
     /* Bake object transform for legacy hair particle. */
     sub.push_constant("transform", transform);
+    sub.push_constant("use_cyclic", has_cyclic);
     dispatch(curve_count, sub);
   }
 
@@ -239,6 +245,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.push_constant("compute_length_and_time", false);
     /* Bake object transform for legacy hair particle. */
     sub.push_constant("transform", transform);
+    sub.push_constant("use_cyclic", has_cyclic);
     dispatch(curve_count, sub);
   }
 

@@ -162,6 +162,14 @@ template void output_set_zero<float3>(int, float3);
 template void output_set_zero<float2>(int, float2);
 template void output_set_zero<float>(int, float);
 
+IndexRange cyclic_offsets_load(int curve_index)
+{
+  if (use_cyclic) {
+    return IndexRange::from_begin_end(texelFetch(cyclic_offsets_tx, curve_index).x,
+                                      texelFetch(cyclic_offsets_tx, curve_index + 1).x);
+  }
+  return IndexRange(0, 0);
+}
 
 /* Copy of DNA enum in `DNA_curves_types.h`. */
 enum CurveType : uint32_t {
@@ -201,11 +209,17 @@ float4 calculate_basis(const float parameter)
                        -s * t * t);
 }
 
-int4 get_points(uint point_id, IndexRange points)
+int4 get_points(uint point_id, IndexRange points, const bool cyclic)
 {
   int4 point_ids = int(point_id) + int4(-1, +0, +1, +2);
-  return clamp(
-      int(points.start()) + point_ids, int4(points.start()), int4(points.start() + points.last()));
+  if (cyclic) {
+    /* Wrap around. Note the offset by size to avoid modulo with negative values. */
+    point_ids = ((point_ids + points.size()) % points.size());
+  }
+  else {
+    point_ids = clamp(point_ids, int4(0), int4(points.size() - 1));
+  }
+  return points.start() + point_ids;
 }
 
 template<typename InterpType>
@@ -215,13 +229,14 @@ void evaluate_curve(const InterpType interp_type,
                     const int curve_index)
 {
   const uint curve_resolution = curves_resolution_buf[curve_index];
+  const bool is_curve_cyclic = cyclic_offsets_load(curve_index).size() > 0;
 
   for (uint i = 0; i < evaluated_points.size(); i++) {
     const int evaluated_point_id = evaluated_points.start() + int(i);
     const uint point_id = i / curve_resolution;
     const float parameter = float(i % curve_resolution) / float(curve_resolution);
     const float4 weights = calculate_basis(parameter);
-    const int4 point_ids = get_points(point_id, points);
+    const int4 point_ids = get_points(point_id, points, is_curve_cyclic);
 
     InterpType p0 = input_load(point_ids.x, interp_type);
     InterpType p1 = input_load(point_ids.y, interp_type);
