@@ -2352,6 +2352,22 @@ bool lasso_rect_edge_intersection(const rcti rect, const Span<int2> mcoords)
   {
     return true;
   }
+
+  float rect_quad[4][2] = {{static_cast<float>(rect.xmax), static_cast<float>(rect.ymax)},
+                           {static_cast<float>(rect.xmax), static_cast<float>(rect.ymin)},
+                           {static_cast<float>(rect.xmin), static_cast<float>(rect.ymin)},
+                           {static_cast<float>(rect.xmin), static_cast<float>(rect.ymax)}};
+  for (const int64_t i : mcoords.index_range()) {
+    if (isect_point_quad_v2(
+            (float[2]){static_cast<float>(mcoords[i][0]), static_cast<float>(mcoords[i][1])},
+            rect_quad[0],
+            rect_quad[1],
+            rect_quad[2],
+            rect_quad[3]) != 0)
+    {
+      return true;
+    }
+  }
   return false;
 }
 
