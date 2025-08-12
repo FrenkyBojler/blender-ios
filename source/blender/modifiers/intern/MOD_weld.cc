@@ -28,7 +28,6 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
@@ -55,12 +54,7 @@ static Span<MDeformVert> get_vertex_group(const Mesh &mesh, const int defgrp_ind
   if (defgrp_index == -1) {
     return {};
   }
-  const MDeformVert *vertex_group = static_cast<const MDeformVert *>(
-      CustomData_get_layer(&mesh.vert_data, CD_MDEFORMVERT));
-  if (!vertex_group) {
-    return {};
-  }
-  return {vertex_group, mesh.verts_num};
+  return mesh.deform_verts();
 }
 
 static IndexMask selected_indices_from_vertex_group(Span<MDeformVert> vertex_group,
@@ -158,7 +152,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   int weld_mode = RNA_enum_get(ptr, "mode");
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);

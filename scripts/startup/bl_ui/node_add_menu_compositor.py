@@ -5,7 +5,6 @@
 from bpy.types import Menu
 from bl_ui import node_add_menu
 from bpy.app.translations import (
-    pgettext_iface as iface_,
     contexts as i18n_contexts,
 )
 
@@ -15,23 +14,18 @@ class NODE_MT_category_compositor_input(Menu):
     bl_label = "Input"
 
     def draw(self, context):
-        snode = context.space_data
-        is_group = (len(snode.path) > 1)
-
+        del context
         layout = self.layout
         layout.menu("NODE_MT_category_compositor_input_constant")
         layout.separator()
+        node_add_menu.add_node_type(layout, "NodeGroupInput")
         node_add_menu.add_node_type(layout, "CompositorNodeBokehImage")
         node_add_menu.add_node_type(layout, "CompositorNodeImage")
         node_add_menu.add_node_type(layout, "CompositorNodeImageInfo")
         node_add_menu.add_node_type(layout, "CompositorNodeImageCoordinates")
         node_add_menu.add_node_type(layout, "CompositorNodeMask")
         node_add_menu.add_node_type(layout, "CompositorNodeMovieClip")
-        node_add_menu.add_node_type(layout, "CompositorNodeTexture")
 
-        if is_group:
-            layout.separator()
-            node_add_menu.add_node_type(layout, "NodeGroupInput")
         layout.separator()
         layout.menu("NODE_MT_category_compositor_input_scene")
 
@@ -69,18 +63,12 @@ class NODE_MT_category_compositor_output(Menu):
     bl_label = "Output"
 
     def draw(self, context):
-        snode = context.space_data
-        is_group = (len(snode.path) > 1)
-
+        del context
         layout = self.layout
-        node_add_menu.add_node_type(layout, "CompositorNodeComposite")
+        node_add_menu.add_node_type(layout, "NodeGroupOutput")
         node_add_menu.add_node_type(layout, "CompositorNodeViewer")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeOutputFile")
-
-        if is_group:
-            layout.separator()
-            node_add_menu.add_node_type(layout, "NodeGroupOutput")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -137,8 +125,8 @@ class NODE_MT_category_compositor_color_mix(Menu):
         node_add_menu.add_node_type(layout, "CompositorNodeCombineColor")
         node_add_menu.add_node_type(layout, "CompositorNodeSeparateColor")
         layout.separator()
-        node_add_menu.add_color_mix_node(context, layout)
         node_add_menu.add_node_type(layout, "CompositorNodeZcombine")
+        node_add_menu.add_color_mix_node(context, layout)
         node_add_menu.draw_assets_for_catalog(layout, "Color/Mix")
 
 
@@ -305,9 +293,10 @@ class NODE_MT_category_compositor_utilities(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeSplit")
         node_add_menu.add_node_type(layout, "CompositorNodeSwitch")
+        node_add_menu.add_node_type(layout, "GeometryNodeMenuSwitch")
         node_add_menu.add_node_type(
             layout, "CompositorNodeSwitchView",
-            label=iface_("Switch Stereo View"))
+            label="Switch Stereo View")
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeRelativeToPixel")
 
@@ -323,7 +312,7 @@ class NODE_MT_category_compositor_vector(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeCombineXYZ")
         node_add_menu.add_node_type(layout, "ShaderNodeSeparateXYZ")
         layout.separator()
-        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=iface_("Mix Vector"))
+        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label="Mix Vector")
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'VECTOR'"

@@ -25,8 +25,8 @@ static const char *get_shader_name(const ResultType type, const PaddingMethod pa
       break;
     case PaddingMethod::Extend:
       switch (type) {
-        case ResultType::Float3:
-          return "compositor_pad_extend_float4";
+        case ResultType::Float2:
+          return "compositor_pad_extend_float2";
         case ResultType::Float:
           return "compositor_pad_extend_float";
         default:
@@ -45,7 +45,7 @@ static void zero_pad_gpu(Context &context,
                          const int2 size,
                          const PaddingMethod padding_method)
 {
-  GPUShader *shader = context.get_shader(get_shader_name(input.type(), padding_method));
+  gpu::Shader *shader = context.get_shader(get_shader_name(input.type(), padding_method));
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_2iv(shader, "size", size);
@@ -92,9 +92,9 @@ static void zero_pad_cpu(const Result &input,
             output.store_pixel(texel, input.load_pixel_extended<float>(texel - size));
           });
           break;
-        case ResultType::Float3:
+        case ResultType::Float2:
           parallel_for(extended_domain.size, [&](const int2 texel) {
-            output.store_pixel(texel, input.load_pixel_extended<float3>(texel - size));
+            output.store_pixel(texel, input.load_pixel_extended<float2>(texel - size));
           });
           break;
         default:

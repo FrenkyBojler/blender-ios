@@ -42,7 +42,7 @@ GPUVertFormat *immVertexFormat()
   return &imm->vertex_format;
 }
 
-void immBindShader(GPUShader *shader)
+void immBindShader(blender::gpu::Shader *shader)
 {
   BLI_assert(imm->shader == nullptr);
 
@@ -60,7 +60,7 @@ void immBindShader(GPUShader *shader)
 
 void immBindBuiltinProgram(eGPUBuiltinShader shader_id)
 {
-  GPUShader *shader = GPU_shader_get_builtin_shader(shader_id);
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader(shader_id);
   immBindShader(shader);
   imm->builtin_shader_bound = shader_id;
 }
@@ -78,7 +78,7 @@ bool immIsShaderBound()
   return imm->shader != nullptr;
 }
 
-GPUShader *immGetShader()
+blender::gpu::Shader *immGetShader()
 {
   return imm->shader;
 }
@@ -271,7 +271,7 @@ void immEnd()
     imm->batch = nullptr; /* don't free, batch belongs to caller */
   }
   else {
-    Context::get()->assert_framebuffer_shader_compatibility(unwrap(imm->shader));
+    Context::get()->assert_framebuffer_shader_compatibility(imm->shader);
     imm->end();
   }
 
@@ -628,19 +628,19 @@ void immUniform1i(const char *name, int x)
   GPU_shader_uniform_1i(imm->shader, name, x);
 }
 
-void immBindTexture(const char *name, GPUTexture *tex)
+void immBindTexture(const char *name, blender::gpu::Texture *tex)
 {
   int binding = GPU_shader_get_sampler_binding(imm->shader, name);
   GPU_texture_bind(tex, binding);
 }
 
-void immBindTextureSampler(const char *name, GPUTexture *tex, GPUSamplerState state)
+void immBindTextureSampler(const char *name, blender::gpu::Texture *tex, GPUSamplerState state)
 {
   int binding = GPU_shader_get_sampler_binding(imm->shader, name);
   GPU_texture_bind_ex(tex, state, binding);
 }
 
-void immBindUniformBuf(const char *name, GPUUniformBuf *ubo)
+void immBindUniformBuf(const char *name, blender::gpu::UniformBuf *ubo)
 {
   int binding = GPU_shader_get_ubo_binding(imm->shader, name);
   GPU_uniformbuf_bind(ubo, binding);

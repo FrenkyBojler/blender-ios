@@ -430,9 +430,7 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     }
 
     if (geom->is_hair()) {
-      /* Set curve shape, still a global scene setting for now. */
       Hair *hair = static_cast<Hair *>(geom);
-      hair->curve_shape = scene->params.hair_shape;
 
       if (hair->need_update_rebuild) {
         device_update_flags |= DEVICE_CURVE_DATA_NEEDS_REALLOC;
@@ -664,13 +662,9 @@ void GeometryManager::device_update_volume_images(Device *device, Scene *scene, 
       }
 
       const ImageHandle &handle = attr.data_voxel();
-      /* We can build directly from OpenVDB data structures, no need to
-       * load such images early. */
-      if (!handle.vdb_loader()) {
-        const int slot = handle.svm_slot();
-        if (slot != -1) {
-          volume_images.insert(slot);
-        }
+      const int slot = handle.svm_slot();
+      if (slot != -1) {
+        volume_images.insert(slot);
       }
     }
   }
@@ -692,7 +686,7 @@ void GeometryManager::device_update(Device *device,
     return;
   }
 
-  VLOG_INFO << "Total " << scene->geometry.size() << " meshes.";
+  LOG_INFO << "Total " << scene->geometry.size() << " meshes.";
 
   bool true_displacement_used = false;
   bool curve_shadow_transparency_used = false;
@@ -709,10 +703,6 @@ void GeometryManager::device_update(Device *device,
       if (geom->is_modified()) {
         if (geom->is_mesh() || geom->is_volume()) {
           Mesh *mesh = static_cast<Mesh *>(geom);
-
-          if (mesh->need_attribute(scene, ATTR_STD_POSITION_UNDISPLACED)) {
-            mesh->add_undisplaced();
-          }
 
           /* Test if we need tessellation and setup normals if required. */
           if (mesh->need_tesselation()) {
@@ -804,7 +794,10 @@ void GeometryManager::device_update(Device *device,
     /* Apply generated attribute if needed or remove if not needed */
     mesh->update_generated(scene);
     /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
-    mesh->update_tangents(scene);
+    mesh->update_tangents(scene, true);
+    if (!mesh->has_true_displacement()) {
+      mesh->update_tangents(scene, false);
+    }
 
     if (progress.get_cancel()) {
       return;
@@ -976,7 +969,7 @@ void GeometryManager::device_update(Device *device,
 
     TaskPool::Summary summary;
     pool.wait_work(&summary);
-    VLOG_WORK << "Objects BVH build pool statistics:\n" << summary.full_report();
+    LOG_WORK << "Objects BVH build pool statistics:\n" << summary.full_report();
   }
 
   for (Shader *shader : scene->shaders) {

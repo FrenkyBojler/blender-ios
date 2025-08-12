@@ -385,7 +385,7 @@ static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
   op->customdata = vpd = MEM_callocN<ViewPanData>("ClipViewPanData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -565,7 +565,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   op->customdata = vpd = MEM_callocN<ViewZoomData>("ClipViewZoomData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -1537,7 +1537,7 @@ static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        scene,
-                       "Building Proxies",
+                       "Building proxies...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
@@ -1894,7 +1894,7 @@ void ED_operatormacros_clip()
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "CLIP_OT_add_marker");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-  RNA_struct_idprops_unset(otmacro->ptr, "release_confirm");
+  RNA_struct_system_idprops_unset(otmacro->ptr, "release_confirm");
 
   ot = WM_operatortype_append_macro(
       "CLIP_OT_add_marker_slide",

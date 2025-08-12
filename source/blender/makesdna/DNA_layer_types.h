@@ -19,7 +19,7 @@
  */
 typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_COMBINED = (1 << 0),
-  EEVEE_RENDER_PASS_Z = (1 << 1),
+  EEVEE_RENDER_PASS_DEPTH = (1 << 1),
   EEVEE_RENDER_PASS_MIST = (1 << 2),
   EEVEE_RENDER_PASS_NORMAL = (1 << 3),
   EEVEE_RENDER_PASS_DIFFUSE_LIGHT = (1 << 4),
@@ -176,24 +176,19 @@ typedef struct ViewLayer {
 
   struct Material *mat_override;
   struct World *world_override;
-  /** Equivalent to data-blocks ID properties. */
+  /** Equivalent to data-blocks user-defined ID properties. */
   struct IDProperty *id_properties;
-  /**
-   * Equivalent to data-blocks system-defined ID properties.
-   *
-   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
-   * management consistency.
-   */
+  /** Equivalent to data-blocks system-defined ID properties. */
   struct IDProperty *system_properties;
 
   struct FreestyleConfig freestyle_config;
   struct ViewLayerEEVEE eevee;
 
-  /* List containing the `ViewLayerAOV`s */
+  /** List containing #ViewLayerAOV. */
   ListBase aovs;
   ViewLayerAOV *active_aov;
 
-  /* List containing the 'ViewLayerLightgroup`s */
+  /** List containing #ViewLayerLightgroup. */
   ListBase lightgroups;
   ViewLayerLightgroup *active_lightgroup;
 

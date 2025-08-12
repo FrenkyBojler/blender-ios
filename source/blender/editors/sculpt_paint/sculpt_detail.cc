@@ -14,7 +14,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
@@ -26,7 +26,6 @@
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
-#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_screen.hh"
@@ -156,7 +155,7 @@ static wmOperatorStatus sculpt_detail_flood_fill_exec(bContext *C, wmOperator *o
     node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_topology_update(nodes[i]); });
   }
 
-  CLOG_INFO(&LOG, 2, "Detail flood fill took %f seconds.", BLI_time_now_seconds() - start_time);
+  CLOG_DEBUG(&LOG, "Detail flood fill took %f seconds.", BLI_time_now_seconds() - start_time);
 
   undo::push_end(ob);
 
@@ -530,6 +529,7 @@ static void dyntopo_detail_size_parallel_lines_draw(uint pos3d,
   normalize_v3(spacing_disp);
 
   float line_disp[3];
+  zero_v3(line_disp);
   rotate_v2_v2fl(line_disp, spacing_disp, DEG2RAD(angle));
   mul_v3_fl(spacing_disp, total_len / tot_lines_fl);
 
@@ -722,7 +722,7 @@ static void dyntopo_detail_size_update_header(bContext *C,
   }
   const PropertyRNA *prop = RNA_struct_find_property(&sculpt_ptr, property_name);
   const char *ui_name = RNA_property_ui_name(prop);
-  SNPRINTF(msg, format_string, ui_name, cd->current_value);
+  SNPRINTF_UTF8(msg, format_string, ui_name, cd->current_value);
   ScrArea *area = CTX_wm_area(C);
   ED_area_status_text(area, msg);
 

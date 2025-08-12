@@ -2019,7 +2019,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA op_ptr;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "branch_smoothing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -2038,13 +2038,13 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
                    IFACE_("Mark Loose"),
                    ICON_NONE,
-                   WM_OP_EXEC_DEFAULT,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 0); /* SKIN_LOOSE_MARK */
   op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
                    IFACE_("Clear Loose"),
                    ICON_NONE,
-                   WM_OP_EXEC_DEFAULT,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 1); /* SKIN_LOOSE_CLEAR */
 

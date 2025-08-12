@@ -30,6 +30,7 @@ NODE_STORAGE_FUNCS(NodeChroma)
 
 static void cmp_node_distance_matte_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Color>("Key Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Tolerance")
@@ -186,6 +187,7 @@ static void register_node_type_cmp_distance_matte()
       ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
+  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

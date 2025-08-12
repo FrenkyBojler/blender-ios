@@ -36,8 +36,9 @@ static void cmp_node_moviedistortion_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
+      .structure_type(StructureType::Dynamic);
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void init(const bContext *C, PointerRNA *ptr)
@@ -111,7 +112,7 @@ class MovieDistortionOperation : public NodeOperation {
 
   void execute_gpu(const Result &distortion_grid)
   {
-    GPUShader *shader = context().get_shader("compositor_movie_distortion");
+    gpu::Shader *shader = context().get_shader("compositor_movie_distortion");
     GPU_shader_bind(shader);
 
     Result &input_image = get_input("Image");

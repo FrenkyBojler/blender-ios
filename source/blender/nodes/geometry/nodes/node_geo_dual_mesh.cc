@@ -7,6 +7,7 @@
 #include "BKE_attribute_math.hh"
 #include "BKE_mesh.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -17,7 +18,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to compute the dual of");
   b.add_output<decl::Geometry>("Dual Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Keep Boundaries")
       .default_value(false)
@@ -161,7 +164,7 @@ static void transfer_attributes(
       /* Edges and Face Corners. */
       out_domain = src.domain;
     }
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(src.varray.type());
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(src.varray.type());
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         id, out_domain, data_type);
     if (!dst) {
@@ -918,7 +921,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
   const bool keep_boundaries = params.extract_input<bool>("Keep Boundaries");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
       Mesh *new_mesh = calc_dual_mesh(
           *mesh, keep_boundaries, params.get_attribute_filter("Dual Mesh"));
