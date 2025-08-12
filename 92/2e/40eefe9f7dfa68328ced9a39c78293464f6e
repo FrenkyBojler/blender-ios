@@ -1,1 +1,2 @@
 Referenced by issue #142151, Scrape to Plane brush type versioning handles "Plane Offset" incorrectly
+Referenced by pull request #144399, Cleanup: Remove python references to deprecated brush types
