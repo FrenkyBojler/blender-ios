@@ -1472,6 +1472,8 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
   evaluated_time_buf = gpu::VertBuf::new_device_only<float>(src.evaluated_points_num());
   curves_length_buf = gpu::VertBuf::new_device_only<float>(src.curves_num());
 
+  float4x4 transform = src.object->world_to_object();
+
   module.evaluate_positions(false, /* TODO Additional subdiv */
                             false,
                             true,
@@ -1480,7 +1482,8 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
                             *this,
                             std::move(points_pos_buf),
                             std::move(points_rad_buf),
-                            evaluated_pos_rad_buf);
+                            evaluated_pos_rad_buf,
+                            transform);
 }
 
 gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,

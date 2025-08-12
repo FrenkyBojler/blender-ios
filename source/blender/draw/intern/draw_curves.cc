@@ -130,7 +130,8 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
                                             CurvesEvalShader shader_type,
                                             gpu::VertBufPtr input_buf,
                                             gpu::VertBufPtr &output_buf,
-                                            gpu::VertBuf *input2_buf /* = nullptr*/)
+                                            gpu::VertBuf *input2_buf /* = nullptr */,
+                                            float4x4 transform /* = float4x4::identity() */)
 {
   BLI_assert(input_buf != nullptr);
   BLI_assert(output_buf != nullptr);
@@ -191,6 +192,8 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
     sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
     sub.push_constant("compute_length_and_time", false);
+    /* Bake object transform for legacy hair particle. */
+    sub.push_constant("transform", transform);
     dispatch(curve_count, sub);
   }
 
@@ -202,6 +205,8 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.bind_ssbo("handles_positions_right_buf", cache.handles_positions_right_buf);
     sub.bind_ssbo("bezier_offsets_buf", cache.bezier_offsets_buf);
     sub.push_constant("compute_length_and_time", false);
+    /* Bake object transform for legacy hair particle. */
+    sub.push_constant("transform", transform);
     dispatch(curve_count, sub);
   }
 
@@ -217,6 +222,8 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.bind_ssbo("bezier_offsets_buf", cache.basis_cache_offset_buf);
     sub.push_constant("compute_length_and_time", false);
     sub.push_constant("use_point_weight", cache.control_weights_buf.get() != nullptr);
+    /* Bake object transform for legacy hair particle. */
+    sub.push_constant("transform", transform);
     dispatch(curve_count, sub);
   }
 
@@ -230,6 +237,8 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
     sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
     sub.push_constant("compute_length_and_time", false);
+    /* Bake object transform for legacy hair particle. */
+    sub.push_constant("transform", transform);
     dispatch(curve_count, sub);
   }
 

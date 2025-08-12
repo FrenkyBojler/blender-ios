@@ -80,7 +80,9 @@ struct CurvesModule {
                                 gpu::VertBufPtr input_buf,
                                 gpu::VertBufPtr &output_buf,
                                 /* For radius during position evaluation. */
-                                gpu::VertBuf *input2_buf = nullptr);
+                                gpu::VertBuf *input2_buf = nullptr,
+                                /* For baking a transform during position evaluation. */
+                                float4x4 transform = float4x4::identity());
 
   void evaluate_positions(bool has_catmull,
                           bool has_bezier,
@@ -90,7 +92,8 @@ struct CurvesModule {
                           struct CurvesEvalCache &cache,
                           gpu::VertBufPtr input_pos_buf,
                           gpu::VertBufPtr input_rad_buf,
-                          gpu::VertBufPtr &output_pos_buf)
+                          gpu::VertBufPtr &output_pos_buf,
+                          float4x4 transform = float4x4::identity())
   {
     evaluate_curve_attribute(has_catmull,
                              has_bezier,
@@ -102,7 +105,8 @@ struct CurvesModule {
                              std::move(input_pos_buf),
                              output_pos_buf,
                              /* Transfer ownership through optional argument. */
-                             input_rad_buf.release());
+                             input_rad_buf.release(),
+                             transform);
   }
 
   gpu::VertBufPtr evaluate_topology_indirection(const int curve_count,

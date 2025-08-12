@@ -15,6 +15,7 @@ COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_position)
 
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_matrix_lib.glsl"
 
 /* We workaround the lack of function pointers by using different type to overload the attribute
  * implementation. */
@@ -28,6 +29,8 @@ InterpPosition input_load(int point_index, InterpPosition interp)
   const auto &positions = buffer_get(draw_curves_interpolate_position, positions_buf);
   interp.data.xyz = gpu_attr_load_float3(positions, int2(3, 0), point_index);
   interp.data.w = buffer_get(draw_curves_interpolate_position, radii_buf)[point_index];
+  /* Bake object transform for legacy hair particle. */
+  interp.data.xyz = transform_point(transform, interp.data.xyz);
   return interp;
 }
 
