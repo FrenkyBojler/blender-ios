@@ -528,7 +528,10 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   return dst;
 }
 
-static bool pen_add_single(const PenToolOperation &ptd, wmOperator *op)
+/**
+ * Will return if a new curve can be created, and will report any errors.
+ */
+static bool pen_report_new_curve_errors(const PenToolOperation &ptd, wmOperator *op)
 {
   if (!ptd.grease_pencil->has_active_layer()) {
     BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
@@ -561,6 +564,12 @@ static bool pen_add_single(const PenToolOperation &ptd, wmOperator *op)
     return false;
   }
 
+  return true;
+}
+
+static void pen_add_single(const PenToolOperation &ptd)
+{
+  bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
   bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
       layer, ptd.vc.scene->r.cfra);
   bke::CurvesGeometry &curves = drawing->strokes_for_write();
@@ -577,6 +586,7 @@ static bool pen_add_single(const PenToolOperation &ptd, wmOperator *op)
   drawing->opacities_for_write().last() = 1.0f;
   curves.update_curve_types();
 
+  const int material_index = ptd.vc.obact->actcol - 1;
   bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
       "material_index",
       bke::AttrDomain::Curve,
@@ -646,8 +656,6 @@ static bool pen_add_single(const PenToolOperation &ptd, wmOperator *op)
       curves.curves_range().take_back(1));
 
   drawing->tag_topology_changed();
-
-  return true;
 }
 
 static bke::CurvesGeometry pen_insert_point(const PenToolOperation &ptd,
@@ -1012,8 +1020,9 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   });
 
   if (add_single) {
-    const bool successful = pen_add_single(ptd, op);
+    const bool successful = pen_report_new_curve_errors(ptd, op);
     if (successful) {
+      pen_add_single(ptd);
       changed.store(true, std::memory_order_relaxed);
       point_added = true;
     }
