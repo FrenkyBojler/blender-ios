@@ -1063,8 +1063,8 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
 }
 
 /* The compositor Value, Color Ramp, Mix Color, Map Range, Map Value, Math, Combine XYZ, Separate
- * XYZ, and Vector Curves nodes are now deprecated and should be replaced by their generic
- * Shader node counterpart. */
+ * XYZ, and Vector Curves nodes are now deprecated and should be replaced by their generic Shader
+ * node counterpart. */
 static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 {
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
