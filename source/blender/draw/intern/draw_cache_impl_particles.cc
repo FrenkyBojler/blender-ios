@@ -670,41 +670,6 @@ static int particle_batch_cache_fill_segments(ParticleSystem *psys,
   return curr_point;
 }
 
-static void particle_batch_cache_fill_segments_proc_pos(ParticleCacheKey **path_cache,
-                                                        const int num_path_keys,
-                                                        GPUVertBufRaw *attr_step,
-                                                        GPUVertBufRaw *length_step)
-{
-  for (int i = 0; i < num_path_keys; i++) {
-    ParticleCacheKey *path = path_cache[i];
-    if (path->segments <= 0) {
-      continue;
-    }
-    float total_len = 0.0f;
-    float *co_prev = nullptr, *seg_data_first;
-    for (int j = 0; j <= path->segments; j++) {
-      float *seg_data = (float *)GPU_vertbuf_raw_step(attr_step);
-      copy_v3_v3(seg_data, path[j].co);
-      if (co_prev) {
-        total_len += len_v3v3(co_prev, path[j].co);
-      }
-      else {
-        seg_data_first = seg_data;
-      }
-      seg_data[3] = total_len;
-      co_prev = path[j].co;
-    }
-    /* Assign length value. */
-    *(float *)GPU_vertbuf_raw_step(length_step) = total_len;
-    if (total_len > 0.0f) {
-      /* Divide by total length to have a [0-1] number. */
-      for (int j = 0; j <= path->segments; j++, seg_data_first += 4) {
-        seg_data_first[3] /= total_len;
-      }
-    }
-  }
-}
-
 static float particle_key_weight(const ParticleData *particle, int strand, float t)
 {
   const ParticleData *part = particle + strand;
@@ -754,26 +719,6 @@ static int particle_batch_cache_fill_segments_edit(
       curr_point++;
     }
     /* Finish the segment and add restart primitive. */
-    GPU_indexbuf_add_primitive_restart(elb);
-  }
-  return curr_point;
-}
-
-static int particle_batch_cache_fill_segments_indices(ParticleCacheKey **path_cache,
-                                                      const int start_index,
-                                                      const int num_path_keys,
-                                                      const int res,
-                                                      GPUIndexBufBuilder *elb)
-{
-  int curr_point = start_index;
-  for (int i = 0; i < num_path_keys; i++) {
-    ParticleCacheKey *path = path_cache[i];
-    if (path->segments <= 0) {
-      continue;
-    }
-    for (int k = 0; k < res; k++) {
-      GPU_indexbuf_add_generic_vert(elb, curr_point++);
-    }
     GPU_indexbuf_add_primitive_restart(elb);
   }
   return curr_point;
@@ -1479,6 +1424,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
   float4x4 transform = src.object->world_to_object();
 
   module.evaluate_positions(true,
+                            false,
                             false,
                             false,
                             false,
