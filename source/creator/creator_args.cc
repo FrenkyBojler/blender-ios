@@ -726,9 +726,6 @@ static void print_help(bArgs *ba, bool all)
 
   PRINT("\n");
   BLI_args_print_arg_doc(ba, "--debug-events");
-  if (defs.with_ffmpeg) {
-    BLI_args_print_arg_doc(ba, "--debug-ffmpeg");
-  }
   BLI_args_print_arg_doc(ba, "--debug-handlers");
   if (defs.with_libmv) {
     BLI_args_print_arg_doc(ba, "--debug-libmv");
@@ -866,6 +863,9 @@ static void print_help(bArgs *ba, bool all)
   PRINT("  $BLENDER_CUSTOM_SPLASH     Full path to an image that replaces the splash screen.\n");
   PRINT(
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
+  PRINT(
+      "  $BLENDER_VSYNC             Set to 0 to disable VSync.\n"
+      "                             With OpenGL, other values set the swap interval.\n");
 
   if (defs.with_opencolorio) {
     PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
@@ -874,7 +874,6 @@ static void print_help(bArgs *ba, bool all)
     PRINT("  $TEMP                      Store temporary files here (MS-Windows).\n");
   }
   if (!defs.win32 || all) {
-    /* NOTE: while `TMP` checked, don't include here as it's non-standard & may be removed. */
     PRINT("  $TMPDIR                    Store temporary files here (UNIX Systems).\n");
   }
   PRINT(
@@ -1029,7 +1028,7 @@ static const char arg_handle_quiet_set_doc[] =
     "Suppress status printing (warnings & errors are still printed).";
 static int arg_handle_quiet_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   return 0;
 }
 
@@ -1064,7 +1063,7 @@ static const char arg_handle_background_mode_set_doc[] =
     "\tand can be re-enabled by passing in '-setaudio Default' afterwards.";
 static int arg_handle_background_mode_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  if (!G.quiet) {
+  if (!CLG_quiet_get()) {
     print_version_short();
   }
   background_mode_set();
@@ -1087,7 +1086,7 @@ static int arg_handle_command_set(int argc, const char **argv, void *data)
       BLI_assert_unreachable();
     }
     /* Application "info" messages get in the way of command line output, suppress them. */
-    G.quiet = true;
+    CLG_quiet_set(true);
 
     background_mode_set();
 
@@ -1181,7 +1180,7 @@ static int arg_handle_log_level_set(int argc, const char **argv, void * /*data*/
     else if (parse_int_clamp(argv[1], nullptr, -1, INT_MAX, &G.log.level, &err_msg)) {
       /* Numeric level for backwards compatibility. */
       if (G.log.level < 0) {
-        G.log.level = INT_MAX;
+        G.log.level = CLG_LEVEL_LEN - 1;
       }
       else {
         G.log.level = std::min(CLG_LEVEL_INFO + G.log.level, CLG_LEVEL_LEN - 1);
@@ -1320,9 +1319,6 @@ static int arg_handle_debug_mode_set(int /*argc*/, const char ** /*argv*/, void 
   return 0;
 }
 
-static const char arg_handle_debug_mode_generic_set_doc_ffmpeg[] =
-    "\n\t"
-    "Enable debug messages from FFmpeg library.";
 static const char arg_handle_debug_mode_generic_set_doc_freestyle[] =
     "\n\t"
     "Enable debug messages for Freestyle.";
@@ -1434,6 +1430,16 @@ static int arg_handle_debug_mode_cycles(int /*argc*/, const char ** /*argv*/, vo
 {
   const char *cycles_filter = "cycles.*";
   CLG_type_filter_include(cycles_filter, strlen(cycles_filter));
+  return 0;
+}
+
+static const char arg_handle_debug_mode_ffmpeg_doc[] =
+    "\n\t"
+    "Enable debug messages from FFmpeg video input and output.";
+static int arg_handle_debug_mode_ffmpeg(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  const char *video_filter = "video.*";
+  CLG_type_filter_include(video_filter, strlen(video_filter));
   return 0;
 }
 
@@ -1552,7 +1558,7 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (false) {
-    /* Just a dummy if to make the following ifdef blocks work. */
+    /* Use a dummy block to make the following `ifdef` blocks work. */
   }
 #  ifdef WITH_OPENGL_BACKEND
   else if (STREQ(argv[1], (backends_supported[backends_supported_num++] = "opengl"))) {
@@ -1843,7 +1849,7 @@ static const char arg_handle_register_extension_doc[] =
     "Register blend-file extension for current user, then exit (Windows & Linux only).";
 static int arg_handle_register_extension(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
 #  if !(defined(WIN32) && defined(__APPLE__))
@@ -1861,7 +1867,7 @@ static const char arg_handle_register_extension_all_doc[] =
     "Register blend-file extension for all users, then exit (Windows & Linux only).";
 static int arg_handle_register_extension_all(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
 #  if !(defined(WIN32) && defined(__APPLE__))
@@ -1879,7 +1885,7 @@ static const char arg_handle_unregister_extension_doc[] =
     "Unregister blend-file extension for current user, then exit (Windows & Linux only).";
 static int arg_handle_unregister_extension(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
 #  if !(defined(WIN32) && defined(__APPLE__))
@@ -1897,7 +1903,7 @@ static const char arg_handle_unregister_extension_all_doc[] =
     "Unregister blend-file extension for all users, then exit (Windows & Linux only).";
 static int arg_handle_unregister_extension_all(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
 #  if !(defined(WIN32) && defined(__APPLE__))
@@ -2027,7 +2033,7 @@ static const char arg_handle_image_type_set_doc[] =
     "<format>\n"
     "\tSet the render format.\n"
     "\tValid options are:\n"
-    "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'AVIRAW' 'AVIJPEG' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
+    "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
     "\n"
     "\tFormats that can be compiled into Blender, not available on all systems:\n"
     "\t'OPEN_EXR' 'OPEN_EXR_MULTILAYER' 'FFMPEG' 'CINEON' 'DPX' 'JP2' 'WEBP'.";
@@ -2780,11 +2786,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, "-d", "--debug", CB(arg_handle_debug_mode_set), ba);
 
   if (defs.with_ffmpeg) {
-    BLI_args_add(ba,
-                 nullptr,
-                 "--debug-ffmpeg",
-                 CB_EX(arg_handle_debug_mode_generic_set, ffmpeg),
-                 (void *)G_DEBUG_FFMPEG);
+    BLI_args_add(ba, nullptr, "--debug-ffmpeg", CB(arg_handle_debug_mode_ffmpeg), nullptr);
   }
 
   if (defs.with_freestyle) {

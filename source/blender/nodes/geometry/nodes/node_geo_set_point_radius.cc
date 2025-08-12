@@ -4,6 +4,8 @@
 
 #include "DNA_pointcloud_types.h"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_point_radius_cc {
@@ -12,7 +14,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Points").supported_type(GeometryComponent::Type::PointCloud);
+  b.add_input<decl::Geometry>("Points")
+      .supported_type(GeometryComponent::Type::PointCloud)
+      .description("Points to set the radius of");
   b.add_output<decl::Geometry>("Points").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Radius")
@@ -28,7 +32,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<float> radius = params.extract_input<Field<float>>("Radius");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (PointCloud *pointcloud = geometry_set.get_pointcloud_for_write()) {
       bke::try_capture_field_on_geometry(pointcloud->attributes_for_write(),
                                          bke::PointCloudFieldContext(*pointcloud),
