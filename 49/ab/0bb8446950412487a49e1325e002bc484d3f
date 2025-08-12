@@ -1,1 +1,2 @@
 Referenced by issue #144270, Edge slide misbehaves when sliding towards triangle
+Referenced by commit d278e7d424a078f7c4a4de289df945b54179baa5, Fix #144270: Edge slide fails when moving towards a single triangle
