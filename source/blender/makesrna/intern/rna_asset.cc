@@ -88,16 +88,14 @@ static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
 
 int rna_AssetMetaData_editable(const PointerRNA *ptr, const char ** /* r_info */)
 {
-  /* Ideally the metadata would not be editable if the asset is from a library that cannot be
-   * edited. But since the AssetMetaData does not know anything about the asset or library,
-   *  we just make it editable and deal with the disabling of properties on the GUI/operator
-   * side. */
   AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
   if (ptr->owner_id && asset_data && (ptr->owner_id->asset_data == asset_data)) {
     /* Local assets. */
     return PROP_EDITABLE;
   }
 
+  /* Assets in external libraries may be editable in certain conditions, e.g. with
+   * BLENDER_ASSET_FILE_SUFFIX. */
   return asset_data->runtime_flag & ASSET_METADATA_FLAG_EDITABLE ? PROP_EDITABLE : PropertyFlag(0);
 }
 
