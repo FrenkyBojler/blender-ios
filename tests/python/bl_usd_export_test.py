@@ -936,7 +936,7 @@ class USDExportTest(AbstractUSDTest):
 
         # Contains 2 NURBS curves
         curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCurve/NurbsCurve"))
-        check_nurbs_curve(curve, False, [4, 4], [6, 6], 10, [[-1.75, -2.6898, -1.0117], [3.0896, 1.9583, 1.0293]])
+        check_nurbs_curve(curve, False, [4, 4], [6, 6], 10, [[-1.75, -2.6891, -1.0117], [3.0896, 1.9583, 1.0293]])
 
         # Contains 1 NURBS curve
         curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCircle/NurbsCircle"))
@@ -1688,6 +1688,154 @@ class USDExportTest(AbstractUSDTest):
         actual = tuple(sorted(actual, key=lambda pair: pair[0]))
 
         self.assertTupleEqual(expected, actual)
+
+    def test_point_instancing_export(self):
+        """Test exporting scenes that use point instancing."""
+
+        def confirm_point_instancing_stats(stage, num_meshes, num_instancers, num_instances, num_prototypes):
+            mesh_count = 0
+            instancer_count = 0
+            instance_count = 0
+            prototype_count = 0
+
+            for prim in stage.TraverseAll():
+                prim_path = prim.GetPath()
+                prim_type_name = prim.GetTypeName()
+
+                if prim_type_name == "PointInstancer":
+                    point_instancer = UsdGeom.PointInstancer(prim)
+                    if point_instancer:
+
+                        # get instance count
+                        positions_attr = point_instancer.GetPositionsAttr()
+                        if positions_attr:
+                            positions = positions_attr.Get()
+                            if positions:
+                                instance_count += len(positions)
+
+                        # get prototype count
+                        prototypes_rel = point_instancer.GetPrototypesRel()
+                        if prototypes_rel:
+                            target_prims = prototypes_rel.GetTargets()
+                            prototype_count += len(target_prims)
+
+                # show all prims and types
+                # output_string = f"  Path: {prim_path}, Type: {prim_type_name}"
+                # print(output_string)
+
+            stats = UsdUtils.ComputeUsdStageStats(stage)
+            mesh_count = stats['primary']['primCountsByType']['Mesh']
+            instancer_count = stats['primary']['primCountsByType']['PointInstancer']
+
+            return mesh_count, instancer_count, instance_count, prototype_count
+
+        point_instance_test_scenarios = [
+            # object reference treated as geometry set
+            {'input_file': str(self.testdir / "usd_point_instancer_object_ref.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_object_ref.usda",
+             'mesh_count': 3,
+             'instancer_count': 1,
+             'total_instances': 16,
+             'total_prototypes': 1,
+             'extent': {
+                 "/root/Plane/Mesh": [Gf.Vec3f(-1.0999999, -1.0999999, -0.1),
+                                      Gf.Vec3f(1.1, 1.1, 0.1)]}},
+            # collection reference from single point instancer
+            {'input_file': str(self.testdir / "usd_point_instancer_collection_ref.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_collection_ref.usda",
+             'mesh_count': 5,
+             'instancer_count': 1,
+             'total_instances': 32,
+             'total_prototypes': 2,
+             'extent': {
+                 "/root/Plane/Mesh": [Gf.Vec3f(-1.1758227, -1.1, -0.1),
+                                      Gf.Vec3f(1.1, 1.1526861, 0.14081651)]}},
+            # collection references in nested point instancer
+            {'input_file': str(self.testdir / "usd_point_instancer_nested.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_nested.usda",
+             'mesh_count': 9,
+             'instancer_count': 3,
+             'total_instances': 14,
+             'total_prototypes': 4,
+             'extent': {
+                 "/root/Triangle/Triangle": [Gf.Vec3f(-0.976631, -1.2236981, -0.7395363),
+                                             Gf.Vec3f(1.8081428, 3.371673, 1.2604637)],
+                 "/root/Plane/Plane": [Gf.Vec3f(-1.164238, -3.5953712, -0.2883494),
+                                       Gf.Vec3f(-0.68365526, -3.1147888, -0.18980181)]}},
+            # object reference coming from a collection with separate children
+            {'input_file': str(self.testdir / "../render/shader/texture_coordinate_camera.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_separate_children.usda",
+             'mesh_count': 9,
+             'instancer_count': 1,
+             'total_instances': 4,
+             'total_prototypes': 2,
+             'extent': {
+                 "/root/Rotated_and_Scaled_Instances/Cube_003": [Gf.Vec3f(-8.488519, -6.1219244, -6.964829),
+                                                                 Gf.Vec3f(3.2331002, 5.4789553, 7.095813)]}}
+        ]
+
+        for scenario in point_instance_test_scenarios:
+            bpy.ops.wm.open_mainfile(filepath=scenario['input_file'])
+
+            export_path = scenario['output_file']
+            self.export_and_validate(
+                filepath=str(export_path),
+                use_instancing=True
+            )
+
+            stage = Usd.Stage.Open(str(export_path))
+
+            mesh_count, instancer_count, instance_count, proto_count = confirm_point_instancing_stats(
+                stage, scenario['mesh_count'], scenario['instancer_count'], scenario['total_instances'], scenario['total_prototypes'])
+            self.assertEqual(scenario['mesh_count'], mesh_count, "Unexpected number of primary meshes")
+            self.assertEqual(scenario['instancer_count'], instancer_count, "Unexpected number of point instancers")
+            self.assertEqual(scenario['total_instances'], instance_count, "Unexpected number of total instances")
+            self.assertEqual(scenario['total_prototypes'], proto_count, "Unexpected number of total prototypes")
+            if 'extent' in scenario:
+                for prim_path, (expected_min, expected_max) in scenario['extent'].items():
+                    prim = stage.GetPrimAtPath(prim_path)
+                    self.assertTrue(prim.IsValid(), f"Prim {prim_path} not found on stage")
+
+                    boundable = UsdGeom.Boundable(prim)
+                    extent_attr = boundable.GetExtentAttr()
+                    self.assertTrue(extent_attr.HasAuthoredValue(), f"Prim {prim_path} has no authored extent")
+
+                    extent = extent_attr.Get()
+                    self.assertIsNotNone(extent, f"Extent on {prim_path} could not be retrieved")
+
+                    self.compareVec3d(Gf.Vec3d(extent[0]), expected_min)
+                    self.compareVec3d(Gf.Vec3d(extent[1]), expected_max)
+
+    def test_export_usdz(self):
+        """Validate USDZ files are packaged correctly."""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usdz_export_test.blend"))
+        export_path = str(self.tempdir / "output_こんにちは.usdz")
+
+        # USDZ export will not create the output directory if it does not already exist
+        self.tempdir.mkdir()
+
+        # USDZ export will modify the working directory during the export process, but it should
+        # return to normal once complete
+        original_cwd = pathlib.Path.cwd()
+        self.export_and_validate(filepath=export_path)
+        final_cwd = pathlib.Path.cwd()
+
+        self.assertEqual(original_cwd, final_cwd)
+
+        # Validate stage content
+        stage = Usd.Stage.Open(export_path)
+        self.assertTrue(stage.GetPrimAtPath("/root/Cube/Cube").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Cylinder/Cylinder").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Icosphere/Icosphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Sphere/Sphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/env_light").IsValid())
+
+        # Validate that the archive itself contains what we expect (it is just a ZIP file)
+        import zipfile
+        with zipfile.ZipFile(export_path, 'r') as zfile:
+            file_list = zfile.namelist()
+            self.assertIn('textures/color_0C0C0C.exr', file_list)
 
 
 class USDHookBase:

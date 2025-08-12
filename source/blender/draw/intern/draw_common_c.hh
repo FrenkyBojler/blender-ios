@@ -10,12 +10,12 @@
 
 struct FluidModifierData;
 struct GPUMaterial;
-struct GPUTexture;
-struct GPUUniformBuf;
 
 namespace blender::gpu {
+class Texture;
+class UniformBuf;
 class VertBuf;
-}
+}  // namespace blender::gpu
 struct ModifierData;
 struct Object;
 struct ParticleSystem;
@@ -28,7 +28,7 @@ class Manager;
 struct CurvesModule;
 struct PointCloudModule;
 struct VolumeModule;
-struct ObjectRef;
+class ObjectRef;
 }  // namespace blender::draw
 
 /* draw_hair.cc */

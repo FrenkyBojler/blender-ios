@@ -96,6 +96,22 @@ bool ShaderCreateInfo::is_vulkan_compatible() const
 
 /** \} */
 
+void ShaderCreateInfo::resource_guard_defines(std::string &defines) const
+{
+  if (name_.startswith("MA") || name_.startswith("WO")) {
+    defines += "#define CREATE_INFO_Material\n";
+  }
+  else {
+    defines += "#define CREATE_INFO_" + name_ + "\n";
+  }
+  for (const auto &info_name : additional_infos_) {
+    const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
+        gpu_shader_create_info_get(info_name.c_str()));
+
+    info.resource_guard_defines(defines);
+  }
+}
+
 void ShaderCreateInfo::finalize(const bool recursive)
 {
   if (finalized_) {
@@ -200,6 +216,23 @@ void ShaderCreateInfo::finalize(const bool recursive)
     if (!info.compute_source_.is_empty()) {
       assert_no_overlap(compute_source_.is_empty(), "Compute source already existing");
       compute_source_ = info.compute_source_;
+    }
+
+    if (info.vertex_entry_fn_ != "main") {
+      assert_no_overlap(vertex_entry_fn_ == "main", "Vertex function already existing");
+      vertex_entry_fn_ = info.vertex_entry_fn_;
+    }
+    if (info.geometry_entry_fn_ != "main") {
+      assert_no_overlap(geometry_entry_fn_ == "main", "Geometry function already existing");
+      geometry_entry_fn_ = info.geometry_entry_fn_;
+    }
+    if (info.fragment_entry_fn_ != "main") {
+      assert_no_overlap(fragment_entry_fn_ == "main", "Fragment function already existing");
+      fragment_entry_fn_ = info.fragment_entry_fn_;
+    }
+    if (info.compute_entry_fn_ != "main") {
+      assert_no_overlap(compute_entry_fn_ == "main", "Compute function already existing");
+      compute_entry_fn_ = info.compute_entry_fn_;
     }
   }
 
@@ -483,12 +516,6 @@ void gpu_shader_create_info_init()
 /* Declare, register and construct the infos. */
 #include "gpu_shader_create_info_list.hh"
 
-  /* WORKAROUND: Replace the use of gpu_BaseInstance by an instance attribute. */
-  if (GPU_shader_draw_parameters_support() == false) {
-    draw_resource_id = draw_resource_id_fallback;
-    draw_resource_with_custom_id = draw_resource_with_custom_id_fallback;
-  }
-
   if (GPU_stencil_clasify_buffer_workaround()) {
     /* WORKAROUND: Adding a dummy buffer that isn't used fixes a bug inside the Qualcomm driver. */
     eevee_deferred_tile_classify.storage_buf(
@@ -575,7 +602,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
   }
 
   BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
-  Vector<GPUShader *> result = GPU_shader_batch_finalize(batch);
+  Vector<blender::gpu::Shader *> result = GPU_shader_batch_finalize(batch);
 
   for (int i : result.index_range()) {
     const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(infos[i]);
@@ -587,7 +614,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
 #if 0 /* TODO(fclem): This is too verbose for now. Make it a cmake option. */
         /* Test if any resource is optimized out and print a warning if that's the case. */
         /* TODO(fclem): Limit this to OpenGL backend. */
-        const ShaderInterface *interface = unwrap(shader)->interface;
+        const ShaderInterface *interface = shader->interface;
 
         blender::Vector<ShaderCreateInfo::Resource> all_resources = info->resources_get_all_();
 

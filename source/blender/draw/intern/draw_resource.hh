@@ -11,6 +11,7 @@
  * Each of them are reference by resource index (#ResourceHandle).
  */
 
+#include "BLI_bounds.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 
@@ -59,8 +60,6 @@ inline std::ostream &operator<<(std::ostream &stream, const ObjectMatrices &matr
 /** \name ObjectInfos
  * \{ */
 
-ENUM_OPERATORS(eObjectInfoFlag, OBJECT_NEGATIVE_SCALE)
-
 inline void ObjectInfos::sync()
 {
   object_attrs_len = 0;
@@ -69,7 +68,9 @@ inline void ObjectInfos::sync()
   flag = eObjectInfoFlag::OBJECT_NO_INFO;
 }
 
-inline void ObjectInfos::sync(const blender::draw::ObjectRef ref, bool is_active_object)
+inline void ObjectInfos::sync(const blender::draw::ObjectRef ref,
+                              bool is_active_object,
+                              bool is_active_edit_mode)
 {
   object_attrs_len = 0;
   object_attrs_offset = 0;
@@ -96,6 +97,7 @@ inline void ObjectInfos::sync(const blender::draw::ObjectRef ref, bool is_active
   SET_FLAG_FROM_TEST(
       flag, ref.object->transflag & OB_NEG_SCALE, eObjectInfoFlag::OBJECT_NEGATIVE_SCALE);
   SET_FLAG_FROM_TEST(flag, is_holdout, eObjectInfoFlag::OBJECT_HOLDOUT);
+  SET_FLAG_FROM_TEST(flag, is_active_edit_mode, eObjectInfoFlag::OBJECT_ACTIVE_EDIT_MODE);
 
   if (ref.object->shadow_terminator_normal_offset > 0.0f) {
     using namespace blender::math;
@@ -205,12 +207,11 @@ inline void ObjectBounds::sync(const Object &ob, float inflate_bounds)
     bounding_sphere.w = -1.0f; /* Disable test. */
     return;
   }
-  BoundBox bbox;
-  BKE_boundbox_init_from_minmax(&bbox, bounds->min, bounds->max);
-  *reinterpret_cast<float3 *>(&bounding_corners[0]) = bbox.vec[0];
-  *reinterpret_cast<float3 *>(&bounding_corners[1]) = bbox.vec[4];
-  *reinterpret_cast<float3 *>(&bounding_corners[2]) = bbox.vec[3];
-  *reinterpret_cast<float3 *>(&bounding_corners[3]) = bbox.vec[1];
+  const std::array<float3, 8> corners = blender::bounds::corners(*bounds);
+  *reinterpret_cast<float3 *>(&bounding_corners[0]) = corners[0];
+  *reinterpret_cast<float3 *>(&bounding_corners[1]) = corners[4];
+  *reinterpret_cast<float3 *>(&bounding_corners[2]) = corners[3];
+  *reinterpret_cast<float3 *>(&bounding_corners[3]) = corners[1];
   bounding_sphere.w = 0.0f; /* Enable test. */
 
   if (inflate_bounds != 0.0f) {

@@ -165,11 +165,13 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
     }
 
 #ifdef WITH_GLEW_ES
-    if (!GLXEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1)
+    if (!GLXEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1) {
       fprintf(stderr, "Warning! OpenGL ES profile not available.\n");
+    }
 
-    if (!GLXEW_EXT_create_context_es2_profile && profileBitES && m_contextMajorVersion == 2)
+    if (!GLXEW_EXT_create_context_es2_profile && profileBitES && m_contextMajorVersion == 2) {
       fprintf(stderr, "Warning! OpenGL ES2 profile not available.\n");
+    }
 #endif
 
     int profileMask = 0;
@@ -182,8 +184,9 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
     }
 
 #ifdef WITH_GLEW_ES
-    if (GLXEW_EXT_create_context_es_profile && profileBitES)
+    if (GLXEW_EXT_create_context_es_profile && profileBitES) {
       profileMask |= profileBitES;
+    }
 #endif
 
     if (profileMask != m_contextProfileMask) {
@@ -276,6 +279,13 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
     s_sharedCount++;
 
     glXMakeCurrent(m_display, m_window, m_context);
+
+    /* For performance measurements with VSync disabled. */
+    const char *ghost_vsync_string = getEnvVarVSyncString();
+    if (ghost_vsync_string) {
+      int swapInterval = atoi(ghost_vsync_string);
+      setSwapInterval(swapInterval);
+    }
 
     if (m_window) {
       initClearGL();

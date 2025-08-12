@@ -9,6 +9,7 @@ from bl_ui.space_dopesheet import (
     DopesheetActionPanelBase,
     dopesheet_filter,
 )
+from bl_ui.space_time import playback_controls
 from bl_ui.utils import (
     PlayheadSnappingPanel,
 )
@@ -46,7 +47,21 @@ class NLA_HT_header(Header):
             panel="NLA_PT_snapping",
             text="",
         )
-        layout.popover(panel="NLA_PT_playhead_snapping")
+
+        row = layout.row(align=True)
+        row.prop(tool_settings, "use_snap_playhead", text="")
+        sub = row.row(align=True)
+        sub.popover(panel="NLA_PT_playhead_snapping", text="")
+
+
+class NLA_HT_playback_controls(Header):
+    bl_space_type = 'NLA_EDITOR'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+
+        playback_controls(layout, context)
 
 
 class NLA_PT_snapping(Panel):
@@ -121,6 +136,7 @@ class NLA_MT_view(Menu):
         layout.prop(st, "show_region_ui")
         layout.prop(st, "show_region_hud")
         layout.prop(st, "show_region_channels")
+        layout.prop(st, "show_region_footer")
         layout.separator()
 
         layout.operator("nla.view_selected")
@@ -400,6 +416,7 @@ class NLA_MT_channel_context_menu(Menu):
 
 classes = (
     NLA_HT_header,
+    NLA_HT_playback_controls,
     NLA_MT_editor_menus,
     NLA_MT_view,
     NLA_MT_select,

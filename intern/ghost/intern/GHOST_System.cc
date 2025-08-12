@@ -214,6 +214,11 @@ GHOST_TSuccess GHOST_System::setCursorPositionClientRelative(GHOST_IWindow *wind
   return setCursorPosition(screen_x, screen_y);
 }
 
+uint32_t GHOST_System::getCursorPreferredLogicalSize() const
+{
+  return uint32_t(24);
+}
+
 GHOST_TSuccess GHOST_System::getModifierKeyState(GHOST_TModifierKey mask, bool &isDown) const
 {
   GHOST_ModifierKeys keys;
@@ -288,6 +293,9 @@ GHOST_TSuccess GHOST_System::init()
 
 GHOST_TSuccess GHOST_System::exit()
 {
+  /** WARNING: exit() may run more than once, since it may need to be called from a derived class
+   * destructor. Take it into account when modifying this function. */
+
   delete m_windowManager;
   m_windowManager = nullptr;
 

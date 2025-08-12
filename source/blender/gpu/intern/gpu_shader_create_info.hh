@@ -25,6 +25,12 @@
 #  include <iostream>
 #endif
 
+#if defined(GPU_SHADER)
+#  include "gpu_shader_srd_cpp.hh"
+#else
+#  include "gpu_shader_srd_info.hh"
+#endif
+
 /* Force enable `printf` support in release build. */
 #define GPU_FORCE_ENABLE_SHADER_PRINTF 0
 
@@ -113,11 +119,13 @@
 #  define FLAT(type, name) .flat(Type::type##_t, #name)
 #  define NO_PERSPECTIVE(type, name) .no_perspective(Type::type##_t, #name)
 
-/* LOCAL_GROUP_SIZE(int size_x, int size_y = -1, int size_z = -1) */
+/* LOCAL_GROUP_SIZE(int size_x, int size_y = 1, int size_z = 1) */
 #  define LOCAL_GROUP_SIZE(...) .local_group_size(__VA_ARGS__)
 
 #  define VERTEX_IN(slot, type, name) .vertex_in(slot, Type::type##_t, #name)
+#  define VERTEX_IN_SRD(srd) .shared_resource_descriptor(srd::populate)
 #  define VERTEX_OUT(stage_interface) .vertex_out(stage_interface)
+#  define VERTEX_OUT_SRD(srd) .vertex_out(srd)
 /* TO REMOVE. */
 #  define GEOMETRY_LAYOUT(...) .geometry_layout(__VA_ARGS__)
 #  define GEOMETRY_OUT(stage_interface) .geometry_out(stage_interface)
@@ -126,10 +134,13 @@
     .subpass_in(slot, Type::type##_t, ImageType::img_type, #name, rog)
 
 #  define FRAGMENT_OUT(slot, type, name) .fragment_out(slot, Type::type##_t, #name)
+#  define FRAGMENT_OUT_SRD(srd) .shared_resource_descriptor(srd::populate)
 #  define FRAGMENT_OUT_DUAL(slot, type, name, blend) \
     .fragment_out(slot, Type::type##_t, #name, DualBlend::blend)
 #  define FRAGMENT_OUT_ROG(slot, type, name, rog) \
     .fragment_out(slot, Type::type##_t, #name, DualBlend::NONE, rog)
+
+#  define RESOURCE_SRD(srd) .shared_resource_descriptor(srd::populate)
 
 #  define EARLY_FRAGMENT_TEST(enable) .early_fragment_test(enable)
 #  define DEPTH_WRITE(value) .depth_write(value)
@@ -158,15 +169,28 @@
     .sampler(slot, ImageType::type, #name, Frequency::freq)
 
 #  define IMAGE(slot, format, qualifiers, type, name) \
-    .image(slot, format, Qualifier::qualifiers, ImageReadWriteType::type, #name)
+    .image(slot, \
+           blender::gpu::TextureFormat::format, \
+           Qualifier::qualifiers, \
+           ImageReadWriteType::type, \
+           #name)
 #  define IMAGE_FREQ(slot, format, qualifiers, type, name, freq) \
-    .image(slot, format, Qualifier::qualifiers, ImageReadWriteType::type, #name, Frequency::freq)
+    .image(slot, \
+           blender::gpu::TextureFormat::format, \
+           Qualifier::qualifiers, \
+           ImageReadWriteType::type, \
+           #name, \
+           Frequency::freq)
 
 #  define BUILTINS(builtin) .builtins(builtin)
 
 #  define VERTEX_SOURCE(filename) .vertex_source(filename)
 #  define FRAGMENT_SOURCE(filename) .fragment_source(filename)
 #  define COMPUTE_SOURCE(filename) .compute_source(filename)
+
+#  define VERTEX_FUNCTION(function) .vertex_function(function)
+#  define FRAGMENT_FUNCTION(function) .fragment_function(function)
+#  define COMPUTE_FUNCTION(function) .compute_function(function)
 
 #  define DEFINE(name) .define(name)
 #  define DEFINE_VALUE(name, value) .define(name, value)
@@ -200,7 +224,12 @@
     namespace gl_VertexShader { \
     const type name = {}; \
     }
+#  define VERTEX_IN_SRD(srd) \
+    namespace gl_VertexShader { \
+    using namespace srd; \
+    }
 #  define VERTEX_OUT(stage_interface) using namespace interface::stage_interface;
+#  define VERTEX_OUT_SRD(srd) using namespace interface::srd;
 /* TO REMOVE. */
 #  define GEOMETRY_LAYOUT(...)
 #  define GEOMETRY_OUT(stage_interface) using namespace interface::stage_interface;
@@ -219,6 +248,12 @@
     namespace gl_FragmentShader { \
     type name; \
     }
+#  define FRAGMENT_OUT_SRD(srd) \
+    namespace gl_FragmentShader { \
+    using namespace srd; \
+    }
+
+#  define RESOURCE_SRD(srd) using namespace srd;
 
 #  define EARLY_FRAGMENT_TEST(enable)
 #  define DEPTH_WRITE(value)
@@ -247,9 +282,12 @@
 #  define BUILTINS(builtin)
 
 #  define VERTEX_SOURCE(filename)
-#  define GEOMETRY_SOURCE(filename)
 #  define FRAGMENT_SOURCE(filename)
 #  define COMPUTE_SOURCE(filename)
+
+#  define VERTEX_FUNCTION(filename)
+#  define FRAGMENT_FUNCTION(filename)
+#  define COMPUTE_FUNCTION(filename)
 
 #  define DEFINE(name)
 #  define DEFINE_VALUE(name, value)
@@ -285,6 +323,10 @@
   GPU_SHADER_CREATE_END()
 
 #if !defined(GLSL_CPP_STUBS)
+
+namespace blender::gpu {
+struct GPUSource;
+}
 
 namespace blender::gpu::shader {
 
@@ -434,6 +476,9 @@ enum class BuiltinBits {
   /* Not a builtin but a flag we use to tag shaders that use the debug features. */
   USE_PRINTF = (1 << 28),
   USE_DEBUG_DRAW = (1 << 29),
+
+  /* Shader source needs to be implemented at runtime. */
+  RUNTIME_GENERATED = (1 << 30),
 };
 ENUM_OPERATORS(BuiltinBits, BuiltinBits::USE_DEBUG_DRAW);
 
@@ -615,10 +660,20 @@ struct StageInterfaceInfo {
   }
 };
 
+/** Sources from generated code. Map source name to content. */
+struct GeneratedSource {
+  /* Associated filename this source replaces. */
+  StringRefNull filename;
+  Vector<StringRefNull> dependencies;
+  std::string content;
+};
+
+using GeneratedSourceList = Vector<shader::GeneratedSource, 0>;
+
 /**
  * \brief Describe inputs & outputs, stage interfaces, resources and sources of a shader.
  *        If all data is correctly provided, this is all that is needed to create and compile
- *        a #GPUShader.
+ *        a #blender::gpu::Shader.
  *
  * IMPORTANT: All strings are references only. Make sure all the strings used by a
  *            #ShaderCreateInfo are not freed until it is consumed or deleted.
@@ -654,6 +709,8 @@ struct ShaderCreateInfo {
   std::string typedef_source_generated;
   /** Manually set generated dependencies. */
   Vector<StringRefNull, 0> dependencies_generated;
+
+  GeneratedSourceList generated_sources;
 
 #  define TEST_EQUAL(a, b, _member) \
     if (!((a)._member == (b)._member)) { \
@@ -764,7 +821,7 @@ struct ShaderCreateInfo {
   };
 
   struct Image {
-    eGPUTextureFormat format;
+    TextureFormat format;
     ImageType type;
     Qualifier qualifiers;
     StringRefNull name;
@@ -885,6 +942,8 @@ struct ShaderCreateInfo {
   Vector<StringRefNull> typedef_sources_;
 
   StringRefNull vertex_source_, geometry_source_, fragment_source_, compute_source_;
+  StringRefNull vertex_entry_fn_ = "main", geometry_entry_fn_ = "main",
+                fragment_entry_fn_ = "main", compute_entry_fn_ = "main";
 
   Vector<std::array<StringRefNull, 2>> defines_;
   /**
@@ -933,7 +992,7 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
-  Self &local_group_size(int local_size_x = -1, int local_size_y = -1, int local_size_z = -1)
+  Self &local_group_size(int local_size_x, int local_size_y = 1, int local_size_z = 1)
   {
     compute_layout_.local_size_x = local_size_x;
     compute_layout_.local_size_y = local_size_y;
@@ -991,6 +1050,12 @@ struct ShaderCreateInfo {
       int slot, Type type, ImageType img_type, StringRefNull name, int raster_order_group = -1)
   {
     subpass_inputs_.append({slot, type, img_type, name, raster_order_group});
+    return *(Self *)this;
+  }
+
+  Self &shared_resource_descriptor(void (*fn)(ShaderCreateInfo &))
+  {
+    fn(*this);
     return *(Self *)this;
   }
 
@@ -1118,7 +1183,7 @@ struct ShaderCreateInfo {
   }
 
   Self &image(int slot,
-              eGPUTextureFormat format,
+              TextureFormat format,
               Qualifier qualifiers,
               ImageReadWriteType type,
               StringRefNull name,
@@ -1175,12 +1240,31 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
+  Self &vertex_function(StringRefNull function_name)
+  {
+    vertex_entry_fn_ = function_name;
+    return *(Self *)this;
+  }
+
+  Self &fragment_function(StringRefNull function_name)
+  {
+    fragment_entry_fn_ = function_name;
+    return *(Self *)this;
+  }
+
+  Self &compute_function(StringRefNull function_name)
+  {
+    compute_entry_fn_ = function_name;
+    return *(Self *)this;
+  }
+
   /** \} */
 
   /* -------------------------------------------------------------------- */
   /** \name Push constants
    *
-   * Data managed by GPUShader. Can be set through uniform functions. Must be less than 128bytes.
+   * Data managed by blender::gpu::Shader. Can be set through uniform functions. Must be less than
+   * 128bytes.
    * \{ */
 
   Self &push_constant(Type type, StringRefNull name, int array_size = 0)
@@ -1291,9 +1375,11 @@ struct ShaderCreateInfo {
    * NOTE: These functions can be exposed as a pass-through on unsupported configurations.
    * \{ */
 
-  /* \name mtl_max_total_threads_per_threadgroup
-   * \a  max_total_threads_per_threadgroup - Provides compiler hint for maximum threadgroup size up
-   * front. Maximum value is 1024. */
+  /**
+   * \name mtl_max_total_threads_per_threadgroup
+   * \a max_total_threads_per_threadgroup - Provides compiler hint for maximum threadgroup size up
+   * front. Maximum value is 1024.
+   */
   Self &mtl_max_total_threads_per_threadgroup(ushort max_total_threads_per_threadgroup)
   {
 #  ifdef WITH_METAL_BACKEND
@@ -1317,6 +1403,8 @@ struct ShaderCreateInfo {
    * Non-recursive evaluation expects their dependencies to be already finalized.
    * (All statically declared CreateInfos are automatically finalized at startup) */
   void finalize(const bool recursive = false);
+
+  void resource_guard_defines(std::string &defines) const;
 
   std::string check_error() const;
   bool is_vulkan_compatible() const;

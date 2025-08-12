@@ -56,6 +56,7 @@ enum GHOST_TVulkanPlatformType {
 
 struct GHOST_ContextVK_WindowInfo {
   int size[2];
+  bool is_color_managed;
 };
 
 struct GHOST_FrameDiscard {
@@ -70,7 +71,7 @@ struct GHOST_SwapchainImage {
   VkImage vk_image = VK_NULL_HANDLE;
 
   /**
-   * Semaphore for presenting; being signaled when the swap chain image is ready to be presented.
+   * Semaphore for presenting; being signaled when the swap-chain image is ready to be presented.
    */
   VkSemaphore present_semaphore = VK_NULL_HANDLE;
 
@@ -83,7 +84,7 @@ struct GHOST_Frame {
    * frame can acquire a new image and the semaphores can be reused.
    */
   VkFence submission_fence = VK_NULL_HANDLE;
-  /** Semaphore for acquiring; being signaled when the swap chain image is ready to be updated. */
+  /** Semaphore for acquiring; being signaled when the swap-chain image is ready to be updated. */
   VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
 
   GHOST_FrameDiscard discard_pile;
@@ -252,7 +253,7 @@ class GHOST_ContextVK : public GHOST_Context {
   std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback_;
 
   const char *getPlatformSpecificSurfaceExtension() const;
-  GHOST_TSuccess recreateSwapchain();
+  GHOST_TSuccess recreateSwapchain(bool use_hdr_swapchain);
   GHOST_TSuccess initializeFrameData();
   GHOST_TSuccess destroySwapchain();
 };
