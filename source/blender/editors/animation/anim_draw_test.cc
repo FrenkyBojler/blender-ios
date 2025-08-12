@@ -42,14 +42,6 @@ class AnimDrawTest : public testing::Test {
   {
     BKE_main_free(this->bmain);
   }
-
-  FCurve *fcurve_create(const StringRefNull rna_path, const int array_index)
-  {
-    FCurve *fcurve = MEM_callocN<FCurve>(__func__);
-    BKE_fcurve_rnapath_set(*fcurve, rna_path);
-    fcurve->array_index = array_index;
-    return fcurve;
-  }
 };
 
 TEST_F(AnimDrawTest, anim_unit_mapping_get_factor_not_normalizing)
