@@ -1,1 +1,2 @@
 Referenced by issue #144364, Bones have incorrect rest pose until entering edit mode
+Referenced by pull request #144447, Fix #144364: Incorrect RNA update function called for Bones
