@@ -26,6 +26,8 @@
 
 #include "grease_pencil_intern.hh"
 
+#include <cstdio> /* for printf */
+
 namespace blender::ed::sculpt_paint::greasepencil {
 
 Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_stroke_operation(const bContext &C)
@@ -669,8 +671,14 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
   const Vector<MutableDrawingInfo> drawings = get_drawings_with_masking_for_stroke_operation(C);
   this->auto_masking_info_per_drawing.reinitialize(drawings.size());
 
+  /* For global winner when stroke automask is used. */
+  int best_drawing = -1;
+  int best_curve = -1;
+  float best_distance = FLT_MAX;
+
   VectorSet<int> masked_layer_indices;
   VectorSet<int> masked_material_indices;
+
   for (const int drawing_i : drawings.index_range()) {
     const MutableDrawingInfo &drawing_info = drawings[drawing_i];
     AutoMaskingInfo &automask_info = this->auto_masking_info_per_drawing[drawing_i];
@@ -684,6 +692,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
         drawing_info.frame_number,
         drawing_info.multi_frame_falloff,
         drawing_info.drawing);
+
     automask_info.point_mask = point_mask_for_stroke_operation(
         params, use_sculpt_selection_masking, automask_info.memory);
     if (automask_info.point_mask.is_empty()) {
@@ -726,25 +735,35 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
             return false;
           });
 
+      /* Collect touched layers for layer automask. */
       if (use_auto_mask_layer && !strokes_under_brush.is_empty()) {
         masked_layer_indices.add(drawing_info.layer_index);
       }
 
-      if (use_auto_mask_stroke && !strokes_under_brush.is_empty()) {
-        int64_t closest_curve = strokes_under_brush.first();
-        float closest_distance = FLT_MAX;
-        strokes_under_brush.foreach_index([&](const int64_t curve_i) {
-          const float distance = closest_distance_to_points(
-              points_by_curve[curve_i], view_positions, mval_i);
-          if (distance < closest_distance) {
-            closest_curve = curve_i;
-            closest_distance = distance;
+      /* For stroke automask: track per-drawing closest and update global winner. */
+      if (use_auto_mask_stroke) {
+        if (!strokes_under_brush.is_empty()) {
+          int64_t closest_curve = strokes_under_brush.first();
+          float closest_distance = FLT_MAX;
+          strokes_under_brush.foreach_index([&](const int64_t curve_i) {
+            const float distance = closest_distance_to_points(
+                points_by_curve[curve_i], view_positions, mval_i);
+            if (distance < closest_distance) {
+              closest_curve = curve_i;
+              closest_distance = distance;
+            }
+          });
+
+          if (closest_distance < best_distance) {
+            best_distance = closest_distance;
+            best_drawing = drawing_i;
+            best_curve = int(closest_curve);
           }
-        });
-        automask_info.point_mask = IndexMask::from_intersection(
-            automask_info.point_mask, points_by_curve[closest_curve], automask_info.memory);
+        }
+        /* Don't intersect yet; we’ll apply only to the global winner after the loop. */
       }
 
+      /* Collect materials of hit curves if material automask is enabled. */
       if (use_auto_mask_material) {
         const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
             "material_index", bke::AttrDomain::Curve, 0);
@@ -754,12 +773,54 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
     }
   }
 
-  /* When we mask by the initial strokes under the cursor, the other masking options don't affect
-   * the resulting mask. So we can skip the second loop. */
+  /* Apply global single-stroke selection if stroke automask is on. */
   if (use_auto_mask_stroke) {
+    if (best_drawing == -1) {
+      /* No stroke hit anywhere: clear all masks so nothing moves. */
+      for (const int i : drawings.index_range()) {
+        this->auto_masking_info_per_drawing[i].point_mask = {};
+      }
+      return;
+    }
+
+    /* Keep only the best drawing+curve; clear others. */
+    for (const int drawing_i : drawings.index_range()) {
+      AutoMaskingInfo &automask_info = this->auto_masking_info_per_drawing[drawing_i];
+
+      if (drawing_i != best_drawing) {
+        automask_info.point_mask = {};
+        continue;
+      }
+
+      const MutableDrawingInfo &drawing_info = drawings[drawing_i];
+      const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+
+      if (best_curve >= 0) {
+        automask_info.point_mask = IndexMask::from_intersection(
+            automask_info.point_mask, points_by_curve[best_curve], automask_info.memory);
+      }
+      else {
+        automask_info.point_mask = {};
+      }
+    }
+
+    /* Optional debug. */
+    const MutableDrawingInfo &win_info = drawings[best_drawing];
+    std::printf("GP Sculpt GLOBAL: drawing_i=%d layer=%d frame=%d moving stroke(curve)=%d "
+                "(closest_dist=%.3f)\n",
+                best_drawing,
+                win_info.layer_index,
+                win_info.frame_number,
+                best_curve,
+                best_distance);
+
+    /* Stroke automask wins; skip layer/material broadening pass. */
     return;
   }
 
+  /* When we mask by the initial strokes under the cursor, the other masking options don't affect
+   * the resulting mask. So we can skip the second loop. (Only applies when stroke automask is off.) */
   threading::parallel_for_each(drawings.index_range(), [&](const int drawing_i) {
     const MutableDrawingInfo &drawing_info = drawings[drawing_i];
     AutoMaskingInfo &automask_info = this->auto_masking_info_per_drawing[drawing_i];
