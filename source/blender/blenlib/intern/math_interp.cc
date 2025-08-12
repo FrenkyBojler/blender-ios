@@ -1096,8 +1096,10 @@ static constexpr float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {0.864664733f,
 
 };
 
+namespace blender::math {
+
 /* Linear-interpolated Gaussian weight from LUT (r2 in [0,1]). */
-static inline float ewa_weight(float r2, bool interpolate = true)
+inline float ewa_weight(const float r2, const bool interpolate = true)
 {
   if (r2 <= 0.0f) {
     return EWA_GAUSS_LUT[0];
@@ -1117,50 +1119,42 @@ static inline float ewa_weight(float r2, bool interpolate = true)
   return EWA_GAUSS_LUT[i];
 }
 
-/* PBRT-style anisotropy clamp on the derivative vectors in *texel* space. */
-static inline void aniso_clamp(float &dx0, float &dy0, float &dx1, float &dy1, float maxAniso)
+inline void aniso_clamp(float &dx0, float &dy0, float &dx1, float &dy1, float max_anisotropy)
 {
   auto len2 = [](float x, float y) { return x * x + y * y; };
-  // Make (dx0,dy0) the longer axis
   if (len2(dx0, dy0) < len2(dx1, dy1)) {
     std::swap(dx0, dx1);
     std::swap(dy0, dy1);
   }
   float longer = std::sqrt(std::max(0.f, len2(dx0, dy0)));
   float shorter = std::sqrt(std::max(0.f, len2(dx1, dy1)));
-  if (shorter > 0.f && longer > maxAniso * shorter) {
-    float scale = longer / (maxAniso * shorter);
+  if (shorter > 0.f && longer > max_anisotropy * shorter) {
+    float scale = longer / (max_anisotropy * shorter);
     dx1 *= scale;
     dy1 *= scale;
   }
 }
 
-/* Build normalized PBRT ellipse coefficients (A,B,C) and bbox in texel space. */
 struct Ellipse {
-  // normalized quadratic r^2 = A*ss^2 + B*ss*tt + C*tt^2
-  float A, B, C;
-  // bbox of integer texels to scan
-  int s0, s1, t0, t1;
-  // center in texel space
-  float stx, sty;
+  const float A, B, C;
+  const int s0, s1, t0, t1;
+  const float stx, sty;
   bool valid = false;
 };
 
-static inline Ellipse build_ellipse(int width,
-                                    int height,
-                                    float s,
-                                    float t,
-                                    const float du[2],
-                                    const float dv[2],
-                                    float maxAniso = 8.0f)
+inline Ellipse build_ellipse(const int2 &image_dimensions,
+                             const float2 &coordinates,
+                             const float2 &du,
+                             const float2 &dv,
+                             const float &max_anisotropy = 8.0f)
 {
-  float dx0 = du[0] * width;
-  float dy0 = du[1] * height;
-  float dx1 = dv[0] * width;
-  float dy1 = dv[1] * height;
+  float dx0 = du.x * image_dimensions.x;
+  float dy0 = du.y * image_dimensions.y;
+  float dx1 = dv.x * image_dimensions.x;
+  float dy1 = dv.y * image_dimensions.y;
 
-  if (maxAniso > 1.0f) {
-    aniso_clamp(dx0, dy0, dx1, dy1, maxAniso);
+  if (max_anisotropy > 1.0f) {
+    aniso_clamp(dx0, dy0, dx1, dy1, max_anisotropy);
   }
 
   float A = dy0 * dy0 + dy1 * dy1 + 1.0f;
@@ -1171,14 +1165,12 @@ static inline Ellipse build_ellipse(int width,
   B *= invF;
   C *= invF;
 
-  // Center in texel space (texel centers at i+0.5)
-  float stx = s * width - 0.5f;
-  float sty = t * height - 0.5f;
+  float stx = coordinates.x * image_dimensions.x - 0.5f;
+  float sty = coordinates.y * image_dimensions.y - 0.5f;
 
-  // bbox
   float det = -B * B + 4.0f * A * C;
   if (!(det > 0.0f)) {
-    return Ellipse{};  // invalid
+    return Ellipse{};
   }
   float invDet = 1.0f / det;
   float uSqrt = std::sqrt(std::max(0.0f, det * C));
@@ -1191,52 +1183,38 @@ static inline Ellipse build_ellipse(int width,
   return {A, B, C, s0, s1, t0, t1, stx, sty, true};
 }
 
-/* -----------------------------------------------------------------------------
-// PBRT-style single-level EWA filtering (no mipmaps)
-//
-// Assumptions:
-//   * uv in [0,1]^2
-//   * du = d(uv)/dx, dv = d(uv)/dy
-//   * ewa_weight(r2, interpolate=true) returns Gaussian LUT weight in [0,1],
-//     e.g. w = exp(-alpha * r^2), with r^2 in [0,1].
-//   * Read callback returns RGBA (alpha optional).
-// ----------------------------------------------------------------------------- */
-void BLI_ewa_single_level(const int width,
-                          const int height,
-                          const bool use_alpha,
-                          const float uv[2],
-                          const float du[2],
-                          const float dv[2],
+void BLI_ewa_single_level(const int2 &image_dimensions,
+                          const float2 &coordinates,
+                          const float2 &du,
+                          const float2 &dv,
                           ewa_filter_read_pixel_cb read_pixel_cb,
                           void *userdata,
-                          float result[4],
-                          float maxAniso,
-                          bool interpolate_lut)
+                          float4 &result,
+                          const float &max_anisotropy,
+                          const bool &interpolate_lut)
 {
-  Ellipse E = build_ellipse(width, height, uv[0], uv[1], du, dv, maxAniso);
+  const Ellipse E = build_ellipse(image_dimensions, coordinates, du, dv, max_anisotropy);
   if (!E.valid) {
-    result[0] = result[1] = result[2] = 0.0f;
-    result[3] = use_alpha ? 0.0f : 1.0f;
+    result = {0.0f, 0.0f, 0.0f, 0.0f};
     return;
   }
 
   // Clip bbox to image so callback isn't called OOB (adjust to your addressing mode)
-  int s0 = std::max(E.s0, 0), s1 = std::min(E.s1, width - 1);
-  int t0 = std::max(E.t0, 0), t1 = std::min(E.t1, height - 1);
+  int s0 = std::max(E.s0, 0), s1 = std::min(E.s1, image_dimensions.x - 1);
+  int t0 = std::max(E.t0, 0), t1 = std::min(E.t1, image_dimensions.y - 1);
   if (s0 > s1 || t0 > t1) {
-    result[0] = result[1] = result[2] = 0.0f;
-    result[3] = use_alpha ? 0.0f : 1.0f;
+    result = {0.0f, 0.0f, 0.0f, 0.0f};
     return;
   }
 
-  float accum[4] = {0, 0, 0, 0};
+  float4 accum = {0.0f, 0.0f, 0.0f, 0.0f};
   float wsum = 0.0f;
 
   // Incremental evaluation along x: r2_next = r2 + A*(2*ss+1) + B*tt
   for (int y = t0; y <= t1; ++y) {
     float tt = float(y) - E.sty;
 
-    float ss0 = float(s0) - E.stx;
+    const float ss0 = float(s0) - E.stx;
     float r2 = E.A * ss0 * ss0 + E.B * ss0 * tt + E.C * tt * tt;
     float dR = E.A * (2.0f * ss0 + 1.0f) + E.B * tt;
     const float ddR = 2.0f * E.A;
@@ -1245,14 +1223,9 @@ void BLI_ewa_single_level(const int width,
       if (r2 < 1.0f) {
         float wt = ewa_weight(r2, interpolate_lut);
         if (wt > 0.0f) {
-          float rgba[4];
+          float4 rgba = {0.0f, 0.0f, 0.0f, 0.0f};
           read_pixel_cb(userdata, x, y, rgba);
-          accum[0] += wt * rgba[0];
-          accum[1] += wt * rgba[1];
-          accum[2] += wt * rgba[2];
-          if (use_alpha) {
-            accum[3] += wt * rgba[3];
-          }
+          accum += wt * rgba;
           wsum += wt;
         }
       }
@@ -1263,13 +1236,10 @@ void BLI_ewa_single_level(const int width,
 
   if (wsum > 0.0f) {
     float inv = 1.0f / wsum;
-    result[0] = accum[0] * inv;
-    result[1] = accum[1] * inv;
-    result[2] = accum[2] * inv;
-    result[3] = use_alpha ? (accum[3] * inv) : 1.0f;
+    result = accum * inv;
   }
   else {
-    result[0] = result[1] = result[2] = 0.0f;
-    result[3] = use_alpha ? 0.0f : 1.0f;
+    result = {0.0f, 0.0f, 0.0f, 0.0f};
   }
 }
+}  // namespace blender::math
