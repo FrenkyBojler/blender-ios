@@ -1243,6 +1243,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
     /* These are potentially-wasteful over-allocations. */
     r_fan_spaces->spaces.reserve(corner_verts.size());
     r_fan_spaces->corner_space_indices.reinitialize(corner_verts.size());
+    r_fan_spaces->corner_space_indices.fill(-1);
     if (r_fan_spaces->create_corners_by_space) {
       r_fan_spaces->corners_by_space.reserve(corner_verts.size());
     }
