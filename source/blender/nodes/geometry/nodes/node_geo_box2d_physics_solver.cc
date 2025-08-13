@@ -122,7 +122,7 @@ static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBundle &b
   }
 
   const int instances_num = instances->instances_num();
-  const Span<int> instance_ids = instances->almost_unique_ids();
+  const Span<int> instance_ids = instances->unique_ids();
   MutableSpan<float4x4> transforms = instances->transforms_for_write();
 
   for (const int instance_i : IndexRange(instances_num)) {
@@ -231,7 +231,7 @@ static void handle_rigid_body_instances_bundle(
 
   const int instances_num = current_instances.instances_num();
   const int references_num = current_instances.references_num();
-  const Span<int> instance_ids = current_instances.almost_unique_ids();
+  const Span<int> instance_ids = current_instances.unique_ids();
   const Span<float4x4> transforms = current_instances.transforms();
   const Span<bke::InstanceReference> references = current_instances.references();
   const Span<int> handles = current_instances.reference_handles();

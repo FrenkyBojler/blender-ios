@@ -150,8 +150,6 @@ void VKContext::begin_frame() {}
 
 void VKContext::end_frame()
 {
-  VKDevice &device = VKBackend::get().device;
-  device.orphaned_data.destroy_discarded_resources(device);
   this->process_frame_timings();
 }
 
@@ -302,7 +300,7 @@ void VKContext::update_pipeline_data(GPUPrimType primitive,
   /* Override size of point shader when GPU_point size < 0 */
   const float point_size = state_manager_get().mutable_state.point_size;
   if (primitive == GPU_PRIM_POINTS && point_size < 0.0) {
-    GPU_shader_uniform_1f(wrap(shader), "size", -point_size);
+    GPU_shader_uniform_1f(shader, "size", -point_size);
   }
 
   update_pipeline_data(vk_shader,

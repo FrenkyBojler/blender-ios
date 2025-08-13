@@ -34,7 +34,7 @@ static void nested_bundle_foreach_recursive(
       continue;
     }
     BundlePtr child_bundle =
-        static_cast<bke::SocketValueVariant *>(socket_value->value)->get<BundlePtr>();
+        static_cast<const bke::SocketValueVariant *>(&socket_value->value)->get<BundlePtr>();
     if (!child_bundle) {
       continue;
     }

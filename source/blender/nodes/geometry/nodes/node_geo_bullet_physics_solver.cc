@@ -524,7 +524,7 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   const VArray<float3> initial_velocities = field_evaluator.get_evaluated<float3>(6);
   const VArray<bool> persist_velocities = field_evaluator.get_evaluated<bool>(7);
 
-  const Span<int> instance_ids = instances->almost_unique_ids();
+  const Span<int> instance_ids = instances->unique_ids();
   const Span<float4x4> transforms = instances->transforms();
   const Span<bke::InstanceReference> references = instances->references();
   const Span<int> handles = instances->reference_handles();
@@ -793,7 +793,7 @@ static void write_simulated_data_to_geometry_sets(BulletState &state)
       continue;
     }
     const int instances_num = instances->instances_num();
-    const Span<int> instance_ids = instances->almost_unique_ids();
+    const Span<int> instance_ids = instances->unique_ids();
     const MutableSpan<float4x4> transforms = instances->transforms_for_write();
     for (const int instance_i : IndexRange(instances_num)) {
       const int instance_id = instance_ids[instance_i];
@@ -825,7 +825,7 @@ static void apply_forces(BulletState &state, const Behaviors &behaviors)
     }
 
     const int instances_num = instances->instances_num();
-    const Span<int> instance_ids = instances->almost_unique_ids();
+    const Span<int> instance_ids = instances->unique_ids();
     bke::InstancesFieldContext field_context{*instances};
     fn::FieldEvaluator field_evaluator{field_context, instances->instances_num()};
     for (const Force *force : filtered_forces) {
