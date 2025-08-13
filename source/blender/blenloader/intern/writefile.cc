@@ -1207,7 +1207,8 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     write_id(wd, &library.id);
 
-    /* Write placeholders for linked data-blocks that are used. */
+    /* Write placeholders for linked data-blocks that are used, and real IDs for the packed linked
+     * ones. */
     for (ID *id : ids_used_from_library) {
       if (ID_IS_PACKED(id)) {
         write_id(wd, id);

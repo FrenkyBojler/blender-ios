@@ -2221,7 +2221,6 @@ static void direct_link_id_common(BlendDataReader *reader,
   }
 
   if (ID_IS_PACKED(id)) {
-    /* TODO: This is not true currently and leads to a crash further down the line. */
     BLI_assert(current_library->flag & LIBRARY_FLAG_IS_ARCHIVE);
   }
   id->lib = current_library;
@@ -2507,7 +2506,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
 
   id_us_ensure_real(&lib->id);
 
-  /* Should always be null. */
+  /* Should always be null, Library IDs in Blender are always local. */
   lib->id.lib = nullptr;
 }
 
@@ -2977,6 +2976,14 @@ static bool read_libblock_undo_restore(
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
 
   const bool do_partial_undo = (fd->skip_flags & BLO_READ_SKIP_UNDO_OLD_MAIN) == 0;
+#ifndef NDEBUG
+  if (do_partial_undo && (bhead->code != ID_LINK_PLACEHOLDER) &&
+      (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_PACKED) == 0)
+  {
+    /* This code should only ever be reached for local or packed data-blocks. */
+    BLI_assert(main->curlib == nullptr);
+  }
+#endif
 
   /* Find the 'current' existing ID we want to reuse instead of the one we
    * would read from the undo memfile. */
@@ -3829,6 +3836,10 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   }
 
   while (bhead) {
+    /* If not-null after the `switch`, the BHead is an ID one and needs to be read. */
+    Main *bmain_to_read_into = nullptr;
+    bool placeholder_set_indirect_extern = false;
+
     switch (bhead->code) {
       case BLO_CODE_DATA:
       case BLO_CODE_DNA1:
@@ -3852,52 +3863,52 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
         break;
 
       case ID_LINK_PLACEHOLDER:
-        if (fd->skip_flags & BLO_READ_SKIP_DATA) {
+        if ((fd->skip_flags & BLO_READ_SKIP_DATA) != 0) {
           bhead = blo_bhead_next(fd, bhead);
+          break;
         }
-        else {
-          /* Add link placeholder to the main of the library it belongs to.
-           * The library is the most recently loaded #ID_LI block, according
-           * to the file format definition. So we can use the entry at the
-           * end of `fd->bmain->split_mains`, typically the one last added in
-           * #direct_link_library. */
-
-          Main *libmain = (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1];
-          bhead = read_libblock(fd, libmain, bhead, 0, {}, true, nullptr);
-        }
+        /* Add link placeholder to the main of the library it belongs to.
+         *
+         * The library is the most recently loaded #ID_LI block, according to the file format
+         * definition. So we can use the entry at the end of `fd->bmain->split_mains`, typically
+         * the one last added in #direct_link_library. */
+        bmain_to_read_into = (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1];
+        placeholder_set_indirect_extern = true;
         break;
-      case ID_LI: {
-        if (fd->skip_flags & BLO_READ_SKIP_DATA) {
+      case ID_LI:
+        if ((fd->skip_flags & BLO_READ_SKIP_DATA) != 0) {
           bhead = blo_bhead_next(fd, bhead);
+          break;
         }
-        else {
-          Main *first_bmain = fd->bmain;
-          bhead = read_libblock(fd, first_bmain, bhead, ID_TAG_LOCAL, {}, false, nullptr);
-        }
+        /* Library IDs are always read into the first (aka 'local') Main, even if they are written
+         * in 'library' blendfile-space (for archive libraries e.g.). */
+        bmain_to_read_into = fd->bmain;
         break;
-      }
-        /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
       case ID_SCRN:
+        /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
         bhead->code = ID_SCR;
         /* pass on to default */
         ATTR_FALLTHROUGH;
       default: {
-        if (blo_bhead_is_id_valid_type(bhead)) {
-          /* BHead is a valid known ID type one, read the whole ID and its sub-data, unless reading
-           * actual data is skipped. */
-          if (fd->skip_flags & BLO_READ_SKIP_DATA) {
-            bhead = blo_bhead_next(fd, bhead);
-          }
-          else {
-            Main *current_main = (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1];
-            bhead = read_libblock(fd, current_main, bhead, ID_TAG_LOCAL, {}, false, nullptr);
-          }
-        }
-        else {
-          /* Unknown BHead type (or ID type), ignore it and skip to next BHead. */
+        if ((fd->skip_flags & BLO_READ_SKIP_DATA) != 0 || !blo_bhead_is_id_valid_type(bhead)) {
           bhead = blo_bhead_next(fd, bhead);
+          break;
         }
+        /* Put read real ID into the main of the library it belongs to.
+         *
+         * Due to packed linked IDs (which are in their archive library 'name space' and 'blendfile
+         * space', but are real ID data and not placeholders in the blendfile, like for regular
+         * linked data), this is similar logic as with placeholders.
+         *
+         * The library is the most recently loaded #ID_LI block, according to the file format
+         * definition. So we can use the entry at the end of `fd->bmain->split_mains`, typically
+         * the one last added in #direct_link_library. */
+        bmain_to_read_into = (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1];
       }
+    }
+    if (bmain_to_read_into) {
+      bhead = read_libblock(
+          fd, bmain_to_read_into, bhead, 0, {}, placeholder_set_indirect_extern, nullptr);
     }
 
     if (bfd->main->is_read_invalid) {
@@ -4389,15 +4400,16 @@ static Main *blo_add_main_for_library(FileData *fd,
     /* FIXME: This logic is very similar to the code in BKE_library dealing with archived libraries
      * (e.g. #add_archive_library). Might be good to try to factorize it. */
     lib->archive_parent_library = reference_lib;
-    lib->flag |= LIBRARY_FLAG_IS_ARCHIVE;
+    constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_ARCHIVE;
+    lib->flag = (reference_lib->flag & copy_flag) | LIBRARY_FLAG_IS_ARCHIVE;
 
     lib->runtime->parent = reference_lib->runtime->parent;
     /* Only copy a subset of the reference library tags. E.g. an archive library should never be
      * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
      * tweaking still. */
-    lib->runtime->tag = reference_lib->runtime->tag &
-                        (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
-                         LIBRARY_IS_ASSET_EDIT_FILE);
+    constexpr uint16_t copy_tag = (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
+                                   LIBRARY_IS_ASSET_EDIT_FILE);
+    lib->runtime->tag = reference_lib->runtime->tag & copy_tag;
 
     /* The filedata of a packed archive library should always be the one of the blendfile which
      * defines the library ID and packs its linked IDs. */
@@ -4503,7 +4515,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
  *     essentially then only updates the mappings for `bhead->old` address to point to the given
  *     ID. This is the only case where `libmain` may be `nullptr`.
  *   - The given bhead has an already loaded matching ID (found by a call to
- *     `library_id_is_yet_read`), then once that ID is found behavior is a in the previous case.
+ *     `library_id_is_yet_read`), then once that ID is found behavior is as in the previous case.
  *   - No matching existing ID is found, then a new one is actually read from the given FileData.
  */
 static void read_id_in_lib(FileData *fd,
@@ -4605,7 +4617,7 @@ static void expand_doit_library(void *fdhandle,
   const bool is_packed_id = (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_PACKED) != 0;
 
   BLI_assert_msg(!is_packed_id || bhead->code != ID_LINK_PLACEHOLDER,
-                 "A link placeholder ID  (aka reference to some ID linked from another library) "
+                 "A link placeholder ID (aka reference to some ID linked from another library) "
                  "should never be packed.");
 
   if (bhead->code == ID_LINK_PLACEHOLDER) {
@@ -4656,7 +4668,7 @@ static void expand_doit_library(void *fdhandle,
       BLO_reportf_wrap(fd->reports,
                        RPT_ERROR,
                        RPT_("LIB: .blend file %s seems corrupted, no owner 'Library' data found "
-                            "for the linked data-block %s"),
+                            "for the packed linked data-block %s"),
                        mainvar->curlib->runtime->filepath_abs,
                        id_name ? id_name : "<InvalidIDName>");
       return;
