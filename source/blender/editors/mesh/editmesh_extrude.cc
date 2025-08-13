@@ -411,7 +411,7 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
       BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
         if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(f, hflag);
-          symmetry_helper->set_flag_on_mirror_faces(f, hflag, true);
+          symmetry_helper->set_hflag_on_mirror_faces(f, hflag, true);
         }
       }
     }
@@ -421,7 +421,7 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
       BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
         if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(e, hflag);
-          symmetry_helper->set_flag_on_mirror_edges(e, hflag, true);
+          symmetry_helper->set_hflag_on_mirror_edges(e, hflag, true);
         }
       }
     }
@@ -431,7 +431,7 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
       BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
         if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(v, hflag);
-          symmetry_helper->set_flag_on_mirror_verts(v, hflag, true);
+          symmetry_helper->set_hflag_on_mirror_verts(v, hflag, true);
         }
       }
     }
@@ -605,7 +605,7 @@ static wmOperatorStatus edbm_extrude_verts_exec(bContext *C, wmOperator *op)
       BM_ITER_MESH (v, &v_iter, em->bm, BM_VERTS_OF_MESH) {
         if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(v, hflag);
-          symmetry_helper->set_flag_on_mirror_verts(v, hflag, true);
+          symmetry_helper->set_hflag_on_mirror_verts(v, hflag, true);
         }
       }
     }
@@ -678,7 +678,7 @@ static wmOperatorStatus edbm_extrude_edges_exec(bContext *C, wmOperator *op)
       BM_ITER_MESH (e, &e_iter, em->bm, BM_EDGES_OF_MESH) {
         if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(e, hflag);
-          symmetry_helper->set_flag_on_mirror_edges(e, hflag, true);
+          symmetry_helper->set_hflag_on_mirror_edges(e, hflag, true);
         }
       }
     }
@@ -751,7 +751,7 @@ static wmOperatorStatus edbm_extrude_faces_exec(bContext *C, wmOperator *op)
       BM_ITER_MESH (f, &f_iter, em->bm, BM_FACES_OF_MESH) {
         if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
           BM_elem_flag_enable(f, hflag);
-          symmetry_helper->set_flag_on_mirror_faces(f, hflag, true);
+          symmetry_helper->set_hflag_on_mirror_faces(f, hflag, true);
         }
       }
     }
@@ -888,7 +888,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
           BM_ITER_MESH (f, &f_iter, vc.em->bm, BM_FACES_OF_MESH) {
             if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
               BM_elem_flag_enable(f, hflag);
-              symmetry_helper->set_flag_on_mirror_faces(f, hflag, true);
+              symmetry_helper->set_hflag_on_mirror_faces(f, hflag, true);
             }
           }
         }
@@ -898,7 +898,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
           BM_ITER_MESH (e, &e_iter, vc.em->bm, BM_EDGES_OF_MESH) {
             if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
               BM_elem_flag_enable(e, hflag);
-              symmetry_helper->set_flag_on_mirror_edges(e, hflag, true);
+              symmetry_helper->set_hflag_on_mirror_edges(e, hflag, true);
             }
           }
         }
@@ -908,7 +908,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
           BM_ITER_MESH (v, &v_iter, vc.em->bm, BM_VERTS_OF_MESH) {
             if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
               BM_elem_flag_enable(v, hflag);
-              symmetry_helper->set_flag_on_mirror_verts(v, hflag, true);
+              symmetry_helper->set_hflag_on_mirror_verts(v, hflag, true);
             }
           }
         }
