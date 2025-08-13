@@ -50,7 +50,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
         const float3 rgb_gamma = math::safe_pow(rgb, gamma);
         return ColorGeometry4f(rgb_gamma.x, rgb_gamma.y, rgb_gamma.z, color.a);
       },
-      mf::build::exec_presets::AllSpanOrSingle());
+      mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(fn);
 }
 
