@@ -1821,8 +1821,7 @@ static void rna_def_fmodifier_smooth(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "FModifierSmooth", "FModifier");
-  RNA_def_struct_ui_text(
-      srna, "Smooth F-Modifier", "Smooth curve using Gaussian smoothing");
+  RNA_def_struct_ui_text(srna, "Smooth F-Modifier", "Smooth curve using Gaussian smoothing");
   RNA_def_struct_sdna_from(srna, "FMod_Smooth", "data");
 
   prop = RNA_def_property(srna, "sigma", PROP_FLOAT, PROP_NONE);
@@ -1836,7 +1835,8 @@ static void rna_def_fmodifier_smooth(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "filter_width");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_range(prop, 1, 32);
-  RNA_def_property_ui_text(prop, "Filter Width", "How far to each side the operator will average the key values");
+  RNA_def_property_ui_text(
+      prop, "Filter Width", "How far to each side the operator will average the key values");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 }
 
@@ -2105,7 +2105,6 @@ static void rna_def_drivervar(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
-
 
   static const EnumPropertyItem prop_type_items[] = {
       {DVAR_TYPE_SINGLE_PROP,
