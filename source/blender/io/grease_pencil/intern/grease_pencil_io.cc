@@ -513,8 +513,8 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
                                end_cap == GP_STROKE_CAP_TYPE_ROUND;
 
         stroke_fn(positions.slice(points),
-                  {},
-                  {},
+                  positions_left.slice_safe(points),
+                  positions_right.slice_safe(points),
                   is_cyclic,
                   type,
                   stroke_color,
