@@ -854,7 +854,7 @@ void node_socket_copy_default_value(bNodeSocket *to, const bNodeSocket *from)
 
   node_socket_copy_default_value_data(to->typeinfo->type, to->default_value, from->default_value);
 
-  to->flag |= (from->flag & SOCK_HIDE_VALUE);
+  to->flag |= (from->flag & (SOCK_HIDE_VALUE | SOCK_IMPLICIT_DEFAULT));
 }
 
 static void standard_node_socket_interface_init_socket(

@@ -372,6 +372,8 @@ typedef enum eNodeSocketFlag {
   SOCK_HIDE_IN_MODIFIER = (1 << 13),
   /** The panel containing the socket is collapsed. */
   SOCK_PANEL_COLLAPSED = (1 << 14),
+  /** Has an implicit value when not linked. */
+  SOCK_IMPLICIT_DEFAULT = (1 << 15),
 } eNodeSocketFlag;
 
 typedef enum eNodePanelFlag {

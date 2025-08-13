@@ -210,7 +210,7 @@ static GPUNodeLink *gpu_uniformbuffer_link(GPUMaterial *mat,
   BLI_assert(socket != nullptr);
   BLI_assert(socket->in_out == in_out);
 
-  if (socket->flag & SOCK_HIDE_VALUE) {
+  if (socket->flag & (SOCK_HIDE_VALUE | SOCK_IMPLICIT_DEFAULT)) {
     return nullptr;
   }
 

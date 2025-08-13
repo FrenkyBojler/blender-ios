@@ -218,6 +218,9 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_available = true;
   bool is_attribute_name = false;
   bool is_default_link_socket = false;
+  /** The socket has an implicit value when not linked.
+   * (Similar to default_input_type, but not exposed to the UI) */
+  bool has_implicit_default = false;
   /** Puts this socket on the same line as the previous one in the UI. */
   bool align_with_previous_socket = false;
   /** This socket is used as a toggle for the parent panel. */
@@ -339,6 +342,11 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
 
   BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
+
+  /** The socket has an implicit value when not linked.
+   * (Similar to default_input_type, but not exposed to the UI)
+   * Enabling this implies enabling hide_value. */
+  BaseSocketDeclarationBuilder &has_implicit_default(bool value = true);
 
   /** The input socket allows passing in a field. */
   BaseSocketDeclarationBuilder &supports_field();
