@@ -1,3 +1,4 @@
 Referenced by issue #141827, Blender crashes switching to sculpt mode on a hidden mesh
 Referenced by pull request #142152, Sculpt: Remove visibility check for entering Sculpt Mode
 Referenced by pull request #142284, UI: Prevent automatic mode switching in certain scenarios
+Referenced by commit 8b1f2dfc45daaf4285e3b2ce8f4f34299d2ff23a, UI: Prevent automatic mode switching in certain scenarios
