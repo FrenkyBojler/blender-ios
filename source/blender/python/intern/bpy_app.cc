@@ -433,6 +433,20 @@ static int bpy_app_binary_path_set(PyObject * /*self*/, PyObject *value, void * 
   return 0;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_is_touch_device_doc,
+    "Wether Blender is currently running on a touch tablet device (iOS, Android, etc.) "
+    "(read-only)");
+static PyObject *bpy_app_is_touch_device_get(PyObject * /*self*/, void * /*closure*/)
+{
+#ifdef WITH_APPLE_CROSSPLATFORM
+  return PyBool_FromLong(true);
+#else
+  return PyBool_FromLong(false);
+#endif
+}
+
 static PyGetSetDef bpy_app_getsets[] = {
     {"debug", bpy_app_debug_get, bpy_app_debug_set, bpy_app_debug_doc, (void *)G_DEBUG},
     {"debug_freestyle",
@@ -556,6 +570,12 @@ static PyGetSetDef bpy_app_getsets[] = {
      bpy_app_binary_path_get,
      bpy_app_binary_path_set,
      bpy_app_binary_path_doc,
+     nullptr},
+
+    {"is_touch_device",
+     bpy_app_is_touch_device_get,
+     nullptr,
+     bpy_app_is_touch_device_doc,
      nullptr},
 
     {nullptr, nullptr, nullptr, nullptr, nullptr},
