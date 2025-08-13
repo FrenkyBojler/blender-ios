@@ -186,9 +186,6 @@ struct FMod_Stepped {
 
 /* stepped modifier data */
 typedef struct FMod_Smooth {
-  /** How much to blend to the default value. */
-  float factor;
-
   /** The shape of the gaussian distribution, lower values make it sharper. */
   float sigma;
 

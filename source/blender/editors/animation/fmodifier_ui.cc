@@ -878,7 +878,6 @@ static void smooth_panel_draw(const bContext *C, Panel *panel)
   layout->use_property_decorate_set(false);
 
   col = &layout->column(false);
-  col->prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "sigma", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "filter_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

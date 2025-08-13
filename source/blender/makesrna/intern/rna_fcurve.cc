@@ -1824,13 +1824,6 @@ static void rna_def_fmodifier_smooth(BlenderRNA *brna)
   RNA_def_struct_ui_text(
       srna, "Smooth F-Modifier", "Smooth curve using Gaussian smoothing");
   RNA_def_struct_sdna_from(srna, "FMod_Smooth", "data");
-  
-  prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "factor");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_range(prop, 0.0, 100.0);
-  RNA_def_property_ui_text(prop, "Factor", "Strength of the smoothing");
-  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 
   prop = RNA_def_property(srna, "sigma", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "sigma");

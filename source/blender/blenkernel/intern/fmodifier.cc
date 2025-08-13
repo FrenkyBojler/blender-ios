@@ -1003,7 +1003,6 @@ static void fcm_smooth_new_data(void *mdata)
 {
   FMod_Smooth *data = (FMod_Smooth *)mdata;
 
-  data->factor = 100.0f;
   data->sigma = 1.0f;
   data->filter_width = 6;
 }
@@ -1016,7 +1015,6 @@ static void fcm_smooth_frame(const FCurve *fcu,
 {
   FMod_Smooth *data = (FMod_Smooth *)fcm->data;
 
-  const float factor = data->factor / 100;
   const float sigma = data->sigma;
   const int kernel_size = data->filter_width;
 
@@ -1049,11 +1047,7 @@ static void fcm_smooth_frame(const FCurve *fcu,
   }
 
   if (total_weight > FLT_EPSILON) {
-    const float smoothed = (total_weighted_value / total_weight);
-    const float orig = evaluate_fcurve_unmodified(fcu, evaltime);
-
-    /* Blend the influcence by the factor property. */
-    *cvalue = orig * (1.0f - factor) + (smoothed * factor);
+    *cvalue = (total_weighted_value / total_weight);
   }
 }
 
