@@ -345,6 +345,31 @@ static WorldData parse_world(const Bundle &world_bundle)
   return world;
 }
 
+static void apply_external_accelerations(
+    XPBDState &state,
+    const Map<PathComponentKey, Array<float3>> &accelerations_map,
+    const float delta_time)
+{
+  for (auto item_for_path : state.data_by_path.items()) {
+    const StringRefNull self_path = item_for_path.key;
+    PathSimData &path_sim_data = item_for_path.value;
+    for (auto item : path_sim_data.points_by_type.items()) {
+      const bke::GeometryComponent::Type type = item.key;
+      SimPoints &sim_points = item.value;
+      PathComponentKey key{self_path, type};
+      const Span<float3> accelerations = accelerations_map.lookup(key);
+      const int points_num = sim_points.positions.size();
+      threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          const float3 &acceleration = accelerations[i];
+          sim_points.velocities[i] += acceleration * delta_time;
+          sim_points.positions[i] += sim_points.velocities[i] * delta_time;
+        }
+      });
+    }
+  }
+}
+
 static void solve_constraints(Span<SimPoints *> all_sim_points,
                               const Span<ConstraintSet> constraint_sets)
 {
@@ -439,25 +464,19 @@ static Vector<const T *> filter_bundles_for_path(const Span<T> bundles, const St
   return used_forces;
 }
 
-static void integrate_forces_and_accelerations(
-    XPBDState &state,
+static Map<PathComponentKey, Array<float3>> compute_external_accelerations(
     const WorldData &world,
-    const Span<GeometrySet> applied_geometries,
     const Map<PathComponentKey, VArray<float>> &masses_map,
-    const float delta_time)
+    const Span<GeometrySet> applied_geometries)
 {
-  float3 gravity{0, 0, 0};
+  float3 gravity(0.0f);
   for (const GravityBundle &gravity_bundle : world.gravities) {
     gravity = gravity_bundle.gravity;
   }
-
+  Map<PathComponentKey, Array<float3>> accelerations_map;
   for (const int bundle_i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
-    PathSimData *path_sim_data = state.data_by_path.lookup_ptr(geometry_bundle.self_path);
-    if (!path_sim_data) {
-      continue;
-    }
     Vector<const ForceBundle *> used_forces = filter_bundles_for_path<ForceBundle>(
         world.forces, geometry_bundle.self_path);
     for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
@@ -465,36 +484,39 @@ static void integrate_forces_and_accelerations(
       if (!component) {
         continue;
       }
-      SimPoints *sim_points = path_sim_data->points_by_type.lookup_ptr(type);
-      if (!sim_points) {
-        continue;
-      }
+      const bke::AttrDomain domain = bke::AttrDomain::Point;
+      const int domain_size = component->attribute_domain_size(domain);
       const VArray<float> &masses = masses_map.lookup({geometry_bundle.self_path, type});
-      Array<float3> force_sums(sim_points->points_num, float3(0.0f));
-      bke::GeometryFieldContext field_context(*component, bke::AttrDomain::Point);
+
+      /* Initially this is the sums of forces and then the acceleration. */
+      Array<float3> result_array(domain_size, float3(0.0f));
+
+      bke::GeometryFieldContext field_context(*component, domain);
+      MutableSpan<float3> forces_sums = result_array;
       for (const ForceBundle *force_bundle : used_forces) {
-        fn::FieldEvaluator force_evaluator{field_context, sim_points->points_num};
-        force_evaluator.set_selection(force_bundle->selection);
-        force_evaluator.add(force_bundle->force);
-        force_evaluator.evaluate();
-        const IndexMask mask = force_evaluator.get_evaluated_selection_as_mask();
-        const VArray<float3> force = force_evaluator.get_evaluated<float3>(0);
-        mask.foreach_index(GrainSize(1024), [&](const int i) { force_sums[i] += force[i]; });
+        fn::FieldEvaluator field_evaluator{field_context, domain_size};
+        field_evaluator.set_selection(force_bundle->selection);
+        field_evaluator.add(force_bundle->force);
+        field_evaluator.evaluate();
+        const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+        const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
+        mask.foreach_index([&](const int i) { forces_sums[i] += force[i]; });
       }
-      threading::parallel_for(
-          IndexRange(sim_points->points_num), 1024, [&](const IndexRange range) {
-            for (const int i : range) {
-              const float mass = masses[i];
-              const float3 &force = force_sums[i];
-              const float3 acceleration = force / mass + gravity;
-              const float3 velocity_delta = acceleration * delta_time;
-              float3 &velocity = sim_points->velocities[i];
-              velocity += velocity_delta;
-              sim_points->positions[i] += velocity * delta_time;
-            }
-          });
+
+      MutableSpan<float3> accelerations = result_array;
+      threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          const float mass = masses[i];
+          const float3 &force = forces_sums[i];
+          const float3 acceleration = force / mass + gravity;
+          accelerations[i] = acceleration;
+        }
+      });
+
+      accelerations_map.add_new({geometry_bundle.self_path, type}, std::move(result_array));
     }
   }
+  return accelerations_map;
 }
 
 static void update_velocities(XPBDState &state)
@@ -674,8 +696,6 @@ static void update_and_step_xpbd_state(XPBDState &state,
     GeometrySet &applied_geometry = applied_geometries[bundle_i];
     applied_geometry = apply_simulation(geometry_bundle, state);
   }
-  const Map<PathComponentKey, VArray<float>> masses_map = compute_masses(
-      scope, world, applied_geometries);
 
   Map<std::string, PathSimData> new_data_by_path;
   for (const int bundle_i : world.geometries.index_range()) {
@@ -698,6 +718,12 @@ static void update_and_step_xpbd_state(XPBDState &state,
     }
   }
 
+  const Map<PathComponentKey, VArray<float>> masses_map = compute_masses(
+      scope, world, applied_geometries);
+
+  const Map<PathComponentKey, Array<float3>> accelerations_map = compute_external_accelerations(
+      world, masses_map, applied_geometries);
+
   Vector<ConstraintSet> constraint_sets;
   gather_distance_constraints(scope,
                               world,
@@ -710,7 +736,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
       scope, world, applied_geometries, all_sim_points_keys, all_sim_points, constraint_sets);
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
-    integrate_forces_and_accelerations(state, world, applied_geometries, masses_map, delta_time);
+    apply_external_accelerations(state, accelerations_map, delta_time);
     solve_constraints(all_sim_points, constraint_sets);
     update_velocities(state);
   }
