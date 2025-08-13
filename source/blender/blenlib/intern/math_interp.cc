@@ -962,9 +962,8 @@ void BLI_ewa_filter(const int width,
 /* INFO: bigger α drops weight faster → less smoothing.
 Precomputed Gaussian LUT: w(r^2) = exp(-alpha * r^2), r^2 sampled at i/512, i=0..511
 Auto-generated Gaussian LUT for EWA: w(r^2) = exp(-alpha * r^2) */
-static constexpr int EWA_LUT_SIZE = 128;
+/* static constexpr int EWA_LUT_SIZE = 128;
 static constexpr int EWA_GAUSS_MAXIDX = (EWA_LUT_SIZE - 1);
-
 static constexpr float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {0.864664733f,
                                                       0.849040031f,
                                                       0.83365953f,
@@ -1094,7 +1093,44 @@ static constexpr float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {0.864664733f,
                                                       0.0021481365f,
                                                       0.f
 
-};
+}; */
+
+/* Windowed Gauss LUT */
+static constexpr int EWA_LUT_SIZE = 256;
+static constexpr int EWA_GAUSS_MAXIDX = (EWA_LUT_SIZE - 1);
+static const float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {
+    1.000000f, 0.992188f, 0.984436f, 0.976745f, 0.969114f, 0.961543f, 0.954031f, 0.946578f,
+    0.939183f, 0.931846f, 0.924566f, 0.917342f, 0.910176f, 0.903065f, 0.896010f, 0.889010f,
+    0.882064f, 0.875173f, 0.868336f, 0.861552f, 0.854821f, 0.848143f, 0.841517f, 0.834943f,
+    0.828420f, 0.821948f, 0.815526f, 0.809155f, 0.802834f, 0.796561f, 0.790338f, 0.784164f,
+    0.778038f, 0.771959f, 0.765928f, 0.759945f, 0.754008f, 0.748117f, 0.742272f, 0.736473f,
+    0.730720f, 0.725011f, 0.719347f, 0.713727f, 0.708151f, 0.702619f, 0.697129f, 0.691683f,
+    0.686279f, 0.680918f, 0.675598f, 0.670320f, 0.665083f, 0.659887f, 0.654732f, 0.649617f,
+    0.644542f, 0.639506f, 0.634510f, 0.629553f, 0.624635f, 0.619755f, 0.614913f, 0.610109f,
+    0.605343f, 0.600613f, 0.595921f, 0.591265f, 0.586646f, 0.582063f, 0.577516f, 0.573004f,
+    0.568527f, 0.564086f, 0.559679f, 0.555306f, 0.550968f, 0.546664f, 0.542393f, 0.538155f,
+    0.533951f, 0.529780f, 0.525641f, 0.521534f, 0.517460f, 0.513417f, 0.509406f, 0.505426f,
+    0.501478f, 0.497560f, 0.493673f, 0.489816f, 0.485989f, 0.482193f, 0.478425f, 0.474688f,
+    0.470979f, 0.467300f, 0.463649f, 0.460027f, 0.456433f, 0.452867f, 0.449329f, 0.445819f,
+    0.442336f, 0.438880f, 0.435451f, 0.432049f, 0.428674f, 0.425325f, 0.422002f, 0.418705f,
+    0.415434f, 0.412189f, 0.408968f, 0.405773f, 0.402603f, 0.399458f, 0.396337f, 0.393241f,
+    0.390169f, 0.387120f, 0.384096f, 0.381095f, 0.378118f, 0.375164f, 0.372233f, 0.369325f,
+    0.366440f, 0.363577f, 0.360736f, 0.357918f, 0.355122f, 0.352348f, 0.349595f, 0.346864f,
+    0.344154f, 0.341465f, 0.338797f, 0.336151f, 0.333524f, 0.330919f, 0.328333f, 0.325768f,
+    0.323223f, 0.320698f, 0.318193f, 0.315707f, 0.313240f, 0.310793f, 0.308365f, 0.305956f,
+    0.303566f, 0.301194f, 0.298841f, 0.296506f, 0.294190f, 0.291892f, 0.289611f, 0.287349f,
+    0.285104f, 0.282876f, 0.280666f, 0.278474f, 0.276298f, 0.274140f, 0.271998f, 0.269873f,
+    0.267765f, 0.265673f, 0.263597f, 0.261538f, 0.259495f, 0.257467f, 0.255456f, 0.253460f,
+    0.251480f, 0.249515f, 0.247566f, 0.245632f, 0.243713f, 0.241809f, 0.239920f, 0.238045f,
+    0.236186f, 0.234340f, 0.232510f, 0.230693f, 0.228891f, 0.227103f, 0.225328f, 0.223568f,
+    0.221821f, 0.220089f, 0.218369f, 0.216663f, 0.214970f, 0.213291f, 0.211625f, 0.209971f,
+    0.208331f, 0.206703f, 0.205088f, 0.203486f, 0.201897f, 0.200319f, 0.198754f, 0.197201f,
+    0.195661f, 0.194132f, 0.192616f, 0.191111f, 0.189618f, 0.188136f, 0.186667f, 0.185208f,
+    0.183761f, 0.182273f, 0.180585f, 0.178551f, 0.176063f, 0.173043f, 0.169441f, 0.165229f,
+    0.160403f, 0.154976f, 0.148978f, 0.142453f, 0.135454f, 0.128045f, 0.120298f, 0.112287f,
+    0.104092f, 0.095795f, 0.087478f, 0.079221f, 0.071103f, 0.063199f, 0.055579f, 0.048310f,
+    0.041449f, 0.035048f, 0.029150f, 0.023791f, 0.018994f, 0.014776f, 0.011143f, 0.008087f,
+    0.005594f, 0.003634f, 0.002167f, 0.001143f, 0.000496f, 0.000151f, 0.000019f, 0.000000f};
 
 namespace blender::math {
 
@@ -1102,7 +1138,7 @@ namespace blender::math {
  * normalized squared radius r2 ∈ [0, 1].
  * If 'interpolate' is true, we do a linear (1D) interpolation between
  * neighboring entries; otherwise we take the lower bin directly. */
-float lookup_ewa_weight(const float r2_normalized, const bool interpolate = true)
+BLI_INLINE float lookup_ewa_weight(const float r2_normalized, const bool interpolate = true)
 {
   /* Clamp the query range explicitly; the LUT is only defined on [0,1]. */
   if (r2_normalized <= 0.0f) {
@@ -1134,7 +1170,7 @@ float lookup_ewa_weight(const float r2_normalized, const bool interpolate = true
  *
  * This is used to softly kill the boundary weight (no hard jump at r=1),
  * which removes ringing artifacts. */
-float ewa_tent_from_r2(float r)
+BLI_INLINE float ewa_tent_from_r2(float r)
 {
   const float fade = 1.0f - r;  // linear ramp to 0 at r=1
   return (fade > 0.0f) ? fade : 0.0f;
@@ -1143,7 +1179,7 @@ float ewa_tent_from_r2(float r)
 /* Final weight = Gaussian(r^2) × Tent(r).
  * Inside most of the footprint this equals the Gaussian; near the edge it
  * smoothly goes to zero with zero discontinuity at r=1, avoiding ringing. */
-float ewa_weight_bilinear_fade(const float r2_normalized, const bool interpolate_lut)
+BLI_INLINE float ewa_weight_bilinear_fade(const float r2_normalized, const bool interpolate_lut)
 {
   if (r2_normalized >= 1.0f) {
     return 0.0f;  // strictly outside support
@@ -1157,11 +1193,11 @@ float ewa_weight_bilinear_fade(const float r2_normalized, const bool interpolate
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
  * than the `max_factor_between_axes` times shorter than the long axis. Inputs are the
  * two derivative vectors in texel space (du/dx, dv/dx) and (du/dy, dv/dy). */
-void clamp_anisotropy(float &du_dx_texels,
-                      float &dv_dx_texels,
-                      float &du_dy_texels,
-                      float &dv_dy_texels,
-                      float max_factor_between_axes)
+BLI_INLINE void clamp_anisotropy(float &du_dx_texels,
+                                 float &dv_dx_texels,
+                                 float &du_dy_texels,
+                                 float &dv_dy_texels,
+                                 float max_factor_between_axes)
 {
   auto length_sq = [](float x, float y) { return x * x + y * y; };
 
@@ -1204,11 +1240,11 @@ struct Ellipse {
  *   B = -2 * [(du/dx)(dv/dx) + (du/dy)(dv/dy)]
  *   C = (du/dx)^2 + (du/dy)^2 + 1
  * then normalize so "inside" is r^2 < 1. */
-Ellipse build_ellipse(const int2 &image_dimensions,
-                      const float2 &uv_center_norm,
-                      const float2 &uv_dx_norm,
-                      const float2 &uv_dy_norm,
-                      const float &max_factor_between_axes = 8.0f)
+BLI_INLINE Ellipse build_ellipse(const int2 &image_dimensions,
+                                 const float2 &uv_center_norm,
+                                 const float2 &uv_dx_norm,
+                                 const float2 &uv_dy_norm,
+                                 const float &max_factor_between_axes = 8.0f)
 {
   /* Derivatives in texel units. */
   float du_dx_texels = uv_dx_norm.x * image_dimensions.x;
@@ -1267,6 +1303,11 @@ Ellipse build_ellipse(const int2 &image_dimensions,
   return {A, B, C, u_min, u_max, v_min, v_max, texel_center_u, texel_center_v, true};
 }
 
+/* Implementation based on PBRT:
+ * https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/util/mipmap.cpp#L301
+ * Book excerpt:
+ * https://pbr-book.org/4ed/Textures_and_Materials/Image_Texture#fragment-ComputeEWAellipseaxes-0
+ */
 void BLI_ewa_single_level(const int2 &dimensions,
                           const float2 &uv_center_norm,
                           const float2 &uv_dx_norm,
@@ -1313,7 +1354,7 @@ void BLI_ewa_single_level(const int2 &dimensions,
 
     for (int u = u_min; u <= u_max; ++u) {
       if (r2_at_pixel < 1.0f) {
-        const float gauss_weight = ewa_weight_bilinear_fade(r2_at_pixel, interpolate_lut);
+        const float gauss_weight = lookup_ewa_weight(r2_at_pixel, interpolate_lut);
         if (gauss_weight > 0.0f) {
           const int texel_index = (dimensions.x * v + u) * n_channels;
           const float4 rgba = buffer + texel_index;
