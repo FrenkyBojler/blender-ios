@@ -23,6 +23,8 @@ COMPUTE_SHADER_CREATE_INFO(draw_curves_interpolate_position)
 struct InterpPosition {
   /* Position, Radius. */
   float4 data;
+
+  METAL_CONSTRUCTOR_1(InterpPosition, float4, data)
 };
 
 InterpPosition input_load(int point_index, InterpPosition interp)
@@ -33,6 +35,12 @@ InterpPosition input_load(int point_index, InterpPosition interp)
   /* Bake object transform for legacy hair particle. */
   interp.data.xyz = transform_point(transform, interp.data.xyz);
   return interp;
+}
+
+InterpPosition output_load(int evaluated_point_index, InterpPosition interp)
+{
+  return InterpPosition(buffer_get(draw_curves_interpolate_position,
+                                   evaluated_positions_radii_buf)[evaluated_point_index]);
 }
 
 void output_weighted_add(int evaluated_point_index, float w, const InterpPosition interp)
@@ -229,6 +237,7 @@ void evaluate_curve(const InterpType interp_type,
                     const int curve_index)
 {
   const uint curve_resolution = curves_resolution_buf[curve_index];
+  /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
   const bool is_curve_cyclic = use_cyclic;
 
   for (uint i = 0; i < evaluated_points.size(); i++) {
@@ -322,12 +331,17 @@ IndexRange per_curve_point_offsets_range(const IndexRange points, const int curv
   return IndexRange(curve_index + points.start(), points.size() + 1);
 }
 
-int2 get_points(uint point_id, IndexRange points)
+int2 get_points(uint point_id, IndexRange points, const bool cyclic)
 {
   int2 point_ids = int(point_id) + int2(+0, +1);
-  return clamp(int(points.start()) + point_ids,
-               int2(points.start()),
-               int2(points.start() + points.size() - 1));
+  if (cyclic) {
+    /* Wrap around. Note the offset by size to avoid modulo with negative values. */
+    point_ids = ((point_ids + points.size()) % points.size());
+  }
+  else {
+    point_ids = clamp(point_ids, int2(0), int2(points.size() - 1));
+  }
+  return points.start() + point_ids;
 }
 
 template<typename InterpType>
@@ -338,15 +352,22 @@ void evaluate_curve(const InterpType interp_type,
 {
   /* Range used for indexing bezier offsets. */
   const IndexRange offsets = per_curve_point_offsets_range(points, curve_index);
+  /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
+  const bool is_curve_cyclic = use_cyclic;
 
   for (int i = 0; i < points.size(); i++) {
     /* Bezier curves can have different number of evaluated segment per curve segment. */
     const IndexRange segment_range = offset_indices::load_range_from_buffer(bezier_offsets_buf,
                                                                             offsets.start() + i);
     const IndexRange evaluated_segment_range = evaluated_points.slice(segment_range);
-    const int2 point_ids = get_points(i, points);
+    const int2 point_ids = get_points(i, points, is_curve_cyclic);
 
     evaluate_segment(interp_type, point_ids, evaluated_segment_range);
+  }
+
+  if (is_curve_cyclic) {
+    /* The closing point is not contained inside `bezier_offsets_buf` so we do manual copy. */
+    output_write(evaluated_points.last(), output_load(evaluated_points.first(), interp_type));
   }
 }
 
