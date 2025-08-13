@@ -742,6 +742,10 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
       basis_cache_packed.extend(cache.weights.as_span().cast<uint32_t>());
     }
   }
+  /* Ensure buffer is not empty. */
+  if (basis_cache_packed.is_empty()) {
+    basis_cache_packed.append(0);
+  }
 
   basis_cache_offset_buf = gpu::VertBuf::new_from_span(basis_cache_offset.as_span());
   basis_cache_buf = gpu::VertBuf::new_from_span(basis_cache_packed.as_span());
