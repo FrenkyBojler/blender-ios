@@ -16,7 +16,7 @@
 namespace blender {
 
 /**
- * Transforms array of data that makes it more compressible,
+ * Transforms array of data, making it more compressible,
  * especially if data is smoothly varying. Typically you do
  * this before compression with a general purpose compressor.
  *

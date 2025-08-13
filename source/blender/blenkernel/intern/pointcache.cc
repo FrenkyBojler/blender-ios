@@ -1591,14 +1591,13 @@ static void ptcache_file_compressed_write(PTCacheFile *pf,
   blender::Array<uchar> out(out_len);
 
   /* Filter the data: transpose by bytes; delta-encode. */
-  uint8_t *filtered = MEM_malloc_arrayN<uint8_t>(data_size, "pointcache_filter_buffer");
-  blender::filter_transpose_delta((const uint8_t *)data, filtered, items_num, item_size);
+  blender::Array<uchar> filtered(data_size);
+  blender::filter_transpose_delta((const uint8_t *)data, filtered.data(), items_num, item_size);
 
   /* Do compression: always zstd level 3. */
   const int zstd_level = 3;
-  size_t res = ZSTD_compress(out.data(), out_len, filtered, data_size, zstd_level);
+  size_t res = ZSTD_compress(out.data(), out_len, filtered.data(), data_size, zstd_level);
   out_len = res;
-  MEM_freeN(filtered);
 
   /* Write to file. */
   const uchar compression_val = compression;

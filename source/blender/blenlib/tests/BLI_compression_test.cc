@@ -7,7 +7,7 @@
 #include "BLI_array.hh"
 #include "BLI_compression.hh"
 
-using namespace blender;
+namespace blender {
 
 TEST(compression, filter_transpose_delta)
 {
@@ -51,3 +51,5 @@ TEST(compression, filter_transpose_delta_stress)
     EXPECT_EQ_ARRAY(input.data(), unfiltered.data(), num * stride);
   }
 }
+
+}  // namespace blender
