@@ -554,7 +554,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
 
 /** \} */
 
-GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
+GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #ifdef _WIN32
                                  HWND hwnd,
 #elif defined(__APPLE__)
@@ -573,7 +573,7 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
                                  int contextMinorVersion,
                                  int debug,
                                  const GHOST_GPUDevice &preferred_device)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
 #ifdef _WIN32
       m_hwnd(hwnd),
 #elif defined(__APPLE__)
@@ -857,7 +857,7 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
   }
 }
 
-static GHOST_TSuccess selectPresentMode(const char *ghost_vsync_string,
+static GHOST_TSuccess selectPresentMode(std::optional<int> vsync,
                                         VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
@@ -867,8 +867,8 @@ static GHOST_TSuccess selectPresentMode(const char *ghost_vsync_string,
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
 
-  if (ghost_vsync_string) {
-    bool vsync_off = atoi(ghost_vsync_string) == 0;
+  if (vsync) {
+    bool vsync_off = *vsync == 0;
     if (vsync_off) {
       for (auto present_mode : presents) {
         if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
@@ -877,9 +877,8 @@ static GHOST_TSuccess selectPresentMode(const char *ghost_vsync_string,
         }
       }
       CLOG_WARN(&LOG,
-                "Vulkan: VSync off was requested via BLENDER_VSYNC, but "
-                "VK_PRESENT_MODE_IMMEDIATE_KHR is not "
-                "supported.");
+                "Vulkan: VSync off was requested via --gpu-vsync, "
+                "but VK_PRESENT_MODE_IMMEDIATE_KHR is not supported.");
     }
   }
 
@@ -984,7 +983,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   }
 
   VkPresentModeKHR present_mode;
-  if (!selectPresentMode(getEnvVarVSyncString(), physical_device, m_surface, &present_mode)) {
+  if (!selectPresentMode(getVSync(), physical_device, m_surface, &present_mode)) {
     return GHOST_kFailure;
   }
 

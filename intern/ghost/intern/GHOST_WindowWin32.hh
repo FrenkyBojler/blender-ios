@@ -76,7 +76,7 @@ class GHOST_WindowWin32 : public GHOST_Window {
                     uint32_t height,
                     GHOST_TWindowState state,
                     GHOST_TDrawingContextType type,
-                    bool wantStereoVisual,
+                    const GHOST_ContextParams &context_params,
                     GHOST_WindowWin32 *parentWindow,
                     bool is_debug,
                     bool dialog,

@@ -41,7 +41,10 @@ class GHOST_ContextMTL : public GHOST_Context {
   /**
    * Constructor.
    */
-  GHOST_ContextMTL(bool stereoVisual, NSView *metalView, CAMetalLayer *metalLayer, int debug);
+  GHOST_ContextMTL(const GHOST_ContextParams &context_params,
+                   NSView *metalView,
+                   CAMetalLayer *metalLayer,
+                   int debug);
 
   /**
    * Destructor.

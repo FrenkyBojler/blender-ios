@@ -109,7 +109,7 @@ class GHOST_ContextVK : public GHOST_Context {
   /**
    * Constructor.
    */
-  GHOST_ContextVK(bool stereoVisual,
+  GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #ifdef _WIN32
                   HWND hwnd,
 #elif defined(__APPLE__)

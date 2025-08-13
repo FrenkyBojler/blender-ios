@@ -366,6 +366,7 @@ GHOST_IWindow *GHOST_SystemX11::createWindow(const char *title,
     return nullptr;
   }
 
+  const GHOST_ContextParams context_params = GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings);
   window = new GHOST_WindowX11(this,
                                m_display,
                                title,
@@ -377,7 +378,7 @@ GHOST_IWindow *GHOST_SystemX11::createWindow(const char *title,
                                (GHOST_WindowX11 *)parentWindow,
                                gpuSettings.context_type,
                                is_dialog,
-                               ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
+                               context_params,
                                exclusive,
                                (gpuSettings.flags & GHOST_gpuDebugContext) != 0,
                                gpuSettings.preferred_device);
@@ -403,10 +404,12 @@ GHOST_IWindow *GHOST_SystemX11::createWindow(const char *title,
 GHOST_IContext *GHOST_SystemX11::createOffscreenContext(GHOST_GPUSettings gpuSettings)
 {
   const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
+  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
+
   switch (gpuSettings.context_type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
-      GHOST_Context *context = new GHOST_ContextVK(false,
+      GHOST_Context *context = new GHOST_ContextVK(context_params_offscreen,
                                                    GHOST_kVulkanPlatformX11,
                                                    0,
                                                    m_display,
@@ -429,7 +432,7 @@ GHOST_IContext *GHOST_SystemX11::createOffscreenContext(GHOST_GPUSettings gpuSet
     case GHOST_kDrawingContextTypeOpenGL: {
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextGLX(
-            false,
+            context_params_offscreen,
             (Window) nullptr,
             m_display,
             (GLXFBConfig) nullptr,

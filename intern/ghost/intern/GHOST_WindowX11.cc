@@ -110,11 +110,11 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
                                  GHOST_WindowX11 *parentWindow,
                                  GHOST_TDrawingContextType type,
                                  const bool is_dialog,
-                                 const bool stereoVisual,
+                                 const GHOST_ContextParams &context_params,
                                  const bool exclusive,
                                  const bool is_debug,
                                  const GHOST_GPUDevice &preferred_device)
-    : GHOST_Window(width, height, state, stereoVisual, exclusive),
+    : GHOST_Window(width, height, state, context_params, exclusive),
       m_display(display),
       m_visualInfo(nullptr),
       m_fbconfig(nullptr),
@@ -1190,7 +1190,7 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
   switch (type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
-      GHOST_Context *context = new GHOST_ContextVK(m_wantStereoVisual,
+      GHOST_Context *context = new GHOST_ContextVK(m_want_context_params,
                                                    GHOST_kVulkanPlatformX11,
                                                    m_window,
                                                    m_display,
@@ -1216,7 +1216,7 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = GHOST_ContextEGL(
             this->m_system,
-            m_wantStereoVisual,
+            m_want_context_params,
             EGLNativeWindowType(m_window),
             EGLNativeDisplayType(m_display),
             EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
@@ -1236,7 +1236,7 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
 
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextGLX(
-            m_wantStereoVisual,
+            m_want_context_params,
             m_window,
             m_display,
             (GLXFBConfig)m_fbconfig,

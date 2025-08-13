@@ -784,6 +784,7 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   PRINT("GPU Options:\n");
   BLI_args_print_arg_doc(ba, "--gpu-backend");
+  BLI_args_print_arg_doc(ba, "--gpu-vsync");
   if (defs.with_opengl_backend) {
     BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
   }
@@ -871,9 +872,6 @@ static void print_help(bArgs *ba, bool all)
   PRINT("  $BLENDER_CUSTOM_SPLASH     Full path to an image that replaces the splash screen.\n");
   PRINT(
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
-  PRINT(
-      "  $BLENDER_VSYNC             Set to 0 to disable VSync.\n"
-      "                             With OpenGL, other values set the swap interval.\n");
 
   if (defs.with_opencolorio) {
     PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
@@ -1610,6 +1608,33 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
   /* NOLINTEND: bugprone-assignment-in-if-condition */
 
   GPU_backend_type_selection_set_override(gpu_backend);
+
+  return 1;
+}
+
+static const char arg_handle_gpu_vsync_set_doc[] =
+    "\n"
+    "\tSet the VSync: 1 to enable, 0 to disable (useful for testing performance).\n"
+    "\n"
+    "\tFor the OpenGL the value is used for the swap interval (-1 for adaptive sync).";
+static int arg_handle_gpu_vsync_set(int argc, const char **argv, void * /*data*/)
+{
+  const char *arg_id = "--gpu-vsync";
+
+  if (argc < 2) {
+    fprintf(stderr, "\nError: VSync value must follow '%s'.\n", arg_id);
+    return 0;
+  }
+
+  int vsync;
+  const char *err_msg = nullptr;
+
+  if (!parse_int_clamp(argv[1], nullptr, -1, INT_MAX, &vsync, &err_msg)) {
+    fprintf(stderr, "\nError: %s '%s %s'.\n", err_msg, arg_id, argv[1]);
+    return 0;
+  }
+
+  GPU_backend_vsync_set_override(vsync);
 
   return 1;
 }
@@ -2758,6 +2783,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
    * selection for animation player. */
   BLI_args_add(ba, nullptr, "--gpu-backend", CB_ALL(arg_handle_gpu_backend_set), nullptr);
+  BLI_args_add(ba, nullptr, "--gpu-vsync", CB(arg_handle_gpu_vsync_set), nullptr);
   if (defs.with_opengl_backend) {
     BLI_args_add(ba,
                  nullptr,

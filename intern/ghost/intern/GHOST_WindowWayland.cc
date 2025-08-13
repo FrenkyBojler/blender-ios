@@ -1734,11 +1734,11 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
                                          const GHOST_IWindow *parentWindow,
                                          const GHOST_TDrawingContextType type,
                                          const bool is_dialog,
-                                         const bool stereoVisual,
+                                         const GHOST_ContextParams &context_params,
                                          const bool exclusive,
                                          const bool is_debug,
                                          const GHOST_GPUDevice &preferred_device)
-    : GHOST_Window(width, height, state, stereoVisual, exclusive),
+    : GHOST_Window(width, height, state, context_params, exclusive),
       system_(system),
       window_(new GWL_Window),
       is_debug_context_(is_debug),
@@ -2459,13 +2459,13 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
 {
   switch (type) {
     case GHOST_kDrawingContextTypeNone: {
-      GHOST_Context *context = new GHOST_ContextNone(m_wantStereoVisual);
+      GHOST_Context *context = new GHOST_ContextNone(m_want_context_params);
       return context;
     }
 
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
-      GHOST_ContextVK *context = new GHOST_ContextVK(m_wantStereoVisual,
+      GHOST_ContextVK *context = new GHOST_ContextVK(m_want_context_params,
                                                      GHOST_kVulkanPlatformWayland,
                                                      0,
                                                      nullptr,
@@ -2489,7 +2489,7 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextEGL(
             system_,
-            m_wantStereoVisual,
+            m_want_context_params,
             EGLNativeWindowType(window_->backend.egl_window),
             EGLNativeDisplayType(system_->wl_display_get()),
             EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,

@@ -115,6 +115,8 @@ typedef struct GHOST_CursorGenerator {
 typedef enum {
   GHOST_gpuStereoVisual = (1 << 0),
   GHOST_gpuDebugContext = (1 << 1),
+  GHOST_gpuVSyncIsOverridden = (1 << 2),
+
 } GHOST_GPUFlags;
 
 typedef enum GHOST_DialogOptions {
@@ -792,6 +794,11 @@ typedef struct {
 
 typedef struct {
   int flags;
+  /**
+   * Use when `flags & GHOST_gpuVSyncIsOverridden` is set.
+   * See #GHOST_ContextParams::vsync.
+   */
+  int vsync;
   GHOST_TDrawingContextType context_type;
   GHOST_GPUDevice preferred_device;
 } GHOST_GPUSettings;
@@ -799,6 +806,39 @@ typedef struct {
 typedef struct {
   float colored_titlebar_bg_color[3];
 } GHOST_WindowDecorationStyleSettings;
+
+typedef struct {
+  bool is_stereo_visual;
+  bool has_vsync;
+  /**
+   * The VSync value to use when `has_vsync` is true.
+   * For all GPU backends, disable VSync when zero, enable when 1.
+   * Disabling VSync is can be useful for testing performance.
+   *
+   * For OpenGL this is used to set the SwapInterval.
+   * - `-1` adaptive sync.
+   * - `0` VSync disabled.
+   * - `1` VSync enabled (also for any greater value).
+   */
+  int vsync;
+} GHOST_ContextParams;
+
+#define GHOST_CONTEXT_PARAMS_NONE \
+  { \
+    /*is_stereo_visual*/ false, /*has_vsync*/ false, /*vsync*/ 0, \
+  }
+
+#define GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN \
+  { \
+    /*is_stereo_visual*/ false, /*has_vsync*/ false, /*vsync*/ 0, \
+  }
+
+#define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings) \
+  { \
+    /*is_stereo_visual*/ (((gpuSettings).flags & GHOST_gpuStereoVisual) != 0), \
+        /*has_vsync*/ (((gpuSettings).flags & GHOST_gpuVSyncIsOverridden) != 0), \
+        /*vsync*/ (gpuSettings).vsync, \
+  }
 
 #ifdef WITH_VULKAN_BACKEND
 typedef struct {

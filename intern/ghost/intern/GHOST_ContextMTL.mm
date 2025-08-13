@@ -46,11 +46,11 @@ static void ghost_fatal_error_dialog(const char *msg)
 MTLCommandQueue *GHOST_ContextMTL::s_sharedMetalCommandQueue = nil;
 int GHOST_ContextMTL::s_sharedCount = 0;
 
-GHOST_ContextMTL::GHOST_ContextMTL(bool stereoVisual,
+GHOST_ContextMTL::GHOST_ContextMTL(const GHOST_ContextParams &context_params,
                                    NSView *metalView,
                                    CAMetalLayer *metalLayer,
                                    int debug)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
       m_metalView(metalView),
       m_metalLayer(metalLayer),
       m_metalRenderPipeline(nil),
@@ -88,10 +88,8 @@ GHOST_ContextMTL::GHOST_ContextMTL(bool stereoVisual,
         m_metalLayer.device = metalDevice;
         m_metalLayer.allowsNextDrawableTimeout = NO;
 
-        const char *ghost_vsync_string = getEnvVarVSyncString();
-        if (ghost_vsync_string) {
-          int swapInterval = atoi(ghost_vsync_string);
-          m_metalLayer.displaySyncEnabled = swapInterval != 0 ? YES : NO;
+        if (const std::optional<int> swap_interval = getVSync()) {
+          m_metalLayer.displaySyncEnabled = *swap_interval != 0 ? YES : NO;
         }
 
         /* Enable EDR support. This is done by:

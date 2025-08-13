@@ -8585,6 +8585,7 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
 #endif
 
   const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
+  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
 
   switch (gpuSettings.context_type) {
 
@@ -8593,7 +8594,7 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
       /* Create new off-screen surface only for vulkan. */
       wl_surface *wl_surface = wl_compositor_create_surface(wl_compositor_get());
 
-      GHOST_Context *context = new GHOST_ContextVK(false,
+      GHOST_Context *context = new GHOST_ContextVK(context_params_offscreen,
                                                    GHOST_kVulkanPlatformWayland,
                                                    0,
                                                    nullptr,
@@ -8628,7 +8629,7 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
         /* Caller must lock `system->server_mutex`. */
         GHOST_Context *context = new GHOST_ContextEGL(
             this,
-            false,
+            context_params_offscreen,
             EGLNativeWindowType(egl_window),
             EGLNativeDisplayType(display_->wl.display),
             EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
@@ -8717,6 +8718,8 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
                                                  const bool is_dialog,
                                                  const GHOST_IWindow *parentWindow)
 {
+  const GHOST_ContextParams context_params = GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings);
+
   /* Globally store pointer to window manager. */
   GHOST_WindowWayland *window = new GHOST_WindowWayland(
       this,
@@ -8729,7 +8732,7 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
       parentWindow,
       gpuSettings.context_type,
       is_dialog,
-      ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
+      context_params,
       exclusive,
       (gpuSettings.flags & GHOST_gpuDebugContext) != 0,
       gpuSettings.preferred_device);

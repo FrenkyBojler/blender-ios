@@ -271,6 +271,7 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
                                                const bool is_dialog,
                                                const GHOST_IWindow *parentWindow)
 {
+  const GHOST_ContextParams context_params = GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings);
   GHOST_WindowWin32 *window = new GHOST_WindowWin32(
       this,
       title,
@@ -280,7 +281,7 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
       height,
       state,
       gpuSettings.context_type,
-      ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
+      context_params,
       (GHOST_WindowWin32 *)parentWindow,
       ((gpuSettings.flags & GHOST_gpuDebugContext) != 0),
       is_dialog,
@@ -308,12 +309,13 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
 GHOST_IContext *GHOST_SystemWin32::createOffscreenContext(GHOST_GPUSettings gpuSettings)
 {
   const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
+  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
 
   switch (gpuSettings.context_type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
       GHOST_Context *context = new GHOST_ContextVK(
-          false, (HWND)0, 1, 2, debug_context, gpuSettings.preferred_device);
+          context_params_offscreen, (HWND)0, 1, 2, debug_context, gpuSettings.preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -344,7 +346,7 @@ GHOST_IContext *GHOST_SystemWin32::createOffscreenContext(GHOST_GPUSettings gpuS
 
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextWGL(
-            false,
+            context_params_offscreen,
             true,
             wnd,
             mHDC,
@@ -389,6 +391,7 @@ GHOST_TSuccess GHOST_SystemWin32::disposeContext(GHOST_IContext *context)
  */
 GHOST_ContextD3D *GHOST_SystemWin32::createOffscreenContextD3D()
 {
+  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
   HWND wnd = CreateWindowA("STATIC",
                            "Blender XR",
                            WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
@@ -401,7 +404,7 @@ GHOST_ContextD3D *GHOST_SystemWin32::createOffscreenContextD3D()
                            GetModuleHandle(nullptr),
                            nullptr);
 
-  GHOST_ContextD3D *context = new GHOST_ContextD3D(false, wnd);
+  GHOST_ContextD3D *context = new GHOST_ContextD3D(context_params_offscreen, wnd);
   if (context->initializeDrawingContext()) {
     return context;
   }
