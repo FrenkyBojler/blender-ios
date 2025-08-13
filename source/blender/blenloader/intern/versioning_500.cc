@@ -2284,6 +2284,37 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 58)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      brush->size *= 2;
+      brush->unprojected_size *= 2.0f;
+    }
+
+    auto apply_to_paint = [&](Paint *paint) {
+      if (paint == nullptr) {
+        return;
+      }
+      UnifiedPaintSettings &ups = paint->unified_paint_settings;
+
+      ups.size *= 2;
+      ups.unprojected_size *= 2.0f;
+    };
+
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->toolsettings->unified_paint_settings.size *= 2;
+      scene->toolsettings->unified_paint_settings.unprojected_size *= 2.0f;
+      apply_to_paint(reinterpret_cast<Paint *>(scene->toolsettings->vpaint));
+      apply_to_paint(reinterpret_cast<Paint *>(scene->toolsettings->wpaint));
+      apply_to_paint(reinterpret_cast<Paint *>(scene->toolsettings->sculpt));
+      apply_to_paint(reinterpret_cast<Paint *>(scene->toolsettings->gp_paint));
+      apply_to_paint(reinterpret_cast<Paint *>(scene->toolsettings->gp_vertexpaint));
+      apply_to_paint(reinterpret_cast<Paint *>(scene->toolsettings->gp_sculptpaint));
+      apply_to_paint(reinterpret_cast<Paint *>(scene->toolsettings->gp_weightpaint));
+      apply_to_paint(reinterpret_cast<Paint *>(scene->toolsettings->curves_sculpt));
+      apply_to_paint(reinterpret_cast<Paint *>(&scene->toolsettings->imapaint));
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
