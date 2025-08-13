@@ -290,6 +290,24 @@ static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
   params.r_behaviors.rigid_body_instances.append(std::move(rigid_bodies));
 }
 
+static void parse_behavior__soft_body_mesh(ParseBehaviorParams &params)
+{
+  std::optional<GeometrySet> geometry_set = params.bundle.lookup<GeometrySet>("Mesh");
+  std::optional<Field<float>> stretch_stiffness = params.bundle.lookup<fn::Field<float>>(
+      "Stretch Stiffness");
+  std::optional<Field<float>> bend_stiffness = params.bundle.lookup<fn::Field<float>>(
+      "Bend Stiffness");
+  if (!geometry_set || !stretch_stiffness || !bend_stiffness) {
+    return;
+  }
+  geometry::xpbd::SoftBodyMesh soft_body;
+  soft_body.self_path = params.self_path();
+  soft_body.mesh_geometry = *geometry_set;
+  soft_body.stretch_stiffness = *stretch_stiffness;
+  soft_body.bend_stiffness = *bend_stiffness;
+  params.r_behaviors.soft_body_meshes.append(std::move(soft_body));
+}
+
 using BehaviorParserFn = std::function<void(ParseBehaviorParams &)>;
 
 static Map<std::string, BehaviorParserFn> build_behavior_parsers()
@@ -310,6 +328,7 @@ static Map<std::string, BehaviorParserFn> build_behavior_parsers()
   behavior_parsers.add_new("Global Volume Constraint", parse_behavior__global_volume);
   behavior_parsers.add_new("Collision", parse_behavior__collision);
   behavior_parsers.add_new("Rigid Body Instances", parse_behavior__rigid_body_instances);
+  behavior_parsers.add_new("Soft Body Mesh", parse_behavior__soft_body_mesh);
   return behavior_parsers;
 }
 
@@ -507,6 +526,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   for (geometry::xpbd::RigidBodyInstances &rigid_bodies : behaviors.rigid_body_instances) {
     new_data_bundle.add_path_override(rigid_bodies.self_path + "/Instances",
                                       rigid_bodies.instances_geometry);
+  }
+  for (geometry::xpbd::SoftBodyMesh &soft_body : behaviors.soft_body_meshes) {
+    new_data_bundle.add_path_override(soft_body.self_path + "/Mesh", soft_body.mesh_geometry);
   }
   if (physics_state_owner) {
     new_data_bundle.add("_state", physics_state_owner);

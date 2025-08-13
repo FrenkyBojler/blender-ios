@@ -162,6 +162,14 @@ class RigidBodyInstances {
   fn::Field<float> density;
 };
 
+class SoftBodyMesh {
+ public:
+  std::string self_path;
+  bke::GeometrySet mesh_geometry;
+  fn::Field<float> stretch_stiffness;
+  fn::Field<float> bend_stiffness;
+};
+
 /* Internal physics engine state. */
 class PhysicsState {
  public:
@@ -177,6 +185,7 @@ struct Behaviors {
   Vector<Damping> dampings;
   Vector<ConstraintSet *> constraint_sets;
   Vector<RigidBodyInstances> rigid_body_instances;
+  Vector<SoftBodyMesh> soft_body_meshes;
   PhysicsState *physics_state = nullptr;
   int update_counter = 0;
 };

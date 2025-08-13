@@ -518,6 +518,26 @@ static void apply_motion_to_instance_transforms(const JoltRigidBodies &rigid_bod
   }
 }
 
+static void apply_motion_to_soft_body_shape(const JoltSoftBody &soft_body, Mesh &mesh)
+{
+  BLI_assert(soft_body.body->IsSoftBody());
+  const auto &motion_properties = *static_cast<const JPH::SoftBodyMotionProperties *>(
+      soft_body.body->GetMotionProperties());
+  const JPH::Array<JPH::SoftBodyVertex> &vertices = motion_properties.GetVertices();
+  if (mesh.verts_num != vertices.size()) {
+    return;
+  }
+  const JPH::Vec3 center = soft_body.body->GetPosition();
+  MutableSpan<float3> positions = mesh.vert_positions_for_write();
+  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      const JPH::SoftBodyVertex &soft_body_vertex = vertices[i];
+      positions[i] = convert_vec3(soft_body_vertex.mPosition + center);
+    }
+  });
+  mesh.tag_positions_changed();
+}
+
 enum class CollisionShapeType {
   Box,
   Sphere,
@@ -572,13 +592,14 @@ static JPH::ShapeSettings::ShapeResult make_collision_shape(const CollisionShape
 
 static JoltRigidBodies rigid_bodies_from_instances(
     const bke::Instances &instances,
-    const StringRef path,
     const fn::Field<int> &collision_shape_type_field,
     const fn::Field<int> &motion_type_field,
     const fn::Field<float> &friction_field,
     const fn::Field<float> &bounciness_field,
     const fn::Field<float> &density_field,
-    JoltState &state)
+    JoltRigidBodies *old_rigid_bodies,
+    JPH::BodyInterface &body_interface,
+    CollisionShapeCache &collision_shape_cache)
 {
   const int instances_num = instances.instances_num();
   const int references_num = instances.references_num();
@@ -601,7 +622,6 @@ static JoltRigidBodies rigid_bodies_from_instances(
   const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(3);
   const VArray<float> densities = field_evaluator.get_evaluated<float>(4);
 
-  JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
   Array<bke::GeometrySet> reference_geometry_sets(references_num);
   for (const int i : references.index_range()) {
     const bke::InstanceReference &reference = references[i];
@@ -609,8 +629,6 @@ static JoltRigidBodies rigid_bodies_from_instances(
     reference.to_geometry_set(reference_geometry);
     reference_geometry_sets[i] = std::move(reference_geometry);
   }
-
-  JoltRigidBodies *old_rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(path);
 
   JoltRigidBodies rigid_bodies;
   for (const int instance_i : IndexRange(instances_num)) {
@@ -649,7 +667,7 @@ static JoltRigidBodies rigid_bodies_from_instances(
 
     const CollisionShapeParams collision_shape_params{reference_geometry, instance_scale, density};
     JPH::ShapeSettings::ShapeResult collision_shape = make_collision_shape(
-        *collision_shape_type, collision_shape_params, state.collision_shape_cache);
+        *collision_shape_type, collision_shape_params, collision_shape_cache);
     if (!collision_shape.IsValid()) {
       continue;
     }
@@ -700,6 +718,108 @@ static JoltRigidBodies rigid_bodies_from_instances(
   }
 
   return rigid_bodies;
+}
+
+static float compute_soft_body_compliance(float stretch_stiffness)
+{
+  stretch_stiffness = std::max(0.0f, stretch_stiffness);
+  return stretch_stiffness == 0.0f ? 1.0f : 1.0f / stretch_stiffness;
+}
+
+static float compute_soft_body_shear_compliance(float bend_stiffness)
+{
+  bend_stiffness = std::max(0.0f, bend_stiffness);
+  return bend_stiffness == 0.0f ? 1.0f : 1.0f / bend_stiffness;
+}
+
+static float compute_soft_body_bend_compliance(float bend_stiffness)
+{
+  bend_stiffness = std::max(0.0f, bend_stiffness);
+  return bend_stiffness == 0.0f ? 1.0f : 1.0f / bend_stiffness;
+}
+
+static JoltSoftBody soft_body_from_mesh(const Mesh &mesh,
+                                        const fn::Field<float> &stretch_stiffness_field,
+                                        const fn::Field<float> &bend_stiffness_field,
+                                        JoltSoftBody *old_soft_body,
+                                        JPH::BodyInterface &body_interface)
+{
+  JoltSoftBody soft_body;
+  if (old_soft_body) {
+    const auto &motion_properties = *static_cast<const JPH::SoftBodyMotionProperties *>(
+        old_soft_body->body->GetMotionProperties());
+    if (motion_properties.GetVertices().size() == mesh.verts_num) {
+      soft_body.body = old_soft_body->body;
+      old_soft_body->body = nullptr;
+    }
+  }
+  if (!soft_body.body) {
+    bke::MeshFieldContext field_context{mesh, bke::AttrDomain::Point};
+    fn::FieldEvaluator field_evaluator{field_context, mesh.verts_num};
+    field_evaluator.add(stretch_stiffness_field);
+    field_evaluator.add(bend_stiffness_field);
+    field_evaluator.evaluate();
+    const VArray<float> stretch_stiffnesses = field_evaluator.get_evaluated<float>(0);
+    const VArray<float> bend_stiffnesses = field_evaluator.get_evaluated<float>(1);
+
+    JPH::Ref<JPH::SoftBodySharedSettings> shared_settings = new JPH::SoftBodySharedSettings();
+    const Span<float3> positions = mesh.vert_positions();
+
+    for (int i : positions.index_range()) {
+      const float3 &position = positions[i];
+      JPH::SoftBodySharedSettings::Vertex vertex;
+      convert_vec3(position).StoreFloat3(&vertex.mPosition);
+      shared_settings->mVertices.push_back(vertex);
+    }
+
+    const Span<int3> tris = mesh.corner_tris();
+    const Span<int> corner_verts = mesh.corner_verts();
+    for (int i : tris.index_range()) {
+      JPH::SoftBodySharedSettings::Face face;
+      const int3 &tri = tris[i];
+      face.mVertex[0] = corner_verts[tri.x];
+      face.mVertex[1] = corner_verts[tri.y];
+      face.mVertex[2] = corner_verts[tri.z];
+      shared_settings->AddFace(face);
+    }
+
+    Vector<JPH::SoftBodySharedSettings::VertexAttributes> vertex_attributes_vec;
+    if (bend_stiffnesses.is_single() && stretch_stiffnesses.is_single()) {
+      JPH::SoftBodySharedSettings::VertexAttributes attributes;
+      attributes.mCompliance = compute_soft_body_compliance(
+          stretch_stiffnesses.get_internal_single());
+      attributes.mShearCompliance = compute_soft_body_shear_compliance(
+          bend_stiffnesses.get_internal_single());
+      attributes.mBendCompliance = compute_soft_body_bend_compliance(
+          bend_stiffnesses.get_internal_single());
+      vertex_attributes_vec.append(attributes);
+    }
+    else {
+      vertex_attributes_vec.resize(positions.size());
+      threading::parallel_for(IndexRange(positions.size()), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          JPH::SoftBodySharedSettings::VertexAttributes &attributes = vertex_attributes_vec[i];
+          attributes.mCompliance = compute_soft_body_compliance(stretch_stiffnesses[i]);
+          attributes.mShearCompliance = compute_soft_body_shear_compliance(bend_stiffnesses[i]);
+          attributes.mBendCompliance = compute_soft_body_bend_compliance(bend_stiffnesses[i]);
+        }
+      });
+    }
+
+    shared_settings->CreateConstraints(vertex_attributes_vec.data(),
+                                       vertex_attributes_vec.size(),
+                                       JPH::SoftBodySharedSettings::EBendType::Dihedral);
+    shared_settings->Optimize();
+
+    JPH::SoftBodyCreationSettings soft_body_creation_settings(
+        shared_settings, JPH::Vec3(0, 0, 0), JPH::Quat::sIdentity(), ObjectLayers::moving);
+    soft_body.body = body_interface.CreateSoftBody(soft_body_creation_settings);
+    if (soft_body.body) {
+      body_interface.AddBody(soft_body.body->GetID(), JPH::EActivation::Activate);
+    }
+  }
+
+  return soft_body;
 }
 
 static void update_gravity(JoltState &state)
@@ -882,6 +1002,25 @@ static bke::GeometrySet apply_rigid_body_simulation(const RigidBodyInstances &ri
   return geometry;
 }
 
+static bke::GeometrySet apply_soft_body_simulation(const SoftBodyMesh &soft_body_mesh,
+                                                   const jolt_physics::JoltState &state)
+{
+  bke::GeometrySet geometry = soft_body_mesh.mesh_geometry;
+  Mesh *mesh = geometry.get_mesh_for_write();
+  if (!mesh) {
+    return geometry;
+  }
+
+  const jolt_physics::JoltSoftBody *soft_body = state.soft_bodies_by_path.lookup_ptr(
+      soft_body_mesh.self_path);
+  if (!soft_body) {
+    return geometry;
+  }
+
+  jolt_physics::apply_motion_to_soft_body_shape(*soft_body, *mesh);
+  return geometry;
+}
+
 static void update_jolt_state_from_behaviors(jolt_physics::JoltState &state,
                                              const Behaviors &behaviors)
 {
@@ -891,6 +1030,10 @@ static void update_jolt_state_from_behaviors(jolt_physics::JoltState &state,
   for (const int i : behaviors.rigid_body_instances.index_range()) {
     applied_rigid_bodies[i] = apply_rigid_body_simulation(behaviors.rigid_body_instances[i],
                                                           state);
+  }
+  Array<bke::GeometrySet> applied_soft_bodies(behaviors.soft_body_meshes.size());
+  for (const int i : behaviors.soft_body_meshes.index_range()) {
+    applied_soft_bodies[i] = apply_soft_body_simulation(behaviors.soft_body_meshes[i], state);
   }
 
   JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
@@ -903,16 +1046,41 @@ static void update_jolt_state_from_behaviors(jolt_physics::JoltState &state,
       continue;
     }
     const RigidBodyInstances &rigid_body_instances = behaviors.rigid_body_instances[i];
+    jolt_physics::JoltRigidBodies *old_rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(
+        rigid_body_instances.self_path);
     jolt_physics::JoltRigidBodies rigid_bodies = jolt_physics::rigid_bodies_from_instances(
         *instances,
-        rigid_body_instances.self_path,
         rigid_body_instances.collision_shape_type,
         rigid_body_instances.motion_type,
         rigid_body_instances.friction,
         rigid_body_instances.bounciness,
         rigid_body_instances.density,
-        state);
-    new_rigid_bodies_by_path.add(rigid_body_instances.self_path, std::move(rigid_bodies));
+        old_rigid_bodies,
+        body_interface,
+        state.collision_shape_cache);
+    if (!rigid_bodies.bodies_by_id.is_empty()) {
+      new_rigid_bodies_by_path.add(rigid_body_instances.self_path, std::move(rigid_bodies));
+    }
+  }
+  Map<std::string, jolt_physics::JoltSoftBody> new_soft_bodies_by_path;
+  for (const int i : behaviors.soft_body_meshes.index_range()) {
+    const bke::GeometrySet &applied_soft_body = applied_soft_bodies[i];
+    const Mesh *mesh = applied_soft_body.get_mesh();
+    if (!mesh) {
+      continue;
+    }
+    const SoftBodyMesh &soft_body_mesh = behaviors.soft_body_meshes[i];
+    jolt_physics::JoltSoftBody *old_soft_body = state.soft_bodies_by_path.lookup_ptr(
+        soft_body_mesh.self_path);
+    jolt_physics::JoltSoftBody soft_body = jolt_physics::soft_body_from_mesh(
+        *mesh,
+        soft_body_mesh.stretch_stiffness,
+        soft_body_mesh.bend_stiffness,
+        old_soft_body,
+        body_interface);
+    if (soft_body.body) {
+      new_soft_bodies_by_path.add(soft_body_mesh.self_path, std::move(soft_body));
+    }
   }
 
   /* Remove old bodies. */
@@ -923,12 +1091,15 @@ static void update_jolt_state_from_behaviors(jolt_physics::JoltState &state,
     }
   }
   for (jolt_physics::JoltSoftBody &soft_body : state.soft_bodies_by_path.values()) {
-    bodies_to_remove.append(soft_body.body->GetID());
+    if (soft_body.body) {
+      bodies_to_remove.append(soft_body.body->GetID());
+    }
   }
   body_interface.RemoveBodies(bodies_to_remove.data(), bodies_to_remove.size());
   body_interface.DestroyBodies(bodies_to_remove.data(), bodies_to_remove.size());
 
   state.rigid_bodies_by_path = std::move(new_rigid_bodies_by_path);
+  state.soft_bodies_by_path = std::move(new_soft_bodies_by_path);
   state.collision_shape_cache.remove_unused();
 
   jolt_physics::update_gravity(state);
@@ -3051,11 +3222,14 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
     }
   }
 
-  /* Update final instance transforms. */
+  /* Update final instance transforms and softbody mesh shapes. */
   if (jolt_state) {
     for (RigidBodyInstances &rigid_body_instances : behaviors.rigid_body_instances) {
       rigid_body_instances.instances_geometry = apply_rigid_body_simulation(rigid_body_instances,
                                                                             *jolt_state);
+    }
+    for (SoftBodyMesh &soft_body_mesh : behaviors.soft_body_meshes) {
+      soft_body_mesh.mesh_geometry = apply_soft_body_simulation(soft_body_mesh, *jolt_state);
     }
   }
 }
