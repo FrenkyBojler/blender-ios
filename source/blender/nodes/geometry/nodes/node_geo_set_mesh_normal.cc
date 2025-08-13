@@ -9,6 +9,8 @@
 
 #include "NOD_rna_define.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "RNA_enum_types.hh"
 
 #include "node_geometry_util.hh"
@@ -26,7 +28,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to set the custom normals on");
   b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   if (const bNode *node = b.node_or_null()) {
     switch (Mode(node->custom1)) {
@@ -74,7 +78,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       const bool remove_custom = params.extract_input<bool>("Remove Custom");
       const fn::Field sharp_edge = params.extract_input<fn::Field<bool>>("Edge Sharpness");
       const fn::Field sharp_face = params.extract_input<fn::Field<bool>>("Face Sharpness");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           /* Evaluate both fields before storing the result to avoid one attribute change
            * potentially affecting the other field evaluation. */
@@ -127,7 +131,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     case Mode::Free: {
       const fn::Field custom_normal = params.extract_input<fn::Field<float3>>("Custom Normal");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           const bke::AttrDomain domain = bke::AttrDomain(node.custom2);
           bke::try_capture_field_on_geometry(mesh->attributes_for_write(),
@@ -142,13 +146,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     case Mode::CornerFanSpace: {
       const fn::Field custom_normal = params.extract_input<fn::Field<float3>>("Custom Normal");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
         if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
           const bke::MeshFieldContext context(*mesh, bke::AttrDomain::Corner);
           fn::FieldEvaluator evaluator(context, mesh->corners_num);
           Array<float3> corner_normals(mesh->corners_num);
           evaluator.add_with_destination<float3>(custom_normal, corner_normals);
           evaluator.evaluate();
+          mesh->attributes_for_write().remove("custom_normal");
           bke::mesh_set_custom_normals(*mesh, corner_normals);
         }
       });

@@ -79,6 +79,7 @@ typedef enum NodeSocketInterfaceStructureType {
   NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC = 2,
   NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD = 3,
   NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID = 4,
+  NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST = 5,
 } NodeSocketInterfaceStructureType;
 
 // TODO: Move out of DNA.
@@ -89,6 +90,7 @@ enum class StructureType : int8_t {
   Dynamic = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC,
   Field = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD,
   Grid = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID,
+  List = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST,
 };
 }
 #endif
@@ -465,19 +467,26 @@ typedef struct bNodeTreeInterface {
   /** Ensure the items cache can be accessed. */
   void ensure_items_cache() const;
 
-  /** True if any runtime change flag is set. */
-  bool is_changed() const;
+  /** True if any trees and nodes depending on the interface require updates. */
+  bool requires_dependent_tree_updates() const;
+
+  /** Call after changing the items list. */
+  void tag_items_changed();
+  /** Call after generic user changes through the API. */
+  void tag_items_changed_generic();
+  /** Call after changing an item property. */
+  void tag_item_property_changed();
 
   /**
-   * Tag runtime data and invalidate the cache.
-   * Must be called after any direct change to interface DNA data.
+   * Reset flag to indicate that dependent trees have been updated.
+   * Should only be called by #NodeTreeMainUpdater.
    */
-  void tag_items_changed();
-
-  /** Reset runtime flags after updates have been processed. */
-  void reset_changed_flags();
+  void reset_interface_changed();
 
  private:
+  /** Tag after interface changes that require updates to dependent trees. */
+  void tag_interface_changed();
+  /** Invalidate caches and force full tree update after loading DNA. */
   void tag_missing_runtime_data();
 
 #endif
