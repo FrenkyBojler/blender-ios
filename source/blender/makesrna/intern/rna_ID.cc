@@ -316,7 +316,7 @@ static int rna_ID_name_editable(const PointerRNA *ptr, const char **r_info)
   }
   else if (!BKE_id_is_in_global_main(id)) {
     if (r_info) {
-      *r_info = N_("Datablocks not in global Main data-base cannot be renamed");
+      *r_info = N_("Data-blocks not in global Main data-base cannot be renamed");
     }
     return 0;
   }
@@ -1890,9 +1890,8 @@ static void rna_def_ID_override_library_property_operation(BlenderRNA *brna)
                       "What override operation is performed");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* For now. */
 
-  prop = RNA_def_enum(
+  prop = RNA_def_enum_flag(
       srna, "flag", override_library_property_flag_items, 0, "Flags", "Status flags");
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* For now. */
 
   prop = RNA_def_string(srna,
@@ -2426,7 +2425,7 @@ static void rna_def_ID(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Editable",
-                           "This data-block is editable in the user interface. Linked datablocks "
+                           "This data-block is editable in the user interface. Linked data-blocks "
                            "are not editable, except if they were loaded as editable assets.");
 
   prop = RNA_def_property(srna, "tag", PROP_BOOLEAN, PROP_NONE);
@@ -2603,7 +2602,7 @@ static void rna_def_ID(BlenderRNA *brna)
   func = RNA_def_function(srna, "make_local", "rna_ID_make_local");
   RNA_def_function_ui_description(
       func,
-      "Make this datablock local, return local one "
+      "Make this data-block local, return local one "
       "(may be a copy of the original, in case it is also indirectly used)");
   RNA_def_function_flag(func, FUNC_USE_MAIN);
   parm = RNA_def_boolean(func, "clear_proxy", true, "", "Deprecated, has no effect");
@@ -2721,8 +2720,8 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Editable",
-                           "Datablocks in this library are editable despite being linked. Used by "
-                           "brush assets and their dependencies.");
+                           "Data-blocks in this library are editable despite being linked. "
+                           "Used by brush assets and their dependencies.");
 
   prop = RNA_def_property(srna, "is_archive", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", LIBRARY_FLAG_IS_ARCHIVE);
