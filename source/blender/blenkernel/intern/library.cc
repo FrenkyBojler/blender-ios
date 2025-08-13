@@ -401,8 +401,7 @@ Library *blender::bke::library::search_filepath_abs(ListBase *libraries,
 }
 
 /**
- * Add a new 'archive' copy of the given reference library. It is be used to store linked
- * packed IDs.
+ * Add a new 'archive' copy of the given reference library. It is used to store linked packed IDs.
  */
 static Library *add_archive_library(Main &bmain, Library &reference_library)
 {
@@ -412,16 +411,17 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
       BKE_id_new(&bmain, ID_LI, BKE_id_name(reference_library.id)));
 
   archive_library->archive_parent_library = &reference_library;
-  archive_library->flag = LIBRARY_FLAG_IS_ARCHIVE; /* Could OR with reference_library->flag too? */
+  constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_ARCHIVE;
+  archive_library->flag = (reference_library.flag & copy_flag) | LIBRARY_FLAG_IS_ARCHIVE;
   BKE_library_filepath_set(&bmain, archive_library, reference_library.filepath);
 
   archive_library->runtime->parent = reference_library.runtime->parent;
   /* Only copy a subset of the reference library tags. E.g. an archive library should never be
    * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
    * tweaking still. */
-  archive_library->runtime->tag = reference_library.runtime->tag &
-                                  (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
-                                   LIBRARY_IS_ASSET_EDIT_FILE);
+  constexpr uint16_t copy_tag = (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
+                                 LIBRARY_IS_ASSET_EDIT_FILE);
+  archive_library->runtime->tag = reference_library.runtime->tag & copy_tag;
   /* By definition, the file version of an archive library containing only packed linked data is
    * the same as the one of its Main container. */
   archive_library->runtime->versionfile = bmain.versionfile;
@@ -430,24 +430,27 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
   return archive_library;
 }
 
-static Library *get_archive_library(Main &bmain, ID *for_id)
+static Library *get_archive_library(Main &bmain, ID *for_id, const IDHash &for_id_deep_hash)
 {
   Library *reference_library = for_id->lib;
   BLI_assert(reference_library && (reference_library->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
 
   Library *archive_lib = nullptr;
-  LISTBASE_FOREACH (Library *, lib_iter, &bmain.libraries) {
-    if ((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0) {
-      continue;
-    }
+  for (Library *lib_iter : reference_library->runtime->archived_libraries) {
+    BLI_assert((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0);
     BLI_assert(lib_iter->archive_parent_library != nullptr);
-    if (lib_iter->archive_parent_library != reference_library) {
-      continue;
-    }
+    BLI_assert(lib_iter->archive_parent_library == reference_library);
     /* Check if current archive library already contains an ID of same type and name. */
     if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(for_id->name), BKE_id_name(*for_id))) {
-      // TODO: If the ID in that library has the same deep hash as the ID we want to pack, they
-      // need to be deduplicated.
+#ifndef NDEBUG
+      ID *packed_id = BKE_libblock_find_name_and_library(
+          &bmain, GS(for_id->name), BKE_id_name(*for_id), BKE_id_name(lib_iter->id));
+      BLI_assert_msg(
+          packed_id && packed_id->deep_hash != for_id_deep_hash,
+          "An already packed ID with same deep hash as the one to be packed, should have already "
+          "be found and used (deduplication) before reaching this codepath");
+#endif
+      UNUSED_VARS_NDEBUG(for_id_deep_hash);
       continue;
     }
     archive_lib = lib_iter;
@@ -470,8 +473,8 @@ static void pack_linked_id(Main &bmain,
 {
   BLI_assert(linked_id->newid == nullptr);
 
-  ID *packed_id = already_packed_ids.lookup_default(
-      deep_hashes.hashes.lookup_default(linked_id, IDHash::get_null()), nullptr);
+  const IDHash linked_id_deep_hash = deep_hashes.hashes.lookup(linked_id);
+  ID *packed_id = already_packed_ids.lookup_default(linked_id_deep_hash, nullptr);
 
   if (packed_id) {
     /* Exact same ID (and all of its dependencies) have already been linked and packed before,
@@ -500,11 +503,12 @@ static void pack_linked_id(Main &bmain,
     }
   }
   else {
-    /* This exact version of the ID and its dependencies have not been embedded before, creates a
-     * new copy of it and embed it. */
+    /* This exact version of the ID and its dependencies have not been packed before, creates a
+     * new copy of it and pack it. */
 
-    /* Find an existing archive Library not containing a 'version' of this ID yet. */
-    Library *archive_lib = get_archive_library(bmain, linked_id);
+    /* Find an existing archive Library not containing a 'version' of this ID yet (to prevent names
+     * collisions). */
+    Library *archive_lib = get_archive_library(bmain, linked_id, linked_id_deep_hash);
 
     auto copied_id_process =
         [&archive_lib, &deep_hashes, &ids_to_remap, &id_remapper, &already_packed_ids](
@@ -599,17 +603,12 @@ void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
   BLI_assert(ID_IS_LINKED(&root_id));
   BLI_assert(!ID_IS_PACKED(&root_id));
 
-  /* TODO: This code also needs to check upward in the hierarchy to ensure no other linked data
-   * uses the root_id (or some of its dependency). Otherwise, these IDs should be duplicated before
-   * being packed. This is likely similar process as liboverride 'make override hierarchy' code,
-   * hopefully we can deduplicate some of this logic into its own utils BKE API. */
   blender::Set<ID *> ids_to_pack;
   ids_to_pack.add(&root_id);
   BKE_library_foreach_ID_link(
       &bmain,
       &root_id,
-
-      [&](LibraryIDLinkCallbackData *cb_data) -> int {
+      [&ids_to_pack](LibraryIDLinkCallbackData *cb_data) -> int {
         if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
           return IDWALK_RET_NOP;
         }

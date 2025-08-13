@@ -29,8 +29,9 @@ struct LibraryRuntime {
   /**
    * Filedata (i.e. opened blendfile) source of this library data.
    *
-   * \note: This is not always the library's blendfile path. E.g. for archive packed libraries,
-   * this will be the filedat of the packing blendfile, not of the reference/source library.
+   * \note: This is not always matching the library's blendfile path. E.g. for archive packed
+   * libraries, this will be the filedata of the packing blendfile, not of the reference/source
+   * library.
    */
   FileData *filedata = nullptr;
   /**
@@ -78,8 +79,6 @@ Library *search_filepath_abs(ListBase *libraries, blender::StringRef filepath_ab
  * Pack given linked ID, and all the related hierarchy.
  *
  * Will set final embedded ID into each ID::newid pointers.
- *
- * TODO: WIP, does not cover all possible cases yet - by far. See note in code.
  */
 void pack_linked_id_hierarchy(Main &bmain, ID &root_id);
 
