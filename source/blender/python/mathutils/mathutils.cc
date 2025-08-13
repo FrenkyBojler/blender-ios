@@ -612,6 +612,13 @@ void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self)
       PyExc_TypeError, "%s is not frozen (mutable), call freeze first", Py_TYPE(self)->tp_name);
 }
 
+void _BaseMathObject_RaiseBufferViewExc(const BaseMathObject *self)
+{
+  PyErr_Format(
+      PyExc_BufferError, "%s is already exported via buffer protocol, " \
+         "multiple simultaneous exports are not allowed.", Py_TYPE(self)->tp_name);
+}
+
 /* #BaseMathObject generic functions for all mathutils types. */
 
 char BaseMathObject_owner_doc[] = "The item this is wrapping or None  (read-only).";
@@ -653,6 +660,11 @@ PyObject *BaseMathObject_freeze(BaseMathObject *self)
 {
   if ((self->flag & BASE_MATH_FLAG_IS_WRAP) || (self->cb_user != nullptr)) {
     PyErr_SetString(PyExc_TypeError, "Cannot freeze wrapped/owned data");
+    return nullptr;
+  }
+
+  if (self->flag & BASE_MATH_FLAG_IS_VIEW) {
+    PyErr_SetString(PyExc_BufferError, "Cannot freeze data while exported to buffer protocol");
     return nullptr;
   }
 

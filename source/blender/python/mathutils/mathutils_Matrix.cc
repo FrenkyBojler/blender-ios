@@ -2378,6 +2378,83 @@ static PyObject *Matrix_str(MatrixObject *self)
 
 /** \} */
 
+
+/* -------------------------------------------------------------------- */
+/** \name Matrix Type: Buffer Protocol
+ * \{ */
+
+static int Matrix__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
+{
+
+  if (UNLIKELY(view == nullptr)) {
+    PyErr_SetString(PyExc_ValueError, "null view in getbuffer is obsolete");
+    return -1;
+  }
+
+  MatrixObject *self = (MatrixObject *)obj;
+  if (BaseMath_Prepare_ForBufferAccess(self) == -1) {
+    return -1;
+  }
+  if (UNLIKELY(BaseMath_ReadCallback(self) == -1)) {
+    return -1;
+  }
+
+  memset(view, 0, sizeof(*view));
+
+  view->obj = (PyObject *)self;
+  view->buf = (void *)self->matrix;
+  view->len = Py_ssize_t(self->row_num * self->col_num * sizeof(float));
+  view->readonly = 1;
+  if (!(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
+    if (BaseMath_WriteCallback(self) == -1) {
+      PyErr_Clear();
+    }
+    else {
+      view->readonly = 0;
+    }
+  }
+  view->itemsize = sizeof(float);
+  if (LIKELY(flags & PyBUF_FORMAT)) {
+    view->format = (char *)"f";
+  }
+  if (flags & PyBUF_ND) {
+    view->ndim = 2;
+    view->shape = MEM_malloc_arrayN<Py_ssize_t>(size_t(view->ndim), "Matrix shape");
+    if (UNLIKELY(view->shape == nullptr)) {
+      PyErr_SetString(PyExc_MemoryError, "Matrix buffer shape is not allocated");
+      return -1;
+    }
+    view->shape[0] = self->row_num;
+    view->shape[1] = self->col_num;
+  }
+
+  view->shape = nullptr;
+  view->strides = nullptr;
+  view->suboffsets = nullptr;
+  view->internal = nullptr;
+
+  self->flag |= BASE_MATH_FLAG_IS_VIEW;
+
+  Py_INCREF(self);
+  return 0;
+}
+
+static void Matrix__bf_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
+{
+  QuaternionObject *self = (QuaternionObject *)view->obj;
+  self->flag &= ~BASE_MATH_FLAG_IS_VIEW;
+
+  MEM_SAFE_FREE(view->shape);
+}
+
+static PyBufferProcs Matrix_as_buffer = {
+    (getbufferproc)Matrix__bf_getbuffer,
+    (releasebufferproc)Matrix__bf_releasebuffer,
+};
+
+/** \} */
+
+
 /* -------------------------------------------------------------------- */
 /** \name Matrix Type: Rich Compare
  * \{ */
@@ -3930,7 +4007,7 @@ PyTypeObject matrix_access_Type = {
     /*tp_str*/ nullptr,
     /*tp_getattro*/ nullptr,
     /*tp_setattro*/ nullptr,
-    /*tp_as_buffer*/ nullptr,
+    /*tp_as_buffer*/ &Matrix_as_buffer,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ nullptr,
     /*tp_traverse*/ (traverseproc)MatrixAccess_traverse,

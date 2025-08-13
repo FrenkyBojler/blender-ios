@@ -503,6 +503,21 @@ static PyObject *Vector_resize(VectorObject *self, PyObject *value)
                     "cannot resize wrapped data - only Python vectors");
     return nullptr;
   }
+
+  if (self->flag & BASE_MATH_FLAG_IS_FROZEN) {
+    PyErr_SetString(PyExc_TypeError,
+                    "Vector.resize(): "
+                    "cannot resize frozen (immutable) vector");
+    return nullptr;
+  }
+
+  if (self->flag & BASE_MATH_FLAG_IS_VIEW) {
+    PyErr_SetString(PyExc_BufferError,
+                    "Vector.resize(): "
+                    "cannot resize vector while exported to buffer protocol");
+    return nullptr;
+  }
+
   if (self->cb_user) {
     PyErr_SetString(PyExc_TypeError,
                     "Vector.resize(): "
@@ -1633,37 +1648,60 @@ static PyObject *Vector_str(VectorObject *self)
 
 static int Vector__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
 {
-
   if (UNLIKELY(view == nullptr)) {
-    PyErr_SetString(PyExc_ValueError, "nullptr view in getbuffer");
+    PyErr_SetString(PyExc_BufferError, "null view in getbuffer is obsolete");
     return -1;
   }
 
   VectorObject *self = (VectorObject *)obj;
-  if (UNLIKELY(BaseMath_ReadCallback(self) == -1)) {
+  if (BaseMath_Prepare_ForBufferAccess(self) == -1) {
     return -1;
   }
+  if (BaseMath_ReadCallback(self) == -1) {
+    return -1;
+  }
+
+  memset(view, 0, sizeof(*view));
 
   view->obj = (PyObject *)self;
   view->buf = (void *)self->vec;
   view->len = Py_ssize_t(self->vec_num * sizeof(float));
   view->readonly = 1;
+
+  if (!(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
+    if (BaseMath_WriteCallback(self) == -1) {
+      PyErr_Clear();
+    }
+    else {
+      view->readonly = 0;
+    }
+  }
   view->itemsize = sizeof(float);
-  view->format = (char *)"f";
+  if (LIKELY(flags & PyBUF_FORMAT)) {
+    view->format = (char *)"f";
+  }
   view->ndim = 1;
   view->shape = nullptr;
   view->strides = nullptr;
   view->suboffsets = nullptr;
   view->internal = nullptr;
-
+  
+  self->flag |= BASE_MATH_FLAG_IS_VIEW;
+  
   Py_INCREF(self);
   return 0;
 }
 
-static PyBufferProcs Vector_as_buffer = {
-    (getbufferproc)Vector__bf_getbuffer,
-    (releasebufferproc)0,
-};
+static void Vector__bf_releasebuffer(PyObject * /*exporter*/, Py_buffer * view)
+  {
+    VectorObject *self = (VectorObject *)view->obj;
+    self->flag &= ~BASE_MATH_FLAG_IS_VIEW;
+  }
+
+  static PyBufferProcs Vector_as_buffer = {
+      (getbufferproc)Vector__bf_getbuffer,
+      (releasebufferproc)Vector__bf_releasebuffer,
+  };
 
 /** \} */
 

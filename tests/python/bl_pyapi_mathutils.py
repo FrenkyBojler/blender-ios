@@ -4,7 +4,7 @@
 
 # ./blender.bin --background --python tests/python/bl_pyapi_mathutils.py -- --verbose
 import unittest
-from mathutils import Matrix, Vector, Quaternion, Euler
+from mathutils import Matrix, Vector, Quaternion, Euler, Color
 from mathutils import kdtree, geometry
 import math
 
@@ -31,6 +31,46 @@ vector_data = sum(
     (tuple(tuple(a * scale for a in v) for v in vector_data)
      for scale in (s * sign for s in (0.0001, 0.1, 1.0, 10.0, 1000.0, 100000.0)
                    for sign in (1.0, -1.0))), ()) + ((0.0, 0.0, 0.0),)
+
+
+def _test_flat_buffer_protocol(self, typ, n):
+    expected = list(range(n))
+    data = typ(expected)
+    view = memoryview(data)
+
+    self.assertEqual(view.shape, (n,))
+    self.assertEqual(view.format, 'f')
+    self.assertEqual(view.tolist(), expected)
+    
+    view[0] = 42
+    self.assertEqual(view[0], data[0])
+    
+    #  check multiple simultaneous
+    with self.assertRaises(BufferError):
+        # np.array(vec) is valid as it falls back to loading via an iterator if BufferError occurs
+        memoryview(data)
+        
+    #  check frozen
+    with self.assertRaises(BufferError):
+        data.freeze()
+        
+    #  check resize
+    if typ == Vector:
+        with self.assertRaises(BufferError):
+            data.resize(100)
+        
+    _incref = view  # for potential changes in gc
+    
+    # check for a release buffer call, gc releases the buffer if it’s not referenced
+    data = typ(expected)
+    memoryview(data)
+    memoryview(data)
+    
+    vec = typ(expected)
+    vec.freeze()
+    with self.assertRaises(TypeError):
+        view = memoryview(vec)
+        view[0] = 1
 
 
 class MatrixTesting(unittest.TestCase):
@@ -249,6 +289,20 @@ class MatrixTesting(unittest.TestCase):
         result = Matrix.LocRotScale((1, 2, 3), euler.to_matrix(), (4, 5, 6))
         self.assertAlmostEqualMatrix(result, expected, 4)
 
+    def test_buffer_protocol(self):
+        try:
+            # memoryview does not support ndim arrays, so external modules will have to be used
+            import numpy as np
+        except ImportError:
+            return
+
+        expected = [list(range(4)) for _ in range(4)]
+        np_arr = np.array(Matrix(expected))
+
+        self.assertEqual(np_arr.shape, (4, 4))
+        self.assertEqual(np_arr.dtype, np.float32)
+        self.assertEqual(np_arr.tolist(), expected)
+    
     def assertAlmostEqualMatrix(self, first, second, size, *, places=6, msg=None, delta=None):
         for i in range(size):
             for j in range(size):
@@ -307,16 +361,7 @@ class VectorTesting(unittest.TestCase):
         self.assertEqual(vec, prod2)
 
     def test_buffer_protocol(self):
-        import numpy as np
-        n = 10
-        vec = Vector(range(n))
-
-        np_from_vec = np.array(vec)
-        np_from_tuple = np.array(vec.to_tuple(), dtype=np.float32)
-
-        self.assertEqual(np_from_vec.shape, (n,))
-        self.assertEqual(np_from_vec.dtype, np.float32)
-        self.assertTrue(np.array_equal(np_from_vec, np_from_tuple))
+        _test_flat_buffer_protocol(self, Vector, 10)
 
 
 class QuaternionTesting(unittest.TestCase):
@@ -346,6 +391,21 @@ class QuaternionTesting(unittest.TestCase):
         self.assertAlmostEqual(axis.x, math.sqrt(0.5), 6)
         self.assertAlmostEqual(axis.y, math.sqrt(0.5), 6)
         self.assertAlmostEqual(axis.z, 0)
+
+    def test_buffer_protocol(self):
+        _test_flat_buffer_protocol(self, Quaternion, 4)
+
+
+class EulerTesting(unittest.TestCase):
+    
+    def test_buffer_protocol(self):
+        _test_flat_buffer_protocol(self, Euler, 3)
+
+
+class ColorTesting(unittest.TestCase):
+    
+    def test_buffer_protocol(self):
+        _test_flat_buffer_protocol(self, Color, 3)
 
 
 class KDTreeTesting(unittest.TestCase):

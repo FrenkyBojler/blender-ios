@@ -40,6 +40,12 @@ enum {
    * (typical use cases for tuple).
    */
   BASE_MATH_FLAG_IS_FROZEN = (1 << 1),
+  /** Prevents calling freeze and resize while using the buffer protocol.
+   * NOTE: memoryview and np.frombuffer pass the `PyBUF_FORMAT` | `PyBUF_INDIRECT` flags,
+   * and the object can be mutated, so `PyBUF_WRITABLE` can’t be handled.
+   * That’s why it’s always necessary to check for write access.
+   */
+  BASE_MATH_FLAG_IS_VIEW = (1 << 2),
 };
 #define BASE_MATH_FLAG_DEFAULT 0
 
@@ -121,6 +127,7 @@ struct Mathutils_Callback {
 
 void _BaseMathObject_RaiseFrozenExc(const BaseMathObject *self);
 void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self);
+void _BaseMathObject_RaiseBufferViewExc(const BaseMathObject *self);
 
 /* since this is called so often avoid where possible */
 #define BaseMath_CheckCallback(_self) \
@@ -153,6 +160,12 @@ void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self);
 #define BaseMathObject_Prepare_ForHash(_self) \
   (UNLIKELY(((_self)->flag & BASE_MATH_FLAG_IS_FROZEN) == 0) ? \
        (_BaseMathObject_RaiseNotFrozenExc((BaseMathObject *)_self), -1) : \
+       0)
+
+/* support BASE_MATH_FLAG_IS_VIEW */
+#define BaseMath_Prepare_ForBufferAccess(_self) \
+  (UNLIKELY(((_self)->flag & BASE_MATH_FLAG_IS_VIEW)) ? \
+       (_BaseMathObject_RaiseBufferViewExc((BaseMathObject *)_self), -1) : \
        0)
 
 /* utility func */

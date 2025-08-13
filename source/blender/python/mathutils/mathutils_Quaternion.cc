@@ -864,6 +864,69 @@ static PyObject *Quaternion_str(QuaternionObject *self)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Quaternion Type: Buffer Protocol
+ * \{ */
+
+static int Quaternion__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
+{
+
+  if (UNLIKELY(view == nullptr)) {
+    PyErr_SetString(PyExc_ValueError, "null view in getbuffer is obsolete");
+    return -1;
+  }
+
+  QuaternionObject *self = (QuaternionObject *)obj;
+  if (BaseMath_Prepare_ForBufferAccess(self) == -1) {
+    return -1;
+  }
+  if (UNLIKELY(BaseMath_ReadCallback(self) == -1)) {
+    return -1;
+  }
+
+  memset(view, 0, sizeof(*view));
+
+  view->obj = (PyObject *)self;
+  view->buf = (void *)self->quat;
+  view->len = Py_ssize_t(QUAT_SIZE * sizeof(float));
+  view->readonly = 1;
+  if (!(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
+    if (BaseMath_WriteCallback(self) == -1) {
+      PyErr_Clear();
+    }
+    else {
+      view->readonly = 0;
+    }
+  }
+  view->itemsize = sizeof(float);
+  if (LIKELY(flags & PyBUF_FORMAT)) {
+    view->format = (char *)"f";
+  }
+  view->ndim = 1;
+  view->shape = nullptr;
+  view->strides = nullptr;
+  view->suboffsets = nullptr;
+  view->internal = nullptr;
+
+  self->flag |= BASE_MATH_FLAG_IS_VIEW;
+
+  Py_INCREF(self);
+  return 0;
+}
+
+static void Quaternion__bf_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
+{
+  QuaternionObject *self = (QuaternionObject *)view->obj;
+  self->flag &= ~BASE_MATH_FLAG_IS_VIEW;
+}
+
+static PyBufferProcs Quaternion_as_buffer = {
+    (getbufferproc)Quaternion__bf_getbuffer,
+    (releasebufferproc)Quaternion__bf_releasebuffer,
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Quaternion Type: Rich Compare
  * \{ */
 
@@ -1801,7 +1864,7 @@ PyTypeObject quaternion_Type = {
     /*tp_str*/ (reprfunc)Quaternion_str,
     /*tp_getattro*/ nullptr,
     /*tp_setattro*/ nullptr,
-    /*tp_as_buffer*/ nullptr,
+    /*tp_as_buffer*/ &Quaternion_as_buffer,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ quaternion_doc,
     /*tp_traverse*/ (traverseproc)BaseMathObject_traverse,

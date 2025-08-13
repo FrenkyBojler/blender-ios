@@ -306,6 +306,68 @@ static PyObject *Color_str(ColorObject *self)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Color Type: Buffer Protocol
+ * \{ */
+
+static int Color__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
+{
+  if (UNLIKELY(view == nullptr)) {
+    PyErr_SetString(PyExc_ValueError, "null view in getbuffer is obsolete");
+    return -1;
+  }
+
+  ColorObject *self = (ColorObject *)obj;
+  if (BaseMath_Prepare_ForBufferAccess(self) == -1) {
+    return -1;
+  }
+  if (BaseMath_ReadCallback(self) == -1) {
+    return -1;
+  }
+
+  memset(view, 0, sizeof(*view));
+
+  view->obj = (PyObject *)self;
+  view->buf = (void *)self->col;
+  view->len = Py_ssize_t(COLOR_SIZE * sizeof(float));
+  view->readonly = 1;
+  if (!(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
+    if (BaseMath_WriteCallback(self) == -1) {
+      PyErr_Clear();
+    }
+    else {
+      view->readonly = 0;
+    }
+  }
+  view->itemsize = sizeof(float);
+  if (LIKELY(flags & PyBUF_FORMAT)) {
+    view->format = (char *)"f";
+  }
+  view->ndim = 1;
+  view->shape = nullptr;
+  view->strides = nullptr;
+  view->suboffsets = nullptr;
+  view->internal = nullptr;
+
+  self->flag |= BASE_MATH_FLAG_IS_VIEW;
+
+  Py_INCREF(self);
+  return 0;
+}
+
+static void Color__bf_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
+{
+  ColorObject *self = (ColorObject *)view->obj;
+  self->flag &= ~BASE_MATH_FLAG_IS_VIEW;
+}
+
+static PyBufferProcs Color_as_buffer = {
+    (getbufferproc)Color__bf_getbuffer,
+    (releasebufferproc)Color__bf_releasebuffer,
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Color Type: Rich Compare
  * \{ */
 
@@ -1230,7 +1292,7 @@ PyTypeObject color_Type = {
     /*tp_str*/ (reprfunc)Color_str,
     /*tp_getattro*/ nullptr,
     /*tp_setattro*/ nullptr,
-    /*tp_as_buffer*/ nullptr,
+    /*tp_as_buffer*/ &Color_as_buffer,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ color_doc,
     /*tp_traverse*/ (traverseproc)BaseMathObject_traverse,
