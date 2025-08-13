@@ -84,6 +84,7 @@ class XPBDGeometryBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.XPBDGeometry";
   bke::GeometrySet geometry;
+  fn::Field<float> mass;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<XPBDGeometryBundle> parse(const Bundle &bundle,

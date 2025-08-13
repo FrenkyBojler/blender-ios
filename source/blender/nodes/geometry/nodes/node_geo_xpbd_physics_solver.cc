@@ -76,6 +76,18 @@ class XPBDState {
   Map<std::string, PathSimData> data_by_path;
 };
 
+struct PathComponentKey {
+  std::string path;
+  bke::GeometryComponent::Type type;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(PathComponentKey, path, type)
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->path, this->type);
+  }
+};
+
 class XPBDStateOwner : public BundleItemInternalValueMixin {
  public:
   mutable Mutex mutex;
@@ -227,10 +239,12 @@ static Vector<const ForceBundle *> get_forces_for_path(const WorldData &world,
   return used_forces;
 }
 
-static void integrate_forces_and_accelerations(XPBDState &state,
-                                               const WorldData &world,
-                                               Span<GeometrySet> applied_geometries,
-                                               const float delta_time)
+static void integrate_forces_and_accelerations(
+    XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const Map<PathComponentKey, VArray<float>> &masses_map,
+    const float delta_time)
 {
   float3 gravity;
   for (const GravityBundle &gravity_bundle : world.gravities) {
@@ -255,21 +269,22 @@ static void integrate_forces_and_accelerations(XPBDState &state,
       if (!sim_points) {
         continue;
       }
+      const VArray<float> &masses = masses_map.lookup({geometry_bundle.self_path, type});
       Array<float3> force_sums(sim_points->points_num, float3(0.0f));
       bke::GeometryFieldContext field_context(*component, bke::AttrDomain::Point);
       for (const ForceBundle *force_bundle : used_forces) {
-        fn::FieldEvaluator field_evaluator{field_context, sim_points->points_num};
-        field_evaluator.set_selection(force_bundle->selection);
-        field_evaluator.add(force_bundle->force);
-        field_evaluator.evaluate();
-        const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-        const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
+        fn::FieldEvaluator force_evaluator{field_context, sim_points->points_num};
+        force_evaluator.set_selection(force_bundle->selection);
+        force_evaluator.add(force_bundle->force);
+        force_evaluator.evaluate();
+        const IndexMask mask = force_evaluator.get_evaluated_selection_as_mask();
+        const VArray<float3> force = force_evaluator.get_evaluated<float3>(0);
         mask.foreach_index(GrainSize(1024), [&](const int i) { force_sums[i] += force[i]; });
       }
       threading::parallel_for(
           IndexRange(sim_points->points_num), 1024, [&](const IndexRange range) {
             for (const int i : range) {
-              const float mass = 1.0f;
+              const float mass = masses[i];
               const float3 &force = force_sums[i];
               const float3 acceleration = force / mass + gravity;
               const float3 velocity_delta = acceleration * delta_time;
@@ -287,10 +302,27 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                        const float delta_time,
                                        const int substeps)
 {
+  ResourceScope scope;
   Array<GeometrySet> applied_geometries(world.geometries.size());
+  Map<PathComponentKey, VArray<float>> masses_map;
   for (const int i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[i];
-    applied_geometries[i] = apply_simulation(geometry_bundle, state);
+    GeometrySet &applied_geometry = applied_geometries[i];
+    applied_geometry = apply_simulation(geometry_bundle, state);
+    for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
+      const bke::GeometryComponent *component = applied_geometry.get_component(type);
+      if (!component) {
+        continue;
+      }
+      const bke::AttrDomain domain = bke::AttrDomain::Point;
+      auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
+      auto &mass_evaluator = scope.construct<fn::FieldEvaluator>(
+          field_context, component->attribute_domain_size(domain));
+      mass_evaluator.add(geometry_bundle.mass);
+      mass_evaluator.evaluate();
+      masses_map.add_new({geometry_bundle.self_path, type},
+                         mass_evaluator.get_evaluated<float>(0));
+    }
   }
 
   Map<std::string, PathSimData> new_data_by_path;
@@ -300,7 +332,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
   }
   state.data_by_path = std::move(new_data_by_path);
 
-  integrate_forces_and_accelerations(state, world, applied_geometries, delta_time);
+  integrate_forces_and_accelerations(state, world, applied_geometries, masses_map, delta_time);
 }
 
 static void initialize_state(XPBDState & /*state*/)
