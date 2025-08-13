@@ -13,6 +13,7 @@
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
+#include "intern/attribute_storage_access.hh"
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_xpbd_physics_solver_cc {
@@ -52,11 +53,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Simulated world");
   b.add_input<decl::Float>("Delta Time").min(0).default_value(1 / 25.0f);
   b.add_input<decl::Int>("Substeps").default_value(1).min(1);
-  b.add_input<decl::Int>("Solver Steps").default_value(1).min(1);
 }
 
-class DataPoints {
-  bke::AttributeStorage attributes;
+struct SimPoints {
+  int points_num;
+  Array<float3> positions;
+  Array<float3> velocities;
+};
+
+struct PathSimData {
+  Map<bke::GeometryComponent::Type, SimPoints> points_by_type;
 };
 
 class XPBDState {
@@ -67,7 +73,7 @@ class XPBDState {
    */
   int update_counter = 0;
 
-  Map<std::string, std::unique_ptr<DataPoints>> data_points;
+  Map<std::string, PathSimData> data_by_path;
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -90,7 +96,7 @@ using XPBDStateOwnerPtr = ImplicitSharingPtr<XPBDStateOwner>;
 struct WorldData {
   Vector<ForceBundle> forces;
   Vector<GravityBundle> gravities;
-  Vector<XPBDGeometryBundle> geometry;
+  Vector<XPBDGeometryBundle> geometries;
   Vector<EdgeLengthXPBDConstraintBundle> edge_length_constraints;
   Vector<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
 };
@@ -116,8 +122,8 @@ static WorldData parse_world(const Bundle &world_bundle)
       if (std::optional<XPBDGeometryBundle> geometry = XPBDGeometryBundle::parse(params.bundle,
                                                                                  errors))
       {
-        world.geometry.append(std::move(*geometry));
-        world.geometry.last().self_path = Bundle::combine_path(params.path);
+        world.geometries.append(std::move(*geometry));
+        world.geometries.last().self_path = Bundle::combine_path(params.path);
       }
     }
     else if (params.type == EdgeLengthXPBDConstraintBundle::name) {
@@ -140,6 +146,163 @@ static WorldData parse_world(const Bundle &world_bundle)
   return world;
 }
 
+static void apply_simulation_to_mesh(GeometrySet &geometry, const PathSimData &path_sim_data)
+{
+  if (!geometry.has_mesh()) {
+    return;
+  }
+  const SimPoints *sim_points = path_sim_data.points_by_type.lookup_ptr(
+      bke::GeometryComponent::Type::Mesh);
+  if (!sim_points) {
+    return;
+  }
+  if (geometry.get_mesh()->verts_num != sim_points->points_num) {
+    return;
+  }
+  Mesh *mesh = geometry.get_mesh_for_write();
+  MutableSpan<float3> mesh_positions = mesh->vert_positions_for_write();
+  mesh_positions.copy_from(sim_points->positions);
+  mesh->tag_positions_changed();
+}
+
+static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBDState &state)
+{
+  GeometrySet geometry = bundle.geometry;
+
+  const PathSimData *path_sim_data = state.data_by_path.lookup_ptr(bundle.self_path);
+  if (!path_sim_data) {
+    return geometry;
+  }
+
+  apply_simulation_to_mesh(geometry, *path_sim_data);
+
+  return geometry;
+}
+
+static void update_xpbd_state_for_geometry(XPBDState &state,
+                                           const XPBDGeometryBundle &bundle,
+                                           const GeometrySet &current_geometry,
+                                           Map<std::string, PathSimData> &r_data_by_path)
+{
+  PathSimData new_path_sim_data;
+
+  PathSimData *old_path_sim_data = state.data_by_path.lookup_ptr(bundle.self_path);
+
+  if (current_geometry.has_mesh()) {
+    const Mesh *current_mesh = current_geometry.get_mesh();
+    std::optional<SimPoints> new_sim_points;
+    if (old_path_sim_data) {
+      if (std::optional<SimPoints> old_sim_points = old_path_sim_data->points_by_type.pop_try(
+              bke::GeometryComponent::Type::Mesh))
+      {
+        if (current_mesh->verts_num == old_sim_points->points_num) {
+          new_sim_points = std::move(*old_sim_points);
+        }
+      }
+    }
+    if (!new_sim_points) {
+      SimPoints sim_points;
+      sim_points.points_num = current_mesh->verts_num;
+      sim_points.positions = current_mesh->vert_positions();
+      sim_points.velocities.reinitialize(current_mesh->verts_num);
+      sim_points.velocities.fill(float3(0.0f));
+      new_sim_points = std::move(sim_points);
+    }
+    new_path_sim_data.points_by_type.add_new(bke::GeometryComponent::Type::Mesh,
+                                             std::move(*new_sim_points));
+  }
+
+  r_data_by_path.add(bundle.self_path, std::move(new_path_sim_data));
+}
+
+static Vector<const ForceBundle *> get_forces_for_path(const WorldData &world,
+                                                       const StringRef path)
+{
+  Vector<const ForceBundle *> used_forces;
+  for (const ForceBundle &force_bundle : world.forces) {
+    if (nested_bundle_path_is_selected(force_bundle.self_path, force_bundle.filter, path)) {
+      used_forces.append(&force_bundle);
+    }
+  }
+  return used_forces;
+}
+
+static void integrate_forces_and_accelerations(XPBDState &state,
+                                               const WorldData &world,
+                                               Span<GeometrySet> applied_geometries,
+                                               const float delta_time)
+{
+  float3 gravity;
+  for (const GravityBundle &gravity_bundle : world.gravities) {
+    gravity = gravity_bundle.gravity;
+  }
+
+  for (const int i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[i];
+    const GeometrySet &applied_geometry = applied_geometries[i];
+    PathSimData *path_sim_data = state.data_by_path.lookup_ptr(geometry_bundle.self_path);
+    if (!path_sim_data) {
+      continue;
+    }
+    Vector<const ForceBundle *> used_forces = get_forces_for_path(world,
+                                                                  geometry_bundle.self_path);
+    for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
+      const bke::GeometryComponent *component = applied_geometry.get_component(type);
+      if (!component) {
+        continue;
+      }
+      SimPoints *sim_points = path_sim_data->points_by_type.lookup_ptr(type);
+      if (!sim_points) {
+        continue;
+      }
+      Array<float3> force_sums(sim_points->points_num, float3(0.0f));
+      bke::GeometryFieldContext field_context(*component, bke::AttrDomain::Point);
+      for (const ForceBundle *force_bundle : used_forces) {
+        fn::FieldEvaluator field_evaluator{field_context, sim_points->points_num};
+        field_evaluator.set_selection(force_bundle->selection);
+        field_evaluator.add(force_bundle->force);
+        field_evaluator.evaluate();
+        const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+        const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
+        mask.foreach_index(GrainSize(1024), [&](const int i) { force_sums[i] += force[i]; });
+      }
+      threading::parallel_for(
+          IndexRange(sim_points->points_num), 1024, [&](const IndexRange range) {
+            for (const int i : range) {
+              const float mass = 1.0f;
+              const float3 &force = force_sums[i];
+              const float3 acceleration = force / mass + gravity;
+              const float3 velocity_delta = acceleration * delta_time;
+              float3 &velocity = sim_points->velocities[i];
+              velocity += velocity_delta;
+              sim_points->positions[i] += velocity * delta_time;
+            }
+          });
+    }
+  }
+}
+
+static void update_and_step_xpbd_state(XPBDState &state,
+                                       const WorldData &world,
+                                       const float delta_time,
+                                       const int substeps)
+{
+  Array<GeometrySet> applied_geometries(world.geometries.size());
+  for (const int i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[i];
+    applied_geometries[i] = apply_simulation(geometry_bundle, state);
+  }
+
+  Map<std::string, PathSimData> new_data_by_path;
+  for (const int i : world.geometries.index_range()) {
+    const GeometrySet &applied_geometry = applied_geometries[i];
+    update_xpbd_state_for_geometry(state, world.geometries[i], applied_geometry, new_data_by_path);
+  }
+  state.data_by_path = std::move(new_data_by_path);
+
+  integrate_forces_and_accelerations(state, world, applied_geometries, delta_time);
+}
+
 static void initialize_state(XPBDState & /*state*/)
 {
   /* Nothing to do yet.*/
@@ -149,8 +312,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr old_state_bundle_ptr = params.extract_input<BundlePtr>("State");
   BundlePtr world_bundle_ptr = params.extract_input<BundlePtr>("World");
-  // const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
-  // const int substeps = std::max(1, params.extract_input<int>("Substeps"));
+  const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
+  const int substeps = std::max(1, params.extract_input<int>("Substeps"));
 
   if (!world_bundle_ptr) {
     params.set_default_remaining_outputs();
@@ -186,6 +349,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
+    update_and_step_xpbd_state(state, world, delta_time, substeps);
     state.update_counter = update_counter;
   }
 
@@ -202,8 +366,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     world_bundle_ptr->tag_ensured_mutable();
   }
   Bundle &world_bundle = const_cast<Bundle &>(*world_bundle_ptr);
-  // TODO: Update output world.
-  UNUSED_VARS(world_bundle);
+  for (XPBDGeometryBundle &bundle : world.geometries) {
+    GeometrySet applied_geometry = apply_simulation(bundle, state);
+    world_bundle.add_path_override(bundle.self_path + "/geometry", std::move(applied_geometry));
+  }
 
   params.set_output("State", std::move(new_state_bundle_ptr));
   params.set_output("World", std::move(world_bundle_ptr));
