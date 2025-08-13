@@ -6,7 +6,7 @@
 
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_set.hh"
-#include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_mutex.hh"
 #include "BLI_vector.hh"
@@ -16,6 +16,10 @@
 #include "FN_field.hh"
 
 namespace blender::geometry::xpbd {
+
+class ConstraintCorrections;
+class PhysicsState;
+class ConstraintContext;
 
 class ForceField {
  public:
@@ -47,12 +51,16 @@ struct SimGeometrySet {
   std::string rotation_attribute;
   std::string velocity_attribute;
   std::string angular_velocity_attribute;
+  fn::Field<float> friction;
+  fn::Field<float> bounciness;
+
   mutable Mutex extra_mutex;
   nodes::BundlePtr extra;
 
   nodes::Bundle &extra_for_write();
 
   template<typename T> void set_extra(const StringRef key, T value);
+  void remove_extra(const StringRef key);
   template<typename T> std::optional<T> get_extra(const StringRef key) const;
 };
 
@@ -82,8 +90,6 @@ struct RotationCorrection {
   int4 offset = {0, 0, 0, 0};
   int num_corrections = 0;
 };
-
-class ConstraintCorrections;
 
 class LocalConstraintCorrections {
   ConstraintCorrections &corrections_;
@@ -117,15 +123,51 @@ class ConstraintSetSolveParams {
  public:
   float delta_time;
   Span<SimGeometry> sim_geometries;
+  const PhysicsState *physics_state;
   ConstraintCorrections &corrections;
 };
 
 class ConstraintSet {
  public:
   virtual ~ConstraintSet() = default;
-  virtual void ensure_init(MutableSpan<SimGeometry> sim_geometries);
+  virtual void ensure_init(const ConstraintContext &context,
+                           MutableSpan<SimGeometry> sim_geometries);
   virtual void solve(ConstraintSetSolveParams &params);
-  virtual void post_solve_apply(MutableSpan<SimGeometry> sim_geometries);
+  virtual void post_solve_apply(MutableSpan<SimGeometry> sim_geometries,
+                                const PhysicsState *physics_state);
+};
+
+class RigidBodyInstances {
+ public:
+  enum class CollisionShapeType {
+    Box = 0,
+    Sphere = 1,
+    ConvexHull = 2,
+  };
+
+  enum class MotionType {
+    Dynamic = 0,
+    Static = 1,
+    Animated = 2,
+  };
+
+  std::string self_path;
+  bke::GeometrySet instances_geometry;
+  /** Uses #CollisionShapeType. */
+  fn::Field<int> collision_shape_type;
+  /** Uses #MotionType. */
+  fn::Field<int> motion_type;
+  fn::Field<float> friction;
+  fn::Field<float> bounciness;
+  fn::Field<float> density;
+};
+
+/* Internal physics engine state. */
+class PhysicsState {
+ public:
+  virtual ~PhysicsState();
+
+  static PhysicsState *create();
 };
 
 struct Behaviors {
@@ -134,6 +176,9 @@ struct Behaviors {
   Vector<AccelerationField> acceleration_fields;
   Vector<Damping> dampings;
   Vector<ConstraintSet *> constraint_sets;
+  Vector<RigidBodyInstances> rigid_body_instances;
+  PhysicsState *physics_state = nullptr;
+  int update_counter = 0;
 };
 
 void solve(Behaviors &behaviors, float delta_time, int substeps);
@@ -181,6 +226,12 @@ ConstraintSet &create_constraint__global_volume(ResourceScope &scope,
                                                 std::string filter,
                                                 std::string rest_volume_name,
                                                 float overpressure = 1.0f);
+ConstraintSet &create_constraint__collision(ResourceScope &scope,
+                                            std::string self_path,
+                                            std::string filter,
+                                            fn::Field<bool> selection_field,
+                                            fn::Field<float> radius_field,
+                                            float speculative_contact_distance);
 
 inline void LocalConstraintCorrections::add_position_correction(const int geometry_i,
                                                                 const int position_i,

@@ -550,6 +550,8 @@ static void handle_rigid_body_instances_bundle(
       if (std::optional<JoltRigidBody> old_rigid_body = old_rigid_bodies->bodies_by_id.pop_try(
               instance_id))
       {
+        /* TODO Should be done in the jolt solver node too. */
+        BLI_assert(int(old_rigid_body->body->GetUserData()) == instance_id);
         rigid_body = old_rigid_body;
       }
     }
@@ -561,6 +563,7 @@ static void handle_rigid_body_instances_bundle(
                                                    *motion_type == JPH::EMotionType::Dynamic ?
                                                        ObjectLayers::moving :
                                                        ObjectLayers::non_moving};
+      jolt_body_settings.mUserData = uint64_t(instance_id);
 
       JPH::Body *jolt_body = body_interface.CreateBody(jolt_body_settings);
       if (!jolt_body) {
@@ -718,6 +721,9 @@ static GeometrySet apply_rigid_body_simulation(const RigidBodyInstancesBundle &b
       continue;
     }
     const JPH::Body &jolt_body = *rigid_body->body;
+    if (jolt_body.GetMotionType() != JPH::EMotionType::Dynamic) {
+      continue;
+    }
 
     float4x4 &transform = transforms[instance_i];
     const JPH::Vec3 jolt_position = jolt_body.GetPosition();

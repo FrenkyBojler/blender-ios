@@ -5,6 +5,8 @@
 #include <fmt/format.h>
 
 #include "BKE_curves.hh"
+#include "BKE_instances.hh"
+
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
@@ -60,6 +62,10 @@ static void parse_behavior__geometry(ParseBehaviorParams &params)
       params.bundle.lookup<std::string>("Velocity").value_or("velocity");
   sim_geometry_set.angular_velocity_attribute =
       params.bundle.lookup<std::string>("Angular Velocity").value_or("angular_velocity");
+  sim_geometry_set.friction = params.bundle.lookup<fn::Field<float>>("Friction")
+                                  .value_or(fn::make_constant_field<float>(1.0f));
+  sim_geometry_set.bounciness = params.bundle.lookup<fn::Field<float>>("Bounciness")
+                                    .value_or(fn::make_constant_field<float>(0.0f));
   params.r_behaviors.sim_geometry_sets.append(&sim_geometry_set);
 }
 
@@ -243,6 +249,47 @@ static void parse_behavior__global_volume(ParseBehaviorParams &params)
                                                         overpressure));
 }
 
+static void parse_behavior__collision(ParseBehaviorParams &params)
+{
+  std::string filter = params.bundle.lookup<std::string>("Filter").value_or("");
+  Field<bool> selection_field =
+      params.bundle.lookup<Field<bool>>("Selection").value_or(fn::make_constant_field<bool>(true));
+  Field<float> radius_field = params.bundle.lookup<Field<float>>("Radius").value_or(
+      fn::make_constant_field<float>(0.0f));
+  float speculative_contact_distance =
+      params.bundle.lookup<float>("Speculative Contact Distance").value_or(0.0f);
+  params.r_behaviors.constraint_sets.append(
+      &geometry::xpbd::create_constraint__collision(params.scope,
+                                                    params.self_path(),
+                                                    std::move(filter),
+                                                    std::move(selection_field),
+                                                    std::move(radius_field),
+                                                    speculative_contact_distance));
+}
+
+static void parse_behavior__rigid_body_instances(ParseBehaviorParams &params)
+{
+  std::optional<GeometrySet> geometry_set = params.bundle.lookup<GeometrySet>("Instances");
+  std::optional<Field<int>> collision_shape = params.bundle.lookup<fn::Field<int>>(
+      "Collision Shape");
+  std::optional<Field<int>> motion_type = params.bundle.lookup<fn::Field<int>>("Motion Type");
+  std::optional<Field<float>> friction = params.bundle.lookup<fn::Field<float>>("Friction");
+  std::optional<Field<float>> bounciness = params.bundle.lookup<fn::Field<float>>("Bounciness");
+  std::optional<Field<float>> density = params.bundle.lookup<fn::Field<float>>("Density");
+  if (!geometry_set || !collision_shape || !motion_type || !friction || !bounciness || !density) {
+    return;
+  }
+  geometry::xpbd::RigidBodyInstances rigid_bodies;
+  rigid_bodies.self_path = params.self_path();
+  rigid_bodies.instances_geometry = *geometry_set;
+  rigid_bodies.collision_shape_type = *collision_shape;
+  rigid_bodies.motion_type = *motion_type;
+  rigid_bodies.friction = *friction;
+  rigid_bodies.bounciness = *bounciness;
+  rigid_bodies.density = *density;
+  params.r_behaviors.rigid_body_instances.append(std::move(rigid_bodies));
+}
+
 using BehaviorParserFn = std::function<void(ParseBehaviorParams &)>;
 
 static Map<std::string, BehaviorParserFn> build_behavior_parsers()
@@ -261,6 +308,8 @@ static Map<std::string, BehaviorParserFn> build_behavior_parsers()
   behavior_parsers.add_new("Fixed Rotation Constraint", parse_behavior__fixed_rotations);
   behavior_parsers.add_new("Infinite Collision Plane", parse_behavior__infinite_collision_plane);
   behavior_parsers.add_new("Global Volume Constraint", parse_behavior__global_volume);
+  behavior_parsers.add_new("Collision", parse_behavior__collision);
+  behavior_parsers.add_new("Rigid Body Instances", parse_behavior__rigid_body_instances);
   return behavior_parsers;
 }
 
@@ -280,6 +329,32 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
   });
   return behaviors;
 }
+
+class PhysicsStateOwner : public BundleItemInternalValueMixin {
+ public:
+  mutable Mutex mutex;
+  mutable geometry::xpbd::PhysicsState *state;
+
+  PhysicsStateOwner()
+  {
+    state = geometry::xpbd::PhysicsState::create();
+  }
+  ~PhysicsStateOwner()
+  {
+    MEM_delete(state);
+  }
+
+  void delete_self() override
+  {
+    MEM_delete(this);
+  }
+
+  StringRefNull type_name() const override
+  {
+    return TIP_("Jolt Physics State");
+  }
+};
+using PhysicsStateOwnerPtr = ImplicitSharingPtr<PhysicsStateOwner>;
 
 static void copy_attribute_data(const bke::AttributeAccessor src,
                                 bke::MutableAttributeAccessor dst,
@@ -360,10 +435,44 @@ static void node_geo_exec(GeoNodeExecParams params)
   BundlePtr old_data_bundle = params.extract_input<BundlePtr>("Data");
   BundlePtr behaviors_bundle = params.extract_input<BundlePtr>("Behavior");
   const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
-  const int substeps = std::max(0, params.extract_input<int>("Substeps"));
+  const int substeps = std::clamp(params.extract_input<int>("Substeps"), 0, 239);
 
   ResourceScope scope;
   geometry::xpbd::Behaviors behaviors = parse_behaviors(behaviors_bundle, scope);
+  const bool has_physics_behaviors = !behaviors.rigid_body_instances.is_empty();
+
+  PhysicsStateOwnerPtr physics_state_owner;
+  if (has_physics_behaviors) {
+    if (old_data_bundle) {
+      physics_state_owner = old_data_bundle->lookup<PhysicsStateOwnerPtr>("_state").value_or(
+          nullptr);
+    }
+    if (!physics_state_owner) {
+      physics_state_owner = PhysicsStateOwnerPtr{MEM_new<PhysicsStateOwner>(__func__)};
+    }
+    if (physics_state_owner->mutex.try_lock()) {
+      /* Pass physics state through the behaviors. */
+      behaviors.physics_state = physics_state_owner->state;
+    }
+    else {
+      params.error_message_add(NodeWarningType::Error,
+                               TIP_("Physics state cannot be used by multiple nodes"));
+      physics_state_owner.reset();
+    }
+  }
+  else {
+    /* TODO This destroys the physics state if all physics behaviors are removed. That may not be
+     * desirable, it might be better to keep a physics state around once created, in case rigid
+     * body behaviors are added again later. */
+    physics_state_owner.reset();
+  }
+
+  BLI_SCOPED_DEFER([&]() {
+    if (physics_state_owner) {
+      physics_state_owner->mutex.unlock();
+    }
+  });
+
   if (old_data_bundle) {
     for (geometry::xpbd::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
       BundlePtr item =
@@ -380,6 +489,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
+  behaviors.update_counter = 0;
+  if (old_data_bundle) {
+    behaviors.update_counter = old_data_bundle->lookup<int>("_counter").value_or(0);
+  }
+
   geometry::xpbd::solve(behaviors, delta_time, substeps);
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
@@ -390,6 +504,14 @@ static void node_geo_exec(GeoNodeExecParams params)
       new_data_bundle.add_path_override(sim_geometry->path + "/Extra", sim_geometry->extra);
     }
   }
+  for (geometry::xpbd::RigidBodyInstances &rigid_bodies : behaviors.rigid_body_instances) {
+    new_data_bundle.add_path_override(rigid_bodies.self_path + "/Instances",
+                                      rigid_bodies.instances_geometry);
+  }
+  if (physics_state_owner) {
+    new_data_bundle.add("_state", physics_state_owner);
+  }
+  new_data_bundle.add("_counter", behaviors.update_counter);
 
   params.set_output("Data", new_data_bundle_ptr);
 }

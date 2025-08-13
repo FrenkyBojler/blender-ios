@@ -2,15 +2,852 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
+#include "BLI_math_rotation.hh"
+
 #include "BKE_curves.hh"
 #include "BKE_geometry_fields.hh"
+#include "BKE_instances.hh"
+#include "BKE_pointcloud.hh"
+
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
+
+#include "GEO_join_geometries.hh"
+#include "GEO_shape_hash.hh"
 #include "GEO_xpbd.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
+
+#include "Jolt/Jolt.h"
+#include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemSingleThreaded.h>
+#include <Jolt/Core/JobSystemThreadPool.h>
+#include <Jolt/Physics/Body/Body.h>
+#include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
+#include <Jolt/Physics/Collision/CollideShape.h>
+#include <Jolt/Physics/Collision/ContactListener.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
+#include <Jolt/Physics/PhysicsStepListener.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/SoftBody/SoftBodyCreationSettings.h>
+#include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
+#include <Jolt/RegisterTypes.h>
+
+#include <iostream>
+
+/* TODO This should become a shared API with the Jolt solver node. */
+namespace blender::geometry::jolt_physics {
+
+static JPH::Vec3 convert_vec3(const float3 &v)
+{
+  return JPH::Vec3(v.x, v.y, v.z);
+}
+static float3 convert_vec3(const JPH::Vec3 &v)
+{
+  return float3(v.GetX(), v.GetY(), v.GetZ());
+}
+static JPH::Quat convert_quat(const math::Quaternion &q)
+{
+  return JPH::Quat(q.x, q.y, q.z, q.w);
+}
+static math::Quaternion convert_quat(const JPH::Quat &q)
+{
+  return math::Quaternion(q.GetW(), q.GetX(), q.GetY(), q.GetZ());
+}
+
+namespace ObjectLayers {
+static constexpr JPH::ObjectLayer non_moving(0);
+static constexpr JPH::ObjectLayer moving(1);
+static constexpr int num_layers = 2;
+}  // namespace ObjectLayers
+
+namespace BroadPhaseLayers {
+static constexpr JPH::BroadPhaseLayer non_moving(0);
+static constexpr JPH::BroadPhaseLayer moving(1);
+static constexpr int num_layers = 2;
+}  // namespace BroadPhaseLayers
+
+class BroadPhaseLayerInterfaceImpl : public JPH::BroadPhaseLayerInterface {
+ private:
+  std::array<JPH::BroadPhaseLayer, ObjectLayers::num_layers> object_to_broad_phase_;
+
+ public:
+  BroadPhaseLayerInterfaceImpl()
+  {
+    object_to_broad_phase_[ObjectLayers::non_moving] = BroadPhaseLayers::non_moving;
+    object_to_broad_phase_[ObjectLayers::moving] = BroadPhaseLayers::moving;
+  }
+
+  uint GetNumBroadPhaseLayers() const override
+  {
+    return BroadPhaseLayers::num_layers;
+  }
+
+  JPH::BroadPhaseLayer GetBroadPhaseLayer(const JPH::ObjectLayer object_layer) const override
+  {
+    BLI_assert(object_layer >= 0 && object_layer < ObjectLayers::num_layers);
+    return object_to_broad_phase_[object_layer];
+  }
+};
+
+class ObjectLayerPairFilterImpl : public JPH::ObjectLayerPairFilter {
+ public:
+  bool ShouldCollide(const JPH::ObjectLayer a, const JPH::ObjectLayer b) const override
+  {
+    if (a == ObjectLayers::moving || b == ObjectLayers::moving) {
+      return true;
+    }
+    return false;
+  }
+};
+
+class ObjectVsBroadPhaseLayerFilterImpl : public JPH::ObjectVsBroadPhaseLayerFilter {
+ public:
+  bool ShouldCollide(const JPH::ObjectLayer object_layer,
+                     const JPH::BroadPhaseLayer broad_phase_layer) const override
+  {
+    if (object_layer == ObjectLayers::moving || broad_phase_layer == BroadPhaseLayers::moving) {
+      return true;
+    }
+    return false;
+  }
+};
+
+class ContactListenerImpl : public JPH::ContactListener {
+ public:
+  virtual JPH::ValidateResult OnContactValidate(
+      const JPH::Body & /*body_a*/,
+      const JPH::Body & /*body_b*/,
+      JPH::RVec3Arg /*in_base_offset*/,
+      const JPH::CollideShapeResult & /*in_collision_result*/) override
+  {
+    return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+  }
+
+  void OnContactAdded(const JPH::Body & /*body_a*/,
+                      const JPH::Body & /*body_b*/,
+                      const JPH::ContactManifold & /*manifold*/,
+                      JPH::ContactSettings & /*settings*/) override
+  {
+  }
+
+  void OnContactPersisted(const JPH::Body & /*body_a*/,
+                          const JPH::Body & /*body_b*/,
+                          const JPH::ContactManifold & /*manifold*/,
+                          JPH::ContactSettings & /*settings*/) override
+  {
+  }
+
+  void OnContactRemoved(const JPH::SubShapeIDPair & /*sub_shape_pair*/) override {}
+};
+
+class BodyActivationListenerImpl : public JPH::BodyActivationListener {
+ public:
+  void OnBodyActivated(const JPH::BodyID & /*body_id*/, uint64_t /*body_user_data*/) override {}
+
+  void OnBodyDeactivated(const JPH::BodyID & /*body_id*/, uint64_t /*body_user_data*/) override {}
+};
+
+struct JoltRigidBody {
+  JPH::Body *body = nullptr;
+};
+
+struct JoltRigidBodies {
+  Map<int, JoltRigidBody> bodies_by_id;
+};
+
+struct JoltSoftBody {
+  JPH::Body *body = nullptr;
+};
+
+struct CollisionShapeParams {
+  const bke::GeometrySet &geometry;
+  const float3 &scale;
+  const float density;
+};
+
+struct CollisionShapeCache {
+  struct CachedShape {
+    JPH::ShapeSettings::ShapeResult shape;
+    bool still_used = true;
+
+    CachedShape(JPH::ShapeSettings::ShapeResult shape = {}) : shape(std::move(shape)) {}
+  };
+
+  struct BoxID {
+    float3 half_extent;
+    float density;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->half_extent, this->density);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(BoxID, half_extent, density)
+  };
+
+  struct SphereID {
+    float radius;
+    float density;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->radius, this->density);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(SphereID, radius, density)
+  };
+
+  struct ConvexHullID {
+    geometry::GeometryShapeHash shape_hash;
+    float3 scale;
+    float density;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->shape_hash, this->scale, this->density);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_3(ConvexHullID, shape_hash, scale, density)
+  };
+
+  struct CompoundID {
+    struct SubShapeID {
+      const void *shape_ptr;
+      float3 position;
+      math::Quaternion rotation;
+
+      uint64_t hash() const
+      {
+        return get_default_hash(shape_ptr, position, rotation);
+      }
+
+      BLI_STRUCT_EQUALITY_OPERATORS_3(SubShapeID, shape_ptr, position, rotation)
+    };
+
+    Array<SubShapeID> sub_shape_ids;
+
+    uint64_t hash() const
+    {
+      uint64_t hash = 0;
+      for (const SubShapeID &sub_id : sub_shape_ids) {
+        hash = get_default_hash(hash, sub_id);
+      }
+      return hash;
+    }
+
+    friend bool operator==(const CompoundID &a, const CompoundID &b)
+    {
+      if (a.sub_shape_ids.size() != b.sub_shape_ids.size()) {
+        return false;
+      }
+      for (const int i : a.sub_shape_ids.index_range()) {
+        if (a.sub_shape_ids[i] != b.sub_shape_ids[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    friend bool operator!=(const CompoundID &a, const CompoundID &b)
+    {
+      return !(a == b);
+    }
+  };
+
+  Map<BoxID, CachedShape> boxes;
+  Map<SphereID, CachedShape> spheres;
+  Map<ConvexHullID, CachedShape> convex_hulls;
+  Map<CompoundID, CachedShape> compounds;
+
+  void reset_used()
+  {
+    for (CachedShape &cached_shape : this->boxes.values()) {
+      cached_shape.still_used = false;
+    }
+    for (CachedShape &cached_shape : this->spheres.values()) {
+      cached_shape.still_used = false;
+    }
+    for (CachedShape &cached_shape : this->convex_hulls.values()) {
+      cached_shape.still_used = false;
+    }
+    for (CachedShape &cached_shape : this->compounds.values()) {
+      cached_shape.still_used = false;
+    }
+  }
+
+  void remove_unused()
+  {
+    this->boxes.remove_if([](const auto &item) { return !item.value.still_used; });
+    this->spheres.remove_if([](const auto &item) { return !item.value.still_used; });
+    this->convex_hulls.remove_if([](const auto &item) { return !item.value.still_used; });
+    this->compounds.remove_if([](const auto &item) { return !item.value.still_used; });
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_box(const CollisionShapeParams &params)
+  {
+    const std::optional<Bounds<float3>> bounds =
+        params.geometry.compute_boundbox_without_instances(true);
+    if (!bounds) {
+      return {};
+    }
+    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) *
+                               params.scale;
+    return this->get_or_create_box(half_extent, params.density);
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_box(const float3 &half_extent, const float density)
+  {
+    const BoxID box_id{half_extent, density};
+    CachedShape &cached_shape = this->boxes.lookup_or_add_cb(box_id, [&]() {
+      JPH::BoxShapeSettings box_shape_settings{convert_vec3(half_extent)};
+      box_shape_settings.mDensity = density;
+      const float min_axis = std::min({half_extent.x, half_extent.y, half_extent.z});
+      box_shape_settings.mConvexRadius = 0.5 * std::min(min_axis, 0.1f);
+      return box_shape_settings.Create();
+    });
+    if (cached_shape.shape.IsValid()) {
+      cached_shape.still_used = true;
+    }
+    return cached_shape.shape;
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_sphere(const CollisionShapeParams &params)
+  {
+    const std::optional<Bounds<float3>> bounds =
+        params.geometry.compute_boundbox_without_instances(true);
+    if (!bounds) {
+      return {};
+    }
+    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) *
+                               params.scale;
+    const float radius = std::max({half_extent.x, half_extent.y, half_extent.z});
+    return this->get_or_create_sphere(radius, params.density);
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_sphere(const float radius, const float density)
+  {
+    const SphereID sphere_id{radius, density};
+    CachedShape &cached_shape = this->spheres.lookup_or_add_cb(sphere_id, [&]() {
+      JPH::SphereShapeSettings sphere_shape_settings{radius};
+      sphere_shape_settings.mDensity = density;
+      return sphere_shape_settings.Create();
+    });
+    if (cached_shape.shape.IsValid()) {
+      cached_shape.still_used = true;
+    }
+    return cached_shape.shape;
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_convex_hull(const CollisionShapeParams &params)
+  {
+    const auto shape_hash = geometry::GeometryShapeHash::from_geometry(params.geometry);
+    const ConvexHullID convex_hull_id{shape_hash, params.scale, params.density};
+    CachedShape &cached_shape = this->convex_hulls.lookup_or_add_cb(
+        convex_hull_id, [&]() -> CachedShape {
+          Vector<JPH::Vec3, 0, GuardedAlignedAllocator<>> points;
+          if (const Mesh *mesh = params.geometry.get_mesh()) {
+            points.reserve(points.size() + mesh->verts_num);
+            const Span<float3> positions = mesh->vert_positions();
+            for (const int i : positions.index_range()) {
+              points.append(convert_vec3(positions[i] * params.scale));
+            }
+          }
+          if (points.is_empty()) {
+            return {};
+          }
+          JPH::ConvexHullShapeSettings hull_settings(points.data(), points.size(), 0.0f);
+          hull_settings.mDensity = params.density;
+          return hull_settings.Create();
+        });
+    if (cached_shape.shape.IsValid()) {
+      cached_shape.still_used = true;
+    }
+    return cached_shape.shape;
+  }
+
+  /* TODO add a version with CollisionShapeParams which takes instances and shape types and looks
+   * up sub shapes from the cache. */
+  JPH::ShapeSettings::ShapeResult get_or_create_mutable_compound(
+      const Span<const JPH::Shape *> sub_shapes,
+      const Span<float3> positions,
+      const Span<math::Quaternion> rotations)
+  {
+    Array<CompoundID::SubShapeID> sub_shape_ids(sub_shapes.size());
+    for (const int i : sub_shapes.index_range()) {
+      sub_shape_ids[i] = {sub_shapes[i], positions[i], rotations[i]};
+    }
+    const CompoundID compound_id{std::move(sub_shape_ids)};
+    CachedShape &cached_shape = this->compounds.lookup_or_add_cb(
+        compound_id, [&]() -> CachedShape {
+          JPH::MutableCompoundShapeSettings compound_settings;
+          for (const int i : sub_shapes.index_range()) {
+            compound_settings.AddShape(
+                convert_vec3(positions[i]), convert_quat(rotations[i]), sub_shapes[i]);
+          }
+          return compound_settings.Create();
+        });
+    if (cached_shape.shape.IsValid()) {
+      cached_shape.still_used = true;
+    }
+    return cached_shape.shape;
+  }
+};
+
+struct JoltStartupAndExit {
+  JoltStartupAndExit()
+  {
+    initialize_jolt_allocator();
+    JPH::Factory::sInstance = new JPH::Factory();
+    JPH::RegisterTypes();
+  }
+
+  static void initialize_jolt_allocator()
+  {
+    constexpr const char *func = __func__;
+    JPH::Allocate = [](size_t size) {
+      /* Jolt requires 16-byte alignment when doing a normal allocation. */
+      return MEM_mallocN_aligned(size, 16, func);
+    };
+    JPH::Reallocate = [](void *mem, size_t /*old_size*/, size_t new_size) {
+      if (mem == nullptr) {
+        return JPH::Allocate(new_size);
+      }
+      return MEM_reallocN_id(mem, new_size, func);
+    };
+    JPH::Free = [](void *mem) { MEM_freeN(mem); };
+    JPH::AlignedAllocate = [](size_t size, size_t alignment) {
+      return MEM_mallocN_aligned(size, alignment, func);
+    };
+    JPH::AlignedFree = [](void *mem) { MEM_freeN(mem); };
+  }
+
+  ~JoltStartupAndExit()
+  {
+    JPH::UnregisterTypes();
+    delete JPH::Factory::sInstance;
+    JPH::Factory::sInstance = nullptr;
+  }
+};
+
+static void ensure_initialize_jolt()
+{
+  static JoltStartupAndExit jolt_startup_and_exit;
+}
+
+class JoltState : public xpbd::PhysicsState {
+ public:
+  JoltState()
+  {
+    ensure_initialize_jolt();
+
+    /* Defaults taken from Jolt's Hello World example, may need to be tweaked/dynamic over
+     * time.*/
+    const int max_bodies = 65536;
+    const int num_body_mutexes = 0;
+    const int max_body_pairs = 65536;
+    const int max_contact_constraints = 10240;
+    this->system.Init(max_bodies,
+                      num_body_mutexes,
+                      max_body_pairs,
+                      max_contact_constraints,
+                      this->broad_phase_layer_interface,
+                      this->object_vs_broad_phase_layer_filter,
+                      this->object_layer_pair_filter);
+    this->system.SetBodyActivationListener(&this->body_activation_listener);
+    this->system.SetContactListener(&this->contact_listener);
+    this->job_system.emplace(JPH::cMaxPhysicsJobs);
+  }
+
+  virtual ~JoltState() = default;
+
+  int update_counter = 0;
+
+  BroadPhaseLayerInterfaceImpl broad_phase_layer_interface;
+  ObjectVsBroadPhaseLayerFilterImpl object_vs_broad_phase_layer_filter;
+  ObjectLayerPairFilterImpl object_layer_pair_filter;
+  BodyActivationListenerImpl body_activation_listener;
+  ContactListenerImpl contact_listener;
+  JPH::PhysicsSystem system;
+  /* TODO: Integrate with TBB. */
+  std::optional<JPH::JobSystemSingleThreaded> job_system;
+
+  Map<std::string, JoltRigidBodies> rigid_bodies_by_path;
+  Map<std::string, JoltSoftBody> soft_bodies_by_path;
+  CollisionShapeCache collision_shape_cache;
+};
+
+static void apply_motion_to_instance_transforms(const JoltRigidBodies &rigid_bodies,
+                                                bke::Instances &instances)
+{
+  const int instances_num = instances.instances_num();
+  const Span<int> instance_ids = instances.unique_ids();
+  MutableSpan<float4x4> transforms = instances.transforms_for_write();
+
+  for (const int instance_i : IndexRange(instances_num)) {
+    const int instance_id = instance_ids[instance_i];
+    const JoltRigidBody *rigid_body = rigid_bodies.bodies_by_id.lookup_ptr(instance_id);
+    if (!rigid_body) {
+      continue;
+    }
+    const JPH::Body &jolt_body = *rigid_body->body;
+    if (jolt_body.GetMotionType() != JPH::EMotionType::Dynamic) {
+      continue;
+    }
+
+    float4x4 &transform = transforms[instance_i];
+    const JPH::Vec3 jolt_position = jolt_body.GetPosition();
+    const JPH::Quat jolt_rotation = jolt_body.GetRotation();
+
+    const float3 position = convert_vec3(jolt_position);
+    const math::Quaternion rotation = convert_quat(jolt_rotation);
+
+    /* Scale is not simulated to Jolt, so keep the scale of the original geometry. */
+    const float3 scale = math::to_scale(transform);
+
+    transform = math::from_loc_rot_scale<float4x4>(position, rotation, scale);
+  }
+}
+
+enum class CollisionShapeType {
+  Box,
+  Sphere,
+  ConvexHull,
+};
+
+static std::optional<CollisionShapeType> parse_collision_shape_type(const int type)
+{
+  switch (type) {
+    case 0:
+      return CollisionShapeType::Box;
+    case 1:
+      return CollisionShapeType::Sphere;
+    case 2:
+      return CollisionShapeType::ConvexHull;
+  }
+  return std::nullopt;
+}
+
+static std::optional<JPH::EMotionType> parse_motion_type(const int type)
+{
+  switch (type) {
+    case 0:
+      return JPH::EMotionType::Dynamic;
+    case 1:
+      return JPH::EMotionType::Static;
+    case 2:
+      return JPH::EMotionType::Kinematic;
+    default:
+      return std::nullopt;
+  }
+}
+
+static JPH::ShapeSettings::ShapeResult make_collision_shape(const CollisionShapeType type,
+                                                            const CollisionShapeParams &params,
+                                                            CollisionShapeCache &cache)
+{
+  switch (type) {
+    case CollisionShapeType::Box: {
+      return cache.get_or_create_box(params);
+    }
+    case CollisionShapeType::Sphere: {
+      return cache.get_or_create_sphere(params);
+    }
+    case CollisionShapeType::ConvexHull: {
+      return cache.get_or_create_convex_hull(params);
+    }
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
+static JoltRigidBodies rigid_bodies_from_instances(
+    const bke::Instances &instances,
+    const StringRef path,
+    const fn::Field<int> &collision_shape_type_field,
+    const fn::Field<int> &motion_type_field,
+    const fn::Field<float> &friction_field,
+    const fn::Field<float> &bounciness_field,
+    const fn::Field<float> &density_field,
+    JoltState &state)
+{
+  const int instances_num = instances.instances_num();
+  const int references_num = instances.references_num();
+  const Span<int> instance_ids = instances.unique_ids();
+  const Span<float4x4> transforms = instances.transforms();
+  const Span<bke::InstanceReference> references = instances.references();
+  const Span<int> handles = instances.reference_handles();
+
+  bke::InstancesFieldContext field_context{instances};
+  fn::FieldEvaluator field_evaluator{field_context, instances_num};
+  field_evaluator.add(collision_shape_type_field);
+  field_evaluator.add(motion_type_field);
+  field_evaluator.add(friction_field);
+  field_evaluator.add(bounciness_field);
+  field_evaluator.add(density_field);
+  field_evaluator.evaluate();
+  const VArray<int> collision_shape_types = field_evaluator.get_evaluated<int>(0);
+  const VArray<int> motion_types = field_evaluator.get_evaluated<int>(1);
+  const VArray<float> frictions = field_evaluator.get_evaluated<float>(2);
+  const VArray<float> bouncinesses = field_evaluator.get_evaluated<float>(3);
+  const VArray<float> densities = field_evaluator.get_evaluated<float>(4);
+
+  JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
+  Array<bke::GeometrySet> reference_geometry_sets(references_num);
+  for (const int i : references.index_range()) {
+    const bke::InstanceReference &reference = references[i];
+    bke::GeometrySet reference_geometry;
+    reference.to_geometry_set(reference_geometry);
+    reference_geometry_sets[i] = std::move(reference_geometry);
+  }
+
+  JoltRigidBodies *old_rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(path);
+
+  JoltRigidBodies rigid_bodies;
+  for (const int instance_i : IndexRange(instances_num)) {
+    const int reference_i = handles[instance_i];
+    const int instance_id = instance_ids[instance_i];
+    if (!reference_geometry_sets.index_range().contains(reference_i)) {
+      continue;
+    }
+    const std::optional<CollisionShapeType> collision_shape_type = parse_collision_shape_type(
+        collision_shape_types[instance_i]);
+    if (!collision_shape_type) {
+      continue;
+    }
+    const std::optional<JPH::EMotionType> motion_type = parse_motion_type(
+        motion_types[instance_i]);
+    if (!motion_type) {
+      continue;
+    }
+    const bke::GeometrySet &reference_geometry = reference_geometry_sets[reference_i];
+    const std::optional<Bounds<float3>> bounds =
+        reference_geometry.compute_boundbox_without_instances(true);
+    if (!bounds) {
+      continue;
+    }
+    const float4x4 &instance_transform = transforms[instance_i];
+    float3 instance_position;
+    math::Quaternion instance_rotation;
+    float3 instance_scale;
+    math::to_loc_rot_scale_safe<true>(
+        instance_transform, instance_position, instance_rotation, instance_scale);
+
+    float density = densities[instance_i];
+    if (density <= 0.0f) {
+      density = 1.0f;
+    }
+
+    const CollisionShapeParams collision_shape_params{reference_geometry, instance_scale, density};
+    JPH::ShapeSettings::ShapeResult collision_shape = make_collision_shape(
+        *collision_shape_type, collision_shape_params, state.collision_shape_cache);
+    if (!collision_shape.IsValid()) {
+      continue;
+    }
+
+    const float friction = frictions[instance_i];
+    const float bounciness = bouncinesses[instance_i];
+
+    std::optional<JoltRigidBody> rigid_body;
+    if (old_rigid_bodies) {
+      if (std::optional<JoltRigidBody> old_rigid_body = old_rigid_bodies->bodies_by_id.pop_try(
+              instance_id))
+      {
+        BLI_assert(int(old_rigid_body->body->GetUserData()) == instance_id);
+        rigid_body = old_rigid_body;
+      }
+    }
+    if (!rigid_body) {
+      JPH::BodyCreationSettings jolt_body_settings{collision_shape.Get(),
+                                                   convert_vec3(instance_position),
+                                                   convert_quat(instance_rotation),
+                                                   *motion_type,
+                                                   *motion_type == JPH::EMotionType::Dynamic ?
+                                                       ObjectLayers::moving :
+                                                       ObjectLayers::non_moving};
+      jolt_body_settings.mUserData = uint64_t(instance_id);
+
+      JPH::Body *jolt_body = body_interface.CreateBody(jolt_body_settings);
+      if (!jolt_body) {
+        continue;
+      }
+      body_interface.AddBody(jolt_body->GetID(), JPH::EActivation::Activate);
+      rigid_body = JoltRigidBody{jolt_body};
+    }
+
+    body_interface.SetShape(
+        rigid_body->body->GetID(), collision_shape.Get(), true, JPH::EActivation::Activate);
+    rigid_body->body->SetFriction(friction);
+    rigid_body->body->SetRestitution(bounciness);
+
+    if (motion_type == JPH::EMotionType::Kinematic) {
+      body_interface.SetPositionAndRotationWhenChanged(rigid_body->body->GetID(),
+                                                       convert_vec3(instance_position),
+                                                       convert_quat(instance_rotation),
+                                                       JPH::EActivation::Activate);
+    }
+
+    rigid_bodies.bodies_by_id.add(instance_id, std::move(*rigid_body));
+  }
+
+  return rigid_bodies;
+}
+
+static void update_gravity(JoltState &state)
+{
+  /* TODO GeoNodeExecParams are only used for error messages in case of redundant gravity behavior
+   * here. This should be checked when parsing behaviors before it goes into the solver! */
+  // if (world.gravities.size() >= 2) {
+  //   params.error_message_add(NodeWarningType::Warning, "There can't be multiple gravities");
+  //   state.system.SetGravity(JPH::Vec3::sZero());
+  //   return;
+  // }
+  // if (world.gravities.size() == 1) {
+  //   const float3 gravity = world.gravities[0].gravity;
+  //   state.system.SetGravity(convert_vec3(gravity));
+  //   return;
+  // }
+
+  const JPH::Vec3 default_gravity(0.0f, 0.0f, -9.81f);
+  state.system.SetGravity(default_gravity);
+}
+
+struct ContactPoints {
+  /* Jolt body ID of colliding body 2. */
+  Vector<uint32_t> body_id2;
+  /* Instance ID of colliding body 2. */
+  Vector<int> instance_id2;
+  /* Contact point on the surface in local space of body 1. */
+  Vector<float3> contact_point1;
+  /* Contact point on the surface in local space of body 2. */
+  Vector<float3> contact_point2;
+  /* Direction in world space to move body 2 out of collision (not normalized). */
+  Vector<float3> penetration_axis;
+  /* Distance to move along the penetration axis to separate the two bodies. */
+  Vector<float> penetration_depth;
+  /* Face ID on body 1. */
+  Vector<int> subshape_id1;
+  /* Face ID on body 2. */
+  Vector<int> subshape_id2;
+
+  ContactPoints(const int initial_capacity = 0)
+  {
+    this->body_id2.reserve(initial_capacity);
+    this->instance_id2.reserve(initial_capacity);
+    this->contact_point1.reserve(initial_capacity);
+    this->contact_point2.reserve(initial_capacity);
+    this->penetration_axis.reserve(initial_capacity);
+    this->penetration_depth.reserve(initial_capacity);
+    this->subshape_id1.reserve(initial_capacity);
+    this->subshape_id2.reserve(initial_capacity);
+  }
+};
+
+struct ContactPointCollector : public JPH::CollideShapeCollector {
+  const JPH::BodyInterface &body_interface_;
+  float3 body1_location_;
+  math::Quaternion inv_body1_rotation_;
+  ContactPoints &contacts_;
+
+  ContactPointCollector(const JPH::BodyInterface &body_interface,
+                        const float3 &body1_location,
+                        const math::Quaternion &body1_rotation,
+                        ContactPoints &contacts)
+      : body_interface_(body_interface),
+        body1_location_(body1_location),
+        inv_body1_rotation_(math::invert_normalized(body1_rotation)),
+        contacts_(contacts)
+  {
+  }
+
+  void AddHit(const ResultType &result) override
+  {
+    JPH::RVec3 jolt_body2_location;
+    JPH::Quat jolt_body2_rotation;
+    body_interface_.GetPositionAndRotation(
+        result.mBodyID2, jolt_body2_location, jolt_body2_rotation);
+    const math::Quaternion inv_body2_rotation = math::invert_normalized(
+        convert_quat(jolt_body2_rotation));
+    const float3 body2_location = convert_vec3(jolt_body2_location);
+
+    contacts_.body_id2.append(result.mBodyID2.GetIndexAndSequenceNumber());
+    contacts_.instance_id2.append(body_interface_.GetUserData(result.mBodyID2));
+
+    /* Contact points are given in world space relative to body1 origin.
+     * Output points are in local space of body 1 and body 2 respectively. */
+    contacts_.contact_point1.append(
+        math::transform_point(inv_body1_rotation_, convert_vec3(result.mContactPointOn1)));
+    contacts_.contact_point2.append(math::transform_point(inv_body2_rotation,
+                                                          convert_vec3(result.mContactPointOn2) +
+                                                              body1_location_ - body2_location));
+
+    contacts_.penetration_axis.append(convert_vec3(result.mPenetrationAxis));
+    contacts_.penetration_depth.append(result.mPenetrationDepth);
+    contacts_.subshape_id1.append(int(result.mSubShapeID1.GetValue()));
+    contacts_.subshape_id2.append(int(result.mSubShapeID2.GetValue()));
+  }
+};
+
+static void collide_shape(const JoltState &state,
+                          const JPH::Shape &shape,
+                          const float4x4 &transform,
+                          const float speculative_contact_distance,
+                          ContactPoints &r_contacts)
+{
+  /* No lock required, this happens outside the physics update. */
+  const JPH::NarrowPhaseQuery &query = state.system.GetNarrowPhaseQueryNoLock();
+
+  float3 location;
+  math::Quaternion rotation;
+  float3 scale;
+  math::to_loc_rot_scale(transform, location, rotation, scale);
+  const JPH::RMat44 center_of_mass_transform = JPH::RMat44::sRotationTranslation(
+      convert_quat(rotation), convert_vec3(location));
+  /* TODO decide if anything here needs to be configurable. */
+  JPH::CollideShapeSettings settings;
+  /* Detect contacts before penetration happens. */
+  settings.mMaxSeparationDistance = speculative_contact_distance;
+
+  /* Picking the reference location of the contact can improve accuracy. In most cases the shape
+   * origin is a good choice. */
+  const float3 base_offset = location;
+
+  ContactPointCollector collector(
+      state.system.GetBodyInterfaceNoLock(), location, rotation, r_contacts);
+
+  const JPH::BroadPhaseLayerFilter broad_phase_layer_filter = {};
+  const JPH::ObjectLayerFilter object_layer_filter = {};
+  /* TODO The body filter should be used to restrict contacts based on a bundle path! This may
+   * require building a reverse map or set of valid instance IDs to identify valid contacts in the
+   * collector. */
+  const JPH::BodyFilter body_filter = {};
+  const JPH::ShapeFilter shape_filter = {};
+
+  /* TODO Can also be done using a shape cast, i.e. shape moving along a ray. This could
+   * provide more complete collision detection in case of fast movement but is more expensive.
+   */
+  query.CollideShape(&shape,
+                     convert_vec3(scale),
+                     center_of_mass_transform,
+                     settings,
+                     convert_vec3(base_offset),
+                     collector,
+                     broad_phase_layer_filter,
+                     object_layer_filter,
+                     body_filter,
+                     shape_filter);
+}
+
+}  // namespace blender::geometry::jolt_physics
 
 namespace blender::geometry::xpbd {
 
@@ -18,6 +855,146 @@ using nodes::nested_bundle_path_is_selected;
 
 constexpr StringRefNull prev_position_name = ".prev_position";
 constexpr StringRefNull prev_rotation_name = ".prev_rotation";
+
+PhysicsState::~PhysicsState() {}
+
+PhysicsState *PhysicsState::create()
+{
+  return MEM_new<jolt_physics::JoltState>(__func__);
+}
+
+static bke::GeometrySet apply_rigid_body_simulation(const RigidBodyInstances &rigid_body_instances,
+                                                    const jolt_physics::JoltState &state)
+{
+  bke::GeometrySet geometry = rigid_body_instances.instances_geometry;
+  bke::Instances *instances = geometry.get_instances_for_write();
+  if (!instances) {
+    return geometry;
+  }
+
+  const jolt_physics::JoltRigidBodies *rigid_bodies = state.rigid_bodies_by_path.lookup_ptr(
+      rigid_body_instances.self_path);
+  if (!rigid_bodies) {
+    return geometry;
+  }
+
+  jolt_physics::apply_motion_to_instance_transforms(*rigid_bodies, *instances);
+  return geometry;
+}
+
+static void update_jolt_state_from_behaviors(jolt_physics::JoltState &state,
+                                             const Behaviors &behaviors)
+{
+  state.collision_shape_cache.reset_used();
+
+  Array<bke::GeometrySet> applied_rigid_bodies(behaviors.rigid_body_instances.size());
+  for (const int i : behaviors.rigid_body_instances.index_range()) {
+    applied_rigid_bodies[i] = apply_rigid_body_simulation(behaviors.rigid_body_instances[i],
+                                                          state);
+  }
+
+  JPH::BodyInterface &body_interface = state.system.GetBodyInterfaceNoLock();
+
+  Map<std::string, jolt_physics::JoltRigidBodies> new_rigid_bodies_by_path;
+  for (const int i : behaviors.rigid_body_instances.index_range()) {
+    const bke::GeometrySet &applied_rigid_body = applied_rigid_bodies[i];
+    const bke::Instances *instances = applied_rigid_body.get_instances();
+    if (!instances) {
+      continue;
+    }
+    const RigidBodyInstances &rigid_body_instances = behaviors.rigid_body_instances[i];
+    jolt_physics::JoltRigidBodies rigid_bodies = jolt_physics::rigid_bodies_from_instances(
+        *instances,
+        rigid_body_instances.self_path,
+        rigid_body_instances.collision_shape_type,
+        rigid_body_instances.motion_type,
+        rigid_body_instances.friction,
+        rigid_body_instances.bounciness,
+        rigid_body_instances.density,
+        state);
+    new_rigid_bodies_by_path.add(rigid_body_instances.self_path, std::move(rigid_bodies));
+  }
+
+  /* Remove old bodies. */
+  Vector<JPH::BodyID> bodies_to_remove;
+  for (jolt_physics::JoltRigidBodies &rigid_bodies : state.rigid_bodies_by_path.values()) {
+    for (jolt_physics::JoltRigidBody &body : rigid_bodies.bodies_by_id.values()) {
+      bodies_to_remove.append(body.body->GetID());
+    }
+  }
+  for (jolt_physics::JoltSoftBody &soft_body : state.soft_bodies_by_path.values()) {
+    bodies_to_remove.append(soft_body.body->GetID());
+  }
+  body_interface.RemoveBodies(bodies_to_remove.data(), bodies_to_remove.size());
+  body_interface.DestroyBodies(bodies_to_remove.data(), bodies_to_remove.size());
+
+  state.rigid_bodies_by_path = std::move(new_rigid_bodies_by_path);
+  state.collision_shape_cache.remove_unused();
+
+  jolt_physics::update_gravity(state);
+  // TODO
+  // apply_forces(state, world, applied_rigid_bodies);
+}
+
+struct ContactPointAttributeNames {
+  static const std::string body_id2;
+  static const std::string instance_id2;
+  static const std::string contact_point1;
+  static const std::string contact_point2;
+  static const std::string penetration_axis;
+  static const std::string penetration_depth;
+  static const std::string subshape_id1;
+  static const std::string subshape_id2;
+};
+
+const std::string ContactPointAttributeNames::body_id2 = "body_id2";
+const std::string ContactPointAttributeNames::instance_id2 = "instance_id2";
+const std::string ContactPointAttributeNames::contact_point1 = "position";
+const std::string ContactPointAttributeNames::contact_point2 = "contact_point2";
+const std::string ContactPointAttributeNames::penetration_axis = "penetration_axis";
+const std::string ContactPointAttributeNames::penetration_depth = "penetration_depth";
+const std::string ContactPointAttributeNames::subshape_id1 = "subshape_id1";
+const std::string ContactPointAttributeNames::subshape_id2 = "subshape_id2";
+
+static bke::GeometrySet pointcloud_from_contacts(jolt_physics::ContactPoints &&contacts)
+{
+  PointCloud *pointcloud = BKE_pointcloud_new_nomain(contacts.body_id2.size());
+  bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
+
+  attributes.add<int>(
+      ContactPointAttributeNames::body_id2,
+      bke::AttrDomain::Point,
+      bke::AttributeInitVArray(VArray<uint32_t>::from_container(std::move(contacts.body_id2))));
+  attributes.add<int>(
+      ContactPointAttributeNames::instance_id2,
+      bke::AttrDomain::Point,
+      bke::AttributeInitVArray(VArray<int>::from_container(std::move(contacts.instance_id2))));
+  /* Contact point 1 is stored in positions. Contact point 2 is a separate attribute. */
+  array_utils::copy(contacts.contact_point1.as_span(), pointcloud->positions_for_write());
+  attributes.add<float3>(ContactPointAttributeNames::contact_point2,
+                         bke::AttrDomain::Point,
+                         bke::AttributeInitVArray(
+                             VArray<float3>::from_container(std::move(contacts.contact_point2))));
+  attributes.add<float3>(ContactPointAttributeNames::penetration_axis,
+                         bke::AttrDomain::Point,
+                         bke::AttributeInitVArray(VArray<float3>::from_container(
+                             std::move(contacts.penetration_axis))));
+  attributes.add<float>(ContactPointAttributeNames::penetration_depth,
+                        bke::AttrDomain::Point,
+                        bke::AttributeInitVArray(
+                            VArray<float>::from_container(std::move(contacts.penetration_depth))));
+  attributes.add<int>(
+      ContactPointAttributeNames::subshape_id1,
+      bke::AttrDomain::Point,
+      bke::AttributeInitVArray(VArray<int>::from_container(std::move(contacts.subshape_id1))));
+  attributes.add<int>(
+      ContactPointAttributeNames::subshape_id2,
+      bke::AttrDomain::Point,
+      bke::AttributeInitVArray(VArray<int>::from_container(std::move(contacts.subshape_id2))));
+  pointcloud->tag_positions_changed();
+
+  return bke::GeometrySet::from_pointcloud(pointcloud);
+}
 
 SimGeometry::SimGeometry(SimGeometrySet &src, GeometryVariant data) : data(data), src(src) {}
 
@@ -95,6 +1072,13 @@ template<typename T> void SimGeometrySet::set_extra(const StringRef key, T value
   extra.add_override<std::decay_t<T>>(key, std::move(value));
 }
 
+void SimGeometrySet::remove_extra(const StringRef key)
+{
+  std::scoped_lock lock(this->extra_mutex);
+  nodes::Bundle &extra = this->extra_for_write();
+  extra.remove(key);
+}
+
 template<typename T> std::optional<T> SimGeometrySet::get_extra(const StringRef key) const
 {
   std::scoped_lock lock(this->extra_mutex);
@@ -104,11 +1088,22 @@ template<typename T> std::optional<T> SimGeometrySet::get_extra(const StringRef 
   return this->extra->lookup<T>(key);
 }
 
-void ConstraintSet::ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
+class ConstraintContext {
+ public:
+  PhysicsState *physics_state;
+};
+
+void ConstraintSet::ensure_init(const ConstraintContext & /*context*/,
+                                MutableSpan<SimGeometry> /*sim_geometries*/)
+{
+}
 
 void ConstraintSet::solve(ConstraintSetSolveParams & /*params*/) {}
 
-void ConstraintSet::post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/) {}
+void ConstraintSet::post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/,
+                                     const PhysicsState * /*physics_state*/)
+{
+}
 
 LocalConstraintCorrections &ConstraintCorrections::local()
 {
@@ -324,7 +1319,8 @@ class EdgeLengthConstraintSet : public ConstraintSet {
   {
   }
 
-  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  void ensure_init(const ConstraintContext & /*context*/,
+                   MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
       if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
@@ -489,7 +1485,8 @@ class CurveLengthConstraintSet : public CurveConstraintSet {
   {
   }
 
-  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  void ensure_init(const ConstraintContext & /*context*/,
+                   MutableSpan<SimGeometry> sim_geometries) override
   {
     ensure_rest_length(sim_geometries);
   }
@@ -663,7 +1660,8 @@ class RodLengthConstraintSet : public CosseratRodConstraintSet {
   {
   }
 
-  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  void ensure_init(const ConstraintContext & /*context*/,
+                   MutableSpan<SimGeometry> sim_geometries) override
   {
     ensure_rest_length(sim_geometries);
     ensure_moment_of_inertia(sim_geometries);
@@ -827,7 +1825,8 @@ class RodBendingConstraintSet : public CosseratRodConstraintSet {
     }
   }
 
-  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  void ensure_init(const ConstraintContext & /*context*/,
+                   MutableSpan<SimGeometry> sim_geometries) override
   {
     ensure_moment_of_inertia(sim_geometries);
     ensure_rest_shape(sim_geometries);
@@ -951,7 +1950,8 @@ class FixedPositionsConstraintSet : public ConstraintSet {
         });
   }
 
-  void post_solve_apply(MutableSpan<SimGeometry> sim_geometries) override
+  void post_solve_apply(MutableSpan<SimGeometry> sim_geometries,
+                        const PhysicsState * /*physics_state*/) override
   {
     this->foreach_fixed_position(
         sim_geometries,
@@ -1151,7 +2151,8 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
     }
   }
 
-  void post_solve_apply(MutableSpan<SimGeometry> sim_geometries) override
+  void post_solve_apply(MutableSpan<SimGeometry> sim_geometries,
+                        const PhysicsState * /*physics_state*/) override
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       SimGeometry &sim_geometry = sim_geometries[geometry_i];
@@ -1199,7 +2200,8 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
   {
   }
 
-  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  void ensure_init(const ConstraintContext & /*context*/,
+                   MutableSpan<SimGeometry> sim_geometries) override
   {
     for (SimGeometry &sim_geometry : sim_geometries) {
       if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
@@ -1320,6 +2322,264 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
   }
 };
 
+class CollisionConstraintSet : public ConstraintSet {
+ private:
+  std::string self_path_;
+  std::string filter_;
+  fn::Field<bool> selection_field_;
+  fn::Field<float> radius_field_;
+  float speculative_contact_distance_;
+
+ public:
+  CollisionConstraintSet(std::string self_path,
+                         std::string filter,
+                         fn::Field<bool> selection_field,
+                         fn::Field<float> radius_field,
+                         const float speculative_contact_distance)
+      : self_path_(std::move(self_path)),
+        filter_(std::move(filter)),
+        selection_field_(std::move(selection_field)),
+        radius_field_(std::move(radius_field)),
+        speculative_contact_distance_(speculative_contact_distance)
+  {
+  }
+
+  void ensure_init(const ConstraintContext &context,
+                   MutableSpan<SimGeometry> sim_geometries) override
+  {
+    if (!context.physics_state) {
+      return;
+    }
+
+    const auto &jolt_state = *static_cast<jolt_physics::JoltState *>(context.physics_state);
+    const JPH::SphereShapeSettings sphere_shape_settings{1.0f};
+    const JPH::Shape *sphere_shape = sphere_shape_settings.Create().Get();
+    BLI_assert(sphere_shape != nullptr);
+
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+      std::optional<bke::AttributeAccessor> attributes = sim_geometry.attributes();
+      if (!attributes) {
+        continue;
+      }
+
+      std::optional<bke::GeometryFieldContext> field_context;
+      const int points_num = sim_geometry.set_point_field_context(field_context);
+      if (!field_context) {
+        continue;
+      }
+      fn::FieldEvaluator field_evaluator{*field_context, points_num};
+      field_evaluator.set_selection(selection_field_);
+      field_evaluator.add(radius_field_);
+      field_evaluator.evaluate();
+      const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
+      if (selection.is_empty()) {
+        continue;
+      }
+      const VArraySpan<float> radii = field_evaluator.get_evaluated<float>(0);
+      const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
+
+      /* TODO doing so many individual shape collisions is inefficient due to repeated broad phase
+       * tree traversal. Replace this a compound shape so a single collision query can be used for
+       * the entire hair system. */
+      /* NOTE: isolated single threaded execution to make it easier to safely append contacts to
+       * the combined set. */
+      /* NOTE2: We set the sub_shape_id1 to identify the point doing the collision query. With a
+       * compound shape, where each sub shape represents a hair point or segment, the sub-shape ID
+       * would be just that for primitive shapes. Here's an explanation of the meaning of
+       * sub-shape IDs in contacts by jrouwe:
+       * https://github.com/jrouwe/JoltPhysics/discussions/473#discussioncomment-5314813*/
+      jolt_physics::ContactPoints contacts;
+      threading::isolate_task([&]() {
+        selection.foreach_index([&](const int index) {
+          const float safe_radius = std::max(radii[index], 0.001f);
+          const float4x4 transform = math::from_loc_scale<float4x4>(positions[index],
+                                                                    float3(safe_radius));
+          const int prev_contacts_num = contacts.body_id2.size();
+          jolt_physics::collide_shape(
+              jolt_state, *sphere_shape, transform, speculative_contact_distance_, contacts);
+          /* Initialize sub-shape ID to identify the colliding point. */
+          const IndexRange new_contacts = contacts.body_id2.index_range().drop_front(
+              prev_contacts_num);
+          contacts.subshape_id1.as_mutable_span().slice(new_contacts).fill(index);
+        });
+      });
+
+      bke::GeometrySet prev_contact_points = sim_geometry.src
+                                                 .get_extra<bke::GeometrySet>("Contact Points")
+                                                 .value_or(bke::GeometrySet{});
+      bke::GeometrySet contact_points = pointcloud_from_contacts(std::move(contacts));
+      sim_geometry.src.set_extra(
+          "Contact Points",
+          join_geometries({std::move(prev_contact_points), std::move(contact_points)}, {}));
+    }
+  }
+
+  /**
+   * Positional contact constraint based on
+   * "Detailed Rigid Body Simulation with Extended Position Based Dynamics", Mueller et al., 2020
+   */
+  static float3 collision_response(const float3 &axis, const float depth)
+  {
+    return math::safe_divide(-axis * depth, math::length_squared(axis));
+  }
+
+  /**
+   * Handle each contact point in a callback.
+   * \param fn Callback function handling contacts
+   *   fn(int point_index, bool active, const float3 &offset)
+   */
+  template<typename Fn>
+  void foreach_contact(const SimGeometry &sim_geometry,
+                       const JPH::BodyInterface &body_interface,
+                       Fn fn)
+  {
+    const std::optional<bke::AttributeAccessor> attributes = sim_geometry.attributes();
+    if (!attributes) {
+      return;
+    }
+    const VArraySpan<float3> positions = *attributes->lookup<float3>("position",
+                                                                     bke::AttrDomain::Point);
+    const IndexRange points = positions.index_range();
+
+    const bke::GeometrySet contacts = sim_geometry.src
+                                          .get_extra<bke::GeometrySet>("Contact Points")
+                                          .value_or(bke::GeometrySet{});
+    const PointCloud *contact_pointcloud = contacts.get_pointcloud();
+    if (!contact_pointcloud || contact_pointcloud->totpoint == 0) {
+      return;
+    }
+    const bke::AttributeAccessor contact_attributes = contact_pointcloud->attributes();
+    const VArraySpan<int> subshape_ids1 = *contact_attributes.lookup<int>(
+        ContactPointAttributeNames::subshape_id1, bke::AttrDomain::Point);
+    const VArraySpan<int> body_ids2 = *contact_attributes.lookup<int>(
+        ContactPointAttributeNames::body_id2, bke::AttrDomain::Point);
+    const VArraySpan<float3> contact_points1 = *contact_attributes.lookup<float3>(
+        ContactPointAttributeNames::contact_point1, bke::AttrDomain::Point);
+    const VArraySpan<float3> contact_points2 = *contact_attributes.lookup<float3>(
+        ContactPointAttributeNames::contact_point2, bke::AttrDomain::Point);
+    const VArraySpan<float3> penetration_axes = *contact_attributes.lookup<float3>(
+        ContactPointAttributeNames::penetration_axis, bke::AttrDomain::Point);
+
+    threading::parallel_for(contact_points1.index_range(), 512, [&](const IndexRange range) {
+      for (const int contact_i : range) {
+        const int point_index = subshape_ids1[contact_i];
+        if (!points.contains(point_index)) {
+          continue;
+        }
+        const JPH::BodyID body_id2 = JPH::BodyID(uint32_t(body_ids2[contact_i]));
+
+        const float3 &body1_position = positions[point_index];
+        JPH::RVec3 jolt_body2_position;
+        JPH::Quat jolt_body2_rotation;
+        body_interface.GetPositionAndRotation(body_id2, jolt_body2_position, jolt_body2_rotation);
+        const float3 body2_position = jolt_physics::convert_vec3(jolt_body2_position);
+        const math::Quaternion body2_rotation = jolt_physics::convert_quat(jolt_body2_rotation);
+
+        /* World space contact points are computed by applying the collider transforms to local
+         * contact positions. */
+        const float3 contact_point1 = contact_points1[contact_i] + body1_position;
+        const float3 contact_point2 = math::transform_point(body2_rotation,
+                                                            contact_points2[contact_i]) +
+                                      body2_position;
+        /* Note: Axis is not normalized, depth is relative to length of this vector. */
+        const float3 penetration_axis = penetration_axes[contact_i];
+
+        /* Positional constraint for depth along the penetration axis. */
+        const float residual_depth = math::dot(contact_point1 - contact_point2, penetration_axis);
+        /* Only act on contact. */
+        const bool active = residual_depth > 0.0f;
+        fn(point_index, active, penetration_axis, residual_depth);
+
+        /* TODO previous implementation including rotation correction. */
+        // // /* Effective mass correction to account for the effect of rotation on position
+        // //  * displacement. See section 3.3.1 "Positional Constraints" of the paper. We use a
+        // //  * simplified rotational weight factor instead of full inverse moment of inertia.
+        // */
+        // // const float rot_factor1 = math::length_squared(local_position1) -
+        // //                           math::square(math::dot(local_position1, normal));
+        // // const float rot_factor2 = math::length_squared(local_position2) -
+        // //                           math::square(math::dot(local_position2, normal));
+        // // const float weight_norm = math::safe_rcp(weight_pos1 + weight_rot1 * rot_factor1 +
+        // //                                          weight_pos2 + weight_rot2 * rot_factor2 +
+        // //                                          alpha);
+        // /* Gradient is normal, length is 1, no need to compute gradient norm. */
+        // r_delta_lambda = weight_norm * (-r_residual_depth - alpha * lambda);
+        // const float3 impulse1 = r_delta_lambda * normal;
+        // const float3 impulse2 = -impulse1;
+        // r_delta_position1 = impulse1 * weight_pos1;
+        // r_delta_position2 = impulse2 * weight_pos2;
+        // r_delta_rotation1 = float4(0.0f, math::cross(local_position1, impulse1)) *
+        // weight_rot1; r_delta_rotation2 = float4(0.0f, math::cross(local_position2, impulse2))
+        // * weight_rot2;
+      }
+    });
+  }
+
+  void solve(ConstraintSetSolveParams &params) override
+  {
+    if (!params.physics_state) {
+      return;
+    }
+    const auto &jolt_state = static_cast<const jolt_physics::JoltState &>(*params.physics_state);
+    const JPH::BodyInterface &body_interface = jolt_state.system.GetBodyInterfaceNoLock();
+
+    LocalConstraintCorrections &local_corrections = params.corrections.local();
+    for (const int geometry_i : params.sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+
+      foreach_contact(
+          sim_geometry,
+          body_interface,
+          [&](const int point_index, const bool active, const float3 &axis, const float depth) {
+            if (active) {
+              local_corrections.add_position_correction(
+                  geometry_i, point_index, collision_response(axis, depth));
+            }
+          });
+    }
+  }
+
+  void post_solve_apply(MutableSpan<SimGeometry> sim_geometries,
+                        const PhysicsState *physics_state) override
+  {
+    if (!physics_state) {
+      return;
+    }
+    const auto &jolt_state = *static_cast<const jolt_physics::JoltState *>(physics_state);
+    const JPH::BodyInterface &body_interface = jolt_state.system.GetBodyInterfaceNoLock();
+
+    for (const int geometry_i : sim_geometries.index_range()) {
+      SimGeometry &sim_geometry = sim_geometries[geometry_i];
+      if (!nested_bundle_path_is_selected(self_path_, filter_, sim_geometry.src.path)) {
+        continue;
+      }
+      std::optional<bke::MutableAttributeAccessor> attributes =
+          sim_geometry.attributes_for_write();
+      if (!attributes) {
+        continue;
+      }
+
+      bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
+          "position");
+      foreach_contact(
+          sim_geometry,
+          body_interface,
+          [&](const int point_index, const bool active, const float3 &axis, const float depth) {
+            if (active) {
+              positions.span[point_index] += collision_response(axis, depth);
+            }
+          });
+      positions.finish();
+    }
+  }
+};
+
 ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
                                                std::string self_path,
                                                std::string filter,
@@ -1405,209 +2665,342 @@ ConstraintSet &create_constraint__global_volume(ResourceScope &scope,
       self_path, filter, std::move(rest_volume_name), overpressure);
 }
 
+ConstraintSet &create_constraint__collision(ResourceScope &scope,
+                                            std::string self_path,
+                                            std::string filter,
+                                            fn::Field<bool> selection_field,
+                                            fn::Field<float> radius_field,
+                                            const float speculative_contact_distance)
+{
+  return scope.construct<CollisionConstraintSet>(self_path,
+                                                 filter,
+                                                 std::move(selection_field),
+                                                 std::move(radius_field),
+                                                 speculative_contact_distance);
+}
+
+static void prepare_sim_geometry(SimGeometry &sim_geometry)
+{
+  std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
+  /* Remember previous positions. */
+  if (attributes) {
+    const bke::AttributeReader<float3> positions = attributes->lookup<float3>("position");
+    attributes->remove(prev_position_name);
+    attributes->add<float3>(prev_position_name,
+                            bke::AttrDomain::Point,
+                            bke::AttributeInitShared{positions.varray.get_internal_span().data(),
+                                                     *positions.sharing_info});
+
+    if (const bke::AttributeReader<math::Quaternion> rotations =
+            attributes->lookup<math::Quaternion>(sim_geometry.src.rotation_attribute))
+    {
+
+      attributes->remove(prev_rotation_name);
+      attributes->add<math::Quaternion>(
+          prev_rotation_name,
+          bke::AttrDomain::Point,
+          bke::AttributeInitShared{rotations.varray.get_internal_span().data(),
+                                   *rotations.sharing_info});
+    }
+  }
+
+  /* Clear contact points. */
+  sim_geometry.src.remove_extra("Contact Points");
+}
+
+static void cleanup_sim_geometry(SimGeometry &sim_geometry)
+{
+  std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
+  if (!attributes) {
+    return;
+  }
+  attributes->remove(prev_position_name);
+  attributes->remove(prev_rotation_name);
+}
+
 static void dynamics_time_step(const Behaviors &behaviors,
-                               MutableSpan<SimGeometry> sim_geometries,
+                               SimGeometry &sim_geometry,
                                const float delta_time)
 {
-  for (SimGeometry &sim_geometry : sim_geometries) {
-    std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
-    if (!attributes) {
-      continue;
-    }
-    std::optional<bke::GeometryFieldContext> field_context;
-    sim_geometry.set_point_field_context(field_context);
-    if (!field_context) {
-      continue;
-    }
-    const int positions_num = attributes->domain_size(bke::AttrDomain::Point);
+  std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
+  if (!attributes) {
+    return;
+  }
+  std::optional<bke::GeometryFieldContext> field_context;
+  sim_geometry.set_point_field_context(field_context);
+  if (!field_context) {
+    return;
+  }
+  const int positions_num = attributes->domain_size(bke::AttrDomain::Point);
 
-    Vector<const ForceField *> filtered_force_fields;
-    for (const ForceField &sim_force : behaviors.force_fields) {
-      if (nested_bundle_path_is_selected(
-              sim_force.self_path, sim_force.filter, sim_geometry.src.path))
-      {
-        filtered_force_fields.append(&sim_force);
-      }
+  Vector<const ForceField *> filtered_force_fields;
+  for (const ForceField &sim_force : behaviors.force_fields) {
+    if (nested_bundle_path_is_selected(
+            sim_force.self_path, sim_force.filter, sim_geometry.src.path))
+    {
+      filtered_force_fields.append(&sim_force);
     }
-    Vector<const AccelerationField *> filtered_acceleration_fields;
-    for (const AccelerationField &sim_acceleration : behaviors.acceleration_fields) {
-      if (nested_bundle_path_is_selected(
-              sim_acceleration.self_path, sim_acceleration.filter, sim_geometry.src.path))
-      {
-        filtered_acceleration_fields.append(&sim_acceleration);
-      }
+  }
+  Vector<const AccelerationField *> filtered_acceleration_fields;
+  for (const AccelerationField &sim_acceleration : behaviors.acceleration_fields) {
+    if (nested_bundle_path_is_selected(
+            sim_acceleration.self_path, sim_acceleration.filter, sim_geometry.src.path))
+    {
+      filtered_acceleration_fields.append(&sim_acceleration);
     }
+  }
 
-    Array<float3> force(positions_num, float3());
-    Array<float3> acceleration(positions_num, float3());
-    fn::FieldEvaluator field_evaluator{*field_context, positions_num};
-    for (const ForceField *sim_force : filtered_force_fields) {
-      field_evaluator.add(sim_force->force_field);
+  Array<float3> force(positions_num, float3());
+  Array<float3> acceleration(positions_num, float3());
+  fn::FieldEvaluator field_evaluator{*field_context, positions_num};
+  for (const ForceField *sim_force : filtered_force_fields) {
+    field_evaluator.add(sim_force->force_field);
+  }
+  for (const AccelerationField *sim_acceleration : filtered_acceleration_fields) {
+    field_evaluator.add(sim_acceleration->acceleration_field);
+  }
+  field_evaluator.evaluate();
+  for (const int force_i : filtered_force_fields.index_range()) {
+    VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
+    for (const int i : force_varray.index_range()) {
+      force[i] += force_varray[i];
     }
-    for (const AccelerationField *sim_acceleration : filtered_acceleration_fields) {
-      field_evaluator.add(sim_acceleration->acceleration_field);
+  }
+  for (const int acceleration_i : filtered_acceleration_fields.index_range()) {
+    VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
+        acceleration_i + filtered_force_fields.size());
+    for (const int i : acceleration_varray.index_range()) {
+      acceleration[i] += acceleration_varray[i];
     }
-    field_evaluator.evaluate();
-    for (const int force_i : filtered_force_fields.index_range()) {
-      VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
-      for (const int i : force_varray.index_range()) {
-        force[i] += force_varray[i];
-      }
-    }
-    for (const int acceleration_i : filtered_acceleration_fields.index_range()) {
-      VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
-          acceleration_i + filtered_force_fields.size());
-      for (const int i : acceleration_varray.index_range()) {
-        acceleration[i] += acceleration_varray[i];
-      }
-    }
-    const VArray<float> masses = *attributes->lookup_or_default<float>(
-        sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
-    bke::SpanAttributeWriter<float3> velocities = attributes->lookup_or_add_for_write_span<float3>(
-        sim_geometry.src.velocity_attribute, bke::AttrDomain::Point);
-    bke::SpanAttributeWriter<float3> positions = attributes->lookup_or_add_for_write_span<float3>(
-        "position", bke::AttrDomain::Point);
+  }
+  const VArray<float> masses = *attributes->lookup_or_default<float>(
+      sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
+  bke::SpanAttributeWriter<float3> velocities = attributes->lookup_or_add_for_write_span<float3>(
+      sim_geometry.src.velocity_attribute, bke::AttrDomain::Point);
+  bke::SpanAttributeWriter<float3> positions = attributes->lookup_or_add_for_write_span<float3>(
+      "position", bke::AttrDomain::Point);
 
-    threading::parallel_for(velocities.span.index_range(), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        acceleration[i] += force[i] / masses[i];
-        velocities.span[i] += acceleration[i] * delta_time;
+  threading::parallel_for(velocities.span.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      acceleration[i] += force[i] / masses[i];
+      velocities.span[i] += acceleration[i] * delta_time;
+    }
+  });
+  /* Apply velocity damping before position integration. */
+  for (const Damping &damping : behaviors.dampings) {
+    if (nested_bundle_path_is_selected(damping.self_path, damping.filter, sim_geometry.src.path)) {
+      const float damping_factor = 1.0f - damping.linear_damping * delta_time;
+      if (damping_factor <= 0.0f) {
+        continue;
       }
-    });
-    /* Apply velocity damping before position integration. */
+      threading::parallel_for(velocities.span.index_range(), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          velocities.span[i] *= damping_factor;
+        }
+      });
+    }
+  }
+  threading::parallel_for(positions.span.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      positions.span[i] += velocities.span[i] * delta_time;
+    }
+  });
+
+  velocities.finish();
+  positions.finish();
+
+  /* Rotational dynamics, if a valid rotation attribute exists. */
+  const auto rotation_meta_data = attributes->lookup_meta_data(
+      sim_geometry.src.rotation_attribute);
+  if (rotation_meta_data && rotation_meta_data->data_type == bke::AttrType::Quaternion &&
+      rotation_meta_data->domain == bke::AttrDomain::Point)
+  {
+    const VArray<float3> inertias = *attributes->lookup_or_default<float3>(
+        sim_geometry.src.inertia_attribute, bke::AttrDomain::Point, float3(1.0f));
+    bke::SpanAttributeWriter<math::Quaternion> rotations =
+        attributes->lookup_or_add_for_write_span<math::Quaternion>(
+            sim_geometry.src.rotation_attribute, bke::AttrDomain::Point);
+    bke::SpanAttributeWriter<float3> angular_velocities =
+        attributes->lookup_or_add_for_write_span<float3>(
+            sim_geometry.src.angular_velocity_attribute, bke::AttrDomain::Point);
+
+    threading::parallel_for(
+        angular_velocities.span.index_range(), 1024, [&](const IndexRange range) {
+          for (const int i : range) {
+            const float3 &inertia = inertias[i];
+            float3 &angular_velocity = angular_velocities.span[i];
+            /* TODO eventually may have external "torque fields", ignore for now. */
+            const float3 external_torque = float3(0.0f);
+            const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
+
+            angular_velocity += delta_time *
+                                (math::safe_divide(external_torque - precession, inertia));
+          }
+        });
+    /* Apply angular velocity damping before rotation integration. */
     for (const Damping &damping : behaviors.dampings) {
       if (nested_bundle_path_is_selected(damping.self_path, damping.filter, sim_geometry.src.path))
       {
-        const float damping_factor = 1.0f - damping.linear_damping * delta_time;
+        const float damping_factor = 1.0f - damping.angular_damping * delta_time;
         if (damping_factor <= 0.0f) {
           continue;
         }
-        threading::parallel_for(velocities.span.index_range(), 1024, [&](const IndexRange range) {
-          for (const int i : range) {
-            velocities.span[i] *= damping_factor;
-          }
-        });
+        threading::parallel_for(
+            angular_velocities.span.index_range(), 1024, [&](const IndexRange range) {
+              for (const int i : range) {
+                angular_velocities.span[i] *= damping_factor;
+              }
+            });
       }
     }
-    threading::parallel_for(positions.span.index_range(), 1024, [&](const IndexRange range) {
+    threading::parallel_for(rotations.span.index_range(), 1024, [&](const IndexRange range) {
       for (const int i : range) {
-        positions.span[i] += velocities.span[i] * delta_time;
+        const float3 &angular_velocity = angular_velocities.span[i];
+        math::Quaternion &rotation = rotations.span[i];
+        const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
+        rotation = math::normalize(
+            math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
       }
     });
 
-    velocities.finish();
-    positions.finish();
-
-    /* Rotational dynamics, if a valid rotation attribute exists. */
-    const auto rotation_meta_data = attributes->lookup_meta_data(
-        sim_geometry.src.rotation_attribute);
-    if (rotation_meta_data && rotation_meta_data->data_type == bke::AttrType::Quaternion &&
-        rotation_meta_data->domain == bke::AttrDomain::Point)
-    {
-      const VArray<float3> inertias = *attributes->lookup_or_default<float3>(
-          sim_geometry.src.inertia_attribute, bke::AttrDomain::Point, float3(1.0f));
-      bke::SpanAttributeWriter<math::Quaternion> rotations =
-          attributes->lookup_or_add_for_write_span<math::Quaternion>(
-              sim_geometry.src.rotation_attribute, bke::AttrDomain::Point);
-      bke::SpanAttributeWriter<float3> angular_velocities =
-          attributes->lookup_or_add_for_write_span<float3>(
-              sim_geometry.src.angular_velocity_attribute, bke::AttrDomain::Point);
-
-      threading::parallel_for(
-          angular_velocities.span.index_range(), 1024, [&](const IndexRange range) {
-            for (const int i : range) {
-              const float3 &inertia = inertias[i];
-              float3 &angular_velocity = angular_velocities.span[i];
-              /* TODO eventually may have external "torque fields", ignore for now. */
-              const float3 external_torque = float3(0.0f);
-              const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
-
-              angular_velocity += delta_time *
-                                  (math::safe_divide(external_torque - precession, inertia));
-            }
-          });
-      /* Apply angular velocity damping before rotation integration. */
-      for (const Damping &damping : behaviors.dampings) {
-        if (nested_bundle_path_is_selected(
-                damping.self_path, damping.filter, sim_geometry.src.path))
-        {
-          const float damping_factor = 1.0f - damping.angular_damping * delta_time;
-          if (damping_factor <= 0.0f) {
-            continue;
-          }
-          threading::parallel_for(
-              angular_velocities.span.index_range(), 1024, [&](const IndexRange range) {
-                for (const int i : range) {
-                  angular_velocities.span[i] *= damping_factor;
-                }
-              });
-        }
-      }
-      threading::parallel_for(rotations.span.index_range(), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
-          const float3 &angular_velocity = angular_velocities.span[i];
-          math::Quaternion &rotation = rotations.span[i];
-          const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
-          rotation = math::normalize(
-              math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
-        }
-      });
-
-      rotations.finish();
-      angular_velocities.finish();
-    }
+    rotations.finish();
+    angular_velocities.finish();
   }
 }
 
-static void estimate_velocities(MutableSpan<SimGeometry> sim_geometries, const float delta_time)
+static void estimate_velocities(SimGeometry &sim_geometry, const float delta_time)
 {
-  for (SimGeometry &sim_geometry : sim_geometries) {
-    std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
-    if (!attributes) {
-      continue;
+  std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
+  if (!attributes) {
+    return;
+  }
+  const VArraySpan<float3> prev_positions = *attributes->lookup<float3>(prev_position_name);
+  const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
+  bke::SpanAttributeWriter<float3> velocities = attributes->lookup_for_write_span<float3>(
+      sim_geometry.src.velocity_attribute);
+  threading::parallel_for(positions.index_range(), 512, [&](const IndexRange range) {
+    for (const int i : range) {
+      velocities.span[i] = (positions[i] - prev_positions[i]) / delta_time;
     }
-    const VArraySpan<float3> prev_positions = *attributes->lookup<float3>(prev_position_name);
-    const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
-    bke::SpanAttributeWriter<float3> velocities = attributes->lookup_for_write_span<float3>(
-        sim_geometry.src.velocity_attribute);
-    threading::parallel_for(positions.index_range(), 512, [&](const IndexRange range) {
+  });
+  velocities.finish();
+
+  /* Rotational dynamics, if a valid rotation attribute exists. */
+  const auto rotation_meta_data = attributes->lookup_meta_data(
+      sim_geometry.src.rotation_attribute);
+  if (rotation_meta_data && rotation_meta_data->data_type == bke::AttrType::Quaternion &&
+      rotation_meta_data->domain == bke::AttrDomain::Point)
+  {
+    const VArraySpan<math::Quaternion> prev_rotations = *attributes->lookup<math::Quaternion>(
+        prev_rotation_name);
+    const VArraySpan<math::Quaternion> rotations = *attributes->lookup<math::Quaternion>(
+        sim_geometry.src.rotation_attribute);
+    bke::SpanAttributeWriter<float3> angular_velocities =
+        attributes->lookup_or_add_for_write_span<float3>(
+            sim_geometry.src.angular_velocity_attribute, bke::AttrDomain::Point);
+    threading::parallel_for(rotations.index_range(), 512, [&](const IndexRange range) {
       for (const int i : range) {
-        velocities.span[i] = (positions[i] - prev_positions[i]) / delta_time;
+        angular_velocities.span[i] =
+            2.0f * (math::invert_normalized(prev_rotations[i]) * rotations[i]).imaginary_part() /
+            delta_time;
       }
     });
-    velocities.finish();
-
-    /* Rotational dynamics, if a valid rotation attribute exists. */
-    const auto rotation_meta_data = attributes->lookup_meta_data(
-        sim_geometry.src.rotation_attribute);
-    if (rotation_meta_data && rotation_meta_data->data_type == bke::AttrType::Quaternion &&
-        rotation_meta_data->domain == bke::AttrDomain::Point)
-    {
-      const VArraySpan<math::Quaternion> prev_rotations = *attributes->lookup<math::Quaternion>(
-          prev_rotation_name);
-      const VArraySpan<math::Quaternion> rotations = *attributes->lookup<math::Quaternion>(
-          sim_geometry.src.rotation_attribute);
-      bke::SpanAttributeWriter<float3> angular_velocities =
-          attributes->lookup_or_add_for_write_span<float3>(
-              sim_geometry.src.angular_velocity_attribute, bke::AttrDomain::Point);
-      threading::parallel_for(rotations.index_range(), 512, [&](const IndexRange range) {
-        for (const int i : range) {
-          angular_velocities.span[i] =
-              2.0f * (math::invert_normalized(prev_rotations[i]) * rotations[i]).imaginary_part() /
-              delta_time;
-        }
-      });
-      angular_velocities.finish();
-    }
+    angular_velocities.finish();
   }
 }
+
+static void solve_substep(Behaviors &behaviors,
+                          MutableSpan<SimGeometry> sim_geometries,
+                          const float sub_delta_time)
+{
+  jolt_physics::JoltState *jolt_state = static_cast<jolt_physics::JoltState *>(
+      behaviors.physics_state);
+
+  for (SimGeometry &sim_geometry : sim_geometries) {
+    prepare_sim_geometry(sim_geometry);
+  }
+
+  /* Init constraints. */
+  const ConstraintContext constraint_contact{jolt_state};
+  for (ConstraintSet *constraint : behaviors.constraint_sets) {
+    constraint->ensure_init(constraint_contact, sim_geometries);
+  }
+
+  /* Handle forces and accelerations. If the time step is zero, these can't have any effect. */
+  if (sub_delta_time > 0) {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      dynamics_time_step(behaviors, sim_geometry, sub_delta_time);
+    }
+  }
+
+  /* Constraint solve step. */
+  ConstraintCorrections corrections(sim_geometries);
+  ConstraintSetSolveParams params{sub_delta_time, sim_geometries, jolt_state, corrections};
+  threading::parallel_for(behaviors.constraint_sets.index_range(), 1, [&](const IndexRange range) {
+    for (const int constraint_i : range) {
+      ConstraintSet *constraints = behaviors.constraint_sets[constraint_i];
+      constraints->solve(params);
+    }
+  });
+
+  corrections.apply();
+
+  /* Apply hard constraints. */
+  for (ConstraintSet *constraint : behaviors.constraint_sets) {
+    constraint->post_solve_apply(sim_geometries, jolt_state);
+  }
+
+  /* Write back velocities. Velocities can't be computed if the time step is zero. */
+  if (sub_delta_time > 0) {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      estimate_velocities(sim_geometry, sub_delta_time);
+    }
+  }
+
+  /* Remove temporary attributes.*/
+  for (SimGeometry &sim_geometry : sim_geometries) {
+    cleanup_sim_geometry(sim_geometry);
+  }
+}
+
+/**
+ * Jolt step listener that runs a XPBD solver substep in sync with the Jolt update.
+ */
+class XPBDJoltStepListener : public JPH::PhysicsStepListener {
+  Behaviors &behaviors_;
+  MutableSpan<SimGeometry> sim_geometries_;
+
+ public:
+  XPBDJoltStepListener(Behaviors &behaviors, MutableSpan<SimGeometry> sim_geometries)
+      : behaviors_(behaviors), sim_geometries_(sim_geometries)
+  {
+  }
+  ~XPBDJoltStepListener() {}
+
+  /* The OnStep callback is called at the beginning of a time step. */
+  void OnStep(const JPH::PhysicsStepListenerContext &context) override
+  {
+    /* Nothing to do before the first step. */
+    if (context.mIsFirstStep) {
+      return;
+    }
+
+    solve_substep(behaviors_, sim_geometries_, context.mDeltaTime);
+  }
+};
 
 void solve(Behaviors &behaviors, const float total_delta_time, const int substeps)
 {
   BLI_assert(total_delta_time >= 0.0f);
-  BLI_assert(substeps >= 0);
-  const int sim_steps = 1 + substeps;
-  const float sub_delta_time = total_delta_time / sim_steps;
+  /* Limit substeps to avoid crashing in extreme cases. */
+  const int sim_steps = std::clamp(1 + substeps, 1, 240);
+
+  /* TODO Confirm if this conflicts with the jolt initialization in the jolt solver node. */
+  jolt_physics::JoltState *jolt_state = static_cast<jolt_physics::JoltState *>(
+      behaviors.physics_state);
+  if (jolt_state) {
+    jolt_physics::ensure_initialize_jolt();
+  }
 
   Vector<SimGeometry> sim_geometries;
   for (SimGeometrySet *sim_geometry_set : behaviors.sim_geometry_sets) {
@@ -1622,75 +3015,47 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
     }
   }
 
-  for ([[maybe_unused]] int substep : IndexRange(sim_steps)) {
-    /* Remember previous positions. */
-    for (SimGeometry &sim_geometry : sim_geometries) {
-      std::optional<bke::MutableAttributeAccessor> attributes =
-          sim_geometry.attributes_for_write();
-      if (!attributes) {
-        continue;
-      }
-      const bke::AttributeReader<float3> positions = attributes->lookup<float3>("position");
-      attributes->remove(prev_position_name);
-      attributes->add<float3>(prev_position_name,
-                              bke::AttrDomain::Point,
-                              bke::AttributeInitShared{positions.varray.get_internal_span().data(),
-                                                       *positions.sharing_info});
+  if (jolt_state) {
+    /* The Jolt state can't easily be reset to an older state. So better just don't do simulation
+     * in this case. */
+    const bool is_resimulating = (behaviors.update_counter < jolt_state->update_counter);
+    behaviors.update_counter++;
+    if (!is_resimulating) {
+      update_jolt_state_from_behaviors(*jolt_state, behaviors);
 
-      if (const bke::AttributeReader<math::Quaternion> rotations =
-              attributes->lookup<math::Quaternion>(sim_geometry.src.rotation_attribute))
+      /* Use a JPH::PhysicsStepListener to synchronize our XPBD softbody solver substeps with
+       * the Jolt system substeps (collision steps). That way we get accurate positions of moving
+       * rigid bodies (dynamic or animated) for collision detection instead of quasi-static
+       * collision shapes that only move on every full frame step. */
+      XPBDJoltStepListener jolt_step_listener(behaviors, sim_geometries);
+      jolt_state->system.AddStepListener(&jolt_step_listener);
       {
-
-        attributes->remove(prev_rotation_name);
-        attributes->add<math::Quaternion>(
-            prev_rotation_name,
-            bke::AttrDomain::Point,
-            bke::AttributeInitShared{rotations.varray.get_internal_span().data(),
-                                     *rotations.sharing_info});
+        JPH::TempAllocatorImpl temp_allocator(10 * 1024 * 1024);
+        const int collision_steps = sim_steps;
+        jolt_state->system.Update(
+            total_delta_time, collision_steps, &temp_allocator, &(*jolt_state->job_system));
       }
+      jolt_state->system.RemoveStepListener(&jolt_step_listener);
+      /* Last substep at the end of the Jolt collision steps. This is not covered by the step
+       * listener because it gets called at the beginning instead of the end of each substep. */
+      solve_substep(behaviors, sim_geometries, total_delta_time / sim_steps);
+
+      jolt_state->update_counter = behaviors.update_counter;
     }
-
-    /* Init constraints. */
-    for (ConstraintSet *constraint : behaviors.constraint_sets) {
-      constraint->ensure_init(sim_geometries);
+  }
+  else {
+    /* Own substep loop if Jolt isn't used. */
+    const float sub_delta_time = total_delta_time / sim_steps;
+    for ([[maybe_unused]] int substep : IndexRange(sim_steps)) {
+      solve_substep(behaviors, sim_geometries, sub_delta_time);
     }
+  }
 
-    /* Handle forces and accelerations. If the time step is zero, these can't have any effect. */
-    if (sub_delta_time > 0) {
-      dynamics_time_step(behaviors, sim_geometries, sub_delta_time);
-    }
-
-    /* Constraint solve step. */
-    ConstraintCorrections corrections(sim_geometries);
-    ConstraintSetSolveParams params{sub_delta_time, sim_geometries, corrections};
-    threading::parallel_for(
-        behaviors.constraint_sets.index_range(), 1, [&](const IndexRange range) {
-          for (const int constraint_i : range) {
-            ConstraintSet *constraints = behaviors.constraint_sets[constraint_i];
-            constraints->solve(params);
-          }
-        });
-    corrections.apply();
-
-    /* Apply hard constraints. */
-    for (ConstraintSet *constraint : behaviors.constraint_sets) {
-      constraint->post_solve_apply(sim_geometries);
-    }
-
-    /* Write back velocities. Velocities can't be computed if the time step is zero. */
-    if (sub_delta_time > 0) {
-      estimate_velocities(sim_geometries, sub_delta_time);
-    }
-
-    /* Remove temporary attributes.*/
-    for (SimGeometry &sim_geometry : sim_geometries) {
-      std::optional<bke::MutableAttributeAccessor> attributes =
-          sim_geometry.attributes_for_write();
-      if (!attributes) {
-        continue;
-      }
-      attributes->remove(prev_position_name);
-      attributes->remove(prev_rotation_name);
+  /* Update final instance transforms. */
+  if (jolt_state) {
+    for (RigidBodyInstances &rigid_body_instances : behaviors.rigid_body_instances) {
+      rigid_body_instances.instances_geometry = apply_rigid_body_simulation(rigid_body_instances,
+                                                                            *jolt_state);
     }
   }
 }
