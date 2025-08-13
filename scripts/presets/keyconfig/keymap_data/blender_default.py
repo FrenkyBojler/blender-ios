@@ -4633,7 +4633,14 @@ def km_paint_curve(params):
 # Radial control setup helpers, this operator has a lot of properties.
 
 
-def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=False, color=False, zoom=False, size_is_diameter=False):
+def radial_control_properties(
+        paint,
+        prop,
+        secondary_prop,
+        secondary_rotation=False,
+        color=False,
+        zoom=False,
+        size_is_diameter=False):
     brush_path = "tool_settings." + paint + ".brush"
     unified_path = "tool_settings." + paint + ".unified_paint_settings"
     rotation = "mask_texture_slot.angle" if secondary_rotation else "texture_slot.angle"
@@ -4657,17 +4664,35 @@ def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=Fa
 # Radial controls for the paint and sculpt modes.
 
 
-def _template_paint_radial_control(paint, rotation=False, secondary_rotation=False, color=False, zoom=False, size_is_diameter=False):
+def _template_paint_radial_control(
+        paint,
+        rotation=False,
+        secondary_rotation=False,
+        color=False,
+        zoom=False,
+        size_is_diameter=False):
     items = []
 
-    items.extend([
-        ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-         radial_control_properties(
-             paint, "size", "use_unified_size", secondary_rotation=secondary_rotation, color=color, zoom=zoom, size_is_diameter=size_is_diameter)),
-        ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
-         radial_control_properties(
-             paint, "strength", "use_unified_strength", secondary_rotation=secondary_rotation, color=color)),
-    ])
+    items.extend([("wm.radial_control",
+                   {"type": 'F',
+                    "value": 'PRESS'},
+                   radial_control_properties(paint,
+                                             "size",
+                                             "use_unified_size",
+                                             secondary_rotation=secondary_rotation,
+                                             color=color,
+                                             zoom=zoom,
+                                             size_is_diameter=size_is_diameter)),
+                  ("wm.radial_control",
+                   {"type": 'F',
+                    "value": 'PRESS',
+                    "shift": True},
+                   radial_control_properties(paint,
+                                             "strength",
+                                             "use_unified_strength",
+                                             secondary_rotation=secondary_rotation,
+                                             color=color)),
+                  ])
 
     if rotation:
         items.extend([

@@ -2541,10 +2541,7 @@ void WM_paint_cursor_remove_by_type(wmWindowManager *wm, void *draw_fn, void (*f
 
 /* Indicates whether the underlying property being modified by the control represents a radius
  * or diameter to render PROP_PIXEL types correctly */
-enum class SizeMeasurementType : int8_t {
-  Radius = 0,
-  Diameter = 1
-};
+enum class SizeMeasurementType : int8_t { Radius = 0, Diameter = 1 };
 
 struct RadialControl {
   PropertyType type;
@@ -2802,8 +2799,10 @@ static void radial_control_paint_cursor(bContext * /*C*/,
     case PROP_NONE:
     case PROP_DISTANCE:
     case PROP_PIXEL:
-      r1 = rc->size_type == SizeMeasurementType::Radius ? rc->current_value : rc->current_value / 2.0f;
-      r2 = rc->size_type == SizeMeasurementType::Radius ? rc->initial_value : rc->initial_value / 2.0f;
+      r1 = rc->size_type == SizeMeasurementType::Radius ? rc->current_value :
+                                                          rc->current_value / 2.0f;
+      r2 = rc->size_type == SizeMeasurementType::Radius ? rc->initial_value :
+                                                          rc->initial_value / 2.0f;
       tex_radius = r1;
       alpha = 0.75;
       break;
@@ -3517,7 +3516,7 @@ static void WM_OT_radial_control(wmOperatorType *ot)
        0,
        "Diameter",
        "Value should be interpreted as a diameter"},
-    {0, nullptr, 0, nullptr, nullptr},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* All paths relative to the context. */

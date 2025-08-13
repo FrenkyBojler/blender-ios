@@ -2646,7 +2646,14 @@ def km_curve(params):
 # Radial control setup helpers, this operator has a lot of properties.
 
 
-def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=False, color=False, zoom=False, size_is_diameter=False):
+def radial_control_properties(
+        paint,
+        prop,
+        secondary_prop,
+        secondary_rotation=False,
+        color=False,
+        zoom=False,
+        size_is_diameter=False):
     brush_path = "tool_settings." + paint + ".brush"
     unified_path = "tool_settings." + paint + ".unified_paint_settings"
     rotation = "mask_texture_slot.angle" if secondary_rotation else "texture_slot.angle"
@@ -2681,14 +2688,25 @@ def _template_paint_radial_control(
 ):
     items = []
 
-    items.extend([
-        ("wm.radial_control", {"type": 'S', "value": 'PRESS'},
-         radial_control_properties(
-             paint, "size", "use_unified_size", secondary_rotation=secondary_rotation, color=color, zoom=zoom, size_is_diameter=size_is_diameter)),
-        ("wm.radial_control", {"type": 'U', "value": 'PRESS'},
-         radial_control_properties(
-             paint, "strength", "use_unified_strength", secondary_rotation=secondary_rotation, color=color)),
-    ])
+    items.extend([("wm.radial_control",
+                   {"type": 'S',
+                    "value": 'PRESS'},
+                   radial_control_properties(paint,
+                                             "size",
+                                             "use_unified_size",
+                                             secondary_rotation=secondary_rotation,
+                                             color=color,
+                                             zoom=zoom,
+                                             size_is_diameter=size_is_diameter)),
+                  ("wm.radial_control",
+                   {"type": 'U',
+                    "value": 'PRESS'},
+                   radial_control_properties(paint,
+                                             "strength",
+                                             "use_unified_strength",
+                                             secondary_rotation=secondary_rotation,
+                                             color=color)),
+                  ])
 
     if rotation:
         items.extend([
@@ -2742,7 +2760,8 @@ def km_image_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("image_paint", color=True, zoom=True, rotation=True, secondary_rotation=True, size_is_diameter=True),
+        *_template_paint_radial_control("image_paint", color=True, zoom=True, rotation=True,
+                                        secondary_rotation=True, size_is_diameter=True),
         # Stencil Controls
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
