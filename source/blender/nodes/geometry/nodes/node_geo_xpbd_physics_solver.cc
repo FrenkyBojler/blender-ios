@@ -227,13 +227,14 @@ static void update_xpbd_state_for_geometry(XPBDState &state,
   r_data_by_path.add(bundle.self_path, std::move(new_path_sim_data));
 }
 
-static Vector<const ForceBundle *> get_forces_for_path(const WorldData &world,
-                                                       const StringRef path)
+template<typename T>
+static Vector<const T *> filter_bundles_for_path(const Span<T> bundles, const StringRef path)
 {
-  Vector<const ForceBundle *> used_forces;
-  for (const ForceBundle &force_bundle : world.forces) {
-    if (nested_bundle_path_is_selected(force_bundle.self_path, force_bundle.filter, path)) {
-      used_forces.append(&force_bundle);
+  static_assert(std::is_base_of_v<NestedBundleCommon, T>);
+  Vector<const T *> used_forces;
+  for (const T &bundle : bundles) {
+    if (nested_bundle_path_is_selected(bundle.self_path, bundle.filter, path)) {
+      used_forces.append(&bundle);
     }
   }
   return used_forces;
@@ -246,7 +247,7 @@ static void integrate_forces_and_accelerations(
     const Map<PathComponentKey, VArray<float>> &masses_map,
     const float delta_time)
 {
-  float3 gravity;
+  float3 gravity{0, 0, 0};
   for (const GravityBundle &gravity_bundle : world.gravities) {
     gravity = gravity_bundle.gravity;
   }
@@ -258,8 +259,8 @@ static void integrate_forces_and_accelerations(
     if (!path_sim_data) {
       continue;
     }
-    Vector<const ForceBundle *> used_forces = get_forces_for_path(world,
-                                                                  geometry_bundle.self_path);
+    Vector<const ForceBundle *> used_forces = filter_bundles_for_path<ForceBundle>(
+        world.forces, geometry_bundle.self_path);
     for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
       const bke::GeometryComponent *component = applied_geometry.get_component(type);
       if (!component) {
@@ -297,6 +298,54 @@ static void integrate_forces_and_accelerations(
   }
 }
 
+/**
+ * Computes the mass for each point. The mass of points that are known to be pinned have a mass of
+ * infinity.
+ */
+static Map<PathComponentKey, VArray<float>> compute_masses(
+    ResourceScope &scope, const WorldData &world, const Span<GeometrySet> applied_geometries)
+{
+  Map<PathComponentKey, VArray<float>> masses_map;
+  for (const int i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[i];
+    const GeometrySet &applied_geometry = applied_geometries[i];
+
+    const Vector<const PinnedPositionXPBDConstraintBundle *> pinned_position_constraints =
+        filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
+            world.pinned_position_constraints, geometry_bundle.self_path);
+
+    for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
+      const bke::GeometryComponent *component = applied_geometry.get_component(type);
+      if (!component) {
+        continue;
+      }
+      const bke::AttrDomain domain = bke::AttrDomain::Point;
+      const int domain_size = component->attribute_domain_size(domain);
+      auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
+      auto &mass_evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
+      mass_evaluator.add(geometry_bundle.mass);
+      mass_evaluator.evaluate();
+      VArray<float> masses = mass_evaluator.get_evaluated<float>(0);
+      for (const PinnedPositionXPBDConstraintBundle *constraint : pinned_position_constraints) {
+        fn::FieldEvaluator pin_evaluator{field_context, domain_size};
+        pin_evaluator.set_selection(constraint->selection);
+        pin_evaluator.evaluate();
+        const IndexMask mask = pin_evaluator.get_evaluated_selection_as_mask();
+        if (!mask.is_empty()) {
+          Array<float> masses_array(domain_size);
+          masses.materialize(masses_array);
+          mask.foreach_index(GrainSize(1024), [&](const int i) {
+            masses_array[i] = std::numeric_limits<float>::infinity();
+          });
+          masses = VArray<float>::from_container(std::move(masses_array));
+        }
+      }
+      masses_map.add_new({geometry_bundle.self_path, type}, std::move(masses));
+    }
+  }
+  return masses_map;
+}
+
 static void update_and_step_xpbd_state(XPBDState &state,
                                        const WorldData &world,
                                        const float delta_time,
@@ -304,26 +353,14 @@ static void update_and_step_xpbd_state(XPBDState &state,
 {
   ResourceScope scope;
   Array<GeometrySet> applied_geometries(world.geometries.size());
-  Map<PathComponentKey, VArray<float>> masses_map;
+
   for (const int i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[i];
     GeometrySet &applied_geometry = applied_geometries[i];
     applied_geometry = apply_simulation(geometry_bundle, state);
-    for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
-      const bke::GeometryComponent *component = applied_geometry.get_component(type);
-      if (!component) {
-        continue;
-      }
-      const bke::AttrDomain domain = bke::AttrDomain::Point;
-      auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
-      auto &mass_evaluator = scope.construct<fn::FieldEvaluator>(
-          field_context, component->attribute_domain_size(domain));
-      mass_evaluator.add(geometry_bundle.mass);
-      mass_evaluator.evaluate();
-      masses_map.add_new({geometry_bundle.self_path, type},
-                         mass_evaluator.get_evaluated<float>(0));
-    }
   }
+  const Map<PathComponentKey, VArray<float>> masses_map = compute_masses(
+      scope, world, applied_geometries);
 
   Map<std::string, PathSimData> new_data_by_path;
   for (const int i : world.geometries.index_range()) {
