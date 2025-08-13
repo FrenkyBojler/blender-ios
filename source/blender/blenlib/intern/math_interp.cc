@@ -1098,160 +1098,238 @@ static constexpr float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {0.864664733f,
 
 namespace blender::math {
 
-/* Linear-interpolated Gaussian weight from LUT (r2 in [0,1]). */
-inline float ewa_weight(const float r2, const bool interpolate = true)
+/* Look up a Gaussian weight from a 1D LUT where the input is the
+ * normalized squared radius r2 ∈ [0, 1].
+ * If 'interpolate' is true, we do a linear (1D) interpolation between
+ * neighboring entries; otherwise we take the lower bin directly. */
+BLI_INLINE float lookup_ewa_weight(const float r2_normalized, const bool interpolate = true)
 {
-  if (r2 <= 0.0f) {
+  /* Clamp the query range explicitly; the LUT is only defined on [0,1]. */
+  if (r2_normalized <= 0.0f) {
     return EWA_GAUSS_LUT[0];
   }
-  if (r2 >= 1.0f) {
+  if (r2_normalized >= 1.0f) {
     return EWA_GAUSS_LUT[EWA_GAUSS_MAXIDX];
   }
-  float t = r2 * static_cast<float>(EWA_GAUSS_MAXIDX);
-  int i = int(t);
 
-  if (interpolate) {
-    float f = t - float(i);
-    int i1 = (i < EWA_GAUSS_MAXIDX) ? (i + 1) : EWA_GAUSS_MAXIDX;
-    return EWA_GAUSS_LUT[i] * (1.0f - f) + EWA_GAUSS_LUT[i1] * f;
+  /* Convert r^2 ∈ [0,1) to fractional LUT index t ∈ [0, EWA_GAUSS_MAXIDX). */
+  const float t_float = r2_normalized * static_cast<float>(EWA_GAUSS_MAXIDX);
+  const int bin_index = static_cast<int>(t_float);  // floor
+
+  if (!interpolate) {
+    return EWA_GAUSS_LUT[bin_index];
   }
 
-  return EWA_GAUSS_LUT[i];
+  // Linear interpolation between bin_index and bin_index+1.
+  const float frac = t_float - float(bin_index);
+  const int next_i = (bin_index < EWA_GAUSS_MAXIDX) ? (bin_index + 1) : EWA_GAUSS_MAXIDX;
+
+  const float w0 = EWA_GAUSS_LUT[bin_index];
+  const float w1 = EWA_GAUSS_LUT[next_i];
+  return w0 * (1.0f - frac) + w1 * frac;
 }
 
-/* linear ramp to 0 at r=1 (the “bilinear/triangle” kernel in radial form). */
-inline float ewa_tent_from_r2(float r2)
+/* Bilinear/triangle radial kernel:  tent(r) = max(0, 1 - r).
+ * Compute the linear ramp to zero at r = 1.
+ *
+ * This is used to softly kill the boundary weight (no hard jump at r=1),
+ * which removes ringing artifacts. */
+BLI_INLINE float ewa_tent_from_r2(float r)
 {
-  float r = std::sqrt(std::max(0.0f, r2));
-  float t = 1.0f - r;
-  return (t > 0.0f) ? t : 0.0f;
+  const float fade = 1.0f - r;  // linear ramp to 0 at r=1
+  return (fade > 0.0f) ? fade : 0.0f;
 }
 
-/* removes the discontinuity at r^2=1. */
-inline float ewa_weight_bilinear_fade(const float r2, const bool interpolate_lut)
+/* Final weight = Gaussian(r^2) × Tent(r).
+ * Inside most of the footprint this equals the Gaussian; near the edge it
+ * smoothly goes to zero with zero discontinuity at r=1, avoiding ringing. */
+BLI_INLINE float ewa_weight_bilinear_fade(const float r2_normalized, const bool interpolate_lut)
 {
-  if (r2 >= 1.0f) {
-    return 0.0f;
+  if (r2_normalized >= 1.0f) {
+    return 0.0f;  // strictly outside support
   }
-  const float g = ewa_weight(r2, interpolate_lut);
-  return g * ewa_tent_from_r2(r2);
+  const float gauss_weight = lookup_ewa_weight(r2_normalized, interpolate_lut);
+  const float r = std::sqrt(std::max(0.0f, r2_normalized));
+  const float tent_weight = ewa_tent_from_r2(r);
+  return gauss_weight * tent_weight;
 }
 
-inline void aniso_clamp(float &dx0, float &dy0, float &dx1, float &dy1, float max_anisotropy)
+/* Clamp anisotropy of the footprint: ensure the short axis is not more
+ * than the `max_factor_between_axes` times shorter than the long axis. Inputs are the
+ * two derivative vectors in texel space (du/dx, dv/dx) and (du/dy, dv/dy). */
+BLI_INLINE void clamp_anisotropy(float &du_dx_texels,
+                                 float &dv_dx_texels,
+                                 float &du_dy_texels,
+                                 float &dv_dy_texels,
+                                 float max_factor_between_axes)
 {
-  auto len2 = [](float x, float y) { return x * x + y * y; };
-  if (len2(dx0, dy0) < len2(dx1, dy1)) {
-    std::swap(dx0, dx1);
-    std::swap(dy0, dy1);
+  auto length_sq = [](float x, float y) { return x * x + y * y; };
+
+  /* Make (du/dx, dv/dx) the longer axis, so we clamp the other one if needed. */
+  if (length_sq(du_dx_texels, dv_dx_texels) < length_sq(du_dy_texels, dv_dy_texels)) {
+    std::swap(du_dx_texels, du_dy_texels);
+    std::swap(dv_dx_texels, dv_dy_texels);
   }
-  float longer = std::sqrt(std::max(0.f, len2(dx0, dy0)));
-  float shorter = std::sqrt(std::max(0.f, len2(dx1, dy1)));
-  if (shorter > 0.f && longer > max_anisotropy * shorter) {
-    float scale = longer / (max_anisotropy * shorter);
-    dx1 *= scale;
-    dy1 *= scale;
+
+  const float long_len = std::sqrt(std::max(0.0f, length_sq(du_dx_texels, dv_dx_texels)));
+  const float short_len = std::sqrt(std::max(0.0f, length_sq(du_dy_texels, dv_dy_texels)));
+
+  if (short_len > 0.0f && long_len > max_factor_between_axes * short_len) {
+    const float scale = long_len / (max_factor_between_axes * short_len);
+    du_dy_texels *= scale;
+    dv_dy_texels *= scale;
   }
 }
 
+/* Normalized ellipse describing the footprint in texel space:
+ * r^2(Δu,Δv) = A * Δu^2 + B * ΔuΔv + C * Δv^2   (inside if r^2 < 1)
+ * s0..s1, t0..t1: integer bounding box to scan (inclusive)
+ * texel_center_x, texel_center_y: center of the footprint in texel coordinates */
 struct Ellipse {
   const float A, B, C;
-  const int s0, s1, t0, t1;
-  const float stx, sty;
+  const int s0, s1;
+  const int t0, t1;
+  const float texel_center_x, texel_center_y;
   bool valid = false;
 };
 
-inline Ellipse build_ellipse(const int2 &image_dimensions,
-                             const float2 &coordinates,
-                             const float2 &du,
-                             const float2 &dv,
-                             const float &max_anisotropy = 8.0f)
+/* Build the normalized ellipse and its integer bounding box from:
+ *   - image_dimensions:        (width, height) in texels
+ *   - coordinates:             uv center in [0,1]^2
+ *   - du, dv:                  partials d(uv)/dx and d(uv)/dy (normalized)
+ *   - max_factor_between_axes: clamp for very skinny footprints
+ *
+ * We follow the standard PBRT formulation:
+ *   A = (dv/dx)^2 + (dv/dy)^2 + 1
+ *   B = -2 * [(du/dx)(dv/dx) + (du/dy)(dv/dy)]
+ *   C = (du/dx)^2 + (du/dy)^2 + 1
+ * then normalize so "inside" is r^2 < 1. */
+BLI_INLINE Ellipse build_ellipse(const int2 &image_dimensions,
+                                 const float2 &uv_center_norm,
+                                 const float2 &uv_dx_norm,
+                                 const float2 &uv_dy_norm,
+                                 const float &max_factor_between_axes = 8.0f)
 {
-  float dx0 = du.x * image_dimensions.x;
-  float dy0 = du.y * image_dimensions.y;
-  float dx1 = dv.x * image_dimensions.x;
-  float dy1 = dv.y * image_dimensions.y;
+  /* Derivatives in texel units. */
+  float du_dx_texels = uv_dx_norm.x * image_dimensions.x;
+  float dv_dx_texels = uv_dx_norm.y * image_dimensions.y;
+  float du_dy_texels = uv_dy_norm.x * image_dimensions.x;
+  float dv_dy_texels = uv_dy_norm.y * image_dimensions.y;
 
-  if (max_anisotropy > 1.0f) {
-    aniso_clamp(dx0, dy0, dx1, dy1, max_anisotropy);
+  if (max_factor_between_axes > 1.0f) {
+    clamp_anisotropy(
+        du_dx_texels, dv_dx_texels, du_dy_texels, dv_dy_texels, max_factor_between_axes);
   }
 
-  float A = dy0 * dy0 + dy1 * dy1 + 1.0f;
-  float B = -2.0f * (dx0 * dy0 + dx1 * dy1);
-  float C = dx0 * dx0 + dx1 * dx1 + 1.0f;
-  float invF = 1.0f / (A * C - 0.25f * B * B);
-  A *= invF;
-  B *= invF;
-  C *= invF;
+  /* Unnormalized quadratic coefficients (+1 acts like a 1×1 pixel prefilter). */
+  float A = dv_dx_texels * dv_dx_texels + dv_dy_texels * dv_dy_texels + 1.0f;
+  float B = -2.0f * (du_dx_texels * dv_dx_texels + du_dy_texels * dv_dy_texels);
+  float C = du_dx_texels * du_dx_texels + du_dy_texels * du_dy_texels + 1.0f;
 
-  float stx = coordinates.x * image_dimensions.x - 0.5f;
-  float sty = coordinates.y * image_dimensions.y - 0.5f;
+  /* Normalize so that "inside" is r^2 < 1. */
+  const float inv = 1.0f / (A * C - 0.25f * B * B);
 
-  float det = -B * B + 4.0f * A * C;
-  if (det < 0.0f) {
+  /* Degenerative case. */
+  if (!(inv > 0.0f)) {
     return Ellipse{};
   }
-  float invDet = 1.0f / det;
-  float uSqrt = std::sqrt(std::max(0.0f, det * C));
-  float vSqrt = std::sqrt(std::max(0.0f, A * det));
 
-  int s0 = int(std::ceil(stx - 2.0f * invDet * uSqrt));
-  int s1 = int(std::floor(stx + 2.0f * invDet * uSqrt));
-  int t0 = int(std::ceil(sty - 2.0f * invDet * vSqrt));
-  int t1 = int(std::floor(sty + 2.0f * invDet * vSqrt));
-  return {A, B, C, s0, s1, t0, t1, stx, sty, true};
+  A *= inv;
+  B *= inv;
+  C *= inv;
+
+  /* Footprint center in texel coordinates (texel centers at integer + 0.5). */
+  const float texel_center_u = uv_center_norm.x * image_dimensions.x - 0.5f;
+  const float texel_center_v = uv_center_norm.y * image_dimensions.y - 0.5f;
+
+  /* Build tight integer bounding box derived from the quadratic form.
+   * For a conic AΔ u^2 + BΔ u Δv + CΔ v^2 = 1,
+
+   * if B^2 - 4AC < 0 (i.e., conic_discriminant > 0), it is an ellipse,
+   * if B^2 - 4AC = 0, it is parabolic / degenerate,
+   * if B^2 - 4AC > 0, it is hyperbolic (not a valid footprint).
+
+   * Checks conic_discriminant > 0 to ensure we really have an ellipse. */
+  const float conic_discriminant = -B * B + 4.0f * A * C;
+  if (conic_discriminant < 0.0f) {
+    return Ellipse{};
+  }
+
+  const float inv_disc = 1.0f / conic_discriminant;
+  const float u_extent = 2.0f * inv_disc * std::sqrt(std::max(0.0f, conic_discriminant * C));
+  const float v_extent = 2.0f * inv_disc * std::sqrt(std::max(0.0f, A * conic_discriminant));
+
+  const int u_min = static_cast<int>(std::ceil(texel_center_u - u_extent));
+  const int u_max = static_cast<int>(std::floor(texel_center_u + u_extent));
+  const int v_min = static_cast<int>(std::ceil(texel_center_v - v_extent));
+  const int v_max = static_cast<int>(std::floor(texel_center_v + v_extent));
+
+  return {A, B, C, u_min, u_max, v_min, v_max, texel_center_u, texel_center_v, true};
 }
 
-void BLI_ewa_single_level(const int3 &image_dimensions,
-                          const float2 &coordinates,
-                          const float2 &du,
-                          const float2 &dv,
+void BLI_ewa_single_level(const int2 &dimensions,
+                          const float2 &uv_center_norm,
+                          const float2 &uv_dx_norm,
+                          const float2 &uv_dy_norm,
                           const float *buffer,
                           float4 &result,
-                          const float &max_anisotropy,
+                          const float &max_factor_between_axes,
                           const bool &interpolate_lut)
 {
-  const Ellipse E = build_ellipse(image_dimensions.xy(), coordinates, du, dv, max_anisotropy);
-  if (!E.valid) {
+  const Ellipse ellipse = build_ellipse(
+      dimensions, uv_center_norm, uv_dx_norm, uv_dy_norm, max_factor_between_axes);
+  if (!ellipse.valid) {
     result = {0.0f, 0.0f, 0.0f, 0.0f};
     return;
   }
 
-  int s0 = std::max(E.s0, 0), s1 = std::min(E.s1, image_dimensions.x - 1);
-  int t0 = std::max(E.t0, 0), t1 = std::min(E.t1, image_dimensions.y - 1);
-  if (s0 > s1 || t0 > t1) {
+  /* Clip the bbox to image bounds */
+  int u_min = std::max(ellipse.s0, 0);
+  int u_max = std::min(ellipse.s1, dimensions.x - 1);
+  int v_min = std::max(ellipse.t0, 0);
+  int v_max = std::min(ellipse.t1, dimensions.y - 1);
+  if (u_min > u_max || v_min > v_max) {
     result = {0.0f, 0.0f, 0.0f, 0.0f};
     return;
   }
 
-  float4 accum = {0.0f, 0.0f, 0.0f, 0.0f};
-  float wsum = 0.0f;
+  float4 accum_rgba = {0.0f, 0.0f, 0.0f, 0.0f};
+  float accum_weight = 0.0f;
 
-  for (int y = t0; y <= t1; ++y) {
-    float tt = float(y) - E.sty;
+  /* Buffer layout is RGBA, 4 floats per texel. */
+  const int n_channels = 4;
 
-    const float ss0 = float(s0) - E.stx;
-    float r2 = E.A * ss0 * ss0 + E.B * ss0 * tt + E.C * tt * tt;
-    float dR = E.A * (2.0f * ss0 + 1.0f) + E.B * tt;
-    const float ddR = 2.0f * E.A;
+  /* Scanline evaluation with incremental r^2 updates. */
+  for (int v = v_min; v <= v_max; ++v) {
+    const float delta_v = float(v) - ellipse.texel_center_y;
 
-    for (int x = s0; x <= s1; ++x) {
-      if (r2 < 1.0f) {
-        float wt = ewa_weight_bilinear_fade(r2, interpolate_lut);
-        if (wt > 0.0f) {
-          /* z value contains number of channels */
-          const float4 rgba = buffer + (image_dimensions.x * y + x) * image_dimensions.z;
-          accum += wt * rgba;
-          wsum += wt;
+    const float delta_u_start = float(u_min) - ellipse.texel_center_x;
+    float r2_at_pixel = ellipse.A * delta_u_start * delta_u_start +
+                        ellipse.B * delta_u_start * delta_v + ellipse.C * delta_v * delta_v;
+
+    float r2_step_x = ellipse.A * (2.0f * delta_u_start + 1.0f) + ellipse.B * delta_v;
+
+    const float r2_second_derivative_x = 2.0f * ellipse.A;
+
+    for (int u = u_min; u <= u_max; ++u) {
+      if (r2_at_pixel < 1.0f) {
+        const float gauss_weight = ewa_weight_bilinear_fade(r2_at_pixel, interpolate_lut);
+        if (gauss_weight > 0.0f) {
+          const int texel_index = (dimensions.x * v + u) * n_channels;
+          const float4 rgba = buffer + texel_index;
+
+          accum_rgba += gauss_weight * rgba;
+          accum_weight += gauss_weight;
         }
       }
-      r2 += dR;
-      dR += ddR;
+
+      r2_at_pixel += r2_step_x;
+      r2_step_x += r2_second_derivative_x;
     }
   }
 
-  if (wsum > 0.0f) {
-    float inv = 1.0f / wsum;
-    result = accum * inv;
+  if (accum_weight > 0.0f) {
+    result = accum_rgba * (1.0f / accum_weight);
   }
   else {
     result = {0.0f, 0.0f, 0.0f, 0.0f};

@@ -885,12 +885,12 @@ BLI_INLINE_METHOD float4 Result::sample_cubic_extended(const float2 &coordinates
  * Given a Result as the userdata argument, sample it at the given coordinates using extended
  * boundary condition and write the result to the result argument.
  */
-static void sample_ewa_extended_read_callback(void *userdata, int x, int y, float result[4])
-{
-  const Result *input = static_cast<const Result *>(userdata);
-  const float4 sampled_result = input->load_pixel_extended<float4>(int2(x, y));
-  copy_v4_v4(result, sampled_result);
-}
+// static void sample_ewa_extended_read_callback(void *userdata, int x, int y, float result[4])
+// {
+//   const Result *input = static_cast<const Result *>(userdata);
+//   const float4 sampled_result = input->load_pixel_extended<float4>(int2(x, y));
+//   copy_v4_v4(result, sampled_result);
+// }
 
 BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
                                                      const float2 &x_gradient,
@@ -904,7 +904,7 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
     return pixel_value;
   }
 
-  const int3 size = {domain_.size, static_cast<int>(this->channels_count())};
+  const int2 size = domain_.size;
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
   math::BLI_ewa_single_level(size, coordinates, x_gradient, y_gradient, buffer, pixel_value);
   return pixel_value;
@@ -914,12 +914,12 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
  * Given a Result as the userdata argument, sample it at the given coordinates using zero boundary
  * condition and write the result to the result argument.
  */
-static void sample_ewa_zero_read_callback(void *userdata, int x, int y, float result[4])
-{
-  const Result *input = static_cast<const Result *>(userdata);
-  const float4 sampled_result = input->load_pixel_zero<float4>(int2(x, y));
-  copy_v4_v4(result, sampled_result);
-}
+// static void sample_ewa_zero_read_callback(void *userdata, int x, int y, float result[4])
+// {
+//   const Result *input = static_cast<const Result *>(userdata);
+//   const float4 sampled_result = input->load_pixel_zero<float4>(int2(x, y));
+//   copy_v4_v4(result, sampled_result);
+// }
 
 BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
                                                  const float2 &x_gradient,
@@ -933,7 +933,7 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_zero(const float2 &coordinates,
     return pixel_value;
   }
 
-  const int3 size = {domain_.size, static_cast<int>(this->channels_count())};
+  const int2 size = domain_.size;
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
   math::BLI_ewa_single_level(size, coordinates, x_gradient, y_gradient, buffer, pixel_value);
   return pixel_value;
