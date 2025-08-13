@@ -30,4 +30,4 @@ inline static IndexRange load_range_from_buffer(const int (&buf)[], int i)
 
 /* Shader implementation because of missing buffer reference as argument in GLSL. */
 #define offset_indices_load_range_from_buffer(buf_, i_) \
-  IndexRange::from_begin_end(buf_[i_], buf_[i_ + 1]);
+  IndexRange::from_begin_end(buf_[i_], buf_[i_ + 1])

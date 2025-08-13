@@ -259,8 +259,7 @@ struct CurvesInfos {
   uint vertex_per_segment;
   /* Edge count for the visible half cylinder. Equal to face count + 1. */
   uint half_cylinder_face_count;
-  /* True if any curve is cyclic. */
-  bool32_t use_cyclic;
+  uint _pad0;
   uint _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(CurvesInfos, 16)

@@ -21,25 +21,68 @@ void main()
   }
   uint curve_id = gl_GlobalInvocationID.x + uint(curves_start);
 
-  /* This range represent the number of cyclic curves before this curve (start).
-   * The size (0 or 1) is a boolean telling if this curve is cyclic. */
-  IndexRange cyclic_offset = IndexRange(0, 0);
+  bool is_curve_cyclic = false;
   if (use_cyclic) {
-    cyclic_offset = offset_indices::load_range_from_buffer(cyclic_offsets_buf, curve_id);
+    /* This range represent the number of cyclic curves before this curve (start).
+     * The size (0 or 1) is a boolean telling if this curve is cyclic. */
+    /* TODO use boolean buffer. */
+    IndexRange cyclic = offset_indices::load_range_from_buffer(cyclic_offsets_buf, curve_id);
+    is_curve_cyclic = cyclic.size() != 0;
   }
 
   IndexRange points = offset_indices::load_range_from_buffer(evaluated_offsets_buf, curve_id);
-  int index_start = points.start() + cyclic_offset.start();
-  int num_segment = points.size() + cyclic_offset.size();
+  int index_start = points.start();
+  int num_segment = points.size();
+
+  if (use_cyclic) {
+    index_start += int(curve_id);
+    num_segment += 1;
+  }
+
+  constexpr int cyclic_endpoint_pivot = INT_MAX / 2;
+  constexpr int end_of_curve = INT_MAX;
 
   int indirection_index_count = num_segment + (is_ribbon_topology ? 1 : -1);
   index_start += int(is_ribbon_topology ? curve_id : -curve_id);
 
   for (int i = 0; i < indirection_index_count; i++) {
     int value = int((i == 0) ? curve_id : -i);
-    if (i == num_segment) {
-      value = INT_MAX;
+
+    bool is_restart = false;
+    bool is_cyclic_last_segment = false;
+
+    if (use_cyclic) {
+      if (is_ribbon_topology) {
+        is_cyclic_last_segment = i == indirection_index_count - 2;
+        if (is_curve_cyclic) {
+          is_restart = i == indirection_index_count - 1;
+        }
+        else {
+          is_restart = i >= indirection_index_count - 2;
+        }
+      }
+      else {
+        is_cyclic_last_segment = i == indirection_index_count - 1;
+        if (is_curve_cyclic) {
+          is_restart = false;
+        }
+        else {
+          is_restart = i == indirection_index_count - 1;
+        }
+      }
     }
-    indirection_buf[index_start + i] = value;
+    else {
+      if (is_ribbon_topology) {
+        is_restart = i == indirection_index_count - 1;
+      }
+      else {
+        is_restart = false;
+      }
+    }
+
+    indirection_buf[index_start + i] = is_restart ? end_of_curve :
+                                                    (is_cyclic_last_segment ?
+                                                         value - cyclic_endpoint_pivot :
+                                                         value);
   }
 }

@@ -192,7 +192,10 @@ struct CurvesEvalCache {
                                        const bke::CurvesGeometry &curves,
                                        int face_per_segment);
 
-  gpu::Batch *batch_get(int evaluated_point_count, int curve_count, int face_per_segment);
+  gpu::Batch *batch_get(int evaluated_point_count,
+                        int curve_count,
+                        int face_per_segment,
+                        bool use_cyclic);
 
   void discard_attributes();
   void clear();

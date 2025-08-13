@@ -35,7 +35,7 @@ struct Segment {
   /* Vertex index inside this segment. */
   uint v_idx;
   /* Restart triangle strip if true. Only for cylinder topology. */
-  bool end_of_segment;
+  bool is_end_of_segment;
 };
 
 /* Indirection buffer indexing. */
@@ -45,8 +45,8 @@ Segment segment_get(uint vertex_id)
   Segment segment;
   segment.id = vertex_id / drw_curves.vertex_per_segment;
   segment.v_idx = vertex_id % drw_curves.vertex_per_segment;
-  segment.end_of_segment = is_cylinder && (segment.v_idx == drw_curves.vertex_per_segment - 1);
-  if (is_cylinder && !segment.end_of_segment && (segment.id & 1u) == 0u) {
+  segment.is_end_of_segment = is_cylinder && (segment.v_idx == drw_curves.vertex_per_segment - 1);
+  if (is_cylinder && !segment.is_end_of_segment && (segment.id & 1u) == 0u) {
     /* The topology is not actually restarted and the winding order changes (because we skip an odd
      * number of triangle). So we have to manually reverse the winding so that is stays consistent.
      */
@@ -56,34 +56,59 @@ Segment segment_get(uint vertex_id)
 }
 
 struct Indirection {
-  /* Can be equal to 0x7FFFFFFF with ribbon draw type. */
+  /* Can be equal to INT_MAX with ribbon draw type. */
   int curve_id;
   /* Segment ID starting at 0 at curve start. */
   int curve_segment;
   /* Restart triangle strip if true. Only for ribbon topology. */
-  bool end_of_curve;
+  bool is_end_of_curve;
+  /* Does these vertices correspond to the last point of a cyclic curve (duplicate of start). */
+  bool is_cyclic_point;
 };
 
 Indirection indirection_get(Segment segment)
 {
   Indirection ind;
-  ind.curve_id = texelFetch(curves_indirection_buf, int(segment.id)).r;
+  ind.is_cyclic_point = false;
+  ind.is_end_of_curve = false;
+  ind.curve_id = 0;
 
-  if (ind.curve_id > 0) {
-    /* This is start or end of curve. */
+  constexpr int cyclic_endpoint_pivot = INT_MAX / 2;
+  constexpr int end_of_curve = INT_MAX;
+
+  int indirection_value = texelFetch(curves_indirection_buf, int(segment.id)).r;
+  if (indirection_value == end_of_curve) {
     ind.curve_segment = 0;
+    ind.is_end_of_curve = true;
+  }
+  else if (indirection_value >= 0) {
+    /* This is start of curve. The indirection value is the curve ID. */
+    ind.curve_segment = 0;
+    ind.curve_id = indirection_value;
+  }
+  else if (indirection_value <= -cyclic_endpoint_pivot) {
+    /* This is the last segment of a cyclic curve. The indirection value is the offset to the start
+     * of the curve offsetted by cyclic_endpoint_pivot. */
+    ind.curve_segment = -indirection_value - cyclic_endpoint_pivot;
+    ind.is_cyclic_point = true;
   }
   else {
-    ind.curve_segment = -ind.curve_id;
-    ind.curve_id = texelFetch(curves_indirection_buf, int(segment.id) + ind.curve_id).r;
+    /* This is a normal segment. The indirection value is the offset to the start of the curve. */
+    ind.curve_segment = -indirection_value;
   }
 
-  constexpr int end_of_curve = 0x7FFFFFFF;
-  ind.end_of_curve = ind.curve_id == end_of_curve;
+  if (ind.curve_segment != 0) {
+    ind.curve_id = texelFetch(curves_indirection_buf, int(segment.id) - ind.curve_segment).r;
+  }
 
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
   if (is_cylinder) {
-    ind.curve_segment += int(segment.v_idx & 1u);
+    bool is_end_of_segment = (segment.v_idx & 1u) != 0u;
+    ind.curve_segment += int(is_end_of_segment);
+    /* Only the end of the segment is to be considered the cyclic point. */
+    if (!is_end_of_segment) {
+      ind.is_cyclic_point = false;
+    }
   }
   return ind;
 }
@@ -92,11 +117,9 @@ int point_id_get(Segment segment, Indirection indirection)
 {
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
   if (is_cylinder) {
-    return int(segment.id) +
-           (drw_curves.use_cyclic ? indirection.curve_id * 2 : indirection.curve_id) +
-           int(segment.v_idx & 1u);
+    return int(segment.id) + indirection.curve_id + int(segment.v_idx & 1u);
   }
-  return int(segment.id) - (drw_curves.use_cyclic ? 0 : indirection.curve_id);
+  return int(segment.id) - indirection.curve_id;
 }
 
 float azimuthal_offset_get(Segment segment)
@@ -154,7 +177,7 @@ Point point_get(uint vertex_id)
 
   float4 pos_rad = point_position_and_radius_get(pt.point_id);
 
-  bool restart_strip = indirection.end_of_curve || segment.end_of_segment;
+  bool restart_strip = indirection.is_end_of_curve || segment.is_end_of_segment;
   pt.P = (restart_strip) ? float3(NAN_FLT) : pos_rad.xyz;
   pt.radius = pos_rad.w;
   pt.azimuthal_offset = azimuthal_offset_get(segment);
@@ -162,6 +185,10 @@ Point point_get(uint vertex_id)
   if (pt.curve_segment == 0) {
     /* Hair root. */
     pt.T = point_position_get(pt.point_id + 1) - pt.P;
+  }
+  else if (indirection.is_cyclic_point) {
+    /* Cyclic end point must match start point. */
+    pt.T = point_position_get(pt.point_id - pt.curve_segment + 1) - pt.P;
   }
   else {
     pt.T = pt.P - point_position_get(pt.point_id - 1);

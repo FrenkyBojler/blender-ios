@@ -229,7 +229,7 @@ void evaluate_curve(const InterpType interp_type,
                     const int curve_index)
 {
   const uint curve_resolution = curves_resolution_buf[curve_index];
-  const bool is_curve_cyclic = cyclic_offsets_load(curve_index).size() > 0;
+  const bool is_curve_cyclic = use_cyclic;
 
   for (uint i = 0; i < evaluated_points.size(); i++) {
     const int evaluated_point_id = evaluated_points.start() + int(i);
@@ -475,7 +475,8 @@ template<typename InterpType> void evaluate_curve(const InterpType interp_type)
       evaluated_points_by_curve_buf, curve_index);
 
   if (use_cyclic) {
-    evaluated_points = evaluated_points.shift(curve_index);
+    evaluated_points = IndexRange(evaluated_points.start() + curve_index,
+                                  evaluated_points.size() + 1);
   }
 
   if (CurveType(evaluated_type) == CURVE_TYPE_CATMULL_ROM) {

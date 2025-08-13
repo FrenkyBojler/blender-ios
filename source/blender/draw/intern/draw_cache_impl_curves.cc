@@ -818,7 +818,8 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
 
 gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
                                        const int curve_count,
-                                       const int face_per_segment)
+                                       const int face_per_segment,
+                                       const bool use_cyclic)
 {
   gpu::Batch *&batch = this->batch[face_per_segment];
   if (batch) {
@@ -827,15 +828,26 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
 
   if (face_per_segment == 0) {
     /* Add one point per curve to restart the primitive. */
-    batch = GPU_batch_create_procedural(GPU_PRIM_LINE_STRIP, evaluated_point_count + curve_count);
+    int segment_count = evaluated_point_count + curve_count;
+    if (use_cyclic) {
+      segment_count += curve_count;
+    }
+    batch = GPU_batch_create_procedural(GPU_PRIM_LINE_STRIP, segment_count);
   }
   else if (face_per_segment == 1) {
     /* Add one point per curve to restart the primitive. */
-    batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP,
-                                        (evaluated_point_count + curve_count) * 2);
+    int segment_count = evaluated_point_count + curve_count;
+    if (use_cyclic) {
+      segment_count += curve_count;
+    }
+    /* Add one point per curve to restart the primitive. */
+    batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, segment_count * 2);
   }
   else if (face_per_segment >= 2) {
     int segment_count = evaluated_point_count - curve_count;
+    if (use_cyclic) {
+      segment_count += curve_count;
+    }
     /* Add one vertex per segment to restart the primitive. */
     int vert_per_segment = (face_per_segment + 1) * 2 + 1;
     batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, segment_count * vert_per_segment);

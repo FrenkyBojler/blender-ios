@@ -110,6 +110,9 @@ gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_coun
                                                             bool has_cyclic)
 {
   int element_count = is_ribbon ? (point_count + curve_count) : (point_count - curve_count);
+  if (has_cyclic) {
+    element_count += curve_count;
+  }
   gpu::VertBufPtr indirection_buf = gpu::VertBuf::new_device_only<int>(element_count);
 
   PassSimple::Sub &pass = refine.sub("Topology");
@@ -440,7 +443,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
 
   if (curves.curves_num() == 0) {
     /* Nothing to draw. Just return an empty drawcall that will be skipped. */
-    return curves_cache.batch_get(0, 0, face_per_segment);
+    return curves_cache.batch_get(0, 0, face_per_segment, false);
   }
 
   CurvesModule &module = *drw_get().data->curves_module;
@@ -457,8 +460,10 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   curves_bind_resources(
       sub_ps, module, curves_cache, face_per_segment, gpu_material, indirection_buf, uv_name);
 
-  return curves_cache.batch_get(
-      curves.evaluated_points_num(), curves.curves_num(), face_per_segment);
+  return curves_cache.batch_get(curves.evaluated_points_num(),
+                                curves.curves_num(),
+                                face_per_segment,
+                                curves.cyclic_offsets().has_value());
 }
 
 gpu::Batch *curves_sub_pass_setup(PassMain::Sub &ps,
