@@ -99,7 +99,7 @@ class Manager {
    * List of textures coming from Image data-blocks.
    * They need to be reference-counted in order to avoid being freed in another thread.
    */
-  Vector<GPUTexture *> acquired_textures;
+  Vector<gpu::Texture *> acquired_textures;
 
  private:
   /** Number of sync done by managers. Used for fingerprint. */
@@ -283,7 +283,7 @@ class Manager {
    * Will acquire the texture using ref counting and release it after drawing. To be used for
    * texture coming from blender Image.
    */
-  void acquire_texture(GPUTexture *texture)
+  void acquire_texture(gpu::Texture *texture)
   {
     GPU_texture_ref(texture);
     acquired_textures.append(texture);
@@ -324,9 +324,11 @@ inline ResourceHandleRange Manager::unique_handle(const ObjectRef &ref)
 inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float inflate_bounds)
 {
   bool is_active_object = ref.is_active(object_active);
+  bool is_edit_mode = object_active && DRW_object_is_in_edit_mode(object_active) &&
+                      ref.object->mode == object_active->mode;
   matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object);
   bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object, inflate_bounds);
-  infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
+  infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object, is_edit_mode);
   return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
@@ -335,6 +337,9 @@ inline ResourceHandle Manager::resource_handle(const ObjectRef &ref,
                                                const float3 *bounds_center,
                                                const float3 *bounds_half_extent)
 {
+  bool is_active_object = ref.is_active(object_active);
+  bool is_edit_mode = object_active && DRW_object_is_in_edit_mode(object_active) &&
+                      ref.object->mode == object_active->mode;
   if (model_matrix) {
     matrix_buf.current().get_or_resize(resource_len_).sync(*model_matrix);
   }
@@ -347,7 +352,7 @@ inline ResourceHandle Manager::resource_handle(const ObjectRef &ref,
   else {
     bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object);
   }
-  infos_buf.current().get_or_resize(resource_len_).sync(ref, ref.is_active(object_active));
+  infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object, is_edit_mode);
   return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
@@ -372,9 +377,12 @@ inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix,
 inline ResourceHandle Manager::resource_handle_for_psys(const ObjectRef &ref,
                                                         const float4x4 &model_matrix)
 {
+  bool is_active_object = ref.is_active(object_active);
+  bool is_edit_mode = object_active && DRW_object_is_in_edit_mode(object_active) &&
+                      ref.object->mode == object_active->mode;
   matrix_buf.current().get_or_resize(resource_len_).sync(model_matrix);
   bounds_buf.current().get_or_resize(resource_len_).sync();
-  infos_buf.current().get_or_resize(resource_len_).sync(ref, ref.is_active(object_active));
+  infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object, is_edit_mode);
   return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 

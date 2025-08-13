@@ -334,7 +334,7 @@ extern GHOST_TSuccess GHOST_HasCursorShape(GHOST_WindowHandle windowhandle,
  * \param mask: The mask for 1bpp cursor, nullptr if RGBA cursor.
  * \param size: The width & height of the cursor.
  * \param hot_spot: The X,Y coordinates of the cursor hot-spot.
- * \param canInvertColor: Let macOS invert cursor color to match platform convention.
+ * \param can_invert_color: Let the cursor colors be inverted to match platform convention.
  * \return Indication of success.
  */
 extern GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle,
@@ -342,7 +342,19 @@ extern GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle
                                                  const uint8_t *mask,
                                                  const int size[2],
                                                  const int hot_spot[2],
-                                                 bool canInvertColor);
+                                                 bool can_invert_color);
+/**
+ * Set a cursor "generator", allowing the GHOST back-end to dynamically
+ * generate cursors at different sizes as needed, depending on the monitor DPI.
+ *
+ * \param cursor_generator: An object which generates cursors.
+ * Ownership is transferred to GHOST which is responsible for calling it's free method.
+ *
+ * The capability flag: #GHOST_kCapabilityCursorGenerator should be checked,
+ * otherwise this call is a no-op.
+ */
+extern GHOST_TSuccess GHOST_SetCustomCursorGenerator(GHOST_WindowHandle windowhandle,
+                                                     GHOST_CursorGenerator *cursor_generator);
 
 extern GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
                                             GHOST_CursorBitmapRef *bitmap);
@@ -543,7 +555,7 @@ extern GHOST_TSuccess GHOST_SetDrawingContextType(GHOST_WindowHandle windowhandl
                                                   GHOST_TDrawingContextType type);
 
 /**
- * Returns the drawing context used in the this window.
+ * Returns the drawing context used by this window.
  * \param windowhandle: The handle to the window.
  * \return The window drawing context.
  */
@@ -926,7 +938,7 @@ extern GHOST_TSuccess GHOST_ClipRectangle(GHOST_RectangleHandle rectanglehandle,
 /**
  * Return the data from the clipboard
  * \param selection: Boolean to return the selection instead.
- * The capability flag: #GHOST_kCapabilityPrimaryClipboard can be used to check for supported.
+ * The capability flag: #GHOST_kCapabilityClipboardPrimary can be used to check for supported.
  * \return clipboard data
  */
 extern char *GHOST_getClipboard(bool selection);
@@ -1276,19 +1288,19 @@ int GHOST_XrGetControllerModelData(GHOST_XrContextHandle xr_context,
 void GHOST_GetVulkanHandles(GHOST_ContextHandle context, GHOST_VulkanHandles *r_handles);
 
 /**
- * Set the pre and post callbacks for vulkan swap chain in the given context.
+ * Set the pre and post callbacks for vulkan swap-chain in the given context.
  *
  * \param context: GHOST context handle of a vulkan context to
  *     get the Vulkan handles from.
  * \param swap_buffers_pre_callback: Function pointer to be called at the beginning of swapBuffers.
- *     Inside this callback the next swap chain image needs to be acquired and filled.
+ *     Inside this callback the next swap-chain image needs to be acquired and filled.
  * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers. swapBuffers
- *     can recreate the swap chain. When this is done the application should be informed by those
+ *     can recreate the swap-chain. When this is done the application should be informed by those
  *     changes.
  * \param openxr_acquire_image_callback: Function to be called when an image needs to be acquired
- *     to be drawn to an OpenXR swap chain.
+ *     to be drawn to an OpenXR swap-chain.
  * \param openxr_release_image_callback: Function to be called after an image has been drawn to the
- *     OpenXR swap chain.
+ *     OpenXR swap-chain.
  */
 void GHOST_SetVulkanSwapBuffersCallbacks(
     GHOST_ContextHandle context,
@@ -1298,7 +1310,7 @@ void GHOST_SetVulkanSwapBuffersCallbacks(
     void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *));
 
 /**
- * Acquire the current swap chain format.
+ * Acquire the current swap-chain format.
  *
  * \param windowhandle:  GHOST window handle to a window to get the resource from.
  * \param r_surface_format: After calling this function the VkSurfaceFormatKHR

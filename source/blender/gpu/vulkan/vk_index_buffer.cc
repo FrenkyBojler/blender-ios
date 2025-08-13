@@ -27,6 +27,10 @@ void VKIndexBuffer::ensure_updated()
 
   if (!buffer_.is_allocated()) {
     allocate();
+    if (!buffer_.is_allocated()) {
+      CLOG_ERROR(&LOG, "Unable to allocate index buffer. Most likely an out of memory issue.");
+      return;
+    }
   }
 
   if (data_ == nullptr) {
@@ -109,7 +113,8 @@ void VKIndexBuffer::allocate()
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  VkMemoryPropertyFlags(0),
-                 VmaAllocationCreateFlags(0));
+                 VmaAllocationCreateFlags(0),
+                 0.8f);
   debug::object_label(buffer_.vk_handle(), "IndexBuffer");
 }
 

@@ -515,6 +515,24 @@ eGPUBackendType GPU_backend_get_type()
   return GPU_BACKEND_NONE;
 }
 
+const char *GPU_backend_get_name()
+{
+  switch (GPU_backend_get_type()) {
+    case GPU_BACKEND_OPENGL:
+      return "OpenGL";
+    case GPU_BACKEND_VULKAN:
+      return "Vulkan";
+    case GPU_BACKEND_METAL:
+      return "Metal";
+    case GPU_BACKEND_NONE:
+      return "None";
+    case GPU_BACKEND_ANY:
+      break;
+  }
+
+  return "Unknown";
+}
+
 GPUBackend *GPUBackend::get()
 {
   return g_backend;
@@ -573,6 +591,9 @@ GPUSecondaryContext::GPUSecondaryContext()
   /* Create a Ghost GPU Context using the system handle. */
   ghost_context_ = GHOST_CreateGPUContext(ghost_system, gpu_settings);
   BLI_assert(ghost_context_);
+
+  /* Activate it so GPU_context_create has a valid device for info queries. */
+  GHOST_ActivateGPUContext(reinterpret_cast<GHOST_ContextHandle>(ghost_context_));
 
   /* Create a GPU context for the secondary thread to use. */
   gpu_context_ = GPU_context_create(nullptr, ghost_context_);

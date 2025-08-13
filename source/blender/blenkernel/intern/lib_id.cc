@@ -48,7 +48,6 @@
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
@@ -84,7 +83,7 @@ using blender::Vector;
 
 using namespace blender::bke::id;
 
-static CLG_LogRef LOG = {"bke.lib_id"};
+static CLG_LogRef LOG = {"lib.id"};
 
 IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     /*id_code*/ ID_LINK_PLACEHOLDER,
@@ -148,7 +147,7 @@ static bool lib_id_library_local_paths_callback(BPathForeachPathData *bpath_data
   if (BLI_path_abs(filepath, base_old)) {
     /* Path was relative and is now absolute. Remap.
      * Important BLI_path_normalize runs before the path is made relative
-     * because it won't work for paths that start with "//../" */
+     * because it won't work for paths that start with `//../` */
     BLI_path_normalize(filepath);
     BLI_path_rel(filepath, base_new);
     BLI_strncpy(path_dst, filepath, path_dst_maxncpy);
@@ -1723,27 +1722,14 @@ ID *BKE_libblock_find_name_and_library(Main *bmain,
                                        const char *name,
                                        const char *lib_name)
 {
-  ListBase *lb = which_libbase(bmain, type);
-  BLI_assert(lb != nullptr);
-  LISTBASE_FOREACH (ID *, id, lb) {
-    if (!STREQ(BKE_id_name(*id), name)) {
-      continue;
-    }
-    if (lib_name == nullptr || lib_name[0] == '\0') {
-      if (id->lib == nullptr) {
-        return id;
-      }
-      return nullptr;
-    }
-    if (id->lib == nullptr) {
-      return nullptr;
-    }
-    if (!STREQ(BKE_id_name(id->lib->id), lib_name)) {
-      continue;
-    }
-    return id;
+  const bool is_linked = (lib_name && lib_name[0] != '\0');
+  Library *library = is_linked ? reinterpret_cast<Library *>(
+                                     BKE_libblock_find_name(bmain, ID_LI, lib_name, nullptr)) :
+                                 nullptr;
+  if (is_linked && !library) {
+    return nullptr;
   }
-  return nullptr;
+  return BKE_libblock_find_name(bmain, type, name, library);
 }
 
 ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
@@ -1751,20 +1737,22 @@ ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
                                                 const char *name,
                                                 const char *lib_filepath_abs)
 {
-  ListBase *lb = which_libbase(bmain, type);
-  BLI_assert(lb != nullptr);
-  LISTBASE_FOREACH (ID *, id, lb) {
-    if (!STREQ(BKE_id_name(*id), name)) {
-      continue;
+  const bool is_linked = (lib_filepath_abs && lib_filepath_abs[0] != '\0');
+  Library *library = nullptr;
+  if (is_linked) {
+    const ListBase *lb = which_libbase(bmain, ID_LI);
+    LISTBASE_FOREACH (ID *, id_iter, lb) {
+      Library *lib_iter = reinterpret_cast<Library *>(id_iter);
+      if (STREQ(lib_iter->runtime->filepath_abs, lib_filepath_abs)) {
+        library = lib_iter;
+        break;
+      }
     }
-    if (id->lib == nullptr && lib_filepath_abs == nullptr) {
-      return id;
-    }
-    if (id->lib && lib_filepath_abs && STREQ(id->lib->runtime->filepath_abs, lib_filepath_abs)) {
-      return id;
+    if (!library) {
+      return nullptr;
     }
   }
-  return nullptr;
+  return BKE_libblock_find_name(bmain, type, name, library);
 }
 
 void id_sort_by_name(ListBase *lb, ID *id, ID *id_sorting_hint)

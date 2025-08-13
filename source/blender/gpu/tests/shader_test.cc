@@ -37,12 +37,17 @@ static void test_shader_compute_2d()
   static constexpr uint SIZE = 512;
 
   /* Build compute shader. */
-  GPUShader *shader = GPU_shader_create_from_info_name("gpu_compute_2d_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_compute_2d_test");
   EXPECT_NE(shader, nullptr);
 
   /* Create texture to store result and attach to shader. */
-  GPUTexture *texture = GPU_texture_create_2d(
-      "gpu_shader_compute_2d", SIZE, SIZE, 1, GPU_RGBA32F, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+  blender::gpu::Texture *texture = GPU_texture_create_2d("gpu_shader_compute_2d",
+                                                         SIZE,
+                                                         SIZE,
+                                                         1,
+                                                         TextureFormat::SFLOAT_32_32_32_32,
+                                                         GPU_TEXTURE_USAGE_GENERAL,
+                                                         nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);
@@ -76,12 +81,16 @@ static void test_shader_compute_1d()
   static constexpr uint SIZE = 10;
 
   /* Build compute shader. */
-  GPUShader *shader = GPU_shader_create_from_info_name("gpu_compute_1d_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_compute_1d_test");
   EXPECT_NE(shader, nullptr);
 
   /* Construct Texture. */
-  GPUTexture *texture = GPU_texture_create_1d(
-      "gpu_shader_compute_1d", SIZE, 1, GPU_RGBA32F, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+  blender::gpu::Texture *texture = GPU_texture_create_1d("gpu_shader_compute_1d",
+                                                         SIZE,
+                                                         1,
+                                                         TextureFormat::SFLOAT_32_32_32_32,
+                                                         GPU_TEXTURE_USAGE_GENERAL,
+                                                         nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);
@@ -118,7 +127,7 @@ static void test_shader_compute_vbo()
   static constexpr uint SIZE = 128;
 
   /* Build compute shader. */
-  GPUShader *shader = GPU_shader_create_from_info_name("gpu_compute_vbo_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_compute_vbo_test");
   EXPECT_NE(shader, nullptr);
   GPU_shader_bind(shader);
 
@@ -158,7 +167,7 @@ static void test_shader_compute_ibo()
   static constexpr uint SIZE = 128;
 
   /* Build compute shader. */
-  GPUShader *shader = GPU_shader_create_from_info_name("gpu_compute_ibo_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_compute_ibo_test");
   EXPECT_NE(shader, nullptr);
   GPU_shader_bind(shader);
 
@@ -192,12 +201,12 @@ static void test_shader_compute_ssbo()
   static constexpr uint SIZE = 128;
 
   /* Build compute shader. */
-  GPUShader *shader = GPU_shader_create_from_info_name("gpu_compute_ssbo_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_compute_ssbo_test");
   EXPECT_NE(shader, nullptr);
   GPU_shader_bind(shader);
 
   /* Construct SSBO. */
-  GPUStorageBuf *ssbo = GPU_storagebuf_create_ex(
+  StorageBuf *ssbo = GPU_storagebuf_create_ex(
       SIZE * sizeof(uint32_t), nullptr, GPU_USAGE_DEVICE_ONLY, __func__);
   GPU_storagebuf_bind(ssbo, GPU_shader_get_ssbo_binding(shader, "data_out"));
 
@@ -225,7 +234,7 @@ GPU_TEST(shader_compute_ssbo)
 static void test_shader_ssbo_binding()
 {
   /* Build compute shader. */
-  GPUShader *shader = GPU_shader_create_from_info_name("gpu_compute_ssbo_binding_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_compute_ssbo_binding_test");
   EXPECT_NE(shader, nullptr);
 
   /* Perform tests. */
@@ -344,7 +353,7 @@ static void gpu_shader_lib_test(const char *test_src_name, const char *additiona
 
   StringRefNull test_src = gpu_shader_dependency_get_source(test_src_name);
 
-  GPUShader *shader = GPU_shader_create_from_info(
+  gpu::Shader *shader = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
 
   int test_count = 0;
@@ -359,21 +368,16 @@ static void gpu_shader_lib_test(const char *test_src_name, const char *additiona
   int test_output_px_len = divide_ceil_u(sizeof(TestOutput), 4 * 4);
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
-  GPUTexture *tex = GPU_texture_create_2d(
-      "tx", test_output_px_len, test_count, 1, GPU_RGBA32UI, usage, nullptr);
+  blender::gpu::Texture *tex = GPU_texture_create_2d(
+      "tx", test_output_px_len, test_count, 1, TextureFormat::UINT_32_32_32_32, usage, nullptr);
   GPUFrameBuffer *fb = GPU_framebuffer_create("test_fb");
   GPU_framebuffer_ensure_config(&fb, {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(tex)});
   GPU_framebuffer_bind(fb);
 
-  /* TODO(fclem): remove this boilerplate. */
-  GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, "dummy", VertAttrType::UINT_32);
-  VertBuf *verts = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(*verts, 3);
-  Batch *batch = GPU_batch_create_ex(GPU_PRIM_TRIS, verts, nullptr, GPU_BATCH_OWNS_VBO);
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
 
   GPU_batch_set_shader(batch, shader);
-  GPU_batch_draw_advanced(batch, 0, 3, 0, 1);
+  GPU_batch_draw(batch);
 
   GPU_batch_discard(batch);
 

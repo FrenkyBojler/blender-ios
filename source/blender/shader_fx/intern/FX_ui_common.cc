@@ -7,7 +7,7 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -53,7 +53,7 @@ static void shaderfx_reorder(bContext *C, Panel *panel, int new_index)
   WM_operator_properties_create_ptr(&props_ptr, ot);
   RNA_string_set(&props_ptr, "shaderfx", fx->name);
   RNA_int_set(&props_ptr, "index", new_index);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
   WM_operator_properties_free(&props_ptr);
 }
 
@@ -117,7 +117,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
   Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_ShaderFx, fx);
   layout->context_ptr_set("shaderfx", &ptr);
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
   layout->ui_units_x_set(4.0f);
 
@@ -133,7 +133,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
   op_ptr = row->op("OBJECT_OT_shaderfx_move_to_index",
                    IFACE_("Move to First"),
                    ICON_TRIA_UP,
-                   WM_OP_INVOKE_DEFAULT,
+                   blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
   if (!fx->prev) {
@@ -145,7 +145,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
   op_ptr = row->op("OBJECT_OT_shaderfx_move_to_index",
                    IFACE_("Move to Last"),
                    ICON_TRIA_DOWN,
-                   WM_OP_INVOKE_DEFAULT,
+                   blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->shader_fx) - 1);
   if (!fx->next) {
@@ -217,9 +217,9 @@ PanelType *shaderfx_panel_register(ARegionType *region_type, ShaderFxType type, 
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BKE_shaderfxType_panel_id(type, panel_type->idname);
-  STRNCPY(panel_type->label, "");
-  STRNCPY(panel_type->context, "shaderfx");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(panel_type->label, "");
+  STRNCPY_UTF8(panel_type->context, "shaderfx");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 
   panel_type->draw_header = shaderfx_panel_header;
   panel_type->draw = draw;
@@ -247,17 +247,17 @@ PanelType *shaderfx_subpanel_register(ARegionType *region_type,
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
-  SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);
-  STRNCPY(panel_type->label, label);
-  STRNCPY(panel_type->context, "shaderfx");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  SNPRINTF_UTF8(panel_type->idname, "%s_%s", parent->idname, name);
+  STRNCPY_UTF8(panel_type->label, label);
+  STRNCPY_UTF8(panel_type->context, "shaderfx");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 
   panel_type->draw_header = draw_header;
   panel_type->draw = draw;
   panel_type->poll = shaderfx_ui_poll;
   panel_type->flag = PANEL_TYPE_DEFAULT_CLOSED;
 
-  STRNCPY(panel_type->parent_id, parent->idname);
+  STRNCPY_UTF8(panel_type->parent_id, parent->idname);
   panel_type->parent = parent;
   BLI_addtail(&parent->children, BLI_genericNodeN(panel_type));
   BLI_addtail(&region_type->paneltypes, panel_type);

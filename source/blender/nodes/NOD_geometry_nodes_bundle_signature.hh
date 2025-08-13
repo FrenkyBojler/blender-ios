@@ -4,26 +4,41 @@
 
 #pragma once
 
-#include "BKE_node.hh"
+#include "BLI_vector_set.hh"
 
-#include "NOD_socket_interface_key.hh"
+#include "BKE_node.hh"
 
 namespace blender::nodes {
 
 struct BundleSignature {
+
   struct Item {
-    SocketInterfaceKey key;
+    std::string key;
     const bke::bNodeSocketType *type = nullptr;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->key);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_1(Item, key)
   };
 
-  Vector<Item> items;
+  struct ItemKeyGetter {
+    std::string operator()(const Item &item)
+    {
+      return item.key;
+    }
+  };
+
+  CustomIDVectorSet<Item, ItemKeyGetter> items;
 
   bool matches_exactly(const BundleSignature &other) const;
 
   static bool all_matching_exactly(const Span<BundleSignature> signatures);
 
-  static BundleSignature FromCombineBundleNode(const bNode &node);
-  static BundleSignature FromSeparateBundleNode(const bNode &node);
+  static BundleSignature from_combine_bundle_node(const bNode &node);
+  static BundleSignature from_separate_bundle_node(const bNode &node);
 };
 
 }  // namespace blender::nodes

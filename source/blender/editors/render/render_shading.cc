@@ -187,10 +187,7 @@ static bool material_slot_populated_poll(bContext *C)
   if (ob_active == nullptr) {
     return false;
   }
-  if (ob_active->actcol <= 0) {
-    return false;
-  }
-  return true;
+  return ob_active->actcol > 0;
 }
 /** \} */
 
@@ -986,7 +983,6 @@ static wmOperatorStatus new_world_exec(bContext *C, wmOperator * /*op*/)
   else {
     wo = BKE_world_add(bmain, CTX_DATA_(BLT_I18NCONTEXT_ID_WORLD, "World"));
     ED_node_shader_default(C, &wo->id);
-    wo->use_nodes = true;
   }
 
   /* hook into UI */
@@ -1542,7 +1538,7 @@ static wmOperatorStatus lightprobe_cache_bake_invoke(bContext *C,
       wm, win, bmain, view_layer, scene, probes, data->report, scene->r.cfra, 0);
   if (wm_job == nullptr) {
     MEM_delete(data);
-    BKE_report(op->reports, RPT_WARNING, "Can't bake light probe while rendering");
+    BKE_report(op->reports, RPT_WARNING, "Cannot bake light probe while rendering");
     return OPERATOR_CANCELLED;
   }
 
