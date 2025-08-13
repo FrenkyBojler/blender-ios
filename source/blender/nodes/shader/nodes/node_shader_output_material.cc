@@ -10,8 +10,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Shader>("Surface");
   b.add_input<decl::Shader>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
-  b.add_input<decl::Vector>("Displacement").hide_value();
-  b.add_input<decl::Float>("Thickness").hide_value();
+  b.add_input<decl::Vector>("Displacement").has_implicit_default();
+  b.add_input<decl::Float>("Thickness").has_implicit_default();
 }
 
 static int node_shader_gpu_output_material(GPUMaterial *mat,

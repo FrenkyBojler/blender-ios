@@ -17,7 +17,7 @@ namespace blender::nodes::node_shader_tex_environment_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Vector").hide_value();
+  b.add_input<decl::Vector>("Vector").has_implicit_default();
   b.add_output<decl::Color>("Color").no_muted_links();
 }
 

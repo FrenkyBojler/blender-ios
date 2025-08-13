@@ -20,7 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "higher values push the surface outwards");
   b.add_input<decl::Float>("Scale").default_value(0.01f).min(0.0f).max(1000.0f).description(
       "Increase or decrease the amount of displacement");
-  b.add_input<decl::Vector>("Normal").hide_value();
+  b.add_input<decl::Vector>("Normal").has_implicit_default();
   b.add_output<decl::Vector>("Displacement");
 }
 

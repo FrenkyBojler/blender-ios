@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Float>("IOR").default_value(1.5f).min(0.0f).max(1000.0f);
-  b.add_input<decl::Vector>("Normal").hide_value();
+  b.add_input<decl::Vector>("Normal").has_implicit_default();
   b.add_input<decl::Float>("Weight").available(false);
 
   PanelDeclarationBuilder &film = b.add_panel("Thin Film").default_closed(true);

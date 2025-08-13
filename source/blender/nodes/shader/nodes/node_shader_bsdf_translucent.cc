@@ -9,7 +9,7 @@ namespace blender::nodes::node_shader_bsdf_translucent_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Color").default_value({0.8f, 0.8f, 0.8f, 1.0f});
-  b.add_input<decl::Vector>("Normal").hide_value();
+  b.add_input<decl::Vector>("Normal").has_implicit_default();
   b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("BSDF");
 }

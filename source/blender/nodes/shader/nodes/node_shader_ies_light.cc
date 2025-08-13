@@ -14,7 +14,7 @@ namespace blender::nodes::node_shader_ies_light_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Vector").hide_value();
+  b.add_input<decl::Vector>("Vector").has_implicit_default();
   b.add_input<decl::Float>("Strength")
       .default_value(1.0f)
       .min(0.0f)

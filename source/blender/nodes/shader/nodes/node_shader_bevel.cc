@@ -12,7 +12,7 @@ namespace blender::nodes::node_shader_bevel_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Float>("Radius").default_value(0.05f).min(0.0f).max(1000.0f);
-  b.add_input<decl::Vector>("Normal").hide_value();
+  b.add_input<decl::Vector>("Normal").has_implicit_default();
   b.add_output<decl::Vector>("Normal");
 }
 

@@ -9,7 +9,7 @@ namespace blender::nodes::node_shader_layer_weight_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Float>("Blend").default_value(0.5f).min(0.0f).max(1.0f);
-  b.add_input<decl::Vector>("Normal").hide_value();
+  b.add_input<decl::Vector>("Normal").has_implicit_default();
   b.add_output<decl::Float>("Fresnel");
   b.add_output<decl::Float>("Facing");
 }

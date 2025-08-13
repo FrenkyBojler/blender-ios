@@ -96,7 +96,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .description("Vary roughness values for each strand");
-  b.add_input<decl::Float>("Random").hide_value();
+  b.add_input<decl::Float>("Random").has_implicit_default();
   b.add_input<decl::Float>("Weight").available(false);
   b.add_input<decl::Float>("Reflection", "R lobe")
       .default_value(1.0f)

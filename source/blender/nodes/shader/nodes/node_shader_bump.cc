@@ -52,7 +52,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .description("Height above surface. Connect the height map texture to this input");
 #define SOCK_NORMAL_ID 4
-  b.add_input<decl::Vector>("Normal").min(-1.0f).max(1.0f).hide_value();
+  b.add_input<decl::Vector>("Normal").min(-1.0f).max(1.0f).has_implicit_default();
   b.add_output<decl::Vector>("Normal");
 }
 

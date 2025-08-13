@@ -61,7 +61,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description("Controls the transparency of the surface, with 1.0 fully opaque");
 #define SOCK_ALPHA_ID 4
-  b.add_input<decl::Vector>("Normal").hide_value();
+  b.add_input<decl::Vector>("Normal").has_implicit_default();
 #define SOCK_NORMAL_ID 5
   b.add_input<decl::Float>("Weight").available(false);
 #define SOCK_WEIGHT_ID 6
@@ -169,7 +169,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description("Rotates the direction of anisotropy, with 1.0 going full circle");
 #define SOCK_ANISOTROPIC_ROTATION_ID 16
-  spec.add_input<decl::Vector>("Tangent").hide_value().description(
+  spec.add_input<decl::Vector>("Tangent").has_implicit_default().description(
       "Controls the tangent direction for anisotropy");
 #define SOCK_TANGENT_ID 17
 
@@ -222,7 +222,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "through the medium (depending on the Coat IOR)")
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 #define SOCK_COAT_TINT_ID 22
-  coat.add_input<decl::Vector>("Coat Normal").short_label("Normal").hide_value();
+  coat.add_input<decl::Vector>("Coat Normal").short_label("Normal").has_implicit_default();
 #define SOCK_COAT_NORMAL_ID 23
 
   /* Panel for Sheen settings. */

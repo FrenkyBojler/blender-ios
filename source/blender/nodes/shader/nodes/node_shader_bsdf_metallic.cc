@@ -51,8 +51,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .description("Rotates the direction of anisotropy, with 1.0 going full circle");
-  b.add_input<decl::Vector>("Normal").hide_value();
-  b.add_input<decl::Vector>("Tangent").hide_value();
+  b.add_input<decl::Vector>("Normal").has_implicit_default();
+  b.add_input<decl::Vector>("Tangent").has_implicit_default();
   b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("BSDF");
 }

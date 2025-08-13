@@ -13,7 +13,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Distance").default_value(1.0f).min(0.0f).max(1000.0f);
-  b.add_input<decl::Vector>("Normal").min(-1.0f).max(1.0f).hide_value();
+  b.add_input<decl::Vector>("Normal").min(-1.0f).max(1.0f).has_implicit_default();
   b.add_output<decl::Color>("Color");
   b.add_output<decl::Float>("AO");
 }
