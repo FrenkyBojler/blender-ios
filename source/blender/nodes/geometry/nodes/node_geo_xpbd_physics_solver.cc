@@ -147,6 +147,9 @@ class ConstraintSetEvaluator {
 };
 
 template<typename Child> class TemplatedConstraintSetEvaluator : public ConstraintSetEvaluator {
+  TemplatedConstraintSetEvaluator() = default;
+  friend Child;
+
  public:
   void evaluate_jacobian(JacobianSolver &solver, const IndexMask &constraint_mask) const override
   {
@@ -170,10 +173,36 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
   }
 };
 
+class PinConstraintEvaluator : public TemplatedConstraintSetEvaluator<PinConstraintEvaluator> {
+ private:
+  int geo_i_;
+  Span<float3> positions_;
+  Span<int> indices_;
+  Span<float3> pin_positions_;
+
+ public:
+  PinConstraintEvaluator(const int geo_i,
+                         const Span<float3> positions,
+                         const Span<int> indices,
+                         const Span<float3> pin_positions)
+      : geo_i_(geo_i), positions_(positions), indices_(indices), pin_positions_(pin_positions)
+  {
+  }
+
+  template<typename SolverT> void evaluate_single(SolverT &solver, const int constraint_i) const
+  {
+    const int i = indices_[constraint_i];
+    const float3 &pin_position = pin_positions_[constraint_i];
+    const float3 &p = positions_[i];
+    const float3 offset = pin_position - p;
+    solver.offset_position(geo_i_, i, offset);
+  }
+};
+
 class DistanceConstraintEvaluator
     : public TemplatedConstraintSetEvaluator<DistanceConstraintEvaluator> {
  private:
-  int geo_i;
+  int geo_i_;
   Span<float3> positions_;
   VArray<float> masses_;
   Span<int2> point_pairs_;
@@ -185,7 +214,7 @@ class DistanceConstraintEvaluator
                               const VArray<float> &masses,
                               const Span<int2> point_pairs,
                               const Span<float> distances)
-      : geo_i(geo_i),
+      : geo_i_(geo_i),
         positions_(positions),
         masses_(masses),
         point_pairs_(point_pairs),
@@ -217,8 +246,8 @@ class DistanceConstraintEvaluator
 
     const float3 offset0 = lambda * inv_m0 * normalized_dir;
     const float3 offset1 = -lambda * inv_m1 * normalized_dir;
-    solver.offset_position(geo_i, v0, offset0);
-    solver.offset_position(geo_i, v1, offset1);
+    solver.offset_position(geo_i_, v0, offset0);
+    solver.offset_position(geo_i_, v1, offset1);
   }
 };
 
@@ -516,46 +545,15 @@ static Map<PathComponentKey, VArray<float>> compute_masses(
   return masses_map;
 }
 
-static void update_and_step_xpbd_state(XPBDState &state,
-                                       const WorldData &world,
-                                       const float delta_time,
-                                       const int substeps)
+static void gather_distance_constraints(
+    ResourceScope &scope,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const Map<std::string, Map<bke::GeometryComponent::Type, int>> &all_sim_points_keys,
+    const Span<SimPoints *> all_sim_points,
+    const Map<PathComponentKey, VArray<float>> &masses_map,
+    Vector<ConstraintSet> &r_constraint_sets)
 {
-  ResourceScope scope;
-  Array<GeometrySet> applied_geometries(world.geometries.size());
-
-  for (const int bundle_i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
-    GeometrySet &applied_geometry = applied_geometries[bundle_i];
-    applied_geometry = apply_simulation(geometry_bundle, state);
-  }
-  const Map<PathComponentKey, VArray<float>> masses_map = compute_masses(
-      scope, world, applied_geometries);
-
-  Map<std::string, PathSimData> new_data_by_path;
-  for (const int bundle_i : world.geometries.index_range()) {
-    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
-    update_xpbd_state_for_geometry(
-        state, world.geometries[bundle_i], applied_geometry, new_data_by_path);
-  }
-  state.data_by_path = std::move(new_data_by_path);
-
-  integrate_forces_and_accelerations(state, world, applied_geometries, masses_map, delta_time);
-
-  Vector<SimPoints *> all_sim_points;
-  Map<std::string, Map<bke::GeometryComponent::Type, int>> all_sim_points_keys;
-  for (const int bundle_i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
-    PathSimData &path_sim_data = state.data_by_path.lookup(geometry_bundle.self_path);
-    for (auto item : path_sim_data.points_by_type.items()) {
-      const bke::GeometryComponent::Type type = item.key;
-      SimPoints &sim_points = item.value;
-      const int geo_i = all_sim_points.append_and_get_index(&sim_points);
-      all_sim_points_keys.lookup_or_add_default_as(geometry_bundle.self_path).add_new(type, geo_i);
-    }
-  }
-
-  Vector<ConstraintSet> constraint_sets;
   for (const int bundle_i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
@@ -600,9 +598,58 @@ static void update_and_step_xpbd_state(XPBDState &state,
       DistanceConstraintEvaluator &constraint_evaluator =
           scope.construct<DistanceConstraintEvaluator>(
               geo_i, sim_points.positions, masses, constraint_edges, constraint_lengths);
-      constraint_sets.append(ConstraintSet{&constraint_indices, &constraint_evaluator});
+      r_constraint_sets.append(ConstraintSet{&constraint_indices, &constraint_evaluator});
     }
   }
+}
+
+static void update_and_step_xpbd_state(XPBDState &state,
+                                       const WorldData &world,
+                                       const float delta_time,
+                                       const int substeps)
+{
+  ResourceScope scope;
+  Array<GeometrySet> applied_geometries(world.geometries.size());
+
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    GeometrySet &applied_geometry = applied_geometries[bundle_i];
+    applied_geometry = apply_simulation(geometry_bundle, state);
+  }
+  const Map<PathComponentKey, VArray<float>> masses_map = compute_masses(
+      scope, world, applied_geometries);
+
+  Map<std::string, PathSimData> new_data_by_path;
+  for (const int bundle_i : world.geometries.index_range()) {
+    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
+    update_xpbd_state_for_geometry(
+        state, world.geometries[bundle_i], applied_geometry, new_data_by_path);
+  }
+  state.data_by_path = std::move(new_data_by_path);
+
+  integrate_forces_and_accelerations(state, world, applied_geometries, masses_map, delta_time);
+
+  Vector<SimPoints *> all_sim_points;
+  Map<std::string, Map<bke::GeometryComponent::Type, int>> all_sim_points_keys;
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    PathSimData &path_sim_data = state.data_by_path.lookup(geometry_bundle.self_path);
+    for (auto item : path_sim_data.points_by_type.items()) {
+      const bke::GeometryComponent::Type type = item.key;
+      SimPoints &sim_points = item.value;
+      const int geo_i = all_sim_points.append_and_get_index(&sim_points);
+      all_sim_points_keys.lookup_or_add_default_as(geometry_bundle.self_path).add_new(type, geo_i);
+    }
+  }
+
+  Vector<ConstraintSet> constraint_sets;
+  gather_distance_constraints(scope,
+                              world,
+                              applied_geometries,
+                              all_sim_points_keys,
+                              all_sim_points,
+                              masses_map,
+                              constraint_sets);
 
   solve_constraints(all_sim_points, constraint_sets);
 }
