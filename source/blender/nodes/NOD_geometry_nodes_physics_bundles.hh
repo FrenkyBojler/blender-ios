@@ -80,6 +80,41 @@ class SoftBodyMeshBundle : public NestedBundleCommon {
                                                  BundleParseErrors &r_errors);
 };
 
+class XPBDGeometryBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.XPBDGeometry";
+  bke::GeometrySet geometry;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<XPBDGeometryBundle> parse(const Bundle &bundle,
+                                                 BundleParseErrors &r_errors);
+};
+
+class EdgeLengthXPBDConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.EdgeLengthXPBDConstraint";
+
+  std::string filter;
+  fn::Field<bool> selection;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<EdgeLengthXPBDConstraintBundle> parse(const Bundle &bundle,
+                                                             BundleParseErrors &r_errors);
+};
+
+class PinnedPositionXPBDConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.PinnedPositionXPBDConstraint";
+
+  std::string filter;
+  fn::Field<bool> selection;
+  fn::Field<float3> position;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<PinnedPositionXPBDConstraintBundle> parse(const Bundle &bundle,
+                                                                 BundleParseErrors &r_errors);
+};
+
 inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
     parse_collision_shape_type(const int type)
 {

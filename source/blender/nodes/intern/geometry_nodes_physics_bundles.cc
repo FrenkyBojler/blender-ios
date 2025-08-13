@@ -121,4 +121,79 @@ std::optional<SoftBodyMeshBundle> SoftBodyMeshBundle::parse(const Bundle &bundle
   return behavior;
 }
 
+const FlatBundleTypePtr &XPBDGeometryBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(XPBDGeometryBundle::name);
+    b.add<decl::Geometry>("geometry").supported_type(bke::GeometryComponent::Type::Mesh);
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<XPBDGeometryBundle> XPBDGeometryBundle::parse(const Bundle &bundle,
+                                                            BundleParseErrors &r_errors)
+{
+  XPBDGeometryBundle behavior;
+  bundle_parse_member(bundle, "geometry", behavior.geometry, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
+const FlatBundleTypePtr &EdgeLengthXPBDConstraintBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(EdgeLengthXPBDConstraintBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Bool>("selection").default_value(true).supports_field();
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<EdgeLengthXPBDConstraintBundle> EdgeLengthXPBDConstraintBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  EdgeLengthXPBDConstraintBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
+const FlatBundleTypePtr &PinnedPositionXPBDConstraintBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(PinnedPositionXPBDConstraintBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Bool>("selection").default_value(true).supports_field();
+    b.add<decl::Vector>("position").supports_field();
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<PinnedPositionXPBDConstraintBundle> PinnedPositionXPBDConstraintBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  PinnedPositionXPBDConstraintBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
+  bundle_parse_member(bundle, "position", behavior.position, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 }  // namespace blender::nodes::physics_bundles
