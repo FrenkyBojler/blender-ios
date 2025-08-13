@@ -107,8 +107,6 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob)
       EDBM_verts_mirror_cache_end(em);
     }
   }
-
-
 }
 
 void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert,
