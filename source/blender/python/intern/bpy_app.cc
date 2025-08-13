@@ -436,7 +436,7 @@ static int bpy_app_binary_path_set(PyObject * /*self*/, PyObject *value, void * 
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_is_touch_device_doc,
-    "Wether Blender is currently running on a touch tablet device (iOS, Android, etc.) "
+    "Whether Blender is currently running on a touch tablet device (iOS, Android, etc.) "
     "(read-only)");
 static PyObject *bpy_app_is_touch_device_get(PyObject * /*self*/, void * /*closure*/)
 {
