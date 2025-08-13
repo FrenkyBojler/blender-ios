@@ -2283,7 +2283,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 59)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_COMPOSIT) {
         continue;
