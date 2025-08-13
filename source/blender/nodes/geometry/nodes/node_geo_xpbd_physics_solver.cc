@@ -345,7 +345,7 @@ static WorldData parse_world(const Bundle &world_bundle)
   return world;
 }
 
-static void apply_external_accelerations(
+static void apply_external_accelerations_and_velocities(
     XPBDState &state,
     const Map<PathComponentKey, Array<float3>> &accelerations_map,
     const float delta_time)
@@ -519,11 +519,6 @@ static Map<PathComponentKey, Array<float3>> compute_external_accelerations(
   return accelerations_map;
 }
 
-static void update_velocities(XPBDState &state)
-{
-  // TODO
-}
-
 /**
  * Computes the mass for each point. The mass of points that are known to be pinned have a mass of
  * infinity.
@@ -685,7 +680,7 @@ static void gather_pin_constraints(
 
 static void update_and_step_xpbd_state(XPBDState &state,
                                        const WorldData &world,
-                                       const float delta_time,
+                                       const float total_delta_time,
                                        const int substeps)
 {
   ResourceScope scope;
@@ -735,10 +730,37 @@ static void update_and_step_xpbd_state(XPBDState &state,
   gather_pin_constraints(
       scope, world, applied_geometries, all_sim_points_keys, all_sim_points, constraint_sets);
 
+  Array<Array<float3>> all_prev_positions(all_sim_points.size());
+  for (const int i : all_sim_points.index_range()) {
+    all_prev_positions[i].reinitialize(all_sim_points[i]->points_num);
+  }
+
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
-    apply_external_accelerations(state, accelerations_map, delta_time);
+    const float sub_delta_time = total_delta_time / substeps;
+    for (const int i : all_sim_points.index_range()) {
+      all_prev_positions[i].as_mutable_span().copy_from(all_sim_points[i]->positions);
+    }
+    if (sub_delta_time > 0.0f) {
+      apply_external_accelerations_and_velocities(state, accelerations_map, sub_delta_time);
+    }
     solve_constraints(all_sim_points, constraint_sets);
-    update_velocities(state);
+    if (sub_delta_time > 0.0f) {
+      for (const int geo_i : all_sim_points.index_range()) {
+        Span<float3> prev_positions = all_prev_positions[geo_i];
+        SimPoints &sim_points = *all_sim_points[geo_i];
+        Span<float3> new_positions = sim_points.positions;
+        MutableSpan<float3> velocities = sim_points.velocities;
+        threading::parallel_for(
+            IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+              for (const int i : range) {
+                const float3 &prev_position = prev_positions[i];
+                const float3 &new_position = new_positions[i];
+                const float3 velocity = (new_position - prev_position) / sub_delta_time;
+                velocities[i] = velocity;
+              }
+            });
+      }
+    }
   }
 }
 
