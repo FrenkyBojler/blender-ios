@@ -317,28 +317,31 @@ void BLF_addref_id(int fontid)
   }
 }
 
-void BLF_enable(int fontid, int option)
+void BLF_enable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags |= option;
+    font->flags |= flag;
   }
 }
 
-void BLF_disable(int fontid, int option)
+void BLF_disable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags &= ~option;
+    font->flags &= ~flag;
   }
 }
 
 bool BLF_is_builtin(int fontid)
 {
   FontBLF *font = blf_get(fontid);
-  return font ? (font->flags & BLF_DEFAULT) : false;
+  if (font) {
+    return font->flags & BLF_DEFAULT;
+  }
+  return false;
 }
 
 void BLF_character_weight(int fontid, int weight)

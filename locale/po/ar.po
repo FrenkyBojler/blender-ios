@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a7042ca30c82')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'6dca66d606ed')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-29 08:51+0000\n"
+"POT-Creation-Date: 2025-08-11 08:28+0000\n"
 "PO-Revision-Date: 2025-07-23 14:53+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Arabic <https://translate.blender.org/projects/blender-ui/ui/ar/>\n"
@@ -1960,10 +1960,6 @@ msgid "Radius of head of bone (for Envelope deform only)"
 msgstr "(ﻂﻘﻓ ءﺎﺸﻐﻟﺍ ﻂﻤﻨﻟ) ءﺎﺸﻐﻟﺍ ﺱﺃﺭ ﺮﻄﻗ"
 
 
-msgid "Bone is not visible when it is not in Edit Mode (i.e. in Object or Pose Modes)"
-msgstr "(ﺔﻔﻘﻟﺍ ﻭﺃ ﻦﺋﺎﻜﻟﺍ ﻂﻤﻧ ﻲﻓ ﻥﻮﻜﺗ ﺎﻣﺪﻨﻋ ﻼ﻿ﺜﻣ) ﺮﻳﺮﺤﺘﻟﺍ ﻂﻤﻧ ﻲﻓ ﻥﻮﻜﺗ ﻻ﻿ ﺎﻣﺪﻨﻋ ﺓﺮﻫﺎﻇ ﺮﻴﻋ ﺔﻤﻈﻌﻟﺍ"
-
-
 msgid "Selectable"
 msgstr "ﺭﺎﻴﺘﺧﻺ﻿ﻟ ﻞﺑﺎﻗ"
 
@@ -2034,10 +2030,6 @@ msgstr "ﻞﺻﺃ ﺎﻬﻟ ﻥﻮﻜﻳ ﺎﻣﺪﻨﻋ ,ﻞﺻﻷ﻿ﺍ ﻞﻳ
 
 msgid "Cyclic Offset"
 msgstr "ﺔﻳﺭﻭﺪﻟﺍ ﺔﺣﺍﺯﻹ﻿ﺍ"
-
-
-msgid "When bone doesn't have a parent, it receives cyclic offset effects (Deprecated)"
-msgstr "(ﻰﻐﻠﻣ) ﺔﻳﺭﻭﺩ ﺔﺣﺍﺯﺇ ﺕﺍﺮﻴﺛﺄﺗ ﻞﺒﻘﺘﺴﺗ ,ﻞﺻﺍ ﻥﻭﺪﺑ ﺔﻤﻈﻌﻟﺍ ﻥﻮﻜﺗ ﺎﻣﺪﻨﻋ"
 
 
 msgid "Deform"
@@ -7865,6 +7857,10 @@ msgid "Amount of random velocity"
 msgstr "ﺔﻴﺋﺍﻮﺸﻌﻟﺍ ﺔﻧﻮﺸﺨﻟﺍ ﺔﻴﻤﻛ"
 
 
+msgid "Shader"
+msgstr "ﻞﻠﻈﻤﻟﺍ"
+
+
 msgid "Freestyle Line Set"
 msgstr "ﻞﻳﺎﺘﺴﻳﺮﻓ ﻂﺧ ﺔﻋﻮﻤﺠﻣ"
 
@@ -10372,40 +10368,20 @@ msgid "Format used for re-saving this file"
 msgstr "ﻒﻠﻤﻟﺍ ﺍﺬﻫ ﻆﻔﺣ ﺓﺩﺎﻋﻹ﻿ ﻡﺪﺨﺘﺴﻤﻟﺍ ﻖﻴﺴﻨﺘﻟﺍ"
 
 
-msgid "Output image in bitmap format"
-msgstr "ﺕﺎﺘﺑ ﺔﻄﻳﺮﺧ ﺔﺌﻴﻬﺑ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
+msgid "Output image in JPEG format"
+msgstr "JPEG ﺔﺌﻴﻬﺑ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
 
 
-msgid "Iris"
-msgstr "Iris"
+msgid "Output image in OpenEXR format"
+msgstr "OpenEXR ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
 
 
 msgid "Output image in PNG format"
 msgstr "PNG ﺔﺌﻴﻬﺑ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
 
 
-msgid "Output image in JPEG format"
-msgstr "JPEG ﺔﺌﻴﻬﺑ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
-
-
-msgid "Targa"
-msgstr "Targa"
-
-
-msgid "Output image in Targa format"
-msgstr " Targa ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
-
-
-msgid "Targa Raw"
-msgstr "Targa Raw"
-
-
-msgid "Output image in uncompressed Targa format"
-msgstr " ﺔﻃﻮﻐﻀﻣ ﺮﻴﻏ Targa ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
-
-
-msgid "Cineon"
-msgstr "Cineon"
+msgid "Output image in bitmap format"
+msgstr "ﺕﺎﺘﺑ ﺔﻄﻳﺮﺧ ﺔﺌﻴﻬﺑ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
 
 
 msgid "Output image in Cineon format"
@@ -10416,24 +10392,20 @@ msgid "Output image in DPX format"
 msgstr "DPX ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
 
 
-msgid "Output image in OpenEXR format"
-msgstr "OpenEXR ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
-
-
-msgid "Radiance HDR"
-msgstr "Radiance HDR"
-
-
 msgid "Output image in Radiance HDR format"
 msgstr " Radiance HDR ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
 
 
+msgid "Output image in Targa format"
+msgstr " Targa ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
+
+
+msgid "Output image in uncompressed Targa format"
+msgstr " ﺔﻃﻮﻐﻀﻣ ﺮﻴﻏ Targa ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
+
+
 msgid "Output image in TIFF format"
 msgstr "TIFF ﺔﺌﻴﻫ ﻲﻓ ﺓﺭﻮﺼﻟﺍ ﺝﺮﺧﺃ"
-
-
-msgid "OpenEXR MultiLayer"
-msgstr "OpenEXR ﺕﺎﻘﺒﻄﻟﺍ ﺩﺪﻌﺘﻣ"
 
 
 msgid "Output image in multilayer OpenEXR format"
@@ -11210,10 +11182,6 @@ msgstr "ﻲﻔﻄﻣ"
 
 msgid "Script"
 msgstr "ﺖﺒﻳﺮﻜﺳ"
-
-
-msgid "Shader"
-msgstr "ﻞﻠﻈﻤﻟﺍ"
 
 
 msgid "Pattern"
@@ -14394,10 +14362,6 @@ msgid "Identifier of operator to call on input event"
 msgstr "ﻝﺎﺧﺩﺇ ﺙﺪﺣ ﺪﻨﻋ ءﺎﻋﺪﺘﺳﻼ﻿ﻟ ﻞﻣﺎﻌﻟﺍ ﻑﺮﻌﻣ"
 
 
-msgid "Is this keymap item user defined (doesn't just replace a builtin item)"
-msgstr "(ﺎﻴﺋﺎﻘﻠﺗ ﻲﻠﺧﺍﺩ ﺮﺼﻨﻋ ﻝﺪﺒﻳ ﻻ﻿) ﻑﺮﻌﻣ ﺍﺬﻫ ﺭﺎﺼﺘﺧﻹ﻿ﺍ ﺮﺼﻨﻋ ﻞﻫ"
-
-
 msgid "User Modified"
 msgstr "ﻡﺪﺨﺘﺴﻤﻟﺍ ﻞﺒﻗ ﻦﻣ ﻝﺪﻌﻣ"
 
@@ -15719,6 +15683,34 @@ msgid "Material slot name"
 msgstr "ﺔﻣﺎﺨﻟﺍ ﺔﺤﺘﻓ ﻢﺳﺇ"
 
 
+msgid "Snap"
+msgstr "ﻱﺫﺎﺣ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
+
+
+msgid "Mirror"
+msgstr "ﻞﺛﺎﻣ"
+
+
+msgid "UV Mapping"
+msgstr "UV ءﺎﺴﻛﺇ"
+
+
+msgid "Navigation"
+msgstr "ﺢﻔّﺼﺗ"
+
+
+msgid "Align View"
+msgstr "ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
+
+
+msgid "Align View to Active"
+msgstr "ﻝﺎﻌّﻔﻠﻟ ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
+
+
 msgid "Select More/Less"
 msgstr "ﻞﻗﺍ/ﺮﺜﻛﺍ ﺭﺎﻴﺘﺧﺍ"
 
@@ -15801,34 +15793,6 @@ msgstr "ﺺﻧ"
 
 msgid "Bone Roll"
 msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
-
-
-msgid "Snap"
-msgstr "ﻱﺫﺎﺣ"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
-
-
-msgid "Mirror"
-msgstr "ﻞﺛﺎﻣ"
-
-
-msgid "UV Mapping"
-msgstr "UV ءﺎﺴﻛﺇ"
-
-
-msgid "Navigation"
-msgstr "ﺢﻔّﺼﺗ"
-
-
-msgid "Align View"
-msgstr "ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
-
-
-msgid "Align View to Active"
-msgstr "ﻝﺎﻌّﻔﻠﻟ ﺮﻈﻨﻤﻟﺍ ﻱﺫﺎﺣ"
 
 
 msgctxt "MovieClip"
@@ -18979,26 +18943,6 @@ msgid "File Output"
 msgstr "ﺮﻄﺴﻟﺍ ﺝﺮﺧ"
 
 
-msgid "Active Input Index"
-msgstr "ﻝﺎﻌﻔﻟﺍ ﻞﺧﺪﻟﺍ ﻞﻴﻟﺩ"
-
-
-msgid "Active input index in details view list"
-msgstr "ﻞﻴﺻﺎﻔﺘﻟﺍ ﺽﺮﻋ ﺔﻤﺋﺎﻗ ﻲﻓ ﻝﺎﻌﻔﻟﺍ ﻞﺧﺪﻟﺍ ﻞﻴﻟﺩ"
-
-
-msgid "Base Path"
-msgstr "ﻲﺳﺎﺳﻻ﻿ﺍ ﺭﺎﺴﻤﻟﺍ"
-
-
-msgid "File Slots"
-msgstr "ﻒﻠﻤﻟﺍ ﺕﺎﺤﺘﻓ"
-
-
-msgid "EXR Layer Slots"
-msgstr "EXR ﺔﻘﺒﻃ ﺕﺎﺤﺘﻓ"
-
-
 msgid "Pixelate"
 msgstr "ﻞﺴﻜﺑ"
 
@@ -19103,10 +19047,6 @@ msgid "Only Faces"
 msgstr "ﻪﺟﻭﻻ﻿ﺍ ﻂﻘﻓ"
 
 
-msgid "Triangles"
-msgstr "ﺚﻠﺜﻣ ﻞﻜﺷ"
-
-
 msgid "Secondary"
 msgstr "ﻱﻮﻧﺎﺛ"
 
@@ -19123,12 +19063,12 @@ msgid "Fill Type"
 msgstr "ﺔﺌﺒﻌﺘﻟﺍ ﻉﻮﻧ"
 
 
+msgid "Triangles"
+msgstr "ﺚﻠﺜﻣ ﻞﻜﺷ"
+
+
 msgid "Tangent Space"
 msgstr "ﻑﺪﻬﻟﺍ ءﺎﻀﻔﻟﺍ"
-
-
-msgid "Conformal"
-msgstr "ﻒﻴﻜﺘﻣ"
 
 
 msgid "Label Font Size"
@@ -19505,18 +19445,6 @@ msgstr "ﺪﻘْﻋ ﻰﻟﺇ"
 
 msgid "To socket"
 msgstr "ﺲﺒﻘﻣ ﻰﻟﺇ"
-
-
-msgid "Output File Slot"
-msgstr "ﺝﺮﺨﻟﺍ ﻒﻠﻣ ﺔﺤﺘﻓ"
-
-
-msgid "Subpath used for this slot"
-msgstr "ﺔﺤﺘﻔﻟﺍ ﻩﺬﻬﻟ ﻲﻋﺮﻔﻟﺍ ﺭﺎﺴﻤﻟﺍ"
-
-
-msgid "Output File Layer Slot"
-msgstr "ﺝﺮﺨﻟﺍ ﻒﻠﻣ ﺔﻘﺒﻃ ﺔﺤﺘﻓ"
 
 
 msgid "Node Socket"
@@ -24418,29 +24346,6 @@ msgid "Toggle Node Options"
 msgstr "ﺓﺪﻘﻌﻟﺍ ﺕﺍﺭﺎﻴﺧ ﺐﻠﻗﺍ"
 
 
-msgctxt "Operator"
-msgid "Add File Node Socket"
-msgstr "ﻒﻠﻣ ﺓﺪﻘﻋ ﺔﺤﺘﻓ ﻒﺿﺍ"
-
-
-msgid "Add a new input to a file output node"
-msgstr "ﻒﻠﻤﻟﺍ ﺝﺮﺧ ﺓﺪﻘﻌﻟ ﺪﻳﺪﺟ ﻞﺧﺩ ﻒﺿﺃ"
-
-
-msgctxt "Operator"
-msgid "Move File Node Socket"
-msgstr "ﻒﻠﻤﻟﺍ ﺓﺪﻘﻋ ﺔﺤﺘﻓ ﻙﺮّﺣ"
-
-
-msgid "Move the active input of a file output node up or down the list"
-msgstr "ﺔﻤﺋﺎﻘﻟﺍ ﻲﻗ ﺖﺤﺘﻟ ﻭﺍ ﻕﻮﻔﻟ ﻒﻠﻤﻟﺍ ﺝﺮﺧ ﺓﺪﻘﻌﻟ ﻝﺎﻌﻔﻟﺍ ﻞﺧﺪﻟﺍ ﻙﺮّﺣ"
-
-
-msgctxt "Operator"
-msgid "Remove File Node Socket"
-msgstr "ﻒﻠﻤﻟﺍ ﺓﺪﻘﻋ ﺔﺤﺘﻓ ﻑﺬﺣﺍ"
-
-
 msgid "Attach selected nodes"
 msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﺪﻘﻌﻟﺍ ﻂﺑﺭﺍ"
 
@@ -27396,6 +27301,10 @@ msgid "Unwrap"
 msgstr "ﻁﺎﻘﺳﺇ"
 
 
+msgid "Conformal"
+msgstr "ﻒﻴﻜﺘﻣ"
+
+
 msgctxt "Operator"
 msgid "Weld"
 msgstr "ﻡﺎﺤﻠﻟﺍ"
@@ -28054,16 +27963,16 @@ msgid "Palette Color"
 msgstr "ﻥﻮﻠﻟﺍ ﺔﺣﻮﻟ"
 
 
-msgid "Transform Orientations"
-msgstr "ﻝﻮﺤﺘﻟﺍ ﺕﺎﻫﺎﺠﺗﺍ"
-
-
 msgid "Render Pass"
 msgstr "ﺮﻴﻴﺼﺗ ﺮﻤﻣ"
 
 
 msgid "Motion Tracking"
 msgstr "ﺔﻛﺮﺤﻟﺍ ﺔﻘﺣﻼ﻿ﻣ"
+
+
+msgid "Transform Orientations"
+msgstr "ﻝﻮﺤﺘﻟﺍ ﺕﺎﻫﺎﺠﺗﺍ"
 
 
 msgid "Bone Constraints"
@@ -32518,6 +32427,14 @@ msgid "Settings for space list"
 msgstr "ءﺎﻀﻔﻟﺍ ﺔﻤﺋﺎﻗ ﺕﺍﺩﺍﺪﻋﺍ"
 
 
+msgid "Channel Group"
+msgstr "ﺕﺍﻮﻨﻗ ﺔﻋﻮﻤﺠﻣ"
+
+
+msgid "Active Channel Group"
+msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺓﺎﻨﻘﻟﺍ ﺔﻋﻮﻤﺠﻣ"
+
+
 msgid "Theme Console"
 msgstr "ﺮﻣﺍﻭﻻ﻿ﺍ ﺔﺣﻮﻟ ﻂﻤﻧ"
 
@@ -32532,18 +32449,6 @@ msgstr "ﺮﻄﺴﻟﺍ ﺝﺮﺧ"
 
 msgid "Theme settings for the Dope Sheet"
 msgstr "ﻂﻴﻄﺨﺘﻟﺍ ﺔﻗﺭﻮﻟ ﻂﻤﻨﻟﺍ ﺕﺍﺩﺍﺪﻋﺇ"
-
-
-msgid "Active Channel Group"
-msgstr "ﺔﻟﺎﻌﻔﻟﺍ ﺓﺎﻨﻘﻟﺍ ﺔﻋﻮﻤﺠﻣ"
-
-
-msgid "Channel Group"
-msgstr "ﺕﺍﻮﻨﻗ ﺔﻋﻮﻤﺠﻣ"
-
-
-msgid "Dope Sheet Channel"
-msgstr "ﻂﻴﻄﺨﺗ ﺔﻗﺭﻭ ﺓﺎﻨﻗ"
 
 
 msgid "Color of Keyframe"
@@ -34719,11 +34624,6 @@ msgstr "ﻍﺮّﻓ"
 
 
 msgctxt "Operator"
-msgid "Toggle Fullscreen Area"
-msgstr "ﺔﻠﻣﺎﻜﻟﺍ ﺔﺷﺎﺸﻟﺍ ﺔﻘﻄﻨﻣ ﺐﻠﻗﺇ"
-
-
-msgctxt "Operator"
 msgid "Sound"
 msgstr "ﺕﻮﺻ"
 
@@ -34776,6 +34676,11 @@ msgstr "ﻢﻠﻔﻟﺍ"
 msgctxt "Operator"
 msgid "Change Keying Set..."
 msgstr "...ﺢﻴﺗﺎﻔﻤﻟﺍ ﺔﻋﻮﻤﺠﻣ ﺮﻴﻏ"
+
+
+msgctxt "Operator"
+msgid "Delete Keyframes..."
+msgstr "...ﺡﺎﺘﻔﻣ ﻑﺬﺣﺍ"
 
 
 msgid "Storage"
@@ -35152,11 +35057,6 @@ msgstr "...ﻲﻠﺤﻣ ﻞﻌﺟﺍ"
 
 
 msgctxt "Operator"
-msgid "Delete Keyframes..."
-msgstr "...ﺡﺎﺘﻔﻣ ﻑﺬﺣﺍ"
-
-
-msgctxt "Operator"
 msgid "Clear Keyframes..."
 msgstr "ﺢﻴﺗﺎﻔﻤﻟﺍ ﻑﺬﺣﺍ"
 
@@ -35274,17 +35174,9 @@ msgid "View Selected"
 msgstr "ﺭﺎﺘﺨﻤﻟﺍ ﺮﻬﻇﺍ"
 
 
-msgid "Creases"
-msgstr "ﻕﻮﻘﺷ"
-
-
 msgctxt "Plural"
 msgid "Sharp"
 msgstr "ﺩﺎﺣ"
-
-
-msgid "Seams"
-msgstr "ﺕﺎﻣﺎﺤﻠﻟﺍ"
 
 
 msgctxt "Operator"
@@ -36228,16 +36120,16 @@ msgid "Outer"
 msgstr "ﻲﺟﺭﺎﺧ"
 
 
+msgid "Seams"
+msgstr "ﺕﺎﻣﺎﺤﻠﻟﺍ"
+
+
 msgid "Not a valid selection for extrude"
 msgstr "ﻉﺎﻌﺸﻟﺍ ﺺﺤﻔﻟ ﺔﻣﺎﺘﻟﺍ ﺱﺎﻜﻌﻧﻹ﻿ﺍ ﺔﻴﻤﻛ"
 
 
 msgid "You have to select a string of connected vertices too"
 msgstr "ﺔﻠﺼﺘﻤﻟﺍ UV ـﻟﺍ ﻂﻘﻧ ﻦﻣ ﻞﺴﻠﺴﺗ ﺮﺘﺧﺇ"
-
-
-msgid "Cannot rip selected faces"
-msgstr "ﺓﺭﺎﺘﺨﻤﻟﺍ ﻪﺟﻭﻷ﻿ﺍ ﻒﺧﺃ"
 
 
 msgid "Must be in vertex selection mode"
@@ -36694,10 +36586,6 @@ msgid "See Modifiers panel below"
 msgstr "ﻞﻔﺳﻻ﻿ﺍ ﻲﻓ ﺮﻴﻐﻤﻟﺍ ﺡﻮﻠﻟ ﺮﻈﻧﺍ"
 
 
-msgid "F-Curve doesn't have any keyframes as it only contains sampled points"
-msgstr "ﻂﻘﻓ ﺔﻨﻳﺎﻌﻤﻟﺍ ﻁﺎﻘﻧ ﻰﻠﻋ ﻱﻮﺘﺤﻳ ﻪﻧﻻ﻿ ﺢﻴﺗﺎﻔﻣ ﻱﺍ ﻞﻤﻌﻟﺍ ﻰﻨﺤﻨﻣ ﻯﺪﻟ ﺲﻴﻟ"
-
-
 msgid "No active keyframe on F-Curve"
 msgstr "ﻲﻧﺎﻴﺒﻟﺍ ﻰﻨﺤﻨﻤﻟﺍ ﻰﻠﻋ ﻝﺎﻌﻓ ﺭﺎﻃﺇ ﺪﺟﻮﻳ ﻻ﻿"
 
@@ -36748,10 +36636,6 @@ msgstr "ﺮﻈﻨﻤﻟﺍ ﺮﺘﺧﺍ"
 
 msgid "Hard coded Non-Linear, Gamma:1.7"
 msgstr "1.0 :ﺔﻴﻄﺧ ﺮﻴﻏ ﺎﻘﺒﺴﻣ ﺓﺩﺪﺤﻣ ﺓﺭﺎﻧﺍ"
-
-
-msgid "Can't Load Image"
-msgstr "ﺓﺭﻮﺼﻟﺍ ﻞﻴﻤﺤﺗ ﻦﻜﻤﻳ ﻻ﻿"
 
 
 msgid " RGBA float"
