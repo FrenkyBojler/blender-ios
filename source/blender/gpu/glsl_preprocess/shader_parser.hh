@@ -33,6 +33,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <chrono>
@@ -46,6 +47,7 @@
 namespace blender::gpu::shader::parser {
 
 enum TokenType : char {
+  Invalid = 0,
   /* Use ascii chars to store them in string, and for easy debugging / testing. */
   Word = 'w',
   NewLine = '\n',
@@ -123,8 +125,8 @@ enum class ScopeType : char {
 
 /* Poor man's IndexRange. */
 struct IndexRange {
-  size_t start;
-  size_t size;
+  int64_t start;
+  int64_t size;
 
   IndexRange(size_t start, size_t size) : start(start), size(size) {}
 
@@ -134,7 +136,7 @@ struct IndexRange {
            ((other.start < start) && (start < (other.start + other.size)));
   }
 
-  size_t last()
+  int64_t last()
   {
     return start + size - 1;
   }
@@ -297,6 +299,7 @@ struct ParserData {
           token_offsets.offsets.emplace_back(offset);
         }
       }
+      token_offsets.offsets.emplace_back(offset);
     }
     {
       /* Keywords detection. */
@@ -430,10 +433,10 @@ struct ParserData {
             enter_scope(ScopeType::Assignment, tok_id);
             break;
           case BracketOpen:
-            if (token_types[tok_id - 2] == Struct) {
+            if (tok_id >= 2 && token_types[tok_id - 2] == Struct) {
               enter_scope(ScopeType::Local, tok_id);
             }
-            else if (token_types[tok_id - 2] == Namespace) {
+            else if (tok_id >= 2 && token_types[tok_id - 2] == Namespace) {
               enter_scope(ScopeType::Namespace, tok_id);
             }
             else if (scopes.top().type == ScopeType::Global) {
@@ -461,7 +464,7 @@ struct ParserData {
             enter_scope(ScopeType::Subscript, tok_id);
             break;
           case AngleOpen:
-            if (token_types[tok_id - 1] == Template ||
+            if ((tok_id >= 1 && token_types[tok_id - 1] == Template) ||
                 /* Catch case of specialized declaration. */
                 ScopeType(scope_types.back()) == ScopeType::Template)
             {
@@ -608,7 +611,7 @@ struct ParserData {
 
 struct Token {
   const ParserData *data;
-  size_t index;
+  int64_t index;
 
   static Token invalid()
   {
@@ -617,12 +620,19 @@ struct Token {
 
   bool is_valid() const
   {
-    return data != nullptr;
+    return data != nullptr && index >= 0;
+  }
+  bool is_invalid() const
+  {
+    return !is_valid();
   }
 
   /* String index range. */
   IndexRange index_range() const
   {
+    if (is_invalid()) {
+      return {0, 0};
+    }
     return data->token_offsets[index];
   }
 
@@ -695,6 +705,9 @@ struct Token {
 
   operator TokenType() const
   {
+    if (is_invalid()) {
+      return Invalid;
+    }
     return TokenType(data->token_types[index]);
   }
   bool operator==(TokenType type) const
@@ -748,6 +761,18 @@ struct Scope {
                             end().str_index_last() - start().str_index_start() + 1);
   }
 
+  Token find_token(const char token_type) const
+  {
+    size_t pos = data->token_types.substr(range().start, range().size).find(token_type);
+    return (pos != std::string::npos) ? Token{data, int64_t(range().start + pos)} :
+                                        Token::invalid();
+  }
+
+  bool contains_token(const char token_type) const
+  {
+    return find_token(token_type).is_valid();
+  }
+
   void foreach_match(const std::string &pattern,
                      std::function<void(const std::vector<Token>)> callback) const
   {
@@ -758,11 +783,11 @@ struct Scope {
 
     size_t pos = 0;
     while ((pos = scope_tokens.find(pattern, pos)) != std::string::npos) {
-      match[0] = {data, range().start + pos};
+      match[0] = {data, int64_t(range().start + pos)};
       /* Do not match preprocessor directive by default. */
       if (match[0].scope().type() != ScopeType::Preprocessor) {
         for (int i = 1; i < pattern.size(); i++) {
-          match[i] = Token{data, range().start + pos + i};
+          match[i] = Token{data, int64_t(range().start + pos + i)};
         }
         callback(match);
       }
@@ -949,6 +974,11 @@ struct Parser {
     insert_after(at.str_index_last(), content);
   }
 
+  void insert_line_number(size_t at, int line)
+  {
+    insert_after(at, "#line " + std::to_string(line) + "\n");
+  }
+
   void insert_before(size_t at, const std::string &content)
   {
     IndexRange range = IndexRange(at, 0);
@@ -997,7 +1027,11 @@ struct Parser {
   {
     std::string out;
     for (const Mutation &mut : mutations_) {
-      out += "Replace \"";
+      out += "Replace ";
+      out += std::to_string(mut.src_range.start);
+      out += " - ";
+      out += std::to_string(mut.src_range.size);
+      out += " \"";
       out += data_.str.substr(mut.src_range.start, mut.src_range.size);
       out += "\" by \"";
       out += mut.replacement;
