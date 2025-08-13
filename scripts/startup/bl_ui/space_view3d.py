@@ -274,7 +274,7 @@ class _draw_tool_settings_context_mode:
             size,
             pressure_name="use_pressure_size",
             unified_name="use_unified_size",
-            text="Radius",
+            text="Size",
             slider=True,
             header=True,
         )
@@ -365,7 +365,7 @@ class _draw_tool_settings_context_mode:
             pressure_name="use_pressure_size",
             unified_name="use_unified_size",
             slider=True,
-            text="Radius",
+            text="Size",
             header=True,
         )
         UnifiedPaintPanel.prop_unified(
@@ -408,7 +408,7 @@ class _draw_tool_settings_context_mode:
             size,
             pressure_name="use_pressure_size",
             unified_name="use_unified_size",
-            text="Radius",
+            text="Size",
             slider=True,
             header=True,
         )
@@ -552,7 +552,7 @@ class _draw_tool_settings_context_mode:
             "size",
             unified_name="use_unified_size",
             pressure_name="use_pressure_size",
-            text="Radius",
+            text="Size",
             slider=True,
             header=True,
         )
@@ -8857,7 +8857,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
             size,
             unified_name="use_unified_size",
             pressure_name="use_pressure_size",
-            text="Radius",
+            text="Size",
             slider=True,
         )
         UnifiedPaintPanel.prop_unified(

@@ -1146,7 +1146,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
                 size_prop,
                 unified_name="use_unified_size",
                 pressure_name="use_pressure_size",
-                text="Radius",
+                text="Size",
                 slider=True,
             )
         if size_mode:
@@ -1553,7 +1553,7 @@ def brush_basic_texpaint_settings(layout, context, brush, *, compact=False):
         pressure_name="use_pressure_size",
         unified_name="use_unified_size",
         slider=True,
-        text="Radius",
+        text="Size",
         header=True,
     )
     UnifiedPaintPanel.prop_unified(
@@ -1634,7 +1634,7 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
     # Brush details
     if brush.gpencil_brush_type == 'ERASE':
         row = layout.row(align=True)
-        row.prop(brush, "size", text="Radius")
+        row.prop(brush, "size", text="Size")
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         row.prop(gp_settings, "use_occlude_eraser", text="", icon='XRAY')
 
@@ -1671,7 +1671,7 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
 
     else:  # brush.gpencil_brush_type == 'DRAW/TINT':
         row = layout.row(align=True)
-        row.prop(brush, "size", text="Radius")
+        row.prop(brush, "size", text="Size")
         row.prop(gp_settings, "use_pressure", text="", icon='STYLUS_PRESSURE')
 
         if gp_settings.use_pressure and not compact:
@@ -1752,7 +1752,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
         }):
             size = "unprojected_size"
         row = layout.row(align=True)
-        row.prop(brush, size, slider=True, text="Radius")
+        row.prop(brush, size, slider=True, text="Size")
         row.prop(brush, "use_pressure_size", text="")
 
         if brush.use_pressure_size and not compact:
@@ -1887,7 +1887,7 @@ def brush_basic_gpencil_vertex_settings(layout, context, brush, *, compact=False
 
     # Brush details
     row = layout.row(align=True)
-    row.prop(brush, "size", text="Radius")
+    row.prop(brush, "size", text="Size")
     row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
     if brush.gpencil_vertex_brush_type in {'DRAW', 'BLUR', 'SMEAR'}:
@@ -1909,7 +1909,7 @@ def brush_basic_grease_pencil_weight_settings(layout, context, brush, *, compact
         "size",
         pressure_name="use_pressure_size",
         unified_name="use_unified_size",
-        text="Radius",
+        text="Size",
         slider=True,
         header=compact,
     )
@@ -1949,7 +1949,7 @@ def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact
         "size",
         pressure_name="use_pressure_size",
         unified_name="use_unified_size",
-        text="Radius",
+        text="Size",
         slider=True,
         header=compact,
     )
