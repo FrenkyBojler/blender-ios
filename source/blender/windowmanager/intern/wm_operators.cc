@@ -2539,9 +2539,17 @@ void WM_paint_cursor_remove_by_type(wmWindowManager *wm, void *draw_fn, void (*f
   (WM_RADIAL_CONTROL_DISPLAY_SIZE - WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE)
 #define WM_RADIAL_MAX_STR 10
 
+/* Indicates whether the underlying property being modified by the control represents a radius
+ * or diameter to render PROP_PIXEL types correctly */
+enum class SizeMeasurementType : int8_t {
+  Radius = 0,
+  Diameter = 1
+};
+
 struct RadialControl {
   PropertyType type;
   PropertySubType subtype;
+  SizeMeasurementType size_type = SizeMeasurementType::Radius;
   PointerRNA ptr, col_ptr, fill_col_ptr, rot_ptr, zoom_ptr, image_id_ptr;
   PointerRNA fill_col_override_ptr, fill_col_override_test_ptr;
   PropertyRNA *prop = nullptr;
@@ -2794,8 +2802,8 @@ static void radial_control_paint_cursor(bContext * /*C*/,
     case PROP_NONE:
     case PROP_DISTANCE:
     case PROP_PIXEL:
-      r1 = rc->current_value;
-      r2 = rc->initial_value;
+      r1 = rc->size_type == SizeMeasurementType::Radius ? rc->current_value : rc->current_value / 2.0f;
+      r2 = rc->size_type == SizeMeasurementType::Radius ? rc->initial_value : rc->initial_value / 2.0f;
       tex_radius = r1;
       alpha = 0.75;
       break;
@@ -3114,6 +3122,7 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
   }
 
   rc->use_secondary_tex = RNA_boolean_get(op->ptr, "secondary_tex");
+  rc->size_type = SizeMeasurementType(RNA_enum_get(op->ptr, "size_measurement_type"));
 
   return 1;
 }
@@ -3497,6 +3506,20 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_BLOCKING;
 
+  static const EnumPropertyItem size_measurement_type_items[] = {
+      {int(SizeMeasurementType::Radius),
+       "RADIUS",
+       0,
+       "Radius",
+       "Value should be interpreted as a radius"},
+      {int(SizeMeasurementType::Diameter),
+       "DIAMETER",
+       0,
+       "Diameter",
+       "Value should be interpreted as a diameter"},
+    {0, nullptr, 0, nullptr, nullptr},
+  };
+
   /* All paths relative to the context. */
   PropertyRNA *prop;
   prop = RNA_def_string(ot->srna,
@@ -3576,6 +3599,15 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 
   prop = RNA_def_boolean(
       ot->srna, "release_confirm", false, "Confirm On Release", "Finish operation on key release");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_enum(
+      ot->srna,
+      "size_measurement_type",
+      size_measurement_type_items,
+      int(SizeMeasurementType::Radius),
+      "Measurement Type",
+      "Whether a size property corresponds to the radius or diameter of the resulting circle");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
