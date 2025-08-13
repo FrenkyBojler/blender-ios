@@ -346,16 +346,13 @@ static WorldData parse_world(const Bundle &world_bundle)
 }
 
 static void solve_constraints(Span<SimPoints *> all_sim_points,
-                              const Span<ConstraintSet> constraint_sets,
-                              const int substeps)
+                              const Span<ConstraintSet> constraint_sets)
 {
   GaussSeidelSolver solver{all_sim_points};
-  for ([[maybe_unused]] const int substep : IndexRange(substeps)) {
-    for (const ConstraintSet &constraint_set : constraint_sets) {
-      for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
-        constraint_set.evaluator->evaluate_gauss_seidel(solver,
-                                                        IndexRange::from_single(constraint_i));
-      }
+  for (const ConstraintSet &constraint_set : constraint_sets) {
+    for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
+      constraint_set.evaluator->evaluate_gauss_seidel(solver,
+                                                      IndexRange::from_single(constraint_i));
     }
   }
 }
@@ -498,6 +495,11 @@ static void integrate_forces_and_accelerations(
           });
     }
   }
+}
+
+static void update_velocities(XPBDState &state)
+{
+  // TODO
 }
 
 /**
@@ -683,8 +685,6 @@ static void update_and_step_xpbd_state(XPBDState &state,
   }
   state.data_by_path = std::move(new_data_by_path);
 
-  integrate_forces_and_accelerations(state, world, applied_geometries, masses_map, delta_time);
-
   Vector<SimPoints *> all_sim_points;
   Map<std::string, Map<bke::GeometryComponent::Type, int>> all_sim_points_keys;
   for (const int bundle_i : world.geometries.index_range()) {
@@ -709,7 +709,11 @@ static void update_and_step_xpbd_state(XPBDState &state,
   gather_pin_constraints(
       scope, world, applied_geometries, all_sim_points_keys, all_sim_points, constraint_sets);
 
-  solve_constraints(all_sim_points, constraint_sets, substeps);
+  for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
+    integrate_forces_and_accelerations(state, world, applied_geometries, masses_map, delta_time);
+    solve_constraints(all_sim_points, constraint_sets);
+    update_velocities(state);
+  }
 }
 
 static void initialize_state(XPBDState & /*state*/)
