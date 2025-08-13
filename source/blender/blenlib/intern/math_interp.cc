@@ -1102,7 +1102,7 @@ namespace blender::math {
  * normalized squared radius r2 ∈ [0, 1].
  * If 'interpolate' is true, we do a linear (1D) interpolation between
  * neighboring entries; otherwise we take the lower bin directly. */
-BLI_INLINE float lookup_ewa_weight(const float r2_normalized, const bool interpolate = true)
+float lookup_ewa_weight(const float r2_normalized, const bool interpolate = true)
 {
   /* Clamp the query range explicitly; the LUT is only defined on [0,1]. */
   if (r2_normalized <= 0.0f) {
@@ -1134,7 +1134,7 @@ BLI_INLINE float lookup_ewa_weight(const float r2_normalized, const bool interpo
  *
  * This is used to softly kill the boundary weight (no hard jump at r=1),
  * which removes ringing artifacts. */
-BLI_INLINE float ewa_tent_from_r2(float r)
+float ewa_tent_from_r2(float r)
 {
   const float fade = 1.0f - r;  // linear ramp to 0 at r=1
   return (fade > 0.0f) ? fade : 0.0f;
@@ -1143,7 +1143,7 @@ BLI_INLINE float ewa_tent_from_r2(float r)
 /* Final weight = Gaussian(r^2) × Tent(r).
  * Inside most of the footprint this equals the Gaussian; near the edge it
  * smoothly goes to zero with zero discontinuity at r=1, avoiding ringing. */
-BLI_INLINE float ewa_weight_bilinear_fade(const float r2_normalized, const bool interpolate_lut)
+float ewa_weight_bilinear_fade(const float r2_normalized, const bool interpolate_lut)
 {
   if (r2_normalized >= 1.0f) {
     return 0.0f;  // strictly outside support
@@ -1157,11 +1157,11 @@ BLI_INLINE float ewa_weight_bilinear_fade(const float r2_normalized, const bool 
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
  * than the `max_factor_between_axes` times shorter than the long axis. Inputs are the
  * two derivative vectors in texel space (du/dx, dv/dx) and (du/dy, dv/dy). */
-BLI_INLINE void clamp_anisotropy(float &du_dx_texels,
-                                 float &dv_dx_texels,
-                                 float &du_dy_texels,
-                                 float &dv_dy_texels,
-                                 float max_factor_between_axes)
+void clamp_anisotropy(float &du_dx_texels,
+                      float &dv_dx_texels,
+                      float &du_dy_texels,
+                      float &dv_dy_texels,
+                      float max_factor_between_axes)
 {
   auto length_sq = [](float x, float y) { return x * x + y * y; };
 
@@ -1204,11 +1204,11 @@ struct Ellipse {
  *   B = -2 * [(du/dx)(dv/dx) + (du/dy)(dv/dy)]
  *   C = (du/dx)^2 + (du/dy)^2 + 1
  * then normalize so "inside" is r^2 < 1. */
-BLI_INLINE Ellipse build_ellipse(const int2 &image_dimensions,
-                                 const float2 &uv_center_norm,
-                                 const float2 &uv_dx_norm,
-                                 const float2 &uv_dy_norm,
-                                 const float &max_factor_between_axes = 8.0f)
+Ellipse build_ellipse(const int2 &image_dimensions,
+                      const float2 &uv_center_norm,
+                      const float2 &uv_dx_norm,
+                      const float2 &uv_dy_norm,
+                      const float &max_factor_between_axes = 8.0f)
 {
   /* Derivatives in texel units. */
   float du_dx_texels = uv_dx_norm.x * image_dimensions.x;
