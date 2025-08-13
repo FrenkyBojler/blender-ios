@@ -392,10 +392,7 @@ static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *
     if (appended_workspace) {
       /* Copy, to mimmic behavior when appending from another file (which always creates a new copy
        * of the data). */
-      /* FIXME: Does not work currently, as WorkSpace is a `IDTYPE_FLAGS_NO_COPY` type of ID. Not
-       * exactly sure why? */
-      appended_workspace = reinterpret_cast<WorkSpace *>(
-          BKE_id_copy(bmain, &appended_workspace->id));
+      appended_workspace = ED_workspace_duplicate(appended_workspace, bmain, CTX_wm_window(C));
     }
   }
   else {
