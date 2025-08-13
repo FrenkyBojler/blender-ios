@@ -3929,7 +3929,7 @@ def km_grease_pencil_paint_mode(params):
         ("grease_pencil.erase_box", {"type": "B", "value": 'PRESS'}, {"properties": [("wait_for_input", True)]}),
         # Brush size
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.size")]}),
+         {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.size"), ("size_measurement_type", 'DIAMETER')]}),
         # Brush strength
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
          {"properties": [("data_path_primary", "tool_settings.gpencil_paint.brush.strength")]}),
@@ -4161,7 +4161,7 @@ def km_grease_pencil_sculpt_mode(params):
         op_menu_pie("VIEW3D_MT_grease_pencil_sculpt_automasking_pie", {
                     "type": 'A', "value": 'PRESS', "shift": True, "alt": True}),
 
-        *_template_paint_radial_control("gpencil_sculpt_paint"),
+        *_template_paint_radial_control("gpencil_sculpt_paint", size_is_diameter=True),
         *_template_asset_shelf_popup("VIEW3D_AST_brush_gpencil_sculpt", params.spacebar_action),
         *_template_items_context_panel("VIEW3D_PT_greasepencil_sculpt_context_menu", params.context_menu_event),
     ])
@@ -4191,7 +4191,7 @@ def km_grease_pencil_weight_paint(params):
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
         # Radial controls
-        *_template_paint_radial_control("gpencil_weight_paint"),
+        *_template_paint_radial_control("gpencil_weight_paint", size_is_diameter=True),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True},
          radial_control_properties("gpencil_weight_paint", "weight", "use_unified_weight")),
         # Toggle Add/Subtract for weight draw tool
@@ -4305,7 +4305,7 @@ def km_grease_pencil_vertex_paint(params):
          {"properties": [("type", "ALL_FRAMES")]}),
 
         # Radial controls
-        *_template_paint_radial_control("gpencil_vertex_paint"),
+        *_template_paint_radial_control("gpencil_vertex_paint", size_is_diameter=True),
         # Context menu
         *_template_items_context_panel("VIEW3D_PT_greasepencil_vertex_paint_context_menu", params.context_menu_event),
 
@@ -4633,7 +4633,7 @@ def km_paint_curve(params):
 # Radial control setup helpers, this operator has a lot of properties.
 
 
-def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=False, color=False, zoom=False):
+def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=False, color=False, zoom=False, size_is_diameter=False):
     brush_path = "tool_settings." + paint + ".brush"
     unified_path = "tool_settings." + paint + ".unified_paint_settings"
     rotation = "mask_texture_slot.angle" if secondary_rotation else "texture_slot.angle"
@@ -4650,19 +4650,20 @@ def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=Fa
             ("zoom_path", "space_data.zoom" if zoom else ''),
             ("image_id", brush_path + ''),
             ("secondary_tex", secondary_rotation),
+            ("size_measurement_type", 'DIAMETER' if size_is_diameter else 'RADIUS'),
         ],
     }
 
 # Radial controls for the paint and sculpt modes.
 
 
-def _template_paint_radial_control(paint, rotation=False, secondary_rotation=False, color=False, zoom=False):
+def _template_paint_radial_control(paint, rotation=False, secondary_rotation=False, color=False, zoom=False, size_is_diameter=False):
     items = []
 
     items.extend([
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
          radial_control_properties(
-             paint, "size", "use_unified_size", secondary_rotation=secondary_rotation, color=color, zoom=zoom)),
+             paint, "size", "use_unified_size", secondary_rotation=secondary_rotation, color=color, zoom=zoom, size_is_diameter=size_is_diameter)),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
          radial_control_properties(
              paint, "strength", "use_unified_strength", secondary_rotation=secondary_rotation, color=color)),
@@ -4882,7 +4883,7 @@ def km_image_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("image_paint", color=True, zoom=True, rotation=True, secondary_rotation=True),
+        *_template_paint_radial_control("image_paint", color=True, zoom=True, rotation=True, secondary_rotation=True, size_is_diameter=True),
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True},
@@ -4933,7 +4934,7 @@ def km_vertex_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("vertex_paint", color=True, rotation=True),
+        *_template_paint_radial_control("vertex_paint", color=True, rotation=True, size_is_diameter=True),
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS', "shift": True},
@@ -4996,7 +4997,7 @@ def km_weight_paint(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("weight_paint"),
+        *_template_paint_radial_control("weight_paint", size_is_diameter=True),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True},
          radial_control_properties("weight_paint", "weight", "use_unified_weight")),
         ("wm.context_menu_enum", {"type": 'E', "value": 'PRESS', "alt": True},
@@ -5185,7 +5186,7 @@ def km_sculpt(params):
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 1.0 / 0.9)]}),
-        *_template_paint_radial_control("sculpt", rotation=True),
+        *_template_paint_radial_control("sculpt", rotation=True, size_is_diameter=True),
         # Stencil
         ("brush.stencil_control", {"type": 'RIGHTMOUSE', "value": 'PRESS'},
          {"properties": [("mode", 'TRANSLATION')]}),
@@ -5308,7 +5309,7 @@ def km_sculpt_curves(params):
          {"properties": [("mode", 'SMOOTH')]}),
         ("curves.set_selection_domain", {"type": 'ONE', "value": 'PRESS'}, {"properties": [("domain", 'POINT')]}),
         ("curves.set_selection_domain", {"type": 'TWO', "value": 'PRESS'}, {"properties": [("domain", 'CURVE')]}),
-        *_template_paint_radial_control("curves_sculpt"),
+        *_template_paint_radial_control("curves_sculpt", size_is_diameter=True),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
@@ -5657,7 +5658,7 @@ def km_edit_particle(params):
         ("particle.brush_edit", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("particle.brush_edit", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True}, None),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-         {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.size")]}),
+         {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.size"), ("size_measurement_type", 'RADIUS')]}),
         ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
          {"properties": [("data_path_primary", "tool_settings.particle_edit.brush.strength")]}),
         ("particle.weight_set", {"type": 'K', "value": 'PRESS', "shift": True}, None),
@@ -6906,7 +6907,7 @@ def km_image_editor_tool_uv_grab(params):
              {"properties": [("use_invert", True)]}),
             ("sculpt.uv_sculpt_relax", {"type": params.tool_mouse, "value": 'PRESS', "shift": True}, None),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ], }),
+             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ("size_measurement_type", 'RADIUS')]}),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
              {"properties": [("data_path_primary", "tool_settings.uv_sculpt.strength"), ], }),
         ]},
@@ -6923,7 +6924,7 @@ def km_image_editor_tool_uv_relax(params):
              {"properties": [("use_invert", True)]}),
             ("sculpt.uv_sculpt_relax", {"type": params.tool_mouse, "value": 'PRESS', "shift": True}, None),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ], }),
+             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ("size_measurement_type", 'RADIUS')], }),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
              {"properties": [("data_path_primary", "tool_settings.uv_sculpt.strength"), ], }),
         ]},
@@ -6940,7 +6941,7 @@ def km_image_editor_tool_uv_pinch(params):
              {"properties": [("use_invert", True)]}),
             ("sculpt.uv_sculpt_relax", {"type": params.tool_mouse, "value": 'PRESS', "shift": True}, None),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
-             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ], }),
+             {"properties": [("data_path_primary", "tool_settings.uv_sculpt.size"), ("size_measurement_type", 'RADIUS')], }),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "shift": True},
              {"properties": [("data_path_primary", "tool_settings.uv_sculpt.strength"), ], }),
         ]},
