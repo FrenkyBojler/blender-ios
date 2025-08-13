@@ -2799,6 +2799,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* Command implies background mode (defers execution). */
   BLI_args_add(ba, "-c", "--command", CB(arg_handle_command_set), C);
 
+  BLI_args_add(ba, nullptr, "--qos", CB(arg_handle_qos_set), nullptr);
+
   BLI_args_add(ba,
                nullptr,
                "--disable-depsgraph-on-file-load",
@@ -2980,7 +2982,6 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, nullptr, "--unregister", CB(arg_handle_unregister_extension), nullptr);
   BLI_args_add(
       ba, nullptr, "--unregister-allusers", CB(arg_handle_unregister_extension_all), nullptr);
-  BLI_args_add(ba, nullptr, "--qos", CB(arg_handle_qos_set), nullptr);
   BLI_args_add(ba, nullptr, "--no-native-pixels", CB(arg_handle_native_pixels_set), ba);
 
   /* Pass: Disabling Things & Forcing Settings. */
