@@ -55,6 +55,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Solver Steps").default_value(1).min(1);
 }
 
+class DataPoints {
+  bke::AttributeStorage attributes;
+};
+
 class XPBDState {
  public:
   /**
@@ -62,6 +66,8 @@ class XPBDState {
    * same frame multiple times when playback is paused but the simulation parameters are changed.
    */
   int update_counter = 0;
+
+  Map<std::string, std::unique_ptr<DataPoints>> data_points;
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -80,6 +86,59 @@ class XPBDStateOwner : public BundleItemInternalValueMixin {
   }
 };
 using XPBDStateOwnerPtr = ImplicitSharingPtr<XPBDStateOwner>;
+
+struct WorldData {
+  Vector<ForceBundle> forces;
+  Vector<GravityBundle> gravities;
+  Vector<XPBDGeometryBundle> geometry;
+  Vector<EdgeLengthXPBDConstraintBundle> edge_length_constraints;
+  Vector<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
+};
+
+static WorldData parse_world(const Bundle &world_bundle)
+{
+  WorldData world;
+  nested_bundle_foreach(world_bundle, [&](HandleNestedBundleParams &params) {
+    BundleParseErrors errors;
+    if (params.type == ForceBundle::name) {
+      if (std::optional<ForceBundle> force = ForceBundle::parse(params.bundle, errors)) {
+        world.forces.append(std::move(*force));
+        world.forces.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+    else if (params.type == GravityBundle::name) {
+      if (std::optional<GravityBundle> gravity = GravityBundle::parse(params.bundle, errors)) {
+        world.gravities.append(std::move(*gravity));
+        world.gravities.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+    else if (params.type == XPBDGeometryBundle::name) {
+      if (std::optional<XPBDGeometryBundle> geometry = XPBDGeometryBundle::parse(params.bundle,
+                                                                                 errors))
+      {
+        world.geometry.append(std::move(*geometry));
+        world.geometry.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+    else if (params.type == EdgeLengthXPBDConstraintBundle::name) {
+      if (std::optional<EdgeLengthXPBDConstraintBundle> constraint =
+              EdgeLengthXPBDConstraintBundle::parse(params.bundle, errors))
+      {
+        world.edge_length_constraints.append(std::move(*constraint));
+        world.edge_length_constraints.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+    else if (params.type == PinnedPositionXPBDConstraintBundle::name) {
+      if (std::optional<PinnedPositionXPBDConstraintBundle> constraint =
+              PinnedPositionXPBDConstraintBundle::parse(params.bundle, errors))
+      {
+        world.pinned_position_constraints.append(std::move(*constraint));
+        world.pinned_position_constraints.last().self_path = Bundle::combine_path(params.path);
+      }
+    }
+  });
+  return world;
+}
 
 static void initialize_state(XPBDState & /*state*/)
 {
@@ -121,6 +180,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   BLI_SCOPED_DEFER([&]() { xpbd_state_owner->mutex.unlock(); });
 
+  WorldData world = parse_world(*world_bundle_ptr);
   XPBDState &state = xpbd_state_owner->state;
 
   const bool is_resimulating = update_counter < state.update_counter;
