@@ -207,18 +207,21 @@ class DistanceConstraintEvaluator
   VArray<float> masses_;
   Span<int2> point_pairs_;
   Span<float> distances_;
+  float compliance_term_;
 
  public:
   DistanceConstraintEvaluator(const int geo_i,
                               const Span<float3> positions,
                               const VArray<float> &masses,
                               const Span<int2> point_pairs,
-                              const Span<float> distances)
+                              const Span<float> distances,
+                              const float compliance_term)
       : geo_i_(geo_i),
         positions_(positions),
         masses_(masses),
         point_pairs_(point_pairs),
-        distances_(distances)
+        distances_(distances),
+        compliance_term_(compliance_term)
   {
     BLI_assert(point_pairs.size() == distances.size());
   }
@@ -233,7 +236,6 @@ class DistanceConstraintEvaluator
     const float3 &p1 = positions_[v1];
     const float m0 = masses_[v0];
     const float m1 = masses_[v1];
-    const float compliance_term = 0.0f;
 
     const float inv_m0 = 1.0f / m0;
     const float inv_m1 = 1.0f / m1;
@@ -242,7 +244,7 @@ class DistanceConstraintEvaluator
     float length;
     const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
     const float length_diff = length - target_distance;
-    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
+    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term_);
 
     const float3 offset0 = lambda * inv_m0 * normalized_dir;
     const float3 offset1 = -lambda * inv_m1 * normalized_dir;
@@ -574,6 +576,7 @@ static void gather_distance_constraints(
     const Map<std::string, Map<bke::GeometryComponent::Type, int>> &all_sim_points_keys,
     const Span<SimPoints *> all_sim_points,
     const Map<PathComponentKey, VArray<float>> &masses_map,
+    const float delta_time,
     Vector<ConstraintSet> &r_constraint_sets)
 {
   for (const int bundle_i : world.geometries.index_range()) {
@@ -615,10 +618,15 @@ static void gather_distance_constraints(
       MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
       const VArray<float> length_varray = field_evaluator.get_evaluated<float>(0);
       length_varray.materialize_compressed(mask, constraint_lengths);
-      r_constraint_sets.append(ConstraintSet{
-          &scope.construct<BinaryConstraintSetIndices>(geo_i, constraint_edges),
-          &scope.construct<DistanceConstraintEvaluator>(
-              geo_i, sim_points.positions, masses, constraint_edges, constraint_lengths)});
+      const float compliance_term = math::safe_divide(1e-3f, pow2f(delta_time));
+      r_constraint_sets.append(
+          ConstraintSet{&scope.construct<BinaryConstraintSetIndices>(geo_i, constraint_edges),
+                        &scope.construct<DistanceConstraintEvaluator>(geo_i,
+                                                                      sim_points.positions,
+                                                                      masses,
+                                                                      constraint_edges,
+                                                                      constraint_lengths,
+                                                                      compliance_term)});
     }
   }
 }
@@ -719,6 +727,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
   const Map<PathComponentKey, Array<float3>> accelerations_map = compute_external_accelerations(
       world, masses_map, applied_geometries);
 
+  const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
+
   Vector<ConstraintSet> constraint_sets;
   gather_distance_constraints(scope,
                               world,
@@ -726,6 +736,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
                               all_sim_points_keys,
                               all_sim_points,
                               masses_map,
+                              sub_delta_time,
                               constraint_sets);
   gather_pin_constraints(
       scope, world, applied_geometries, all_sim_points_keys, all_sim_points, constraint_sets);
@@ -736,7 +747,6 @@ static void update_and_step_xpbd_state(XPBDState &state,
   }
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
-    const float sub_delta_time = total_delta_time / substeps;
     for (const int i : all_sim_points.index_range()) {
       all_prev_positions[i].as_mutable_span().copy_from(all_sim_points[i]->positions);
     }
