@@ -37,6 +37,7 @@
 
 #include "grease_pencil_io_intern.hh"
 
+#include <fmt/format.h>
 #include <numeric>
 #include <optional>
 
@@ -607,6 +608,17 @@ bool GreasePencilExporter::is_selected_frame(const GreasePencil &grease_pencil,
     }
   }
   return false;
+}
+
+std::string GreasePencilExporter::coord_to_svg_string(const float2 &screen_co) const
+{
+  /* SVG has inverted Y axis. */
+  if (camera_persmat_) {
+    return fmt::format("{},{}", screen_co.x, camera_rect_.size().y - screen_co.y);
+  }
+  else {
+    return fmt::format("{},{}", screen_co.x, screen_rect_.size().y - screen_co.y);
+  }
 }
 
 }  // namespace blender::io::grease_pencil

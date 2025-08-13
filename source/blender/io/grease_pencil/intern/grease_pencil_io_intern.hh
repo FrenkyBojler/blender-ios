@@ -97,6 +97,8 @@ class GreasePencilExporter {
   float2 project_to_screen(const float4x4 &transform, const float3 &position) const;
 
   bool is_selected_frame(const GreasePencil &grease_pencil, int frame_number) const;
+
+  std::string coord_to_svg_string(const float2 &screen_co) const;
 };
 
 }  // namespace blender::io::grease_pencil
