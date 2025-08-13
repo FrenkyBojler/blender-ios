@@ -381,18 +381,11 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
   }
 }
 
-ViewerNodeLog::~ViewerNodeLog()
-{
-  for (const Item &item : this->items) {
-    item.type->geometry_nodes_cpp_type->destruct(item.data);
-  }
-}
-
 std::optional<bke::GeometrySet> ViewerNodeLog::main_geometry() const
 {
   for (const Item &item : this->items) {
-    if (item.type->type == SOCK_GEOMETRY) {
-      return *static_cast<const bke::GeometrySet *>(item.data);
+    if (item.value.is_single() && item.value.get_single_ptr().is_type<bke::GeometrySet>()) {
+      return *item.value.get_single_ptr().get<bke::GeometrySet>();
     }
   }
   return std::nullopt;

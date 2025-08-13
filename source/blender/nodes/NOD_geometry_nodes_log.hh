@@ -38,6 +38,7 @@
 #include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node.hh"
+#include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_volume_grid_fwd.hh"
 
@@ -241,8 +242,7 @@ class ViewerNodeLog {
  public:
   struct Item {
     int identifier;
-    const bke::bNodeSocketType *type;
-    void *data;
+    bke::SocketValueVariant value;
   };
 
   struct ItemIdentifierGetter {
@@ -252,12 +252,9 @@ class ViewerNodeLog {
     }
   };
 
-  ResourceScope scope;
   CustomIDVectorSet<Item, ItemIdentifierGetter> items;
 
   std::optional<bke::GeometrySet> main_geometry() const;
-
-  ~ViewerNodeLog();
 };
 
 using Clock = std::chrono::steady_clock;

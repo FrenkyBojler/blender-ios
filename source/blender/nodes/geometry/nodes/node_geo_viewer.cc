@@ -5,7 +5,6 @@
 #include <fmt/format.h>
 
 #include "BKE_type_conversions.hh"
-#include "BLI_listbase.h"
 
 #include "BKE_context.hh"
 
@@ -13,7 +12,6 @@
 
 #include "NOD_geo_viewer.hh"
 #include "NOD_node_extra_info.hh"
-#include "NOD_rna_define.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -95,62 +93,38 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
     return false;
   }
 
-  switch (item_log->type->type) {
-    case SOCK_FLOAT: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
-      if (!value_variant.is_single()) {
-        return false;
-      }
-      draw_float(params.layout, value_variant.get<float>());
-      break;
-    }
-    case SOCK_INT: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
-      if (!value_variant.is_single()) {
-        return false;
-      }
-      draw_int(params.layout, value_variant.get<int>());
-      break;
-    }
-    case SOCK_VECTOR: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
-      if (!value_variant.is_single()) {
-        return false;
-      }
-      const float3 value = value_variant.get<float3>();
-      draw_vector(params.layout, value);
-      break;
-    }
-    case SOCK_RGBA: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
-      if (!value_variant.is_single()) {
-        return false;
-      }
-      const ColorGeometry4f value = value_variant.get<ColorGeometry4f>();
-      draw_color(params.layout, value);
-      break;
-    }
-    case SOCK_STRING: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
-      if (!value_variant.is_single()) {
-        return false;
-      }
-      draw_string(params.layout, value_variant.get<std::string>());
-      break;
-    }
-    case SOCK_BOOLEAN: {
-      const auto &value_variant = *static_cast<bke::SocketValueVariant *>(item_log->data);
-      if (!value_variant.is_single()) {
-        return false;
-      }
-      draw_bool(params.layout, value_variant.get<bool>());
-      break;
-    }
-    default: {
-      return false;
-    }
+  const bke::SocketValueVariant &value = item_log->value;
+  if (!value.is_single()) {
+    return false;
   }
-  return true;
+
+  const GPointer single_value = value.get_single_ptr();
+  if (single_value.is_type<float>()) {
+    draw_float(params.layout, *single_value.get<float>());
+    return true;
+  }
+  if (single_value.is_type<float3>()) {
+    draw_vector(params.layout, *single_value.get<float3>());
+    return true;
+  }
+  if (single_value.is_type<int>()) {
+    draw_int(params.layout, *single_value.get<int>());
+    return true;
+  }
+  if (single_value.is_type<bool>()) {
+    draw_bool(params.layout, *single_value.get<bool>());
+    return true;
+  }
+  if (single_value.is_type<std::string>()) {
+    draw_string(params.layout, *single_value.get<std::string>());
+    return true;
+  }
+  if (single_value.is_type<ColorGeometry4f>()) {
+    draw_color(params.layout, *single_value.get<ColorGeometry4f>());
+    return true;
+  }
+
+  return false;
 }
 
 static bool draw_generic_value_log(CustomSocketDrawParams &params, const GPointer &value)
@@ -170,29 +144,23 @@ static bool draw_generic_value_log(CustomSocketDrawParams &params, const GPointe
   BLI_SCOPED_DEFER([&]() { socket_base_cpp_type.destruct(socket_value); });
 
   switch (params.socket.type) {
-    case SOCK_INT: {
+    case SOCK_INT:
       draw_int(params.layout, *static_cast<int *>(socket_value));
       return true;
-    }
-    case SOCK_FLOAT: {
+    case SOCK_FLOAT:
       draw_float(params.layout, *static_cast<float *>(socket_value));
       return true;
-    }
-    case SOCK_VECTOR: {
+    case SOCK_VECTOR:
       draw_vector(params.layout, *static_cast<float3 *>(socket_value));
       return true;
-    }
-    case SOCK_RGBA: {
+    case SOCK_RGBA:
       draw_color(params.layout, *static_cast<ColorGeometry4f *>(socket_value));
       return true;
-    }
-    case SOCK_BOOLEAN: {
+    case SOCK_BOOLEAN:
       draw_bool(params.layout, *static_cast<bool *>(socket_value));
       return true;
-    }
-    default: {
+    default:
       return false;
-    }
   }
 
   return false;
@@ -356,31 +324,27 @@ static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog 
     if (!socket_type_supports_fields(type.type)) {
       continue;
     }
-    bke::GeometrySet *geometry = static_cast<bke::GeometrySet *>(
-        r_log.items.lookup_key_as(*last_geometry_identifier).data);
-    if (!geometry) {
+    /* Changing the `value` field doesn't change the hash or equality of the item. */
+    GMutablePointer geometry_ptr = const_cast<bke::SocketValueVariant &>(
+                                       r_log.items.lookup_key_as(*last_geometry_identifier).value)
+                                       .get_single_ptr();
+    GeometrySet &geometry = *geometry_ptr.get<GeometrySet>();
+    const bke::SocketValueVariant &value = r_log.items.lookup_key_as(item.identifier).value;
+    if (!(value.is_single() || value.is_context_dependent_field())) {
       continue;
     }
-    const auto *value_variant = static_cast<const bke::SocketValueVariant *>(
-        r_log.items.lookup_key_as(item.identifier).data);
-    if (!value_variant) {
-      continue;
-    }
-    if (!(value_variant->is_single() || value_variant->is_context_dependent_field())) {
-      continue;
-    }
-    const GField field = value_variant->get<GField>();
+    const GField field = value.get<GField>();
     const AttrDomain domain_or_auto = AttrDomain(storage.domain);
     if (domain_or_auto == AttrDomain::Instance) {
-      if (geometry->has_instances()) {
+      if (geometry.has_instances()) {
         bke::GeometryComponent &component =
-            geometry->get_component_for_write<bke::InstancesComponent>();
+            geometry.get_component_for_write<bke::InstancesComponent>();
         bke::try_capture_field_on_geometry(
             component, viewer_attribute_name, AttrDomain::Instance, field);
       }
     }
     else {
-      geometry::foreach_real_geometry(*geometry, [&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
         for (const bke::GeometryComponent::Type type :
              {bke::GeometryComponent::Type::Mesh,
               bke::GeometryComponent::Type::PointCloud,
@@ -412,31 +376,23 @@ static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog 
 }
 
 static void geo_viewer_node_log_impl(const bNode &node,
-                                     const Span<void *> input_values,
+                                     const Span<bke::SocketValueVariant *> input_values,
                                      geo_eval_log::ViewerNodeLog &r_log)
 {
   const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
-  LinearAllocator<> &allocator = r_log.scope.allocator();
-
-  /* Log all input values. */
   for (const int i : IndexRange(storage.items_num)) {
     void *src_value = input_values[i];
     if (!src_value) {
       continue;
     }
-    const bNodeSocket &bsocket = node.input_socket(i);
     const NodeGeometryViewerItem &item = storage.items[i];
-    const bke::bNodeSocketType &type = *bsocket.typeinfo;
 
-    void *owned_value = allocator.allocate(*type.geometry_nodes_cpp_type);
-    type.geometry_nodes_cpp_type->move_construct(src_value, owned_value);
-    if (type.type == SOCK_GEOMETRY) {
-      bke::GeometrySet &geometry = *static_cast<bke::GeometrySet *>(owned_value);
-      geometry.ensure_owns_direct_data();
+    bke::SocketValueVariant &value = *input_values[i];
+    if (value.is_single() && value.get_single_ptr().is_type<bke::GeometrySet>()) {
+      value.get_single_ptr().get<bke::GeometrySet>()->ensure_owns_direct_data();
     }
-    r_log.items.add_new({item.identifier, &type, owned_value});
+    r_log.items.add_new({item.identifier, std::move(value)});
   }
-
   log_viewer_attribute(node, r_log);
 }
 
@@ -519,7 +475,7 @@ void GeoViewerItemsAccessor::blend_read_data_item(BlendDataReader *reader,
 }
 
 void geo_viewer_node_log(const bNode &node,
-                         const Span<void *> input_values,
+                         const Span<bke::SocketValueVariant *> input_values,
                          geo_eval_log::ViewerNodeLog &r_log)
 {
   node_geo_viewer_cc::geo_viewer_node_log_impl(node, input_values, r_log);

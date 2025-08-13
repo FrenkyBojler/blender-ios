@@ -835,12 +835,12 @@ class LazyFunctionForViewerNode : public LazyFunction {
 
     const NodeGeometryViewer &storage = *static_cast<const NodeGeometryViewer *>(bnode_.storage);
 
-    Vector<void *> values(storage.items_num, nullptr);
+    Vector<bke::SocketValueVariant *> values(storage.items_num, nullptr);
 
     for (const int i : IndexRange(storage.items_num)) {
       const bNodeSocket &bsocket = bnode_.input_socket(i);
       const int param_index = lf_index_by_bsocket_[bsocket.index_in_tree()];
-      values[i] = params.try_get_input_data_ptr(param_index);
+      values[i] = params.try_get_input_data_ptr<bke::SocketValueVariant>(param_index);
     }
 
     auto log = allocator.construct<geo_eval_log::ViewerNodeLog>();

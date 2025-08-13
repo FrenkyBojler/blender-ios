@@ -111,7 +111,7 @@ struct GeoViewerItemsAccessor : public socket_items::SocketItemsAccessorDefaults
 };
 
 void geo_viewer_node_log(const bNode &node,
-                         const Span<void *> input_values,
+                         const Span<bke::SocketValueVariant *> input_values,
                          geo_eval_log::ViewerNodeLog &r_log);
 
 }  // namespace blender::nodes
