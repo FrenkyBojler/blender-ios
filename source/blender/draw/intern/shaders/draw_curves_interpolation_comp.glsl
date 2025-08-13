@@ -385,8 +385,16 @@ void copy_curve_data(const InterpType interp_type,
                      const IndexRange evaluated_points)
 {
   assert(points.size == evaluated_points.size);
+  /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
+  const bool is_curve_cyclic = use_cyclic;
+
   for (int i = 0; i < points.size(); i++) {
     output_write(evaluated_points.start() + i, input_load(points.start() + i, interp_type));
+  }
+
+  if (is_curve_cyclic) {
+    /* The closing point is not contained inside `bezier_offsets_buf` so we do manual copy. */
+    output_write(evaluated_points.last(), output_load(evaluated_points.first(), interp_type));
   }
 }
 
