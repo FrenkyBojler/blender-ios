@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifdef WITH_ONEAPI
+#if defined(WITH_ONEAPI) && defined(SYCL_LINEAR_MEMORY_INTEROP_AVAILABLE)
 
 #  include <sycl/sycl.hpp>
 

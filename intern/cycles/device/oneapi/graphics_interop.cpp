@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifdef WITH_ONEAPI
+#if defined(WITH_ONEAPI) && defined(SYCL_LINEAR_MEMORY_INTEROP_AVAILABLE)
 
 #  include "device/oneapi/graphics_interop.h"
 
@@ -46,7 +46,7 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
 
   if (interop_buffer.get_type() != GraphicsInteropDevice::VULKAN) {
     /* SYCL only supports interop with Vulkan and D3D. */
-    LOG(ERROR) << "OneAPI interop set_buffer called for invalid graphics API";
+    LOG_ERROR << "OneAPI interop set_buffer called for invalid graphics API";
     return;
   }
 
@@ -78,7 +78,7 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
 #  else
     close(external_memory_handle_desc.handle.fd);
 #  endif
-    LOG(ERROR) << "Error importing Vulkan memory: " << e.what();
+    LOG_ERROR << "Error importing Vulkan memory: " << e.what();
     return;
   }
 

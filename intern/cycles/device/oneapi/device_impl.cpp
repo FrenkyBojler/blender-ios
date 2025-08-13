@@ -946,6 +946,7 @@ unique_ptr<DeviceQueue> OneapiDevice::gpu_queue_create()
 bool OneapiDevice::should_use_graphics_interop(const GraphicsInteropDevice &interop_device,
                                                const bool log)
 {
+#  ifdef SYCL_LINEAR_MEMORY_INTEROP_AVAILABLE
   if (interop_device.type != GraphicsInteropDevice::VULKAN) {
     /* SYCL only supports interop with Vulkan and D3D. */
     return false;
@@ -960,18 +961,21 @@ bool OneapiDevice::should_use_graphics_interop(const GraphicsInteropDevice &inte
 
   if (log) {
     if (found) {
-      VLOG_INFO << "Graphics interop: found matching Vulkan device for oneAPI";
+      LOG_INFO << "Graphics interop: found matching Vulkan device for oneAPI";
     }
     else {
-      VLOG_INFO << "Graphics interop: no matching Vulkan device for oneAPI";
+      LOG_INFO << "Graphics interop: no matching Vulkan device for oneAPI";
     }
 
-    VLOG_INFO << "Graphics Interop: oneAPI UUID " << string_hex(uuid.data(), uuid.size())
-              << ", Vulkan UUID "
-              << string_hex(interop_device.uuid.data(), interop_device.uuid.size());
+    LOG_INFO << "Graphics Interop: oneAPI UUID " << string_hex(uuid.data(), uuid.size())
+             << ", Vulkan UUID "
+             << string_hex(interop_device.uuid.data(), interop_device.uuid.size());
   }
 
   return found;
+#  else
+  return false;
+#  endif
 }
 
 void *OneapiDevice::usm_aligned_alloc_host(const size_t memory_size, const size_t alignment)

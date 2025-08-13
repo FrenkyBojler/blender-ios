@@ -197,6 +197,25 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   list(APPEND INC_SYS
     ${SYCL_INCLUDE_DIR}
   )
+
+  # SYCL_INCLUDE_DIR contains both "include" and "include/sycl", so we can't use that here.
+  get_filename_component(SYCL_COMPILER_ROOT ${SYCL_COMPILER} DIRECTORY)
+  set(SYCL_BINDLESS_IMAGES_HEADER_PATH "${SYCL_COMPILER_ROOT}/../include/sycl/ext/oneapi/bindless_images.hpp")
+  if (EXISTS "${SYCL_BINDLESS_IMAGES_HEADER_PATH}")
+    file(READ "${SYCL_BINDLESS_IMAGES_HEADER_PATH}" SYCL_BINDLESS_IMAGES_HEADER_CONTENT)
+    string(FIND "${SYCL_BINDLESS_IMAGES_HEADER_CONTENT}" "unmap_external_linear_memory" SYCL_UNMAP_LINEAR_MEMORY_MATCH_RES)
+    if(${SYCL_UNMAP_LINEAR_MEMORY_MATCH_RES} EQUAL -1)
+      message(WARNING "The installed SYCL version does not support unmap_external_linear_memory. Upgrade to oneAPI >= 2025.2 or DPC++ >= 6.2.")
+    else()
+      foreach(FILE ${SRC_ONEAPI})
+        set_source_files_properties(
+            ${FILE} PROPERTIES COMPILE_DEFINITIONS "SYCL_LINEAR_MEMORY_INTEROP_AVAILABLE"
+        )
+      endforeach()
+    endif()
+  else()
+    message(WARNING "File ${SYCL_BINDLESS_IMAGES_HEADER_PATH} not found!")
+  endif()
 endif()
 
 if(WITH_OPENIMAGEDENOISE)

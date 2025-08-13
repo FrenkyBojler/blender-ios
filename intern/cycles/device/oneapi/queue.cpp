@@ -143,10 +143,12 @@ void OneapiDeviceQueue::copy_from_device(device_memory &mem)
   oneapi_device_->mem_copy_from(mem);
 }
 
+#  ifdef SYCL_LINEAR_MEMORY_INTEROP_AVAILABLE
 unique_ptr<DeviceGraphicsInterop> OneapiDeviceQueue::graphics_interop_create()
 {
   return make_unique<OneapiDeviceGraphicsInterop>(this);
 }
+#  endif
 
 CCL_NAMESPACE_END
 
