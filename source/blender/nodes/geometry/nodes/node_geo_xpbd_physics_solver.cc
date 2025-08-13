@@ -346,13 +346,16 @@ static WorldData parse_world(const Bundle &world_bundle)
 }
 
 static void solve_constraints(Span<SimPoints *> all_sim_points,
-                              const Span<ConstraintSet> constraint_sets)
+                              const Span<ConstraintSet> constraint_sets,
+                              const int substeps)
 {
   GaussSeidelSolver solver{all_sim_points};
-  for (const ConstraintSet &constraint_set : constraint_sets) {
-    for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
-      constraint_set.evaluator->evaluate_gauss_seidel(solver,
-                                                      IndexRange::from_single(constraint_i));
+  for ([[maybe_unused]] const int substep : IndexRange(substeps)) {
+    for (const ConstraintSet &constraint_set : constraint_sets) {
+      for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
+        constraint_set.evaluator->evaluate_gauss_seidel(solver,
+                                                        IndexRange::from_single(constraint_i));
+      }
     }
   }
 }
@@ -560,11 +563,11 @@ static void gather_distance_constraints(
     if (!applied_geometry.has_mesh()) {
       continue;
     }
-    const Mesh &mesh = *applied_geometry.get_mesh();
     const int geo_i = all_sim_points_keys.lookup(geometry_bundle.self_path)
                           .lookup(bke::GeometryComponent::Type::Mesh);
-    const Span<int2> mesh_edges = mesh.edges();
     const SimPoints &sim_points = *all_sim_points[geo_i];
+    const Mesh &mesh = *applied_geometry.get_mesh();
+    const Span<int2> mesh_edges = mesh.edges();
     const VArray<float> &masses = masses_map.lookup(
         {geometry_bundle.self_path, bke::GeometryComponent::Type::Mesh});
 
@@ -593,12 +596,65 @@ static void gather_distance_constraints(
       MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
       const VArray<float> length_varray = field_evaluator.get_evaluated<float>(0);
       length_varray.materialize_compressed(mask, constraint_lengths);
-      BinaryConstraintSetIndices &constraint_indices = scope.construct<BinaryConstraintSetIndices>(
-          geo_i, constraint_edges);
-      DistanceConstraintEvaluator &constraint_evaluator =
-          scope.construct<DistanceConstraintEvaluator>(
-              geo_i, sim_points.positions, masses, constraint_edges, constraint_lengths);
-      r_constraint_sets.append(ConstraintSet{&constraint_indices, &constraint_evaluator});
+      r_constraint_sets.append(ConstraintSet{
+          &scope.construct<BinaryConstraintSetIndices>(geo_i, constraint_edges),
+          &scope.construct<DistanceConstraintEvaluator>(
+              geo_i, sim_points.positions, masses, constraint_edges, constraint_lengths)});
+    }
+  }
+}
+
+static void gather_pin_constraints(
+    ResourceScope &scope,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const Map<std::string, Map<bke::GeometryComponent::Type, int>> &all_sim_points_keys,
+    const Span<SimPoints *> all_sim_points,
+    Vector<ConstraintSet> &r_constraint_sets)
+{
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
+    const Vector<const PinnedPositionXPBDConstraintBundle *> pinned_position_constraints =
+        filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
+            world.pinned_position_constraints, geometry_bundle.self_path);
+    if (pinned_position_constraints.is_empty()) {
+      continue;
+    }
+    for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
+      const bke::GeometryComponent *component = applied_geometry.get_component(type);
+      if (!component) {
+        continue;
+      }
+      const AttrDomain domain = bke::AttrDomain::Point;
+      const int domain_size = component->attribute_domain_size(domain);
+
+      const int geo_i = all_sim_points_keys.lookup(geometry_bundle.self_path).lookup(type);
+      const SimPoints &sim_points = *all_sim_points[geo_i];
+
+      bke::GeometryFieldContext field_context(*component, domain);
+      for (const PinnedPositionXPBDConstraintBundle *constraint_bundle :
+           pinned_position_constraints)
+      {
+        fn::FieldEvaluator field_evaluator{field_context, domain_size};
+        field_evaluator.set_selection(constraint_bundle->selection);
+        field_evaluator.add(constraint_bundle->position);
+        field_evaluator.evaluate();
+        const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+        if (mask.is_empty()) {
+          continue;
+        }
+        const VArray<float3> pin_positions_varray = field_evaluator.get_evaluated<float3>(0);
+        MutableSpan<int> constraint_indices = scope.allocator().allocate_array<int>(mask.size());
+        MutableSpan<float3> constraint_positions = scope.allocator().allocate_array<float3>(
+            mask.size());
+        mask.to_indices(constraint_indices);
+        pin_positions_varray.materialize_compressed(mask, constraint_positions);
+        r_constraint_sets.append(ConstraintSet{
+            &scope.construct<UnaryConstraintSetIndices>(geo_i, constraint_indices),
+            &scope.construct<PinConstraintEvaluator>(
+                geo_i, sim_points.positions, constraint_indices, constraint_positions)});
+      }
     }
   }
 }
@@ -650,8 +706,10 @@ static void update_and_step_xpbd_state(XPBDState &state,
                               all_sim_points,
                               masses_map,
                               constraint_sets);
+  gather_pin_constraints(
+      scope, world, applied_geometries, all_sim_points_keys, all_sim_points, constraint_sets);
 
-  solve_constraints(all_sim_points, constraint_sets);
+  solve_constraints(all_sim_points, constraint_sets, substeps);
 }
 
 static void initialize_state(XPBDState & /*state*/)
