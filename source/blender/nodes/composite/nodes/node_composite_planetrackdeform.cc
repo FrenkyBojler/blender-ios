@@ -9,7 +9,7 @@
 #include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
@@ -114,10 +114,10 @@ static void init(const bContext *C, PointerRNA *ptr)
     id_us_plus(&clip->id);
 
     const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-    STRNCPY(data->tracking_object, tracking_object->name);
+    STRNCPY_UTF8(data->tracking_object, tracking_object->name);
 
     if (tracking_object->active_plane_track) {
-      STRNCPY(data->plane_track_name, tracking_object->active_plane_track->name);
+      STRNCPY_UTF8(data->plane_track_name, tracking_object->active_plane_track->name);
     }
   }
 }
@@ -159,7 +159,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
 
   void execute_gpu(const Array<float4x4> homography_matrices)
   {
-    GPUUniformBuf *homography_matrices_buffer = GPU_uniformbuf_create_ex(
+    gpu::UniformBuf *homography_matrices_buffer = GPU_uniformbuf_create_ex(
         homography_matrices.size() * sizeof(float4x4),
         homography_matrices.data(),
         "Plane Track Deform Homography Matrices");
@@ -188,10 +188,10 @@ class PlaneTrackDeformOperation : public NodeOperation {
   }
 
   void compute_plane_gpu(const Array<float4x4> &homography_matrices,
-                         GPUUniformBuf *homography_matrices_buffer,
+                         gpu::UniformBuf *homography_matrices_buffer,
                          Result &plane_mask)
   {
-    GPUShader *shader = context().get_shader("compositor_plane_deform_motion_blur");
+    gpu::Shader *shader = context().get_shader("compositor_plane_deform_motion_blur");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "number_of_motion_blur_samples", homography_matrices.size());
@@ -224,9 +224,9 @@ class PlaneTrackDeformOperation : public NodeOperation {
   }
 
   Result compute_plane_mask_gpu(const Array<float4x4> &homography_matrices,
-                                GPUUniformBuf *homography_matrices_buffer)
+                                gpu::UniformBuf *homography_matrices_buffer)
   {
-    GPUShader *shader = context().get_shader("compositor_plane_deform_motion_blur_mask");
+    gpu::Shader *shader = context().get_shader("compositor_plane_deform_motion_blur_mask");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "number_of_motion_blur_samples", homography_matrices.size());
