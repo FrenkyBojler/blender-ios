@@ -624,6 +624,7 @@ static const float g_xr_default_raycast_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
 struct XrRaycastData {
   bool from_viewer;
   bool success;
+  float destination_dist;
   int num_points;
   float points[XR_MAX_RAYCASTS + 1][3];
   float direction[3];
@@ -682,8 +683,7 @@ static void wm_xr_raycast_destination_draw(const XrRaycastData *data)
   copy_v4_v4(color, data->color);
   color[3] *= 0.5f;
 
-  const float dist = len_v3v3(data->points[0], data->points[data->num_points - 1]);
-  const float scale = 0.05f * dist;
+  const float scale = 0.05f * data->destination_dist;
   blender::gpu::Batch *sphere = GPU_batch_preset_sphere(2);
   GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_batch_uniform_4fv(sphere, "color", color);
@@ -1333,28 +1333,31 @@ static bool wm_xr_navigation_teleport(bContext *C,
                                       const float direction[3],
                                       int *num_points,
                                       float *ray_dist,
+                                      float *destination_dist,
                                       bool selectable_only,
                                       const bool teleport_axes[3],
                                       float teleport_t,
-                                      float teleport_ofs)
+                                      float teleport_ofs,
+                                      float gravity)
 {
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  float normal[3], segment_direction[3];
+  float normal[3], segment_direction[3], nav_scale;
   int index;
   const Object *ob = nullptr;
   float obmat[4][4];
+
+  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
+  copy_v3_v3(segment_direction, direction);
 
   /* When ray_dist == 0 or -1, the raycast is a line of infinite length. */
   if (*ray_dist <= 0.0f) {
     *num_points = 2;
   }
 
-  const float segment_length = *ray_dist / (*num_points - 1);
+  const float segment_length = *ray_dist * nav_scale / (*num_points - 1);
   float segment_ray_dist = 0.0f;
   *ray_dist = 0.0f;
-
-  copy_v3_v3(segment_direction, direction);
 
   for (int i = 1; i < *num_points; ++i) {
     segment_ray_dist = segment_length;
@@ -1380,7 +1383,7 @@ static bool wm_xr_navigation_teleport(bContext *C,
     madd_v3_v3v3fl(points[i], points[i - 1], segment_direction, segment_length);
 
     /* Apply gravity */
-    segment_direction[2] -= 0.1f;
+    segment_direction[2] -= gravity;
     normalize_v3(segment_direction);
   }
 
@@ -1415,6 +1418,7 @@ static bool wm_xr_navigation_teleport(bContext *C,
       add_v3_v3(nav_destination, projected);
     }
 
+    *destination_dist = len_v3v3(viewer_location, points[*num_points - 1]);
   }
 
   return ob != nullptr;
@@ -1461,13 +1465,14 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
   bool selectable_only, teleport_axes[3];
-  float teleport_t, teleport_ofs, ray_dist;
+  float teleport_t, teleport_ofs, ray_dist, gravity;
 
   RNA_boolean_get_array(op->ptr, "teleport_axes", teleport_axes);
   teleport_t = RNA_float_get(op->ptr, "interpolation");
   teleport_ofs = RNA_float_get(op->ptr, "offset");
   selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
   ray_dist = RNA_float_get(op->ptr, "distance");
+  gravity = RNA_float_get(op->ptr, "gravity");
 
   float nav_destination[3];
   data->num_points = XR_MAX_RAYCASTS + 1;
@@ -1478,10 +1483,12 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
                             data->direction,
                             &data->num_points,
                             &ray_dist,
+                            &data->destination_dist,
                             selectable_only,
                             teleport_axes,
                             teleport_t,
-                            teleport_ofs);
+                            teleport_ofs,
+                            gravity);
   
   switch (event->val) {
     case KM_PRESS:
@@ -1550,13 +1557,22 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                   "Only allow selectable objects to influence raycast result");
   RNA_def_float(ot->srna,
                 "distance",
-                10.0,
+                20.0,
                 0.0,
                 BVH_RAYCAST_DIST_MAX,
                 "",
                 "Maximum raycast distance",
                 0.0,
                 BVH_RAYCAST_DIST_MAX);
+  RNA_def_float(ot->srna,
+                "gravity",
+                0.1,
+                0.0,
+                FLT_MAX,
+                "Gravity",
+                "Downward curvature applied to raycast",
+                0.0,
+                FLT_MAX);
   RNA_def_boolean(
       ot->srna, "from_viewer", false, "From Viewer", "Use viewer pose as raycast origin");
   RNA_def_float_vector(ot->srna,
