@@ -1,1 +1,2 @@
 Referenced by issue #141695, Outliner selection breaks after delete linked objects and undo
+Referenced by issue #144508, The operation of adjusting the position of the shader node has a probability of becoming a box selection
