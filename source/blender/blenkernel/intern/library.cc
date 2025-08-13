@@ -427,6 +427,8 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
   archive_library->runtime->versionfile = bmain.versionfile;
   archive_library->runtime->subversionfile = bmain.subversionfile;
 
+  reference_library.runtime->archived_libraries.append(archive_library);
+
   return archive_library;
 }
 
@@ -435,7 +437,7 @@ static Library *get_archive_library(Main &bmain, ID *for_id, const IDHash &for_i
   Library *reference_library = for_id->lib;
   BLI_assert(reference_library && (reference_library->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
 
-  Library *archive_lib = nullptr;
+  Library *archive_library = nullptr;
   for (Library *lib_iter : reference_library->runtime->archived_libraries) {
     BLI_assert((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0);
     BLI_assert(lib_iter->archive_parent_library != nullptr);
@@ -453,15 +455,14 @@ static Library *get_archive_library(Main &bmain, ID *for_id, const IDHash &for_i
       UNUSED_VARS_NDEBUG(for_id_deep_hash);
       continue;
     }
-    archive_lib = lib_iter;
+    archive_library = lib_iter;
     break;
   }
-  if (!archive_lib) {
-    archive_lib = add_archive_library(bmain, *reference_library);
-    reference_library->runtime->archived_libraries.append(archive_lib);
+  if (!archive_library) {
+    archive_library = add_archive_library(bmain, *reference_library);
   }
-  BLI_assert(reference_library->runtime->archived_libraries.contains(archive_lib));
-  return archive_lib;
+  BLI_assert(reference_library->runtime->archived_libraries.contains(archive_library));
+  return archive_library;
 }
 
 static void pack_linked_id(Main &bmain,
