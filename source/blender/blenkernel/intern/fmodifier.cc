@@ -1007,11 +1007,12 @@ static void fcm_smooth_new_data(void *mdata)
   data->filter_width = 6;
 }
 
-/* This function smooths a certain frame on curve. It is separate because the modifier evaluate function may call it multiple times if we are interpolating for a sub-frame. */
+/* This function smooths a certain frame on curve. It is separate because the modifier evaluate
+ * function may call it multiple times if we are interpolating for a sub-frame. */
 static void fcm_smooth_frame(const FCurve *fcu,
-                                    const FModifier *fcm,
-                                    float *cvalue,
-                                    float evaltime)
+                             const FModifier *fcm,
+                             float *cvalue,
+                             float evaltime)
 {
   FMod_Smooth *data = (FMod_Smooth *)fcm->data;
 
@@ -1051,16 +1052,13 @@ static void fcm_smooth_frame(const FCurve *fcu,
   }
 }
 
-static void fcm_smooth_evaluate(const FCurve *fcu,
-                                const FModifier *fcm,
-                                float *cvalue,
-                                float evaltime,
-                                void * /*storage*/)
+static void fcm_smooth_evaluate(
+    const FCurve *fcu, const FModifier *fcm, float *cvalue, float evaltime, void * /*storage*/)
 {
-  /* Check if evaltime is an integer, with FLT_EPSILON tolerance. */ 
+  /* Check if evaltime is an integer, with FLT_EPSILON tolerance. */
   bool is_subframe = (fabs(roundf(evaltime) - evaltime) > FLT_EPSILON);
 
-  /* If the evaltime is a sub-frame, we linearly interpolate. */ 
+  /* If the evaltime is a sub-frame, we linearly interpolate. */
   if (is_subframe) {
     const float prev_time = floorf(evaltime);
     const float next_time = ceilf(evaltime);
@@ -1184,12 +1182,12 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
   }
 
   /* special checks for whether modifier can be added */
-  if ((modifiers->first) && (type == FMODIFIER_TYPE_CYCLES)) {
-    /* cycles modifier must be first in stack, so for now, don't add if it can't be */
+  if ((modifiers->first) && (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA)) {
+    /* Modifiers requiring original data must be first in stack, so for now, don't add if it can't
+     * be. */
     /* TODO: perhaps there is some better way, but for now, */
-    CLOG_STR_ERROR(&LOG,
-                   "Cannot add 'Cycles' modifier to F-Curve, as 'Cycles' modifier can only be "
-                   "first in stack.");
+    CLOG_ERROR(
+        &LOG, "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.", fmi->name);
     return nullptr;
   }
 
