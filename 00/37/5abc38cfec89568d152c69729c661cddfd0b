@@ -1,1 +1,2 @@
 Referenced by issue #144417, Reloading or relocating linked libraries creates extra objects/collections
+Referenced by pull request #144429, tmp-liboverride-collection-lookup
