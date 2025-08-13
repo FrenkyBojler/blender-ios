@@ -14,9 +14,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 #include "BLI_virtual_array.hh"
-#include "BLI_map.hh"
-#include "BLI_vector.hh"
-#include "BLI_function_ref.hh" 
 
 #include "DNA_windowmanager_enums.h"
 
@@ -80,35 +77,6 @@ class EditMeshSymmetryHelper {
   blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirror_map_;
   blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirror_map_;
 };
-
-class EditMeshSymmetryHelper {
-public:
-  static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob);
-
-  bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
-  bool is_any_mirror_vert_selected(BMVert *vert, char hflag) const;
-  bool is_any_mirror_face_selected(BMFace *face, char hflag) const;
-
-  void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
-  void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;
-  void set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const;
-
-  void apply_on_mirror_verts(BMVert *vert, blender::FunctionRef<void(BMVert *)> op) const;
-  void apply_on_mirror_edges(BMEdge *edge, blender::FunctionRef<void(BMEdge *)> op) const;
-  void apply_on_mirror_faces(BMFace *face, blender::FunctionRef<void(BMFace *)> op) const;
-
-private:
-  EditMeshSymmetryHelper(Object *ob);
-
-  BMEditMesh *em;
-  Mesh *mesh;
-  bool use_topology_mirror;
-
-  blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirrors_map;
-  blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirrors_map;
-  blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirrors_map;
-};
-
 
 /**
  * \param em: Edit-mesh used for generating mirror data.
