@@ -26,16 +26,13 @@ void main()
   float2 pixels = float2(textureSize(input_tx, 0));
   float2 uv = uvw.xy * m * pixels - 0.5f; // convert from bounds to pixels
 
-  // Derivatives of coordinates before division by w
-  float2 dPdx = homography_matrix[0].xy * pixels / output_size;
-  float dwdx = homography_matrix[0].z / output_size.x;
-  float2 dPdy = homography_matrix[1].xy * pixels / output_size;
-  float dwdy = homography_matrix[1].z / output_size.y;
-
   // compute derivative of source location
-  dPdx = (uvw.z * dPdx - uv * dwdx) * m * m;
-  dPdy = (uvw.z * dPdy - uv * dwdy) * m * m;
-  float2 wh = clamp(hypot2(dPdx, dPdy), 1.0f, 63.0f);
+  float3 m0 = homography_matrix[0].xyz;
+  float2 dPdx = (m0.xy - uvw.xy * m0.z * m) * m;
+  float3 m1 = homography_matrix[1].xyz;
+  float2 dPdy = (m1.xy - uvw.xy * m1.z * m) * m;
+  // convert to rectangle and then scale from bounds to pixels and clamp:
+  float2 wh = clamp(hypot2(dPdx, dPdy) * pixels / output_size, 1.0f, 63.0f);
 
   float4 sampled_color = sampleRect(uv, wh);
 #if defined(PREMULTIPLY_MASK)
