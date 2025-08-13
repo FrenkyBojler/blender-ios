@@ -51,9 +51,98 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Solver Steps").default_value(1).min(1);
 }
 
+class XPBDState {
+ public:
+  /**
+   * Counts how often this state has been updated. This is mainly used to avoid re-simulating the
+   * same frame multiple times when playback is paused but the simulation parameters are changed.
+   */
+  int update_counter = 0;
+};
+
+class XPBDStateOwner : public BundleItemInternalValueMixin {
+ public:
+  mutable Mutex mutex;
+  mutable XPBDState state;
+
+  void delete_self() override
+  {
+    MEM_delete(this);
+  }
+
+  StringRefNull type_name() const override
+  {
+    return TIP_("XPBD Physics State");
+  }
+};
+using XPBDStateOwnerPtr = ImplicitSharingPtr<XPBDStateOwner>;
+
+static void initialize_state(XPBDState & /*state*/)
+{
+  /* Nothing to do yet.*/
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_default_remaining_outputs();
+  BundlePtr old_state_bundle_ptr = params.extract_input<BundlePtr>("State");
+  BundlePtr world_bundle_ptr = params.extract_input<BundlePtr>("World");
+  // const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
+  // const int substeps = std::max(1, params.extract_input<int>("Substeps"));
+
+  if (!world_bundle_ptr) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  int update_counter = 0;
+  if (old_state_bundle_ptr) {
+    update_counter = old_state_bundle_ptr->lookup<int>("counter").value_or(0);
+  }
+
+  XPBDStateOwnerPtr xpbd_state_owner;
+  if (old_state_bundle_ptr) {
+    xpbd_state_owner = old_state_bundle_ptr->lookup<XPBDStateOwnerPtr>("state").value_or(nullptr);
+  }
+  if (!xpbd_state_owner) {
+    xpbd_state_owner = XPBDStateOwnerPtr{MEM_new<XPBDStateOwner>(__func__)};
+    XPBDState &state = xpbd_state_owner->state;
+    initialize_state(state);
+  }
+
+  if (!xpbd_state_owner->mutex.try_lock()) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("XPBD physics state cannot be used by multiple nodes"));
+    params.set_default_remaining_outputs();
+    return;
+  }
+  BLI_SCOPED_DEFER([&]() { xpbd_state_owner->mutex.unlock(); });
+
+  XPBDState &state = xpbd_state_owner->state;
+
+  const bool is_resimulating = update_counter < state.update_counter;
+  update_counter++;
+  if (!is_resimulating) {
+    state.update_counter = update_counter;
+  }
+
+  BundlePtr new_state_bundle_ptr = Bundle::create();
+  BLI_assert(new_state_bundle_ptr->is_mutable());
+  Bundle &new_state_bundle = const_cast<Bundle &>(*new_state_bundle_ptr);
+  new_state_bundle.add("state", xpbd_state_owner);
+  new_state_bundle.add("counter", update_counter);
+
+  if (!world_bundle_ptr->is_mutable()) {
+    world_bundle_ptr = world_bundle_ptr->copy();
+  }
+  else {
+    world_bundle_ptr->tag_ensured_mutable();
+  }
+  Bundle &world_bundle = const_cast<Bundle &>(*world_bundle_ptr);
+  // TODO: Update output world.
+  UNUSED_VARS(world_bundle);
+
+  params.set_output("State", std::move(new_state_bundle_ptr));
+  params.set_output("World", std::move(world_bundle_ptr));
 }
 
 static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
