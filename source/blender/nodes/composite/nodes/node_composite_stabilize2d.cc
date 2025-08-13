@@ -12,9 +12,10 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "RNA_enum_types.hh"
+
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
@@ -28,8 +29,6 @@
 
 #include "node_composite_util.hh"
 
-/* **************** Stabilize 2D ******************** */
-
 namespace blender::nodes::node_composite_stabilize2d_cc {
 
 static void cmp_node_stabilize2d_declare(NodeDeclarationBuilder &b)
@@ -40,6 +39,18 @@ static void cmp_node_stabilize2d_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Bool>("Invert").default_value(false).description(
       "Invert stabilization to reintroduce motion to the image");
+  b.add_input<decl::Menu>("Interpolation")
+      .default_value(CMP_NODE_INTERPOLATION_NEAREST)
+      .static_items(rna_enum_node_compositor_interpolation_items)
+      .description("Interpolation method");
+  b.add_input<decl::Menu>("Extension X")
+      .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
+      .static_items(rna_enum_node_compositor_extension_items)
+      .description("The extension mode applied to the X axis");
+  b.add_input<decl::Menu>("Extension Y")
+      .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
+      .static_items(rna_enum_node_compositor_extension_items)
+      .description("The extension mode applied to the Y axis");
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
@@ -51,22 +62,11 @@ static void init(const bContext *C, PointerRNA *ptr)
 
   node->id = (ID *)scene->clip;
   id_us_plus(node->id);
-
-  /* Default to bi-linear, see node_sampler_type_items in `rna_nodetree.cc`. */
-  node->custom1 = 1;
 }
 
 static void node_composit_buts_stabilize2d(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-
   uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
-
-  if (!node->id) {
-    return;
-  }
-
-  layout->prop(ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -105,11 +105,16 @@ class Stabilize2DOperation : public NodeOperation {
     output.share_data(input);
     output.transform(transformation);
     output.get_realization_options().interpolation = this->get_interpolation();
+    output.get_realization_options().extension_x = this->get_extension_mode_x();
+    output.get_realization_options().extension_y = this->get_extension_mode_y();
   }
 
   Interpolation get_interpolation()
   {
-    switch (static_cast<CMPNodeInterpolation>(bnode().custom1)) {
+    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(
+        this->get_input("Interpolation")
+            .get_single_value_default(int(CMP_NODE_INTERPOLATION_NEAREST)));
+    switch (interpolation) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
@@ -121,6 +126,42 @@ class Stabilize2DOperation : public NodeOperation {
 
     BLI_assert_unreachable();
     return Interpolation::Nearest;
+  }
+
+  ExtensionMode get_extension_mode_x()
+  {
+    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(
+        this->get_input("Extension X")
+            .get_single_value_default(int(CMP_NODE_EXTENSION_MODE_CLIP)));
+    switch (extension_x) {
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    BLI_assert_unreachable();
+    return ExtensionMode::Clip;
+  }
+
+  ExtensionMode get_extension_mode_y()
+  {
+    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(
+        this->get_input("Extension Y")
+            .get_single_value_default(int(CMP_NODE_EXTENSION_MODE_CLIP)));
+    switch (extension_y) {
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    BLI_assert_unreachable();
+    return ExtensionMode::Clip;
   }
 
   bool do_inverse_stabilization()

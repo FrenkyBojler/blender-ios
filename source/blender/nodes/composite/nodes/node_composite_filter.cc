@@ -10,17 +10,30 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
+#include "RNA_types.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
-/* **************** FILTER  ******************** */
-
 namespace blender::nodes::node_composite_filter_cc {
+
+static const EnumPropertyItem filter_type_items[] = {
+    {CMP_NODE_FILTER_SOFT, "SOFTEN", 0, "Soften", ""},
+    {CMP_NODE_FILTER_SHARP_BOX, "SHARPEN", 0, "Box Sharpen", "An aggressive sharpening filter"},
+    {CMP_NODE_FILTER_SHARP_DIAMOND,
+     "SHARPEN_DIAMOND",
+     0,
+     "Diamond Sharpen",
+     "A moderate sharpening filter"},
+    {CMP_NODE_FILTER_LAPLACE, "LAPLACE", 0, "Laplace", ""},
+    {CMP_NODE_FILTER_SOBEL, "SOBEL", 0, "Sobel", ""},
+    {CMP_NODE_FILTER_PREWITT, "PREWITT", 0, "Prewitt", ""},
+    {CMP_NODE_FILTER_KIRSCH, "KIRSCH", 0, "Kirsch", ""},
+    {CMP_NODE_FILTER_SHADOW, "SHADOW", 0, "Shadow", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 static void cmp_node_filter_declare(NodeDeclarationBuilder &b)
 {
@@ -35,13 +48,11 @@ static void cmp_node_filter_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0)
       .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Menu>("Filter Type")
+      .default_value(CMP_NODE_FILTER_SOFT)
+      .static_items(filter_type_items);
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
-}
-
-static void node_composit_buts_filter(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout->prop(ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 class SocketSearchOp {
@@ -50,7 +61,8 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("CompositorNodeFilter");
-    node.custom1 = filter_type;
+    bNodeSocket &type_socket = *blender::bke::node_find_socket(node, SOCK_IN, "Filter Type");
+    type_socket.default_value_typed<bNodeSocketValueMenu>()->value = this->filter_type;
     params.update_and_connect_available_socket(node, "Image");
   }
 };
@@ -261,7 +273,8 @@ class FilterOperation : public NodeOperation {
 
   CMPNodeFilterMethod get_filter_method()
   {
-    return static_cast<CMPNodeFilterMethod>(bnode().custom1);
+    return static_cast<CMPNodeFilterMethod>(
+        this->get_input("Filter Type").get_single_value_default(int(CMP_NODE_FILTER_SOFT)));
   }
 };
 
@@ -284,8 +297,6 @@ static void register_node_type_cmp_filter()
   ntype.enum_name_legacy = "FILTER";
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_filter_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_filter;
-  ntype.labelfunc = node_filter_label;
   ntype.flag |= NODE_PREVIEW;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   ntype.gather_link_search_ops = file_ns::gather_link_searches;

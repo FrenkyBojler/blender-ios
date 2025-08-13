@@ -11,11 +11,9 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "COM_domain.hh"
-
 #include "DNA_node_types.h"
 
-#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -25,18 +23,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
-
 #include "COM_algorithm_smaa.hh"
+#include "COM_domain.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_cornerpin_cc {
-
-NODE_STORAGE_FUNCS(NodeCornerPinData)
 
 static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 {
@@ -67,6 +61,18 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 0.0f})
       .min(0.0f)
       .max(1.0f);
+  b.add_input<decl::Menu>("Interpolation")
+      .default_value(CMP_NODE_INTERPOLATION_NEAREST)
+      .static_items(rna_enum_node_compositor_interpolation_items)
+      .description("Interpolation method");
+  b.add_input<decl::Menu>("Extension X")
+      .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
+      .static_items(rna_enum_node_compositor_extension_items)
+      .description("The extension mode applied to the X axis");
+  b.add_input<decl::Menu>("Extension Y")
+      .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
+      .static_items(rna_enum_node_compositor_extension_items)
+      .description("The extension mode applied to the Y axis");
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
   b.add_output<decl::Float>("Plane").structure_type(StructureType::Dynamic);
@@ -74,22 +80,9 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_cornerpin(bNodeTree * /*ntree*/, bNode *node)
 {
+  /* Unused, kept for forward compatibility. */
   NodeCornerPinData *data = MEM_callocN<NodeCornerPinData>(__func__);
-  data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
-  data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
-  data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
   node->storage = data;
-}
-
-static void node_composit_buts_cornerpin(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiLayout &column = layout->column(true);
-  column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  if (RNA_enum_get(ptr, "interpolation") != CMP_NODE_INTERPOLATION_ANISOTROPIC) {
-    uiLayout &row = column.row(true);
-    row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-    row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  }
 }
 
 using namespace blender::compositor;
@@ -334,15 +327,17 @@ class CornerPinOperation : public NodeOperation {
     return homography_matrix;
   }
 
-  Interpolation get_interpolation() const
+  Interpolation get_interpolation()
   {
-    switch (static_cast<CMPNodeInterpolation>(node_storage(bnode()).interpolation)) {
-      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
-        return Interpolation::Anisotropic;
+    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(
+        this->get_input("Interpolation")
+            .get_single_value_default(int(CMP_NODE_INTERPOLATION_NEAREST)));
+    switch (interpolation) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
@@ -351,12 +346,15 @@ class CornerPinOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  ExtensionMode get_extension_mode_x() const
+  ExtensionMode get_extension_mode_x()
   {
     if (this->get_interpolation() == Interpolation::Anisotropic) {
       return ExtensionMode::Clip;
     }
-    switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
+    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(
+        this->get_input("Extension X")
+            .get_single_value_default(int(CMP_NODE_EXTENSION_MODE_CLIP)));
+    switch (extension_x) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return ExtensionMode::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
@@ -369,12 +367,15 @@ class CornerPinOperation : public NodeOperation {
     return ExtensionMode::Clip;
   }
 
-  ExtensionMode get_extension_mode_y() const
+  ExtensionMode get_extension_mode_y()
   {
     if (this->get_interpolation() == Interpolation::Anisotropic) {
       return ExtensionMode::Clip;
     }
-    switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
+    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(
+        this->get_input("Extension Y")
+            .get_single_value_default(int(CMP_NODE_EXTENSION_MODE_CLIP)));
+    switch (extension_y) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return ExtensionMode::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
@@ -456,7 +457,6 @@ static void register_node_type_cmp_cornerpin()
   ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_cornerpin_declare;
   ntype.initfunc = file_ns::node_composit_init_cornerpin;
-  ntype.draw_buttons = file_ns::node_composit_buts_cornerpin;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   blender::bke::node_type_storage(
       ntype, "NodeCornerPinData", node_free_standard_storage, node_copy_standard_storage);
