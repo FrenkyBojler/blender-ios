@@ -473,8 +473,8 @@ float4 gpencil_vertex(float4 viewport_res,
       bool is_stroke_start = (ma.x == -1 && x == -1);
       bool is_stroke_end = (ma3.x == -1 && x == 1);
 
-      float miter_limit1 = gpencil_decode_miter_limit(miter1);
-      float miter_limit2 = gpencil_decode_miter_limit(miter2);
+      float miter_limit1 = gpencil_decode_miter_limit(point_data1.packed_data);
+      float miter_limit2 = gpencil_decode_miter_limit(point_data2.packed_data);
       out_thickness.z = miter_limit1;
       out_thickness.w = miter_limit2;
 
