@@ -152,6 +152,7 @@ const FlatBundleTypePtr &EdgeLengthXPBDConstraintBundle::get_bundle_type()
     FlatBundleTypeBuilder b(EdgeLengthXPBDConstraintBundle::name);
     b.add<decl::String>("filter");
     b.add<decl::Bool>("selection").default_value(true).supports_field();
+    b.add<decl::Float>("length").supports_field();
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -165,6 +166,7 @@ std::optional<EdgeLengthXPBDConstraintBundle> EdgeLengthXPBDConstraintBundle::pa
   EdgeLengthXPBDConstraintBundle behavior;
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
   bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
+  bundle_parse_member(bundle, "length", behavior.length, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }

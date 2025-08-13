@@ -4,6 +4,7 @@
 
 #include "BKE_instances.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
 
@@ -113,6 +114,163 @@ struct WorldData {
   Vector<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
 };
 
+class JacobianSolver {
+  Vector<Vector<float3>> position_offsets_;
+
+ public:
+  void offset_position(const int geo_i, const int point_i, const float3 &offset)
+  {
+    position_offsets_[geo_i][point_i] += offset;
+  }
+};
+
+class GaussSeidelSolver {
+  Span<SimPoints *> all_sim_points_;
+
+ public:
+  GaussSeidelSolver(Span<SimPoints *> all_sim_points) : all_sim_points_(all_sim_points) {}
+
+  void offset_position(const int geo_i, const int point_i, const float3 &offset)
+  {
+    all_sim_points_[geo_i]->positions[point_i] += offset;
+  }
+};
+
+class ConstraintSetEvaluator {
+ public:
+  virtual ~ConstraintSetEvaluator() = default;
+
+  virtual void evaluate_jacobian(JacobianSolver &solver,
+                                 const IndexMask &constraint_mask) const = 0;
+  virtual void evaluate_gauss_seidel(GaussSeidelSolver &solver,
+                                     const IndexMask &constraint_mask) const = 0;
+};
+
+template<typename Child> class TemplatedConstraintSetEvaluator : public ConstraintSetEvaluator {
+ public:
+  void evaluate_jacobian(JacobianSolver &solver, const IndexMask &constraint_mask) const override
+  {
+    const Child &self = static_cast<const Child &>(*this);
+    self.evaluate(solver, constraint_mask);
+  }
+
+  void evaluate_gauss_seidel(GaussSeidelSolver &solver,
+                             const IndexMask &constraint_mask) const override
+  {
+    const Child &self = static_cast<const Child &>(*this);
+    self.evaluate(solver, constraint_mask);
+  }
+
+  template<typename SolverT> void evaluate(SolverT &solver, const IndexMask &constraint_mask) const
+  {
+    constraint_mask.foreach_index(GrainSize(256), [&](const int i) {
+      const Child &self = static_cast<const Child &>(*this);
+      self.evaluate_single(solver, i);
+    });
+  }
+};
+
+class DistanceConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<DistanceConstraintEvaluator> {
+ private:
+  int geo_i;
+  Span<float3> positions_;
+  VArray<float> masses_;
+  Span<int2> point_pairs_;
+  Span<float> distances_;
+
+ public:
+  DistanceConstraintEvaluator(const int geo_i,
+                              const Span<float3> positions,
+                              const VArray<float> &masses,
+                              const Span<int2> point_pairs,
+                              const Span<float> distances)
+      : geo_i(geo_i),
+        positions_(positions),
+        masses_(masses),
+        point_pairs_(point_pairs),
+        distances_(distances)
+  {
+    BLI_assert(point_pairs.size() == distances.size());
+  }
+
+  template<typename SolverT> void evaluate_single(SolverT &solver, const int constraint_i) const
+  {
+    const int2 &point_pair = point_pairs_[constraint_i];
+    const float target_distance = distances_[constraint_i];
+    const int v0 = point_pair[0];
+    const int v1 = point_pair[1];
+    const float3 &p0 = positions_[v0];
+    const float3 &p1 = positions_[v1];
+    const float m0 = masses_[v0];
+    const float m1 = masses_[v1];
+    const float compliance_term = 0.0f;
+
+    const float inv_m0 = 1.0f / m0;
+    const float inv_m1 = 1.0f / m1;
+
+    const float3 p_diff = p1 - p0;
+    float length;
+    const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
+    const float length_diff = length - target_distance;
+    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
+
+    const float3 offset0 = lambda * inv_m0 * normalized_dir;
+    const float3 offset1 = -lambda * inv_m1 * normalized_dir;
+    solver.offset_position(geo_i, v0, offset0);
+    solver.offset_position(geo_i, v1, offset1);
+  }
+};
+
+enum class ConstraintSetIndicesType {
+  Unary,
+  Binary,
+};
+
+class ConstraintSetIndices {
+ public:
+  virtual ~ConstraintSetIndices() = default;
+
+  const ConstraintSetIndicesType type;
+  int constraints_num;
+
+  ConstraintSetIndices(const ConstraintSetIndicesType type, const int constraints_num)
+      : type(type), constraints_num(constraints_num)
+  {
+  }
+};
+
+class UnaryConstraintSetIndices : public ConstraintSetIndices {
+ public:
+  int geo_i;
+  Span<int> points;
+
+  UnaryConstraintSetIndices(const int geo_i, const Span<int> points)
+      : ConstraintSetIndices(ConstraintSetIndicesType::Unary, points.size()),
+        geo_i(geo_i),
+        points(points)
+  {
+  }
+};
+
+class BinaryConstraintSetIndices : public ConstraintSetIndices {
+ public:
+  int geo_i;
+  Span<int2> point_pairs;
+
+  BinaryConstraintSetIndices(const int geo_i, const Span<int2> point_pairs)
+      : ConstraintSetIndices(ConstraintSetIndicesType::Binary, point_pairs.size()),
+        geo_i(geo_i),
+        point_pairs(point_pairs)
+  {
+  }
+};
+
+struct ConstraintSet {
+  ConstraintSetIndices *indices;
+  ConstraintSetEvaluator *evaluator;
+};
+
 static WorldData parse_world(const Bundle &world_bundle)
 {
   WorldData world;
@@ -156,6 +314,18 @@ static WorldData parse_world(const Bundle &world_bundle)
     }
   });
   return world;
+}
+
+static void solve_constraints(Span<SimPoints *> all_sim_points,
+                              const Span<ConstraintSet> constraint_sets)
+{
+  GaussSeidelSolver solver{all_sim_points};
+  for (const ConstraintSet &constraint_set : constraint_sets) {
+    for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
+      constraint_set.evaluator->evaluate_gauss_seidel(solver,
+                                                      IndexRange::from_single(constraint_i));
+    }
+  }
 }
 
 static void apply_simulation_to_mesh(GeometrySet &geometry, const PathSimData &path_sim_data)
@@ -252,9 +422,9 @@ static void integrate_forces_and_accelerations(
     gravity = gravity_bundle.gravity;
   }
 
-  for (const int i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[i];
-    const GeometrySet &applied_geometry = applied_geometries[i];
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
     PathSimData *path_sim_data = state.data_by_path.lookup_ptr(geometry_bundle.self_path);
     if (!path_sim_data) {
       continue;
@@ -306,9 +476,9 @@ static Map<PathComponentKey, VArray<float>> compute_masses(
     ResourceScope &scope, const WorldData &world, const Span<GeometrySet> applied_geometries)
 {
   Map<PathComponentKey, VArray<float>> masses_map;
-  for (const int i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[i];
-    const GeometrySet &applied_geometry = applied_geometries[i];
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
 
     const Vector<const PinnedPositionXPBDConstraintBundle *> pinned_position_constraints =
         filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
@@ -354,22 +524,87 @@ static void update_and_step_xpbd_state(XPBDState &state,
   ResourceScope scope;
   Array<GeometrySet> applied_geometries(world.geometries.size());
 
-  for (const int i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[i];
-    GeometrySet &applied_geometry = applied_geometries[i];
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    GeometrySet &applied_geometry = applied_geometries[bundle_i];
     applied_geometry = apply_simulation(geometry_bundle, state);
   }
   const Map<PathComponentKey, VArray<float>> masses_map = compute_masses(
       scope, world, applied_geometries);
 
   Map<std::string, PathSimData> new_data_by_path;
-  for (const int i : world.geometries.index_range()) {
-    const GeometrySet &applied_geometry = applied_geometries[i];
-    update_xpbd_state_for_geometry(state, world.geometries[i], applied_geometry, new_data_by_path);
+  for (const int bundle_i : world.geometries.index_range()) {
+    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
+    update_xpbd_state_for_geometry(
+        state, world.geometries[bundle_i], applied_geometry, new_data_by_path);
   }
   state.data_by_path = std::move(new_data_by_path);
 
   integrate_forces_and_accelerations(state, world, applied_geometries, masses_map, delta_time);
+
+  Vector<SimPoints *> all_sim_points;
+  Map<std::string, Map<bke::GeometryComponent::Type, int>> all_sim_points_keys;
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    PathSimData &path_sim_data = state.data_by_path.lookup(geometry_bundle.self_path);
+    for (auto item : path_sim_data.points_by_type.items()) {
+      const bke::GeometryComponent::Type type = item.key;
+      SimPoints &sim_points = item.value;
+      const int geo_i = all_sim_points.append_and_get_index(&sim_points);
+      all_sim_points_keys.lookup_or_add_default_as(geometry_bundle.self_path).add_new(type, geo_i);
+    }
+  }
+
+  Vector<ConstraintSet> constraint_sets;
+  for (const int bundle_i : world.geometries.index_range()) {
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
+    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
+    if (!applied_geometry.has_mesh()) {
+      continue;
+    }
+    const Mesh &mesh = *applied_geometry.get_mesh();
+    const int geo_i = all_sim_points_keys.lookup(geometry_bundle.self_path)
+                          .lookup(bke::GeometryComponent::Type::Mesh);
+    const Span<int2> mesh_edges = mesh.edges();
+    const SimPoints &sim_points = *all_sim_points[geo_i];
+    const VArray<float> &masses = masses_map.lookup(
+        {geometry_bundle.self_path, bke::GeometryComponent::Type::Mesh});
+
+    const Vector<const EdgeLengthXPBDConstraintBundle *> edge_length_constraints =
+        filter_bundles_for_path<EdgeLengthXPBDConstraintBundle>(world.edge_length_constraints,
+                                                                geometry_bundle.self_path);
+    bke::MeshFieldContext field_context(mesh, bke::AttrDomain::Edge);
+    for (const EdgeLengthXPBDConstraintBundle *constraint_bundle : edge_length_constraints) {
+      fn::FieldEvaluator field_evaluator{field_context, mesh_edges.size()};
+      field_evaluator.set_selection(constraint_bundle->selection);
+      field_evaluator.add(constraint_bundle->length);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      if (mask.is_empty()) {
+        continue;
+      }
+      Span<int2> constraint_edges;
+      if (mask.size() == mesh_edges.size()) {
+        constraint_edges = mesh_edges;
+      }
+      else {
+        MutableSpan<int2> masked_edges = scope.allocator().allocate_array<int2>(mask.size());
+        array_utils::gather(mesh_edges, mask, masked_edges);
+        constraint_edges = masked_edges;
+      }
+      MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
+      const VArray<float> length_varray = field_evaluator.get_evaluated<float>(0);
+      length_varray.materialize_compressed(mask, constraint_lengths);
+      BinaryConstraintSetIndices &constraint_indices = scope.construct<BinaryConstraintSetIndices>(
+          geo_i, constraint_edges);
+      DistanceConstraintEvaluator &constraint_evaluator =
+          scope.construct<DistanceConstraintEvaluator>(
+              geo_i, sim_points.positions, masses, constraint_edges, constraint_lengths);
+      constraint_sets.append(ConstraintSet{&constraint_indices, &constraint_evaluator});
+    }
+  }
+
+  solve_constraints(all_sim_points, constraint_sets);
 }
 
 static void initialize_state(XPBDState & /*state*/)
