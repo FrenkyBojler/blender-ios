@@ -170,14 +170,6 @@ template void output_set_zero<float3>(int, float3);
 template void output_set_zero<float2>(int, float2);
 template void output_set_zero<float>(int, float);
 
-/* Copy of DNA enum in `DNA_curves_types.h`. */
-enum CurveType : uint32_t {
-  CURVE_TYPE_CATMULL_ROM = 0u,
-  CURVE_TYPE_POLY = 1u,
-  CURVE_TYPE_BEZIER = 2u,
-  CURVE_TYPE_NURBS = 3u,
-};
-
 InterpPosition mix4(
     InterpPosition v0, InterpPosition v1, InterpPosition v2, InterpPosition v3, float4 w)
 {
@@ -465,30 +457,6 @@ template void evaluate_curve<float4>(float4, IndexRange, IndexRange, uint);
 
 }  // namespace nurbs
 
-/* Run on the evaluated position and compute the intercept time with the curve and the total curve
- * length. */
-void evaluate_length_and_time(const IndexRange evaluated_points, const int curve_index)
-{
-  auto &evaluated_positions_radii = buffer_get(draw_curves_interpolate_position,
-                                               evaluated_positions_radii_buf);
-  auto &evaluated_time = buffer_get(draw_curves_interpolate_position, evaluated_time_buf);
-  auto &curves_length = buffer_get(draw_curves_interpolate_position, curves_length_buf);
-
-  float distance_along_curve = 0.0f;
-  evaluated_time[0] = 0.0f;
-  for (int i = 1; i < evaluated_points.size(); i++) {
-    int p = evaluated_points.start() + i;
-    distance_along_curve += distance(evaluated_positions_radii[p].xyz,
-                                     evaluated_positions_radii[p - 1].xyz);
-    evaluated_time[p] = distance_along_curve;
-  }
-  for (int i = 1; i < evaluated_points.size(); i++) {
-    int p = evaluated_points.start() + i;
-    evaluated_time[p] /= distance_along_curve;
-  }
-  curves_length[curve_index] = distance_along_curve;
-}
-
 template<typename InterpType> void evaluate_curve(const InterpType interp_type)
 {
   if (gl_GlobalInvocationID.x >= uint(curves_count)) {
@@ -521,10 +489,6 @@ template<typename InterpType> void evaluate_curve(const InterpType interp_type)
   else if (CurveType(evaluated_type) == CURVE_TYPE_POLY) {
     /* Simple copy. */
     copy_curve_data(interp_type, points, evaluated_points);
-  }
-
-  if (compute_length_and_time) {
-    evaluate_length_and_time(evaluated_points, curve_index);
   }
 }
 

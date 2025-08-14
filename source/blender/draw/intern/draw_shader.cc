@@ -104,6 +104,7 @@ class ShaderCache {
   gpu::StaticShader curves_evaluate_float3 = {"draw_curves_interpolate_float3_attribute"};
   gpu::StaticShader curves_evaluate_float2 = {"draw_curves_interpolate_float2_attribute"};
   gpu::StaticShader curves_evaluate_float = {"draw_curves_interpolate_float_attribute"};
+  gpu::StaticShader curves_evaluate_length_intercept = {"draw_curves_evaluate_length_intercept"};
   /* TODO(fclem): Legacy. To remove. */
   gpu::StaticShader hair_refine = {"draw_hair_refine_compute"};
   gpu::StaticShader debug_draw_display = {"draw_debug_draw_display"};
@@ -179,6 +180,8 @@ blender::gpu::Shader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShad
       return ShaderCache::get().curves_evaluate_float2.get();
     case blender::draw::CURVES_EVAL_FLOAT:
       return ShaderCache::get().curves_evaluate_float.get();
+    case blender::draw::CURVES_EVAL_LENGTH_INTERCEPT:
+      return ShaderCache::get().curves_evaluate_length_intercept.get();
   }
   BLI_assert_unreachable();
   return nullptr;

@@ -24,7 +24,7 @@ void main()
 
   bool is_curve_cyclic = false;
   if (use_cyclic) {
-    is_curve_cyclic = gpu_attr_load_bool(cyclic_offsets_buf, curve_id);
+    is_curve_cyclic = gpu_attr_load_bool(curves_cyclic_buf, curve_id);
   }
 
   IndexRange points = offset_indices::load_range_from_buffer(evaluated_offsets_buf, curve_id);

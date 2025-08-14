@@ -118,7 +118,7 @@ gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_coun
   PassSimple::Sub &pass = refine.sub("Topology");
   pass.shader_set(DRW_shader_curves_topology_get());
   pass.bind_ssbo("evaluated_offsets_buf", cache.evaluated_points_by_curve_buf);
-  pass.bind_ssbo("cyclic_offsets_buf", cache.cyclic_offsets_buf);
+  pass.bind_ssbo("curves_cyclic_buf", cache.curves_cyclic_buf);
   pass.bind_ssbo("indirection_buf", indirection_buf);
   pass.push_constant("is_ribbon_topology", is_ribbon);
   pass.push_constant("use_cyclic", has_cyclic);
@@ -163,6 +163,9 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     case CURVES_EVAL_FLOAT4:
       pass_name = "Float4 Attribute";
       break;
+    case CURVES_EVAL_LENGTH_INTERCEPT:
+      pass_name = "Length-Intercept Attributes";
+      break;
   }
 
   PassSimple::Sub &pass = refine.sub(pass_name);
@@ -170,15 +173,13 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
   pass.bind_ssbo(CURVE_TYPE_SLOT, cache.curves_type_buf);
   pass.bind_ssbo(CURVE_RESOLUTION_SLOT, cache.curves_resolution_buf);
   pass.bind_ssbo(EVALUATED_POINT_SLOT, cache.evaluated_points_by_curve_buf);
-  pass.bind_texture(CURVE_CYCLIC_SLOT, cache.cyclic_offsets_buf);
+  pass.bind_texture(CURVE_CYCLIC_SLOT, cache.curves_cyclic_buf);
 
   switch (shader_type) {
     case CURVES_EVAL_POSITION:
       pass.bind_ssbo(POINT_POSITIONS_SLOT, input_buf);
       pass.bind_ssbo(POINT_RADII_SLOT, input2_buf);
       pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, cache.evaluated_pos_rad_buf);
-      pass.bind_ssbo(EVALUATED_TIME_SLOT, cache.evaluated_time_buf);
-      pass.bind_ssbo(CURVES_LENGTH_SLOT, cache.curves_length_buf);
       /* Move ownership of the radius input vbo to the module. */
       this->transient_buffers.append(gpu::VertBufPtr(input2_buf));
       break;
@@ -188,6 +189,13 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     case CURVES_EVAL_FLOAT4:
       pass.bind_ssbo(POINT_ATTR_SLOT, input_buf);
       pass.bind_ssbo(EVALUATED_ATTR_SLOT, output_buf);
+      break;
+    case CURVES_EVAL_LENGTH_INTERCEPT:
+      pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, cache.evaluated_pos_rad_buf);
+      pass.bind_ssbo(EVALUATED_TIME_SLOT, cache.evaluated_time_buf);
+      pass.bind_ssbo(CURVES_LENGTH_SLOT, cache.curves_length_buf);
+      /* Synchronize positions reads. */
+      pass.barrier(GPU_BARRIER_SHADER_STORAGE);
       break;
   }
 
@@ -199,7 +207,6 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.bind_ssbo("handles_positions_left_buf", this->dummy_vbo);
     sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
     sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
-    sub.push_constant("compute_length_and_time", false);
     /* Bake object transform for legacy hair particle. */
     sub.push_constant("transform", transform);
     sub.push_constant("use_cyclic", has_cyclic);
@@ -213,7 +220,6 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.bind_ssbo("handles_positions_left_buf", cache.handles_positions_left_buf);
     sub.bind_ssbo("handles_positions_right_buf", cache.handles_positions_right_buf);
     sub.bind_ssbo("bezier_offsets_buf", cache.bezier_offsets_buf);
-    sub.push_constant("compute_length_and_time", false);
     /* Bake object transform for legacy hair particle. */
     sub.push_constant("transform", transform);
     sub.push_constant("use_cyclic", has_cyclic);
@@ -230,7 +236,6 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
                   cache.control_weights_buf.get() ? cache.control_weights_buf :
                                                     cache.basis_cache_buf);
     sub.bind_ssbo("bezier_offsets_buf", cache.basis_cache_offset_buf);
-    sub.push_constant("compute_length_and_time", false);
     sub.push_constant("use_point_weight", cache.control_weights_buf.get() != nullptr);
     /* Bake object transform for legacy hair particle. */
     sub.push_constant("transform", transform);
@@ -247,7 +252,6 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
     sub.bind_ssbo("handles_positions_left_buf", this->dummy_vbo);
     sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
     sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
-    sub.push_constant("compute_length_and_time", false);
     /* Bake object transform for legacy hair particle. */
     sub.push_constant("transform", transform);
     sub.push_constant("use_cyclic", has_cyclic);
@@ -256,6 +260,29 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
 
   /* Move ownership of the input vbo to the module. */
   this->transient_buffers.append(std::move(input_buf));
+}
+
+void CurvesModule::evaluate_curve_length_intercept(const bool has_cyclic,
+                                                   const int curve_count,
+                                                   struct CurvesEvalCache &cache)
+{
+  gpu::Shader *shader = DRW_shader_curves_refine_get(CURVES_EVAL_LENGTH_INTERCEPT);
+
+  PassSimple::Sub &pass = refine.sub("Length-Intercept Attributes");
+  pass.shader_set(shader);
+  pass.bind_ssbo(POINTS_BY_CURVES_SLOT, cache.points_by_curve_buf);
+  pass.bind_ssbo(CURVE_TYPE_SLOT, cache.curves_type_buf);
+  pass.bind_ssbo(CURVE_RESOLUTION_SLOT, cache.curves_resolution_buf);
+  pass.bind_ssbo(EVALUATED_POINT_SLOT, cache.evaluated_points_by_curve_buf);
+  pass.bind_texture(CURVE_CYCLIC_SLOT, cache.curves_cyclic_buf);
+
+  pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, cache.evaluated_pos_rad_buf);
+  pass.bind_ssbo(EVALUATED_TIME_SLOT, cache.evaluated_time_buf);
+  pass.bind_ssbo(CURVES_LENGTH_SLOT, cache.curves_length_buf);
+  pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+  /* Bake object transform for legacy hair particle. */
+  pass.push_constant("use_cyclic", has_cyclic);
+  dispatch(curve_count, pass);
 }
 
 static int attribute_index_in_material(GPUMaterial *gpu_material, const StringRef name)

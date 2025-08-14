@@ -47,6 +47,7 @@ enum CurvesEvalShader {
   CURVES_EVAL_FLOAT2 = 2,
   CURVES_EVAL_FLOAT3 = 3,
   CURVES_EVAL_FLOAT4 = 4,
+  CURVES_EVAL_LENGTH_INTERCEPT = 5,
 };
 
 /* Legacy Hair Particle. */
@@ -127,7 +128,7 @@ struct CurvesEvalCache {
   /** Buffer containing `CurveGeometry::resolution()`. */
   gpu::VertBufPtr curves_resolution_buf;
   /** Buffer containing `CurveGeometry::cyclic_offsets()` or dummy data if not needed. */
-  gpu::VertBufPtr cyclic_offsets_buf;
+  gpu::VertBufPtr curves_cyclic_buf;
 
   /* --- Buffers only needed if geometry has Bezier curves. Dummy sized otherwise. --- */
 

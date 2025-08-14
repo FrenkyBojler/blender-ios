@@ -285,7 +285,7 @@ static void test_draw_curves_topology()
     pass.init();
     pass.shader_set(sh);
     pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
-    pass.bind_ssbo("cyclic_offsets_buf", curve_offsets_buf);
+    pass.bind_ssbo("curves_cyclic_buf", curve_offsets_buf);
     pass.bind_ssbo("indirection_buf", indirection_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 3);
@@ -325,7 +325,7 @@ static void test_draw_curves_topology()
     pass.init();
     pass.shader_set(sh);
     pass.bind_ssbo("evaluated_offsets_buf", curve_offsets_buf);
-    pass.bind_ssbo("cyclic_offsets_buf", curve_offsets_buf);
+    pass.bind_ssbo("curves_cyclic_buf", curve_offsets_buf);
     pass.bind_ssbo("indirection_buf", indirection_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 3);
@@ -363,6 +363,8 @@ static void test_draw_curves_interpolate_position()
   Manager manager;
 
   gpu::Shader *sh = GPU_shader_create_from_info_name("draw_curves_interpolate_position");
+  gpu::Shader *sh_length = GPU_shader_create_from_info_name(
+      "draw_curves_evaluate_length_intercept");
 
   const int curve_resolution = 2;
 
@@ -429,8 +431,6 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("positions_buf", positions_buf);
     pass.bind_ssbo("radii_buf", radii_buf);
     pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
-    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
-    pass.bind_ssbo("curves_length_buf", curves_length_buf);
     pass.push_constant("use_cyclic", false);
     /* Dummy, not used for Catmull-Rom. */
     pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
@@ -438,7 +438,16 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("bezier_offsets_buf", evaluated_points_by_curve_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
-    pass.push_constant("compute_length_and_time", true);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+    pass.shader_set(sh_length);
+    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
+    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
+    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
+    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.push_constant("curves_start", 0);
+    pass.push_constant("curves_count", 2);
+    pass.push_constant("use_cyclic", false);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
@@ -535,14 +544,21 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("positions_buf", positions_buf);
     pass.bind_ssbo("radii_buf", radii_buf);
     pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
-    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
-    pass.bind_ssbo("curves_length_buf", curves_length_buf);
     pass.bind_ssbo("handles_positions_left_buf", handles_positions_left_buf);
     pass.bind_ssbo("handles_positions_right_buf", handles_positions_right_buf);
     pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
-    pass.push_constant("compute_length_and_time", true);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+    pass.shader_set(sh_length);
+    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
+    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
+    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
+    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.push_constant("curves_start", 0);
+    pass.push_constant("curves_count", 2);
+    pass.push_constant("use_cyclic", false);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
@@ -721,14 +737,21 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("positions_buf", positions_buf);
     pass.bind_ssbo("radii_buf", radii_buf);
     pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
-    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
-    pass.bind_ssbo("curves_length_buf", curves_length_buf);
     pass.bind_ssbo("handles_positions_left_buf", basis_cache_buf);
     pass.bind_ssbo("handles_positions_right_buf", control_weights_buf);
     pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
-    pass.push_constant("compute_length_and_time", true);
+    pass.dispatch(1);
+    pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+    pass.shader_set(sh_length);
+    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
+    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
+    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
+    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.push_constant("curves_start", 0);
+    pass.push_constant("curves_count", 2);
+    pass.push_constant("use_cyclic", false);
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 
@@ -841,6 +864,7 @@ static void test_draw_curves_interpolate_position()
   GPU_shader_unbind();
 
   GPU_SHADER_FREE_SAFE(sh);
+  GPU_SHADER_FREE_SAFE(sh_length);
   GPU_VERTBUF_DISCARD_SAFE(points_by_curve_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_type_buf);
   GPU_VERTBUF_DISCARD_SAFE(curves_type_bezier_buf);
@@ -1021,7 +1045,6 @@ static void test_draw_curves_interpolate_attributes()
           pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
           pass.bind_ssbo("curves_type_buf", curves_type_buf);
           pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
-          pass.push_constant("use_cyclic", false);
           pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
           pass.bind_ssbo(attr_buf_name.c_str(), attr_buf);
           pass.bind_ssbo(eval_buf_name.c_str(), evaluated_attr_buf);
@@ -1030,18 +1053,18 @@ static void test_draw_curves_interpolate_attributes()
           pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
           pass.bind_ssbo("handles_positions_right_buf", evaluated_points_by_curve_buf);
           pass.bind_ssbo("bezier_offsets_buf", evaluated_points_by_curve_buf);
+          pass.push_constant("use_cyclic", false);
           pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
-          pass.push_constant("compute_length_and_time", false);
           pass.dispatch(1);
           pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_BEZIER));
           pass.shader_set(sh);
           pass.bind_ssbo("handles_positions_left_buf", handles_positions_left_buf);
           pass.bind_ssbo("handles_positions_right_buf", handles_positions_right_buf);
           pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
+          pass.push_constant("use_cyclic", false);
           pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
-          pass.push_constant("compute_length_and_time", false);
           pass.dispatch(1);
           pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_NURBS));
           pass.shader_set(sh);
@@ -1049,9 +1072,9 @@ static void test_draw_curves_interpolate_attributes()
           pass.bind_ssbo("handles_positions_left_buf", basis_cache_buf);
           pass.bind_ssbo("handles_positions_right_buf", control_weights_buf);
           pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
+          pass.push_constant("use_cyclic", false);
           pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
-          pass.push_constant("compute_length_and_time", false);
           pass.dispatch(1);
           pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 

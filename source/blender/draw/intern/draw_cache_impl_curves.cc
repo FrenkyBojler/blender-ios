@@ -159,7 +159,7 @@ void CurvesEvalCache::clear()
   this->evaluated_points_by_curve_buf.reset();
   this->curves_type_buf.reset();
   this->curves_resolution_buf.reset();
-  this->cyclic_offsets_buf.reset();
+  this->curves_cyclic_buf.reset();
 
   this->handles_positions_left_buf.reset();
   this->handles_positions_right_buf.reset();
@@ -693,7 +693,7 @@ void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
    * This concerns all varray. */
   curves_type_buf = gpu::VertBuf::new_from_varray(curves.curve_types());
   curves_resolution_buf = gpu::VertBuf::new_from_varray(curves.resolution());
-  cyclic_offsets_buf = gpu::VertBuf::new_from_varray(curves.cyclic());
+  curves_cyclic_buf = gpu::VertBuf::new_from_varray(curves.cyclic());
 }
 
 void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)

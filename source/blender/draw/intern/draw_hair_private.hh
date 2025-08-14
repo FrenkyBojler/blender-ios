@@ -112,6 +112,10 @@ struct CurvesModule {
                              transform);
   }
 
+  void evaluate_curve_length_intercept(bool has_cyclic,
+                                       int curve_count,
+                                       struct CurvesEvalCache &cache);
+
   gpu::VertBufPtr evaluate_topology_indirection(const int curve_count,
                                                 const int point_count,
                                                 struct CurvesEvalCache &cache,

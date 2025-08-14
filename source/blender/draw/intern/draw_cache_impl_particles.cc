@@ -1365,7 +1365,7 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
    * This concerns all varray. */
   curves_type_buf = gpu::VertBuf::new_from_varray(type_varray);
   curves_resolution_buf = gpu::VertBuf::new_from_varray(resolution_varray);
-  cyclic_offsets_buf = gpu::VertBuf::new_from_varray(cyclic_offsets_varray);
+  curves_cyclic_buf = gpu::VertBuf::new_from_varray(cyclic_offsets_varray);
 }
 
 /* Copied from cycles. */
@@ -1417,9 +1417,6 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
   });
 
   evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(src.evaluated_points_num());
-  /* TODO(fclem): Make time and length optional. */
-  evaluated_time_buf = gpu::VertBuf::new_device_only<float>(src.evaluated_points_num());
-  curves_length_buf = gpu::VertBuf::new_device_only<float>(src.curves_num());
 
   float4x4 transform = src.object->world_to_object();
 
@@ -1434,6 +1431,12 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
                             std::move(points_rad_buf),
                             evaluated_pos_rad_buf,
                             transform);
+
+  /* TODO(fclem): Make time and length optional. */
+  evaluated_time_buf = gpu::VertBuf::new_device_only<float>(src.evaluated_points_num());
+  curves_length_buf = gpu::VertBuf::new_device_only<float>(src.curves_num());
+
+  module.evaluate_curve_length_intercept(false, src.curves_num(), *this);
 }
 
 gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
