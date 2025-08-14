@@ -555,7 +555,7 @@ extern GHOST_TSuccess GHOST_SetDrawingContextType(GHOST_WindowHandle windowhandl
                                                   GHOST_TDrawingContextType type);
 
 /**
- * Returns the drawing context used in the this window.
+ * Returns the drawing context used by this window.
  * \param windowhandle: The handle to the window.
  * \return The window drawing context.
  */
@@ -1288,19 +1288,19 @@ int GHOST_XrGetControllerModelData(GHOST_XrContextHandle xr_context,
 void GHOST_GetVulkanHandles(GHOST_ContextHandle context, GHOST_VulkanHandles *r_handles);
 
 /**
- * Set the pre and post callbacks for vulkan swap chain in the given context.
+ * Set the pre and post callbacks for vulkan swap-chain in the given context.
  *
  * \param context: GHOST context handle of a vulkan context to
  *     get the Vulkan handles from.
  * \param swap_buffers_pre_callback: Function pointer to be called at the beginning of swapBuffers.
- *     Inside this callback the next swap chain image needs to be acquired and filled.
+ *     Inside this callback the next swap-chain image needs to be acquired and filled.
  * \param swap_buffers_post_callback: Function to be called at th end of swapBuffers. swapBuffers
- *     can recreate the swap chain. When this is done the application should be informed by those
+ *     can recreate the swap-chain. When this is done the application should be informed by those
  *     changes.
  * \param openxr_acquire_image_callback: Function to be called when an image needs to be acquired
- *     to be drawn to an OpenXR swap chain.
+ *     to be drawn to an OpenXR swap-chain.
  * \param openxr_release_image_callback: Function to be called after an image has been drawn to the
- *     OpenXR swap chain.
+ *     OpenXR swap-chain.
  */
 void GHOST_SetVulkanSwapBuffersCallbacks(
     GHOST_ContextHandle context,
@@ -1310,7 +1310,7 @@ void GHOST_SetVulkanSwapBuffersCallbacks(
     void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *));
 
 /**
- * Acquire the current swap chain format.
+ * Acquire the current swap-chain format.
  *
  * \param windowhandle:  GHOST window handle to a window to get the resource from.
  * \param r_surface_format: After calling this function the VkSurfaceFormatKHR

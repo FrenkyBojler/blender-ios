@@ -225,10 +225,8 @@ typedef struct UserDef_Experimental {
   char use_sculpt_texture_paint;
   char use_new_volume_nodes;
   char use_shader_node_previews;
-  char use_bundle_and_closure_nodes;
-  char use_socket_structure_type;
   char use_geometry_nodes_lists;
-  char _pad[4];
+  char _pad[6];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -597,6 +595,8 @@ typedef struct UserDef {
 
   char render_display_type;      /* eUserpref_RenderDisplayType */
   char filebrowser_display_type; /* eUserpref_TempSpaceDisplayType */
+  char preferences_display_type; /* eUserpref_TempSpaceDisplayType */
+  char _pad18[7];
 
   short sequencer_proxy_setup; /* eUserpref_SeqProxySetup */
   short _pad1;

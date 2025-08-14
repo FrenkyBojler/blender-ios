@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a775d58b2e0e')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'6dca66d606ed')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-21 08:48+0000\n"
-"PO-Revision-Date: 2025-04-14 08:42+0000\n"
+"POT-Creation-Date: 2025-08-11 08:28+0000\n"
+"PO-Revision-Date: 2025-07-23 15:06+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
 "Language: th\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 5.10.1"
+"X-Generator: Weblate 5.12.1"
 
 
 msgid "Name"
@@ -1163,6 +1163,10 @@ msgid "Normal"
 msgstr "แนวฉาก"
 
 
+msgid "Shader"
+msgstr "เชดเดอร์"
+
+
 msgid "Border"
 msgstr "เส้นขอบ"
 
@@ -1484,10 +1488,6 @@ msgid "Movie File"
 msgstr "ไฟล์ภาพยนตร์"
 
 
-msgid "Shader"
-msgstr "เชดเดอร์"
-
-
 msgid "Pattern"
 msgstr "ลวดลาย"
 
@@ -1724,6 +1724,10 @@ msgstr "พื้นที่ใช้งาน"
 
 msgid "Animation"
 msgstr "แอนิเมชัน"
+
+
+msgid "Video"
+msgstr "วิดีโอ"
 
 
 msgid "YCC"
@@ -3285,10 +3289,6 @@ msgid "Audio"
 msgstr "เสียง"
 
 
-msgid "Video"
-msgstr "วิดีโอ"
-
-
 msgid "Views"
 msgstr "มุมมอง"
 
@@ -3962,6 +3962,11 @@ msgid "Offset X"
 msgstr "ออฟเซต X"
 
 
+msgctxt "Operator"
+msgid "Flip"
+msgstr "กลับด้าน"
+
+
 msgid "Detail"
 msgstr "รายละเอียด"
 
@@ -4180,6 +4185,11 @@ msgstr "ภาพยนตร์"
 msgctxt "Operator"
 msgid "Fade"
 msgstr "จาง"
+
+
+msgctxt "Operator"
+msgid "Delete Keyframes..."
+msgstr "ลบคีย์เฟรม..."
 
 
 msgid "Storage"
@@ -4556,11 +4566,6 @@ msgstr "ลำโพง"
 
 
 msgctxt "Operator"
-msgid "Delete Keyframes..."
-msgstr "ลบคีย์เฟรม..."
-
-
-msgctxt "Operator"
 msgid "Clear Keyframes..."
 msgstr "ล้างคีย์เฟรม..."
 
@@ -4658,11 +4663,6 @@ msgstr "ปานกลาง"
 msgctxt "Operator"
 msgid "Strong"
 msgstr "แข็งแรง"
-
-
-msgctxt "Operator"
-msgid "Flip"
-msgstr "กลับด้าน"
 
 
 msgctxt "Operator"
