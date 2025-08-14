@@ -405,7 +405,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
         if ((pchan->bone->flag & BONE_SELECTED) &&
-            blender::animrig::bone_is_visible_pchan(arm, pchan) &&
+            blender::animrig::bone_is_visible(arm, pchan) &&
             /* if the bone has a parent and is connected to the parent,
              * don't do anything - will break chain unless we do auto-ik.
              */
