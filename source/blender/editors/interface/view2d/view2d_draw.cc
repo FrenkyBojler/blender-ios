@@ -549,7 +549,7 @@ void UI_view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
   }
   else {
     /* Rounding fractional framerates for drawing. */
-    const int fps = round_db_to_int(FPS);
+    const int fps = round_db_to_int(scene->frames_per_second());
     UI_view2d_draw_lines_x__discrete_values(v2d, fps, display_minor_lines);
   }
 }
@@ -626,7 +626,8 @@ void UI_view2d_draw_scale_x__discrete_frames_or_seconds(const ARegion *region,
     UI_view2d_draw_scale_x__discrete_time(region, v2d, rect, scene, colorid);
   }
   else {
-    UI_view2d_draw_scale_x__discrete_values(region, v2d, rect, colorid, round_db_to_int(FPS));
+    UI_view2d_draw_scale_x__discrete_values(
+        region, v2d, rect, colorid, round_db_to_int(scene->frames_per_second()));
   }
 }
 
