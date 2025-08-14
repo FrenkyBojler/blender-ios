@@ -2916,7 +2916,7 @@ static wmOperatorStatus ui_view_item_delete_invoke(bContext *C,
 
   view->foreach_view_item([&](AbstractViewItem &item) {
     if (item.is_active() || item.is_selected()) {
-      item.remove(C);
+      item.delete_item(C);
     }
   });
 

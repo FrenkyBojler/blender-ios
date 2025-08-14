@@ -343,7 +343,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     return bone_collection_.name;
   }
 
-  void remove(bContext *C) override
+  void delete_item(bContext *C) override
   {
     ANIM_armature_bonecoll_remove(&armature_, &bone_collection_);
     ED_undo_push(C, "Delete Bone Collection");

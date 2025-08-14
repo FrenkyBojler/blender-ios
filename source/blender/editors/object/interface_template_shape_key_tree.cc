@@ -237,7 +237,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     return label_;
   }
 
-  void remove(bContext *C) override
+  void delete_item(bContext *C) override
   {
     Main *bmain = CTX_data_main(C);
     BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);

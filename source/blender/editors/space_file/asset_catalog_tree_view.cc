@@ -89,7 +89,7 @@ class AssetCatalogTreeViewItem : public ui::BasicTreeViewItem {
 
   bool supports_renaming() const override;
   bool rename(const bContext &C, StringRefNull new_name) override;
-  void remove(bContext *C) override;
+  void delete_item(bContext *C) override;
 
   /** Add drag support for catalog items. */
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override;
@@ -341,7 +341,7 @@ bool AssetCatalogTreeViewItem::rename(const bContext &C, StringRefNull new_name)
   return true;
 }
 
-void AssetCatalogTreeViewItem::remove(bContext * /*C*/)
+void AssetCatalogTreeViewItem::delete_item(bContext * /*C*/)
 {
   const AssetCatalogTreeView &tree_view = static_cast<const AssetCatalogTreeView &>(
       this->get_tree_view());

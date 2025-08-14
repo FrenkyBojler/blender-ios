@@ -284,7 +284,7 @@ class LayerViewItem : public AbstractTreeViewItem {
     return layer_.name();
   }
 
-  void remove(bContext *C) override
+  void delete_item(bContext *C) override
   {
     grease_pencil_.remove_layer(layer_);
     DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
@@ -454,7 +454,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     return group_.name();
   }
 
-  void remove(bContext *C) override
+  void delete_item(bContext *C) override
   {
     grease_pencil_.remove_group(group_);
     DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);

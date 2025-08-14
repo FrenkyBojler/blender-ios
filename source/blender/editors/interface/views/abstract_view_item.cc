@@ -240,7 +240,7 @@ void AbstractViewItem::add_rename_button(uiBlock &block)
   }
 }
 
-void AbstractViewItem::remove(bContext * /*C*/)
+void AbstractViewItem::delete_item(bContext * /*C*/)
 {
   /* No deletion by default. Needs type specific implementation. */
 }
