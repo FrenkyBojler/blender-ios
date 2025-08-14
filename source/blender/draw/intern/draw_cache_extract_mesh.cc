@@ -188,11 +188,14 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
       case IBOType::LinesAdjacency:
         created_ibos[i] = extract_lines_adjacency(mr, cache.is_manifold);
         break;
+      case IBOType::UVTris:
+        created_ibos[i] = extract_edituv_tris(mr, false);
+        break;
       case IBOType::UVLines:
         created_ibos[i] = extract_edituv_lines(mr, false);
         break;
       case IBOType::EditUVTris:
-        created_ibos[i] = extract_edituv_tris(mr);
+        created_ibos[i] = extract_edituv_tris(mr, true);
         break;
       case IBOType::EditUVLines:
         created_ibos[i] = extract_edituv_lines(mr, true);

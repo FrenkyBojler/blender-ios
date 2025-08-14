@@ -55,51 +55,46 @@ static void extract_edituv_data_bm(const MeshRenderData &mr, MutableSpan<EditLoo
 
 static void extract_edituv_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoopData> vbo_data)
 {
-  if (!mr.bm) {
-    vbo_data.fill({});
-  }
-  else {
-    const BMesh &bm = *mr.bm;
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(&bm);
-    const OffsetIndices faces = mr.faces;
-    const Span<int> corner_verts = mr.corner_verts;
-    const Span<int> corner_edges = mr.corner_edges;
-    threading::parallel_for(faces.index_range(), 2048, [&](const IndexRange range) {
-      for (const int face_index : range) {
-        const IndexRange face = faces[face_index];
-        BMFace *face_orig = bm_original_face_get(mr, face_index);
-        if (!face_orig) {
-          vbo_data.slice(face).fill({});
-          continue;
+  const BMesh &bm = *mr.bm;
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(&bm);
+  const OffsetIndices faces = mr.faces;
+  const Span<int> corner_verts = mr.corner_verts;
+  const Span<int> corner_edges = mr.corner_edges;
+  threading::parallel_for(faces.index_range(), 2048, [&](const IndexRange range) {
+    for (const int face_index : range) {
+      const IndexRange face = faces[face_index];
+      BMFace *face_orig = bm_original_face_get(mr, face_index);
+      if (!face_orig) {
+        vbo_data.slice(face).fill({});
+        continue;
+      }
+      for (const int corner : face) {
+        EditLoopData &value = vbo_data[corner];
+        value = {};
+        BMVert *vert = bm_original_vert_get(mr, corner_verts[corner]);
+        BMEdge *edge = bm_original_edge_get(mr, corner_edges[corner]);
+        if (edge && vert) {
+          /* Loop on an edge endpoint. */
+          BMLoop *l = BM_face_edge_share_loop(face_orig, edge);
+          mesh_render_data_loop_flag(mr, l, offsets, value);
+          mesh_render_data_loop_edge_flag(mr, l, offsets, value);
         }
-        for (const int corner : face) {
-          EditLoopData &value = vbo_data[corner];
-          value = {};
-          BMVert *vert = bm_original_vert_get(mr, corner_verts[corner]);
-          BMEdge *edge = bm_original_edge_get(mr, corner_edges[corner]);
-          if (edge && vert) {
-            /* Loop on an edge endpoint. */
-            BMLoop *l = BM_face_edge_share_loop(face_orig, edge);
-            mesh_render_data_loop_flag(mr, l, offsets, value);
-            mesh_render_data_loop_edge_flag(mr, l, offsets, value);
+        else {
+          if (edge == nullptr) {
+            /* Find if the loop's vert is not part of an edit edge.
+             * For this, we check if the previous loop was on an edge. */
+            const int corner_prev = bke::mesh::face_corner_prev(face, corner);
+            edge = bm_original_edge_get(mr, corner_edges[corner_prev]);
           }
-          else {
-            if (edge == nullptr) {
-              /* Find if the loop's vert is not part of an edit edge.
-               * For this, we check if the previous loop was on an edge. */
-              const int corner_prev = bke::mesh::face_corner_prev(face, corner);
-              edge = bm_original_edge_get(mr, corner_edges[corner_prev]);
-            }
-            if (edge) {
-              /* Mapped points on an edge between two edit verts. */
-              BMLoop *l = BM_face_edge_share_loop(face_orig, edge);
-              mesh_render_data_loop_edge_flag(mr, l, offsets, value);
-            }
+          if (edge) {
+            /* Mapped points on an edge between two edit verts. */
+            BMLoop *l = BM_face_edge_share_loop(face_orig, edge);
+            mesh_render_data_loop_edge_flag(mr, l, offsets, value);
           }
         }
       }
-    });
-  }
+    }
+  });
 }
 
 gpu::VertBufPtr extract_edituv_data(const MeshRenderData &mr)

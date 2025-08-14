@@ -159,9 +159,9 @@ static gpu::IndexBufPtr extract_edituv_tris_mesh(const MeshRenderData &mr,
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, mr.corners_num, false));
 }
 
-gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr)
+gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr, const bool edit_uvs)
 {
-  const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool sync_selection = ((mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0) || !edit_uvs;
   if (mr.extract_type == MeshExtractType::BMesh) {
     return extract_edituv_tris_bm(mr, sync_selection);
   }

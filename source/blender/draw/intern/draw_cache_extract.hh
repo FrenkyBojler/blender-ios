@@ -127,6 +127,7 @@ enum class IBOType : int8_t {
   FaceDots,
   LinesPaintMask,
   LinesAdjacency,
+  UVTris,
   UVLines,
   EditUVTris,
   EditUVLines,

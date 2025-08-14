@@ -876,10 +876,7 @@ class MeshUVs : Overlay {
         wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
       }
       if ((show_face_overlay_ && space_image->uv_face_opacity > 0.0f) || select_face_) {
-        /* TODO: This batch does not draw correctly in Texture Paint mode, as a dummy empty batch
-         * is used in non-edit modes. Supporting this is arguably not a bug fix but a feature that
-         * hasn't been implemented. */
-        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_faces(ob, mesh);
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_faces(ob, mesh);
         faces_ps_.draw(geom, res_handle);
       }
     }
