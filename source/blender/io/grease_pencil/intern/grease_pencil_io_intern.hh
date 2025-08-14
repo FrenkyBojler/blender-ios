@@ -99,6 +99,18 @@ class GreasePencilExporter {
   bool is_selected_frame(const GreasePencil &grease_pencil, int frame_number) const;
 
   std::string coord_to_svg_string(const float2 &screen_co) const;
+
+ private:
+  std::optional<Bounds<float2>> compute_screen_space_drawing_bounds(
+      const RegionView3D &rv3d,
+      Object &object,
+      int layer_index,
+      const bke::greasepencil::Drawing &drawing);
+  std::optional<Bounds<float2>> compute_objects_bounds(
+      const RegionView3D &rv3d,
+      const Depsgraph &depsgraph,
+      Span<GreasePencilExporter::ObjectInfo> objects,
+      int frame_number);
 };
 
 }  // namespace blender::io::grease_pencil
