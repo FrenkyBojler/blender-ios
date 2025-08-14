@@ -35,6 +35,8 @@ typedef struct AssetTag {
 } AssetTag;
 
 typedef enum AssetMetadataRuntimeFlags {
+  /* When this flag is set, metadata for external assets is considered editable. Local assets are
+     always considered editable. */
   ASSET_METADATA_FLAG_EDITABLE = 1 << 0,
 } AssetMetadataRuntimeFlags;
 

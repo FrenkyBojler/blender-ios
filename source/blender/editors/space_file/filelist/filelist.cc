@@ -2304,8 +2304,11 @@ static void filelist_readjob_list_lib_add_datablock(FileListReadJob *job_params,
          * update the asset index). */
         datablock_info->asset_data = metadata.get();
         datablock_info->free_asset_data = false;
+        BLI_assert_msg(
+            StringRef(job_params->cur_relbase).endswith(SEP_STR),
+            "The path ended with a slash, if that changed the check below needs to be updated");
         if (StringRef(job_params->cur_relbase)
-                .endswith(StringRef(BLENDER_ASSET_FILE_SUFFIX) + "/"))
+                .endswith(StringRef(BLENDER_ASSET_FILE_SUFFIX) + SEP_STR))
         {
           metadata->runtime_flag |= ASSET_METADATA_FLAG_EDITABLE;
         }
