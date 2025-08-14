@@ -503,7 +503,7 @@ static void gather_distance_constraints(
       MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
       const VArray<float> length_varray = field_evaluator.get_evaluated<float>(0);
       length_varray.materialize_compressed(mask, constraint_lengths);
-      const float compliance_term = math::safe_divide(1e-3f, pow2f(delta_time));
+      const float compliance_term = math::safe_divide(1e-5f, pow2f(delta_time));
       r_constraint_sets.append(
           {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
                geo_i, constraint_edges),
