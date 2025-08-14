@@ -10,6 +10,8 @@
 #include <cmath>
 #include <cstring>
 
+#include "BLI_assert.h"
+#include "BLI_compiler_compat.h"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_interp.hh"
@@ -1165,6 +1167,72 @@ BLI_INLINE float lookup_ewa_weight(const float r2_normalized, const bool interpo
   return w0 * (1.0f - frac) + w1 * frac;
 }
 
+enum class EWAEdgeFade : uint8_t { None, Tent, Smootherstep };
+
+/* smoothstep on [0,1] */
+BLI_INLINE float smootherstep01(float x)
+{
+  float t = std::clamp(x, 0.0f, 1.0f);
+  return ((6.0f * t - 15.0f) * t + 10.0f) * t * t * t;
+}
+
+BLI_INLINE float ewa_weight_gaussian_exp(const float r2, const float alpha = 2.0f)
+{
+  const float r2c = std::clamp(r2, 0.0f, 1.0f);
+  return std::exp(-alpha * r2c);
+}
+
+// Gaussian × tent (triangle) fade
+BLI_INLINE float ewa_weight_gaussian_tent(const float r2, const float alpha = 2.0f)
+{
+  if (r2 >= 1.0f)
+    return 0.0f;
+  const float g = std::exp(-alpha * std::max(0.0f, r2));
+  const float r = std::sqrt(std::max(0.0f, r2));
+  const float fade = std::max(0.0f, 1.0f - r);  // linear to zero at r=1
+  return g * fade;
+}
+
+/* Gaussian × smootherstep edge band: keeps the interior identical to the
+Gaussian and only fades in the outer ring [r_soft, 1] with C^2 continuity. */
+BLI_INLINE float ewa_weight_gaussian_smoother(const float r2,
+                                              const float alpha = 2.0f,
+                                              const float r_soft = 0.92f)
+{
+  if (r2 >= 1.0f) {
+    return 0.0f;
+  }
+  const float g = std::exp(-alpha * std::max(0.0f, r2));
+
+  const float r2_soft = r_soft * r_soft;
+  if (r2 <= r2_soft) {
+    return g;
+  }
+
+  const float r = std::sqrt(std::max(0.0f, r2));
+  const float t = (r - r_soft) / (1.0f - r_soft);
+  const float fade = 1.0f - smootherstep01(t);
+  return g * fade;
+}
+
+BLI_INLINE float ewa_weight_analytic(const float r2,
+                                     const EWAEdgeFade fade_policy = EWAEdgeFade::None,
+                                     const float alpha = 2.0f,
+                                     const float r_soft = 0.92f)
+{
+  switch (fade_policy) {
+    case EWAEdgeFade::None:
+      return ewa_weight_gaussian_exp(r2, alpha);
+    case EWAEdgeFade::Tent:
+      return ewa_weight_gaussian_tent(r2, alpha);
+    case EWAEdgeFade::Smootherstep:
+      return ewa_weight_gaussian_smoother(r2, alpha, r_soft);
+  }
+
+  BLI_assert_unreachable();
+  return ewa_weight_gaussian_exp(r2, alpha);
+}
+
 /* Bilinear/triangle radial kernel:  tent(r) = max(0, 1 - r).
  * Compute the linear ramp to zero at r = 1.
  *
@@ -1354,7 +1422,8 @@ void BLI_ewa_single_level(const int2 &dimensions,
 
     for (int u = u_min; u <= u_max; ++u) {
       if (r2_at_pixel < 1.0f) {
-        const float gauss_weight = lookup_ewa_weight(r2_at_pixel, interpolate_lut);
+        const float gauss_weight = ewa_weight_analytic(r2_at_pixel, EWAEdgeFade::None);
+        // const float gauss_weight = lookup_ewa_weight(r2_at_pixel, interpolate_lut);
         if (gauss_weight > 0.0f) {
           const int texel_index = (dimensions.x * v + u) * n_channels;
           const float4 rgba = buffer + texel_index;
