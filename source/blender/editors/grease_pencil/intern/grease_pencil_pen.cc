@@ -1092,12 +1092,16 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
    * region before allowing drawing to take place. */
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
 
-  wmWindow *win = CTX_wm_window(C);
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
+  if (vc.scene->toolsettings->gpencil_selectmode_edit != GP_SELECTMODE_POINT) {
+    BKE_report(op->reports, RPT_ERROR, "Selection Mode must be Points");
+    return OPERATOR_CANCELLED;
+  }
+
+  wmWindow *win = CTX_wm_window(C);
   /* Set cursor to indicate modal. */
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
-
-  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   /* Allocate new data. */
   PenToolOperation *ptd_pointer = MEM_new<PenToolOperation>(__func__);
