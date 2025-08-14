@@ -91,10 +91,6 @@ struct SimPoints {
   Array<float3> velocities;
 };
 
-struct PathSimData {
-  Map<bke::GeometryComponent::Type, SimPoints> points_by_type;
-};
-
 struct PathComponentKey {
   std::string path;
   bke::GeometryComponent::Type type;
@@ -124,7 +120,7 @@ class XPBDState {
    */
   int update_counter = 0;
 
-  Map<std::string, PathSimData> data_by_path;
+  Map<PathComponentKey, SimPoints> sim_points;
   Map<PathComponentKey, DistanceConstraintLengths> distance_constraint_lengths;
 };
 
@@ -203,42 +199,31 @@ static void apply_external_accelerations_and_velocities(
     const Map<PathComponentKey, Span<float3>> &accelerations_map,
     const float delta_time)
 {
-  for (auto item_for_path : state.data_by_path.items()) {
-    const StringRefNull self_path = item_for_path.key;
-    PathSimData &path_sim_data = item_for_path.value;
-    for (auto item : path_sim_data.points_by_type.items()) {
-      const bke::GeometryComponent::Type type = item.key;
-      SimPoints &sim_points = item.value;
-      PathComponentKey key{self_path, type};
-      const Span<float3> accelerations = accelerations_map.lookup(key);
-      const int points_num = sim_points.positions.size();
-      threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
-          const float3 &acceleration = accelerations[i];
-          sim_points.velocities[i] += acceleration * delta_time;
-          sim_points.positions[i] += sim_points.velocities[i] * delta_time;
-        }
-      });
-    }
+  for (auto item : state.sim_points.items()) {
+    SimPoints &sim_points = item.value;
+    const Span<float3> accelerations = accelerations_map.lookup(item.key);
+    const int points_num = sim_points.positions.size();
+    threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        const float3 &acceleration = accelerations[i];
+        sim_points.velocities[i] += acceleration * delta_time;
+        sim_points.positions[i] += sim_points.velocities[i] * delta_time;
+      }
+    });
   }
 }
 
-static void apply_simulation_to_mesh(GeometrySet &geometry, const PathSimData &path_sim_data)
+static void apply_simulation_to_mesh(GeometrySet &geometry, const SimPoints &sim_points)
 {
   if (!geometry.has_mesh()) {
     return;
   }
-  const SimPoints *sim_points = path_sim_data.points_by_type.lookup_ptr(
-      bke::GeometryComponent::Type::Mesh);
-  if (!sim_points) {
-    return;
-  }
-  if (geometry.get_mesh()->verts_num != sim_points->points_num) {
+  if (geometry.get_mesh()->verts_num != sim_points.points_num) {
     return;
   }
   Mesh *mesh = geometry.get_mesh_for_write();
   MutableSpan<float3> mesh_positions = mesh->vert_positions_for_write();
-  mesh_positions.copy_from(sim_points->positions);
+  mesh_positions.copy_from(sim_points.positions);
   mesh->tag_positions_changed();
 }
 
@@ -246,12 +231,12 @@ static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBD
 {
   GeometrySet geometry = bundle.geometry;
 
-  const PathSimData *path_sim_data = state.data_by_path.lookup_ptr(bundle.self_path);
-  if (!path_sim_data) {
-    return geometry;
+  if (geometry.has_mesh()) {
+    const PathComponentKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
+    if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
+      apply_simulation_to_mesh(geometry, *sim_points);
+    }
   }
-
-  apply_simulation_to_mesh(geometry, *path_sim_data);
 
   return geometry;
 }
@@ -259,22 +244,15 @@ static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBD
 static void update_xpbd_state_for_geometry(XPBDState &state,
                                            const XPBDGeometryBundle &bundle,
                                            const GeometrySet &current_geometry,
-                                           Map<std::string, PathSimData> &r_data_by_path)
+                                           Map<PathComponentKey, SimPoints> &r_sim_points)
 {
-  PathSimData new_path_sim_data;
-
-  PathSimData *old_path_sim_data = state.data_by_path.lookup_ptr(bundle.self_path);
-
   if (current_geometry.has_mesh()) {
+    const PathComponentKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
     const Mesh *current_mesh = current_geometry.get_mesh();
     std::optional<SimPoints> new_sim_points;
-    if (old_path_sim_data) {
-      if (std::optional<SimPoints> old_sim_points = old_path_sim_data->points_by_type.pop_try(
-              bke::GeometryComponent::Type::Mesh))
-      {
-        if (current_mesh->verts_num == old_sim_points->points_num) {
-          new_sim_points = std::move(*old_sim_points);
-        }
+    if (std::optional<SimPoints> old_sim_points = state.sim_points.pop_try(key)) {
+      if (current_mesh->verts_num == old_sim_points->points_num) {
+        new_sim_points = std::move(*old_sim_points);
       }
     }
     if (!new_sim_points) {
@@ -285,11 +263,8 @@ static void update_xpbd_state_for_geometry(XPBDState &state,
       sim_points.velocities.fill(float3(0.0f));
       new_sim_points = std::move(sim_points);
     }
-    new_path_sim_data.points_by_type.add_new(bke::GeometryComponent::Type::Mesh,
-                                             std::move(*new_sim_points));
+    r_sim_points.add(key, std::move(*new_sim_points));
   }
-
-  r_data_by_path.add(bundle.self_path, std::move(new_path_sim_data));
 }
 
 template<typename T>
@@ -576,27 +551,22 @@ static void update_and_step_xpbd_state(XPBDState &state,
     applied_geometry = apply_simulation(geometry_bundle, state);
   }
 
-  Map<std::string, PathSimData> new_data_by_path;
+  Map<PathComponentKey, SimPoints> new_sim_points;
   for (const int bundle_i : world.geometries.index_range()) {
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
     update_xpbd_state_for_geometry(
-        state, world.geometries[bundle_i], applied_geometry, new_data_by_path);
+        state, world.geometries[bundle_i], applied_geometry, new_sim_points);
   }
-  state.data_by_path = std::move(new_data_by_path);
+  state.sim_points = std::move(new_sim_points);
 
   Vector<SimPoints *> all_sim_points;
   Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
   VectorSet<PathComponentKey> all_sim_points_keys;
-  for (const int bundle_i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
-    PathSimData &path_sim_data = state.data_by_path.lookup(geometry_bundle.self_path);
-    for (auto item : path_sim_data.points_by_type.items()) {
-      const bke::GeometryComponent::Type type = item.key;
-      SimPoints &sim_points = item.value;
-      all_sim_points.append_and_get_index(&sim_points);
-      points_refs.append({sim_points.positions});
-      all_sim_points_keys.add_new({geometry_bundle.self_path, type});
-    }
+  for (auto item : state.sim_points.items()) {
+    SimPoints &sim_points = item.value;
+    all_sim_points.append(&sim_points);
+    points_refs.append({sim_points.positions});
+    all_sim_points_keys.add_new(item.key);
   }
 
   for (DistanceConstraintLengths &distance_constraint_lengths :
