@@ -66,11 +66,15 @@ class IndexRange {
     BLI_assert(size >= 0);
   }
 
+  /* Construct an index range for interval [begin, begin + size).
+   */
   constexpr static IndexRange from_begin_size(const int64_t begin, const int64_t size)
   {
     return IndexRange(begin, size);
   }
 
+  /* Construct an index range for interval [begin, end).
+   */
   constexpr static IndexRange from_begin_end(const int64_t begin, const int64_t end)
   {
     return IndexRange(begin, end - begin);
@@ -293,6 +297,16 @@ class IndexRange {
     const int64_t new_start = std::min(old_end, std::max(start_, other.start_));
     const int64_t new_end = std::max(new_start, std::min(old_end, other.start_ + other.size_));
     return IndexRange(new_start, new_end - new_start);
+  }
+
+  /**
+   * Returns a new IndexRange with n elements added to the end of the range.
+   * This invokes undefined behavior when n is negative.
+   */
+  constexpr IndexRange push_back(int64_t n) const
+  {
+    BLI_assert(n >= 0);
+    return IndexRange(start_, size_ + n);
   }
 
   /**

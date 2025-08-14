@@ -97,6 +97,22 @@ int calculate_evaluated_num(const int points_num,
   return resolution * nonzero_span_num + int(!cyclic);
 }
 
+void find_spans(const int points_num,
+                const int8_t order,
+                const bool cyclic,
+                const Span<float> knots,
+                Vector<int> &r_span_indices)
+{
+  const int8_t degree = order - 1;
+  const int wrapped_points_num = control_points_num(points_num, order, cyclic);
+
+  for (const int span_index : IndexRange::from_begin_end(degree, wrapped_points_num)) {
+    if (is_breakpoint(knots, span_index)) {
+      r_span_indices.append(span_index);
+    }
+  }
+}
+
 static void copy_custom_knots(const int8_t order,
                               const bool cyclic,
                               const Span<float> custom_knots,
@@ -265,15 +281,11 @@ void calculate_basis_cache(const int points_num,
    * as the spans between repeated knot values are zero length!
    */
   const int breakpoint_num = (evaluated_num - !cyclic) / resolution;
-  Array<int, 20> span_offsets(breakpoint_num);
 
-  int breakpoint_count = 0;
-  for (const int span_index : IndexRange::from_begin_end(degree, wrapped_points_num)) {
-    if (is_breakpoint(knots, span_index)) {
-      span_offsets[breakpoint_count++] = span_index;
-    }
-  }
-  BLI_assert(breakpoint_count == breakpoint_num);
+  Vector<int> span_offsets;
+  span_offsets.reserve(breakpoint_num);
+  find_spans(points_num, order, cyclic, knots, span_offsets);
+  BLI_assert(span_offsets.size() > 0);
 
   /* Build the basis cache, sampling each evaluated span at intervals. */
   threading::parallel_for(span_offsets.index_range(), 4096, [&](const IndexRange range) {
@@ -374,6 +386,107 @@ void interpolate_to_evaluated(const BasisCache &basis_cache,
       }
     }
   });
+}
+
+void knot_refine(const int8_t order,
+                 const int span_a,
+                 int span_b,
+                 const Span<float> knot_inserts,
+                 const Span<float> src_knots,
+                 MutableSpan<float> dst_knots)
+{
+  const int8_t degree = order - 1;
+  const int r = knot_inserts.size();
+  span_b++;
+  for (int j = 0; j <= span_a; j++) {
+    dst_knots[j] = src_knots[j];
+  }
+  for (int j = span_b + degree; j < src_knots.size(); j++) {
+    dst_knots[j + r] = src_knots[j];
+  }
+
+  int i = span_b + degree - 1;
+  int k = span_b + degree + r - 1;
+  for (int j = r - 1; j >= 0; j--) {
+    while (knot_inserts[j] <= src_knots[i] && i > span_a) {
+      dst_knots[k] = src_knots[i];
+      k--;
+      i--;
+    }
+    dst_knots[k] = knot_inserts[j];
+    k--;
+  }
+}
+
+void knot_refine_rational(const int8_t order,
+                          const int span_a,
+                          int span_b,
+                          const Span<float> knot_inserts,
+                          const Span<float> src_knots,
+                          const Span<float3> src_points,
+                          const Span<float> src_weights,
+                          MutableSpan<float> dst_knots,
+                          MutableSpan<float3> dst_points,
+                          MutableSpan<float> dst_weights)
+{
+  BLI_assert(src_points.size() == src_weights.size());
+  BLI_assert(dst_points.size() == dst_weights.size());
+  const int8_t degree = order - 1;
+  const int r = knot_inserts.size();
+  span_b++;
+
+  for (int j = 0; j <= span_a; j++) {
+    dst_knots[j] = src_knots[j];
+  }
+  for (int j = span_b + degree; j < src_knots.size(); j++) {
+    dst_knots[j + r] = src_knots[j];
+  }
+  for (int j = 0; j <= span_a - degree; j++) {
+    dst_points[j] = src_points[j] * src_weights[j];
+    dst_weights[j] = src_weights[j];
+  }
+  for (int j = span_b - 1; j < src_points.size(); j++) {
+    dst_points[j + r] = src_points[j] * src_weights[j];
+    dst_weights[j + r] = src_weights[j];
+  }
+
+  int i = span_b + degree - 1;
+  int k = span_b + degree + r - 1;
+  for (int j = r - 1; j >= 0; j--) {
+
+    while (knot_inserts[j] <= src_knots[i] && i > span_a) {
+      dst_points[k - order] = src_points[i - order] * src_weights[i - order];
+      dst_weights[k - order] = src_weights[i - order];
+      dst_knots[k] = src_knots[i];
+      k--;
+      i--;
+    }
+
+    dst_points[k - order] = dst_points[k - degree];
+    dst_weights[k - order] = dst_weights[k - degree];
+    for (int m = 1; m < order; m++) {
+      const int index = k - degree + m;
+      float alfa = dst_knots[k + m] - knot_inserts[j];
+      if (alfa == 0.0f) {
+        dst_points[index - 1] = dst_points[index];
+        dst_weights[index - 1] = dst_weights[index];
+      }
+      else {
+        alfa = alfa / (dst_knots[k + m] - src_knots[i - degree + m]);
+        dst_points[index - 1] = bke::attribute_math::mix2(
+            alfa, dst_points[index], dst_points[index - 1]);
+        dst_weights[index - 1] = bke::attribute_math::mix2(
+            alfa, dst_weights[index], dst_weights[index - 1]);
+      }
+    }
+    dst_knots[k] = knot_inserts[j];
+    k--;
+  }
+
+  /* Remove weight contribution. */
+  for (int i = 0; i < dst_points.size(); i++) {
+    dst_points[i] = dst_points[i] * 1.0f / dst_weights[i];
+  }
 }
 
 }  // namespace blender::bke::curves::nurbs

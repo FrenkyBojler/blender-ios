@@ -882,6 +882,19 @@ int calculate_evaluated_num(int points_num,
                             KnotsMode knots_mode,
                             Span<float> knots);
 
+/* Find all span indices for the knot vector. Each index references a breakpoint.
+ *
+ * Span (or segment) in this context is the parameter interval between two consecutive
+ * knots [i, i + 1], where the knot at index `i` is a breakpoint and is stricly less than
+ * the value of following knot. For repeated knots, with multiplicity > 1, only the rightmost
+ * is considered a breakpoint as the spans between repeated knot values are zero length!
+ */
+void find_spans(const int points_num,
+                const int8_t order,
+                const bool cyclic,
+                const Span<float> knots,
+                Vector<int> &r_span_indices);
+
 /**
  * Calculate the length of the knot vector for a NURBS curve with the given properties.
  * The knots must be longer for a cyclic curve, for example, in order to provide weights for the
@@ -956,6 +969,44 @@ void interpolate_to_evaluated(const BasisCache &basis_cache,
                               Span<float> control_weights,
                               GSpan src,
                               GMutableSpan dst);
+
+/*
+ * Constructs the new refined knot vector from the given knot inserts.
+ */
+void knot_refine(int8_t order,
+                 int span_a,
+                 int span_b,
+                 Span<float> knot_inserts,
+                 Span<float> src_knots,
+                 MutableSpan<float> dst_knots);
+
+/*
+ * Computes the new weights, control points, and knot vector from the given knot inserts during
+ * knot refinement of a rational NURBS.
+ */
+void knot_refine_rational(int8_t order,
+                          int span_a,
+                          int span_b,
+                          Span<float> knot_inserts,
+                          Span<float> src_knots,
+                          Span<float3> src_points,
+                          Span<float> src_weights,
+                          MutableSpan<float> dst_knots,
+                          MutableSpan<float3> dst_points,
+                          MutableSpan<float> dst_weights);
+
+/*
+ * Computes the new attribute values from the given knot inserts during knot refinement.
+ */
+template<typename T>
+void knot_refine_attribute(int8_t order,
+                           int span_a,
+                           int span_b,
+                           Span<float> knot_inserts,
+                           Span<float> src_knots,
+                           Span<T> src_attrib,
+                           Span<float> dst_knots,
+                           MutableSpan<T> dst_attrib);
 
 }  // namespace nurbs
 
@@ -1157,6 +1208,54 @@ inline int knots_num(const int points_num, const int8_t order, const bool cyclic
 inline int control_points_num(const int points_num, const int8_t order, const bool cyclic)
 {
   return points_num + cyclic * (order - 1);
+}
+
+template<typename T>
+void knot_refine_attribute(const int8_t order,
+                           const int span_a,
+                           int span_b,
+                           const Span<float> knot_inserts,
+                           const Span<float> src_knots,
+                           const Span<T> src_attrib,
+                           const Span<float> dst_knots,
+                           MutableSpan<T> dst_attrib)
+{
+  const int8_t degree = order - 1;
+  const int r = knot_inserts.size();
+  span_b++;
+
+  for (int j = 0; j <= span_a - degree; j++) {
+    dst_attrib[j] = src_attrib[j];
+  }
+  for (int j = span_b - 1; j < src_attrib.size(); j++) {
+    dst_attrib[j + r] = src_attrib[j];
+  }
+
+  int i = span_b + degree - 1;
+  int k = span_b + degree + r - 1;
+  for (int j = r - 1; j >= 0; j--) {
+
+    while (knot_inserts[j] <= src_knots[i] && i > span_a) {
+      dst_attrib[k - order] = src_attrib[i - order];
+      k--;
+      i--;
+    }
+
+    dst_attrib[k - order] = dst_attrib[k - degree];
+    for (int m = 1; m < order; m++) {
+      const int index = k - degree + m;
+      float alfa = dst_knots[k + m] - knot_inserts[j];
+      if (alfa == 0.0f) {
+        dst_attrib[index - 1] = dst_attrib[index];
+      }
+      else {
+        alfa = alfa / (dst_knots[k + m] - src_knots[i - degree + m]);
+        dst_attrib[index - 1] = bke::attribute_math::mix2(
+            alfa, dst_attrib[index], dst_attrib[index - 1]);
+      }
+    }
+    k--;
+  }
 }
 
 }  // namespace nurbs
