@@ -90,8 +90,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 struct SimPoints {
   int points_num;
+  bool has_rotation = false;
+
   Array<float3> positions;
   Array<float3> velocities;
+
+  Array<math::Quaternion> rotations;
+  Array<float3> angular_velocities;
 };
 
 struct SimPointsKey {
@@ -209,10 +214,9 @@ static WorldData parse_world(const Bundle &world_bundle)
   return world;
 }
 
-static void apply_external_accelerations_and_velocities(
-    XPBDState &state,
-    const Map<SimPointsKey, Span<float3>> &accelerations_map,
-    const float delta_time)
+static void integrate_velocities(XPBDState &state,
+                                 const Map<SimPointsKey, Span<float3>> &accelerations_map,
+                                 const float delta_time)
 {
   for (auto item : state.sim_points.items()) {
     SimPoints &sim_points = item.value;
@@ -225,6 +229,24 @@ static void apply_external_accelerations_and_velocities(
         sim_points.positions[i] += sim_points.velocities[i] * delta_time;
       }
     });
+    if (sim_points.has_rotation) {
+      threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          /* There are no "torque fields" yet. */
+          const float3 external_torque(0.0f, 0.0f, 0.0f);
+          /* TODO: Support customizable inertia. */
+          const float3 inertia(1.0f);
+          float3 &angular_velocity = sim_points.angular_velocities[i];
+          const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
+          angular_velocity += delta_time *
+                              math::safe_divide(external_torque - precession, inertia);
+          math::Quaternion &rotation = sim_points.rotations[i];
+          const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
+          rotation = math::normalize(
+              math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
+        }
+      });
+    }
   }
 }
 
@@ -281,11 +303,24 @@ static void apply_simulation_to_instances(GeometrySet &geometry, const SimPoints
   }
   bke::Instances *instances = geometry.get_instances_for_write();
   MutableSpan<float4x4> transforms = instances->transforms_for_write();
-  threading::parallel_for(transforms.index_range(), 1024, [&](const IndexRange range) {
-    for (const int i : range) {
-      transforms[i].location() = sim_points.positions[i];
-    }
-  });
+  const Span<float3> positions = sim_points.positions;
+  if (sim_points.has_rotation) {
+    const Span<math::Quaternion> rotations = sim_points.rotations;
+    threading::parallel_for(transforms.index_range(), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        float4x4 &transform = transforms[i];
+        const float3 scale = math::to_scale<true>(transform);
+        transform = math::from_loc_rot_scale<float4x4>(positions[i], rotations[i], scale);
+      }
+    });
+  }
+  else {
+    threading::parallel_for(transforms.index_range(), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        transforms[i].location() = positions[i];
+      }
+    });
+  }
 }
 
 static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBDState &state)
@@ -394,17 +429,29 @@ static void update_xpbd_state_for_geometry(XPBDState &state,
     }
     if (!new_sim_points) {
       SimPoints sim_points;
-      sim_points.points_num = current_instances->instances_num();
-      sim_points.positions.reinitialize(current_instances->instances_num());
+      const int instances_num = current_instances->instances_num();
+      sim_points.points_num = instances_num;
+      sim_points.has_rotation = true;
+      sim_points.positions.reinitialize(instances_num);
+      sim_points.rotations.reinitialize(instances_num);
       const Span<float4x4> transforms = current_instances->transforms();
       threading::parallel_for(
           sim_points.positions.index_range(), 1024, [&](const IndexRange range) {
             for (const int i : range) {
-              sim_points.positions[i] = transforms[i].location();
+              float3 location;
+              math::Quaternion rotation;
+              float3 scale;
+              math::to_loc_rot_scale_safe<true>(transforms[i], location, rotation, scale);
+
+              sim_points.positions[i] = location;
+              sim_points.rotations[i] = rotation;
             }
           });
-      sim_points.velocities.reinitialize(current_instances->instances_num());
+      sim_points.velocities.reinitialize(instances_num);
       sim_points.velocities.fill(float3(0.0f));
+      sim_points.angular_velocities.reinitialize(instances_num);
+      sim_points.angular_velocities.fill(float3(0.0f));
+
       new_sim_points = std::move(sim_points);
     }
     r_sim_points.add(key, std::move(*new_sim_points));
@@ -766,7 +813,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
       all_prev_positions[i].as_mutable_span().copy_from(ordered_sim_points[i]->positions);
     }
     if (sub_delta_time > 0.0f) {
-      apply_external_accelerations_and_velocities(state, accelerations_map, sub_delta_time);
+      integrate_velocities(state, accelerations_map, sub_delta_time);
     }
 
     switch (solver_type) {
