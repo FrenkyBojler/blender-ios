@@ -511,14 +511,14 @@ typedef enum ePchan_DrawFlag {
 typedef enum ePchanGizmoMode {
   PCHAN_GIZMO_MODE_NORMAL = 1,
   /**
-   * Places the gizmo at the Custom Transform Location, and uses that as
+   * Places the gizmo at the Custom Transform location, and uses that as
    * the origin for manipulating rotation and scale. This decouples the
    * location of the gizmo from the actual location of the bone.
    */
   PCHAN_GIZMO_MODE_CUSTOM_LOCATION,
   /**
-   * Follow the Custom Transform's parent. This includes the functionality of
-   *  PCHAN_GIZMO_MODE_CUSTOM_LOCATION so the location follows the Custom Transform.
+   * Places the gizmo at the Custom Transform location, using the orientation of the space it is
+   * in. This works like the "Parent" option for gizmos, hence the name.
    */
   PCHAN_GIZMO_MODE_PARENT_SPACE,
 } ePchanGizmoMode;
