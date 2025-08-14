@@ -23,7 +23,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -454,7 +454,7 @@ static bool write_external_bake_pixels(const char *filepath,
 static bool is_noncolor_pass(eScenePassType pass_type)
 {
   return ELEM(pass_type,
-              SCE_PASS_Z,
+              SCE_PASS_DEPTH,
               SCE_PASS_POSITION,
               SCE_PASS_NORMAL,
               SCE_PASS_VECTOR,
@@ -947,14 +947,14 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
       else {
         /* if everything else fails, use the material index */
         char tmp[5];
-        SNPRINTF(tmp, "%d", i % 1000);
+        SNPRINTF_UTF8(tmp, "%d", i % 1000);
         BLI_path_suffix(filepath, FILE_MAX, tmp, "_");
       }
     }
 
     if (bk_image->tile_number) {
       char tmp[12];
-      SNPRINTF(tmp, "%d", bk_image->tile_number);
+      SNPRINTF_UTF8(tmp, "%d", bk_image->tile_number);
       BLI_path_suffix(filepath, FILE_MAX, tmp, "_");
     }
 

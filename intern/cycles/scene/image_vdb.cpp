@@ -244,6 +244,7 @@ void VDBImageLoader::grid_from_dense_voxels(const size_t width,
   (void)depth;
   (void)channels;
   (void)voxels;
+  (void)transform_3d;
 #endif
 }
 

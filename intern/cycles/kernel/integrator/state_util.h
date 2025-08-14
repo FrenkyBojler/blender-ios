@@ -8,6 +8,8 @@
 
 #include "kernel/integrator/state.h"
 
+#include "kernel/sample/lcg.h"
+
 #include "kernel/util/differential.h"
 
 CCL_NAMESPACE_BEGIN
@@ -530,6 +532,52 @@ ccl_device_inline int integrator_state_transparent_bounce(ConstIntegratorShadowS
 {
   return INTEGRATOR_STATE(state, shadow_path, transparent_bounce);
 }
+
+ccl_device_inline int integrator_state_portal_bounce(KernelGlobals kg,
+                                                     ConstIntegratorState state,
+                                                     const int /*unused*/)
+{
+  return (kernel_data.kernel_features & KERNEL_FEATURE_NODE_PORTAL) ?
+             INTEGRATOR_STATE(state, path, portal_bounce) :
+             0;
+}
+
+ccl_device_inline int integrator_state_portal_bounce(KernelGlobals kg,
+                                                     ConstIntegratorShadowState state,
+                                                     const int /*unused*/)
+{
+  return (kernel_data.kernel_features & KERNEL_FEATURE_NODE_PORTAL) ?
+             INTEGRATOR_STATE(state, shadow_path, portal_bounce) :
+             0;
+}
+
+ccl_device_inline uint integrator_state_lcg_init(ConstIntegratorState state,
+                                                 const uint32_t /*path_flag*/,
+                                                 const uint hash)
+{
+  return lcg_state_init(INTEGRATOR_STATE(state, path, rng_pixel),
+                        INTEGRATOR_STATE(state, path, rng_offset),
+                        INTEGRATOR_STATE(state, path, sample),
+                        hash);
+}
+
+ccl_device_inline uint integrator_state_lcg_init(ConstIntegratorShadowState state,
+                                                 const uint32_t /*path_flag*/,
+                                                 uint hash)
+{
+  return lcg_state_init(INTEGRATOR_STATE(state, shadow_path, rng_pixel),
+                        INTEGRATOR_STATE(state, shadow_path, rng_offset),
+                        INTEGRATOR_STATE(state, shadow_path, sample),
+                        hash);
+}
+
+ccl_device_inline uint integrator_state_lcg_init(ConstIntegratorBakeState /*state*/,
+                                                 const uint32_t /*path_flag*/,
+                                                 uint /*hash*/)
+{
+  return 0;
+}
+
 #else
 ccl_device_inline int integrator_state_bounce(ConstIntegratorShadowState state,
                                               const uint32_t path_flag)
@@ -566,6 +614,39 @@ ccl_device_inline int integrator_state_transparent_bounce(ConstIntegratorShadowS
   return (path_flag & PATH_RAY_SHADOW) ? INTEGRATOR_STATE(state, shadow_path, transparent_bounce) :
                                          INTEGRATOR_STATE(state, path, transparent_bounce);
 }
+
+ccl_device_inline int integrator_state_portal_bounce(KernelGlobals kg,
+                                                     ConstIntegratorShadowState state,
+                                                     const uint32_t path_flag)
+{
+  if ((kernel_data.kernel_features & KERNEL_FEATURE_NODE_PORTAL) == 0) {
+    return 0;
+  }
+  return (path_flag & PATH_RAY_SHADOW) ? INTEGRATOR_STATE(state, shadow_path, portal_bounce) :
+                                         INTEGRATOR_STATE(state, path, portal_bounce);
+}
+
+ccl_device_inline uint integrator_state_lcg_init(ConstIntegratorState state,
+                                                 const uint32_t path_flag,
+                                                 const uint hash)
+{
+  if (state == INTEGRATOR_STATE_NULL) {
+    return 0;
+  }
+
+  if (path_flag & PATH_RAY_SHADOW) {
+    return lcg_state_init(INTEGRATOR_STATE(state, shadow_path, rng_pixel),
+                          INTEGRATOR_STATE(state, shadow_path, rng_offset),
+                          INTEGRATOR_STATE(state, shadow_path, sample),
+                          hash);
+  }
+
+  return lcg_state_init(INTEGRATOR_STATE(state, path, rng_pixel),
+                        INTEGRATOR_STATE(state, path, rng_offset),
+                        INTEGRATOR_STATE(state, path, sample),
+                        hash);
+}
+
 #endif
 
 CCL_NAMESPACE_END

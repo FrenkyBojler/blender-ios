@@ -286,12 +286,14 @@ ccl_device_inline float _surface_shader_bsdf_eval_mis(KernelGlobals kg,
     }
 
     if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
-      if (CLOSURE_IS_BSDF(sc->type) && !_surface_shader_exclude(sc->type, light_shader_flags)) {
+      if (CLOSURE_IS_BSDF(sc->type)) {
         float bsdf_pdf = 0.0f;
         const Spectrum eval = bsdf_eval(kg, sd, sc, wo, &bsdf_pdf);
 
         if (bsdf_pdf != 0.0f) {
-          bsdf_eval_accum(result_eval, sc, wo, eval * sc->weight);
+          if (!_surface_shader_exclude(sc->type, light_shader_flags)) {
+            bsdf_eval_accum(result_eval, sc, wo, eval * sc->weight);
+          }
           sum_pdf += bsdf_pdf * sc->sample_weight;
         }
       }
@@ -319,12 +321,14 @@ ccl_device_inline float surface_shader_bsdf_eval_pdfs(const KernelGlobals kg,
     const ccl_private ShaderClosure *sc = &sd->closure[i];
 
     if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
-      if (CLOSURE_IS_BSDF(sc->type) && !_surface_shader_exclude(sc->type, light_shader_flags)) {
+      if (CLOSURE_IS_BSDF(sc->type)) {
         float bsdf_pdf = 0.0f;
         const Spectrum eval = bsdf_eval(kg, sd, sc, wo, &bsdf_pdf);
         kernel_assert(bsdf_pdf >= 0.0f);
         if (bsdf_pdf != 0.0f) {
-          bsdf_eval_accum(result_eval, sc, wo, eval * sc->weight);
+          if (!_surface_shader_exclude(sc->type, light_shader_flags)) {
+            bsdf_eval_accum(result_eval, sc, wo, eval * sc->weight);
+          }
           sum_pdf += bsdf_pdf * sc->sample_weight;
           kernel_assert(bsdf_pdf * sc->sample_weight >= 0.0f);
           pdfs[i] = bsdf_pdf * sc->sample_weight;
@@ -1150,6 +1154,9 @@ ccl_device void surface_shader_eval(KernelGlobals kg,
                                     const uint32_t path_flag,
                                     bool use_caustics_storage = false)
 {
+  /* Initialize additional RNG for BSDFs and image textures. */
+  sd->lcg_state = integrator_state_lcg_init(state, path_flag, 0xb4bc3953);
+
   /* If path is being terminated, we are tracing a shadow ray or evaluating
    * emission, then we don't need to store closures. The emission and shadow
    * shader data also do not have a closure array to save GPU memory. */

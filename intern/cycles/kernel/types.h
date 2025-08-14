@@ -80,78 +80,82 @@ CCL_NAMESPACE_BEGIN
 #define KERNEL_FEATURE_NODE_AOV (1U << 7U)
 #define KERNEL_FEATURE_NODE_LIGHT_PATH (1U << 8U)
 #define KERNEL_FEATURE_NODE_PRINCIPLED_HAIR (1U << 9U)
+#define KERNEL_FEATURE_NODE_PORTAL (1U << 10U)
 
 /* Use path tracing kernels. */
-#define KERNEL_FEATURE_PATH_TRACING (1U << 10U)
+#define KERNEL_FEATURE_PATH_TRACING (1U << 11U)
 
 /* BVH/sampling kernel features. */
-#define KERNEL_FEATURE_POINTCLOUD (1U << 11U)
-#define KERNEL_FEATURE_HAIR (1U << 12U)
-#define KERNEL_FEATURE_HAIR_THICK (1U << 13U)
-#define KERNEL_FEATURE_OBJECT_MOTION (1U << 14U)
+#define KERNEL_FEATURE_POINTCLOUD (1U << 12U)
+#define KERNEL_FEATURE_HAIR (1U << 13U)
+#define KERNEL_FEATURE_HAIR_THICK (1U << 14U)
+#define KERNEL_FEATURE_OBJECT_MOTION (1U << 15U)
 
 /* Denotes whether baking functionality is needed. */
-#define KERNEL_FEATURE_BAKING (1U << 15U)
+#define KERNEL_FEATURE_BAKING (1U << 16U)
 
 /* Use subsurface scattering materials. */
-#define KERNEL_FEATURE_SUBSURFACE (1U << 16U)
+#define KERNEL_FEATURE_SUBSURFACE (1U << 17U)
 
 /* Use volume materials. */
-#define KERNEL_FEATURE_VOLUME (1U << 17U)
+#define KERNEL_FEATURE_VOLUME (1U << 18U)
 
 /* Use Transparent shadows */
-#define KERNEL_FEATURE_TRANSPARENT (1U << 18U)
+#define KERNEL_FEATURE_TRANSPARENT (1U << 19U)
 
 /* Use shadow catcher. */
-#define KERNEL_FEATURE_SHADOW_CATCHER (1U << 19U)
+#define KERNEL_FEATURE_SHADOW_CATCHER (1U << 20U)
 
 /* Light render passes. */
-#define KERNEL_FEATURE_LIGHT_PASSES (1U << 20U)
+#define KERNEL_FEATURE_LIGHT_PASSES (1U << 21U)
 
 /* AO. */
-#define KERNEL_FEATURE_AO_PASS (1U << 21U)
-#define KERNEL_FEATURE_AO_ADDITIVE (1U << 22U)
+#define KERNEL_FEATURE_AO_PASS (1U << 22U)
+#define KERNEL_FEATURE_AO_ADDITIVE (1U << 23U)
 #define KERNEL_FEATURE_AO (KERNEL_FEATURE_AO_PASS | KERNEL_FEATURE_AO_ADDITIVE)
 
 /* MNEE. */
-#define KERNEL_FEATURE_MNEE (1U << 23U)
+#define KERNEL_FEATURE_MNEE (1U << 24U)
 
 /* Path guiding. */
-#define KERNEL_FEATURE_PATH_GUIDING (1U << 24U)
+#define KERNEL_FEATURE_PATH_GUIDING (1U << 25U)
 
 /* OSL. */
-#define KERNEL_FEATURE_OSL_SHADING (1U << 25U)
-#define KERNEL_FEATURE_OSL_CAMERA (1U << 26U)
+#define KERNEL_FEATURE_OSL_SHADING (1U << 26U)
+#define KERNEL_FEATURE_OSL_CAMERA (1U << 27U)
 
 /* Light and shadow linking. */
-#define KERNEL_FEATURE_LIGHT_LINKING (1U << 27U)
-#define KERNEL_FEATURE_SHADOW_LINKING (1U << 28U)
+#define KERNEL_FEATURE_LIGHT_LINKING (1U << 28U)
+#define KERNEL_FEATURE_SHADOW_LINKING (1U << 29U)
 
 /* Use denoising kernels and output denoising passes. */
-#define KERNEL_FEATURE_DENOISING (1U << 29U)
+#define KERNEL_FEATURE_DENOISING (1U << 30U)
 
 /* Light tree. */
-#define KERNEL_FEATURE_LIGHT_TREE (1U << 30U)
+#define KERNEL_FEATURE_LIGHT_TREE (1U << 31U)
 
 /* Shader node feature mask, to specialize shader evaluation for kernels. */
 
 #define KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT \
   (KERNEL_FEATURE_NODE_EMISSION | KERNEL_FEATURE_NODE_VORONOI_EXTRA | \
-   KERNEL_FEATURE_NODE_LIGHT_PATH)
+   KERNEL_FEATURE_NODE_LIGHT_PATH | KERNEL_FEATURE_NODE_PORTAL)
 #define KERNEL_FEATURE_NODE_MASK_SURFACE_BACKGROUND \
   (KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT | KERNEL_FEATURE_NODE_AOV)
 #define KERNEL_FEATURE_NODE_MASK_SURFACE_SHADOW \
   (KERNEL_FEATURE_NODE_BSDF | KERNEL_FEATURE_NODE_EMISSION | KERNEL_FEATURE_NODE_BUMP | \
    KERNEL_FEATURE_NODE_BUMP_STATE | KERNEL_FEATURE_NODE_VORONOI_EXTRA | \
-   KERNEL_FEATURE_NODE_LIGHT_PATH | KERNEL_FEATURE_NODE_PRINCIPLED_HAIR)
+   KERNEL_FEATURE_NODE_LIGHT_PATH | KERNEL_FEATURE_NODE_PRINCIPLED_HAIR | \
+   KERNEL_FEATURE_NODE_PORTAL)
 #define KERNEL_FEATURE_NODE_MASK_SURFACE \
   (KERNEL_FEATURE_NODE_MASK_SURFACE_SHADOW | KERNEL_FEATURE_NODE_RAYTRACE | \
    KERNEL_FEATURE_NODE_AOV | KERNEL_FEATURE_NODE_LIGHT_PATH)
 #define KERNEL_FEATURE_NODE_MASK_VOLUME \
   (KERNEL_FEATURE_NODE_EMISSION | KERNEL_FEATURE_NODE_VOLUME | \
-   KERNEL_FEATURE_NODE_VORONOI_EXTRA | KERNEL_FEATURE_NODE_LIGHT_PATH)
+   KERNEL_FEATURE_NODE_VORONOI_EXTRA | KERNEL_FEATURE_NODE_LIGHT_PATH | \
+   KERNEL_FEATURE_NODE_PORTAL)
 #define KERNEL_FEATURE_NODE_MASK_DISPLACEMENT \
-  (KERNEL_FEATURE_NODE_VORONOI_EXTRA | KERNEL_FEATURE_NODE_BUMP | KERNEL_FEATURE_NODE_BUMP_STATE)
+  (KERNEL_FEATURE_NODE_VORONOI_EXTRA | KERNEL_FEATURE_NODE_BUMP | \
+   KERNEL_FEATURE_NODE_BUMP_STATE | KERNEL_FEATURE_NODE_PORTAL)
 #define KERNEL_FEATURE_NODE_MASK_BUMP KERNEL_FEATURE_NODE_MASK_DISPLACEMENT
 
 /* Must be constexpr on the CPU to avoid compile errors because the state types
@@ -478,6 +482,7 @@ enum ClosureLabel {
   LABEL_TRANSMIT_TRANSPARENT = 128,
   LABEL_SUBSURFACE_SCATTER = 256,
   LABEL_RAY_PORTAL = 512,
+  LABEL_CACHE_MISS = 1024,
 };
 
 /* Render Passes */
@@ -882,6 +887,7 @@ enum AttributeStandard {
   ATTR_STD_GENERATED_TRANSFORM,
   ATTR_STD_POSITION_UNDEFORMED,
   ATTR_STD_POSITION_UNDISPLACED,
+  ATTR_STD_NORMAL_UNDISPLACED,
   ATTR_STD_MOTION_VERTEX_POSITION,
   ATTR_STD_MOTION_VERTEX_NORMAL,
   ATTR_STD_PARTICLE,
@@ -1020,16 +1026,16 @@ enum ShaderDataFlag {
   SD_IS_VOLUME_SHADER_EVAL = (1 << 8),
   /* Shader has transparent closure. */
   SD_TRANSPARENT = (1 << 9),
-  /* BSDF requires LCG for evaluation. */
-  SD_BSDF_NEEDS_LCG = (1 << 10),
   /* BSDF has a transmissive component. */
-  SD_BSDF_HAS_TRANSMISSION = (1 << 11),
+  SD_BSDF_HAS_TRANSMISSION = (1 << 10),
   /* Shader has ray portal closure. */
-  SD_RAY_PORTAL = (1 << 12),
+  SD_RAY_PORTAL = (1 << 11),
+  /* Shader evaluation needs to be redone, because of texture cache miss */
+  SD_CACHE_MISS = (1 << 12),
 
   SD_CLOSURE_FLAGS = (SD_EMISSION | SD_BSDF | SD_BSDF_HAS_EVAL | SD_BSSRDF | SD_HOLDOUT |
-                      SD_EXTINCTION | SD_SCATTER | SD_IS_VOLUME_SHADER_EVAL | SD_BSDF_NEEDS_LCG |
-                      SD_BSDF_HAS_TRANSMISSION | SD_RAY_PORTAL),
+                      SD_EXTINCTION | SD_SCATTER | SD_IS_VOLUME_SHADER_EVAL |
+                      SD_BSDF_HAS_TRANSMISSION | SD_RAY_PORTAL | SD_CACHE_MISS),
 
   /* Shader flags. */
 
@@ -1299,6 +1305,10 @@ struct KernelCamera {
   /* differentials */
   float4 dx;
   float4 dy;
+
+  /* Scale up differentials for progressive rendering, so that mip levels for the
+   * full resolution are used rather than loading unnecessary lower levels. */
+  float differential_scale;
 
   /* clipping */
   float nearclip;
@@ -1778,6 +1788,12 @@ struct KernelShaderEvalInput {
   float u, v;
 };
 static_assert_align(KernelShaderEvalInput, 16);
+
+enum ShaderEvalResult {
+  SHADER_EVAL_EMPTY = 0,
+  SHADER_EVAL_OK = 1,
+  SHADER_EVAL_CACHE_MISS = 2,
+};
 
 /* Pre-computed sample table sizes for the tabulated Sobol sampler.
  *

@@ -9,30 +9,35 @@
 
 #include "kernel/integrator/guiding.h"
 #include "kernel/integrator/intersect_closest.h"
+#include "kernel/integrator/state_flow.h"
 #include "kernel/integrator/surface_shader.h"
 
 #include "kernel/light/light.h"
 #include "kernel/light/sample.h"
 
 #include "kernel/geom/shader_data.h"
+#include "kernel/types.h"
 
 CCL_NAMESPACE_BEGIN
 
 ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
                                                       IntegratorState state,
-                                                      ccl_global float *ccl_restrict render_buffer)
+                                                      ccl_global float *ccl_restrict render_buffer,
+                                                      ccl_private ShaderEvalResult &result)
 {
   const int shader = kernel_data.background.surface_shader;
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
   /* Use visibility flag to skip lights. */
   if (!is_light_shader_visible_to_path(shader, path_flag)) {
+    result = SHADER_EVAL_EMPTY;
     return zero_spectrum();
   }
 
   /* Use fast constant background color if available. */
   Spectrum L = zero_spectrum();
   if (surface_shader_constant_emission(kg, shader, &L)) {
+    result = SHADER_EVAL_OK;
     return L;
   }
 
@@ -55,12 +60,12 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
   surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE_BACKGROUND>(
       kg, state, emission_sd, render_buffer, path_flag | PATH_RAY_EMISSION);
 
+  result = (emission_sd->flag & SD_CACHE_MISS) ? SHADER_EVAL_CACHE_MISS : SHADER_EVAL_OK;
   return surface_shader_background(emission_sd);
 }
 
-ccl_device_inline void integrate_background(KernelGlobals kg,
-                                            IntegratorState state,
-                                            ccl_global float *ccl_restrict render_buffer)
+ccl_device_inline ShaderEvalResult integrate_background(
+    KernelGlobals kg, IntegratorState state, ccl_global float *ccl_restrict render_buffer)
 {
   /* Accumulate transparency for transparent background. We can skip background
    * shader evaluation unless a background pass is used. */
@@ -101,7 +106,11 @@ ccl_device_inline void integrate_background(KernelGlobals kg,
   Spectrum L = zero_spectrum();
 
   if (eval_background) {
-    L = integrator_eval_background_shader(kg, state, render_buffer);
+    ShaderEvalResult result = SHADER_EVAL_EMPTY;
+    L = integrator_eval_background_shader(kg, state, render_buffer, result);
+    if (result == SHADER_EVAL_CACHE_MISS) {
+      return SHADER_EVAL_CACHE_MISS;
+    }
 
     /* When using the ao bounces approximation, adjust background
      * shader intensity with ao factor. */
@@ -119,11 +128,12 @@ ccl_device_inline void integrate_background(KernelGlobals kg,
   /* Write to render buffer. */
   film_write_background(kg, state, L, transparent, is_transparent_background_ray, render_buffer);
   film_write_data_passes_background(kg, state, render_buffer);
+
+  return SHADER_EVAL_OK;
 }
 
-ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
-                                                IntegratorState state,
-                                                ccl_global float *ccl_restrict render_buffer)
+ccl_device_inline ShaderEvalResult integrate_distant_lights(
+    KernelGlobals kg, IntegratorState state, ccl_global float *ccl_restrict render_buffer)
 {
   const float3 ray_D = INTEGRATOR_STATE(state, ray, D);
   const float ray_time = INTEGRATOR_STATE(state, ray, time);
@@ -169,6 +179,12 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
       ShaderDataTinyStorage emission_sd_storage;
       ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
       const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+      if (emission_sd->flag & SD_CACHE_MISS) {
+        /* TODO: this will not properly restart, contribution from other lights
+         * will have already been written. Find some way to skip already does
+         * lights the next time? */
+        return SHADER_EVAL_CACHE_MISS;
+      }
       if (is_zero(light_eval)) {
         continue;
       }
@@ -181,6 +197,8 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
       film_write_surface_emission(kg, state, light_eval, mis_weight, render_buffer, ls.group);
     }
   }
+
+  return SHADER_EVAL_OK;
 }
 
 ccl_device void integrator_shade_background(KernelGlobals kg,
@@ -190,8 +208,17 @@ ccl_device void integrator_shade_background(KernelGlobals kg,
   PROFILING_INIT(kg, PROFILING_SHADE_LIGHT_SETUP);
 
   /* TODO: unify these in a single loop to only have a single shader evaluation call. */
-  integrate_distant_lights(kg, state, render_buffer);
-  integrate_background(kg, state, render_buffer);
+  ShaderEvalResult result = integrate_distant_lights(kg, state, render_buffer);
+  if (result == SHADER_EVAL_CACHE_MISS) {
+    integrator_path_cache_miss(state, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
+    return;
+  }
+  result = integrate_background(kg, state, render_buffer);
+  if (result == SHADER_EVAL_CACHE_MISS) {
+    /* TODO: this will not properly restart, as distant lights will be done a second time. */
+    integrator_path_cache_miss(state, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
+    return;
+  }
 
 #ifdef __SHADOW_CATCHER__
   if (INTEGRATOR_STATE(state, path, flag) & PATH_RAY_SHADOW_CATCHER_BACKGROUND) {

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "kernel/globals.h"
+#include "kernel/sample/lcg.h"
 
 #include "util/defines.h"
 #include "util/math_fast.h"
@@ -80,6 +81,7 @@ ccl_device_forceinline bool kernel_image_tile_wrap(const ExtensionType extension
 /* From UV coordinates in 0..1 range, compute tile and pixel coordinates. */
 ccl_device_forceinline KernelTileDescriptor
 kernel_image_tile_map(KernelGlobals kg,
+                      ccl_private ShaderData *sd,
                       const ccl_global KernelImageTexture &tex,
                       const float2 uv,
                       const differential2 duv,
@@ -100,7 +102,14 @@ kernel_image_tile_map(KernelGlobals kg,
   const float sampledxy = max(mindxy, maxdxy * (1.0f / max_aniso_ratio));
 
   /* Select mipmap level. */
-  const float flevel = fast_log2f(sampledxy);
+  float flevel = fast_log2f(sampledxy);
+  if (sd->lcg_state != 0) {
+    /* Randomize mip level, except for some cases like displacement or background. */
+    /* TODO: What is the appropriate value here? Smaller means fewer tiles loaded but also
+     * potential artifacts. */
+    const float transition = 0.5f;
+    flevel += (lcg_step_float(&sd->lcg_state) - 0.5f) * transition;
+  }
   const int level = clamp(int(flevel), 0, tex.tile_levels - 1);
 
   /* Compute width of this mipmap level. */
@@ -126,13 +135,28 @@ kernel_image_tile_map(KernelGlobals kg,
       image_texture_tile_descriptors, tex.tile_descriptor_offset + tile_offset);
 
   if (!kernel_tile_descriptor_loaded(tile_descriptor)) {
+#ifdef __KERNEL_GPU__
+    /* For GPU, mark load requested and cancel shader execution. */
     if (tile_descriptor == KERNEL_TILE_LOAD_NONE) {
       kernel_data_assign(image_texture_tile_descriptors,
                          tex.tile_descriptor_offset + tile_offset,
                          KERNEL_TILE_LOAD_REQUEST);
     }
-
+    sd->flag |= SD_CACHE_MISS;
     return tile_descriptor;
+#else
+    kg->image_cache_load_tile(
+        tex.slot,
+        level,
+        tile_x * (1 << tile_size_shift),
+        tile_y * (1 << tile_size_shift),
+        &kg->image_texture_tile_descriptors.data[tex.tile_descriptor_offset + tile_offset]);
+
+    /* For CPU, load tile immediately. */
+    if (!kernel_tile_descriptor_loaded(tile_descriptor)) {
+      return tile_descriptor;
+    }
+#endif
   }
 
   /* Remap coordinates into tiled image space. */

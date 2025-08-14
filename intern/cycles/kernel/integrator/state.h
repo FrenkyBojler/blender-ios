@@ -101,6 +101,7 @@ struct IntegratorStateCPU {
  * for GPU rendering. */
 struct IntegratorQueueCounter {
   int num_queued[DEVICE_KERNEL_INTEGRATOR_NUM];
+  int cache_miss;
 };
 
 #if defined(__INTEGRATOR_GPU_PACKED_STATE__) && defined(__KERNEL_GPU__)
@@ -229,6 +230,7 @@ using IntegratorState = IntegratorStateCPU *;
 using ConstIntegratorState = const IntegratorStateCPU *;
 using IntegratorShadowState = IntegratorShadowStateCPU *;
 using ConstIntegratorShadowState = const IntegratorShadowStateCPU *;
+using ConstIntegratorBakeState = const void *;
 
 #  define INTEGRATOR_STATE_NULL nullptr
 
@@ -248,6 +250,7 @@ using IntegratorState = int;
 using ConstIntegratorState = int;
 using IntegratorShadowState = int;
 using ConstIntegratorShadowState = int;
+using ConstIntegratorBakeState = int;
 
 #  define INTEGRATOR_STATE_NULL -1
 

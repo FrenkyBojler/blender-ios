@@ -12,8 +12,11 @@ set(INC_SYS
 
 set(SRC
   aligned_malloc.cpp
+  colorspace.cpp
   debug.cpp
   ies.cpp
+  image_maketx.cpp
+  image_metadata.cpp
   log.cpp
   math_cdf.cpp
   md5.cpp
@@ -45,6 +48,7 @@ set(SRC_HEADERS
   atomic.h
   boundbox.h
   color.h
+  colorspace.h
   concurrent_set.h
   concurrent_vector.h
   debug.h
@@ -59,6 +63,8 @@ set(SRC_HEADERS
   ies.h
   image.h
   image_impl.h
+  image_maketx.h
+  image_metadata.h
   list.h
   log.h
   map.h
@@ -75,6 +81,7 @@ set(SRC_HEADERS
   math_int3.h
   math_int4.h
   math_int8.h
+  math_dual.h
   md5.h
   murmurhash.h
   nanovdb.h
@@ -121,6 +128,7 @@ set(SRC_HEADERS
   types_uint3.h
   types_uint4.h
   types_ushort4.h
+  types_dual.h
   unique_ptr.h
   unique_ptr_vector.h
   vector.h
@@ -144,6 +152,19 @@ if(WITH_OPENVDB)
   # This works around the issue described in #120317 and https://github.com/AcademySoftwareFoundation/openvdb/pull/1786
   if(MSVC_CLANG)
     set_source_files_properties(openvdb.cpp PROPERTIES COMPILE_FLAGS -fno-delayed-template-parsing)
+  endif()
+endif()
+
+if(WITH_OPENCOLORIO)
+  add_definitions(-DWITH_OCIO)
+  list(APPEND INC_SYS
+    ${OPENCOLORIO_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${OPENCOLORIO_LIBRARIES}
+  )
+  if(WIN32 AND NOT USD_OVERRIDE_OPENCOLORIO)
+    add_definitions(-DOpenColorIO_SKIP_IMPORTS)
   endif()
 endif()
 

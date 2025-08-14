@@ -326,10 +326,9 @@ template<typename TexT, typename OutT = float4> struct TextureInterpolator {
 
 #undef SET_CUBIC_SPLINE_WEIGHTS
 
-ccl_device float4 kernel_image_interp(KernelGlobals kg,
-                                      const int tex_id,
-                                      float2 uv,
-                                      const differential2 duv)
+/* TODO: only compute randl when needed? */
+ccl_device float4 kernel_image_interp(
+    KernelGlobals kg, ShaderData *sd, const int tex_id, float2 uv, const differential2 duv)
 {
   if (tex_id == KERNEL_IMAGE_NONE) {
     return IMAGE_TEXTURE_MISSING_RGBA;
@@ -347,7 +346,7 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
     }
 
     /* Tile mapping */
-    const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(kg, tex, uv, duv, xy);
+    const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(kg, sd, tex, uv, duv, xy);
 
     if (!kernel_tile_descriptor_loaded(tile_descriptor)) {
       if (tile_descriptor == KERNEL_TILE_LOAD_FAILED) {
@@ -405,17 +404,15 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
   }
 }
 
-ccl_device_forceinline float4 kernel_image_interp_with_udim(KernelGlobals kg,
-                                                            const int image_id,
-                                                            float2 uv,
-                                                            const differential2 duv)
+ccl_device_forceinline float4 kernel_image_interp_with_udim(
+    KernelGlobals kg, ShaderData *sd, const int image_id, float2 uv, const differential2 duv)
 {
   const int tex_id = kernel_image_udim_map(kg, image_id, uv);
   if (tex_id == KERNEL_IMAGE_NONE) {
     return IMAGE_TEXTURE_MISSING_RGBA;
   }
 
-  return kernel_image_interp(kg, tex_id, uv, duv);
+  return kernel_image_interp(kg, sd, tex_id, uv, duv);
 }
 
 } /* Namespace. */

@@ -85,6 +85,7 @@ ccl_device_noinline T kernel_image_interp_bicubic(const ccl_global KernelImageIn
 }
 
 ccl_device float4 kernel_image_interp(KernelGlobals kg,
+                                      ccl_private ShaderData *sd,
                                       const int tex_id,
                                       float2 uv,
                                       const differential2 duv)
@@ -104,7 +105,7 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
 
     /* Tile mapping */
     float2 xy = zero_float2();
-    const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(kg, tex, uv, duv, xy);
+    const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(kg, sd, tex, uv, duv, xy);
 
     if (!kernel_tile_descriptor_loaded(tile_descriptor)) {
       if (tile_descriptor == KERNEL_TILE_LOAD_FAILED) {
@@ -159,6 +160,7 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
 }
 
 ccl_device_forceinline float4 kernel_image_interp_with_udim(KernelGlobals kg,
+                                                            ccl_private ShaderData *sd,
                                                             const int image_id,
                                                             float2 uv,
                                                             const differential2 duv)
@@ -168,7 +170,7 @@ ccl_device_forceinline float4 kernel_image_interp_with_udim(KernelGlobals kg,
     return IMAGE_TEXTURE_MISSING_RGBA;
   }
 
-  return kernel_image_interp(kg, tex_id, uv, duv);
+  return kernel_image_interp(kg, sd, tex_id, uv, duv);
 }
 
 CCL_NAMESPACE_END

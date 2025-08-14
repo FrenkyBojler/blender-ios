@@ -89,6 +89,8 @@ class CPUDevice : public Device {
   void get_cpu_kernel_thread_globals(
       vector<ThreadKernelGlobalsCPU> &kernel_thread_globals) override;
   OSLGlobals *get_cpu_osl_memory() override;
+  void set_image_cache_func(KernelImageCacheLoadTileFunc image_cache_load_tile,
+                            KernelImageCacheUpdateFunc image_cache_update) override;
 
  protected:
   bool load_kernels(uint /*kernel_features*/) override;

@@ -39,7 +39,7 @@ void SVMShaderManager::device_update_shader(Scene *scene,
   assert(shader->graph);
 
   SVMCompiler::Summary summary;
-  SVMCompiler compiler(scene);
+  SVMCompiler compiler(scene, progress);
   compiler.background = (shader == scene->background->get_shader(scene));
   compiler.compile(shader, *svm_nodes, 0, &summary);
 
@@ -149,7 +149,7 @@ void SVMShaderManager::device_free(Device *device, DeviceScene *dscene, Scene *s
 
 /* Graph Compiler */
 
-SVMCompiler::SVMCompiler(Scene *scene) : scene(scene)
+SVMCompiler::SVMCompiler(Scene *scene, Progress &progress) : scene(scene), progress(progress)
 {
   max_stack_use = 0;
   current_type = SHADER_TYPE_SURFACE;
@@ -495,7 +495,7 @@ void SVMCompiler::generate_closure_node(ShaderNode *node, CompilerState *state)
 {
   /* Skip generating closure that are not supported or needed for a particular
    * type of shader. For example a BSDF in a volume shader. */
-  const int node_feature = node->get_feature();
+  const uint node_feature = node->get_feature();
   if ((state->node_feature_mask & node_feature) != node_feature) {
     return;
   }

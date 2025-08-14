@@ -8,6 +8,7 @@
 
 #include "util/image.h"
 #include "util/string.h"
+#include "util/thread.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -18,7 +19,9 @@ class OIIOImageLoader : public ImageLoader {
 
   bool resolve_texture_cache(const bool auto_generate,
                              const string &texture_cache_path,
-                             const ImageAlphaType alpha_type) override;
+                             const ustring &colorspace,
+                             const ImageAlphaType alpha_type,
+                             Progress &progress) override;
 
   bool load_metadata(ImageMetaData &metadata) override;
 
@@ -48,6 +51,7 @@ class OIIOImageLoader : public ImageLoader {
   string original_filepath;
   string texture_cache_filepath;
   unique_ptr<ImageInput> filehandle;
+  thread_mutex mutex;
   bool filehandle_failed = false;
 };
 

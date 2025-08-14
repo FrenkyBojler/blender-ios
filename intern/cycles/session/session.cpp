@@ -221,9 +221,6 @@ void Session::run_main_render_loop()
       }
     }
 
-    // TODO: better place for this
-    scene->image_manager->device_update_requested(device.get(), scene.get());
-
     progress.set_update();
 
     if (did_cancel) {
@@ -400,7 +397,7 @@ RenderWork Session::run_update_for_next_iteration()
     const int width = max(1, buffer_params_.full_width / resolution);
     const int height = max(1, buffer_params_.full_height / resolution);
 
-    scene->update_camera_resolution(progress, width, height);
+    scene->update_camera_resolution(progress, width, height, params.pixel_size);
 
     /* Unlock scene mutex before loading denoiser kernels, since that may attempt to activate
      * graphics interop, which can deadlock when the scene mutex is still being held. */

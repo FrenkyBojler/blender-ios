@@ -7,6 +7,10 @@
 #include "util/defines.h"
 #include "util/transform.h"
 
+#ifndef __KERNEL_GPU__
+#  include <functional>
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 /* Color to use when images are not found. */
@@ -60,6 +64,12 @@ enum ImageAlphaType {
   IMAGE_ALPHA_AUTO = 4,
 
   IMAGE_ALPHA_NUM_TYPES,
+};
+
+/* Image format types */
+enum ImageFormatType {
+  IMAGE_FORMAT_PLAIN,
+  IMAGE_FORMAT_EQUIANGULAR,
 };
 
 /* Extension types for image.
@@ -145,5 +155,11 @@ ccl_device_inline bool kernel_tile_descriptor_loaded(const KernelTileDescriptor 
 {
   return tile < KERNEL_TILE_LOAD_FAILED;
 }
+
+#ifndef __KERNEL_GPU__
+using KernelImageCacheLoadTileFunc =
+    std::function<void(size_t, int, int, int, KernelTileDescriptor *tile_descriptor)>;
+using KernelImageCacheUpdateFunc = std::function<void()>;
+#endif
 
 CCL_NAMESPACE_END

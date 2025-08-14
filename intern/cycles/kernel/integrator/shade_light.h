@@ -6,14 +6,16 @@
 
 #include "kernel/film/light_passes.h"
 
+#include "kernel/integrator/state_flow.h"
 #include "kernel/light/light.h"
 #include "kernel/light/sample.h"
+#include "kernel/types.h"
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void integrate_light(KernelGlobals kg,
-                                       IntegratorState state,
-                                       ccl_global float *ccl_restrict render_buffer)
+ccl_device_inline ShaderEvalResult integrate_light(KernelGlobals kg,
+                                                   IntegratorState state,
+                                                   ccl_global float *ccl_restrict render_buffer)
 {
   /* Setup light sample. */
   Intersection isect ccl_optional_struct_init;
@@ -35,13 +37,13 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
       kg, &isect, ray_P, ray_D, N, path_flag, &ls);
 
   if (!use_light_sample) {
-    return;
+    return SHADER_EVAL_EMPTY;
   }
 
   /* Use visibility flag to skip lights. */
 #ifdef __PASSES__
   if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
-    return;
+    return SHADER_EVAL_EMPTY;
   }
 #endif
 
@@ -50,8 +52,11 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   ShaderDataTinyStorage emission_sd_storage;
   ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
   const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+  if (emission_sd->flag & SD_CACHE_MISS) {
+    return SHADER_EVAL_CACHE_MISS;
+  }
   if (is_zero(light_eval)) {
-    return;
+    return SHADER_EVAL_EMPTY;
   }
 
   /* MIS weighting. */
@@ -60,6 +65,7 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   /* Write to render buffer. */
   guiding_record_surface_emission(kg, state, light_eval, mis_weight);
   film_write_surface_emission(kg, state, light_eval, mis_weight, render_buffer, ls.group);
+  return SHADER_EVAL_OK;
 }
 
 ccl_device void integrator_shade_light(KernelGlobals kg,
@@ -68,7 +74,11 @@ ccl_device void integrator_shade_light(KernelGlobals kg,
 {
   PROFILING_INIT(kg, PROFILING_SHADE_LIGHT_SETUP);
 
-  integrate_light(kg, state, render_buffer);
+  const ShaderEvalResult result = integrate_light(kg, state, render_buffer);
+  if (result == SHADER_EVAL_CACHE_MISS) {
+    integrator_path_cache_miss(state, DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT);
+    return;
+  }
 
   /* TODO: we could get stuck in an infinite loop if there are precision issues
    * and the same light is hit again.

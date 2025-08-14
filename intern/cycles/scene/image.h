@@ -6,14 +6,14 @@
 
 #include "device/memory.h"
 
-#include "scene/colorspace.h"
 #include "scene/image_cache.h"
 
+#include "util/colorspace.h"
+#include "util/image_metadata.h"
 #include "util/set.h"
 #include "util/string.h"
 #include "util/texture.h"
 #include "util/thread.h"
-#include "util/transform.h"
 #include "util/unique_ptr.h"
 #include "util/vector.h"
 
@@ -45,7 +45,7 @@ class ImageParams {
   ustring colorspace;
   float frame = 0.0f;
 
-  ImageParams() : colorspace(u_colorspace_raw) {}
+  ImageParams() : colorspace(u_colorspace_scene_linear) {}
 
   bool operator==(const ImageParams &other) const
   {
@@ -53,40 +53,6 @@ class ImageParams {
             extension == other.extension && alpha_type == other.alpha_type &&
             colorspace == other.colorspace && frame == other.frame);
   }
-};
-
-/* Image MetaData
- *
- * Information about the image that is available before the image pixels are loaded. */
-class ImageMetaData {
- public:
-  /* Set by ImageLoader.load_metadata(). */
-  int channels = 0;
-  int64_t width = 0, height = 0;
-  int64_t byte_size = 0;
-  ImageDataType type = IMAGE_DATA_NUM_TYPES;
-
-  /* Optional color space, defaults to raw. */
-  ustring colorspace = u_colorspace_raw;
-  string colorspace_file_hint;
-  const char *colorspace_file_format = "";
-
-  /* Optional transform for 3D images. */
-  bool use_transform_3d = false;
-  Transform transform_3d = transform_identity();
-
-  /* Automatically set. */
-  bool compress_as_srgb = false;
-  bool associate_alpha = false;
-
-  /* Tiling */
-  uint32_t tile_size = 0;
-  float4 average_color = zero_float4();
-
-  ImageMetaData();
-  bool operator==(const ImageMetaData &other) const;
-  bool is_float() const;
-  void finalize(const ImageAlphaType alpha_type);
 };
 
 /* Image loader base class, that can be subclassed to load image data
@@ -99,7 +65,9 @@ class ImageLoader {
   /* Enable use of the texture cache for this image, if supported by the image loader. */
   virtual bool resolve_texture_cache(const bool /*auto_generate*/,
                                      const string & /*texture_cache_path*/,
-                                     const ImageAlphaType /*alpha_type*/)
+                                     const ustring & /*colorspace*/,
+                                     const ImageAlphaType /*alpha_type*/,
+                                     Progress & /*progress*/)
   {
     return false;
   }
@@ -107,10 +75,12 @@ class ImageLoader {
   /* Load metadata without actual image yet, should be fast. */
   virtual bool load_metadata(ImageMetaData &metadata) = 0;
 
-  /* Load full image pixels. */
+  /* Load full image pixels.
+   * This is expected to call metadata.conform_pixels(). */
   virtual bool load_pixels_full(const ImageMetaData &metadata, uint8_t *pixels) = 0;
 
-  /* Load pixels for a single tile, if ImageMetaData.tile_size is set. */
+  /* Load pixels for a single tile, if ImageMetaData.tile_size is set.
+   * This is expected to call metadata.conform_pixels(). */
   virtual bool load_pixels_tile(const ImageMetaData & /*metadata*/,
                                 const int /*miplevel*/,
                                 const int64_t /*x*/,
@@ -170,7 +140,7 @@ class ImageHandle {
   bool empty() const;
   int num_tiles() const;
 
-  ImageMetaData metadata();
+  ImageMetaData metadata(Progress &progress);
   int kernel_id() const;
 
   device_image *vdb_image_memory() const;
@@ -288,13 +258,19 @@ class ImageManager {
                               const bool builtin);
   ImageUDIM *add_image_slot(vector<std::pair<int, ImageHandle>> &&tiles);
 
-  void load_image_metadata(ImageSingle *img);
+  void load_image_metadata(ImageSingle *img, Progress &progress);
 
   template<TypeDesc::BASETYPE FileFormat, typename StorageType>
   bool file_load_image(Device *device, ImageSingle *img, const int texture_limit);
 
   void device_load_image_tiled(Scene *scene, const size_t slot);
   void device_update_image_requested(Device *device, Scene *scene, ImageSingle *img);
+  KernelTileDescriptor device_update_tile_requested(Device *device,
+                                                    Scene *scene,
+                                                    ImageSingle *img,
+                                                    const int miplevel,
+                                                    const size_t x,
+                                                    const size_t y);
 
   void device_load_image_full(Device *device, Scene *scene, const size_t slot);
   void device_load_image(Device *device, Scene *scene, const size_t slot, Progress &progress);
@@ -303,7 +279,7 @@ class ImageManager {
   void device_update_udims(Device *device, Scene *scene);
 
   void device_resize_image_textures(Scene *scene);
-  void device_copy_image_textures(Scene *scene);
+  void device_copy_image_textures(Device *device, Scene *scene);
 
   friend class ImageHandle;
 };

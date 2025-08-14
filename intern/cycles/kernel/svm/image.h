@@ -21,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 ccl_device float4 svm_image_texture(
     KernelGlobals kg, ccl_private ShaderData *sd, const int id, const float2 uv, const uint flags)
 {
-  float4 r = kernel_image_interp_with_udim(kg, id, uv, primitive_uv_differential(kg, sd));
+  float4 r = kernel_image_interp_with_udim(kg, sd, id, uv, primitive_uv_differential(kg, sd));
   const float alpha = r.w;
 
   if ((flags & NODE_IMAGE_ALPHA_UNASSOCIATE) && alpha != 1.0f && alpha != 0.0f) {

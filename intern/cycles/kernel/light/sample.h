@@ -32,6 +32,9 @@ light_sample_shader_eval(KernelGlobals kg,
   Spectrum eval = zero_spectrum();
 
   if (surface_shader_constant_emission(kg, ls->shader, &eval)) {
+    /* TODO: this read for cache miss and is uninitialized otherwise, find nicer solution. */
+    emission_sd->flag = 0;
+
     if ((ls->prim != PRIM_NONE) && dot(ls->Ng, ls->D) > 0.0f) {
       ls->Ng = -ls->Ng;
     }

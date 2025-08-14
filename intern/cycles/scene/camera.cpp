@@ -165,9 +165,6 @@ Camera::Camera() : Node(get_node_type())
 {
   shutter_table_offset = TABLE_OFFSET_INVALID;
 
-  width = 1024;
-  height = 512;
-
   use_perspective_motion = false;
 
   shutter_curve.resize(RAMP_TABLE_SIZE);
@@ -483,6 +480,10 @@ void Camera::update(Scene *scene)
   kcam->dx = make_float4(dx);
   kcam->dy = make_float4(dy);
 
+  /* compensation for progressive rendering */
+  kcam->differential_scale = 0.5f * pixel_size *
+                             (width / float(full_width) + height / float(full_height));
+
   /* clipping */
   kcam->nearclip = nearclip;
   kcam->cliplength = (farclip == FLT_MAX) ? FLT_MAX : farclip - nearclip;
@@ -549,28 +550,34 @@ void Camera::device_update_volume(Device * /*device*/, DeviceScene *dscene, Scen
 
   KernelIntegrator *kintegrator = &dscene->data.integrator;
   if (kintegrator->use_volumes) {
-    BoundBox viewplane_boundbox = viewplane_bounds_get();
+    if (camera_type == CAMERA_CUSTOM) {
+      kernel_camera.is_inside_volume = 1;
+      LOG_INFO << "Considering custom camera to be inside volume.";
+    }
+    else {
+      BoundBox viewplane_boundbox = viewplane_bounds_get();
 
-    /* Parallel object update, with grain size to avoid too much threading overhead
-     * for individual objects. */
-    static const int OBJECTS_PER_TASK = 32;
-    parallel_for(blocked_range<size_t>(0, scene->objects.size(), OBJECTS_PER_TASK),
-                 [&](const blocked_range<size_t> &r) {
-                   for (size_t i = r.begin(); i != r.end(); i++) {
-                     Object *object = scene->objects[i];
-                     if (object->get_geometry()->has_volume &&
-                         viewplane_boundbox.intersects(object->bounds)) {
-                       /* TODO(sergey): Consider adding more grained check. */
-                       LOG_INFO << "Detected camera inside volume.";
-                       kernel_camera.is_inside_volume = 1;
-                       parallel_for_cancel();
-                       break;
+      /* Parallel object update, with grain size to avoid too much threading overhead
+       * for individual objects. */
+      static const int OBJECTS_PER_TASK = 32;
+      parallel_for(blocked_range<size_t>(0, scene->objects.size(), OBJECTS_PER_TASK),
+                   [&](const blocked_range<size_t> &r) {
+                     for (size_t i = r.begin(); i != r.end(); i++) {
+                       Object *object = scene->objects[i];
+                       if (object->get_geometry()->has_volume &&
+                           viewplane_boundbox.intersects(object->bounds)) {
+                         /* TODO(sergey): Consider adding more grained check. */
+                         LOG_INFO << "Detected camera inside volume.";
+                         kernel_camera.is_inside_volume = 1;
+                         parallel_for_cancel();
+                         break;
+                       }
                      }
-                   }
-                 });
+                   });
 
-    if (!kernel_camera.is_inside_volume) {
-      LOG_INFO << "Camera is outside of the volume.";
+      if (!kernel_camera.is_inside_volume) {
+        LOG_INFO << "Camera is outside of the volume.";
+      }
     }
   }
 
@@ -856,11 +863,12 @@ bool Camera::use_motion() const
   return motion.size() > 1;
 }
 
-bool Camera::set_screen_size(const int width_, int height_)
+bool Camera::set_screen_size(const int width_, int height_, int pixel_size_)
 {
-  if (width_ != width || height_ != height) {
+  if (width_ != width || height_ != height || pixel_size_ != pixel_size) {
     width = width_;
     height = height_;
+    pixel_size = pixel_size_;
     tag_modified();
     return true;
   }

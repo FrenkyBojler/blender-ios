@@ -243,8 +243,12 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
       state, path, volume_bounds_bounce);
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, glossy_bounce) = INTEGRATOR_STATE(
       state, path, glossy_bounce);
-
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, throughput) = throughput;
+
+  if ((kernel_data.kernel_features & KERNEL_FEATURE_NODE_PORTAL)) {
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, portal_bounce) = INTEGRATOR_STATE(
+        state, path, portal_bounce);
+  }
 
 #ifdef __MNEE__
   if (mnee_vertex_count > 0) {
@@ -292,7 +296,7 @@ ccl_device_forceinline
 /* MSVC has very long compilation time (x20) if we force inline this function */
 ccl_device
 #endif
-    void
+    ShaderEvalResult
     integrate_surface_direct_light(KernelGlobals kg,
                                    IntegratorState state,
                                    ccl_private ShaderData *sd,
@@ -300,7 +304,7 @@ ccl_device
 {
   /* Test if there is a light or BSDF that needs direct light. */
   if (!(kernel_data.integrator.use_direct_light && (sd->flag & SD_BSDF_HAS_EVAL))) {
-    return;
+    return SHADER_EVAL_EMPTY;
   }
 
   /* Sample position on a light. */
@@ -321,7 +325,7 @@ ccl_device
                                     path_flag,
                                     &ls))
     {
-      return;
+      return SHADER_EVAL_EMPTY;
     }
   }
 
@@ -333,7 +337,7 @@ ccl_device
     /* Skip self intersection if light direction lies in the same hemisphere as the geometric
      * normal. */
     if (dot(ls.D, is_transmission ? -sd->Ng : sd->Ng) > 0.0f) {
-      return;
+      return SHADER_EVAL_EMPTY;
     }
   }
 
@@ -359,13 +363,16 @@ ccl_device
       if (use_caustics) {
         /* Are we on a caustic caster? */
         if (is_transmission && (sd->object_flag & SD_OBJECT_CAUSTICS_CASTER)) {
-          return;
+          return SHADER_EVAL_EMPTY;
         }
 
         /* Are we on a caustic receiver? */
         if (!is_transmission && (sd->object_flag & SD_OBJECT_CAUSTICS_RECEIVER)) {
-          mnee_vertex_count = kernel_path_mnee_sample(
-              kg, state, sd, emission_sd, rng_state, &ls, &bsdf_eval);
+          ShaderEvalResult result = kernel_path_mnee_sample(
+              kg, state, sd, emission_sd, rng_state, &ls, &bsdf_eval, mnee_vertex_count);
+          if (result == SHADER_EVAL_CACHE_MISS) {
+            return SHADER_EVAL_CACHE_MISS;
+          }
         }
       }
     }
@@ -380,8 +387,11 @@ ccl_device
 #endif /* __MNEE__ */
   {
     const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, sd->time);
+    if (emission_sd->flag & SD_CACHE_MISS) {
+      return SHADER_EVAL_CACHE_MISS;
+    }
     if (is_zero(light_eval)) {
-      return;
+      return SHADER_EVAL_EMPTY;
     }
 
     /* Evaluate BSDF. */
@@ -392,7 +402,7 @@ ccl_device
     /* Path termination. */
     const float terminate = path_state_rng_light_termination(kg, rng_state);
     if (light_sample_terminate(kg, &bsdf_eval, terminate)) {
-      return;
+      return SHADER_EVAL_EMPTY;
     }
 
     /* Create shadow ray. */
@@ -436,6 +446,8 @@ ccl_device
   }
 
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, flag) = shadow_flag;
+
+  return SHADER_EVAL_OK;
 }
 
 /* Path tracing: bounce off or through surface with new direction. */
@@ -716,8 +728,6 @@ ccl_device int integrate_surface(KernelGlobals kg,
 #ifdef __VOLUME__
   if (!(sd.flag & SD_HAS_ONLY_VOLUME)) {
 #endif
-    guiding_record_surface_segment(kg, state, &sd);
-
 #ifdef __SUBSURFACE__
     /* Can skip shader evaluation for BSSRDF exit point without bump mapping. */
     if (!(path_flag & PATH_RAY_SUBSURFACE) || ((sd.flag & SD_HAS_BSSRDF_BUMP)))
@@ -726,15 +736,14 @@ ccl_device int integrate_surface(KernelGlobals kg,
       /* Evaluate shader. */
       PROFILING_EVENT(PROFILING_SHADE_SURFACE_EVAL);
       surface_shader_eval<node_feature_mask>(kg, state, &sd, render_buffer, path_flag);
-
-      /* Initialize additional RNG for BSDFs. */
-      if (sd.flag & SD_BSDF_NEEDS_LCG) {
-        sd.lcg_state = lcg_state_init(INTEGRATOR_STATE(state, path, rng_pixel),
-                                      INTEGRATOR_STATE(state, path, rng_offset),
-                                      INTEGRATOR_STATE(state, path, sample),
-                                      0xb4bc3953);
-      }
     }
+
+    if (sd.flag & SD_CACHE_MISS) {
+      return LABEL_CACHE_MISS;
+    }
+
+    /* After shader evaluation, in case of texture cache miss. */
+    guiding_record_surface_segment(kg, state, &sd);
 
 #ifdef __SUBSURFACE__
     if (path_flag & PATH_RAY_SUBSURFACE) {
@@ -791,7 +800,13 @@ ccl_device int integrate_surface(KernelGlobals kg,
 #endif
     /* Direct light. */
     PROFILING_EVENT(PROFILING_SHADE_SURFACE_DIRECT_LIGHT);
-    integrate_surface_direct_light<node_feature_mask>(kg, state, &sd, &rng_state);
+    const ShaderEvalResult result = integrate_surface_direct_light<node_feature_mask>(
+        kg, state, &sd, &rng_state);
+    if (result == SHADER_EVAL_CACHE_MISS) {
+      /* TODO: Emission and passes have already been written here, so they will be written
+       * a second time. */
+      return LABEL_CACHE_MISS;
+    }
 
 #if defined(__AO__)
     /* Ambient occlusion pass. */
@@ -842,6 +857,10 @@ ccl_device_forceinline void integrator_shade_surface(KernelGlobals kg,
                                                      ccl_global float *ccl_restrict render_buffer)
 {
   const int continue_path_label = integrate_surface<node_feature_mask>(kg, state, render_buffer);
+  if (continue_path_label == LABEL_CACHE_MISS) {
+    integrator_path_cache_miss(state, current_kernel);
+    return;
+  }
   if (continue_path_label == LABEL_NONE) {
     integrator_path_terminate(state, current_kernel);
     return;

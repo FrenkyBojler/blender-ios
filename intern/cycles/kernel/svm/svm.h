@@ -323,7 +323,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       svm_node_brightness(stack, node.y, node.z, node.w);
       break;
       SVM_CASE(NODE_LIGHT_PATH)
-      svm_node_light_path<node_feature_mask>(state, sd, stack, node.y, node.z, path_flag);
+      svm_node_light_path<node_feature_mask>(kg, state, sd, stack, node.y, node.z, path_flag);
       break;
       SVM_CASE(NODE_OBJECT_INFO)
       svm_node_object_info(kg, sd, stack, node.y, node.z);
@@ -357,7 +357,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       svm_node_tex_environment(kg, sd, stack, node);
       break;
       SVM_CASE(NODE_TEX_SKY)
-      offset = svm_node_tex_sky(kg, path_flag, stack, node, offset);
+      offset = svm_node_tex_sky(kg, sd, path_flag, stack, node, offset);
       break;
       SVM_CASE(NODE_TEX_GRADIENT)
       svm_node_tex_gradient(stack, node);
@@ -461,10 +461,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       }
       break;
       SVM_CASE(NODE_AOV_COLOR)
-      svm_node_aov_color<node_feature_mask>(kg, state, stack, node, render_buffer);
+      svm_node_aov_color<node_feature_mask>(kg, sd, state, stack, node, render_buffer);
       break;
       SVM_CASE(NODE_AOV_VALUE)
-      svm_node_aov_value<node_feature_mask>(kg, state, stack, node, render_buffer);
+      svm_node_aov_value<node_feature_mask>(kg, sd, state, stack, node, render_buffer);
       break;
       SVM_CASE(NODE_MIX_COLOR)
       svm_node_mix_color(stack, node.y, node.z, node.w);

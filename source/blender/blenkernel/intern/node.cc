@@ -675,6 +675,43 @@ static void update_node_location_legacy(bNodeTree &ntree)
   }
 }
 
+static void write_legacy_properties(bNodeTree &ntree)
+{
+  switch (ntree.type) {
+    case NTREE_GEOMETRY: {
+      for (bNode *node : ntree.all_nodes()) {
+        if (node->type_legacy == GEO_NODE_TRANSFORM_GEOMETRY) {
+          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Mode");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == GEO_NODE_POINTS_TO_VOLUME) {
+          auto &storage = *static_cast<NodeGeometryPointsToVolume *>(node->storage);
+          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Resolution Mode");
+          storage.resolution_mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == GEO_NODE_TRIANGULATE) {
+          const bNodeSocket *quad_method_socket = node_find_socket(*node, SOCK_IN, "Quad Method");
+          const bNodeSocket *ngon_method_socket = node_find_socket(*node, SOCK_IN, "N-gon Method");
+          node->custom1 = quad_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+          node->custom2 = ngon_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == GEO_NODE_VOLUME_TO_MESH) {
+          auto &storage = *static_cast<NodeGeometryVolumeToMesh *>(node->storage);
+          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Resolution Mode");
+          storage.resolution_mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (STREQ(node->idname, "FunctionNodeMatchString")) {
+          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Operation");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 }  // namespace forward_compat
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
@@ -841,6 +878,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 
   if (!BLO_write_is_undo(writer)) {
     forward_compat::update_node_location_legacy(*ntree);
+    forward_compat::write_legacy_properties(*ntree);
   }
 
   for (bNode *node : ntree->all_nodes()) {
@@ -2309,7 +2347,7 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
   sock->in_out = in_out;
 
-  STRNCPY(sock->identifier, auto_identifier);
+  STRNCPY_UTF8(sock->identifier, auto_identifier);
   sock->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
   name.copy_utf8_truncated(sock->name);
@@ -4043,7 +4081,7 @@ void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_
   char prefix[MAX_IDPROP_NAME * 2];
 
   BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
-  SNPRINTF(prefix, "nodes[\"%s\"]", propname_esc);
+  SNPRINTF_UTF8(prefix, "nodes[\"%s\"]", propname_esc);
 
   if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
     if (bmain != nullptr) {
@@ -4546,7 +4584,7 @@ static void node_replace_undefined_types(bNode *node)
     /* This type name is arbitrary, it just has to be unique enough to not match a future node
      * idname. Includes the old type identifier for debugging purposes. */
     const std::string old_idname = node->idname;
-    SNPRINTF(node->idname, "Undefined[%s]", old_idname.c_str());
+    SNPRINTF_UTF8(node->idname, "Undefined[%s]", old_idname.c_str());
     node->typeinfo = &NodeTypeUndefined;
   }
 }
@@ -4845,6 +4883,25 @@ std::optional<eNodeSocketDatatype> geo_nodes_base_cpp_type_to_socket_type(const 
   if (type.is<nodes::ClosurePtr>()) {
     return SOCK_CLOSURE;
   }
+  if (type.is<GeometrySet>()) {
+    return SOCK_GEOMETRY;
+  }
+  if (type.is<Material *>()) {
+    return SOCK_MATERIAL;
+  }
+  if (type.is<Tex *>()) {
+    return SOCK_TEXTURE;
+  }
+  if (type.is<Object *>()) {
+    return SOCK_OBJECT;
+  }
+  if (type.is<Collection *>()) {
+    return SOCK_COLLECTION;
+  }
+  if (type.is<Image *>()) {
+    return SOCK_IMAGE;
+  }
+
   return std::nullopt;
 }
 

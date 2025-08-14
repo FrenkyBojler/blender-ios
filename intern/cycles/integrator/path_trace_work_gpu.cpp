@@ -327,6 +327,30 @@ void PathTraceWorkGPU::init_execution()
       "integrator_state", &integrator_state_gpu_, sizeof(integrator_state_gpu_));
 }
 
+bool PathTraceWorkGPU::update_queue_counter_and_cache()
+{
+  /* Copy stats from the device. */
+  queue_->copy_from_device(integrator_queue_counter_);
+
+  if (!queue_->synchronize()) {
+    return false;
+  }
+
+  /* Update image cache if needed. */
+  /* TODO: If the number of kernels with cache misses is small compared to the total
+   * number of queued kernels, we could try asynchronously updating the image cache
+   * while continuing to work on the majority of states? */
+  IntegratorQueueCounter *queue_counter = integrator_queue_counter_.data();
+  if (queue_counter->cache_miss) {
+    LOG_DEBUG << "Image cache miss in GPU kernel, updating to load requested tiles";
+    device_->update_image_cache();
+    queue_counter->cache_miss = 0;
+    queue_->copy_to_device(integrator_queue_counter_);
+  }
+
+  return true;
+}
+
 void PathTraceWorkGPU::render_samples(RenderStatistics &statistics,
                                       const int start_sample,
                                       const int samples_num,
@@ -356,10 +380,7 @@ void PathTraceWorkGPU::render_samples(RenderStatistics &statistics,
      * paths to keep the device occupied. */
     bool finished;
     if (enqueue_work_tiles(finished)) {
-      /* Copy stats from the device. */
-      queue_->copy_from_device(integrator_queue_counter_);
-
-      if (!queue_->synchronize()) {
+      if (!update_queue_counter_and_cache()) {
         break; /* Stop on error. */
       }
     }
@@ -375,10 +396,7 @@ void PathTraceWorkGPU::render_samples(RenderStatistics &statistics,
 
     /* Enqueue on of the path iteration kernels. */
     if (enqueue_path_iteration()) {
-      /* Copy stats from the device. */
-      queue_->copy_from_device(integrator_queue_counter_);
-
-      if (!queue_->synchronize()) {
+      if (!update_queue_counter_and_cache()) {
         break; /* Stop on error. */
       }
     }

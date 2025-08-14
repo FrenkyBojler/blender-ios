@@ -4,7 +4,6 @@
 
 #include "scene/shader_nodes.h"
 #include "kernel/svm/types.h"
-#include "scene/colorspace.h"
 #include "scene/constant_fold.h"
 #include "scene/film.h"
 #include "scene/image.h"
@@ -18,8 +17,7 @@
 
 #include "sky_model.h"
 
-#include "util/color.h"
-
+#include "util/colorspace.h"
 #include "util/log.h"
 #include "util/math_base.h"
 #include "util/transform.h"
@@ -263,7 +261,7 @@ NODE_DEFINE(ImageTextureNode)
 
 ImageTextureNode::ImageTextureNode() : ImageSlotTextureNode(get_node_type())
 {
-  colorspace = u_colorspace_raw;
+  colorspace = u_colorspace_scene_linear;
   animated = false;
 }
 
@@ -378,7 +376,7 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
   }
 
   /* All tiles have the same metadata. */
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool compress_as_srgb = metadata.compress_as_srgb;
 
   const int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
@@ -430,7 +428,7 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
     handle = image_manager->add_image(filename.string(), image_params(), tiles);
   }
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool is_float = metadata.is_float();
   const bool compress_as_srgb = metadata.compress_as_srgb;
 
@@ -495,7 +493,7 @@ NODE_DEFINE(EnvironmentTextureNode)
 
 EnvironmentTextureNode::EnvironmentTextureNode() : ImageSlotTextureNode(get_node_type())
 {
-  colorspace = u_colorspace_raw;
+  colorspace = u_colorspace_scene_linear;
   animated = false;
 }
 
@@ -541,7 +539,7 @@ void EnvironmentTextureNode::compile(SVMCompiler &compiler)
     handle = image_manager->add_image(filename.string(), image_params());
   }
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool compress_as_srgb = metadata.compress_as_srgb;
 
   const int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
@@ -571,7 +569,7 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 
   tex_mapping.compile(compiler);
 
-  const ImageMetaData metadata = handle.metadata();
+  const ImageMetaData metadata = handle.metadata(compiler.progress);
   const bool is_float = metadata.is_float();
   const bool compress_as_srgb = metadata.compress_as_srgb;
 
@@ -2506,7 +2504,7 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_FLOAT(subsurface_ior, "Subsurface IOR", 1.4f);
   SOCKET_IN_FLOAT(subsurface_anisotropy, "Subsurface Anisotropy", 0.0f);
 
-  SOCKET_IN_FLOAT(specular_ior_level, "Specular IOR Level", 0.0f);
+  SOCKET_IN_FLOAT(specular_ior_level, "Specular IOR Level", 0.5f);
   SOCKET_IN_COLOR(specular_tint, "Specular Tint", one_float3());
   SOCKET_IN_FLOAT(anisotropic, "Anisotropic", 0.0f);
   SOCKET_IN_FLOAT(anisotropic_rotation, "Anisotropic Rotation", 0.0f);
@@ -4079,6 +4077,7 @@ NODE_DEFINE(LightPathNode)
   SOCKET_OUT_FLOAT(glossy_depth, "Glossy Depth");
   SOCKET_OUT_FLOAT(transparent_depth, "Transparent Depth");
   SOCKET_OUT_FLOAT(transmission_depth, "Transmission Depth");
+  SOCKET_OUT_FLOAT(portal_depth, "Portal Depth");
 
   return type;
 }
@@ -4157,6 +4156,11 @@ void LightPathNode::compile(SVMCompiler &compiler)
   out = output("Transmission Depth");
   if (!out->links.empty()) {
     compiler.add_node(NODE_LIGHT_PATH, NODE_LP_ray_transmission, compiler.stack_assign(out));
+  }
+
+  out = output("Portal Depth");
+  if (!out->links.empty()) {
+    compiler.add_node(NODE_LIGHT_PATH, NODE_LP_ray_portal, compiler.stack_assign(out));
   }
 }
 
