@@ -8,10 +8,13 @@
  * \ingroup sequencer
  */
 
+#include "BLF_enums.hh"
+
 #include "BLI_array.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
+
 #include "IMB_imbuf_types.hh"
 #include "SEQ_effects.hh"
 
@@ -148,6 +151,6 @@ TextVarsRuntime *text_effect_calc_runtime(const RenderData *context,
                                           const Strip *strip,
                                           int font,
                                           const int2 image_size);
-int text_effect_font_init(const RenderData *context, const Strip *strip, int font_flags);
+int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags);
 
 }  // namespace blender::seq

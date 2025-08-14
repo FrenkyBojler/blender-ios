@@ -784,7 +784,7 @@ static int text_effect_line_size_get(const RenderData *context, const Strip *str
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
-  /* Used to calculate boundbox. Proxy size compensation is not needed there. */
+  /* Used to calculate boundbox. Render scale compensation is not needed there. */
   if (context == nullptr) {
     return data->text_size;
   }
@@ -792,7 +792,7 @@ static int text_effect_line_size_get(const RenderData *context, const Strip *str
   return preview_size_compensation_factor_get(context) * data->text_size;
 }
 
-int text_effect_font_init(const RenderData *context, const Strip *strip, int font_flags)
+int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   int font = blf_mono_font_render;
@@ -1055,8 +1055,8 @@ static ImBuf *do_text_effect(const RenderData *context,
 
   const char *display_device = context->scene->display_settings.display_device;
   const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
-  const int font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : 0) |
-                         ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : 0);
+  const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                               ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
 
   /* Guard against parallel accesses to the fonts map. */
   std::lock_guard lock(g_font_map.mutex);

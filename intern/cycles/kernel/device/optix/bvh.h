@@ -50,6 +50,13 @@ extern "C" __global__ void __miss__kernel_optix_miss()
   optixSetPayload_5(PRIMITIVE_NONE);
 }
 
+extern "C" __global__ void __anyhit__kernel_optix_ignore()
+{
+  return optixIgnoreIntersection();
+}
+
+extern "C" __global__ void __closesthit__kernel_optix_ignore() {}
+
 extern "C" __global__ void __anyhit__kernel_optix_local_hit()
 {
 #if defined(__HAIR__) || defined(__POINTCLOUD__)
@@ -163,13 +170,6 @@ extern "C" __global__ void __anyhit__kernel_optix_shadow_all_hit()
     const KernelCurveSegment segment = kernel_data_fetch(curve_segments, prim);
     type = segment.type;
     prim = segment.prim;
-
-#    if OPTIX_ABI_VERSION < 55
-    /* Filter out curve end-caps. */
-    if (u == 0.0f || u == 1.0f) {
-      return optixIgnoreIntersection();
-    }
-#    endif
   }
 #  endif
   else {
@@ -306,18 +306,6 @@ extern "C" __global__ void __anyhit__kernel_optix_volume_test()
 
 extern "C" __global__ void __anyhit__kernel_optix_visibility_test()
 {
-#ifdef __HAIR__
-#  if OPTIX_ABI_VERSION < 55
-  if (optixGetPrimitiveType() == OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE) {
-    /* Filter out curve end-caps. */
-    const float u = __uint_as_float(optixGetAttribute_0());
-    if (u == 0.0f || u == 1.0f) {
-      return optixIgnoreIntersection();
-    }
-  }
-#  endif
-#endif
-
   const uint object = get_object_id();
   const uint visibility = optixGetPayload_4();
 #ifdef __VISIBILITY_FLAG__

@@ -95,7 +95,7 @@ typedef struct PointCache {
   int totpoint;
   /** Modifier stack index. */
   int index;
-  /** #PTCACHE_COMPRESS_NO and others. */
+  /** #PointCacheCompression. */
   short compression;
   char _pad0[2];
 
@@ -149,8 +149,12 @@ enum {
   PTCACHE_FLAGS_COPY = PTCACHE_DISK_CACHE | PTCACHE_EXTERNAL | PTCACHE_IGNORE_LIBPATH,
 };
 
-enum {
+/* Note: the enum values look like bit flags, but they are not really;
+ * it is just an enum with strange values. */
+typedef enum PointCacheCompression {
   PTCACHE_COMPRESS_NO = 0,
-  PTCACHE_COMPRESS_LZO = 1,
-  PTCACHE_COMPRESS_LZMA = 2,
-};
+  PTCACHE_COMPRESS_LZO_DEPRECATED = 1,  /* Removed in 5.0. */
+  PTCACHE_COMPRESS_LZMA_DEPRECATED = 2, /* Removed in 5.0. */
+  PTCACHE_COMPRESS_ZSTD_FAST = 4,
+  PTCACHE_COMPRESS_ZSTD_SLOW = 8,
+} PointCacheCompression;

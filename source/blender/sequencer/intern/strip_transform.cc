@@ -233,7 +233,7 @@ bool transform_seqbase_shuffle_time(blender::Span<Strip *> strips_to_shuffle,
   if (offset) {
     for (Strip *strip : strips_to_shuffle) {
       transform_translate_strip(evil_scene, strip, offset);
-      strip->flag &= ~SEQ_OVERLAP;
+      strip->runtime.flag &= ~STRIP_OVERLAP;
     }
 
     if (!time_dependent_strips.is_empty()) {
@@ -543,7 +543,7 @@ void transform_handle_overlap(Scene *scene,
     if (transform_test_overlap(scene, seqbasep, strip)) {
       transform_seqbase_shuffle(seqbasep, strip, scene);
     }
-    strip->flag &= ~SEQ_OVERLAP;
+    strip->runtime.flag &= ~STRIP_OVERLAP;
   }
 }
 
@@ -577,7 +577,7 @@ bool transform_is_locked(ListBase *channels, const Strip *strip)
 {
   const SeqTimelineChannel *channel = channel_get_by_index(channels, strip->channel);
   return strip->flag & SEQ_LOCK ||
-         (channel_is_locked(channel) && ((strip->flag & SEQ_IGNORE_CHANNEL_LOCK) == 0));
+         (channel_is_locked(channel) && ((strip->runtime.flag & STRIP_IGNORE_CHANNEL_LOCK) == 0));
 }
 
 float2 image_transform_mirror_factor_get(const Strip *strip)
@@ -611,8 +611,8 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
 
   if (strip->type == STRIP_TYPE_TEXT) {
     const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-    const int font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : 0) |
-                           ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : 0);
+    const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                                 ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
     const int font = text_effect_font_init(nullptr, strip, font_flags);
 
     /* It's easier to create RenderData than overloaded `text_effect_calc_runtime` function. */
@@ -620,7 +620,7 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
     render_data.scene = const_cast<Scene *>(scene);
     render_data.rectx = scene_render_size.x;
     render_data.recty = scene_render_size.y;
-    render_data.preview_render_size = SEQ_RENDER_SIZE_FULL;
+    render_data.preview_render_size = SEQ_RENDER_SIZE_PROXY_100;
 
     const TextVarsRuntime *runtime = text_effect_calc_runtime(
         &render_data, strip, font, int2(scene_render_size));

@@ -24,6 +24,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #ifdef WIN32
@@ -90,7 +91,7 @@ void ED_file_path_button(bScreen *screen,
   UI_block_func_set(block, file_draw_check_cb, nullptr, nullptr);
 
   but = uiDefButR(block,
-                  UI_BTYPE_TEXT,
+                  ButType::Text,
                   -1,
                   "",
                   0,
@@ -133,7 +134,10 @@ static FileTooltipData *file_tooltip_data_create(const SpaceFile *sfile, const F
   return data;
 }
 
-static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
+static void file_draw_tooltip_custom_func(bContext & /*C*/,
+                                          uiTooltipData &tip,
+                                          uiBut * /*but*/,
+                                          void *argN)
 {
   FileTooltipData *file_data = static_cast<FileTooltipData *>(argN);
   const SpaceFile *sfile = file_data->sfile;
@@ -199,7 +203,7 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, 
         /* Load Blender version directly from the file. */
         short version = BLO_version_from_file(full_path);
         if (version != 0) {
-          SNPRINTF(version_str, "%d.%01d", version / 100, version % 100);
+          SNPRINTF_UTF8(version_str, "%d.%01d", version / 100, version % 100);
         }
       }
 
@@ -337,7 +341,10 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, 
   }
 }
 
-static void file_draw_asset_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
+static void file_draw_asset_tooltip_custom_func(bContext & /*C*/,
+                                                uiTooltipData &tip,
+                                                uiBut * /*but*/,
+                                                void *argN)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
   blender::ed::asset::asset_tooltip(*asset, tip);
@@ -427,14 +434,14 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   if (icon < BIFICONID_LAST_STATIC) {
     /* Small built-in icon. Draw centered in given width. */
     but = uiDefIconBut(
-        block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
+        block, ButType::Label, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
     /* Center the icon. */
     UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
   }
   else {
     /* Larger preview icon. Fills available width/height. */
     but = uiDefIconPreviewBut(
-        block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
+        block, ButType::Label, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
   }
   UI_but_label_alpha_factor_set(but, dimmed ? 0.3f : 1.0f);
   file_but_tooltip_func_set(sfile, file, but);
@@ -445,7 +452,7 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
 static uiBut *file_add_overlay_icon_but(uiBlock *block, int pos_x, int pos_y, int icon)
 {
   uiBut *but = uiDefIconBut(block,
-                            UI_BTYPE_LABEL,
+                            ButType::Label,
                             0,
                             icon,
                             pos_x,
@@ -629,7 +636,7 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
   BLI_rcti_pad(&drag_rect, -layout->tile_border_x, -layout->tile_border_y);
 
   uiBut *but = uiDefBut(block,
-                        UI_BTYPE_LABEL,
+                        ButType::Label,
                         0,
                         "",
                         drag_rect.xmin,
@@ -662,7 +669,7 @@ static void file_draw_preview(const FileDirEntry *file,
       imb->x, imb->y, *layout);
 
   /* Additional offset to keep the scaled image centered. Difference between maximum
-   * width/height and the actual width/height, divided by two for centering.  */
+   * width/height and the actual width/height, divided by two for centering. */
   const float ofs_x = (float(layout->prv_w) - float(scaled_width)) / 2.0f;
   const float ofs_y = (float(layout->prv_h) - float(scaled_height)) / 2.0f;
   const int xmin = tile_draw_rect->xmin + layout->prv_border_x + int(ofs_x + 0.5f);
@@ -695,7 +702,7 @@ static void file_draw_preview(const FileDirEntry *file,
                                 float(ymin),
                                 imb->x,
                                 imb->y,
-                                GPU_RGBA8,
+                                blender::gpu::TextureFormat::UNORM_8_8_8_8,
                                 true,
                                 imb->byte_buffer.data,
                                 scale,
@@ -1147,9 +1154,9 @@ static const char *filelist_get_details_column_string(
               nullptr, file->time, compact, time, date, &is_today, &is_yesterday);
 
           if (!compact && (is_today || is_yesterday)) {
-            STRNCPY(date, is_today ? IFACE_("Today") : IFACE_("Yesterday"));
+            STRNCPY_UTF8(date, is_today ? IFACE_("Today") : IFACE_("Yesterday"));
           }
-          SNPRINTF(file->draw_data.datetime_str, compact ? "%s" : "%s %s", date, time);
+          SNPRINTF_UTF8(file->draw_data.datetime_str, compact ? "%s" : "%s %s", date, time);
         }
 
         return file->draw_data.datetime_str;
@@ -1424,7 +1431,7 @@ void file_draw_list(const bContext *C, ARegion *region)
           /* Uses full row height (tile height plus 2 * tile border padding) so there's no space
            * between rows. */
           uiBut *drag_but = uiDefBut(block,
-                                     UI_BTYPE_LABEL,
+                                     ButType::Label,
                                      0,
                                      "",
                                      tile_draw_rect.xmin,
@@ -1479,7 +1486,7 @@ void file_draw_list(const bContext *C, ARegion *region)
               /* Just a little smaller than the tile height, clamped to #UI_UNIT_Y as maximum. */
               std::min(short(BLI_rcti_size_y(&text_rect) - 1.0f * UI_SCALE_FAC), UI_UNIT_Y);
       uiBut *but = uiDefBut(block,
-                            UI_BTYPE_TEXT,
+                            ButType::Text,
                             1,
                             "",
                             text_rect.xmin,
@@ -1620,9 +1627,9 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     wmOperatorType *ot = WM_operatortype_find("SCREEN_OT_userpref_show", false);
     uiBut *but = uiDefIconTextButO_ptr(block,
-                                       UI_BTYPE_BUT,
+                                       ButType::But,
                                        ot,
-                                       WM_OP_INVOKE_DEFAULT,
+                                       blender::wm::OpCallContext::InvokeDefault,
                                        ICON_PREFERENCES,
                                        WM_operatortype_name(ot, nullptr),
                                        sx + UI_UNIT_X,
