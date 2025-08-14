@@ -642,8 +642,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     if (sub_delta_time > 0.0f) {
       apply_external_accelerations_and_velocities(state, accelerations_map, sub_delta_time);
     }
-    geometry::xpbd_constraint_solver::solve_jacobian_non_deterministic(point_sets,
-                                                                       constraint_sets);
+    geometry::xpbd_constraint_solver::solve_gauss_seidel_parallel(point_sets, constraint_sets);
     if (sub_delta_time > 0.0f) {
       for (const int geo_i : all_sim_points.index_range()) {
         Span<float3> prev_positions = all_prev_positions[geo_i];

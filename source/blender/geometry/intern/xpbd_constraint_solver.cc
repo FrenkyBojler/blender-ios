@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_multi_value_map.hh"
 #include "GEO_xpbd_constraint_solver.hh"
 
 namespace blender::geometry::xpbd_constraint_solver {
@@ -12,8 +13,8 @@ void solve_gauss_seidel_one_at_a_time(const Span<PointSet> point_sets,
   GaussSeidelSolver solver{point_sets};
   for (const ConstraintSet &constraint_set : constraint_sets) {
     for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
-      constraint_set.evaluator->evaluate_gauss_seidel(solver,
-                                                      IndexRange::from_single(constraint_i));
+      constraint_set.evaluator->evaluate_gauss_seidel_parallel(
+          solver, IndexRange::from_single(constraint_i));
     }
   }
 }
@@ -57,6 +58,52 @@ void solve_jacobian_non_deterministic(const Span<PointSet> point_sets,
       });
     }
   });
+}
+
+void solve_gauss_seidel_parallel(const Span<PointSet> point_sets,
+                                 const Span<ConstraintSet> constraint_sets)
+{
+  MultiValueMap<int, const ConstraintSet *> single_target_constraints_by_point_set;
+  Vector<const ConstraintSet *> multi_target_constraints;
+
+  for (const ConstraintSet &constraint_set : constraint_sets) {
+    BLI_assert(constraint_set.indices->point_sets.size() > 0);
+    if (constraint_set.indices->point_sets.size() == 1) {
+      const int point_set_i = constraint_set.indices->point_sets[0];
+      single_target_constraints_by_point_set.add(point_set_i, &constraint_set);
+    }
+    else {
+      multi_target_constraints.append(&constraint_set);
+    }
+  }
+
+  Vector<Span<const ConstraintSet *>> single_target_constraint_sets;
+  for (const Span<const ConstraintSet *> constraint_sets :
+       single_target_constraints_by_point_set.values())
+  {
+    single_target_constraint_sets.append(constraint_sets);
+  }
+
+  GaussSeidelSolver solver{point_sets};
+
+  threading::parallel_for(
+      single_target_constraint_sets.index_range(), 1, [&](const IndexRange range) {
+        for (const int i : range) {
+          /* These constraint sets have to be evaluated serially because they effect the same
+           * points.*/
+          for (const ConstraintSet *constraint_set : single_target_constraint_sets[i]) {
+            constraint_set->indices->foreach_independent_mask([&](const IndexMask &mask) {
+              constraint_set->evaluator->evaluate_gauss_seidel_parallel(solver, mask);
+            });
+          }
+        }
+      });
+
+  for (const ConstraintSet *constraint_set : multi_target_constraints) {
+    constraint_set->indices->foreach_independent_mask([&](const IndexMask &mask) {
+      constraint_set->evaluator->evaluate_gauss_seidel_parallel(solver, mask);
+    });
+  }
 }
 
 }  // namespace blender::geometry::xpbd_constraint_solver

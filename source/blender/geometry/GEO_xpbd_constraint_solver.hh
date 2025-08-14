@@ -6,6 +6,7 @@
 
 #include "BLI_index_mask.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_multi_value_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
@@ -62,17 +63,85 @@ class ConstraintSetEvaluator {
 
   virtual void evaluate_jacobian_non_deterministic(NonDeterministicParallelJacobianSolver &solver,
                                                    const IndexMask &constraint_mask) const = 0;
-  virtual void evaluate_gauss_seidel(GaussSeidelSolver &solver,
-                                     const IndexMask &constraint_mask) const = 0;
+  virtual void evaluate_gauss_seidel_parallel(GaussSeidelSolver &solver,
+                                              const IndexMask &constraint_mask) const = 0;
 };
+
+template<typename GetConstraintPointsFn>
+inline int color_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
+                             MutableSpan<int> r_colors)
+{
+  const int constraints_num = r_colors.size();
+  MultiValueMap<int, int> constraints_by_point;
+  for (const int constraint_i : IndexRange(constraints_num)) {
+    const Span<int> points = get_constraint_points_fn(constraint_i);
+    for (const int point_i : points) {
+      constraints_by_point.add(point_i, constraint_i);
+    }
+  }
+  int colors_num = 0;
+  for (const int constraint_i : IndexRange(constraints_num)) {
+    Vector<int> used_colors;
+    for (const int point_i : get_constraint_points_fn(constraint_i)) {
+      for (const int other_constraint_i : constraints_by_point.lookup(point_i)) {
+        if (other_constraint_i >= constraint_i) {
+          continue;
+        }
+        used_colors.append_non_duplicates(r_colors[other_constraint_i]);
+      }
+    }
+    int best_color = 0;
+    while (used_colors.contains(best_color)) {
+      best_color++;
+    }
+    r_colors[constraint_i] = best_color;
+    colors_num = std::max(colors_num, best_color + 1);
+  }
+  return colors_num;
+}
+
+template<typename GetConstraintPointsFn>
+inline void detect_independent_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
+                                           const int constraints_num,
+                                           const FunctionRef<void(const IndexMask &mask)> fn)
+{
+  if (constraints_num == 0) {
+    return;
+  }
+  Array<int> colors(constraints_num);
+  const int colors_num = color_constraints(get_constraint_points_fn, colors);
+  Array<Vector<int>> masks(colors_num);
+  for (const int constraint_i : IndexRange(constraints_num)) {
+    masks[colors[constraint_i]].append(constraint_i);
+  }
+  IndexMaskMemory memory;
+  for (const int color_i : IndexRange(colors_num)) {
+    const IndexMask mask = IndexMask::from_indices<int>(masks[color_i], memory);
+    fn(mask);
+  }
+}
 
 class ConstraintSetIndices {
  public:
   virtual ~ConstraintSetIndices() = default;
 
   int constraints_num;
+  Vector<int> point_sets;
 
-  ConstraintSetIndices(const int constraints_num) : constraints_num(constraints_num) {}
+  ConstraintSetIndices(const int constraints_num, Vector<int> point_sets)
+      : constraints_num(constraints_num), point_sets(std::move(point_sets))
+  {
+  }
+
+  virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const
+  {
+    /* By default, assume all constraints depend on each other, so only one element can be
+     * processed in parallel. */
+    for (const int i : IndexRange(this->constraints_num)) {
+      const IndexMask mask = IndexRange::from_single(i);
+      fn(mask);
+    }
+  }
 };
 
 class UnaryConstraintSetIndices : public ConstraintSetIndices {
@@ -81,8 +150,18 @@ class UnaryConstraintSetIndices : public ConstraintSetIndices {
   Span<int> points;
 
   UnaryConstraintSetIndices(const int point_set_i, const Span<int> points)
-      : ConstraintSetIndices(points.size()), point_set_i(point_set_i), points(points)
+      : ConstraintSetIndices(points.size(), {point_set_i}),
+        point_set_i(point_set_i),
+        points(points)
   {
+  }
+
+  virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const
+  {
+    detect_independent_constraints(
+        [&](const int constraint_i) { return Span<int>(&this->points[constraint_i], 1); },
+        this->points.size(),
+        fn);
   }
 };
 
@@ -92,10 +171,18 @@ class BinaryConstraintSetIndices : public ConstraintSetIndices {
   Span<int2> point_pairs;
 
   BinaryConstraintSetIndices(const int point_set_i, const Span<int2> point_pairs)
-      : ConstraintSetIndices(point_pairs.size()),
+      : ConstraintSetIndices(point_pairs.size(), {point_set_i}),
         point_set_i(point_set_i),
         point_pairs(point_pairs)
   {
+  }
+
+  virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const
+  {
+    detect_independent_constraints(
+        [&](const int constraint_i) { return Span<int>(&this->point_pairs[constraint_i][0], 2); },
+        this->point_pairs.size(),
+        fn);
   }
 };
 
@@ -121,8 +208,8 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
     self.evaluate(solver, constraint_mask);
   }
 
-  void evaluate_gauss_seidel(GaussSeidelSolver &solver,
-                             const IndexMask &constraint_mask) const override
+  void evaluate_gauss_seidel_parallel(GaussSeidelSolver &solver,
+                                      const IndexMask &constraint_mask) const override
   {
     const Child &self = static_cast<const Child &>(*this);
     self.evaluate(solver, constraint_mask);
@@ -142,5 +229,7 @@ void solve_gauss_seidel_one_at_a_time(Span<PointSet> point_sets,
 
 void solve_jacobian_non_deterministic(Span<PointSet> point_sets,
                                       Span<ConstraintSet> constraint_sets);
+
+void solve_gauss_seidel_parallel(Span<PointSet> point_sets, Span<ConstraintSet> constraint_sets);
 
 }  // namespace blender::geometry::xpbd_constraint_solver
