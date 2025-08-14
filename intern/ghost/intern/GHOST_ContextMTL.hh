@@ -43,8 +43,7 @@ class GHOST_ContextMTL : public GHOST_Context {
    */
   GHOST_ContextMTL(const GHOST_ContextParams &context_params,
                    NSView *metalView,
-                   CAMetalLayer *metalLayer,
-                   int debug);
+                   CAMetalLayer *metalLayer);
 
   /**
    * Destructor.
@@ -160,7 +159,6 @@ class GHOST_ContextMTL : public GHOST_Context {
                                  id<CAMetalDrawable>);
 
   int mtl_SwapInterval;
-  const bool m_debug;
 
   static int s_sharedCount;
 

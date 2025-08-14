@@ -328,7 +328,6 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
                                      GHOST_TWindowState state,
                                      GHOST_TDrawingContextType type,
                                      const GHOST_ContextParams &context_params,
-                                     bool is_debug,
                                      bool is_dialog,
                                      GHOST_WindowCocoa *parentWindow,
                                      const GHOST_GPUDevice &preferred_device)
@@ -339,7 +338,6 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
       m_systemCocoa(systemCocoa),
       m_customCursor(nullptr),
       m_immediateDraw(false),
-      m_debug_context(is_debug),
       m_is_dialog(is_dialog),
       m_preferred_device(preferred_device)
 {
@@ -912,7 +910,7 @@ GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 #ifdef WITH_METAL_BACKEND
     case GHOST_kDrawingContextTypeMetal: {
       GHOST_Context *context = new GHOST_ContextMTL(
-          m_want_context_params, m_metalView, m_metalLayer, false);
+          m_want_context_params, m_metalView, m_metalLayer);
       if (context->initializeDrawingContext()) {
         return context;
       }

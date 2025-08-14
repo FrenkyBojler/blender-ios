@@ -78,7 +78,6 @@ class GHOST_WindowWin32 : public GHOST_Window {
                     GHOST_TDrawingContextType type,
                     const GHOST_ContextParams &context_params,
                     GHOST_WindowWin32 *parentWindow,
-                    bool is_debug,
                     bool dialog,
                     const GHOST_GPUDevice &preferred_device);
 
@@ -417,5 +416,4 @@ class GHOST_WindowWin32 : public GHOST_Window {
   /** Handle input method editors event */
   GHOST_ImeWin32 m_imeInput;
 #endif
-  bool m_debug_context;
 };

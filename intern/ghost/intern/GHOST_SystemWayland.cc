@@ -8584,8 +8584,8 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
   std::lock_guard lock_server_guard{*server_mutex};
 #endif
 
-  const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
-  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
+  const GHOST_ContextParams context_params_offscreen =
+      GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings);
 
   switch (gpuSettings.context_type) {
 
@@ -8603,7 +8603,6 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
                                                    nullptr,
                                                    1,
                                                    2,
-                                                   debug_context,
                                                    gpuSettings.preferred_device);
 
       if (context->initializeDrawingContext()) {
@@ -8636,7 +8635,7 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
             4,
             minor,
             GHOST_OPENGL_EGL_CONTEXT_FLAGS |
-                (debug_context ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
+                (context_params_offscreen.is_debug ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
             GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
             EGL_OPENGL_API);
 
@@ -8721,21 +8720,19 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
   const GHOST_ContextParams context_params = GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings);
 
   /* Globally store pointer to window manager. */
-  GHOST_WindowWayland *window = new GHOST_WindowWayland(
-      this,
-      title,
-      left,
-      top,
-      width,
-      height,
-      state,
-      parentWindow,
-      gpuSettings.context_type,
-      is_dialog,
-      context_params,
-      exclusive,
-      (gpuSettings.flags & GHOST_gpuDebugContext) != 0,
-      gpuSettings.preferred_device);
+  GHOST_WindowWayland *window = new GHOST_WindowWayland(this,
+                                                        title,
+                                                        left,
+                                                        top,
+                                                        width,
+                                                        height,
+                                                        state,
+                                                        parentWindow,
+                                                        gpuSettings.context_type,
+                                                        is_dialog,
+                                                        context_params,
+                                                        exclusive,
+                                                        gpuSettings.preferred_device);
 
   if (window) {
     if (window->getValid()) {

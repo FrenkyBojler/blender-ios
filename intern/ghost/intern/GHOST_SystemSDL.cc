@@ -133,7 +133,8 @@ uint8_t GHOST_SystemSDL::getNumDisplays() const
 
 GHOST_IContext *GHOST_SystemSDL::createOffscreenContext(GHOST_GPUSettings gpuSettings)
 {
-  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
+  const GHOST_ContextParams context_params_offscreen =
+      GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings);
 
   switch (gpuSettings.context_type) {
 #ifdef WITH_OPENGL_BACKEND

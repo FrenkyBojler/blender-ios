@@ -53,7 +53,6 @@ class GHOST_WindowCocoa : public GHOST_Window {
                     GHOST_TWindowState state,
                     GHOST_TDrawingContextType type,
                     const GHOST_ContextParams &context_params,
-                    bool is_debug,
                     bool dialog,
                     GHOST_WindowCocoa *parentWindow,
                     const GHOST_GPUDevice &preferred_device);
@@ -313,7 +312,6 @@ class GHOST_WindowCocoa : public GHOST_Window {
   GHOST_TabletData m_tablet;
 
   bool m_immediateDraw;
-  bool m_debug_context;  // for debug messages during context setup
   bool m_is_dialog;
   GHOST_GPUDevice m_preferred_device;
 };

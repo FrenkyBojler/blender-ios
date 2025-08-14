@@ -78,7 +78,6 @@ class GHOST_WindowWayland : public GHOST_Window {
                       const bool is_dialog,
                       const GHOST_ContextParams &context_params,
                       const bool exclusive,
-                      const bool is_debug,
                       const GHOST_GPUDevice &preferred_device);
 
   ~GHOST_WindowWayland() override;
@@ -202,7 +201,6 @@ class GHOST_WindowWayland : public GHOST_Window {
  private:
   GHOST_SystemWayland *system_;
   struct GWL_Window *window_;
-  bool is_debug_context_;
   GHOST_GPUDevice preferred_device_;
 
   /**

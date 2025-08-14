@@ -61,7 +61,6 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
                                      GHOST_TDrawingContextType type,
                                      const GHOST_ContextParams &context_params,
                                      GHOST_WindowWin32 *parentwindow,
-                                     bool is_debug,
                                      bool dialog,
                                      const GHOST_GPUDevice &preferred_device)
     : GHOST_Window(width, height, state, context_params, false),
@@ -83,8 +82,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
       m_normal_state(GHOST_kWindowStateNormal),
       m_user32(::LoadLibrary("user32.dll")),
       m_parentWindowHwnd(parentwindow ? parentwindow->m_hWnd : HWND_DESKTOP),
-      m_directManipulationHelper(nullptr),
-      m_debug_context(is_debug)
+      m_directManipulationHelper(nullptr)
 {
   DWORD style = parentwindow ?
                     WS_POPUPWINDOW | WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SIZEBOX :
@@ -622,7 +620,7 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
       GHOST_Context *context = new GHOST_ContextVK(
-          m_want_context_params, m_hWnd, 1, 2, m_debug_context, m_preferred_device);
+          m_want_context_params, m_hWnd, 1, 2, m_preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -642,7 +640,7 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
             WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
             4,
             minor,
-            (m_debug_context ? WGL_CONTEXT_DEBUG_BIT_ARB : 0),
+            (m_want_context_params.is_debug ? WGL_CONTEXT_DEBUG_BIT_ARB : 0),
             GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
 
         if (context->initializeDrawingContext()) {

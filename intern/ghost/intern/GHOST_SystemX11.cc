@@ -380,7 +380,6 @@ GHOST_IWindow *GHOST_SystemX11::createWindow(const char *title,
                                is_dialog,
                                context_params,
                                exclusive,
-                               (gpuSettings.flags & GHOST_gpuDebugContext) != 0,
                                gpuSettings.preferred_device);
 
   if (window) {
@@ -403,8 +402,8 @@ GHOST_IWindow *GHOST_SystemX11::createWindow(const char *title,
 
 GHOST_IContext *GHOST_SystemX11::createOffscreenContext(GHOST_GPUSettings gpuSettings)
 {
-  const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
-  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
+  const GHOST_ContextParams context_params_offscreen =
+      GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings);
 
   switch (gpuSettings.context_type) {
 #ifdef WITH_VULKAN_BACKEND
@@ -418,7 +417,6 @@ GHOST_IContext *GHOST_SystemX11::createOffscreenContext(GHOST_GPUSettings gpuSet
                                                    nullptr,
                                                    1,
                                                    2,
-                                                   debug_context,
                                                    gpuSettings.preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
@@ -439,7 +437,8 @@ GHOST_IContext *GHOST_SystemX11::createOffscreenContext(GHOST_GPUSettings gpuSet
             GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
             4,
             minor,
-            GHOST_OPENGL_GLX_CONTEXT_FLAGS | (debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
+            GHOST_OPENGL_GLX_CONTEXT_FLAGS |
+                (context_params_offscreen.is_debug ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
             GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
         if (context->initializeDrawingContext()) {
           return context;

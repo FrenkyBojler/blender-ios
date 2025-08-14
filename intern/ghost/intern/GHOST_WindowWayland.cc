@@ -1736,12 +1736,10 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
                                          const bool is_dialog,
                                          const GHOST_ContextParams &context_params,
                                          const bool exclusive,
-                                         const bool is_debug,
                                          const GHOST_GPUDevice &preferred_device)
     : GHOST_Window(width, height, state, context_params, exclusive),
       system_(system),
       window_(new GWL_Window),
-      is_debug_context_(is_debug),
       preferred_device_(preferred_device)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
@@ -2474,7 +2472,6 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
                                                      window_->backend.vulkan_window_info,
                                                      1,
                                                      2,
-                                                     is_debug_context_,
                                                      preferred_device_);
       if (context->initializeDrawingContext()) {
         return context;
@@ -2496,7 +2493,7 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
             4,
             minor,
             GHOST_OPENGL_EGL_CONTEXT_FLAGS |
-                (is_debug_context_ ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
+                (m_want_context_params.is_debug ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
             GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
             EGL_OPENGL_API);
 

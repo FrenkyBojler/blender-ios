@@ -112,7 +112,6 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
                                  const bool is_dialog,
                                  const GHOST_ContextParams &context_params,
                                  const bool exclusive,
-                                 const bool is_debug,
                                  const GHOST_GPUDevice &preferred_device)
     : GHOST_Window(width, height, state, context_params, exclusive),
       m_display(display),
@@ -132,7 +131,6 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
       m_xic(nullptr),
 #endif
       m_valid_setup(false),
-      m_is_debug_context(is_debug),
       m_preferred_device(preferred_device)
 {
 #ifdef WITH_OPENGL_BACKEND
@@ -1199,7 +1197,6 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
                                                    nullptr,
                                                    1,
                                                    2,
-                                                   m_is_debug_context,
                                                    m_preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
@@ -1223,7 +1220,7 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
             4,
             minor,
             GHOST_OPENGL_EGL_CONTEXT_FLAGS |
-                (m_is_debug_context ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
+                (m_want_context_params.is_debug ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
             GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
             EGL_OPENGL_API);
         if (context->initializeDrawingContext()) {
@@ -1243,7 +1240,8 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
             GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
             4,
             minor,
-            GHOST_OPENGL_GLX_CONTEXT_FLAGS | (m_is_debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
+            GHOST_OPENGL_GLX_CONTEXT_FLAGS |
+                (m_want_context_params.is_debug ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
             GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
         if (context->initializeDrawingContext()) {
           return context;

@@ -48,13 +48,11 @@ int GHOST_ContextMTL::s_sharedCount = 0;
 
 GHOST_ContextMTL::GHOST_ContextMTL(const GHOST_ContextParams &context_params,
                                    NSView *metalView,
-                                   CAMetalLayer *metalLayer,
-                                   int debug)
+                                   CAMetalLayer *metalLayer)
     : GHOST_Context(context_params),
       m_metalView(metalView),
       m_metalLayer(metalLayer),
-      m_metalRenderPipeline(nil),
-      m_debug(debug)
+      m_metalRenderPipeline(nil)
 {
   @autoreleasepool {
     /* Initialize Metal Swap-chain. */
@@ -72,7 +70,7 @@ GHOST_ContextMTL::GHOST_ContextMTL(const GHOST_ContextParams &context_params,
       /* Prepare offscreen GHOST Context Metal device. */
       id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
 
-      if (m_debug) {
+      if (m_context_params.is_debug) {
         printf("Selected Metal Device: %s\n", [metalDevice.name UTF8String]);
       }
 

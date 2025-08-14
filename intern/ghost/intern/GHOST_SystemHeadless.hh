@@ -111,18 +111,18 @@ class GHOST_SystemHeadless : public GHOST_System {
   }
   GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings) override
   {
-    const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
+    const GHOST_ContextParams context_params_offscreen =
+        GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings);
 
     switch (gpuSettings.context_type) {
 #ifdef WITH_VULKAN_BACKEND
       case GHOST_kDrawingContextTypeVulkan: {
-        const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
 #  ifdef _WIN32
         GHOST_Context *context = new GHOST_ContextVK(
-            context_params_offscreen, (HWND)0, 1, 2, debug_context, gpuSettings.preferred_device);
+            context_params_offscreen, (HWND)0, 1, 2, gpuSettings.preferred_device);
 #  elif defined(__APPLE__)
         GHOST_Context *context = new GHOST_ContextVK(
-            context_params_offscreen, nullptr, 1, 2, debug_context, gpuSettings.preferred_device);
+            context_params_offscreen, nullptr, 1, 2, gpuSettings.preferred_device);
 #  else
         GHOST_Context *context = new GHOST_ContextVK(context_params_offscreen,
                                                      GHOST_kVulkanPlatformHeadless,
@@ -133,7 +133,6 @@ class GHOST_SystemHeadless : public GHOST_System {
                                                      nullptr,
                                                      1,
                                                      2,
-                                                     debug_context,
                                                      gpuSettings.preferred_device);
 #  endif
         if (context->initializeDrawingContext()) {

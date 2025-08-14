@@ -817,22 +817,26 @@ typedef enum {
  */
 typedef struct {
   bool is_stereo_visual;
+  bool is_debug;
   GHOST_TVSyncModes vsync;
 } GHOST_ContextParams;
 
 #define GHOST_CONTEXT_PARAMS_NONE \
   { \
-    /*is_stereo_visual*/ false, /*vsync*/ GHOST_kVSyncModeUnset, \
+    /*is_stereo_visual*/ false, /*is_debug*/ false, /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
-#define GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN \
+#define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings) \
   { \
-    /*is_stereo_visual*/ false, /*vsync*/ GHOST_kVSyncModeUnset, \
+    /*is_stereo_visual*/ false, \
+        /*is_debug*/ (((gpuSettings).flags & GHOST_gpuDebugContext) != 0), \
+        /*vsync*/ GHOST_kVSyncModeUnset, \
   }
 
 #define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings) \
   { \
-    /*is_stereo_visual*/ (((gpuSettings).flags & GHOST_gpuStereoVisual) != 0), /*vsync*/ \
+    /*is_stereo_visual*/ (((gpuSettings).flags & GHOST_gpuStereoVisual) != 0), \
+        /*is_debug*/ (((gpuSettings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
         (((gpuSettings).flags & GHOST_gpuVSyncIsOverridden) ? (gpuSettings).vsync : \
                                                               GHOST_kVSyncModeUnset), \
   }

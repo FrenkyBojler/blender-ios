@@ -127,7 +127,6 @@ class GHOST_ContextVK : public GHOST_Context {
 #endif
                   int contextMajorVersion,
                   int contextMinorVersion,
-                  int debug,
                   const GHOST_GPUDevice &preferred_device);
 
   /**
@@ -229,7 +228,6 @@ class GHOST_ContextVK : public GHOST_Context {
 
   const int m_context_major_version;
   const int m_context_minor_version;
-  const int m_debug;
   const GHOST_GPUDevice m_preferred_device;
 
   VkQueue m_graphic_queue;

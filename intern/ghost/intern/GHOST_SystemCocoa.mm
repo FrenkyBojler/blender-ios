@@ -746,7 +746,6 @@ GHOST_IWindow *GHOST_SystemCocoa::createWindow(const char *title,
                                    state,
                                    gpuSettings.context_type,
                                    context_params,
-                                   gpuSettings.flags & GHOST_gpuDebugContext,
                                    is_dialog,
                                    (GHOST_WindowCocoa *)parentWindow,
                                    gpuSettings.preferred_device);
@@ -777,14 +776,14 @@ GHOST_IWindow *GHOST_SystemCocoa::createWindow(const char *title,
  */
 GHOST_IContext *GHOST_SystemCocoa::createOffscreenContext(GHOST_GPUSettings gpuSettings)
 {
-  const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
-  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_DEFAULT_OFFSCREEN;
+  const GHOST_ContextParams context_params_offscreen =
+      GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings);
 
   switch (gpuSettings.context_type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
       GHOST_Context *context = new GHOST_ContextVK(
-          context_params_offscreen, nullptr, 1, 2, debug_context, gpuSettings.preferred_device);
+          context_params_offscreen, nullptr, 1, 2, gpuSettings.preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -795,8 +794,7 @@ GHOST_IContext *GHOST_SystemCocoa::createOffscreenContext(GHOST_GPUSettings gpuS
 
 #ifdef WITH_METAL_BACKEND
     case GHOST_kDrawingContextTypeMetal: {
-      GHOST_Context *context = new GHOST_ContextMTL(
-          context_params_offscreen, nullptr, nullptr, debug_context);
+      GHOST_Context *context = new GHOST_ContextMTL(context_params_offscreen, nullptr, nullptr);
       if (context->initializeDrawingContext()) {
         return context;
       }

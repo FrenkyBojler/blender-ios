@@ -571,7 +571,6 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #endif
                                  int contextMajorVersion,
                                  int contextMinorVersion,
-                                 int debug,
                                  const GHOST_GPUDevice &preferred_device)
     : GHOST_Context(context_params),
 #ifdef _WIN32
@@ -590,7 +589,6 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #endif
       m_context_major_version(contextMajorVersion),
       m_context_minor_version(contextMinorVersion),
-      m_debug(debug),
       m_preferred_device(preferred_device),
       m_surface(VK_NULL_HANDLE),
       m_swapchain(VK_NULL_HANDLE),
@@ -1257,7 +1255,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vector<const char *> optional_device_extensions;
   vector<const char *> extensions_enabled;
 
-  if (m_debug) {
+  if (m_context_params.is_debug) {
     requireExtension(extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
