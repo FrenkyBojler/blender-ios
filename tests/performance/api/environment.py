@@ -247,7 +247,7 @@ class TestEnvironment:
         if sys.platform == 'win32':
             # Set HighQoS level on Windows to avoid reduced performance when the window is out of focus.
             # See: https://learn.microsoft.com/en-us/windows/win32/procthread/quality-of-service
-            common_args += ['--highqos']
+            common_args += ['--qos', 'high']
         if foreground:
             common_args += ['--no-window-focus', '--window-geometry', '0', '0', '1024', '768']
         else:
