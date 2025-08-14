@@ -840,6 +840,94 @@ static void update_sim_points_from_world(XPBDState &state,
   state.sim_points = std::move(new_sim_points);
 }
 
+static void reset_distance_constraint_length_usages(XPBDState &state)
+{
+  for (DistanceConstraintLengths &distance_constraint_lengths :
+       state.distance_constraint_lengths.values())
+  {
+    for (DistanceConstraintLengths::LengthItem &length_item :
+         distance_constraint_lengths.lengths.values())
+    {
+      length_item.used = false;
+    }
+  }
+}
+
+static void solve_constraints(
+    const SolverType solver_type,
+    const Span<geometry::xpbd_constraint_solver::PointsRef> points_refs,
+    const Span<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets)
+{
+  switch (solver_type) {
+    case SolverType::SerialGaussSeidel: {
+      geometry::xpbd_constraint_solver::solve_gauss_seidel_one_at_a_time(points_refs,
+                                                                         constraint_sets);
+      break;
+    }
+    case SolverType::ParallelGaussSeidel: {
+      geometry::xpbd_constraint_solver::solve_gauss_seidel_parallel(points_refs, constraint_sets);
+      break;
+    }
+    case SolverType::NonDeterministicJacobian: {
+      geometry::xpbd_constraint_solver::solve_jacobian_non_deterministic(points_refs,
+                                                                         constraint_sets);
+      break;
+    }
+  }
+}
+
+static void apply_friction(XPBDState &state,
+                           const Contacts &contacts,
+                           const VectorSet<SimPointsKey> &keys,
+                           const Span<Array<float3>> all_prev_positions)
+{
+  for (const auto item : contacts.static_plane_contacts.items()) {
+    const int key_i = keys.index_of(item.key);
+    SimPoints &sim_points = state.sim_points.lookup(item.key);
+    const Span<float3> prev_positions = all_prev_positions[key_i];
+    MutableSpan<float3> new_positions = sim_points.positions;
+    const StaticPlaneContacts &plane_contacts = item.value;
+    for (const int contact_i : plane_contacts.indices.index_range()) {
+      const int point_i = plane_contacts.indices[contact_i];
+      const float3 &plane_normal = plane_contacts.plane_normals[contact_i];
+      const float static_friction = plane_contacts.static_frictions[contact_i];
+      const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
+      const float depth = plane_contacts.depths[contact_i];
+      const float3 pos_diff = new_positions[point_i] - prev_positions[point_i];
+      const float3 tangential_pos_diff = pos_diff -
+                                         plane_normal * math::dot(pos_diff, plane_normal);
+      float3 offset = tangential_pos_diff;
+      const float tangential_dist = math::length(tangential_pos_diff);
+      if (tangential_dist >= static_friction * depth) {
+        offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
+      }
+
+      new_positions[point_i] -= offset;
+    }
+  }
+}
+
+static void update_velocities(XPBDState &state,
+                              const VectorSet<SimPointsKey> &keys,
+                              const Span<Array<float3>> all_prev_positions,
+                              const float delta_time)
+{
+  for (const int key_i : keys.index_range()) {
+    const Span<float3> prev_positions = all_prev_positions[key_i];
+    SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
+    Span<float3> new_positions = sim_points.positions;
+    MutableSpan<float3> velocities = sim_points.velocities;
+    threading::parallel_for(IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        const float3 &prev_position = prev_positions[i];
+        const float3 &new_position = new_positions[i];
+        const float3 velocity = (new_position - prev_position) / delta_time;
+        velocities[i] = velocity;
+      }
+    });
+  }
+}
+
 static void update_and_step_xpbd_state(XPBDState &state,
                                        const WorldData &world,
                                        const float total_delta_time,
@@ -855,22 +943,12 @@ static void update_and_step_xpbd_state(XPBDState &state,
     keys.add_new(key);
   }
 
-  for (DistanceConstraintLengths &distance_constraint_lengths :
-       state.distance_constraint_lengths.values())
-  {
-    for (DistanceConstraintLengths::LengthItem &length_item :
-         distance_constraint_lengths.lengths.values())
-    {
-      length_item.used = false;
-    }
-  }
+  reset_distance_constraint_length_usages(state);
 
   const Map<SimPointsKey, Span<float>> inverse_masses_map = compute_inverse_masses(
       scope, world, keys, applied_geometries);
-
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
       scope, world, keys, inverse_masses_map, applied_geometries);
-
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
   Vector<geometry::xpbd_constraint_solver::ConstraintSet> static_constraint_sets;
@@ -896,77 +974,31 @@ static void update_and_step_xpbd_state(XPBDState &state,
   }
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
+    /* Remember previous positions. */
     for (const int i : keys.index_range()) {
       const SimPointsKey &key = keys[i];
       all_prev_positions[i].as_mutable_span().copy_from(state.sim_points.lookup(key).positions);
     }
+
+    /* Integrate linear and angular velocities. This also applies external forces. */
     if (sub_delta_time > 0.0f) {
       integrate_velocities(state, accelerations_map, sub_delta_time);
     }
 
+    /* Find current collisisons and generate constraints to resolve them. */
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =
         static_constraint_sets;
     Contacts contacts = gather_contacts(state, world, applied_geometries, keys);
     generate_collision_constraint_sets(scope, state, contacts, keys, constraint_sets);
 
-    switch (solver_type) {
-      case SolverType::SerialGaussSeidel: {
-        geometry::xpbd_constraint_solver::solve_gauss_seidel_one_at_a_time(points_refs,
-                                                                           constraint_sets);
-        break;
-      }
-      case SolverType::ParallelGaussSeidel: {
-        geometry::xpbd_constraint_solver::solve_gauss_seidel_parallel(points_refs,
-                                                                      constraint_sets);
-        break;
-      }
-      case SolverType::NonDeterministicJacobian: {
-        geometry::xpbd_constraint_solver::solve_jacobian_non_deterministic(points_refs,
-                                                                           constraint_sets);
-        break;
-      }
-    }
+    /* Actually solve the constraints. */
+    solve_constraints(solver_type, points_refs, constraint_sets);
 
     if (sub_delta_time > 0.0f) {
-      for (const auto item : contacts.static_plane_contacts.items()) {
-        const int key_i = keys.index_of(item.key);
-        SimPoints &sim_points = state.sim_points.lookup(item.key);
-        const Span<float3> prev_positions = all_prev_positions[key_i];
-        MutableSpan<float3> new_positions = sim_points.positions;
-        const StaticPlaneContacts &plane_contacts = item.value;
-        for (const int contact_i : plane_contacts.indices.index_range()) {
-          const int point_i = plane_contacts.indices[contact_i];
-          const float3 &plane_normal = plane_contacts.plane_normals[contact_i];
-          const float static_friction = plane_contacts.static_frictions[contact_i];
-          const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
-          const float depth = plane_contacts.depths[contact_i];
-          const float3 pos_diff = new_positions[point_i] - prev_positions[point_i];
-          const float3 tangential_pos_diff = pos_diff -
-                                             plane_normal * math::dot(pos_diff, plane_normal);
-          float3 offset = tangential_pos_diff;
-          const float tangential_dist = math::length(tangential_pos_diff);
-          if (tangential_dist >= static_friction * depth) {
-            offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
-          }
-
-          new_positions[point_i] -= offset;
-        }
-      }
-      for (const int key_i : keys.index_range()) {
-        const Span<float3> prev_positions = all_prev_positions[key_i];
-        SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
-        Span<float3> new_positions = sim_points.positions;
-        MutableSpan<float3> velocities = sim_points.velocities;
-        threading::parallel_for(
-            IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
-              for (const int i : range) {
-                const float3 &prev_position = prev_positions[i];
-                const float3 &new_position = new_positions[i];
-                const float3 velocity = (new_position - prev_position) / sub_delta_time;
-                velocities[i] = velocity;
-              }
-            });
-      }
+      /* Apply friction by updating current positions before the new velocity is computed. */
+      apply_friction(state, contacts, keys, all_prev_positions);
+      /* Update velocities based on previous and new positions. */
+      update_velocities(state, keys, all_prev_positions, sub_delta_time);
     }
   }
 
