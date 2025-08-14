@@ -104,17 +104,29 @@ static gpu::IndexBufPtr extract_edituv_tris_mesh(const MeshRenderData &mr,
   const Span<int3> corner_tris = mr.mesh->corner_tris();
 
   IndexMaskMemory memory;
-  const IndexMask selection = IndexMask::from_predicate(
-      faces.index_range(), GrainSize(4096), memory, [&](const int face) {
-        const BMFace *face_orig = bm_original_face_get(mr, face);
-        if (!face_orig) {
-          return false;
-        }
-        if (skip_bm_face(*face_orig, sync_selection)) {
-          return false;
-        }
-        return true;
-      });
+  IndexMask selection;
+  if (mr.bm) {
+    selection = IndexMask::from_predicate(faces.index_range(), GrainSize(4096), memory, [&](const int face) {
+      const BMFace *face_orig = bm_original_face_get(mr, face);
+      if (!face_orig) {
+        return false;
+      }
+      if (skip_bm_face(*face_orig, sync_selection)) {
+        return false;
+      }
+      return true;
+    });
+  }
+  else {
+    if (mr.hide_poly.is_empty()) {
+      selection = faces.index_range();
+    }
+    else {
+      selection = IndexMask::from_bools_inverse(faces.index_range(), mr.hide_poly, memory);
+    }
+
+    selection = IndexMask::from_bools(selection, mr.select_poly, memory);
+  }
 
   if (selection.size() == faces.size()) {
     return gpu::IndexBufPtr(GPU_indexbuf_build_from_memory(GPU_PRIM_TRIS,

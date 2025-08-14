@@ -1592,9 +1592,11 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
      * display the cage in all cases.
      */
     const BufferList list = do_uvcage ? BufferList::UVCage : BufferList::Final;
+    const bool use_face_selection = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL);
+    const bool is_face_selectable = is_paint_mode && use_face_selection;
 
     if (batches_to_create & MBC_EDITUV_FACES) {
-      if (edit_mapping_valid) {
+      if (edit_mapping_valid || is_face_selectable) {
         batch_info.append({*cache.batch.edituv_faces,
                            GPU_PRIM_TRIS,
                            list,
