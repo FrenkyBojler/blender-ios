@@ -168,6 +168,11 @@ void WM_init_gpu()
   gpu_is_init = true;
 }
 
+bool WM_gpu_is_initialized()
+{
+  return gpu_is_init;
+}
+
 static void sound_jack_sync_callback(Main *bmain, int mode, double time)
 {
   /* Ugly: Blender doesn't like it when the animation is played back during rendering. */
