@@ -13,59 +13,46 @@ ConstraintSetIndices::ConstraintSetIndices(const int constraints_num,
 {
 }
 
-void ConstraintSetIndices::foreach_independent_mask(
-    const FunctionRef<void(const IndexMask &mask)> fn) const
-{
-  /* By default, assume all constraints depend on each other, so only one element can be
-   * processed in parallel. */
-  for (const int i : IndexRange(this->constraints_num)) {
-    const IndexMask mask = IndexRange::from_single(i);
-    fn(mask);
-  }
-}
-
-UnaryConstraintSetIndices::UnaryConstraintSetIndices(const int points_ref_i,
-                                                     const Span<int> points)
-    : ConstraintSetIndices(points.size(), {points_ref_i}),
-      points_ref_i(points_ref_i),
-      points(points)
+UnaryConstraintSetIndices::UnaryConstraintSetIndices(const int affected_points_ref_i,
+                                                     const Span<int> affected_points)
+    : ConstraintSetIndices(affected_points.size(), {affected_points_ref_i}),
+      affected_points_ref_i_(affected_points_ref_i),
+      affected_points_(affected_points)
 {
 }
 
-void UnaryConstraintSetIndices::foreach_independent_mask(
-    const FunctionRef<void(const IndexMask &mask)> fn) const
+Span<IndexMask> UnaryConstraintSetIndices::get_independent_masks() const
 {
   independent_masks_mutex_.ensure([&]() {
     independent_masks_ = detect_independent_constraints(
-        [&](const int constraint_i) { return Span<int>(&this->points[constraint_i], 1); },
+        [&](const int constraint_i) {
+          return Span<int>(&this->affected_points_[constraint_i], 1);
+        },
         this->constraints_num,
         independent_masks_memory_);
   });
-  for (const IndexMask &mask : independent_masks_) {
-    fn(mask);
-  }
+  return independent_masks_;
 }
 
-BinaryConstraintSetIndices::BinaryConstraintSetIndices(const int points_ref_i,
-                                                       const Span<int2> point_pairs)
-    : ConstraintSetIndices(point_pairs.size(), {points_ref_i}),
-      points_ref_i(points_ref_i),
-      point_pairs(point_pairs)
+BinaryConstraintSetIndices::BinaryConstraintSetIndices(const int affected_points_ref_i,
+                                                       const Span<int2> affected_points)
+    : ConstraintSetIndices(affected_points.size(), {affected_points_ref_i}),
+      affected_points_ref_i_(affected_points_ref_i),
+      affected_points_(affected_points)
 {
 }
 
-void BinaryConstraintSetIndices::foreach_independent_mask(
-    const FunctionRef<void(const IndexMask &mask)> fn) const
+Span<IndexMask> BinaryConstraintSetIndices::get_independent_masks() const
 {
   independent_masks_mutex_.ensure([&]() {
     independent_masks_ = detect_independent_constraints(
-        [&](const int constraint_i) { return Span<int>(&this->point_pairs[constraint_i][0], 2); },
-        this->point_pairs.size(),
+        [&](const int constraint_i) {
+          return Span<int>(&this->affected_points_[constraint_i][0], 2);
+        },
+        this->affected_points_.size(),
         independent_masks_memory_);
   });
-  for (const IndexMask &mask : independent_masks_) {
-    fn(mask);
-  }
+  return independent_masks_;
 }
 
 ConstraintSet::ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluator &evaluator)
@@ -79,8 +66,7 @@ void solve_gauss_seidel_one_at_a_time(const Span<PointsRef> points_refs,
   GaussSeidelUpdater updater{points_refs};
   for (const ConstraintSet &constraint_set : constraint_sets) {
     for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
-      constraint_set.evaluator->evaluate_gauss_seidel_parallel(
-          updater, IndexRange::from_single(constraint_i));
+      constraint_set.evaluator->evaluate(updater, IndexRange::from_single(constraint_i));
     }
   }
 }
@@ -103,7 +89,7 @@ void solve_jacobian_non_deterministic(const Span<PointsRef> points_refs,
         for (const int constraint_set_i : constraint_sets_range) {
           const ConstraintSet &constraint_set = constraint_sets[constraint_set_i];
           const IndexMask mask = IndexRange(constraint_set.indices->constraints_num);
-          constraint_set.evaluator->evaluate_jacobian_non_deterministic(updater, mask);
+          constraint_set.evaluator->evaluate(updater, mask);
         }
       });
 
@@ -158,17 +144,20 @@ void solve_gauss_seidel_parallel(const Span<PointsRef> points_refs,
           /* These constraint sets have to be evaluated serially because they effect the same
            * points.*/
           for (const ConstraintSet *constraint_set : single_target_constraint_sets[i]) {
-            constraint_set->indices->foreach_independent_mask([&](const IndexMask &mask) {
-              constraint_set->evaluator->evaluate_gauss_seidel_parallel(updater, mask);
-            });
+            const Span<IndexMask> independent_masks =
+                constraint_set->indices->get_independent_masks();
+            for (const IndexMask &mask : independent_masks) {
+              constraint_set->evaluator->evaluate(updater, mask);
+            }
           }
         }
       });
 
   for (const ConstraintSet *constraint_set : multi_target_constraints) {
-    constraint_set->indices->foreach_independent_mask([&](const IndexMask &mask) {
-      constraint_set->evaluator->evaluate_gauss_seidel_parallel(updater, mask);
-    });
+    const Span<IndexMask> independent_masks = constraint_set->indices->get_independent_masks();
+    for (const IndexMask &mask : independent_masks) {
+      constraint_set->evaluator->evaluate(updater, mask);
+    }
   }
 }
 

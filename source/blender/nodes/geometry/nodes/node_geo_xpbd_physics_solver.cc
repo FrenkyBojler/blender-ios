@@ -140,7 +140,7 @@ class PinConstraintEvaluator
     const float3 &pin_position = pin_positions_[constraint_i];
     const float3 &p = positions_[i];
     const float3 offset = pin_position - p;
-    solver.offset_position(geo_i_, i, offset);
+    solver.update_position(geo_i_, i, offset);
   }
 };
 
@@ -194,8 +194,8 @@ class DistanceConstraintEvaluator
 
     const float3 offset0 = lambda * inv_m0 * normalized_dir;
     const float3 offset1 = -lambda * inv_m1 * normalized_dir;
-    solver.offset_position(geo_i_, v0, offset0);
-    solver.offset_position(geo_i_, v1, offset1);
+    solver.update_position(geo_i_, v0, offset0);
+    solver.update_position(geo_i_, v1, offset1);
   }
 };
 
