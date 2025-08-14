@@ -30,8 +30,8 @@ class GHOST_WindowNULL : public GHOST_Window {
                    GHOST_TWindowState state,
                    const GHOST_IWindow * /*parentWindow*/,
                    GHOST_TDrawingContextType /*type*/,
-                   const bool stereoVisual)
-      : GHOST_Window(width, height, state, stereoVisual, false)
+                   const GHOST_ContextParams &context_params)
+      : GHOST_Window(width, height, state, context_params, false)
   {
   }
 
@@ -56,7 +56,7 @@ class GHOST_WindowNULL : public GHOST_Window {
                                             const uint8_t * /*mask*/,
                                             const int /*size*/[2],
                                             const int /*hot_spot*/[2],
-                                            bool /*canInvertColor*/) override
+                                            bool /*can_invert_color*/) override
   {
     return GHOST_kSuccess;
   }

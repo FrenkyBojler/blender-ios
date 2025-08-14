@@ -263,6 +263,18 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
       break;
     }
+    case SOCK_MENU: {
+      const int32_t value = input->default_value_typed<bNodeSocketValueMenu>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<nodes::MenuValue>>(
+          value);
+      break;
+    }
+    case SOCK_STRING: {
+      const std::string value = input->default_value_typed<bNodeSocketValueString>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<std::string>>(
+          value);
+      break;
+    }
     default:
       BLI_assert_unreachable();
       break;
@@ -286,7 +298,7 @@ mf::Variable *MultiFunctionProcedureOperation::get_implicit_input_variable(
   input_descriptor.implicit_input = implicit_input;
 
   /* An input was already declared for that implicit input, so no need to declare it again and we
-   * just return its variable.  */
+   * just return its variable. */
   if (implicit_input_to_variable_map_.contains(implicit_input)) {
     /* But first we update the domain priority of the input descriptor to be the higher priority of
      * the existing descriptor and the descriptor of the new input socket. That's because the same
@@ -321,7 +333,7 @@ mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable
     DInputSocket input_socket, DOutputSocket output_socket)
 {
   /* An input was already declared for that same output socket, so no need to declare it again and
-   * we just return its variable.  */
+   * we just return its variable. */
   if (output_to_variable_map_.contains(output_socket)) {
     /* But first we update the domain priority of the input descriptor to be the higher priority of
      * the existing descriptor and the descriptor of the new input socket. That's because the same
