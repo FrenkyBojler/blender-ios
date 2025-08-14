@@ -107,14 +107,14 @@ static void subdivide_drawing(ModifierData &md, Object &ob, bke::greasepencil::D
           }
 
           if (cyclic[curve_i] && points.size() > 1) {
-            positions[points.first()] = math::interpolate(
-                positions[points.first()],
-                math::interpolate(positions[points.last()], positions[points.first() + 1], 0.5f),
-                0.5f);
-            positions[points.last()] = math::interpolate(
-                positions[points.last()],
-                math::interpolate(positions[points.last() - 1], positions[points.first()], 0.5f),
-                0.5f);
+            float3 &first_pos = positions[points.first()];
+            float3 &last_pos = positions[points.last()];
+            const float3 &after_first_pos = positions[points.first() + 1];
+            const float3 &before_last_pos = positions[points.last() - 1];
+            first_pos = math::interpolate(
+                first_pos, math::interpolate(last_pos, after_first_pos, 0.5f), 0.5f);
+            last_pos = math::interpolate(
+                last_pos, math::interpolate(before_last_pos, first_pos, 0.5f), 0.5f);
           }
         }
       });
