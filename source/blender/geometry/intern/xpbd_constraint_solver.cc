@@ -46,7 +46,7 @@ UnaryConstraintSetIndices::UnaryConstraintSetIndices(const int affected_points_r
 Vector<IndexMask> UnaryConstraintSetIndices::generate_independent_masks(
     IndexMaskMemory &memory) const
 {
-  return detect_independent_constraints(
+  return detect_independent_constraints<int>(
       [&](const int constraint_i) { return Span<int>(&this->affected_points_[constraint_i], 1); },
       this->constraints_num,
       memory);
@@ -63,7 +63,7 @@ BinaryConstraintSetIndices::BinaryConstraintSetIndices(const int affected_points
 Vector<IndexMask> BinaryConstraintSetIndices::generate_independent_masks(
     IndexMaskMemory &memory) const
 {
-  return detect_independent_constraints(
+  return detect_independent_constraints<int>(
       [&](const int constraint_i) {
         return Span<int>(&this->affected_points_[constraint_i][0], 2);
       },

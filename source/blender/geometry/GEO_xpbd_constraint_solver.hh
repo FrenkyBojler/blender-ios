@@ -251,22 +251,22 @@ inline void GaussSeidelUpdater::update_rotation(const int points_ref_i,
   rotation = apply_rotation_offset(rotation, float4(offset));
 }
 
-template<typename GetConstraintPointsFn>
+template<typename PointID, typename GetConstraintPointsFn>
 inline int color_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
                              MutableSpan<int> r_colors)
 {
   const int constraints_num = r_colors.size();
-  MultiValueMap<int, int> constraints_by_point;
+  MultiValueMap<PointID, int> constraints_by_point;
   for (const int constraint_i : IndexRange(constraints_num)) {
-    for (const int point_i : get_constraint_points_fn(constraint_i)) {
-      constraints_by_point.add(point_i, constraint_i);
+    for (const PointID point_id : get_constraint_points_fn(constraint_i)) {
+      constraints_by_point.add(point_id, constraint_i);
     }
   }
   int colors_num = 0;
   for (const int constraint_i : IndexRange(constraints_num)) {
     Vector<int> used_colors;
-    for (const int point_i : get_constraint_points_fn(constraint_i)) {
-      for (const int other_constraint_i : constraints_by_point.lookup(point_i)) {
+    for (const PointID point_id : get_constraint_points_fn(constraint_i)) {
+      for (const int other_constraint_i : constraints_by_point.lookup(point_id)) {
         if (other_constraint_i >= constraint_i) {
           continue;
         }
@@ -283,7 +283,7 @@ inline int color_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
   return colors_num;
 }
 
-template<typename GetConstraintPointsFn>
+template<typename PointID, typename GetConstraintPointsFn>
 inline Vector<IndexMask> detect_independent_constraints(
     GetConstraintPointsFn &&get_constraint_points_fn,
     const int constraints_num,
@@ -293,7 +293,7 @@ inline Vector<IndexMask> detect_independent_constraints(
     return {};
   }
   Array<int> colors(constraints_num);
-  const int colors_num = color_constraints(get_constraint_points_fn, colors);
+  const int colors_num = color_constraints<PointID>(get_constraint_points_fn, colors);
   Array<Vector<int>> masks_indices(colors_num);
   for (const int constraint_i : IndexRange(constraints_num)) {
     masks_indices[colors[constraint_i]].append(constraint_i);
