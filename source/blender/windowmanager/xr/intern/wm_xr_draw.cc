@@ -329,17 +329,20 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
 
 static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionState *state)
 {
-  float color[4] = { 0, 0, 0, 1 }, aperture = state->vignette_aperture, falloff = 0.15f;
+  float viewport[4], color[4] = { 0, 0, 0, 1 }, aperture = state->vignette_aperture, falloff = 0.15f;
 
   if (aperture > M_SQRT1_2)
   {
     return;
   }
 
+  GPU_viewport_size_get_f(viewport);
+  copy_v3_v3(color, settings->shading.background_color);
+
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_blend(GPU_BLEND_ALPHA);
 
-  // TODO: Determine a more robust method to determine depth / scale
+  /* TODO: Determine a more robust method to determine depth & scale */
   float camera_mat[4][4], offset[3], depth = 1.0f, scale = 3.0f;
   invert_m4_m4(camera_mat, state->viewer_viewmat);  
   copy_v3_fl3(offset, 0.5f * scale, -0.5f * scale, -depth);
@@ -349,6 +352,7 @@ static void wm_xr_vignette_draw(const XrSessionSettings *settings, wmXrSessionSt
   GPU_batch_uniform_4fv(quad, "color", color);
   GPU_batch_uniform_1f(quad, "aperture", aperture);
   GPU_batch_uniform_1f(quad, "falloff", falloff);
+  GPU_batch_uniform_2fv(quad, "viewportSize", &viewport[2]);
 
   GPU_matrix_push();
 
