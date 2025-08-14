@@ -409,7 +409,7 @@ namespace nurbs {
 template<typename InterpType>
 void evaluate_curve(const InterpType interp_type,
                     const IndexRange points,
-                    const IndexRange evaluated_points,
+                    const IndexRange evaluated_points_padded,
                     const uint curve_index)
 {
   /* Buffer aliasing to same bind point. We cannot dispatch with different type of curve. */
@@ -422,9 +422,13 @@ void evaluate_curve(const InterpType interp_type,
   const bool invalid = basis_cache_start < 0;
 
   if (invalid) {
-    copy_curve_data(interp_type, points, evaluated_points);
+    copy_curve_data(interp_type, points, evaluated_points_padded);
     return;
   }
+
+  /* Recover original points range without closing cyclic point. */
+  const IndexRange evaluated_points = IndexRange(evaluated_points_padded.start(),
+                                                 evaluated_points_padded.size() - int(use_cyclic));
 
   const int start_indices_range_start = basis_cache_start;
   const int weights_range_start = basis_cache_start + evaluated_points.size();
@@ -453,6 +457,12 @@ void evaluate_curve(const InterpType interp_type,
     }
     /* Equivalent to `mixer.finalize()` */
     output_mul(evaluated_point_index, safe_rcp(total_weight), interp_type);
+  }
+
+  if (use_cyclic) {
+    /* The closing point is not contained inside the NURBS data structure so we do manual copy. */
+    output_write(evaluated_points_padded.last(),
+                 output_load(evaluated_points_padded.first(), interp_type));
   }
 }
 
