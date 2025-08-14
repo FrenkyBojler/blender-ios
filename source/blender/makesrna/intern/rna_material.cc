@@ -1091,13 +1091,6 @@ void RNA_def_material(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "Node tree for node based materials");
 
-  // prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
-  // RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
-  // RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  // RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  // RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes to render the material");
-  // RNA_def_property_update(prop, 0, "rna_Material_use_nodes_update");
-
   /* common */
   rna_def_animdata_common(srna);
   rna_def_texpaint_slots(brna, srna);
