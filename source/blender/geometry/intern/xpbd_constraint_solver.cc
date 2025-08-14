@@ -7,6 +7,72 @@
 
 namespace blender::geometry::xpbd_constraint_solver {
 
+ConstraintSetIndices::ConstraintSetIndices(const int constraints_num,
+                                           Vector<int> target_points_refs)
+    : constraints_num(constraints_num), target_points_refs(std::move(target_points_refs))
+{
+}
+
+void ConstraintSetIndices::foreach_independent_mask(
+    const FunctionRef<void(const IndexMask &mask)> fn) const
+{
+  /* By default, assume all constraints depend on each other, so only one element can be
+   * processed in parallel. */
+  for (const int i : IndexRange(this->constraints_num)) {
+    const IndexMask mask = IndexRange::from_single(i);
+    fn(mask);
+  }
+}
+
+UnaryConstraintSetIndices::UnaryConstraintSetIndices(const int points_ref_i,
+                                                     const Span<int> points)
+    : ConstraintSetIndices(points.size(), {points_ref_i}),
+      points_ref_i(points_ref_i),
+      points(points)
+{
+}
+
+void UnaryConstraintSetIndices::foreach_independent_mask(
+    const FunctionRef<void(const IndexMask &mask)> fn) const
+{
+  independent_masks_mutex_.ensure([&]() {
+    independent_masks_ = detect_independent_constraints(
+        [&](const int constraint_i) { return Span<int>(&this->points[constraint_i], 1); },
+        this->constraints_num,
+        independent_masks_memory_);
+  });
+  for (const IndexMask &mask : independent_masks_) {
+    fn(mask);
+  }
+}
+
+BinaryConstraintSetIndices::BinaryConstraintSetIndices(const int points_ref_i,
+                                                       const Span<int2> point_pairs)
+    : ConstraintSetIndices(point_pairs.size(), {points_ref_i}),
+      points_ref_i(points_ref_i),
+      point_pairs(point_pairs)
+{
+}
+
+void BinaryConstraintSetIndices::foreach_independent_mask(
+    const FunctionRef<void(const IndexMask &mask)> fn) const
+{
+  independent_masks_mutex_.ensure([&]() {
+    independent_masks_ = detect_independent_constraints(
+        [&](const int constraint_i) { return Span<int>(&this->point_pairs[constraint_i][0], 2); },
+        this->point_pairs.size(),
+        independent_masks_memory_);
+  });
+  for (const IndexMask &mask : independent_masks_) {
+    fn(mask);
+  }
+}
+
+ConstraintSet::ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluator &evaluator)
+    : indices(&indices), evaluator(&evaluator)
+{
+}
+
 void solve_gauss_seidel_one_at_a_time(const Span<PointsRef> points_refs,
                                       const Span<ConstraintSet> constraint_sets)
 {

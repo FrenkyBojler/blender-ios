@@ -17,10 +17,7 @@ namespace blender::geometry::xpbd_constraint_solver {
 struct PointsRef {
   MutableSpan<float3> positions;
 
-  uint64_t size() const
-  {
-    return this->positions.size();
-  }
+  uint64_t size() const;
 };
 
 class NonDeterministicParallelJacobianSolver {
@@ -35,27 +32,17 @@ class NonDeterministicParallelJacobianSolver {
   Span<MutableSpan<Item>> offsets_;
 
  public:
-  NonDeterministicParallelJacobianSolver(Span<MutableSpan<Item>> offsets) : offsets_(offsets) {}
-
-  void offset_position(const int points_ref_i, const int point_i, const float3 &offset)
-  {
-    Item &item = offsets_[points_ref_i][point_i];
-    std::lock_guard lock(item.mutex);
-    item.counter++;
-    item.offset += offset;
-  }
+  NonDeterministicParallelJacobianSolver(Span<MutableSpan<Item>> offsets);
+  void offset_position(const int points_ref_i, const int point_i, const float3 &offset);
 };
 
 class GaussSeidelSolver {
-  Span<PointsRef> points_refs;
+ private:
+  Span<PointsRef> points_refs_;
 
  public:
-  GaussSeidelSolver(Span<PointsRef> point_sets) : points_refs(point_sets) {}
-
-  void offset_position(const int points_ref_i, const int point_i, const float3 &offset)
-  {
-    points_refs[points_ref_i].positions[point_i] += offset;
-  }
+  GaussSeidelSolver(Span<PointsRef> point_sets);
+  void offset_position(const int points_ref_i, const int point_i, const float3 &offset);
 };
 
 class ConstraintSetEvaluator {
@@ -67,6 +54,109 @@ class ConstraintSetEvaluator {
   virtual void evaluate_gauss_seidel_parallel(GaussSeidelSolver &solver,
                                               const IndexMask &constraint_mask) const = 0;
 };
+
+class ConstraintSetIndices {
+ public:
+  virtual ~ConstraintSetIndices() = default;
+
+  int constraints_num;
+  Vector<int> target_points_refs;
+
+  ConstraintSetIndices(const int constraints_num, Vector<int> target_points_refs);
+  virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const;
+};
+
+class UnaryConstraintSetIndices : public ConstraintSetIndices {
+ private:
+  mutable CacheMutex independent_masks_mutex_;
+  mutable IndexMaskMemory independent_masks_memory_;
+  mutable Vector<IndexMask> independent_masks_;
+
+ public:
+  int points_ref_i;
+  Span<int> points;
+
+  UnaryConstraintSetIndices(const int points_ref_i, const Span<int> points);
+  void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const override;
+};
+
+class BinaryConstraintSetIndices : public ConstraintSetIndices {
+ private:
+  mutable CacheMutex independent_masks_mutex_;
+  mutable IndexMaskMemory independent_masks_memory_;
+  mutable Vector<IndexMask> independent_masks_;
+
+ public:
+  int points_ref_i;
+  Span<int2> point_pairs;
+
+  BinaryConstraintSetIndices(const int points_ref_i, const Span<int2> point_pairs);
+  void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const override;
+};
+
+struct ConstraintSet {
+  const ConstraintSetIndices *indices;
+  const ConstraintSetEvaluator *evaluator;
+
+  ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluator &evaluator);
+};
+
+template<typename Child> class TemplatedConstraintSetEvaluator : public ConstraintSetEvaluator {
+  TemplatedConstraintSetEvaluator() = default;
+  friend Child;
+
+ public:
+  void evaluate_jacobian_non_deterministic(NonDeterministicParallelJacobianSolver &solver,
+                                           const IndexMask &constraint_mask) const override;
+  void evaluate_gauss_seidel_parallel(GaussSeidelSolver &solver,
+                                      const IndexMask &constraint_mask) const override;
+  template<typename SolverT>
+  void evaluate(SolverT &solver, const IndexMask &constraint_mask) const;
+};
+
+void solve_gauss_seidel_one_at_a_time(Span<PointsRef> points_refs,
+                                      Span<ConstraintSet> constraint_sets);
+
+void solve_jacobian_non_deterministic(Span<PointsRef> points_refs,
+                                      Span<ConstraintSet> constraint_sets);
+
+void solve_gauss_seidel_parallel(Span<PointsRef> points_refs, Span<ConstraintSet> constraint_sets);
+
+/* -------------------------------------------------------------------- */
+/** \name Inline Functions
+ * \{ */
+
+inline uint64_t PointsRef::size() const
+{
+  return this->positions.size();
+}
+
+inline NonDeterministicParallelJacobianSolver::NonDeterministicParallelJacobianSolver(
+    Span<MutableSpan<Item>> offsets)
+    : offsets_(offsets)
+{
+}
+
+inline void NonDeterministicParallelJacobianSolver::offset_position(const int points_ref_i,
+                                                                    const int point_i,
+                                                                    const float3 &offset)
+{
+  Item &item = offsets_[points_ref_i][point_i];
+  std::lock_guard lock(item.mutex);
+  item.counter++;
+  item.offset += offset;
+}
+
+inline GaussSeidelSolver::GaussSeidelSolver(Span<PointsRef> point_sets) : points_refs_(point_sets)
+{
+}
+
+inline void GaussSeidelSolver::offset_position(const int points_ref_i,
+                                               const int point_i,
+                                               const float3 &offset)
+{
+  points_refs_[points_ref_i].positions[point_i] += offset;
+}
 
 template<typename GetConstraintPointsFn>
 inline int color_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
@@ -123,137 +213,33 @@ inline Vector<IndexMask> detect_independent_constraints(
   return masks;
 }
 
-class ConstraintSetIndices {
- public:
-  virtual ~ConstraintSetIndices() = default;
+template<typename Child>
+inline void TemplatedConstraintSetEvaluator<Child>::evaluate_jacobian_non_deterministic(
+    NonDeterministicParallelJacobianSolver &solver, const IndexMask &constraint_mask) const
+{
+  const Child &self = static_cast<const Child &>(*this);
+  self.evaluate(solver, constraint_mask);
+}
 
-  int constraints_num;
-  Vector<int> target_points_refs;
+template<typename Child>
+inline void TemplatedConstraintSetEvaluator<Child>::evaluate_gauss_seidel_parallel(
+    GaussSeidelSolver &solver, const IndexMask &constraint_mask) const
+{
+  const Child &self = static_cast<const Child &>(*this);
+  self.evaluate(solver, constraint_mask);
+}
 
-  ConstraintSetIndices(const int constraints_num, Vector<int> target_points_refs)
-      : constraints_num(constraints_num), target_points_refs(std::move(target_points_refs))
-  {
-  }
-
-  virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const
-  {
-    /* By default, assume all constraints depend on each other, so only one element can be
-     * processed in parallel. */
-    for (const int i : IndexRange(this->constraints_num)) {
-      const IndexMask mask = IndexRange::from_single(i);
-      fn(mask);
-    }
-  }
-};
-
-class UnaryConstraintSetIndices : public ConstraintSetIndices {
- private:
-  mutable CacheMutex independent_masks_mutex_;
-  mutable IndexMaskMemory independent_masks_memory_;
-  mutable Vector<IndexMask> independent_masks_;
-
- public:
-  int points_ref_i;
-  Span<int> points;
-
-  UnaryConstraintSetIndices(const int points_ref_i, const Span<int> points)
-      : ConstraintSetIndices(points.size(), {points_ref_i}),
-        points_ref_i(points_ref_i),
-        points(points)
-  {
-  }
-
-  virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const
-  {
-    independent_masks_mutex_.ensure([&]() {
-      independent_masks_ = detect_independent_constraints(
-          [&](const int constraint_i) { return Span<int>(&this->points[constraint_i], 1); },
-          this->constraints_num,
-          independent_masks_memory_);
-    });
-    for (const IndexMask &mask : independent_masks_) {
-      fn(mask);
-    }
-  }
-};
-
-class BinaryConstraintSetIndices : public ConstraintSetIndices {
- private:
-  mutable CacheMutex independent_masks_mutex_;
-  mutable IndexMaskMemory independent_masks_memory_;
-  mutable Vector<IndexMask> independent_masks_;
-
- public:
-  int points_ref_i;
-  Span<int2> point_pairs;
-
-  BinaryConstraintSetIndices(const int points_ref_i, const Span<int2> point_pairs)
-      : ConstraintSetIndices(point_pairs.size(), {points_ref_i}),
-        points_ref_i(points_ref_i),
-        point_pairs(point_pairs)
-  {
-  }
-
-  virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const
-  {
-    independent_masks_mutex_.ensure([&]() {
-      independent_masks_ = detect_independent_constraints(
-          [&](const int constraint_i) {
-            return Span<int>(&this->point_pairs[constraint_i][0], 2);
-          },
-          this->point_pairs.size(),
-          independent_masks_memory_);
-    });
-    for (const IndexMask &mask : independent_masks_) {
-      fn(mask);
-    }
-  }
-};
-
-struct ConstraintSet {
-  const ConstraintSetIndices *indices;
-  const ConstraintSetEvaluator *evaluator;
-
-  ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluator &evaluator)
-      : indices(&indices), evaluator(&evaluator)
-  {
-  }
-};
-
-template<typename Child> class TemplatedConstraintSetEvaluator : public ConstraintSetEvaluator {
-  TemplatedConstraintSetEvaluator() = default;
-  friend Child;
-
- public:
-  void evaluate_jacobian_non_deterministic(NonDeterministicParallelJacobianSolver &solver,
-                                           const IndexMask &constraint_mask) const override
-  {
+template<typename Child>
+template<typename SolverT>
+inline void TemplatedConstraintSetEvaluator<Child>::evaluate(
+    SolverT &solver, const IndexMask &constraint_mask) const
+{
+  constraint_mask.foreach_index(GrainSize(256), [&](const int constraint_i) {
     const Child &self = static_cast<const Child &>(*this);
-    self.evaluate(solver, constraint_mask);
-  }
+    self.evaluate_single(solver, constraint_i);
+  });
+}
 
-  void evaluate_gauss_seidel_parallel(GaussSeidelSolver &solver,
-                                      const IndexMask &constraint_mask) const override
-  {
-    const Child &self = static_cast<const Child &>(*this);
-    self.evaluate(solver, constraint_mask);
-  }
-
-  template<typename SolverT> void evaluate(SolverT &solver, const IndexMask &constraint_mask) const
-  {
-    constraint_mask.foreach_index(GrainSize(256), [&](const int constraint_i) {
-      const Child &self = static_cast<const Child &>(*this);
-      self.evaluate_single(solver, constraint_i);
-    });
-  }
-};
-
-void solve_gauss_seidel_one_at_a_time(Span<PointsRef> points_refs,
-                                      Span<ConstraintSet> constraint_sets);
-
-void solve_jacobian_non_deterministic(Span<PointsRef> points_refs,
-                                      Span<ConstraintSet> constraint_sets);
-
-void solve_gauss_seidel_parallel(Span<PointsRef> points_refs, Span<ConstraintSet> constraint_sets);
+/** \} */
 
 }  // namespace blender::geometry::xpbd_constraint_solver
