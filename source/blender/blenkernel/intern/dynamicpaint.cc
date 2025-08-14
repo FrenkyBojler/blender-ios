@@ -19,6 +19,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -120,6 +121,18 @@ static int neighStraightY[8] = {0, 1, 0, -1, 1, 1, -1, -1};
 /* drying limits */
 #define MIN_WETNESS 0.001f
 #define MAX_WETNESS 5.0f
+
+/* Is stored in ModifierData.runtime. */
+struct DynamicPaintRuntime {
+  struct Mesh *canvas_mesh = nullptr;
+  struct Mesh *brush_mesh = nullptr;
+  /**
+   * Brush access is not thread safe.
+   * So a mutex is needed to ensure nested evaluation doesn't overwrite
+   * the mesh while it's copied.
+   */
+  blender::Mutex brush_mutex;
+};
 
 /* dissolve inline function */
 BLI_INLINE void value_dissolve(float *r_value,
@@ -265,18 +278,27 @@ void dynamicPaint_Modifier_free_runtime(DynamicPaintRuntime *runtime_data)
   if (runtime_data->canvas_mesh) {
     BKE_id_free(nullptr, runtime_data->canvas_mesh);
   }
-  if (runtime_data->brush_mesh) {
-    BKE_id_free(nullptr, runtime_data->brush_mesh);
+
+  {
+    std::lock_guard lock{runtime_data->brush_mutex};
+    if (runtime_data->brush_mesh) {
+      BKE_id_free(nullptr, runtime_data->brush_mesh);
+    }
   }
-  MEM_freeN(runtime_data);
+  MEM_delete(runtime_data);
 }
 
-static DynamicPaintRuntime *dynamicPaint_Modifier_runtime_ensure(DynamicPaintModifierData *pmd)
+static DynamicPaintRuntime *dynamicPaint_Modifier_runtime_get(DynamicPaintModifierData *pmd)
+{
+  BLI_assert(pmd->modifier.runtime);
+  return (DynamicPaintRuntime *)pmd->modifier.runtime;
+}
+
+void dynamicPaint_Modifier_runtime_ensure(DynamicPaintModifierData *pmd)
 {
   if (pmd->modifier.runtime == nullptr) {
-    pmd->modifier.runtime = MEM_callocN<DynamicPaintRuntime>("dynamic paint runtime");
+    pmd->modifier.runtime = MEM_new<DynamicPaintRuntime>("dynamic paint runtime");
   }
-  return (DynamicPaintRuntime *)pmd->modifier.runtime;
 }
 
 static Mesh *dynamicPaint_canvas_mesh_get(DynamicPaintCanvasSettings *canvas)
@@ -288,13 +310,45 @@ static Mesh *dynamicPaint_canvas_mesh_get(DynamicPaintCanvasSettings *canvas)
   return runtime_data->canvas_mesh;
 }
 
-static Mesh *dynamicPaint_brush_mesh_get(DynamicPaintBrushSettings *brush)
+/**
+ * The caller must lock `DynamicPaintRuntime::brush_mutex`.
+ */
+static Mesh *dynamicPaint_brush_mesh_get_no_lock(DynamicPaintBrushSettings *brush)
 {
   if (brush->pmd->modifier.runtime == nullptr) {
     return nullptr;
   }
   DynamicPaintRuntime *runtime_data = (DynamicPaintRuntime *)brush->pmd->modifier.runtime;
   return runtime_data->brush_mesh;
+}
+
+static void mesh_shared_data_clear(Mesh *mesh)
+{
+  BKE_mesh_runtime_clear_cache(mesh);
+
+  CustomData_ensure_layers_are_mutable(&mesh->face_data, mesh->faces_num);
+  CustomData_ensure_layers_are_mutable(&mesh->corner_data, mesh->corners_num);
+  CustomData_ensure_layers_are_mutable(&mesh->edge_data, mesh->edges_num);
+  CustomData_ensure_layers_are_mutable(&mesh->vert_data, mesh->verts_num);
+}
+
+/**
+ * A copy function that managers locking.
+ */
+static Mesh *dynamicPaint_brush_mesh_copy(DynamicPaintBrushSettings *brush)
+{
+  if (brush->pmd->modifier.runtime == nullptr) {
+    return nullptr;
+  }
+  DynamicPaintRuntime *runtime_data = (DynamicPaintRuntime *)brush->pmd->modifier.runtime;
+
+  Mesh *result;
+  {
+    std::lock_guard lock{runtime_data->brush_mutex};
+    result = BKE_mesh_copy_for_eval(*runtime_data->brush_mesh);
+    mesh_shared_data_clear(result);
+  }
+  return result;
 }
 
 /***************************** General Utils ******************************/
@@ -1198,6 +1252,9 @@ bool dynamicPaint_createType(DynamicPaintModifierData *pmd, int type, Scene *sce
         brush->paint_ramp->tot = 2;
       }
     }
+
+    /* Runtime must always be set. */
+    dynamicPaint_Modifier_runtime_ensure(pmd);
   }
   else {
     return false;
@@ -2060,11 +2117,18 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
   }
   /* make a copy of mesh to use as brush data */
   else if (pmd->brush && pmd->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
-    DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_ensure(pmd);
+    /* NOTE: don't use ensure here as it's not thread-safe
+     * to initialize this data from multiple threads. */
+    DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_get(pmd);
+    BLI_assert(runtime_data != nullptr);
+
+    std::lock_guard lock{runtime_data->brush_mutex};
+    BLI_assert(runtime_data != nullptr);
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
     runtime_data->brush_mesh = BKE_mesh_copy_for_eval(*result);
+    mesh_shared_data_clear(runtime_data->brush_mesh);
   }
 
   return result;
@@ -2080,7 +2144,7 @@ void dynamicPaint_cacheUpdateFrames(DynamicPaintSurface *surface)
 
 static void canvas_copyMesh(DynamicPaintCanvasSettings *canvas, Mesh *mesh)
 {
-  DynamicPaintRuntime *runtime = dynamicPaint_Modifier_runtime_ensure(canvas->pmd);
+  DynamicPaintRuntime *runtime = dynamicPaint_Modifier_runtime_get(canvas->pmd);
   if (runtime->canvas_mesh != nullptr) {
     BKE_id_free(nullptr, runtime->canvas_mesh);
   }
@@ -3812,7 +3876,7 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
                                       SUBFRAME_RECURSION,
                                       BKE_scene_ctime_get(scene),
                                       eModifierType_DynamicPaint);
-  mesh_p = BKE_mesh_copy_for_eval(*dynamicPaint_brush_mesh_get(brush));
+  mesh_p = dynamicPaint_brush_mesh_copy(brush);
   numOfVerts_p = mesh_p->verts_num;
 
   float(*positions_p)[3] = reinterpret_cast<float(*)[3]>(
@@ -3830,7 +3894,14 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
                                       SUBFRAME_RECURSION,
                                       BKE_scene_ctime_get(scene),
                                       eModifierType_DynamicPaint);
-  mesh_c = dynamicPaint_brush_mesh_get(brush);
+  if (brush->pmd->modifier.runtime == nullptr) {
+    return;
+  }
+
+  /* NOTE(@ideasman42): it might be better to copy the vertex positions then to hold the lock. */
+  static DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_get(brush->pmd);
+  std::lock_guard lock{runtime_data->brush_mutex};
+  mesh_c = dynamicPaint_brush_mesh_get_no_lock(brush);
   numOfVerts_c = mesh_c->verts_num;
   float(*positions_c)[3] = reinterpret_cast<float(*)[3]>(
       mesh_c->vert_positions_for_write().data());
@@ -4283,7 +4354,6 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
 {
   PaintSurfaceData *sData = surface->data;
   PaintBakeData *bData = sData->bData;
-  Mesh *mesh = nullptr;
   Vec3f *brushVelocity = nullptr;
 
   if (brush->flags & MOD_DPAINT_USES_VELOCITY) {
@@ -4291,8 +4361,8 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
         depsgraph, scene, brushOb, brush, &brushVelocity, timescale);
   }
 
-  Mesh *brush_mesh = dynamicPaint_brush_mesh_get(brush);
-  if (brush_mesh == nullptr) {
+  Mesh *mesh = dynamicPaint_brush_mesh_copy(brush);
+  if (mesh == nullptr) {
     return false;
   }
 
@@ -4304,7 +4374,6 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     Bounds3D mesh_bb = {{0}};
     DynamicPaintVolumeGrid *grid = bData->grid;
 
-    mesh = BKE_mesh_copy_for_eval(*brush_mesh);
     blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
     const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
     const blender::Span<int> corner_verts = mesh->corner_verts();
@@ -4799,7 +4868,10 @@ static bool dynamicPaint_paintSinglePoint(
     dynamicPaint_brushObjectCalculateVelocity(depsgraph, scene, brushOb, &brushVel, timescale);
   }
 
-  const Mesh *brush_mesh = dynamicPaint_brush_mesh_get(brush);
+  /* NOTE(@ideasman42): it might be better to copy the vertex positions then to hold the lock. */
+  static DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_get(brush->pmd);
+  std::lock_guard lock{runtime_data->brush_mutex};
+  const Mesh *brush_mesh = dynamicPaint_brush_mesh_get_no_lock(brush);
 
   /*
    * Loop through every surface point
@@ -6248,6 +6320,7 @@ static int dynamicPaint_doStep(Depsgraph *depsgraph,
       /* check if target has an active dp modifier */
       ModifierData *md = BKE_modifiers_findby_type(brushObj, eModifierType_DynamicPaint);
       if (md && md->mode & (eModifierMode_Realtime | eModifierMode_Render)) {
+        BLI_assert(md->runtime != nullptr);
         DynamicPaintModifierData *pmd2 = (DynamicPaintModifierData *)md;
         /* make sure we're dealing with a brush */
         if (pmd2->brush && pmd2->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
