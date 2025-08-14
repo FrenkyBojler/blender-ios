@@ -91,11 +91,11 @@ struct SimPoints {
   Array<float3> velocities;
 };
 
-struct PathComponentKey {
+struct SimPointsKey {
   std::string path;
   bke::GeometryComponent::Type type;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(PathComponentKey, path, type)
+  BLI_STRUCT_EQUALITY_OPERATORS_2(SimPointsKey, path, type)
 
   uint64_t hash() const
   {
@@ -120,8 +120,8 @@ class XPBDState {
    */
   int update_counter = 0;
 
-  Map<PathComponentKey, SimPoints> sim_points;
-  Map<PathComponentKey, DistanceConstraintLengths> distance_constraint_lengths;
+  Map<SimPointsKey, SimPoints> sim_points;
+  Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -196,7 +196,7 @@ static WorldData parse_world(const Bundle &world_bundle)
 
 static void apply_external_accelerations_and_velocities(
     XPBDState &state,
-    const Map<PathComponentKey, Span<float3>> &accelerations_map,
+    const Map<SimPointsKey, Span<float3>> &accelerations_map,
     const float delta_time)
 {
   for (auto item : state.sim_points.items()) {
@@ -232,7 +232,7 @@ static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBD
   GeometrySet geometry = bundle.geometry;
 
   if (geometry.has_mesh()) {
-    const PathComponentKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
     if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
       apply_simulation_to_mesh(geometry, *sim_points);
     }
@@ -244,10 +244,10 @@ static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBD
 static void update_xpbd_state_for_geometry(XPBDState &state,
                                            const XPBDGeometryBundle &bundle,
                                            const GeometrySet &current_geometry,
-                                           Map<PathComponentKey, SimPoints> &r_sim_points)
+                                           Map<SimPointsKey, SimPoints> &r_sim_points)
 {
   if (current_geometry.has_mesh()) {
-    const PathComponentKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
     const Mesh *current_mesh = current_geometry.get_mesh();
     std::optional<SimPoints> new_sim_points;
     if (std::optional<SimPoints> old_sim_points = state.sim_points.pop_try(key)) {
@@ -280,17 +280,17 @@ static Vector<const T *> filter_bundles_for_path(const Span<T> bundles, const St
   return used_forces;
 }
 
-static Map<PathComponentKey, Span<float3>> compute_external_accelerations(
+static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     ResourceScope &scope,
     const WorldData &world,
-    const Map<PathComponentKey, Span<float>> inverse_masses_map,
+    const Map<SimPointsKey, Span<float>> inverse_masses_map,
     const Span<GeometrySet> applied_geometries)
 {
   float3 gravity(0.0f);
   for (const GravityBundle &gravity_bundle : world.gravities) {
     gravity = gravity_bundle.gravity;
   }
-  Map<PathComponentKey, Span<float3>> accelerations_map;
+  Map<SimPointsKey, Span<float3>> accelerations_map;
   for (const int bundle_i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
@@ -340,10 +340,10 @@ static Map<PathComponentKey, Span<float3>> compute_external_accelerations(
  * Computes the inverse mass for each point. The inverse mass of points that are known to be pinned
  * is 0 (aka they are assumed to have infinite mass).
  */
-static Map<PathComponentKey, Span<float>> compute_inverse_masses(
+static Map<SimPointsKey, Span<float>> compute_inverse_masses(
     ResourceScope &scope, const WorldData &world, const Span<GeometrySet> applied_geometries)
 {
-  Map<PathComponentKey, Span<float>> inverse_masses_map;
+  Map<SimPointsKey, Span<float>> inverse_masses_map;
   for (const int bundle_i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
@@ -394,9 +394,9 @@ static void gather_distance_constraints(
     XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
-    const VectorSet<PathComponentKey> &all_sim_points_keys,
+    const VectorSet<SimPointsKey> &all_sim_points_keys,
     const Span<SimPoints *> all_sim_points,
-    const Map<PathComponentKey, Span<float>> &inverse_masses_map,
+    const Map<SimPointsKey, Span<float>> &inverse_masses_map,
     const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
@@ -406,8 +406,8 @@ static void gather_distance_constraints(
     if (!applied_geometry.has_mesh()) {
       continue;
     }
-    const PathComponentKey component_key = {geometry_bundle.self_path,
-                                            bke::GeometryComponent::Type::Mesh};
+    const SimPointsKey component_key = {geometry_bundle.self_path,
+                                        bke::GeometryComponent::Type::Mesh};
     const int geo_i = all_sim_points_keys.index_of(component_key);
     const SimPoints &sim_points = *all_sim_points[geo_i];
     const Mesh &mesh = *applied_geometry.get_mesh();
@@ -484,8 +484,8 @@ static void gather_pin_constraints(
     ResourceScope &scope,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
-    const VectorSet<PathComponentKey> &all_sim_points_keys,
-    const Span<SimPoints *> all_sim_points,
+    const VectorSet<SimPointsKey> &ordered_sim_points_keys,
+    const Span<SimPoints *> ordered_sim_points,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
   for (const int bundle_i : world.geometries.index_range()) {
@@ -505,8 +505,8 @@ static void gather_pin_constraints(
       const AttrDomain domain = bke::AttrDomain::Point;
       const int domain_size = component->attribute_domain_size(domain);
 
-      const int geo_i = all_sim_points_keys.index_of({geometry_bundle.self_path, type});
-      const SimPoints &sim_points = *all_sim_points[geo_i];
+      const int geo_i = ordered_sim_points_keys.index_of({geometry_bundle.self_path, type});
+      const SimPoints &sim_points = *ordered_sim_points[geo_i];
 
       bke::GeometryFieldContext field_context(*component, domain);
       for (const PinnedPositionXPBDConstraintBundle *constraint_bundle :
@@ -551,7 +551,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     applied_geometry = apply_simulation(geometry_bundle, state);
   }
 
-  Map<PathComponentKey, SimPoints> new_sim_points;
+  Map<SimPointsKey, SimPoints> new_sim_points;
   for (const int bundle_i : world.geometries.index_range()) {
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
     update_xpbd_state_for_geometry(
@@ -559,14 +559,14 @@ static void update_and_step_xpbd_state(XPBDState &state,
   }
   state.sim_points = std::move(new_sim_points);
 
-  Vector<SimPoints *> all_sim_points;
+  VectorSet<SimPointsKey> ordered_sim_points_keys;
+  Vector<SimPoints *> ordered_sim_points;
   Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
-  VectorSet<PathComponentKey> all_sim_points_keys;
   for (auto item : state.sim_points.items()) {
     SimPoints &sim_points = item.value;
-    all_sim_points.append(&sim_points);
+    ordered_sim_points_keys.add_new(item.key);
+    ordered_sim_points.append(&sim_points);
     points_refs.append({sim_points.positions});
-    all_sim_points_keys.add_new(item.key);
   }
 
   for (DistanceConstraintLengths &distance_constraint_lengths :
@@ -579,10 +579,10 @@ static void update_and_step_xpbd_state(XPBDState &state,
     }
   }
 
-  const Map<PathComponentKey, Span<float>> inverse_masses_map = compute_inverse_masses(
+  const Map<SimPointsKey, Span<float>> inverse_masses_map = compute_inverse_masses(
       scope, world, applied_geometries);
 
-  const Map<PathComponentKey, Span<float3>> accelerations_map = compute_external_accelerations(
+  const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
       scope, world, inverse_masses_map, applied_geometries);
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
@@ -592,22 +592,26 @@ static void update_and_step_xpbd_state(XPBDState &state,
                               state,
                               world,
                               applied_geometries,
-                              all_sim_points_keys,
-                              all_sim_points,
+                              ordered_sim_points_keys,
+                              ordered_sim_points,
                               inverse_masses_map,
                               sub_delta_time,
                               constraint_sets);
-  gather_pin_constraints(
-      scope, world, applied_geometries, all_sim_points_keys, all_sim_points, constraint_sets);
+  gather_pin_constraints(scope,
+                         world,
+                         applied_geometries,
+                         ordered_sim_points_keys,
+                         ordered_sim_points,
+                         constraint_sets);
 
-  Array<Array<float3>> all_prev_positions(all_sim_points.size());
-  for (const int i : all_sim_points.index_range()) {
-    all_prev_positions[i].reinitialize(all_sim_points[i]->points_num);
+  Array<Array<float3>> all_prev_positions(ordered_sim_points.size());
+  for (const int i : ordered_sim_points.index_range()) {
+    all_prev_positions[i].reinitialize(ordered_sim_points[i]->points_num);
   }
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
-    for (const int i : all_sim_points.index_range()) {
-      all_prev_positions[i].as_mutable_span().copy_from(all_sim_points[i]->positions);
+    for (const int i : ordered_sim_points.index_range()) {
+      all_prev_positions[i].as_mutable_span().copy_from(ordered_sim_points[i]->positions);
     }
     if (sub_delta_time > 0.0f) {
       apply_external_accelerations_and_velocities(state, accelerations_map, sub_delta_time);
@@ -632,9 +636,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
     }
 
     if (sub_delta_time > 0.0f) {
-      for (const int geo_i : all_sim_points.index_range()) {
+      for (const int geo_i : ordered_sim_points.index_range()) {
         Span<float3> prev_positions = all_prev_positions[geo_i];
-        SimPoints &sim_points = *all_sim_points[geo_i];
+        SimPoints &sim_points = *ordered_sim_points[geo_i];
         Span<float3> new_positions = sim_points.positions;
         MutableSpan<float3> velocities = sim_points.velocities;
         threading::parallel_for(
