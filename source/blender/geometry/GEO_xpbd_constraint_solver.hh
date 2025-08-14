@@ -178,6 +178,11 @@ inline uint64_t PointsRef::size() const
   return this->positions.size();
 }
 
+inline math::Quaternion apply_rotation_offset(math::Quaternion rotation, float4 offset)
+{
+  return math::normalize(math::Quaternion(float4(rotation) + offset));
+}
+
 inline NonDeterministicJacobianUpdater::NonDeterministicJacobianUpdater(
     Span<MutableSpan<Item>> offsets)
     : offsets_(offsets)
@@ -221,7 +226,7 @@ inline void GaussSeidelUpdater::update_rotation(const int points_ref_i,
                                                 const math::Quaternion &offset)
 {
   math::Quaternion &rotation = points_refs_[points_ref_i].rotations[point_i];
-  rotation = math::normalize(math::Quaternion(float4(rotation) + float4(offset)));
+  rotation = apply_rotation_offset(rotation, float4(offset));
 }
 
 template<typename GetConstraintPointsFn>

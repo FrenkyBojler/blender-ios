@@ -131,7 +131,7 @@ void solve_jacobian_non_deterministic(const Span<PointsRef> points_refs,
             }
             const float4 final_offset = item.rotation_offset / item.rotation_counter;
             math::Quaternion &rotation = point_set.rotations[point_i];
-            rotation = math::normalize(math::Quaternion(float4(rotation) + final_offset));
+            rotation = apply_rotation_offset(rotation, final_offset);
           }
         }
       });
