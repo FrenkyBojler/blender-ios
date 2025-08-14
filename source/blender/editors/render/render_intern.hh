@@ -72,6 +72,10 @@ void TEXTURE_OT_slot_copy(wmOperatorType *ot);
 void TEXTURE_OT_slot_paste(wmOperatorType *ot);
 void TEXTURE_OT_slot_move(wmOperatorType *ot);
 
+void CYCLES_OT_texture_cache_delete(wmOperatorType *ot);
+void CYCLES_OT_texture_cache_create(wmOperatorType *ot);
+void CYCLES_OT_texture_cache_clear(wmOperatorType *ot);
+
 /* `render_internal.cc` */
 
 /* Base class for all WM_JOB_TYPE_RENDER jobs. */

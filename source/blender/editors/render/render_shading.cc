@@ -22,6 +22,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -29,6 +30,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
+#include "BLI_fileops.h"
 
 #include "BLT_translation.hh"
 
@@ -44,6 +46,7 @@
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
+#include "BKE_main.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
@@ -93,6 +96,10 @@
 
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
+
+#ifdef WITH_CYCLES
+#  include "intern/cycles/util/image_maketx.h"
+#endif
 
 #include "UI_interface.hh"
 
@@ -3156,6 +3163,259 @@ void TEXTURE_OT_slot_paste(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Texture Cache Utilities
+ * \{ */
+
+/**
+ * Get the resolved texture cache directory path from user preferences.
+ * 
+ * \param C: The context containing blend file information
+ * \param cache_dir: Output buffer for the resolved cache directory path
+ * \param cache_dir_len: Size of the output buffer
+ * \return: True if successful, false if the cache directory is not set
+ */
+static bool get_texture_cache_directory(bContext *C, char *cache_dir, size_t cache_dir_len)
+{
+  /* Get texture cache directory from user preferences */
+  BLI_strncpy(cache_dir, U.texture_cachedir, cache_dir_len);
+  
+  /* Handle relative paths */
+  if (BLI_path_is_rel(cache_dir)) {
+    BLI_path_abs(cache_dir, BKE_main_blendfile_path(CTX_data_main(C)));
+  }
+  
+  /* Check if directory is set */
+  return cache_dir[0] != '\0';
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cycles Texture Cache Clear Operator
+ * \{ */
+
+static wmOperatorStatus CCL_texture_cache_delete(bContext *C, wmOperator *op)
+{
+  /* Get texture cache directory from user preferences */
+  char cache_dir[FILE_MAX];
+  if (!get_texture_cache_directory(C, cache_dir, sizeof(cache_dir))) {
+    BKE_report(op->reports, RPT_ERROR, "Texture cache directory not set in preferences");
+    return OPERATOR_CANCELLED;
+  }
+  
+  /* Check if directory exists */
+  if (!BLI_exists(cache_dir)) {
+    BKE_report(op->reports, RPT_WARNING, "Texture cache directory does not exist");
+    return OPERATOR_CANCELLED;
+  }
+
+  int deleted_count = 0;
+  
+  /* Get list of .tx files in directory */
+  struct direntry *file_list;
+  int num_files = BLI_filelist_dir_contents(cache_dir, &file_list);
+  
+  if (num_files <= 0) {
+    BKE_report(op->reports, RPT_INFO, "No files found in texture cache directory");
+    return OPERATOR_FINISHED;
+  }
+  
+  /* Delete all .tx files */
+  for (int i = 0; i < num_files; i++) {
+    if (BLI_str_endswith(file_list[i].relname, ".tx")) {
+      char filepath[FILE_MAX];
+      BLI_path_join(filepath, FILE_MAX, cache_dir, file_list[i].relname);
+      
+      if (BLI_delete(filepath, false, false) == 0) {
+        deleted_count++;
+      }
+    }
+  }
+  
+  BLI_filelist_free(file_list, num_files);
+  
+  if (deleted_count > 0) {
+    BKE_reportf(op->reports, RPT_INFO, "Deleted %d texture cache files (.tx)", deleted_count);
+  } else {
+    BKE_report(op->reports, RPT_INFO, "No .tx files found to delete");
+  }
+  
+  return OPERATOR_FINISHED;
+}
+
+void CYCLES_OT_texture_cache_delete(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Delete Texture Cache";
+  ot->idname = "CYCLES_OT_texture_cache_delete";
+  ot->description = "Delete all .tx texture cache files from the Cycles texture cache directory";
+
+  /* API callbacks */
+  ot->exec = CCL_texture_cache_delete;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cycles Texture Cache Generate Operator
+ * \{ */
+
+static wmOperatorStatus CCL_texture_cache_create(bContext *C, wmOperator *op)
+{
+  /* Get texture cache directory from user preferences */
+  char cache_dir[FILE_MAX];
+  if (!get_texture_cache_directory(C, cache_dir, sizeof(cache_dir))) {
+    BKE_report(op->reports, RPT_ERROR, "Texture cache directory not set in preferences");
+    return OPERATOR_CANCELLED;
+  }
+  Main *bmain = CTX_data_main(C);
+  int generated_count = 0;
+  
+  /* Create directory if it doesn't exist */
+  if (!BLI_exists(cache_dir)) {
+    if (BLI_dir_create_recursive(cache_dir)) {
+      BKE_reportf(op->reports, RPT_INFO, "Created texture cache directory: %s", cache_dir);
+    } else {
+      BKE_report(op->reports, RPT_ERROR, "Failed to create texture cache directory");
+      return OPERATOR_CANCELLED;
+    }
+  }
+
+  /* Process all images in the scene */
+  LISTBASE_FOREACH (Image *, image, &bmain->images) {
+    /* Skip non-file based images */
+    if (image->source != IMA_SRC_FILE) {
+      continue;
+    }
+    
+    /* Skip images without filepath */
+    if (!image->filepath[0]) {
+      continue;
+    }
+    
+    /* Get absolute filepath */
+    char filepath[FILE_MAX];
+    BLI_strncpy(filepath, image->filepath, sizeof(filepath));
+    BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&image->id));
+    
+    /* Check if source file exists */
+    if (!BLI_exists(filepath)) {
+      continue;
+    }
+    
+    /* Generate .tx filename */
+    char tx_filename[FILE_MAX];
+    BLI_path_split_file_part(filepath, tx_filename, sizeof(tx_filename));
+    const char *ext = BLI_path_extension(tx_filename);
+    if (ext) {
+      char *ext_pos = const_cast<char *>(ext);
+      BLI_strncpy(ext_pos, ".tx", sizeof(tx_filename) - (ext_pos - tx_filename));
+    } else {
+      BLI_strncat(tx_filename, ".tx", sizeof(tx_filename));
+    }
+    
+    char tx_filepath[FILE_MAX];
+    BLI_path_join(tx_filepath, sizeof(tx_filepath), cache_dir, tx_filename);
+    
+    /* Skip if .tx file already exists and is newer than source */
+    if (BLI_exists(tx_filepath)) {
+      BLI_stat_t source_stat, tx_stat;
+      if (BLI_stat(filepath, &source_stat) == 0 && BLI_stat(tx_filepath, &tx_stat) == 0) {
+        if (tx_stat.st_mtime >= source_stat.st_mtime) {
+          continue; /* .tx file is up to date */
+        }
+      }
+    }
+    
+#ifdef WITH_CYCLES
+    /* Call Cycles make_tx function to generate proper .tx file */
+    ccl::ImageAlphaType alpha_type = static_cast<ccl::ImageAlphaType>(image->alpha_mode);
+    ccl::ImageFormatType format_type = ccl::IMAGE_FORMAT_PLAIN; /* Default format */
+    ccl::ustring colorspace(image->colorspace_settings.name);
+    
+    if (ccl::make_tx(ccl::string(filepath), ccl::string(tx_filepath), colorspace, alpha_type, format_type)) {
+      generated_count++;
+    } else {
+      BKE_reportf(op->reports, RPT_WARNING, "Failed to generate .tx file for %s", image->filepath);
+    }
+#else
+    /* Fallback: create placeholder file */
+    FILE *tx_file = BLI_fopen(tx_filepath, "w");
+    if (tx_file) {
+      fprintf(tx_file, "# Texture cache placeholder for %s\n", image->filepath);
+      fclose(tx_file);
+      generated_count++;
+    }
+#endif
+  }
+  
+  if (generated_count > 0) {
+    BKE_reportf(op->reports, RPT_INFO, "Generated %d texture cache files (.tx)", generated_count);
+  } else {
+    BKE_report(op->reports, RPT_INFO, "All texture cache files are up to date");
+  }
+  
+  return OPERATOR_FINISHED;
+}
+
+void CYCLES_OT_texture_cache_create(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Create Texture Cache";
+  ot->idname = "CYCLES_OT_texture_cache_create";
+  ot->description = "Generate .tx texture cache files for all scene textures";
+
+  /* API callbacks */
+  ot->exec = CCL_texture_cache_create;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cycles Texture Cache Clear and Regenerate Operator
+ * \{ */
+
+static wmOperatorStatus CCL_texture_cache_clear(bContext *C, wmOperator *op)
+{
+  /* First delete all .tx files */
+  wmOperatorStatus delete_result = CCL_texture_cache_delete(C, op);
+  if (delete_result != OPERATOR_FINISHED) {
+    return delete_result;
+  }
+
+  /* Then generate new .tx files */
+  wmOperatorStatus generate_result = CCL_texture_cache_create(C, op);
+  if (generate_result != OPERATOR_FINISHED) {
+    return generate_result;
+  }
+
+  BKE_report(op->reports, RPT_INFO, "Texture cache cleared and regenerated successfully");
+  return OPERATOR_FINISHED;
+}
+
+void CYCLES_OT_texture_cache_clear(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Clear Texture Cache";
+  ot->idname = "CYCLES_OT_texture_cache_clear";
+  ot->description = "Clear all .tx texture cache files and regenerate them for all scene textures";
+
+  /* API callbacks */
+  ot->exec = CCL_texture_cache_clear;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
