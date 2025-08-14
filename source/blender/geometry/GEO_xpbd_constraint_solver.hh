@@ -117,7 +117,7 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
   }
 };
 
-void solver_gauss_seidel_one_at_a_time(Span<PointSet> point_sets,
-                                       Span<ConstraintSet> constraint_sets);
+void solve_gauss_seidel_one_at_a_time(Span<PointSet> point_sets,
+                                      Span<ConstraintSet> constraint_sets);
 
 }  // namespace blender::geometry::xpbd_constraint_solver

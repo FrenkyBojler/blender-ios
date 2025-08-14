@@ -6,8 +6,8 @@
 
 namespace blender::geometry::xpbd_constraint_solver {
 
-void solver_gauss_seidel_one_at_a_time(Span<PointSet> point_sets,
-                                       Span<ConstraintSet> constraint_sets)
+void solve_gauss_seidel_one_at_a_time(Span<PointSet> point_sets,
+                                      Span<ConstraintSet> constraint_sets)
 {
   GaussSeidelSolver solver{point_sets};
   for (const ConstraintSet &constraint_set : constraint_sets) {
