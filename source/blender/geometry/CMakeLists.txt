@@ -59,6 +59,7 @@ set(SRC
   intern/uv_parametrizer.cc
   intern/volume_grid_resample.cc
   intern/xpbd.cc
+  intern/xpbd_constraint_solver.cc
 
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
@@ -106,6 +107,7 @@ set(SRC
   GEO_uv_parametrizer.hh
   GEO_volume_grid_resample.hh
   GEO_xpbd.hh
+  GEO_xpbd_constraint_solver.hh
 
   intern/mesh_boolean_manifold.hh
 )
