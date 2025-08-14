@@ -6,6 +6,7 @@
 #include "BKE_instances.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_kdtree.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
 
@@ -749,8 +750,14 @@ struct StaticPlaneContacts {
   Vector<float> depths;
 };
 
+struct DynamicSphereContacts {
+  Vector<int2> indices;
+  Vector<float> min_distance;
+};
+
 struct Contacts {
   Map<SimPointsKey, StaticPlaneContacts> static_plane_contacts;
+  Map<SimPointsKey, DynamicSphereContacts> dynamic_sphere_contacts;
 };
 
 static void gather_ground_plane_contacts(const SimPoints &sim_points,
@@ -777,6 +784,48 @@ static void gather_ground_plane_contacts(const SimPoints &sim_points,
   }
 }
 
+static void gather_sphere_contacts(const SimPoints &sim_points,
+                                   const Span<float> radii,
+                                   DynamicSphereContacts &r_contacts)
+{
+  if (sim_points.points_num == 0) {
+    return;
+  }
+
+  const float max_radius = *std::max_element(radii.begin(), radii.end());
+
+  KDTree_3d *kdtree = BLI_kdtree_3d_new(sim_points.points_num);
+  BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
+
+  for (const int i : sim_points.positions.index_range()) {
+    BLI_kdtree_3d_insert(kdtree, i, sim_points.positions[i]);
+  }
+  BLI_kdtree_3d_balance(kdtree);
+
+  for (const int i : sim_points.positions.index_range()) {
+    const float3 &position = sim_points.positions[i];
+    const float radius = radii[i];
+    const float query_radius = radius + max_radius;
+    BLI_kdtree_3d_range_search_cb_cpp(
+        kdtree,
+        position,
+        query_radius,
+        [&](const int other_i, const float * /*co*/, const float dist_sq) {
+          if (i >= other_i) {
+            return true;
+          }
+          const float other_radius = radii[other_i];
+          const float min_distance = radius + other_radius;
+          if (dist_sq >= pow2f(min_distance)) {
+            return true;
+          }
+          r_contacts.indices.append({i, other_i});
+          r_contacts.min_distance.append(min_distance);
+          return true;
+        });
+  }
+}
+
 static Contacts gather_contacts(
     const XPBDState &state,
     const WorldData &world,
@@ -798,17 +847,30 @@ static Contacts gather_contacts(
     const Span<float> frictions = sim_points_props.lookup(key).frictions;
     const float collider_friction = 1.0f;
 
-    StaticPlaneContacts plane_contacts;
-    gather_ground_plane_contacts(sim_points,
-                                 float3(0.0f),
-                                 float3(0.0f, 0.0f, 1.0f),
-                                 frictions,
-                                 collider_friction,
-                                 plane_contacts);
-    if (plane_contacts.indices.is_empty()) {
-      continue;
+    {
+      StaticPlaneContacts plane_contacts;
+      gather_ground_plane_contacts(sim_points,
+                                   float3(0.0f),
+                                   float3(0.0f, 0.0f, 1.0f),
+                                   frictions,
+                                   collider_friction,
+                                   plane_contacts);
+      if (!plane_contacts.indices.is_empty()) {
+        contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
+      }
     }
-    contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
+    if (type == bke::GeometryComponent::Type::PointCloud) {
+      const bke::PointCloudComponent &pointcloud_component =
+          *static_cast<const bke::PointCloudComponent *>(component);
+      if (const PointCloud *pointcloud = pointcloud_component.get()) {
+        const VArraySpan<float> radii = pointcloud->radius();
+        DynamicSphereContacts sphere_contacts;
+        gather_sphere_contacts(sim_points, radii, sphere_contacts);
+        if (!sphere_contacts.indices.is_empty()) {
+          contacts.dynamic_sphere_contacts.add_new(key, std::move(sphere_contacts));
+        }
+      }
+    }
   }
   return contacts;
 }
@@ -817,6 +879,7 @@ static void generate_collision_constraint_sets(
     ResourceScope &scope,
     const Contacts &contacts,
     const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
   for (auto item : contacts.static_plane_contacts.items()) {
@@ -830,6 +893,19 @@ static void generate_collision_constraint_sets(
              plane_contacts.indices,
              plane_contacts.plane_positions,
              plane_contacts.plane_normals)});
+  }
+  for (auto item : contacts.dynamic_sphere_contacts.items()) {
+    const int key_i = keys.index_of(item.key);
+    const DynamicSphereContacts &sphere_contacts = item.value;
+    r_constraint_sets.append(
+        {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
+             key_i, sphere_contacts.indices),
+         scope.construct<geometry::xpbd_constraint_solver::MinimumDistanceConstraintEvaluator>(
+             scope.allocator().construct_array<int2>(sphere_contacts.indices.size(),
+                                                     int2(key_i, key_i)),
+             sphere_contacts.indices,
+             sphere_contacts.min_distance,
+             sim_points_props.lookup(item.key).inverse_masses)});
   }
 }
 
@@ -1021,7 +1097,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
         static_constraint_sets;
     const Contacts contacts = gather_contacts(
         state, world, applied_geometries, keys, sim_points_props);
-    generate_collision_constraint_sets(scope, contacts, keys, constraint_sets);
+    generate_collision_constraint_sets(scope, contacts, keys, sim_points_props, constraint_sets);
 
     /* Actually solve the constraints. */
     solve_constraints(solver_type, points_refs, constraint_sets);

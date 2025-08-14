@@ -135,4 +135,57 @@ class CollisionPlaneConstraintEvaluator
   }
 };
 
+class MinimumDistanceConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<MinimumDistanceConstraintEvaluator> {
+ private:
+  Span<int2> points_ref_indices_;
+  Span<int2> points_;
+  Span<float> min_distances_;
+  Span<float> inverse_masses_;
+
+ public:
+  MinimumDistanceConstraintEvaluator(const Span<int2> points_ref_indices,
+                                     const Span<int2> points,
+                                     const Span<float> min_distances,
+                                     const Span<float> inverse_masses)
+      : points_ref_indices_(points_ref_indices),
+        points_(points),
+        min_distances_(min_distances),
+        inverse_masses_(inverse_masses)
+  {
+  }
+
+  template<typename SolverT>
+  void evaluate_single(SolverT &solver,
+                       const Span<PointsRef> points_refs,
+                       const int constraint_i) const
+  {
+    const int2 &points_ref_pair = points_ref_indices_[constraint_i];
+    const int points_ref_i0 = points_ref_pair[0];
+    const int points_ref_i1 = points_ref_pair[1];
+    const int v0 = points_[constraint_i][0];
+    const int v1 = points_[constraint_i][1];
+    const float min_distance = min_distances_[constraint_i];
+    const float3 &p0 = points_refs[points_ref_i0].positions[v0];
+    const float3 &p1 = points_refs[points_ref_i1].positions[v1];
+    const float3 diff = p1 - p0;
+    float distance;
+    const float3 normalized_dir = math::normalize_and_get_length(diff, distance);
+    if (distance >= min_distance) {
+      return;
+    }
+    const float inv_m0 = inverse_masses_[v0];
+    const float inv_m1 = inverse_masses_[v1];
+    const float length_diff = min_distance - distance;
+    if (length_diff < 1e-5f) {
+      return;
+    }
+    const float lambda = length_diff / (inv_m0 + inv_m1);
+    const float3 offset0 = -lambda * inv_m0 * normalized_dir;
+    const float3 offset1 = lambda * inv_m1 * normalized_dir;
+    solver.update_position(points_ref_i0, v0, offset0);
+    solver.update_position(points_ref_i1, v1, offset1);
+  }
+};
+
 }  // namespace blender::geometry::xpbd_constraint_solver
