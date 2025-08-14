@@ -8,6 +8,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
 
+#include "BLI_ordered_edge.hh"
 #include "DNA_mesh_types.h"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -94,17 +95,6 @@ struct PathSimData {
   Map<bke::GeometryComponent::Type, SimPoints> points_by_type;
 };
 
-class XPBDState {
- public:
-  /**
-   * Counts how often this state has been updated. This is mainly used to avoid re-simulating the
-   * same frame multiple times when playback is paused but the simulation parameters are changed.
-   */
-  int update_counter = 0;
-
-  Map<std::string, PathSimData> data_by_path;
-};
-
 struct PathComponentKey {
   std::string path;
   bke::GeometryComponent::Type type;
@@ -115,6 +105,22 @@ struct PathComponentKey {
   {
     return get_default_hash(this->path, this->type);
   }
+};
+
+struct DistanceConstraintLengths {
+  Map<OrderedEdge, float> lengths;
+};
+
+class XPBDState {
+ public:
+  /**
+   * Counts how often this state has been updated. This is mainly used to avoid re-simulating the
+   * same frame multiple times when playback is paused but the simulation parameters are changed.
+   */
+  int update_counter = 0;
+
+  Map<std::string, PathSimData> data_by_path;
+  Map<PathComponentKey, DistanceConstraintLengths> distance_constraint_lengths;
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -405,6 +411,7 @@ static Map<PathComponentKey, Span<float>> compute_inverse_masses(
 
 static void gather_distance_constraints(
     ResourceScope &scope,
+    XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<PathComponentKey> &all_sim_points_keys,
@@ -419,13 +426,14 @@ static void gather_distance_constraints(
     if (!applied_geometry.has_mesh()) {
       continue;
     }
-    const int geo_i = all_sim_points_keys.index_of(
-        {geometry_bundle.self_path, bke::GeometryComponent::Type::Mesh});
+    const PathComponentKey component_key = {geometry_bundle.self_path,
+                                            bke::GeometryComponent::Type::Mesh};
+    const int geo_i = all_sim_points_keys.index_of(component_key);
     const SimPoints &sim_points = *all_sim_points[geo_i];
     const Mesh &mesh = *applied_geometry.get_mesh();
+    const Span<float3> mesh_positions = mesh.vert_positions();
     const Span<int2> mesh_edges = mesh.edges();
-    const Span<float> inverse_masses = inverse_masses_map.lookup(
-        {geometry_bundle.self_path, bke::GeometryComponent::Type::Mesh});
+    const Span<float> inverse_masses = inverse_masses_map.lookup(component_key);
 
     const Vector<const EdgeLengthXPBDConstraintBundle *> edge_length_constraints =
         filter_bundles_for_path<EdgeLengthXPBDConstraintBundle>(world.edge_length_constraints,
@@ -434,7 +442,6 @@ static void gather_distance_constraints(
     for (const EdgeLengthXPBDConstraintBundle *constraint_bundle : edge_length_constraints) {
       fn::FieldEvaluator field_evaluator{field_context, mesh_edges.size()};
       field_evaluator.set_selection(constraint_bundle->selection);
-      field_evaluator.add(constraint_bundle->length);
       field_evaluator.add(constraint_bundle->compliance);
       field_evaluator.evaluate();
       const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
@@ -451,11 +458,25 @@ static void gather_distance_constraints(
         constraint_edges = masked_edges;
       }
 
-      MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
-      field_evaluator.get_evaluated<float>(0).materialize_compressed(mask, constraint_lengths);
-
       MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(mask.size());
-      field_evaluator.get_evaluated<float>(1).materialize_compressed(mask, compliance_terms);
+      field_evaluator.get_evaluated<float>(0).materialize_compressed(mask, compliance_terms);
+
+      MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
+      DistanceConstraintLengths &distance_constraint_lengths =
+          state.distance_constraint_lengths.lookup_or_add_default(component_key);
+      threading::parallel_for(constraint_edges.index_range(), 512, [&](const IndexRange range) {
+        for (const int i : range) {
+          const int2 &edge = constraint_edges[i];
+          const OrderedEdge ordered_edge{edge[0], edge[1]};
+          const float length = distance_constraint_lengths.lengths.lookup_or_add_cb(
+              ordered_edge, [&]() {
+                const float3 &p0 = mesh_positions[edge[0]];
+                const float3 &p1 = mesh_positions[edge[1]];
+                return math::distance(p0, p1);
+              });
+          constraint_lengths[i] = length;
+        }
+      });
 
       const float compliance_factor = math::safe_divide(1.0f, pow2f(delta_time));
       threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
@@ -582,6 +603,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
   Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets;
   gather_distance_constraints(scope,
+                              state,
                               world,
                               applied_geometries,
                               all_sim_points_keys,
