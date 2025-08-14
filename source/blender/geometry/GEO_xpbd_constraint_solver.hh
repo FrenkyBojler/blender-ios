@@ -6,6 +6,7 @@
 
 #include "BLI_index_mask.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
@@ -13,15 +14,33 @@ namespace blender::geometry::xpbd_constraint_solver {
 
 struct PointSet {
   MutableSpan<float3> positions;
+
+  uint64_t size() const
+  {
+    return this->positions.size();
+  }
 };
 
-class JacobianSolver {
-  Vector<Vector<float3>> position_offsets_;
+class NonDeterministicParallelJacobianSolver {
+ public:
+  struct Item {
+    Mutex mutex;
+    float3 offset = float3(0.0f);
+    int counter = 0;
+  };
+
+ private:
+  Span<MutableSpan<Item>> offsets_;
 
  public:
+  NonDeterministicParallelJacobianSolver(Span<MutableSpan<Item>> offsets) : offsets_(offsets) {}
+
   void offset_position(const int point_set_i, const int point_i, const float3 &offset)
   {
-    position_offsets_[point_set_i][point_i] += offset;
+    Item &item = offsets_[point_set_i][point_i];
+    std::lock_guard lock(item.mutex);
+    item.counter++;
+    item.offset += offset;
   }
 };
 
@@ -41,8 +60,8 @@ class ConstraintSetEvaluator {
  public:
   virtual ~ConstraintSetEvaluator() = default;
 
-  virtual void evaluate_jacobian(JacobianSolver &solver,
-                                 const IndexMask &constraint_mask) const = 0;
+  virtual void evaluate_jacobian_non_deterministic(NonDeterministicParallelJacobianSolver &solver,
+                                                   const IndexMask &constraint_mask) const = 0;
   virtual void evaluate_gauss_seidel(GaussSeidelSolver &solver,
                                      const IndexMask &constraint_mask) const = 0;
 };
@@ -95,7 +114,8 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
   friend Child;
 
  public:
-  void evaluate_jacobian(JacobianSolver &solver, const IndexMask &constraint_mask) const override
+  void evaluate_jacobian_non_deterministic(NonDeterministicParallelJacobianSolver &solver,
+                                           const IndexMask &constraint_mask) const override
   {
     const Child &self = static_cast<const Child &>(*this);
     self.evaluate(solver, constraint_mask);
@@ -118,6 +138,9 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
 };
 
 void solve_gauss_seidel_one_at_a_time(Span<PointSet> point_sets,
+                                      Span<ConstraintSet> constraint_sets);
+
+void solve_jacobian_non_deterministic(Span<PointSet> point_sets,
                                       Span<ConstraintSet> constraint_sets);
 
 }  // namespace blender::geometry::xpbd_constraint_solver
