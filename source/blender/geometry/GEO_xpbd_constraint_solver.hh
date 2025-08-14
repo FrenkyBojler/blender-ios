@@ -14,13 +14,25 @@
 
 namespace blender::geometry::xpbd_constraint_solver {
 
+/**
+ * Mutable reference to the data that is actually being simulated.
+ */
 struct PointsRef {
   MutableSpan<float3> positions;
 
   uint64_t size() const;
 };
 
-class NonDeterministicParallelJacobianSolver {
+class GaussSeidelUpdater {
+ private:
+  Span<PointsRef> points_refs_;
+
+ public:
+  GaussSeidelUpdater(Span<PointsRef> point_sets);
+  void offset_position(const int points_ref_i, const int point_i, const float3 &offset);
+};
+
+class NonDeterministicJacobianUpdater {
  public:
   struct Item {
     Mutex mutex;
@@ -32,16 +44,7 @@ class NonDeterministicParallelJacobianSolver {
   Span<MutableSpan<Item>> offsets_;
 
  public:
-  NonDeterministicParallelJacobianSolver(Span<MutableSpan<Item>> offsets);
-  void offset_position(const int points_ref_i, const int point_i, const float3 &offset);
-};
-
-class GaussSeidelSolver {
- private:
-  Span<PointsRef> points_refs_;
-
- public:
-  GaussSeidelSolver(Span<PointsRef> point_sets);
+  NonDeterministicJacobianUpdater(Span<MutableSpan<Item>> offsets);
   void offset_position(const int points_ref_i, const int point_i, const float3 &offset);
 };
 
@@ -49,9 +52,9 @@ class ConstraintSetEvaluator {
  public:
   virtual ~ConstraintSetEvaluator() = default;
 
-  virtual void evaluate_jacobian_non_deterministic(NonDeterministicParallelJacobianSolver &solver,
+  virtual void evaluate_jacobian_non_deterministic(NonDeterministicJacobianUpdater &updater,
                                                    const IndexMask &constraint_mask) const = 0;
-  virtual void evaluate_gauss_seidel_parallel(GaussSeidelSolver &solver,
+  virtual void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
                                               const IndexMask &constraint_mask) const = 0;
 };
 
@@ -106,12 +109,12 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
   friend Child;
 
  public:
-  void evaluate_jacobian_non_deterministic(NonDeterministicParallelJacobianSolver &solver,
+  void evaluate_jacobian_non_deterministic(NonDeterministicJacobianUpdater &updater,
                                            const IndexMask &constraint_mask) const override;
-  void evaluate_gauss_seidel_parallel(GaussSeidelSolver &solver,
+  void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
                                       const IndexMask &constraint_mask) const override;
-  template<typename SolverT>
-  void evaluate(SolverT &solver, const IndexMask &constraint_mask) const;
+  template<typename UpdaterT>
+  void evaluate(UpdaterT &updater, const IndexMask &constraint_mask) const;
 };
 
 void solve_gauss_seidel_one_at_a_time(Span<PointsRef> points_refs,
@@ -131,15 +134,15 @@ inline uint64_t PointsRef::size() const
   return this->positions.size();
 }
 
-inline NonDeterministicParallelJacobianSolver::NonDeterministicParallelJacobianSolver(
+inline NonDeterministicJacobianUpdater::NonDeterministicJacobianUpdater(
     Span<MutableSpan<Item>> offsets)
     : offsets_(offsets)
 {
 }
 
-inline void NonDeterministicParallelJacobianSolver::offset_position(const int points_ref_i,
-                                                                    const int point_i,
-                                                                    const float3 &offset)
+inline void NonDeterministicJacobianUpdater::offset_position(const int points_ref_i,
+                                                             const int point_i,
+                                                             const float3 &offset)
 {
   Item &item = offsets_[points_ref_i][point_i];
   std::lock_guard lock(item.mutex);
@@ -147,13 +150,14 @@ inline void NonDeterministicParallelJacobianSolver::offset_position(const int po
   item.offset += offset;
 }
 
-inline GaussSeidelSolver::GaussSeidelSolver(Span<PointsRef> point_sets) : points_refs_(point_sets)
+inline GaussSeidelUpdater::GaussSeidelUpdater(Span<PointsRef> point_sets)
+    : points_refs_(point_sets)
 {
 }
 
-inline void GaussSeidelSolver::offset_position(const int points_ref_i,
-                                               const int point_i,
-                                               const float3 &offset)
+inline void GaussSeidelUpdater::offset_position(const int points_ref_i,
+                                                const int point_i,
+                                                const float3 &offset)
 {
   points_refs_[points_ref_i].positions[point_i] += offset;
 }
@@ -215,28 +219,28 @@ inline Vector<IndexMask> detect_independent_constraints(
 
 template<typename Child>
 inline void TemplatedConstraintSetEvaluator<Child>::evaluate_jacobian_non_deterministic(
-    NonDeterministicParallelJacobianSolver &solver, const IndexMask &constraint_mask) const
+    NonDeterministicJacobianUpdater &updater, const IndexMask &constraint_mask) const
 {
   const Child &self = static_cast<const Child &>(*this);
-  self.evaluate(solver, constraint_mask);
+  self.evaluate(updater, constraint_mask);
 }
 
 template<typename Child>
 inline void TemplatedConstraintSetEvaluator<Child>::evaluate_gauss_seidel_parallel(
-    GaussSeidelSolver &solver, const IndexMask &constraint_mask) const
+    GaussSeidelUpdater &updater, const IndexMask &constraint_mask) const
 {
   const Child &self = static_cast<const Child &>(*this);
-  self.evaluate(solver, constraint_mask);
+  self.evaluate(updater, constraint_mask);
 }
 
 template<typename Child>
-template<typename SolverT>
+template<typename UpdaterT>
 inline void TemplatedConstraintSetEvaluator<Child>::evaluate(
-    SolverT &solver, const IndexMask &constraint_mask) const
+    UpdaterT &updater, const IndexMask &constraint_mask) const
 {
   constraint_mask.foreach_index(GrainSize(256), [&](const int constraint_i) {
     const Child &self = static_cast<const Child &>(*this);
-    self.evaluate_single(solver, constraint_i);
+    self.evaluate_single(updater, constraint_i);
   });
 }
 
