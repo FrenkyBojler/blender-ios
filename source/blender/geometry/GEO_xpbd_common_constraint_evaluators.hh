@@ -89,4 +89,45 @@ class DistanceConstraintEvaluator
   }
 };
 
+class CollisionPlaneConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<CollisionPlaneConstraintEvaluator> {
+ private:
+  int geo_i_;
+  Span<int> points_;
+  Span<float3> positions_;
+  Span<float3> plane_positions_;
+  Span<float3> plane_normals_;
+
+ public:
+  CollisionPlaneConstraintEvaluator(const int geo_i,
+                                    Span<int> points,
+                                    Span<float3> positions,
+                                    Span<float3> plane_positions,
+                                    Span<float3> plane_normals)
+      : geo_i_(geo_i),
+        points_(points),
+        positions_(positions),
+        plane_positions_(plane_positions),
+        plane_normals_(plane_normals)
+  {
+  }
+
+  template<typename SolverT> void evaluate_single(SolverT &solver, const int constraint_i) const
+  {
+    const int v = points_[constraint_i];
+    const float3 pos = positions_[v];
+    const float3 plane_pos = plane_positions_[constraint_i];
+    const float3 plane_normal = plane_normals_[constraint_i];
+    BLI_assert(math::is_unit(plane_normal));
+
+    const float3 diff = pos - plane_pos;
+    const float distance = math::dot(diff, plane_normal);
+    if (distance >= 0.0f) {
+      return;
+    }
+    const float3 offset = plane_normal * -distance;
+    solver.update_position(geo_i_, v, offset);
+  }
+};
+
 }  // namespace blender::geometry::xpbd_constraint_solver

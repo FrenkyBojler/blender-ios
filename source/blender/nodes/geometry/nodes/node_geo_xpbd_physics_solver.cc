@@ -735,6 +735,50 @@ static void gather_pin_constraints(
   }
 }
 
+static void gather_collision_constraints(
+    ResourceScope &scope,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &ordered_sim_points_keys,
+    const Span<SimPoints *> ordered_sim_points,
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+{
+  for (const int key_i : ordered_sim_points_keys.index_range()) {
+    const SimPointsKey &key = ordered_sim_points_keys[key_i];
+    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const bke::GeometryComponent::Type type = key.type;
+    const bke::GeometryComponent *component = applied_geometries[geometry_bundle_i].get_component(
+        type);
+    const SimPoints &sim_points = *ordered_sim_points[key_i];
+    if (!component) {
+      continue;
+    }
+
+    Vector<int> &point_indices = scope.construct<Vector<int>>();
+    Vector<float3> &plane_positions = scope.construct<Vector<float3>>();
+    Vector<float3> &plane_normals = scope.construct<Vector<float3>>();
+
+    for (const int point_i : IndexRange(sim_points.points_num)) {
+      const float3 &position = sim_points.positions[point_i];
+      if (position.z >= 0.0f) {
+        continue;
+      }
+      point_indices.append(point_i);
+      plane_positions.append(float3(0.0f));
+      plane_normals.append(float3(0.0f, 0.0f, 1.0f));
+    }
+    if (point_indices.is_empty()) {
+      continue;
+    }
+
+    r_constraint_sets.append(
+        {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
+             key_i, point_indices),
+         scope.construct<geometry::xpbd_constraint_solver::CollisionPlaneConstraintEvaluator>(
+             key_i, point_indices, sim_points.positions, plane_positions, plane_normals)});
+  }
+}
+
 static void update_and_step_xpbd_state(XPBDState &state,
                                        const WorldData &world,
                                        const float total_delta_time,
@@ -786,7 +830,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
-  Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets;
+  Vector<geometry::xpbd_constraint_solver::ConstraintSet> static_constraint_sets;
   gather_edge_length_constraints(scope,
                                  state,
                                  world,
@@ -795,13 +839,13 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                  ordered_sim_points,
                                  inverse_masses_map,
                                  sub_delta_time,
-                                 constraint_sets);
+                                 static_constraint_sets);
   gather_pin_constraints(scope,
                          world,
                          applied_geometries,
                          ordered_sim_points_keys,
                          ordered_sim_points,
-                         constraint_sets);
+                         static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(ordered_sim_points.size());
   for (const int i : ordered_sim_points.index_range()) {
@@ -815,6 +859,15 @@ static void update_and_step_xpbd_state(XPBDState &state,
     if (sub_delta_time > 0.0f) {
       integrate_velocities(state, accelerations_map, sub_delta_time);
     }
+
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =
+        static_constraint_sets;
+    gather_collision_constraints(scope,
+                                 world,
+                                 applied_geometries,
+                                 ordered_sim_points_keys,
+                                 ordered_sim_points,
+                                 constraint_sets);
 
     switch (solver_type) {
       case SolverType::SerialGaussSeidel: {
