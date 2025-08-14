@@ -749,11 +749,12 @@ struct PenToolOperation {
         curves.curves_range().take_back(1));
   }
 
-  void close_curve_and_select(bke::CurvesGeometry &curves,
+  bool close_curve_and_select(bke::CurvesGeometry &curves,
                               const IndexRange points,
-                              const bool clear_selection,
-                              bool &changed)
+                              const bool clear_selection)
   {
+    bool changed = false;
+
     for (const StringRef selection_attribute_name :
          ed::curves::get_curves_selection_attribute_names(curves))
     {
@@ -795,6 +796,8 @@ struct PenToolOperation {
 
       selection_writer.finish();
     }
+
+    return changed;
   }
 };
 
@@ -1260,9 +1263,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     }
 
     const bool clear_selection = event->val != KM_DBL_CLICK && !ptd.delete_point;
-    bool geometry_changed;
-    ptd.close_curve_and_select(curves, points, clear_selection, geometry_changed);
-    if (geometry_changed) {
+    if (ptd.close_curve_and_select(curves, points, clear_selection)) {
       info.drawing.tag_topology_changed();
       add_single.store(false, std::memory_order_relaxed);
     }
