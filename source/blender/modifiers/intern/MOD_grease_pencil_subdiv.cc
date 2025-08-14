@@ -88,6 +88,7 @@ static void subdivide_drawing(ModifierData &md, Object &ob, bke::greasepencil::D
   if (use_catmull_clark) {
     modifier::greasepencil::ensure_no_bezier_curves(drawing);
     bke::CurvesGeometry subdivided_curves = drawing.strokes();
+    const VArray<bool> cyclic = subdivided_curves.cyclic();
     for ([[maybe_unused]] const int level_i : IndexRange(mmd.level)) {
       VArray<int> one_cut = VArray<int>::from_single(1, subdivided_curves.points_num());
       subdivided_curves = geometry::subdivide_curves(
@@ -102,6 +103,17 @@ static void subdivide_drawing(ModifierData &md, Object &ob, bke::greasepencil::D
             positions[point_i] = math::interpolate(
                 positions[point_i],
                 math::interpolate(positions[point_i - 1], positions[point_i + 1], 0.5f),
+                0.5f);
+          }
+
+          if (cyclic[curve_i]) {
+            positions[points.first()] = math::interpolate(
+                positions[points.first()],
+                math::interpolate(positions[points.last()], positions[points.first() + 1], 0.5f),
+                0.5f);
+            positions[points.last()] = math::interpolate(
+                positions[points.last()],
+                math::interpolate(positions[points.last() - 1], positions[points.first()], 0.5f),
                 0.5f);
           }
         }
