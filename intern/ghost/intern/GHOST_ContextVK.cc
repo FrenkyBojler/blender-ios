@@ -603,7 +603,7 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
       hdr_info_(hdr_info),
       surface_(VK_NULL_HANDLE),
       swapchain_(VK_NULL_HANDLE),
-      frame_data_(GHOST_FRAMES_IN_FLIGHT),
+      frame_data_(2),
       render_frame_(0),
       use_hdr_swapchain_(false)
 {
@@ -740,6 +740,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   swap_chain_data.acquire_semaphore = submission_frame_data.acquire_semaphore;
   swap_chain_data.present_semaphore = swapchain_image.present_semaphore;
   swap_chain_data.sdr_scale = (hdr_info_) ? hdr_info_->sdr_white_level : 1.0f;
+  swap_chain_data.max_render_frame = frame_data_.size();
 
   vkResetFences(device, 1, &submission_frame_data.submission_fence);
   if (swap_buffers_pre_callback_) {
@@ -763,6 +764,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 
   if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
     recreateSwapchain(use_hdr_swapchain);
+    swap_chain_data.max_render_frame = frame_data_.size();
     if (swap_buffers_post_callback_) {
       swap_buffers_post_callback_();
     }
@@ -788,6 +790,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanSwapChainFormat(
   r_swap_chain_data->surface_format = surface_format_;
   r_swap_chain_data->extent = render_extent_;
   r_swap_chain_data->sdr_scale = (hdr_info_) ? hdr_info_->sdr_white_level : 1.0f;
+  r_swap_chain_data->max_render_frame = frame_data_.size();
 
   return GHOST_kSuccess;
 }
@@ -1160,7 +1163,10 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   /* Some platforms require a minimum amount of render frames that is larger than we expect. When
    * that happens we should increase the number of frames in flight. We could also consider
    * splitting the frame in flight and image specific data. */
-  assert(actual_image_count <= GHOST_FRAMES_IN_FLIGHT);
+  if (actual_image_count > frame_data_.size()) {
+    CLOG_TRACE(&LOG, "Vulkan: Increasing frame data to %u frames", actual_image_count);
+    frame_data_.resize(actual_image_count);
+  }
   swapchain_images_.resize(actual_image_count);
   std::vector<VkImage> swapchain_images(actual_image_count);
   vkGetSwapchainImagesKHR(device, swapchain_, &actual_image_count, swapchain_images.data());
