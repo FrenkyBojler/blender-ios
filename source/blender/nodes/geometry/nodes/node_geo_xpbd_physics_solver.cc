@@ -673,7 +673,8 @@ static void gather_edge_length_constraints(
           {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
                key_i, constraint_edges),
            scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
-               key_i,
+               scope.allocator().construct_array<int2>(constraint_edges.size(),
+                                                       int2(key_i, key_i)),
                sim_points.positions,
                inverse_masses,
                constraint_edges,
@@ -736,7 +737,10 @@ static void gather_pin_constraints(
           {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
                key_i, constraint_indices),
            scope.construct<geometry::xpbd_constraint_solver::PinConstraintEvaluator>(
-               key_i, sim_points.positions, constraint_indices, constraint_positions)});
+               scope.allocator().construct_array<int>(constraint_indices.size(), key_i),
+               sim_points.positions,
+               constraint_indices,
+               constraint_positions)});
     }
   }
 }
@@ -829,7 +833,7 @@ static void generate_collision_constraint_sets(
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
              key_i, plane_contacts.indices),
          scope.construct<geometry::xpbd_constraint_solver::CollisionPlaneConstraintEvaluator>(
-             key_i,
+             scope.allocator().construct_array<int>(plane_contacts.indices.size(), key_i),
              plane_contacts.indices,
              sim_points.positions,
              plane_contacts.plane_positions,
