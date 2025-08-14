@@ -15,6 +15,26 @@ ConstraintSetIndices::ConstraintSetIndices(const int constraints_num,
 {
 }
 
+Span<IndexMask> ConstraintSetIndices::get_independent_masks() const
+{
+  independent_masks_mutex_.ensure(
+      [&]() { independent_masks_ = generate_independent_masks(independent_masks_memory_); });
+  return independent_masks_;
+}
+
+Vector<IndexMask> ConstraintSetIndices::generate_independent_masks(
+    IndexMaskMemory & /*memory*/) const
+{
+  /* By default, assume all constants depend on each other. So every mask only contains one
+   * constraint. */
+  Vector<IndexMask> masks;
+  for (const int i : IndexRange(this->constraints_num)) {
+    const IndexMask mask = IndexRange::from_single(i);
+    masks.append(mask);
+  }
+  return masks;
+}
+
 UnaryConstraintSetIndices::UnaryConstraintSetIndices(const int affected_points_ref_i,
                                                      const Span<int> affected_points)
     : ConstraintSetIndices(affected_points.size(), {affected_points_ref_i}),
@@ -23,17 +43,13 @@ UnaryConstraintSetIndices::UnaryConstraintSetIndices(const int affected_points_r
 {
 }
 
-Span<IndexMask> UnaryConstraintSetIndices::get_independent_masks() const
+Vector<IndexMask> UnaryConstraintSetIndices::generate_independent_masks(
+    IndexMaskMemory &memory) const
 {
-  independent_masks_mutex_.ensure([&]() {
-    independent_masks_ = detect_independent_constraints(
-        [&](const int constraint_i) {
-          return Span<int>(&this->affected_points_[constraint_i], 1);
-        },
-        this->constraints_num,
-        independent_masks_memory_);
-  });
-  return independent_masks_;
+  return detect_independent_constraints(
+      [&](const int constraint_i) { return Span<int>(&this->affected_points_[constraint_i], 1); },
+      this->constraints_num,
+      memory);
 }
 
 BinaryConstraintSetIndices::BinaryConstraintSetIndices(const int affected_points_ref_i,
@@ -44,17 +60,15 @@ BinaryConstraintSetIndices::BinaryConstraintSetIndices(const int affected_points
 {
 }
 
-Span<IndexMask> BinaryConstraintSetIndices::get_independent_masks() const
+Vector<IndexMask> BinaryConstraintSetIndices::generate_independent_masks(
+    IndexMaskMemory &memory) const
 {
-  independent_masks_mutex_.ensure([&]() {
-    independent_masks_ = detect_independent_constraints(
-        [&](const int constraint_i) {
-          return Span<int>(&this->affected_points_[constraint_i][0], 2);
-        },
-        this->affected_points_.size(),
-        independent_masks_memory_);
-  });
-  return independent_masks_;
+  return detect_independent_constraints(
+      [&](const int constraint_i) {
+        return Span<int>(&this->affected_points_[constraint_i][0], 2);
+      },
+      this->affected_points_.size(),
+      memory);
 }
 
 ConstraintSet::ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluator &evaluator)

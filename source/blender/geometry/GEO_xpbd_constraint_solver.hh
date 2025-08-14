@@ -105,6 +105,11 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
  * the solver to make decisions about which constraints can be evaluated in parallel.
  */
 class ConstraintSetIndices {
+ private:
+  mutable CacheMutex independent_masks_mutex_;
+  mutable IndexMaskMemory independent_masks_memory_;
+  mutable Vector<IndexMask> independent_masks_;
+
  public:
   virtual ~ConstraintSetIndices() = default;
 
@@ -120,7 +125,10 @@ class ConstraintSetIndices {
    * solved in parallel using a Gauss Seidel solver. This method only care about independentness
    * within this constraint set, not globally across all constraint sets.
    */
-  virtual Span<IndexMask> get_independent_masks() const = 0;
+  Span<IndexMask> get_independent_masks() const;
+
+ protected:
+  virtual Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const;
 };
 
 /**

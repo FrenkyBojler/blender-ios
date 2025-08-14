@@ -17,14 +17,9 @@ class UnaryConstraintSetIndices : public ConstraintSetIndices {
   int affected_points_ref_i_;
   Span<int> affected_points_;
 
-  /** Cache for #get_independent_masks. */
-  mutable CacheMutex independent_masks_mutex_;
-  mutable IndexMaskMemory independent_masks_memory_;
-  mutable Vector<IndexMask> independent_masks_;
-
  public:
   UnaryConstraintSetIndices(const int affected_points_ref_i, const Span<int> affected_points);
-  Span<IndexMask> get_independent_masks() const override;
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override;
 };
 
 /**
@@ -36,14 +31,9 @@ class BinaryConstraintSetIndices : public ConstraintSetIndices {
   int affected_points_ref_i_;
   Span<int2> affected_points_;
 
-  /** Cache for #get_independent_masks. */
-  mutable CacheMutex independent_masks_mutex_;
-  mutable IndexMaskMemory independent_masks_memory_;
-  mutable Vector<IndexMask> independent_masks_;
-
  public:
   BinaryConstraintSetIndices(const int affected_points_ref_i, const Span<int2> affected_points);
-  Span<IndexMask> get_independent_masks() const override;
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override;
 };
 
 }  // namespace blender::geometry::xpbd_constraint_solver
