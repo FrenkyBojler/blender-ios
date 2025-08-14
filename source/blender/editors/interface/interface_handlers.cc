@@ -5101,24 +5101,22 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
       switch (event->val) {
-        case KM_PRESS:
+        case KM_CLICK:
           /* Extra icons have priority, don't mess with them. */
           if (ui_but_extra_operator_icon_mouse_over_get(but, data->region, event)) {
             return WM_UI_HANDLER_BREAK;
           }
 
+          /* Always continue for drag and drop handling. Also for cases where keymap items are
+           * registered to add custom activate or drag operators (the pose library does this for
+           * example). */
+          return WM_UI_HANDLER_CONTINUE;
+        case KM_PRESS_DRAG:
           if (UI_view_item_supports_drag(*view_item_but->view_item)) {
             button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
             data->dragstartx = event->xy[0];
             data->dragstarty = event->xy[1];
           }
-          else {
-            force_activate_view_item_but(C, data->region, view_item_but);
-          }
-
-          /* Always continue for drag and drop handling. Also for cases where keymap items are
-           * registered to add custom activate or drag operators (the pose library does this for
-           * example). */
           return WM_UI_HANDLER_CONTINUE;
         case KM_DBL_CLICK:
           if (UI_view_item_can_rename(*view_item_but->view_item)) {
@@ -10135,7 +10133,7 @@ static int ui_handle_view_item_event(bContext *C,
       }
       break;
     case LEFTMOUSE:
-      if ((event->val == KM_PRESS) && (event->modifier == 0)) {
+      if ((event->val == KM_CLICK) && (event->modifier == 0)) {
         /* Only bother finding the active view item button if the active button isn't already a
          * view item. */
         uiButViewItem *view_but = static_cast<uiButViewItem *>(

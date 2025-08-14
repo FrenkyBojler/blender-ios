@@ -2344,6 +2344,12 @@ static wmOperatorStatus modifier_set_active_invoke(bContext *C,
   return retval;
 }
 
+bool set_modifier_active_poll(bContext* C)
+{
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  return ptr.data != nullptr;
+}
+
 void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 {
   ot->name = "Set Active Modifier";
@@ -2352,7 +2358,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = ED_operator_object_active_only;
+  ot->poll = set_modifier_active_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);

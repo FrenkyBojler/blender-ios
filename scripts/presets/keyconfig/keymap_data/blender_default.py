@@ -1042,10 +1042,10 @@ def km_user_interface(_params):
         ("ui.view_scroll", {"type": 'WHEELUPMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'WHEELDOWNMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'CLICK'}, None),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'CLICK', "ctrl": True},
          {"properties": [("extend", True)]}),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True},
          {"properties": [("range_select", True)]}),
         ("ui.view_item_rename", {"type": 'F2', "value": 'PRESS'}, None),
     ])
