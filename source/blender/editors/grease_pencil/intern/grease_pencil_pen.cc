@@ -1004,7 +1004,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
 }
 
 /**
- * Will return if a new curve can be created, and will report any errors.
+ * Will return true if a new curve can be created, and report any errors.
  */
 static bool pen_report_new_curve_errors(const PenToolOperation &ptd, wmOperator *op)
 {
