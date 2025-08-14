@@ -518,7 +518,7 @@ static void version_seq_text_from_legacy(Main *bmain)
   }
 }
 
-/* Convert text X/Y location to strip transform data. Assuming, that anchor is set to center. */
+/* Convert text X/Y location to strip transform data. */
 static void version_seq_convert_text_offset(Main *bmain)
 {
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {

@@ -199,6 +199,8 @@ static void init_text_effect(Strip *strip)
   data->text_ptr = BLI_strdup("Text");
   data->text_len_bytes = strlen(data->text_ptr);
 
+  data->anchor_x = SEQ_TEXT_ALIGN_X_CENTER;
+  data->anchor_y = SEQ_TEXT_ALIGN_Y_CENTER;
   data->align = SEQ_TEXT_ALIGN_X_CENTER;
   data->wrap_width = 1.0f;
 }
@@ -967,6 +969,34 @@ static void calc_boundbox(const RenderData *context,
   runtime->text_boundbox.ymax = runtime->text_boundbox.ymin + text_height;
 }
 
+static float2 anchor_offset_get(const TextVars *data, int width_max, int text_height)
+{
+  float2 anchor_offset;
+  switch (data->anchor_x) {
+    case SEQ_TEXT_ALIGN_X_LEFT:
+      anchor_offset.x = width_max / 2.0f;
+      break;
+    case SEQ_TEXT_ALIGN_X_CENTER:
+      anchor_offset.x = 0.0f;
+      break;
+    case SEQ_TEXT_ALIGN_X_RIGHT:
+      anchor_offset.x = -width_max / 2.0f;
+      break;
+  }
+  switch (data->anchor_y) {
+    case SEQ_TEXT_ALIGN_Y_TOP:
+      anchor_offset.y = -text_height / 2.0f;
+      break;
+    case SEQ_TEXT_ALIGN_Y_CENTER:
+      anchor_offset.y = 0.0f;
+      break;
+    case SEQ_TEXT_ALIGN_Y_BOTTOM:
+      anchor_offset.y = text_height / 2.0f;
+      break;
+  }
+  return anchor_offset;
+}
+
 static void apply_text_alignment(const RenderData *context,
                                  const Strip *strip,
                                  TextVarsRuntime *runtime,
@@ -976,13 +1006,14 @@ static void apply_text_alignment(const RenderData *context,
   const int width_max = text_box_width_get(runtime->lines);
   const int text_height = runtime->lines.size() * runtime->line_height;
   const float2 text_center = text_center_get(context, strip, image_size, width_max, text_height);
+  const float2 anchor = anchor_offset_get(data, width_max, text_height);
 
   const float2 line_height_offset{0.0f,
                                   float(-runtime->line_height - BLF_descender(runtime->font))};
 
   for (LineInfo &line : runtime->lines) {
     const float2 alignment_x = horizontal_alignment_offset_get(data, line.width, width_max);
-    const float2 alignment = math::round(text_center + line_height_offset + alignment_x);
+    const float2 alignment = math::round(text_center + line_height_offset + alignment_x + anchor);
 
     for (CharInfo &character : line.characters) {
       character.position += alignment;

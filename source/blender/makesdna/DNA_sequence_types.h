@@ -471,8 +471,8 @@ typedef struct TextVars {
   int selection_end_offset;
 
   char align_y DNA_DEPRECATED /* Only used for versioning. */;
-  char anchor_x DNA_DEPRECATED;
-  char anchor_y DNA_DEPRECATED;
+  char anchor_x;
+  char anchor_y;
   char _pad1;
   TextVarsRuntime *runtime;
 

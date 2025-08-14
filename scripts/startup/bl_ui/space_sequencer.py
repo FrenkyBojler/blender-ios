@@ -1824,6 +1824,8 @@ class SEQUENCER_PT_effect_text_style(SequencerButtonsPanel, Panel):
         col.prop(strip, "font_size")
         col.prop(strip, "color")
         col.prop(strip, "alignment_x", text="Alignment X")
+        col.prop(strip, "anchor_x", text="Anchor X")		
+        col.prop(strip, "anchor_y", text="Y")
 
 
 class SEQUENCER_PT_effect_text_outline(SequencerButtonsPanel, Panel):
