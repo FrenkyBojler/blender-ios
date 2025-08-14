@@ -6,6 +6,8 @@
 
 #include "BLI_cache_mutex.hh"
 #include "BLI_index_mask.hh"
+#include "BLI_math_quaternion.hh"
+#include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_mutex.hh"
@@ -19,6 +21,7 @@ namespace blender::geometry::xpbd_constraint_solver {
  */
 struct PointsRef {
   MutableSpan<float3> positions;
+  MutableSpan<math::Quaternion> rotations;
 
   uint64_t size() const;
 };
@@ -33,6 +36,7 @@ class GaussSeidelUpdater {
  public:
   GaussSeidelUpdater(Span<PointsRef> point_sets);
   void update_position(const int points_ref_i, const int point_i, const float3 &offset);
+  void update_rotation(const int points_ref_i, const int point_i, const math::Quaternion &offset);
 };
 
 /**
@@ -43,9 +47,12 @@ class GaussSeidelUpdater {
 class NonDeterministicJacobianUpdater {
  public:
   struct Item {
-    Mutex mutex;
-    float3 offset = float3(0.0f);
-    int counter = 0;
+    Mutex linear_mutex;
+    int linear_counter = 0;
+    float3 linear_offset = float3(0.0f);
+    Mutex rotation_mutex;
+    int rotation_counter = 0;
+    float4 rotation_offset = float4(0.0f);
   };
 
  private:
@@ -54,6 +61,7 @@ class NonDeterministicJacobianUpdater {
  public:
   NonDeterministicJacobianUpdater(Span<MutableSpan<Item>> offsets);
   void update_position(const int points_ref_i, const int point_i, const float3 &offset);
+  void update_rotation(const int points_ref_i, const int point_i, const math::Quaternion &offset);
 };
 
 /**
@@ -181,9 +189,19 @@ inline void NonDeterministicJacobianUpdater::update_position(const int points_re
                                                              const float3 &offset)
 {
   Item &item = offsets_[points_ref_i][point_i];
-  std::lock_guard lock(item.mutex);
-  item.counter++;
-  item.offset += offset;
+  std::lock_guard lock(item.linear_mutex);
+  item.linear_counter++;
+  item.linear_offset += offset;
+}
+
+inline void NonDeterministicJacobianUpdater::update_rotation(const int points_ref_i,
+                                                             const int point_i,
+                                                             const math::Quaternion &offset)
+{
+  Item &item = offsets_[points_ref_i][point_i];
+  std::lock_guard lock(item.rotation_mutex);
+  item.rotation_counter++;
+  item.rotation_offset += float4(offset);
 }
 
 inline GaussSeidelUpdater::GaussSeidelUpdater(Span<PointsRef> point_sets)
@@ -196,6 +214,14 @@ inline void GaussSeidelUpdater::update_position(const int points_ref_i,
                                                 const float3 &offset)
 {
   points_refs_[points_ref_i].positions[point_i] += offset;
+}
+
+inline void GaussSeidelUpdater::update_rotation(const int points_ref_i,
+                                                const int point_i,
+                                                const math::Quaternion &offset)
+{
+  math::Quaternion &rotation = points_refs_[points_ref_i].rotations[point_i];
+  rotation = math::normalize(math::Quaternion(float4(rotation) + float4(offset)));
 }
 
 template<typename GetConstraintPointsFn>

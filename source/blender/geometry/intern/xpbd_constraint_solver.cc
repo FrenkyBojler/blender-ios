@@ -116,12 +116,23 @@ void solve_jacobian_non_deterministic(const Span<PointsRef> points_refs,
       threading::parallel_for(IndexRange(point_set.size()), 512, [&](const IndexRange range) {
         for (const int point_i : range) {
           const Item &item = items[point_i];
-          if (item.counter == 0) {
+          if (item.linear_counter == 0) {
             continue;
           }
           const float relaxation_factor = 1.3f;
-          const float3 final_offset = item.offset / item.counter * relaxation_factor;
+          const float3 final_offset = item.linear_offset / item.linear_counter * relaxation_factor;
           point_set.positions[point_i] += final_offset;
+        }
+        if (!point_set.rotations.is_empty()) {
+          for (const int point_i : range) {
+            const Item &item = items[point_i];
+            if (item.rotation_counter == 0) {
+              continue;
+            }
+            const float4 final_offset = item.rotation_offset / item.rotation_counter;
+            math::Quaternion &rotation = point_set.rotations[point_i];
+            rotation = math::normalize(math::Quaternion(float4(rotation) + final_offset));
+          }
         }
       });
     }

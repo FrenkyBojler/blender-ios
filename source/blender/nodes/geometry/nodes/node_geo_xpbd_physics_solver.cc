@@ -970,7 +970,12 @@ static void update_and_step_xpbd_state(XPBDState &state,
   Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
   for (const SimPointsKey &key : keys) {
     SimPoints &sim_points = state.sim_points.lookup(key);
-    points_refs.append({sim_points.positions});
+    geometry::xpbd_constraint_solver::PointsRef points_ref;
+    points_ref.positions = sim_points.positions;
+    if (sim_points.has_rotation) {
+      points_ref.rotations = sim_points.rotations;
+    }
+    points_refs.append(points_ref);
   }
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
