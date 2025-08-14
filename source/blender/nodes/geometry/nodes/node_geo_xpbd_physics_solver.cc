@@ -816,13 +816,8 @@ static void generate_collision_constraint_sets(
   }
 }
 
-static void update_and_step_xpbd_state(XPBDState &state,
-                                       const WorldData &world,
-                                       const float total_delta_time,
-                                       const SolverType solver_type,
-                                       const int substeps)
+static Array<GeometrySet> gather_applied_geometries(const XPBDState &state, const WorldData &world)
 {
-  ResourceScope scope;
   Array<GeometrySet> applied_geometries(world.geometries.size());
 
   for (const int bundle_i : world.geometries.index_range()) {
@@ -830,7 +825,13 @@ static void update_and_step_xpbd_state(XPBDState &state,
     GeometrySet &applied_geometry = applied_geometries[bundle_i];
     applied_geometry = apply_simulation(geometry_bundle, state);
   }
+  return applied_geometries;
+}
 
+static void update_sim_points_from_world(XPBDState &state,
+                                         const WorldData &world,
+                                         const Span<GeometrySet> applied_geometries)
+{
   Map<SimPointsKey, SimPoints> new_sim_points;
   for (const int bundle_i : world.geometries.index_range()) {
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
@@ -838,6 +839,17 @@ static void update_and_step_xpbd_state(XPBDState &state,
         state, world.geometries[bundle_i], applied_geometry, new_sim_points);
   }
   state.sim_points = std::move(new_sim_points);
+}
+
+static void update_and_step_xpbd_state(XPBDState &state,
+                                       const WorldData &world,
+                                       const float total_delta_time,
+                                       const SolverType solver_type,
+                                       const int substeps)
+{
+  ResourceScope scope;
+  const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
+  update_sim_points_from_world(state, world, applied_geometries);
 
   VectorSet<SimPointsKey> ordered_sim_points_keys;
   Vector<SimPoints *> ordered_sim_points;
