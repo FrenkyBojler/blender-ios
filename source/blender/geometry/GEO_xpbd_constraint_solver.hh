@@ -19,11 +19,18 @@ namespace blender::geometry::xpbd_constraint_solver {
 /**
  * Mutable reference to the data that is actually being simulated.
  */
-struct PointsRef {
+struct MutablePointsRef {
   MutableSpan<float3> positions;
   MutableSpan<math::Quaternion> rotations;
 
   uint64_t size() const;
+};
+
+struct PointsRef {
+  Span<float3> positions;
+  Span<math::Quaternion> rotations;
+
+  PointsRef(const MutablePointsRef &other);
 };
 
 /**
@@ -31,10 +38,10 @@ struct PointsRef {
  */
 class GaussSeidelUpdater {
  private:
-  Span<PointsRef> points_refs_;
+  Span<MutablePointsRef> points_refs_;
 
  public:
-  GaussSeidelUpdater(Span<PointsRef> point_sets);
+  GaussSeidelUpdater(Span<MutablePointsRef> point_sets);
   void update_position(const int points_ref_i, const int point_i, const float3 &offset);
   void update_rotation(const int points_ref_i, const int point_i, const math::Quaternion &offset);
 };
@@ -78,8 +85,11 @@ class ConstraintSetEvaluator {
 
   /** Evaluate the constraints in the mask. The constraints may be evaluated in parallel. */
   virtual void evaluate(NonDeterministicJacobianUpdater &updater,
+                        const Span<PointsRef> points_refs,
                         const IndexMask &constraint_mask) const = 0;
-  virtual void evaluate(GaussSeidelUpdater &updater, const IndexMask &constraint_mask) const = 0;
+  virtual void evaluate(GaussSeidelUpdater &updater,
+                        const Span<PointsRef> points_refs,
+                        const IndexMask &constraint_mask) const = 0;
 };
 
 /**
@@ -94,18 +104,24 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
 
  public:
   void evaluate(NonDeterministicJacobianUpdater &updater,
+                const Span<PointsRef> points_refs,
                 const IndexMask &constraint_mask) const override;
-  void evaluate(GaussSeidelUpdater &updater, const IndexMask &constraint_mask) const override;
+  void evaluate(GaussSeidelUpdater &updater,
+                const Span<PointsRef> points_refs,
+                const IndexMask &constraint_mask) const override;
 
   template<typename UpdaterT>
-  void evaluate_templated(UpdaterT &updater, const IndexMask &constraint_mask) const;
+  void evaluate_templated(UpdaterT &updater,
+                          const Span<PointsRef> points_refs,
+                          const IndexMask &constraint_mask) const;
 
   /**
    * Evaluate a single constraint using the given updater. This has to be implemented on child
    * classes.
    */
   // template<typename UpdaterT>
-  // void evaluate_single(UpdaterT &updater, const int constraint_i) const;
+  // void evaluate_single(
+  //   UpdaterT &updater, const Span<PointsRef> points_refs, const int constraint_i) const;
 };
 
 /**
@@ -154,26 +170,32 @@ struct ConstraintSet {
  * Slow but simple iterative Gauss Seidel solver. It evaluates each constraints serially without
  * any parallelism.
  */
-void solve_gauss_seidel_one_at_a_time(Span<PointsRef> points_refs,
+void solve_gauss_seidel_one_at_a_time(Span<MutablePointsRef> points_refs,
                                       Span<ConstraintSet> constraint_sets);
 
 /**
  * Fully parallel Jacobian solver, but it is not deterministic. This is mainly for testing
  * purposes.
  */
-void solve_jacobian_non_deterministic(Span<PointsRef> points_refs,
+void solve_jacobian_non_deterministic(Span<MutablePointsRef> points_refs,
                                       Span<ConstraintSet> constraint_sets);
 
 /**
  * A Gauss Seidel solver that attempts to parallelize the evaluation of constraints.
  */
-void solve_gauss_seidel_parallel(Span<PointsRef> points_refs, Span<ConstraintSet> constraint_sets);
+void solve_gauss_seidel_parallel(Span<MutablePointsRef> points_refs,
+                                 Span<ConstraintSet> constraint_sets);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
  * \{ */
 
-inline uint64_t PointsRef::size() const
+inline PointsRef::PointsRef(const MutablePointsRef &other)
+    : positions(other.positions), rotations(other.rotations)
+{
+}
+
+inline uint64_t MutablePointsRef::size() const
 {
   return this->positions.size();
 }
@@ -209,7 +231,7 @@ inline void NonDeterministicJacobianUpdater::update_rotation(const int points_re
   item.rotation_offset += float4(offset);
 }
 
-inline GaussSeidelUpdater::GaussSeidelUpdater(Span<PointsRef> point_sets)
+inline GaussSeidelUpdater::GaussSeidelUpdater(Span<MutablePointsRef> point_sets)
     : points_refs_(point_sets)
 {
 }
@@ -286,28 +308,32 @@ inline Vector<IndexMask> detect_independent_constraints(
 
 template<typename Child>
 inline void TemplatedConstraintSetEvaluator<Child>::evaluate(
-    NonDeterministicJacobianUpdater &updater, const IndexMask &constraint_mask) const
+    NonDeterministicJacobianUpdater &updater,
+    const Span<PointsRef> points_refs,
+    const IndexMask &constraint_mask) const
 {
   const Child &self = static_cast<const Child &>(*this);
-  self.evaluate_templated(updater, constraint_mask);
+  self.evaluate_templated(updater, points_refs, constraint_mask);
 }
 
 template<typename Child>
 inline void TemplatedConstraintSetEvaluator<Child>::evaluate(
-    GaussSeidelUpdater &updater, const IndexMask &constraint_mask) const
+    GaussSeidelUpdater &updater,
+    const Span<PointsRef> points_refs,
+    const IndexMask &constraint_mask) const
 {
   const Child &self = static_cast<const Child &>(*this);
-  self.evaluate_templated(updater, constraint_mask);
+  self.evaluate_templated(updater, points_refs, constraint_mask);
 }
 
 template<typename Child>
 template<typename UpdaterT>
 inline void TemplatedConstraintSetEvaluator<Child>::evaluate_templated(
-    UpdaterT &updater, const IndexMask &constraint_mask) const
+    UpdaterT &updater, const Span<PointsRef> points_refs, const IndexMask &constraint_mask) const
 {
   constraint_mask.foreach_index(GrainSize(256), [&](const int constraint_i) {
     const Child &self = static_cast<const Child &>(*this);
-    self.evaluate_single(updater, constraint_i);
+    self.evaluate_single(updater, points_refs, constraint_i);
   });
 }
 

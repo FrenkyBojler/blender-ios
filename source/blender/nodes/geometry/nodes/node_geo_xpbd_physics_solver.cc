@@ -610,7 +610,6 @@ static void gather_edge_length_constraints(
     const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
 
-    SimPoints &sim_points = state.sim_points.lookup(key);
     const Mesh &mesh = *applied_geometry.get_mesh();
     const Span<float3> mesh_positions = mesh.vert_positions();
     const Span<int2> mesh_edges = mesh.edges();
@@ -675,7 +674,6 @@ static void gather_edge_length_constraints(
            scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
                scope.allocator().construct_array<int2>(constraint_edges.size(),
                                                        int2(key_i, key_i)),
-               sim_points.positions,
                inverse_masses,
                constraint_edges,
                constraint_lengths,
@@ -686,7 +684,6 @@ static void gather_edge_length_constraints(
 
 static void gather_pin_constraints(
     ResourceScope &scope,
-    XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
@@ -697,7 +694,6 @@ static void gather_pin_constraints(
     const int geometry_bundle_i = world.geometries.index_of_as(key.path);
     const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
-    const SimPoints &sim_points = state.sim_points.lookup(key);
 
     const Vector pinned_position_constraints =
         filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
@@ -738,7 +734,6 @@ static void gather_pin_constraints(
                key_i, constraint_indices),
            scope.construct<geometry::xpbd_constraint_solver::PinConstraintEvaluator>(
                scope.allocator().construct_array<int>(constraint_indices.size(), key_i),
-               sim_points.positions,
                constraint_indices,
                constraint_positions)});
     }
@@ -820,7 +815,6 @@ static Contacts gather_contacts(
 
 static void generate_collision_constraint_sets(
     ResourceScope &scope,
-    XPBDState &state,
     const Contacts &contacts,
     const VectorSet<SimPointsKey> &keys,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
@@ -828,14 +822,12 @@ static void generate_collision_constraint_sets(
   for (auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key);
     const StaticPlaneContacts &plane_contacts = item.value;
-    SimPoints &sim_points = state.sim_points.lookup(item.key);
     r_constraint_sets.append(
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
              key_i, plane_contacts.indices),
          scope.construct<geometry::xpbd_constraint_solver::CollisionPlaneConstraintEvaluator>(
              scope.allocator().construct_array<int>(plane_contacts.indices.size(), key_i),
              plane_contacts.indices,
-             sim_points.positions,
              plane_contacts.plane_positions,
              plane_contacts.plane_normals)});
   }
@@ -881,7 +873,7 @@ static void reset_distance_constraint_length_usages(XPBDState &state)
 
 static void solve_constraints(
     const SolverType solver_type,
-    const Span<geometry::xpbd_constraint_solver::PointsRef> points_refs,
+    const Span<geometry::xpbd_constraint_solver::MutablePointsRef> points_refs,
     const Span<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets)
 {
   switch (solver_type) {
@@ -954,13 +946,13 @@ static void update_velocities(XPBDState &state,
   }
 }
 
-static Vector<geometry::xpbd_constraint_solver::PointsRef> prepare_points_refs_for_solver(
+static Vector<geometry::xpbd_constraint_solver::MutablePointsRef> prepare_points_refs_for_solver(
     XPBDState &state, const Span<SimPointsKey> keys)
 {
-  Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
+  Vector<geometry::xpbd_constraint_solver::MutablePointsRef> points_refs;
   for (const SimPointsKey &key : keys) {
     SimPoints &sim_points = state.sim_points.lookup(key);
-    geometry::xpbd_constraint_solver::PointsRef points_ref;
+    geometry::xpbd_constraint_solver::MutablePointsRef points_ref;
     points_ref.positions = sim_points.positions;
     if (sim_points.has_rotation) {
       points_ref.rotations = sim_points.rotations;
@@ -1002,14 +994,14 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                  sim_points_props,
                                  sub_delta_time,
                                  static_constraint_sets);
-  gather_pin_constraints(scope, state, world, applied_geometries, keys, static_constraint_sets);
+  gather_pin_constraints(scope, world, applied_geometries, keys, static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   for (const int i : keys.index_range()) {
     all_prev_positions[i].reinitialize(state.sim_points.lookup(keys[i]).points_num);
   }
 
-  const Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs =
+  const Vector<geometry::xpbd_constraint_solver::MutablePointsRef> points_refs =
       prepare_points_refs_for_solver(state, keys);
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
@@ -1029,7 +1021,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
         static_constraint_sets;
     const Contacts contacts = gather_contacts(
         state, world, applied_geometries, keys, sim_points_props);
-    generate_collision_constraint_sets(scope, state, contacts, keys, constraint_sets);
+    generate_collision_constraint_sets(scope, contacts, keys, constraint_sets);
 
     /* Actually solve the constraints. */
     solve_constraints(solver_type, points_refs, constraint_sets);
