@@ -1447,7 +1447,7 @@ static bool pose_channel_gizmo_use_localized_transform(const bArmature *arm,
     return false;
   }
 
-  return pose_bone->gizmo_mode == PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM;
+  return pose_bone->gizmo_mode == PCHAN_GIZMO_MODE_PARENT_SPACE;
 }
 
 /**
