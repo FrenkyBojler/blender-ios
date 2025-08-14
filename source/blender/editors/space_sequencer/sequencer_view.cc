@@ -8,6 +8,7 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_vector.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
@@ -18,7 +19,6 @@
 #include "BKE_screen.hh"
 
 #include "BLT_translation.hh"
-
 #include "GHOST_C-api.h"
 
 #include "WM_api.hh"
@@ -178,15 +178,49 @@ void SEQUENCER_OT_view_frame(wmOperatorType *ot)
 
 /** \} */
 
+/* For frame all/selected operators, when we are in preview region
+ * with histogram display mode, frame the extents of the histogram. */
+static bool view_frame_preview_histogram(bContext *C, wmOperator *op, ARegion *region)
+{
+  if (!region || region->regiontype != RGN_TYPE_PREVIEW) {
+    return false;
+  }
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  if (!sseq || sseq->mainb != SEQ_DRAW_IMG_HISTOGRAM) {
+    return false;
+  }
+  const vse::ScopeHistogram &hist = sseq->runtime->scopes.histogram;
+  if (hist.data.is_empty()) {
+    return false;
+  }
+
+  const View2D *v2d = UI_view2d_fromcontext(C);
+  rctf cur_new = v2d->tot;
+  const float val_max = ScopeHistogram::bin_to_float(math::reduce_max(hist.max_bin));
+  cur_new.xmax = cur_new.xmin + (cur_new.xmax - cur_new.xmin) * val_max;
+
+  /* Add some padding around whole histogram. */
+  BLI_rctf_scale(&cur_new, 1.1f);
+
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  UI_view2d_smooth_view(C, region, &cur_new, smooth_viewtx);
+  return true;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Preview Frame All Operator
  * \{ */
 
-static wmOperatorStatus sequencer_view_all_preview_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_view_all_preview_exec(bContext *C, wmOperator *op)
 {
   SpaceSeq *sseq = CTX_wm_space_seq(C);
   bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = CTX_wm_area(C);
+
+  if (view_frame_preview_histogram(C, op, CTX_wm_region(C))) {
+    return OPERATOR_FINISHED;
+  }
+
 #if 0
   ARegion *region = CTX_wm_region(C);
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -258,12 +292,10 @@ static wmOperatorStatus sequencer_fullscreen_preview_exec(bContext *C, wmOperato
   const int monitor_x = RNA_int_get(op->ptr, "monitor_x");
   const int monitor_y = RNA_int_get(op->ptr, "monitor_y");
   rcti window_rect;
-
   window_rect.xmin = monitor_x;
   window_rect.ymin = monitor_y;
   window_rect.xmax = window_rect.xmin + 200;
   window_rect.ymax = window_rect.ymin + 200;
-
   /* changes context! */
   if (WM_window_open(C,
                      nullptr,
@@ -279,11 +311,9 @@ static wmOperatorStatus sequencer_fullscreen_preview_exec(bContext *C, wmOperato
     SpaceSeq *sseq = CTX_wm_space_seq(C);
     sseq->view = SEQ_VIEW_PREVIEW;
     sseq->gizmo_flag |= SEQ_GIZMO_HIDE_NAVIGATE;
-
     ScrArea *area = CTX_wm_area(C);
     bScreen *screen = CTX_wm_screen(C);
     screen->state = SCREENFULL;
-
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
       if (ELEM(region->regiontype,
                RGN_TYPE_UI,
@@ -299,10 +329,8 @@ static wmOperatorStatus sequencer_fullscreen_preview_exec(bContext *C, wmOperato
         region->flag |= RGN_FLAG_HIDDEN;
       }
     }
-
     GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(CTX_wm_window(C)->ghostwin),
                          GHOST_kWindowStateFullScreen);
-
     return OPERATOR_FINISHED;
   }
   BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
@@ -315,14 +343,11 @@ void SEQUENCER_OT_fullscreen_preview(wmOperatorType *ot)
   ot->name = "Fullscreen Preview";
   ot->idname = "SEQUENCER_OT_fullscreen_preview";
   ot->description = "Toggle playing preview in a full-screen window";
-
   /* API callbacks. */
   ot->exec = sequencer_fullscreen_preview_exec;
   ot->poll = ED_operator_sequencer_active;
-
   /* Flags. */
   ot->flag = OPTYPE_REGISTER;
-
   /* Properties. */
   RNA_def_int(ot->srna,
               "monitor_x",
@@ -389,7 +414,6 @@ static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu
   bContext *C = (bContext *)C_const;
   SpaceSeq *sseq = CTX_wm_space_seq(C);
   uiLayout *layout = menu->layout;
-
   PointerRNA ptr;
   ptr = layout->op("SEQUENCER_OT_fullscreen_preview",
                    IFACE_("This Monitor"),
@@ -397,9 +421,7 @@ static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu
                    blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   RNA_int_set(&ptr, "monitor", 0);
-
   size_t displays = wm_get_num_displays();
-
   rcti desktop = {0};
   for (size_t i = 0; i < displays; i++) {
     rcti rect;
@@ -408,16 +430,13 @@ static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu
     }
     BLI_rcti_union(&desktop, &rect);
   }
-
   if (displays > 1) {
     layout->separator();
     for (size_t i = 0; i < displays; i++) {
-
       rcti rect;
       if (!wm_get_display_rect(i, &rect)) {
         continue;
       }
-
       ptr = layout->op("SEQUENCER_OT_fullscreen_preview",
                        IFACE_(sequencer_monitor_desc(&rect, &desktop)),
                        ICON_RESTRICT_VIEW_OFF,
@@ -437,7 +456,6 @@ static bool sequencer_fullscreen_preview_menu_poll(const bContext *C_const, Menu
 void sequencer_fullscreen_preview_menu_register()
 {
   MenuType *mt;
-
   mt = MEM_callocN<MenuType>("spacetype file menu file operations");
   STRNCPY_UTF8(mt->idname, "SEQUENCER_MT_fullscreen_preview");
   STRNCPY_UTF8(mt->label, N_("Fullscreen Preview"));
@@ -600,10 +618,14 @@ static wmOperatorStatus sequencer_view_selected_exec(bContext *C, wmOperator *op
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   ARegion *region = CTX_wm_region(C);
-  blender::VectorSet strips = selected_strips_from_context(C);
   View2D *v2d = UI_view2d_fromcontext(C);
   rctf cur_new = v2d->cur;
 
+  if (view_frame_preview_histogram(C, op, region)) {
+    return OPERATOR_FINISHED;
+  }
+
+  blender::VectorSet strips = selected_strips_from_context(C);
   if (strips.is_empty()) {
     return OPERATOR_CANCELLED;
   }

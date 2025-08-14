@@ -119,18 +119,20 @@ class GHOST_SystemHeadless : public GHOST_System {
   }
   GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings) override
   {
+    const GHOST_ContextParams context_params_offscreen =
+        GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings);
+
     switch (gpuSettings.context_type) {
 #ifdef WITH_VULKAN_BACKEND
       case GHOST_kDrawingContextTypeVulkan: {
-        const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
 #  ifdef _WIN32
         GHOST_Context *context = new GHOST_ContextVK(
-            false, (HWND)0, 1, 2, debug_context, gpuSettings.preferred_device);
+            context_params_offscreen, (HWND)0, 1, 2, gpuSettings.preferred_device);
 #  elif defined(__APPLE__)
         GHOST_Context *context = new GHOST_ContextVK(
-            false, nullptr, 1, 2, debug_context, gpuSettings.preferred_device);
+            context_params_offscreen, nullptr, 1, 2, gpuSettings.preferred_device);
 #  else
-        GHOST_Context *context = new GHOST_ContextVK(false,
+        GHOST_Context *context = new GHOST_ContextVK(context_params_offscreen,
                                                      GHOST_kVulkanPlatformHeadless,
                                                      0,
                                                      0,
@@ -139,7 +141,6 @@ class GHOST_SystemHeadless : public GHOST_System {
                                                      nullptr,
                                                      1,
                                                      2,
-                                                     debug_context,
                                                      gpuSettings.preferred_device);
 #  endif
         if (context->initializeDrawingContext()) {
@@ -156,7 +157,7 @@ class GHOST_SystemHeadless : public GHOST_System {
         GHOST_Context *context;
         for (int minor = 6; minor >= 3; --minor) {
           context = new GHOST_ContextEGL((GHOST_System *)this,
-                                         false,
+                                         context_params_offscreen,
                                          EGLNativeWindowType(0),
                                          EGLNativeDisplayType(EGL_DEFAULT_DISPLAY),
                                          EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
@@ -213,6 +214,7 @@ class GHOST_SystemHeadless : public GHOST_System {
                               const bool /*is_dialog*/,
                               const GHOST_IWindow *parentWindow) override
   {
+    const GHOST_ContextParams context_params = GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings);
     return new GHOST_WindowNULL(title,
                                 left,
                                 top,
@@ -221,7 +223,7 @@ class GHOST_SystemHeadless : public GHOST_System {
                                 state,
                                 parentWindow,
                                 gpuSettings.context_type,
-                                ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0));
+                                context_params);
   }
 
   GHOST_IWindow *getWindowUnderCursor(int32_t /*x*/, int32_t /*y*/) override
