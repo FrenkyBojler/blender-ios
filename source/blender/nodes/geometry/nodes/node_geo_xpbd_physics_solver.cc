@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_curves.hh"
 #include "BKE_instances.hh"
 
 #include "BLI_array_utils.hh"
@@ -9,8 +10,10 @@
 #include "BLI_math_rotation.hh"
 
 #include "BLI_ordered_edge.hh"
+#include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 
+#include "DNA_pointcloud_types.h"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
@@ -142,12 +145,24 @@ class XPBDStateOwner : public BundleItemInternalValueMixin {
 using XPBDStateOwnerPtr = ImplicitSharingPtr<XPBDStateOwner>;
 
 struct WorldData {
+  struct SelfPathGetter {
+    StringRefNull operator()(const NestedBundleCommon &bundle)
+    {
+      return bundle.self_path;
+    }
+  };
+
   Vector<ForceBundle> forces;
   Vector<GravityBundle> gravities;
-  Vector<XPBDGeometryBundle> geometries;
+  CustomIDVectorSet<XPBDGeometryBundle, SelfPathGetter> geometries;
   Vector<EdgeLengthXPBDConstraintBundle> edge_length_constraints;
   Vector<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
 };
+
+static AttrDomain get_position_domain(const bke::GeometryComponent::Type type)
+{
+  return type == bke::GeometryComponent::Type::Instance ? AttrDomain::Instance : AttrDomain::Point;
+}
 
 static WorldData parse_world(const Bundle &world_bundle)
 {
@@ -170,8 +185,8 @@ static WorldData parse_world(const Bundle &world_bundle)
       if (std::optional<XPBDGeometryBundle> geometry = XPBDGeometryBundle::parse(params.bundle,
                                                                                  errors))
       {
-        world.geometries.append(std::move(*geometry));
-        world.geometries.last().self_path = Bundle::combine_path(params.path);
+        geometry->self_path = Bundle::combine_path(params.path);
+        world.geometries.add_new(std::move(*geometry));
       }
     }
     else if (params.type == EdgeLengthXPBDConstraintBundle::name) {
@@ -227,6 +242,52 @@ static void apply_simulation_to_mesh(GeometrySet &geometry, const SimPoints &sim
   mesh->tag_positions_changed();
 }
 
+static void apply_simulation_to_pointcloud(GeometrySet &geometry, const SimPoints &sim_points)
+{
+  if (!geometry.has_pointcloud()) {
+    return;
+  }
+  if (geometry.get_pointcloud()->totpoint != sim_points.points_num) {
+    return;
+  }
+  PointCloud *pointcloud = geometry.get_pointcloud_for_write();
+  MutableSpan<float3> pointcloud_positions = pointcloud->positions_for_write();
+  pointcloud_positions.copy_from(sim_points.positions);
+  pointcloud->tag_positions_changed();
+}
+
+static void apply_simulation_to_curves(GeometrySet &geometry, const SimPoints &sim_points)
+{
+  if (!geometry.has_curves()) {
+    return;
+  }
+  if (geometry.get_curves()->geometry.wrap().points_num() != sim_points.points_num) {
+    return;
+  }
+  Curves *curves_id = geometry.get_curves_for_write();
+  bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+  MutableSpan<float3> curves_positions = curves.positions_for_write();
+  curves_positions.copy_from(sim_points.positions);
+  curves.tag_positions_changed();
+}
+
+static void apply_simulation_to_instances(GeometrySet &geometry, const SimPoints &sim_points)
+{
+  if (!geometry.has_instances()) {
+    return;
+  }
+  if (geometry.get_instances()->instances_num() != sim_points.points_num) {
+    return;
+  }
+  bke::Instances *instances = geometry.get_instances_for_write();
+  MutableSpan<float4x4> transforms = instances->transforms_for_write();
+  threading::parallel_for(transforms.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      transforms[i].location() = sim_points.positions[i];
+    }
+  });
+}
+
 static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBDState &state)
 {
   GeometrySet geometry = bundle.geometry;
@@ -235,6 +296,24 @@ static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBD
     const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
     if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
       apply_simulation_to_mesh(geometry, *sim_points);
+    }
+  }
+  if (geometry.has_pointcloud()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::PointCloud};
+    if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
+      apply_simulation_to_pointcloud(geometry, *sim_points);
+    }
+  }
+  if (geometry.has_curves()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Curve};
+    if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
+      apply_simulation_to_curves(geometry, *sim_points);
+    }
+  }
+  if (geometry.has_instances()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Instance};
+    if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
+      apply_simulation_to_instances(geometry, *sim_points);
     }
   }
 
@@ -265,6 +344,71 @@ static void update_xpbd_state_for_geometry(XPBDState &state,
     }
     r_sim_points.add(key, std::move(*new_sim_points));
   }
+  if (current_geometry.has_pointcloud()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::PointCloud};
+    const PointCloud *current_pointcloud = current_geometry.get_pointcloud();
+    std::optional<SimPoints> new_sim_points;
+    if (std::optional<SimPoints> old_sim_points = state.sim_points.pop_try(key)) {
+      if (current_pointcloud->totpoint == old_sim_points->points_num) {
+        new_sim_points = std::move(*old_sim_points);
+      }
+    }
+    if (!new_sim_points) {
+      SimPoints sim_points;
+      sim_points.points_num = current_pointcloud->totpoint;
+      sim_points.positions = current_pointcloud->positions();
+      sim_points.velocities.reinitialize(current_pointcloud->totpoint);
+      sim_points.velocities.fill(float3(0.0f));
+      new_sim_points = std::move(sim_points);
+    }
+    r_sim_points.add(key, std::move(*new_sim_points));
+  }
+  if (current_geometry.has_curves()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Curve};
+    const Curves *current_curves_id = current_geometry.get_curves();
+    const bke::CurvesGeometry &current_curves = current_curves_id->geometry.wrap();
+    std::optional<SimPoints> new_sim_points;
+    if (std::optional<SimPoints> old_sim_points = state.sim_points.pop_try(key)) {
+      if (current_curves.points_num() == old_sim_points->points_num) {
+        new_sim_points = std::move(*old_sim_points);
+      }
+    }
+    if (!new_sim_points) {
+      SimPoints sim_points;
+      sim_points.points_num = current_curves.points_num();
+      sim_points.positions = current_curves.positions();
+      sim_points.velocities.reinitialize(current_curves.points_num());
+      sim_points.velocities.fill(float3(0.0f));
+      new_sim_points = std::move(sim_points);
+    }
+    r_sim_points.add(key, std::move(*new_sim_points));
+  }
+  if (current_geometry.has_instances()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Instance};
+    const bke::Instances *current_instances = current_geometry.get_instances();
+    std::optional<SimPoints> new_sim_points;
+    if (std::optional<SimPoints> old_sim_points = state.sim_points.pop_try(key)) {
+      if (current_instances->instances_num() == old_sim_points->points_num) {
+        new_sim_points = std::move(*old_sim_points);
+      }
+    }
+    if (!new_sim_points) {
+      SimPoints sim_points;
+      sim_points.points_num = current_instances->instances_num();
+      sim_points.positions.reinitialize(current_instances->instances_num());
+      const Span<float4x4> transforms = current_instances->transforms();
+      threading::parallel_for(
+          sim_points.positions.index_range(), 1024, [&](const IndexRange range) {
+            for (const int i : range) {
+              sim_points.positions[i] = transforms[i].location();
+            }
+          });
+      sim_points.velocities.reinitialize(current_instances->instances_num());
+      sim_points.velocities.fill(float3(0.0f));
+      new_sim_points = std::move(sim_points);
+    }
+    r_sim_points.add(key, std::move(*new_sim_points));
+  }
 }
 
 template<typename T>
@@ -283,6 +427,7 @@ static Vector<const T *> filter_bundles_for_path(const Span<T> bundles, const St
 static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     ResourceScope &scope,
     const WorldData &world,
+    const Span<SimPointsKey> sim_points_keys,
     const Map<SimPointsKey, Span<float>> inverse_masses_map,
     const Span<GeometrySet> applied_geometries)
 {
@@ -291,47 +436,45 @@ static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     gravity = gravity_bundle.gravity;
   }
   Map<SimPointsKey, Span<float3>> accelerations_map;
-  for (const int bundle_i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
-    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
+  for (const SimPointsKey &sim_points_key : sim_points_keys) {
+    const int geometry_i = world.geometries.index_of_as(sim_points_key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_i];
     Vector<const ForceBundle *> used_forces = filter_bundles_for_path<ForceBundle>(
-        world.forces, geometry_bundle.self_path);
-    for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
-      const bke::GeometryComponent *component = applied_geometry.get_component(type);
-      if (!component) {
-        continue;
-      }
-      const bke::AttrDomain domain = bke::AttrDomain::Point;
-      const int domain_size = component->attribute_domain_size(domain);
-      const Span<float> inverse_masses = inverse_masses_map.lookup(
-          {geometry_bundle.self_path, type});
-
-      /* Initially this is the sums of forces and then the acceleration. */
-      MutableSpan<float3> result = scope.allocator().allocate_array<float3>(domain_size);
-      result.fill(float3(0.0f));
-
-      bke::GeometryFieldContext field_context(*component, domain);
-      for (const ForceBundle *force_bundle : used_forces) {
-        fn::FieldEvaluator field_evaluator{field_context, domain_size};
-        field_evaluator.set_selection(force_bundle->selection);
-        field_evaluator.add(force_bundle->force);
-        field_evaluator.evaluate();
-        const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-        const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
-        mask.foreach_index([&](const int i) { result[i] += force[i]; });
-      }
-
-      threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
-          const float inverse_mass = inverse_masses[i];
-          const float3 &force = result[i];
-          const float3 acceleration = force * inverse_mass + gravity;
-          result[i] = acceleration;
-        }
-      });
-
-      accelerations_map.add_new({geometry_bundle.self_path, type}, result);
+        world.forces, sim_points_key.path);
+    const bke::GeometryComponent::Type type = sim_points_key.type;
+    const bke::GeometryComponent *component = applied_geometry.get_component(type);
+    if (!component) {
+      continue;
     }
+    const bke::AttrDomain domain = get_position_domain(type);
+    const int domain_size = component->attribute_domain_size(domain);
+    const Span<float> inverse_masses = inverse_masses_map.lookup(sim_points_key);
+
+    /* Initially this is the sums of forces and then the acceleration. */
+    MutableSpan<float3> result = scope.allocator().allocate_array<float3>(domain_size);
+    result.fill(float3(0.0f));
+
+    bke::GeometryFieldContext field_context(*component, domain);
+    for (const ForceBundle *force_bundle : used_forces) {
+      fn::FieldEvaluator field_evaluator{field_context, domain_size};
+      field_evaluator.set_selection(force_bundle->selection);
+      field_evaluator.add(force_bundle->force);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
+      mask.foreach_index([&](const int i) { result[i] += force[i]; });
+    }
+
+    threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        const float inverse_mass = inverse_masses[i];
+        const float3 &force = result[i];
+        const float3 acceleration = force * inverse_mass + gravity;
+        result[i] = acceleration;
+      }
+    });
+
+    accelerations_map.add_new(sim_points_key, result);
   }
   return accelerations_map;
 }
@@ -341,50 +484,53 @@ static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
  * is 0 (aka they are assumed to have infinite mass).
  */
 static Map<SimPointsKey, Span<float>> compute_inverse_masses(
-    ResourceScope &scope, const WorldData &world, const Span<GeometrySet> applied_geometries)
+    ResourceScope &scope,
+    const WorldData &world,
+    const Span<SimPointsKey> sim_points_keys,
+    const Span<GeometrySet> applied_geometries)
 {
   Map<SimPointsKey, Span<float>> inverse_masses_map;
-  for (const int bundle_i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
-    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
+  for (const SimPointsKey &sim_points_key : sim_points_keys) {
+    const int geometry_i = world.geometries.index_of_as(sim_points_key.path);
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_i];
+    const GeometrySet &applied_geometry = applied_geometries[geometry_i];
 
     const Vector<const PinnedPositionXPBDConstraintBundle *> pinned_position_constraints =
         filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
-            world.pinned_position_constraints, geometry_bundle.self_path);
+            world.pinned_position_constraints, sim_points_key.path);
 
-    for (const bke::GeometryComponent::Type type : {bke::GeometryComponent::Type::Mesh}) {
-      const bke::GeometryComponent *component = applied_geometry.get_component(type);
-      if (!component) {
-        continue;
-      }
-      const bke::AttrDomain domain = bke::AttrDomain::Point;
-      const int domain_size = component->attribute_domain_size(domain);
-
-      MutableSpan<float> result = scope.allocator().allocate_array<float>(domain_size);
-
-      auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
-      auto &mass_evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
-      mass_evaluator.add_with_destination(geometry_bundle.mass, result);
-      mass_evaluator.evaluate();
-
-      /* Invert masses. */
-      threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
-          result[i] = 1.0f / result[i];
-        }
-      });
-
-      for (const PinnedPositionXPBDConstraintBundle *constraint : pinned_position_constraints) {
-        fn::FieldEvaluator pin_evaluator{field_context, domain_size};
-        pin_evaluator.set_selection(constraint->selection);
-        pin_evaluator.evaluate();
-        const IndexMask mask = pin_evaluator.get_evaluated_selection_as_mask();
-        if (!mask.is_empty()) {
-          mask.foreach_index(GrainSize(1024), [&](const int i) { result[i] = 0.0f; });
-        }
-      }
-      inverse_masses_map.add_new({geometry_bundle.self_path, type}, result);
+    const bke::GeometryComponent::Type type = sim_points_key.type;
+    const bke::GeometryComponent *component = applied_geometry.get_component(type);
+    if (!component) {
+      continue;
     }
+    const bke::AttrDomain domain = get_position_domain(type);
+    const int domain_size = component->attribute_domain_size(domain);
+
+    MutableSpan<float> result = scope.allocator().allocate_array<float>(domain_size);
+
+    auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
+    auto &mass_evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
+    mass_evaluator.add_with_destination(geometry_bundle.mass, result);
+    mass_evaluator.evaluate();
+
+    /* Invert masses. */
+    threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        result[i] = 1.0f / result[i];
+      }
+    });
+
+    for (const PinnedPositionXPBDConstraintBundle *constraint : pinned_position_constraints) {
+      fn::FieldEvaluator pin_evaluator{field_context, domain_size};
+      pin_evaluator.set_selection(constraint->selection);
+      pin_evaluator.evaluate();
+      const IndexMask mask = pin_evaluator.get_evaluated_selection_as_mask();
+      if (!mask.is_empty()) {
+        mask.foreach_index(GrainSize(1024), [&](const int i) { result[i] = 0.0f; });
+      }
+    }
+    inverse_masses_map.add_new(sim_points_key, result);
   }
   return inverse_masses_map;
 }
@@ -580,10 +726,10 @@ static void update_and_step_xpbd_state(XPBDState &state,
   }
 
   const Map<SimPointsKey, Span<float>> inverse_masses_map = compute_inverse_masses(
-      scope, world, applied_geometries);
+      scope, world, ordered_sim_points_keys, applied_geometries);
 
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
-      scope, world, inverse_masses_map, applied_geometries);
+      scope, world, ordered_sim_points_keys, inverse_masses_map, applied_geometries);
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
@@ -727,7 +873,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     world_bundle_ptr->tag_ensured_mutable();
   }
   Bundle &world_bundle = const_cast<Bundle &>(*world_bundle_ptr);
-  for (XPBDGeometryBundle &bundle : world.geometries) {
+  for (const XPBDGeometryBundle &bundle : world.geometries) {
     GeometrySet applied_geometry = apply_simulation(bundle, state);
     world_bundle.add_path_override(bundle.self_path + "/geometry", std::move(applied_geometry));
   }
