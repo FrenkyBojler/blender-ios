@@ -2751,9 +2751,10 @@ static void rna_def_library(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
-  RNA_def_property_ui_text(prop,
-                           "Parent Archive Library",
-                           "Source library from which this archive of packed IDs was generated");
+  RNA_def_property_ui_text(
+      prop,
+      "Archive Libraries",
+      "Archive libraries of packed IDs, generated (and owned) by this source library");
 
   func = RNA_def_function(srna, "reload", "rna_Library_reload");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_CONTEXT);

@@ -369,12 +369,12 @@ static const EnumPropertyItem rna_enum_asset_import_method_items[] = {
      "APPEND",
      0,
      "Append",
-     "Import the assets as copied data-block, with no link to the original asset data-block"},
+     "Import the asset as copied data-block, with no link to the original asset data-block"},
     {FILE_ASSET_IMPORT_APPEND_REUSE,
      "APPEND_REUSE",
      0,
      "Append (Reuse Data)",
-     "Import the assets as copied data-block while avoiding multiple copies of nested, "
+     "Import the asset as copied data-block while avoiding multiple copies of nested, "
      "typically heavy data. For example the textures of a material asset, or the mesh of an "
      "object asset, don't have to be copied every time this asset is imported. The instances of "
      "the asset share the data instead"},
@@ -382,8 +382,8 @@ static const EnumPropertyItem rna_enum_asset_import_method_items[] = {
      "PACK",
      0,
      "Pack",
-     "Import the assets as linked data-block, but also pack it in the current file to keep it "
-     "working even if the source file is not available anymore"},
+     "Import the asset as linked data-block, and pack it in the current file (ensures that it "
+     "remains unchanged in case the library data is modified, is not available anymore, etc.)"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

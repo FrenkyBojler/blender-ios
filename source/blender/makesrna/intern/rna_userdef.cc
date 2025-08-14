@@ -198,8 +198,8 @@ static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] =
      "PACK",
      0,
      "Pack",
-     "Import the assets as linked data-block, but also pack it in the current file to keep it "
-     "working even if the source file is not available anymore"},
+     "Import the asset as linked data-block, and pack it in the current file (ensures that it "
+     "remains unchanged in case the library data is modified, is not available anymore, etc.)"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

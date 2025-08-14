@@ -563,13 +563,19 @@ typedef struct Library {
   uint16_t flag;
   char _pad[6];
 
-  /** For archive library only (#LIBRARY_FLAG_IS_ARCHIVE): The main library owning it. */
+  /**
+   * For archive library only (#LIBRARY_FLAG_IS_ARCHIVE): The main library owning it.
+   *
+   * `archive_parent_library` and `packedfile` should never be both non-null in a same Library ID.
+   */
   struct Library *archive_parent_library;
 
   /**
    * Packed blendfile of the library, nullptr if not packed.
    *
-   * \NOTE Individual IDs may be packed even if the entire library is not packed.
+   * \note Individual IDs may be packed even if the entire library is not packed.
+   *
+   * `archive_parent_library` and `packedfile` should never be both non-null in a same Library ID.
    */
   struct PackedFile *packedfile;
 
@@ -794,7 +800,8 @@ enum {
    */
   ID_FLAG_CLIPBOARD_MARK = 1 << 14,
   /**
-   * Indicates that this linked ID is packed into the current .blend file.
+   * Indicates that this linked ID is packed into the current .blend file. This should never be set
+   * on local ID (without)one with a null `ID::lib` pointer).
    */
   ID_FLAG_LINKED_AND_PACKED = 1 << 15,
 };

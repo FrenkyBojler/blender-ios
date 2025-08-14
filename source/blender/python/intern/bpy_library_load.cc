@@ -397,7 +397,7 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
       return nullptr;
     }
     if (flag_vars.is_pack.value) {
-      PyErr_SetString(PyExc_ValueError, "`link` is False but `pack` is True");
+      PyErr_SetString(PyExc_ValueError, "`pack` must be False if `link` is False");
       return nullptr;
     }
   }
