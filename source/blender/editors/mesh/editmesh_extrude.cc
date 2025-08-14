@@ -363,7 +363,7 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
   bool changed = false;
 
   std::optional<EditMeshSymmetryHelper> symmetry_helper =
-      EditMeshSymmetryHelper::create_if_needed(obedit);
+      EditMeshSymmetryHelper::create_if_needed(obedit,htype);
 
   char hflag = BM_ELEM_SELECT;
 
@@ -592,7 +592,7 @@ static wmOperatorStatus edbm_extrude_verts_exec(bContext *C, wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit);
+        EditMeshSymmetryHelper::create_if_needed(obedit,BM_VERT);
 
     char hflag = BM_ELEM_SELECT;
 
@@ -665,7 +665,7 @@ static wmOperatorStatus edbm_extrude_edges_exec(bContext *C, wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit);
+        EditMeshSymmetryHelper::create_if_needed(obedit,BM_EDGE);
 
     char hflag = BM_ELEM_SELECT;
 
@@ -738,7 +738,7 @@ static wmOperatorStatus edbm_extrude_faces_exec(bContext *C, wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit);
+        EditMeshSymmetryHelper::create_if_needed(obedit,BM_FACE);
 
     char hflag = BM_ELEM_SELECT;
 
@@ -876,7 +876,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
       char hflag = BM_ELEM_SELECT;
 
       std::optional<EditMeshSymmetryHelper> symmetry_helper =
-          EditMeshSymmetryHelper::create_if_needed(obedit);
+          EditMeshSymmetryHelper::create_if_needed(obedit,extrude_htype);
 
       if (symmetry_helper) {
         hflag = BM_ELEM_TAG;

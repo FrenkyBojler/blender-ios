@@ -67,6 +67,10 @@ class EditMeshSymmetryHelper {
 
  private:
   EditMeshSymmetryHelper(Object *ob, uchar htype);
+  void build_mirror_maps_for_axis(int axis);
+  void add_mirror_relationship(BMVert *v1, BMVert *v2);
+  void add_mirror_relationship(BMEdge *e1, BMEdge *e2);
+  void add_mirror_relationship(BMFace *f1, BMFace *f2);
 
   BMEditMesh *em_;
   Mesh *mesh_;
