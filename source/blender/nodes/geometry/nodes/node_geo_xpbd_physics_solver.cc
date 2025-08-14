@@ -759,8 +759,8 @@ static void gather_ground_plane_contacts(const SimPoints &sim_points,
     r_contacts.indices.append(point_i);
     r_contacts.plane_positions.append(plane_position);
     r_contacts.plane_normals.append(plane_normal);
-    r_contacts.static_frictions.append(0.5f);
-    r_contacts.dynamic_frictions.append(0.5f);
+    r_contacts.static_frictions.append(1.0f);
+    r_contacts.dynamic_frictions.append(0.9f);
     r_contacts.depths.append(-distance);
   }
 }
