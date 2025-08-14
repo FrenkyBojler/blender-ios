@@ -193,13 +193,8 @@ struct PenToolOperation {
     return math::transform_point(math::invert(layer_to_world), proj_point);
   }
 
-  void move_segment() const
+  void move_segment(bke::CurvesGeometry &curves, const float4x4 &layer_to_world) const
   {
-    const MutableDrawingInfo &info = this->drawings[this->closest_element.drawing_index];
-    const bke::greasepencil::Layer &layer = this->grease_pencil->layer(info.layer_index);
-    const float4x4 layer_to_world = layer.to_world_space(*this->vc.obact);
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     MutableSpan<float3> positions = curves.positions_for_write();
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
@@ -270,7 +265,6 @@ struct PenToolOperation {
     }
 
     curves.calculate_bezier_auto_handles();
-    info.drawing.tag_topology_changed();
   }
 
   bool move_handles_in_drawing(const MutableDrawingInfo &info) const
@@ -1351,7 +1345,13 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
 
   if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
-    ptd.move_segment();
+    const MutableDrawingInfo &info = ptd.drawings[ptd.closest_element.drawing_index];
+    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+    const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+
+    ptd.move_segment(curves, layer_to_world);
+    info.drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
   }
   else {
