@@ -72,6 +72,10 @@ constexpr float selection_edge_priority_factor = 0.1f;
 /* Points will overwrite edges to allow control point to be selected easier. */
 constexpr float selection_point_overwrite_edge_distance_factor = 0.7f;
 
+constexpr float selection_point_overwrite_edge_distance_factor_sq =
+    selection_point_overwrite_edge_distance_factor *
+    selection_point_overwrite_edge_distance_factor;
+
 /* Total number of curve handle types. */
 constexpr int CURVE_HANDLE_TYPES_NUM = 4;
 
@@ -100,8 +104,7 @@ struct ClosestElement {
 
         /* Overwrite edges with points if the point is within the overwrite distance. */
         if (new_distance_squared < threshold_distance * threshold_distance *
-                                       selection_point_overwrite_edge_distance_factor *
-                                       selection_point_overwrite_edge_distance_factor)
+                                       selection_point_overwrite_edge_distance_factor_sq)
         {
           return true;
         }
@@ -113,8 +116,7 @@ struct ClosestElement {
 
         /* Overwrite edges with points if the point is within the overwrite distance. */
         if (this->distance_squared < threshold_distance * threshold_distance *
-                                         selection_point_overwrite_edge_distance_factor *
-                                         selection_point_overwrite_edge_distance_factor)
+                                         selection_point_overwrite_edge_distance_factor_sq)
         {
           return false;
         }
