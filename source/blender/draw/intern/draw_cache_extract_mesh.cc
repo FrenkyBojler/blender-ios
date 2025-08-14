@@ -191,14 +191,17 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
       case IBOType::UVTris:
         created_ibos[i] = extract_edituv_tris(mr, false);
         break;
-      case IBOType::UVLines:
-        created_ibos[i] = extract_edituv_lines(mr, false);
-        break;
       case IBOType::EditUVTris:
         created_ibos[i] = extract_edituv_tris(mr, true);
         break;
+      case IBOType::AllUVLines:
+        created_ibos[i] = extract_edituv_lines(mr, UvExtractionMode::All);
+        break;
+      case IBOType::UVLines:
+        created_ibos[i] = extract_edituv_lines(mr, UvExtractionMode::Selection);
+        break;
       case IBOType::EditUVLines:
-        created_ibos[i] = extract_edituv_lines(mr, true);
+        created_ibos[i] = extract_edituv_lines(mr, UvExtractionMode::Edit);
         break;
       case IBOType::EditUVPoints:
         created_ibos[i] = extract_edituv_points(mr);
@@ -469,6 +472,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     buffers.vbos.add_new(VBOType::UVs, extract_uv_maps_subdiv(subdiv_cache, cache));
   }
   if (ibos_to_create.contains(IBOType::UVLines)) {
+    /* TODO: Add the AllUVLines case! */
     buffers.ibos.add_new(IBOType::UVLines, extract_edituv_lines_subdiv(mr, subdiv_cache, false));
   }
   if (vbos_to_create.contains(VBOType::EditUVStretchArea)) {

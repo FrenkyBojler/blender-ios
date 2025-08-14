@@ -787,7 +787,7 @@ class MeshUVs : Overlay {
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     if (show_wireframe_ && has_active_object_uvmap) {
-      gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(*ob, mesh);
+      gpu::Batch *geom = DRW_mesh_batch_cache_get_all_uv_wireframe(*ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }
     if (show_face_overlay_ && has_active_object_uvmap && space_image->uv_face_opacity > 0.0f) {
@@ -813,8 +813,8 @@ class MeshUVs : Overlay {
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
     const bool is_uv_editable = is_edit_object && space_image->mode == SI_MODE_UV;
+    /* Sculpt is left out here because selection does not exist in it */
     const bool is_paint_mode = ELEM(state.ctx_mode,
-                                    CTX_MODE_SCULPT,
                                     CTX_MODE_PAINT_TEXTURE,
                                     CTX_MODE_PAINT_VERTEX,
                                     CTX_MODE_PAINT_WEIGHT);
@@ -872,7 +872,7 @@ class MeshUVs : Overlay {
     /* Selectable faces in 3D viewport that change sync with image editor paint mode. */
     if ((has_active_object_uvmap || has_active_edit_uvmap) && is_face_selectable) {
       if (show_wireframe_) {
-        gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_wireframe(ob, mesh);
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(ob, mesh);
         wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
       }
       if ((show_face_overlay_ && space_image->uv_face_opacity > 0.0f) || select_face_) {
@@ -882,11 +882,10 @@ class MeshUVs : Overlay {
     }
 
     /* Non-selectable & Non-editable faces in image editor paint mode. */
-    if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable &&
-        !is_face_selectable)
+    if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable && !is_face_selectable)
     {
       if (show_wireframe_) {
-        gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(ob, mesh);
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_all_uv_wireframe(ob, mesh);
         wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
       }
       if (show_face_overlay_ && space_image->uv_face_opacity > 0.0f) {

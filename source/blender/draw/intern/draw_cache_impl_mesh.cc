@@ -1061,6 +1061,14 @@ gpu::Batch *DRW_mesh_batch_cache_get_uv_faces(Object &object, Mesh &mesh)
   return DRW_batch_request(&cache.batch.uv_faces);
 }
 
+gpu::Batch *DRW_mesh_batch_cache_get_all_uv_wireframe(Object &object, Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  edituv_request_active_uv(cache, object, mesh);
+  cache.batch_requested |= MBC_WIRE_LOOPS_ALL_UVS;
+  return DRW_batch_request(&cache.batch.wire_loops_all_uvs);
+}
+
 gpu::Batch *DRW_mesh_batch_cache_get_uv_wireframe(Object &object, Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
@@ -1168,9 +1176,9 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   }
 
   if (batch_requested &
-      (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_UVS | MBC_WIRE_LOOPS_EDITUVS |
-       MBC_UV_FACES | MBC_EDITUV_FACES_STRETCH_AREA | MBC_EDITUV_FACES_STRETCH_ANGLE |
-       MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
+      (MBC_SURFACE | MBC_SURFACE_PER_MAT | MBC_WIRE_LOOPS_ALL_UVS | MBC_WIRE_LOOPS_UVS |
+       MBC_WIRE_LOOPS_EDITUVS | MBC_UV_FACES | MBC_EDITUV_FACES_STRETCH_AREA |
+       MBC_EDITUV_FACES_STRETCH_ANGLE | MBC_EDITUV_FACES | MBC_EDITUV_EDGES | MBC_EDITUV_VERTS))
   {
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
     if (cache.cd_needed.orco != 0) {
@@ -1248,6 +1256,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       /* We only clear the batches as they may already have been
        * referenced. */
       GPU_BATCH_CLEAR_SAFE(cache.batch.uv_faces);
+      GPU_BATCH_CLEAR_SAFE(cache.batch.wire_loops_all_uvs);
       GPU_BATCH_CLEAR_SAFE(cache.batch.wire_loops_uvs);
       GPU_BATCH_CLEAR_SAFE(cache.batch.wire_loops_edituvs);
       GPU_BATCH_CLEAR_SAFE(cache.batch.edituv_faces_stretch_area);
@@ -1407,6 +1416,14 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                          list,
                          IBOType::Lines,
                          {VBOType::Position, VBOType::CornerNormal, VBOType::EdgeFactor}});
+    }
+    if (batches_to_create & MBC_WIRE_LOOPS_ALL_UVS) {
+      BatchCreateData batch{
+          *cache.batch.wire_loops_all_uvs, GPU_PRIM_LINES, list, IBOType::AllUVLines, {}};
+      if (cache.cd_used.uv != 0) {
+        batch.vbos.append(VBOType::UVs);
+      }
+      batch_info.append(std::move(batch));
     }
     if (batches_to_create & MBC_WIRE_LOOPS_UVS) {
       BatchCreateData batch{
