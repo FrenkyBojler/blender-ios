@@ -392,11 +392,10 @@ struct PenToolOperation {
     return true;
   }
 
-  std::optional<bke::CurvesGeometry> extrude_curves(const bke::greasepencil::Drawing &drawing,
-                                                    const int layer_index,
-                                                    const float4x4 &layer_to_object) const
+  std::optional<bke::CurvesGeometry> extrude_curves(const bke::CurvesGeometry &src,
+                                                    const float4x4 &layer_to_object,
+                                                    const IndexMask editable_curves) const
   {
-    const bke::CurvesGeometry &src = drawing.strokes();
     const bke::AttributeAccessor src_attributes = src.attributes();
     const OffsetIndices<int> points_by_curve = src.points_by_curve();
     const VArray<bool> &src_cyclic = src.cyclic();
@@ -420,10 +419,6 @@ struct PenToolOperation {
     Vector<int> dst_curve_counts(src.curves_num());
     offset_indices::copy_group_sizes(
         points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
-
-    IndexMaskMemory memory;
-    const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
-        *this->vc.obact, drawing, layer_index, memory);
 
     /* Point offset keeps track of the points inserted. */
     int point_offset = 0;
@@ -1148,8 +1143,13 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
         const float4x4 layer_to_object = layer.local_transform();
 
+        IndexMaskMemory memory;
+        const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
+            *ptd.vc.obact, info.drawing, info.layer_index, memory);
+        const bke::CurvesGeometry &src = info.drawing.strokes();
+
         const std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
-            info.drawing, info.layer_index, layer_to_object);
+            src, layer_to_object, editable_curves);
 
         if (result) {
           curves = *result;
