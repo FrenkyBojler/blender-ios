@@ -587,14 +587,13 @@ static void gather_edge_length_constraints(
     XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &all_sim_points_keys,
-    const Span<SimPoints *> all_sim_points,
+    const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, Span<float>> &inverse_masses_map,
     const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
-  for (const int key_i : all_sim_points_keys.index_range()) {
-    const SimPointsKey &key = all_sim_points_keys[key_i];
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
     if (key.type != bke::GeometryComponent::Type::Mesh) {
       continue;
     }
@@ -602,7 +601,7 @@ static void gather_edge_length_constraints(
     const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
 
-    SimPoints &sim_points = *all_sim_points[key_i];
+    SimPoints &sim_points = state.sim_points.lookup(key);
     const Mesh &mesh = *applied_geometry.get_mesh();
     const Span<float3> mesh_positions = mesh.vert_positions();
     const Span<int2> mesh_edges = mesh.edges();
@@ -677,18 +676,18 @@ static void gather_edge_length_constraints(
 
 static void gather_pin_constraints(
     ResourceScope &scope,
+    XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &ordered_sim_points_keys,
-    const Span<SimPoints *> ordered_sim_points,
+    const VectorSet<SimPointsKey> &keys,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
-  for (const int key_i : ordered_sim_points_keys.index_range()) {
-    const SimPointsKey &key = ordered_sim_points_keys[key_i];
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world.geometries.index_of_as(key.path);
     const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
-    const SimPoints &sim_points = *ordered_sim_points[key_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
 
     const Vector pinned_position_constraints =
         filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
@@ -766,19 +765,19 @@ static void gather_ground_plane_contacts(const SimPoints &sim_points,
   }
 }
 
-static Contacts gather_contacts(const WorldData &world,
+static Contacts gather_contacts(const XPBDState &state,
+                                const WorldData &world,
                                 const Span<GeometrySet> applied_geometries,
-                                const VectorSet<SimPointsKey> &ordered_sim_points_keys,
-                                const Span<SimPoints *> ordered_sim_points)
+                                const Span<SimPointsKey> keys)
 {
   Contacts contacts;
-  for (const int key_i : ordered_sim_points_keys.index_range()) {
-    const SimPointsKey &key = ordered_sim_points_keys[key_i];
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world.geometries.index_of_as(key.path);
     const bke::GeometryComponent::Type type = key.type;
     const bke::GeometryComponent *component = applied_geometries[geometry_bundle_i].get_component(
         type);
-    const SimPoints &sim_points = *ordered_sim_points[key_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
     if (!component) {
       continue;
     }
@@ -795,15 +794,15 @@ static Contacts gather_contacts(const WorldData &world,
 
 static void generate_collision_constraint_sets(
     ResourceScope &scope,
+    XPBDState &state,
     const Contacts &contacts,
-    VectorSet<SimPointsKey> ordered_sim_points_keys,
-    Span<SimPoints *> ordered_sim_points,
+    const VectorSet<SimPointsKey> &keys,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
   for (auto item : contacts.static_plane_contacts.items()) {
-    const int key_i = ordered_sim_points_keys.index_of(item.key);
+    const int key_i = keys.index_of(item.key);
     const StaticPlaneContacts &plane_contacts = item.value;
-    SimPoints &sim_points = *ordered_sim_points[key_i];
+    SimPoints &sim_points = state.sim_points.lookup(item.key);
     r_constraint_sets.append(
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
              key_i, plane_contacts.indices),
@@ -851,14 +850,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
   const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
   update_sim_points_from_world(state, world, applied_geometries);
 
-  VectorSet<SimPointsKey> ordered_sim_points_keys;
-  Vector<SimPoints *> ordered_sim_points;
-  Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
-  for (auto item : state.sim_points.items()) {
-    SimPoints &sim_points = item.value;
-    ordered_sim_points_keys.add_new(item.key);
-    ordered_sim_points.append(&sim_points);
-    points_refs.append({sim_points.positions});
+  VectorSet<SimPointsKey> keys;
+  for (const SimPointsKey &key : state.sim_points.keys()) {
+    keys.add_new(key);
   }
 
   for (DistanceConstraintLengths &distance_constraint_lengths :
@@ -872,10 +866,10 @@ static void update_and_step_xpbd_state(XPBDState &state,
   }
 
   const Map<SimPointsKey, Span<float>> inverse_masses_map = compute_inverse_masses(
-      scope, world, ordered_sim_points_keys, applied_geometries);
+      scope, world, keys, applied_geometries);
 
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
-      scope, world, ordered_sim_points_keys, inverse_masses_map, applied_geometries);
+      scope, world, keys, inverse_masses_map, applied_geometries);
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
@@ -884,26 +878,27 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                  state,
                                  world,
                                  applied_geometries,
-                                 ordered_sim_points_keys,
-                                 ordered_sim_points,
+                                 keys,
                                  inverse_masses_map,
                                  sub_delta_time,
                                  static_constraint_sets);
-  gather_pin_constraints(scope,
-                         world,
-                         applied_geometries,
-                         ordered_sim_points_keys,
-                         ordered_sim_points,
-                         static_constraint_sets);
+  gather_pin_constraints(scope, state, world, applied_geometries, keys, static_constraint_sets);
 
-  Array<Array<float3>> all_prev_positions(ordered_sim_points.size());
-  for (const int i : ordered_sim_points.index_range()) {
-    all_prev_positions[i].reinitialize(ordered_sim_points[i]->points_num);
+  Array<Array<float3>> all_prev_positions(keys.size());
+  for (const int i : keys.index_range()) {
+    all_prev_positions[i].reinitialize(state.sim_points.lookup(keys[i]).points_num);
+  }
+
+  Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
+  for (const SimPointsKey &key : keys) {
+    SimPoints &sim_points = state.sim_points.lookup(key);
+    points_refs.append({sim_points.positions});
   }
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
-    for (const int i : ordered_sim_points.index_range()) {
-      all_prev_positions[i].as_mutable_span().copy_from(ordered_sim_points[i]->positions);
+    for (const int i : keys.index_range()) {
+      const SimPointsKey &key = keys[i];
+      all_prev_positions[i].as_mutable_span().copy_from(state.sim_points.lookup(key).positions);
     }
     if (sub_delta_time > 0.0f) {
       integrate_velocities(state, accelerations_map, sub_delta_time);
@@ -911,10 +906,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =
         static_constraint_sets;
-    Contacts contacts = gather_contacts(
-        world, applied_geometries, ordered_sim_points_keys, ordered_sim_points);
-    generate_collision_constraint_sets(
-        scope, contacts, ordered_sim_points_keys, ordered_sim_points, constraint_sets);
+    Contacts contacts = gather_contacts(state, world, applied_geometries, keys);
+    generate_collision_constraint_sets(scope, state, contacts, keys, constraint_sets);
 
     switch (solver_type) {
       case SolverType::SerialGaussSeidel: {
@@ -936,8 +929,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
     if (sub_delta_time > 0.0f) {
       for (const auto item : contacts.static_plane_contacts.items()) {
-        const int key_i = ordered_sim_points_keys.index_of(item.key);
-        SimPoints &sim_points = *ordered_sim_points[key_i];
+        const int key_i = keys.index_of(item.key);
+        SimPoints &sim_points = state.sim_points.lookup(item.key);
         const Span<float3> prev_positions = all_prev_positions[key_i];
         MutableSpan<float3> new_positions = sim_points.positions;
         const StaticPlaneContacts &plane_contacts = item.value;
@@ -959,9 +952,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
           new_positions[point_i] -= offset;
         }
       }
-      for (const int key_i : ordered_sim_points.index_range()) {
+      for (const int key_i : keys.index_range()) {
         const Span<float3> prev_positions = all_prev_positions[key_i];
-        SimPoints &sim_points = *ordered_sim_points[key_i];
+        SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
         Span<float3> new_positions = sim_points.positions;
         MutableSpan<float3> velocities = sim_points.velocities;
         threading::parallel_for(
