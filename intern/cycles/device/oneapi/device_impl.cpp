@@ -36,7 +36,7 @@ extern "C" void rtcSetDeviceSYCLDevice(RTCDevice device, const sycl::device sycl
 
 CCL_NAMESPACE_BEGIN
 
-static std::vector<sycl::device> available_sycl_devices(bool *is_several_dgpu_detected);
+static std::vector<sycl::device> available_sycl_devices(bool *multiple_dgpus_detected);
 static int parse_driver_build_version(const sycl::device &device);
 
 static void queue_error_cb(const char *message, void *user_ptr)
@@ -1392,7 +1392,7 @@ int parse_driver_build_version(const sycl::device &device)
   return driver_build_version;
 }
 
-std::vector<sycl::device> available_sycl_devices(bool *is_several_dgpu_detected = nullptr)
+std::vector<sycl::device> available_sycl_devices(bool *multiple_dgpus_detected = nullptr)
 {
   std::vector<sycl::device> available_devices;
   bool allow_all_devices = false;
@@ -1495,8 +1495,8 @@ std::vector<sycl::device> available_sycl_devices(bool *is_several_dgpu_detected 
     LOG_WARNING << "An error has been encountered while enumerating SYCL devices: " << e.what();
   }
 
-  if (is_several_dgpu_detected) {
-    *is_several_dgpu_detected = level_zero_dgpu_counter > 1;
+  if (multiple_dgpus_detected) {
+    *multiple_dgpus_detected = level_zero_dgpu_counter > 1;
   }
 
   return available_devices;
