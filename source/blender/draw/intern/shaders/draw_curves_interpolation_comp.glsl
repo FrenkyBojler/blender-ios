@@ -170,15 +170,6 @@ template void output_set_zero<float3>(int, float3);
 template void output_set_zero<float2>(int, float2);
 template void output_set_zero<float>(int, float);
 
-IndexRange cyclic_offsets_load(int curve_index)
-{
-  if (use_cyclic) {
-    return IndexRange::from_begin_end(texelFetch(cyclic_offsets_tx, curve_index).x,
-                                      texelFetch(cyclic_offsets_tx, curve_index + 1).x);
-  }
-  return IndexRange(0, 0);
-}
-
 /* Copy of DNA enum in `DNA_curves_types.h`. */
 enum CurveType : uint32_t {
   CURVE_TYPE_CATMULL_ROM = 0u,

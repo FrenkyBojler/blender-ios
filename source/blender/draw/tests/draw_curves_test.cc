@@ -431,7 +431,6 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
     pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
     pass.bind_ssbo("curves_length_buf", curves_length_buf);
-    pass.bind_texture("cyclic_offsets_tx", curves_resolution_buf);
     pass.push_constant("use_cyclic", false);
     /* Dummy, not used for Catmull-Rom. */
     pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
@@ -531,7 +530,6 @@ static void test_draw_curves_interpolate_position()
     pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
     pass.bind_ssbo("curves_type_buf", curves_type_bezier_buf);
     pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
-    pass.bind_texture("cyclic_offsets_tx", curves_resolution_buf);
     pass.push_constant("use_cyclic", false);
     pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
     pass.bind_ssbo("positions_buf", positions_buf);
@@ -717,7 +715,6 @@ static void test_draw_curves_interpolate_position()
     pass.shader_set(sh);
     pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
     pass.bind_ssbo("curves_type_buf", curves_type_nurbs_buf);
-    pass.bind_texture("cyclic_offsets_tx", curves_order_buf);
     pass.push_constant("use_cyclic", false);
     pass.bind_ssbo("curves_resolution_buf", curves_order_buf);
     pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
@@ -1024,7 +1021,6 @@ static void test_draw_curves_interpolate_attributes()
           pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
           pass.bind_ssbo("curves_type_buf", curves_type_buf);
           pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
-          pass.bind_texture("cyclic_offsets_tx", curves_resolution_buf);
           pass.push_constant("use_cyclic", false);
           pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
           pass.bind_ssbo(attr_buf_name.c_str(), attr_buf);

@@ -24,7 +24,7 @@ GPU_SHADER_CREATE_INFO(draw_curves_topology)
 LOCAL_GROUP_SIZE(CURVES_PER_THREADGROUP)
 /* Offsets giving the start and end of the curve. */
 STORAGE_BUF(0, read, int, evaluated_offsets_buf[])
-STORAGE_BUF(1, read, int, cyclic_offsets_buf[])
+STORAGE_BUF(1, read, uint, cyclic_offsets_buf[]) /* Actually bool (1 byte). */
 STORAGE_BUF(2, write, int, indirection_buf[])
 PUSH_CONSTANT(int, curves_start)
 PUSH_CONSTANT(int, curves_count)
@@ -51,7 +51,6 @@ STORAGE_BUF(6, read, int, bezier_offsets_buf[])
 // STORAGE_BUF(5, read, float, control_weights_buf[])
 // STORAGE_BUF(6, read, int, basis_cache_offset_buf[])
 /* Have to use a sampler because of the limit of 12 SSBOs. */
-SAMPLER(CURVE_CYCLIC_SLOT, isamplerBuffer, cyclic_offsets_tx) /* Actually bool. */
 PUSH_CONSTANT(int, curves_start)
 PUSH_CONSTANT(int, curves_count)
 PUSH_CONSTANT(bool, compute_length_and_time)

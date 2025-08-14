@@ -330,6 +330,14 @@ template<> struct GenericVertexFormat<uint8_t> {
   GPU_VERTEX_FORMAT_FUNC(GenericVertexFormat, attr);
 };
 
+template<> struct GenericVertexFormat<bool> {
+  /* This is a workaround to reinterpret bool into padded vertex format to be able to upload it
+   * on any GPU. The shaders then need to read uint32_t and use shifts and mask to decode in
+   * individual bytes. */
+  uint32_t attr;
+  GPU_VERTEX_FORMAT_FUNC(GenericVertexFormat, attr);
+};
+
 }  // namespace blender::gpu
 
 void GPU_vertformat_clear(GPUVertFormat *);

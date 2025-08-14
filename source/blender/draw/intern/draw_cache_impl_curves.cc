@@ -693,15 +693,7 @@ void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
    * This concerns all varray. */
   curves_type_buf = gpu::VertBuf::new_from_varray(curves.curve_types());
   curves_resolution_buf = gpu::VertBuf::new_from_varray(curves.resolution());
-
-  std::optional<Span<int>> cyclic_offsets = curves.cyclic_offsets();
-  if (cyclic_offsets.has_value()) {
-    cyclic_offsets_buf = gpu::VertBuf::new_from_span(cyclic_offsets.value());
-  }
-  else {
-    /* Allocate dummy buffer. Content will not be read. */
-    cyclic_offsets_buf = gpu::VertBuf::new_from_varray(VArray<int32_t>::from_single(0, 2));
-  }
+  cyclic_offsets_buf = gpu::VertBuf::new_from_varray(curves.cyclic());
 }
 
 void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)

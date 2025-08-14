@@ -11,6 +11,7 @@
 
 COMPUTE_SHADER_CREATE_INFO(draw_curves_topology)
 
+#include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_offset_indices_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
@@ -23,11 +24,7 @@ void main()
 
   bool is_curve_cyclic = false;
   if (use_cyclic) {
-    /* This range represent the number of cyclic curves before this curve (start).
-     * The size (0 or 1) is a boolean telling if this curve is cyclic. */
-    /* TODO use boolean buffer. */
-    IndexRange cyclic = offset_indices::load_range_from_buffer(cyclic_offsets_buf, curve_id);
-    is_curve_cyclic = cyclic.size() != 0;
+    is_curve_cyclic = gpu_attr_load_bool(cyclic_offsets_buf, curve_id);
   }
 
   IndexRange points = offset_indices::load_range_from_buffer(evaluated_offsets_buf, curve_id);
