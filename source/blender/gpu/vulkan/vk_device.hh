@@ -106,13 +106,6 @@ struct VKWorkarounds {
  * Shared resources between contexts that run in the same thread.
  */
 class VKThreadData : public NonCopyable, NonMovable {
-  /**
-   * The number of resource pools is aligned to the number of frames
-   * in flight used by GHOST. Therefore, this constant *must* always
-   * match GHOST_ContextVK's GHOST_FRAMES_IN_FLIGHT.
-   */
-  static constexpr uint32_t resource_pools_count = 5;
-
  public:
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
@@ -123,7 +116,7 @@ class VKThreadData : public NonCopyable, NonMovable {
    * NOTE: Initialized to `UINT32_MAX` to detect first change.
    */
   uint32_t resource_pool_index = UINT32_MAX;
-  std::array<VKResourcePool, resource_pools_count> resource_pools;
+  Vector<VKResourcePool, 5> resource_pools;
 
   VKDescriptorPools descriptor_pools;
   /**
@@ -149,6 +142,13 @@ class VKThreadData : public NonCopyable, NonMovable {
     return resource_pools[resource_pool_index];
   }
 
+  void ensure_resource_pools(int pool_size)
+  {
+    while (resource_pools.size() < pool_size) {
+      resource_pools.append({});
+    }
+  }
+
   /** Activate the next resource pool. */
   void resource_pool_next()
   {
@@ -156,7 +156,7 @@ class VKThreadData : public NonCopyable, NonMovable {
       resource_pool_index = 1;
     }
     else {
-      resource_pool_index = (resource_pool_index + 1) % resource_pools_count;
+      resource_pool_index = (resource_pool_index + 1) % uint32_t(resource_pools.size());
     }
   }
 };
