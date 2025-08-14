@@ -861,7 +861,7 @@ static void pen_find_closest_edge_point(const PenToolOperation &ptd,
   const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
   const Span<float3> positions = curves.positions();
   const Span<float3> evaluated_positions = curves.evaluated_positions();
-  const VArray<bool> curve_cyclic = curves.cyclic();
+  const VArray<bool> cyclic = curves.cyclic();
   const VArray<int8_t> types = curves.curve_types();
 
   IndexMaskMemory memory;
@@ -874,8 +874,7 @@ static void pen_find_closest_edge_point(const PenToolOperation &ptd,
     const IndexRange src_points = points_by_curve[curve_i];
     const IndexRange eval_points = evaluated_points_by_curve[curve_i];
 
-    const bool cyclic = curve_cyclic[curve_i];
-    for (const int src_i : src_points.index_range().drop_back(cyclic ? 0 : 1)) {
+    for (const int src_i : src_points.index_range().drop_back(cyclic[curve_i] ? 0 : 1)) {
       if (types[curve_i] != CURVE_TYPE_BEZIER) {
         const int src_i_1 = src_i + src_points.first();
         const int src_i_2 = (src_i + 1) % src_points.size() + src_points.first();
