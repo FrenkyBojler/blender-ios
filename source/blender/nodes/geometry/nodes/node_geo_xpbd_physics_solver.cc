@@ -14,6 +14,7 @@
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
+#include "GEO_xpbd_common_constraint_evaluators.hh"
 #include "GEO_xpbd_common_constraint_set_indices.hh"
 #include "GEO_xpbd_constraint_solver.hh"
 
@@ -115,89 +116,6 @@ struct WorldData {
   Vector<XPBDGeometryBundle> geometries;
   Vector<EdgeLengthXPBDConstraintBundle> edge_length_constraints;
   Vector<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
-};
-
-class PinConstraintEvaluator
-    : public geometry::xpbd_constraint_solver::TemplatedConstraintSetEvaluator<
-          PinConstraintEvaluator> {
- private:
-  int geo_i_;
-  Span<float3> positions_;
-  Span<int> indices_;
-  Span<float3> pin_positions_;
-
- public:
-  PinConstraintEvaluator(const int geo_i,
-                         const Span<float3> positions,
-                         const Span<int> indices,
-                         const Span<float3> pin_positions)
-      : geo_i_(geo_i), positions_(positions), indices_(indices), pin_positions_(pin_positions)
-  {
-  }
-
-  template<typename SolverT> void evaluate_single(SolverT &solver, const int constraint_i) const
-  {
-    const int i = indices_[constraint_i];
-    const float3 &pin_position = pin_positions_[constraint_i];
-    const float3 &p = positions_[i];
-    const float3 offset = pin_position - p;
-    solver.update_position(geo_i_, i, offset);
-  }
-};
-
-class DistanceConstraintEvaluator
-    : public geometry::xpbd_constraint_solver::TemplatedConstraintSetEvaluator<
-          DistanceConstraintEvaluator> {
- private:
-  int geo_i_;
-  Span<float3> positions_;
-  VArray<float> masses_;
-  Span<int2> point_pairs_;
-  Span<float> distances_;
-  float compliance_term_;
-
- public:
-  DistanceConstraintEvaluator(const int geo_i,
-                              const Span<float3> positions,
-                              const VArray<float> &masses,
-                              const Span<int2> point_pairs,
-                              const Span<float> distances,
-                              const float compliance_term)
-      : geo_i_(geo_i),
-        positions_(positions),
-        masses_(masses),
-        point_pairs_(point_pairs),
-        distances_(distances),
-        compliance_term_(compliance_term)
-  {
-    BLI_assert(point_pairs.size() == distances.size());
-  }
-
-  template<typename SolverT> void evaluate_single(SolverT &solver, const int constraint_i) const
-  {
-    const int2 &point_pair = point_pairs_[constraint_i];
-    const float target_distance = distances_[constraint_i];
-    const int v0 = point_pair[0];
-    const int v1 = point_pair[1];
-    const float3 &p0 = positions_[v0];
-    const float3 &p1 = positions_[v1];
-    const float m0 = masses_[v0];
-    const float m1 = masses_[v1];
-
-    const float inv_m0 = 1.0f / m0;
-    const float inv_m1 = 1.0f / m1;
-
-    const float3 p_diff = p1 - p0;
-    float length;
-    const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
-    const float length_diff = length - target_distance;
-    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term_);
-
-    const float3 offset0 = lambda * inv_m0 * normalized_dir;
-    const float3 offset1 = -lambda * inv_m1 * normalized_dir;
-    solver.update_position(geo_i_, v0, offset0);
-    solver.update_position(geo_i_, v1, offset1);
-  }
 };
 
 static WorldData parse_world(const Bundle &world_bundle)
@@ -508,12 +426,13 @@ static void gather_distance_constraints(
       r_constraint_sets.append(
           {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
                geo_i, constraint_edges),
-           scope.construct<DistanceConstraintEvaluator>(geo_i,
-                                                        sim_points.positions,
-                                                        masses,
-                                                        constraint_edges,
-                                                        constraint_lengths,
-                                                        compliance_term)});
+           scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
+               geo_i,
+               sim_points.positions,
+               masses,
+               constraint_edges,
+               constraint_lengths,
+               compliance_term)});
     }
   }
 }
@@ -567,7 +486,7 @@ static void gather_pin_constraints(
         r_constraint_sets.append(
             {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
                  geo_i, constraint_indices),
-             scope.construct<PinConstraintEvaluator>(
+             scope.construct<geometry::xpbd_constraint_solver::PinConstraintEvaluator>(
                  geo_i, sim_points.positions, constraint_indices, constraint_positions)});
       }
     }
