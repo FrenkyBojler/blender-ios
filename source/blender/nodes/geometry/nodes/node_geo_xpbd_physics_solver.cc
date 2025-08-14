@@ -25,6 +25,27 @@ namespace blender::nodes::node_geo_xpbd_physics_solver_cc {
 
 using namespace physics_bundles;
 
+enum class SolverType {
+  SerialGaussSeidel,
+  ParallelGaussSeidel,
+  NonDeterministicJacobian,
+};
+
+static const EnumPropertyItem solver_type_items[] = {
+    {int(SolverType::SerialGaussSeidel), "SERIAL_GAUSS_SEIDEL", 0, "Serial Gauss-Seidel", ""},
+    {int(SolverType::ParallelGaussSeidel),
+     "PARALLEL_GAUSS_SEIDEL",
+     0,
+     "Parallel Gauss-Seidel",
+     ""},
+    {int(SolverType::NonDeterministicJacobian),
+     "NON_DETERMINISTIC_JACOBIAN",
+     0,
+     "Non-deterministic Jacobian",
+     ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static NestedBundleTypePtr make_world_type()
 {
   Vector<std::shared_ptr<const FlatBundleType>> types;
@@ -57,7 +78,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous()
       .description("Simulated world");
   b.add_input<decl::Float>("Delta Time").min(0).default_value(1 / 25.0f);
-  b.add_input<decl::Int>("Substeps").default_value(1).min(1);
+
+  auto &panel = b.add_panel("Solver");
+  panel.add_input<decl::Menu>("Solver Type").static_items(solver_type_items);
+  panel.add_input<decl::Int>("Substeps").default_value(1).min(1);
 }
 
 struct SimPoints {
@@ -507,6 +531,7 @@ static void gather_pin_constraints(
 static void update_and_step_xpbd_state(XPBDState &state,
                                        const WorldData &world,
                                        const float total_delta_time,
+                                       const SolverType solver_type,
                                        const int substeps)
 {
   ResourceScope scope;
@@ -573,7 +598,25 @@ static void update_and_step_xpbd_state(XPBDState &state,
     if (sub_delta_time > 0.0f) {
       apply_external_accelerations_and_velocities(state, accelerations_map, sub_delta_time);
     }
-    geometry::xpbd_constraint_solver::solve_gauss_seidel_parallel(points_refs, constraint_sets);
+
+    switch (solver_type) {
+      case SolverType::SerialGaussSeidel: {
+        geometry::xpbd_constraint_solver::solve_gauss_seidel_one_at_a_time(points_refs,
+                                                                           constraint_sets);
+        break;
+      }
+      case SolverType::ParallelGaussSeidel: {
+        geometry::xpbd_constraint_solver::solve_gauss_seidel_parallel(points_refs,
+                                                                      constraint_sets);
+        break;
+      }
+      case SolverType::NonDeterministicJacobian: {
+        geometry::xpbd_constraint_solver::solve_jacobian_non_deterministic(points_refs,
+                                                                           constraint_sets);
+        break;
+      }
+    }
+
     if (sub_delta_time > 0.0f) {
       for (const int geo_i : all_sim_points.index_range()) {
         Span<float3> prev_positions = all_prev_positions[geo_i];
@@ -603,6 +646,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr old_state_bundle_ptr = params.extract_input<BundlePtr>("State");
   BundlePtr world_bundle_ptr = params.extract_input<BundlePtr>("World");
+  const SolverType solver_type = params.extract_input<SolverType>("Solver Type");
   const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
   const int substeps = std::max(1, params.extract_input<int>("Substeps"));
 
@@ -640,7 +684,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
-    update_and_step_xpbd_state(state, world, delta_time, substeps);
+    update_and_step_xpbd_state(state, world, delta_time, solver_type, substeps);
     state.update_counter = update_counter;
   }
 
