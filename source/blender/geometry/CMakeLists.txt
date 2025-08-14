@@ -107,6 +107,7 @@ set(SRC
   GEO_uv_parametrizer.hh
   GEO_volume_grid_resample.hh
   GEO_xpbd.hh
+  GEO_xpbd_common_constraint_set_indices.hh
   GEO_xpbd_constraint_solver.hh
 
   intern/mesh_boolean_manifold.hh

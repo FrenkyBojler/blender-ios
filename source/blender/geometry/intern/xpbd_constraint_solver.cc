@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_multi_value_map.hh"
+
+#include "GEO_xpbd_common_constraint_set_indices.hh"
 #include "GEO_xpbd_constraint_solver.hh"
 
 namespace blender::geometry::xpbd_constraint_solver {

@@ -14,6 +14,7 @@
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
+#include "GEO_xpbd_common_constraint_set_indices.hh"
 #include "GEO_xpbd_constraint_solver.hh"
 
 #include "intern/attribute_storage_access.hh"
