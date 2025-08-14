@@ -187,6 +187,14 @@ template float3 mix4<float3>(float3, float3, float3, float3, float4);
 template float2 mix4<float2>(float2, float2, float2, float2, float4);
 template float mix4<float>(float, float, float, float, float4);
 
+bool curve_cyclic_get(int curve_index)
+{
+  if (use_cyclic) {
+    return gpu_attr_load_bool(curves_cyclic_buf, curve_index);
+  }
+  return false;
+}
+
 namespace catmull_rom {
 
 float4 calculate_basis(const float parameter)
@@ -221,7 +229,7 @@ void evaluate_curve(const InterpType interp_type,
 {
   const uint curve_resolution = curves_resolution_buf[curve_index];
   /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
-  const bool is_curve_cyclic = use_cyclic;
+  const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   for (uint i = 0; i < evaluated_points.size(); i++) {
     const int evaluated_point_id = evaluated_points.start() + int(i);
@@ -336,7 +344,7 @@ void evaluate_curve(const InterpType interp_type,
   /* Range used for indexing bezier offsets. */
   const IndexRange offsets = per_curve_point_offsets_range(points, curve_index);
   /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
-  const bool is_curve_cyclic = use_cyclic;
+  const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   for (int i = 0; i < points.size(); i++) {
     /* Bezier curves can have different number of evaluated segment per curve segment. */
@@ -365,11 +373,12 @@ template void evaluate_curve<float4>(float4, IndexRange, IndexRange, int);
 template<typename InterpType>
 void copy_curve_data(const InterpType interp_type,
                      const IndexRange points,
-                     const IndexRange evaluated_points)
+                     const IndexRange evaluated_points,
+                     const int curve_index)
 {
   assert(points.size == evaluated_points.size);
   /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
-  const bool is_curve_cyclic = use_cyclic;
+  const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   for (int i = 0; i < points.size(); i++) {
     output_write(evaluated_points.start() + i, input_load(points.start() + i, interp_type));
@@ -381,11 +390,11 @@ void copy_curve_data(const InterpType interp_type,
   }
 }
 
-template void copy_curve_data<InterpPosition>(InterpPosition, IndexRange, IndexRange);
-template void copy_curve_data<float>(float, IndexRange, IndexRange);
-template void copy_curve_data<float2>(float2, IndexRange, IndexRange);
-template void copy_curve_data<float3>(float3, IndexRange, IndexRange);
-template void copy_curve_data<float4>(float4, IndexRange, IndexRange);
+template void copy_curve_data<InterpPosition>(InterpPosition, IndexRange, IndexRange, int);
+template void copy_curve_data<float>(float, IndexRange, IndexRange, int);
+template void copy_curve_data<float2>(float2, IndexRange, IndexRange, int);
+template void copy_curve_data<float3>(float3, IndexRange, IndexRange, int);
+template void copy_curve_data<float4>(float4, IndexRange, IndexRange, int);
 
 namespace nurbs {
 
@@ -393,21 +402,24 @@ template<typename InterpType>
 void evaluate_curve(const InterpType interp_type,
                     const IndexRange points,
                     const IndexRange evaluated_points_padded,
-                    const uint curve_index)
+                    const int curve_index)
 {
   /* Buffer aliasing to same bind point. We cannot dispatch with different type of curve. */
   const auto &curves_order_buf = curves_resolution_buf;
   const auto &basis_cache_offset_buf = bezier_offsets_buf;
 
-  const int order = int(gpu_attr_load_uchar(curves_order_buf, curve_index));
+  const int order = int(gpu_attr_load_uchar(curves_order_buf, uint(curve_index)));
 
   const int basis_cache_start = basis_cache_offset_buf[curve_index];
   const bool invalid = basis_cache_start < 0;
 
   if (invalid) {
-    copy_curve_data(interp_type, points, evaluated_points_padded);
+    copy_curve_data(interp_type, points, evaluated_points_padded, curve_index);
     return;
   }
+
+  /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
+  const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   /* Recover original points range without closing cyclic point. */
   const IndexRange evaluated_points = IndexRange(evaluated_points_padded.start(),
@@ -442,18 +454,18 @@ void evaluate_curve(const InterpType interp_type,
     output_mul(evaluated_point_index, safe_rcp(total_weight), interp_type);
   }
 
-  if (use_cyclic) {
+  if (is_curve_cyclic) {
     /* The closing point is not contained inside the NURBS data structure so we do manual copy. */
     output_write(evaluated_points_padded.last(),
                  output_load(evaluated_points_padded.first(), interp_type));
   }
 }
 
-template void evaluate_curve<InterpPosition>(InterpPosition, IndexRange, IndexRange, uint);
-template void evaluate_curve<float>(float, IndexRange, IndexRange, uint);
-template void evaluate_curve<float2>(float2, IndexRange, IndexRange, uint);
-template void evaluate_curve<float3>(float3, IndexRange, IndexRange, uint);
-template void evaluate_curve<float4>(float4, IndexRange, IndexRange, uint);
+template void evaluate_curve<InterpPosition>(InterpPosition, IndexRange, IndexRange, int);
+template void evaluate_curve<float>(float, IndexRange, IndexRange, int);
+template void evaluate_curve<float2>(float2, IndexRange, IndexRange, int);
+template void evaluate_curve<float3>(float3, IndexRange, IndexRange, int);
+template void evaluate_curve<float4>(float4, IndexRange, IndexRange, int);
 
 }  // namespace nurbs
 
@@ -484,11 +496,11 @@ template<typename InterpType> void evaluate_curve(const InterpType interp_type)
     bezier::evaluate_curve(interp_type, points, evaluated_points, curve_index);
   }
   else if (CurveType(evaluated_type) == CURVE_TYPE_NURBS) {
-    nurbs::evaluate_curve(interp_type, points, evaluated_points, uint(curve_index));
+    nurbs::evaluate_curve(interp_type, points, evaluated_points, curve_index);
   }
   else if (CurveType(evaluated_type) == CURVE_TYPE_POLY) {
     /* Simple copy. */
-    copy_curve_data(interp_type, points, evaluated_points);
+    copy_curve_data(interp_type, points, evaluated_points, curve_index);
   }
 }
 

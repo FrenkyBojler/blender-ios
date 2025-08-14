@@ -16,7 +16,7 @@
 #  define DRW_HAIR_INFO
 #endif
 
-#include "draw_defines.hh"
+#include "draw_curves_defines.hh"
 
 #include "gpu_shader_create_info.hh"
 
@@ -40,16 +40,17 @@ LOCAL_GROUP_SIZE(CURVES_PER_THREADGROUP)
 STORAGE_BUF(EVALUATED_POINT_SLOT, read, int, evaluated_points_by_curve_buf[])
 STORAGE_BUF(POINTS_BY_CURVES_SLOT, read, int, points_by_curve_buf[])
 STORAGE_BUF(CURVE_RESOLUTION_SLOT, read, uint, curves_resolution_buf[])
-STORAGE_BUF(CURVE_TYPE_SLOT, read, uint, curves_type_buf[]) /* Actually int8_t. */
+STORAGE_BUF(CURVE_TYPE_SLOT, read, uint, curves_type_buf[])     /* Actually int8_t. */
+STORAGE_BUF(CURVE_CYCLIC_SLOT, read, uint, curves_cyclic_buf[]) /* Actually bool (1 byte). */
 /* Bezier handles (if needed). */
-STORAGE_BUF(4, read, float, handles_positions_left_buf[])
-STORAGE_BUF(5, read, float, handles_positions_right_buf[])
-STORAGE_BUF(6, read, int, bezier_offsets_buf[])
+STORAGE_BUF(HANDLES_POS_LEFT_SLOT, read, float, handles_positions_left_buf[])
+STORAGE_BUF(HANDLES_POS_RIGHT_SLOT, read, float, handles_positions_right_buf[])
+STORAGE_BUF(BEZIER_OFFSETS_SLOT, read, int, bezier_offsets_buf[])
 /* Nurbs (alias of other buffers).  */
-// STORAGE_BUF(2, read, uint, curves_order_buf[])  /* Actually int8_t. */
-// STORAGE_BUF(4, read, float, basis_cache_buf[])
-// STORAGE_BUF(5, read, float, control_weights_buf[])
-// STORAGE_BUF(6, read, int, basis_cache_offset_buf[])
+// STORAGE_BUF(CURVES_ORDER_SLOT, read, uint, curves_order_buf[])  /* Actually int8_t. */
+// STORAGE_BUF(BASIS_CACHE_SLOT, read, float, basis_cache_buf[])
+// STORAGE_BUF(CONTROL_WEIGHTS_SLOT, read, float, control_weights_buf[])
+// STORAGE_BUF(BASIS_CACHE_OFFSET_SLOT, read, int, basis_cache_offset_buf[])
 PUSH_CONSTANT(int, curves_start)
 PUSH_CONSTANT(int, curves_count)
 PUSH_CONSTANT(bool, use_point_weight)

@@ -46,22 +46,3 @@
 
 /* TODO(fclem): Move to overlay. */
 #define OVERLAY_GLOBALS_SLOT 7
-
-/** Curves evaluation. */
-#define CURVES_PER_THREADGROUP 64
-
-#define POINTS_BY_CURVES_SLOT 0
-#define CURVE_TYPE_SLOT 1
-#define CURVE_RESOLUTION_SLOT 2
-#define EVALUATED_POINT_SLOT 3
-#define CURVE_CYCLIC_SLOT 4
-
-#define POINT_POSITIONS_SLOT 7
-#define POINT_RADII_SLOT 8
-#define EVALUATED_POS_RAD_SLOT 9
-
-#define EVALUATED_TIME_SLOT 7
-#define CURVES_LENGTH_SLOT 8
-
-#define POINT_ATTR_SLOT 7
-#define EVALUATED_ATTR_SLOT 8

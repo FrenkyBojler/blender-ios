@@ -28,6 +28,7 @@
 #include "draw_cache_impl.hh"
 #include "draw_common.hh"
 #include "draw_context_private.hh"
+#include "draw_curves_defines.hh"
 #include "draw_curves_private.hh"
 #include "draw_hair_private.hh"
 #include "draw_shader.hh"
@@ -171,9 +172,9 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
   PassSimple::Sub &pass = refine.sub(pass_name);
   pass.bind_ssbo(POINTS_BY_CURVES_SLOT, cache.points_by_curve_buf);
   pass.bind_ssbo(CURVE_TYPE_SLOT, cache.curves_type_buf);
+  pass.bind_ssbo(CURVE_CYCLIC_SLOT, cache.curves_cyclic_buf);
   pass.bind_ssbo(CURVE_RESOLUTION_SLOT, cache.curves_resolution_buf);
   pass.bind_ssbo(EVALUATED_POINT_SLOT, cache.evaluated_points_by_curve_buf);
-  pass.bind_texture(CURVE_CYCLIC_SLOT, cache.curves_cyclic_buf);
 
   switch (shader_type) {
     case CURVES_EVAL_POSITION:
@@ -272,9 +273,9 @@ void CurvesModule::evaluate_curve_length_intercept(const bool has_cyclic,
   pass.shader_set(shader);
   pass.bind_ssbo(POINTS_BY_CURVES_SLOT, cache.points_by_curve_buf);
   pass.bind_ssbo(CURVE_TYPE_SLOT, cache.curves_type_buf);
+  pass.bind_ssbo(CURVE_CYCLIC_SLOT, cache.curves_cyclic_buf);
   pass.bind_ssbo(CURVE_RESOLUTION_SLOT, cache.curves_resolution_buf);
   pass.bind_ssbo(EVALUATED_POINT_SLOT, cache.evaluated_points_by_curve_buf);
-  pass.bind_texture(CURVE_CYCLIC_SLOT, cache.curves_cyclic_buf);
 
   pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, cache.evaluated_pos_rad_buf);
   pass.bind_ssbo(EVALUATED_TIME_SLOT, cache.evaluated_time_buf);

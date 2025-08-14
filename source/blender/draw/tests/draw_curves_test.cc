@@ -9,6 +9,7 @@
 #include "GPU_batch.hh"
 #include "GPU_shader.hh"
 
+#include "draw_curves_defines.hh"
 #include "draw_manager.hh"
 #include "draw_pass.hh"
 #include "draw_testing.hh"

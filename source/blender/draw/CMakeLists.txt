@@ -581,6 +581,7 @@ set(GLSL_SRC
   intern/draw_attribute_shader_shared.hh
   intern/draw_command_shared.hh
   intern/draw_defines.hh
+  intern/draw_curves_defines.hh
   intern/draw_pointcloud_private.hh
   intern/draw_shader_shared.hh
   intern/draw_subdiv_defines.hh
