@@ -2094,8 +2094,8 @@ void BLO_write_double_array(BlendWriter *writer, const int64_t num, const double
 
 void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void *data_ptr)
 {
-  blender::Array<const void *, 32> data(num);
-  memcpy(data.data(), data_ptr, sizeof(void *) * size_t(num));
+  blender::Array<const void *, 32> data(
+      blender::Span{reinterpret_cast<const void *const *>(data_ptr), num});
   for (const int64_t i : data.index_range()) {
     data[i] = get_address_id(*writer->wd, data[i]);
   }
@@ -2124,13 +2124,15 @@ void BLO_write_shared(BlendWriter *writer,
   if (data == nullptr) {
     return;
   }
+  const void *address_id = get_address_id(*writer->wd, data);
   if (BLO_write_is_undo(writer)) {
     MemFile &memfile = *writer->wd->mem.written_memfile;
     if (sharing_info != nullptr) {
       if (memfile.shared_storage == nullptr) {
         memfile.shared_storage = MEM_new<MemFileSharedStorage>(__func__);
       }
-      if (memfile.shared_storage->map.add(data, sharing_info)) {
+      if (memfile.shared_storage->map.add(address_id, sharing_info)) {
+        memfile.shared_storage->address_id_to_data.add(address_id, data);
         /* The undo-step takes (shared) ownership of the data, which also makes it immutable. */
         sharing_info->add_user();
         /* This size is an estimate, but good enough to count data with many users less. */
@@ -2140,7 +2142,7 @@ void BLO_write_shared(BlendWriter *writer,
     }
   }
   if (sharing_info != nullptr) {
-    if (!writer->wd->per_id_written_shared_addresses.add(data)) {
+    if (!writer->wd->per_id_written_shared_addresses.add(address_id)) {
       /* Was written already. */
       return;
     }
