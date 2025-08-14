@@ -111,6 +111,15 @@ struct SimPointsKey {
   }
 };
 
+/**
+ * Properties of simulated points which are retrieved from the world instead of being stored in
+ * the state.
+ */
+struct SimPointsWorldProperties {
+  Span<float> inverse_masses;
+  Span<float> frictions;
+};
+
 struct DistanceConstraintLengths {
   struct LengthItem {
     float length;
@@ -474,8 +483,8 @@ static Vector<const T *> filter_bundles_for_path(const Span<T> bundles, const St
 static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     ResourceScope &scope,
     const WorldData &world,
-    const Span<SimPointsKey> sim_points_keys,
-    const Map<SimPointsKey, Span<float>> inverse_masses_map,
+    const Span<SimPointsKey> keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const Span<GeometrySet> applied_geometries)
 {
   float3 gravity(0.0f);
@@ -483,7 +492,7 @@ static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     gravity = gravity_bundle.gravity;
   }
   Map<SimPointsKey, Span<float3>> accelerations_map;
-  for (const SimPointsKey &sim_points_key : sim_points_keys) {
+  for (const SimPointsKey &sim_points_key : keys) {
     const int geometry_i = world.geometries.index_of_as(sim_points_key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_i];
     Vector<const ForceBundle *> used_forces = filter_bundles_for_path<ForceBundle>(
@@ -495,7 +504,7 @@ static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     }
     const bke::AttrDomain domain = get_position_domain(type);
     const int domain_size = component->attribute_domain_size(domain);
-    const Span<float> inverse_masses = inverse_masses_map.lookup(sim_points_key);
+    const Span<float> inverse_masses = sim_points_props.lookup(sim_points_key).inverse_masses;
 
     /* Initially this is the sums of forces and then the acceleration. */
     MutableSpan<float3> result = scope.allocator().allocate_array<float3>(domain_size);
@@ -526,60 +535,60 @@ static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
   return accelerations_map;
 }
 
-/**
- * Computes the inverse mass for each point. The inverse mass of points that are known to be pinned
- * is 0 (aka they are assumed to have infinite mass).
- */
-static Map<SimPointsKey, Span<float>> compute_inverse_masses(
+static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_properties(
     ResourceScope &scope,
     const WorldData &world,
-    const Span<SimPointsKey> sim_points_keys,
+    const Span<SimPointsKey> keys,
     const Span<GeometrySet> applied_geometries)
 {
-  Map<SimPointsKey, Span<float>> inverse_masses_map;
-  for (const SimPointsKey &sim_points_key : sim_points_keys) {
-    const int geometry_i = world.geometries.index_of_as(sim_points_key.path);
+  Map<SimPointsKey, SimPointsWorldProperties> properties_map;
+  for (const SimPointsKey &key : keys) {
+    const int geometry_i = world.geometries.index_of_as(key.path);
     const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_i];
 
-    const Vector<const PinnedPositionXPBDConstraintBundle *> pinned_position_constraints =
-        filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
-            world.pinned_position_constraints, sim_points_key.path);
-
-    const bke::GeometryComponent::Type type = sim_points_key.type;
+    const bke::GeometryComponent::Type type = key.type;
     const bke::GeometryComponent *component = applied_geometry.get_component(type);
     if (!component) {
       continue;
     }
+
     const bke::AttrDomain domain = get_position_domain(type);
     const int domain_size = component->attribute_domain_size(domain);
 
-    MutableSpan<float> result = scope.allocator().allocate_array<float>(domain_size);
+    MutableSpan<float> result_masses = scope.allocator().allocate_array<float>(domain_size);
+    MutableSpan<float> result_frictions = scope.allocator().allocate_array<float>(domain_size);
 
     auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
-    auto &mass_evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
-    mass_evaluator.add_with_destination(geometry_bundle.mass, result);
-    mass_evaluator.evaluate();
+    auto &field_evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
+    field_evaluator.add_with_destination(geometry_bundle.mass, result_masses);
+    field_evaluator.add_with_destination(geometry_bundle.friction, result_frictions);
+    field_evaluator.evaluate();
 
-    /* Invert masses. */
+    /* Invert masses and clamp frictions. */
     threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
       for (const int i : range) {
-        result[i] = 1.0f / result[i];
+        result_masses[i] = std::max(0.0f, math::safe_divide(1.0f, result_masses[i]));
+        result_frictions[i] = std::max(0.0f, result_frictions[i]);
       }
     });
 
+    /* Set mass of pinned points to infinity (i.e. the inverse mass is 0). */
+    const Vector<const PinnedPositionXPBDConstraintBundle *> pinned_position_constraints =
+        filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
+            world.pinned_position_constraints, key.path);
     for (const PinnedPositionXPBDConstraintBundle *constraint : pinned_position_constraints) {
       fn::FieldEvaluator pin_evaluator{field_context, domain_size};
       pin_evaluator.set_selection(constraint->selection);
       pin_evaluator.evaluate();
       const IndexMask mask = pin_evaluator.get_evaluated_selection_as_mask();
       if (!mask.is_empty()) {
-        mask.foreach_index(GrainSize(1024), [&](const int i) { result[i] = 0.0f; });
+        mask.foreach_index(GrainSize(1024), [&](const int i) { result_masses[i] = 0.0f; });
       }
     }
-    inverse_masses_map.add_new(sim_points_key, result);
+    properties_map.add_new(key, {result_masses, result_frictions});
   }
-  return inverse_masses_map;
+  return properties_map;
 }
 
 static void gather_edge_length_constraints(
@@ -588,7 +597,7 @@ static void gather_edge_length_constraints(
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys,
-    const Map<SimPointsKey, Span<float>> &inverse_masses_map,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
@@ -605,7 +614,7 @@ static void gather_edge_length_constraints(
     const Mesh &mesh = *applied_geometry.get_mesh();
     const Span<float3> mesh_positions = mesh.vert_positions();
     const Span<int2> mesh_edges = mesh.edges();
-    const Span<float> inverse_masses = inverse_masses_map.lookup(key);
+    const Span<float> inverse_masses = sim_points_props.lookup(key).inverse_masses;
 
     const Vector edge_length_constraints = filter_bundles_for_path<EdgeLengthXPBDConstraintBundle>(
         world.edge_length_constraints, geometry_bundle.self_path);
@@ -748,6 +757,8 @@ struct Contacts {
 static void gather_ground_plane_contacts(const SimPoints &sim_points,
                                          const float3 &plane_position,
                                          const float3 &plane_normal,
+                                         const Span<float> sim_points_frictions,
+                                         const float collider_friction,
                                          StaticPlaneContacts &r_contacts)
 {
   for (const int point_i : IndexRange(sim_points.points_num)) {
@@ -759,16 +770,20 @@ static void gather_ground_plane_contacts(const SimPoints &sim_points,
     r_contacts.indices.append(point_i);
     r_contacts.plane_positions.append(plane_position);
     r_contacts.plane_normals.append(plane_normal);
-    r_contacts.static_frictions.append(1.0f);
-    r_contacts.dynamic_frictions.append(0.9f);
+    const float point_friction = sim_points_frictions[point_i];
+    const float friction = math::sqrt(point_friction * collider_friction);
+    r_contacts.static_frictions.append(friction);
+    r_contacts.dynamic_frictions.append(friction);
     r_contacts.depths.append(-distance);
   }
 }
 
-static Contacts gather_contacts(const XPBDState &state,
-                                const WorldData &world,
-                                const Span<GeometrySet> applied_geometries,
-                                const Span<SimPointsKey> keys)
+static Contacts gather_contacts(
+    const XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const Span<SimPointsKey> keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props)
 {
   Contacts contacts;
   for (const int key_i : keys.index_range()) {
@@ -781,9 +796,16 @@ static Contacts gather_contacts(const XPBDState &state,
     if (!component) {
       continue;
     }
+    const Span<float> frictions = sim_points_props.lookup(key).frictions;
+    const float collider_friction = 1.0f;
+
     StaticPlaneContacts plane_contacts;
-    gather_ground_plane_contacts(
-        sim_points, float3(0.0f), float3(0.0f, 0.0f, 1.0f), plane_contacts);
+    gather_ground_plane_contacts(sim_points,
+                                 float3(0.0f),
+                                 float3(0.0f, 0.0f, 1.0f),
+                                 frictions,
+                                 collider_friction,
+                                 plane_contacts);
     if (plane_contacts.indices.is_empty()) {
       continue;
     }
@@ -928,6 +950,22 @@ static void update_velocities(XPBDState &state,
   }
 }
 
+static Vector<geometry::xpbd_constraint_solver::PointsRef> prepare_points_refs_for_solver(
+    XPBDState &state, const Span<SimPointsKey> keys)
+{
+  Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
+  for (const SimPointsKey &key : keys) {
+    SimPoints &sim_points = state.sim_points.lookup(key);
+    geometry::xpbd_constraint_solver::PointsRef points_ref;
+    points_ref.positions = sim_points.positions;
+    if (sim_points.has_rotation) {
+      points_ref.rotations = sim_points.rotations;
+    }
+    points_refs.append(points_ref);
+  }
+  return points_refs;
+}
+
 static void update_and_step_xpbd_state(XPBDState &state,
                                        const WorldData &world,
                                        const float total_delta_time,
@@ -945,10 +983,10 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
   reset_distance_constraint_length_usages(state);
 
-  const Map<SimPointsKey, Span<float>> inverse_masses_map = compute_inverse_masses(
-      scope, world, keys, applied_geometries);
+  const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
+      compute_sim_point_world_properties(scope, world, keys, applied_geometries);
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
-      scope, world, keys, inverse_masses_map, applied_geometries);
+      scope, world, keys, sim_points_props, applied_geometries);
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
   Vector<geometry::xpbd_constraint_solver::ConstraintSet> static_constraint_sets;
@@ -957,7 +995,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                  world,
                                  applied_geometries,
                                  keys,
-                                 inverse_masses_map,
+                                 sim_points_props,
                                  sub_delta_time,
                                  static_constraint_sets);
   gather_pin_constraints(scope, state, world, applied_geometries, keys, static_constraint_sets);
@@ -967,16 +1005,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
     all_prev_positions[i].reinitialize(state.sim_points.lookup(keys[i]).points_num);
   }
 
-  Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
-  for (const SimPointsKey &key : keys) {
-    SimPoints &sim_points = state.sim_points.lookup(key);
-    geometry::xpbd_constraint_solver::PointsRef points_ref;
-    points_ref.positions = sim_points.positions;
-    if (sim_points.has_rotation) {
-      points_ref.rotations = sim_points.rotations;
-    }
-    points_refs.append(points_ref);
-  }
+  const Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs =
+      prepare_points_refs_for_solver(state, keys);
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
     /* Remember previous positions. */
@@ -993,7 +1023,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
     /* Find current collisisons and generate constraints to resolve them. */
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =
         static_constraint_sets;
-    Contacts contacts = gather_contacts(state, world, applied_geometries, keys);
+    const Contacts contacts = gather_contacts(
+        state, world, applied_geometries, keys, sim_points_props);
     generate_collision_constraint_sets(scope, state, contacts, keys, constraint_sets);
 
     /* Actually solve the constraints. */
