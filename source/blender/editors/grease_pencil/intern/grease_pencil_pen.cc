@@ -1074,7 +1074,7 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
           return;
         }
 
-        if (!(point_i == points.last() || point_i == points.first())) {
+        if (point_i != points.first() && point_i != points.last()) {
           return;
         }
       }
