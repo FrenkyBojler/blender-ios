@@ -174,6 +174,7 @@ void WM_msg_subscribe_static(wmMsgBus *mbus,
 /* `wm_message_bus_remote_downloader.cc` */
 
 struct wmMsgParams_RemoteDownloader {
+  /* Owned, needs freeing with `MEM_freeN()`. */
   const char *remote_url;
 };
 
