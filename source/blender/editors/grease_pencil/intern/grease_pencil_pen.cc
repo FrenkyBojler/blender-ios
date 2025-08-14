@@ -91,7 +91,9 @@ struct ClosestElement {
                  const ElementMode new_element_mode,
                  const float threshold_distance) const
   {
-    if (new_distance_squared > threshold_distance * threshold_distance) {
+    const float threshold_distance_sq = threshold_distance * threshold_distance;
+
+    if (new_distance_squared > threshold_distance_sq) {
       return false;
     }
 
@@ -103,8 +105,8 @@ struct ClosestElement {
         old_priority = selection_edge_priority_factor;
 
         /* Overwrite edges with points if the point is within the overwrite distance. */
-        if (new_distance_squared < threshold_distance * threshold_distance *
-                                       selection_point_overwrite_edge_distance_factor_sq)
+        if (new_distance_squared <
+            threshold_distance_sq * selection_point_overwrite_edge_distance_factor_sq)
         {
           return true;
         }
@@ -115,8 +117,8 @@ struct ClosestElement {
         new_priority = selection_edge_priority_factor;
 
         /* Overwrite edges with points if the point is within the overwrite distance. */
-        if (this->distance_squared < threshold_distance * threshold_distance *
-                                         selection_point_overwrite_edge_distance_factor_sq)
+        if (this->distance_squared <
+            threshold_distance_sq * selection_point_overwrite_edge_distance_factor_sq)
         {
           return false;
         }
