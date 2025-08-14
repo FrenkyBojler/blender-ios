@@ -268,7 +268,7 @@ struct PenToolOperation {
   }
 
   bool move_handles_in_curve(bke::CurvesGeometry &curves,
-                             const IndexMask bezier_points,
+                             const IndexMask &bezier_points,
                              const float4x4 &layer_to_world,
                              const float4x4 &layer_to_object) const
   {
