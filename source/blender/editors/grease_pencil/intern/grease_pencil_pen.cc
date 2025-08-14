@@ -591,9 +591,9 @@ struct PenToolOperation {
     {
       bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
           dst, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-      MutableSpan<bool> selection = selection_writer.span.typed<bool>();
-      selection.fill(false);
-      selection[dst_point_index] = true;
+      ed::curves::fill_selection_false(selection_writer.span);
+      ed::curves::fill_selection_true(selection_writer.span,
+                                      IndexRange::from_single(dst_point_index));
       selection_writer.finish();
     }
 
@@ -1157,8 +1157,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
           {
             bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
                 curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-            MutableSpan<bool> selection = selection_writer.span.typed<bool>();
-            selection.fill(false);
+            ed::curves::fill_selection_false(selection_writer.span);
             selection_writer.finish();
           }
           return;
@@ -1182,8 +1181,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         {
           bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
               curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-          MutableSpan<bool> selection = selection_writer.span.typed<bool>();
-          selection.fill(false);
+          ed::curves::fill_selection_false(selection_writer.span);
           selection_writer.finish();
         }
       }
@@ -1219,11 +1217,15 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     {
       bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
           curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-      MutableSpan<bool> selection = selection_writer.span.typed<bool>();
+
+      const bool last_selected = ed::curves::has_anything_selected(
+          selection_writer.span.slice(IndexRange::from_single(points.last())));
+      const bool first_selected = ed::curves::has_anything_selected(
+          selection_writer.span.slice(IndexRange::from_single(points.first())));
 
       /* Close the curve by selecting the other end point. */
-      if ((ptd.closest_element.point_index == points.first() && selection[points.last()]) ||
-          (ptd.closest_element.point_index == points.last() && selection[points.first()]))
+      if ((ptd.closest_element.point_index == points.first() && last_selected) ||
+          (ptd.closest_element.point_index == points.last() && first_selected))
       {
         curves.cyclic_for_write()[ptd.closest_element.curve_index] = true;
         curves.calculate_bezier_auto_handles();
@@ -1232,7 +1234,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       }
 
       if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
-        selection.fill(false);
+        ed::curves::fill_selection_false(selection_writer.span);
       }
 
       if (ptd.select_point) {
@@ -1243,7 +1245,9 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
             (selection_attribute_name == ".selection_handle_right" &&
              ptd.closest_element.element_mode == ElementMode::HandleRight))
         {
-          selection[ptd.closest_element.point_index] = true;
+
+          ed::curves::fill_selection_true(
+              selection_writer.span, IndexRange::from_single(ptd.closest_element.point_index));
           add_single.store(false, std::memory_order_relaxed);
         }
       }
