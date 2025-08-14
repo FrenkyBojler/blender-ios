@@ -745,6 +745,54 @@ struct PenToolOperation {
         bke::attribute_filter_from_skip_ref(curve_attributes_to_skip),
         curves.curves_range().take_back(1));
   }
+
+  void close_curve_and_select(bke::CurvesGeometry &curves,
+                              const IndexRange points,
+                              const bool clear_selection,
+                              bool &changed)
+  {
+    for (const StringRef selection_attribute_name :
+         ed::curves::get_curves_selection_attribute_names(curves))
+    {
+      bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+          curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+
+      const bool last_selected = ed::curves::has_anything_selected(
+          selection_writer.span.slice(IndexRange::from_single(points.last())));
+      const bool first_selected = ed::curves::has_anything_selected(
+          selection_writer.span.slice(IndexRange::from_single(points.first())));
+
+      /* Close the curve by selecting the other end point. */
+      if ((this->closest_element.point_index == points.first() && last_selected) ||
+          (this->closest_element.point_index == points.last() && first_selected))
+      {
+        curves.cyclic_for_write()[this->closest_element.curve_index] = true;
+        curves.calculate_bezier_auto_handles();
+        changed = true;
+      }
+
+      if (clear_selection) {
+        ed::curves::fill_selection_false(selection_writer.span);
+      }
+
+      if (this->select_point) {
+        if ((selection_attribute_name == ".selection" &&
+             this->closest_element.element_mode == ElementMode::Point) ||
+            (selection_attribute_name == ".selection_handle_left" &&
+             this->closest_element.element_mode == ElementMode::HandleLeft) ||
+            (selection_attribute_name == ".selection_handle_right" &&
+             this->closest_element.element_mode == ElementMode::HandleRight))
+        {
+
+          ed::curves::fill_selection_true(
+              selection_writer.span, IndexRange::from_single(this->closest_element.point_index));
+          changed = true;
+        }
+      }
+
+      selection_writer.finish();
+    }
+  }
 };
 
 static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
@@ -1208,47 +1256,12 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       return;
     }
 
-    for (const StringRef selection_attribute_name :
-         ed::curves::get_curves_selection_attribute_names(curves))
-    {
-      bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
-          curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-
-      const bool last_selected = ed::curves::has_anything_selected(
-          selection_writer.span.slice(IndexRange::from_single(points.last())));
-      const bool first_selected = ed::curves::has_anything_selected(
-          selection_writer.span.slice(IndexRange::from_single(points.first())));
-
-      /* Close the curve by selecting the other end point. */
-      if ((ptd.closest_element.point_index == points.first() && last_selected) ||
-          (ptd.closest_element.point_index == points.last() && first_selected))
-      {
-        curves.cyclic_for_write()[ptd.closest_element.curve_index] = true;
-        curves.calculate_bezier_auto_handles();
-        info.drawing.tag_topology_changed();
-        add_single.store(false, std::memory_order_relaxed);
-      }
-
-      if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
-        ed::curves::fill_selection_false(selection_writer.span);
-      }
-
-      if (ptd.select_point) {
-        if ((selection_attribute_name == ".selection" &&
-             ptd.closest_element.element_mode == ElementMode::Point) ||
-            (selection_attribute_name == ".selection_handle_left" &&
-             ptd.closest_element.element_mode == ElementMode::HandleLeft) ||
-            (selection_attribute_name == ".selection_handle_right" &&
-             ptd.closest_element.element_mode == ElementMode::HandleRight))
-        {
-
-          ed::curves::fill_selection_true(
-              selection_writer.span, IndexRange::from_single(ptd.closest_element.point_index));
-          add_single.store(false, std::memory_order_relaxed);
-        }
-      }
-
-      selection_writer.finish();
+    const bool clear_selection = event->val != KM_DBL_CLICK && !ptd.delete_point;
+    bool geometry_changed;
+    ptd.close_curve_and_select(curves, points, clear_selection, geometry_changed);
+    if (geometry_changed) {
+      info.drawing.tag_topology_changed();
+      add_single.store(false, std::memory_order_relaxed);
     }
 
     changed.store(true, std::memory_order_relaxed);
