@@ -945,6 +945,7 @@ class USERPREF_MT_interface_theme_presets(Menu):
     # Prevent untrusted XML files "escaping" from these types.
     preset_xml_secure_types = {
         "Theme",
+        "ThemeCommon",
         "ThemeAssetShelf",
         "ThemeBoneColorSet",
         "ThemeClipEditor",
