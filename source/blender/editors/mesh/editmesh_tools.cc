@@ -2469,6 +2469,9 @@ static wmOperatorStatus edbm_hide_exec(bContext *C, wmOperator *op)
       }
     }
 
+    /* Only if symmetry is enabled. */
+    EDBM_select_mirrored_extend_all(obedit, em);
+
     if (EDBM_mesh_hide(em, unselected)) {
       EDBMUpdate_Params params{};
       params.calc_looptris = true;
@@ -4781,7 +4784,7 @@ struct FillGridSplitJoin {
  *
  * This is done only when there are faces selected. Once split this way, fill_grid will
  * interpolate using only the data from the selected faces, not the data from the surrounding
- * faces. This matters for  UV edges and face corner colors - the data from the faces being
+ * faces. This matters for UV edges and face corner colors - the data from the faces being
  * replaced is the right data to use for the interpolation. This relies on the fact that the
  * "exterior" edge of an island is topologically the same as the "interior" edge around a hole.
  *

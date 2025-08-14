@@ -244,7 +244,7 @@ static void node_socket_add_replace(const bContext *C,
     }
     else {
       sock_from_tmp = (bNodeSocket *)BLI_findlink(&node_from->outputs, item->socket_index);
-      bke::node_position_relative(*node_from, *node_to, *sock_from_tmp, *sock_to);
+      bke::node_position_relative(*node_from, *node_to, sock_from_tmp, *sock_to);
     }
 
     node_link_item_apply(ntree, node_from, item);
@@ -434,11 +434,11 @@ static void ui_node_sock_name(const bNodeTree *ntree,
     const std::string node_name = bke::node_label(*ntree, *node);
 
     if (BLI_listbase_is_empty(&node->inputs) && node->outputs.first != node->outputs.last) {
-      BLI_snprintf(name,
-                   UI_MAX_NAME_STR,
-                   "%s | %s",
-                   IFACE_(node_name.c_str()),
-                   IFACE_(sock->link->fromsock->name));
+      BLI_snprintf_utf8(name,
+                        UI_MAX_NAME_STR,
+                        "%s | %s",
+                        IFACE_(node_name.c_str()),
+                        IFACE_(sock->link->fromsock->name));
     }
     else {
       BLI_strncpy_utf8(name, IFACE_(node_name.c_str()), UI_MAX_NAME_STR);
@@ -584,8 +584,6 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
                              UI_UNIT_X * 4,
                              UI_UNIT_Y,
                              nullptr,
-                             0.0,
-                             0.0,
                              TIP_("Add node to input"));
 
       argN = (NodeLinkArg *)MEM_dupallocN(arg);
@@ -804,6 +802,11 @@ static void ui_node_draw_node(
           ui_node_draw_input(
               layout, C, ntree, node, node.socket_by_decl(*socket_decl), depth + 1, nullptr);
         }
+      }
+      else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl))
+      {
+        PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+        layout_decl->draw(&layout, &C, &nodeptr);
       }
     }
   }

@@ -228,7 +228,7 @@ static void gwl_round_int2_by(int value_p[2], const int round_value)
 /**
  * Return true if the value is already rounded by `round_value`.
  */
-static bool gwl_round_int_test(int value, const int round_value)
+static bool gwl_round_int_test(const int value, const int round_value)
 {
   return value == ((value / round_value) * round_value);
 }
@@ -266,11 +266,11 @@ wl_fixed_t gwl_window_scale_wl_fixed_from(const GWL_WindowScaleParams &scale_par
   return value / scale_params.scale;
 }
 
-int gwl_window_scale_int_to(const GWL_WindowScaleParams &scale_params, int value)
+int gwl_window_scale_int_to(const GWL_WindowScaleParams &scale_params, const int value)
 {
   return wl_fixed_to_int(gwl_window_scale_wl_fixed_to(scale_params, wl_fixed_from_int(value)));
 }
-int gwl_window_scale_int_from(const GWL_WindowScaleParams &scale_params, int value)
+int gwl_window_scale_int_from(const GWL_WindowScaleParams &scale_params, const int value)
 {
   return wl_fixed_to_int(gwl_window_scale_wl_fixed_from(scale_params, wl_fixed_from_int(value)));
 }
@@ -641,7 +641,7 @@ static bool gwl_window_state_set(GWL_Window *win, const GHOST_TWindowState state
  * Scale a value from a viewport value to Wayland windowing.
  * Scale down or not at all.
  */
-static int gwl_window_fractional_to_viewport(const GWL_WindowFrame &frame, int value)
+static int gwl_window_fractional_to_viewport(const GWL_WindowFrame &frame, const int value)
 {
   GHOST_ASSERT(frame.fractional_scale != 0, "Not fractional or called before initialized!");
   return (value * frame.fractional_scale) / FRACTIONAL_DENOMINATOR;
@@ -651,7 +651,7 @@ static int gwl_window_fractional_to_viewport(const GWL_WindowFrame &frame, int v
  * Scale a value from a Wayland windowing value to the viewport.
  * Scales up or not at all.
  */
-static int gwl_window_fractional_from_viewport(const GWL_WindowFrame &frame, int value)
+static int gwl_window_fractional_from_viewport(const GWL_WindowFrame &frame, const int value)
 {
   GHOST_ASSERT(frame.fractional_scale != 0, "Not fractional or called before initialized!");
   return (value * FRACTIONAL_DENOMINATOR) / frame.fractional_scale;
@@ -661,13 +661,13 @@ static int gwl_window_fractional_from_viewport(const GWL_WindowFrame &frame, int
  * (rounding is part of the WAYLAND spec). All other conversions such as cursor coordinates
  * can used simple integer division as rounding is not defined in this case. */
 
-static int gwl_window_fractional_to_viewport_round(const GWL_WindowFrame &frame, int value)
+static int gwl_window_fractional_to_viewport_round(const GWL_WindowFrame &frame, const int value)
 {
   GHOST_ASSERT(frame.fractional_scale != 0, "Not fractional or called before initialized!");
   return lroundf(double(value * frame.fractional_scale) / double(FRACTIONAL_DENOMINATOR));
 }
 
-static int gwl_window_fractional_from_viewport_round(const GWL_WindowFrame &frame, int value)
+static int gwl_window_fractional_from_viewport_round(const GWL_WindowFrame &frame, const int value)
 {
   GHOST_ASSERT(frame.fractional_scale != 0, "Not fractional or called before initialized!");
   return lroundf(double(value * FRACTIONAL_DENOMINATOR) / double(frame.fractional_scale));
@@ -1289,8 +1289,8 @@ static void xdg_toplevel_handle_close(void *data, xdg_toplevel * /*xdg_toplevel*
 
 static void xdg_toplevel_handle_configure_bounds(void *data,
                                                  xdg_toplevel * /*xdg_toplevel*/,
-                                                 int32_t width,
-                                                 int32_t height)
+                                                 const int32_t width,
+                                                 const int32_t height)
 {
   /* Only available in interface version 4. */
   CLOG_DEBUG(LOG, "configure_bounds (size=[%d, %d])", width, height);
@@ -1688,7 +1688,7 @@ static void surface_handle_leave(void *data, wl_surface * /*wl_surface*/, wl_out
     defined(WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION)
 static void surface_handle_preferred_buffer_scale(void * /*data*/,
                                                   wl_surface * /*wl_surface*/,
-                                                  int32_t factor)
+                                                  const int32_t factor)
 {
   /* Only available in interface version 6. */
   CLOG_DEBUG(LOG, "handle_preferred_buffer_scale (factor=%d)", factor);
@@ -1696,7 +1696,7 @@ static void surface_handle_preferred_buffer_scale(void * /*data*/,
 
 static void surface_handle_preferred_buffer_transform(void * /*data*/,
                                                       wl_surface * /*wl_surface*/,
-                                                      uint32_t transform)
+                                                      const uint32_t transform)
 {
   /* Only available in interface version 6. */
   CLOG_DEBUG(LOG, "handle_preferred_buffer_transform (transform=%u)", transform);
@@ -1734,14 +1734,12 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
                                          const GHOST_IWindow *parentWindow,
                                          const GHOST_TDrawingContextType type,
                                          const bool is_dialog,
-                                         const bool stereoVisual,
+                                         const GHOST_ContextParams &context_params,
                                          const bool exclusive,
-                                         const bool is_debug,
                                          const GHOST_GPUDevice &preferred_device)
-    : GHOST_Window(width, height, state, stereoVisual, exclusive),
+    : GHOST_Window(width, height, state, context_params, exclusive),
       system_(system),
       window_(new GWL_Window),
-      is_debug_context_(is_debug),
       preferred_device_(preferred_device)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
@@ -2088,10 +2086,20 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
    * isn't essential, it reduces flickering. */
   wl_surface_commit(window_->wl.surface);
 
-  window_->is_init = true;
+#ifdef WITH_OPENGL_BACKEND
+  if (type == GHOST_kDrawingContextTypeOpenGL) {
+    /* NOTE(@ideasman42): Set the swap interval to 0 (disable VSync) to prevent blocking.
+     * This was reported for SDL in 2021 so it may be good to revisit this decision
+     * at some point since forcing the VSync setting seems a heavy-handed,
+     * especially if the issue gets resolved up-stream.
+     *
+     * For reference: https://github.com/libsdl-org/SDL/issues/4335
+     * From the report the compositor causing problems was GNOME's Mutter. */
+    setSwapInterval(0);
+  }
+#endif
 
-  /* Set swap interval to 0 to prevent blocking. */
-  setSwapInterval(0);
+  window_->is_init = true;
 }
 
 GHOST_WindowWayland::~GHOST_WindowWayland()
@@ -2359,8 +2367,8 @@ GHOST_TSuccess GHOST_WindowWayland::setClientSize(const uint32_t width, const ui
   return GHOST_kSuccess;
 }
 
-void GHOST_WindowWayland::screenToClient(int32_t inX,
-                                         int32_t inY,
+void GHOST_WindowWayland::screenToClient(const int32_t inX,
+                                         const int32_t inY,
                                          int32_t &outX,
                                          int32_t &outY) const
 {
@@ -2368,8 +2376,8 @@ void GHOST_WindowWayland::screenToClient(int32_t inX,
   outY = inY;
 }
 
-void GHOST_WindowWayland::clientToScreen(int32_t inX,
-                                         int32_t inY,
+void GHOST_WindowWayland::clientToScreen(const int32_t inX,
+                                         const int32_t inY,
                                          int32_t &outX,
                                          int32_t &outY) const
 {
@@ -2389,7 +2397,7 @@ uint16_t GHOST_WindowWayland::getDPIHint()
   return window_->frame.buffer_scale * base_dpi;
 }
 
-GHOST_TSuccess GHOST_WindowWayland::setWindowCursorVisibility(bool visible)
+GHOST_TSuccess GHOST_WindowWayland::setWindowCursorVisibility(const bool visible)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
   std::lock_guard lock_server_guard{*system_->server_mutex};
@@ -2449,13 +2457,13 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
 {
   switch (type) {
     case GHOST_kDrawingContextTypeNone: {
-      GHOST_Context *context = new GHOST_ContextNone(m_wantStereoVisual);
+      GHOST_Context *context = new GHOST_ContextNone(m_want_context_params);
       return context;
     }
 
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
-      GHOST_ContextVK *context = new GHOST_ContextVK(m_wantStereoVisual,
+      GHOST_ContextVK *context = new GHOST_ContextVK(m_want_context_params,
                                                      GHOST_kVulkanPlatformWayland,
                                                      0,
                                                      nullptr,
@@ -2464,7 +2472,6 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
                                                      window_->backend.vulkan_window_info,
                                                      1,
                                                      2,
-                                                     is_debug_context_,
                                                      preferred_device_);
       if (context->initializeDrawingContext()) {
         return context;
@@ -2479,14 +2486,14 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextEGL(
             system_,
-            m_wantStereoVisual,
+            m_want_context_params,
             EGLNativeWindowType(window_->backend.egl_window),
             EGLNativeDisplayType(system_->wl_display_get()),
             EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
             4,
             minor,
             GHOST_OPENGL_EGL_CONTEXT_FLAGS |
-                (is_debug_context_ ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
+                (m_want_context_params.is_debug ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
             GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
             EGL_OPENGL_API);
 
@@ -2507,7 +2514,8 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
 
 #ifdef WITH_INPUT_IME
 
-void GHOST_WindowWayland::beginIME(int32_t x, int32_t y, int32_t w, int32_t h, bool completed)
+void GHOST_WindowWayland::beginIME(
+    const int32_t x, const int32_t y, const int32_t w, const int32_t h, const bool completed)
 {
   system_->ime_begin(this, x, y, w, h, completed);
 }

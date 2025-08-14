@@ -71,7 +71,7 @@ struct GHOST_SwapchainImage {
   VkImage vk_image = VK_NULL_HANDLE;
 
   /**
-   * Semaphore for presenting; being signaled when the swap chain image is ready to be presented.
+   * Semaphore for presenting; being signaled when the swap-chain image is ready to be presented.
    */
   VkSemaphore present_semaphore = VK_NULL_HANDLE;
 
@@ -84,7 +84,7 @@ struct GHOST_Frame {
    * frame can acquire a new image and the semaphores can be reused.
    */
   VkFence submission_fence = VK_NULL_HANDLE;
-  /** Semaphore for acquiring; being signaled when the swap chain image is ready to be updated. */
+  /** Semaphore for acquiring; being signaled when the swap-chain image is ready to be updated. */
   VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
 
   GHOST_FrameDiscard discard_pile;
@@ -109,7 +109,7 @@ class GHOST_ContextVK : public GHOST_Context {
   /**
    * Constructor.
    */
-  GHOST_ContextVK(bool stereoVisual,
+  GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #ifdef _WIN32
                   HWND hwnd,
 #elif defined(__APPLE__)
@@ -127,7 +127,6 @@ class GHOST_ContextVK : public GHOST_Context {
 #endif
                   int contextMajorVersion,
                   int contextMinorVersion,
-                  int debug,
                   const GHOST_GPUDevice &preferred_device);
 
   /**
@@ -229,7 +228,6 @@ class GHOST_ContextVK : public GHOST_Context {
 
   const int m_context_major_version;
   const int m_context_minor_version;
-  const int m_debug;
   const GHOST_GPUDevice m_preferred_device;
 
   VkQueue m_graphic_queue;

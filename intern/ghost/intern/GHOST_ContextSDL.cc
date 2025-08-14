@@ -16,14 +16,14 @@
 SDL_GLContext GHOST_ContextSDL::s_sharedContext = nullptr;
 int GHOST_ContextSDL::s_sharedCount = 0;
 
-GHOST_ContextSDL::GHOST_ContextSDL(bool stereoVisual,
+GHOST_ContextSDL::GHOST_ContextSDL(const GHOST_ContextParams &context_params,
                                    SDL_Window *window,
                                    int contextProfileMask,
                                    int contextMajorVersion,
                                    int contextMinorVersion,
                                    int contextFlags,
                                    int contextResetNotificationStrategy)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
       m_window(window),
       m_hidden_window(nullptr),
       m_contextProfileMask(contextProfileMask),
@@ -106,7 +106,7 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
   }
 
-  if (m_stereoVisual) {
+  if (m_context_params.is_stereo_visual) {
     SDL_GL_SetAttribute(SDL_GL_STEREO, 1);
   }
 
@@ -133,6 +133,13 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
     s_sharedCount++;
 
     success = (SDL_GL_MakeCurrent(m_window, m_context) < 0) ? GHOST_kFailure : GHOST_kSuccess;
+
+    {
+      const GHOST_TVSyncModes vsync = getVSync();
+      if (vsync != GHOST_kVSyncModeUnset) {
+        setSwapInterval(int(vsync));
+      }
+    }
 
     initClearGL();
     SDL_GL_SwapWindow(m_window);

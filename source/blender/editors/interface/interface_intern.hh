@@ -18,7 +18,9 @@
 #include "BKE_fcurve.hh"
 
 #include "DNA_listBase.h"
+
 #include "RNA_types.hh"
+
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -415,7 +417,7 @@ struct uiButDecorator : public uiBut {
 
 /** Derived struct for #ButType::Progress. */
 struct uiButProgress : public uiBut {
-  /** Progress in  0..1 range */
+  /** Progress in 0..1 range. */
   float progress_factor = 0.0f;
   /** The display style (bar, pie... etc). */
   blender::ui::ButProgressType progress_type = blender::ui::ButProgressType::Bar;

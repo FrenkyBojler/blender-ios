@@ -12,7 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -437,6 +437,8 @@ static void file_main_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* Truncate, otherwise these can be on ".5" and give fuzzy text. #77696. */
   region->v2d.cur.ymin = trunc(region->v2d.cur.ymin);
   region->v2d.cur.ymax = trunc(region->v2d.cur.ymax);
@@ -600,6 +602,8 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
   rcti view_rect;
   ED_fileselect_layout_maskrect(sfile->layout, v2d, &view_rect);
   UI_view2d_scrollers_draw(v2d, &view_rect);
+
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &view_rect);
 }
 
 static void file_operatortypes()
@@ -944,7 +948,7 @@ void ED_spacetype_file()
   ARegionType *art;
 
   st->spaceid = SPACE_FILE;
-  STRNCPY(st->name, "File");
+  STRNCPY_UTF8(st->name, "File");
 
   st->create = file_create;
   st->free = file_free;

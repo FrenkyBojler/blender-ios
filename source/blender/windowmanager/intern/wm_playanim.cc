@@ -36,6 +36,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -1595,6 +1596,10 @@ static GHOST_WindowHandle playanim_window_open(
   gpusettings.preferred_device.index = U.gpu_preferred_index;
   gpusettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
   gpusettings.preferred_device.device_id = U.gpu_preferred_device_id;
+  if (GPU_backend_vsync_is_overridden()) {
+    gpusettings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpusettings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   {
     bool screen_size_valid = false;
@@ -1729,10 +1734,10 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   IMB_init();
   MOV_init();
 
-  STRNCPY(ps.display_ctx.display_settings.display_device,
-          IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
-  IMB_colormanagement_init_default_view_settings(&ps.display_ctx.view_settings,
-                                                 &ps.display_ctx.display_settings);
+  STRNCPY_UTF8(ps.display_ctx.display_settings.display_device,
+               IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
+  IMB_colormanagement_init_untonemapped_view_settings(&ps.display_ctx.view_settings,
+                                                      &ps.display_ctx.display_settings);
   ps.display_ctx.ui_scale = 1.0f;
 
   while ((argc > 0) && (argv[0][0] == '-')) {

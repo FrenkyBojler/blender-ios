@@ -131,6 +131,7 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
                             other.runtime->custom_knots_sharing_info,
                             other.runtime->type_counts,
                             other.runtime->evaluated_offsets_cache,
+                            other.runtime->cyclic_offsets_cache,
                             other.runtime->nurbs_basis_cache,
                             other.runtime->evaluated_position_cache,
                             other.runtime->bounds_cache,
@@ -715,6 +716,51 @@ OffsetIndices<int> CurvesGeometry::evaluated_points_by_curve() const
   return OffsetIndices<int>(runtime.evaluated_offsets_cache.data().evaluated_offsets);
 }
 
+std::optional<Span<int>> CurvesGeometry::cyclic_offsets() const
+{
+  this->runtime->cyclic_offsets_cache.ensure([&](std::optional<Vector<int>> &r_data) {
+    const VArray<bool> cyclic = this->cyclic();
+
+    const auto ensure_vector = [&]() {
+      if (r_data) {
+        r_data->resize(cyclic.size() + 1);
+      }
+      else {
+        r_data.emplace(cyclic.size() + 1);
+      }
+      return r_data->as_mutable_span();
+    };
+
+    if (const std::optional<bool> single = cyclic.get_if_single()) {
+      if (*single) {
+        array_utils::fill_index_range(ensure_vector());
+      }
+      else {
+        r_data = std::nullopt;
+      }
+      return;
+    }
+
+    MutableSpan span = ensure_vector();
+
+    int sum = 0;
+    for (const int i : cyclic.index_range()) {
+      span[i] = sum;
+      if (cyclic[i]) {
+        sum++;
+      }
+    }
+    span.last() = sum;
+    if (sum == 0) {
+      r_data = std::nullopt;
+    }
+  });
+  if (!this->runtime->cyclic_offsets_cache.data()) {
+    return std::nullopt;
+  }
+  return this->runtime->cyclic_offsets_cache.data()->as_span();
+}
+
 IndexMask CurvesGeometry::indices_for_curve_type(const CurveType type,
                                                  IndexMaskMemory &memory) const
 {
@@ -1211,6 +1257,7 @@ void CurvesGeometry::tag_topology_changed()
   this->runtime->custom_knot_offsets_cache.tag_dirty();
   this->tag_positions_changed();
   this->runtime->evaluated_offsets_cache.tag_dirty();
+  this->runtime->cyclic_offsets_cache.tag_dirty();
   this->runtime->nurbs_basis_cache.tag_dirty();
   this->runtime->max_material_index_cache.tag_dirty();
   this->runtime->check_type_counts = true;
@@ -1242,16 +1289,6 @@ static void transform_positions(MutableSpan<float3> positions, const float4x4 &m
   threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position = math::transform_point(matrix, position);
-    }
-  });
-}
-
-static void transform_normals(MutableSpan<float3> normals, const float4x4 &matrix)
-{
-  const float3x3 normal_transform = math::transpose(math::invert(float3x3(matrix)));
-  threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &normal : normals.slice(range)) {
-      normal = normal_transform * normal;
     }
   });
 }
@@ -1325,10 +1362,7 @@ void CurvesGeometry::transform(const float4x4 &matrix)
     transform_positions(this->handle_positions_right_for_write(), matrix);
   }
   MutableAttributeAccessor attributes = this->attributes_for_write();
-  if (SpanAttributeWriter normals = attributes.lookup_for_write_span<float3>("custom_normal")) {
-    transform_normals(normals.span, matrix);
-    normals.finish();
-  }
+  transform_custom_normal_attribute(matrix, attributes);
   this->tag_positions_changed();
 }
 

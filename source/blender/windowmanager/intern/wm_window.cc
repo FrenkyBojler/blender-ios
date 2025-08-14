@@ -100,6 +100,8 @@ static GHOST_SystemHandle g_system = nullptr;
 static const char *g_system_backend_id = nullptr;
 #endif
 
+static CLG_LogRef LOG_GHOST_SYSTEM = {"ghost.system"};
+
 enum eWinOverrideFlag {
   WIN_OVERRIDE_GEOM = (1 << 0),
   WIN_OVERRIDE_WINSTATE = (1 << 1),
@@ -346,7 +348,7 @@ wmWindow *wm_window_copy(Main *bmain,
   win_dst->sizey = win_src->sizey;
 
   win_dst->scene = win_src->scene;
-  STRNCPY(win_dst->view_layer_name, win_src->view_layer_name);
+  STRNCPY_UTF8(win_dst->view_layer_name, win_src->view_layer_name);
   BKE_workspace_active_set(win_dst->workspace_hook, workspace);
   WorkSpaceLayout *layout_new = duplicate_layout ? ED_workspace_layout_duplicate(
                                                        bmain, workspace, layout_old, win_dst) :
@@ -878,6 +880,10 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
   gpuSettings.preferred_device.index = U.gpu_preferred_index;
   gpuSettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
   gpuSettings.preferred_device.device_id = U.gpu_preferred_device_id;
+  if (GPU_backend_vsync_is_overridden()) {
+    gpuSettings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpuSettings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   int posx = 0;
   int posy = 0;
@@ -1194,7 +1200,7 @@ wmWindow *WM_window_open(bContext *C,
   }
 
   /* Set scene and view layer to match original window. */
-  STRNCPY(win->view_layer_name, view_layer->name);
+  STRNCPY_UTF8(win->view_layer_name, view_layer->name);
   if (WM_window_get_active_scene(win) != scene) {
     /* No need to refresh the tool-system as the window has not yet finished being setup. */
     ED_screen_scene_change(C, win, scene, false);
@@ -1528,15 +1534,15 @@ static void ghost_event_proc_timestamp_warning(GHOST_EventHandle ghost_event)
     time_unit = unit_table[i].unit;
   }
 
-  fprintf(stderr,
-          "GHOST: suspicious time-stamp from far in the %s: %.2f %s, "
-          "absolute value is %" PRIu64 ", current time is %" PRIu64 ", for type %d\n",
-          time_delta < 0.0f ? "past" : "future",
-          std::abs(time_delta),
-          time_unit,
-          event_ms,
-          now_ms,
-          int(GHOST_GetEventType(ghost_event)));
+  CLOG_INFO_NOCHECK(WM_LOG_EVENTS,
+                    "GHOST: suspicious time-stamp from far in the %s: %.2f %s, "
+                    "absolute value is %" PRIu64 ", current time is %" PRIu64 ", for type %d\n",
+                    time_delta < 0.0f ? "past" : "future",
+                    std::abs(time_delta),
+                    time_unit,
+                    event_ms,
+                    now_ms,
+                    int(GHOST_GetEventType(ghost_event)));
 }
 #endif /* !NDEBUG */
 
@@ -2033,7 +2039,7 @@ void wm_ghost_init(bContext *C)
 
   if (UNLIKELY(g_system == nullptr)) {
     /* GHOST will have reported the back-ends that failed to load. */
-    fprintf(stderr, "GHOST: unable to initialize, exiting!\n");
+    CLOG_STR_ERROR(&LOG_GHOST_SYSTEM, "Unable to initialize GHOST, exiting!");
     /* This will leak memory, it's preferable to crashing. */
     exit(EXIT_FAILURE);
   }
@@ -3014,7 +3020,7 @@ void WM_window_set_active_view_layer(wmWindow *win, ViewLayer *view_layer)
   /* Set view layer in parent and child windows. */
   LISTBASE_FOREACH (wmWindow *, win_iter, &wm->windows) {
     if ((win_iter == win_parent) || (win_iter->parent == win_parent)) {
-      STRNCPY(win_iter->view_layer_name, view_layer->name);
+      STRNCPY_UTF8(win_iter->view_layer_name, view_layer->name);
       bScreen *screen = BKE_workspace_active_screen_get(win_iter->workspace_hook);
       ED_render_view_layer_changed(bmain, screen);
     }
@@ -3028,7 +3034,7 @@ void WM_window_ensure_active_view_layer(wmWindow *win)
 
   if (scene && BKE_view_layer_find(scene, win->view_layer_name) == nullptr) {
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    STRNCPY(win->view_layer_name, view_layer->name);
+    STRNCPY_UTF8(win->view_layer_name, view_layer->name);
   }
 }
 
@@ -3158,6 +3164,10 @@ void *WM_system_gpu_context_create()
   gpuSettings.preferred_device.index = U.gpu_preferred_index;
   gpuSettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
   gpuSettings.preferred_device.device_id = U.gpu_preferred_device_id;
+  if (GPU_backend_vsync_is_overridden()) {
+    gpuSettings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpuSettings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   return GHOST_CreateGPUContext(g_system, gpuSettings);
 }
