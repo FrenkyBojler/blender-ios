@@ -267,32 +267,24 @@ struct PenToolOperation {
     curves.calculate_bezier_auto_handles();
   }
 
-  bool move_handles_in_drawing(const MutableDrawingInfo &info) const
+  bool move_handles_in_curve(bke::CurvesGeometry &curves,
+                             const IndexMask bezier_points,
+                             const float4x4 &layer_to_world,
+                             const float4x4 &layer_to_object) const
   {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    if (bezier_points.is_empty()) {
+      return false;
+    }
+
     MutableSpan<float3> positions = curves.positions_for_write();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
-    const bke::greasepencil::Layer &layer = this->grease_pencil->layer(info.layer_index);
-    const float4x4 layer_to_object = layer.local_transform();
-    const float4x4 layer_to_world = layer.to_world_space(*this->vc.obact);
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
     MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
     MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
     MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
-
-    IndexMaskMemory memory;
-    const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        *this->vc.obact,
-        info.drawing,
-        info.layer_index,
-        this->vc.v3d->overlay.handle_display,
-        memory);
-    if (bezier_points.is_empty()) {
-      return false;
-    }
 
     const VArray<bool> left_selected = *attributes.lookup_or_default<bool>(
         ".selection_handle_left", bke::AttrDomain::Point, true);
@@ -397,7 +389,6 @@ struct PenToolOperation {
 
     curves.calculate_bezier_auto_handles();
 
-    info.drawing.tag_topology_changed();
     return true;
   }
 
@@ -1356,8 +1347,22 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   }
   else {
     threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
-      if (ptd.move_handles_in_drawing(info)) {
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+      const float4x4 layer_to_object = layer.local_transform();
+      const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+
+      IndexMaskMemory memory;
+      const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+          *ptd.vc.obact,
+          info.drawing,
+          info.layer_index,
+          ptd.vc.v3d->overlay.handle_display,
+          memory);
+
+      if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
         changed.store(true, std::memory_order_relaxed);
+        info.drawing.tag_topology_changed();
       }
     });
   }
