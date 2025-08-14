@@ -1192,8 +1192,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     const IndexRange points = points_by_curve[ptd.closest_element.curve_index];
 
     if (event->val == KM_DBL_CLICK && ptd.cycle_handle_type) {
-      const int8_t handle_type =
-          curves.handle_types_right_for_write()[ptd.closest_element.point_index];
+      const int8_t handle_type = curves.handle_types_right()[ptd.closest_element.point_index];
       /* Cycle to the next type. */
       const int8_t new_handle_type = (handle_type + 1) % 4;
 
