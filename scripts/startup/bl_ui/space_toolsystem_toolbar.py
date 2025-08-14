@@ -3694,6 +3694,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             *_tools_transform,
             None,
+            _defs_grease_pencil_edit.pen,
+            None,
             _defs_edit_curve.curve_radius,
             _defs_transform.bend,
             (
@@ -3704,8 +3706,6 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_grease_pencil_edit.interpolate,
             None,
             _defs_grease_pencil_edit.texture_gradient,
-            None,
-            _defs_grease_pencil_edit.pen,
             None,
             *_tools_annotate,
         ],
