@@ -112,7 +112,7 @@ struct ClosestElement {
 constexpr float default_handle_px_distance = 16.0f;
 
 /* Snaps to the closest diagonal, horizontal or vertical. */
-static float2 snap_8_angles(float2 p)
+static float2 snap_8_angles(const float2 &p)
 {
   using namespace math;
   /* sin(pi/8) or sin of 22.5 degrees. */
@@ -163,8 +163,8 @@ struct PenToolOperation {
   }
 
   float3 screen_to_layer(const float4x4 &layer_to_world,
-                         const float2 screen_co,
-                         const float3 depth_point_layer) const
+                         const float2 &screen_co,
+                         const float3 &depth_point_layer) const
   {
     const float3 depth_point = math::transform_point(layer_to_world, depth_point_layer);
     float3 proj_point;
@@ -826,9 +826,9 @@ static void pen_find_closest_point_or_handle(const PenToolOperation &ptd,
   });
 }
 
-static float2 line_segment_closest_point(const float2 pos_1,
-                                         const float2 pos_2,
-                                         const float2 pos,
+static float2 line_segment_closest_point(const float2 &pos_1,
+                                         const float2 &pos_2,
+                                         const float2 &pos,
                                          float &r_local_t)
 {
   const float2 dif_m = pos - pos_1;
@@ -932,7 +932,7 @@ static void pen_find_closest_edge_point(const PenToolOperation &ptd,
   });
 }
 
-static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, const float2 mouse_co)
+static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, const float2 &mouse_co)
 {
   ClosestElement closest_element;
   closest_element.element_mode = ElementMode::None;
