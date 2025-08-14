@@ -59,6 +59,46 @@ static float select_major_distance(const float *possible_distances,
   return possible_distances[amount - 1];
 }
 
+static int get_divisor(const int distance)
+{
+  if (distance == 2) {
+    /* Because (2/2) % 2 would be 1. */
+    return 2;
+  }
+
+  /* First try dividing such that the result is an even number. */
+  const bool divisible_by_2 = distance % 2 == 0;
+  if (divisible_by_2 && (distance / 2) % 2 == 0) {
+    return 2;
+  }
+
+  const bool divisible_by_3 = distance % 3 == 0;
+  if (divisible_by_3 && (distance / 3) % 2 == 0) {
+    return 3;
+  }
+
+  const bool divisible_by_5 = distance % 5 == 0;
+  if (divisible_by_5 && (distance / 5) % 2 == 0) {
+    return 5;
+  }
+
+  /* Then try diving such that the result is a whole number. */
+  if (divisible_by_2) {
+    return 2;
+  }
+  if (divisible_by_3) {
+    return 3;
+  }
+  if (divisible_by_5) {
+    return 5;
+  }
+
+  /* In case none of the above if is true, the divisor will be 2. This can cause major lines to be
+   * drawn on subframes, but this will only happen on custom fps that cannot be broken down by
+   * 2, 3 or 5. */
+  return 2;
+}
+
 /**
  * Calculates the distance in frames between major lines.
  */
@@ -68,34 +108,26 @@ static int calculate_major_frame_distance(const int fps, float pixel_width, floa
     return 1.0;
   }
   const float pixels_per_view_unit = pixel_width / view_width;
-  int distance = fps * 2;
+  int distance = fps;
   if (pixels_per_view_unit * distance > MIN_MAJOR_LINE_DISTANCE) {
-    while (pixels_per_view_unit * distance > MIN_MAJOR_LINE_DISTANCE) {
-      int divisor = 2;
-      if (distance % 2 == 0) {
-        divisor = 2;
-      }
-      else if (distance % 3 == 0) {
-        divisor = 3;
-      }
-      else if (distance % 5 == 0) {
-        divisor = 5;
-      }
-      /* In case none of the if is true, the divisor will be 2. This can cause major lines to be
-       * drawn on subframes, but this will only happen on custom fps that cannot be broken down by
-       * 2, 3 or 5. */
-      const int result = distance / divisor;
+    /* Shrink the distance. */
+    while (distance > 1) {
+      const int divisor = get_divisor(distance);
+      const int result = (distance / divisor);
       if (pixels_per_view_unit * result < MIN_MAJOR_LINE_DISTANCE) {
-        return distance;
+        /* If the distance would fall below the threshold, stop dividing. */
+        break;
       }
       distance = result;
     }
   }
   else {
+    /* Grow the distance, doubling every time. */
     while (pixels_per_view_unit * distance < MIN_MAJOR_LINE_DISTANCE) {
       distance *= 2;
     }
   }
+  BLI_assert(distance != 0);
   return distance;
 }
 
@@ -273,16 +305,7 @@ static void view2d_draw_lines(const View2D *v2d,
     UI_GetThemeColorShade3ubv(TH_GRID, 16, minor_color);
     ParallelLinesSet minor_lines;
     const int major_distance_int = round_fl_to_int(major_distance);
-    int divisor = 2;
-    if (major_distance_int % 2 == 0) {
-      divisor = 2;
-    }
-    else if (major_distance_int % 3 == 0) {
-      divisor = 3;
-    }
-    else if (major_distance_int % 5 == 0) {
-      divisor = 5;
-    }
+    const int divisor = get_divisor(major_distance_int);
     minor_lines.distance = major_distance / divisor;
     minor_lines.offset = 0;
     view2d_draw_lines_internal(v2d, &minor_lines, minor_color, direction);
