@@ -1167,8 +1167,9 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
-  threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
-    const int drawing_index = (&info - ptd.drawings.data());
+  threading::parallel_for(ptd.drawings.index_range(), 1, [&](const IndexRange drawing_range) {
+    const int drawing_index = drawing_range.first();
+    const MutableDrawingInfo &info = ptd.drawings[drawing_index];
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
     if (curves.is_empty()) {
