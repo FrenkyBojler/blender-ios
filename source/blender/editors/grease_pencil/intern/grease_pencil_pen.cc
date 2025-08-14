@@ -48,7 +48,7 @@ static const EnumPropertyItem prop_handle_types[] = {
 
 enum class PenModal : int8_t {
   /* Move the handles of the adjacent control point. */
-  MoveAdjacent = 0,
+  MoveHandle = 0,
   /* Move the entire point even if only the handles are selected. */
   MoveEntire = 1,
   /* Snap the handles to multiples of 45 degrees. */
@@ -168,7 +168,7 @@ struct PenToolOperation {
 
   bool move_entire;
   bool snap_angle;
-  bool move_adjacent;
+  bool move_handle;
 
   bool point_added;
   bool point_removed;
@@ -280,7 +280,6 @@ struct PenToolOperation {
     }
 
     MutableSpan<float3> positions = curves.positions_for_write();
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
@@ -313,23 +312,12 @@ struct PenToolOperation {
         return;
       }
 
-      if (this->move_adjacent) {
+      if (this->move_handle) {
+        const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
+        handles_right[point_i] = this->screen_to_layer(
+            layer_to_world, pos_right + offset, depth_point);
         handle_types_left[point_i] = BEZIER_HANDLE_FREE;
         handle_types_right[point_i] = BEZIER_HANDLE_FREE;
-        const float2 pos_left = this->layer_to_screen(layer_to_object, handles_left[point_i]);
-        handles_left[point_i] = this->screen_to_layer(
-            layer_to_world, pos_left + offset, depth_point);
-
-        const int curve_i = point_to_curve_map[point_i];
-        const IndexRange points = points_by_curve[curve_i];
-        if (point_i != points.first()) {
-          const float2 pos_right = this->layer_to_screen(layer_to_object,
-                                                         handles_right[point_i - 1]);
-          handle_types_left[point_i - 1] = BEZIER_HANDLE_FREE;
-          handle_types_right[point_i - 1] = BEZIER_HANDLE_FREE;
-          handles_right[point_i - 1] = this->screen_to_layer(
-              layer_to_world, pos_right + offset, depth_point);
-        }
         return;
       }
 
@@ -1093,7 +1081,7 @@ static void pen_status_indicators(bContext *C, wmOperator *op, const PenToolOper
 {
   WorkspaceStatus status(C);
   status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
-  status.opmodal(IFACE_("Move Adjacent Handles"), op->type, int(PenModal::MoveAdjacent));
+  status.opmodal(IFACE_("Move Current Handle"), op->type, int(PenModal::MoveHandle));
   status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
 }
 
@@ -1345,8 +1333,8 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     else if (event->val == int(PenModal::SnapAngle)) {
       ptd.snap_angle = !ptd.snap_angle;
     }
-    else if (event->val == int(PenModal::MoveAdjacent)) {
-      ptd.move_adjacent = !ptd.move_adjacent;
+    else if (event->val == int(PenModal::MoveHandle)) {
+      ptd.move_handle = !ptd.move_handle;
     }
   }
 
@@ -1449,11 +1437,11 @@ void ED_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
   using namespace blender::ed::greasepencil;
   static const EnumPropertyItem modal_items[] = {
-      {int(PenModal::MoveAdjacent),
-       "MOVE_ADJACENT",
+      {int(PenModal::MoveHandle),
+       "MOVE_HANDLE",
        0,
-       "Move Adjacent Handle",
-       "Move the closer handle of the adjacent vertex"},
+       "Move Current Handle",
+       "Move the current handle of the control point freely"},
       {int(PenModal::MoveEntire),
        "MOVE_ENTIRE",
        0,
