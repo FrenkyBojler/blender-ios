@@ -108,7 +108,12 @@ struct PathComponentKey {
 };
 
 struct DistanceConstraintLengths {
-  Map<OrderedEdge, float> lengths;
+  struct LengthItem {
+    float length;
+    bool used = true;
+  };
+
+  Map<OrderedEdge, LengthItem> lengths;
 };
 
 class XPBDState {
@@ -468,13 +473,14 @@ static void gather_distance_constraints(
         for (const int i : range) {
           const int2 &edge = constraint_edges[i];
           const OrderedEdge ordered_edge{edge[0], edge[1]};
-          const float length = distance_constraint_lengths.lengths.lookup_or_add_cb(
-              ordered_edge, [&]() {
+          DistanceConstraintLengths::LengthItem &length_item =
+              distance_constraint_lengths.lengths.lookup_or_add_cb(ordered_edge, [&]() {
                 const float3 &p0 = mesh_positions[edge[0]];
                 const float3 &p1 = mesh_positions[edge[1]];
-                return math::distance(p0, p1);
+                return DistanceConstraintLengths::LengthItem{math::distance(p0, p1)};
               });
-          constraint_lengths[i] = length;
+          length_item.used = true;
+          constraint_lengths[i] = length_item.length;
         }
       });
 
@@ -593,6 +599,16 @@ static void update_and_step_xpbd_state(XPBDState &state,
     }
   }
 
+  for (DistanceConstraintLengths &distance_constraint_lengths :
+       state.distance_constraint_lengths.values())
+  {
+    for (DistanceConstraintLengths::LengthItem &length_item :
+         distance_constraint_lengths.lengths.values())
+    {
+      length_item.used = false;
+    }
+  }
+
   const Map<PathComponentKey, Span<float>> inverse_masses_map = compute_inverse_masses(
       scope, world, applied_geometries);
 
@@ -662,6 +678,14 @@ static void update_and_step_xpbd_state(XPBDState &state,
             });
       }
     }
+  }
+
+  /* Remove unused distance constraint lengths. */
+  for (DistanceConstraintLengths &distance_constraint_lengths :
+       state.distance_constraint_lengths.values())
+  {
+    distance_constraint_lengths.lengths.remove_if(
+        [](const auto &item) { return !item.value.used; });
   }
 }
 
