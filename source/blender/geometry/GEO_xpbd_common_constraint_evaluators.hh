@@ -42,7 +42,7 @@ class DistanceConstraintEvaluator
  private:
   int geo_i_;
   Span<float3> positions_;
-  VArray<float> masses_;
+  Span<float> inverse_masses_;
   Span<int2> point_pairs_;
   Span<float> distances_;
   Span<float> compliance_terms_;
@@ -50,13 +50,13 @@ class DistanceConstraintEvaluator
  public:
   DistanceConstraintEvaluator(const int geo_i,
                               const Span<float3> positions,
-                              const VArray<float> &masses,
+                              const Span<float> inverse_masses,
                               const Span<int2> point_pairs,
                               const Span<float> distances,
                               const Span<float> compliance_terms)
       : geo_i_(geo_i),
         positions_(positions),
-        masses_(masses),
+        inverse_masses_(inverse_masses),
         point_pairs_(point_pairs),
         distances_(distances),
         compliance_terms_(compliance_terms)
@@ -72,12 +72,9 @@ class DistanceConstraintEvaluator
     const int v1 = point_pair[1];
     const float3 &p0 = positions_[v0];
     const float3 &p1 = positions_[v1];
-    const float m0 = masses_[v0];
-    const float m1 = masses_[v1];
+    const float inv_m0 = inverse_masses_[v0];
+    const float inv_m1 = inverse_masses_[v1];
     const float compliance_term = compliance_terms_[constraint_i];
-
-    const float inv_m0 = 1.0f / m0;
-    const float inv_m1 = 1.0f / m1;
 
     const float3 p_diff = p1 - p0;
     float length;

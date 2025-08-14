@@ -189,7 +189,7 @@ static WorldData parse_world(const Bundle &world_bundle)
 
 static void apply_external_accelerations_and_velocities(
     XPBDState &state,
-    const Map<PathComponentKey, Array<float3>> &accelerations_map,
+    const Map<PathComponentKey, Span<float3>> &accelerations_map,
     const float delta_time)
 {
   for (auto item_for_path : state.data_by_path.items()) {
@@ -294,16 +294,17 @@ static Vector<const T *> filter_bundles_for_path(const Span<T> bundles, const St
   return used_forces;
 }
 
-static Map<PathComponentKey, Array<float3>> compute_external_accelerations(
+static Map<PathComponentKey, Span<float3>> compute_external_accelerations(
+    ResourceScope &scope,
     const WorldData &world,
-    const Map<PathComponentKey, VArray<float>> &masses_map,
+    const Map<PathComponentKey, Span<float>> inverse_masses_map,
     const Span<GeometrySet> applied_geometries)
 {
   float3 gravity(0.0f);
   for (const GravityBundle &gravity_bundle : world.gravities) {
     gravity = gravity_bundle.gravity;
   }
-  Map<PathComponentKey, Array<float3>> accelerations_map;
+  Map<PathComponentKey, Span<float3>> accelerations_map;
   for (const int bundle_i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
@@ -316,13 +317,14 @@ static Map<PathComponentKey, Array<float3>> compute_external_accelerations(
       }
       const bke::AttrDomain domain = bke::AttrDomain::Point;
       const int domain_size = component->attribute_domain_size(domain);
-      const VArray<float> &masses = masses_map.lookup({geometry_bundle.self_path, type});
+      const Span<float> inverse_masses = inverse_masses_map.lookup(
+          {geometry_bundle.self_path, type});
 
       /* Initially this is the sums of forces and then the acceleration. */
-      Array<float3> result_array(domain_size, float3(0.0f));
+      MutableSpan<float3> result = scope.allocator().allocate_array<float3>(domain_size);
+      result.fill(float3(0.0f));
 
       bke::GeometryFieldContext field_context(*component, domain);
-      MutableSpan<float3> forces_sums = result_array;
       for (const ForceBundle *force_bundle : used_forces) {
         fn::FieldEvaluator field_evaluator{field_context, domain_size};
         field_evaluator.set_selection(force_bundle->selection);
@@ -330,33 +332,32 @@ static Map<PathComponentKey, Array<float3>> compute_external_accelerations(
         field_evaluator.evaluate();
         const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
         const VArray<float3> force = field_evaluator.get_evaluated<float3>(0);
-        mask.foreach_index([&](const int i) { forces_sums[i] += force[i]; });
+        mask.foreach_index([&](const int i) { result[i] += force[i]; });
       }
 
-      MutableSpan<float3> accelerations = result_array;
       threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
         for (const int i : range) {
-          const float mass = masses[i];
-          const float3 &force = forces_sums[i];
-          const float3 acceleration = force / mass + gravity;
-          accelerations[i] = acceleration;
+          const float inverse_mass = inverse_masses[i];
+          const float3 &force = result[i];
+          const float3 acceleration = force * inverse_mass + gravity;
+          result[i] = acceleration;
         }
       });
 
-      accelerations_map.add_new({geometry_bundle.self_path, type}, std::move(result_array));
+      accelerations_map.add_new({geometry_bundle.self_path, type}, result);
     }
   }
   return accelerations_map;
 }
 
 /**
- * Computes the mass for each point. The mass of points that are known to be pinned have a mass of
- * infinity.
+ * Computes the inverse mass for each point. The inverse mass of points that are known to be pinned
+ * is 0 (aka they are assumed to have infinite mass).
  */
-static Map<PathComponentKey, VArray<float>> compute_masses(
+static Map<PathComponentKey, Span<float>> compute_inverse_masses(
     ResourceScope &scope, const WorldData &world, const Span<GeometrySet> applied_geometries)
 {
-  Map<PathComponentKey, VArray<float>> masses_map;
+  Map<PathComponentKey, Span<float>> inverse_masses_map;
   for (const int bundle_i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
     const GeometrySet &applied_geometry = applied_geometries[bundle_i];
@@ -372,29 +373,34 @@ static Map<PathComponentKey, VArray<float>> compute_masses(
       }
       const bke::AttrDomain domain = bke::AttrDomain::Point;
       const int domain_size = component->attribute_domain_size(domain);
+
+      MutableSpan<float> result = scope.allocator().allocate_array<float>(domain_size);
+
       auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
       auto &mass_evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
-      mass_evaluator.add(geometry_bundle.mass);
+      mass_evaluator.add_with_destination(geometry_bundle.mass, result);
       mass_evaluator.evaluate();
-      VArray<float> masses = mass_evaluator.get_evaluated<float>(0);
+
+      /* Invert masses. */
+      threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
+        for (const int i : range) {
+          result[i] = 1.0f / result[i];
+        }
+      });
+
       for (const PinnedPositionXPBDConstraintBundle *constraint : pinned_position_constraints) {
         fn::FieldEvaluator pin_evaluator{field_context, domain_size};
         pin_evaluator.set_selection(constraint->selection);
         pin_evaluator.evaluate();
         const IndexMask mask = pin_evaluator.get_evaluated_selection_as_mask();
         if (!mask.is_empty()) {
-          Array<float> masses_array(domain_size);
-          masses.materialize(masses_array);
-          mask.foreach_index(GrainSize(1024), [&](const int i) {
-            masses_array[i] = std::numeric_limits<float>::infinity();
-          });
-          masses = VArray<float>::from_container(std::move(masses_array));
+          mask.foreach_index(GrainSize(1024), [&](const int i) { result[i] = 0.0f; });
         }
       }
-      masses_map.add_new({geometry_bundle.self_path, type}, std::move(masses));
+      inverse_masses_map.add_new({geometry_bundle.self_path, type}, result);
     }
   }
-  return masses_map;
+  return inverse_masses_map;
 }
 
 static void gather_distance_constraints(
@@ -403,7 +409,7 @@ static void gather_distance_constraints(
     const Span<GeometrySet> applied_geometries,
     const VectorSet<PathComponentKey> &all_sim_points_keys,
     const Span<SimPoints *> all_sim_points,
-    const Map<PathComponentKey, VArray<float>> &masses_map,
+    const Map<PathComponentKey, Span<float>> &inverse_masses_map,
     const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
@@ -418,7 +424,7 @@ static void gather_distance_constraints(
     const SimPoints &sim_points = *all_sim_points[geo_i];
     const Mesh &mesh = *applied_geometry.get_mesh();
     const Span<int2> mesh_edges = mesh.edges();
-    const VArray<float> &masses = masses_map.lookup(
+    const Span<float> inverse_masses = inverse_masses_map.lookup(
         {geometry_bundle.self_path, bke::GeometryComponent::Type::Mesh});
 
     const Vector<const EdgeLengthXPBDConstraintBundle *> edge_length_constraints =
@@ -464,7 +470,7 @@ static void gather_distance_constraints(
            scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
                geo_i,
                sim_points.positions,
-               masses,
+               inverse_masses,
                constraint_edges,
                constraint_lengths,
                compliance_terms)});
@@ -566,11 +572,11 @@ static void update_and_step_xpbd_state(XPBDState &state,
     }
   }
 
-  const Map<PathComponentKey, VArray<float>> masses_map = compute_masses(
+  const Map<PathComponentKey, Span<float>> inverse_masses_map = compute_inverse_masses(
       scope, world, applied_geometries);
 
-  const Map<PathComponentKey, Array<float3>> accelerations_map = compute_external_accelerations(
-      world, masses_map, applied_geometries);
+  const Map<PathComponentKey, Span<float3>> accelerations_map = compute_external_accelerations(
+      scope, world, inverse_masses_map, applied_geometries);
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
@@ -580,7 +586,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
                               applied_geometries,
                               all_sim_points_keys,
                               all_sim_points,
-                              masses_map,
+                              inverse_masses_map,
                               sub_delta_time,
                               constraint_sets);
   gather_pin_constraints(
