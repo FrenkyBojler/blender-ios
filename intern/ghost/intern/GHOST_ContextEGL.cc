@@ -625,8 +625,11 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
     goto error;
   }
 
-  if (const std::optional<int> swap_interval = getVSync()) {
-    setSwapInterval(*swap_interval);
+  {
+    const GHOST_TVSyncModes vsync = getVSync();
+    if (vsync != GHOST_kVSyncModeUnset) {
+      setSwapInterval(int(vsync));
+    }
   }
 
   if (m_nativeWindow != 0) {

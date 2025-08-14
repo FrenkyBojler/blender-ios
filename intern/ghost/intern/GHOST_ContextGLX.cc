@@ -282,8 +282,11 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
     glXMakeCurrent(m_display, m_window, m_context);
 
     /* For performance measurements with VSync disabled. */
-    if (const std::optional<int> swap_interval = getVSync()) {
-      setSwapInterval(*swap_interval);
+    {
+      const GHOST_TVSyncModes vsync = getVSync();
+      if (vsync != GHOST_kVSyncModeUnset) {
+        setSwapInterval(int(vsync));
+      }
     }
 
     if (m_window) {

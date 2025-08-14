@@ -857,7 +857,7 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
   }
 }
 
-static GHOST_TSuccess selectPresentMode(std::optional<int> vsync,
+static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
                                         VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
@@ -867,8 +867,8 @@ static GHOST_TSuccess selectPresentMode(std::optional<int> vsync,
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
 
-  if (vsync) {
-    bool vsync_off = *vsync == 0;
+  if (vsync != GHOST_kVSyncModeUnset) {
+    const bool vsync_off = (vsync == GHOST_kVSyncModeOff);
     if (vsync_off) {
       for (auto present_mode : presents) {
         if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {

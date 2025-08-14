@@ -1598,7 +1598,7 @@ static GHOST_WindowHandle playanim_window_open(
   gpusettings.preferred_device.device_id = U.gpu_preferred_device_id;
   if (GPU_backend_vsync_is_overridden()) {
     gpusettings.flags |= GHOST_gpuVSyncIsOverridden;
-    gpusettings.vsync = GPU_backend_vsync_get();
+    gpusettings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
   }
 
   {

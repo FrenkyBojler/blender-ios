@@ -1614,9 +1614,12 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
 
 static const char arg_handle_gpu_vsync_set_doc[] =
     "\n"
-    "\tSet the VSync: 1 to enable, 0 to disable (useful for testing performance).\n"
+    "\tSet the VSync.\n"
+    "\tValid options are: 'on', 'off' or 'auto' for adaptive sync.\n"
     "\n"
-    "\tFor the OpenGL the value is used for the swap interval (-1 for adaptive sync).";
+    "\t* The default settings depend on the GPU driver.\n"
+    "\t* Disabling VSync can be useful for testing performance.\n"
+    "\t* 'auto' is only supported by the OpenGL backend.";
 static int arg_handle_gpu_vsync_set(int argc, const char **argv, void * /*data*/)
 {
   const char *arg_id = "--gpu-vsync";
@@ -1626,11 +1629,19 @@ static int arg_handle_gpu_vsync_set(int argc, const char **argv, void * /*data*/
     return 0;
   }
 
+  /* Must be compatible with #GHOST_TVSyncModes. */
   int vsync;
-  const char *err_msg = nullptr;
-
-  if (!parse_int_clamp(argv[1], nullptr, -1, INT_MAX, &vsync, &err_msg)) {
-    fprintf(stderr, "\nError: %s '%s %s'.\n", err_msg, arg_id, argv[1]);
+  if (STREQ(argv[1], "on")) {
+    vsync = 1;
+  }
+  else if (STREQ(argv[1], "off")) {
+    vsync = 0;
+  }
+  else if (STREQ(argv[1], "auto")) {
+    vsync = -1;
+  }
+  else {
+    fprintf(stderr, "\nError: expected a value in [on, off, auto] '%s %s'.\n", arg_id, argv[1]);
     return 0;
   }
 

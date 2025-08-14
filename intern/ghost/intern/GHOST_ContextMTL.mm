@@ -88,8 +88,11 @@ GHOST_ContextMTL::GHOST_ContextMTL(const GHOST_ContextParams &context_params,
         m_metalLayer.device = metalDevice;
         m_metalLayer.allowsNextDrawableTimeout = NO;
 
-        if (const std::optional<int> swap_interval = getVSync()) {
-          m_metalLayer.displaySyncEnabled = *swap_interval != 0 ? YES : NO;
+        {
+          const GHOST_TVSyncModes vsync = getVSync();
+          if (vsync != GHOST_kVSyncModeUnset) {
+            m_metalLayer.displaySyncEnabled = (vsync == GHOST_kVSyncModeOff) ? NO : YES;
+          }
         }
 
         /* Enable EDR support. This is done by:

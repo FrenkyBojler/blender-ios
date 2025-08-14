@@ -616,8 +616,11 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
     }
   }
 
-  if (const std::optional<int> swap_interval = getVSync()) {
-    setSwapInterval(*swap_interval);
+  {
+    const GHOST_TVSyncModes vsync = getVSync();
+    if (vsync != GHOST_kVSyncModeUnset) {
+      setSwapInterval(int(vsync));
+    }
   }
 
   s_sharedCount++;

@@ -134,8 +134,11 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
 
     success = (SDL_GL_MakeCurrent(m_window, m_context) < 0) ? GHOST_kFailure : GHOST_kSuccess;
 
-    if (const std::optional<int> swap_interval = getVSync()) {
-      setSwapInterval(*swap_interval);
+    {
+      const GHOST_TVSyncModes vsync = getVSync();
+      if (vsync != GHOST_kVSyncModeUnset) {
+        setSwapInterval(int(vsync));
+      }
     }
 
     initClearGL();

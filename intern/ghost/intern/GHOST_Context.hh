@@ -122,11 +122,8 @@ class GHOST_Context : public GHOST_IContext {
   }
 
   /** Get the VSync value. */
-  virtual std::optional<int> getVSync()
+  virtual GHOST_TVSyncModes getVSync()
   {
-    if (m_context_params.has_vsync == false) {
-      return std::nullopt;
-    }
     return m_context_params.vsync;
   }
 
