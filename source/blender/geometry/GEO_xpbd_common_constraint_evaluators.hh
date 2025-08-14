@@ -142,16 +142,19 @@ class MinimumDistanceConstraintEvaluator
   Span<int2> points_;
   Span<float> min_distances_;
   Span<float> inverse_masses_;
+  Span<float> compliance_terms_;
 
  public:
   MinimumDistanceConstraintEvaluator(const Span<int2> points_ref_indices,
                                      const Span<int2> points,
                                      const Span<float> min_distances,
-                                     const Span<float> inverse_masses)
+                                     const Span<float> inverse_masses,
+                                     const Span<float> compliance_terms)
       : points_ref_indices_(points_ref_indices),
         points_(points),
         min_distances_(min_distances),
-        inverse_masses_(inverse_masses)
+        inverse_masses_(inverse_masses),
+        compliance_terms_(compliance_terms)
   {
   }
 
@@ -180,7 +183,8 @@ class MinimumDistanceConstraintEvaluator
     if (length_diff < 1e-5f) {
       return;
     }
-    const float lambda = length_diff / (inv_m0 + inv_m1);
+    const float compliance_term = compliance_terms_[constraint_i];
+    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
     const float3 offset0 = -lambda * inv_m0 * normalized_dir;
     const float3 offset1 = lambda * inv_m1 * normalized_dir;
     solver.update_position(points_ref_i0, v0, offset0);

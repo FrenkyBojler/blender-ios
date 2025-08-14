@@ -880,6 +880,7 @@ static void generate_collision_constraint_sets(
     const Contacts &contacts,
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
   for (auto item : contacts.static_plane_contacts.items()) {
@@ -897,6 +898,7 @@ static void generate_collision_constraint_sets(
   for (auto item : contacts.dynamic_sphere_contacts.items()) {
     const int key_i = keys.index_of(item.key);
     const DynamicSphereContacts &sphere_contacts = item.value;
+    const float compliance_term = math::safe_divide(1e-4f, pow2f(delta_time));
     r_constraint_sets.append(
         {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
              key_i, sphere_contacts.indices),
@@ -905,7 +907,9 @@ static void generate_collision_constraint_sets(
                                                      int2(key_i, key_i)),
              sphere_contacts.indices,
              sphere_contacts.min_distance,
-             sim_points_props.lookup(item.key).inverse_masses)});
+             sim_points_props.lookup(item.key).inverse_masses,
+             scope.allocator().construct_array<float>(sphere_contacts.indices.size(),
+                                                      compliance_term))});
   }
 }
 
@@ -1097,7 +1101,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
         static_constraint_sets;
     const Contacts contacts = gather_contacts(
         state, world, applied_geometries, keys, sim_points_props);
-    generate_collision_constraint_sets(scope, contacts, keys, sim_points_props, constraint_sets);
+    generate_collision_constraint_sets(
+        scope, contacts, keys, sim_points_props, sub_delta_time, constraint_sets);
 
     /* Actually solve the constraints. */
     solve_constraints(solver_type, points_refs, constraint_sets);
