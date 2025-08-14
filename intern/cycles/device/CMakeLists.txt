@@ -198,24 +198,32 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     ${SYCL_INCLUDE_DIR}
   )
 
-  # SYCL_INCLUDE_DIR contains both "include" and "include/sycl", so we can't use that here.
-  get_filename_component(SYCL_COMPILER_ROOT ${SYCL_COMPILER} DIRECTORY)
-  set(SYCL_BINDLESS_IMAGES_HEADER_PATH "${SYCL_COMPILER_ROOT}/../include/sycl/ext/oneapi/bindless_images.hpp")
-  if (EXISTS "${SYCL_BINDLESS_IMAGES_HEADER_PATH}")
-    file(READ "${SYCL_BINDLESS_IMAGES_HEADER_PATH}" SYCL_BINDLESS_IMAGES_HEADER_CONTENT)
-    string(FIND "${SYCL_BINDLESS_IMAGES_HEADER_CONTENT}" "unmap_external_linear_memory" SYCL_UNMAP_LINEAR_MEMORY_MATCH_RES)
-    if(${SYCL_UNMAP_LINEAR_MEMORY_MATCH_RES} EQUAL -1)
-      message(WARNING "The installed SYCL version does not support unmap_external_linear_memory. Upgrade to oneAPI >= 2025.2 or DPC++ >= 6.2.")
-    else()
-      foreach(FILE ${SRC_ONEAPI})
-        set_source_files_properties(
-            ${FILE} PROPERTIES COMPILE_DEFINITIONS "SYCL_LINEAR_MEMORY_INTEROP_AVAILABLE"
-        )
-      endforeach()
-    endif()
+  # Test for the presence of sycl::ext::oneapi::experimental::unmap_external_linear_memory (necessary for interop).
+  # https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/experimental/sycl_ext_oneapi_bindless_images.asciidoc
+  include(CheckCXXSourceCompiles)
+  set(CMAKE_REQUIRED_INCLUDES "${SYCL_INCLUDE_DIR}")
+  set(CMAKE_REQUIRED_LIBRARIES "${SYCL_LIBRARIES}")
+  check_cxx_source_compiles("
+      #include <sycl/ext/oneapi/bindless_images.hpp>
+      int main()
+      {
+          sycl::queue sycl_queue{sycl::gpu_selector_v};
+          sycl::ext::oneapi::experimental::unmap_external_linear_memory(nullptr, sycl_queue);
+      }
+  " SYCL_UNMAP_EXTERNAL_LINEAR_MEMORY_SUPPORTED)
+  if (SYCL_UNMAP_EXTERNAL_LINEAR_MEMORY_SUPPORTED)
+    foreach(FILE ${SRC_ONEAPI})
+      set_source_files_properties(
+          ${FILE} PROPERTIES COMPILE_DEFINITIONS "SYCL_LINEAR_MEMORY_INTEROP_AVAILABLE"
+      )
+    endforeach()
   else()
-    message(WARNING "File ${SYCL_BINDLESS_IMAGES_HEADER_PATH} not found!")
+    message(WARNING
+      "The installed SYCL version does not support unmap_external_linear_memory. "
+      "Upgrade to oneAPI >= 2025.2 or DPC++ >= 6.2.")
   endif()
+  unset(CMAKE_REQUIRED_INCLUDES)
+  unset(CMAKE_REQUIRED_LIBRARIES)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)
