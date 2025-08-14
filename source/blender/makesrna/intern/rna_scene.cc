@@ -3607,7 +3607,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(prop, "Use Snapping", "Snap strips during transform");
   RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* Publish message-bus. */
 
   prop = RNA_def_property(srna, "use_snap_uv", PROP_BOOLEAN, PROP_NONE);
