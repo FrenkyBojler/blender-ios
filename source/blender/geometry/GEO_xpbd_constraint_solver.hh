@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_cache_mutex.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_multi_value_map.hh"
@@ -74,8 +75,7 @@ inline int color_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
   const int constraints_num = r_colors.size();
   MultiValueMap<int, int> constraints_by_point;
   for (const int constraint_i : IndexRange(constraints_num)) {
-    const Span<int> points = get_constraint_points_fn(constraint_i);
-    for (const int point_i : points) {
+    for (const int point_i : get_constraint_points_fn(constraint_i)) {
       constraints_by_point.add(point_i, constraint_i);
     }
   }
@@ -101,24 +101,26 @@ inline int color_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
 }
 
 template<typename GetConstraintPointsFn>
-inline void detect_independent_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
-                                           const int constraints_num,
-                                           const FunctionRef<void(const IndexMask &mask)> fn)
+inline Vector<IndexMask> detect_independent_constraints(
+    GetConstraintPointsFn &&get_constraint_points_fn,
+    const int constraints_num,
+    IndexMaskMemory &memory)
 {
   if (constraints_num == 0) {
-    return;
+    return {};
   }
   Array<int> colors(constraints_num);
   const int colors_num = color_constraints(get_constraint_points_fn, colors);
-  Array<Vector<int>> masks(colors_num);
+  Array<Vector<int>> masks_indices(colors_num);
   for (const int constraint_i : IndexRange(constraints_num)) {
-    masks[colors[constraint_i]].append(constraint_i);
+    masks_indices[colors[constraint_i]].append(constraint_i);
   }
-  IndexMaskMemory memory;
+  Vector<IndexMask> masks;
   for (const int color_i : IndexRange(colors_num)) {
-    const IndexMask mask = IndexMask::from_indices<int>(masks[color_i], memory);
-    fn(mask);
+    const IndexMask mask = IndexMask::from_indices<int>(masks_indices[color_i], memory);
+    masks.append(mask);
   }
+  return masks;
 }
 
 class ConstraintSetIndices {
@@ -145,6 +147,11 @@ class ConstraintSetIndices {
 };
 
 class UnaryConstraintSetIndices : public ConstraintSetIndices {
+ private:
+  mutable CacheMutex independent_masks_mutex_;
+  mutable IndexMaskMemory independent_masks_memory_;
+  mutable Vector<IndexMask> independent_masks_;
+
  public:
   int point_set_i;
   Span<int> points;
@@ -158,14 +165,24 @@ class UnaryConstraintSetIndices : public ConstraintSetIndices {
 
   virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const
   {
-    detect_independent_constraints(
-        [&](const int constraint_i) { return Span<int>(&this->points[constraint_i], 1); },
-        this->points.size(),
-        fn);
+    independent_masks_mutex_.ensure([&]() {
+      independent_masks_ = detect_independent_constraints(
+          [&](const int constraint_i) { return Span<int>(&this->points[constraint_i], 1); },
+          this->constraints_num,
+          independent_masks_memory_);
+    });
+    for (const IndexMask &mask : independent_masks_) {
+      fn(mask);
+    }
   }
 };
 
 class BinaryConstraintSetIndices : public ConstraintSetIndices {
+ private:
+  mutable CacheMutex independent_masks_mutex_;
+  mutable IndexMaskMemory independent_masks_memory_;
+  mutable Vector<IndexMask> independent_masks_;
+
  public:
   int point_set_i;
   Span<int2> point_pairs;
@@ -179,10 +196,17 @@ class BinaryConstraintSetIndices : public ConstraintSetIndices {
 
   virtual void foreach_independent_mask(const FunctionRef<void(const IndexMask &mask)> fn) const
   {
-    detect_independent_constraints(
-        [&](const int constraint_i) { return Span<int>(&this->point_pairs[constraint_i][0], 2); },
-        this->point_pairs.size(),
-        fn);
+    independent_masks_mutex_.ensure([&]() {
+      independent_masks_ = detect_independent_constraints(
+          [&](const int constraint_i) {
+            return Span<int>(&this->point_pairs[constraint_i][0], 2);
+          },
+          this->point_pairs.size(),
+          independent_masks_memory_);
+    });
+    for (const IndexMask &mask : independent_masks_) {
+      fn(mask);
+    }
   }
 };
 
