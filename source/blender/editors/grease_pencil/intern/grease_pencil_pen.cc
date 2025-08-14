@@ -415,7 +415,7 @@ struct PenToolOperation {
     Vector<bool> dst_selected_center(old_points_num, false);
     Vector<bool> dst_selected_end(old_points_num, false);
 
-    Vector<int> dst_curve_counts(src.curves_num());
+    Array<int> dst_curve_counts(src.curves_num());
     offset_indices::copy_group_sizes(
         points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
 
@@ -565,7 +565,7 @@ struct PenToolOperation {
     Vector<int> dst_to_src_points(old_points_num);
     array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
 
-    Vector<int> dst_curve_counts(src.curves_num());
+    Array<int> dst_curve_counts(src.curves_num());
     offset_indices::copy_group_sizes(
         points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
 
