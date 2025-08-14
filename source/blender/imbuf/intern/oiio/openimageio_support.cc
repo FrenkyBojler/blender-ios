@@ -14,10 +14,15 @@
 #include "BKE_idprop.hh"
 
 #include "DNA_ID.h"
+
 #include "IMB_allocimbuf.hh"
 #include "IMB_colormanagement.hh"
 #include "IMB_filetype.hh"
 #include "IMB_metadata.hh"
+
+#include "CLG_log.h"
+
+static CLG_LogRef LOG_READ = {"image.read"};
 
 OIIO_NAMESPACE_USING
 
@@ -127,7 +132,7 @@ static ImBuf *load_pixels(
   bool ok = in->read_image(
       0, 0, 0, channels, format, ibuf_data, ibuf_xstride, -ibuf_ystride, AutoStride);
   if (!ok) {
-    fprintf(stderr, "ImageInput::read_image() failed: %s\n", in->geterror().c_str());
+    CLOG_ERROR(&LOG_READ, "OpenImageIO read failed: failed: %s", in->geterror().c_str());
 
     IMB_freeImBuf(ibuf);
     return nullptr;

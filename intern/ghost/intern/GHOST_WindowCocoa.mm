@@ -327,19 +327,17 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
                                      uint32_t height,
                                      GHOST_TWindowState state,
                                      GHOST_TDrawingContextType type,
-                                     const bool stereoVisual,
-                                     bool is_debug,
+                                     const GHOST_ContextParams &context_params,
                                      bool is_dialog,
                                      GHOST_WindowCocoa *parentWindow,
                                      const GHOST_GPUDevice &preferred_device)
-    : GHOST_Window(width, height, state, stereoVisual, false),
+    : GHOST_Window(width, height, state, context_params, false),
       m_openGLView(nil),
       m_metalView(nil),
       m_metalLayer(nil),
       m_systemCocoa(systemCocoa),
       m_customCursor(nullptr),
       m_immediateDraw(false),
-      m_debug_context(is_debug),
       m_is_dialog(is_dialog),
       m_preferred_device(preferred_device)
 {
@@ -900,7 +898,7 @@ GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
       GHOST_Context *context = new GHOST_ContextVK(
-          m_wantStereoVisual, m_metalLayer, 1, 2, true, m_preferred_device);
+          m_want_context_params, m_metalLayer, 1, 2, true, m_preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -912,7 +910,7 @@ GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 #ifdef WITH_METAL_BACKEND
     case GHOST_kDrawingContextTypeMetal: {
       GHOST_Context *context = new GHOST_ContextMTL(
-          m_wantStereoVisual, m_metalView, m_metalLayer, false);
+          m_want_context_params, m_metalView, m_metalLayer);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -1177,7 +1175,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setWindowCursorGrab(GHOST_TGrabCursorMode mode
 {
   @autoreleasepool {
     if (mode != GHOST_kGrabDisable) {
-      /* No need to perform grab without warp as it is always on in OS X. */
+      /* No need to perform grab without warp as it is always enabled in OS X. */
       if (mode != GHOST_kGrabNormal) {
         @autoreleasepool {
           m_systemCocoa->getCursorPosition(m_cursorGrabInitPos[0], m_cursorGrabInitPos[1]);
