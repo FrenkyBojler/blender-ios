@@ -157,9 +157,23 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
 /**
  * \brief Corner widgets use for dragging and splitting the view.
  */
-static void area_draw_azone(short /*x1*/, short /*y1*/, short /*x2*/, short /*y2*/)
+static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
 {
-  /* No drawing needed since all corners are action zone, and visually distinguishable. */
+  if (az->x1 < area->totrct.xmin + 1) {
+    if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
+        (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))
+    {
+      UI_icon_draw_ex(az->x1 + (2 * UI_SCALE_FAC),
+                      az->y1 + (5 * UI_SCALE_FAC),
+                      ICON_DOT,
+                      1.0 / UI_SCALE_FAC,
+                      0.3f,
+                      0.0f,
+                      nullptr,
+                      false,
+                      UI_NO_ICON_OVERLAY_TEXT);
+    }
+  }
 }
 
 /**
@@ -279,7 +293,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
 
     if (BLI_rcti_isect(&region->runtime->drawrct, &azrct, nullptr)) {
       if (az->type == AZONE_AREA) {
-        area_draw_azone(az->x1, az->y1, az->x2, az->y2);
+        area_draw_azone(area, region, az);
       }
       else if (az->type == AZONE_REGION) {
         if (az->region && !(az->region->flag & RGN_FLAG_POLL_FAILED)) {
@@ -981,7 +995,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
       /* Bottom-left. */
       {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + UI_AZONESPOTW,
+       area->totrct.xmin + UI_HEADER_OFFSET,
        float(area->totrct.ymin + ED_area_headersize())},
       /* Bottom-right. */
       {area->totrct.xmax - UI_AZONESPOTW,
@@ -991,7 +1005,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
       /* Top-left. */
       {area->totrct.xmin - U.pixelsize,
        float(area->totrct.ymax - ED_area_headersize()),
-       area->totrct.xmin + UI_AZONESPOTW,
+       area->totrct.xmin + UI_HEADER_OFFSET,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
       {area->totrct.xmax - UI_AZONESPOTW,
