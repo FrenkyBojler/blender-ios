@@ -42,7 +42,7 @@
 #  define IOS_INPUT_LOG(...)
 #endif
 
-//#define IOS_WINDOW_LOGGING
+// #define IOS_WINDOW_LOGGING
 #if defined(IOS_WINDOW_LOGGING)
 #  define IOS_WINDOW_LOG(...) NSLog(__VA_ARGS__)
 #else
@@ -295,6 +295,9 @@ typedef struct UserInputEvent {
   UIBarButtonItem *toolbar_live_text_item;
   UIBarButtonItem *toolbar_done_editing_item;
   UIBarButtonItem *toolbar_cancel_editing_item;
+
+  /* Direct event handling state tracking */
+  std::unordered_map<uint64_t, GHOST_TButton> touch_button_map;
 }
 
 - (void)setSystemAndWindowIOS:(GHOST_SystemIOS *)sysCocoa windowIOS:(GHOST_WindowIOS *)winCocoa;
@@ -318,6 +321,18 @@ typedef struct UserInputEvent {
 - (GHOST_TSuccess)popupOnscreenKeyboard:(const GHOST_KeyboardProperties &)keyboard_properties;
 - (GHOST_TSuccess)hideOnscreenKeyboard;
 - (const char *)getLastKeyboardString;
+
+/* Direct event handling bypass methods */
+- (void)sendEvent:(UIEvent *)event;
+- (void)handleDirectTouchEvent:(UIEvent *)event;
+- (void)handleDirectKeyboardEvent:(UIEvent *)event;
+- (void)handleKeyPress:(UIPress *)press;
+
+/* UIKit keyboard press handling (fallback when not bypassing) */
+- (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
+- (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
+- (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event;
+
 @end
 
 @implementation GHOSTUIWindow
@@ -628,6 +643,163 @@ typedef struct UserInputEvent {
   [super touchesCancelled:touches withEvent:event];
   current_pencil_touch = nil;
   tablet_data = GHOST_TABLET_DATA_NONE;
+}
+
+- (void)sendEvent:(UIEvent *)event
+{
+  if (event.type == UIEventTypeTouches) {
+    [self handleDirectTouchEvent:event];
+  }
+
+  if (event.type == UIEventTypePresses) {
+    [self handleDirectKeyboardEvent:event];
+  }
+
+  /* Always forward the event to UIKit so gestures don't break. */
+  [super sendEvent:event];
+}
+
+- (void)handleDirectTouchEvent:(UIEvent *)event
+{
+  for (UITouch *touch in event.allTouches) {
+    CGPoint location = [touch locationInView:window->getView()];
+    CGPoint scaledLocation = window->scalePointToWindow(location);
+
+    switch (touch.phase) {
+      case UITouchPhaseBegan: {
+        /* Always send cursor move first for mouse. */
+        system->pushEvent(new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                                GHOST_kEventCursorMove,
+                                                window,
+                                                scaledLocation.x,
+                                                scaledLocation.y,
+                                                GHOST_TABLET_DATA_NONE));
+
+        if (touch.type == UITouchTypeIndirectPointer) {
+          GHOST_TButton buttonMask = convertButton(event.buttonMask);
+          touch_button_map[(uint64_t)touch] = buttonMask;
+          system->pushEvent(
+              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                    GHOST_kEventButtonDown,
+                                    window,
+                                    buttonMask,
+                                    GHOST_TABLET_DATA_NONE));
+        }
+        break;
+      }
+
+      case UITouchPhaseMoved:
+        /* Send cursor move for all touch types. */
+        system->pushEvent(new GHOST_EventCursor(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                                GHOST_kEventCursorMove,
+                                                window,
+                                                scaledLocation.x,
+                                                scaledLocation.y,
+                                                GHOST_TABLET_DATA_NONE));
+        break;
+
+      case UITouchPhaseEnded:
+      case UITouchPhaseCancelled: {
+        if (touch.type == UITouchTypeIndirectPointer) {
+          uint64_t touchKey = (uint64_t)touch;
+          GHOST_TButton buttonMask = GHOST_kButtonMaskLeft;
+          auto it = touch_button_map.find(touchKey);
+          if (it != touch_button_map.end()) {
+            buttonMask = it->second;
+            touch_button_map.erase(it);
+          }
+          system->pushEvent(
+              new GHOST_EventButton(GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+                                    GHOST_kEventButtonUp,
+                                    window,
+                                    buttonMask,
+                                    GHOST_TABLET_DATA_NONE));
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+}
+
+/* Direct keyboard handling methods */
+- (void)handleDirectKeyboardEvent:(UIEvent *)event
+{
+  UIPressesEvent *pressEvent = (UIPressesEvent *)event;
+
+  for (UIPress *press in pressEvent.allPresses) {
+    if (external_keyboard_connected) {
+      if (onscreen_keyboard_active && text_field.isFirstResponder) {
+        [text_field resignFirstResponder];
+        onscreen_keyboard_active = false;
+        IOS_INPUT_LOG(@"Resigned keyboard due to external keyboard input");
+      }
+      // Directly insert input into Blender, bypass text field
+      [self handleKeyPress:press];
+    }
+  }
+}
+
+- (void)handleKeyPress:(UIPress *)press
+{
+  GHOST_TKey ghostModifierKey = GHOST_kKeyUnknown;
+  GHOST_TKey ghostKey = GHOST_kKeyUnknown;
+
+  GHOST_TEventType eventType;
+  switch (press.phase) {
+    case UIPressPhaseStationary:
+    case UIPressPhaseBegan:
+      eventType = GHOST_kEventKeyDown;
+      break;
+    case UIPressPhaseEnded:
+    case UIPressPhaseCancelled:
+      eventType = GHOST_kEventKeyUp;
+      break;
+    default:
+      return;
+  }
+
+  NSString *keyString = press.key.charactersIgnoringModifiers;
+
+  // Check if this is a modifier key
+  ghostModifierKey = convertIOSModToGHOST(press.key.keyCode);
+
+  // Check if this is a regular key
+  if (keyString && keyString.length > 0) {
+    ghostKey = convertIOSKeyToGHOST(keyString);
+  }
+
+  // Send modifier event only if it's a modifier key
+  if (ghostModifierKey != GHOST_kKeyUnknown) {
+    GHOST_EventKey *modEvent = new GHOST_EventKey(
+        GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+        eventType,
+        window,
+        ghostModifierKey,
+        false);
+    system->pushEvent(modEvent);
+  }
+
+  // Send regular key event only if it's a regular key
+  if (ghostKey != GHOST_kKeyUnknown) {
+    /* Create GHOST event with UTF8 string for character input */
+    NSString *utf8String = nil;
+    if (eventType == GHOST_kEventKeyDown && press.key.characters.length > 0) {
+      utf8String = press.key.characters;
+    }
+    const char *utf8CString = utf8String ? [utf8String UTF8String] : nullptr;
+
+    GHOST_EventKey *keyEvent = new GHOST_EventKey(
+        GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
+        eventType,
+        window,
+        ghostKey,
+        false,
+        utf8CString);
+    system->pushEvent(keyEvent);
+  }
 }
 
 - (void)handleTap:(GHOSTUITapGestureRecognizer *)sender
@@ -1190,6 +1362,27 @@ typedef struct UserInputEvent {
   external_keyboard_connected = [GCKeyboard coalescedKeyboard] != nil;
   IOS_INPUT_LOG(@"External Keyboard %s",
                 external_keyboard_connected ? "Connected" : "Disconnected");
+
+  if (external_keyboard_connected) {
+    if (toolbar) {
+      toolbar.hidden = YES;
+      toolbar.userInteractionEnabled = NO;
+    }
+    if (text_field) {
+      text_field.hidden = YES;
+      text_field.userInteractionEnabled = NO;
+    }
+  }
+  else {
+    if (toolbar) {
+      toolbar.hidden = NO;
+      toolbar.userInteractionEnabled = YES;
+    }
+    if (text_field) {
+      text_field.hidden = NO;
+      text_field.userInteractionEnabled = YES;
+    }
+  }
 }
 
 /* IOS_FIXME - Not currently used, could be removed. */
@@ -1203,6 +1396,32 @@ typedef struct UserInputEvent {
   }
 }
 
+/* UIKit keyboard press handling (fallback when not bypassing) */
+- (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
+{
+  for (UIPress *press in presses) {
+    //    [self handleKeyPress:press withEvent:event];
+    [self handleKeyPress:press];
+  }
+
+  [super pressesBegan:presses withEvent:event];
+}
+
+- (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
+{
+  for (UIPress *press in presses) {
+    //      [self handleKeyPress:press withEvent:event];
+    [self handleKeyPress:press];
+  }
+
+  [super pressesEnded:presses withEvent:event];
+}
+
+- (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
+{
+  [super pressesCancelled:presses withEvent:event];
+}
+
 - (const GHOST_TabletData)getTabletData
 {
   return tablet_data;
@@ -1212,6 +1431,20 @@ typedef struct UserInputEvent {
 {
   @synchronized(self) {
     IOS_INPUT_LOG(@"Keyboard popup request received %@", text_field.text);
+
+    // If external keyboard is connected, do not show text field or toolbar
+    if (external_keyboard_connected) {
+      if (toolbar) {
+        toolbar.hidden = YES;
+      }
+      if (text_field) {
+        text_field.hidden = YES;
+        text_field.userInteractionEnabled = NO;
+      }
+      // No need to show keyboard, just return success
+      return GHOST_kSuccess;
+    }
+
     [self setupKeyboard:keyboard_properties];
 
     if (!onscreen_keyboard_active) {

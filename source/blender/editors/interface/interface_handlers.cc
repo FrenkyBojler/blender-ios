@@ -3652,7 +3652,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
    * text is tricky on iOS since you also need to take into account cuts, pastes and
    * any other editing you can do with an iOS keyboard
    */
-  if (but) {
+  if (but && keyboard_string) {
     ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
   }
 #endif
@@ -4118,7 +4118,7 @@ static int ui_do_but_textedit(
         if (but) {
           const char *keyboard_string = GHOST_getKeyboardInput(
               static_cast<GHOST_WindowHandle>(win->ghostwin));
-          if (but->active->text_edit.edit_string) {
+          if (but->active->text_edit.edit_string && keyboard_string) {
             ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
           }
           changed = true;

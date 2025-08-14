@@ -35,215 +35,259 @@
 
 #pragma mark KeyMap, mouse converters
 
-static GHOST_TButton convertButton(int button)
+GHOST_TButton convertButton(int button)
 {
   switch (button) {
     case 0:
       return GHOST_kButtonMaskLeft;
-    case 1:
-      return GHOST_kButtonMaskRight;
     case 2:
-      return GHOST_kButtonMaskMiddle;
-    case 3:
-      return GHOST_kButtonMaskButton4;
+      return GHOST_kButtonMaskRight;
     case 4:
+      return GHOST_kButtonMaskMiddle;
+    case 8:
+      return GHOST_kButtonMaskButton4;
+    case 16:
       return GHOST_kButtonMaskButton5;
-    case 5:
+    case 32:
       return GHOST_kButtonMaskButton6;
-    case 6:
+    case 64:
       return GHOST_kButtonMaskButton7;
     default:
       return GHOST_kButtonMaskLeft;
   }
 }
 
-/**
- * Converts Mac raw-key codes (same for Cocoa & Carbon)
- * into GHOST key codes
- * \param rawCode: The raw physical key code
- * \param recvChar: the character ignoring modifiers (except for shift)
- * \return Ghost key code
- */
-GHOST_TKey convertKey(int rawCode, unichar recvChar, uint16_t /*keyAction*/)
+GHOST_TKey convertIOSKeyToGHOST(NSString *key)
 {
-  switch (rawCode) {
-      /* Numbers keys: mapped to handle some int'l keyboard (e.g. French). */
-      /*
-    case kVK_ISO_Section:
-      return GHOST_kKeyUnknown;
-    case kVK_ANSI_1:
-      return GHOST_kKey1;
-    case kVK_ANSI_2:
-      return GHOST_kKey2;
-    case kVK_ANSI_3:
-      return GHOST_kKey3;
-    case kVK_ANSI_4:
-      return GHOST_kKey4;
-    case kVK_ANSI_5:
-      return GHOST_kKey5;
-    case kVK_ANSI_6:
-      return GHOST_kKey6;
-    case kVK_ANSI_7:
-      return GHOST_kKey7;
-    case kVK_ANSI_8:
-      return GHOST_kKey8;
-    case kVK_ANSI_9:
-      return GHOST_kKey9;
-    case kVK_ANSI_0:
-      return GHOST_kKey0;
-
-    case kVK_ANSI_Keypad0:
-      return GHOST_kKeyNumpad0;
-    case kVK_ANSI_Keypad1:
-      return GHOST_kKeyNumpad1;
-    case kVK_ANSI_Keypad2:
-      return GHOST_kKeyNumpad2;
-    case kVK_ANSI_Keypad3:
-      return GHOST_kKeyNumpad3;
-    case kVK_ANSI_Keypad4:
-      return GHOST_kKeyNumpad4;
-    case kVK_ANSI_Keypad5:
-      return GHOST_kKeyNumpad5;
-    case kVK_ANSI_Keypad6:
-      return GHOST_kKeyNumpad6;
-    case kVK_ANSI_Keypad7:
-      return GHOST_kKeyNumpad7;
-    case kVK_ANSI_Keypad8:
-      return GHOST_kKeyNumpad8;
-    case kVK_ANSI_Keypad9:
-      return GHOST_kKeyNumpad9;
-    case kVK_ANSI_KeypadDecimal:
-      return GHOST_kKeyNumpadPeriod;
-    case kVK_ANSI_KeypadEnter:
-      return GHOST_kKeyNumpadEnter;
-    case kVK_ANSI_KeypadPlus:
-      return GHOST_kKeyNumpadPlus;
-    case kVK_ANSI_KeypadMinus:
-      return GHOST_kKeyNumpadMinus;
-    case kVK_ANSI_KeypadMultiply:
-      return GHOST_kKeyNumpadAsterisk;
-    case kVK_ANSI_KeypadDivide:
-      return GHOST_kKeyNumpadSlash;
-    case kVK_ANSI_KeypadClear:
-      return GHOST_kKeyUnknown;
-
-    case kVK_F1:
-      return GHOST_kKeyF1;
-    case kVK_F2:
-      return GHOST_kKeyF2;
-
-    case kVK_F3:
-      return GHOST_kKeyF3;
-    case kVK_F4:
-      return GHOST_kKeyF4;
-    case kVK_F5:
-      return GHOST_kKeyF5;
-    case kVK_F6:
-      return GHOST_kKeyF6;
-    case kVK_F7:
-      return GHOST_kKeyF7;
-    case kVK_F8:
-      return GHOST_kKeyF8;
-    case kVK_F9:
-      return GHOST_kKeyF9;
-    case kVK_F10:
-      return GHOST_kKeyF10;
-    case kVK_F11:
-      return GHOST_kKeyF11;
-    case kVK_F12:
-      return GHOST_kKeyF12;
-    case kVK_F13:
-      return GHOST_kKeyF13;
-    case kVK_F14:
-      return GHOST_kKeyF14;
-    case kVK_F15:
-      return GHOST_kKeyF15;
-    case kVK_F16:
-      return GHOST_kKeyF16;
-    case kVK_F17:
-      return GHOST_kKeyF17;
-    case kVK_F18:
-      return GHOST_kKeyF18;
-    case kVK_F19:
-      return GHOST_kKeyF19;
-    case kVK_F20:
-      return GHOST_kKeyF20;
-
-    case kVK_UpArrow:
-      return GHOST_kKeyUpArrow;
-    case kVK_DownArrow:
-      return GHOST_kKeyDownArrow;
-    case kVK_LeftArrow:
-      return GHOST_kKeyLeftArrow;
-    case kVK_RightArrow:
-      return GHOST_kKeyRightArrow;
-
-    case kVK_Return:
-      return GHOST_kKeyEnter;
-    case kVK_Delete:
-      return GHOST_kKeyBackSpace;
-    case kVK_ForwardDelete:
-      return GHOST_kKeyDelete;
-    case kVK_Escape:
+  /* Handle special keys using string comparison (iOS 7.0+) */
+  if (@available(iOS 7.0, *)) {
+    if ([key isEqualToString:UIKeyInputEscape]) {
       return GHOST_kKeyEsc;
-    case kVK_Tab:
-      return GHOST_kKeyTab;
-    case kVK_Space:
-      return GHOST_kKeySpace;
-
-    case kVK_Home:
-      return GHOST_kKeyHome;
-    case kVK_End:
-      return GHOST_kKeyEnd;
-    case kVK_PageUp:
-      return GHOST_kKeyUpPage;
-    case kVK_PageDown:
-      return GHOST_kKeyDownPage;
-
-       */
-
-    default: {
-      /* Alphanumerical or punctuation key that is remappable in int'l keyboards. */
-      if ((recvChar >= 'A') && (recvChar <= 'Z')) {
-        return (GHOST_TKey)(recvChar - 'A' + GHOST_kKeyA);
-      }
-      else if ((recvChar >= 'a') && (recvChar <= 'z')) {
-        return (GHOST_TKey)(recvChar - 'a' + GHOST_kKeyA);
-      }
-      else {
-
-        switch (recvChar) {
-          case '-':
-            return GHOST_kKeyMinus;
-          case '+':
-            return GHOST_kKeyPlus;
-          case '=':
-            return GHOST_kKeyEqual;
-          case ',':
-            return GHOST_kKeyComma;
-          case '.':
-            return GHOST_kKeyPeriod;
-          case '/':
-            return GHOST_kKeySlash;
-          case ';':
-            return GHOST_kKeySemicolon;
-          case '\'':
-            return GHOST_kKeyQuote;
-          case '\\':
-            return GHOST_kKeyBackslash;
-          case '[':
-            return GHOST_kKeyLeftBracket;
-          case ']':
-            return GHOST_kKeyRightBracket;
-          case '`':
-            return GHOST_kKeyAccentGrave;
-          default:
-            return GHOST_kKeyUnknown;
-        }
-      }
+    }
+    if ([key isEqualToString:UIKeyInputUpArrow]) {
+      return GHOST_kKeyUpArrow;
+    }
+    if ([key isEqualToString:UIKeyInputDownArrow]) {
+      return GHOST_kKeyDownArrow;
+    }
+    if ([key isEqualToString:UIKeyInputLeftArrow]) {
+      return GHOST_kKeyLeftArrow;
+    }
+    if ([key isEqualToString:UIKeyInputRightArrow]) {
+      return GHOST_kKeyRightArrow;
+    }
+    if ([key isEqualToString:UIKeyInputDelete]) {
+      return GHOST_kKeyBackSpace;
     }
   }
-  return GHOST_kKeyUnknown;
+
+  /* Handle additional special keys by string name */
+  if ([key isEqualToString:UIKeyInputF1])
+    return GHOST_kKeyF1;
+  if ([key isEqualToString:UIKeyInputF2])
+    return GHOST_kKeyF2;
+  if ([key isEqualToString:UIKeyInputF3])
+    return GHOST_kKeyF3;
+  if ([key isEqualToString:UIKeyInputF4])
+    return GHOST_kKeyF4;
+  if ([key isEqualToString:UIKeyInputF5])
+    return GHOST_kKeyF5;
+  if ([key isEqualToString:UIKeyInputF6])
+    return GHOST_kKeyF6;
+  if ([key isEqualToString:UIKeyInputF7])
+    return GHOST_kKeyF7;
+  if ([key isEqualToString:UIKeyInputF8])
+    return GHOST_kKeyF8;
+  if ([key isEqualToString:UIKeyInputF9])
+    return GHOST_kKeyF9;
+  if ([key isEqualToString:UIKeyInputF10])
+    return GHOST_kKeyF10;
+  if ([key isEqualToString:UIKeyInputF11])
+    return GHOST_kKeyF11;
+  if ([key isEqualToString:UIKeyInputF12])
+    return GHOST_kKeyF12;
+
+  /* Additional navigation and editing keys */
+  if ([key isEqualToString:@"Home"])
+    return GHOST_kKeyHome;
+  if ([key isEqualToString:@"End"])
+    return GHOST_kKeyEnd;
+  if ([key isEqualToString:@"Page Up"])
+    return GHOST_kKeyUpPage;
+  if ([key isEqualToString:@"Page Down"])
+    return GHOST_kKeyDownPage;
+  if ([key isEqualToString:@"Insert"])
+    return GHOST_kKeyInsert;
+  if ([key isEqualToString:@"Delete"])
+    return GHOST_kKeyDelete;
+
+  /* Keypad/Numeric keys */
+  if ([key isEqualToString:@"Keypad 0"])
+    return GHOST_kKeyNumpad0;
+  if ([key isEqualToString:@"Keypad 1"])
+    return GHOST_kKeyNumpad1;
+  if ([key isEqualToString:@"Keypad 2"])
+    return GHOST_kKeyNumpad2;
+  if ([key isEqualToString:@"Keypad 3"])
+    return GHOST_kKeyNumpad3;
+  if ([key isEqualToString:@"Keypad 4"])
+    return GHOST_kKeyNumpad4;
+  if ([key isEqualToString:@"Keypad 5"])
+    return GHOST_kKeyNumpad5;
+  if ([key isEqualToString:@"Keypad 6"])
+    return GHOST_kKeyNumpad6;
+  if ([key isEqualToString:@"Keypad 7"])
+    return GHOST_kKeyNumpad7;
+  if ([key isEqualToString:@"Keypad 8"])
+    return GHOST_kKeyNumpad8;
+  if ([key isEqualToString:@"Keypad 9"])
+    return GHOST_kKeyNumpad9;
+  if ([key isEqualToString:@"Keypad ."])
+    return GHOST_kKeyNumpadPeriod;
+  if ([key isEqualToString:@"Keypad +"])
+    return GHOST_kKeyNumpadPlus;
+  if ([key isEqualToString:@"Keypad -"])
+    return GHOST_kKeyNumpadMinus;
+  if ([key isEqualToString:@"Keypad *"])
+    return GHOST_kKeyNumpadAsterisk;
+  if ([key isEqualToString:@"Keypad /"])
+    return GHOST_kKeyNumpadSlash;
+  if ([key isEqualToString:@"Keypad Enter"])
+    return GHOST_kKeyNumpadEnter;
+
+  /* For regular character keys, get the first character */
+  unichar character = [key characterAtIndex:0];
+
+  /* Handle common control characters */
+  switch (character) {
+    case '\r':
+    case '\n':
+      return GHOST_kKeyEnter;
+    case '\t':
+      return GHOST_kKeyTab;
+    case ' ':
+      return GHOST_kKeySpace;
+    case 0x1B:
+      return GHOST_kKeyEsc; /* ESC character */
+    default:
+      break;
+  }
+
+  /* Handle alphanumeric keys - convert to uppercase for consistency */
+  if (character >= 'a' && character <= 'z') {
+    return (GHOST_TKey)(GHOST_kKeyA + (character - 'a'));
+  }
+  if (character >= 'A' && character <= 'Z') {
+    return (GHOST_TKey)(GHOST_kKeyA + (character - 'A'));
+  }
+  if (character >= '0' && character <= '9') {
+    return (GHOST_TKey)(GHOST_kKey0 + (character - '0'));
+  }
+
+  /* Handle other special characters */
+  switch (character) {
+    case '-':
+      return GHOST_kKeyMinus;
+    case '=':
+      return GHOST_kKeyEqual;
+    case '[':
+      return GHOST_kKeyLeftBracket;
+    case ']':
+      return GHOST_kKeyRightBracket;
+    case '\\':
+      return GHOST_kKeyBackslash;
+    case ';':
+      return GHOST_kKeySemicolon;
+    case '\'':
+      return GHOST_kKeyQuote;
+    case '`':
+      return GHOST_kKeyAccentGrave;
+    case ',':
+      return GHOST_kKeyComma;
+    case '.':
+      return GHOST_kKeyPeriod;
+    case '/':
+      return GHOST_kKeySlash;
+
+    /* Shifted special characters */
+    case '_':
+      return GHOST_kKeyMinus; /* Shifted minus */
+    case '+':
+      return GHOST_kKeyEqual; /* Shifted equal */
+    case '{':
+      return GHOST_kKeyLeftBracket; /* Shifted [ */
+    case '}':
+      return GHOST_kKeyRightBracket; /* Shifted ] */
+    case '|':
+      return GHOST_kKeyBackslash; /* Shifted \ */
+    case ':':
+      return GHOST_kKeySemicolon; /* Shifted ; */
+    case '"':
+      return GHOST_kKeyQuote; /* Shifted ' */
+    case '~':
+      return GHOST_kKeyAccentGrave; /* Shifted ` */
+    case '<':
+      return GHOST_kKeyComma; /* Shifted , */
+    case '>':
+      return GHOST_kKeyPeriod; /* Shifted . */
+    case '?':
+      return GHOST_kKeySlash; /* Shifted / */
+
+    /* Shifted number row */
+    case '!':
+      return GHOST_kKey1;
+    case '@':
+      return GHOST_kKey2;
+    case '#':
+      return GHOST_kKey3;
+    case '$':
+      return GHOST_kKey4;
+    case '%':
+      return GHOST_kKey5;
+    case '^':
+      return GHOST_kKey6;
+    case '&':
+      return GHOST_kKey7;
+    case '*':
+      return GHOST_kKey8;
+    case '(':
+      return GHOST_kKey9;
+    case ')':
+      return GHOST_kKey0;
+
+    /* Additional control characters */
+    case 0x08:
+      return GHOST_kKeyBackSpace; /* Backspace */
+    case 0x7F:
+      return GHOST_kKeyDelete; /* Delete */
+
+    default:
+      return GHOST_kKeyUnknown;
+  }
+}
+
+GHOST_TKey convertIOSModToGHOST(int keyCode)
+{
+  switch (keyCode) {
+    case 225: /* Left Shift */
+      return GHOST_kKeyLeftShift;
+    case 229: /* Right Shift */
+      return GHOST_kKeyRightShift;
+    case 224: /* Left Control */
+      return GHOST_kKeyLeftControl;
+    case 228: /* Right Control */
+      return GHOST_kKeyRightControl;
+    case 226: /* Left Alt/Option */
+      return GHOST_kKeyLeftAlt;
+    case 230: /* Right Alt/Option */
+      return GHOST_kKeyRightAlt;
+    case 227: /* Left Command (⌘) */
+      return GHOST_kKeyLeftOS;
+    case 231: /* Right Command (⌘) */
+      return GHOST_kKeyRightOS;
+    default:
+      return GHOST_kKeyUnknown;
+  }
 }
 
 #pragma mark Utility functions
