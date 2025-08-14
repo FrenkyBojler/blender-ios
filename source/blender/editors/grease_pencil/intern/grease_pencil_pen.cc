@@ -70,6 +70,9 @@ constexpr float selection_distance_factor_edge = 0.5f;
 /* Edges are prioritized less than all other types. */
 constexpr float selection_edge_priority_factor = 0.1f;
 
+/* Total number of curve handle types. */
+constexpr int CURVE_HANDLE_TYPES_NUM = 4;
+
 struct ClosestElement {
   float distance_squared = std::numeric_limits<float>::max();
   ElementMode element_mode;
@@ -1194,7 +1197,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     if (event->val == KM_DBL_CLICK && ptd.cycle_handle_type) {
       const int8_t handle_type = curves.handle_types_right()[ptd.closest_element.point_index];
       /* Cycle to the next type. */
-      const int8_t new_handle_type = (handle_type + 1) % 4;
+      const int8_t new_handle_type = (handle_type + 1) % CURVE_HANDLE_TYPES_NUM;
 
       curves.handle_types_left_for_write()[ptd.closest_element.point_index] = new_handle_type;
       curves.handle_types_right_for_write()[ptd.closest_element.point_index] = new_handle_type;
