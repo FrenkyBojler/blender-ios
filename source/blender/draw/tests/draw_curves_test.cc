@@ -120,8 +120,8 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_idx[7], int4(3, 0, 3, 1));
     EXPECT_EQ(result_idx[8], int4(4, 0, 4, -1));
     EXPECT_EQ(result_idx[9], int4(4, 0, 4, 1));
-    EXPECT_EQ(result_idx[10], int4(5 - 0x7FFFFFFF, 0x7FFFFFFF, 0, -1));
-    EXPECT_EQ(result_idx[11], int4(5 - 0x7FFFFFFF, 0x7FFFFFFF, 0, 1));
+    EXPECT_EQ(result_idx[10], int4(5, 0, 0, -1)); /* End Of Curve */
+    EXPECT_EQ(result_idx[11], int4(5, 0, 0, 1));  /* End Of Curve */
     EXPECT_EQ(result_idx[12], int4(5, 1, 0, -1));
     EXPECT_EQ(result_idx[13], int4(5, 1, 0, 1));
     EXPECT_EQ(result_idx[14], int4(6, 1, 1, -1));
@@ -158,12 +158,12 @@ static void test_draw_curves_lib()
     /* Note: Expected values follows diagram shown in #142969. */
 
     result_pos.read();
-    EXPECT_EQ(result_pos[0], 1.0f);
-    EXPECT_EQ(result_pos[1], 0.75f);
-    EXPECT_EQ(result_pos[2], 1.0f);
-    EXPECT_EQ(result_pos[3], 0.75f);
-    EXPECT_EQ(result_pos[4], 1.0f);
-    EXPECT_EQ(result_pos[5], 0.75f);
+    EXPECT_EQ(result_pos[0], 0.75f);
+    EXPECT_EQ(result_pos[1], 1.0f);
+    EXPECT_EQ(result_pos[2], 0.75f);
+    EXPECT_EQ(result_pos[3], 1.0f);
+    EXPECT_EQ(result_pos[4], 0.75f);
+    EXPECT_EQ(result_pos[5], 1.0f);
     EXPECT_TRUE(isnan(result_pos[6]));
     EXPECT_EQ(result_pos[7], 0.75f);
     EXPECT_EQ(result_pos[8], 0.5f);
@@ -172,12 +172,12 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_pos[11], 0.75f);
     EXPECT_EQ(result_pos[12], 0.5f);
     EXPECT_TRUE(isnan(result_pos[13]));
-    EXPECT_EQ(result_pos[14], 0.5f);
-    EXPECT_EQ(result_pos[15], 0.25f);
-    EXPECT_EQ(result_pos[16], 0.5f);
-    EXPECT_EQ(result_pos[17], 0.25f);
-    EXPECT_EQ(result_pos[18], 0.5f);
-    EXPECT_EQ(result_pos[19], 0.25f);
+    EXPECT_EQ(result_pos[14], 0.25f);
+    EXPECT_EQ(result_pos[15], 0.5f);
+    EXPECT_EQ(result_pos[16], 0.25f);
+    EXPECT_EQ(result_pos[17], 0.5f);
+    EXPECT_EQ(result_pos[18], 0.25f);
+    EXPECT_EQ(result_pos[19], 0.5f);
     EXPECT_TRUE(isnan(result_pos[20]));
     EXPECT_EQ(result_pos[21], 0.25f);
     EXPECT_EQ(result_pos[22], 0.0f);
@@ -186,12 +186,12 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_pos[25], 0.25f);
     EXPECT_EQ(result_pos[26], 0.0f);
     EXPECT_TRUE(isnan(result_pos[27]));
-    EXPECT_EQ(result_pos[28], 0.0f);
-    EXPECT_EQ(result_pos[29], 1.0f);
-    EXPECT_EQ(result_pos[30], 0.0f);
-    EXPECT_EQ(result_pos[31], 1.0f);
-    EXPECT_EQ(result_pos[32], 0.0f);
-    EXPECT_EQ(result_pos[33], 1.0f);
+    EXPECT_EQ(result_pos[28], 1.0f);
+    EXPECT_EQ(result_pos[29], 0.0f);
+    EXPECT_EQ(result_pos[30], 1.0f);
+    EXPECT_EQ(result_pos[31], 0.0f);
+    EXPECT_EQ(result_pos[32], 1.0f);
+    EXPECT_EQ(result_pos[33], 0.0f);
     EXPECT_TRUE(isnan(result_pos[34]));
     EXPECT_EQ(result_pos[35], 1.0f);
     EXPECT_EQ(result_pos[36], 2.0f);
@@ -203,12 +203,12 @@ static void test_draw_curves_lib()
 
     result_idx.read();
     /* x: point_id, y: curve_id, z: curve_segment, w: azimuthal_offset */
-    EXPECT_EQ(result_idx[0], int4(0, 0, 0, -1));
-    EXPECT_EQ(result_idx[1], int4(1, 0, 1, -1));
-    EXPECT_EQ(result_idx[2], int4(0, 0, 0, 0));
-    EXPECT_EQ(result_idx[3], int4(1, 0, 1, 0));
-    EXPECT_EQ(result_idx[4], int4(0, 0, 0, 1));
-    EXPECT_EQ(result_idx[5], int4(1, 0, 1, 1));
+    EXPECT_EQ(result_idx[0], int4(1, 0, 1, -1));
+    EXPECT_EQ(result_idx[1], int4(0, 0, 0, -1));
+    EXPECT_EQ(result_idx[2], int4(1, 0, 1, 0));
+    EXPECT_EQ(result_idx[3], int4(0, 0, 0, 0));
+    EXPECT_EQ(result_idx[4], int4(1, 0, 1, 1));
+    EXPECT_EQ(result_idx[5], int4(0, 0, 0, 1));
     EXPECT_EQ(result_idx[6], int4(0, 0, 0, 2));
 
     EXPECT_EQ(result_idx[7], int4(1, 0, 1, -1));
@@ -219,12 +219,12 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_idx[12], int4(2, 0, 2, 1));
     EXPECT_EQ(result_idx[13], int4(1, 0, 1, 2));
 
-    EXPECT_EQ(result_idx[14], int4(2, 0, 2, -1));
-    EXPECT_EQ(result_idx[15], int4(3, 0, 3, -1));
-    EXPECT_EQ(result_idx[16], int4(2, 0, 2, 0));
-    EXPECT_EQ(result_idx[17], int4(3, 0, 3, 0));
-    EXPECT_EQ(result_idx[18], int4(2, 0, 2, 1));
-    EXPECT_EQ(result_idx[19], int4(3, 0, 3, 1));
+    EXPECT_EQ(result_idx[14], int4(3, 0, 3, -1));
+    EXPECT_EQ(result_idx[15], int4(2, 0, 2, -1));
+    EXPECT_EQ(result_idx[16], int4(3, 0, 3, 0));
+    EXPECT_EQ(result_idx[17], int4(2, 0, 2, 0));
+    EXPECT_EQ(result_idx[18], int4(3, 0, 3, 1));
+    EXPECT_EQ(result_idx[19], int4(2, 0, 2, 1));
     EXPECT_EQ(result_idx[20], int4(2, 0, 2, 2));
 
     EXPECT_EQ(result_idx[21], int4(3, 0, 3, -1));
@@ -235,12 +235,12 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_idx[26], int4(4, 0, 4, 1));
     EXPECT_EQ(result_idx[27], int4(3, 0, 3, 2));
 
-    EXPECT_EQ(result_idx[28], int4(5, 1, 0, -1));
-    EXPECT_EQ(result_idx[29], int4(6, 1, 1, -1));
-    EXPECT_EQ(result_idx[30], int4(5, 1, 0, 0));
-    EXPECT_EQ(result_idx[31], int4(6, 1, 1, 0));
-    EXPECT_EQ(result_idx[32], int4(5, 1, 0, 1));
-    EXPECT_EQ(result_idx[33], int4(6, 1, 1, 1));
+    EXPECT_EQ(result_idx[28], int4(6, 1, 1, -1));
+    EXPECT_EQ(result_idx[29], int4(5, 1, 0, -1));
+    EXPECT_EQ(result_idx[30], int4(6, 1, 1, 0));
+    EXPECT_EQ(result_idx[31], int4(5, 1, 0, 0));
+    EXPECT_EQ(result_idx[32], int4(6, 1, 1, 1));
+    EXPECT_EQ(result_idx[33], int4(5, 1, 0, 1));
     EXPECT_EQ(result_idx[34], int4(5, 1, 0, 2));
 
     EXPECT_EQ(result_idx[35], int4(6, 1, 1, -1));
