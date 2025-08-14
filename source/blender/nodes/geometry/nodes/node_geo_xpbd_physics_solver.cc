@@ -401,7 +401,7 @@ static void gather_distance_constraints(
     ResourceScope &scope,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
-    const Map<std::string, Map<bke::GeometryComponent::Type, int>> &all_sim_points_keys,
+    const VectorSet<PathComponentKey> &all_sim_points_keys,
     const Span<SimPoints *> all_sim_points,
     const Map<PathComponentKey, VArray<float>> &masses_map,
     const float delta_time,
@@ -413,8 +413,8 @@ static void gather_distance_constraints(
     if (!applied_geometry.has_mesh()) {
       continue;
     }
-    const int geo_i = all_sim_points_keys.lookup(geometry_bundle.self_path)
-                          .lookup(bke::GeometryComponent::Type::Mesh);
+    const int geo_i = all_sim_points_keys.index_of(
+        {geometry_bundle.self_path, bke::GeometryComponent::Type::Mesh});
     const SimPoints &sim_points = *all_sim_points[geo_i];
     const Mesh &mesh = *applied_geometry.get_mesh();
     const Span<int2> mesh_edges = mesh.edges();
@@ -476,7 +476,7 @@ static void gather_pin_constraints(
     ResourceScope &scope,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
-    const Map<std::string, Map<bke::GeometryComponent::Type, int>> &all_sim_points_keys,
+    const VectorSet<PathComponentKey> &all_sim_points_keys,
     const Span<SimPoints *> all_sim_points,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
@@ -497,7 +497,7 @@ static void gather_pin_constraints(
       const AttrDomain domain = bke::AttrDomain::Point;
       const int domain_size = component->attribute_domain_size(domain);
 
-      const int geo_i = all_sim_points_keys.lookup(geometry_bundle.self_path).lookup(type);
+      const int geo_i = all_sim_points_keys.index_of({geometry_bundle.self_path, type});
       const SimPoints &sim_points = *all_sim_points[geo_i];
 
       bke::GeometryFieldContext field_context(*component, domain);
@@ -553,16 +553,16 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
   Vector<SimPoints *> all_sim_points;
   Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
-  Map<std::string, Map<bke::GeometryComponent::Type, int>> all_sim_points_keys;
+  VectorSet<PathComponentKey> all_sim_points_keys;
   for (const int bundle_i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
     PathSimData &path_sim_data = state.data_by_path.lookup(geometry_bundle.self_path);
     for (auto item : path_sim_data.points_by_type.items()) {
       const bke::GeometryComponent::Type type = item.key;
       SimPoints &sim_points = item.value;
-      const int geo_i = all_sim_points.append_and_get_index(&sim_points);
+      all_sim_points.append_and_get_index(&sim_points);
       points_refs.append({sim_points.positions});
-      all_sim_points_keys.lookup_or_add_default_as(geometry_bundle.self_path).add_new(type, geo_i);
+      all_sim_points_keys.add_new({geometry_bundle.self_path, type});
     }
   }
 
