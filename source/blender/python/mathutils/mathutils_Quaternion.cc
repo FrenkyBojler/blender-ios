@@ -867,19 +867,13 @@ static PyObject *Quaternion_str(QuaternionObject *self)
 /** \name Quaternion Type: Buffer Protocol
  * \{ */
 
-static int Quaternion__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
+static int Quaternion_getbuffer(PyObject *obj, Py_buffer *view, int flags)
 {
-
-  if (UNLIKELY(view == nullptr)) {
-    PyErr_SetString(PyExc_ValueError, "null view in getbuffer is obsolete");
-    return -1;
-  }
-
   QuaternionObject *self = (QuaternionObject *)obj;
-  if (BaseMath_Prepare_ForBufferAccess(self) == -1) {
+  if (BaseMath_Prepare_ForBufferAccess(self, view, flags) == -1) {
     return -1;
   }
-  if (UNLIKELY(BaseMath_ReadCallback(self) == -1)) {
+  if (BaseMath_ReadCallback(self) == -1) {
     return -1;
   }
 
@@ -888,40 +882,34 @@ static int Quaternion__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
   view->obj = (PyObject *)self;
   view->buf = (void *)self->quat;
   view->len = Py_ssize_t(QUAT_SIZE * sizeof(float));
-  view->readonly = 1;
-  if (!(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
-    if (BaseMath_WriteCallback(self) == -1) {
-      PyErr_Clear();
-    }
-    else {
-      view->readonly = 0;
-    }
-  }
   view->itemsize = sizeof(float);
+  view->ndim = 1;
+  if (LIKELY((flags & PyBUF_WRITABLE) == 0)) {
+    view->readonly = 1;
+  }
   if (LIKELY(flags & PyBUF_FORMAT)) {
     view->format = (char *)"f";
   }
-  view->ndim = 1;
-  view->shape = nullptr;
-  view->strides = nullptr;
-  view->suboffsets = nullptr;
-  view->internal = nullptr;
 
-  self->flag |= BASE_MATH_FLAG_IS_VIEW;
+  self->flag |= BASE_MATH_FLAG_HAS_BUFFER_VIEW;
 
   Py_INCREF(self);
   return 0;
 }
 
-static void Quaternion__bf_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
+static void Quaternion_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
 {
   QuaternionObject *self = (QuaternionObject *)view->obj;
-  self->flag &= ~BASE_MATH_FLAG_IS_VIEW;
+  self->flag &= ~BASE_MATH_FLAG_HAS_BUFFER_VIEW;
+
+  if (UNLIKELY((!view->readonly) && BaseMath_WriteCallback(self) == -1)) {
+    PyErr_Print();
+  }
 }
 
 static PyBufferProcs Quaternion_as_buffer = {
-    (getbufferproc)Quaternion__bf_getbuffer,
-    (releasebufferproc)Quaternion__bf_releasebuffer,
+    (getbufferproc)Quaternion_getbuffer,
+    (releasebufferproc)Quaternion_releasebuffer,
 };
 
 /** \} */

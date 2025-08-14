@@ -42,10 +42,10 @@ enum {
   BASE_MATH_FLAG_IS_FROZEN = (1 << 1),
   /** Prevents calling freeze and resize while using the buffer protocol.
    * NOTE: memoryview and np.frombuffer pass the `PyBUF_FORMAT` | `PyBUF_INDIRECT` flags,
-   * and the object can be mutated, so `PyBUF_WRITABLE` can’t be handled.
-   * That’s why it’s always necessary to check for write access.
+   * and the object can be mutated, so `PyBUF_WRITABLE` can't be handled.
+   * That's why it's always necessary to check for write access.
    */
-  BASE_MATH_FLAG_IS_VIEW = (1 << 2),
+  BASE_MATH_FLAG_HAS_BUFFER_VIEW = (1 << 2),
 };
 #define BASE_MATH_FLAG_DEFAULT 0
 
@@ -124,10 +124,15 @@ struct Mathutils_Callback {
 [[nodiscard]] int _BaseMathObject_WriteCallback(BaseMathObject *self);
 [[nodiscard]] int _BaseMathObject_ReadIndexCallback(BaseMathObject *self, int index);
 [[nodiscard]] int _BaseMathObject_WriteIndexCallback(BaseMathObject *self, int index);
+/** To implement #BaseMath_Prepare_ForResize. */
+[[nodiscard]] int _BaseMathObject_ResizeOkOrRaiseExc(BaseMathObject *self,
+                                                     const char *error_prefix);
+[[nodiscard]] int _BaseMathObject_RaiseBufferViewExc(BaseMathObject *self,
+                                                     Py_buffer *view,
+                                                     int flags);
 
 void _BaseMathObject_RaiseFrozenExc(const BaseMathObject *self);
 void _BaseMathObject_RaiseNotFrozenExc(const BaseMathObject *self);
-void _BaseMathObject_RaiseBufferViewExc(const BaseMathObject *self);
 
 /* since this is called so often avoid where possible */
 #define BaseMath_CheckCallback(_self) \
@@ -161,12 +166,16 @@ void _BaseMathObject_RaiseBufferViewExc(const BaseMathObject *self);
   (UNLIKELY(((_self)->flag & BASE_MATH_FLAG_IS_FROZEN) == 0) ? \
        (_BaseMathObject_RaiseNotFrozenExc((BaseMathObject *)_self), -1) : \
        0)
+/**
+ * Helper to de-duplicate checks for in-place resizing.
+ * \return -1 and set an exception if the vector `_self` cannot be resized.
+ */
+#define BaseMathObject_Prepare_ForResize(_self, error_prefix) \
+  _BaseMathObject_ResizeOkOrRaiseExc((BaseMathObject *)_self, error_prefix)
 
-/* support BASE_MATH_FLAG_IS_VIEW */
-#define BaseMath_Prepare_ForBufferAccess(_self) \
-  (UNLIKELY(((_self)->flag & BASE_MATH_FLAG_IS_VIEW)) ? \
-       (_BaseMathObject_RaiseBufferViewExc((BaseMathObject *)_self), -1) : \
-       0)
+/* support BASE_MATH_FLAG_HAS_BUFFER_VIEW */
+#define BaseMath_Prepare_ForBufferAccess(_self, _view, _flags) \
+  _BaseMathObject_RaiseBufferViewExc((BaseMathObject *)_self, _view, _flags)
 
 /* utility func */
 /**

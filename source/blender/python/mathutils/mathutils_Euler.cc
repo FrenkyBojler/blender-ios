@@ -387,16 +387,10 @@ static PyObject *Euler_str(EulerObject *self)
 /** \name Euler Type: Buffer Protocol
  * \{ */
 
-static int Euler__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
+static int Euler_getbuffer(PyObject *obj, Py_buffer *view, int flags)
 {
-
-  if (UNLIKELY(view == nullptr)) {
-    PyErr_SetString(PyExc_ValueError, "null view in getbuffer is obsolete");
-    return -1;
-  }
-
   EulerObject *self = (EulerObject *)obj;
-  if (BaseMath_Prepare_ForBufferAccess(self) == -1) {
+  if (BaseMath_Prepare_ForBufferAccess(self, view, flags) == -1) {
     return -1;
   }
   if (BaseMath_ReadCallback(self) == -1) {
@@ -408,40 +402,34 @@ static int Euler__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
   view->obj = (PyObject *)self;
   view->buf = (void *)self->eul;
   view->len = Py_ssize_t(EULER_SIZE * sizeof(float));
-  view->readonly = 1;
-  if (!(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
-    if (BaseMath_WriteCallback(self) == -1) {
-      PyErr_Clear();
-    }
-    else {
-      view->readonly = 0;
-    }
-  }
   view->itemsize = sizeof(float);
+  view->ndim = 1;
+  if (LIKELY((flags & PyBUF_WRITABLE) == 0)) {
+    view->readonly = 1;
+  }
   if (LIKELY(flags & PyBUF_FORMAT)) {
     view->format = (char *)"f";
   }
-  view->ndim = 1;
-  view->shape = nullptr;
-  view->strides = nullptr;
-  view->suboffsets = nullptr;
-  view->internal = nullptr;
 
-  self->flag |= BASE_MATH_FLAG_IS_VIEW;
+  self->flag |= BASE_MATH_FLAG_HAS_BUFFER_VIEW;
 
   Py_INCREF(self);
   return 0;
 }
 
-static void Euler__bf_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
+static void Euler_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
 {
   EulerObject *self = (EulerObject *)view->obj;
-  self->flag &= ~BASE_MATH_FLAG_IS_VIEW;
+  self->flag &= ~BASE_MATH_FLAG_HAS_BUFFER_VIEW;
+
+  if (UNLIKELY((!view->readonly) && BaseMath_WriteCallback(self) == -1)) {
+    PyErr_Print();
+  }
 }
 
 static PyBufferProcs Euler_as_buffer = {
-    (getbufferproc)Euler__bf_getbuffer,
-    (releasebufferproc)Euler__bf_releasebuffer,
+    (getbufferproc)Euler_getbuffer,
+    (releasebufferproc)Euler_releasebuffer,
 };
 
 /** \} */

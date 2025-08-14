@@ -42,26 +42,23 @@ def _test_flat_buffer_protocol(self, typ, n):
     self.assertEqual(view.format, 'f')
     self.assertEqual(view.tolist(), expected)
     
-    view[0] = 42
-    self.assertEqual(view[0], data[0])
-    
-    #  check multiple simultaneous
+    #  Check multiple simultaneous.
     with self.assertRaises(BufferError):
-        # np.array(vec) is valid as it falls back to loading via an iterator if BufferError occurs
+        # np.array(vec) is valid as it falls back to loading via an iterator if BufferError occurs.
         memoryview(data)
         
-    #  check frozen
+    #  Check frozen.
     with self.assertRaises(BufferError):
         data.freeze()
         
-    #  check resize
+    #  Check resize.
     if typ == Vector:
         with self.assertRaises(BufferError):
             data.resize(100)
         
-    _incref = view  # for potential changes in gc
+    _incref = view  # For potential changes in gc.
     
-    # check for a release buffer call, gc releases the buffer if it’s not referenced
+    # Check for a release buffer call, gc releases the buffer if it's not referenced.
     data = typ(expected)
     memoryview(data)
     memoryview(data)
@@ -289,9 +286,17 @@ class MatrixTesting(unittest.TestCase):
         result = Matrix.LocRotScale((1, 2, 3), euler.to_matrix(), (4, 5, 6))
         self.assertAlmostEqualMatrix(result, expected, 4)
 
+    def test_matrix_freeze_is_read_only(self):
+        mat = Matrix(((1, 1, 1),) * 3)
+        mat.freeze()
+        with self.assertRaises(ValueError):
+            mat.resize_4x4()
+        with self.assertRaises(TypeError):
+            mat[0][0] = 0.0
+
     def test_buffer_protocol(self):
         try:
-            # memoryview does not support ndim arrays, so external modules will have to be used
+            # memoryview does not support ndim arrays, so external modules will have to be used.
             import numpy as np
         except ImportError:
             return
@@ -302,7 +307,7 @@ class MatrixTesting(unittest.TestCase):
         self.assertEqual(np_arr.shape, (4, 4))
         self.assertEqual(np_arr.dtype, np.float32)
         self.assertEqual(np_arr.tolist(), expected)
-    
+
     def assertAlmostEqualMatrix(self, first, second, size, *, places=6, msg=None, delta=None):
         for i in range(size):
             for j in range(size):
@@ -359,6 +364,15 @@ class VectorTesting(unittest.TestCase):
 
         vec *= 2
         self.assertEqual(vec, prod2)
+
+    def test_vector_freeze_is_read_only(self):
+        vec = Vector((1, 3, 5))
+
+        vec.freeze()
+        with self.assertRaises(ValueError):
+            vec.resize(2)
+        with self.assertRaises(TypeError):
+            vec[0] = 0.0
 
     def test_buffer_protocol(self):
         _test_flat_buffer_protocol(self, Vector, 10)

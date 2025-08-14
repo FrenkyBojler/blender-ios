@@ -308,7 +308,7 @@ static PyObject *C_Vector_Range(PyObject *cls, PyObject *args)
 PyDoc_STRVAR(
     /* Wrap. */
     C_Vector_Linspace_doc,
-    ".. classmethod:: Linspace(start, stop, size. /)\n"
+    ".. classmethod:: Linspace(start, stop, size, /)\n"
     "\n"
     "   Create a vector of the specified size which is filled with linearly spaced "
     "values between start and stop values.\n"
@@ -497,31 +497,9 @@ static PyObject *Vector_resize(VectorObject *self, PyObject *value)
 {
   int vec_num;
 
-  if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize(): "
-                    "cannot resize wrapped data - only Python vectors");
-    return nullptr;
-  }
+  if (UNLIKELY(BaseMathObject_Prepare_ForResize(self, "Vector.resize()") == -1)) {
+    /* An exception has been raised. */
 
-  if (self->flag & BASE_MATH_FLAG_IS_FROZEN) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize(): "
-                    "cannot resize frozen (immutable) vector");
-    return nullptr;
-  }
-
-  if (self->flag & BASE_MATH_FLAG_IS_VIEW) {
-    PyErr_SetString(PyExc_BufferError,
-                    "Vector.resize(): "
-                    "cannot resize vector while exported to buffer protocol");
-    return nullptr;
-  }
-
-  if (self->cb_user) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize(): "
-                    "cannot resize a vector that has an owner");
     return nullptr;
   }
 
@@ -600,16 +578,8 @@ PyDoc_STRVAR(
     "   Resize the vector to 2D  (x, y).\n");
 static PyObject *Vector_resize_2d(VectorObject *self)
 {
-  if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_2d(): "
-                    "cannot resize wrapped data - only Python vectors");
-    return nullptr;
-  }
-  if (self->cb_user) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_2d(): "
-                    "cannot resize a vector that has an owner");
+  if (UNLIKELY(BaseMathObject_Prepare_ForResize(self, "Vector.resize_2d()") == -1)) {
+    /* An exception has been raised. */
     return nullptr;
   }
 
@@ -633,16 +603,8 @@ PyDoc_STRVAR(
     "   Resize the vector to 3D  (x, y, z).\n");
 static PyObject *Vector_resize_3d(VectorObject *self)
 {
-  if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_3d(): "
-                    "cannot resize wrapped data - only Python vectors");
-    return nullptr;
-  }
-  if (self->cb_user) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_3d(): "
-                    "cannot resize a vector that has an owner");
+  if (UNLIKELY(BaseMathObject_Prepare_ForResize(self, "Vector.resize_3d()") == -1)) {
+    /* An exception has been raised. */
     return nullptr;
   }
 
@@ -670,16 +632,8 @@ PyDoc_STRVAR(
     "   Resize the vector to 4D (x, y, z, w).\n");
 static PyObject *Vector_resize_4d(VectorObject *self)
 {
-  if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_4d(): "
-                    "cannot resize wrapped data - only Python vectors");
-    return nullptr;
-  }
-  if (self->cb_user) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_4d(): "
-                    "cannot resize a vector that has an owner");
+  if (UNLIKELY(BaseMathObject_Prepare_ForResize(self, "Vector.resize_4d()") == -1)) {
+    /* An exception has been raised. */
     return nullptr;
   }
 
@@ -1646,15 +1600,10 @@ static PyObject *Vector_str(VectorObject *self)
 /** \name Vector Type: Buffer Protocol
  * \{ */
 
-static int Vector__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
+static int Vector_getbuffer(PyObject *obj, Py_buffer *view, int flags)
 {
-  if (UNLIKELY(view == nullptr)) {
-    PyErr_SetString(PyExc_BufferError, "null view in getbuffer is obsolete");
-    return -1;
-  }
-
   VectorObject *self = (VectorObject *)obj;
-  if (BaseMath_Prepare_ForBufferAccess(self) == -1) {
+  if (BaseMath_Prepare_ForBufferAccess(self, view, flags) == -1) {
     return -1;
   }
   if (BaseMath_ReadCallback(self) == -1) {
@@ -1666,41 +1615,34 @@ static int Vector__bf_getbuffer(PyObject *obj, Py_buffer *view, int flags)
   view->obj = (PyObject *)self;
   view->buf = (void *)self->vec;
   view->len = Py_ssize_t(self->vec_num * sizeof(float));
-  view->readonly = 1;
-
-  if (!(self->flag & BASE_MATH_FLAG_IS_FROZEN)) {
-    if (BaseMath_WriteCallback(self) == -1) {
-      PyErr_Clear();
-    }
-    else {
-      view->readonly = 0;
-    }
-  }
   view->itemsize = sizeof(float);
+  view->ndim = 1;
+  if (LIKELY((flags & PyBUF_WRITABLE) == 0)) {
+    view->readonly = 1;
+  }
   if (LIKELY(flags & PyBUF_FORMAT)) {
     view->format = (char *)"f";
   }
-  view->ndim = 1;
-  view->shape = nullptr;
-  view->strides = nullptr;
-  view->suboffsets = nullptr;
-  view->internal = nullptr;
-  
-  self->flag |= BASE_MATH_FLAG_IS_VIEW;
-  
+
+  self->flag |= BASE_MATH_FLAG_HAS_BUFFER_VIEW;
+
   Py_INCREF(self);
   return 0;
 }
 
-static void Vector__bf_releasebuffer(PyObject * /*exporter*/, Py_buffer * view)
-  {
-    VectorObject *self = (VectorObject *)view->obj;
-    self->flag &= ~BASE_MATH_FLAG_IS_VIEW;
+static void Vector_releasebuffer(PyObject * /*exporter*/, Py_buffer * view)
+{
+  VectorObject *self = (VectorObject *)view->obj;
+  self->flag &= ~BASE_MATH_FLAG_HAS_BUFFER_VIEW;
+
+  if (UNLIKELY((!view->readonly) && BaseMath_WriteCallback(self) == -1)) {
+    PyErr_Print();
   }
+}
 
   static PyBufferProcs Vector_as_buffer = {
-      (getbufferproc)Vector__bf_getbuffer,
-      (releasebufferproc)Vector__bf_releasebuffer,
+      (getbufferproc)Vector_getbuffer,
+      (releasebufferproc)Vector_releasebuffer,
   };
 
 /** \} */
