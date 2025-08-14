@@ -2168,7 +2168,7 @@ or by manually passing it through VmaAllocatorCreateInfo::pVulkanFunctions.
 For more information, see chapter \ref vk_khr_external_memory_win32.
 */
 VMA_CALL_PRE VkResult VMA_CALL_POST vmaGetMemoryWin32Handle(VmaAllocator VMA_NOT_NULL allocator,
-    VmaAllocation VMA_NOT_NULL allocation, VMA_NULLABLE HANDLE hTargetProcess, HANDLE* VMA_NOT_NULL pHandle);
+    VmaAllocation VMA_NOT_NULL allocation, HANDLE hTargetProcess, HANDLE* VMA_NOT_NULL pHandle);
 #endif // VMA_EXTERNAL_MEMORY_WIN32
 
 /** \brief Maps memory represented by given allocation and returns pointer to it.
