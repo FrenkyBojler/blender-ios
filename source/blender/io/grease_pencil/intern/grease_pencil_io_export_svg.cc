@@ -130,7 +130,7 @@ class SVGExporter : public GreasePencilExporter {
                             const float4x4 &transform,
                             Span<float3> positions,
                             bool cyclic);
-  pugi::xml_node write_beizer_path(pugi::xml_node node,
+  pugi::xml_node write_bezier_path(pugi::xml_node node,
                                    const float4x4 &transform,
                                    Span<float3> positions,
                                    Span<float3> positions_left,
@@ -330,7 +330,7 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
     else {
       pugi::xml_node element_node;
       if (type == CURVE_TYPE_BEZIER) {
-        element_node = write_beizer_path(
+        element_node = write_bezier_path(
             layer_node, layer_to_world, positions, positions_left, positions_right, cyclic);
       }
       else {
@@ -504,7 +504,7 @@ pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
   return element_node;
 }
 
-pugi::xml_node SVGExporter::write_beizer_path(pugi::xml_node node,
+pugi::xml_node SVGExporter::write_bezier_path(pugi::xml_node node,
                                               const float4x4 &transform,
                                               const Span<float3> positions,
                                               const Span<float3> positions_left,
