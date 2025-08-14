@@ -1,2 +1,3 @@
 Referenced by issue #140419, EEVEE "High Quality Normals" option prevents edges from being highlighted in Edit mode
 Referenced by issue #141132, Blender crashes with background grease pencil rendering
+Referenced by issue #144526, Crash closing Blender after opening a specific template from the command line
