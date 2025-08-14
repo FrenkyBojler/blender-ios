@@ -380,8 +380,8 @@ static void test_draw_curves_interpolate_position()
   points_by_curve_buf->data<int>().copy_from({0, 3, 5});
 
   gpu::VertBuf *curves_type_buf = GPU_vertbuf_create_with_format(IntBuf::format());
-  curves_type_buf->allocate(2);
-  curves_type_buf->data<int>().copy_from({CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_CATMULL_ROM});
+  curves_type_buf->allocate(1);
+  curves_type_buf->data<char>().copy_from({CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_CATMULL_ROM, 0, 0});
 
   gpu::VertBuf *curves_resolution_buf = GPU_vertbuf_create_with_format(IntBuf::format());
   curves_resolution_buf->allocate(2);
@@ -425,27 +425,29 @@ static void test_draw_curves_interpolate_position()
     pass.init();
     pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_CATMULL_ROM));
     pass.shader_set(sh);
-    pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
-    pass.bind_ssbo("curves_type_buf", curves_type_buf);
-    pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
-    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
-    pass.bind_ssbo("positions_buf", positions_buf);
-    pass.bind_ssbo("radii_buf", radii_buf);
-    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
+    pass.bind_ssbo(POINTS_BY_CURVES_SLOT, points_by_curve_buf);
+    pass.bind_ssbo(CURVE_TYPE_SLOT, curves_type_buf);
+    pass.bind_ssbo(CURVE_RESOLUTION_SLOT, curves_resolution_buf);
+    pass.bind_ssbo(EVALUATED_POINT_SLOT, evaluated_points_by_curve_buf);
+    pass.bind_ssbo(POINT_POSITIONS_SLOT, positions_buf);
+    pass.bind_ssbo(POINT_RADII_SLOT, radii_buf);
+    pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, evaluated_positions_radii_buf);
     pass.push_constant("use_cyclic", false);
+    pass.bind_ssbo(CURVE_CYCLIC_SLOT, evaluated_points_by_curve_buf); /* Dummy, not used. */
     /* Dummy, not used for Catmull-Rom. */
-    pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
-    pass.bind_ssbo("handles_positions_right_buf", evaluated_points_by_curve_buf);
-    pass.bind_ssbo("bezier_offsets_buf", evaluated_points_by_curve_buf);
+    pass.bind_ssbo(HANDLES_POS_LEFT_SLOT, evaluated_points_by_curve_buf);
+    pass.bind_ssbo(HANDLES_POS_RIGHT_SLOT, evaluated_points_by_curve_buf);
+    pass.bind_ssbo(BEZIER_OFFSETS_SLOT, evaluated_points_by_curve_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
+    pass.push_constant("transform", float4x4::identity());
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_SHADER_STORAGE);
     pass.shader_set(sh_length);
-    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
-    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
-    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
-    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.bind_ssbo(EVALUATED_POINT_SLOT, evaluated_points_by_curve_buf);
+    pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, evaluated_positions_radii_buf);
+    pass.bind_ssbo(EVALUATED_TIME_SLOT, evaluated_time_buf);
+    pass.bind_ssbo(CURVES_LENGTH_SLOT, curves_length_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
     pass.push_constant("use_cyclic", false);
@@ -522,8 +524,8 @@ static void test_draw_curves_interpolate_position()
   bezier_offsets_buf->data<int>().copy_from(bezier_offsets);
 
   gpu::VertBuf *curves_type_bezier_buf = GPU_vertbuf_create_with_format(IntBuf::format());
-  curves_type_bezier_buf->allocate(2);
-  curves_type_bezier_buf->data<int>().copy_from({CURVE_TYPE_BEZIER, CURVE_TYPE_BEZIER});
+  curves_type_bezier_buf->allocate(1);
+  curves_type_bezier_buf->data<char>().copy_from({CURVE_TYPE_BEZIER, CURVE_TYPE_BEZIER, 0, 0});
 
   {
     StorageArrayBuffer<float4, 512> evaluated_positions_radii_buf;
@@ -537,26 +539,28 @@ static void test_draw_curves_interpolate_position()
     pass.init();
     pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_BEZIER));
     pass.shader_set(sh);
-    pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
-    pass.bind_ssbo("curves_type_buf", curves_type_bezier_buf);
-    pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
+    pass.bind_ssbo(POINTS_BY_CURVES_SLOT, points_by_curve_buf);
+    pass.bind_ssbo(CURVE_TYPE_SLOT, curves_type_bezier_buf);
+    pass.bind_ssbo(CURVE_RESOLUTION_SLOT, curves_resolution_buf);
+    pass.bind_ssbo(EVALUATED_POINT_SLOT, evaluated_points_by_curve_buf);
+    pass.bind_ssbo(POINT_POSITIONS_SLOT, positions_buf);
+    pass.bind_ssbo(POINT_RADII_SLOT, radii_buf);
+    pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, evaluated_positions_radii_buf);
     pass.push_constant("use_cyclic", false);
-    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
-    pass.bind_ssbo("positions_buf", positions_buf);
-    pass.bind_ssbo("radii_buf", radii_buf);
-    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
-    pass.bind_ssbo("handles_positions_left_buf", handles_positions_left_buf);
-    pass.bind_ssbo("handles_positions_right_buf", handles_positions_right_buf);
-    pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
+    pass.bind_ssbo(CURVE_CYCLIC_SLOT, evaluated_points_by_curve_buf); /* Dummy, not used. */
+    pass.bind_ssbo(HANDLES_POS_LEFT_SLOT, handles_positions_left_buf);
+    pass.bind_ssbo(HANDLES_POS_RIGHT_SLOT, handles_positions_right_buf);
+    pass.bind_ssbo(BEZIER_OFFSETS_SLOT, bezier_offsets_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
+    pass.push_constant("transform", float4x4::identity());
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_SHADER_STORAGE);
     pass.shader_set(sh_length);
-    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
-    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
-    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
-    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.bind_ssbo(EVALUATED_POINT_SLOT, evaluated_points_by_curve_buf);
+    pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, evaluated_positions_radii_buf);
+    pass.bind_ssbo(EVALUATED_TIME_SLOT, evaluated_time_buf);
+    pass.bind_ssbo(CURVES_LENGTH_SLOT, curves_length_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
     pass.push_constant("use_cyclic", false);
@@ -715,8 +719,8 @@ static void test_draw_curves_interpolate_position()
   control_weights_buf->data<float>().copy_from(control_weights);
 
   gpu::VertBuf *curves_type_nurbs_buf = GPU_vertbuf_create_with_format(IntBuf::format());
-  curves_type_nurbs_buf->allocate(2);
-  curves_type_nurbs_buf->data<int>().copy_from({CURVE_TYPE_NURBS, CURVE_TYPE_NURBS});
+  curves_type_nurbs_buf->allocate(1);
+  curves_type_nurbs_buf->data<char>().copy_from({CURVE_TYPE_NURBS, CURVE_TYPE_NURBS, 0, 0});
 
   {
     StorageArrayBuffer<float4, 512> evaluated_positions_radii_buf;
@@ -730,26 +734,30 @@ static void test_draw_curves_interpolate_position()
     pass.init();
     pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_NURBS));
     pass.shader_set(sh);
-    pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
-    pass.bind_ssbo("curves_type_buf", curves_type_nurbs_buf);
+    pass.bind_ssbo(POINTS_BY_CURVES_SLOT, points_by_curve_buf);
+    pass.bind_ssbo(CURVE_TYPE_SLOT, curves_type_nurbs_buf);
+    pass.bind_ssbo(CURVE_RESOLUTION_SLOT, curves_resolution_buf);
+    pass.bind_ssbo(EVALUATED_POINT_SLOT, evaluated_points_by_curve_buf);
+    pass.bind_ssbo(POINT_POSITIONS_SLOT, positions_buf);
+    pass.bind_ssbo(POINT_RADII_SLOT, radii_buf);
+    pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, evaluated_positions_radii_buf);
     pass.push_constant("use_cyclic", false);
-    pass.bind_ssbo("curves_resolution_buf", curves_order_buf);
-    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
-    pass.bind_ssbo("positions_buf", positions_buf);
-    pass.bind_ssbo("radii_buf", radii_buf);
-    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
-    pass.bind_ssbo("handles_positions_left_buf", basis_cache_buf);
-    pass.bind_ssbo("handles_positions_right_buf", control_weights_buf);
-    pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
+    pass.bind_ssbo(CURVE_CYCLIC_SLOT, evaluated_points_by_curve_buf); /* Dummy, not used. */
+    pass.bind_ssbo(CURVES_ORDER_SLOT, curves_order_buf);
+    pass.bind_ssbo(BASIS_CACHE_SLOT, basis_cache_buf);
+    pass.bind_ssbo(CONTROL_WEIGHTS_SLOT, control_weights_buf);
+    pass.bind_ssbo(BASIS_CACHE_OFFSET_SLOT, basis_cache_offset_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
+    pass.push_constant("use_point_weight", true);
+    pass.push_constant("transform", float4x4::identity());
     pass.dispatch(1);
     pass.barrier(GPU_BARRIER_SHADER_STORAGE);
     pass.shader_set(sh_length);
-    pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
-    pass.bind_ssbo("evaluated_positions_radii_buf", evaluated_positions_radii_buf);
-    pass.bind_ssbo("evaluated_time_buf", evaluated_time_buf);
-    pass.bind_ssbo("curves_length_buf", curves_length_buf);
+    pass.bind_ssbo(EVALUATED_POINT_SLOT, evaluated_points_by_curve_buf);
+    pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, evaluated_positions_radii_buf);
+    pass.bind_ssbo(EVALUATED_TIME_SLOT, evaluated_time_buf);
+    pass.bind_ssbo(CURVES_LENGTH_SLOT, curves_length_buf);
     pass.push_constant("curves_start", 0);
     pass.push_constant("curves_count", 2);
     pass.push_constant("use_cyclic", false);
@@ -902,9 +910,9 @@ static void test_draw_curves_interpolate_attributes()
   points_by_curve_buf->data<int>().copy_from(curves_to_point);
 
   gpu::VertBuf *curves_type_buf = GPU_vertbuf_create_with_format(IntBuf::format());
-  curves_type_buf->allocate(3);
-  curves_type_buf->data<int>().copy_from(
-      {CURVE_TYPE_NURBS, CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM});
+  curves_type_buf->allocate(1);
+  curves_type_buf->data<char>().copy_from(
+      {CURVE_TYPE_NURBS, CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM, 0});
 
   gpu::VertBuf *curves_resolution_buf = GPU_vertbuf_create_with_format(IntBuf::format());
   curves_resolution_buf->allocate(3);
@@ -1033,8 +1041,6 @@ static void test_draw_curves_interpolate_attributes()
       [&](const char *attr_type, gpu::VertBuf *attr_buf, gpu::StorageBuf *evaluated_attr_buf) {
         std::string pass_name = std::string("Curves ") + attr_type + " Interpolation";
         std::string sh_name = std::string("draw_curves_interpolate_") + attr_type + "_attribute";
-        std::string attr_buf_name = std::string("attribute_") + attr_type + "_buf";
-        std::string eval_buf_name = std::string("evaluated_") + attr_type + "_buf";
         /* Make sure all references to the strings are deleted before the strings themselves. */
         {
           gpu::Shader *sh = GPU_shader_create_from_info_name(sh_name.c_str());
@@ -1043,39 +1049,40 @@ static void test_draw_curves_interpolate_attributes()
           pass.init();
           pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_CATMULL_ROM));
           pass.shader_set(sh);
-          pass.bind_ssbo("points_by_curve_buf", points_by_curve_buf);
-          pass.bind_ssbo("curves_type_buf", curves_type_buf);
-          pass.bind_ssbo("curves_resolution_buf", curves_resolution_buf);
-          pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
-          pass.bind_ssbo(attr_buf_name.c_str(), attr_buf);
-          pass.bind_ssbo(eval_buf_name.c_str(), evaluated_attr_buf);
-          pass.bind_ssbo("evaluated_points_by_curve_buf", evaluated_points_by_curve_buf);
+          pass.bind_ssbo(POINTS_BY_CURVES_SLOT, points_by_curve_buf);
+          pass.bind_ssbo(CURVE_TYPE_SLOT, curves_type_buf);
+          pass.bind_ssbo(CURVE_CYCLIC_SLOT, curves_type_buf); /* Dummy, not used */
+          pass.bind_ssbo(CURVE_RESOLUTION_SLOT, curves_resolution_buf);
+          pass.bind_ssbo(EVALUATED_POINT_SLOT, evaluated_points_by_curve_buf);
+          pass.bind_ssbo(POINT_ATTR_SLOT, attr_buf);
+          pass.bind_ssbo(EVALUATED_ATTR_SLOT, evaluated_attr_buf);
           /* Dummy, not used for Catmull-Rom. */
-          pass.bind_ssbo("handles_positions_left_buf", evaluated_points_by_curve_buf);
-          pass.bind_ssbo("handles_positions_right_buf", evaluated_points_by_curve_buf);
-          pass.bind_ssbo("bezier_offsets_buf", evaluated_points_by_curve_buf);
+          pass.bind_ssbo(HANDLES_POS_LEFT_SLOT, evaluated_points_by_curve_buf);
+          pass.bind_ssbo(HANDLES_POS_RIGHT_SLOT, evaluated_points_by_curve_buf);
+          pass.bind_ssbo(BEZIER_OFFSETS_SLOT, evaluated_points_by_curve_buf);
           pass.push_constant("use_cyclic", false);
           pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
           pass.dispatch(1);
           pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_BEZIER));
           pass.shader_set(sh);
-          pass.bind_ssbo("handles_positions_left_buf", handles_positions_left_buf);
-          pass.bind_ssbo("handles_positions_right_buf", handles_positions_right_buf);
-          pass.bind_ssbo("bezier_offsets_buf", bezier_offsets_buf);
+          pass.bind_ssbo(HANDLES_POS_LEFT_SLOT, handles_positions_left_buf);
+          pass.bind_ssbo(HANDLES_POS_RIGHT_SLOT, handles_positions_right_buf);
+          pass.bind_ssbo(BEZIER_OFFSETS_SLOT, bezier_offsets_buf);
           pass.push_constant("use_cyclic", false);
           pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
           pass.dispatch(1);
           pass.specialize_constant(sh, "evaluated_type", int(CURVE_TYPE_NURBS));
           pass.shader_set(sh);
-          pass.bind_ssbo("curves_resolution_buf", curves_order_buf);
-          pass.bind_ssbo("handles_positions_left_buf", basis_cache_buf);
-          pass.bind_ssbo("handles_positions_right_buf", control_weights_buf);
-          pass.bind_ssbo("bezier_offsets_buf", basis_cache_offset_buf);
+          pass.bind_ssbo(CURVES_ORDER_SLOT, curves_order_buf);
+          pass.bind_ssbo(BASIS_CACHE_SLOT, basis_cache_buf);
+          pass.bind_ssbo(CONTROL_WEIGHTS_SLOT, control_weights_buf);
+          pass.bind_ssbo(BASIS_CACHE_OFFSET_SLOT, basis_cache_offset_buf);
           pass.push_constant("use_cyclic", false);
           pass.push_constant("curves_start", 0);
           pass.push_constant("curves_count", 3);
+          pass.push_constant("use_point_weight", true);
           pass.dispatch(1);
           pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
 

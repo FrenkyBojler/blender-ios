@@ -25,6 +25,11 @@ struct InterpPosition {
   float4 data;
 
   METAL_CONSTRUCTOR_1(InterpPosition, float4, data)
+
+  static InterpPosition zero()
+  {
+    return InterpPosition(float4(0));
+  }
 };
 
 InterpPosition input_load(int point_index, InterpPosition interp)
@@ -228,7 +233,6 @@ void evaluate_curve(const InterpType interp_type,
                     const int curve_index)
 {
   const uint curve_resolution = curves_resolution_buf[curve_index];
-  /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
   const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   for (uint i = 0; i < evaluated_points.size(); i++) {
@@ -343,7 +347,6 @@ void evaluate_curve(const InterpType interp_type,
 {
   /* Range used for indexing bezier offsets. */
   const IndexRange offsets = per_curve_point_offsets_range(points, curve_index);
-  /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
   const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   for (int i = 0; i < points.size(); i++) {
@@ -377,7 +380,6 @@ void copy_curve_data(const InterpType interp_type,
                      const int curve_index)
 {
   assert(points.size == evaluated_points.size);
-  /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
   const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   for (int i = 0; i < points.size(); i++) {
@@ -408,7 +410,7 @@ void evaluate_curve(const InterpType interp_type,
   const auto &curves_order_buf = curves_resolution_buf;
   const auto &basis_cache_offset_buf = bezier_offsets_buf;
 
-  const int order = int(gpu_attr_load_uchar(curves_order_buf, uint(curve_index)));
+  const int order = int(gpu_attr_load_uchar(curves_order_buf, curve_index));
 
   const int basis_cache_start = basis_cache_offset_buf[curve_index];
   const bool invalid = basis_cache_start < 0;
@@ -418,7 +420,6 @@ void evaluate_curve(const InterpType interp_type,
     return;
   }
 
-  /* Treat all curves as cyclic if any of them are. This way indexing is easier at draw time. */
   const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   /* Recover original points range without closing cyclic point. */
