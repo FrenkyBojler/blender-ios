@@ -136,7 +136,6 @@ constexpr float default_handle_px_distance = 16.0f;
 static float2 snap_8_angles(const float2 &p)
 {
   using namespace math;
-  /* sin(pi/8) or sin of 22.5 degrees. */
   const float sin225 = sin(AngleRadian::from_degree(22.5f));
   return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
 }
