@@ -22,6 +22,7 @@ set(SRC
   intern/foreach_geometry.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
+  intern/jolt.cc
   intern/merge_curves.cc
   intern/merge_layers.cc
   intern/mesh_boolean.cc
@@ -69,6 +70,7 @@ set(SRC
   GEO_foreach_geometry.hh
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh
+  GEO_jolt.hh
   GEO_merge_curves.hh
   GEO_merge_layers.hh
   GEO_mesh_boolean.hh

@@ -6,6 +6,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
 #include "DNA_mesh_types.h"
+#include "GEO_jolt.hh"
 #include "GEO_shape_hash.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
@@ -1000,47 +1001,6 @@ class JoltStateOwner : public BundleItemInternalValueMixin {
 };
 using JoltStateOwnerPtr = ImplicitSharingPtr<JoltStateOwner>;
 
-struct JoltStartupAndExit {
-  JoltStartupAndExit()
-  {
-    initialize_jolt_allocator();
-    JPH::Factory::sInstance = new JPH::Factory();
-    JPH::RegisterTypes();
-  }
-
-  static void initialize_jolt_allocator()
-  {
-    constexpr const char *func = __func__;
-    JPH::Allocate = [](size_t size) {
-      /* Jolt requires 16-byte alignment when doing a normal allocation. */
-      return MEM_mallocN_aligned(size, 16, func);
-    };
-    JPH::Reallocate = [](void *mem, size_t /*old_size*/, size_t new_size) {
-      if (mem == nullptr) {
-        return JPH::Allocate(new_size);
-      }
-      return MEM_reallocN_id(mem, new_size, func);
-    };
-    JPH::Free = [](void *mem) { MEM_freeN(mem); };
-    JPH::AlignedAllocate = [](size_t size, size_t alignment) {
-      return MEM_mallocN_aligned(size, alignment, func);
-    };
-    JPH::AlignedFree = [](void *mem) { MEM_freeN(mem); };
-  }
-
-  ~JoltStartupAndExit()
-  {
-    JPH::UnregisterTypes();
-    delete JPH::Factory::sInstance;
-    JPH::Factory::sInstance = nullptr;
-  }
-};
-
-static void ensure_initialize_jolt()
-{
-  static JoltStartupAndExit jolt_startup_and_exit;
-}
-
 static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
                                                        const bNode &node,
                                                        const bNodeSocket &output_socket)
@@ -1061,7 +1021,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  ensure_initialize_jolt();
+  geometry::jolt::ensure_initialization();
 
   int update_counter = 0;
   if (old_state_bundle_ptr) {
