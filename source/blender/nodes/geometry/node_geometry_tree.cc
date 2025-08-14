@@ -34,8 +34,8 @@ static void geometry_node_tree_get_from_context(const bContext *C,
                                                 ID **r_from)
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
-  if (snode->geometry_nodes_type == SNODE_GEOMETRY_TOOL) {
-    *r_ntree = snode->geometry_nodes_tool_tree;
+  if (snode->node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
+    *r_ntree = snode->node_group_tree;
     return;
   }
 
