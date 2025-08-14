@@ -667,20 +667,27 @@ struct PenToolOperation {
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     const float4x4 layer_to_world = layer.to_world_space(*this->vc.obact);
 
+    Set<std::string> curve_attributes_to_skip;
+
     curves.positions_for_write().last() = this->placement.project(this->mouse_co);
     curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
+    curve_attributes_to_skip.add("curve_type");
     curves.handle_types_left_for_write().last() = this->extrude_handle;
     curves.handle_types_right_for_write().last() = this->extrude_handle;
     drawing->opacities_for_write().last() = 1.0f;
     curves.update_curve_types();
 
     const int material_index = this->vc.obact->actcol - 1;
-    bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
-        "material_index",
-        bke::AttrDomain::Curve,
-        bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
-    material_indexes.span.last() = material_index;
-    material_indexes.finish();
+    if (material_index != 0) {
+      bke::SpanAttributeWriter<int> material_indexes =
+          attributes.lookup_or_add_for_write_span<int>(
+              "material_index",
+              bke::AttrDomain::Curve,
+              bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
+      material_indexes.span.last() = material_index;
+      material_indexes.finish();
+      curve_attributes_to_skip.add("material_index");
+    }
 
     bke::SpanAttributeWriter<float> aspect_ratios = attributes.lookup_or_add_for_write_span<float>(
         "aspect_ratio",
@@ -688,6 +695,7 @@ struct PenToolOperation {
         bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
     aspect_ratios.span.last() = 1.0f;
     aspect_ratios.finish();
+    curve_attributes_to_skip.add("aspect_ratio");
 
     bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
         "u_scale",
@@ -695,6 +703,7 @@ struct PenToolOperation {
         bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
     u_scales.span.last() = 1.0f;
     u_scales.finish();
+    curve_attributes_to_skip.add("u_scale");
 
     MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
     MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
@@ -737,8 +746,7 @@ struct PenToolOperation {
     bke::fill_attribute_range_default(
         attributes,
         bke::AttrDomain::Curve,
-        bke::attribute_filter_from_skip_ref(
-            {"curve_type", "material_index", "aspect_ratio", "u_scale"}),
+        bke::attribute_filter_from_skip_ref(curve_attributes_to_skip),
         curves.curves_range().take_back(1));
 
     drawing->tag_topology_changed();
