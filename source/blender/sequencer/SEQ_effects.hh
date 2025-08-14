@@ -98,4 +98,6 @@ struct TextVarsRuntime {
   bool editing_is_active; /* UI uses this to differentiate behavior. */
 };
 
+float2 text_anchor_offset_get(const TextVars *data, int width_max, int text_height);
+
 }  // namespace blender::seq
