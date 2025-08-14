@@ -535,7 +535,7 @@ static Map<SimPointsKey, Span<float>> compute_inverse_masses(
   return inverse_masses_map;
 }
 
-static void gather_distance_constraints(
+static void gather_edge_length_constraints(
     ResourceScope &scope,
     XPBDState &state,
     const WorldData &world,
@@ -546,27 +546,28 @@ static void gather_distance_constraints(
     const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
-  for (const int bundle_i : world.geometries.index_range()) {
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
-    const GeometrySet &applied_geometry = applied_geometries[bundle_i];
-    if (!applied_geometry.has_mesh()) {
+  for (const int key_i : all_sim_points_keys.index_range()) {
+    const SimPointsKey &key = all_sim_points_keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Mesh) {
       continue;
     }
-    const SimPointsKey component_key = {geometry_bundle.self_path,
-                                        bke::GeometryComponent::Type::Mesh};
-    const int geo_i = all_sim_points_keys.index_of(component_key);
-    const SimPoints &sim_points = *all_sim_points[geo_i];
+    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_bundle_i];
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+
+    SimPoints &sim_points = *all_sim_points[key_i];
     const Mesh &mesh = *applied_geometry.get_mesh();
     const Span<float3> mesh_positions = mesh.vert_positions();
     const Span<int2> mesh_edges = mesh.edges();
-    const Span<float> inverse_masses = inverse_masses_map.lookup(component_key);
+    const Span<float> inverse_masses = inverse_masses_map.lookup(key);
 
     const Vector<const EdgeLengthXPBDConstraintBundle *> edge_length_constraints =
         filter_bundles_for_path<EdgeLengthXPBDConstraintBundle>(world.edge_length_constraints,
                                                                 geometry_bundle.self_path);
-    bke::MeshFieldContext field_context(mesh, bke::AttrDomain::Edge);
+
+    bke::MeshFieldContext edge_field_context(mesh, bke::AttrDomain::Edge);
     for (const EdgeLengthXPBDConstraintBundle *constraint_bundle : edge_length_constraints) {
-      fn::FieldEvaluator field_evaluator{field_context, mesh_edges.size()};
+      fn::FieldEvaluator field_evaluator{edge_field_context, mesh_edges.size()};
       field_evaluator.set_selection(constraint_bundle->selection);
       field_evaluator.add(constraint_bundle->compliance);
       field_evaluator.evaluate();
@@ -574,6 +575,8 @@ static void gather_distance_constraints(
       if (mask.is_empty()) {
         continue;
       }
+
+      /* Gather selected constraint edges. */
       Span<int2> constraint_edges;
       if (mask.size() == mesh_edges.size()) {
         constraint_edges = mesh_edges;
@@ -584,12 +587,20 @@ static void gather_distance_constraints(
         constraint_edges = masked_edges;
       }
 
+      /* Prepare per-constraint compliance. */
       MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(mask.size());
       field_evaluator.get_evaluated<float>(0).materialize_compressed(mask, compliance_terms);
+      const float compliance_factor = math::safe_divide(1.0f, pow2f(delta_time));
+      threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
+        for (float &compliance_term : compliance_terms.slice(range)) {
+          compliance_term *= compliance_factor;
+        }
+      });
 
+      /* Prepare per-constraing length. */
       MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
       DistanceConstraintLengths &distance_constraint_lengths =
-          state.distance_constraint_lengths.lookup_or_add_default(component_key);
+          state.distance_constraint_lengths.lookup_or_add_default(key);
       threading::parallel_for(constraint_edges.index_range(), 512, [&](const IndexRange range) {
         for (const int i : range) {
           const int2 &edge = constraint_edges[i];
@@ -605,18 +616,12 @@ static void gather_distance_constraints(
         }
       });
 
-      const float compliance_factor = math::safe_divide(1.0f, pow2f(delta_time));
-      threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
-        for (float &compliance_term : compliance_terms.slice(range)) {
-          compliance_term *= compliance_factor;
-        }
-      });
-
+      /* Add the actual constraint. */
       r_constraint_sets.append(
           {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
-               geo_i, constraint_edges),
+               key_i, constraint_edges),
            scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
-               geo_i,
+               key_i,
                sim_points.positions,
                inverse_masses,
                constraint_edges,
@@ -734,15 +739,15 @@ static void update_and_step_xpbd_state(XPBDState &state,
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
   Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets;
-  gather_distance_constraints(scope,
-                              state,
-                              world,
-                              applied_geometries,
-                              ordered_sim_points_keys,
-                              ordered_sim_points,
-                              inverse_masses_map,
-                              sub_delta_time,
-                              constraint_sets);
+  gather_edge_length_constraints(scope,
+                                 state,
+                                 world,
+                                 applied_geometries,
+                                 ordered_sim_points_keys,
+                                 ordered_sim_points,
+                                 inverse_masses_map,
+                                 sub_delta_time,
+                                 constraint_sets);
   gather_pin_constraints(scope,
                          world,
                          applied_geometries,
