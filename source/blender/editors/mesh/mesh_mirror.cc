@@ -377,7 +377,6 @@ std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(O
 EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
     : em_(BKE_editmesh_from_object(ob)), mesh_(static_cast<Mesh *>(ob->data)), htype_(htype)
 {
-  BMesh *bmesh = em_->bm;
   use_topology_mirror_ = (mesh_->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
   for (int axis = 0; axis < 3; axis++) {
@@ -406,7 +405,7 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
       if (v_mirr && v_mirr != v_curr) {
         BMVert *v_mirr_check = EDBM_verts_mirror_get(em_, v_mirr);
         if (v_mirr_check == v_curr) {
-          add_mirror_relationship(v_curr, v_mirr);
+          add_mirror_relationship(v_curr, v_mirr, BM_VERT);
         }
       }
     }
@@ -419,7 +418,7 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
       if (e_mirr && e_mirr != e_curr) {
         BMEdge *e_mirr_check = EDBM_verts_mirror_get_edge(em_, e_mirr);
         if (e_mirr_check == e_curr) {
-          add_mirror_relationship(e_curr, e_mirr);
+          add_mirror_relationship(e_curr, e_mirr, BM_EDGE);
         }
       }
     }
@@ -432,7 +431,7 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
       if (f_mirr && f_mirr != f_curr) {
         BMFace *f_mirr_check = EDBM_verts_mirror_get_face(em_, f_mirr);
         if (f_mirr_check == f_curr) {
-          add_mirror_relationship(f_curr, f_mirr);
+          add_mirror_relationship(f_curr, f_mirr, BM_FACE);
         }
       }
     }
@@ -441,42 +440,60 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
   EDBM_verts_mirror_cache_end(em_);
 }
 
-void EditMeshSymmetryHelper::add_mirror_relationship(BMVert *v1, BMVert *v2)
+void EditMeshSymmetryHelper::add_mirror_relationship(void *elem1, void *elem2, char elem_type)
 {
-  blender::Vector<BMVert *> &mirrors1 = vert_to_mirror_map_.lookup_or_add(v1, {});
-  blender::Vector<BMVert *> &mirrors2 = vert_to_mirror_map_.lookup_or_add(v2, {});
-  
-  if (!mirrors1.contains(v2)) {
-    mirrors1.append(v2);
-  }
-  if (!mirrors2.contains(v1)) {
-    mirrors2.append(v1);
-  }
-}
-
-void EditMeshSymmetryHelper::add_mirror_relationship(BMEdge *e1, BMEdge *e2)
-{
-  blender::Vector<BMEdge *> &mirrors1 = edge_to_mirror_map_.lookup_or_add(e1, {});
-  blender::Vector<BMEdge *> &mirrors2 = edge_to_mirror_map_.lookup_or_add(e2, {});
-  
-  if (!mirrors1.contains(e2)) {
-    mirrors1.append(e2);
-  }
-  if (!mirrors2.contains(e1)) {
-    mirrors2.append(e1);
-  }
-}
-
-void EditMeshSymmetryHelper::add_mirror_relationship(BMFace *f1, BMFace *f2)
-{
-  blender::Vector<BMFace *> &mirrors1 = face_to_mirror_map_.lookup_or_add(f1, {});
-  blender::Vector<BMFace *> &mirrors2 = face_to_mirror_map_.lookup_or_add(f2, {});
-  
-  if (!mirrors1.contains(f2)) {
-    mirrors1.append(f2);
-  }
-  if (!mirrors2.contains(f1)) {
-    mirrors2.append(f1);
+  switch (elem_type) {
+    case BM_VERT: {
+      BMVert *v1 = static_cast<BMVert *>(elem1);
+      BMVert *v2 = static_cast<BMVert *>(elem2);
+      
+      blender::Vector<BMVert *> &mirrors1 = vert_to_mirror_map_.lookup_or_add(v1, {});
+      blender::Vector<BMVert *> &mirrors2 = vert_to_mirror_map_.lookup_or_add(v2, {});
+      
+      if (!mirrors1.contains(v2)) {
+        mirrors1.append(v2);
+      }
+      if (!mirrors2.contains(v1)) {
+        mirrors2.append(v1);
+      }
+      break;
+    }
+    
+    case BM_EDGE: {
+      BMEdge *e1 = static_cast<BMEdge *>(elem1);
+      BMEdge *e2 = static_cast<BMEdge *>(elem2);
+      
+      blender::Vector<BMEdge *> &mirrors1 = edge_to_mirror_map_.lookup_or_add(e1, {});
+      blender::Vector<BMEdge *> &mirrors2 = edge_to_mirror_map_.lookup_or_add(e2, {});
+      
+      if (!mirrors1.contains(e2)) {
+        mirrors1.append(e2);
+      }
+      if (!mirrors2.contains(e1)) {
+        mirrors2.append(e1);
+      }
+      break;
+    }
+    
+    case BM_FACE: {
+      BMFace *f1 = static_cast<BMFace *>(elem1);
+      BMFace *f2 = static_cast<BMFace *>(elem2);
+      
+      blender::Vector<BMFace *> &mirrors1 = face_to_mirror_map_.lookup_or_add(f1, {});
+      blender::Vector<BMFace *> &mirrors2 = face_to_mirror_map_.lookup_or_add(f2, {});
+      
+      if (!mirrors1.contains(f2)) {
+        mirrors1.append(f2);
+      }
+      if (!mirrors2.contains(f1)) {
+        mirrors2.append(f1);
+      }
+      break;
+    }
+    
+    default:
+      BLI_assert_unreachable(); 
+      break;
   }
 }
 
