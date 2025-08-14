@@ -45,7 +45,7 @@ class DistanceConstraintEvaluator
   VArray<float> masses_;
   Span<int2> point_pairs_;
   Span<float> distances_;
-  float compliance_term_;
+  Span<float> compliance_terms_;
 
  public:
   DistanceConstraintEvaluator(const int geo_i,
@@ -53,13 +53,13 @@ class DistanceConstraintEvaluator
                               const VArray<float> &masses,
                               const Span<int2> point_pairs,
                               const Span<float> distances,
-                              const float compliance_term)
+                              const Span<float> compliance_terms)
       : geo_i_(geo_i),
         positions_(positions),
         masses_(masses),
         point_pairs_(point_pairs),
         distances_(distances),
-        compliance_term_(compliance_term)
+        compliance_terms_(compliance_terms)
   {
     BLI_assert(point_pairs.size() == distances.size());
   }
@@ -74,6 +74,7 @@ class DistanceConstraintEvaluator
     const float3 &p1 = positions_[v1];
     const float m0 = masses_[v0];
     const float m1 = masses_[v1];
+    const float compliance_term = compliance_terms_[constraint_i];
 
     const float inv_m0 = 1.0f / m0;
     const float inv_m1 = 1.0f / m1;
@@ -82,7 +83,7 @@ class DistanceConstraintEvaluator
     float length;
     const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
     const float length_diff = length - target_distance;
-    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term_);
+    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
 
     const float3 offset0 = lambda * inv_m0 * normalized_dir;
     const float3 offset1 = -lambda * inv_m1 * normalized_dir;

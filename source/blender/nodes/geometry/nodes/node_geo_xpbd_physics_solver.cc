@@ -405,6 +405,7 @@ static void gather_distance_constraints(
       fn::FieldEvaluator field_evaluator{field_context, mesh_edges.size()};
       field_evaluator.set_selection(constraint_bundle->selection);
       field_evaluator.add(constraint_bundle->length);
+      field_evaluator.add(constraint_bundle->compliance);
       field_evaluator.evaluate();
       const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
       if (mask.is_empty()) {
@@ -419,10 +420,20 @@ static void gather_distance_constraints(
         array_utils::gather(mesh_edges, mask, masked_edges);
         constraint_edges = masked_edges;
       }
+
       MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
-      const VArray<float> length_varray = field_evaluator.get_evaluated<float>(0);
-      length_varray.materialize_compressed(mask, constraint_lengths);
-      const float compliance_term = math::safe_divide(1e-5f, pow2f(delta_time));
+      field_evaluator.get_evaluated<float>(0).materialize_compressed(mask, constraint_lengths);
+
+      MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(mask.size());
+      field_evaluator.get_evaluated<float>(1).materialize_compressed(mask, compliance_terms);
+
+      const float compliance_factor = math::safe_divide(1.0f, pow2f(delta_time));
+      threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
+        for (float &compliance_term : compliance_terms.slice(range)) {
+          compliance_term *= compliance_factor;
+        }
+      });
+
       r_constraint_sets.append(
           {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
                geo_i, constraint_edges),
@@ -432,7 +443,7 @@ static void gather_distance_constraints(
                masses,
                constraint_edges,
                constraint_lengths,
-               compliance_term)});
+               compliance_terms)});
     }
   }
 }

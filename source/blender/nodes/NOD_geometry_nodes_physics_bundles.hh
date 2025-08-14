@@ -98,6 +98,7 @@ class EdgeLengthXPBDConstraintBundle : public NestedBundleCommon {
   std::string filter;
   fn::Field<bool> selection;
   fn::Field<float> length;
+  fn::Field<float> compliance;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<EdgeLengthXPBDConstraintBundle> parse(const Bundle &bundle,
