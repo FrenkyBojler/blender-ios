@@ -807,13 +807,15 @@ class SEQUENCER_MT_add_scene(Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("sequencer.scene_strip_add_new", text="Empty Scene", icon='ADD').type = 'EMPTY'
 
+        layout.menu_contents("SEQUENCER_MT_scene_add_root_catalogs")
+
         bpy_data_scenes_len = len(bpy.data.scenes)
         if bpy_data_scenes_len > 10:
-            layout.separator()
+            layout.label(text="Scenes", icon='NONE')
             layout.operator_context = 'INVOKE_DEFAULT'
             layout.operator("sequencer.scene_strip_add", text="Scene...", icon='SCENE_DATA')
         elif bpy_data_scenes_len > 1:
-            layout.separator()
+            layout.label(text="Scenes", icon='NONE')
             scene = context.sequencer_scene
             for sc_item in bpy.data.scenes:
                 if sc_item == scene:
@@ -1153,6 +1155,8 @@ class SEQUENCER_MT_strip(Menu):
         if has_preview:
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.operator("sequencer.copy", text="Copy")
+            layout.operator("sequencer.paste", text="Paste")
             layout.separator()
             layout.menu("SEQUENCER_MT_strip_animation")
             layout.separator()
@@ -1177,6 +1181,7 @@ class SEQUENCER_MT_strip(Menu):
             layout.operator("sequencer.copy", text="Copy")
             layout.operator("sequencer.paste", text="Paste")
             layout.operator("sequencer.duplicate_move", text="Duplicate")
+            layout.operator("sequencer.duplicate_move_linked", text="Duplicate Linked")
 
         layout.separator()
         layout.operator("sequencer.delete", text="Delete")
