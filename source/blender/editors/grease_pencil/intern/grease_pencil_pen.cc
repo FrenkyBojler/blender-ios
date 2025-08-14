@@ -656,26 +656,21 @@ struct PenToolOperation {
     src = std::move(dst);
   }
 
-  void add_single_point_and_curve() const
+  void add_single_point_and_curve(bke::CurvesGeometry &curves,
+                                  const float4x4 &layer_to_world) const
   {
-    bke::greasepencil::Layer &layer = *this->grease_pencil->get_active_layer();
-    bke::greasepencil::Drawing *drawing = this->grease_pencil->get_editable_drawing_at(
-        layer, this->vc.scene->r.cfra);
-    bke::CurvesGeometry &curves = drawing->strokes_for_write();
-    const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
+    const float3 depth_point = this->placement.project(this->mouse_co);
 
     ed::greasepencil::add_single_curve(curves, true);
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    const float4x4 layer_to_world = layer.to_world_space(*this->vc.obact);
 
     Set<std::string> curve_attributes_to_skip;
 
-    curves.positions_for_write().last() = this->placement.project(this->mouse_co);
+    curves.positions_for_write().last() = depth_point;
     curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
     curve_attributes_to_skip.add("curve_type");
     curves.handle_types_left_for_write().last() = this->extrude_handle;
     curves.handle_types_right_for_write().last() = this->extrude_handle;
-    drawing->opacities_for_write().last() = 1.0f;
     curves.update_curve_types();
 
     const int material_index = this->vc.obact->actcol - 1;
@@ -749,8 +744,6 @@ struct PenToolOperation {
         bke::AttrDomain::Curve,
         bke::attribute_filter_from_skip_ref(curve_attributes_to_skip),
         curves.curves_range().take_back(1));
-
-    drawing->tag_topology_changed();
   }
 };
 
@@ -1264,7 +1257,16 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   if (add_single) {
     const bool successful = pen_report_new_curve_errors(ptd, op);
     if (successful) {
-      ptd.add_single_point_and_curve();
+      bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
+      bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
+          layer, ptd.vc.scene->r.cfra);
+      bke::CurvesGeometry &curves = drawing->strokes_for_write();
+      const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+
+      ptd.add_single_point_and_curve(curves, layer_to_world);
+      drawing->opacities_for_write().last() = 1.0f;
+      drawing->tag_topology_changed();
+
       changed.store(true, std::memory_order_relaxed);
       point_added = true;
     }
