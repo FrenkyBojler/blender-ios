@@ -15,6 +15,7 @@
 #include "DNA_pointcloud_types.h"
 
 #include "GEO_join_geometries.hh"
+#include "GEO_jolt.hh"
 #include "GEO_shape_hash.hh"
 #include "GEO_xpbd.hh"
 
@@ -403,52 +404,11 @@ struct CollisionShapeCache {
   }
 };
 
-struct JoltStartupAndExit {
-  JoltStartupAndExit()
-  {
-    initialize_jolt_allocator();
-    JPH::Factory::sInstance = new JPH::Factory();
-    JPH::RegisterTypes();
-  }
-
-  static void initialize_jolt_allocator()
-  {
-    constexpr const char *func = __func__;
-    JPH::Allocate = [](size_t size) {
-      /* Jolt requires 16-byte alignment when doing a normal allocation. */
-      return MEM_mallocN_aligned(size, 16, func);
-    };
-    JPH::Reallocate = [](void *mem, size_t /*old_size*/, size_t new_size) {
-      if (mem == nullptr) {
-        return JPH::Allocate(new_size);
-      }
-      return MEM_reallocN_id(mem, new_size, func);
-    };
-    JPH::Free = [](void *mem) { MEM_freeN(mem); };
-    JPH::AlignedAllocate = [](size_t size, size_t alignment) {
-      return MEM_mallocN_aligned(size, alignment, func);
-    };
-    JPH::AlignedFree = [](void *mem) { MEM_freeN(mem); };
-  }
-
-  ~JoltStartupAndExit()
-  {
-    JPH::UnregisterTypes();
-    delete JPH::Factory::sInstance;
-    JPH::Factory::sInstance = nullptr;
-  }
-};
-
-static void ensure_initialize_jolt()
-{
-  static JoltStartupAndExit jolt_startup_and_exit;
-}
-
 class JoltState : public xpbd::PhysicsState {
  public:
   JoltState()
   {
-    ensure_initialize_jolt();
+    jolt::ensure_initialization();
 
     /* Defaults taken from Jolt's Hello World example, may need to be tweaked/dynamic over
      * time.*/
@@ -3169,9 +3129,6 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
   /* TODO Confirm if this conflicts with the jolt initialization in the jolt solver node. */
   jolt_physics::JoltState *jolt_state = static_cast<jolt_physics::JoltState *>(
       behaviors.physics_state);
-  if (jolt_state) {
-    jolt_physics::ensure_initialize_jolt();
-  }
 
   Vector<SimGeometry> sim_geometries;
   for (SimGeometrySet *sim_geometry_set : behaviors.sim_geometry_sets) {
