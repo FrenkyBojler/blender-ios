@@ -1286,7 +1286,7 @@ static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
 
   grease_pencil_pen_update_view(C, *ptd);
 
-  MEM_delete<PenToolOperation>(ptd);
+  MEM_delete(ptd);
   /* Clear pointer. */
   op->customdata = nullptr;
 }
