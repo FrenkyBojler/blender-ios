@@ -1048,6 +1048,10 @@ def km_user_interface(_params):
         ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("range_select", True)]}),
         ("ui.view_item_rename", {"type": 'F2', "value": 'PRESS'}, None),
+        ("ui.view_item_navigate", {"type": 'UP_ARROW', "value": 'PRESS', "repeat": True},
+         {"properties": [("direction", 'UP')]}),
+        ("ui.view_item_navigate", {"type": 'DOWN_ARROW', "value": 'PRESS', "repeat": True},
+         {"properties": [("direction", 'DOWN')]}),
     ])
 
     return keymap

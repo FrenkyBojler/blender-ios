@@ -2907,6 +2907,73 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
                          "Select all between clicked and active items");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
+
+enum class Direction {
+  UP,
+  Down,
+};
+
+static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
+{
+  ARegion &region = *CTX_wm_region(C);
+  Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
+
+  AbstractView &view = *UI_region_view_find_at(&region, event->xy, 0);
+
+  bool found_active = false;
+  AbstractViewItem *next_item = nullptr;
+  view.foreach_view_item([&](AbstractViewItem &item) {
+    switch (direction) {
+      case Direction::UP: {
+        found_active |= item.is_active();
+        if (!found_active) {
+          next_item = &item;
+        }
+        break;
+      }
+      case Direction::Down: {
+        if (found_active) {
+          next_item = &item;
+          found_active = false;
+        }
+        found_active = item.is_active();
+        break;
+      }
+    }
+  });
+
+  if (next_item) {
+    next_item->activate(*C);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_item_navigate(wmOperatorType *ot)
+{
+  ot->name = "Navigate Tree View";
+  ot->idname = "UI_OT_view_item_navigate";
+  ot->description = "Navigate view item";
+
+  ot->invoke = ui_view_item_navigate_invoke;
+  ot->poll = ui_view_focused_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+
+  static const EnumPropertyItem direction_enum_items[] = {
+      {int(Direction::UP), "UP", 0, "Up", "Select element above the active"},
+      {int(Direction::Down), "DOWN", 0, "Down", "Select element below the active"},
+  };
+
+  RNA_def_enum(ot->srna,
+               "direction",
+               direction_enum_items,
+               0,
+               "Navigation Direction",
+               "Select in the direction.");
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -3011,6 +3078,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_view_scroll);
   WM_operatortype_append(UI_OT_view_item_rename);
   WM_operatortype_append(UI_OT_view_item_select);
+  WM_operatortype_append(UI_OT_view_item_navigate);
 
   WM_operatortype_append(UI_OT_override_type_set_button);
   WM_operatortype_append(UI_OT_override_remove_button);
