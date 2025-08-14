@@ -11,22 +11,25 @@ void main()
 
   float2 coordinates = (float2(texel) + float2(0.5f)) / output_size;
 
-  float3 transformed_coordinates = to_float3x3(homography_matrix) * float3(coordinates, 1.0f);
-  /* Point is at infinity and will be zero when sampled, so early exit. */
-  if (transformed_coordinates.z == 0.0f) {
+  float3 uvw = to_float3x3(homography_matrix) * float3(coordinates, 1.0f);
+
+  // Point is at infinity and will be zero when sampled, so early exit.
+  // Also negative numbers indicate "behind camera" and should be cropped as well.
+  if (uvw.z <= 0.0f) {
     imageStore(output_img, texel, float4(0.0f));
     return;
   }
-  float2 projected_coordinates = transformed_coordinates.xy / transformed_coordinates.z;
 
-  /* The derivatives of the projected coordinates with respect to x and y are the first and
-   * second columns respectively, divided by the z projection factor as can be shown by
-   * differentiating the above matrix multiplication with respect to x and y. Divide by the
-   * output size since textureGrad assumes derivatives with respect to texel coordinates. */
-  float2 x_gradient = (homography_matrix[0].xy / transformed_coordinates.z) / output_size.x;
-  float2 y_gradient = (homography_matrix[1].xy / transformed_coordinates.z) / output_size.y;
+  float m = 1.0f/uvw.z; // 1/w
+  float2 uv = uvw.xy * m;
 
-  float4 sampled_color = textureGrad(input_tx, projected_coordinates, x_gradient, y_gradient);
+  // compute derivative of source location per output pixel
+  float3 m0 = homography_matrix[0].xyz;
+  float2 dPdx = (m0.xy - uvw.xy * m0.z * m) * m / output_size.x;
+  float3 m1 = homography_matrix[1].xyz;
+  float2 dPdy = (m1.xy - uvw.xy * m1.z * m) * m / output_size.y;
+
+  float4 sampled_color = textureGrad(input_tx, uv, dPdx, dPdy);
 
   /* Premultiply the mask value as an alpha. */
   float4 plane_color = sampled_color * texture_load(mask_tx, texel).x;
