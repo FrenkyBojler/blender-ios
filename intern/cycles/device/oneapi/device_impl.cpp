@@ -1006,7 +1006,7 @@ bool OneapiDevice::create_queue(SyclQueue *&external_queue,
     }
 
     sycl::queue *created_queue = nullptr;
-    if (devices.size() == 1) {
+    if (*is_several_intel_dgpu_devices_detected_pointer == false) {
       created_queue = new sycl::queue(devices[device_index], sycl::property::queue::in_order());
     }
     else {
