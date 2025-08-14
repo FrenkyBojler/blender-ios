@@ -1249,7 +1249,6 @@ static wmOperatorStatus bookmark_cleanup_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     fsmenu_write_file_and_refresh_or_report_error(fsmenu, area, op->reports);
-    fsmenu_refresh_bookmarks_status(CTX_wm_manager(C), fsmenu);
   }
 
   return OPERATOR_FINISHED;
@@ -1865,6 +1864,17 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
 #ifdef WIN32
   const FileExternalOperation operation = (FileExternalOperation)RNA_enum_get(op->ptr,
                                                                               "operation");
+
+  if (!(fileentry->typeflag & FILE_TYPE_DIR) &&
+      ELEM(operation, FILE_EXTERNAL_OPERATION_FOLDER_OPEN, FILE_EXTERNAL_OPERATION_FOLDER_CMD))
+  {
+    /* Not a folder path, so for these operations use the root. */
+    const char *root = filelist_dir(sfile->files);
+    if (BLI_file_external_operation_execute(root, operation)) {
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
+      return OPERATOR_FINISHED;
+    }
+  }
   if (BLI_file_external_operation_execute(filepath, operation)) {
     WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
     return OPERATOR_FINISHED;
@@ -2251,9 +2261,6 @@ static wmOperatorStatus file_refresh_exec(bContext *C, wmOperator * /*unused*/)
 
   /* refresh system directory menu */
   fsmenu_refresh_system_category(fsmenu);
-
-  /* Update bookmarks 'valid' state. */
-  fsmenu_refresh_bookmarks_status(wm, fsmenu);
 
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
 

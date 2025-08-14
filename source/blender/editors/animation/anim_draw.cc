@@ -570,61 +570,40 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
     *r_offset = 0.0f;
   }
 
-  /* sanity checks */
-  if (id && fcu && fcu->rna_path) {
-    PointerRNA ptr;
-    PropertyRNA *prop;
+  /* TODO: change the pointer parameters to references, as this function should not be called
+   * without an animated ID or a scene (to get the preferred units). */
 
-    /* get RNA property that F-Curve affects */
-    PointerRNA id_ptr = RNA_id_pointer_create(id);
-    if (RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
-      /* rotations: radians <-> degrees? */
-      if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_ROTATION) {
-        /* if the radians flag is not set, default to using degrees which need conversions */
-        if ((scene) && (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) == 0) {
-          if (flag & ANIM_UNITCONV_RESTORE) {
-            return DEG2RADF(1.0f); /* degrees to radians */
-          }
-          return RAD2DEGF(1.0f); /* radians to degrees */
-        }
-      }
-
-      /* TODO: other rotation types here as necessary */
-
-      /* Unit conversion for metric length units */
-      if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_LENGTH) {
-        if (scene) {
-          const void *usys;
-          int len;
-          BKE_unit_system_get(scene->unit.system, B_UNIT_LENGTH, &usys, &len);
-          if (usys)
-            return 1 / float(BKE_unit_scalar_get(usys, (int)scene->unit.length_unit));
-        }
-      }
-      /* Unit conversion for metric mass units */
-      if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_MASS) {
-        if (scene) {
-          const void *usys;
-          int len;
-          BKE_unit_system_get(scene->unit.system, B_UNIT_MASS, &usys, &len);
-          if (usys)
-            return 1 / float(BKE_unit_scalar_get(usys, (int)scene->unit.mass_unit));
-        }
-      }
-      /* Unit conversion for metric time units */
-      if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_TIME) {
-        if (scene) {
-          const void *usys;
-          int len;
-          BKE_unit_system_get(scene->unit.system, B_UNIT_TIME, &usys, &len);
-          if (usys)
-            return 1 / float(BKE_unit_scalar_get(usys, (int)scene->unit.time_unit));
-        }
-      }
-    }
+  if (!id || !fcu || !fcu->rna_path || !scene) {
+    /* Not enough information to do the remapping, so just show the data as-is. */
+    return 1.0f;
   }
 
-  /* no mapping needs to occur... */
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  PointerRNA id_ptr = RNA_id_pointer_create(id);
+  if (!RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
+    /* Without resolving the property, its type & subtype are unknown; remapping is impossible. */
+    return 1.0f;
+  }
+
+  const PropertyUnit prop_unit = PropertyUnit(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)));
+
+  switch (prop_unit) {
+    case PROP_UNIT_ROTATION:
+      if (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) {
+        return 1.0f;
+      }
+
+      if (flag & ANIM_UNITCONV_RESTORE) {
+        return DEG2RADF(1.0f);
+      }
+      return RAD2DEGF(1.0f);
+
+    default:
+      /* TODO: other rotation types here as necessary */
+      break;
+  }
+
   return 1.0f;
 }
 
@@ -735,7 +714,7 @@ void ANIM_center_frame(bContext *C, int smooth_viewtx)
 
   switch (U.view_frame_type) {
     case ZOOM_FRAME_MODE_SECONDS: {
-      const float fps = FPS;
+      const float fps = scene->frames_per_second();
       newrct.xmax = scene->r.cfra + U.view_frame_seconds * fps + 1;
       newrct.xmin = scene->r.cfra - U.view_frame_seconds * fps - 1;
       newrct.ymax = region->v2d.cur.ymax;
