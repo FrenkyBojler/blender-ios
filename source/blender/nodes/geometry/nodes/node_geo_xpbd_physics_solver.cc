@@ -596,7 +596,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
   state.data_by_path = std::move(new_data_by_path);
 
   Vector<SimPoints *> all_sim_points;
-  Vector<geometry::xpbd_constraint_solver::PointSet> point_sets;
+  Vector<geometry::xpbd_constraint_solver::PointsRef> points_refs;
   Map<std::string, Map<bke::GeometryComponent::Type, int>> all_sim_points_keys;
   for (const int bundle_i : world.geometries.index_range()) {
     const XPBDGeometryBundle &geometry_bundle = world.geometries[bundle_i];
@@ -605,7 +605,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
       const bke::GeometryComponent::Type type = item.key;
       SimPoints &sim_points = item.value;
       const int geo_i = all_sim_points.append_and_get_index(&sim_points);
-      point_sets.append({sim_points.positions});
+      points_refs.append({sim_points.positions});
       all_sim_points_keys.lookup_or_add_default_as(geometry_bundle.self_path).add_new(type, geo_i);
     }
   }
@@ -642,7 +642,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     if (sub_delta_time > 0.0f) {
       apply_external_accelerations_and_velocities(state, accelerations_map, sub_delta_time);
     }
-    geometry::xpbd_constraint_solver::solve_gauss_seidel_parallel(point_sets, constraint_sets);
+    geometry::xpbd_constraint_solver::solve_gauss_seidel_parallel(points_refs, constraint_sets);
     if (sub_delta_time > 0.0f) {
       for (const int geo_i : all_sim_points.index_range()) {
         Span<float3> prev_positions = all_prev_positions[geo_i];

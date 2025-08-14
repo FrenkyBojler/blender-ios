@@ -14,7 +14,7 @@
 
 namespace blender::geometry::xpbd_constraint_solver {
 
-struct PointSet {
+struct PointsRef {
   MutableSpan<float3> positions;
 
   uint64_t size() const
@@ -37,9 +37,9 @@ class NonDeterministicParallelJacobianSolver {
  public:
   NonDeterministicParallelJacobianSolver(Span<MutableSpan<Item>> offsets) : offsets_(offsets) {}
 
-  void offset_position(const int point_set_i, const int point_i, const float3 &offset)
+  void offset_position(const int points_ref_i, const int point_i, const float3 &offset)
   {
-    Item &item = offsets_[point_set_i][point_i];
+    Item &item = offsets_[points_ref_i][point_i];
     std::lock_guard lock(item.mutex);
     item.counter++;
     item.offset += offset;
@@ -47,14 +47,14 @@ class NonDeterministicParallelJacobianSolver {
 };
 
 class GaussSeidelSolver {
-  Span<PointSet> point_sets_;
+  Span<PointsRef> points_refs;
 
  public:
-  GaussSeidelSolver(Span<PointSet> point_sets) : point_sets_(point_sets) {}
+  GaussSeidelSolver(Span<PointsRef> point_sets) : points_refs(point_sets) {}
 
-  void offset_position(const int point_set_i, const int point_i, const float3 &offset)
+  void offset_position(const int points_ref_i, const int point_i, const float3 &offset)
   {
-    point_sets_[point_set_i].positions[point_i] += offset;
+    points_refs[points_ref_i].positions[point_i] += offset;
   }
 };
 
@@ -128,10 +128,10 @@ class ConstraintSetIndices {
   virtual ~ConstraintSetIndices() = default;
 
   int constraints_num;
-  Vector<int> point_sets;
+  Vector<int> target_points_refs;
 
-  ConstraintSetIndices(const int constraints_num, Vector<int> point_sets)
-      : constraints_num(constraints_num), point_sets(std::move(point_sets))
+  ConstraintSetIndices(const int constraints_num, Vector<int> target_points_refs)
+      : constraints_num(constraints_num), target_points_refs(std::move(target_points_refs))
   {
   }
 
@@ -153,12 +153,12 @@ class UnaryConstraintSetIndices : public ConstraintSetIndices {
   mutable Vector<IndexMask> independent_masks_;
 
  public:
-  int point_set_i;
+  int points_ref_i;
   Span<int> points;
 
-  UnaryConstraintSetIndices(const int point_set_i, const Span<int> points)
-      : ConstraintSetIndices(points.size(), {point_set_i}),
-        point_set_i(point_set_i),
+  UnaryConstraintSetIndices(const int points_ref_i, const Span<int> points)
+      : ConstraintSetIndices(points.size(), {points_ref_i}),
+        points_ref_i(points_ref_i),
         points(points)
   {
   }
@@ -184,12 +184,12 @@ class BinaryConstraintSetIndices : public ConstraintSetIndices {
   mutable Vector<IndexMask> independent_masks_;
 
  public:
-  int point_set_i;
+  int points_ref_i;
   Span<int2> point_pairs;
 
-  BinaryConstraintSetIndices(const int point_set_i, const Span<int2> point_pairs)
-      : ConstraintSetIndices(point_pairs.size(), {point_set_i}),
-        point_set_i(point_set_i),
+  BinaryConstraintSetIndices(const int points_ref_i, const Span<int2> point_pairs)
+      : ConstraintSetIndices(point_pairs.size(), {points_ref_i}),
+        points_ref_i(points_ref_i),
         point_pairs(point_pairs)
   {
   }
@@ -241,19 +241,19 @@ template<typename Child> class TemplatedConstraintSetEvaluator : public Constrai
 
   template<typename SolverT> void evaluate(SolverT &solver, const IndexMask &constraint_mask) const
   {
-    constraint_mask.foreach_index(GrainSize(256), [&](const int i) {
+    constraint_mask.foreach_index(GrainSize(256), [&](const int constraint_i) {
       const Child &self = static_cast<const Child &>(*this);
-      self.evaluate_single(solver, i);
+      self.evaluate_single(solver, constraint_i);
     });
   }
 };
 
-void solve_gauss_seidel_one_at_a_time(Span<PointSet> point_sets,
+void solve_gauss_seidel_one_at_a_time(Span<PointsRef> points_refs,
                                       Span<ConstraintSet> constraint_sets);
 
-void solve_jacobian_non_deterministic(Span<PointSet> point_sets,
+void solve_jacobian_non_deterministic(Span<PointsRef> points_refs,
                                       Span<ConstraintSet> constraint_sets);
 
-void solve_gauss_seidel_parallel(Span<PointSet> point_sets, Span<ConstraintSet> constraint_sets);
+void solve_gauss_seidel_parallel(Span<PointsRef> points_refs, Span<ConstraintSet> constraint_sets);
 
 }  // namespace blender::geometry::xpbd_constraint_solver
