@@ -23,6 +23,10 @@
 #  endif
 #endif
 
+#ifndef _WIN32
+/* Silence compilation warning on non-windows systems. */
+#  define VMA_EXTERNAL_MEMORY_WIN32 0
+#endif
 #include "vk_mem_alloc.h"
 
 #include "GPU_index_buffer.hh"
