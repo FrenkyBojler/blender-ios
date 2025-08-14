@@ -725,7 +725,7 @@ static void gather_pin_constraints(
       mask.to_indices(constraint_indices);
       pin_positions_varray.materialize_compressed(mask, constraint_positions);
 
-      /* Add actual constarint. */
+      /* Add actual constraint. */
       r_constraint_sets.append(
           {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
                key_i, constraint_indices),
@@ -735,14 +735,45 @@ static void gather_pin_constraints(
   }
 }
 
-static void gather_collision_constraints(
-    ResourceScope &scope,
-    const WorldData &world,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &ordered_sim_points_keys,
-    const Span<SimPoints *> ordered_sim_points,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+struct StaticPlaneContacts {
+  Vector<int> indices;
+  Vector<float3> plane_positions;
+  Vector<float3> plane_normals;
+  Vector<float> static_frictions;
+  Vector<float> dynamic_frictions;
+  Vector<float> depths;
+};
+
+struct Contacts {
+  Map<SimPointsKey, StaticPlaneContacts> static_plane_contacts;
+};
+
+static void gather_ground_plane_contacts(const SimPoints &sim_points,
+                                         const float3 &plane_position,
+                                         const float3 &plane_normal,
+                                         StaticPlaneContacts &r_contacts)
 {
+  for (const int point_i : IndexRange(sim_points.points_num)) {
+    const float3 &position = sim_points.positions[point_i];
+    const float distance = math::dot(position - plane_position, plane_normal);
+    if (distance >= 0.0f) {
+      continue;
+    }
+    r_contacts.indices.append(point_i);
+    r_contacts.plane_positions.append(plane_position);
+    r_contacts.plane_normals.append(plane_normal);
+    r_contacts.static_frictions.append(0.5f);
+    r_contacts.dynamic_frictions.append(0.5f);
+    r_contacts.depths.append(-distance);
+  }
+}
+
+static Contacts gather_contacts(const WorldData &world,
+                                const Span<GeometrySet> applied_geometries,
+                                const VectorSet<SimPointsKey> &ordered_sim_points_keys,
+                                const Span<SimPoints *> ordered_sim_points)
+{
+  Contacts contacts;
   for (const int key_i : ordered_sim_points_keys.index_range()) {
     const SimPointsKey &key = ordered_sim_points_keys[key_i];
     const int geometry_bundle_i = world.geometries.index_of_as(key.path);
@@ -753,29 +784,37 @@ static void gather_collision_constraints(
     if (!component) {
       continue;
     }
-
-    Vector<int> &point_indices = scope.construct<Vector<int>>();
-    Vector<float3> &plane_positions = scope.construct<Vector<float3>>();
-    Vector<float3> &plane_normals = scope.construct<Vector<float3>>();
-
-    for (const int point_i : IndexRange(sim_points.points_num)) {
-      const float3 &position = sim_points.positions[point_i];
-      if (position.z >= 0.0f) {
-        continue;
-      }
-      point_indices.append(point_i);
-      plane_positions.append(float3(0.0f));
-      plane_normals.append(float3(0.0f, 0.0f, 1.0f));
-    }
-    if (point_indices.is_empty()) {
+    StaticPlaneContacts plane_contacts;
+    gather_ground_plane_contacts(
+        sim_points, float3(0.0f), float3(0.0f, 0.0f, 1.0f), plane_contacts);
+    if (plane_contacts.indices.is_empty()) {
       continue;
     }
+    contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
+  }
+  return contacts;
+}
 
+static void generate_collision_constraint_sets(
+    ResourceScope &scope,
+    const Contacts &contacts,
+    VectorSet<SimPointsKey> ordered_sim_points_keys,
+    Span<SimPoints *> ordered_sim_points,
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+{
+  for (auto item : contacts.static_plane_contacts.items()) {
+    const int key_i = ordered_sim_points_keys.index_of(item.key);
+    const StaticPlaneContacts &plane_contacts = item.value;
+    SimPoints &sim_points = *ordered_sim_points[key_i];
     r_constraint_sets.append(
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
-             key_i, point_indices),
+             key_i, plane_contacts.indices),
          scope.construct<geometry::xpbd_constraint_solver::CollisionPlaneConstraintEvaluator>(
-             key_i, point_indices, sim_points.positions, plane_positions, plane_normals)});
+             key_i,
+             plane_contacts.indices,
+             sim_points.positions,
+             plane_contacts.plane_positions,
+             plane_contacts.plane_normals)});
   }
 }
 
@@ -862,12 +901,10 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =
         static_constraint_sets;
-    gather_collision_constraints(scope,
-                                 world,
-                                 applied_geometries,
-                                 ordered_sim_points_keys,
-                                 ordered_sim_points,
-                                 constraint_sets);
+    Contacts contacts = gather_contacts(
+        world, applied_geometries, ordered_sim_points_keys, ordered_sim_points);
+    generate_collision_constraint_sets(
+        scope, contacts, ordered_sim_points_keys, ordered_sim_points, constraint_sets);
 
     switch (solver_type) {
       case SolverType::SerialGaussSeidel: {
@@ -888,9 +925,33 @@ static void update_and_step_xpbd_state(XPBDState &state,
     }
 
     if (sub_delta_time > 0.0f) {
-      for (const int geo_i : ordered_sim_points.index_range()) {
-        Span<float3> prev_positions = all_prev_positions[geo_i];
-        SimPoints &sim_points = *ordered_sim_points[geo_i];
+      for (const auto item : contacts.static_plane_contacts.items()) {
+        const int key_i = ordered_sim_points_keys.index_of(item.key);
+        SimPoints &sim_points = *ordered_sim_points[key_i];
+        const Span<float3> prev_positions = all_prev_positions[key_i];
+        MutableSpan<float3> new_positions = sim_points.positions;
+        const StaticPlaneContacts &plane_contacts = item.value;
+        for (const int contact_i : plane_contacts.indices.index_range()) {
+          const int point_i = plane_contacts.indices[contact_i];
+          const float3 &plane_normal = plane_contacts.plane_normals[contact_i];
+          const float static_friction = plane_contacts.static_frictions[contact_i];
+          const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
+          const float depth = plane_contacts.depths[contact_i];
+          const float3 pos_diff = new_positions[point_i] - prev_positions[point_i];
+          const float3 tangential_pos_diff = pos_diff -
+                                             plane_normal * math::dot(pos_diff, plane_normal);
+          float3 offset = tangential_pos_diff;
+          const float tangential_dist = math::length(tangential_pos_diff);
+          if (tangential_dist >= static_friction * depth) {
+            offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
+          }
+
+          new_positions[point_i] -= offset;
+        }
+      }
+      for (const int key_i : ordered_sim_points.index_range()) {
+        const Span<float3> prev_positions = all_prev_positions[key_i];
+        SimPoints &sim_points = *ordered_sim_points[key_i];
         Span<float3> new_positions = sim_points.positions;
         MutableSpan<float3> velocities = sim_points.velocities;
         threading::parallel_for(
