@@ -5106,10 +5106,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
           if (ui_but_extra_operator_icon_mouse_over_get(but, data->region, event)) {
             return WM_UI_HANDLER_BREAK;
           }
-
-          /* Always continue for drag and drop handling. Also for cases where keymap items are
-           * registered to add custom activate or drag operators (the pose library does this for
-           * example). */
+          force_activate_view_item_but(C, data->region, view_item_but);
           return WM_UI_HANDLER_CONTINUE;
         case KM_PRESS_DRAG:
           if (UI_view_item_supports_drag(*view_item_but->view_item)) {
