@@ -1196,11 +1196,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
             *ptd.vc.obact, info.drawing, info.layer_index, memory);
         const bke::CurvesGeometry &src = info.drawing.strokes();
 
-        const std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
-            src, layer_to_object, editable_curves);
-
-        if (result) {
-          curves = *result;
+        if (std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
+                src, layer_to_object, editable_curves))
+        {
+          curves = std::move(*result);
         }
         else {
           for (const StringRef selection_attribute_name :
