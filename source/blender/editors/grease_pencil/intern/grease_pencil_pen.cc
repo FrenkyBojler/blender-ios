@@ -1006,7 +1006,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
 /**
  * Will return true if a new curve can be created, and report any errors.
  */
-static bool pen_report_new_curve_errors(const PenToolOperation &ptd, wmOperator *op)
+static bool pen_can_create_new_curve(const PenToolOperation &ptd, wmOperator *op)
 {
   if (!ptd.grease_pencil->has_active_layer()) {
     BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
@@ -1272,8 +1272,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   });
 
   if (add_single) {
-    const bool successful = pen_report_new_curve_errors(ptd, op);
-    if (successful) {
+    if (pen_can_create_new_curve(ptd, op)) {
       bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
       bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
           layer, ptd.vc.scene->r.cfra);
