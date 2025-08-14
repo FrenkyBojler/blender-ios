@@ -598,7 +598,10 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
         return DEG2RADF(1.0f);
       }
       return RAD2DEGF(1.0f);
+    case PROP_UNIT_LENGTH:
+      if (scene->unit.system == USER_UNIT_METRIC) {
 
+      }
     default:
       /* TODO: other rotation types here as necessary */
       break;
