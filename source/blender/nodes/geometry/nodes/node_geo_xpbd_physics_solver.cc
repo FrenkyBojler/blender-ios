@@ -643,24 +643,22 @@ static void gather_edge_length_constraints(
         }
       });
 
-      /* Prepare per-constraing length. */
+      /* Prepare per-constraint length. */
       MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
       DistanceConstraintLengths &distance_constraint_lengths =
           state.distance_constraint_lengths.lookup_or_add_default(key);
-      threading::parallel_for(constraint_edges.index_range(), 512, [&](const IndexRange range) {
-        for (const int i : range) {
-          const int2 &edge = constraint_edges[i];
-          const OrderedEdge ordered_edge{edge[0], edge[1]};
-          DistanceConstraintLengths::LengthItem &length_item =
-              distance_constraint_lengths.lengths.lookup_or_add_cb(ordered_edge, [&]() {
-                const float3 &p0 = mesh_positions[edge[0]];
-                const float3 &p1 = mesh_positions[edge[1]];
-                return DistanceConstraintLengths::LengthItem{math::distance(p0, p1)};
-              });
-          length_item.used = true;
-          constraint_lengths[i] = length_item.length;
-        }
-      });
+      for (const int i : constraint_edges.index_range()) {
+        const int2 &edge = constraint_edges[i];
+        const OrderedEdge ordered_edge{edge[0], edge[1]};
+        DistanceConstraintLengths::LengthItem &length_item =
+            distance_constraint_lengths.lengths.lookup_or_add_cb(ordered_edge, [&]() {
+              const float3 &p0 = mesh_positions[edge[0]];
+              const float3 &p1 = mesh_positions[edge[1]];
+              return DistanceConstraintLengths::LengthItem{math::distance(p0, p1)};
+            });
+        length_item.used = true;
+        constraint_lengths[i] = length_item.length;
+      }
 
       /* Add the actual constraint. */
       r_constraint_sets.append(
