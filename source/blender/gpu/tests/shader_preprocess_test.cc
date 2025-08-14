@@ -226,11 +226,15 @@ static void test_preprocess_template()
     string input = R"(
 template<typename T>
 void func(T a) {a;}
-template void func<float>(float a);)";
+template void func<float>(float a);
+)";
     string expect = R"(
-#define func_TEMPLATE(T) \
-void func(T a) {a;}
-func_TEMPLATE(float)/*float a*/)";
+
+
+#line 3
+void func(float a) {a;};
+#line 5
+)";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
@@ -242,41 +246,55 @@ template<typename T, int i>
 void func(T a) {
   a;
 }
-template void func<float, 1>(float a);)";
+template void func<float, 1>(float a);
+)";
     string expect = R"(
-#define func_TEMPLATE(T, i) \
-void func_##T##_##i##_(T a) { \
-  a; \
-}
-func_TEMPLATE(float, 1)/*float a*/)";
+
+
+
+
+#line 3
+void func_float_1_(float a) {
+  a;
+};
+#line 7
+)";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
   {
-    string input = R"(template<> void func<T, Q>(T a) {a};)";
-    string expect = R"( void func_T_Q_(T a) {a};)";
+    string input = R"(
+template<> void func<T, Q>(T a) {a};
+)";
+    string expect = R"(
+ void func_T_Q_(T a) {a};
+)";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
   {
-    string input = R"(template<typename T, int i = 0> void func(T a) {a;})";
+    string input = R"(
+template<typename T, int i = 0> void func(T a) {a;}
+)";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "Template declaration unsupported syntax");
+    EXPECT_EQ(error, "Default arguments are not supported inside template declaration");
   }
   {
-    string input = R"(template void func(float a);)";
+    string input = R"(
+template void func(float a);
+)";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(error, "Template instantiation unsupported syntax");
   }
   {
     string input = R"(func<float, 1>(a);)";
-    string expect = R"(TEMPLATE_GLUE2(func, float, 1)(a);)";
+    string expect = R"(func_float_1_(a);)";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
@@ -710,11 +728,16 @@ float write(float a){ return a; }
 
     string expect = R"(
 
-#define NS_read_TEMPLATE(T) T NS_read(T a) \
-{ \
-  return a; \
-}
-NS_read_TEMPLATE(float)/*float*/
+
+
+
+
+#line 3
+float NS_read(float a)
+{
+  return a;
+};
+#line 8
 float NS_write(float a){ return a; }
 
 )";

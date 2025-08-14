@@ -645,6 +645,16 @@ struct Token {
     return {data, index + 1};
   }
 
+  /* Only usable when building with whitespace. */
+  Token next_not_whitespace() const
+  {
+    Token next = this->next();
+    while (next == ' ' || next == '\n') {
+      next = next.next();
+    }
+    return next;
+  }
+
   /* Returns the scope that contains this token. */
   Scope scope() const;
 
@@ -700,23 +710,27 @@ struct Token {
 
   TokenType type() const
   {
-    return TokenType(*this);
-  }
-
-  operator TokenType() const
-  {
     if (is_invalid()) {
       return Invalid;
     }
     return TokenType(data->token_types[index]);
   }
+
   bool operator==(TokenType type) const
   {
-    return TokenType(*this) == type;
+    return this->type() == type;
   }
   bool operator!=(TokenType type) const
   {
     return !(*this == type);
+  }
+  bool operator==(char type) const
+  {
+    return *this == TokenType(type);
+  }
+  bool operator!=(char type) const
+  {
+    return *this != TokenType(type);
   }
 };
 
@@ -863,6 +877,13 @@ struct Parser {
       callback(Scope{&data_, pos});
       pos += 1;
     }
+  }
+
+  void foreach_match(const std::string &pattern,
+                     std::function<void(const std::vector<Token>)> callback)
+  {
+    foreach_scope(ScopeType::Global,
+                  [&](const Scope scope) { scope.foreach_match(pattern, callback); });
   }
 
   /* Run a callback for all existing function scopes. */
