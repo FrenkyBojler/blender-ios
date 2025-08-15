@@ -3089,7 +3089,7 @@ def km_sequencer(params):
              )
         ),
         op_menu("SEQUENCER_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
-        op_menu("SEQUENCER_MT_change", {"type": 'C', "value": 'PRESS'}),
+        op_menu("SEQUENCER_MT_change", {"type": 'C', "value": 'PRESS', "shift": True}),
         op_menu_pie("SEQUENCER_MT_view_pie", {"type": 'ACCENT_GRAVE', "value": 'PRESS'}),
         ("sequencer.slip", {"type": 'S', "value": 'PRESS'}, None),
         ("wm.context_set_int", {"type": 'O', "value": 'PRESS'},
