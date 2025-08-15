@@ -867,6 +867,7 @@ static void wm_xr_raycast(Scene *scene,
  * \{ */
 
 #define XR_DEFAULT_FLY_SPEED_MOVE 0.054f
+#define XR_DEFAULT_TURN_SPEED 30.0f
 
 enum eXrFlyMode {
   XR_FLY_FORWARD = 0,
@@ -1041,32 +1042,44 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  if (event->val == KM_RELEASE) {
-    wm_xr_fly_uninit(op);
-    return OPERATOR_FINISHED;
-  }
-
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
   XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
   eXrFlyMode mode;
-  bool turn, locz_lock, dir_lock, speed_frame_based;
+  bool turn, snap_turn, locz_lock, dir_lock, speed_frame_based;
   bool speed_interp_cubic = false;
   float speed, speed_max, speed_p0[2], speed_p1[2];
   GHOST_XrPose nav_pose;
   float nav_mat[4][4], delta[4][4], out[4][4];
 
-  const double time_now = BLI_time_now_seconds();
+  const double time_now = BLI_time_now_seconds(), delta_time = time_now - data->time_prev;
+  data->time_prev = time_now;
 
   mode = (eXrFlyMode)RNA_enum_get(op->ptr, "mode");
   turn = ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT);
 
+  snap_turn = RNA_boolean_get(op->ptr, "snap_turn");
   locz_lock = RNA_boolean_get(op->ptr, "lock_location_z");
   dir_lock = RNA_boolean_get(op->ptr, "lock_direction");
-  speed_frame_based = RNA_boolean_get(op->ptr, "speed_frame_based");
-  speed = RNA_float_get(op->ptr, "speed_min");
-  speed_max = RNA_float_get(op->ptr, "speed_max");
+
+  if (turn)
+  {
+    speed_frame_based = false;
+    speed = RNA_float_get(op->ptr, "turn_speed_min");
+    speed_max = RNA_float_get(op->ptr, "turn_speed_max");
+
+    if (snap_turn)
+    {
+      speed = speed_max;
+    }
+  }
+  else
+  {
+    speed_frame_based = RNA_boolean_get(op->ptr, "speed_frame_based");
+    speed = RNA_float_get(op->ptr, "speed_min");
+    speed_max = RNA_float_get(op->ptr, "speed_max");
+  }
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "speed_interpolation0");
   if (prop && RNA_property_is_set(op->ptr, prop)) {
@@ -1128,21 +1141,19 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
       break;
   }
 
-  if (!speed_frame_based) {
-    /* Adjust speed based on last update time. */
-    speed *= time_now - data->time_prev;
-  }
-  data->time_prev = time_now;
-
   WM_xr_session_state_nav_location_get(xr, nav_pose.position);
   WM_xr_session_state_nav_rotation_get(xr, nav_pose.orientation_quat);
   wm_xr_pose_to_mat(&nav_pose, nav_mat);
 
   if (turn) {
-    if (dir_lock) {
+    if (dir_lock || (snap_turn && event->val != KM_RELEASE)) {
       unit_m4(delta);
     }
     else {
+      if (!snap_turn) {
+        speed *= delta_time;
+      }
+
       GHOST_XrPose viewer_pose;
       float viewer_mat[4][4], nav_inv[4][4];
 
@@ -1151,7 +1162,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
       wm_xr_pose_to_mat(&viewer_pose, viewer_mat);
       wm_xr_pose_to_imat(&nav_pose, nav_inv);
 
-      wm_xr_fly_compute_turn(mode, speed, viewer_mat, nav_mat, nav_inv, delta);
+      wm_xr_fly_compute_turn(mode, DEG2RAD(speed), viewer_mat, nav_mat, nav_inv, delta);
     }
   }
   else {
@@ -1160,6 +1171,10 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
     /* Adjust speed for base and navigation scale. */
     WM_xr_session_state_nav_scale_get(xr, &nav_scale);
     speed *= xr->session_settings.base_scale * nav_scale;
+
+    if (!speed_frame_based) {
+      speed *= delta_time;
+    }
 
     switch (mode) {
       /* Move relative to navigation space. */
@@ -1208,6 +1223,11 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   if (event->val == KM_PRESS) {
     return OPERATOR_RUNNING_MODAL;
   }
+  else if (event->val == KM_RELEASE) {
+    wm_xr_fly_uninit(op);
+    return OPERATOR_FINISHED;
+  }
+
 
   /* XR events currently only support press and release. */
   BLI_assert_unreachable();
@@ -1267,6 +1287,8 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_NAVIGATION);
 
   RNA_def_boolean(
+      ot->srna, "snap_turn", true, "Snap Turn", "Instantly rotates viewer by a fixed angle");
+  RNA_def_boolean(
       ot->srna, "lock_location_z", false, "Lock Elevation", "Prevent changes to viewer elevation");
   RNA_def_boolean(ot->srna,
                   "lock_direction",
@@ -1279,12 +1301,30 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                   "Frame Based Speed",
                   "Apply fixed movement deltas every update");
   RNA_def_float(ot->srna,
+                "turn_speed_min",
+                XR_DEFAULT_TURN_SPEED / 3.0f,
+                0.0f,
+                360.0f,
+                "Minimum Speed",
+                "Minimum turn speed in degrees per second or snap",
+                0.0f,
+                360.0f);
+  RNA_def_float(ot->srna,
+                "turn_speed_max",
+                XR_DEFAULT_TURN_SPEED,
+                0.0f,
+                360.0f,
+                "Maximum Speed",
+                "Maximum move turn speed in degrees per second or snap",
+                0.0f,
+                360.0f);
+  RNA_def_float(ot->srna,
                 "speed_min",
                 XR_DEFAULT_FLY_SPEED_MOVE / 3.0f,
                 0.0f,
                 1000.0f,
                 "Minimum Speed",
-                "Minimum move (turn) speed in meters (radians) per second or frame",
+                "Minimum move speed in meters per second or frame",
                 0.0f,
                 1000.0f);
   RNA_def_float(ot->srna,
@@ -1293,7 +1333,7 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                 0.0f,
                 1000.0f,
                 "Maximum Speed",
-                "Maximum move (turn) speed in meters (radians) per second or frame",
+                "Maximum move speed in meters per second or frame",
                 0.0f,
                 1000.0f);
   RNA_def_float_vector(ot->srna,
