@@ -419,7 +419,9 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
     return false;
   }
 
-  pbd->is_flipped = RNA_boolean_get(op->ptr, "flipped");
+  pbd->is_flipped = RNA_struct_property_is_set(op->ptr, "flipped") ?
+                        RNA_boolean_get(op->ptr, "flipped") :
+                        (event && (event->modifier & KM_CTRL));
   pbd->blend_factor = RNA_float_get(op->ptr, "blend_factor");
 
   /* Only construct the flipped pose if there is a chance it's actually needed. */
@@ -602,6 +604,20 @@ static wmOperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const w
   return operator_result;
 }
 
+static wmOperatorStatus poselib_apply_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!poselib_blend_init_data(C, op, event)) {
+    poselib_blend_free(op);
+    return OPERATOR_CANCELLED;
+  }
+
+  poselib_blend_apply(C, op);
+
+  PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
+  pbd->state = POSE_BLEND_CONFIRM;
+  return poselib_blend_exit(C, op);
+}
+
 /* Modal Operator init. */
 static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -623,16 +639,7 @@ static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const 
 /* Single-shot apply. */
 static wmOperatorStatus poselib_blend_exec(bContext *C, wmOperator *op)
 {
-  if (!poselib_blend_init_data(C, op, nullptr)) {
-    poselib_blend_free(op);
-    return OPERATOR_CANCELLED;
-  }
-
-  poselib_blend_apply(C, op);
-
-  PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
-  pbd->state = POSE_BLEND_CONFIRM;
-  return poselib_blend_exit(C, op);
+  return poselib_apply_invoke(C, op, nullptr);
 }
 
 /* Poll callback for operators that require existing PoseLib data (with poses) to work. */
@@ -660,7 +667,7 @@ void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)
   ot->description = "Apply the given Pose Action to the rig";
 
   /* Callbacks: */
-  ot->exec = poselib_blend_exec;
+  ot->invoke = poselib_apply_invoke;
   ot->poll = poselib_blend_poll;
 
   /* Flags: */

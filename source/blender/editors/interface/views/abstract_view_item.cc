@@ -70,7 +70,7 @@ bool AbstractViewItem::set_state_active()
 
 void AbstractViewItem::activate(bContext &C)
 {
-  if (set_state_active()) {
+  if (set_state_active() || reactivate_on_click_) {
     on_activate(C);
   }
 
@@ -321,6 +321,11 @@ uiButViewItem *AbstractViewItem::view_item_button() const
 void AbstractViewItem::disable_activatable()
 {
   is_activatable_ = false;
+}
+
+void AbstractViewItem::always_reactivate_on_click()
+{
+  reactivate_on_click_ = true;
 }
 
 void AbstractViewItem::disable_interaction()

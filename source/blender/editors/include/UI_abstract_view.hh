@@ -216,6 +216,7 @@ class AbstractViewItem {
    * children currently.
    */
   bool is_always_collapsible_ = false;
+  bool reactivate_on_click_ = false;
 
  public:
   virtual ~AbstractViewItem() = default;
@@ -296,6 +297,8 @@ class AbstractViewItem {
   bool is_interactive() const;
 
   void disable_activatable();
+  /** Call #on_activate() on every click on the item, even when the item was active before. */
+  void always_reactivate_on_click();
   /**
    * Activates this item, deactivates other items, and calls the #AbstractViewItem::on_activate()
    * function. Should only be called when the item was activated through the view (e.g. through a

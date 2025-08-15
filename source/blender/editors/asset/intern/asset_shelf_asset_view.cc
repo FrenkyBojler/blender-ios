@@ -124,6 +124,11 @@ void AssetView::build_items()
     if (shelf_.type->flag & ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG) {
       item.disable_asset_drag();
     }
+    /* Make sure every click calls the #bl_activate_operator. We might want to change this, so
+     * #bl_activate_operator gets called only when an item becomes active, and add a
+     * #bl_click_operator for repeated execution on every click. So far it seems like this isn't
+     * needed for asset shelves. */
+    item.always_reactivate_on_click();
 
     return true;
   });
@@ -385,8 +390,7 @@ void AssetDragController::on_drag_start(bContext &C)
   if (std::optional<wmOperatorCallParams> drag_op = create_asset_operator_params(
           shelf_type.drag_operator, asset_))
   {
-    WM_operator_name_call_ptr(
-        &C, drag_op->optype, drag_op->opcontext, drag_op->opptr, nullptr);
+    WM_operator_name_call_ptr(&C, drag_op->optype, drag_op->opcontext, drag_op->opptr, nullptr);
     WM_operator_properties_free(drag_op->opptr);
     MEM_delete(drag_op->opptr);
   }
