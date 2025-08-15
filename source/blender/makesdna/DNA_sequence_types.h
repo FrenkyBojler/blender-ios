@@ -355,6 +355,16 @@ typedef struct Editing {
   PrefetchJob *prefetch_job;
 
   EditingRuntime runtime;
+
+#ifdef __cplusplus
+  /** Access currently displayed strips, from root sequence or a meta-strip. */
+  ListBase *active_strips();
+  ListBase *active_strips() const;
+
+  /** Access currently displayed channels, from root sequence or a meta-strip. */
+  ListBase *active_displayed_channels();
+  ListBase *active_displayed_channels() const;
+#endif
 } Editing;
 
 /** \} */
