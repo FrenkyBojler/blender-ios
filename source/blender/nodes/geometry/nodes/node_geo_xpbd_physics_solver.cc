@@ -181,55 +181,33 @@ static AttrDomain get_position_domain(const bke::GeometryComponent::Type type)
   return type == bke::GeometryComponent::Type::Instance ? AttrDomain::Instance : AttrDomain::Point;
 }
 
+template<typename T>
+static void parse_bundle(HandleNestedBundleParams &params,
+                         BundleParseErrors errors,
+                         WorldData::BundleVectorSet<T> &r_bundles)
+{
+  if (params.type != T::name) {
+    return;
+  }
+  std::optional<T> parsed_bundle = T::parse(params.bundle, errors);
+  if (!parsed_bundle) {
+    return;
+  }
+  parsed_bundle->self_path = Bundle::combine_path(params.path);
+  r_bundles.add_new(std::move(*parsed_bundle));
+}
+
 static WorldData parse_world(const Bundle &world_bundle)
 {
   WorldData world;
   nested_bundle_foreach(world_bundle, [&](HandleNestedBundleParams &params) {
     BundleParseErrors errors;
-    if (params.type == ForceBundle::name) {
-      if (std::optional<ForceBundle> force = ForceBundle::parse(params.bundle, errors)) {
-        force->self_path = Bundle::combine_path(params.path);
-        world.forces.add_new(std::move(*force));
-      }
-    }
-    else if (params.type == GravityBundle::name) {
-      if (std::optional<GravityBundle> gravity = GravityBundle::parse(params.bundle, errors)) {
-        gravity->self_path = Bundle::combine_path(params.path);
-        world.gravities.add_new(std::move(*gravity));
-      }
-    }
-    else if (params.type == XPBDGeometryBundle::name) {
-      if (std::optional<XPBDGeometryBundle> geometry = XPBDGeometryBundle::parse(params.bundle,
-                                                                                 errors))
-      {
-        geometry->self_path = Bundle::combine_path(params.path);
-        world.geometries.add_new(std::move(*geometry));
-      }
-    }
-    else if (params.type == EdgeLengthXPBDConstraintBundle::name) {
-      if (std::optional<EdgeLengthXPBDConstraintBundle> constraint =
-              EdgeLengthXPBDConstraintBundle::parse(params.bundle, errors))
-      {
-        constraint->self_path = Bundle::combine_path(params.path);
-        world.edge_length_constraints.add_new(std::move(*constraint));
-      }
-    }
-    else if (params.type == PinnedPositionXPBDConstraintBundle::name) {
-      if (std::optional<PinnedPositionXPBDConstraintBundle> constraint =
-              PinnedPositionXPBDConstraintBundle::parse(params.bundle, errors))
-      {
-        constraint->self_path = Bundle::combine_path(params.path);
-        world.pinned_position_constraints.add_new(std::move(*constraint));
-      }
-    }
-    else if (params.type == InfiniteGroundPlaneBundle::name) {
-      if (std::optional<InfiniteGroundPlaneBundle> constraint = InfiniteGroundPlaneBundle::parse(
-              params.bundle, errors))
-      {
-        constraint->self_path = Bundle::combine_path(params.path);
-        world.infinite_ground_planes.add_new(std::move(*constraint));
-      }
-    }
+    parse_bundle(params, errors, world.forces);
+    parse_bundle(params, errors, world.gravities);
+    parse_bundle(params, errors, world.geometries);
+    parse_bundle(params, errors, world.edge_length_constraints);
+    parse_bundle(params, errors, world.pinned_position_constraints);
+    parse_bundle(params, errors, world.infinite_ground_planes);
   });
   return world;
 }
