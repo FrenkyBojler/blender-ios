@@ -1378,64 +1378,39 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
 
   const Span<int> verts = node.verts();
 
+  Span<float3> positions = vert_positions;
+  Span<float3> normals = vert_normals;
+
   if (ss.cache && !ss.cache->accum) {
     if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_mesh(object,
                                                                                          node))
     {
-      const Span<float3> orig_positions = orig_data->positions;
-      const Span<float3> orig_normals = orig_data->normals;
-
-      tls.distances.reinitialize(verts.size());
-      const MutableSpan<float> distances_sq = tls.distances;
-      calc_brush_distances_squared(
-          ss, orig_positions, eBrushFalloffShape(brush.falloff_shape), distances_sq);
-
-      for (const int i : verts.index_range()) {
-        const int vert = verts[i];
-        if (!hide_vert.is_empty() && hide_vert[vert]) {
-          continue;
-        }
-        const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-        const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-        if (!normal_test_r && !area_test_r) {
-          continue;
-        }
-        const float3 &normal = orig_normals[i];
-        const float distance = std::sqrt(distances_sq[i]);
-        const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-        if (area_test_r) {
-          accumulate_area_center(
-              location, orig_positions[i], distance, position_radius_inv, flip_index, anctd);
-        }
-        if (normal_test_r) {
-          accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
-        }
-      }
-      return;
+      positions = orig_data->positions;
+      normals = orig_data->normals;
     }
   }
 
   tls.distances.reinitialize(verts.size());
   const MutableSpan<float> distances_sq = tls.distances;
   calc_brush_distances_squared(
-      ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances_sq);
+      ss, positions, verts, eBrushFalloffShape(brush.falloff_shape), distances_sq);
 
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
     if (!hide_vert.is_empty() && hide_vert[vert]) {
       continue;
     }
-    const bool normal_test_r = distances_sq[i] <= normal_radius_sq;
-    const bool area_test_r = distances_sq[i] <= position_radius_sq;
+    const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
+    const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
     if (!normal_test_r && !area_test_r) {
       continue;
     }
-    const float3 &normal = vert_normals[vert];
+    const float3 &normal = normals[vert];
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
     if (area_test_r) {
       accumulate_area_center(
-          location, vert_positions[vert], distance, position_radius_inv, flip_index, anctd);
+          location, positions[vert], distance, position_radius_inv, flip_index, anctd);
     }
     if (normal_test_r) {
       accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
@@ -1463,57 +1438,20 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
 
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
-  const Span<float3> normals = subdiv_ccg.normals;
-  const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
   const Span<int> grids = node.grids();
+  Span<float3> normals = subdiv_ccg.normals;
+  Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
+  const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
 
   if (ss.cache && !ss.cache->accum) {
     if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_grids(object,
                                                                                           node))
     {
-      const Span<float3> orig_positions = orig_data->positions;
-      const Span<float3> orig_normals = orig_data->normals;
-
-      tls.distances.reinitialize(orig_positions.size());
-      const MutableSpan<float> distances_sq = tls.distances;
-      calc_brush_distances_squared(
-          ss, orig_positions, eBrushFalloffShape(brush.falloff_shape), distances_sq);
-
-      for (const int i : grids.index_range()) {
-        const IndexRange grid_range_node = bke::ccg::grid_range(key, i);
-        const int grid = grids[i];
-        for (const int offset : IndexRange(key.grid_area)) {
-          if (!grid_hidden.is_empty() && grid_hidden[grid][offset]) {
-            continue;
-          }
-          const int node_vert = grid_range_node[offset];
-
-          const bool normal_test_r = use_area_nos && distances_sq[node_vert] <= normal_radius_sq;
-          const bool area_test_r = use_area_cos && distances_sq[node_vert] <= position_radius_sq;
-          if (!normal_test_r && !area_test_r) {
-            continue;
-          }
-          const float3 &normal = orig_normals[node_vert];
-          const float distance = std::sqrt(distances_sq[node_vert]);
-          const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-          if (area_test_r) {
-            accumulate_area_center(location,
-                                   orig_positions[node_vert],
-                                   distance,
-                                   position_radius_inv,
-                                   flip_index,
-                                   anctd);
-          }
-          if (normal_test_r) {
-            accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
-          }
-        }
-      }
-      return;
+      positions = orig_data->positions;
+      normals = orig_data->normals;
     }
   }
 
-  const Span<float3> positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
   tls.distances.reinitialize(positions.size());
   const MutableSpan<float> distances_sq = tls.distances;
   calc_brush_distances_squared(
@@ -1621,45 +1559,18 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(
       &const_cast<bke::pbvh::BMeshNode &>(node));
+  tls.positions.resize(verts.size());
+  Span<float3> positions;
+  Array<float3> normal_storage(verts.size());
   if (use_original) {
-    tls.positions.resize(verts.size());
-    const MutableSpan<float3> positions = tls.positions;
-    Array<float3> normals(verts.size());
-    orig_position_data_gather_bmesh(*ss.bm_log, verts, positions, normals);
-
-    tls.distances.reinitialize(positions.size());
-    const MutableSpan<float> distances_sq = tls.distances;
-    calc_brush_distances_squared(
-        ss, positions, eBrushFalloffShape(brush.falloff_shape), distances_sq);
-
-    int i = 0;
-    for (BMVert *vert : verts) {
-      if (BM_elem_flag_test(vert, BM_ELEM_HIDDEN)) {
-        i++;
-        continue;
-      }
-      const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
-        i++;
-        continue;
-      }
-      const float3 &normal = normals[i];
-      const float distance = std::sqrt(distances_sq[i]);
-      const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
-        accumulate_area_center(
-            location, positions[i], distance, position_radius_inv, flip_index, anctd);
-      }
-      if (normal_test_r) {
-        accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
-      }
-      i++;
-    }
-    return;
+    orig_position_data_gather_bmesh(*ss.bm_log, verts, tls.positions, normal_storage);
+  }
+  else {
+    positions = gather_bmesh_positions(verts, tls.positions);
+    gather_bmesh_normals(verts, normal_storage);
   }
 
-  const Span<float3> positions = gather_bmesh_positions(verts, tls.positions);
+  Span<float3> normals = normal_storage;
 
   tls.distances.reinitialize(positions.size());
   const MutableSpan<float> distances_sq = tls.distances;
@@ -1678,7 +1589,7 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
       i++;
       continue;
     }
-    const float3 normal = vert->no;
+    const float3 normal = normals[i];
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
     if (area_test_r) {
