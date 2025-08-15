@@ -378,7 +378,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.channel_group_active);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 100)) {
+  if (!USER_VERSION_ATLEAST(500, 60)) {
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_free);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_vect);
