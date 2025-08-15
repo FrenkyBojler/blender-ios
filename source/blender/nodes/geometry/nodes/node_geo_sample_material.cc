@@ -10,8 +10,6 @@
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 
-#include "NOD_rna_define.hh"
-
 #include "RNA_enum_types.hh"
 
 #include "UI_interface_icons.hh"
@@ -104,8 +102,6 @@ static void node_register()
   ntype.ui_name = "Sample Material";
   ntype.ui_description = "Sample materials from a geometry component";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_storage(
-      ntype, "NodeGeometrySampleMaterial", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
