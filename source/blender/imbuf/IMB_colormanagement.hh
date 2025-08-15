@@ -427,6 +427,10 @@ ColormanageProcessor *IMB_colormanagement_display_processor_for_imbuf(
     const ImBuf *ibuf,
     const ColorManagedViewSettings *view_settings,
     const ColorManagedDisplaySettings *display_settings);
+bool IMB_colormanagement_display_processor_needed(
+    const ImBuf *ibuf,
+    const ColorManagedViewSettings *view_settings,
+    const ColorManagedDisplaySettings *display_settings);
 
 ColormanageProcessor *IMB_colormanagement_colorspace_processor_new(const char *from_colorspace,
                                                                    const char *to_colorspace);

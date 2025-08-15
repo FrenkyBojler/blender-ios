@@ -49,6 +49,7 @@
 
 #include "SEQ_channels.hh"
 #include "SEQ_offscreen.hh"
+#include "SEQ_preview_cache.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
@@ -67,10 +68,11 @@ namespace blender::ed::vse {
 
 /**************************** common state *****************************/
 
-static void sequencer_scopes_tag_refresh(ScrArea *area)
+static void sequencer_scopes_tag_refresh(ScrArea *area, const Scene *scene)
 {
   SpaceSeq *sseq = (SpaceSeq *)area->spacedata.first;
-  sseq->runtime->scopes.reference_ibuf = nullptr;
+  sseq->runtime->scopes.cleanup();
+  seq::preview_cache_invalidate(const_cast<Scene *>(scene));
 }
 
 SpaceSeq_Runtime::~SpaceSeq_Runtime() = default;
@@ -301,14 +303,14 @@ static void sequencer_listener(const wmSpaceTypeListenerParams *params)
       switch (wmn->data) {
         case ND_FRAME:
         case ND_SEQUENCER:
-          sequencer_scopes_tag_refresh(area);
+          sequencer_scopes_tag_refresh(area, params->scene);
           break;
       }
       break;
     case NC_WINDOW:
     case NC_SPACE:
       if (wmn->data == ND_SPACE_SEQUENCER) {
-        sequencer_scopes_tag_refresh(area);
+        sequencer_scopes_tag_refresh(area, params->scene);
       }
       break;
     case NC_GPENCIL:
