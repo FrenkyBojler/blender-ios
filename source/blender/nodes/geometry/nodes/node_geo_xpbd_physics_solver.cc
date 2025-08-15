@@ -59,6 +59,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(EdgeLengthXPBDConstraintBundle::get_bundle_type());
   types.append(PinnedPositionXPBDConstraintBundle::get_bundle_type());
   types.append(InfiniteGroundPlaneBundle::get_bundle_type());
+  types.append(SphericalSelfCollisionConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -174,6 +175,7 @@ struct WorldData {
   BundleVectorSet<EdgeLengthXPBDConstraintBundle> edge_length_constraints;
   BundleVectorSet<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
   BundleVectorSet<InfiniteGroundPlaneBundle> infinite_ground_planes;
+  BundleVectorSet<SphericalSelfCollisionConstraintBundle> spherical_self_collision_constraints;
 };
 
 static AttrDomain get_position_domain(const bke::GeometryComponent::Type type)
@@ -208,6 +210,7 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.edge_length_constraints);
     parse_bundle(params, errors, world.pinned_position_constraints);
     parse_bundle(params, errors, world.infinite_ground_planes);
+    parse_bundle(params, errors, world.spherical_self_collision_constraints);
   });
   return world;
 }
@@ -851,9 +854,16 @@ static Contacts gather_contacts(
       const bke::PointCloudComponent &pointcloud_component =
           *static_cast<const bke::PointCloudComponent *>(component);
       if (const PointCloud *pointcloud = pointcloud_component.get()) {
+        const Vector spherical_self_collision_constraints =
+            filter_bundles_for_path<SphericalSelfCollisionConstraintBundle>(
+                world.spherical_self_collision_constraints, key.path);
         const VArraySpan<float> radii = pointcloud->radius();
         DynamicSphereContacts sphere_contacts;
-        gather_sphere_contacts(sim_points, radii, sphere_contacts);
+        for ([[maybe_unused]] const SphericalSelfCollisionConstraintBundle *constraint_bundle :
+             spherical_self_collision_constraints)
+        {
+          gather_sphere_contacts(sim_points, radii, sphere_contacts);
+        }
         if (!sphere_contacts.indices.is_empty()) {
           contacts.dynamic_sphere_contacts.add_new(key, std::move(sphere_contacts));
         }

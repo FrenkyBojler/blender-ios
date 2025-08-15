@@ -132,6 +132,17 @@ class InfiniteGroundPlaneBundle : public NestedBundleCommon {
                                                         BundleParseErrors &r_errors);
 };
 
+class SphericalSelfCollisionConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.SphericalSelfCollisionConstraint";
+
+  std::string filter;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<SphericalSelfCollisionConstraintBundle> parse(const Bundle &bundle,
+                                                                     BundleParseErrors &r_errors);
+};
+
 inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
     parse_collision_shape_type(const int type)
 {
