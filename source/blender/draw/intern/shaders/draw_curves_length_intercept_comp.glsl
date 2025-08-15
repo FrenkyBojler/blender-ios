@@ -25,7 +25,7 @@ void evaluate_length_and_time(const IndexRange evaluated_points, const int curve
   auto &curves_length = buffer_get(draw_curves_evaluate_length_intercept, curves_length_buf);
 
   float distance_along_curve = 0.0f;
-  evaluated_time[0] = 0.0f;
+  evaluated_time[evaluated_points.first()] = 0.0f;
   for (int i = 1; i < evaluated_points.size(); i++) {
     int p = evaluated_points.start() + i;
     distance_along_curve += distance(evaluated_positions_radii[p].xyz,
