@@ -423,7 +423,7 @@ bool UI_view_item_popup_keep_open(const AbstractViewItem &item)
   return item.get_view().get_popup_keep_open();
 }
 
-bool UI_view_item_drag_start(bContext &C, const AbstractViewItem &item)
+bool UI_view_item_drag_start(bContext &C, AbstractViewItem &item)
 {
   const std::unique_ptr<AbstractViewItemDragController> drag_controller =
       item.create_drag_controller();
@@ -436,6 +436,10 @@ bool UI_view_item_drag_start(bContext &C, const AbstractViewItem &item)
         &C, ICON_NONE, *drag_type, drag_controller->create_drag_data(), WM_DRAG_FREE_DATA);
   }
   drag_controller->on_drag_start(C);
+
+  /* Make sure the view item is highlighted as active when dragging from it. This is useful user
+   * feedback. */
+  item.set_state_active();
 
   return true;
 }

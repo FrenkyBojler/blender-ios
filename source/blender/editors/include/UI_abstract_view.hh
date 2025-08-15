@@ -224,6 +224,13 @@ class AbstractViewItem {
   virtual void build_context_menu(bContext &C, uiLayout &column) const;
 
   /**
+   * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
+   * state that happened externally.
+   * Can be overridden to customize behavior but should always call the base class implementation.
+   * \return true of the item was activated.
+   */
+  virtual bool set_state_active();
+  /**
    * Called when the view changes an item's state from inactive to active. Will only be called if
    * the state change is triggered through the view, not through external changes. E.g. a click on
    * an item calls it, a change in the value returned by #should_be_active() to reflect an external
@@ -349,14 +356,6 @@ class AbstractViewItem {
    * \note Always call the base class implementation when overriding this!
    */
   virtual void update_from_old(const AbstractViewItem &old);
-
-  /**
-   * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
-   * state that happened externally.
-   * Can be overridden to customize behavior but should always call the base class implementation.
-   * \return true of the item was activated.
-   */
-  virtual bool set_state_active();
 
   /**
    * See #AbstractView::change_state_delayed(). Overrides should call the base class
