@@ -379,7 +379,6 @@ const bTheme U_theme_default = {
     .act_spline = RGBA(0xdb2512ff),
     .nurb_sel_uline = RGBA(0xf0ff40ff),
     .nurb_sel_vline = RGBA(0xf090a0ff),
-    .lastsel_point = RGBA(0xffffffff),
     .vertex_size = 3,
     .edge_width = 1,
     .outline_width = 1,

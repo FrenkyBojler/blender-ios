@@ -462,7 +462,6 @@
         nurb_sel_uline="#f0ff40"
         nurb_sel_vline="#f090a0"
         act_spline="#db2512"
-        lastsel_point="#ffffff"
         extra_edge_len="#ff6149"
         extra_edge_angle="#cccc00"
         extra_face_angle="#b3b3ff"
@@ -525,7 +524,6 @@
         vertex_select="#ff8500"
         vertex_active="#ffffff"
         vertex_size="6"
-        lastsel_point="#ffffff"
         >
         <space>
           <ThemeSpaceGeneric

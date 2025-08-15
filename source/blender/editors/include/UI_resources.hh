@@ -141,7 +141,6 @@ enum ThemeColorID {
   TH_HANDLE_SEL_AUTOCLAMP,
 
   TH_ACTIVE_SPLINE,
-  TH_ACTIVE_VERT, /* equivalent of TH_EDITMESH_ACTIVE for splines */
 
   TH_SYNTAX_B,
   TH_SYNTAX_V,
