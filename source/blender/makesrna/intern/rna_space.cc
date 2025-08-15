@@ -69,6 +69,31 @@ const EnumPropertyItem rna_enum_geometry_component_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+// Limited set of types that have materials.
+const EnumPropertyItem rna_enum_geometry_component_type_with_material_items[] = {
+    {int(blender::bke::GeometryComponent::Type::Mesh),
+     "MESH",
+     ICON_MESH_DATA,
+     "Mesh",
+     "Mesh component containing point, corner, edge and face data"},
+    {int(blender::bke::GeometryComponent::Type::PointCloud),
+     "POINTCLOUD",
+     ICON_POINTCLOUD_DATA,
+     "Point Cloud",
+     "Point cloud component containing only point data"},
+    {int(blender::bke::GeometryComponent::Type::Curve),
+     "CURVE",
+     ICON_CURVE_DATA,
+     "Curve",
+     "Curve component containing spline and control point data"},
+    {int(blender::bke::GeometryComponent::Type::GreasePencil),
+     "GREASEPENCIL",
+     ICON_GREASEPENCIL,
+     "Grease Pencil",
+     "Grease Pencil component containing layers and curves data"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_space_type_items[] = {
     /* empty must be here for python, is skipped for UI */
     {SPACE_EMPTY, "EMPTY", ICON_NONE, "Empty", ""},

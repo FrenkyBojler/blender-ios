@@ -179,7 +179,6 @@ set(SRC
   nodes/node_geo_mesh_topology_vertex_of_corner.cc
   nodes/node_geo_mouse_position.cc
   nodes/node_geo_object_info.cc
-  nodes/node_geo_object_material.cc
   nodes/node_geo_offset_point_in_curve.cc
   nodes/node_geo_points.cc
   nodes/node_geo_points_to_curves.cc
@@ -195,6 +194,7 @@ set(SRC
   nodes/node_geo_sample_grid.cc
   nodes/node_geo_sample_grid_index.cc
   nodes/node_geo_sample_index.cc
+  nodes/node_geo_sample_material.cc
   nodes/node_geo_sample_nearest.cc
   nodes/node_geo_sample_nearest_surface.cc
   nodes/node_geo_sample_uv_surface.cc
