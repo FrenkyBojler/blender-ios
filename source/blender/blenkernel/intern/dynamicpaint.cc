@@ -280,7 +280,7 @@ void dynamicPaint_Modifier_free_runtime(DynamicPaintRuntime *runtime_data)
   if (runtime_data->brush_mesh) {
     BKE_id_free(nullptr, runtime_data->brush_mesh);
   }
-  MEM_freeN(runtime_data);
+  MEM_delete(runtime_data);
 }
 
 static DynamicPaintRuntime *dynamicPaint_Modifier_runtime_get(DynamicPaintModifierData *pmd)
