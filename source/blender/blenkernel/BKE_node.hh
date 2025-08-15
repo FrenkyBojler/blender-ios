@@ -444,7 +444,11 @@ struct bNodeType {
   bool is_type(StringRef query_idname) const;
 };
 
-/** #bNodeType.nclass (for add-menu and themes). */
+/** 
+ * #bNodeType.nclass (for add-menu and themes). 
+ * 
+ * rna_nodetree.cc contains `EnumPropertyItem rna_enum_node_class_items` based on these constants.
+ */
 #define NODE_CLASS_INPUT 0
 #define NODE_CLASS_OUTPUT 1
 #define NODE_CLASS_OP_COLOR 3

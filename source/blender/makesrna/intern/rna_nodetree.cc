@@ -9692,7 +9692,7 @@ static void rna_def_node(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(prop, "Icon", "The node icon");
 
-  prop = RNA_def_property(srna, "bl_nclass", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "bl_node_class", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_class_items);
   RNA_def_property_enum_sdna(prop, nullptr, "typeinfo->nclass");
   RNA_def_property_enum_default(prop, NODE_CLASS_INPUT);
