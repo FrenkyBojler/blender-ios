@@ -471,9 +471,14 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     /* Make sure UVs are computed before edituv stuffs. */
     buffers.vbos.add_new(VBOType::UVs, extract_uv_maps_subdiv(subdiv_cache, cache));
   }
+  if (ibos_to_create.contains(IBOType::AllUVLines)) {
+    buffers.ibos.add_new(IBOType::AllUVLines,
+                         extract_edituv_lines_subdiv(mr, subdiv_cache, UvExtractionMode::All));
+  }
   if (ibos_to_create.contains(IBOType::UVLines)) {
-    /* TODO: Add the AllUVLines case! */
-    buffers.ibos.add_new(IBOType::UVLines, extract_edituv_lines_subdiv(mr, subdiv_cache, false));
+    buffers.ibos.add_new(
+        IBOType::UVLines,
+        extract_edituv_lines_subdiv(mr, subdiv_cache, UvExtractionMode::Selection));
   }
   if (vbos_to_create.contains(VBOType::EditUVStretchArea)) {
     buffers.vbos.add_new(
@@ -492,7 +497,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
   }
   if (ibos_to_create.contains(IBOType::EditUVLines)) {
     buffers.ibos.add_new(IBOType::EditUVLines,
-                         extract_edituv_lines_subdiv(mr, subdiv_cache, true));
+                         extract_edituv_lines_subdiv(mr, subdiv_cache, UvExtractionMode::Edit));
   }
   if (ibos_to_create.contains(IBOType::EditUVPoints)) {
     buffers.ibos.add_new(IBOType::EditUVPoints, extract_edituv_points_subdiv(mr, subdiv_cache));

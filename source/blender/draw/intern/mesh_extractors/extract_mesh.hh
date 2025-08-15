@@ -373,7 +373,7 @@ enum class UvExtractionMode : int8_t {
 gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr, UvExtractionMode mode);
 gpu::IndexBufPtr extract_edituv_lines_subdiv(const MeshRenderData &mr,
                                              const DRWSubdivCache &subdiv_cache,
-                                             bool edit_uvs);
+                                             UvExtractionMode mode);
 gpu::IndexBufPtr extract_edituv_points(const MeshRenderData &mr);
 gpu::IndexBufPtr extract_edituv_points_subdiv(const MeshRenderData &mr,
                                               const DRWSubdivCache &subdiv_cache);

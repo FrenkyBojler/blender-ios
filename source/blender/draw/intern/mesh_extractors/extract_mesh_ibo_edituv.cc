@@ -479,9 +479,23 @@ static gpu::IndexBufPtr extract_edituv_lines_subdiv_mesh(const MeshRenderData &m
 
 gpu::IndexBufPtr extract_edituv_lines_subdiv(const MeshRenderData &mr,
                                              const DRWSubdivCache &subdiv_cache,
-                                             bool edit_uvs)
+                                             const UvExtractionMode mode)
 {
-  const bool sync_selection = ((mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0) || !edit_uvs;
+  bool sync_selection;
+  switch (mode) {
+    case UvExtractionMode::All:
+      sync_selection = false;
+      break;
+    case UvExtractionMode::Edit:
+      sync_selection = ((mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0);
+      break;
+    case UvExtractionMode::Selection:
+      sync_selection = true;
+      break;
+    default:
+      sync_selection = false;
+      BLI_assert_unreachable();
+  }
 
   if (mr.extract_type == MeshExtractType::BMesh) {
     return extract_edituv_lines_subdiv_bm(mr, subdiv_cache, sync_selection);
