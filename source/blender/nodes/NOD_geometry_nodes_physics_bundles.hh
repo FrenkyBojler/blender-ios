@@ -118,6 +118,20 @@ class PinnedPositionXPBDConstraintBundle : public NestedBundleCommon {
                                                                  BundleParseErrors &r_errors);
 };
 
+class InfiniteGroundPlaneBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.InfiniteGroundPlane";
+
+  std::string filter;
+  float3 position;
+  float3 normal;
+  float friction;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<InfiniteGroundPlaneBundle> parse(const Bundle &bundle,
+                                                        BundleParseErrors &r_errors);
+};
+
 inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
     parse_collision_shape_type(const int type)
 {

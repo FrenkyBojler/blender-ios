@@ -202,4 +202,33 @@ std::optional<PinnedPositionXPBDConstraintBundle> PinnedPositionXPBDConstraintBu
   return behavior;
 }
 
+const FlatBundleTypePtr &InfiniteGroundPlaneBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(InfiniteGroundPlaneBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Vector>("position");
+    b.add<decl::Vector>("normal");
+    b.add<decl::Float>("friction").default_value(0.5f).min(0.0f);
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<InfiniteGroundPlaneBundle> InfiniteGroundPlaneBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  InfiniteGroundPlaneBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "position", behavior.position, r_errors);
+  bundle_parse_member(bundle, "normal", behavior.normal, r_errors);
+  bundle_parse_member(bundle, "friction", behavior.friction, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 }  // namespace blender::nodes::physics_bundles

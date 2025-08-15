@@ -58,6 +58,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(XPBDGeometryBundle::get_bundle_type());
   types.append(EdgeLengthXPBDConstraintBundle::get_bundle_type());
   types.append(PinnedPositionXPBDConstraintBundle::get_bundle_type());
+  types.append(InfiniteGroundPlaneBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -165,12 +166,14 @@ struct WorldData {
       return bundle.self_path;
     }
   };
+  template<typename T> using BundleVectorSet = CustomIDVectorSet<T, SelfPathGetter>;
 
-  Vector<ForceBundle> forces;
-  Vector<GravityBundle> gravities;
-  CustomIDVectorSet<XPBDGeometryBundle, SelfPathGetter> geometries;
-  Vector<EdgeLengthXPBDConstraintBundle> edge_length_constraints;
-  Vector<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
+  BundleVectorSet<ForceBundle> forces;
+  BundleVectorSet<GravityBundle> gravities;
+  BundleVectorSet<XPBDGeometryBundle> geometries;
+  BundleVectorSet<EdgeLengthXPBDConstraintBundle> edge_length_constraints;
+  BundleVectorSet<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
+  BundleVectorSet<InfiniteGroundPlaneBundle> infinite_ground_planes;
 };
 
 static AttrDomain get_position_domain(const bke::GeometryComponent::Type type)
@@ -185,14 +188,14 @@ static WorldData parse_world(const Bundle &world_bundle)
     BundleParseErrors errors;
     if (params.type == ForceBundle::name) {
       if (std::optional<ForceBundle> force = ForceBundle::parse(params.bundle, errors)) {
-        world.forces.append(std::move(*force));
-        world.forces.last().self_path = Bundle::combine_path(params.path);
+        force->self_path = Bundle::combine_path(params.path);
+        world.forces.add_new(std::move(*force));
       }
     }
     else if (params.type == GravityBundle::name) {
       if (std::optional<GravityBundle> gravity = GravityBundle::parse(params.bundle, errors)) {
-        world.gravities.append(std::move(*gravity));
-        world.gravities.last().self_path = Bundle::combine_path(params.path);
+        gravity->self_path = Bundle::combine_path(params.path);
+        world.gravities.add_new(std::move(*gravity));
       }
     }
     else if (params.type == XPBDGeometryBundle::name) {
@@ -207,16 +210,24 @@ static WorldData parse_world(const Bundle &world_bundle)
       if (std::optional<EdgeLengthXPBDConstraintBundle> constraint =
               EdgeLengthXPBDConstraintBundle::parse(params.bundle, errors))
       {
-        world.edge_length_constraints.append(std::move(*constraint));
-        world.edge_length_constraints.last().self_path = Bundle::combine_path(params.path);
+        constraint->self_path = Bundle::combine_path(params.path);
+        world.edge_length_constraints.add_new(std::move(*constraint));
       }
     }
     else if (params.type == PinnedPositionXPBDConstraintBundle::name) {
       if (std::optional<PinnedPositionXPBDConstraintBundle> constraint =
               PinnedPositionXPBDConstraintBundle::parse(params.bundle, errors))
       {
-        world.pinned_position_constraints.append(std::move(*constraint));
-        world.pinned_position_constraints.last().self_path = Bundle::combine_path(params.path);
+        constraint->self_path = Bundle::combine_path(params.path);
+        world.pinned_position_constraints.add_new(std::move(*constraint));
+      }
+    }
+    else if (params.type == InfiniteGroundPlaneBundle::name) {
+      if (std::optional<InfiniteGroundPlaneBundle> constraint = InfiniteGroundPlaneBundle::parse(
+              params.bundle, errors))
+      {
+        constraint->self_path = Bundle::combine_path(params.path);
+        world.infinite_ground_planes.add_new(std::move(*constraint));
       }
     }
   });
@@ -760,23 +771,25 @@ struct Contacts {
 };
 
 static void gather_ground_plane_contacts(const SimPoints &sim_points,
-                                         const float3 &plane_position,
-                                         const float3 &plane_normal,
+                                         const InfiniteGroundPlaneBundle &ground_plane,
                                          const Span<float> sim_points_frictions,
-                                         const float collider_friction,
                                          StaticPlaneContacts &r_contacts)
 {
+  const float3 plane_normal = math::normalize(ground_plane.normal);
+  if (math::is_zero(plane_normal)) {
+    return;
+  }
   for (const int point_i : IndexRange(sim_points.points_num)) {
     const float3 &position = sim_points.positions[point_i];
-    const float distance = math::dot(position - plane_position, plane_normal);
+    const float distance = math::dot(position - ground_plane.position, plane_normal);
     if (distance >= 0.0f) {
       continue;
     }
     r_contacts.indices.append(point_i);
-    r_contacts.plane_positions.append(plane_position);
+    r_contacts.plane_positions.append(ground_plane.position);
     r_contacts.plane_normals.append(plane_normal);
     const float point_friction = sim_points_frictions[point_i];
-    const float friction = math::sqrt(point_friction * collider_friction);
+    const float friction = math::sqrt(point_friction * ground_plane.friction);
     r_contacts.static_frictions.append(friction);
     r_contacts.dynamic_frictions.append(friction);
     r_contacts.depths.append(-distance);
@@ -844,16 +857,14 @@ static Contacts gather_contacts(
       continue;
     }
     const Span<float> frictions = sim_points_props.lookup(key).frictions;
-    const float collider_friction = 1.0f;
 
     {
+      const Vector ground_plane_bundles = filter_bundles_for_path<InfiniteGroundPlaneBundle>(
+          world.infinite_ground_planes, key.path);
       StaticPlaneContacts plane_contacts;
-      gather_ground_plane_contacts(sim_points,
-                                   float3(0.0f),
-                                   float3(0.0f, 0.0f, 1.0f),
-                                   frictions,
-                                   collider_friction,
-                                   plane_contacts);
+      for (const InfiniteGroundPlaneBundle *ground_plane_bundle : ground_plane_bundles) {
+        gather_ground_plane_contacts(sim_points, *ground_plane_bundle, frictions, plane_contacts);
+      }
       if (!plane_contacts.indices.is_empty()) {
         contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
       }
