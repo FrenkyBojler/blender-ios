@@ -674,64 +674,6 @@ static void gather_edge_length_constraints(
   }
 }
 
-static void gather_pin_constraints(
-    ResourceScope &scope,
-    const WorldData &world,
-    const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
-{
-  for (const int key_i : keys.index_range()) {
-    const SimPointsKey &key = keys[key_i];
-    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
-    const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_bundle_i];
-    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
-
-    const Vector pinned_position_constraints =
-        filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
-            world.pinned_position_constraints, geometry_bundle.self_path);
-    if (pinned_position_constraints.is_empty()) {
-      continue;
-    }
-
-    const bke::GeometryComponent::Type type = key.type;
-    const bke::GeometryComponent *component = applied_geometry.get_component(type);
-    if (!component) {
-      continue;
-    }
-    const AttrDomain domain = get_position_domain(type);
-    const int domain_size = component->attribute_domain_size(domain);
-
-    bke::GeometryFieldContext field_context(*component, domain);
-    for (const PinnedPositionXPBDConstraintBundle *constraint_bundle : pinned_position_constraints)
-    {
-      fn::FieldEvaluator field_evaluator{field_context, domain_size};
-      field_evaluator.set_selection(constraint_bundle->selection);
-      field_evaluator.add(constraint_bundle->position);
-      field_evaluator.evaluate();
-      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-      if (mask.is_empty()) {
-        continue;
-      }
-      const VArray<float3> pin_positions_varray = field_evaluator.get_evaluated<float3>(0);
-      MutableSpan<int> constraint_indices = scope.allocator().allocate_array<int>(mask.size());
-      MutableSpan<float3> constraint_positions = scope.allocator().allocate_array<float3>(
-          mask.size());
-      mask.to_indices(constraint_indices);
-      pin_positions_varray.materialize_compressed(mask, constraint_positions);
-
-      /* Add actual constraint. */
-      r_constraint_sets.append(
-          {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
-               key_i, constraint_indices),
-           scope.construct<geometry::xpbd_constraint_solver::PinConstraintEvaluator>(
-               scope.allocator().construct_array<int>(constraint_indices.size(), key_i),
-               constraint_indices,
-               constraint_positions)});
-    }
-  }
-}
-
 struct StaticPlaneContacts {
   Vector<int> indices;
   Vector<float3> plane_positions;
@@ -754,6 +696,7 @@ struct Contacts {
 static void gather_ground_plane_contacts(const SimPoints &sim_points,
                                          const InfiniteGroundPlaneBundle &ground_plane,
                                          const Span<float> sim_points_frictions,
+                                         const Span<float> sim_points_inverse_masses,
                                          StaticPlaneContacts &r_contacts)
 {
   const float3 plane_normal = math::normalize(ground_plane.normal);
@@ -761,6 +704,12 @@ static void gather_ground_plane_contacts(const SimPoints &sim_points,
     return;
   }
   for (const int point_i : IndexRange(sim_points.points_num)) {
+    const float inverse_mass = sim_points_inverse_masses[point_i];
+    if (math::is_zero(inverse_mass)) {
+      /* Points with infinite mass are pinned and don't collide dynamically. */
+      continue;
+    }
+
     const float3 &position = sim_points.positions[point_i];
     const float distance = math::dot(position - ground_plane.position, plane_normal);
     if (distance >= 0.0f) {
@@ -837,14 +786,18 @@ static Contacts gather_contacts(
     if (!component) {
       continue;
     }
-    const Span<float> frictions = sim_points_props.lookup(key).frictions;
+    const SimPointsWorldProperties &props = sim_points_props.lookup(key);
 
     {
       const Vector ground_plane_bundles = filter_bundles_for_path<InfiniteGroundPlaneBundle>(
           world.infinite_ground_planes, key.path);
       StaticPlaneContacts plane_contacts;
       for (const InfiniteGroundPlaneBundle *ground_plane_bundle : ground_plane_bundles) {
-        gather_ground_plane_contacts(sim_points, *ground_plane_bundle, frictions, plane_contacts);
+        gather_ground_plane_contacts(sim_points,
+                                     *ground_plane_bundle,
+                                     props.frictions,
+                                     props.inverse_masses,
+                                     plane_contacts);
       }
       if (!plane_contacts.indices.is_empty()) {
         contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
@@ -1040,11 +993,88 @@ static Vector<geometry::xpbd_constraint_solver::MutablePointsRef> prepare_points
   return points_refs;
 }
 
+struct PinnedPositionAnimation {
+  float3 start;
+  float3 end;
+};
+
+static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_position_animations(
+    const XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const bool is_initialization)
+{
+  Map<SimPointsKey, Map<int, PinnedPositionAnimation>> result;
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+
+    const Vector constraint_bundle = filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
+        world.pinned_position_constraints, key.path);
+    if (constraint_bundle.is_empty()) {
+      continue;
+    }
+    const bke::GeometryComponent::Type type = key.type;
+    const bke::GeometryComponent *component = applied_geometry.get_component(type);
+    if (!component) {
+      continue;
+    }
+    const AttrDomain domain = get_position_domain(type);
+    const int domain_size = component->attribute_domain_size(domain);
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+
+    bke::GeometryFieldContext field_context(*component, domain);
+    Map<int, PinnedPositionAnimation> animations_map;
+    for (const PinnedPositionXPBDConstraintBundle *constraint_bundle : constraint_bundle) {
+      fn::FieldEvaluator field_evaluator{field_context, domain_size};
+      field_evaluator.set_selection(constraint_bundle->selection);
+      field_evaluator.add(constraint_bundle->position);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      if (mask.is_empty()) {
+        continue;
+      }
+      const VArray<float3> pinned_positions_varray = field_evaluator.get_evaluated<float3>(0);
+      mask.foreach_index([&](const int point_i) {
+        const float3 &old_position = is_initialization ? pinned_positions_varray[point_i] :
+                                                         sim_points.positions[point_i];
+        const float3 &new_position = pinned_positions_varray[point_i];
+        animations_map.add(point_i, {old_position, new_position});
+      });
+    }
+    if (!animations_map.is_empty()) {
+      result.add(key, std::move(animations_map));
+    }
+  }
+  return result;
+}
+
+static void update_pinned_positions(
+    XPBDState &state,
+    const Map<SimPointsKey, Map<int, PinnedPositionAnimation>> &pinned_position_animations,
+    const float factor)
+{
+  for (const auto item : pinned_position_animations.items()) {
+    const SimPointsKey &key = item.key;
+    SimPoints &sim_points = state.sim_points.lookup(key);
+    const Map<int, PinnedPositionAnimation> &animations_map = item.value;
+    for (const auto animation_map_item : animations_map.items()) {
+      const int point_i = animation_map_item.key;
+      const PinnedPositionAnimation &animation = animation_map_item.value;
+      const float3 current_position = math::interpolate(animation.start, animation.end, factor);
+      sim_points.positions[point_i] = current_position;
+    }
+  }
+}
+
 static void update_and_step_xpbd_state(XPBDState &state,
                                        const WorldData &world,
                                        const float total_delta_time,
                                        const SolverType solver_type,
-                                       const int substeps)
+                                       const int substeps,
+                                       const bool is_initialization)
 {
   ResourceScope scope;
   const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
@@ -1061,6 +1091,10 @@ static void update_and_step_xpbd_state(XPBDState &state,
       compute_sim_point_world_properties(scope, world, keys, applied_geometries);
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
       scope, world, keys, sim_points_props, applied_geometries);
+  const Map<SimPointsKey, Map<int, PinnedPositionAnimation>> pinned_position_animations =
+      compute_pinned_position_animations(
+          state, world, applied_geometries, keys, is_initialization);
+
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
   Vector<geometry::xpbd_constraint_solver::ConstraintSet> static_constraint_sets;
@@ -1072,7 +1106,6 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                  sim_points_props,
                                  sub_delta_time,
                                  static_constraint_sets);
-  gather_pin_constraints(scope, world, applied_geometries, keys, static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   for (const int i : keys.index_range()) {
@@ -1083,6 +1116,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
       prepare_points_refs_for_solver(state, keys);
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
+    const float factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
+
     /* Remember previous positions. */
     for (const int i : keys.index_range()) {
       const SimPointsKey &key = keys[i];
@@ -1093,6 +1128,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
     if (sub_delta_time > 0.0f) {
       integrate_velocities(state, accelerations_map, sub_delta_time);
     }
+
+    /* Move pinned points to the correct position for the current substep. */
+    update_pinned_positions(state, pinned_position_animations, factor);
 
     /* Find current collisisons and generate constraints to resolve them. */
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =
@@ -1145,6 +1183,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     update_counter = old_state_bundle_ptr->lookup<int>("counter").value_or(0);
   }
 
+  bool is_initialization = false;
+
   XPBDStateOwnerPtr xpbd_state_owner;
   if (old_state_bundle_ptr) {
     xpbd_state_owner = old_state_bundle_ptr->lookup<XPBDStateOwnerPtr>("state").value_or(nullptr);
@@ -1153,6 +1193,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     xpbd_state_owner = XPBDStateOwnerPtr{MEM_new<XPBDStateOwner>(__func__)};
     XPBDState &state = xpbd_state_owner->state;
     initialize_state(state);
+    is_initialization = true;
   }
 
   if (!xpbd_state_owner->mutex.try_lock()) {
@@ -1169,7 +1210,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
-    update_and_step_xpbd_state(state, world, delta_time, solver_type, substeps);
+    update_and_step_xpbd_state(state, world, delta_time, solver_type, substeps, is_initialization);
     state.update_counter = update_counter;
   }
 
