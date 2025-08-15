@@ -302,8 +302,8 @@ typedef struct Strip {
 
 typedef struct MetaStack {
   struct MetaStack *next, *prev;
-  ListBase *oldbasep;
-  ListBase *old_channels;
+  /** May be null (that means the root sequence). */
+  Strip *old_strip;
   Strip *parent_strip;
   /* The startdisp/enddisp when entering the metastrip. */
   int disp_range[2];
@@ -331,9 +331,9 @@ typedef struct EditingRuntime {
 } EditingRuntime;
 
 typedef struct Editing {
-  /** Pointer to the current list of strips being edited (can be within a meta-strip). */
-  ListBase *seqbasep;
-  ListBase *displayed_channels;
+  /** The current list of strips being edited (can be within a meta-strip). */
+  Strip *active_meta_strip;
+  Strip *displayed_channels_strip;
   void *_pad0;
   /** Pointer to the top-most strips. */
   ListBase seqbase;
@@ -355,6 +355,16 @@ typedef struct Editing {
   PrefetchJob *prefetch_job;
 
   EditingRuntime runtime;
+
+#ifdef __cplusplus
+  /** Access currently displayed strips, from root sequence or a meta-strip. */
+  ListBase *active_strips();
+  ListBase *active_strips() const;
+
+  /** Access currently displayed channels, from root sequence or a meta-strip. */
+  ListBase *active_displayed_channels();
+  ListBase *active_displayed_channels() const;
+#endif
 } Editing;
 
 /** \} */

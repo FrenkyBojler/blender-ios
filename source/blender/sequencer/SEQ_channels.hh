@@ -15,8 +15,10 @@ struct Strip;
 
 namespace blender::seq {
 
+/** The active displayed channels list, either from the root sequence or from a meta-strip. */
 ListBase *channels_displayed_get(const Editing *ed);
-void channels_displayed_set(Editing *ed, ListBase *channels);
+/** Set the strip used for the displayed channels list, or null to use the root sequence. */
+void channels_displayed_set(Editing *ed, Strip *channels_strip);
 void channels_ensure(ListBase *channels);
 void channels_duplicate(ListBase *channels_dst, ListBase *channels_src);
 void channels_free(ListBase *channels);

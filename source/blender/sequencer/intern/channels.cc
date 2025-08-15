@@ -27,12 +27,12 @@ namespace blender::seq {
 
 ListBase *channels_displayed_get(const Editing *ed)
 {
-  return ed->displayed_channels;
+  return ed->active_displayed_channels();
 }
 
-void channels_displayed_set(Editing *ed, ListBase *channels)
+void channels_displayed_set(Editing *ed, Strip *channels_strip)
 {
-  ed->displayed_channels = channels;
+  ed->displayed_channels_strip = channels_strip;
 }
 
 void channels_ensure(ListBase *channels)
