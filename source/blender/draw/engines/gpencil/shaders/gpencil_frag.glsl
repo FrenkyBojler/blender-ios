@@ -85,23 +85,23 @@ void main()
     float2 uv = gp_interp.uv;
     uv = uv * 2.0 - 1.0;
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_DOTS)) {
-      frag_color *= gpencil_stroke_round_mask(length(uv), gp_interp_noperspective.hardness);
+      frag_color *= gpencil_stroke_hardess_mask(length(uv), gp_interp_noperspective.hardness);
     }
     else {
       uv = abs(uv);
-      frag_color *= gpencil_stroke_round_mask(max(uv.x, uv.y), gp_interp_noperspective.hardness);
+      frag_color *= gpencil_stroke_hardess_mask(max(uv.x, uv.y), gp_interp_noperspective.hardness);
     }
   }
   else {
     /* Line mask */
-    frag_color *= gpencil_stroke_cap_mask(gp_interp_flat.sspos.xy,
-                                          gp_interp_flat.sspos.zw,
-                                          gp_interp_flat.sspos_adj.xy,
-                                          gp_interp_flat.sspos_adj.zw,
-                                          gp_interp_flat.aspect,
-                                          gp_interp_noperspective.thickness.x,
-                                          gp_interp_noperspective.hardness,
-                                          gp_interp_noperspective.thickness.zw);
+    frag_color *= gpencil_stroke_segment_mask(gp_interp_flat.sspos.xy,
+                                              gp_interp_flat.sspos.zw,
+                                              gp_interp_flat.sspos_adj.xy,
+                                              gp_interp_flat.sspos_adj.zw,
+                                              gp_interp_flat.aspect,
+                                              gp_interp_noperspective.thickness.x,
+                                              gp_interp_noperspective.hardness,
+                                              gp_interp_noperspective.thickness.zw);
   }
 
   /* To avoid aliasing artifacts, we reduce the opacity of small strokes. */

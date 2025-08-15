@@ -22,7 +22,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_gpencil)
 #define MITER_LIMIT_TYPE_ROUND -2.0f
 
 #ifdef GPU_FRAGMENT_SHADER
-float gpencil_stroke_round_mask(float dist, float hardfac)
+float gpencil_stroke_hardess_mask(float dist, float hardfac)
 {
   dist = clamp(1.0f - dist, 0.0f, 1.0f);
   if (hardfac > 0.999f) {
@@ -55,7 +55,7 @@ float gpencil_stroke_round_cap_mask(
   uv_end /= thickness;
   uv_end *= aspect;
 
-  return gpencil_stroke_round_mask(length(uv_end) * 2.0f, hardfac);
+  return gpencil_stroke_hardess_mask(length(uv_end) * 2.0f, hardfac);
 }
 
 /**
@@ -72,14 +72,14 @@ float gpencil_stroke_round_cap_mask(
  * p0                        p3
  *
  */
-float gpencil_stroke_cap_mask(float2 p1,
-                              float2 p2,
-                              float2 p0,
-                              float2 p3,
-                              float2 aspect,
-                              float thickness,
-                              float hardfac,
-                              float2 miter_limit)
+float gpencil_stroke_segment_mask(float2 p1,
+                                  float2 p2,
+                                  float2 p0,
+                                  float2 p3,
+                                  float2 aspect,
+                                  float thickness,
+                                  float hardfac,
+                                  float2 miter_limit)
 {
   if (miter_limit.x == MITER_LIMIT_TYPE_ROUND && miter_limit.y == MITER_LIMIT_TYPE_ROUND) {
     return gpencil_stroke_round_cap_mask(p1, p2, aspect, thickness, hardfac);
@@ -156,7 +156,7 @@ float gpencil_stroke_cap_mask(float2 p1,
     }
   }
 
-  return gpencil_stroke_round_mask(dist, hardfac);
+  return gpencil_stroke_hardess_mask(dist, hardfac);
 }
 #endif
 
