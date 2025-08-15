@@ -1158,7 +1158,7 @@ BLI_INLINE float lookup_ewa_weight(const float r2_normalized, const bool interpo
     return EWA_GAUSS_LUT[bin_index];
   }
 
-  // Linear interpolation between bin_index and bin_index+1.
+  /* Linear interpolation between bin_index and bin_index+1. */
   const float frac = t_float - float(bin_index);
   const int next_i = (bin_index < EWA_GAUSS_MAXIDX) ? (bin_index + 1) : EWA_GAUSS_MAXIDX;
 
@@ -1382,8 +1382,7 @@ void BLI_ewa_single_level(const int2 &dimensions,
                           const float2 &uv_dy_norm,
                           const float *buffer,
                           float4 &result,
-                          const float &max_factor_between_axes,
-                          const bool &interpolate_lut)
+                          const float &max_factor_between_axes)
 {
   const Ellipse ellipse = build_ellipse(
       dimensions, uv_center_norm, uv_dx_norm, uv_dy_norm, max_factor_between_axes);
