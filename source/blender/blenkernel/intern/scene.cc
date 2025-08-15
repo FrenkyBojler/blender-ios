@@ -334,7 +334,8 @@ static void scene_copy_data(Main *bmain,
     scene_dst->ed->show_missing_media_flag = scene_src->ed->show_missing_media_flag;
     scene_dst->ed->proxy_storage = scene_src->ed->proxy_storage;
     STRNCPY(scene_dst->ed->proxy_dir, scene_src->ed->proxy_dir);
-    blender::seq::seqbase_duplicate_recursive(scene_src,
+    blender::seq::seqbase_duplicate_recursive(bmain,
+                                              scene_src,
                                               scene_dst,
                                               &scene_dst->ed->seqbase,
                                               &scene_src->ed->seqbase,
@@ -1983,7 +1984,8 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
        * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
        * and therefore not remapping their obdata to the newly duplicated one.
        * See #139715. */
-      BKE_libblock_relink_to_newid(bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE);
+      BKE_libblock_relink_to_newid(
+          bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
 
 #ifndef NDEBUG
       /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those

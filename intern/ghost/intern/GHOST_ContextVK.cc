@@ -10,8 +10,6 @@
 
 #ifdef _WIN32
 #  include <vulkan/vulkan_win32.h>
-#elif defined(__APPLE__)
-#  include <MoltenVK/vk_mvk_moltenvk.h>
 #else /* X11/WAYLAND. */
 #  ifdef WITH_GHOST_X11
 #    include <vulkan/vulkan_xlib.h>
@@ -279,11 +277,8 @@ class GHOST_DeviceVK {
     queue_create_infos.push_back(graphic_queue_create_info);
 
     VkPhysicalDeviceFeatures device_features = {};
-#ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
-    /* MoltenVK supports logicOp, needs to be build with MVK_USE_METAL_PRIVATE_API. */
     device_features.logicOp = VK_TRUE;
-#endif
     device_features.dualSrcBlend = VK_TRUE;
     device_features.imageCubeArray = VK_TRUE;
     device_features.multiDrawIndirect = VK_TRUE;
@@ -306,7 +301,7 @@ class GHOST_DeviceVK {
     /* Enable vulkan 11 features when supported on physical device. */
     VkPhysicalDeviceVulkan11Features vulkan_11_features = {};
     vulkan_11_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-    vulkan_11_features.shaderDrawParameters = features_11.shaderDrawParameters;
+    vulkan_11_features.shaderDrawParameters = VK_TRUE;
     feature_struct_ptr.push_back(&vulkan_11_features);
 
     /* Enable optional vulkan 12 features when supported on physical device. */
@@ -391,6 +386,22 @@ class GHOST_DeviceVK {
     fragment_shader_barycentric.fragmentShaderBarycentric = VK_TRUE;
     if (extension_enabled(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&fragment_shader_barycentric);
+    }
+
+    /* VK_EXT_memory_priority */
+    VkPhysicalDeviceMemoryPriorityFeaturesEXT memory_priority = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT, nullptr, VK_TRUE};
+    if (extension_enabled(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&memory_priority);
+    }
+
+    /* VK_EXT_pageable_device_local_memory */
+    VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT pageable_device_local_memory = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT,
+        nullptr,
+        VK_TRUE};
+    if (extension_enabled(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&pageable_device_local_memory);
     }
 
     /* Link all registered feature structs. */
@@ -538,7 +549,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
 
 /** \} */
 
-GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
+GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #ifdef _WIN32
                                  HWND hwnd,
 #elif defined(__APPLE__)
@@ -555,9 +566,8 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
 #endif
                                  int contextMajorVersion,
                                  int contextMinorVersion,
-                                 int debug,
                                  const GHOST_GPUDevice &preferred_device)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
 #ifdef _WIN32
       m_hwnd(hwnd),
 #elif defined(__APPLE__)
@@ -574,7 +584,6 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
 #endif
       m_context_major_version(contextMajorVersion),
       m_context_minor_version(contextMinorVersion),
-      m_debug(debug),
       m_preferred_device(preferred_device),
       m_surface(VK_NULL_HANDLE),
       m_swapchain(VK_NULL_HANDLE),
@@ -620,19 +629,17 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
    * to be complete, it is also safe in the callback to clean up resources associated with the next
    * frame.
    */
+  m_render_frame = (m_render_frame + 1) % m_frame_data.size();
   GHOST_Frame &submission_frame_data = m_frame_data[m_render_frame];
-  uint64_t next_render_frame = (m_render_frame + 1) % m_frame_data.size();
-
-  /* Wait for next frame to finish rendering. Presenting can still
-   * happen in parallel, but acquiring needs can only happen when the frame acquire semaphore has
-   * been signaled and waited for. */
-  VkFence *next_frame_fence = &m_frame_data[next_render_frame].submission_fence;
-  vkWaitForFences(device, 1, next_frame_fence, true, UINT64_MAX);
+  /* Wait for previous time that the frame was used to finish rendering. Presenting can
+   * still happen in parallel, but acquiring needs can only happen when the frame acquire semaphore
+   * has been signaled and waited for. */
+  vkWaitForFences(device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   submission_frame_data.discard_pile.destroy(device);
   bool use_hdr_swapchain = false;
 #ifdef WITH_GHOST_WAYLAND
   /* Wayland doesn't provide a WSI with windowing capabilities, therefore cannot detect whether the
-   * swap-chain needs to be recreated. But as a side effect we can recreate the swap chain before
+   * swap-chain needs to be recreated. But as a side effect we can recreate the swap-chain before
    * presenting. */
   if (m_wayland_window_info) {
     const bool recreate_swapchain =
@@ -680,7 +687,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   if (m_swapchain == VK_NULL_HANDLE) {
     CLOG_TRACE(
         &LOG,
-        "Swapchain invalid (due to minimized window), perform rendering to reduce render graph "
+        "Swap-chain invalid (due to minimized window), perform rendering to reduce render graph "
         "resources.");
     GHOST_VulkanSwapChainData swap_chain_data = {};
     if (swap_buffers_pre_callback_) {
@@ -694,7 +701,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
 
   CLOG_DEBUG(&LOG,
-             "Acquired swapchain image (render_frame=%lu, image_index=%u)",
+             "Acquired swap-chain image (render_frame=%lu, image_index=%u)",
              m_render_frame,
              image_index);
   GHOST_SwapchainImage &swapchain_image = m_swapchain_images[image_index];
@@ -726,7 +733,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     std::scoped_lock lock(vulkan_device->queue_mutex);
     present_result = vkQueuePresentKHR(m_present_queue, &present_info);
   }
-  m_render_frame = next_render_frame;
+
   if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
     recreateSwapchain(use_hdr_swapchain);
     if (swap_buffers_post_callback_) {
@@ -736,7 +743,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
   if (present_result != VK_SUCCESS) {
     CLOG_ERROR(&LOG,
-               "Vulkan: failed to present swap chain image : %s",
+               "Vulkan: failed to present swap-chain image : %s",
                vulkan_error_as_string(present_result));
   }
 
@@ -841,7 +848,8 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
   }
 }
 
-static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
+static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
+                                        VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
 {
@@ -849,6 +857,22 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, nullptr);
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
+
+  if (vsync != GHOST_kVSyncModeUnset) {
+    const bool vsync_off = (vsync == GHOST_kVSyncModeOff);
+    if (vsync_off) {
+      for (auto present_mode : presents) {
+        if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+          *r_presentMode = present_mode;
+          return GHOST_kSuccess;
+        }
+      }
+      CLOG_WARN(&LOG,
+                "Vulkan: VSync off was requested via --gpu-vsync, "
+                "but VK_PRESENT_MODE_IMMEDIATE_KHR is not supported.");
+    }
+  }
+
   /* MAILBOX is the lowest latency V-Sync enabled mode. We will use it if available as it fixes
    * some lag on NVIDIA/Intel GPUs. */
   /* TODO: select the correct presentation mode based on the actual being performed by the user.
@@ -950,7 +974,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   }
 
   VkPresentModeKHR present_mode;
-  if (!selectPresentMode(physical_device, m_surface, &present_mode)) {
+  if (!selectPresentMode(getVSync(), physical_device, m_surface, &present_mode)) {
     return GHOST_kFailure;
   }
 
@@ -1031,8 +1055,8 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
     }
   }
 
-  /* Swapchains with out any resolution should not be created. In the case the render extent is
-   * zero we should not use the swap chain.
+  /* Swap-chains with out any resolution should not be created. In the case the render extent is
+   * zero we should not use the swap-chain.
    *
    * VUID-VkSwapchainCreateInfoKHR-imageExtent-01689
    */
@@ -1224,7 +1248,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vector<const char *> optional_device_extensions;
   vector<const char *> extensions_enabled;
 
-  if (m_debug) {
+  if (m_context_params.is_debug) {
     requireExtension(extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
@@ -1273,6 +1297,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   optional_device_extensions.push_back(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {

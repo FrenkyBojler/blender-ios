@@ -119,7 +119,7 @@ static void rna_NodeTreeInterfaceItem_update(Main *bmain, Scene * /*scene*/, Poi
     /* This can happen because of the dummy socket in #rna_NodeTreeInterfaceSocket_register. */
     return;
   }
-  ntree->tree_interface.tag_items_changed();
+  ntree->tree_interface.tag_item_property_changed();
   BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
@@ -427,12 +427,6 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
         socket_type->type, PROP_NONE);
     BLI_assert(base_socket_type != nullptr);
     if (socket_type != base_socket_type) {
-      return false;
-    }
-  }
-
-  if (!U.experimental.use_bundle_and_closure_nodes) {
-    if (ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE)) {
       return false;
     }
   }
@@ -914,13 +908,6 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocketString_subtype_itemf(
   return rna_subtype_filter_itemf({PROP_FILEPATH, PROP_NONE}, r_free);
 }
 
-/* using a context update function here, to avoid searching the node if possible */
-static void rna_NodeTreeInterfaceSocket_value_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-  /* default update */
-  rna_NodeTreeInterfaceItem_update(bmain, scene, ptr);
-}
-
 /* If the dimensions of the vector socket changed, we need to update the socket type, since each
  * dimensions value has its own sub-type. */
 static void rna_NodeTreeInterfaceSocketVector_dimensions_update(Main *bmain,
@@ -943,7 +930,7 @@ static void rna_NodeTreeInterfaceSocketVector_dimensions_update(Main *bmain,
   /* Restore existing default value. */
   *static_cast<bNodeSocketValueVector *>(socket->socket_data) = default_value;
 
-  rna_NodeTreeInterfaceSocket_value_update(bmain, scene, ptr);
+  rna_NodeTreeInterfaceItem_update(bmain, scene, ptr);
 }
 
 static bool rna_NodeTreeInterfaceSocketMaterial_default_value_poll(PointerRNA * /*ptr*/,
