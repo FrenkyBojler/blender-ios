@@ -2391,17 +2391,22 @@ static int Matrix_getbuffer(PyObject *obj, Py_buffer *view, int flags)
   view->buf = (void *)self->matrix;
   view->len = Py_ssize_t(self->row_num * self->col_num * sizeof(float));
   view->itemsize = sizeof(float);
-  if (LIKELY((flags & PyBUF_WRITABLE) == 0)) {
+  if ((flags & PyBUF_WRITABLE) == 0) {
     view->readonly = 1;
   }
   if (LIKELY(flags & PyBUF_FORMAT)) {
     view->format = (char *)"f";
   }
-  if (flags & PyBUF_ND) {
+  if (LIKELY(flags & PyBUF_ND)) {
     view->ndim = 2;
     view->shape = MEM_malloc_arrayN<Py_ssize_t>(size_t(view->ndim), __func__);
     view->shape[0] = self->row_num;
     view->shape[1] = self->col_num;
+  }
+  if (LIKELY(flags & PyBUF_STRIDES)) {
+    view->strides = MEM_malloc_arrayN<Py_ssize_t>(size_t(view->ndim), __func__);
+    view->strides[0] = sizeof(float); /* step between lines in column-major */
+    view->strides[1] = Py_ssize_t(self->row_num) * sizeof(float); /* step between columns */
   }
 
   self->flag |= BASE_MATH_FLAG_HAS_BUFFER_VIEW;
@@ -2415,10 +2420,13 @@ static void Matrix_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
   MatrixObject *self = (MatrixObject *)view->obj;
   self->flag &= ~BASE_MATH_FLAG_HAS_BUFFER_VIEW;
 
-  if (UNLIKELY((!view->readonly) && BaseMath_WriteCallback(self) == -1)) {
-    PyErr_Print();
+  if (view->readonly == 0) {
+    if (UNLIKELY(BaseMath_WriteCallback(self) == -1)) {
+      PyErr_Print();
+    }
   }
   MEM_SAFE_FREE(view->shape);
+  MEM_SAFE_FREE(view->strides);
 }
 
 static PyBufferProcs Matrix_as_buffer = {
@@ -3537,7 +3545,7 @@ PyTypeObject matrix_Type = {
     /*tp_str*/ (reprfunc)Matrix_str,
     /*tp_getattro*/ nullptr,
     /*tp_setattro*/ nullptr,
-    /*tp_as_buffer*/ nullptr,
+    /*tp_as_buffer*/ &Matrix_as_buffer,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ matrix_doc,
     /*tp_traverse*/ (traverseproc)BaseMathObject_traverse,
@@ -3981,7 +3989,7 @@ PyTypeObject matrix_access_Type = {
     /*tp_str*/ nullptr,
     /*tp_getattro*/ nullptr,
     /*tp_setattro*/ nullptr,
-    /*tp_as_buffer*/ &Matrix_as_buffer,
+    /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ nullptr,
     /*tp_traverse*/ (traverseproc)MatrixAccess_traverse,

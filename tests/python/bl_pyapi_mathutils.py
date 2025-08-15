@@ -295,18 +295,13 @@ class MatrixTesting(unittest.TestCase):
             mat[0][0] = 0.0
 
     def test_buffer_protocol(self):
-        try:
-            # memoryview does not support ndim arrays, so external modules will have to be used.
-            import numpy as np
-        except ImportError:
-            return
+        expected = [list(range(i * 4, (i * 4) + 4)) for i in range(4)]
+        m = Matrix(expected)
+        view = memoryview(m)
 
-        expected = [list(range(4)) for _ in range(4)]
-        np_arr = np.array(Matrix(expected))
-
-        self.assertEqual(np_arr.shape, (4, 4))
-        self.assertEqual(np_arr.dtype, np.float32)
-        self.assertEqual(np_arr.tolist(), expected)
+        self.assertEqual(view.shape, (4, 4))
+        self.assertEqual(view.format, 'f')
+        self.assertEqual(view.tolist(), expected)
 
     def assertAlmostEqualMatrix(self, first, second, size, *, places=6, msg=None, delta=None):
         for i in range(size):

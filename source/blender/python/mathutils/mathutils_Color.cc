@@ -326,7 +326,7 @@ static int Color_getbuffer(PyObject *obj, Py_buffer *view, int flags)
   view->len = Py_ssize_t(COLOR_SIZE * sizeof(float));
   view->itemsize = sizeof(float);
   view->ndim = 1;
-  if (LIKELY((flags & PyBUF_WRITABLE) == 0)) {
+  if ((flags & PyBUF_WRITABLE) == 0) {
     view->readonly = 1;
   }
   if (LIKELY(flags & PyBUF_FORMAT)) {
@@ -344,8 +344,10 @@ static void Color_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
   ColorObject *self = (ColorObject *)view->obj;
   self->flag &= ~BASE_MATH_FLAG_HAS_BUFFER_VIEW;
 
-  if (UNLIKELY((!view->readonly) && BaseMath_WriteCallback(self) == -1)) {
-    PyErr_Print();
+  if (view->readonly == 0) {
+    if (UNLIKELY(BaseMath_WriteCallback(self) == -1)) {
+      PyErr_Print();
+    }
   }
 }
 
