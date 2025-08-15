@@ -1400,19 +1400,19 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
     if (!hide_vert.is_empty() && hide_vert[vert]) {
       continue;
     }
-    const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-    const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-    if (!normal_test_r && !area_test_r) {
+    const bool needs_normal = use_area_nos && distances_sq[i] <= normal_radius_sq;
+    const bool needs_center = use_area_cos && distances_sq[i] <= position_radius_sq;
+    if (!needs_normal && !needs_center) {
       continue;
     }
     const float3 &normal = normals[vert];
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-    if (area_test_r) {
+    if (needs_center) {
       accumulate_area_center(
           location, positions[vert], distance, position_radius_inv, flip_index, anctd);
     }
-    if (normal_test_r) {
+    if (needs_normal) {
       accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
     }
   }
@@ -1468,19 +1468,19 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
       const int node_vert = grid_range_node[offset];
       const int vert = grid_range[offset];
 
-      const bool normal_test_r = use_area_nos && distances_sq[node_vert] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[node_vert] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
+      const bool needs_normal = use_area_nos && distances_sq[node_vert] <= normal_radius_sq;
+      const bool needs_center = use_area_cos && distances_sq[node_vert] <= position_radius_sq;
+      if (!needs_normal && !needs_center) {
         continue;
       }
       const float3 &normal = normals[vert];
       const float distance = std::sqrt(distances_sq[node_vert]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
+      if (needs_center) {
         accumulate_area_center(
             location, positions[node_vert], distance, position_radius_inv, flip_index, anctd);
       }
-      if (normal_test_r) {
+      if (needs_normal) {
         accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
       }
     }
@@ -1535,9 +1535,9 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
         ss, positions, eBrushFalloffShape(brush.falloff_shape), distances_sq);
 
     for (const int i : orig_tris.index_range()) {
-      const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
+      const bool needs_normal = use_area_nos && distances_sq[i] <= normal_radius_sq;
+      const bool needs_center = use_area_cos && distances_sq[i] <= position_radius_sq;
+      if (!needs_normal && !needs_center) {
         continue;
       }
       const float3 normal = math::normal_tri(float3(orig_positions[orig_tris[i][0]]),
@@ -1546,11 +1546,11 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
 
       const float distance = std::sqrt(distances_sq[i]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
+      if (needs_center) {
         accumulate_area_center(
             location, positions[i], distance, position_radius_inv, flip_index, anctd);
       }
-      if (normal_test_r) {
+      if (needs_normal) {
         accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
       }
     }
@@ -1583,20 +1583,20 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
       i++;
       continue;
     }
-    const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-    const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-    if (!normal_test_r && !area_test_r) {
+    const bool needs_normal = use_area_nos && distances_sq[i] <= normal_radius_sq;
+    const bool needs_center = use_area_cos && distances_sq[i] <= position_radius_sq;
+    if (!needs_normal && !needs_center) {
       i++;
       continue;
     }
     const float3 normal = normals[i];
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-    if (area_test_r) {
+    if (needs_center) {
       accumulate_area_center(
           location, positions[i], distance, position_radius_inv, flip_index, anctd);
     }
-    if (normal_test_r) {
+    if (needs_normal) {
       accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
     }
     i++;
