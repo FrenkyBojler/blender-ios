@@ -159,6 +159,10 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
  */
 static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
 {
+  if (region->regiontype != RGN_TYPE_HEADER) {
+    return;
+  }
+
   if (az->x1 < area->totrct.xmin + 1) {
     if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
         (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))

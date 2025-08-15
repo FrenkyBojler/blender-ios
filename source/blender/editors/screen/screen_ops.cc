@@ -4470,11 +4470,21 @@ static bool is_header_azone_location(ScrArea *area, const wmEvent *event)
     return false;
   }
 
-  if (event->xy[1] < (area->totrct.ymax - UI_AZONESPOTH)) {
+  ARegion *header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
+  if (header->flag & RGN_FLAG_HIDDEN) {
     return false;
   }
 
-  return true;
+  const int height = ED_area_headersize();
+  if (header->alignment == RGN_ALIGN_TOP && event->xy[1] > (area->totrct.ymax - height)) {
+    return true;
+  }
+
+  if (header->alignment == RGN_ALIGN_BOTTOM && event->xy[1] < (area->totrct.ymin + height)) {
+    return true;
+  }
+
+  return false;
 }
 
 /* modal callback while selecting area (space) that will be removed */

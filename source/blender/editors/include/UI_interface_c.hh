@@ -2209,8 +2209,8 @@ void UI_update_text_styles();
 
 #define UI_HEADER_OFFSET ((void)0, 16.0f * UI_SCALE_FAC)
 
-#define UI_AZONESPOTW (0.4f * U.widget_unit)  /* Width of corner action zone #AZone. */
-#define UI_AZONESPOTH (16.0f * U.widget_unit) /* Height of corner action zone #AZone. */
+#define UI_AZONESPOTW UI_HEADER_OFFSET       /* Width of corner action zone #AZone. */
+#define UI_AZONESPOTH (0.6f * U.widget_unit) /* Height of corner action zone #AZone. */
 
 /* uiLayoutOperatorButs flags */
 enum {
