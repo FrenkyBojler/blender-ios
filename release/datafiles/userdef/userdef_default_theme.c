@@ -614,7 +614,6 @@ const bTheme U_theme_default = {
     .face = RGBA(0xffffff0a),
     .face_select = RGBA(0xff85003c),
     .face_dot = RGBA(0xff8500ff),
-    .freestyle_face_mark = RGBA(0x7fff7f33),
     .vertex_size = 3,
     .edge_width = 1,
     .outline_width = 1,
