@@ -1609,7 +1609,14 @@ def pyrna2sphinx(basepath):
         ]
         subclass_ids.sort()
         if subclass_ids:
-            fw("subclasses --- \n" + ", ".join((":class:`{:s}`".format(s)) for s in subclass_ids) + "\n\n")
+            fw(".. toctree::\n")
+            fw("   :caption: Subclasses\n")
+            fw("   :maxdepth: 1\n\n")
+
+            for s in subclass_ids:
+                fw("   {:s}.{:s}.rst\n".format(struct_module_name, s))
+
+        fw("\n")
 
         base_id = getattr(struct.base, "identifier", "")
 
@@ -1892,8 +1899,14 @@ def pyrna2sphinx(basepath):
                     if not rna_info.rna_id_ignore(s.identifier)
                 ]
                 if subclass_ids:
-                    fw("subclasses --- \n" + ", ".join((":class:`{:s}`".format(s))
-                       for s in sorted(subclass_ids)) + "\n\n")
+                    fw(".. toctree::\n")
+                    fw("   :caption: Subclasses\n")
+                    fw("   :maxdepth: 1\n\n")
+
+                    for s in sorted(subclass_ids):
+                        fw("   {:s}.{:s}.rst\n".format(class_module_name, s))
+
+                fw("\n")
 
             fw(".. class:: {:s}\n\n".format(class_name))
             fw("   {:s}\n\n".format(descr_str))
@@ -2129,9 +2142,12 @@ def write_rst_types_index(basepath):
         fw(".. module:: bpy.types\n\n")
         fw(".. toctree::\n")
         # Only show top-level entries (avoids unreasonably large pages).
-        fw("   :maxdepth: 1\n")
-        fw("   :glob:\n\n")
-        fw("   bpy.types.*\n\n")
+        # fw("   :maxdepth: 2\n")
+        fw("   :titlesonly:\n\n")
+        fw("   bpy.types.GeometrySet.rst\n")
+        fw("   bpy.types.bpy_prop_collection.rst\n")
+        fw("   bpy.types.bpy_prop_collection_idprop.rst\n")
+        fw("   bpy.types.bpy_struct.rst\n\n")
 
         # This needs to be included somewhere, while it's hidden, list to avoid warnings.
         if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
