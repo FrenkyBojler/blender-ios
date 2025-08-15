@@ -1223,23 +1223,24 @@ class Preprocessor {
 
                 if (is_const) {
                   fn_parser.erase(args.end().next());
-                  fn_parser.insert_after(
-                      args.start(), "const " + struct_name.str_no_whitespace() + " this" + suffix);
+                  fn_parser.insert_after(args.start(),
+                                         "const " + struct_name.str_no_whitespace() + " this_" +
+                                             suffix);
                 }
                 else {
                   fn_parser.insert_after(args.start(),
-                                         struct_name.str_no_whitespace() + " &this" + suffix);
+                                         struct_name.str_no_whitespace() + " &this_" + suffix);
                 }
               });
             }
 
             /* `*this` -> `this` */
             scope.foreach_match("*T", [&](const std::vector<Token> &tokens) {
-              fn_parser.replace(tokens[0], tokens[1], tokens[1].str());
+              fn_parser.replace(tokens[0], tokens[1], "this");
             });
             /* `this->` -> `this.` */
             scope.foreach_match("TD", [&](const std::vector<Token> &tokens) {
-              fn_parser.replace(tokens[0], tokens[1], tokens[0].str() + ".");
+              fn_parser.replace(tokens[0], tokens[1], "this_.");
             });
           });
 

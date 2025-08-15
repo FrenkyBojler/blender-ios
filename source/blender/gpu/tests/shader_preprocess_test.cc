@@ -968,15 +968,15 @@ class S {
 void main()
 {
   S s = S::construct();
-  a.b();
-  a(0).b();
-  a().b();
-  a.b.c();
-  a.b(0).c();
-  a.b().c();
-  a[0].b();
-  a.b[0].c();
-  a.b().c[0];
+  f.f();
+  f(0).f();
+  f().f();
+  l.o.t();
+  l.o(0).t();
+  l.o().t();
+  l[0].o();
+  l.o[0].t();
+  l.o().t[0];
 }
 )";
     string expect = R"(
@@ -1033,15 +1033,15 @@ struct S {
 void main()
 {
   S s = S_construct();
-  b(a);
-  b(a(0));
-  b(a());
-  c(a.b);
-  c(b(a, 0));
-  c(b(a));
-  b(a[0]);
-  c(a.b[0]);
-  b(a).c[0];
+  f(f);
+  f(f(0));
+  f(f());
+  t(l.o);
+  t(o(l, 0));
+  t(o(l));
+  o(l[0]);
+  t(l.o[0]);
+  o(l).t[0];
 }
 )";
     string error;
