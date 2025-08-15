@@ -6105,7 +6105,7 @@ uiLayout *uiItemsAlertBox(uiBlock *block,
   uiLayout *layout = &split_block->row(false);
   /* Using 'align_left' with 'row' avoids stretching the icon along the width of column. */
   layout->alignment_set(blender::ui::LayoutAlign::Left);
-  uiDefButAlert(block, icon, 0, 0, icon_size, icon_size, icon == ALERT_ICON_ERROR);
+  uiDefButAlert(block, icon, 0, 0, icon_size, icon_size);
 
   /* The rest of the content on the right. */
   layout = &split_block->column(false);

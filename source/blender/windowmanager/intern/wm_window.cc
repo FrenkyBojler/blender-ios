@@ -2140,7 +2140,7 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
 void wm_test_gpu_backend_fallback(bContext *C)
 {
   if (!bool(G.f & G_FLAG_GPU_BACKEND_FALLBACK)) {
-    return;
+    // return;
   }
 
   /* Have we already shown a message during this Blender session. */
