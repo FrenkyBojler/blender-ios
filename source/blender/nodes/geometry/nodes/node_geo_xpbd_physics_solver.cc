@@ -9,12 +9,12 @@
 #include "BLI_kdtree.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
-
 #include "BLI_ordered_edge.hh"
+
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
-
 #include "DNA_pointcloud_types.h"
+
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
@@ -23,7 +23,6 @@
 #include "GEO_xpbd_common_constraint_set_indices.hh"
 #include "GEO_xpbd_constraint_solver.hh"
 
-#include "intern/attribute_storage_access.hh"
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_xpbd_physics_solver_cc {
