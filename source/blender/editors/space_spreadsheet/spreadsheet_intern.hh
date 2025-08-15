@@ -15,6 +15,9 @@ struct SpaceSpreadsheet;
 struct ARegion;
 struct SpreadsheetColumn;
 struct bContext;
+namespace blender::nodes::geo_eval_log {
+class ViewerNodeLog;
+}
 
 #define SPREADSHEET_EDGE_ACTION_ZONE (UI_UNIT_X * 0.3f)
 
@@ -50,8 +53,10 @@ void spreadsheet_operatortypes();
 Object *spreadsheet_get_object_eval(const SpaceSpreadsheet *sspreadsheet,
                                     const Depsgraph *depsgraph);
 
-bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *sspreadsheet,
-                                                      Object *object_eval);
+const nodes::geo_eval_log::ViewerNodeLog *viewer_node_log_lookup(
+    const SpaceSpreadsheet &sspreadsheet);
+std::optional<bke::GeometrySet> spreadsheet_get_display_geometry_set(
+    const SpaceSpreadsheet *sspreadsheet, Object *object_eval);
 
 void spreadsheet_data_set_region_panels_register(ARegionType &region_type);
 

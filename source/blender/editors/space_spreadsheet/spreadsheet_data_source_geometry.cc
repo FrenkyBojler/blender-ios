@@ -46,8 +46,6 @@
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_intern.hh"
 
-using blender::nodes::geo_eval_log::ViewerNodeLog;
-
 uint64_t SpreadsheetInstanceID::hash() const
 {
   return blender::get_default_hash(this->reference_index);
@@ -627,8 +625,15 @@ int get_instance_reference_icon(const bke::InstanceReference &reference)
   return ICON_NONE;
 }
 
-bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *sspreadsheet,
-                                                      Object *object_eval)
+const nodes::geo_eval_log::ViewerNodeLog *viewer_node_log_lookup(
+    const SpaceSpreadsheet &sspreadsheet)
+{
+  return nodes::geo_eval_log::GeoNodesLog::find_viewer_node_log_for_path(
+      sspreadsheet.geometry_id.viewer_path);
+}
+
+std::optional<bke::GeometrySet> spreadsheet_get_display_geometry_set(
+    const SpaceSpreadsheet *sspreadsheet, Object *object_eval)
 {
   bke::GeometrySet geometry_set;
   if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
@@ -670,7 +675,7 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
       geometry_set = bke::object_get_evaluated_geometry_set(*object_eval);
     }
     else {
-      if (const ViewerNodeLog *viewer_log =
+      if (const nodes::geo_eval_log::ViewerNodeLog *viewer_log =
               nodes::geo_eval_log::GeoNodesLog::find_viewer_node_log_for_path(
                   sspreadsheet->geometry_id.viewer_path))
       {
@@ -710,10 +715,10 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
 {
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
 
-  const bke::GeometrySet root_geometry_set = spreadsheet_get_display_geometry_set(sspreadsheet,
-                                                                                  object_eval);
+  const std::optional<bke::GeometrySet> root_geometry_set = spreadsheet_get_display_geometry_set(
+      sspreadsheet, object_eval);
   const bke::GeometrySet geometry_set = get_geometry_set_for_instance_ids(
-      root_geometry_set,
+      *root_geometry_set,
       Span{sspreadsheet->geometry_id.instance_ids, sspreadsheet->geometry_id.instance_ids_num});
 
   const bke::AttrDomain domain = (bke::AttrDomain)sspreadsheet->geometry_id.attribute_domain;

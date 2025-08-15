@@ -206,6 +206,7 @@ class GeometryInstancesTreeView : public ui::AbstractTreeView {
 
   void build_tree_for_instances(ui::TreeViewItemContainer &parent, const bke::Instances &instances)
   {
+
     const Span<bke::InstanceReference> references = instances.references();
     for (const int reference_i : references.index_range()) {
       auto &reference_item = parent.add_tree_item<InstanceReferenceViewItem>(instances,
@@ -997,6 +998,97 @@ std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
   return false;
 }
 
+///////
+
+//////
+
+///////
+
+class ViewerDataTreeViewItem : public ui::AbstractTreeViewItem {
+ private:
+  int viewer_path_index_;
+
+ public:
+  ViewerDataTreeViewItem(int viewer_path_index) : viewer_path_index_(viewer_path_index) {}
+
+  void on_activate(bContext &C) override;
+  std::optional<bool> should_be_active() const override;
+};
+
+class ViewerDataTreeView : public ui::AbstractTreeView {
+ private:
+  SpaceSpreadsheet &sspreadsheet_;
+  bScreen &screen_;
+
+  friend ViewerDataTreeViewItem;
+
+ public:
+  ViewerDataTreeView(const bContext &C)
+      : sspreadsheet_(*CTX_wm_space_spreadsheet(&C)), screen_(*CTX_wm_screen(&C))
+  {
+  }
+
+  void build_tree() override
+  {
+    const ViewerPath &viewer_path = sspreadsheet_.geometry_id.viewer_path;
+
+    int index;
+    LISTBASE_FOREACH_INDEX (const ViewerPathElem *, elem, &viewer_path.path, index) {
+      if (elem == viewer_path.path.first) {
+        /* The root item is drawn above the tree view already. */
+        continue;
+      }
+      this->add_viewer_path_elem(index, *elem);
+    }
+  }
+
+  void add_viewer_path_elem(const int index, const ViewerPathElem &elem)
+  {
+    switch (ViewerPathElemType(elem.type)) {
+      case VIEWER_PATH_ELEM_TYPE_ID: {
+        this->add_tree_item<IDViewerPathItem>(index,
+                                              reinterpret_cast<const IDViewerPathElem &>(elem));
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_MODIFIER: {
+        this->add_tree_item<ModifierViewerPathItem>(
+            index, reinterpret_cast<const ModifierViewerPathElem &>(elem));
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_GROUP_NODE: {
+        this->add_tree_item<GroupNodeViewerPathItem>(
+            index, reinterpret_cast<const GroupNodeViewerPathElem &>(elem));
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_VIEWER_NODE: {
+        this->add_tree_item<ViewerNodeViewerPathItem>(
+            index, reinterpret_cast<const ViewerNodeViewerPathElem &>(elem));
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE: {
+        this->add_tree_item<SimulationViewerPathPathItem>(
+            index, reinterpret_cast<const SimulationZoneViewerPathElem &>(elem));
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
+        this->add_tree_item<RepeatViewerPathItem>(
+            index, reinterpret_cast<const RepeatZoneViewerPathElem &>(elem));
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
+        this->add_tree_item<ForeachElementViewerPathItem>(
+            index, reinterpret_cast<const ForeachGeometryElementZoneViewerPathElem &>(elem));
+        break;
+      }
+      case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {
+        this->add_tree_item<EvaluteClosureViewerPathItem>(
+            index, reinterpret_cast<const EvaluateClosureNodeViewerPathElem &>(elem));
+        break;
+      }
+    }
+  }
+};
+
 static void draw_context_panel_without_context(uiLayout &layout)
 {
   layout.label(IFACE_("No Active Context"), ICON_NONE);
@@ -1044,6 +1136,11 @@ static void draw_context_panel_content(const bContext &C, uiLayout &layout)
   if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
+    uiBlock *block = layout.block();
+    ui::AbstractTreeView *tree_view = UI_block_add_view(
+        *block, "Viewer Data", std::make_unique<ViewerPathTreeView>(C));
+    tree_view->set_context_menu_title("Viewer Data");
+    ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
     if (uiLayout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
       draw_viewer_path_panel(C, *panel);
     }
@@ -1100,20 +1197,20 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  const bke::GeometrySet root_geometry = spreadsheet_get_display_geometry_set(sspreadsheet,
-                                                                              object);
+  const std::optional<bke::GeometrySet> root_geometry = spreadsheet_get_display_geometry_set(
+      sspreadsheet, object);
 
   if (uiLayout *panel = layout->panel(C, "instance tree", false, IFACE_("Geometry"))) {
     ui::AbstractTreeView *tree_view = UI_block_add_view(
         *block,
         "Instances Tree View",
-        std::make_unique<GeometryInstancesTreeView>(root_geometry, *C));
+        std::make_unique<GeometryInstancesTreeView>(*root_geometry, *C));
     tree_view->set_context_menu_title("Instance");
     ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *panel, {}, false);
   }
   if (uiLayout *panel = layout->panel(C, "geometry_domain_tree_view", false, IFACE_("Domain"))) {
     bke::GeometrySet instance_geometry = get_geometry_set_for_instance_ids(
-        root_geometry,
+        *root_geometry,
         {sspreadsheet->geometry_id.instance_ids, sspreadsheet->geometry_id.instance_ids_num});
     ui::AbstractTreeView *tree_view = UI_block_add_view(
         *block,
