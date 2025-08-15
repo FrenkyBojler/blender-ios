@@ -814,10 +814,8 @@ class MeshUVs : Overlay {
     const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
     const bool is_uv_editable = is_edit_object && space_image->mode == SI_MODE_UV;
     /* Sculpt is left out here because selection does not exist in it */
-    const bool is_paint_mode = ELEM(state.ctx_mode,
-                                    CTX_MODE_PAINT_TEXTURE,
-                                    CTX_MODE_PAINT_VERTEX,
-                                    CTX_MODE_PAINT_WEIGHT);
+    const bool is_paint_mode = ELEM(
+        state.ctx_mode, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
     const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
     const bool is_face_selectable = (is_edit_object || (is_paint_mode && use_face_selection)) &&
                                     space_image->mode != SI_MODE_UV;
@@ -882,7 +880,8 @@ class MeshUVs : Overlay {
     }
 
     /* Non-selectable & Non-editable faces in image editor paint mode. */
-    if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable && !is_face_selectable)
+    if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable &&
+        !is_face_selectable)
     {
       if (show_wireframe_) {
         gpu::Batch *geom = DRW_mesh_batch_cache_get_all_uv_wireframe(ob, mesh);
