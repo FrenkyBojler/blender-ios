@@ -41,8 +41,8 @@ class GHOST_WindowSDL : public GHOST_Window {
                   uint32_t width,
                   uint32_t height,
                   GHOST_TWindowState state,
-                  GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
-                  const bool stereoVisual = false,
+                  GHOST_TDrawingContextType type,
+                  const GHOST_ContextParams &context_params,
                   const bool exclusive = false,
                   const GHOST_IWindow *parentWindow = nullptr);
 
@@ -87,7 +87,7 @@ class GHOST_WindowSDL : public GHOST_Window {
                                             const uint8_t *mask,
                                             const int size[2],
                                             const int hot_spot[2],
-                                            bool canInvertColor) override;
+                                            bool can_invert_color) override;
 
   GHOST_TSuccess setWindowCursorVisibility(bool visible) override;
 

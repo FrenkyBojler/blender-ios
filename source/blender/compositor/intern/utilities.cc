@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <optional>
+
 #include "BLI_assert.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -37,6 +39,13 @@ DSocket get_input_origin_socket(DInputSocket input)
   /* Only a single origin socket is guaranteed to exist. */
   DSocket socket;
   input.foreach_origin_socket([&](const DSocket origin) { socket = origin; });
+
+  /* The origin socket might be null if it is an output of a group node whose group has no Group
+   * Output node. The input is thus considered to be unlinked logically. */
+  if (!socket) {
+    return input;
+  }
+
   return socket;
 }
 
@@ -56,9 +65,10 @@ DOutputSocket get_output_linked_to_input(DInputSocket input)
   return DOutputSocket(origin);
 }
 
-ResultType get_node_socket_result_type(const bNodeSocket *socket)
+ResultType socket_data_type_to_result_type(const eNodeSocketDatatype data_type,
+                                           const std::optional<int> dimensions)
 {
-  switch (socket->type) {
+  switch (data_type) {
     case SOCK_FLOAT:
       return ResultType::Float;
     case SOCK_INT:
@@ -66,7 +76,7 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
     case SOCK_BOOLEAN:
       return ResultType::Bool;
     case SOCK_VECTOR:
-      switch (socket->default_value_typed<bNodeSocketValueVector>()->dimensions) {
+      switch (dimensions.value_or(3)) {
         case 2:
           return ResultType::Float2;
         case 3:
@@ -79,10 +89,25 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
       }
     case SOCK_RGBA:
       return ResultType::Color;
+    case SOCK_MENU:
+      return ResultType::Menu;
+    case SOCK_STRING:
+      return ResultType::String;
     default:
       BLI_assert_unreachable();
       return ResultType::Float;
   }
+}
+
+ResultType get_node_socket_result_type(const bNodeSocket *socket)
+{
+  const eNodeSocketDatatype socket_type = static_cast<eNodeSocketDatatype>(socket->type);
+  if (socket_type == SOCK_VECTOR) {
+    return socket_data_type_to_result_type(
+        socket_type, socket->default_value_typed<bNodeSocketValueVector>()->dimensions);
+  }
+
+  return socket_data_type_to_result_type(socket_type);
 }
 
 bool is_output_linked_to_node_conditioned(DOutputSocket output, FunctionRef<bool(DNode)> condition)
@@ -168,7 +193,7 @@ InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket)
   return input_descriptor;
 }
 
-void compute_dispatch_threads_at_least(GPUShader *shader, int2 threads_range, int2 local_size)
+void compute_dispatch_threads_at_least(gpu::Shader *shader, int2 threads_range, int2 local_size)
 {
   /* If the threads range is divisible by the local size, dispatch the number of needed groups,
    * which is their division. If it is not divisible, then dispatch an extra group to cover the

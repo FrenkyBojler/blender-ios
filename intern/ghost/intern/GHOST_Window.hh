@@ -35,7 +35,7 @@ class GHOST_Window : public GHOST_IWindow {
   GHOST_Window(uint32_t width,
                uint32_t height,
                GHOST_TWindowState state,
-               const bool wantStereoVisual = false,
+               const GHOST_ContextParams &context_params,
                const bool exclusive = false);
 
   /**
@@ -117,7 +117,10 @@ class GHOST_Window : public GHOST_IWindow {
                                       const uint8_t *mask,
                                       const int size[2],
                                       const int hot_spot[2],
-                                      bool canInvertColor) override;
+                                      bool can_invert_color) override;
+
+  /** \copydoc #GHOST_IWindow::setCustomCursorGenerator */
+  GHOST_TSuccess setCustomCursorGenerator(GHOST_CursorGenerator *cursor_generator) override;
 
   GHOST_TSuccess getCursorBitmap(GHOST_CursorBitmapRef *bitmap) override;
 
@@ -291,7 +294,13 @@ class GHOST_Window : public GHOST_IWindow {
                                                     const uint8_t *mask,
                                                     const int size[2],
                                                     const int hot_size[2],
-                                                    bool canInvertColor) = 0;
+                                                    bool can_invert_color) = 0;
+  /** \copydoc #GHOST_IWindow::setWindowCustomCursorGenerator */
+  virtual GHOST_TSuccess setWindowCustomCursorGenerator(GHOST_CursorGenerator *cursor_generator)
+  {
+    cursor_generator->free_fn(cursor_generator);
+    return GHOST_kFailure;
+  };
 
   GHOST_TSuccess releaseNativeHandles();
 
@@ -338,8 +347,8 @@ class GHOST_Window : public GHOST_IWindow {
   GHOST_TWindowDecorationStyleFlags m_windowDecorationStyleFlags;
   GHOST_WindowDecorationStyleSettings m_windowDecorationStyleSettings;
 
-  /** Whether to attempt to initialize a context with a stereo frame-buffer. */
-  bool m_wantStereoVisual;
+  /** The desired parameters to use when initializing the context for this window. */
+  GHOST_ContextParams m_want_context_params;
 
   /** Full-screen width */
   uint32_t m_fullScreenWidth;

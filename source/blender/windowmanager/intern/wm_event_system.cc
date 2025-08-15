@@ -130,7 +130,7 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
                                                   wmOperatorType *ot,
                                                   PointerRNA *properties,
                                                   ReportList *reports,
-                                                  const wmOperatorCallContext context,
+                                                  const blender::wm::OpCallContext context,
                                                   const bool poll_only,
                                                   const wmEvent *event);
 
@@ -1095,11 +1095,10 @@ bool WM_operator_poll(bContext *C, wmOperatorType *ot)
   return true;
 }
 
-bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context)
+bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context)
 {
   /* Sets up the new context and calls #wm_operator_invoke() with poll_only. */
-  return wm_operator_call_internal(
-      C, ot, nullptr, nullptr, static_cast<wmOperatorCallContext>(context), true, nullptr);
+  return wm_operator_call_internal(C, ot, nullptr, nullptr, context, true, nullptr);
 }
 
 bool WM_operator_ui_poll(wmOperatorType *ot, PointerRNA *ptr)
@@ -1180,7 +1179,7 @@ static void wm_operator_reports(bContext *C,
     if (caller_owns_reports == false) {
       /* Print out reports to console.
        * When quiet, only show warnings, suppressing info and other non-essential warnings. */
-      const eReportType level = G.quiet ? RPT_WARNING : RPT_DEBUG;
+      const eReportType level = CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG;
       BKE_reports_log(op->reports, level, WM_LOG_OPERATORS);
     }
 
@@ -1466,7 +1465,7 @@ static wmOperator *wm_operator_create(wmWindowManager *wm,
 
   /* Adding new operator could be function, only happens here now. */
   op->type = ot;
-  STRNCPY(op->idname, ot->idname);
+  STRNCPY_UTF8(op->idname, ot->idname);
 
   /* Initialize properties, either copy or create. */
   op->ptr = MEM_new<PointerRNA>("wmOperatorPtrRNA");
@@ -1753,7 +1752,7 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
                                                   wmOperatorType *ot,
                                                   PointerRNA *properties,
                                                   ReportList *reports,
-                                                  const wmOperatorCallContext context,
+                                                  const blender::wm::OpCallContext context,
                                                   const bool poll_only,
                                                   const wmEvent *event)
 {
@@ -1767,12 +1766,12 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
     if (event == nullptr) {
       switch (context) {
-        case WM_OP_INVOKE_DEFAULT:
-        case WM_OP_INVOKE_REGION_WIN:
-        case WM_OP_INVOKE_REGION_PREVIEW:
-        case WM_OP_INVOKE_REGION_CHANNELS:
-        case WM_OP_INVOKE_AREA:
-        case WM_OP_INVOKE_SCREEN:
+        case blender::wm::OpCallContext::InvokeDefault:
+        case blender::wm::OpCallContext::InvokeRegionWin:
+        case blender::wm::OpCallContext::InvokeRegionPreview:
+        case blender::wm::OpCallContext::InvokeRegionChannels:
+        case blender::wm::OpCallContext::InvokeArea:
+        case blender::wm::OpCallContext::InvokeScreen:
           /* Window is needed for invoke and cancel operators. */
           if (window == nullptr) {
             if (poll_only) {
@@ -1791,12 +1790,12 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
     }
     else {
       switch (context) {
-        case WM_OP_EXEC_DEFAULT:
-        case WM_OP_EXEC_REGION_WIN:
-        case WM_OP_EXEC_REGION_PREVIEW:
-        case WM_OP_EXEC_REGION_CHANNELS:
-        case WM_OP_EXEC_AREA:
-        case WM_OP_EXEC_SCREEN:
+        case blender::wm::OpCallContext::ExecDefault:
+        case blender::wm::OpCallContext::ExecRegionWin:
+        case blender::wm::OpCallContext::ExecRegionPreview:
+        case blender::wm::OpCallContext::ExecRegionChannels:
+        case blender::wm::OpCallContext::ExecArea:
+        case blender::wm::OpCallContext::ExecScreen:
           event = nullptr;
           break;
         default:
@@ -1805,12 +1804,12 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
     }
 
     switch (context) {
-      case WM_OP_EXEC_REGION_WIN:
-      case WM_OP_INVOKE_REGION_WIN:
-      case WM_OP_EXEC_REGION_CHANNELS:
-      case WM_OP_INVOKE_REGION_CHANNELS:
-      case WM_OP_EXEC_REGION_PREVIEW:
-      case WM_OP_INVOKE_REGION_PREVIEW: {
+      case blender::wm::OpCallContext::ExecRegionWin:
+      case blender::wm::OpCallContext::InvokeRegionWin:
+      case blender::wm::OpCallContext::ExecRegionChannels:
+      case blender::wm::OpCallContext::InvokeRegionChannels:
+      case blender::wm::OpCallContext::ExecRegionPreview:
+      case blender::wm::OpCallContext::InvokeRegionPreview: {
         /* Forces operator to go to the region window/channels/preview, for header menus,
          * but we stay in the same region if we are already in one. */
         ARegion *region = CTX_wm_region(C);
@@ -1818,18 +1817,18 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
         int type = RGN_TYPE_WINDOW;
 
         switch (context) {
-          case WM_OP_EXEC_REGION_CHANNELS:
-          case WM_OP_INVOKE_REGION_CHANNELS:
+          case blender::wm::OpCallContext::ExecRegionChannels:
+          case blender::wm::OpCallContext::InvokeRegionChannels:
             type = RGN_TYPE_CHANNELS;
             break;
 
-          case WM_OP_EXEC_REGION_PREVIEW:
-          case WM_OP_INVOKE_REGION_PREVIEW:
+          case blender::wm::OpCallContext::ExecRegionPreview:
+          case blender::wm::OpCallContext::InvokeRegionPreview:
             type = RGN_TYPE_PREVIEW;
             break;
 
-          case WM_OP_EXEC_REGION_WIN:
-          case WM_OP_INVOKE_REGION_WIN:
+          case blender::wm::OpCallContext::ExecRegionWin:
+          case blender::wm::OpCallContext::InvokeRegionWin:
           default:
             type = RGN_TYPE_WINDOW;
             break;
@@ -1851,8 +1850,8 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
         return retval;
       }
-      case WM_OP_EXEC_AREA:
-      case WM_OP_INVOKE_AREA: {
+      case blender::wm::OpCallContext::ExecArea:
+      case blender::wm::OpCallContext::InvokeArea: {
         /* Remove region from context. */
         ARegion *region = CTX_wm_region(C);
 
@@ -1862,8 +1861,8 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
         return retval;
       }
-      case WM_OP_EXEC_SCREEN:
-      case WM_OP_INVOKE_SCREEN: {
+      case blender::wm::OpCallContext::ExecScreen:
+      case blender::wm::OpCallContext::InvokeScreen: {
         /* Remove region + area from context. */
         ARegion *region = CTX_wm_region(C);
         ScrArea *area = CTX_wm_area(C);
@@ -1876,8 +1875,8 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
         return retval;
       }
-      case WM_OP_EXEC_DEFAULT:
-      case WM_OP_INVOKE_DEFAULT:
+      case blender::wm::OpCallContext::ExecDefault:
+      case blender::wm::OpCallContext::InvokeDefault:
         return wm_operator_invoke(C, ot, event, properties, reports, poll_only, true);
     }
   }
@@ -1887,7 +1886,7 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
 wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
                                            wmOperatorType *ot,
-                                           wmOperatorCallContext context,
+                                           blender::wm::OpCallContext context,
                                            PointerRNA *properties,
                                            const wmEvent *event)
 {
@@ -1896,7 +1895,7 @@ wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
 }
 wmOperatorStatus WM_operator_name_call(bContext *C,
                                        const char *opstring,
-                                       wmOperatorCallContext context,
+                                       blender::wm::OpCallContext context,
                                        PointerRNA *properties,
                                        const wmEvent *event)
 {
@@ -1920,7 +1919,7 @@ bool WM_operator_name_poll(bContext *C, const char *opstring)
 
 wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
                                                        const char *opstring,
-                                                       wmOperatorCallContext context,
+                                                       blender::wm::OpCallContext context,
                                                        IDProperty *properties,
                                                        const wmEvent *event)
 {
@@ -1930,19 +1929,20 @@ wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
   return WM_operator_name_call_ptr(C, ot, context, &props_ptr, event);
 }
 
-void WM_menu_name_call(bContext *C, const char *menu_name, short context)
+void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context)
 {
   wmOperatorType *ot = WM_operatortype_find("WM_OT_call_menu", false);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
   RNA_string_set(&ptr, "name", menu_name);
-  WM_operator_name_call_ptr(C, ot, static_cast<wmOperatorCallContext>(context), &ptr, nullptr);
+  WM_operator_name_call_ptr(
+      C, ot, static_cast<blender::wm::OpCallContext>(context), &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 
 wmOperatorStatus WM_operator_call_py(bContext *C,
                                      wmOperatorType *ot,
-                                     wmOperatorCallContext context,
+                                     blender::wm::OpCallContext context,
                                      PointerRNA *properties,
                                      ReportList *reports,
                                      const bool is_undo)
@@ -2069,7 +2069,7 @@ static int ui_handler_wait_for_input(bContext *C, const wmEvent *event, void *us
 
 void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
                                                       wmOperatorType *ot,
-                                                      wmOperatorCallContext opcontext,
+                                                      blender::wm::OpCallContext opcontext,
                                                       PointerRNA *properties,
                                                       const wmEvent *event,
                                                       const StringRef drawstr)
@@ -2377,7 +2377,7 @@ BLI_INLINE bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
     }
   }
 
-  if (kmi->val == KM_CLICK_DRAG) {
+  if (kmi->val == KM_PRESS_DRAG) {
     if (kmi->direction != KM_ANY) {
       if (kmi->direction != winevent->direction) {
         return false;
@@ -3228,7 +3228,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
 
   /* Drag events use the previous click location to highlight the gizmos,
    * Get the highlight again in case the user dragged off the gizmo. */
-  const bool is_event_drag = (event->val == KM_CLICK_DRAG);
+  const bool is_event_drag = (event->val == KM_PRESS_DRAG);
   const bool is_event_modifier = ISKEYMODIFIER(event->type);
   /* Only keep the highlight if the gizmo becomes modal as result of event handling.
    * Without this check, even un-handled drag events will set the highlight if the drag
@@ -3349,16 +3349,18 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
           wmEvent event_test_click = *event;
           event_test_click.val = KM_CLICK;
 
-          wmEvent event_test_click_drag = *event;
-          event_test_click_drag.val = KM_CLICK_DRAG;
+          wmEvent event_test_press_drag = *event;
+          event_test_press_drag.val = KM_PRESS_DRAG;
 
           LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
             if ((kmi->flag & KMI_INACTIVE) == 0) {
               if (wm_eventmatch(&event_test_click, kmi) ||
-                  wm_eventmatch(&event_test_click_drag, kmi))
+                  wm_eventmatch(&event_test_press_drag, kmi))
               {
                 wmOperatorType *ot = WM_operatortype_find(kmi->idname, false);
-                if (WM_operator_poll_context(C, ot, WM_OP_INVOKE_DEFAULT)) {
+                const bool success = WM_operator_poll_context(
+                    C, ot, blender::wm::OpCallContext::InvokeDefault);
+                if (success) {
                   is_event_handle_all = true;
                   break;
                 }
@@ -3517,7 +3519,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
                   BLI_addtail(&single_lb, drag);
                   event->customdata = &single_lb;
 
-                  const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
+                  const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
                   const wmOperatorStatus op_retval =
                       drop->ot ? wm_operator_call_internal(
                                      C, drop->ot, drop->ptr, nullptr, opcontext, false, event) :
@@ -3626,7 +3628,7 @@ static eHandlerActionFlag wm_handlers_do(bContext *C, wmEvent *event, ListBase *
   }
 
   if (ISMOUSE_MOTION(event->type)) {
-    /* Test for #KM_CLICK_DRAG events. */
+    /* Test for #KM_PRESS_DRAG events. */
 
     /* NOTE(@ideasman42): Needed so drag can be used for editors that support both click
      * selection and passing through the drag action to box select. See #WM_generic_select_modal.
@@ -3648,7 +3650,7 @@ static eHandlerActionFlag wm_handlers_do(bContext *C, wmEvent *event, ListBase *
           const wmEventModifierFlag prev_modifier = event->modifier;
           const wmEventType prev_keymodifier = event->keymodifier;
 
-          event->val = KM_CLICK_DRAG;
+          event->val = KM_PRESS_DRAG;
           event->type = event->prev_press_type;
           event->modifier = event->prev_press_modifier;
           event->keymodifier = event->prev_press_keymodifier;
@@ -4044,7 +4046,7 @@ static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *even
 
   CTX_wm_region_set(C, region);
 
-  /* Call even on non mouse events, since the. */
+  /* Call even on non mouse events, since the handlers may still use this value. */
   wm_region_mouse_co(C, event);
 
   const wmWindowManager *wm = CTX_wm_manager(C);
@@ -4431,7 +4433,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   ScrArea *root_area = nullptr;
   ARegion *root_region = nullptr;
 
-  if (!G.quiet) {
+  if (!CLG_quiet_get()) {
     /* Perform some sanity checks.
      *
      * - Using the file-path sub-types is important because it's possible paths don't use
@@ -4452,7 +4454,10 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
       if (!((RNA_property_type(prop) == PROP_STRING) &&
             (RNA_property_subtype(prop) == PROP_FILEPATH)))
       {
-        printf("%s: \"%s\" expected a string with a 'FILE_PATH' subtype.\n", prefix, prop_id);
+        CLOG_WARN(WM_LOG_OPERATORS,
+                  "%s: \"%s\" expected a string with a 'FILE_PATH' subtype.",
+                  prefix,
+                  prop_id);
       }
     }
     prop_id = "directory";
@@ -4461,7 +4466,10 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
       if (!((RNA_property_type(prop) == PROP_STRING) &&
             (RNA_property_subtype(prop) == PROP_DIRPATH)))
       {
-        printf("%s: \"%s\" expected a string with a 'DIR_PATH' subtype.\n", prefix, prop_id);
+        CLOG_WARN(WM_LOG_OPERATORS,
+                  "%s: \"%s\" expected a string with a 'DIR_PATH' subtype.",
+                  prefix,
+                  prop_id);
       }
     }
 
@@ -4471,7 +4479,10 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
       if (!((RNA_property_type(prop) == PROP_STRING) &&
             (RNA_property_subtype(prop) == PROP_FILENAME)))
       {
-        printf("%s: \"%s\" expected a string with a 'FILE_NAME' subtype.\n", prefix, prop_id);
+        CLOG_WARN(WM_LOG_OPERATORS,
+                  "%s: \"%s\" expected a string with a 'FILE_NAME' subtype.",
+                  prefix,
+                  prop_id);
       }
     }
 
@@ -6456,7 +6467,7 @@ static bool wm_operator_check_locked_interface(bContext *C, wmOperatorType *ot)
   return true;
 }
 
-void WM_set_locked_interface(wmWindowManager *wm, bool lock)
+void WM_locked_interface_set_with_flags(wmWindowManager *wm, short lock_flags)
 {
   /* This will prevent events from being handled while interface is locked
    *
@@ -6465,16 +6476,14 @@ void WM_set_locked_interface(wmWindowManager *wm, bool lock)
    * wouldn't be useful anywhere outside of window manager, so let's not
    * pollute global context with such an information for now).
    */
-  wm->runtime->is_interface_locked = lock;
+  wm->runtime->is_interface_locked = (lock_flags != 0);
 
-  /* This will prevent drawing regions which uses non-thread-safe data.
-   * Currently it'll be just a 3D viewport.
-   *
-   * TODO(sergey): Make it different locked states, so different jobs
-   *               could lock different areas of blender and allow
-   *               interaction with others?
-   */
-  BKE_spacedata_draw_locks(lock);
+  BKE_spacedata_draw_locks(static_cast<ARegionDrawLockFlags>(lock_flags));
+}
+
+void WM_locked_interface_set(wmWindowManager *wm, bool lock)
+{
+  WM_locked_interface_set_with_flags(wm, lock ? REGION_DRAW_LOCK_ALL : 0);
 }
 
 /** \} */
@@ -6507,7 +6516,7 @@ wmKeyMapItem *WM_event_match_keymap_item(bContext *C, wmKeyMap *keymap, const wm
   LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
     if (wm_eventmatch(event, kmi)) {
       wmOperatorType *ot = WM_operatortype_find(kmi->idname, false);
-      if (WM_operator_poll_context(C, ot, WM_OP_INVOKE_DEFAULT)) {
+      if (WM_operator_poll_context(C, ot, blender::wm::OpCallContext::InvokeDefault)) {
         return kmi;
       }
     }
@@ -6720,15 +6729,15 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
   } event_data[] = {
       {0, 0, LEFTMOUSE, KM_PRESS},
       {0, 0, LEFTMOUSE, KM_CLICK},
-      {0, 0, LEFTMOUSE, KM_CLICK_DRAG},
+      {0, 0, LEFTMOUSE, KM_PRESS_DRAG},
 
       {1, 0, MIDDLEMOUSE, KM_PRESS},
       {1, 0, MIDDLEMOUSE, KM_CLICK},
-      {1, 0, MIDDLEMOUSE, KM_CLICK_DRAG},
+      {1, 0, MIDDLEMOUSE, KM_PRESS_DRAG},
 
       {2, 0, RIGHTMOUSE, KM_PRESS},
       {2, 0, RIGHTMOUSE, KM_CLICK},
-      {2, 0, RIGHTMOUSE, KM_CLICK_DRAG},
+      {2, 0, RIGHTMOUSE, KM_PRESS_DRAG},
   };
 
   for (int button_index = 0; button_index < 3; button_index++) {
@@ -6847,7 +6856,7 @@ bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *la
     else if (std::optional<std::string> str = WM_modalkeymap_operator_items_to_string(
                  op->type, items[i].value, true))
     {
-      /*  Show text instead */
+      /* Show text instead. */
       row->label(fmt::format("{}: {}", *str, items[i].name), ICON_NONE);
     }
   }

@@ -195,6 +195,10 @@ GHOST_SystemWin32::~GHOST_SystemWin32()
   if (isStartedFromCommandPrompt()) {
     setConsoleWindowState(GHOST_kConsoleWindowStateShow);
   }
+
+  /* We must call exit from here, since by the time ~GHOST_System calls it, the GHOST_SystemWin32
+   * override is no longer reachable.   */
+  exit();
 }
 
 uint64_t GHOST_SystemWin32::performanceCounterToMillis(__int64 perf_ticks) const
@@ -267,20 +271,19 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
                                                const bool is_dialog,
                                                const GHOST_IWindow *parentWindow)
 {
-  GHOST_WindowWin32 *window = new GHOST_WindowWin32(
-      this,
-      title,
-      left,
-      top,
-      width,
-      height,
-      state,
-      gpuSettings.context_type,
-      ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
-      (GHOST_WindowWin32 *)parentWindow,
-      ((gpuSettings.flags & GHOST_gpuDebugContext) != 0),
-      is_dialog,
-      gpuSettings.preferred_device);
+  const GHOST_ContextParams context_params = GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings);
+  GHOST_WindowWin32 *window = new GHOST_WindowWin32(this,
+                                                    title,
+                                                    left,
+                                                    top,
+                                                    width,
+                                                    height,
+                                                    state,
+                                                    gpuSettings.context_type,
+                                                    context_params,
+                                                    (GHOST_WindowWin32 *)parentWindow,
+                                                    is_dialog,
+                                                    gpuSettings.preferred_device);
 
   if (window->getValid()) {
     /* Store the pointer to the window */
@@ -303,13 +306,14 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(const char *title,
  */
 GHOST_IContext *GHOST_SystemWin32::createOffscreenContext(GHOST_GPUSettings gpuSettings)
 {
-  const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
+  const GHOST_ContextParams context_params_offscreen =
+      GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings);
 
   switch (gpuSettings.context_type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
       GHOST_Context *context = new GHOST_ContextVK(
-          false, (HWND)0, 1, 2, debug_context, gpuSettings.preferred_device);
+          context_params_offscreen, (HWND)0, 1, 2, gpuSettings.preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -340,14 +344,14 @@ GHOST_IContext *GHOST_SystemWin32::createOffscreenContext(GHOST_GPUSettings gpuS
 
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextWGL(
-            false,
+            context_params_offscreen,
             true,
             wnd,
             mHDC,
             WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
             4,
             minor,
-            (debug_context ? WGL_CONTEXT_DEBUG_BIT_ARB : 0),
+            (context_params_offscreen.is_debug ? WGL_CONTEXT_DEBUG_BIT_ARB : 0),
             GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
 
         if (context->initializeDrawingContext()) {
@@ -385,6 +389,8 @@ GHOST_TSuccess GHOST_SystemWin32::disposeContext(GHOST_IContext *context)
  */
 GHOST_ContextD3D *GHOST_SystemWin32::createOffscreenContextD3D()
 {
+  /* NOTE: the `gpuSettings` could be passed in here, as it is with similar functions. */
+  const GHOST_ContextParams context_params_offscreen = GHOST_CONTEXT_PARAMS_NONE;
   HWND wnd = CreateWindowA("STATIC",
                            "Blender XR",
                            WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
@@ -397,7 +403,7 @@ GHOST_ContextD3D *GHOST_SystemWin32::createOffscreenContextD3D()
                            GetModuleHandle(nullptr),
                            nullptr);
 
-  GHOST_ContextD3D *context = new GHOST_ContextD3D(false, wnd);
+  GHOST_ContextD3D *context = new GHOST_ContextD3D(context_params_offscreen, wnd);
   if (context->initializeDrawingContext()) {
     return context;
   }
@@ -616,7 +622,9 @@ GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
           GHOST_kCapabilityClipboardPrimary |
           /* WIN32 doesn't define a Hyper modifier key,
            * it's possible another modifier could be optionally used in it's place. */
-          GHOST_kCapabilityKeyboardHyperKey));
+          GHOST_kCapabilityKeyboardHyperKey |
+          /* No support yet for cursors generated on demand. */
+          GHOST_kCapabilityCursorGenerator));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()
@@ -659,7 +667,10 @@ GHOST_TSuccess GHOST_SystemWin32::init()
 
 GHOST_TSuccess GHOST_SystemWin32::exit()
 {
-  return GHOST_System::exit();
+  GHOST_TSuccess success = GHOST_System::exit();
+  /* All windows created with the specified class must be destroyed before unregistering it. */
+  ::UnregisterClassW(L"GHOST_WindowClass", ::GetModuleHandle(0));
+  return success;
 }
 
 GHOST_TKey GHOST_SystemWin32::hardKey(RAWINPUT const &raw, bool *r_key_down)
@@ -1340,9 +1351,9 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     }
   }
 
-  /* We used to check `if (key != GHOST_kKeyUnknown)`, but since the message
-   * values `WM_SYSKEYUP`, `WM_KEYUP` and `WM_CHAR` are ignored, we capture
-   * those events here as well. */
+  /* We used to check `if (key != GHOST_kKeyUnknown)`, however,
+   * given the message values `WM_SYSKEYUP`, `WM_KEYUP` and `WM_CHAR` are ignored,
+   * we capture those events here as well. */
   if (!is_repeated_modifier) {
     char utf8_char[6] = {0};
     BYTE state[256];
