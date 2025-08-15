@@ -232,7 +232,7 @@ template void func<float>(float a);
 
 
 #line 3
-void func(float a) {a;};
+void func(float a) {a;}
 #line 5
 )";
     string error;
@@ -256,7 +256,7 @@ template void func<float, 1>(float a);
 #line 3
 void func_float_1_(float a) {
   a;
-};
+}
 #line 7
 )";
     string error;
@@ -266,10 +266,10 @@ void func_float_1_(float a) {
   }
   {
     string input = R"(
-template<> void func<T, Q>(T a) {a};
+template<> void func<T, Q>(T a) {a}
 )";
     string expect = R"(
- void func_T_Q_(T a) {a};
+ void func_T_Q_(T a) {a}
 )";
     string error;
     string output = process_test_string(input, error);
@@ -736,7 +736,7 @@ float write(float a){ return a; }
 float NS_read(float a)
 {
   return a;
-};
+}
 #line 8
 float NS_write(float a){ return a; }
 

@@ -473,9 +473,11 @@ class Preprocessor {
             instance_parser.insert_after(pos + fn_name.str().size(), template_args);
           }
           /* Paste template content in place of instantiation. */
-          Token end_of_instantiation = tokens.back().scope().end();
+          Token end_of_instantiation = tokens.back().scope().end().next();
           parser.insert_line_number(tokens.front().str_index_start() - 1, fn_start.line_number());
-          parser.replace(tokens.front(), end_of_instantiation, instance_parser.result_get());
+          parser.replace(tokens.front().str_index_start(),
+                         end_of_instantiation.str_index_last_no_whitespace(),
+                         instance_parser.result_get());
           parser.insert_line_number(end_of_instantiation.line_end() + 1,
                                     end_of_instantiation.line_number() + 1);
         });

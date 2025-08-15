@@ -668,6 +668,11 @@ struct Token {
     return index_range().last();
   }
 
+  size_t str_index_last_no_whitespace() const
+  {
+    return data->str.find_last_not_of(" \n", str_index_last());
+  }
+
   /* Index of the first character of the line this token is. */
   size_t line_start() const
   {
@@ -1011,7 +1016,7 @@ struct Parser {
   }
 
   /* Return true if any mutation was applied. */
-  bool apply_mutations()
+  bool only_apply_mutations()
   {
     if (mutations_.empty()) {
       return false;
@@ -1026,14 +1031,22 @@ struct Parser {
       offset += mut.replacement.size() - mut.src_range.size;
     }
     mutations_.clear();
-    this->parse();
     return true;
+  }
+
+  bool apply_mutations()
+  {
+    bool applied = only_apply_mutations();
+    if (applied) {
+      this->parse();
+    }
+    return applied;
   }
 
   /* Apply mutations if any and get resulting string. */
   const std::string &result_get()
   {
-    apply_mutations();
+    only_apply_mutations();
     return data_.str;
   }
 
