@@ -80,6 +80,10 @@ class DistanceConstraintEvaluator
     const float inv_m1 = inverse_masses_[v1];
     const float compliance_term = compliance_terms_[constraint_i];
 
+    if (inv_m0 == 0.0f && inv_m1 == 0.0f) {
+      return;
+    }
+
     const float3 p_diff = p1 - p0;
     float length;
     const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
