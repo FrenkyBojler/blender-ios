@@ -414,7 +414,7 @@ class CornerPinOperation : public NodeOperation {
       case Interpolation::Bilinear:
         return "compositor_plane_deform_box";
       case Interpolation::Bicubic:
-        return "compositor_plane_deform_bicubic";
+        return "compositor_plane_deform_bspline";
       /* Anisotropic does not implement extension modes. Return masked shader. */
       case Interpolation::Anisotropic:
         break;

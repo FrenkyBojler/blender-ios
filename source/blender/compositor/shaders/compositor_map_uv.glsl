@@ -28,7 +28,7 @@ void main()
   } else {
     float2 scale = float2(imageSize(output_img));
     float2 uv = uva.xy * scale - 0.5f;
-    float2 wh = clamp(hypot2(dx(uv_tx, texel), dy(uv_tx, texel)) * scale, 1.0f, 63.0f);
+    float2 wh = hypot2(dx(uv_tx, texel), dy(uv_tx, texel)) * scale;
     imageStore(output_img, texel, sampleRect(uv, wh) * uva.z);
   }
 }

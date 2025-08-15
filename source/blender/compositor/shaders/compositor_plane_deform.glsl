@@ -31,8 +31,8 @@ void main()
   float2 dPdx = (m0.xy - uvw.xy * m0.z * m) * m;
   float3 m1 = homography_matrix[1].xyz;
   float2 dPdy = (m1.xy - uvw.xy * m1.z * m) * m;
-  // convert to rectangle and then scale from bounds to pixels and clamp:
-  float2 wh = clamp(hypot2(dPdx, dPdy) * pixels / output_size, 1.0f, 63.0f);
+  // convert to rectangle and then scale from bounds to pixels
+  float2 wh = hypot2(dPdx, dPdy) * pixels / output_size;
 
   float4 sampled_color = sampleRect(uv, wh);
 #if defined(PREMULTIPLY_MASK)

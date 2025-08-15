@@ -47,42 +47,50 @@ float samplerWeight(float x, float w)
 #endif
 }
 
-// Horizontal sample centered on uv with derivative w, w >= 1
+// Horizontal sample centered on uv with derivative w (w >= 0)
 // Integers are at pixel centers
-float4 sampleH(float u, int v, float w)
+float4 sampleH(float2 uv, float w)
 {
-  int a = int(ceil(u - SAMPLER_RADIUS(w))); // first non-zero sample
-  int e = int(floor(u + SAMPLER_RADIUS(w))); // last non-zero sample
-  float4 sum = float4(0.0);
-  float4 div = float4(0.0);
-  for (; a <= e; a++) {
-    float weight = samplerWeight(u-a, w);
-    sum += texture(input_tx, (float2(a,v) + 0.5) / float2(textureSize(input_tx, 0))) * weight;
-    //sum += texelFetch(input_tx, int2(a,v), 0) * weight;
+  float w1 = max(w, 1.0f);
+  float r = SAMPLER_RADIUS(w1);
+  float d = ceil(w1 / 8.0f); // how far apart samples are
+  float a = ceil(uv.x - r); // first non-zero sample
+  int n = int((floor(uv.x + r) - a) / d) + 1; // how many samples
+  float4 sum = float4(0.0f);
+  float div = 0.0f;
+  for (int i = 0; i < n; i++) {
+    float u = a + i * d;
+    float weight = samplerWeight(u - uv.x, w1);
+    sum += texture(input_tx, (float2(u, uv.y) + 0.5) / float2(textureSize(input_tx, 0))) * weight;
+    //sum += texelFetch(input_tx, int2(a,uv.y), 0) * weight;
     div += weight;
   }
-  return sum/div;
+  return sum / div;
 }
 
-// Sample orthogonal rectangle of size wh centered on xy. wh >= 1
+// Sample orthogonal rectangle of size wh centered on uv.
 // Integers are at pixel centers
 float4 sampleRect(float2 uv, float2 wh)
 {
-  int a = int(ceil(uv.y - SAMPLER_RADIUS(wh.y)));
-  int e = int(floor(uv.y + SAMPLER_RADIUS(wh.y)));
-  float4 sum = float4(0.0);
-  float4 div = float4(0.0);
-  for (; a <= e; a++) {
-    float weight = samplerWeight(uv.y-a, wh.y);
-    sum += sampleH(uv.x, a, wh.x) * weight;
+  float w1 = max(wh.y, 1.0f);
+  float r = SAMPLER_RADIUS(w1);
+  float d = ceil(w1 / 8.0f);
+  float a = ceil(uv.y - r); // first non-zero sample
+  int n = int((floor(uv.y + r) - a) / d) + 1; // how many samples
+  float4 sum = float4(0.0f);
+  float div = 0.0f;
+  for (int i = 0; i < n; i++) {
+    float v = a + i * d;
+    float weight = samplerWeight(v - uv.y, w1);
+    sum += sampleH(float2(uv.x, v), wh.x) * weight;
     div += weight;
   }
-  return sum/div;
+  return sum / div;
 }
 
 #endif
 
-// this is useful for computing wh
+// this is useful for computing wh from dPdx and dPdy
 float2 hypot2(float2 a, float2 b)
 {
   //return float2(length(float2(a.x,b.x)), length(float2(a.y,b.y)));

@@ -18,7 +18,7 @@ void main()
   float2 uv = float2(texel) - center; // use center coordinates
   float2 scale = 1 / max(float2(texture_load(x_scale_tx, texel).x, texture_load(y_scale_tx, texel).x), 0.0001f);
   float2 dscale = -float2(dx(x_scale_tx, texel), dx(y_scale_tx, texel)) * scale * scale; // derivative of scale
-  float2 wh = clamp(abs(uv * dscale + scale), 1.0f, 63.0f); // derivative of uv * scale
+  float2 wh = abs(uv * dscale + scale); // derivative of uv * scale
   uv = uv * scale + center;
 
   imageStore(output_img, texel, sampleRect(uv, wh));

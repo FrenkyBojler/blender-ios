@@ -12,7 +12,7 @@ void main()
   float2 dPdx = inverse_transformation[0].xy;
   float2 dPdy = inverse_transformation[1].xy;
   // convert to rectangle (todo: this is constant)
-  float2 wh = clamp(hypot2(dPdx, dPdy), 1.0f, 63.0f);
+  float2 wh = hypot2(dPdx, dPdy);
 
   /* Transform the input image by transforming the domain coordinates with the inverse of input
    * image's transformation. The inverse transformation is an affine matrix and thus the

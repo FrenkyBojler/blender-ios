@@ -22,10 +22,8 @@ void main()
   float2 uv = float2(texel) - texture_load(displacement_tx, texel).xy * scale;
 
   // derivative of scale is ignored, assumed to be close to zero
-  float2 wh = clamp(hypot2(
-                      float2(1,0) - dx(displacement_tx, texel) * scale,
-                      float2(0,1) - dy(displacement_tx, texel) * scale
-                    ), 1.0f, 63.0f);
+  float2 wh = hypot2(float2(1,0) - dx(displacement_tx, texel) * scale,
+                     float2(0,1) - dy(displacement_tx, texel) * scale);
 
   imageStore(output_img, texel, sampleRect(uv, wh));
 }
