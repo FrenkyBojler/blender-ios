@@ -1273,9 +1273,9 @@ static int particle_mface_index(const ChildParticle &particle, int /*face_count_
   return particle.num;
 }
 
-static ColorGeometry4f particle_mcol_convert(const MCol &mcol)
+static float4 particle_mcol_convert(const MCol &mcol)
 {
-  ColorGeometry4f col;
+  float4 col;
   /* Convert to linear ushort and swizzle */
   col[0] = BLI_color_from_srgb_table[mcol.b];
   col[1] = BLI_color_from_srgb_table[mcol.g];
@@ -1285,13 +1285,11 @@ static ColorGeometry4f particle_mcol_convert(const MCol &mcol)
 }
 
 template<typename ParticleDataT>
-static ColorGeometry4f calculate_mcol(const ParticleDataT &particle,
-                                      Span<MFace> mfaces,
-                                      Span<MCol> mcols)
+static float4 interpolate(const ParticleDataT &particle, Span<MFace> mfaces, Span<MCol> mcols)
 {
   int num = particle_mface_index(particle, mfaces.size());
-  if (num != DMCACHE_NOTFOUND) {
-    return ColorGeometry4f(0, 0, 0, 1);
+  if (num == DMCACHE_NOTFOUND) {
+    return float4(0, 0, 0, 1);
   }
   /* CustomDataLayer CD_MCOL has 4 structs per face. */
   MCol mcol;
@@ -1300,12 +1298,10 @@ static ColorGeometry4f calculate_mcol(const ParticleDataT &particle,
 }
 
 template<typename ParticleDataT>
-static float2 calculate_uvs(const ParticleDataT &particle,
-                            Span<MFace> mfaces,
-                            Span<MTFace> mtfaces)
+static float2 interpolate(const ParticleDataT &particle, Span<MFace> mfaces, Span<MTFace> mtfaces)
 {
   int num = particle_mface_index(particle, mfaces.size());
-  if (num != DMCACHE_NOTFOUND) {
+  if (num == DMCACHE_NOTFOUND) {
     return float2(0);
   }
   float2 uv;
@@ -1330,10 +1326,10 @@ Span<T> span_from_custom_data_layer(const Mesh &mesh,
                                     const eCustomDataType type,
                                     const StringRef name)
 {
-  std::string name_str = name;
-  int layer_id = CustomData_get_named_layer(&mesh.fdata_legacy, CD_MTFACE, name_str.c_str());
+  int layer_id = CustomData_get_named_layer(&mesh.fdata_legacy, type, name);
   return {static_cast<const T *>(CustomData_get_layer_n(&mesh.fdata_legacy, type, layer_id)),
-          mesh.totface_legacy};
+          /* There is 4 MCol per face. */
+          mesh.totface_legacy * (std::is_same_v<T, MCol> ? 4 : 1)};
 }
 
 template<typename T>
@@ -1343,22 +1339,19 @@ Span<T> span_from_custom_data_layer(const Mesh &mesh, const eCustomDataType type
           mesh.totface_legacy};
 }
 
-static gpu::VertBufPtr interpolate_face_corner_attribute_to_curve(
-    ParticleDrawSource &src, const StringRef name, bke::AttributeReader<ColorGeometry4b> /*attr*/)
+template<typename InputT, typename OutputT, eCustomDataType data_type>
+static gpu::VertBufPtr interpolate_face_corner_attribute_to_curve(ParticleDrawSource &src,
+                                                                  const StringRef name)
 {
   ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)src.md;
-  if (psmd == nullptr || psmd->mesh_final == nullptr) {
-    /* We cannot interpolate without this. */
-    return gpu::VertBuf::new_from_varray(VArray<float>::from_single(1, src.curves_num()));
-  }
   Mesh &mesh = *psmd->mesh_final;
 
   /* TODO(fclem): Use normalized integer format. */
   gpu::VertBufPtr vbo = gpu::VertBufPtr(
-      GPU_vertbuf_create_with_format_ex(gpu::GenericVertexFormat<float4>::format(),
+      GPU_vertbuf_create_with_format_ex(gpu::GenericVertexFormat<OutputT>::format(),
                                         GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY));
   vbo->allocate(src.curves_num());
-  MutableSpan<ColorGeometry4f> data = vbo->data<ColorGeometry4f>();
+  MutableSpan<OutputT> data = vbo->data<OutputT>();
 
   const int emit_from = psmd->psys->part->from;
   /* True if no interpolation for child particle. */
@@ -1366,7 +1359,7 @@ static gpu::VertBufPtr interpolate_face_corner_attribute_to_curve(
                          !ELEM(emit_from, PART_FROM_FACE, PART_FROM_VOLUME);
 
   BKE_mesh_tessface_ensure(&mesh);
-  Span<MCol> mcols = span_from_custom_data_layer<MCol>(mesh, CD_MCOL, name);
+  Span<InputT> attr = span_from_custom_data_layer<InputT>(mesh, data_type, name);
   Span<MFace> mfaces = span_from_custom_data_layer<MFace>(mesh, CD_MFACE);
   Span<ChildParticle> children(src.psys->child, src.psys->totchild);
   Span<ParticleData> particles(src.psys->particles, src.psys->totpart);
@@ -1376,78 +1369,27 @@ static gpu::VertBufPtr interpolate_face_corner_attribute_to_curve(
 
   ParticleSpans part_spans = src.particles_get();
   for (const int particle_index : part_spans.parent.index_range()) {
-    data[curve_index++] = calculate_mcol(particles[particle_index], mfaces, mcols);
+    data[curve_index++] = interpolate(particles[particle_index], mfaces, attr);
   }
 
   if (is_simple) {
     /* TODO(fclem): Optimize this case (compute once per parent particle). */
     for (const int particle_index : part_spans.children.index_range()) {
-      data[curve_index++] = calculate_mcol(
-          particles[children[particle_index].parent], mfaces, mcols);
+      data[curve_index++] = interpolate(particles[children[particle_index].parent], mfaces, attr);
     }
   }
   else {
     for (const int particle_index : part_spans.children.index_range()) {
-      data[curve_index++] = calculate_mcol(children[particle_index], mfaces, mcols);
+      data[curve_index++] = interpolate(children[particle_index], mfaces, attr);
     }
   }
   return vbo;
 }
 
-static gpu::VertBufPtr interpolate_face_corner_attribute_to_curve(
-    ParticleDrawSource &src, const StringRef name, bke::AttributeReader<float2> /*attr*/)
-{
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)src.md;
-  if (psmd == nullptr || psmd->mesh_final == nullptr) {
-    /* We cannot interpolate without this. */
-    return gpu::VertBuf::new_from_varray(VArray<float>::from_single(1, src.curves_num()));
-  }
-  Mesh &mesh = *psmd->mesh_final;
-
-  gpu::VertBufPtr vbo = gpu::VertBufPtr(
-      GPU_vertbuf_create_with_format_ex(gpu::GenericVertexFormat<float2>::format(),
-                                        GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY));
-  vbo->allocate(src.curves_num());
-  MutableSpan<float2> data = vbo->data<float2>();
-
-  const int emit_from = psmd->psys->part->from;
-  /* True if no interpolation for child particle. */
-  const bool is_simple = (src.psys->part->childtype == PART_CHILD_PARTICLES) ||
-                         !ELEM(emit_from, PART_FROM_FACE, PART_FROM_VOLUME);
-
-  BKE_mesh_tessface_ensure(&mesh);
-  Span<MTFace> mtfaces = span_from_custom_data_layer<MTFace>(mesh, CD_MTFACE, name);
-  Span<MFace> mfaces = span_from_custom_data_layer<MFace>(mesh, CD_MFACE);
-  Span<ChildParticle> children(src.psys->child, src.psys->totchild);
-  Span<ParticleData> particles(src.psys->particles, src.psys->totpart);
-
-  /* Index of the particle/hair curve. Note that the order of the loops matter. */
-  int curve_index = 0;
-
-  ParticleSpans part_spans = src.particles_get();
-  for (const int particle_index : part_spans.parent.index_range()) {
-    data[curve_index++] = calculate_uvs(particles[particle_index], mfaces, mtfaces);
-  }
-
-  if (is_simple) {
-    /* TODO(fclem): Optimize this case (compute once per parent particle). */
-    for (const int particle_index : part_spans.children.index_range()) {
-      data[curve_index++] = calculate_uvs(
-          particles[children[particle_index].parent], mfaces, mtfaces);
-    }
-  }
-  else {
-    for (const int particle_index : part_spans.children.index_range()) {
-      data[curve_index++] = calculate_uvs(children[particle_index], mfaces, mtfaces);
-    }
-  }
-  return vbo;
-}
-
-static gpu::VertBufPtr ensure_control_point_attribute(ParticleDrawSource &src,
-                                                      const Mesh &mesh,
-                                                      const StringRef name,
-                                                      bool &r_is_point_domain)
+static gpu::VertBufPtr ensure_curve_attribute(ParticleDrawSource &src,
+                                              const Mesh &mesh,
+                                              const StringRef name,
+                                              bool &r_is_point_domain)
 {
   using namespace bke;
   /* Note: All legacy hair attributes come from the emitter mesh and are on per curve domain. */
@@ -1455,21 +1397,14 @@ static gpu::VertBufPtr ensure_control_point_attribute(ParticleDrawSource &src,
 
   const AttributeAccessor attributes = mesh.attributes();
 
-  const AttributeReader<float2> attribute_uv = attributes.lookup<float2>(name);
-  if (attribute_uv && attribute_uv.domain == bke::AttrDomain::Corner) {
-    if (attribute_uv.varray.is_single()) {
-      return gpu::VertBuf::new_from_varray(attribute_uv.varray);
+  auto meta_data = attributes.lookup_meta_data(name);
+  if (meta_data && meta_data->domain == bke::AttrDomain::Corner) {
+    if (meta_data->data_type == AttrType::ColorByte) {
+      return interpolate_face_corner_attribute_to_curve<MCol, float4, CD_MCOL>(src, name);
     }
-    return interpolate_face_corner_attribute_to_curve(src, name, attribute_uv);
-  }
-
-  const AttributeReader<ColorGeometry4b> attribute_col = attributes.lookup<ColorGeometry4b>(name);
-  if (attribute_col && attribute_col.domain == bke::AttrDomain::Corner) {
-    /* TODO(fclem): new_from_varray doesn't work with ColorGeometry4b. */
-    // if (attribute_col.varray.is_single()) {
-    //   return gpu::VertBuf::new_from_varray(attribute_col.varray);
-    // }
-    return interpolate_face_corner_attribute_to_curve(src, name, attribute_col);
+    if (meta_data->data_type == AttrType::Float2) {
+      return interpolate_face_corner_attribute_to_curve<MTFace, float2, CD_MTFACE>(src, name);
+    }
   }
   /* Attribute doesn't exist or is of an incompatible type.
    * Replace it with a black curve domain attribute. */
@@ -1485,19 +1420,19 @@ void CurvesEvalCache::ensure_attribute(CurvesModule & /*module*/,
   char sampler_name[32];
   drw_curves_get_attribute_sampler_name(name, sampler_name);
 
-  gpu::VertBufPtr attr_buf = ensure_control_point_attribute(
+  gpu::VertBufPtr attr_buf = ensure_curve_attribute(
       src, mesh, name, attributes_point_domain[index]);
 
   /* Existing final data may have been for a different attribute (with a different name or domain),
    * free the data. */
-  evaluated_attributes_buf[index].reset();
+  curve_attributes_buf[index].reset();
 
   /* Ensure final data for points. */
   if (attributes_point_domain[index]) {
     BLI_assert_unreachable();
   }
   else {
-    evaluated_attributes_buf[index] = std::move(attr_buf);
+    curve_attributes_buf[index] = std::move(attr_buf);
   }
 }
 
@@ -1507,7 +1442,7 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
                                         int /*additional_subdivision*/)
 {
   ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)src.md;
-  if (psmd == nullptr || psmd->mesh_final == nullptr) {
+  if (psmd == nullptr || psmd->mesh_final == nullptr || src.curves_num() == 0) {
     return;
   }
   const Mesh &mesh = *psmd->mesh_final;
@@ -1591,6 +1526,14 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module,
     return;
   }
 
+  if (src.curves_num() == 0) {
+    /* Garbage data. */
+    evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(1);
+    evaluated_time_buf = gpu::VertBuf::new_device_only<float>(4);
+    curves_length_buf = gpu::VertBuf::new_device_only<float>(4);
+    return;
+  }
+
   ensure_common(src);
 
   gpu::VertBufPtr points_pos_buf = gpu::VertBuf::new_from_size<float3>(src.points_num());
@@ -1650,6 +1593,12 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
   gpu::VertBufPtr &indirection_buf = is_ribbon ? this->indirection_ribbon_buf :
                                                  this->indirection_cylinder_buf;
   if (indirection_buf) {
+    return indirection_buf;
+  }
+
+  if (src.curves_num() == 0) {
+    /* Garbage data. */
+    indirection_buf = gpu::VertBuf::new_device_only<int>(4);
     return indirection_buf;
   }
 
