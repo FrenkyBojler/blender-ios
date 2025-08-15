@@ -210,7 +210,7 @@ TEST_F(UsdExportTest, usd_export_rain_mesh)
   params.export_materials = false;
   params.export_normals = true;
   params.export_uvmaps = false;
-  params.visible_objects_only = true;
+  params.visible_instancers_only = true;
 
   bool result = USD_export(context, output_filename.c_str(), &params, false, nullptr);
   ASSERT_TRUE(result) << "Writing to " << output_filename << " failed!";

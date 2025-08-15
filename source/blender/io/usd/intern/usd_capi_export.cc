@@ -803,7 +803,7 @@ bool USD_export(const bContext *C,
 
     DEG_graph_build_from_collection(job->depsgraph, collection);
   }
-  else if (job->params.visible_objects_only) {
+  else if (job->params.visible_instancers_only) {
     DEG_graph_build_from_view_layer(job->depsgraph);
   }
   else {
