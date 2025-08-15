@@ -203,6 +203,11 @@ struct CurvesEvalCache {
 
   /* --- Legacy Hair Particle system. --- */
 
+  void ensure_attribute(CurvesModule &module,
+                        ParticleDrawSource &src,
+                        const Mesh &mesh,
+                        const StringRef name,
+                        const int index);
   void ensure_attributes(CurvesModule &module,
                          ParticleDrawSource &src,
                          const GPUMaterial *gpu_material,
