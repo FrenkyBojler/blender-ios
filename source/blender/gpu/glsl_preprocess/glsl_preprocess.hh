@@ -1236,7 +1236,7 @@ class Preprocessor {
 
             /* `*this` -> `this` */
             scope.foreach_match("*T", [&](const std::vector<Token> &tokens) {
-              fn_parser.replace(tokens[0], tokens[1], "this");
+              fn_parser.replace(tokens[0], tokens[1], "this_");
             });
             /* `this->` -> `this.` */
             scope.foreach_match("TD", [&](const std::vector<Token> &tokens) {

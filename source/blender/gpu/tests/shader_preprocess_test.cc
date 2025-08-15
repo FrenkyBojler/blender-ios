@@ -1024,7 +1024,7 @@ struct S {
     return this_;
   }
 #line 25
-  int size(const S this_)
+  int size(const S this_) 
   {
     return this_.member;
   }
