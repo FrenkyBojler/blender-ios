@@ -96,38 +96,38 @@ float gpencil_stroke_segment_mask(float2 p1,
   float2 line1 = p2 - p1;
   float2 tan1 = orthogonal(line1);
 
-  float2 pos2 = gl_FragCoord.xy - p0;
-  float2 line2 = p1 - p0;
+  float2 pos0 = gl_FragCoord.xy - p0;
+  float2 line0 = p1 - p0;
+  float2 tan0 = orthogonal(line0);
+
+  float2 pos2 = gl_FragCoord.xy - p2;
+  float2 line2 = p3 - p2;
   float2 tan2 = orthogonal(line2);
 
-  float2 pos3 = gl_FragCoord.xy - p2;
-  float2 line3 = p3 - p2;
-  float2 tan3 = orthogonal(line3);
-
   /* Calculate what side each adjacent segment is on. */
-  float sign1 = -sign(dot(line1, tan2));
-  float sign2 = sign(dot(line1, tan3));
+  float sign0 = -sign(dot(line1, tan0));
+  float sign2 = sign(dot(line1, tan2));
 
   /* Calculate the factor along each segment. */
+  float t0 = dot(pos0, line0) / dot(line0, line0);
   float t1 = dot(pos1, line1) / dot(line1, line1);
   float t2 = dot(pos2, line2) / dot(line2, line2);
-  float t3 = dot(pos3, line3) / dot(line3, line3);
 
   float dist = length(pos1 - saturate(t1) * line1) / radius;
 
   if (!is_start) {
-    dist = min(dist, length(pos2 - saturate(t2) * line2) / radius);
+    dist = min(dist, length(pos0 - saturate(t0) * line0) / radius);
   }
   if (!is_end) {
-    dist = min(dist, length(pos3 - saturate(t3) * line3) / radius);
+    dist = min(dist, length(pos2 - saturate(t2) * line2) / radius);
   }
 
-  if (t1 <= 0.0f && t2 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
-    float cos_angle = -dot(normalize(line1), normalize(line2));
+  if (t1 <= 0.0f && t0 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
+    float cos_angle = -dot(normalize(line1), normalize(line0));
 
     if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL || cos_angle > miter_limit.x) {
-      float2 bevel1 = p1 + sign1 * normalize(tan1) * radius;
-      float2 bevel2 = p1 + sign1 * normalize(tan2) * radius;
+      float2 bevel1 = p1 + sign0 * normalize(tan1) * radius;
+      float2 bevel2 = p1 + sign0 * normalize(tan0) * radius;
 
       float2 bevel_pos = gl_FragCoord.xy - bevel1;
       float2 bevel_tan = orthogonal(bevel2 - bevel1);
@@ -135,16 +135,16 @@ float gpencil_stroke_segment_mask(float2 p1,
       dist = 1.0f - dot(bevel_pos, bevel_tan) / dot(p1 - bevel1, bevel_tan);
     }
     else {
-      dist = max(length(pos1 - t1 * line1) / radius, length(pos2 - t2 * line2) / radius);
+      dist = max(length(pos1 - t1 * line1) / radius, length(pos0 - t0 * line0) / radius);
     }
   }
 
-  if (t1 >= 1.0f && t3 <= 0.0f && !is_end && miter_limit.y != MITER_LIMIT_TYPE_ROUND) {
-    float cos_angle = -dot(normalize(line1), normalize(line3));
+  if (t1 >= 1.0f && t2 <= 0.0f && !is_end && miter_limit.y != MITER_LIMIT_TYPE_ROUND) {
+    float cos_angle = -dot(normalize(line1), normalize(line2));
 
     if (miter_limit.y == MITER_LIMIT_TYPE_BEVEL || cos_angle > miter_limit.y) {
       float2 bevel1 = p2 + sign2 * normalize(tan1) * radius;
-      float2 bevel2 = p2 + sign2 * normalize(tan3) * radius;
+      float2 bevel2 = p2 + sign2 * normalize(tan2) * radius;
 
       float2 bevel_pos = gl_FragCoord.xy - bevel1;
       float2 bevel_tan = orthogonal(bevel2 - bevel1);
@@ -152,7 +152,7 @@ float gpencil_stroke_segment_mask(float2 p1,
       dist = 1.0f - dot(bevel_pos, bevel_tan) / dot(p2 - bevel1, bevel_tan);
     }
     else {
-      dist = max(length(pos1 - t1 * line1) / radius, length(pos3 - t3 * line3) / radius);
+      dist = max(length(pos1 - t1 * line1) / radius, length(pos2 - t2 * line2) / radius);
     }
   }
 
