@@ -9,13 +9,13 @@
 #include <iostream>
 
 #include "BLI_fileops.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "CLG_log.h"
 
 #include "asset_catalog_definition_file.hh"
 
-static CLG_LogRef LOG = {"asset_system.asset_catalog_definition_file"};
+static CLG_LogRef LOG = {"asset.catalog"};
 
 namespace blender::asset_system {
 

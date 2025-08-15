@@ -11,6 +11,8 @@
 #include "DNA_listBase.h"
 #include "DNA_space_types.h"
 
+#include "BLI_string_ref.hh"
+
 struct ARegion;
 struct ImBuf;
 struct Image;
@@ -110,6 +112,7 @@ bool ED_image_slot_cycle(Image *image, int direction);
 
 bool ED_space_image_show_render(const SpaceImage *sima);
 bool ED_space_image_show_paint(const SpaceImage *sima);
+bool ED_space_image_show_mask(const SpaceImage *sima);
 bool ED_space_image_show_uvedit(const SpaceImage *sima, Object *obedit);
 
 bool ED_space_image_paint_curve(const bContext *C);
@@ -205,7 +208,9 @@ struct ImageFrameRange {
 /**
  * Used for both images and volume file loading.
  */
-ListBase ED_image_filesel_detect_sequences(Main *bmain, wmOperator *op, bool detect_udim);
+ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
+                                           wmOperator *op,
+                                           bool detect_udim);
 
 bool ED_image_tools_paint_poll(bContext *C);
 void ED_paint_cursor_start(Paint *paint, bool (*poll)(bContext *C));

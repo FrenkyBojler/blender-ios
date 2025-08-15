@@ -17,8 +17,6 @@
 #  include <X11/extensions/XInput.h>
 #endif
 
-#include "GHOST_TaskbarX11.hh"
-
 #include <map>
 
 class GHOST_SystemX11;
@@ -46,7 +44,8 @@ class GHOST_WindowX11 : public GHOST_Window {
    * \param state: The state the window is initially opened with.
    * \param parentWindow: Parent (embedder) window.
    * \param type: The type of drawing context installed in this window.
-   * \param stereoVisual: Stereo visual for quad buffered stereo.
+   * \param context_params: Parameters to use when initializing the context.
+   * \param preferred_device: Preferred device to use when new device will be created.
    */
   GHOST_WindowX11(GHOST_SystemX11 *system,
                   Display *display,
@@ -57,11 +56,11 @@ class GHOST_WindowX11 : public GHOST_Window {
                   uint32_t height,
                   GHOST_TWindowState state,
                   GHOST_WindowX11 *parentWindow,
-                  GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
-                  const bool is_dialog = false,
-                  const bool stereoVisual = false,
-                  const bool exclusive = false,
-                  const bool is_debug = false);
+                  GHOST_TDrawingContextType type,
+                  const bool is_dialog,
+                  const GHOST_ContextParams &context_params,
+                  const bool exclusive,
+                  const GHOST_GPUDevice &preferred_device);
 
   bool getValid() const override;
 
@@ -152,10 +151,6 @@ class GHOST_WindowX11 : public GHOST_Window {
   bool m_post_init;
   GHOST_TWindowState m_post_state;
 
-  GHOST_TSuccess beginFullScreen() const override;
-
-  GHOST_TSuccess endFullScreen() const override;
-
   GHOST_TSuccess setDialogHints(GHOST_WindowX11 *parentWindow);
 
   uint16_t getDPIHint() override;
@@ -192,13 +187,11 @@ class GHOST_WindowX11 : public GHOST_Window {
    * Sets the cursor shape on the window using
    * native window system calls (Arbitrary size/color).
    */
-  GHOST_TSuccess setWindowCustomCursorShape(uint8_t *bitmap,
-                                            uint8_t *mask,
-                                            int sizex,
-                                            int sizey,
-                                            int hotX,
-                                            int hotY,
-                                            bool canInvertColor) override;
+  GHOST_TSuccess setWindowCustomCursorShape(const uint8_t *bitmap,
+                                            const uint8_t *mask,
+                                            const int size[2],
+                                            const int hot_spot[2],
+                                            bool can_invert_color) override;
 
  private:
   /* Force use of public constructor. */
@@ -236,8 +229,6 @@ class GHOST_WindowX11 : public GHOST_Window {
   /** Cache of XC_* ID's to XCursor structures */
   std::map<uint, Cursor> m_standard_cursors;
 
-  GHOST_TaskBarX11 m_taskbar;
-
 #ifdef WITH_XDND
   GHOST_DropTargetX11 *m_dropTarget;
 #endif
@@ -249,7 +240,7 @@ class GHOST_WindowX11 : public GHOST_Window {
 #endif
 
   bool m_valid_setup;
-  bool m_is_debug_context;
+  GHOST_GPUDevice m_preferred_device;
 
   void icccmSetState(int state);
   int icccmGetState() const;

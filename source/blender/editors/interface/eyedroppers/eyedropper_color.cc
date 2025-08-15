@@ -25,10 +25,12 @@
 
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.h"
-#include "BKE_image.h"
-#include "BKE_material.h"
+#include "BKE_image.hh"
+#include "BKE_material.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+
+#include "BLT_translation.hh"
 
 #include "NOD_composite.hh"
 
@@ -36,8 +38,6 @@
 #include "RNA_define.hh"
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
-
-#include "UI_interface.hh"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
@@ -58,28 +58,28 @@
 #include "eyedropper_intern.hh"
 
 struct Eyedropper {
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display = nullptr;
 
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  int index;
-  bool is_undo;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  int index = 0;
+  bool is_undo = false;
 
-  bool is_set;
-  float init_col[3]; /* for resetting on cancel */
+  bool is_set = false;
+  float init_col[3] = {}; /* for resetting on cancel */
 
-  bool accum_start; /* has mouse been pressed */
-  float accum_col[3];
-  int accum_tot;
+  bool accum_start = false; /* has mouse been pressed */
+  float accum_col[3] = {};
+  int accum_tot = 0;
 
-  wmWindow *cb_win;
-  int cb_win_event_xy[2];
-  void *draw_handle_sample_text;
-  char sample_text[MAX_NAME];
+  wmWindow *cb_win = nullptr;
+  int cb_win_event_xy[2] = {};
+  void *draw_handle_sample_text = nullptr;
+  char sample_text[MAX_NAME] = {};
 
-  bNode *crypto_node;
-  CryptomatteSession *cryptomatte_session;
-  ViewportColorSampleSession *viewport_session;
+  bNode *crypto_node = nullptr;
+  CryptomatteSession *cryptomatte_session = nullptr;
+  ViewportColorSampleSession *viewport_session = nullptr;
 };
 
 static void eyedropper_draw_cb(const wmWindow * /*window*/, void *arg)
@@ -88,24 +88,78 @@ static void eyedropper_draw_cb(const wmWindow * /*window*/, void *arg)
   eyedropper_draw_cursor_text_region(eye->cb_win_event_xy, eye->sample_text);
 }
 
+/* A heuristic to check whether the current eyedropper destination property is used for non-color
+ * painting. If so, the eyedropper will ignore the PROP_COLOR_GAMMA nature of the property and
+ * not convert linear colors to display space.
+ *
+ * The current logic is targeting texture painting, both 2D and 3D. It assumes that invoking the
+ * operator from 3D viewport means 3D painting, and invoking from image editor means 2D painting.
+ *
+ * For the 3D painting the function checks whether active object is in texture paint mode, and if
+ * so checks the active image (via material slot, or the explicitly specified image) to have
+ * non-color (data) colorspace.
+ *
+ * For the 2D painting it checks the active image editor's image colorspace.
+ *
+ * Since brush color could be re-used from multiple spaces the check is not fully reliable: it is
+ * possible to invoke sampling from one editor and do stroke in other editor. There is no easy way
+ * of dealing with this, and it is unlikely to be a common configuration. */
+static bool is_data_destination(const bContext *C, const Eyedropper *eye)
+{
+  if (eye->ptr.type != &RNA_Brush) {
+    return false;
+  }
+
+  const View3D *v3d = CTX_wm_view3d(C);
+  if (v3d) {
+    /*const*/ Object *object = CTX_data_active_object(C);
+    if (!object) {
+      return false;
+    }
+    if ((object->mode & OB_MODE_TEXTURE_PAINT) == 0) {
+      return false;
+    }
+
+    const Scene *scene = CTX_data_scene(C);
+    const ImagePaintSettings &settings = scene->toolsettings->imapaint;
+    Image *image = nullptr;
+    if (settings.mode == IMAGEPAINT_MODE_MATERIAL) {
+      Material *material = BKE_object_material_get(object, object->actcol);
+      if (material && material->texpaintslot) {
+        image = material->texpaintslot[material->paint_active_slot].ima;
+      }
+    }
+    else if (settings.mode == IMAGEPAINT_MODE_IMAGE) {
+      image = settings.canvas;
+    }
+
+    return image && IMB_colormanagement_space_name_is_data(image->colorspace_settings.name);
+  }
+
+  const SpaceImage *space_image = CTX_wm_space_image(C);
+  if (space_image) {
+    return space_image->image &&
+           IMB_colormanagement_space_name_is_data(space_image->image->colorspace_settings.name);
+  }
+
+  return false;
+}
+
 static bool eyedropper_init(bContext *C, wmOperator *op)
 {
   Eyedropper *eye = MEM_new<Eyedropper>(__func__);
 
-  PropertyRNA *prop;
-  if ((prop = RNA_struct_find_property(op->ptr, "prop_data_path")) &&
-      RNA_property_is_set(op->ptr, prop))
-  {
-    char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
-    BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
-    if (!prop_data_path || prop_data_path[0] == '\0') {
-      MEM_freeN(eye);
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "prop_data_path");
+  if (prop && RNA_property_is_set(op->ptr, prop)) {
+    std::string prop_data_path = RNA_string_get(op->ptr, "prop_data_path");
+    if (prop_data_path.empty()) {
+      MEM_delete(eye);
       return false;
     }
-    PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
-    if (!RNA_path_resolve(&ctx_ptr, prop_data_path, &eye->ptr, &eye->prop)) {
-      BKE_reportf(op->reports, RPT_ERROR, "Could not resolve path '%s'", prop_data_path);
-      MEM_freeN(eye);
+    PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
+    if (!RNA_path_resolve(&ctx_ptr, prop_data_path.c_str(), &eye->ptr, &eye->prop)) {
+      BKE_reportf(op->reports, RPT_ERROR, "Could not resolve path '%s'", prop_data_path.c_str());
+      MEM_delete(eye);
       return false;
     }
     eye->is_undo = true;
@@ -132,7 +186,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
   op->customdata = eye;
 
   float col[4];
-  RNA_property_float_get_array(&eye->ptr, eye->prop, col);
+  RNA_property_float_get_array_at_most(&eye->ptr, eye->prop, col, ARRAY_SIZE(col));
   if (eye->ptr.type == &RNA_CompositorNodeCryptomatteV2) {
     eye->crypto_node = (bNode *)eye->ptr.data;
     eye->cryptomatte_session = ntreeCompositCryptomatteSession(eye->crypto_node);
@@ -140,7 +194,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
     eye->draw_handle_sample_text = WM_draw_cb_activate(eye->cb_win, eyedropper_draw_cb, eye);
   }
 
-  if (prop_subtype != PROP_COLOR) {
+  if (prop_subtype != PROP_COLOR && !is_data_destination(C, eye)) {
     Scene *scene = CTX_data_scene(C);
     const char *display_device;
 
@@ -162,6 +216,8 @@ static void eyedropper_exit(bContext *C, wmOperator *op)
   Eyedropper *eye = static_cast<Eyedropper *>(op->customdata);
   wmWindow *window = CTX_wm_window(C);
   WM_cursor_modal_restore(window);
+
+  ED_workspace_status_text(C, nullptr);
 
   if (eye->draw_handle_sample_text) {
     WM_draw_cb_exit(eye->cb_win, eye->draw_handle_sample_text);
@@ -227,7 +283,7 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
     return false;
   }
 
-  const int render_layer_name_len = BLI_strnlen(render_layer->name, sizeof(render_layer->name));
+  const int render_layer_name_len = STRNLEN(render_layer->name);
   if (strncmp(prefix, render_layer->name, render_layer_name_len) != 0) {
     return false;
   }
@@ -247,6 +303,12 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
         !STREQLEN(render_pass->name, render_pass_name_prefix, sizeof(render_pass->name)))
     {
       BLI_assert(render_pass->channels == 4);
+
+      /* Pass was allocated but not rendered yet. */
+      if (!render_pass->ibuf) {
+        return false;
+      }
+
       const int x = int(fpos[0] * render_pass->rectx);
       const int y = int(fpos[1] * render_pass->recty);
       const int offset = 4 * (y * render_pass->rectx + x);
@@ -285,7 +347,8 @@ static bool eyedropper_cryptomatte_sample_render_fl(const bNode *node,
   return success;
 }
 
-static bool eyedropper_cryptomatte_sample_image_fl(const bNode *node,
+static bool eyedropper_cryptomatte_sample_image_fl(bContext *C,
+                                                   const bNode *node,
                                                    NodeCryptomatte *crypto,
                                                    const char *prefix,
                                                    const float fpos[2],
@@ -294,10 +357,14 @@ static bool eyedropper_cryptomatte_sample_image_fl(const bNode *node,
   bool success = false;
   Image *image = (Image *)node->id;
   BLI_assert((image == nullptr) || (GS(image->id.name) == ID_IM));
-  ImageUser *iuser = &crypto->iuser;
+
+  /* Compute the effective frame number of the image if it was animated. */
+  Scene *scene = CTX_data_scene(C);
+  ImageUser image_user_for_frame = crypto->iuser;
+  BKE_image_user_frame_calc(image, &image_user_for_frame, scene->r.cfra);
 
   if (image && image->type == IMA_TYPE_MULTILAYER) {
-    ImBuf *ibuf = BKE_image_acquire_ibuf(image, iuser, nullptr);
+    ImBuf *ibuf = BKE_image_acquire_ibuf(image, &image_user_for_frame, nullptr);
     if (image->rr) {
       LISTBASE_FOREACH (RenderLayer *, render_layer, &image->rr->layers) {
         success = eyedropper_cryptomatte_sample_renderlayer_fl(render_layer, prefix, fpos, r_col);
@@ -419,12 +486,12 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
     return eyedropper_cryptomatte_sample_render_fl(node, prefix, fpos, r_col);
   }
   if (node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE) {
-    return eyedropper_cryptomatte_sample_image_fl(node, crypto, prefix, fpos, r_col);
+    return eyedropper_cryptomatte_sample_image_fl(C, node, crypto, prefix, fpos, r_col);
   }
   return false;
 }
 
-void eyedropper_color_sample_fl(bContext *C,
+bool eyedropper_color_sample_fl(bContext *C,
                                 Eyedropper *eye,
                                 const int event_xy[2],
                                 float r_col[3])
@@ -448,20 +515,20 @@ void eyedropper_color_sample_fl(bContext *C,
       if (area->spacetype == SPACE_IMAGE) {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
         if (ED_space_image_color_sample(sima, region, mval, r_col, nullptr)) {
-          return;
+          return true;
         }
       }
       else if (area->spacetype == SPACE_NODE) {
         SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
         Main *bmain = CTX_data_main(C);
         if (ED_space_node_color_sample(bmain, snode, region, mval, r_col)) {
-          return;
+          return true;
         }
       }
       else if (area->spacetype == SPACE_CLIP) {
         SpaceClip *sc = static_cast<SpaceClip *>(area->spacedata.first);
         if (ED_space_clip_color_sample(sc, region, mval, r_col)) {
-          return;
+          return true;
         }
       }
       else if (eye != nullptr && area->spacetype == SPACE_VIEW3D) {
@@ -473,30 +540,33 @@ void eyedropper_color_sample_fl(bContext *C,
           eye->viewport_session->init(region);
         }
         if (eye->viewport_session->sample(mval, r_col)) {
-          return;
+          return true;
         }
       }
     }
   }
 
+  /* Other areas within a Blender window. */
   if (win) {
-    /* Other areas within a Blender window. */
     if (!WM_window_pixels_read_sample(C, win, event_xy_win, r_col)) {
       WM_window_pixels_read_sample_from_offscreen(C, win, event_xy_win, r_col);
     }
     const char *display_device = CTX_data_scene(C)->display_settings.display_device;
-    ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+    const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
     IMB_colormanagement_display_to_scene_linear_v3(r_col, display);
+    return true;
   }
-  else if ((WM_capabilities_flag() & WM_CAPABILITY_DESKTOP_SAMPLE) &&
-           WM_desktop_cursor_sample_read(r_col))
-  {
-    /* Outside of the Blender window if we support it. */
-    IMB_colormanagement_srgb_to_scene_linear_v3(r_col, r_col);
+
+  /* Outside the Blender window if we support it. */
+  if (WM_capabilities_flag() & WM_CAPABILITY_DESKTOP_SAMPLE) {
+    if (WM_desktop_cursor_sample_read(r_col)) {
+      IMB_colormanagement_srgb_to_scene_linear_v3(r_col, r_col);
+      return true;
+    }
   }
-  else {
-    zero_v3(r_col);
-  }
+
+  zero_v3(r_col);
+  return false;
 }
 
 /* sets the sample color RGB, maintaining A */
@@ -505,7 +575,7 @@ static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3
   float col_conv[4];
 
   /* to maintain alpha */
-  RNA_property_float_get_array(&eye->ptr, eye->prop, col_conv);
+  RNA_property_float_get_array_at_most(&eye->ptr, eye->prop, col_conv, ARRAY_SIZE(col_conv));
 
   /* convert from linear rgb space to display space */
   if (eye->display) {
@@ -516,7 +586,7 @@ static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3
     copy_v3_v3(col_conv, col);
   }
 
-  RNA_property_float_set_array(&eye->ptr, eye->prop, col_conv);
+  RNA_property_float_set_array_at_most(&eye->ptr, eye->prop, col_conv, ARRAY_SIZE(col_conv));
   eye->is_set = true;
 
   RNA_property_update(C, &eye->ptr, eye->prop);
@@ -532,7 +602,9 @@ static void eyedropper_color_sample(bContext *C, Eyedropper *eye, const int even
     }
   }
   else {
-    eyedropper_color_sample_fl(C, eye, event_xy, col);
+    if (!eyedropper_color_sample_fl(C, eye, event_xy, col)) {
+      return;
+    }
   }
 
   if (!eye->crypto_node) {
@@ -581,7 +653,7 @@ static void eyedropper_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Eyedropper *eye = (Eyedropper *)op->customdata;
 
@@ -616,6 +688,16 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
     if (eye->accum_start) {
       /* button is pressed so keep sampling */
       eyedropper_color_sample(C, eye, event->xy);
+      WorkspaceStatus status(C);
+      status.item(TIP_("Drag to continue sampling, release when done"), ICON_MOUSE_MOVE);
+    }
+    else {
+      WorkspaceStatus status(C);
+      status.opmodal(IFACE_("Confirm"), op->type, EYE_MODAL_SAMPLE_CONFIRM);
+      status.opmodal(IFACE_("Cancel"), op->type, EYE_MODAL_CANCEL);
+#ifdef __APPLE__
+      status.item(TIP_("Press 'Enter' to sample outside of a Blender window"), ICON_INFO);
+#endif
     }
 
     if (eye->draw_handle_sample_text) {
@@ -627,7 +709,7 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* Modal Operator init */
-static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* init */
   if (eyedropper_init(C, op)) {
@@ -645,7 +727,7 @@ static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*even
 }
 
 /* Repeat operator */
-static int eyedropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (eyedropper_init(C, op)) {
@@ -674,7 +756,7 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_color";
   ot->description = "Sample a color from the Blender window to store in a property";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = eyedropper_invoke;
   ot->modal = eyedropper_modal;
   ot->cancel = eyedropper_cancel;

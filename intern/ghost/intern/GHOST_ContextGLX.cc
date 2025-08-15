@@ -28,7 +28,7 @@ static GLboolean _glewSearchExtension(const char *name, const GLubyte *start, co
 GLXContext GHOST_ContextGLX::s_sharedContext = None;
 int GHOST_ContextGLX::s_sharedCount = 0;
 
-GHOST_ContextGLX::GHOST_ContextGLX(bool stereoVisual,
+GHOST_ContextGLX::GHOST_ContextGLX(const GHOST_ContextParams &context_params,
                                    Window window,
                                    Display *display,
                                    GLXFBConfig fbconfig,
@@ -37,7 +37,7 @@ GHOST_ContextGLX::GHOST_ContextGLX(bool stereoVisual,
                                    int contextMinorVersion,
                                    int contextFlags,
                                    int contextResetNotificationStrategy)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
       m_display(display),
       m_fbconfig(fbconfig),
       m_window(window),
@@ -85,6 +85,7 @@ GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
   if (m_display == nullptr) {
     return GHOST_kFailure;
   }
+  active_context_ = this;
   return ::glXMakeCurrent(m_display, m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
@@ -93,6 +94,7 @@ GHOST_TSuccess GHOST_ContextGLX::releaseDrawingContext()
   if (m_display == nullptr) {
     return GHOST_kFailure;
   }
+  active_context_ = nullptr;
   return ::glXMakeCurrent(m_display, None, nullptr) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
@@ -163,11 +165,13 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
     }
 
 #ifdef WITH_GLEW_ES
-    if (!GLXEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1)
+    if (!GLXEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1) {
       fprintf(stderr, "Warning! OpenGL ES profile not available.\n");
+    }
 
-    if (!GLXEW_EXT_create_context_es2_profile && profileBitES && m_contextMajorVersion == 2)
+    if (!GLXEW_EXT_create_context_es2_profile && profileBitES && m_contextMajorVersion == 2) {
       fprintf(stderr, "Warning! OpenGL ES2 profile not available.\n");
+    }
 #endif
 
     int profileMask = 0;
@@ -180,8 +184,9 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
     }
 
 #ifdef WITH_GLEW_ES
-    if (GLXEW_EXT_create_context_es_profile && profileBitES)
+    if (GLXEW_EXT_create_context_es_profile && profileBitES) {
       profileMask |= profileBitES;
+    }
 #endif
 
     if (profileMask != m_contextProfileMask) {
@@ -239,7 +244,8 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
         int glx_attribs[64];
         int fbcount = 0;
 
-        GHOST_X11_GL_GetAttributes(glx_attribs, 64, m_stereoVisual, false, true);
+        GHOST_X11_GL_GetAttributes(
+            glx_attribs, 64, m_context_params.is_stereo_visual, false, true);
 
         framebuffer_config = glXChooseFBConfig(
             m_display, DefaultScreen(m_display), glx_attribs, &fbcount);
@@ -275,6 +281,14 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
     glXMakeCurrent(m_display, m_window, m_context);
 
+    /* For performance measurements with VSync disabled. */
+    {
+      const GHOST_TVSyncModes vsync = getVSync();
+      if (vsync != GHOST_kVSyncModeUnset) {
+        setSwapInterval(int(vsync));
+      }
+    }
+
     if (m_window) {
       initClearGL();
       ::glXSwapBuffers(m_display, m_window);
@@ -296,6 +310,7 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
   GHOST_X11_ERROR_HANDLERS_RESTORE(handler_store);
 
+  active_context_ = this;
   return success;
 }
 

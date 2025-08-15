@@ -8,18 +8,20 @@
 
 #pragma once
 
+#include "BLI_assert.h"
+#include "BLI_map.hh"
+#include "GPU_texture.hh"
+#include "MEM_guardedalloc.h"
+
+#include "gpu_texture_private.hh"
+
+#include <mutex>
+#include <string>
+#include <thread>
+
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
-
-#include "BLI_assert.h"
-#include "MEM_guardedalloc.h"
-#include "gpu_texture_private.hh"
-
-#include "BLI_map.hh"
-#include "GPU_texture.hh"
-#include <mutex>
-#include <thread>
 
 @class CAMetalLayer;
 @class MTLCommandQueue;
@@ -225,10 +227,10 @@ class MTLTexture : public Texture {
    *
    * Texture views can also point to external textures, rather than the owned
    * texture if MTL_TEXTURE_MODE_TEXTURE_VIEW is used.
-   * If this mode is used, source_texture points to a GPUTexture from which
+   * If this mode is used, source_texture points to a gpu::Texture from which
    * we pull their texture handle as a root.
    */
-  const GPUTexture *source_texture_ = nullptr;
+  const gpu::Texture *source_texture_ = nullptr;
 
   enum TextureViewDirtyState {
     TEXTURE_VIEW_NOT_DIRTY = 0,
@@ -250,6 +252,9 @@ class MTLTexture : public Texture {
   int mtl_max_mips_ = 1;
   bool has_generated_mips_ = false;
 
+  /* We may modify the requested usage flags so store them separately. */
+  eGPUTextureUsage internal_gpu_image_usage_flags_;
+
   /* VBO. */
   MTLVertBuf *vert_buffer_;
   id<MTLBuffer> vert_buffer_mtl_;
@@ -262,10 +267,10 @@ class MTLTexture : public Texture {
  public:
   MTLTexture(const char *name);
   MTLTexture(const char *name,
-             eGPUTextureFormat format,
+             TextureFormat format,
              eGPUTextureType type,
              id<MTLTexture> metal_texture);
-  ~MTLTexture();
+  ~MTLTexture() override;
 
   void update_sub(
       int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data) override;
@@ -309,7 +314,7 @@ class MTLTexture : public Texture {
 
   MTLStorageBuf *get_storagebuf();
 
-  const int *get_texture_metdata_ptr() const
+  const int *get_texture_metadata_ptr() const
   {
     return tex_buffer_metadata_;
   }
@@ -317,7 +322,7 @@ class MTLTexture : public Texture {
  protected:
   bool init_internal() override;
   bool init_internal(VertBuf *vbo) override;
-  bool init_internal(GPUTexture *src,
+  bool init_internal(gpu::Texture *src,
                      int mip_offset,
                      int layer_offset,
                      bool use_stencil) override; /* Texture View */
@@ -363,7 +368,7 @@ class MTLTexture : public Texture {
             uint src_z_offset,
             uint src_slice,
             uint src_mip,
-            gpu::MTLTexture *dest,
+            gpu::MTLTexture *dst,
             uint dst_x_offset,
             uint dst_y_offset,
             uint dst_z_offset,
@@ -372,7 +377,7 @@ class MTLTexture : public Texture {
             uint width,
             uint height,
             uint depth);
-  void blit(gpu::MTLTexture *dest,
+  void blit(gpu::MTLTexture *dst,
             uint src_x_offset,
             uint src_y_offset,
             uint dst_x_offset,
@@ -404,7 +409,7 @@ class MTLTexture : public Texture {
    * - IF datatype IS an exact match e.g. :
    *    - Per-component size matches (e.g. GPU_DATA_UBYTE)
    *                                OR GPU_DATA_10_11_11_REV && GPU_R11G11B10 (equiv)
-   *                                OR D24S8 and GPU_DATA_UINT_24_8
+   *                                OR D24S8 and GPU_DATA_UINT_24_8_DEPRECATED
    *    We can use BLIT ENCODER.
    *
    * OTHERWISE TRIGGER COMPUTE:
@@ -441,7 +446,7 @@ class MTLTexture : public Texture {
    * use a compute shader to write to depth, so we must instead render to a depth target.
    * These processes use vertex/fragment shaders to render texture data from an intermediate
    * source, in order to prime the depth buffer. */
-  GPUShader *depth_2d_update_sh_get(DepthTextureUpdateRoutineSpecialisation specialization);
+  gpu::Shader *depth_2d_update_sh_get(DepthTextureUpdateRoutineSpecialisation specialization);
 
   void update_sub_depth_2d(
       int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data);
@@ -471,7 +476,7 @@ class MTLTexture : public Texture {
       eGPUTextureType texture_type);
 
   /* fullscreen blit utilities. */
-  GPUShader *fullscreen_blit_sh_get();
+  gpu::Shader *fullscreen_blit_sh_get();
 
   MEM_CXX_CLASS_ALLOC_FUNCS("MTLTexture")
 };
@@ -486,7 +491,7 @@ class MTLPixelBuffer : public PixelBuffer {
 
   void *map() override;
   void unmap() override;
-  int64_t get_native_handle() override;
+  GPUPixelBufferNativeHandle get_native_handle() override;
   size_t get_size() override;
 
   id<MTLBuffer> get_metal_buffer();
@@ -495,7 +500,7 @@ class MTLPixelBuffer : public PixelBuffer {
 };
 
 /* Utility */
-MTLPixelFormat gpu_texture_format_to_metal(eGPUTextureFormat tex_format);
+MTLPixelFormat gpu_texture_format_to_metal(TextureFormat tex_format);
 size_t get_mtl_format_bytesize(MTLPixelFormat tex_format);
 int get_mtl_format_num_components(MTLPixelFormat tex_format);
 bool mtl_format_supports_blending(MTLPixelFormat format);
@@ -514,7 +519,7 @@ inline std::string tex_data_format_to_msl_type_str(eGPUDataFormat type)
       return "uint";
     case GPU_DATA_UBYTE:
       return "uchar";
-    case GPU_DATA_UINT_24_8:
+    case GPU_DATA_UINT_24_8_DEPRECATED:
       return "uint"; /* Problematic type - but will match alignment. */
     case GPU_DATA_10_11_11_REV:
     case GPU_DATA_2_10_10_10_REV:
@@ -540,7 +545,7 @@ inline std::string tex_data_format_to_msl_texture_template_type(eGPUDataFormat t
       return "uint";
     case GPU_DATA_UBYTE:
       return "ushort";
-    case GPU_DATA_UINT_24_8:
+    case GPU_DATA_UINT_24_8_DEPRECATED:
       return "uint"; /* Problematic type. */
     case GPU_DATA_10_11_11_REV:
     case GPU_DATA_2_10_10_10_REV:

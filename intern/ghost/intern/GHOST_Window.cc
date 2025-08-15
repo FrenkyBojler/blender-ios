@@ -19,7 +19,7 @@
 GHOST_Window::GHOST_Window(uint32_t width,
                            uint32_t height,
                            GHOST_TWindowState state,
-                           const bool wantStereoVisual,
+                           const GHOST_ContextParams &context_params,
                            const bool /*exclusive*/)
     : m_drawingContextType(GHOST_kDrawingContextTypeNone),
       m_userData(nullptr),
@@ -32,11 +32,15 @@ GHOST_Window::GHOST_Window(uint32_t width,
       m_progressBarVisible(false),
       m_canAcceptDragOperation(false),
       m_isUnsavedChanges(false),
-      m_wantStereoVisual(wantStereoVisual),
+      m_windowDecorationStyleFlags(GHOST_kDecorationNone),
+      m_windowDecorationStyleSettings(),
+      m_want_context_params(context_params),
       m_nativePixelSize(1.0f),
-      m_context(new GHOST_ContextNone(false))
+      m_context(nullptr)
 
 {
+  const GHOST_ContextParams context_params_none = GHOST_CONTEXT_PARAMS_NONE;
+  m_context = new GHOST_ContextNone(context_params_none);
 
   m_fullScreen = state == GHOST_kWindowStateFullScreen;
   if (m_fullScreen) {
@@ -55,6 +59,22 @@ void *GHOST_Window::getOSWindow() const
   return nullptr;
 }
 
+GHOST_TWindowDecorationStyleFlags GHOST_Window::getWindowDecorationStyleFlags()
+{
+  return m_windowDecorationStyleFlags;
+}
+
+void GHOST_Window::setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFlags styleFlags)
+{
+  m_windowDecorationStyleFlags = styleFlags;
+}
+
+void GHOST_Window::setWindowDecorationStyleSettings(
+    GHOST_WindowDecorationStyleSettings decorationSettings)
+{
+  m_windowDecorationStyleSettings = decorationSettings;
+}
+
 GHOST_TSuccess GHOST_Window::setDrawingContextType(GHOST_TDrawingContextType type)
 {
   if (type != m_drawingContextType) {
@@ -68,7 +88,7 @@ GHOST_TSuccess GHOST_Window::setDrawingContextType(GHOST_TDrawingContextType typ
       m_drawingContextType = type;
     }
     else {
-      m_context = new GHOST_ContextNone(m_wantStereoVisual);
+      m_context = new GHOST_ContextNone(m_want_context_params);
       m_drawingContextType = GHOST_kDrawingContextTypeNone;
     }
 
@@ -216,10 +236,22 @@ GHOST_TSuccess GHOST_Window::setCursorShape(GHOST_TStandardCursor cursorShape)
   return GHOST_kFailure;
 }
 
-GHOST_TSuccess GHOST_Window::setCustomCursorShape(
-    uint8_t *bitmap, uint8_t *mask, int sizex, int sizey, int hotX, int hotY, bool canInvertColor)
+GHOST_TSuccess GHOST_Window::setCustomCursorShape(const uint8_t *bitmap,
+                                                  const uint8_t *mask,
+                                                  const int size[2],
+                                                  const int hot_spot[2],
+                                                  bool can_invert_color)
 {
-  if (setWindowCustomCursorShape(bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor)) {
+  if (setWindowCustomCursorShape(bitmap, mask, size, hot_spot, can_invert_color)) {
+    m_cursorShape = GHOST_kStandardCursorCustom;
+    return GHOST_kSuccess;
+  }
+  return GHOST_kFailure;
+}
+
+GHOST_TSuccess GHOST_Window::setCustomCursorGenerator(GHOST_CursorGenerator *cursor_generator)
+{
+  if (setWindowCustomCursorGenerator(cursor_generator)) {
     m_cursorShape = GHOST_kStandardCursorCustom;
     return GHOST_kSuccess;
   }

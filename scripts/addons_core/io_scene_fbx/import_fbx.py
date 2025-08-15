@@ -1097,11 +1097,17 @@ def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_o
                         action_name = "|".join((id_data.name, stack_name, layer_name))
                     actions[key] = action = bpy.data.actions.new(action_name)
                     action.use_fake_user = True
+
+                    # Create an Action Slot. Curves created via action.fcurves will automatically be assigned to it.
+                    action.slots.new(id_data.id_type, action_name)
+
                 # If none yet assigned, assign this action to id_data.
                 if not id_data.animation_data:
                     id_data.animation_data_create()
                 if not id_data.animation_data.action:
                     id_data.animation_data.action = action
+                    id_data.animation_data.action_slot = action.slots[0]
+
                 # And actually populate the action!
                 blen_read_animations_action_item(action, item, cnodes, scene.render.fps, anim_offset, global_scale,
                                                  shape_key_values, fbx_ktime)
@@ -1784,11 +1790,6 @@ def blen_read_geom_layer_normal(fbx_obj, mesh, xform=None):
     return False
 
 
-def normalize_vecs(vectors):
-    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-    np.divide(vectors, norms, out=vectors, where=norms != 0)
-
-
 def blen_read_geom(fbx_tmpl, fbx_obj, settings):
     # Vertices are in object space, but we are post-multiplying all transforms with the inverse of the
     # global matrix, so we need to apply the global matrix to the vertices to get the correct result.
@@ -1919,10 +1920,6 @@ def blen_read_geom(fbx_tmpl, fbx_obj, settings):
         clnors = np.empty(len(mesh.loops) * 3, dtype=bl_nors_dtype)
         mesh.attributes["temp_custom_normals"].data.foreach_get("vector", clnors)
 
-        clnors = clnors.reshape(len(mesh.loops), 3)
-        normalize_vecs(clnors)
-        clnors = clnors.reshape(len(mesh.loops) * 3)
-
         # Iterating clnors into a nested tuple first is faster than passing clnors.reshape(-1, 3) directly into
         # normals_split_custom_set. We use clnors.data since it is a memoryview, which is faster to iterate than clnors.
         mesh.normals_split_custom_set(tuple(zip(*(iter(clnors.data),) * 3)))
@@ -2012,6 +2009,7 @@ def blen_read_shapes(fbx_tmpl, fbx_data, objects, me, scene):
         if me.shape_keys is None:
             objects[0].shape_key_add(name="Basis", from_mix=False)
         kb = objects[0].shape_key_add(name=elem_name_utf8, from_mix=False)
+        kb.value = 0.0
         me.shape_keys.use_relative = True  # Should already be set as such.
 
         # Only need to set the shape key co if there are any non-zero dvcos.
@@ -2051,6 +2049,10 @@ def blen_read_material(fbx_tmpl, fbx_obj, settings):
     from math import sqrt
 
     elem_name_utf8 = elem_name_ensure_class(fbx_obj, b'Material')
+
+    if settings.mtl_name_collision_mode == "REFERENCE_EXISTING":
+        if (ma := bpy.data.materials.get(elem_name_utf8)):
+            return ma
 
     nodal_material_wrap_map = settings.nodal_material_wrap_map
     ma = bpy.data.materials.new(name=elem_name_utf8)
@@ -2239,11 +2241,12 @@ def blen_read_light(fbx_tmpl, fbx_obj, settings):
     # TODO, cycles nodes???
     lamp.color = elem_props_get_color_rgb(fbx_props, b'Color', (1.0, 1.0, 1.0))
     lamp.energy = elem_props_get_number(fbx_props, b'Intensity', 100.0) / 100.0
+    lamp.exposure = elem_props_get_number(fbx_props, b'Exposure', 0.0)
     lamp.use_shadow = elem_props_get_bool(fbx_props, b'CastShadow', True)
     if hasattr(lamp, "cycles"):
         lamp.cycles.cast_shadow = lamp.use_shadow
-    # Keeping this for now, but this is not used nor exposed anymore afaik...
-    lamp.shadow_color = elem_props_get_color_rgb(fbx_props, b'ShadowColor', (0.0, 0.0, 0.0))
+    # Removed but could be restored if the value can be applied.
+    # `lamp.shadow_color = elem_props_get_color_rgb(fbx_props, b'ShadowColor', (0.0, 0.0, 0.0))`
 
     if settings.use_custom_props:
         blen_read_custom_properties(fbx_obj, lamp, settings)
@@ -3044,7 +3047,8 @@ def load(operator, context, filepath="",
          primary_bone_axis='Y',
          secondary_bone_axis='X',
          use_prepost_rot=True,
-         colors_type='SRGB'):
+         colors_type='SRGB',
+         mtl_name_collision_mode="MAKE_UNIQUE"):
 
     global fbx_elem_nil
     fbx_elem_nil = FBXElem('', (), (), ())
@@ -3183,7 +3187,7 @@ def load(operator, context, filepath="",
         use_custom_props, use_custom_props_enum_as_string,
         nodal_material_wrap_map, image_cache,
         ignore_leaf_bones, force_connect_children, automatic_bone_orientation, bone_correction_matrix,
-        use_prepost_rot, colors_type,
+        use_prepost_rot, colors_type, mtl_name_collision_mode,
     )
 
     # #### And now, the "real" data.

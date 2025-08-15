@@ -10,7 +10,7 @@
 
 #include <Python.h>
 
-#include "mathutils.h"
+#include "mathutils.hh"
 
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
@@ -18,8 +18,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_utildefines.hh"
 
 #ifndef MATH_STANDALONE
 #  include "BLI_dynstr.h"
@@ -167,13 +167,12 @@ static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kw
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_to_euler_doc,
-    ".. method:: to_euler(order, euler_compat)\n"
+    ".. method:: to_euler(order='XYZ', euler_compat=None, /)\n"
     "\n"
     "   Return Euler representation of the quaternion.\n"
     "\n"
-    "   :arg order: Optional rotation order argument in\n"
-    "      ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX'].\n"
-    "   :type order: string\n"
+    "   :arg order: Rotation order.\n"
+    "   :type order: Literal['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX']\n"
     "   :arg euler_compat: Optional euler argument the new euler will be made\n"
     "      compatible with (no axis flipping between them).\n"
     "      Useful for converting a series of matrices to animation curves.\n"
@@ -270,8 +269,8 @@ PyDoc_STRVAR(
     "\n"
     "   Return the axis, angle representation of the quaternion.\n"
     "\n"
-    "   :return: axis, angle.\n"
-    "   :rtype: (:class:`Vector`, float) pair\n");
+    "   :return: Axis, angle.\n"
+    "   :rtype: tuple[:class:`Vector`, float]\n");
 static PyObject *Quaternion_to_axis_angle(QuaternionObject *self)
 {
   PyObject *ret;
@@ -304,14 +303,15 @@ static PyObject *Quaternion_to_axis_angle(QuaternionObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_to_swing_twist_doc,
-    ".. method:: to_swing_twist(axis)\n"
+    ".. method:: to_swing_twist(axis, /)\n"
     "\n"
     "   Split the rotation into a swing quaternion with the specified\n"
     "   axis fixed at zero, and the remaining twist rotation angle.\n"
     "\n"
-    "   :arg axis: twist axis as a string in ['X', 'Y', 'Z']\n"
-    "   :return: swing, twist angle.\n"
-    "   :rtype: (:class:`Quaternion`, float) pair\n");
+    "   :arg axis: Twist axis as a string.\n"
+    "   :type axis: Literal['X', 'Y', 'Z']\n"
+    "   :return: Swing, twist angle.\n"
+    "   :rtype: tuple[:class:`Quaternion`, float]\n");
 static PyObject *Quaternion_to_swing_twist(QuaternionObject *self, PyObject *axis_arg)
 {
   PyObject *ret;
@@ -388,7 +388,7 @@ static PyObject *Quaternion_to_exponential_map(QuaternionObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_cross_doc,
-    ".. method:: cross(other)\n"
+    ".. method:: cross(other, /)\n"
     "\n"
     "   Return the cross product of this quaternion and another.\n"
     "\n"
@@ -424,7 +424,7 @@ static PyObject *Quaternion_cross(QuaternionObject *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_dot_doc,
-    ".. method:: dot(other)\n"
+    ".. method:: dot(other, /)\n"
     "\n"
     "   Return the dot product of this quaternion and another.\n"
     "\n"
@@ -458,7 +458,7 @@ static PyObject *Quaternion_dot(QuaternionObject *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_rotation_difference_doc,
-    ".. function:: rotation_difference(other)\n"
+    ".. function:: rotation_difference(other, /)\n"
     "\n"
     "   Returns a quaternion representing the rotational difference.\n"
     "\n"
@@ -497,7 +497,7 @@ static PyObject *Quaternion_rotation_difference(QuaternionObject *self, PyObject
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_slerp_doc,
-    ".. function:: slerp(other, factor)\n"
+    ".. function:: slerp(other, factor, /)\n"
     "\n"
     "   Returns the interpolation of two quaternions.\n"
     "\n"
@@ -551,12 +551,12 @@ static PyObject *Quaternion_slerp(QuaternionObject *self, PyObject *args)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_rotate_doc,
-    ".. method:: rotate(other)\n"
+    ".. method:: rotate(other, /)\n"
     "\n"
     "   Rotates the quaternion by another mathutils value.\n"
     "\n"
     "   :arg other: rotation component of mathutils value\n"
-    "   :type other: :class:`Euler`, :class:`Quaternion` or :class:`Matrix`\n");
+    "   :type other: :class:`Euler` | :class:`Quaternion` | :class:`Matrix`\n");
 static PyObject *Quaternion_rotate(QuaternionObject *self, PyObject *value)
 {
   float self_rmat[3][3], other_rmat[3][3], rmat[3][3];
@@ -583,10 +583,13 @@ static PyObject *Quaternion_rotate(QuaternionObject *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_make_compatible_doc,
-    ".. method:: make_compatible(other)\n"
+    ".. method:: make_compatible(other, /)\n"
     "\n"
     "   Make this quaternion compatible with another,\n"
-    "   so interpolating between them works as intended.\n");
+    "   so interpolating between them works as intended.\n"
+    "\n"
+    "   :arg other: The other quaternion to make compatible with.\n"
+    "   :type other: :class:`Quaternion`\n");
 static PyObject *Quaternion_make_compatible(QuaternionObject *self, PyObject *value)
 {
   float quat[QUAT_SIZE];
@@ -899,7 +902,7 @@ static PyObject *Quaternion_richcmpr(PyObject *a, PyObject *b, int op)
       return nullptr;
   }
 
-  return Py_INCREF_RET(res);
+  return Py_NewRef(res);
 }
 
 /** \} */
@@ -1671,9 +1674,14 @@ static PyGetSetDef Quaternion_getseters[] = {
 /** \name Quaternion Type: Method Definitions
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef Quaternion_methods[] = {
@@ -1730,8 +1738,12 @@ static PyMethodDef Quaternion_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */
@@ -1747,7 +1759,7 @@ static PyMethodDef Quaternion_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     quaternion_doc,
-    ".. class:: Quaternion([seq, [angle]])\n"
+    ".. class:: Quaternion(seq=(1.0, 0.0, 0.0, 0.0), angle=0.0, /)\n"
     "\n"
     "   This object gives access to Quaternions in Blender.\n"
     "\n"

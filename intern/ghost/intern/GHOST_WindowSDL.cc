@@ -21,10 +21,10 @@ GHOST_WindowSDL::GHOST_WindowSDL(GHOST_SystemSDL *system,
                                  uint32_t height,
                                  GHOST_TWindowState state,
                                  GHOST_TDrawingContextType type,
-                                 const bool stereoVisual,
+                                 const GHOST_ContextParams &context_params,
                                  const bool exclusive,
                                  const GHOST_IWindow * /*parentWindow*/)
-    : GHOST_Window(width, height, state, stereoVisual, exclusive),
+    : GHOST_Window(width, height, state, context_params, exclusive),
       m_system(system),
       m_valid_setup(false),
       m_invalid_window(false),
@@ -65,12 +65,13 @@ GHOST_WindowSDL::~GHOST_WindowSDL()
 
 GHOST_Context *GHOST_WindowSDL::newDrawingContext(GHOST_TDrawingContextType type)
 {
+
   switch (type) {
 #ifdef WITH_OPENGL_BACKEND
     case GHOST_kDrawingContextTypeOpenGL: {
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextSDL(
-            m_wantStereoVisual,
+            m_want_context_params,
             m_sdl_win,
             0, /* Profile bit. */
             4,
@@ -502,7 +503,7 @@ static SDL_Cursor *sdl_std_cursor_array[int(GHOST_kStandardCursorNumCursors)] = 
 /* utility function mostly a copy of SDL_CreateCursor but allows us to change
  * color and supports blenders flipped bits */
 static SDL_Cursor *sdl_ghost_CreateCursor(
-    const Uint8 *data, const Uint8 *mask, int w, int h, int hot_x, int hot_y)
+    const uint8_t *data, const uint8_t *mask, int w, int h, int hot_x, int hot_y)
 {
   SDL_Surface *surface;
   SDL_Cursor *cursor;
@@ -616,20 +617,18 @@ GHOST_TSuccess GHOST_WindowSDL::hasCursorShape(GHOST_TStandardCursor shape)
   return (getStandardCursorShape(shape)) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
-GHOST_TSuccess GHOST_WindowSDL::setWindowCustomCursorShape(uint8_t *bitmap,
-                                                           uint8_t *mask,
-                                                           int sizex,
-                                                           int sizey,
-                                                           int hotX,
-                                                           int hotY,
-                                                           bool /*canInvertColor*/)
+GHOST_TSuccess GHOST_WindowSDL::setWindowCustomCursorShape(const uint8_t *bitmap,
+                                                           const uint8_t *mask,
+                                                           const int size[2],
+                                                           const int hot_spot[2],
+                                                           bool /*can_invert_color*/)
 {
   if (m_sdl_custom_cursor) {
     SDL_FreeCursor(m_sdl_custom_cursor);
   }
 
   m_sdl_custom_cursor = sdl_ghost_CreateCursor(
-      (const Uint8 *)bitmap, (const Uint8 *)mask, sizex, sizey, hotX, hotY);
+      bitmap, mask, size[0], size[1], hot_spot[0], hot_spot[1]);
 
   SDL_SetCursor(m_sdl_custom_cursor);
   return GHOST_kSuccess;

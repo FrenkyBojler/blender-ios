@@ -9,9 +9,11 @@
 #include "BLI_utildefines.h"
 #include <Python.h>
 
-#include "bpy_app_openvdb.h"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "../generic/py_capi_utils.h"
+#include "bpy_app_openvdb.hh"
+
+#include "../generic/py_capi_utils.hh"
 
 #ifdef WITH_OPENVDB
 #  include "openvdb_capi.h"
@@ -89,7 +91,7 @@ PyObject *BPY_app_openvdb_struct()
   BlenderAppOVDBType.tp_init = nullptr;
   BlenderAppOVDBType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppOVDBType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppOVDBType.tp_hash = (hashfunc)Py_HashPointer;
 
   return ret;
 }

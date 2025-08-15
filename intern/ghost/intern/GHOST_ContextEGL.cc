@@ -187,7 +187,7 @@ template<typename T> T &choose_api(EGLenum api, T &a, T &b, T &c)
 }
 
 GHOST_ContextEGL::GHOST_ContextEGL(const GHOST_System *const system,
-                                   bool stereoVisual,
+                                   const GHOST_ContextParams &context_params,
                                    EGLNativeWindowType nativeWindow,
                                    EGLNativeDisplayType nativeDisplay,
                                    EGLint contextProfileMask,
@@ -196,7 +196,7 @@ GHOST_ContextEGL::GHOST_ContextEGL(const GHOST_System *const system,
                                    EGLint contextFlags,
                                    EGLint contextResetNotificationStrategy,
                                    EGLenum api)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
       m_system(system),
       m_nativeDisplay(nativeDisplay),
       m_nativeWindow(nativeWindow),
@@ -291,6 +291,7 @@ EGLContext GHOST_ContextEGL::getContext() const
 GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 {
   if (m_display) {
+    active_context_ = this;
     bindAPI(m_api);
     return EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)) ? GHOST_kSuccess :
                                                                                    GHOST_kFailure;
@@ -301,6 +302,7 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 GHOST_TSuccess GHOST_ContextEGL::releaseDrawingContext()
 {
   if (m_display) {
+    active_context_ = nullptr;
     bindAPI(m_api);
 
     return EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) ?
@@ -334,10 +336,10 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
   std::vector<EGLint> attrib_list;
   EGLint num_config = 0;
 
-  if (m_stereoVisual) {
+  if (m_context_params.is_stereo_visual) {
     fprintf(stderr, "Warning! Stereo OpenGL ES contexts are not supported.\n");
   }
-  m_stereoVisual = false; /* It doesn't matter what the Window wants. */
+  m_context_params.is_stereo_visual = false; /* It doesn't matter what the Window wants. */
 
   EGLDisplay prev_display = eglGetCurrentDisplay();
   EGLSurface prev_draw = eglGetCurrentSurface(EGL_DRAW);
@@ -623,11 +625,19 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
     goto error;
   }
 
+  {
+    const GHOST_TVSyncModes vsync = getVSync();
+    if (vsync != GHOST_kVSyncModeUnset) {
+      setSwapInterval(int(vsync));
+    }
+  }
+
   if (m_nativeWindow != 0) {
     initClearGL();
     ::eglSwapBuffers(m_display, m_surface);
   }
 
+  active_context_ = this;
   return GHOST_kSuccess;
 
 error:

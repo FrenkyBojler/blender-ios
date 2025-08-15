@@ -110,10 +110,10 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
                                  GHOST_WindowX11 *parentWindow,
                                  GHOST_TDrawingContextType type,
                                  const bool is_dialog,
-                                 const bool stereoVisual,
+                                 const GHOST_ContextParams &context_params,
                                  const bool exclusive,
-                                 const bool is_debug)
-    : GHOST_Window(width, height, state, stereoVisual, exclusive),
+                                 const GHOST_GPUDevice &preferred_device)
+    : GHOST_Window(width, height, state, context_params, exclusive),
       m_display(display),
       m_visualInfo(nullptr),
       m_fbconfig(nullptr),
@@ -123,7 +123,6 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
       m_empty_cursor(None),
       m_custom_cursor(None),
       m_visible_cursor(None),
-      m_taskbar("blender.desktop"),
 #ifdef WITH_XDND
       m_dropTarget(nullptr),
 #endif
@@ -132,7 +131,7 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
       m_xic(nullptr),
 #endif
       m_valid_setup(false),
-      m_is_debug_context(is_debug)
+      m_preferred_device(preferred_device)
 {
 #ifdef WITH_OPENGL_BACKEND
   if (type == GHOST_kDrawingContextTypeOpenGL) {
@@ -251,8 +250,8 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
     xsizehints->y = top;
     xsizehints->width = width;
     xsizehints->height = height;
-    xsizehints->min_width = 320;  /* size hints, could be made apart of the ghost api */
-    xsizehints->min_height = 240; /* limits are also arbitrary, but should not allow 1x1 window */
+    xsizehints->min_width = 320;  /* Size hints, could be made apart of the GHOST API. */
+    xsizehints->min_height = 240; /* Limits are also arbitrary, but should not allow 1x1 window. */
     xsizehints->max_width = 65535;
     xsizehints->max_height = 65535;
     XSetWMNormalHints(m_display, m_window, xsizehints);
@@ -1189,7 +1188,7 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
   switch (type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
-      GHOST_Context *context = new GHOST_ContextVK(m_wantStereoVisual,
+      GHOST_Context *context = new GHOST_ContextVK(m_want_context_params,
                                                    GHOST_kVulkanPlatformX11,
                                                    m_window,
                                                    m_display,
@@ -1198,7 +1197,7 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
                                                    nullptr,
                                                    1,
                                                    2,
-                                                   m_is_debug_context);
+                                                   m_preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -1214,14 +1213,14 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = GHOST_ContextEGL(
             this->m_system,
-            m_wantStereoVisual,
+            m_want_context_params,
             EGLNativeWindowType(m_window),
             EGLNativeDisplayType(m_display),
             EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
             4,
             minor,
             GHOST_OPENGL_EGL_CONTEXT_FLAGS |
-                (m_is_debug_context ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
+                (m_want_context_params.is_debug ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
             GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
             EGL_OPENGL_API);
         if (context->initializeDrawingContext()) {
@@ -1229,19 +1228,20 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
         }
         delete context;
       }
-      /* EGL initialization failed, try to fallback to a GLX context. */
+      /* EGL initialization failed, try to fall back to a GLX context. */
 #  endif
 
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextGLX(
-            m_wantStereoVisual,
+            m_want_context_params,
             m_window,
             m_display,
             (GLXFBConfig)m_fbconfig,
             GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
             4,
             minor,
-            GHOST_OPENGL_GLX_CONTEXT_FLAGS | (m_is_debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
+            GHOST_OPENGL_GLX_CONTEXT_FLAGS |
+                (m_want_context_params.is_debug ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
             GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
         if (context->initializeDrawingContext()) {
           return context;
@@ -1452,13 +1452,11 @@ GHOST_TSuccess GHOST_WindowX11::hasCursorShape(GHOST_TStandardCursor shape)
   return getStandardCursor(shape, xcursor);
 }
 
-GHOST_TSuccess GHOST_WindowX11::setWindowCustomCursorShape(uint8_t *bitmap,
-                                                           uint8_t *mask,
-                                                           int sizex,
-                                                           int sizey,
-                                                           int hotX,
-                                                           int hotY,
-                                                           bool /*canInvertColor*/)
+GHOST_TSuccess GHOST_WindowX11::setWindowCustomCursorShape(const uint8_t *bitmap,
+                                                           const uint8_t *mask,
+                                                           const int size[2],
+                                                           const int hot_spot[2],
+                                                           bool /*can_invert_color*/)
 {
   Colormap colormap = DefaultColormap(m_display, m_visualInfo->screen);
   Pixmap bitmap_pix, mask_pix;
@@ -1475,10 +1473,11 @@ GHOST_TSuccess GHOST_WindowX11::setWindowCustomCursorShape(uint8_t *bitmap,
     XFreeCursor(m_display, m_custom_cursor);
   }
 
-  bitmap_pix = XCreateBitmapFromData(m_display, m_window, (char *)bitmap, sizex, sizey);
-  mask_pix = XCreateBitmapFromData(m_display, m_window, (char *)mask, sizex, sizey);
+  bitmap_pix = XCreateBitmapFromData(m_display, m_window, (char *)bitmap, size[0], size[1]);
+  mask_pix = XCreateBitmapFromData(m_display, m_window, (char *)mask, size[0], size[1]);
 
-  m_custom_cursor = XCreatePixmapCursor(m_display, bitmap_pix, mask_pix, &fg, &bg, hotX, hotY);
+  m_custom_cursor = XCreatePixmapCursor(
+      m_display, bitmap_pix, mask_pix, &fg, &bg, hot_spot[0], hot_spot[1]);
   XDefineCursor(m_display, m_window, m_custom_cursor);
   XFlush(m_display);
 
@@ -1489,58 +1488,6 @@ GHOST_TSuccess GHOST_WindowX11::setWindowCustomCursorShape(uint8_t *bitmap,
 
   XFreeColors(m_display, colormap, &fg.pixel, 1, 0L);
   XFreeColors(m_display, colormap, &bg.pixel, 1, 0L);
-
-  return GHOST_kSuccess;
-}
-
-GHOST_TSuccess GHOST_WindowX11::beginFullScreen() const
-{
-  {
-    Window root_return;
-    int x_return, y_return;
-    uint w_return, h_return, border_w_return, depth_return;
-
-    XGetGeometry(m_display,
-                 m_window,
-                 &root_return,
-                 &x_return,
-                 &y_return,
-                 &w_return,
-                 &h_return,
-                 &border_w_return,
-                 &depth_return);
-
-    m_system->setCursorPosition(w_return / 2, h_return / 2);
-  }
-
-  /* Grab Keyboard & Mouse */
-  int err;
-
-  err = XGrabKeyboard(m_display, m_window, False, GrabModeAsync, GrabModeAsync, CurrentTime);
-  if (err != GrabSuccess) {
-    printf("XGrabKeyboard failed %d\n", err);
-  }
-
-  err = XGrabPointer(m_display,
-                     m_window,
-                     False,
-                     PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-                     GrabModeAsync,
-                     GrabModeAsync,
-                     m_window,
-                     None,
-                     CurrentTime);
-  if (err != GrabSuccess) {
-    printf("XGrabPointer failed %d\n", err);
-  }
-
-  return GHOST_kSuccess;
-}
-
-GHOST_TSuccess GHOST_WindowX11::endFullScreen() const
-{
-  XUngrabKeyboard(m_display, CurrentTime);
-  XUngrabPointer(m_display, CurrentTime);
 
   return GHOST_kSuccess;
 }
@@ -1570,7 +1517,7 @@ uint16_t GHOST_WindowX11::getDPIHint()
     }
   }
 
-  /* Fallback to calculating DPI using X reported DPI, set using `xrandr --dpi`. */
+  /* Fall back to calculating DPI using X reported DPI, set using `xrandr --dpi`. */
   XWindowAttributes attr;
   if (!XGetWindowAttributes(m_display, m_window, &attr)) {
     /* Failed to get window attributes, return X11 default DPI */
@@ -1590,23 +1537,12 @@ uint16_t GHOST_WindowX11::getDPIHint()
   return dpi;
 }
 
-GHOST_TSuccess GHOST_WindowX11::setProgressBar(float progress)
+GHOST_TSuccess GHOST_WindowX11::setProgressBar(float /*progress*/)
 {
-  if (m_taskbar.is_valid()) {
-    m_taskbar.set_progress(progress);
-    m_taskbar.set_progress_enabled(true);
-    return GHOST_kSuccess;
-  }
-
   return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_WindowX11::endProgressBar()
 {
-  if (m_taskbar.is_valid()) {
-    m_taskbar.set_progress_enabled(false);
-    return GHOST_kSuccess;
-  }
-
   return GHOST_kFailure;
 }

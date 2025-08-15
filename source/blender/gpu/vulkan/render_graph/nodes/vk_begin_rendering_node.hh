@@ -49,7 +49,8 @@ class VKBeginRenderingNode : public VKNodeInfo<VKNodeType::BEGIN_RENDERING,
    * (`VK*Data`/`VK*CreateInfo`) types can be included in the same header file as the logic. The
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
-  template<typename Node> void set_node_data(Node &node, const CreateInfo &create_info)
+  template<typename Node, typename Storage>
+  void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
     BLI_assert_msg(ELEM(create_info.node_data.vk_rendering_info.pColorAttachments,
                         nullptr,
@@ -66,10 +67,10 @@ class VKBeginRenderingNode : public VKNodeInfo<VKNodeType::BEGIN_RENDERING,
                         &create_info.node_data.stencil_attachment),
                    "When create_info.node_data.vk_rendering_info.pStencilAttachment points to "
                    "something, it should point to create_info.node_data.stencil_attachment.");
-    node.begin_rendering = create_info.node_data;
+    node.storage_index = storage.begin_rendering.append_and_get_index(create_info.node_data);
     /* NOTE: pointers in vk_rendering_info will be set to the correct location just before sending
      * to the command buffer. In the meantime these pointers are invalid.
-     * VKRenderingAttachmentInfo's should be used instead.*/
+     * VKRenderingAttachmentInfo's should be used instead. */
   }
 
   /**
@@ -90,8 +91,8 @@ class VKBeginRenderingNode : public VKNodeInfo<VKNodeType::BEGIN_RENDERING,
                       VKBoundPipelines & /*r_bound_pipelines*/) override
   {
     /* Localize pointers just before sending to the command buffer. Pointer can (and will) change
-     * as they are stored in a union which is stored in a vector. When the vector reallocates, the
-     * pointers will become invalid. */
+     * as they are stored in a union which is stored in a vector. When the vector reallocates,
+     * the pointers will become invalid. */
     if (data.vk_rendering_info.pColorAttachments) {
       data.vk_rendering_info.pColorAttachments = data.color_attachments;
     }

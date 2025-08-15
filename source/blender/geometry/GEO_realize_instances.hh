@@ -30,7 +30,7 @@ struct RealizeInstancesOptions {
 };
 
 /**
- * Allow  the user to choice which instances to realize and to what depth.
+ * Allow the user to choice which instances to realize and to what depth.
  */
 struct VariedDepthOptions {
   /**
@@ -46,7 +46,7 @@ struct VariedDepthOptions {
   /**
    * Use this value to realize the instance completely
    */
-  static const int MAX_DEPTH = -1;
+  static constexpr int MAX_DEPTH = -1;
 };
 
 /**

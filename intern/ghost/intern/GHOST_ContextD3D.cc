@@ -20,8 +20,8 @@
 HMODULE GHOST_ContextD3D::s_d3d_lib = nullptr;
 PFN_D3D11_CREATE_DEVICE GHOST_ContextD3D::s_D3D11CreateDeviceFn = nullptr;
 
-GHOST_ContextD3D::GHOST_ContextD3D(bool stereoVisual, HWND hWnd)
-    : GHOST_Context(stereoVisual), m_hWnd(hWnd)
+GHOST_ContextD3D::GHOST_ContextD3D(const GHOST_ContextParams &context_params, HWND hWnd)
+    : GHOST_Context(context_params), m_hWnd(hWnd)
 {
 }
 
@@ -39,11 +39,13 @@ GHOST_TSuccess GHOST_ContextD3D::swapBuffers()
 
 GHOST_TSuccess GHOST_ContextD3D::activateDrawingContext()
 {
+  active_context_ = this;
   return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_ContextD3D::releaseDrawingContext()
 {
+  active_context_ = nullptr;
   return GHOST_kFailure;
 }
 
@@ -99,6 +101,7 @@ GHOST_TSuccess GHOST_ContextD3D::initializeDrawingContext()
 
   WIN32_CHK(hres == S_OK);
 
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 

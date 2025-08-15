@@ -6,8 +6,6 @@
  * \ingroup bke
  */
 
-#include <mutex>
-
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 
@@ -15,7 +13,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_task.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
@@ -23,6 +20,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_subdiv.hh"
+#include "BKE_subdiv_deform.hh"
 #include "BKE_subdiv_eval.hh"
 #include "BKE_subdiv_foreach.hh"
 #include "BKE_subdiv_mesh.hh"
@@ -129,8 +127,7 @@ static void subdiv_mesh_prepare_accumulator(SubdivMeshContext *ctx, int num_vert
   if (!ctx->have_displacement) {
     return;
   }
-  ctx->accumulated_counters = static_cast<int *>(
-      MEM_calloc_arrayN(num_vertices, sizeof(*ctx->accumulated_counters), __func__));
+  ctx->accumulated_counters = MEM_calloc_arrayN<int>(num_vertices, __func__);
 }
 
 static void subdiv_mesh_context_free(SubdivMeshContext *ctx)
@@ -138,7 +135,7 @@ static void subdiv_mesh_context_free(SubdivMeshContext *ctx)
   MEM_SAFE_FREE(ctx->accumulated_counters);
   MEM_SAFE_FREE(ctx->subdiv_corner_verts);
   MEM_SAFE_FREE(ctx->subdiv_corner_edges);
-  CustomData_free(&ctx->coarse_corner_data_interp, ctx->coarse_mesh->corners_num);
+  CustomData_free(&ctx->coarse_corner_data_interp);
 }
 
 /** \} */
@@ -310,7 +307,7 @@ static void vertex_interpolation_from_corner(const SubdivMeshContext *ctx,
 static void vertex_interpolation_end(VerticesForInterpolation *vertex_interpolation)
 {
   if (vertex_interpolation->vertex_data_storage_allocated) {
-    CustomData_free(&vertex_interpolation->vertex_data_storage, 4);
+    CustomData_free(&vertex_interpolation->vertex_data_storage);
   }
 }
 
@@ -434,7 +431,7 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
 static void loop_interpolation_end(LoopsForInterpolation *loop_interpolation)
 {
   if (loop_interpolation->corner_data_storage_allocated) {
-    CustomData_free(&loop_interpolation->corner_data_storage, 4);
+    CustomData_free(&loop_interpolation->corner_data_storage);
   }
 }
 
@@ -509,7 +506,10 @@ static void subdiv_accumulate_vertex_displacement(SubdivMeshContext *ctx,
 {
   /* Accumulate displacement. */
   Subdiv *subdiv = ctx->subdiv;
-  float dummy_P[3], dPdu[3], dPdv[3], D[3];
+  float3 dummy_P;
+  float3 dPdu;
+  float3 dPdv;
+  float3 D;
   eval_limit_point_and_derivatives(subdiv, ptex_face_index, u, v, dummy_P, dPdu, dPdv);
 
   /* NOTE: The subdivided mesh is allocated in this module, and its vertices are kept at zero
@@ -548,13 +548,13 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   Mesh &subdiv_mesh = *subdiv_context->subdiv_mesh;
   BKE_mesh_copy_parameters_for_eval(subdiv_context->subdiv_mesh, &coarse_mesh);
 
-  CustomData_free(&subdiv_mesh.vert_data, 0);
+  CustomData_free(&subdiv_mesh.vert_data);
   CustomData_init_layout_from(
       &coarse_mesh.vert_data, &subdiv_mesh.vert_data, mask.vmask, CD_SET_DEFAULT, num_vertices);
-  CustomData_free(&subdiv_mesh.edge_data, 0);
+  CustomData_free(&subdiv_mesh.edge_data);
   CustomData_init_layout_from(
       &coarse_mesh.edge_data, &subdiv_mesh.edge_data, mask.emask, CD_SET_DEFAULT, num_edges);
-  CustomData_free(&subdiv_mesh.face_data, 0);
+  CustomData_free(&subdiv_mesh.face_data);
   CustomData_init_layout_from(
       &coarse_mesh.face_data, &subdiv_mesh.face_data, mask.pmask, CD_SET_DEFAULT, num_faces);
   if (num_faces != 0) {
@@ -566,11 +566,9 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
                        &subdiv_context->coarse_corner_data_interp,
                        mask.lmask,
                        coarse_mesh.corners_num);
-  CustomData_free_layer_named(
-      &subdiv_context->coarse_corner_data_interp, ".corner_vert", coarse_mesh.corners_num);
-  CustomData_free_layer_named(
-      &subdiv_context->coarse_corner_data_interp, ".corner_edge", coarse_mesh.corners_num);
-  CustomData_free(&subdiv_mesh.corner_data, 0);
+  CustomData_free_layer_named(&subdiv_context->coarse_corner_data_interp, ".corner_vert");
+  CustomData_free_layer_named(&subdiv_context->coarse_corner_data_interp, ".corner_edge");
+  CustomData_free(&subdiv_mesh.corner_data);
   CustomData_init_layout_from(&subdiv_context->coarse_corner_data_interp,
                               &subdiv_mesh.corner_data,
                               mask.lmask,
@@ -578,10 +576,8 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
                               num_loops);
 
   /* Allocate corner topology arrays which are added to the result at the end. */
-  subdiv_context->subdiv_corner_verts = static_cast<int *>(
-      MEM_malloc_arrayN(num_loops, sizeof(int), __func__));
-  subdiv_context->subdiv_corner_edges = static_cast<int *>(
-      MEM_malloc_arrayN(num_loops, sizeof(int), __func__));
+  subdiv_context->subdiv_corner_verts = MEM_malloc_arrayN<int>(size_t(num_loops), __func__);
+  subdiv_context->subdiv_corner_edges = MEM_malloc_arrayN<int>(size_t(num_loops), __func__);
 
   subdiv_mesh_ctx_cache_custom_data_layers(subdiv_context);
   subdiv_mesh_prepare_accumulator(subdiv_context, num_vertices);
@@ -1247,6 +1243,37 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH);
   subdiv_mesh_context_free(&subdiv_context);
   return result;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Limit surface
+ * \{ */
+
+void calculate_limit_positions(Mesh *mesh, MutableSpan<float3> limit_positions)
+{
+  BLI_assert(mesh->verts_num == limit_positions.size());
+
+  limit_positions.copy_from(mesh->vert_positions());
+
+  Settings settings{};
+  settings.is_simple = false;
+  settings.is_adaptive = true;
+  settings.level = 1;
+  settings.use_creases = true;
+
+  /* Default subdivision surface modifier settings:
+   * - UV Smooth:Keep Corners.
+   * - BoundarySmooth: All. */
+  settings.vtx_boundary_interpolation = SUBDIV_VTX_BOUNDARY_EDGE_ONLY;
+  settings.fvar_linear_interpolation = SUBDIV_FVAR_LINEAR_INTERPOLATION_CORNERS_AND_JUNCTIONS;
+
+  Subdiv *subdiv = update_from_mesh(nullptr, &settings, mesh);
+  if (subdiv) {
+    deform_coarse_vertices(subdiv, mesh, limit_positions);
+    free(subdiv);
+  }
 }
 
 /** \} */
