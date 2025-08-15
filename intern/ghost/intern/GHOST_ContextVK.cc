@@ -10,8 +10,6 @@
 
 #ifdef _WIN32
 #  include <vulkan/vulkan_win32.h>
-#elif defined(__APPLE__)
-#  include <MoltenVK/vk_mvk_moltenvk.h>
 #else /* X11/WAYLAND. */
 #  ifdef WITH_GHOST_X11
 #    include <vulkan/vulkan_xlib.h>
@@ -279,11 +277,8 @@ class GHOST_DeviceVK {
     queue_create_infos.push_back(graphic_queue_create_info);
 
     VkPhysicalDeviceFeatures device_features = {};
-#ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
-    /* MoltenVK supports logicOp, needs to be build with MVK_USE_METAL_PRIVATE_API. */
     device_features.logicOp = VK_TRUE;
-#endif
     device_features.dualSrcBlend = VK_TRUE;
     device_features.imageCubeArray = VK_TRUE;
     device_features.multiDrawIndirect = VK_TRUE;
@@ -554,7 +549,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
 
 /** \} */
 
-GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
+GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #ifdef _WIN32
                                  HWND hwnd,
 #elif defined(__APPLE__)
@@ -571,9 +566,8 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
 #endif
                                  int contextMajorVersion,
                                  int contextMinorVersion,
-                                 int debug,
                                  const GHOST_GPUDevice &preferred_device)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
 #ifdef _WIN32
       m_hwnd(hwnd),
 #elif defined(__APPLE__)
@@ -590,7 +584,6 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
 #endif
       m_context_major_version(contextMajorVersion),
       m_context_minor_version(contextMinorVersion),
-      m_debug(debug),
       m_preferred_device(preferred_device),
       m_surface(VK_NULL_HANDLE),
       m_swapchain(VK_NULL_HANDLE),
@@ -857,7 +850,7 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
   }
 }
 
-static GHOST_TSuccess selectPresentMode(const char *ghost_vsync_string,
+static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
                                         VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
@@ -867,8 +860,8 @@ static GHOST_TSuccess selectPresentMode(const char *ghost_vsync_string,
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
 
-  if (ghost_vsync_string) {
-    bool vsync_off = atoi(ghost_vsync_string) == 0;
+  if (vsync != GHOST_kVSyncModeUnset) {
+    const bool vsync_off = (vsync == GHOST_kVSyncModeOff);
     if (vsync_off) {
       for (auto present_mode : presents) {
         if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
@@ -877,9 +870,8 @@ static GHOST_TSuccess selectPresentMode(const char *ghost_vsync_string,
         }
       }
       CLOG_WARN(&LOG,
-                "Vulkan: VSync off was requested via BLENDER_VSYNC, but "
-                "VK_PRESENT_MODE_IMMEDIATE_KHR is not "
-                "supported.");
+                "Vulkan: VSync off was requested via --gpu-vsync, "
+                "but VK_PRESENT_MODE_IMMEDIATE_KHR is not supported.");
     }
   }
 
@@ -984,7 +976,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   }
 
   VkPresentModeKHR present_mode;
-  if (!selectPresentMode(getEnvVarVSyncString(), physical_device, m_surface, &present_mode)) {
+  if (!selectPresentMode(getVSync(), physical_device, m_surface, &present_mode)) {
     return GHOST_kFailure;
   }
 
@@ -1258,7 +1250,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vector<const char *> optional_device_extensions;
   vector<const char *> extensions_enabled;
 
-  if (m_debug) {
+  if (m_context_params.is_debug) {
     requireExtension(extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
