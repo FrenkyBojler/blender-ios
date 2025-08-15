@@ -3126,7 +3126,6 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
   /* Limit substeps to avoid crashing in extreme cases. */
   const int sim_steps = std::clamp(1 + substeps, 1, 240);
 
-  /* TODO Confirm if this conflicts with the jolt initialization in the jolt solver node. */
   jolt_physics::JoltState *jolt_state = static_cast<jolt_physics::JoltState *>(
       behaviors.physics_state);
 
