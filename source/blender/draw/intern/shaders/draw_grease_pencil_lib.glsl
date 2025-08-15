@@ -60,16 +60,24 @@ float gpencil_stroke_round_cap_mask(
 
 /**
  *
- * Calculate the distance mask for the pixel in the current segment (p1->p2)
+ * Calculate the mask for the pixel in the main segment (1) by using the distance factor to
+ * the center line.
  *
- *     *==================*
- *      \                /
- *       p1------------p2
- *      / \            / \
- *     /   *==========*   \
- *    /                    \
- *   /                      \
- * p0                        p3
+ *      *====================*
+ *       \                  /
+ *        p1------1>------p2
+ *       / \              / \
+ *      /   *============*   \
+ *     0                      1
+ *    /                        \
+ *   /                          \
+ * p0                            p3
+ *
+ * Segments: 0 (p0->p1)
+ *           1 (p1->p2)
+ *           2 (p2->p3)
+ *
+ * Each point can have a different corner type, stored as p1: miter_limit.x, p2: miter_limit.y
  *
  */
 float gpencil_stroke_segment_mask(float2 p1,
@@ -113,8 +121,10 @@ float gpencil_stroke_segment_mask(float2 p1,
   float t1 = dot(pos1, line1) / dot(line1, line1);
   float t2 = dot(pos2, line2) / dot(line2, line2);
 
+  /* The distance factor to the main segment. This is clamped and will lead to round corners. */
   float dist = length(pos1 - saturate(t1) * line1) / radius;
 
+  /* The add the other two segments. Each will have rounded corners. */
   if (!is_start) {
     dist = min(dist, length(pos0 - saturate(t0) * line0) / radius);
   }
@@ -122,10 +132,12 @@ float gpencil_stroke_segment_mask(float2 p1,
     dist = min(dist, length(pos2 - saturate(t2) * line2) / radius);
   }
 
+  /* Check if the pixel is within the corner region between segments 1 and 0. */
   if (t1 <= 0.0f && t0 >= 1.0f && !is_start && miter_limit.x != MITER_LIMIT_TYPE_ROUND) {
     float cos_angle = -dot(normalize(line1), normalize(line0));
 
     if (miter_limit.x == MITER_LIMIT_TYPE_BEVEL || cos_angle > miter_limit.x) {
+      /* Bevel by cutting with a line from the two bevel points. */
       float2 bevel1 = p1 + sign0 * normalize(tan1) * radius;
       float2 bevel2 = p1 + sign0 * normalize(tan0) * radius;
 
@@ -135,14 +147,17 @@ float gpencil_stroke_segment_mask(float2 p1,
       dist = 1.0f - dot(bevel_pos, bevel_tan) / dot(p1 - bevel1, bevel_tan);
     }
     else {
+      /* Continue each line to get a shape corner. */
       dist = max(length(pos1 - t1 * line1) / radius, length(pos0 - t0 * line0) / radius);
     }
   }
 
+  /* Check if the pixel is within the corner region between segments 1 and 2. */
   if (t1 >= 1.0f && t2 <= 0.0f && !is_end && miter_limit.y != MITER_LIMIT_TYPE_ROUND) {
     float cos_angle = -dot(normalize(line1), normalize(line2));
 
     if (miter_limit.y == MITER_LIMIT_TYPE_BEVEL || cos_angle > miter_limit.y) {
+      /* Bevel by cutting with a line from the two bevel points. */
       float2 bevel1 = p2 + sign2 * normalize(tan1) * radius;
       float2 bevel2 = p2 + sign2 * normalize(tan2) * radius;
 
@@ -152,6 +167,7 @@ float gpencil_stroke_segment_mask(float2 p1,
       dist = 1.0f - dot(bevel_pos, bevel_tan) / dot(p2 - bevel1, bevel_tan);
     }
     else {
+      /* Continue each line to get a shape corner. */
       dist = max(length(pos1 - t1 * line1) / radius, length(pos2 - t2 * line2) / radius);
     }
   }
