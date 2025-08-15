@@ -65,7 +65,7 @@ static std::string process_test_string(std::string str,
       "test.glsl",
       true,
       true,
-      [&](const std::smatch & /*match*/, const char *err_msg) {
+      [&](int /*err_line*/, int /*err_char*/, const std::string & /*line*/, const char *err_msg) {
         if (first_error.empty()) {
           first_error = err_msg;
         }

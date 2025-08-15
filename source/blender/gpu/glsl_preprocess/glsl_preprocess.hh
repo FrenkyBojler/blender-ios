@@ -154,7 +154,8 @@ struct Source {
  */
 class Preprocessor {
   using uint64_t = std::uint64_t;
-  using report_callback = std::function<void(const std::smatch &, const char *)>;
+  using report_callback = std::function<void(
+      int error_line, int error_char, std::string error_line_string, const char *error_str)>;
   struct SharedVar {
     std::string type;
     std::string name;
@@ -200,7 +201,7 @@ class Preprocessor {
                       metadata::Source &r_metadata)
   {
     if (language == UNKNOWN) {
-      report_error(std::smatch(), "Unknown file type");
+      report_error(0, 0, "", "Unknown file type");
       return "";
     }
     str = remove_comments(str, report_error);
@@ -262,7 +263,7 @@ class Preprocessor {
   /* Variant use for python shaders. */
   std::string process(const std::string &str)
   {
-    auto no_err_report = [](std::smatch, const char *) {};
+    auto no_err_report = [](int, int, std::string, const char *) {};
     metadata::Source unused;
     return process(GLSL, str, "", false, false, no_err_report, unused);
   }
@@ -316,8 +317,10 @@ class Preprocessor {
       }
 
       if (end == std::string::npos) {
-        /* TODO(fclem): Add line / char position to report. */
-        report_error(std::smatch(), "Malformed multi-line comment.");
+        report_error(line_number(out_str, start),
+                     char_number(out_str, start),
+                     line_str(out_str, start),
+                     "Malformed multi-line comment.");
         return out_str;
       }
     }
@@ -335,8 +338,10 @@ class Preprocessor {
       }
 
       if (end == std::string::npos) {
-        /* TODO(fclem): Add line / char position to report. */
-        report_error(std::smatch(), "Malformed single line comment, missing newline.");
+        report_error(line_number(out_str, start),
+                     char_number(out_str, start),
+                     line_str(out_str, start),
+                     "Malformed single line comment, missing newline.");
         return out_str;
       }
     }
@@ -386,8 +391,10 @@ class Preprocessor {
         Scope fn_args = fn_name.next().scope();
 
         bool error = false;
-        temp.foreach_match("=", [&](const std::vector<Token> & /*tokens*/) {
-          report_error(smatch(),
+        temp.foreach_match("=", [&](const std::vector<Token> &tokens) {
+          report_error(tokens[0].line_number(),
+                       tokens[0].char_number(),
+                       tokens[0].line_str(),
                        "Default arguments are not supported inside template declaration");
           error = true;
         });
@@ -429,7 +436,10 @@ class Preprocessor {
             all_template_args_in_function_signature = false;
           }
           else {
-            report_error(smatch(), "Invalid template argument type");
+            report_error(type.line_number(),
+                         type.char_number(),
+                         type.line_str(),
+                         "Invalid template argument type");
           }
         });
 
@@ -487,11 +497,18 @@ class Preprocessor {
     }
     {
       /* Check if there is no remaining declaration and instantiation that were not processed. */
-      if (out_str.find("template<") != std::string::npos) {
-        report_error(smatch(), "Template declaration unsupported syntax");
+      size_t error_pos;
+      if ((error_pos = out_str.find("template<")) != std::string::npos) {
+        report_error(line_number(out_str, error_pos),
+                     char_number(out_str, error_pos),
+                     line_str(out_str, error_pos),
+                     "Template declaration unsupported syntax");
       }
-      if (out_str.find("template ") != std::string::npos) {
-        report_error(smatch(), "Template instantiation unsupported syntax");
+      if ((error_pos = out_str.find("template ")) != std::string::npos) {
+        report_error(line_number(out_str, error_pos),
+                     char_number(out_str, error_pos),
+                     line_str(out_str, error_pos),
+                     "Template instantiation unsupported syntax");
       }
     }
     return out_str;
@@ -540,7 +557,10 @@ class Preprocessor {
       std::string indent = match[1].str();
       /* Assert that includes are not nested in other preprocessor directives. */
       if (!indent.empty()) {
-        report_error(match, "#include directives must not be inside #if clause");
+        report_error(line_number(match),
+                     char_number(match),
+                     line_str(match),
+                     "#include directives must not be inside #if clause");
       }
       std::string dependency_name = match[2].str();
       /* Assert that includes are at the top of the file. */
@@ -572,7 +592,10 @@ class Preprocessor {
     }
     if (str.find("\n#pragma once") == std::string::npos) {
       std::smatch match;
-      report_error(match, "Library files must contain #pragma once directive.");
+      report_error(line_number(match),
+                   char_number(match),
+                   line_str(match),
+                   "Library files must contain #pragma once directive.");
     }
   }
 
@@ -636,7 +659,10 @@ class Preprocessor {
 
         /* Checks if `continue` exists, even in switch statement inside the unrolled loop scope. */
         if (modified_body.find(" continue;") != std::string::npos) {
-          report_error(match, "Error: Unrolled loop cannot contain \"continue\" statement.");
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
+                       "Error: Unrolled loop cannot contain \"continue\" statement.");
         }
 
         std::regex regex_switch(R"( switch )");
@@ -647,7 +673,10 @@ class Preprocessor {
 
         /* Checks if `break` exists inside the unrolled loop scope. */
         if (modified_body.find(" break;") != std::string::npos) {
-          report_error(match, "Error: Unrolled loop cannot contain \"break\" statement.");
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
+                       "Error: Unrolled loop cannot contain \"break\" statement.");
         }
       }
       loops.emplace_back(loop);
@@ -678,7 +707,10 @@ class Preprocessor {
         line += line_count(match.prefix().str()) + lines_in_content;
 
         if ((counter_1 != counter_2) || (counter_1 != counter_3)) {
-          report_error(match, "Error: Non matching loop counter variable.");
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
+                       "Error: Non matching loop counter variable.");
           return;
         }
 
@@ -691,7 +723,10 @@ class Preprocessor {
 
         std::string condition = match[7].str();
         if (condition.empty()) {
-          report_error(match, "Error: Unsupported condition in unrolled loop.");
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
+                       "Error: Unsupported condition in unrolled loop.");
         }
 
         std::string equal = match[8].str();
@@ -702,16 +737,25 @@ class Preprocessor {
         std::string iter = match[14].str();
         if (iter == "++") {
           if (condition == ">") {
-            report_error(match, "Error: Unsupported condition in unrolled loop.");
+            report_error(line_number(match),
+                         char_number(match),
+                         line_str(match),
+                         "Error: Unsupported condition in unrolled loop.");
           }
         }
         else if (iter == "--") {
           if (condition == "<") {
-            report_error(match, "Error: Unsupported condition in unrolled loop.");
+            report_error(line_number(match),
+                         char_number(match),
+                         line_str(match),
+                         "Error: Unsupported condition in unrolled loop.");
           }
         }
         else {
-          report_error(match, "Error: Unsupported for loop expression. Expecting ++ or --");
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
+                       "Error: Unsupported for loop expression. Expecting ++ or --");
         }
 
         loop.definition = content;
@@ -783,7 +827,10 @@ class Preprocessor {
     /* Check for remaining keywords. */
     if (out.find("[[gpu::unroll") != std::string::npos) {
       regex_global_search(str, std::regex(R"(\[\[gpu::unroll)"), [&](const std::smatch &match) {
-        report_error(match, "Error: Incompatible format for [[gpu::unroll]].");
+        report_error(line_number(match),
+                     char_number(match),
+                     line_str(match),
+                     "Error: Incompatible format for [[gpu::unroll]].");
       });
     }
 
@@ -805,7 +852,10 @@ class Preprocessor {
       std::string content = get_content_between_balanced_pair(match.suffix().str(), '{', '}');
 
       if (content.find("namespace") != std::string::npos) {
-        report_error(match, "Nested namespaces are unsupported.");
+        report_error(line_number(match),
+                     char_number(match),
+                     line_str(match),
+                     "Nested namespaces are unsupported.");
         return;
       }
 
@@ -844,7 +894,9 @@ class Preprocessor {
 
     if (str.find("using namespace ") != string::npos) {
       regex_global_search(str, regex(R"(\busing namespace\b)"), [&](const smatch &match) {
-        report_error(match,
+        report_error(line_number(match),
+                     char_number(match),
+                     line_str(match),
                      "Unsupported `using namespace`. "
                      "Add individual `using` directives for each needed symbol.");
       });
@@ -875,7 +927,10 @@ class Preprocessor {
         const string parent_scope = get_content_between_balanced_pair(
             out_str + '}', '{', '}', true);
         if (parent_scope.empty()) {
-          report_error(match, "The `using` keyword is not allowed in global scope.");
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
+                       "The `using` keyword is not allowed in global scope.");
           return str;
         }
         /* Ensure we are bringing symbols from the same namespace.
@@ -883,7 +938,10 @@ class Preprocessor {
         const string ns_keyword = "namespace ";
         size_t pos = out_str.rfind(ns_keyword, out_str.size() - parent_scope.size());
         if (pos == string::npos) {
-          report_error(match, "Couldn't find `namespace` keyword at beginning of scope.");
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
+                       "Couldn't find `namespace` keyword at beginning of scope.");
           return str;
         }
         size_t start = pos + ns_keyword.size();
@@ -891,7 +949,9 @@ class Preprocessor {
         const string namespace_scope = out_str.substr(start, end);
         if (namespace_scope != namespace_prefix) {
           report_error(
-              match,
+              line_number(match),
+              char_number(match),
+              line_str(match),
               "The `using` keyword is only allowed in namespace scope to make visible symbols "
               "from the same namespace declared in another scope, potentially from another "
               "file.");
@@ -919,7 +979,10 @@ class Preprocessor {
     /* Verify all using were processed. */
     if (out_str.find("using ") != string::npos) {
       regex_global_search(out_str, regex(R"(\busing\b)"), [&](const smatch &match) {
-        report_error(match, "Unsupported `using` keyword usage.");
+        report_error(line_number(match),
+                     char_number(match),
+                     line_str(match),
+                     "Unsupported `using` keyword usage.");
       });
     }
     return out_str;
@@ -1065,7 +1128,10 @@ class Preprocessor {
           }
         }
         if (arg_len > 99) {
-          report_error(std::smatch(), "Too many parameters in printf. Max is 99.");
+          report_error(line_number(out_str, start),
+                       char_number(out_str, start),
+                       line_str(out_str, start),
+                       "Too many parameters in printf. Max is 99.");
           break;
         }
         /* Encode number of arg in the `ntf` of `printf`. */
@@ -1165,18 +1231,24 @@ class Preprocessor {
         const Token struct_name = tokens[1];
 
         if (struct_name.next() == ':') {
-          /* TODO(fclem): Good report. */
-          report_error(smatch(), "class inheritance is not supported");
+          report_error(struct_name.next().line_number(),
+                       struct_name.next().char_number(),
+                       struct_name.next().line_str(),
+                       "class inheritance is not supported");
           return;
         }
         if (struct_name.next() == '<') {
-          /* TODO(fclem): Good report. */
-          report_error(smatch(), "class template is not supported");
+          report_error(struct_name.line_number(),
+                       struct_name.char_number(),
+                       struct_name.line_str(),
+                       "class template is not supported");
           return;
         }
         if (struct_name.next() != '{') {
-          /* TODO(fclem): Good report. */
-          report_error(smatch(), "Expected `{`");
+          report_error(struct_name.line_number(),
+                       struct_name.char_number(),
+                       struct_name.line_str(),
+                       "Expected `{`");
           return;
         }
 
@@ -1193,8 +1265,9 @@ class Preprocessor {
 
         struct_scope.foreach_match("ww(", [&](const std::vector<Token> &tokens) {
           if (tokens[0].prev() == Const) {
-            /* TODO(fclem): Good report. */
-            report_error(smatch(),
+            report_error(tokens[0].prev().line_number(),
+                         tokens[0].prev().char_number(),
+                         tokens[0].prev().line_str(),
                          "function return type is marked `const` but it makes no sense for values "
                          "and returning reference is not supported");
             return;
@@ -1298,9 +1371,10 @@ class Preprocessor {
               /* End of chain. */
               break;
             }
-            std::string error = "method_call_mutation parsing error : " + start_of_this.str() +
-                                to_string(start_of_this.type());
-            report_error(smatch(), error.c_str());
+            report_error(start_of_this.line_number(),
+                         start_of_this.char_number(),
+                         start_of_this.line_str(),
+                         "method_call_mutation parsing error");
             break;
           }
           string this_str = parser.substr_range_inclusive(start_of_this, end_of_this);
@@ -1636,18 +1710,26 @@ class Preprocessor {
 
       /* Assert definition doesn't contain any side effect. */
       if (value.find("++") != string::npos || value.find("--") != string::npos) {
-        report_error(match, "Reference definitions cannot have side effects.");
+        report_error(line_number(match),
+                     char_number(match),
+                     line_str(match),
+                     "Reference definitions cannot have side effects.");
         return str;
       }
       if (value.find("(") != string::npos) {
-        report_error(match, "Reference definitions cannot contain function calls.");
+        report_error(line_number(match),
+                     char_number(match),
+                     line_str(match),
+                     "Reference definitions cannot contain function calls.");
         return str;
       }
       if (value.find("[") != string::npos) {
         const string index_var = get_content_between_balanced_pair(value, '[', ']');
 
         if (index_var.find(' ') != string::npos) {
-          report_error(match,
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
                        "Array subscript inside reference declaration must be a single variable or "
                        "a constant, not an expression.");
           return str;
@@ -1671,13 +1753,18 @@ class Preprocessor {
           if (regex_search(scope, match_definition, regex_definition)) {
             found_var = true;
             if (match_definition[1].matched == false) {
-              report_error(match, "Array subscript variable must be declared as const qualified.");
+              report_error(line_number(match),
+                           char_number(match),
+                           line_str(match),
+                           "Array subscript variable must be declared as const qualified.");
               return str;
             }
           }
         }
         if (!found_var) {
-          report_error(match,
+          report_error(line_number(match),
+                       char_number(match),
+                       line_str(match),
                        "Cannot locate array subscript variable declaration. "
                        "If it is a global variable, assign it to a temporary const variable for "
                        "indexing inside the reference.");
@@ -1688,7 +1775,10 @@ class Preprocessor {
       /* Find scope this definition is active in. */
       const string scope = get_content_between_balanced_pair('{' + suffix, '{', '}');
       if (scope.empty()) {
-        report_error(match, "Reference is defined inside a global or unterminated scope.");
+        report_error(line_number(match),
+                     char_number(match),
+                     line_str(match),
+                     "Reference is defined inside a global or unterminated scope.");
         return str;
       }
       string original = definition + scope;
@@ -1747,7 +1837,7 @@ class Preprocessor {
       const char *msg =
           "Matrix constructor is not cross API compatible. "
           "Use to_floatNxM to reshape the matrix or use other constructors instead.";
-      report_error(match, msg);
+      report_error(line_number(match), char_number(match), line_str(match), msg);
     });
   }
 
@@ -1762,7 +1852,7 @@ class Preprocessor {
         const char *msg =
             "Global scope constant expression found. These get allocated per-thread in MSL. "
             "Use Macro's or uniforms instead.";
-        report_error(match, msg);
+        report_error(line_number(match), char_number(match), line_str(match), msg);
       }
     });
   }
@@ -1773,7 +1863,7 @@ class Preprocessor {
     regex_global_search(str, regex, [&](const std::smatch &match) {
       /* This only catches some invalid usage. For the rest, the CI will catch them. */
       const char *msg = "Quotes are forbidden in GLSL.";
-      report_error(match, msg);
+      report_error(line_number(match), char_number(match), line_str(match), msg);
     });
   }
 
@@ -1784,7 +1874,7 @@ class Preprocessor {
       /* This only catches some invalid usage. For the rest, the CI will catch them. */
       const char *msg =
           "Array constructor is not cross API compatible. Use type_array instead of type[].";
-      report_error(match, msg);
+      report_error(line_number(match), char_number(match), line_str(match), msg);
     });
   }
 
@@ -1793,7 +1883,10 @@ class Preprocessor {
   {
     std::regex regex(R"(\su?(char|short|half)(2|3|4)?\s)");
     regex_global_search(str, regex, [&](const std::smatch &match) {
-      report_error(match, "Small types are forbidden in shader interfaces.");
+      report_error(line_number(match),
+                   char_number(match),
+                   line_str(match),
+                   "Small types are forbidden in shader interfaces.");
     });
   }
 
@@ -2105,6 +2198,56 @@ class Preprocessor {
       }
       pos++;
     }
+  }
+
+  /* Return the line number this token is found at. Take into account the #line directives. */
+  static size_t line_number(const std::string &file_str, size_t pos)
+  {
+    std::string sub_str = file_str.substr(0, pos);
+    std::string directive = "#line ";
+    size_t nearest_line_directive = sub_str.rfind(directive);
+    size_t line_count = 1;
+    if (nearest_line_directive != std::string::npos) {
+      sub_str = sub_str.substr(nearest_line_directive + directive.size());
+      line_count = std::stoll(sub_str) - 1;
+    }
+    return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
+  }
+  static size_t line_number(const std::smatch &smatch)
+  {
+    std::string whole_file = smatch.prefix().str() + smatch[0].str() + smatch.suffix().str();
+    return line_number(whole_file, smatch.prefix().str().size());
+  }
+
+  /* Return the offset to the start of the line. */
+  static size_t char_number(const std::string &file_str, size_t pos)
+  {
+    std::string sub_str = file_str.substr(0, pos);
+    size_t nearest_line_directive = sub_str.find_last_of("\n");
+    return (nearest_line_directive == std::string::npos) ?
+               (sub_str.size() - 1) :
+               (sub_str.size() - nearest_line_directive);
+  }
+  static size_t char_number(const std::smatch &smatch)
+  {
+    std::string whole_file = smatch.prefix().str() + smatch[0].str() + smatch.suffix().str();
+    return char_number(whole_file, smatch.prefix().str().size());
+  }
+
+  /* Return the line the token is at. */
+  static std::string line_str(const std::string &file_str, size_t pos)
+  {
+    size_t start = file_str.rfind('\n', pos);
+    size_t end = file_str.find('\n', pos);
+    if (start == std::string::npos) {
+      start = 0;
+    }
+    return file_str.substr(start, end - start);
+  }
+  static std::string line_str(const std::smatch &smatch)
+  {
+    std::string whole_file = smatch.prefix().str() + smatch[0].str() + smatch.suffix().str();
+    return line_str(whole_file, smatch.prefix().str().size());
   }
 };
 

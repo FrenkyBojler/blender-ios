@@ -713,6 +713,27 @@ struct Token {
     return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
   }
 
+  /* Return the offset to the start of the line. */
+  size_t char_number() const
+  {
+    std::string sub_str = data->str.substr(0, str_index_start());
+    size_t nearest_line_directive = sub_str.rfind('\n');
+    return (nearest_line_directive == std::string::npos) ?
+               (sub_str.size() - 1) :
+               (sub_str.size() - nearest_line_directive - 1);
+  }
+
+  /* Return the line the token is at. */
+  std::string line_str() const
+  {
+    size_t start = data->str.rfind('\n', str_index_start());
+    size_t end = data->str.find('\n', str_index_start());
+    if (start == std::string::npos) {
+      start = 0;
+    }
+    return data->str.substr(start, end - start);
+  }
+
   TokenType type() const
   {
     if (is_invalid()) {
