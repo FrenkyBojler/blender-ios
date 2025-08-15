@@ -47,11 +47,6 @@ typedef struct PaintWavePoint {
 } PaintWavePoint;
 
 /**
- * Always initialized on read or data creation.
- */
-void dynamicPaint_Modifier_runtime_ensure(DynamicPaintModifierData *pmd);
-
-/**
  * Modifier call. Processes dynamic paint modifier step.
  */
 struct Mesh *dynamicPaint_Modifier_do(struct DynamicPaintModifierData *pmd,

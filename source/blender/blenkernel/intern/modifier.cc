@@ -45,7 +45,6 @@
 #include "BLT_translation.hh"
 
 #include "BKE_appdir.hh"
-#include "BKE_dynamicpaint.h"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
@@ -1473,8 +1472,6 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
         BLO_read_struct(reader, ColorBand, &pmd->brush->paint_ramp);
         BLO_read_struct(reader, ColorBand, &pmd->brush->vel_ramp);
       }
-
-      dynamicPaint_Modifier_runtime_ensure(pmd);
     }
 
     if ((mti != nullptr) && (mti->blend_read != nullptr)) {

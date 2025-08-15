@@ -127,9 +127,8 @@ struct DynamicPaintRuntime {
   struct Mesh *canvas_mesh = nullptr;
   struct Mesh *brush_mesh = nullptr;
   /**
-   * Brush access is not thread safe.
-   * So a mutex is needed to ensure nested evaluation doesn't overwrite
-   * the mesh while it's copied.
+   * Multiple threads may access `brush_mesh` so locking is needed
+   * to ensure access is thread safe, see: #143958.
    */
   blender::Mutex brush_mutex;
 };
@@ -278,14 +277,10 @@ void dynamicPaint_Modifier_free_runtime(DynamicPaintRuntime *runtime_data)
   if (runtime_data->canvas_mesh) {
     BKE_id_free(nullptr, runtime_data->canvas_mesh);
   }
-
-  {
-    std::lock_guard lock{runtime_data->brush_mutex};
-    if (runtime_data->brush_mesh) {
-      BKE_id_free(nullptr, runtime_data->brush_mesh);
-    }
+  if (runtime_data->brush_mesh) {
+    BKE_id_free(nullptr, runtime_data->brush_mesh);
   }
-  MEM_delete(runtime_data);
+  MEM_freeN(runtime_data);
 }
 
 static DynamicPaintRuntime *dynamicPaint_Modifier_runtime_get(DynamicPaintModifierData *pmd)
@@ -294,11 +289,12 @@ static DynamicPaintRuntime *dynamicPaint_Modifier_runtime_get(DynamicPaintModifi
   return (DynamicPaintRuntime *)pmd->modifier.runtime;
 }
 
-void dynamicPaint_Modifier_runtime_ensure(DynamicPaintModifierData *pmd)
+static DynamicPaintRuntime *dynamicPaint_Modifier_runtime_ensure(DynamicPaintModifierData *pmd)
 {
   if (pmd->modifier.runtime == nullptr) {
     pmd->modifier.runtime = MEM_new<DynamicPaintRuntime>("dynamic paint runtime");
   }
+  return (DynamicPaintRuntime *)pmd->modifier.runtime;
 }
 
 static Mesh *dynamicPaint_canvas_mesh_get(DynamicPaintCanvasSettings *canvas)
@@ -1252,9 +1248,6 @@ bool dynamicPaint_createType(DynamicPaintModifierData *pmd, int type, Scene *sce
         brush->paint_ramp->tot = 2;
       }
     }
-
-    /* Runtime must always be set. */
-    dynamicPaint_Modifier_runtime_ensure(pmd);
   }
   else {
     return false;
@@ -2117,10 +2110,7 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
   }
   /* make a copy of mesh to use as brush data */
   else if (pmd->brush && pmd->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
-    /* NOTE: don't use ensure here as it's not thread-safe
-     * to initialize this data from multiple threads. */
-    DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_get(pmd);
-    BLI_assert(runtime_data != nullptr);
+    DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_ensure(pmd);
 
     std::lock_guard lock{runtime_data->brush_mutex};
     BLI_assert(runtime_data != nullptr);
@@ -2144,7 +2134,7 @@ void dynamicPaint_cacheUpdateFrames(DynamicPaintSurface *surface)
 
 static void canvas_copyMesh(DynamicPaintCanvasSettings *canvas, Mesh *mesh)
 {
-  DynamicPaintRuntime *runtime = dynamicPaint_Modifier_runtime_get(canvas->pmd);
+  DynamicPaintRuntime *runtime = dynamicPaint_Modifier_runtime_ensure(canvas->pmd);
   if (runtime->canvas_mesh != nullptr) {
     BKE_id_free(nullptr, runtime->canvas_mesh);
   }
