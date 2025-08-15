@@ -80,8 +80,8 @@ void main()
 
   frag_color.rgb *= gpencil_lighting();
 
-  /* Dot or Squares. */
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) {
+    /* Dot or Squares. */
     float2 uv = gp_interp.uv;
     uv = uv * 2.0 - 1.0;
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_DOTS)) {
