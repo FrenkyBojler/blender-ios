@@ -1347,12 +1347,18 @@ static void gwl_seat_key_repeat_timer_fn(GHOST_ITimerTask *task, uint64_t time_m
 
 /**
  * \note Caller must lock `timer_mutex`.
+ *
+ * \note A `seat->key_repeat.rate` of zero indicates that client-side key repeat is disabled,
+ * the compositor may generate repeat events.
+ * The caller must ensure this function isn't called in that case.
  */
 static void gwl_seat_key_repeat_timer_add(GWL_Seat *seat,
                                           GHOST_TimerProcPtr key_repeat_fn,
                                           GHOST_TUserDataPtr payload,
                                           const bool use_delay)
 {
+  /* Caller is expected to ensure this. */
+  GHOST_ASSERT(seat->key_repeat.rate > 0, "invalid rate");
   GHOST_SystemWayland *system = seat->system;
   const uint64_t time_now = system->getMilliSeconds();
   const uint64_t time_step = 1000 / seat->key_repeat.rate;
@@ -2238,9 +2244,10 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t sym)
       GXMAP(gkey, XKB_KEY_KP_Separator, GHOST_kKeyNumpadPeriod);
       GXMAP(gkey, XKB_KEY_less, GHOST_kKeyGrLess);
 
-      default:
+      default: {
         /* Rely on #xkb_map_gkey_or_scan_code to report when no key can be found. */
         gkey = GHOST_kKeyUnknown;
+      }
     }
 #undef GXMAP
   }
@@ -3961,12 +3968,14 @@ static void pointer_handle_button(void *data,
 
   int button_release;
   switch (state) {
-    case WL_POINTER_BUTTON_STATE_RELEASED:
+    case WL_POINTER_BUTTON_STATE_RELEASED: {
       button_release = 1;
       break;
-    case WL_POINTER_BUTTON_STATE_PRESSED:
+    }
+    case WL_POINTER_BUTTON_STATE_PRESSED: {
       button_release = 0;
       break;
+    }
     default: {
       return;
     }
@@ -4989,12 +4998,14 @@ static void tablet_tool_handle_button(void *data,
 
   bool is_press = false;
   switch (state) {
-    case WL_POINTER_BUTTON_STATE_RELEASED:
+    case WL_POINTER_BUTTON_STATE_RELEASED: {
       is_press = false;
       break;
-    case WL_POINTER_BUTTON_STATE_PRESSED:
+    }
+    case WL_POINTER_BUTTON_STATE_PRESSED: {
       is_press = true;
       break;
+    }
   }
 
   seat->data_source_serial = serial;
@@ -5575,13 +5586,23 @@ static void keyboard_handle_key(void *data,
   CLOG_DEBUG(LOG, "key (code=%d, state=%u)", int(key_code), state);
 
   GHOST_TEventType etype = GHOST_kEventUnknown;
+  bool is_repeat = false;
   switch (state) {
-    case WL_KEYBOARD_KEY_STATE_RELEASED:
+    case WL_KEYBOARD_KEY_STATE_RELEASED: {
       etype = GHOST_kEventKeyUp;
       break;
-    case WL_KEYBOARD_KEY_STATE_PRESSED:
+    }
+#ifdef WL_KEYBOARD_KEY_STATE_REPEATED_SINCE_VERSION
+    case WL_KEYBOARD_KEY_STATE_REPEATED: {
+      /* Server side key repeat. */
+      is_repeat = true;
+      [[fallthrough]];
+    }
+#endif
+    case WL_KEYBOARD_KEY_STATE_PRESSED: {
       etype = GHOST_kEventKeyDown;
       break;
+    }
   }
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
@@ -5663,7 +5684,7 @@ static void keyboard_handle_key(void *data,
   if (wl_surface *wl_surface_focus = seat->keyboard.wl.surface_window) {
     GHOST_IWindow *win = ghost_wl_surface_user_data(wl_surface_focus);
     seat->system->pushEvent_maybe_pending(
-        new GHOST_EventKey(event_ms, etype, win, gkey, false, utf8_buf));
+        new GHOST_EventKey(event_ms, etype, win, gkey, is_repeat, utf8_buf));
   }
 
   /* An existing payload means the key repeat timer is reset and will be added again. */
@@ -5740,7 +5761,13 @@ static void keyboard_handle_repeat_info(void *data,
 #endif
     /* Unlikely possible this setting changes while repeating. */
     if (seat->key_repeat.timer) {
-      keyboard_handle_key_repeat_reset(seat, false);
+      if (rate > 0) {
+        keyboard_handle_key_repeat_reset(seat, false);
+      }
+      else {
+        /* A zero rate disables. */
+        keyboard_handle_key_repeat_cancel(seat);
+      }
     }
   }
 }
@@ -8557,7 +8584,8 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
   std::lock_guard lock_server_guard{*server_mutex};
 #endif
 
-  const bool debug_context = (gpuSettings.flags & GHOST_gpuDebugContext) != 0;
+  const GHOST_ContextParams context_params_offscreen =
+      GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpuSettings);
 
   switch (gpuSettings.context_type) {
 
@@ -8566,7 +8594,7 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
       /* Create new off-screen surface only for vulkan. */
       wl_surface *wl_surface = wl_compositor_create_surface(wl_compositor_get());
 
-      GHOST_Context *context = new GHOST_ContextVK(false,
+      GHOST_Context *context = new GHOST_ContextVK(context_params_offscreen,
                                                    GHOST_kVulkanPlatformWayland,
                                                    0,
                                                    nullptr,
@@ -8575,7 +8603,6 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
                                                    nullptr,
                                                    1,
                                                    2,
-                                                   debug_context,
                                                    gpuSettings.preferred_device);
 
       if (context->initializeDrawingContext()) {
@@ -8601,14 +8628,14 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
         /* Caller must lock `system->server_mutex`. */
         GHOST_Context *context = new GHOST_ContextEGL(
             this,
-            false,
+            context_params_offscreen,
             EGLNativeWindowType(egl_window),
             EGLNativeDisplayType(display_->wl.display),
             EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
             4,
             minor,
             GHOST_OPENGL_EGL_CONTEXT_FLAGS |
-                (debug_context ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
+                (context_params_offscreen.is_debug ? EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR : 0),
             GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
             EGL_OPENGL_API);
 
@@ -8631,9 +8658,10 @@ GHOST_IContext *GHOST_SystemWayland::createOffscreenContext(GHOST_GPUSettings gp
     }
 #endif /* WITH_OPENGL_BACKEND */
 
-    default:
+    default: {
       /* Unsupported backend. */
       return nullptr;
+    }
   }
 }
 
@@ -8689,22 +8717,22 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
                                                  const bool is_dialog,
                                                  const GHOST_IWindow *parentWindow)
 {
+  const GHOST_ContextParams context_params = GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpuSettings);
+
   /* Globally store pointer to window manager. */
-  GHOST_WindowWayland *window = new GHOST_WindowWayland(
-      this,
-      title,
-      left,
-      top,
-      width,
-      height,
-      state,
-      parentWindow,
-      gpuSettings.context_type,
-      is_dialog,
-      ((gpuSettings.flags & GHOST_gpuStereoVisual) != 0),
-      exclusive,
-      (gpuSettings.flags & GHOST_gpuDebugContext) != 0,
-      gpuSettings.preferred_device);
+  GHOST_WindowWayland *window = new GHOST_WindowWayland(this,
+                                                        title,
+                                                        left,
+                                                        top,
+                                                        width,
+                                                        height,
+                                                        state,
+                                                        parentWindow,
+                                                        gpuSettings.context_type,
+                                                        is_dialog,
+                                                        context_params,
+                                                        exclusive,
+                                                        gpuSettings.preferred_device);
 
   if (window) {
     if (window->getValid()) {
@@ -8760,15 +8788,16 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
 
   if (seat->wl.pointer) {
     /* Set cursor for the pointer device. */
-    if (!seat->cursor.shape.device) {
+    if (seat->cursor.shape.device == nullptr) {
       seat->cursor.shape.device = wp_cursor_shape_manager_v1_get_pointer(
           display_->wp.cursor_shape_manager, seat->wl.pointer);
-      if (!seat->cursor.shape.device) {
-        return GHOST_kFailure;
+    }
+    if (seat->cursor.shape.device) {
+      if (seat->cursor.is_hardware) {
+        wp_cursor_shape_device_v1_set_shape(
+            seat->cursor.shape.device, seat->pointer.serial, *wl_shape);
       }
     }
-    wp_cursor_shape_device_v1_set_shape(
-        seat->cursor.shape.device, seat->pointer.serial, *wl_shape);
     /* Set this to make sure we remember which shape we set when unhiding cursors. */
     seat->cursor.shape.enum_id = *wl_shape;
 
@@ -8781,14 +8810,16 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
   for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
     GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
         zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-    if (!tablet_tool->shape.device) {
+    if (tablet_tool->shape.device == nullptr) {
       tablet_tool->shape.device = wp_cursor_shape_manager_v1_get_tablet_tool_v2(
           display_->wp.cursor_shape_manager, zwp_tablet_tool_v2);
-      if (!tablet_tool->shape.device) {
-        return GHOST_kFailure;
+    }
+    if (tablet_tool->shape.device) {
+      if (seat->cursor.is_hardware) {
+        wp_cursor_shape_device_v1_set_shape(
+            tablet_tool->shape.device, tablet_tool->serial, *wl_shape);
       }
     }
-    wp_cursor_shape_device_v1_set_shape(tablet_tool->shape.device, tablet_tool->serial, *wl_shape);
     /* Set this to make sure we remember which shape we set when unhiding cursors. */
     tablet_tool->shape.enum_id = *wl_shape;
   }

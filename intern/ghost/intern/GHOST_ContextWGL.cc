@@ -25,7 +25,7 @@ static bool is_crappy_intel_card()
   return strstr((const char *)glGetString(GL_VENDOR), "Intel") != nullptr;
 }
 
-GHOST_ContextWGL::GHOST_ContextWGL(bool stereoVisual,
+GHOST_ContextWGL::GHOST_ContextWGL(const GHOST_ContextParams &context_params,
                                    bool alphaBackground,
                                    HWND hWnd,
                                    HDC hDC,
@@ -34,7 +34,7 @@ GHOST_ContextWGL::GHOST_ContextWGL(bool stereoVisual,
                                    int contextMinorVersion,
                                    int contextFlags,
                                    int contextResetNotificationStrategy)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
       m_hWnd(hWnd),
       m_hDC(hDC),
       m_contextProfileMask(contextProfileMask),
@@ -480,7 +480,7 @@ int GHOST_ContextWGL::choose_pixel_format_arb(bool stereoVisual, bool needAlpha)
 
     iPixelFormat = _choose_pixel_format_arb_1(false, needAlpha);
 
-    m_stereoVisual = false;  // set context property to actual value
+    m_context_params.is_stereo_visual = false; /* Set context property to actual value. */
   }
 
   return iPixelFormat;
@@ -509,13 +509,13 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 
   {
     const bool needAlpha = m_alphaBackground;
-    DummyContextWGL dummy(m_hDC, m_hWnd, m_stereoVisual, needAlpha);
+    DummyContextWGL dummy(m_hDC, m_hWnd, m_context_params.is_stereo_visual, needAlpha);
 
     if (!dummy.has_WGL_ARB_create_context || ::GetPixelFormat(m_hDC) == 0) {
       int iPixelFormat = 0;
 
       if (dummy.has_WGL_ARB_pixel_format) {
-        iPixelFormat = choose_pixel_format_arb(m_stereoVisual, needAlpha);
+        iPixelFormat = choose_pixel_format_arb(m_context_params.is_stereo_visual, needAlpha);
       }
 
       if (iPixelFormat == 0) {
@@ -613,6 +613,13 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
     const bool silent = m_contextMajorVersion > 3;
     if (!WIN32_CHK_SILENT(m_hGLRC != nullptr, silent)) {
       goto error;
+    }
+  }
+
+  {
+    const GHOST_TVSyncModes vsync = getVSync();
+    if (vsync != GHOST_kVSyncModeUnset) {
+      setSwapInterval(int(vsync));
     }
   }
 
