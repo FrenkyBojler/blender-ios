@@ -276,6 +276,10 @@ class VKPipelinePool : public NonCopyable {
   Vector<VkPipelineColorBlendAttachmentState> vk_pipeline_color_blend_attachment_states_;
   VkPipelineColorBlendStateCreateInfo vk_pipeline_color_blend_state_create_info_;
   VkPipelineColorBlendAttachmentState vk_pipeline_color_blend_attachment_state_template_;
+  VkPipelineColorBlendAttachmentState
+      vk_pipeline_color_blend_attachment_state_not_supported_template_ = {
+          VK_FALSE,
+      };
 
   VkSpecializationInfo vk_specialization_info_;
   Vector<VkSpecializationMapEntry> vk_specialization_map_entries_;

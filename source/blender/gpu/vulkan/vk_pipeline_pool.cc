@@ -125,6 +125,7 @@ VKPipelinePool::VKPipelinePool()
                                                                       VK_COLOR_COMPONENT_G_BIT |
                                                                       VK_COLOR_COMPONENT_B_BIT |
                                                                       VK_COLOR_COMPONENT_A_BIT;
+
   /* Initialize VkPipelineDepthStencilStateCreateInfo */
   vk_pipeline_depth_stencil_state_create_info_ = {};
   vk_pipeline_depth_stencil_state_create_info_.sType =
@@ -449,9 +450,15 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
     }
 
     vk_pipeline_color_blend_attachment_states_.clear();
-    vk_pipeline_color_blend_attachment_states_.append_n_times(
-        vk_pipeline_color_blend_attachment_state_template_,
-        graphics_info.fragment_out.color_attachment_size);
+    for (VkFormat attachment_format :
+         graphics_info.fragment_out.color_attachment_formats.as_span().take_front(
+             graphics_info.fragment_out.color_attachment_size))
+    {
+      const bool supports_blending = !ELEM(attachment_format, VK_FORMAT_A2B10G10R10_UINT_PACK32);
+      vk_pipeline_color_blend_attachment_states_.append(
+          supports_blending ? vk_pipeline_color_blend_attachment_state_template_ :
+                              vk_pipeline_color_blend_attachment_state_not_supported_template_);
+    }
     vk_pipeline_color_blend_state_create_info_.attachmentCount =
         vk_pipeline_color_blend_attachment_states_.size();
     vk_pipeline_color_blend_state_create_info_.pAttachments =

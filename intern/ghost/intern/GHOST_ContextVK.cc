@@ -644,7 +644,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
    * has been signaled and waited for. */
   vkWaitForFences(device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   submission_frame_data.discard_pile.destroy(device);
-  bool use_hdr_swapchain = false;
+  bool use_hdr_swapchain = true;
 #ifdef WITH_GHOST_WAYLAND
   /* Wayland doesn't provide a WSI with windowing capabilities, therefore cannot detect whether the
    * swap-chain needs to be recreated. But as a side effect we can recreate the swap-chain before
@@ -914,15 +914,19 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vector<VkSurfaceFormatKHR> formats(format_count);
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
-  array<pair<VkColorSpaceKHR, VkFormat>, 4> selection_order = {
-      make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
+  array<pair<VkColorSpaceKHR, VkFormat>, 5> selection_order = {
+      make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R16G16B16A16_SFLOAT),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_A2B10G10R10_UNORM_PACK32),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R8G8B8A8_UNORM),
       make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_B8G8R8A8_UNORM),
   };
 
   for (pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
-    if (pair.second == VK_FORMAT_R16G16B16A16_SFLOAT && !use_hdr_swapchain) {
+    if ((pair.second == VK_FORMAT_R16G16B16A16_SFLOAT ||
+         pair.second == VK_FORMAT_A2B10G10R10_UNORM_PACK32) &&
+        !use_hdr_swapchain)
+    {
       continue;
     }
     for (const VkSurfaceFormatKHR &format : formats) {
@@ -1226,6 +1230,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   bool use_hdr_swapchain = false;
 #ifdef _WIN32
   const bool use_window_surface = (hwnd_ != nullptr);
+  use_hdr_swapchain = true;
 #elif defined(__APPLE__)
   const bool use_window_surface = (metal_layer_ != nullptr);
 #else /* UNIX/Linux */
@@ -1280,6 +1285,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
                        extensions_enabled,
                        VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
       optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+    }
+
+    const bool use_swapchain_colorspace = contains_extension(
+        extensions_available, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
+    if (use_swapchain_colorspace) {
+      requireExtension(
+          extensions_available, extensions_enabled, VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
     }
   }
 
