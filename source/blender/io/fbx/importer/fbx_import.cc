@@ -8,10 +8,10 @@
 
 #include "BKE_camera.h"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_light.h"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
-#include "BKE_lib_id.hh"
 
 #include "BLI_fileops.h"
 #include "BLI_math_rotation.h"
@@ -101,8 +101,7 @@ void FbxImportContext::import_materials()
   for (const ufbx_material *fmat : this->fbx.materials) {
     Material *mat = nullptr;
     /* Check if a material with this name already exists in the main database */
-    if (this->params.mtl_name_collision_mode ==
-      eFBXMtlNameCollisionMode::FBX_MTL_NAME_COLLISION_REFERENCE_EXISTING) {
+    if (this->params.mtl_name_collision_mode == eFBXMtlNameCollisionMode::ReferenceExisting) {
       mat = (Material *)BKE_libblock_find_name(this->bmain, ID_MA, fmat->name.data);
     }
 

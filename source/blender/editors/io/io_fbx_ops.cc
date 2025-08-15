@@ -33,14 +33,13 @@
 #  include "io_fbx_ops.hh"
 #  include "io_utils.hh"
 
-
 const EnumPropertyItem rna_enum_fbx_mtl_name_collision_mode_items[] = {
-    {int(eFBXMtlNameCollisionMode::FBX_MTL_NAME_COLLISION_MAKE_UNIQUE),
+    {int(eFBXMtlNameCollisionMode::MakeUnique),
      "MAKE_UNIQUE",
      0,
      "Make Unique",
      "Import each FBX material as a unique Blender material"},
-    {int(eFBXMtlNameCollisionMode::FBX_MTL_NAME_COLLISION_REFERENCE_EXISTING),
+    {int(eFBXMtlNameCollisionMode::ReferenceExisting),
      "REFERENCE_EXISTING",
      0,
      "Reference Existing",
@@ -75,7 +74,8 @@ static wmOperatorStatus wm_fbx_import_exec(bContext *C, wmOperator *op)
   params.use_anim = RNA_boolean_get(op->ptr, "use_anim");
   params.anim_offset = RNA_float_get(op->ptr, "anim_offset");
   params.vertex_colors = eFBXVertexColorMode(RNA_enum_get(op->ptr, "import_colors"));
-  params.mtl_name_collision_mode = eFBXMtlNameCollisionMode(RNA_enum_get(op->ptr, "mtl_name_collision_mode"));
+  params.mtl_name_collision_mode = eFBXMtlNameCollisionMode(
+      RNA_enum_get(op->ptr, "mtl_name_collision_mode"));
 
   params.reports = op->reports;
 
@@ -179,12 +179,13 @@ void WM_OT_fbx_import(wmOperatorType *ot)
 
   RNA_def_float(ot->srna, "global_scale", 1.0f, 1e-6f, 1e6f, "Scale", "", 0.001f, 1000.0f);
 
-  RNA_def_enum(ot->srna,
-               "mtl_name_collision_mode",
-               rna_enum_fbx_mtl_name_collision_mode_items,
-               int(eFBXMtlNameCollisionMode::FBX_MTL_NAME_COLLISION_MAKE_UNIQUE),
-               "Material Name Collision",
-               "Behavior when the name of an imported material conflicts with an existing material");
+  RNA_def_enum(
+      ot->srna,
+      "mtl_name_collision_mode",
+      rna_enum_fbx_mtl_name_collision_mode_items,
+      int(eFBXMtlNameCollisionMode::MakeUnique),
+      "Material Name Collision",
+      "Behavior when the name of an imported material conflicts with an existing material");
   RNA_def_enum(ot->srna,
                "import_colors",
                fbx_vertex_colors_mode,

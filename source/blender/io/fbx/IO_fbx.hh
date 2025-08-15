@@ -23,8 +23,8 @@ struct ReportList;
  * conflicts with an existing material.
  */
 enum class eFBXMtlNameCollisionMode {
-  FBX_MTL_NAME_COLLISION_MAKE_UNIQUE = 0,
-  FBX_MTL_NAME_COLLISION_REFERENCE_EXISTING = 1,
+  MakeUnique = 0,
+  ReferenceExisting = 1,
 };
 
 enum class eFBXVertexColorMode {
@@ -36,8 +36,7 @@ enum class eFBXVertexColorMode {
 struct FBXImportParams {
   char filepath[FILE_MAX] = "";
   float global_scale = 1.0f;
-  eFBXMtlNameCollisionMode mtl_name_collision_mode =
-      eFBXMtlNameCollisionMode::FBX_MTL_NAME_COLLISION_MAKE_UNIQUE;
+  eFBXMtlNameCollisionMode mtl_name_collision_mode = eFBXMtlNameCollisionMode::MakeUnique;
   eFBXVertexColorMode vertex_colors = eFBXVertexColorMode::sRGB;
   bool validate_meshes = true;
   bool use_custom_normals = true;
