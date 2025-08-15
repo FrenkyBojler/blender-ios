@@ -1630,7 +1630,7 @@ static int Vector_getbuffer(PyObject *obj, Py_buffer *view, int flags)
   return 0;
 }
 
-static void Vector_releasebuffer(PyObject * /*exporter*/, Py_buffer * view)
+static void Vector_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
 {
   VectorObject *self = (VectorObject *)view->obj;
   self->flag &= ~BASE_MATH_FLAG_HAS_BUFFER_VIEW;
@@ -1642,10 +1642,10 @@ static void Vector_releasebuffer(PyObject * /*exporter*/, Py_buffer * view)
   }
 }
 
-  static PyBufferProcs Vector_as_buffer = {
-      (getbufferproc)Vector_getbuffer,
-      (releasebufferproc)Vector_releasebuffer,
-  };
+static PyBufferProcs Vector_as_buffer = {
+    (getbufferproc)Vector_getbuffer,
+    (releasebufferproc)Vector_releasebuffer,
+};
 
 /** \} */
 

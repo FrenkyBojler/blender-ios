@@ -41,28 +41,28 @@ def _test_flat_buffer_protocol(self, typ, n):
     self.assertEqual(view.shape, (n,))
     self.assertEqual(view.format, 'f')
     self.assertEqual(view.tolist(), expected)
-    
+
     #  Check multiple simultaneous.
     with self.assertRaises(BufferError):
         # np.array(vec) is valid as it falls back to loading via an iterator if BufferError occurs.
         memoryview(data)
-        
+
     #  Check frozen.
     with self.assertRaises(BufferError):
         data.freeze()
-        
+
     #  Check resize.
     if typ == Vector:
         with self.assertRaises(BufferError):
             data.resize(100)
-        
+
     _incref = view  # For potential changes in gc.
-    
+
     # Check for a release buffer call, gc releases the buffer if it's not referenced.
     data = typ(expected)
     memoryview(data)
     memoryview(data)
-    
+
     vec = typ(expected)
     vec.freeze()
     with self.assertRaises(TypeError):
@@ -406,13 +406,13 @@ class QuaternionTesting(unittest.TestCase):
 
 
 class EulerTesting(unittest.TestCase):
-    
+
     def test_buffer_protocol(self):
         _test_flat_buffer_protocol(self, Euler, 3)
 
 
 class ColorTesting(unittest.TestCase):
-    
+
     def test_buffer_protocol(self):
         _test_flat_buffer_protocol(self, Color, 3)
 

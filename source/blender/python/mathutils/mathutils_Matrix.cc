@@ -2370,7 +2370,6 @@ static PyObject *Matrix_str(MatrixObject *self)
 
 /** \} */
 
-
 /* -------------------------------------------------------------------- */
 /** \name Matrix Type: Buffer Protocol
  * \{ */
@@ -2435,7 +2434,6 @@ static PyBufferProcs Matrix_as_buffer = {
 };
 
 /** \} */
-
 
 /* -------------------------------------------------------------------- */
 /** \name Matrix Type: Rich Compare
