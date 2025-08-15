@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
+#include "BLI_bounds.hh"
 #include "BLI_math_rotation.hh"
 
 #include "BKE_curves.hh"
@@ -34,7 +35,11 @@
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/DecoratedShape.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
+#include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/PhysicsStepListener.h>
@@ -176,13 +181,18 @@ struct CollisionShapeParams {
   const float density;
 };
 
-struct CollisionShapeCache {
-  struct CachedShape {
-    JPH::ShapeSettings::ShapeResult shape;
-    bool still_used = true;
+class CollisionShapeCache {
+ private:
+  using ShapeID = const void *;
 
-    CachedShape(JPH::ShapeSettings::ShapeResult shape = {}) : shape(std::move(shape)) {}
-  };
+  /* Switch to translated shape if the center-of-mass differs from the origin. */
+  static constexpr float com_offset_threshold = 1e-5f;
+  /* Default padding around collision shapes to avoid penetration.
+   * Collision becomes more expensive when objects are penetrating, the convex radius should
+   * prevent this in most cases.
+   * TODO make this a configurable option, allow shrinking of collision shapes accordingly to align
+   * with visual shapes. */
+  static constexpr float default_convex_radius = 0.05f;
 
   struct BoxID {
     float3 half_extent;
@@ -223,16 +233,16 @@ struct CollisionShapeCache {
 
   struct CompoundID {
     struct SubShapeID {
-      const void *shape_ptr;
+      ShapeID shape_id;
       float3 position;
       math::Quaternion rotation;
 
       uint64_t hash() const
       {
-        return get_default_hash(shape_ptr, position, rotation);
+        return get_default_hash(shape_id, position, rotation);
       }
 
-      BLI_STRUCT_EQUALITY_OPERATORS_3(SubShapeID, shape_ptr, position, rotation)
+      BLI_STRUCT_EQUALITY_OPERATORS_3(SubShapeID, shape_id, position, rotation)
     };
 
     Array<SubShapeID> sub_shape_ids;
@@ -265,33 +275,106 @@ struct CollisionShapeCache {
     }
   };
 
+  struct DecoratedID {
+    ShapeID shape_id;
+    float4x4 transform;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->shape_id, this->transform);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(DecoratedID, shape_id, transform)
+  };
+
+  using ShapeIDVariant = std::variant<BoxID, SphereID, ConvexHullID, CompoundID, DecoratedID>;
+  using CachedShape = JPH::ShapeSettings::ShapeResult;
+
   Map<BoxID, CachedShape> boxes;
   Map<SphereID, CachedShape> spheres;
   Map<ConvexHullID, CachedShape> convex_hulls;
   Map<CompoundID, CachedShape> compounds;
+  Map<DecoratedID, CachedShape> decorated_shapes;
 
+  static bool is_used(const CachedShape &cached_shape)
+  {
+    if (cached_shape.IsValid()) {
+      return bool(cached_shape.Get()->GetUserData());
+    }
+    return false;
+  }
+
+  static void set_used(const CachedShape &cached_shape, bool used = true)
+  {
+    if (cached_shape.IsValid()) {
+      cached_shape.Get()->SetUserData(uint64_t(used));
+    }
+  }
+
+  static void clear_used(const CachedShape &cached_shape)
+  {
+    set_used(cached_shape, false);
+  }
+
+ public:
   void reset_used()
   {
     for (CachedShape &cached_shape : this->boxes.values()) {
-      cached_shape.still_used = false;
+      clear_used(cached_shape);
     }
     for (CachedShape &cached_shape : this->spheres.values()) {
-      cached_shape.still_used = false;
+      clear_used(cached_shape);
     }
     for (CachedShape &cached_shape : this->convex_hulls.values()) {
-      cached_shape.still_used = false;
+      clear_used(cached_shape);
     }
     for (CachedShape &cached_shape : this->compounds.values()) {
-      cached_shape.still_used = false;
+      clear_used(cached_shape);
+    }
+    for (CachedShape &cached_shape : this->decorated_shapes.values()) {
+      clear_used(cached_shape);
     }
   }
 
   void remove_unused()
   {
-    this->boxes.remove_if([](const auto &item) { return !item.value.still_used; });
-    this->spheres.remove_if([](const auto &item) { return !item.value.still_used; });
-    this->convex_hulls.remove_if([](const auto &item) { return !item.value.still_used; });
-    this->compounds.remove_if([](const auto &item) { return !item.value.still_used; });
+    this->boxes.remove_if([](const auto &item) { return !is_used(item.value); });
+    this->spheres.remove_if([](const auto &item) { return !is_used(item.value); });
+    this->convex_hulls.remove_if([](const auto &item) { return !is_used(item.value); });
+    this->compounds.remove_if([](const auto &item) { return !is_used(item.value); });
+    this->decorated_shapes.remove_if([](const auto &item) { return !is_used(item.value); });
+  }
+
+  /* Lookup a cached shape without flagging it as used. */
+  CachedShape *get_internal(const ShapeIDVariant &shape_id_variant)
+  {
+    if (const auto *shape_id = std::get_if<BoxID>(&shape_id_variant)) {
+      return boxes.lookup_ptr(*shape_id);
+    }
+    if (const auto *shape_id = std::get_if<SphereID>(&shape_id_variant)) {
+      return spheres.lookup_ptr(*shape_id);
+    }
+    if (const auto *shape_id = std::get_if<ConvexHullID>(&shape_id_variant)) {
+      return convex_hulls.lookup_ptr(*shape_id);
+    }
+    if (const auto *shape_id = std::get_if<CompoundID>(&shape_id_variant)) {
+      return compounds.lookup_ptr(*shape_id);
+    }
+    if (const auto *shape_id = std::get_if<DecoratedID>(&shape_id_variant)) {
+      return decorated_shapes.lookup_ptr(*shape_id);
+    }
+    return nullptr;
+  }
+
+  JPH::ShapeSettings::ShapeResult get(const ShapeIDVariant &shape_id_variant)
+  {
+    CachedShape *shape = get_internal(shape_id_variant);
+    if (!shape) {
+      return {};
+    }
+
+    set_used(*shape);
+    return *shape;
   }
 
   JPH::ShapeSettings::ShapeResult get_or_create_box(const CollisionShapeParams &params)
@@ -301,9 +384,15 @@ struct CollisionShapeCache {
     if (!bounds) {
       return {};
     }
-    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) *
-                               params.scale;
-    return this->get_or_create_box(half_extent, params.density);
+    const float3 center = bounds->center() * params.scale;
+    const float3 half_extent = 0.5f * bounds->size() * params.scale;
+    JPH::ShapeSettings::ShapeResult shape = this->get_or_create_box(half_extent, params.density);
+    if (math::is_zero(center, com_offset_threshold)) {
+      return shape;
+    }
+    else {
+      return this->get_or_create_rotated_translated(shape, center, math::Quaternion::identity());
+    }
   }
 
   JPH::ShapeSettings::ShapeResult get_or_create_box(const float3 &half_extent, const float density)
@@ -313,13 +402,11 @@ struct CollisionShapeCache {
       JPH::BoxShapeSettings box_shape_settings{convert_vec3(half_extent)};
       box_shape_settings.mDensity = density;
       const float min_axis = std::min({half_extent.x, half_extent.y, half_extent.z});
-      box_shape_settings.mConvexRadius = 0.5 * std::min(min_axis, 0.1f);
+      box_shape_settings.mConvexRadius = std ::min(0.5f * min_axis, default_convex_radius);
       return box_shape_settings.Create();
     });
-    if (cached_shape.shape.IsValid()) {
-      cached_shape.still_used = true;
-    }
-    return cached_shape.shape;
+    set_used(cached_shape);
+    return cached_shape;
   }
 
   JPH::ShapeSettings::ShapeResult get_or_create_sphere(const CollisionShapeParams &params)
@@ -329,10 +416,16 @@ struct CollisionShapeCache {
     if (!bounds) {
       return {};
     }
-    const float3 half_extent = math::max(math::abs(bounds->min), math::abs(bounds->max)) *
-                               params.scale;
+    const float3 center = bounds->center() * params.scale;
+    const float3 half_extent = 0.5f * bounds->size() * params.scale;
     const float radius = std::max({half_extent.x, half_extent.y, half_extent.z});
-    return this->get_or_create_sphere(radius, params.density);
+    JPH::ShapeSettings::ShapeResult shape = this->get_or_create_sphere(radius, params.density);
+    if (math::is_zero(center, com_offset_threshold)) {
+      return shape;
+    }
+    else {
+      return this->get_or_create_rotated_translated(shape, center, math::Quaternion::identity());
+    }
   }
 
   JPH::ShapeSettings::ShapeResult get_or_create_sphere(const float radius, const float density)
@@ -343,10 +436,8 @@ struct CollisionShapeCache {
       sphere_shape_settings.mDensity = density;
       return sphere_shape_settings.Create();
     });
-    if (cached_shape.shape.IsValid()) {
-      cached_shape.still_used = true;
-    }
-    return cached_shape.shape;
+    set_used(cached_shape);
+    return cached_shape;
   }
 
   JPH::ShapeSettings::ShapeResult get_or_create_convex_hull(const CollisionShapeParams &params)
@@ -366,26 +457,25 @@ struct CollisionShapeCache {
           if (points.is_empty()) {
             return {};
           }
-          JPH::ConvexHullShapeSettings hull_settings(points.data(), points.size(), 0.0f);
+          JPH::ConvexHullShapeSettings hull_settings(
+              points.data(), points.size(), default_convex_radius);
           hull_settings.mDensity = params.density;
           return hull_settings.Create();
         });
-    if (cached_shape.shape.IsValid()) {
-      cached_shape.still_used = true;
-    }
-    return cached_shape.shape;
+    set_used(cached_shape);
+    return cached_shape;
   }
 
   /* TODO add a version with CollisionShapeParams which takes instances and shape types and looks
    * up sub shapes from the cache. */
   JPH::ShapeSettings::ShapeResult get_or_create_mutable_compound(
-      const Span<const JPH::Shape *> sub_shapes,
+      const Span<JPH::ShapeSettings::ShapeResult> sub_shapes,
       const Span<float3> positions,
       const Span<math::Quaternion> rotations)
   {
     Array<CompoundID::SubShapeID> sub_shape_ids(sub_shapes.size());
     for (const int i : sub_shapes.index_range()) {
-      sub_shape_ids[i] = {sub_shapes[i], positions[i], rotations[i]};
+      sub_shape_ids[i] = {sub_shapes[i].Get(), positions[i], rotations[i]};
     }
     const CompoundID compound_id{std::move(sub_shape_ids)};
     CachedShape &cached_shape = this->compounds.lookup_or_add_cb(
@@ -393,14 +483,66 @@ struct CollisionShapeCache {
           JPH::MutableCompoundShapeSettings compound_settings;
           for (const int i : sub_shapes.index_range()) {
             compound_settings.AddShape(
-                convert_vec3(positions[i]), convert_quat(rotations[i]), sub_shapes[i]);
+                convert_vec3(positions[i]), convert_quat(rotations[i]), sub_shapes[i].Get());
           }
           return compound_settings.Create();
         });
-    if (cached_shape.shape.IsValid()) {
-      cached_shape.still_used = true;
+    if (cached_shape.IsValid()) {
+      for (const int i : sub_shapes.index_range()) {
+        set_used(sub_shapes[i]);
+      }
+      set_used(cached_shape);
     }
-    return cached_shape.shape;
+    return cached_shape;
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_offset_center_of_mass(
+      const JPH::ShapeSettings::ShapeResult &shape, const float3 &offset)
+  {
+    const DecoratedID decorated_id{shape.Get(), math::from_location<float4x4>(offset)};
+    CachedShape &cached_shape = this->decorated_shapes.lookup_or_add_cb(decorated_id, [&]() {
+      JPH::OffsetCenterOfMassShapeSettings offset_com_settings{convert_vec3(offset), shape.Get()};
+      return offset_com_settings.Create();
+    });
+    if (cached_shape.IsValid()) {
+      set_used(shape);
+      set_used(cached_shape);
+    }
+    return cached_shape;
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_rotated_translated(
+      const JPH::ShapeSettings::ShapeResult &shape,
+      const float3 &translation,
+      const math::Quaternion &rotation)
+  {
+    const DecoratedID decorated_id{shape.Get(),
+                                   math::from_loc_rot<float4x4>(translation, rotation)};
+    CachedShape &cached_shape = this->decorated_shapes.lookup_or_add_cb(decorated_id, [&]() {
+      JPH::RotatedTranslatedShapeSettings loc_rot_settings{
+          convert_vec3(translation), convert_quat(rotation), shape.Get()};
+      return loc_rot_settings.Create();
+    });
+    if (cached_shape.IsValid()) {
+      set_used(shape);
+      set_used(cached_shape);
+    }
+    return cached_shape;
+  }
+
+  JPH::ShapeSettings::ShapeResult get_or_create_scaled(
+      const JPH::ShapeSettings::ShapeResult &shape, const float3 &scale)
+  {
+    const DecoratedID decorated_id{shape.Get(), math::from_scale<float4x4>(scale)};
+    CachedShape &cached_shape = this->decorated_shapes.lookup_or_add_cb(decorated_id, [&]() {
+      JPH::ScaledShapeSettings scaled_settings{shape.Get(), convert_vec3(scale)};
+      return scaled_settings.Create();
+    });
+    if (cached_shape.IsValid()) {
+      set_used(shape);
+      set_used(cached_shape);
+    }
+    return cached_shape;
   }
 };
 
