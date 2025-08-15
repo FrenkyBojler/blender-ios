@@ -304,12 +304,8 @@ struct GlobalData {
   /** Barycentric coordinates. */
   packed_float2 barycentric_coords;
   packed_float3 barycentric_dists;
-  /** Hair time along hair length. 0 at base 1 at tip. */
-  float hair_time;
-  /** Hair time along width of the hair. */
-  float hair_time_width;
   /** Hair thickness in world space. */
-  float hair_thickness;
+  float hair_radius;
   /** Index of the strand for per strand effects. */
   int hair_strand_id;
   /** Ray properties (approximation). */

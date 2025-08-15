@@ -187,7 +187,7 @@ void GPUCodegen::generate_attribs()
     eGPUType input_type, iface_type;
 
     load_ss << "var_attrs." << var_name;
-    if (attr->is_hair_length) {
+    if (attr->is_hair_length || attr->is_hair_intercept) {
       iface_type = input_type = GPU_FLOAT;
       load_ss << " = attr_load_" << input_type << "(" << attr_name << ", " << attr_n << ");\n";
     }

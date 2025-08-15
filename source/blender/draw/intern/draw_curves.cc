@@ -286,7 +286,10 @@ void CurvesModule::evaluate_curve_length_intercept(const bool has_cyclic,
   dispatch(curve_count, pass);
 }
 
-static int attribute_index_in_material(GPUMaterial *gpu_material, const StringRef name)
+static int attribute_index_in_material(GPUMaterial *gpu_material,
+                                       const StringRef name,
+                                       bool is_curve_length = false,
+                                       bool is_curve_intercept = false)
 {
   if (!gpu_material) {
     return -1;
@@ -296,7 +299,9 @@ static int attribute_index_in_material(GPUMaterial *gpu_material, const StringRe
 
   ListBase gpu_attrs = GPU_material_attributes(gpu_material);
   LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
-    if (gpu_attr->name == name) {
+    if (gpu_attr->name == name || (is_curve_length && gpu_attr->is_hair_length) ||
+        (is_curve_intercept && gpu_attr->is_hair_intercept))
+    {
       return index;
     }
 
@@ -368,6 +373,7 @@ void curves_bind_resources_implementation(PassT &sub_ps,
   sub_ps.bind_texture("c", module.dummy_vbo);
   sub_ps.bind_texture("ac", module.dummy_vbo);
   sub_ps.bind_texture("l", module.dummy_vbo);
+  sub_ps.bind_texture("i", module.dummy_vbo);
   if (gpu_material) {
     ListBase attr_list = GPU_material_attributes(gpu_material);
     ListBaseWrapper<GPUMaterialAttribute> attrs(attr_list);
@@ -376,10 +382,24 @@ void curves_bind_resources_implementation(PassT &sub_ps,
     }
   }
 
-  /* TODO(fclem): Bind (and compute) only if needed. */
-  sub_ps.bind_texture("l", cache.curves_length_buf);
-
   CurvesInfosBuf &curves_infos = module.ubo_pool.alloc();
+
+  {
+    /* TODO(fclem): Compute only if needed. */
+    const int index = attribute_index_in_material(gpu_material, "", true, false);
+    if (index != -1) {
+      sub_ps.bind_texture("l", cache.curves_length_buf);
+      curves_infos.is_point_attribute[index][0] = false;
+    }
+  }
+  {
+    /* TODO(fclem): Compute only if needed. */
+    const int index = attribute_index_in_material(gpu_material, "", false, true);
+    if (index != -1) {
+      sub_ps.bind_texture("i", cache.evaluated_time_buf);
+      curves_infos.is_point_attribute[index][0] = true;
+    }
+  }
 
   const VectorSet<std::string> &attrs = cache.attr_used;
   for (const int i : attrs.index_range()) {

@@ -107,7 +107,7 @@ SMOOTH(float3, tangent)
 SMOOTH(float3, binormal)
 SMOOTH(float, time)
 SMOOTH(float, time_width)
-SMOOTH(float, thickness)
+SMOOTH(float, radius)
 SMOOTH(float, point_id) /* Smooth to be used for barycentric. */
 GPU_SHADER_NAMED_INTERFACE_END(curve_interp)
 GPU_SHADER_NAMED_INTERFACE_INFO(eevee_surf_curve_flat_iface, curve_interp_flat)

@@ -37,7 +37,7 @@ void init_globals_curves()
 {
 #if defined(MAT_GEOM_CURVES)
   /* Shade as a cylinder. */
-  float cos_theta = curve_interp.time_width / curve_interp.thickness;
+  float cos_theta = curve_interp.time_width / curve_interp.radius;
   float sin_theta = sin_from_cos(cos_theta);
   g_data.N = g_data.Ni = normalize(interp.N * sin_theta + curve_interp.binormal * cos_theta);
 
@@ -48,8 +48,7 @@ void init_globals_curves()
   g_data.curve_N = safe_normalize(cross(g_data.curve_T, g_data.curve_B));
 
   g_data.is_strand = true;
-  g_data.hair_time = curve_interp.time;
-  g_data.hair_thickness = curve_interp.thickness;
+  g_data.hair_radius = curve_interp.radius;
   g_data.hair_strand_id = curve_interp_flat.strand_id;
 #  if defined(USE_BARYCENTRICS) && defined(GPU_FRAGMENT_SHADER)
   g_data.barycentric_coords = hair_resolve_barycentric(curve_interp.barycentric_coords);
@@ -71,8 +70,7 @@ void init_globals()
   g_data.N = safe_normalize(interp.N);
   g_data.Ng = g_data.N;
   g_data.is_strand = false;
-  g_data.hair_time = 0.0f;
-  g_data.hair_thickness = 0.0f;
+  g_data.hair_radius = 0.0f;
   g_data.hair_strand_id = 0;
 #if defined(MAT_SHADOW)
   g_data.ray_type = RAY_TYPE_SHADOW;

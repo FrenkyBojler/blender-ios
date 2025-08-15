@@ -40,8 +40,7 @@ void main()
   interp.N = pt.curve_N;
   curve_interp.binormal = pt.curve_B;
   curve_interp.tangent = pt.curve_T;
-  curve_interp.time = 0.0; /* TODO */
-  curve_interp.thickness = ws_pt.radius;
+  curve_interp.radius = ws_pt.radius;
   /* Scaled by radius for correct interpolation. */
   curve_interp.time_width = ws_pt.azimuthal_offset * ws_pt.radius;
   /* Note: Used for attribute loading. */
