@@ -47,43 +47,30 @@ float samplerWeight(float x, float w)
 #endif
 }
 
-// Horizontal sample centered on uv with derivative w (w >= 0)
-// Integers are at pixel centers
-float4 sampleH(float2 uv, float w)
-{
-  float w1 = max(w, 1.0f);
-  float r = SAMPLER_RADIUS(w1);
-  float d = ceil(w1 / 8.0f); // how far apart samples are
-  float a = ceil(uv.x - r); // first non-zero sample
-  int n = int((floor(uv.x + r) - a) / d) + 1; // how many samples
-  float4 sum = float4(0.0f);
-  float div = 0.0f;
-  for (int i = 0; i < n; i++) {
-    float u = a + i * d;
-    float weight = samplerWeight(u - uv.x, w1);
-    sum += texture(input_tx, (float2(u, uv.y) + 0.5) / float2(textureSize(input_tx, 0))) * weight;
-    //sum += texelFetch(input_tx, int2(a,uv.y), 0) * weight;
-    div += weight;
-  }
-  return sum / div;
-}
-
 // Sample orthogonal rectangle of size wh centered on uv.
 // Integers are at pixel centers
 float4 sampleRect(float2 uv, float2 wh)
 {
-  float w1 = max(wh.y, 1.0f);
-  float r = SAMPLER_RADIUS(w1);
-  float d = ceil(w1 / 8.0f);
-  float a = ceil(uv.y - r); // first non-zero sample
-  int n = int((floor(uv.y + r) - a) / d) + 1; // how many samples
+  float2 w1 = max(wh, 1.0f);
+  float2 r = float2(SAMPLER_RADIUS(w1.x), SAMPLER_RADIUS(w1.y));
+  float2 d = ceil(w1 / 8.0f);
+  float2 a = ceil(uv - r); // first non-zero sample
+  int2 n = int2((floor(uv + r) - a) / d) + 1; // how many samples
   float4 sum = float4(0.0f);
   float div = 0.0f;
-  for (int i = 0; i < n; i++) {
-    float v = a + i * d;
-    float weight = samplerWeight(v - uv.y, w1);
-    sum += sampleH(float2(uv.x, v), wh.x) * weight;
-    div += weight;
+  for (int i = 0; i < n.y; i++) { // vertical filter
+    float v = a.y + i * d.y;
+    float4 sumx = float4(0.0f);
+    float divx = 0.0f;
+    for (int j = 0; j < n.x; j++) { // horizontal filter
+      float u = a.x + j * d.x;
+      float weight = samplerWeight(u - uv.x, w1.x);
+      sumx += texture(input_tx, (float2(u, v) + 0.5) / float2(textureSize(input_tx, 0))) * weight;
+      divx += weight;
+    }
+    float weight = samplerWeight(v - uv.y, w1.y);
+    sum += sumx * weight;
+    div += divx * weight;
   }
   return sum / div;
 }
