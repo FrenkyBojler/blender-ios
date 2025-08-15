@@ -951,10 +951,12 @@ class Preprocessor {
 
     parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
       /* Change C++ swizzle functions into plain swizzle. */
+      /** IMPORTANT: This prevent the usage of any method with a swizzle name. */
       scope.foreach_match(".w()", [&](const std::vector<Token> &tokens) {
         string method_name = tokens[1].str_no_whitespace();
-        if (method_name.length() <= 4 && (method_name.find_first_not_of("xyzw") == string::npos ||
-                                          method_name.find_first_not_of("rgba") == string::npos))
+        if (method_name.length() > 1 && method_name.length() <= 4 &&
+            (method_name.find_first_not_of("xyzw") == string::npos ||
+             method_name.find_first_not_of("rgba") == string::npos))
         {
           /* `.xyz()` -> `.xyz` */
           /* Keep character count the same. Replace parenthesis by spaces. */
