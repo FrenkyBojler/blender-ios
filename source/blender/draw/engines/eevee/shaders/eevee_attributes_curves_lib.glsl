@@ -31,7 +31,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_curves)
  * \{ */
 
 #  ifdef OBINFO_LIB
-float3 attr_load_orco(float4 orco)
+float3 attr_load_orco(float4 orco, int index)
 {
   float3 P = curves::get_curve_root_pos();
   float3 lP = transform_point(drw_modelinv(), P);
@@ -39,50 +39,44 @@ float3 attr_load_orco(float4 orco)
 }
 #  endif
 
-int g_curves_attr_id = 0;
-
 /* Return the index to use for looking up the attribute value in the sampler
  * based on the attribute scope (point or spline). */
-int curves_attribute_element_id()
+int curves_attribute_element_id(int index)
 {
-  int id = curve_interp_flat.strand_id;
-  if (drw_curves.is_point_attribute[g_curves_attr_id][0] != 0u) {
-    id = int(curve_interp.point_id);
+  if (drw_curves.is_point_attribute[index][0] != 0u) {
+    return int(curve_interp.point_id);
   }
-
-  g_curves_attr_id += 1;
-  return id;
+  return curve_interp_flat.strand_id;
 }
 
-float4 attr_load_tangent(samplerBuffer cd_buf)
+float4 attr_load_tangent(samplerBuffer cd_buf, int index)
 {
   /* Not supported for the moment. */
   return float4(0.0f, 0.0f, 0.0f, 1.0f);
 }
-float3 attr_load_uv(samplerBuffer cd_buf)
+float3 attr_load_uv(samplerBuffer cd_buf, int index)
 {
-  return float3(0.0f, 0.0f, 0.0f);  // texelFetch(cd_buf, curve_interp_flat.strand_id).rgb;
+  return texelFetch(cd_buf, curve_interp_flat.strand_id).rgb;
 }
-float4 attr_load_color(samplerBuffer cd_buf)
+float4 attr_load_color(samplerBuffer cd_buf, int index)
 {
-  return float4(0.0f, 0.0f, 0.0f, 1.0f);  // texelFetch(cd_buf, curve_interp_flat.strand_id).rgba;
+  return texelFetch(cd_buf, curve_interp_flat.strand_id).rgba;
 }
-float4 attr_load_vec4(samplerBuffer cd_buf)
+float4 attr_load_vec4(samplerBuffer cd_buf, int index)
 {
-  return float4(0.0f, 0.0f, 0.0f, 1.0f);  // texelFetch(cd_buf,
-                                          // curves_attribute_element_id()).rgba;
+  return texelFetch(cd_buf, curves_attribute_element_id(index)).rgba;
 }
-float3 attr_load_vec3(samplerBuffer cd_buf)
+float3 attr_load_vec3(samplerBuffer cd_buf, int index)
 {
-  return float3(0.0f, 0.0f, 0.0f);  // texelFetch(cd_buf, curves_attribute_element_id()).rgb;
+  return texelFetch(cd_buf, curves_attribute_element_id(index)).rgb;
 }
-float2 attr_load_vec2(samplerBuffer cd_buf)
+float2 attr_load_vec2(samplerBuffer cd_buf, int index)
 {
-  return float2(0.0f, 0.0f);  // texelFetch(cd_buf, curves_attribute_element_id()).rg;
+  return texelFetch(cd_buf, curves_attribute_element_id(index)).rg;
 }
-float attr_load_float(samplerBuffer cd_buf)
+float attr_load_float(samplerBuffer cd_buf, int index)
 {
-  return float(0.0f);  // texelFetch(cd_buf, curves_attribute_element_id()).r;
+  return texelFetch(cd_buf, curves_attribute_element_id(index)).r;
 }
 
 /** \} */

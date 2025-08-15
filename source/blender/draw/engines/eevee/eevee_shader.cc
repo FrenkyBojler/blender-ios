@@ -575,10 +575,7 @@ class SamplerSlots {
                bool has_shader_to_rgba)
   {
     index_ = 0;
-    if (ELEM(geometry_type, MAT_GEOM_POINTCLOUD, MAT_GEOM_CURVES)) {
-      index_ = 1;
-    }
-    else if (geometry_type == MAT_GEOM_GPENCIL) {
+    if (ELEM(geometry_type, MAT_GEOM_POINTCLOUD, MAT_GEOM_CURVES, MAT_GEOM_GPENCIL)) {
       index_ = 2;
     }
 

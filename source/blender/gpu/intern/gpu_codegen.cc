@@ -187,7 +187,7 @@ void GPUCodegen::generate_attribs()
     load_ss << "var_attrs." << var_name;
     if (attr->is_hair_length) {
       iface_type = input_type = GPU_FLOAT;
-      load_ss << " = attr_load_" << input_type << "(" << attr_name << ");\n";
+      load_ss << " = attr_load_" << input_type << "(" << attr_name << ", " << slot << ");\n";
     }
     else {
       switch (attr->type) {
@@ -195,15 +195,15 @@ void GPUCodegen::generate_attribs()
           /* Need vec4 to detect usage of default attribute. */
           input_type = GPU_VEC4;
           iface_type = GPU_VEC3;
-          load_ss << " = attr_load_orco(" << attr_name << ");\n";
+          load_ss << " = attr_load_orco(" << attr_name << ", " << slot << ");\n";
           break;
         case CD_TANGENT:
           iface_type = input_type = GPU_VEC4;
-          load_ss << " = attr_load_tangent(" << attr_name << ");\n";
+          load_ss << " = attr_load_tangent(" << attr_name << ", " << slot << ");\n";
           break;
         default:
           iface_type = input_type = GPU_VEC4;
-          load_ss << " = attr_load_" << input_type << "(" << attr_name << ");\n";
+          load_ss << " = attr_load_" << input_type << "(" << attr_name << ", " << slot << ");\n";
           break;
       }
     }

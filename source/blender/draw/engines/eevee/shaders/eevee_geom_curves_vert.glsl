@@ -44,7 +44,8 @@ void main()
   curve_interp.thickness = ws_pt.radius;
   /* Scaled by radius for correct interpolation. */
   curve_interp.time_width = ws_pt.azimuthal_offset * ws_pt.radius;
-  curve_interp.point_id = ws_pt.point_id;
+  /* Note: Used for attribute loading. */
+  curve_interp.point_id = float(ws_pt.point_id);
   curve_interp_flat.strand_id = ws_pt.curve_id;
 
 #ifdef MAT_VELOCITY

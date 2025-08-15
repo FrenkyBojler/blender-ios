@@ -28,7 +28,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_pointcloud)
  * \{ */
 
 #ifdef OBINFO_LIB
-float3 attr_load_orco(float4 orco)
+float3 attr_load_orco(float4 orco, int index)
 {
   float3 P = pointcloud_get_pos();
   float3 lP = transform_point(drw_modelinv(), P);
@@ -36,31 +36,31 @@ float3 attr_load_orco(float4 orco)
 }
 #endif
 
-float4 attr_load_tangent(samplerBuffer cd_buf)
+float4 attr_load_tangent(samplerBuffer cd_buf, int index)
 {
   return pointcloud_get_customdata_vec4(cd_buf);
 }
-float3 attr_load_uv(samplerBuffer cd_buf)
+float3 attr_load_uv(samplerBuffer cd_buf, int index)
 {
   return pointcloud_get_customdata_vec3(cd_buf);
 }
-float4 attr_load_color(samplerBuffer cd_buf)
+float4 attr_load_color(samplerBuffer cd_buf, int index)
 {
   return pointcloud_get_customdata_vec4(cd_buf);
 }
-float4 attr_load_vec4(samplerBuffer cd_buf)
+float4 attr_load_vec4(samplerBuffer cd_buf, int index)
 {
   return pointcloud_get_customdata_vec4(cd_buf);
 }
-float3 attr_load_vec3(samplerBuffer cd_buf)
+float3 attr_load_vec3(samplerBuffer cd_buf, int index)
 {
   return pointcloud_get_customdata_vec3(cd_buf);
 }
-float2 attr_load_vec2(samplerBuffer cd_buf)
+float2 attr_load_vec2(samplerBuffer cd_buf, int index)
 {
   return pointcloud_get_customdata_vec2(cd_buf);
 }
-float attr_load_float(samplerBuffer cd_buf)
+float attr_load_float(samplerBuffer cd_buf, int index)
 {
   return pointcloud_get_customdata_float(cd_buf);
 }
