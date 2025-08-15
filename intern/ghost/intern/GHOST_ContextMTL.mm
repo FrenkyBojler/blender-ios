@@ -46,15 +46,13 @@ static void ghost_fatal_error_dialog(const char *msg)
 MTLCommandQueue *GHOST_ContextMTL::s_sharedMetalCommandQueue = nil;
 int GHOST_ContextMTL::s_sharedCount = 0;
 
-GHOST_ContextMTL::GHOST_ContextMTL(bool stereoVisual,
+GHOST_ContextMTL::GHOST_ContextMTL(const GHOST_ContextParams &context_params,
                                    NSView *metalView,
-                                   CAMetalLayer *metalLayer,
-                                   int debug)
-    : GHOST_Context(stereoVisual),
+                                   CAMetalLayer *metalLayer)
+    : GHOST_Context(context_params),
       m_metalView(metalView),
       m_metalLayer(metalLayer),
-      m_metalRenderPipeline(nil),
-      m_debug(debug)
+      m_metalRenderPipeline(nil)
 {
   @autoreleasepool {
     /* Initialize Metal Swap-chain. */
@@ -72,7 +70,7 @@ GHOST_ContextMTL::GHOST_ContextMTL(bool stereoVisual,
       /* Prepare offscreen GHOST Context Metal device. */
       id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
 
-      if (m_debug) {
+      if (m_context_params.is_debug) {
         printf("Selected Metal Device: %s\n", [metalDevice.name UTF8String]);
       }
 
@@ -87,6 +85,13 @@ GHOST_ContextMTL::GHOST_ContextMTL(bool stereoVisual,
         [m_metalLayer removeAllAnimations];
         m_metalLayer.device = metalDevice;
         m_metalLayer.allowsNextDrawableTimeout = NO;
+
+        {
+          const GHOST_TVSyncModes vsync = getVSync();
+          if (vsync != GHOST_kVSyncModeUnset) {
+            m_metalLayer.displaySyncEnabled = (vsync == GHOST_kVSyncModeOff) ? NO : YES;
+          }
+        }
 
         /* Enable EDR support. This is done by:
          * 1. Using a floating point render target, so that values outside 0..1 can be used

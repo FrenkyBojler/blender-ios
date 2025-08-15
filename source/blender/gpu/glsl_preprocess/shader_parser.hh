@@ -33,6 +33,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <chrono>
@@ -46,6 +47,7 @@
 namespace blender::gpu::shader::parser {
 
 enum TokenType : char {
+  Invalid = 0,
   /* Use ascii chars to store them in string, and for easy debugging / testing. */
   Word = 'w',
   NewLine = '\n',
@@ -111,17 +113,20 @@ enum class ScopeType : char {
   Function = 'F',
   FunctionArgs = 'f',
   Template = 'T',
+  TemplateArg = 't',
   Subscript = 'A',
   Preprocessor = 'P',
   Assignment = 'a',
   /* Added scope inside function body. */
   Local = 'L',
+  /* Added scope inside FunctionArgs. */
+  FunctionArg = 'g',
 };
 
 /* Poor man's IndexRange. */
 struct IndexRange {
-  size_t start;
-  size_t size;
+  int64_t start;
+  int64_t size;
 
   IndexRange(size_t start, size_t size) : start(start), size(size) {}
 
@@ -131,7 +136,7 @@ struct IndexRange {
            ((other.start < start) && (start < (other.start + other.size)));
   }
 
-  size_t last()
+  int64_t last()
   {
     return start + size - 1;
   }
@@ -294,6 +299,7 @@ struct ParserData {
           token_offsets.offsets.emplace_back(offset);
         }
       }
+      token_offsets.offsets.emplace_back(offset);
     }
     {
       /* Keywords detection. */
@@ -427,10 +433,10 @@ struct ParserData {
             enter_scope(ScopeType::Assignment, tok_id);
             break;
           case BracketOpen:
-            if (token_types[tok_id - 2] == Struct) {
+            if (tok_id >= 2 && token_types[tok_id - 2] == Struct) {
               enter_scope(ScopeType::Local, tok_id);
             }
-            else if (token_types[tok_id - 2] == Namespace) {
+            else if (tok_id >= 2 && token_types[tok_id - 2] == Namespace) {
               enter_scope(ScopeType::Namespace, tok_id);
             }
             else if (scopes.top().type == ScopeType::Global) {
@@ -458,13 +464,19 @@ struct ParserData {
             enter_scope(ScopeType::Subscript, tok_id);
             break;
           case AngleOpen:
-            if (token_types[tok_id - 1] == Template) {
+            if ((tok_id >= 1 && token_types[tok_id - 1] == Template) ||
+                /* Catch case of specialized declaration. */
+                ScopeType(scope_types.back()) == ScopeType::Template)
+            {
               enter_scope(ScopeType::Template, tok_id);
               in_template = true;
             }
             break;
           case AngleClose:
             if (in_template && scopes.top().type == ScopeType::Assignment) {
+              exit_scope(tok_id - 1);
+            }
+            if (scopes.top().type == ScopeType::TemplateArg) {
               exit_scope(tok_id - 1);
             }
             if (scopes.top().type == ScopeType::Template) {
@@ -474,6 +486,9 @@ struct ParserData {
           case BracketClose:
           case ParClose:
             if (scopes.top().type == ScopeType::Assignment) {
+              exit_scope(tok_id - 1);
+            }
+            if (scopes.top().type == ScopeType::FunctionArg) {
               exit_scope(tok_id - 1);
             }
             exit_scope(tok_id);
@@ -486,8 +501,20 @@ struct ParserData {
             if (scopes.top().type == ScopeType::Assignment) {
               exit_scope(tok_id - 1);
             }
+            if (scopes.top().type == ScopeType::FunctionArg) {
+              exit_scope(tok_id - 1);
+            }
+            if (scopes.top().type == ScopeType::TemplateArg) {
+              exit_scope(tok_id - 1);
+            }
             break;
           default:
+            if (scopes.top().type == ScopeType::FunctionArgs) {
+              enter_scope(ScopeType::FunctionArg, tok_id);
+            }
+            if (scopes.top().type == ScopeType::Template) {
+              enter_scope(ScopeType::TemplateArg, tok_id);
+            }
             break;
         }
       }
@@ -584,7 +611,7 @@ struct ParserData {
 
 struct Token {
   const ParserData *data;
-  size_t index;
+  int64_t index;
 
   static Token invalid()
   {
@@ -593,12 +620,19 @@ struct Token {
 
   bool is_valid() const
   {
-    return data != nullptr;
+    return data != nullptr && index >= 0;
+  }
+  bool is_invalid() const
+  {
+    return !is_valid();
   }
 
   /* String index range. */
   IndexRange index_range() const
   {
+    if (is_invalid()) {
+      return {0, 0};
+    }
     return data->token_offsets[index];
   }
 
@@ -609,6 +643,16 @@ struct Token {
   Token next() const
   {
     return {data, index + 1};
+  }
+
+  /* Only usable when building with whitespace. */
+  Token next_not_whitespace() const
+  {
+    Token next = this->next();
+    while (next == ' ' || next == '\n') {
+      next = next.next();
+    }
+    return next;
   }
 
   /* Returns the scope that contains this token. */
@@ -622,6 +666,11 @@ struct Token {
   size_t str_index_last() const
   {
     return index_range().last();
+  }
+
+  size_t str_index_last_no_whitespace() const
+  {
+    return data->str.find_last_not_of(" \n", str_index_last());
   }
 
   /* Index of the first character of the line this token is. */
@@ -666,20 +715,27 @@ struct Token {
 
   TokenType type() const
   {
-    return TokenType(*this);
-  }
-
-  operator TokenType() const
-  {
+    if (is_invalid()) {
+      return Invalid;
+    }
     return TokenType(data->token_types[index]);
   }
+
   bool operator==(TokenType type) const
   {
-    return TokenType(*this) == type;
+    return this->type() == type;
   }
   bool operator!=(TokenType type) const
   {
     return !(*this == type);
+  }
+  bool operator==(char type) const
+  {
+    return *this == TokenType(type);
+  }
+  bool operator!=(char type) const
+  {
+    return *this != TokenType(type);
   }
 };
 
@@ -721,7 +777,19 @@ struct Scope {
   std::string str() const
   {
     return data->str.substr(start().str_index_start(),
-                            end().str_index_last() - start().str_index_start());
+                            end().str_index_last() - start().str_index_start() + 1);
+  }
+
+  Token find_token(const char token_type) const
+  {
+    size_t pos = data->token_types.substr(range().start, range().size).find(token_type);
+    return (pos != std::string::npos) ? Token{data, int64_t(range().start + pos)} :
+                                        Token::invalid();
+  }
+
+  bool contains_token(const char token_type) const
+  {
+    return find_token(token_type).is_valid();
   }
 
   void foreach_match(const std::string &pattern,
@@ -734,13 +802,31 @@ struct Scope {
 
     size_t pos = 0;
     while ((pos = scope_tokens.find(pattern, pos)) != std::string::npos) {
-      match[0] = {data, range().start + pos};
+      match[0] = {data, int64_t(range().start + pos)};
       /* Do not match preprocessor directive by default. */
       if (match[0].scope().type() != ScopeType::Preprocessor) {
         for (int i = 1; i < pattern.size(); i++) {
-          match[i] = Token{data, range().start + pos + i};
+          match[i] = Token{data, int64_t(range().start + pos + i)};
         }
         callback(match);
+      }
+      pos += 1;
+    }
+  }
+
+  /* Will iterate over all the scopes that are direct children. */
+  void foreach_scope(ScopeType type, std::function<void(Scope)> callback) const
+  {
+    size_t pos = this->index;
+    while ((pos = data->scope_types.find(char(type), pos)) != std::string::npos) {
+      Scope scope{data, pos};
+      if (scope.start().index > this->end().index) {
+        /* Found scope starts after this scope. End iteration. */
+        break;
+      }
+      /* Make sure found scope is direct child of this scope. */
+      if (scope.start().scope().scope().index == this->index) {
+        callback(scope);
       }
       pos += 1;
     }
@@ -796,6 +882,13 @@ struct Parser {
       callback(Scope{&data_, pos});
       pos += 1;
     }
+  }
+
+  void foreach_match(const std::string &pattern,
+                     std::function<void(const std::vector<Token>)> callback)
+  {
+    foreach_scope(ScopeType::Global,
+                  [&](const Scope scope) { scope.foreach_match(pattern, callback); });
   }
 
   /* Run a callback for all existing function scopes. */
@@ -859,6 +952,11 @@ struct Parser {
   {
     replace(from.str_index_start(), to.str_index_last(), replacement);
   }
+  /* Replace token by string. */
+  void replace(Token tok, const std::string &replacement)
+  {
+    replace(tok.str_index_start(), tok.str_index_last(), replacement);
+  }
 
   /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing
    * line count and keep the remaining indentation spaces. */
@@ -885,6 +983,12 @@ struct Parser {
   {
     erase(tok, tok);
   }
+  /* Replace the content of the scope by whitespaces without changing
+   * line count and keep the remaining indentation spaces. */
+  void erase(Scope scope)
+  {
+    erase(scope.start(), scope.end());
+  }
 
   void insert_after(size_t at, const std::string &content)
   {
@@ -894,6 +998,11 @@ struct Parser {
   void insert_after(Token at, const std::string &content)
   {
     insert_after(at.str_index_last(), content);
+  }
+
+  void insert_line_number(size_t at, int line)
+  {
+    insert_after(at, "#line " + std::to_string(line) + "\n");
   }
 
   void insert_before(size_t at, const std::string &content)
@@ -907,14 +1016,14 @@ struct Parser {
   }
 
   /* Return true if any mutation was applied. */
-  bool apply_mutations()
+  bool only_apply_mutations()
   {
     if (mutations_.empty()) {
       return false;
     }
 
     /* Order mutations so that they can be applied in one pass. */
-    std::sort(mutations_.begin(), mutations_.end());
+    std::stable_sort(mutations_.begin(), mutations_.end());
 
     int64_t offset = 0;
     for (const Mutation &mut : mutations_) {
@@ -922,14 +1031,22 @@ struct Parser {
       offset += mut.replacement.size() - mut.src_range.size;
     }
     mutations_.clear();
-    this->parse();
     return true;
+  }
+
+  bool apply_mutations()
+  {
+    bool applied = only_apply_mutations();
+    if (applied) {
+      this->parse();
+    }
+    return applied;
   }
 
   /* Apply mutations if any and get resulting string. */
   const std::string &result_get()
   {
-    apply_mutations();
+    only_apply_mutations();
     return data_.str;
   }
 
@@ -944,7 +1061,11 @@ struct Parser {
   {
     std::string out;
     for (const Mutation &mut : mutations_) {
-      out += "Replace \"";
+      out += "Replace ";
+      out += std::to_string(mut.src_range.start);
+      out += " - ";
+      out += std::to_string(mut.src_range.size);
+      out += " \"";
       out += data_.str.substr(mut.src_range.start, mut.src_range.size);
       out += "\" by \"";
       out += mut.replacement;
