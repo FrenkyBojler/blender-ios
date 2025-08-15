@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <fmt/format.h>
 
 #include "BLF_api.hh"
 
@@ -19,6 +20,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -75,6 +77,8 @@
 #include "sequencer_intern.hh"
 #include "sequencer_quads_batch.hh"
 #include "sequencer_scopes.hh"
+
+#define PREVIEW_OVERLAY_LINEHEIGHT (UI_style_get()->widget.points * UI_SCALE_FAC * 1.6f)
 
 namespace blender::ed::vse {
 static Strip *special_seq_update = nullptr;
@@ -1504,6 +1508,17 @@ static void draw_registered_callbacks(const bContext *C, ARegion &region)
   GPU_framebuffer_bind_no_srgb(overlay_fb);
 }
 
+static void draw_render_stats(const SpaceSeq &space_sequencer, int xoffset, int *yoffset)
+{
+  const float draw_time = space_sequencer.runtime->draw_time;
+
+  std::string total_time_info = fmt::format(
+      "Total Time: {:.2f} ms ({:.1f} fps)", draw_time * 1000.0f, 1.0f / draw_time);
+  *yoffset -= PREVIEW_OVERLAY_LINEHEIGHT;
+  BLF_draw_default(xoffset, *yoffset, 0.0f, total_time_info.c_str(), total_time_info.length());
+  *yoffset -= PREVIEW_OVERLAY_LINEHEIGHT;
+}
+
 /* Part of the sequencer preview region drawing which renders information overlays to the
  * viewport's overlay frame-buffer. */
 static void sequencer_preview_draw_overlays(const bContext *C,
@@ -1615,12 +1630,16 @@ static void sequencer_preview_draw_overlays(const bContext *C,
     WM_gizmomap_draw(region.runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
   }
 
+  const rcti *rect = ED_region_visible_rect(&region);
+  int xoffset = rect->xmin + U.widget_unit;
+  int yoffset = rect->ymax;
+
+  if (true) {
+    draw_render_stats(space_sequencer, xoffset, &yoffset);
+  }
+
   /* FPS counter. */
   if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(&wm)) {
-    const rcti *rect = ED_region_visible_rect(&region);
-    int xoffset = rect->xmin + U.widget_unit;
-    int yoffset = rect->ymax;
-
     /* #ED_scene_draw_fps does not set text/shadow colors, except when frame-rate is too low, then
      * it sets text color to red. Make sure the "normal case" also has legible colors. */
     const int font_id = BLF_default();
@@ -1709,6 +1728,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   /* Image buffer used for overlays: scopes, metadata etc. */
   ImBuf *overlay_ibuf = need_current_frame ? current_ibuf : reference_ibuf;
 
+  const double start_time = BLI_time_now_seconds();
   /* Draw parts of the preview region to the corresponding frame buffers. */
   sequencer_preview_draw_color_render(space_sequencer,
                                       editing,
@@ -1717,6 +1737,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
                                       current_texture,
                                       reference_ibuf,
                                       reference_texture);
+  space_sequencer.runtime->draw_time = BLI_time_now_seconds() - start_time;
   sequencer_preview_draw_overlays(C,
                                   *CTX_wm_manager(C),
                                   scene,

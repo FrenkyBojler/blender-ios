@@ -289,6 +289,9 @@ typedef struct View3D_Runtime {
 
   /* Only used for overlay stats while in local-view. */
   struct SceneStats *local_stats;
+
+  float sync_time;
+  float draw_time;
 } View3D_Runtime;
 
 /** 3D ViewPort Struct. */

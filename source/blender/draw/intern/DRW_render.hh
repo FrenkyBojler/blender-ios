@@ -222,6 +222,9 @@ struct DRWContext {
   /** Render State: No persistent data between draw calls. */
   static thread_local DRWContext *g_context;
 
+  float sync_time_;
+  float draw_time_;
+
   /* TODO(fclem): Private? */
  public:
   /* TODO: clean up this struct a bit. */
@@ -422,6 +425,9 @@ struct DRWContext {
   bool is_transforming() const;
   /** True if viewport compositor is enabled when drawing with this context. */
   bool is_viewport_compositor_enabled() const;
+
+  float sync_time() const;
+  float draw_time() const;
 };
 
 /** \} */

@@ -7,6 +7,7 @@
  */
 
 #include <cmath>
+#include <fmt/format.h>
 
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
@@ -17,6 +18,7 @@
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 
 #include "BKE_armature.hh"
 #include "BKE_camera.h"
@@ -59,6 +61,7 @@
 
 #include "ANIM_bone_collections.hh"
 
+#include "DEG_depsgraph_debug.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "GPU_framebuffer.hh"
@@ -1512,6 +1515,27 @@ static void draw_grid_unit_name(
   }
 }
 
+static void draw_render_stats(View3D *v3d, int xoffset, int *yoffset)
+{
+  const float sync_time = v3d->runtime.sync_time;
+  const float draw_time = v3d->runtime.draw_time;
+  const float total_time = sync_time + draw_time;
+
+  std::string sync_time_info = fmt::format("Sync Time: {:.2f} ms", sync_time * 1000.0f);
+  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
+  BLF_draw_default(xoffset, *yoffset, 0.0f, sync_time_info.c_str(), sync_time_info.length());
+
+  std::string draw_time_info = fmt::format("Draw Time: {:.2f} ms", draw_time * 1000.0f);
+  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
+  BLF_draw_default(xoffset, *yoffset, 0.0f, draw_time_info.c_str(), draw_time_info.length());
+
+  std::string total_time_info = fmt::format(
+      "Total Time: {:.2f} ms ({:.1f} fps)", total_time * 1000.0f, 1.0f / total_time);
+  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
+  BLF_draw_default(xoffset, *yoffset, 0.0f, total_time_info.c_str(), total_time_info.length());
+  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
+}
+
 void view3d_draw_region_info(const bContext *C, ARegion *region)
 {
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
@@ -1592,6 +1616,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     BLF_shadow(font_id, FontShadowType::Outline, shadow_color);
 
     if ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) {
+      draw_render_stats(v3d, xoffset, &yoffset);
       if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(wm)) {
         ED_scene_draw_fps(scene, xoffset, &yoffset);
         BLF_color4fv(font_id, text_color);

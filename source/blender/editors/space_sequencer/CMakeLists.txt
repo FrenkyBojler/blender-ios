@@ -55,6 +55,7 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::draw
+  PRIVATE bf::extern::fmtlib
   bf_editor_interface
   bf_editor_util
   PRIVATE bf::gpu

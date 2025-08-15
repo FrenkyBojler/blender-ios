@@ -754,6 +754,8 @@ void DRWContext::sync(iter_callback_t iter_callback)
 
 void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
+  double start_time = BLI_time_now_seconds();
+  
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.init(); });
 
   view_data_active->manager->begin_sync(this->obact);
@@ -765,10 +767,13 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.end_sync(); });
 
   view_data_active->manager->end_sync();
+
+  sync_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
 void DRWContext::engines_draw_scene()
 {
+  double start_time = BLI_time_now_seconds();
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
@@ -785,6 +790,8 @@ void DRWContext::engines_draw_scene()
   if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
     GPU_flush();
   }
+
+  draw_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height)
@@ -1269,6 +1276,7 @@ void DRW_draw_view(const bContext *C)
 {
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(C);
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
   DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C);
@@ -1286,7 +1294,10 @@ void DRW_draw_view(const bContext *C)
   else {
     drw_draw_render_loop_2d(draw_ctx);
   }
-
+  if (v3d) {
+    v3d->runtime.sync_time = draw_ctx.sync_time();
+    v3d->runtime.draw_time = draw_ctx.draw_time();
+  }
   draw_ctx.release_data();
 }
 
@@ -1972,6 +1983,15 @@ bool DRWContext::is_viewport_compositor_enabled() const
   }
 
   return true;
+}
+
+float DRWContext::sync_time() const
+{
+  return sync_time_;
+}
+float DRWContext::draw_time() const
+{
+  return draw_time_;
 }
 
 /** \} */
