@@ -61,6 +61,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(InfiniteGroundPlaneBundle::get_bundle_type());
   types.append(SphericalSelfCollisionConstraintBundle::get_bundle_type());
   types.append(CurveSegmentXPBDConstraintBundle::get_bundle_type());
+  types.append(OverpressureXPBDConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -142,6 +143,7 @@ class XPBDState {
 
   Map<SimPointsKey, SimPoints> sim_points;
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
+  Map<SimPointsKey, float> initial_volumes;
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -178,6 +180,7 @@ struct WorldData {
   BundleVectorSet<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
   BundleVectorSet<InfiniteGroundPlaneBundle> infinite_ground_planes;
   BundleVectorSet<SphericalSelfCollisionConstraintBundle> spherical_self_collision_constraints;
+  BundleVectorSet<OverpressureXPBDConstraintBundle> overpressure_constraints;
 };
 
 static AttrDomain get_position_domain(const bke::GeometryComponent::Type type)
@@ -214,6 +217,7 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.pinned_position_constraints);
     parse_bundle(params, errors, world.infinite_ground_planes);
     parse_bundle(params, errors, world.spherical_self_collision_constraints);
+    parse_bundle(params, errors, world.overpressure_constraints);
   });
   return world;
 }
@@ -766,6 +770,52 @@ static void gather_curve_segment_constraints(
   }
 }
 
+static void gather_overpressure_constraints(
+    ResourceScope &scope,
+    XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Mesh) {
+      continue;
+    }
+    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const Mesh &mesh = *applied_geometry.get_mesh();
+    const Span<int3> tris = mesh.corner_tris();
+    const Span<int> corner_verts = mesh.corner_verts();
+    const Span<float3> positions = mesh.vert_positions();
+
+    const Vector overpressure_constraints =
+        filter_bundles_for_path<OverpressureXPBDConstraintBundle>(world.overpressure_constraints,
+                                                                  key.path);
+    const Span<float> inverse_masses = sim_points_props.lookup(key).inverse_masses;
+
+    for (const OverpressureXPBDConstraintBundle *constraint_bundle : overpressure_constraints) {
+      const float overpressure = constraint_bundle->overpressure;
+      const float initial_volume = state.initial_volumes.lookup_or_add_cb(key, [&]() {
+        return geometry::xpbd_constraint_solver::OverpressureConstraintEvaluator::compute_volume(
+            tris, corner_verts, positions);
+      });
+      Vector<Vector<int>> &affected_points = scope.construct<Vector<Vector<int>>>();
+      affected_points.append({});
+      for (const int i : positions.index_range()) {
+        affected_points[0].append(i);
+      }
+      r_constraint_sets.append(
+          {scope.construct<geometry::xpbd_constraint_solver::NAryConstraintSetIndices>(
+               key_i, affected_points),
+           scope.construct<geometry::xpbd_constraint_solver::OverpressureConstraintEvaluator>(
+               key_i, tris, corner_verts, inverse_masses, overpressure, initial_volume)});
+    }
+  }
+}
+
 struct StaticPlaneContacts {
   Vector<int> indices;
   Vector<float3> plane_positions;
@@ -1206,6 +1256,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                    sim_points_props,
                                    sub_delta_time,
                                    static_constraint_sets);
+  gather_overpressure_constraints(
+      scope, state, world, applied_geometries, keys, sim_points_props, static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   for (const int i : keys.index_range()) {

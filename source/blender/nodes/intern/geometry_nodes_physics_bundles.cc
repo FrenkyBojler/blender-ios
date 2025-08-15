@@ -214,6 +214,31 @@ const FlatBundleTypePtr &PinnedPositionXPBDConstraintBundle::get_bundle_type()
   return bundle_type;
 }
 
+const FlatBundleTypePtr &OverpressureXPBDConstraintBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(OverpressureXPBDConstraintBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Float>("overpressure").default_value(2.0f).min(0.0f);
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<OverpressureXPBDConstraintBundle> OverpressureXPBDConstraintBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  OverpressureXPBDConstraintBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "overpressure", behavior.overpressure, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 std::optional<PinnedPositionXPBDConstraintBundle> PinnedPositionXPBDConstraintBundle::parse(
     const Bundle &bundle, BundleParseErrors &r_errors)
 {

@@ -71,6 +71,23 @@ Vector<IndexMask> BinaryConstraintSetIndices::generate_independent_masks(
       memory);
 }
 
+NAryConstraintSetIndices::NAryConstraintSetIndices(const int affected_points_ref_i,
+                                                   const Span<Vector<int>> affected_points)
+    : ConstraintSetIndices(affected_points.size(), {affected_points_ref_i}),
+      affected_points_ref_i_(affected_points_ref_i),
+      affected_points_(affected_points)
+{
+}
+
+Vector<IndexMask> NAryConstraintSetIndices::generate_independent_masks(
+    IndexMaskMemory &memory) const
+{
+  return detect_independent_constraints<int>(
+      [&](const int constraint_i) { return affected_points_[constraint_i].as_span(); },
+      affected_points_.size(),
+      memory);
+}
+
 ConstraintSet::ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluator &evaluator)
     : indices(&indices), evaluator(&evaluator)
 {

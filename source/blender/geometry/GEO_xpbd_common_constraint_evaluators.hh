@@ -24,8 +24,8 @@ class PinConstraintEvaluator : public TemplatedConstraintSetEvaluator<PinConstra
   {
   }
 
-  template<typename SolverT>
-  void evaluate_single(SolverT &solver,
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
@@ -34,7 +34,7 @@ class PinConstraintEvaluator : public TemplatedConstraintSetEvaluator<PinConstra
     const float3 &pin_position = pin_positions_[constraint_i];
     const float3 &p = points_refs[points_ref_i].positions[i];
     const float3 offset = pin_position - p;
-    solver.update_position(points_ref_i, i, offset);
+    updater.update_position(points_ref_i, i, offset);
   }
 };
 
@@ -62,8 +62,8 @@ class DistanceConstraintEvaluator
     BLI_assert(point_pairs.size() == distances.size());
   }
 
-  template<typename SolverT>
-  void evaluate_single(SolverT &solver,
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
@@ -88,8 +88,8 @@ class DistanceConstraintEvaluator
 
     const float3 offset0 = lambda * inv_m0 * normalized_dir;
     const float3 offset1 = -lambda * inv_m1 * normalized_dir;
-    solver.update_position(points_ref_i0, v0, offset0);
-    solver.update_position(points_ref_i1, v1, offset1);
+    updater.update_position(points_ref_i0, v0, offset0);
+    updater.update_position(points_ref_i1, v1, offset1);
   }
 };
 
@@ -113,8 +113,8 @@ class CollisionPlaneConstraintEvaluator
   {
   }
 
-  template<typename SolverT>
-  void evaluate_single(SolverT &solver,
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
@@ -131,7 +131,7 @@ class CollisionPlaneConstraintEvaluator
       return;
     }
     const float3 offset = plane_normal * -distance;
-    solver.update_position(points_ref_i, v, offset);
+    updater.update_position(points_ref_i, v, offset);
   }
 };
 
@@ -158,8 +158,8 @@ class MinimumDistanceConstraintEvaluator
   {
   }
 
-  template<typename SolverT>
-  void evaluate_single(SolverT &solver,
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
@@ -187,8 +187,106 @@ class MinimumDistanceConstraintEvaluator
     const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
     const float3 offset0 = -lambda * inv_m0 * normalized_dir;
     const float3 offset1 = lambda * inv_m1 * normalized_dir;
-    solver.update_position(points_ref_i0, v0, offset0);
-    solver.update_position(points_ref_i1, v1, offset1);
+    updater.update_position(points_ref_i0, v0, offset0);
+    updater.update_position(points_ref_i1, v1, offset1);
+  }
+};
+
+class OverpressureConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<OverpressureConstraintEvaluator> {
+ private:
+  int points_ref_i_;
+  Span<int3> tris_;
+  Span<int> corner_verts_;
+  Span<float> inverse_masses_;
+  float overpressure_;
+  float initial_volume_;
+
+ public:
+  OverpressureConstraintEvaluator(const int points_ref_i,
+                                  const Span<int3> tris,
+                                  const Span<int> corner_verts,
+                                  const Span<float> inverse_masses,
+                                  const float overpressure,
+                                  const float initial_volume)
+      : points_ref_i_(points_ref_i),
+        tris_(tris),
+        corner_verts_(corner_verts),
+        inverse_masses_(inverse_masses),
+        overpressure_(overpressure),
+        initial_volume_(initial_volume)
+  {
+  }
+
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const Span<PointsRef> points_refs,
+                       const int /*constraint_i*/) const
+  {
+    const Span<float3> positions = points_refs[points_ref_i_].positions;
+    const float current_volume = compute_volume(tris_, corner_verts_, positions);
+    const float volume_diff = current_volume - overpressure_ * initial_volume_;
+
+    const int points_num = positions.size();
+    Array<float3> gradients(points_num, float3(0.0f));
+    for (const int tri_i : tris_.index_range()) {
+      const int3 &tri = tris_[tri_i];
+      const int v0 = corner_verts_[tri[0]];
+      const int v1 = corner_verts_[tri[1]];
+      const int v2 = corner_verts_[tri[2]];
+      const float3 &p0 = positions[v0];
+      const float3 &p1 = positions[v1];
+      const float3 &p2 = positions[v2];
+      const float3 c_1_2 = math::cross(p1, p2);
+      const float3 c_2_0 = math::cross(p2, p0);
+      const float3 c_0_1 = math::cross(p0, p1);
+      const float3 c = c_1_2 + c_2_0 + c_0_1;
+      gradients[v0] += c;
+      gradients[v1] += c;
+      gradients[v2] += c;
+    }
+
+    float lambda_divisor = 0.0f;
+    for (const int i : IndexRange(points_num)) {
+      const float inverse_mass = inverse_masses_[i];
+      lambda_divisor += math::length_squared(gradients[i]) * inverse_mass;
+    }
+    const float lambda = math::safe_divide(volume_diff, lambda_divisor);
+    threading::parallel_for(IndexRange(points_num), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        const float inverse_mass = inverse_masses_[i];
+        if (inverse_mass <= 0.0f) {
+          continue;
+        }
+        const float3 offset = -lambda * inverse_mass * gradients[i];
+        updater.update_position(points_ref_i_, i, offset);
+      }
+    });
+  }
+
+  static float compute_volume(const Span<int3> tris,
+                              const Span<int> corner_verts,
+                              const Span<float3> positions)
+  {
+    const float volume = threading::parallel_deterministic_reduce<float>(
+        tris.index_range(),
+        512,
+        0.0f,
+        [&](const IndexRange range, float volume) {
+          for (const int tri_i : range) {
+            const int3 &tri = tris[tri_i];
+            const int v0 = corner_verts[tri[0]];
+            const int v1 = corner_verts[tri[1]];
+            const int v2 = corner_verts[tri[2]];
+            const float3 &p0 = positions[v0];
+            const float3 &p1 = positions[v1];
+            const float3 &p2 = positions[v2];
+            volume += math::dot(math::cross(p0, p1), p2);
+          }
+          return volume;
+        },
+        [&](const float a, const float b) { return a + b; });
+    return volume / 6.0f;
   }
 };
 
