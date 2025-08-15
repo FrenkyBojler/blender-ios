@@ -32,119 +32,117 @@ struct InterpPosition {
   }
 };
 
-InterpPosition input_load(int point_index, InterpPosition interp)
+/** Input Load. */
+
+/* Template this function to be able to call it with only no extra argument. */
+template<typename T> T input_load(int point_index)
+{
+  return T(0);
+}
+template<> InterpPosition input_load<InterpPosition>(int point_index)
 {
   const auto &positions = buffer_get(draw_curves_interpolate_position, positions_buf);
+  InterpPosition interp;
   interp.data.xyz = gpu_attr_load_float3(positions, int2(3, 0), point_index);
   interp.data.w = buffer_get(draw_curves_interpolate_position, radii_buf)[point_index];
   /* Bake object transform for legacy hair particle. */
   interp.data.xyz = transform_point(transform, interp.data.xyz);
   return interp;
 }
-
-InterpPosition output_load(int evaluated_point_index, InterpPosition interp)
-{
-  return InterpPosition(buffer_get(draw_curves_interpolate_position,
-                                   evaluated_positions_radii_buf)[evaluated_point_index]);
-}
-
-void output_weighted_add(int evaluated_point_index, float w, const InterpPosition interp)
-{
-  buffer_get(draw_curves_interpolate_position,
-             evaluated_positions_radii_buf)[evaluated_point_index] += interp.data * w;
-}
-void output_mul(int evaluated_point_index, float w, const InterpPosition interp)
-{
-  buffer_get(draw_curves_interpolate_position,
-             evaluated_positions_radii_buf)[evaluated_point_index] *= w;
-}
-void output_write(int evaluated_point_index, InterpPosition interp)
-{
-  buffer_get(draw_curves_interpolate_position,
-             evaluated_positions_radii_buf)[evaluated_point_index] = interp.data;
-}
-void output_set_zero(int evaluated_point_index, InterpPosition interp)
-{
-  buffer_get(draw_curves_interpolate_position,
-             evaluated_positions_radii_buf)[evaluated_point_index] = float4(0.0);
-}
-
-float4 input_load(int point_index, float4 interp)
+template<> float4 input_load<float4>(int point_index)
 {
   return load_data(
       buffer_get(draw_curves_interpolate_float4_attribute, attribute_float4_buf)[point_index]);
 }
-
-float3 input_load(int point_index, float3 interp)
+template<> float3 input_load<float3>(int point_index)
 {
   return load_data(
       buffer_get(draw_curves_interpolate_float3_attribute, attribute_float3_buf)[point_index]);
 }
-
-float2 input_load(int point_index, float2 interp)
+template<> float2 input_load<float2>(int point_index)
 {
   return load_data(
       buffer_get(draw_curves_interpolate_float2_attribute, attribute_float2_buf)[point_index]);
 }
-
-float input_load(int point_index, float interp)
+template<> float input_load<float>(int point_index)
 {
   return load_data(
       buffer_get(draw_curves_interpolate_float_attribute, attribute_float_buf)[point_index]);
 }
 
-float4 output_load(int evaluated_point_index, float4 interp)
+/** Output Load. */
+
+/* Template this function to be able to call it with only no extra argument. */
+template<typename T> T output_load(int evaluated_point_index)
+{
+  return T(0);
+}
+template<> InterpPosition output_load<InterpPosition>(int evaluated_point_index)
+{
+  return InterpPosition(buffer_get(draw_curves_interpolate_position,
+                                   evaluated_positions_radii_buf)[evaluated_point_index]);
+}
+template<> float4 output_load<float4>(int evaluated_point_index)
 {
   return load_data(buffer_get(draw_curves_interpolate_float4_attribute,
                               evaluated_float4_buf)[evaluated_point_index]);
 }
-
-float3 output_load(int evaluated_point_index, float3 interp)
+template<> float3 output_load<float3>(int evaluated_point_index)
 {
   return load_data(buffer_get(draw_curves_interpolate_float3_attribute,
                               evaluated_float3_buf)[evaluated_point_index]);
 }
-
-float2 output_load(int evaluated_point_index, float2 interp)
+template<> float2 output_load<float2>(int evaluated_point_index)
 {
   return load_data(buffer_get(draw_curves_interpolate_float2_attribute,
                               evaluated_float2_buf)[evaluated_point_index]);
 }
-
-float output_load(int evaluated_point_index, float interp)
+template<> float output_load<float>(int evaluated_point_index)
 {
   return load_data(buffer_get(draw_curves_interpolate_float_attribute,
                               evaluated_float_buf)[evaluated_point_index]);
 }
 
+/** Output Write. */
+
+void output_write(int evaluated_point_index, InterpPosition interp)
+{
+  buffer_get(draw_curves_interpolate_position,
+             evaluated_positions_radii_buf)[evaluated_point_index] = interp.data;
+}
 void output_write(int evaluated_point_index, const float4 interp)
 {
   buffer_get(draw_curves_interpolate_float4_attribute,
              evaluated_float4_buf)[evaluated_point_index] = as_data(interp);
 }
-
 void output_write(int evaluated_point_index, const float3 interp)
 {
   buffer_get(draw_curves_interpolate_float3_attribute,
              evaluated_float3_buf)[evaluated_point_index] = as_data(interp);
 }
-
 void output_write(int evaluated_point_index, const float2 interp)
 {
   buffer_get(draw_curves_interpolate_float2_attribute,
              evaluated_float2_buf)[evaluated_point_index] = as_data(interp);
 }
-
 void output_write(int evaluated_point_index, const float interp)
 {
   buffer_get(draw_curves_interpolate_float_attribute,
              evaluated_float_buf)[evaluated_point_index] = as_data(interp);
 }
 
+/** Output Weighted Add. */
+
+void output_weighted_add(int evaluated_point_index, float w, const InterpPosition src)
+{
+  buffer_get(draw_curves_interpolate_position,
+             evaluated_positions_radii_buf)[evaluated_point_index] += src.data * w;
+}
+
 template<typename InterpType>
 void output_weighted_add(int evaluated_point_index, float w, const InterpType src)
 {
-  InterpType dst = output_load(evaluated_point_index, src);
+  InterpType dst = output_load<InterpType>(evaluated_point_index);
   dst += src * w;
   output_write(evaluated_point_index, dst);
 }
@@ -153,27 +151,41 @@ template void output_weighted_add<float3>(int, float, float3);
 template void output_weighted_add<float2>(int, float, float2);
 template void output_weighted_add<float>(int, float, float);
 
-template<typename InterpType>
-void output_mul(int evaluated_point_index, float w, const InterpType type)
+/** Output Mul. */
+
+template<typename InterpType> void output_mul(int evaluated_point_index, float w)
 {
-  InterpType dst = output_load(evaluated_point_index, type);
+  InterpType dst = output_load<InterpType>(evaluated_point_index);
   dst *= w;
   output_write(evaluated_point_index, dst);
 }
-template void output_mul<float4>(int, float, float4);
-template void output_mul<float3>(int, float, float3);
-template void output_mul<float2>(int, float, float2);
-template void output_mul<float>(int, float, float);
+template void output_mul<float4>(int, float);
+template void output_mul<float3>(int, float);
+template void output_mul<float2>(int, float);
+template void output_mul<float>(int, float);
+template<> void output_mul<InterpPosition>(int evaluated_point_index, float w)
+{
+  buffer_get(draw_curves_interpolate_position,
+             evaluated_positions_radii_buf)[evaluated_point_index] *= w;
+}
 
-template<typename InterpType>
-void output_set_zero(int evaluated_point_index, const InterpType interp)
+/** Output Set To Zero. */
+
+template<typename InterpType> void output_set_zero(int evaluated_point_index)
 {
   output_write(evaluated_point_index, InterpType(0.0f));
 }
-template void output_set_zero<float4>(int, float4);
-template void output_set_zero<float3>(int, float3);
-template void output_set_zero<float2>(int, float2);
-template void output_set_zero<float>(int, float);
+template void output_set_zero<float4>(int);
+template void output_set_zero<float3>(int);
+template void output_set_zero<float2>(int);
+template void output_set_zero<float>(int);
+template<> void output_set_zero<InterpPosition>(int evaluated_point_index)
+{
+  buffer_get(draw_curves_interpolate_position,
+             evaluated_positions_radii_buf)[evaluated_point_index] = float4(0.0);
+}
+
+/** Mix 4. */
 
 InterpPosition mix4(
     InterpPosition v0, InterpPosition v1, InterpPosition v2, InterpPosition v3, float4 w)
@@ -191,6 +203,8 @@ template float4 mix4<float4>(float4, float4, float4, float4, float4);
 template float3 mix4<float3>(float3, float3, float3, float3, float4);
 template float2 mix4<float2>(float2, float2, float2, float2, float4);
 template float mix4<float>(float, float, float, float, float4);
+
+/** Utilities. */
 
 bool curve_cyclic_get(int curve_index)
 {
@@ -227,8 +241,7 @@ int4 get_points(uint point_id, IndexRange points, const bool cyclic)
 }
 
 template<typename InterpType>
-void evaluate_curve(const InterpType interp_type,
-                    const IndexRange points,
+void evaluate_curve(const IndexRange points,
                     const IndexRange evaluated_points,
                     const int curve_index)
 {
@@ -242,35 +255,46 @@ void evaluate_curve(const InterpType interp_type,
     const float4 weights = calculate_basis(parameter);
     const int4 point_ids = get_points(point_id, points, is_curve_cyclic);
 
-    InterpType p0 = input_load(point_ids.x, interp_type);
-    InterpType p1 = input_load(point_ids.y, interp_type);
-    InterpType p2 = input_load(point_ids.z, interp_type);
-    InterpType p3 = input_load(point_ids.w, interp_type);
+    InterpType p0 = input_load<InterpType>(point_ids.x);
+    InterpType p1 = input_load<InterpType>(point_ids.y);
+    InterpType p2 = input_load<InterpType>(point_ids.z);
+    InterpType p3 = input_load<InterpType>(point_ids.w);
     InterpType result = mix4(p0, p1, p2, p3, weights);
 
     output_write(evaluated_point_id, result);
   }
 }
 
-template void evaluate_curve<InterpPosition>(InterpPosition, IndexRange, IndexRange, int);
-template void evaluate_curve<float>(float, IndexRange, IndexRange, int);
-template void evaluate_curve<float2>(float2, IndexRange, IndexRange, int);
-template void evaluate_curve<float3>(float3, IndexRange, IndexRange, int);
-template void evaluate_curve<float4>(float4, IndexRange, IndexRange, int);
+template void evaluate_curve<InterpPosition>(IndexRange, IndexRange, int);
+template void evaluate_curve<float>(IndexRange, IndexRange, int);
+template void evaluate_curve<float2>(IndexRange, IndexRange, int);
+template void evaluate_curve<float3>(IndexRange, IndexRange, int);
+template void evaluate_curve<float4>(IndexRange, IndexRange, int);
 
 }  // namespace catmull_rom
 
 namespace bezier {
 
-void evaluate_segment(const InterpPosition interp_type, const int2 points, const IndexRange result)
+template<typename InterpType> void evaluate_segment(const int2 points, const IndexRange result)
+{
+  InterpType p0 = input_load<InterpType>(points.x);
+  InterpType p1 = input_load<InterpType>(points.y);
+
+  const float step = 1.0f / float(result.size());
+  for (int i = 0; i < result.size(); i++) {
+    output_write(result.start() + i, mix(p0, p1, float(i) * step));
+  }
+}
+
+template<> void evaluate_segment<InterpPosition>(const int2 points, const IndexRange result)
 {
   const auto &handles_right = buffer_get(draw_curves_interpolate_position,
                                          handles_positions_right_buf);
   const auto &handles_left = buffer_get(draw_curves_interpolate_position,
                                         handles_positions_left_buf);
 
-  InterpPosition p0 = input_load(points.x, interp_type);
-  InterpPosition p1 = input_load(points.y, interp_type);
+  InterpPosition p0 = input_load<InterpPosition>(points.x);
+  InterpPosition p1 = input_load<InterpPosition>(points.y);
 
   const float3 point_0 = p0.data.xyz;
   const float3 point_1 = gpu_attr_load_float3(handles_right, int2(3, 0), points.x);
@@ -304,22 +328,10 @@ void evaluate_segment(const InterpPosition interp_type, const int2 points, const
   }
 }
 
-template<typename InterpType>
-void evaluate_segment(const InterpType interp_type, const int2 points, const IndexRange result)
-{
-  InterpType p0 = input_load(points.x, interp_type);
-  InterpType p1 = input_load(points.y, interp_type);
-
-  const float step = 1.0f / float(result.size());
-  for (int i = 0; i < result.size(); i++) {
-    output_write(result.start() + i, mix(p0, p1, float(i) * step));
-  }
-}
-
-template void evaluate_segment<float>(float, int2, IndexRange);
-template void evaluate_segment<float2>(float2, int2, IndexRange);
-template void evaluate_segment<float3>(float3, int2, IndexRange);
-template void evaluate_segment<float4>(float4, int2, IndexRange);
+template void evaluate_segment<float>(int2, IndexRange);
+template void evaluate_segment<float2>(int2, IndexRange);
+template void evaluate_segment<float3>(int2, IndexRange);
+template void evaluate_segment<float4>(int2, IndexRange);
 
 IndexRange per_curve_point_offsets_range(const IndexRange points, const int curve_index)
 {
@@ -340,8 +352,7 @@ int2 get_points(uint point_id, IndexRange points, const bool cyclic)
 }
 
 template<typename InterpType>
-void evaluate_curve(const InterpType interp_type,
-                    const IndexRange points,
+void evaluate_curve(const IndexRange points,
                     const IndexRange evaluated_points,
                     const int curve_index)
 {
@@ -356,26 +367,25 @@ void evaluate_curve(const InterpType interp_type,
     const IndexRange evaluated_segment_range = evaluated_points.slice(segment_range);
     const int2 point_ids = get_points(i, points, is_curve_cyclic);
 
-    evaluate_segment(interp_type, point_ids, evaluated_segment_range);
+    evaluate_segment<InterpType>(point_ids, evaluated_segment_range);
   }
 
   if (is_curve_cyclic) {
     /* The closing point is not contained inside `bezier_offsets_buf` so we do manual copy. */
-    output_write(evaluated_points.last(), output_load(evaluated_points.first(), interp_type));
+    output_write(evaluated_points.last(), output_load<InterpType>(evaluated_points.first()));
   }
 }
 
-template void evaluate_curve<InterpPosition>(InterpPosition, IndexRange, IndexRange, int);
-template void evaluate_curve<float>(float, IndexRange, IndexRange, int);
-template void evaluate_curve<float2>(float2, IndexRange, IndexRange, int);
-template void evaluate_curve<float3>(float3, IndexRange, IndexRange, int);
-template void evaluate_curve<float4>(float4, IndexRange, IndexRange, int);
+template void evaluate_curve<InterpPosition>(IndexRange, IndexRange, int);
+template void evaluate_curve<float>(IndexRange, IndexRange, int);
+template void evaluate_curve<float2>(IndexRange, IndexRange, int);
+template void evaluate_curve<float3>(IndexRange, IndexRange, int);
+template void evaluate_curve<float4>(IndexRange, IndexRange, int);
 
 }  // namespace bezier
 
 template<typename InterpType>
-void copy_curve_data(const InterpType interp_type,
-                     const IndexRange points,
+void copy_curve_data(const IndexRange points,
                      const IndexRange evaluated_points,
                      const int curve_index)
 {
@@ -383,26 +393,25 @@ void copy_curve_data(const InterpType interp_type,
   const bool is_curve_cyclic = curve_cyclic_get(curve_index);
 
   for (int i = 0; i < points.size(); i++) {
-    output_write(evaluated_points.start() + i, input_load(points.start() + i, interp_type));
+    output_write(evaluated_points.start() + i, input_load<InterpType>(points.start() + i));
   }
 
   if (is_curve_cyclic) {
     /* The closing point is not contained inside `bezier_offsets_buf` so we do manual copy. */
-    output_write(evaluated_points.last(), output_load(evaluated_points.first(), interp_type));
+    output_write(evaluated_points.last(), output_load<InterpType>(evaluated_points.first()));
   }
 }
 
-template void copy_curve_data<InterpPosition>(InterpPosition, IndexRange, IndexRange, int);
-template void copy_curve_data<float>(float, IndexRange, IndexRange, int);
-template void copy_curve_data<float2>(float2, IndexRange, IndexRange, int);
-template void copy_curve_data<float3>(float3, IndexRange, IndexRange, int);
-template void copy_curve_data<float4>(float4, IndexRange, IndexRange, int);
+template void copy_curve_data<InterpPosition>(IndexRange, IndexRange, int);
+template void copy_curve_data<float>(IndexRange, IndexRange, int);
+template void copy_curve_data<float2>(IndexRange, IndexRange, int);
+template void copy_curve_data<float3>(IndexRange, IndexRange, int);
+template void copy_curve_data<float4>(IndexRange, IndexRange, int);
 
 namespace nurbs {
 
 template<typename InterpType>
-void evaluate_curve(const InterpType interp_type,
-                    const IndexRange points,
+void evaluate_curve(const IndexRange points,
                     const IndexRange evaluated_points_padded,
                     const int curve_index)
 {
@@ -416,7 +425,7 @@ void evaluate_curve(const InterpType interp_type,
   const bool invalid = basis_cache_start < 0;
 
   if (invalid) {
-    copy_curve_data(interp_type, points, evaluated_points_padded, curve_index);
+    copy_curve_data<InterpType>(points, evaluated_points_padded, curve_index);
     return;
   }
 
@@ -436,7 +445,7 @@ void evaluate_curve(const InterpType interp_type,
   for (int i = 0; i < evaluated_points.size(); i++) {
     int evaluated_point_index = evaluated_points.start() + i;
     /* Equivalent to `attribute_math::DefaultMixer<T> mixer{dst}`. */
-    output_set_zero(evaluated_point_index, interp_type);
+    output_set_zero<InterpType>(evaluated_point_index);
     float total_weight = 0.0f;
 
     const IndexRange point_weights = IndexRange(weights_range_start + i * order, order);
@@ -448,29 +457,29 @@ void evaluate_curve(const InterpType interp_type,
       const float control_weight = use_point_weight ? control_weights_buf[point_index] : 1.0f;
       const float weight = point_weight * control_weight;
       /* Equivalent to `mixer.mix_in()`. */
-      output_weighted_add(evaluated_point_index, weight, input_load(point_index, interp_type));
+      output_weighted_add(evaluated_point_index, weight, input_load<InterpType>(point_index));
       total_weight += weight;
     }
     /* Equivalent to `mixer.finalize()` */
-    output_mul(evaluated_point_index, safe_rcp(total_weight), interp_type);
+    output_mul<InterpType>(evaluated_point_index, safe_rcp(total_weight));
   }
 
   if (is_curve_cyclic) {
     /* The closing point is not contained inside the NURBS data structure so we do manual copy. */
     output_write(evaluated_points_padded.last(),
-                 output_load(evaluated_points_padded.first(), interp_type));
+                 output_load<InterpType>(evaluated_points_padded.first()));
   }
 }
 
-template void evaluate_curve<InterpPosition>(InterpPosition, IndexRange, IndexRange, int);
-template void evaluate_curve<float>(float, IndexRange, IndexRange, int);
-template void evaluate_curve<float2>(float2, IndexRange, IndexRange, int);
-template void evaluate_curve<float3>(float3, IndexRange, IndexRange, int);
-template void evaluate_curve<float4>(float4, IndexRange, IndexRange, int);
+template void evaluate_curve<InterpPosition>(IndexRange, IndexRange, int);
+template void evaluate_curve<float>(IndexRange, IndexRange, int);
+template void evaluate_curve<float2>(IndexRange, IndexRange, int);
+template void evaluate_curve<float3>(IndexRange, IndexRange, int);
+template void evaluate_curve<float4>(IndexRange, IndexRange, int);
 
 }  // namespace nurbs
 
-template<typename InterpType> void evaluate_curve(const InterpType interp_type)
+template<typename InterpType> void evaluate_curve()
 {
   if (gl_GlobalInvocationID.x >= uint(curves_count)) {
     return;
@@ -491,49 +500,47 @@ template<typename InterpType> void evaluate_curve(const InterpType interp_type)
   }
 
   if (CurveType(evaluated_type) == CURVE_TYPE_CATMULL_ROM) {
-    catmull_rom::evaluate_curve(interp_type, points, evaluated_points, curve_index);
+    catmull_rom::evaluate_curve<InterpType>(points, evaluated_points, curve_index);
   }
   else if (CurveType(evaluated_type) == CURVE_TYPE_BEZIER) {
-    bezier::evaluate_curve(interp_type, points, evaluated_points, curve_index);
+    bezier::evaluate_curve<InterpType>(points, evaluated_points, curve_index);
   }
   else if (CurveType(evaluated_type) == CURVE_TYPE_NURBS) {
-    nurbs::evaluate_curve(interp_type, points, evaluated_points, curve_index);
+    nurbs::evaluate_curve<InterpType>(points, evaluated_points, curve_index);
   }
   else if (CurveType(evaluated_type) == CURVE_TYPE_POLY) {
     /* Simple copy. */
-    copy_curve_data(interp_type, points, evaluated_points, curve_index);
+    copy_curve_data<InterpType>(points, evaluated_points, curve_index);
   }
 }
 
-template void evaluate_curve<InterpPosition>(InterpPosition);
-template void evaluate_curve<float>(float);
-template void evaluate_curve<float2>(float2);
-template void evaluate_curve<float3>(float3);
-template void evaluate_curve<float4>(float4);
+template void evaluate_curve<InterpPosition>();
+template void evaluate_curve<float>();
+template void evaluate_curve<float2>();
+template void evaluate_curve<float3>();
+template void evaluate_curve<float4>();
 
 void evaluate_position_radius()
 {
-  InterpPosition interp_type;
-  interp_type.data = float4(0.0f); /* Avoid warnings. */
-  evaluate_curve(interp_type);
+  evaluate_curve<InterpPosition>();
 }
 
 void evaluate_attribute_float()
 {
-  evaluate_curve(float(0.0f));
+  evaluate_curve<float>();
 }
 
 void evaluate_attribute_float2()
 {
-  evaluate_curve(float2(0.0f));
+  evaluate_curve<float2>();
 }
 
 void evaluate_attribute_float3()
 {
-  evaluate_curve(float3(0.0f));
+  evaluate_curve<float3>();
 }
 
 void evaluate_attribute_float4()
 {
-  evaluate_curve(float4(0.0f));
+  evaluate_curve<float4>();
 }
