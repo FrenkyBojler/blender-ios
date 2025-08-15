@@ -58,6 +58,20 @@ float gpencil_stroke_round_cap_mask(
   return gpencil_stroke_round_mask(length(uv_end) * 2.0f, hardfac);
 }
 
+/**
+ *
+ * Calculate the distance mask for the pixel in the current segment (p1->p2)
+ *
+ *     *==================*
+ *      \                /
+ *       p1------------p2
+ *      / \            / \
+ *     /   *==========*   \
+ *    /                    \
+ *   /                      \
+ * p0                        p3
+ *
+ */
 float gpencil_stroke_cap_mask(float2 p1,
                               float2 p2,
                               float2 p0,
