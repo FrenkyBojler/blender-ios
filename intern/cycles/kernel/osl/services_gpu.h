@@ -879,6 +879,11 @@ ccl_device_inline bool get_object_standard_attribute(KernelGlobals kg,
 
   else if (name == DeviceStrings::u_normal_map_normal) {
     if (sd->type & PRIMITIVE_TRIANGLE) {
+      const AttributeDescriptor desc = find_attribute(
+          kg, sd->object, sd->prim, ATTR_STD_NORMAL_UNDISPLACED);
+      if (desc.offset != ATTR_STD_NOT_FOUND) {
+        return get_object_attribute(kg, sd, desc, type, derivatives, val);
+      }
       float3 f = triangle_smooth_normal_unnormalized(kg, sd, sd->Ng, sd->prim, sd->u, sd->v);
       return set_attribute(f, type, derivatives, val);
     }
@@ -1067,7 +1072,8 @@ ccl_device_extern bool rs_texture3d(ccl_private ShaderGlobals *sg,
 
   switch (type) {
     case OSL_TEXTURE_HANDLE_TYPE_SVM: {
-      const float4 rgba = kernel_tex_image_interp_3d(nullptr, slot, *P, INTERPOLATION_NONE, -1.0f);
+      const float4 rgba = kernel_tex_image_interp_3d(
+          nullptr, sg->sd, slot, *P, INTERPOLATION_NONE, false);
       if (nchannels > 0) {
         result[0] = rgba.x;
       }
