@@ -14,9 +14,9 @@
 #  include "BLI_winstuff.h"
 #endif
 
-#  include <vulkan/vulkan.h>
-#  ifdef _WIN32
-#    include <vulkan/vulkan_win32.h>
+#include <vulkan/vulkan.h>
+#ifdef _WIN32
+#  include <vulkan/vulkan_win32.h>
 #endif
 
 #if !defined(_WIN32) or defined(_M_ARM64)
