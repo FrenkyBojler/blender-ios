@@ -190,8 +190,8 @@ void ABCCurveWriter::do_write(HierarchyContext &context)
         verts.push_back(to_yup_V3f(positions[i_point]));
         widths.push_back(radii[i_point] * 2.0f);
 
-        verts.push_back(to_yup_V3f(handles_r[i_point]));
-        verts.push_back(to_yup_V3f(handles_l[i_point + 1]));
+        verts.push_back(to_yup_V3f((*handles_r)[i_point]));
+        verts.push_back(to_yup_V3f((*handles_l)[i_point + 1]));
       }
 
       /* The last vert in the array doesn't need a right handle because the curve stops
