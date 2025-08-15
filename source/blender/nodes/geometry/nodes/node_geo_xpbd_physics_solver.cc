@@ -60,6 +60,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(PinnedPositionXPBDConstraintBundle::get_bundle_type());
   types.append(InfiniteGroundPlaneBundle::get_bundle_type());
   types.append(SphericalSelfCollisionConstraintBundle::get_bundle_type());
+  types.append(CurveSegmentXPBDConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -173,6 +174,7 @@ struct WorldData {
   BundleVectorSet<GravityBundle> gravities;
   BundleVectorSet<XPBDGeometryBundle> geometries;
   BundleVectorSet<EdgeLengthXPBDConstraintBundle> edge_length_constraints;
+  BundleVectorSet<CurveSegmentXPBDConstraintBundle> curve_segment_constraints;
   BundleVectorSet<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
   BundleVectorSet<InfiniteGroundPlaneBundle> infinite_ground_planes;
   BundleVectorSet<SphericalSelfCollisionConstraintBundle> spherical_self_collision_constraints;
@@ -208,6 +210,7 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.gravities);
     parse_bundle(params, errors, world.geometries);
     parse_bundle(params, errors, world.edge_length_constraints);
+    parse_bundle(params, errors, world.curve_segment_constraints);
     parse_bundle(params, errors, world.pinned_position_constraints);
     parse_bundle(params, errors, world.infinite_ground_planes);
     parse_bundle(params, errors, world.spherical_self_collision_constraints);
@@ -583,6 +586,30 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
   return properties_map;
 }
 
+static Span<float> prepare_distance_constraint_lengths(ResourceScope &scope,
+                                                       XPBDState &state,
+                                                       const Span<float3> positions,
+                                                       const SimPointsKey &key,
+                                                       const Span<int2> segments)
+{
+  MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(segments.size());
+  DistanceConstraintLengths &distance_constraint_lengths =
+      state.distance_constraint_lengths.lookup_or_add_default(key);
+  for (const int i : segments.index_range()) {
+    const int2 &segment = segments[i];
+    const OrderedEdge ordered_edge{segment[0], segment[1]};
+    DistanceConstraintLengths::LengthItem &length_item =
+        distance_constraint_lengths.lengths.lookup_or_add_cb(ordered_edge, [&]() {
+          const float3 &p0 = positions[segment[0]];
+          const float3 &p1 = positions[segment[1]];
+          return DistanceConstraintLengths::LengthItem{math::distance(p0, p1)};
+        });
+    length_item.used = true;
+    constraint_lengths[i] = length_item.length;
+  }
+  return constraint_lengths;
+}
+
 static void gather_edge_length_constraints(
     ResourceScope &scope,
     XPBDState &state,
@@ -643,21 +670,8 @@ static void gather_edge_length_constraints(
       });
 
       /* Prepare per-constraint length. */
-      MutableSpan<float> constraint_lengths = scope.allocator().allocate_array<float>(mask.size());
-      DistanceConstraintLengths &distance_constraint_lengths =
-          state.distance_constraint_lengths.lookup_or_add_default(key);
-      for (const int i : constraint_edges.index_range()) {
-        const int2 &edge = constraint_edges[i];
-        const OrderedEdge ordered_edge{edge[0], edge[1]};
-        DistanceConstraintLengths::LengthItem &length_item =
-            distance_constraint_lengths.lengths.lookup_or_add_cb(ordered_edge, [&]() {
-              const float3 &p0 = mesh_positions[edge[0]];
-              const float3 &p1 = mesh_positions[edge[1]];
-              return DistanceConstraintLengths::LengthItem{math::distance(p0, p1)};
-            });
-        length_item.used = true;
-        constraint_lengths[i] = length_item.length;
-      }
+      const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
+          scope, state, mesh_positions, key, constraint_edges);
 
       /* Add the actual constraint. */
       r_constraint_sets.append(
@@ -670,6 +684,84 @@ static void gather_edge_length_constraints(
                constraint_edges,
                constraint_lengths,
                compliance_terms)});
+    }
+  }
+}
+
+static void gather_curve_segment_constraints(
+    ResourceScope &scope,
+    XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float delta_time,
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+{
+  const float compliance_factor = math::safe_divide(1.0f, pow2f(delta_time));
+
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Curve) {
+      continue;
+    }
+    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+
+    const Curves &curves_id = *applied_geometry.get_curves();
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    const Span<float3> positions = curves.positions();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const VArray<bool> cyclics = curves.cyclic();
+    const Span<float> inverse_masses = sim_points_props.lookup(key).inverse_masses;
+
+    const Vector constraint_bundles = filter_bundles_for_path<CurveSegmentXPBDConstraintBundle>(
+        world.curve_segment_constraints, key.path);
+
+    bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
+    for (const CurveSegmentXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      fn::FieldEvaluator field_evaluator{field_context, curves.points_num()};
+      field_evaluator.add(constraint_bundle->compliance);
+      field_evaluator.evaluate();
+      const VArray<float> compliances = field_evaluator.get_evaluated<float>(0);
+
+      Vector<int2> &constraint_segments = scope.construct<Vector<int2>>();
+      Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
+      for (const int curve_i : curves.curves_range()) {
+        const IndexRange points = points_by_curve[curve_i];
+        if (points.size() <= 1) {
+          continue;
+        }
+        for (const int i : points.index_range().drop_back(1)) {
+          const int point_i = points[i];
+          const int next_point_i = point_i + 1;
+          const float compliance = compliances[point_i];
+          constraint_segments.append({point_i, next_point_i});
+          constraint_compliance_terms.append(compliance * compliance_factor);
+        }
+        const bool cyclic = cyclics[curve_i];
+        if (cyclic) {
+          const int point_i = points.last();
+          const int next_point_i = points.first();
+          const float compliance = compliances[point_i];
+          constraint_segments.append({point_i, next_point_i});
+          constraint_compliance_terms.append(compliance * compliance_factor);
+        }
+      }
+
+      const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
+          scope, state, positions, key, constraint_segments);
+
+      r_constraint_sets.append(
+          {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
+               key_i, constraint_segments),
+           scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
+               scope.allocator().construct_array<int2>(constraint_segments.size(),
+                                                       int2(key_i, key_i)),
+               inverse_masses,
+               constraint_segments,
+               constraint_lengths,
+               constraint_compliance_terms)});
     }
   }
 }
@@ -1106,6 +1198,14 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                  sim_points_props,
                                  sub_delta_time,
                                  static_constraint_sets);
+  gather_curve_segment_constraints(scope,
+                                   state,
+                                   world,
+                                   applied_geometries,
+                                   keys,
+                                   sim_points_props,
+                                   sub_delta_time,
+                                   static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   for (const int i : keys.index_range()) {

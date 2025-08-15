@@ -105,6 +105,18 @@ class EdgeLengthXPBDConstraintBundle : public NestedBundleCommon {
                                                              BundleParseErrors &r_errors);
 };
 
+class CurveSegmentXPBDConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.CurveSegmentXPBDConstraint";
+
+  std::string filter;
+  fn::Field<float> compliance;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<CurveSegmentXPBDConstraintBundle> parse(const Bundle &bundle,
+                                                               BundleParseErrors &r_errors);
+};
+
 class PinnedPositionXPBDConstraintBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.PinnedPositionXPBDConstraint";

@@ -175,6 +175,31 @@ std::optional<EdgeLengthXPBDConstraintBundle> EdgeLengthXPBDConstraintBundle::pa
   return behavior;
 }
 
+const FlatBundleTypePtr &CurveSegmentXPBDConstraintBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(CurveSegmentXPBDConstraintBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Float>("compliance").default_value(true).supports_field();
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<CurveSegmentXPBDConstraintBundle> CurveSegmentXPBDConstraintBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  CurveSegmentXPBDConstraintBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 const FlatBundleTypePtr &PinnedPositionXPBDConstraintBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
