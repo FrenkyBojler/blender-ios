@@ -156,15 +156,15 @@ class InfiniteGroundPlaneBundle : public NestedBundleCommon {
                                                         BundleParseErrors &r_errors);
 };
 
-class SphericalSelfCollisionConstraintBundle : public NestedBundleCommon {
+class SphericalSelfCollisionXPBDConstraintBundle : public NestedBundleCommon {
  public:
-  static constexpr StringRefNull name = "Blender.SphericalSelfCollisionConstraint";
+  static constexpr StringRefNull name = "Blender.SphericalSelfCollisionXPBDConstraint";
 
   std::string filter;
 
   static const FlatBundleTypePtr &get_bundle_type();
-  static std::optional<SphericalSelfCollisionConstraintBundle> parse(const Bundle &bundle,
-                                                                     BundleParseErrors &r_errors);
+  static std::optional<SphericalSelfCollisionXPBDConstraintBundle> parse(
+      const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
 inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::

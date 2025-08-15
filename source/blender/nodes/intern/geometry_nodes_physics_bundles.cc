@@ -281,10 +281,10 @@ std::optional<InfiniteGroundPlaneBundle> InfiniteGroundPlaneBundle::parse(
   return behavior;
 }
 
-const FlatBundleTypePtr &SphericalSelfCollisionConstraintBundle::get_bundle_type()
+const FlatBundleTypePtr &SphericalSelfCollisionXPBDConstraintBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
-    FlatBundleTypeBuilder b(SphericalSelfCollisionConstraintBundle::name);
+    FlatBundleTypeBuilder b(SphericalSelfCollisionXPBDConstraintBundle::name);
     b.add<decl::String>("filter");
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
@@ -293,10 +293,11 @@ const FlatBundleTypePtr &SphericalSelfCollisionConstraintBundle::get_bundle_type
   return bundle_type;
 }
 
-std::optional<SphericalSelfCollisionConstraintBundle> SphericalSelfCollisionConstraintBundle::
-    parse(const Bundle &bundle, BundleParseErrors &r_errors)
+std::optional<SphericalSelfCollisionXPBDConstraintBundle>
+SphericalSelfCollisionXPBDConstraintBundle::parse(const Bundle &bundle,
+                                                  BundleParseErrors &r_errors)
 {
-  SphericalSelfCollisionConstraintBundle behavior;
+  SphericalSelfCollisionXPBDConstraintBundle behavior;
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;

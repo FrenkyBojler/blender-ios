@@ -59,7 +59,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(EdgeLengthXPBDConstraintBundle::get_bundle_type());
   types.append(PinnedPositionXPBDConstraintBundle::get_bundle_type());
   types.append(InfiniteGroundPlaneBundle::get_bundle_type());
-  types.append(SphericalSelfCollisionConstraintBundle::get_bundle_type());
+  types.append(SphericalSelfCollisionXPBDConstraintBundle::get_bundle_type());
   types.append(CurveSegmentXPBDConstraintBundle::get_bundle_type());
   types.append(OverpressureXPBDConstraintBundle::get_bundle_type());
 
@@ -179,7 +179,7 @@ struct WorldData {
   BundleVectorSet<CurveSegmentXPBDConstraintBundle> curve_segment_constraints;
   BundleVectorSet<PinnedPositionXPBDConstraintBundle> pinned_position_constraints;
   BundleVectorSet<InfiniteGroundPlaneBundle> infinite_ground_planes;
-  BundleVectorSet<SphericalSelfCollisionConstraintBundle> spherical_self_collision_constraints;
+  BundleVectorSet<SphericalSelfCollisionXPBDConstraintBundle> spherical_self_collision_constraints;
   BundleVectorSet<OverpressureXPBDConstraintBundle> overpressure_constraints;
 };
 
@@ -950,11 +950,11 @@ static Contacts gather_contacts(
           *static_cast<const bke::PointCloudComponent *>(component);
       if (const PointCloud *pointcloud = pointcloud_component.get()) {
         const Vector spherical_self_collision_constraints =
-            filter_bundles_for_path<SphericalSelfCollisionConstraintBundle>(
+            filter_bundles_for_path<SphericalSelfCollisionXPBDConstraintBundle>(
                 world.spherical_self_collision_constraints, key.path);
         const VArraySpan<float> radii = pointcloud->radius();
         DynamicSphereContacts sphere_contacts;
-        for ([[maybe_unused]] const SphericalSelfCollisionConstraintBundle *constraint_bundle :
+        for ([[maybe_unused]] const SphericalSelfCollisionXPBDConstraintBundle *constraint_bundle :
              spherical_self_collision_constraints)
         {
           gather_sphere_contacts(sim_points, radii, sphere_contacts);
