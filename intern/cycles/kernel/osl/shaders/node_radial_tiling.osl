@@ -20,18 +20,18 @@
 
 shader node_radial_tiling(int normalize_r_gon_parameter = 0,
                           vector3 Vector = P,
-                          float R_gonSides = 5.0,
-                          float R_gonRoundness = 0.0,
+                          float Sides = 5.0,
+                          float Roundness = 0.0,
                           output vector3 SegmentCoordinates = vector3(0.0, 0.0, 0.0),
                           output float SegmentID = 0.0,
-                          output float MaxUnitParameter = 0.0,
-                          output float X_axisToAngleBisectorAngle = 0.0)
+                          output float SegmentWidth = 0.0,
+                          output float SegmentRotation = 0.0)
 {
   /* isconnected() returns 2 when output socket is connected. */
   int calculate_r_gon_parameter_field = int(isconnected(SegmentCoordinates) != 0);
   int calculate_segment_id = int(isconnected(SegmentID) != 0);
-  int calculate_max_unit_parameter = int(isconnected(MaxUnitParameter) != 0);
-  int calculate_x_axis_A_angle_bisector = int(isconnected(X_axisToAngleBisectorAngle) != 0);
+  int calculate_max_unit_parameter = int(isconnected(SegmentWidth) != 0);
+  int calculate_x_axis_A_angle_bisector = int(isconnected(SegmentRotation) != 0);
 
   if (calculate_r_gon_parameter_field || calculate_max_unit_parameter ||
       calculate_x_axis_A_angle_bisector)
@@ -39,16 +39,16 @@ shader node_radial_tiling(int normalize_r_gon_parameter = 0,
     vector4 out_variables = calculate_out_variables(calculate_r_gon_parameter_field,
                                                     calculate_max_unit_parameter,
                                                     normalize_r_gon_parameter,
-                                                    max(R_gonSides, 2.0),
-                                                    clamp(R_gonRoundness, 0.0, 1.0),
+                                                    max(Sides, 2.0),
+                                                    clamp(Roundness, 0.0, 1.0),
                                                     vector2(Vector.x, Vector.y));
 
     SegmentCoordinates = vector3(out_variables.y, out_variables.x, 0.0);
-    MaxUnitParameter = out_variables.z;
-    X_axisToAngleBisectorAngle = out_variables.w;
+    SegmentWidth = out_variables.z;
+    SegmentRotation = out_variables.w;
   }
 
   if (calculate_segment_id) {
-    SegmentID = calculate_out_segment_id(max(R_gonSides, 2.0), vector2(Vector.x, Vector.y));
+    SegmentID = calculate_out_segment_id(max(Sides, 2.0), vector2(Vector.x, Vector.y));
   }
 }

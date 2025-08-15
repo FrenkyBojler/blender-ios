@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 /* The following files are always to be kept as exact copies of each other:
- * node_shader_radial_tiling_shared.cc
+ * radial_tiling_shared.hh
  * node_radial_tiling_shared.h
  * radial_tiling_shared.h
  * gpu_shader_material_radial_tiling_shared.glsl */
@@ -23,7 +23,7 @@
 #  define fmaxf math::max
 #  define fminf math::min
 #  define fractf math::fract
-#  define mix math::mix
+#  define mix math::interpolate
 #  define sinf math::sin
 #  define sqrtf math::sqrt
 #  define sqr math::square

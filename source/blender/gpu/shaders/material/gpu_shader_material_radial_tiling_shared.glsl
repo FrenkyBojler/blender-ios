@@ -1,15 +1,14 @@
 /* SPDX-FileCopyrightText: 2024-2025 Blender Authors
  *
- * SPDX-License-Identifier: GPL-2.0-or-later */
+ * SPDX-License-Identifier: Apache-2.0 */
 
-/* The files:
- * node_shader_radial_tiling_shared.cc
+/* The following files are always to be kept as exact copies of each other:
+ * radial_tiling_shared.hh
  * node_radial_tiling_shared.h
  * radial_tiling_shared.h
- * gpu_shader_material_radial_tiling_shared.glsl
- * */
+ * gpu_shader_material_radial_tiling_shared.glsl */
 
-/* The SVM implementation is used as the base generic version because multiple math function
+/* The SVM implementation is used as the base shared version because multiple math function
  * identifiers are already used as macros in the SVM code, making a code adaption into an SVM
  * implementation using macros impossible. */
 
@@ -24,7 +23,7 @@
 #  define fmaxf math::max
 #  define fminf math::min
 #  define fractf math::fract
-#  define mix math::mix
+#  define mix math::interpolate
 #  define sinf math::sin
 #  define sqrtf math::sqrt
 #  define sqr math::square
@@ -65,7 +64,7 @@
 #    define true 1
 #  else
 #    ifdef ADAPT_TO_SVM
-/* No code adaption necessary for the SVM implementation as it is the base generic version. */
+/* No code adaption necessary for the SVM implementation as it is the base shared version. */
 #    else
 /* Adapt code to GLSL by default. */
 #      define atanf atan
@@ -1133,7 +1132,7 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #    undef true
 #  else
 #    ifdef ADAPT_TO_SVM
-/* No code adaption necessary for the SVM implementation as it is the base generic version. */
+/* No code adaption necessary for the SVM implementation as it is the base shared version. */
 #    else
 /* Adapt code to GLSL by default. */
 #      undef atanf

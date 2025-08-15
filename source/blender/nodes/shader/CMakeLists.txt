@@ -112,8 +112,6 @@ set(SRC
   nodes/node_shader_wavelength.cc
   nodes/node_shader_wireframe.cc
 
-    nodes/node_shader_radial_tiling_shared.hh
-
   node_shader_register.cc
   node_shader_tree.cc
   node_shader_util.cc
