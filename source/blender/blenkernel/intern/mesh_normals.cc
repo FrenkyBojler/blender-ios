@@ -1257,7 +1257,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
   };
   threading::EnumerableThreadSpecific<Vector<CornerSpaceGroup, 0>> space_groups;
 
-  threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
+  threading::parallel_for(vert_positions.index_range(), 1024 * 4, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
     LocalEdgeVectorSet local_edge_by_vert;
     Vector<VertEdgeInfo, 16> edge_infos;
@@ -1338,7 +1338,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       }
       BLI_assert(visited_count == corner_infos.size());
     }
-  });
+  }, threading::accumulated_task_sizes([&](const IndexRange range) { return vert_to_face_map.offsets[range].size(); }));
 
   if (!r_fan_spaces) {
     return;
@@ -1361,7 +1361,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
 
   threading::parallel_for(
       all_space_groups.index_range(),
-      1024,
+      1024 * 4,
       [&](const IndexRange range) {
         for (const int thread_i : range) {
           Vector<CornerSpaceGroup, 0> &local_space_groups = all_space_groups[thread_i];
