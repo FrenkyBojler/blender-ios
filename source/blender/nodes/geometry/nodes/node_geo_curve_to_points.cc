@@ -11,6 +11,7 @@
 #include "BKE_instances.hh"
 #include "BKE_pointcloud.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_resample_curves.hh"
 
@@ -27,8 +28,9 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveToPoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description("Curves to convert to points");
   auto &count = b.add_input<decl::Int>("Count")
                     .default_value(10)
                     .min(2)
@@ -214,7 +216,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   switch (mode) {
     case GEO_NODE_CURVE_RESAMPLE_COUNT: {
       const Field<int> count = params.extract_input<Field<int>>("Count");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_count(
               src_curves_id->geometry.wrap(),
@@ -245,13 +247,15 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }
     case GEO_NODE_CURVE_RESAMPLE_LENGTH: {
       const Field<float> length = params.extract_input<Field<float>>("Length");
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_length(
               src_curves_id->geometry.wrap(),
@@ -282,12 +286,14 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }
     case GEO_NODE_CURVE_RESAMPLE_EVALUATED: {
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
         if (const Curves *src_curves_id = geometry.get_curves()) {
           bke::CurvesGeometry dst_curves = geometry::resample_to_evaluated(
               src_curves_id->geometry.wrap(),
@@ -317,7 +323,9 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
           layer_pointclouds_to_instances(pointcloud_by_layer, attribute_filter, geometry);
         }
-        geometry.keep_only_during_modify({bke::GeometryComponent::Type::PointCloud});
+        geometry.keep_only({bke::GeometryComponent::Type::PointCloud,
+                            bke::GeometryComponent::Type::Instance,
+                            bke::GeometryComponent::Type::Edit});
       });
       break;
     }

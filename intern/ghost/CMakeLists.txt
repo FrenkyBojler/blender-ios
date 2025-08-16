@@ -90,16 +90,6 @@ if(WITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)
-  if(WITH_VULKAN_MOLTENVK)
-    list(APPEND INC_SYS
-      PUBLIC ${MOLTENVK_INCLUDE_DIRS}
-    )
-
-    list(APPEND LIB
-      ${MOLTENVK_LIBRARIES}
-    )
-  endif()
-
   list(APPEND SRC
     intern/GHOST_ContextVK.cc
 
@@ -517,9 +507,9 @@ endif()
 if(APPLE)
   if(WITH_METAL_BACKEND)
     list(APPEND SRC
-      intern/GHOST_ContextCGL.mm
+      intern/GHOST_ContextMTL.mm
 
-      intern/GHOST_ContextCGL.hh
+      intern/GHOST_ContextMTL.hh
     )
   endif()
 endif()

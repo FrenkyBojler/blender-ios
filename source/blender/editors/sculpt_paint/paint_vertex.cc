@@ -19,7 +19,6 @@
 #include "BLI_color_mix.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
-#include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -41,12 +40,12 @@
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -72,8 +71,6 @@
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh" /* own include */
 #include "sculpt_automask.hh"
-#include "sculpt_boundary.hh"
-#include "sculpt_cloth.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_pose.hh"
 
@@ -84,7 +81,7 @@ using namespace blender::color;
 using namespace blender::ed::sculpt_paint; /* For vwpaint namespace. */
 using blender::ed::sculpt_paint::vwpaint::NormalAnglePrecalc;
 
-static CLG_LogRef LOG = {"ed.sculpt_paint"};
+static CLG_LogRef LOG = {"paint.vertex"};
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
@@ -200,7 +197,7 @@ bool brush_use_accumulate_ex(const Brush &brush, const eObjectMode ob_mode)
 bool brush_use_accumulate(const VPaint &vp)
 {
   const Brush *brush = BKE_paint_brush_for_read(&vp.paint);
-  return brush_use_accumulate_ex(*brush, eObjectMode(vp.paint.runtime.ob_mode));
+  return brush_use_accumulate_ex(*brush, eObjectMode(vp.paint.runtime->ob_mode));
 }
 
 void init_stroke(Depsgraph &depsgraph, Object &ob)
@@ -437,7 +434,7 @@ void update_cache_invariants(
     bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2])
 {
   StrokeCache *cache;
-  UnifiedPaintSettings &ups = vp.paint.unified_paint_settings;
+  bke::PaintRuntime &paint_runtime = *vp.paint.runtime;
   ViewContext *vc = paint_stroke_view_context((PaintStroke *)op->customdata);
   Object &ob = *CTX_data_active_object(C);
   float mat[3][3];
@@ -467,10 +464,10 @@ void update_cache_invariants(
   /* not very nice, but with current events system implementation
    * we can't handle brush appearance inversion hotkey separately (sergey) */
   if (cache->invert) {
-    ups.draw_inverted = true;
+    paint_runtime.draw_inverted = true;
   }
   else {
-    ups.draw_inverted = false;
+    paint_runtime.draw_inverted = false;
   }
 
   if (cache->alt_smooth) {
@@ -510,6 +507,7 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 {
   using namespace blender;
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const PaintMode paint_mode = BKE_paintmode_get_active_from_context(C);
   SculptSession &ss = *ob.sculpt;
   StrokeCache *cache = ss.cache;
   Brush &brush = *BKE_paint_brush(&vp.paint);
@@ -527,7 +525,7 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
    * brush coord/pressure/etc.
    * It's more an events design issue, which doesn't split coordinate/pressure/angle
    * changing events. We should avoid this after events system re-design */
-  if (paint_supports_dynamic_size(brush, PaintMode::Sculpt) || cache->first_time) {
+  if (paint_supports_dynamic_size(brush, paint_mode) || cache->first_time) {
     cache->pressure = RNA_float_get(ptr, "pressure");
   }
 
@@ -538,8 +536,7 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
     BKE_brush_unprojected_radius_set(&vp.paint, &brush, cache->initial_radius);
   }
 
-  if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, PaintMode::Sculpt))
-  {
+  if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, paint_mode)) {
     cache->radius = cache->initial_radius * cache->pressure;
   }
   else {
@@ -568,10 +565,10 @@ void get_brush_alpha_data(const SculptSession &ss,
 
 void last_stroke_update(const float location[3], Paint &paint)
 {
-  UnifiedPaintSettings &ups = paint.unified_paint_settings;
-  ups.average_stroke_counter++;
-  add_v3_v3(ups.average_stroke_accum, location);
-  ups.last_stroke_valid = true;
+  bke::PaintRuntime &paint_runtime = *paint.runtime;
+  paint_runtime.average_stroke_counter++;
+  add_v3_v3(paint_runtime.average_stroke_accum, location);
+  paint_runtime.last_stroke_valid = true;
 }
 
 /* -------------------------------------------------------------------- */
@@ -719,8 +716,13 @@ static Color vpaint_blend(const VPaint &vp,
   return color_blend;
 }
 
-/* If in accumulate mode, blend brush mark directly onto mesh, else blend into temporary
- * stroke_buffer and blend the stroke onto the mesh. */
+/**
+ * If in accumulate mode, blend brush mark directly onto mesh, else blend into temporary
+ * stroke_buffer and blend the stroke onto the mesh.
+ *
+ * \param brush_mark_alpha: Modulated strength on a per-vertex basis
+ * \param brush_strength: Unmodified raw value of the brush
+ */
 template<typename Color, typename Traits>
 static Color vpaint_blend_stroke(const VPaint &vp,
                                  MutableSpan<Color> prev_vertex_colors,
@@ -747,14 +749,16 @@ static Color vpaint_blend_stroke(const VPaint &vp,
       stroke_buffer[index].a = 0;
     }
 
-    stroke_buffer[index] = BLI_mix_colors<Color, Traits>(
-        IMB_BlendMode::IMB_BLEND_MIX, stroke_buffer[index], brush_mark_color, brush_mark_alpha);
+    stroke_buffer[index] = BLI_mix_colors<Color, Traits>(IMB_BlendMode::IMB_BLEND_MIX,
+                                                         brush_mark_color,
+                                                         stroke_buffer[index],
+                                                         stroke_buffer[index].a);
 
     result = vpaint_blend<Color, Traits>(vp,
-                                         prev_vertex_colors[index],
+                                         vertex_colors[index],
                                          prev_vertex_colors[index],
                                          stroke_buffer[index],
-                                         stroke_buffer[index].a,
+                                         brush_mark_alpha,
                                          Traits::range * brush_strength);
   }
   else {

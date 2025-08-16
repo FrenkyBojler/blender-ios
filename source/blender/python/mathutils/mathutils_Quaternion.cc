@@ -167,13 +167,12 @@ static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kw
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_to_euler_doc,
-    ".. method:: to_euler(order, euler_compat)\n"
+    ".. method:: to_euler(order='XYZ', euler_compat=None, /)\n"
     "\n"
     "   Return Euler representation of the quaternion.\n"
     "\n"
-    "   :arg order: Optional rotation order argument in\n"
-    "      ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX'].\n"
-    "   :type order: str\n"
+    "   :arg order: Rotation order.\n"
+    "   :type order: Literal['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX']\n"
     "   :arg euler_compat: Optional euler argument the new euler will be made\n"
     "      compatible with (no axis flipping between them).\n"
     "      Useful for converting a series of matrices to animation curves.\n"
@@ -304,13 +303,13 @@ static PyObject *Quaternion_to_axis_angle(QuaternionObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_to_swing_twist_doc,
-    ".. method:: to_swing_twist(axis)\n"
+    ".. method:: to_swing_twist(axis, /)\n"
     "\n"
     "   Split the rotation into a swing quaternion with the specified\n"
     "   axis fixed at zero, and the remaining twist rotation angle.\n"
     "\n"
-    "   :arg axis: Twist axis as a string in ['X', 'Y', 'Z'].\n"
-    "   :type axis: str\n"
+    "   :arg axis: Twist axis as a string.\n"
+    "   :type axis: Literal['X', 'Y', 'Z']\n"
     "   :return: Swing, twist angle.\n"
     "   :rtype: tuple[:class:`Quaternion`, float]\n");
 static PyObject *Quaternion_to_swing_twist(QuaternionObject *self, PyObject *axis_arg)
@@ -389,7 +388,7 @@ static PyObject *Quaternion_to_exponential_map(QuaternionObject *self)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_cross_doc,
-    ".. method:: cross(other)\n"
+    ".. method:: cross(other, /)\n"
     "\n"
     "   Return the cross product of this quaternion and another.\n"
     "\n"
@@ -425,7 +424,7 @@ static PyObject *Quaternion_cross(QuaternionObject *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_dot_doc,
-    ".. method:: dot(other)\n"
+    ".. method:: dot(other, /)\n"
     "\n"
     "   Return the dot product of this quaternion and another.\n"
     "\n"
@@ -459,7 +458,7 @@ static PyObject *Quaternion_dot(QuaternionObject *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_rotation_difference_doc,
-    ".. function:: rotation_difference(other)\n"
+    ".. function:: rotation_difference(other, /)\n"
     "\n"
     "   Returns a quaternion representing the rotational difference.\n"
     "\n"
@@ -498,7 +497,7 @@ static PyObject *Quaternion_rotation_difference(QuaternionObject *self, PyObject
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_slerp_doc,
-    ".. function:: slerp(other, factor)\n"
+    ".. function:: slerp(other, factor, /)\n"
     "\n"
     "   Returns the interpolation of two quaternions.\n"
     "\n"
@@ -552,7 +551,7 @@ static PyObject *Quaternion_slerp(QuaternionObject *self, PyObject *args)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_rotate_doc,
-    ".. method:: rotate(other)\n"
+    ".. method:: rotate(other, /)\n"
     "\n"
     "   Rotates the quaternion by another mathutils value.\n"
     "\n"
@@ -584,10 +583,13 @@ static PyObject *Quaternion_rotate(QuaternionObject *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     Quaternion_make_compatible_doc,
-    ".. method:: make_compatible(other)\n"
+    ".. method:: make_compatible(other, /)\n"
     "\n"
     "   Make this quaternion compatible with another,\n"
-    "   so interpolating between them works as intended.\n");
+    "   so interpolating between them works as intended.\n"
+    "\n"
+    "   :arg other: The other quaternion to make compatible with.\n"
+    "   :type other: :class:`Quaternion`\n");
 static PyObject *Quaternion_make_compatible(QuaternionObject *self, PyObject *value)
 {
   float quat[QUAT_SIZE];
@@ -858,6 +860,59 @@ static PyObject *Quaternion_str(QuaternionObject *self)
   return mathutils_dynstr_to_py(ds); /* frees ds */
 }
 #endif
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Quaternion Type: Buffer Protocol
+ * \{ */
+
+static int Quaternion_getbuffer(PyObject *obj, Py_buffer *view, int flags)
+{
+  QuaternionObject *self = (QuaternionObject *)obj;
+  if (UNLIKELY(BaseMath_Prepare_ForBufferAccess(self, view, flags) == -1)) {
+    return -1;
+  }
+  if (UNLIKELY(BaseMath_ReadCallback(self) == -1)) {
+    return -1;
+  }
+
+  memset(view, 0, sizeof(*view));
+
+  view->obj = (PyObject *)self;
+  view->buf = (void *)self->quat;
+  view->len = Py_ssize_t(QUAT_SIZE * sizeof(float));
+  view->itemsize = sizeof(float);
+  view->ndim = 1;
+  if ((flags & PyBUF_WRITABLE) == 0) {
+    view->readonly = 1;
+  }
+  if (flags & PyBUF_FORMAT) {
+    view->format = (char *)"f";
+  }
+
+  self->flag |= BASE_MATH_FLAG_HAS_BUFFER_VIEW;
+
+  Py_INCREF(self);
+  return 0;
+}
+
+static void Quaternion_releasebuffer(PyObject * /*exporter*/, Py_buffer *view)
+{
+  QuaternionObject *self = (QuaternionObject *)view->obj;
+  self->flag &= ~BASE_MATH_FLAG_HAS_BUFFER_VIEW;
+
+  if (view->readonly == 0) {
+    if (UNLIKELY(BaseMath_WriteCallback(self) == -1)) {
+      PyErr_Print();
+    }
+  }
+}
+
+static PyBufferProcs Quaternion_as_buffer = {
+    (getbufferproc)Quaternion_getbuffer,
+    (releasebufferproc)Quaternion_releasebuffer,
+};
 
 /** \} */
 
@@ -1757,7 +1812,7 @@ static PyMethodDef Quaternion_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     quaternion_doc,
-    ".. class:: Quaternion([seq, [angle]])\n"
+    ".. class:: Quaternion(seq=(1.0, 0.0, 0.0, 0.0), angle=0.0, /)\n"
     "\n"
     "   This object gives access to Quaternions in Blender.\n"
     "\n"
@@ -1799,7 +1854,7 @@ PyTypeObject quaternion_Type = {
     /*tp_str*/ (reprfunc)Quaternion_str,
     /*tp_getattro*/ nullptr,
     /*tp_setattro*/ nullptr,
-    /*tp_as_buffer*/ nullptr,
+    /*tp_as_buffer*/ &Quaternion_as_buffer,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ quaternion_doc,
     /*tp_traverse*/ (traverseproc)BaseMathObject_traverse,

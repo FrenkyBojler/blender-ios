@@ -12,11 +12,7 @@
 #include <string>
 
 #ifdef WITH_VULKAN_BACKEND
-#  ifdef __APPLE__
-#    include <MoltenVK/vk_mvk_moltenvk.h>
-#  else
-#    include <vulkan/vulkan_core.h>
-#  endif
+#  include <vulkan/vulkan_core.h>
 #endif
 
 /* This is used by `GHOST_C-api.h` too, cannot use C++ conventions. */
@@ -55,6 +51,10 @@ GHOST_DECLARE_HANDLE(GHOST_XrContextHandle);
 
 typedef void (*GHOST_TBacktraceFn)(void *file_handle);
 
+typedef void *GHOST_TUserDataPtr;
+
+typedef enum { GHOST_kFailure = 0, GHOST_kSuccess } GHOST_TSuccess;
+
 /**
  * A reference to cursor bitmap data.
  */
@@ -65,19 +65,60 @@ typedef struct {
   int hot_spot[2];
 } GHOST_CursorBitmapRef;
 
+/**
+ * Pass this as an argument to GHOST so each ghost back-end
+ * can generate cursors on demand.
+ */
+typedef struct GHOST_CursorGenerator {
+  /**
+   * The main cursor generation callback.
+   *
+   * \note only supports RGBA cursors.
+   *
+   * \param cursor_generator: Pass in to allow accessing the user argument.
+   * \param cursor_size: The cursor size to generate.
+   * \param cursor_size_max: The maximum dimension (width or height).
+   * \param r_bitmap_size: The bitmap width & height in pixels.
+   * The generator must guarantee the resulting size (dimensions written to `r_bitmap_size`)
+   * never exceeds `cursor_size_max`.
+   * \param r_hot_spot: The cursor hot-spot.
+   * \param r_can_invert_color: When true, the call it can be inverted too much dark themes.
+   *
+   * \return the bitmap data or null if it could not be generated.
+   * - The color is "straight" (alpha is not pre-multiplied).
+   * - At least: `sizeof(uint8_t[4]) * r_bitmap_size[0] * r_bitmap_size[1]` allocated bytes.
+   */
+  uint8_t *(*generate_fn)(const struct GHOST_CursorGenerator *cursor_generator,
+                          int cursor_size,
+                          int cursor_size_max,
+                          uint8_t *(*alloc_fn)(size_t size),
+                          int r_bitmap_size[2],
+                          int r_hot_spot[2],
+                          bool *r_can_invert_color);
+  /**
+   * Called once GHOST has finished with this object,
+   * Typically this would free `user_data`.
+   */
+  void (*free_fn)(struct GHOST_CursorGenerator *cursor_generator);
+  /**
+   * Implementation specific data used for rasterization
+   * (could contain SVG data for example).
+   */
+  GHOST_TUserDataPtr user_data;
+
+} GHOST_CursorGenerator;
+
 typedef enum {
   GHOST_gpuStereoVisual = (1 << 0),
   GHOST_gpuDebugContext = (1 << 1),
+  GHOST_gpuVSyncIsOverridden = (1 << 2),
+
 } GHOST_GPUFlags;
 
 typedef enum GHOST_DialogOptions {
   GHOST_DialogWarning = (1 << 0),
   GHOST_DialogError = (1 << 1),
 } GHOST_DialogOptions;
-
-typedef void *GHOST_TUserDataPtr;
-
-typedef enum { GHOST_kFailure = 0, GHOST_kSuccess } GHOST_TSuccess;
 
 /**
  * Static flag (relating to the back-ends support for features).
@@ -99,7 +140,7 @@ typedef enum {
    * Set when a separate primary clipboard is supported.
    * This is a convention for X11/WAYLAND, select text & MMB to paste (without an explicit copy).
    */
-  GHOST_kCapabilityPrimaryClipboard = (1 << 2),
+  GHOST_kCapabilityClipboardPrimary = (1 << 2),
   /**
    * Support for reading the front-buffer.
    */
@@ -107,7 +148,7 @@ typedef enum {
   /**
    * Set when there is support for system clipboard copy/paste.
    */
-  GHOST_kCapabilityClipboardImages = (1 << 4),
+  GHOST_kCapabilityClipboardImage = (1 << 4),
   /**
    * Support for sampling a color outside of the Blender windows.
    */
@@ -132,7 +173,11 @@ typedef enum {
    * Support for creation of RGBA mouse cursors. This flag is likely
    * to be temporary as our intention is to implement on all platforms.
    */
-  GHOST_kCapabilityRGBACursors = (1 << 10),
+  GHOST_kCapabilityCursorRGBA = (1 << 10),
+  /**
+   * Setting cursors via #GHOST_SetCursorGenerator is supported.
+   */
+  GHOST_kCapabilityCursorGenerator = (1 << 11),
 
 } GHOST_TCapabilityFlag;
 
@@ -142,11 +187,11 @@ typedef enum {
  */
 #define GHOST_CAPABILITY_FLAG_ALL \
   (GHOST_kCapabilityCursorWarp | GHOST_kCapabilityWindowPosition | \
-   GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
-   GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
-   GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
-   GHOST_kCapabilityWindowDecorationStyles | GHOST_kCapabilityKeyboardHyperKey | \
-   GHOST_kCapabilityRGBACursors)
+   GHOST_kCapabilityClipboardPrimary | GHOST_kCapabilityGPUReadFrontBuffer | \
+   GHOST_kCapabilityClipboardImage | GHOST_kCapabilityDesktopSample | GHOST_kCapabilityInputIME | \
+   GHOST_kCapabilityTrackpadPhysicalDirection | GHOST_kCapabilityWindowDecorationStyles | \
+   GHOST_kCapabilityKeyboardHyperKey | GHOST_kCapabilityCursorRGBA | \
+   GHOST_kCapabilityCursorGenerator)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -342,9 +387,13 @@ typedef enum {
   GHOST_kStandardCursorHelp,
   GHOST_kStandardCursorWait,
   GHOST_kStandardCursorText,
+  /** Crosshair: default. */
   GHOST_kStandardCursorCrosshair,
+  /** Crosshair: with outline. */
   GHOST_kStandardCursorCrosshairA,
+  /** Crosshair: a single "dot" (not really a crosshair). */
   GHOST_kStandardCursorCrosshairB,
+  /** Crosshair: stippled/half-tone black/white. */
   GHOST_kStandardCursorCrosshairC,
   GHOST_kStandardCursorPencil,
   GHOST_kStandardCursorUpArrow,
@@ -739,8 +788,62 @@ typedef struct {
   uint device_id;
 } GHOST_GPUDevice;
 
+/**
+ * Options for VSync.
+ *
+ * \note with the exception of #GHOST_kVSyncModeUnset,
+ * these map to the OpenGL "swap interval" argument.
+ */
+typedef enum {
+  /** Up to the GPU driver to choose. */
+  GHOST_kVSyncModeUnset = -2,
+  /** Adaptive sync (OpenGL only). */
+  GHOST_kVSyncModeAuto = -1,
+  /** Disable, useful for unclasped redraws for testing performance. */
+  GHOST_kVSyncModeOff = 0,
+  /** Force enable. */
+  GHOST_kVSyncModeOn = 1,
+} GHOST_TVSyncModes;
+
+/**
+ * Settings used to create a GPU context.
+ *
+ * \note Avoid adding values here unless they apply across multiple context implementations.
+ * Otherwise the settings would be better added as extra arguments, only passed to that class.
+ */
+typedef struct {
+  bool is_stereo_visual;
+  bool is_debug;
+  GHOST_TVSyncModes vsync;
+} GHOST_ContextParams;
+
+#define GHOST_CONTEXT_PARAMS_NONE \
+  { \
+    /*is_stereo_visual*/ false, /*is_debug*/ false, /*vsync*/ GHOST_kVSyncModeUnset, \
+  }
+
+#define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS_OFFSCREEN(gpu_settings) \
+  { \
+    /*is_stereo_visual*/ false, \
+        /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), \
+        /*vsync*/ GHOST_kVSyncModeUnset, \
+  }
+
+#define GHOST_CONTEXT_PARAMS_FROM_GPU_SETTINGS(gpu_settings) \
+  { \
+    /*is_stereo_visual*/ (((gpu_settings).flags & GHOST_gpuStereoVisual) != 0), \
+        /*is_debug*/ (((gpu_settings).flags & GHOST_gpuDebugContext) != 0), /*vsync*/ \
+        (((gpu_settings).flags & GHOST_gpuVSyncIsOverridden) ? (gpu_settings).vsync : \
+                                                               GHOST_kVSyncModeUnset), \
+  }
+
 typedef struct {
   int flags;
+  /**
+   * Use when `flags & GHOST_gpuVSyncIsOverridden` is set.
+   * See #GHOST_ContextParams::vsync.
+   */
+  GHOST_TVSyncModes vsync;
   GHOST_TDrawingContextType context_type;
   GHOST_GPUDevice preferred_device;
 } GHOST_GPUSettings;
@@ -753,7 +856,7 @@ typedef struct {
 typedef struct {
   /** Image handle to the image that will be presented to the user. */
   VkImage image;
-  /** Format of the swap chain. */
+  /** Format of the swap-chain. */
   VkSurfaceFormatKHR surface_format;
   /** Resolution of the image. */
   VkExtent2D extent;

@@ -60,7 +60,7 @@ void ShaderOperation::execute()
     result.allocate_texture(domain);
   }
 
-  GPUShader *shader = GPU_material_get_shader(material_);
+  gpu::Shader *shader = GPU_material_get_shader(material_);
   GPU_shader_bind(shader);
 
   bind_material_resources(shader);
@@ -76,11 +76,11 @@ void ShaderOperation::execute()
   GPU_debug_group_end();
 }
 
-void ShaderOperation::bind_material_resources(GPUShader *shader)
+void ShaderOperation::bind_material_resources(gpu::Shader *shader)
 {
   /* Bind the uniform buffer of the material if it exists. It may not exist if the GPU material has
    * no uniforms. */
-  GPUUniformBuf *ubo = GPU_material_uniform_buffer_get(material_);
+  gpu::UniformBuf *ubo = GPU_material_uniform_buffer_get(material_);
   if (ubo) {
     GPU_uniformbuf_bind(ubo, GPU_shader_get_ubo_binding(shader, GPU_UBO_BLOCK_NAME));
   }
@@ -95,7 +95,7 @@ void ShaderOperation::bind_material_resources(GPUShader *shader)
   }
 }
 
-void ShaderOperation::bind_inputs(GPUShader *shader)
+void ShaderOperation::bind_inputs(gpu::Shader *shader)
 {
   /* Attributes represents the inputs of the operation and their names match those of the inputs of
    * the operation as well as the corresponding texture samples in the shader. */
@@ -105,7 +105,7 @@ void ShaderOperation::bind_inputs(GPUShader *shader)
   }
 }
 
-void ShaderOperation::bind_outputs(GPUShader *shader)
+void ShaderOperation::bind_outputs(gpu::Shader *shader)
 {
   for (StringRefNull output_identifier : output_sockets_to_output_identifiers_map_.values()) {
     get_result(output_identifier).bind_as_image(shader, output_identifier.c_str());
@@ -217,6 +217,17 @@ static void initialize_input_stack_value(const DInputSocket input, GPUNodeStack 
       copy_v4_v4(stack.vec, value);
       break;
     }
+    case SOCK_MENU: {
+      /* GPUMaterial doesn't support int, so it is stored as a float. */
+      const int32_t value = input->default_value_typed<bNodeSocketValueMenu>()->value;
+      stack.vec[0] = int(value);
+      break;
+    }
+    case SOCK_STRING:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(get_node_socket_result_type(input.bsocket())));
+      BLI_assert_unreachable();
+      break;
     default:
       BLI_assert_unreachable();
       break;
@@ -246,6 +257,14 @@ static const char *get_set_function_name(const ResultType type)
     case ResultType::Int2:
       /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
       return "set_rgb";
+    case ResultType::Menu:
+      /* GPUMaterial doesn't support int, so it is passed as a float. */
+      return "set_value";
+    case ResultType::String:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -281,7 +300,7 @@ void ShaderOperation::link_node_input_implicit(const DInputSocket input, const D
   input_descriptor.implicit_input = implicit_input;
 
   /* An input was already declared for that implicit input, so no need to declare it again and we
-   * just link it.  */
+   * just link it. */
   if (implicit_input_to_material_attribute_map_.contains(implicit_input)) {
     /* But first we update the domain priority of the input descriptor to be the higher priority of
      * the existing descriptor and the descriptor of the new input socket. That's because the same
@@ -452,6 +471,13 @@ static const char *get_store_function_name(ResultType type)
       return "node_compositor_store_output_float2";
     case ResultType::Int2:
       return "node_compositor_store_output_int2";
+    case ResultType::Menu:
+      return "node_compositor_store_output_menu";
+    case ResultType::String:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -558,6 +584,15 @@ static const char *glsl_store_expression_from_result_type(ResultType type)
       /* GPUMaterial doesn't support int2, so it is passed as a float3, and we need to convert it
        * back to int2 before writing it. */
       return "ivec4(ivec2(value.xy), 0, 0)";
+    case ResultType::Menu:
+      /* GPUMaterial doesn't support int, so it is passed as a float, and we need to convert it
+       * back to int before writing it. */
+      return "ivec4(int(value))";
+    case ResultType::String:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -576,7 +611,13 @@ static ImageType gpu_image_type_from_result_type(const ResultType type)
     case ResultType::Int:
     case ResultType::Int2:
     case ResultType::Bool:
+    case ResultType::Menu:
       return ImageType::Int2D;
+    case ResultType::String:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -597,6 +638,8 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   const std::string store_float2_function_header = "void store_float2(const uint id, vec3 value)";
   /* GPUMaterial doesn't support int2, so it is passed as a float3. */
   const std::string store_int2_function_header = "void store_int2(const uint id, vec3 value)";
+  /* GPUMaterial doesn't support int, so it is passed as a float. */
+  const std::string store_menu_function_header = "void store_menu(const uint id, float value)";
 
   /* The store functions are used by the node_compositor_store_output_[type] functions but are only
    * defined later as part of the compute source, so they need to be forward declared. NOTE(Metal):
@@ -610,6 +653,7 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
     shader_create_info.typedef_source_generated += store_float4_function_header + ";\n";
     shader_create_info.typedef_source_generated += store_float2_function_header + ";\n";
     shader_create_info.typedef_source_generated += store_int2_function_header + ";\n";
+    shader_create_info.typedef_source_generated += store_menu_function_header + ";\n";
   }
 
   /* Each of the store functions is essentially a single switch case on the given ID, so start by
@@ -623,6 +667,7 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   std::stringstream store_float4_function;
   std::stringstream store_float2_function;
   std::stringstream store_int2_function;
+  std::stringstream store_menu_function;
   const std::string store_function_start = "\n{\n  switch (id) {\n";
   store_float_function << store_float_function_header << store_function_start;
   store_int_function << store_int_function_header << store_function_start;
@@ -632,6 +677,7 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   store_float4_function << store_float4_function_header << store_function_start;
   store_float2_function << store_float2_function_header << store_function_start;
   store_int2_function << store_int2_function_header << store_function_start;
+  store_menu_function << store_menu_function_header << store_function_start;
 
   int output_index = 0;
   for (StringRefNull output_identifier : output_sockets_to_output_identifiers_map_.values()) {
@@ -680,6 +726,14 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
       case ResultType::Int2:
         store_int2_function << case_code.str();
         break;
+      case ResultType::Menu:
+        store_menu_function << case_code.str();
+        break;
+      case ResultType::String:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(result.type()));
+        BLI_assert_unreachable();
+        break;
     }
   }
 
@@ -693,11 +747,12 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
   store_float4_function << store_function_end;
   store_float2_function << store_function_end;
   store_int2_function << store_function_end;
+  store_menu_function << store_function_end;
 
   shader_create_info.compute_source_generated +=
       store_float_function.str() + store_int_function.str() + store_bool_function.str() +
       store_float3_function.str() + store_color_function.str() + store_float4_function.str() +
-      store_float2_function.str() + store_int2_function.str();
+      store_float2_function.str() + store_int2_function.str() + store_menu_function.str();
 }
 
 static const char *glsl_type_from_result_type(ResultType type)
@@ -722,6 +777,14 @@ static const char *glsl_type_from_result_type(ResultType type)
     case ResultType::Int2:
       /* GPUMaterial doesn't support int2, so it is passed as a float3 with z ignored. */
       return "vec3";
+    case ResultType::Menu:
+      /* GPUMaterial doesn't support int, so it is passed as a float. */
+      return "float";
+    case ResultType::String:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -736,6 +799,7 @@ static const char *glsl_swizzle_from_result_type(ResultType type)
     case ResultType::Float:
     case ResultType::Int:
     case ResultType::Bool:
+    case ResultType::Menu:
       return "x";
     case ResultType::Float3:
       return "xyz";
@@ -749,6 +813,11 @@ static const char *glsl_swizzle_from_result_type(ResultType type)
     case ResultType::Int2:
       /* GPUMaterial doesn't support float2, so it is passed as a float3 with z ignored. */
       return "xyz";
+    case ResultType::String:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();

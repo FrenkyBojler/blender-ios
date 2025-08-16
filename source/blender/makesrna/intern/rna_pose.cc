@@ -95,6 +95,14 @@ static void rna_Pose_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr
   WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
 }
 
+static void rna_PoseBone_visibility_update(Main * /* bmain */,
+                                           Scene * /* scene */,
+                                           PointerRNA *ptr)
+{
+  DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
+}
+
 static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_relations_tag_update(bmain);
@@ -256,7 +264,7 @@ static void rna_PoseChannel_name_set(PointerRNA *ptr, const char *value)
 
   /* need to be on the stack */
   STRNCPY_UTF8(newname, value);
-  STRNCPY(oldname, pchan->name);
+  STRNCPY(oldname, pchan->name); /* Allow non UTF8 encoding for the old name. */
 
   BLI_assert(BKE_id_is_in_global_main(&ob->id));
   BLI_assert(BKE_id_is_in_global_main(static_cast<ID *>(ob->data)));
@@ -651,6 +659,7 @@ void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportL
   Object *custom_shape = static_cast<Object *>(value.data);
 
   if (!custom_shape) {
+    id_us_min(reinterpret_cast<ID *>(pchan->custom));
     pchan->custom = nullptr;
     return;
   }
@@ -663,7 +672,9 @@ void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportL
     return;
   }
 
+  id_us_min(reinterpret_cast<ID *>(pchan->custom));
   pchan->custom = custom_shape;
+  id_us_plus(reinterpret_cast<ID *>(pchan->custom));
 }
 
 bool rna_Pose_custom_shape_object_poll(PointerRNA * /*ptr*/, PointerRNA value)
@@ -902,7 +913,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       prop,
       "Rotation Mode",
       /* This description is shared by other "rotation_mode" properties. */
-      "The kind of rotation to apply, values from other rotation modes aren't used");
+      "The kind of rotation to apply, values from other rotation modes are not used");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   /* Curved bones settings - Applied on top of rest-pose values. */
@@ -1165,6 +1176,14 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Scale to Bone Length", "Scale the custom object by the bone length");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
+  prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
+
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_boolean_sdna(prop, nullptr, "drawflag", PCHAN_DRAW_HIDDEN);
+  RNA_def_property_ui_text(prop, "Hide", "Bone is not visible except for Edit Mode");
+  RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_PoseBone_visibility_update");
 
   prop = RNA_def_property(srna, "custom_shape_transform", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "custom_tx");

@@ -284,7 +284,7 @@ class AbstractViewItem {
   AbstractView &get_view() const;
 
   /**
-   * Get the view item button (button of type #UI_BTYPE_VIEW_ITEM) created for this item. Every
+   * Get the view item button (button of type #ButType::ViewItem) created for this item. Every
    * visible item gets one during the layout building. Items that are not visible may not have one,
    * so null is a valid return value.
    */
@@ -301,6 +301,8 @@ class AbstractViewItem {
    * function. Should only be called when the item was activated through the view (e.g. through a
    * click), not if the view reflects an external change (e.g.
    * #AbstractViewItem::should_be_active() changes from returning false to returning true).
+   *
+   * Also ensures the item is selected if it's active.
    *
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise the
    * actual item state is unknown, possibly calling state-change update functions incorrectly.
@@ -323,6 +325,8 @@ class AbstractViewItem {
   void begin_renaming();
   void end_renaming();
   void rename_apply(const bContext &C);
+
+  virtual void delete_item(bContext *C);
 
  protected:
   AbstractViewItem() = default;

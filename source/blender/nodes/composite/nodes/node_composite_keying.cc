@@ -36,7 +36,9 @@ static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
   b.add_output<decl::Float>("Matte").structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Edges").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Edges")
+      .structure_type(StructureType::Dynamic)
+      .translation_context(BLT_I18NCONTEXT_ID_IMAGE);
 
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
@@ -83,7 +85,9 @@ static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
           "The matte gets remapped such matte values higher than the white level become white. "
           "Pixels at the identified edges are excluded from the remapping to preserve details");
 
-  PanelDeclarationBuilder &edges_panel = tweak_panel.add_panel("Edges").default_closed(true);
+  PanelDeclarationBuilder &edges_panel =
+      tweak_panel.add_panel("Edges").default_closed(true).translation_context(
+          BLT_I18NCONTEXT_ID_IMAGE);
   edges_panel.add_input<decl::Int>("Size", "Edge Search Size")
       .default_value(3)
       .min(0)
@@ -168,7 +172,7 @@ class KeyingOperation : public NodeOperation {
 
   void execute() override
   {
-    const Result &input_image = get_result("Image");
+    const Result &input_image = get_input("Image");
     Result &output_image = get_result("Image");
     Result &output_matte = get_result("Matte");
     Result &output_edges = get_result("Edges");
@@ -260,7 +264,7 @@ class KeyingOperation : public NodeOperation {
 
   Result extract_input_chroma_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_keying_extract_chroma");
+    gpu::Shader *shader = context().get_shader("compositor_keying_extract_chroma");
     GPU_shader_bind(shader);
 
     Result &input = get_input("Image");
@@ -315,7 +319,7 @@ class KeyingOperation : public NodeOperation {
 
   Result replace_input_chroma_gpu(Result &new_chroma)
   {
-    GPUShader *shader = context().get_shader("compositor_keying_replace_chroma");
+    gpu::Shader *shader = context().get_shader("compositor_keying_replace_chroma");
     GPU_shader_bind(shader);
 
     Result &input = get_input("Image");
@@ -385,7 +389,7 @@ class KeyingOperation : public NodeOperation {
 
   Result compute_matte_gpu(Result &input)
   {
-    GPUShader *shader = context().get_shader("compositor_keying_compute_matte");
+    gpu::Shader *shader = context().get_shader("compositor_keying_compute_matte");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "key_balance", this->get_key_balance());
@@ -500,7 +504,7 @@ class KeyingOperation : public NodeOperation {
 
   Result compute_tweaked_matte_gpu(Result &input_matte)
   {
-    GPUShader *shader = context().get_shader(this->get_tweak_matte_shader_name());
+    gpu::Shader *shader = context().get_shader(this->get_tweak_matte_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "edge_search_radius", this->get_edge_search_size());
@@ -683,7 +687,7 @@ class KeyingOperation : public NodeOperation {
 
   int get_postprocess_dilate_size()
   {
-    return math::max(0, this->get_input("Postprocess Dilate Size").get_single_value_default(0));
+    return this->get_input("Postprocess Dilate Size").get_single_value_default(0);
   }
 
   Result compute_feathered_matte(Result &input_matte)
@@ -707,7 +711,7 @@ class KeyingOperation : public NodeOperation {
 
   int get_postprocess_feather_size()
   {
-    return math::max(0, this->get_input("Postprocess Feather Size").get_single_value_default(0));
+    return this->get_input("Postprocess Feather Size").get_single_value_default(0);
   }
 
   void compute_image(Result &matte)
@@ -722,7 +726,7 @@ class KeyingOperation : public NodeOperation {
 
   void compute_image_gpu(Result &matte)
   {
-    GPUShader *shader = context().get_shader("compositor_keying_compute_image");
+    gpu::Shader *shader = context().get_shader("compositor_keying_compute_image");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "despill_factor", this->get_despill_strength());
@@ -823,6 +827,7 @@ static void register_node_type_cmp_keying()
   blender::bke::node_type_storage(
       ntype, "NodeKeyingData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

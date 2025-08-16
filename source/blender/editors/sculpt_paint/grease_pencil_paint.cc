@@ -155,9 +155,9 @@ static Brush *create_fill_guide_brush()
   BKE_curvemapping_init(settings->curve_rand_pressure);
   BKE_curvemapping_init(settings->curve_rand_strength);
   BKE_curvemapping_init(settings->curve_rand_uv);
-  BKE_curvemapping_init(settings->curve_rand_hue);
-  BKE_curvemapping_init(settings->curve_rand_saturation);
-  BKE_curvemapping_init(settings->curve_rand_value);
+  BKE_curvemapping_init(fill_guides_brush->curve_rand_hue);
+  BKE_curvemapping_init(fill_guides_brush->curve_rand_saturation);
+  BKE_curvemapping_init(fill_guides_brush->curve_rand_value);
 
   fill_guides_brush->flag |= BRUSH_LOCK_SIZE;
   fill_guides_brush->unprojected_radius = 0.005f;
@@ -470,7 +470,7 @@ struct PaintOperationExecutor {
               attributes.lookup_or_add_for_write_span<float>(
                   "fill_opacity",
                   bke::AttrDomain::Curve,
-                  bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num()))))
+                  bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
       {
         fill_opacities.span[active_curve] = start_opacity;
         curve_attributes_to_skip.add("fill_opacity");
@@ -551,7 +551,7 @@ struct PaintOperationExecutor {
     geometry::gaussian_blur_1D(
         coords_to_smooth,
         pre_blur_iterations,
-        VArray<float>::ForSingle(settings_->active_smooth, smooth_window.size()),
+        VArray<float>::from_single(settings_->active_smooth, smooth_window.size()),
         true,
         true,
         false,
@@ -797,6 +797,8 @@ struct PaintOperationExecutor {
 
     /* Interpolate the screen space positions. */
     linear_interpolation<float2>(prev_coords, coords, new_screen_space_coords, is_first_sample);
+    linear_interpolation<float>(prev_radius, radius, new_radii, is_first_sample);
+    linear_interpolation<float>(prev_opacity, opacity, new_opacities, is_first_sample);
     point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
 
     /* Randomize radii. */
@@ -806,12 +808,9 @@ struct PaintOperationExecutor {
                                                           self.stroke_random_radius_factor_,
                                                           self.accum_distance_ +
                                                               max_spacing_px * i,
-                                                          radius,
+                                                          new_radii[i],
                                                           extension_sample.pressure);
       }
-    }
-    else {
-      linear_interpolation<float>(prev_radius, radius, new_radii, is_first_sample);
     }
 
     /* Randomize opacities. */
@@ -821,12 +820,9 @@ struct PaintOperationExecutor {
                                                                self.stroke_random_opacity_factor_,
                                                                self.accum_distance_ +
                                                                    max_spacing_px * i,
-                                                               opacity,
+                                                               new_opacities[i],
                                                                extension_sample.pressure);
       }
-    }
-    else {
-      linear_interpolation<float>(prev_opacity, opacity, new_opacities, is_first_sample);
     }
 
     /* Randomize rotations. */
@@ -851,6 +847,8 @@ struct PaintOperationExecutor {
     if (use_vertex_color_ || attributes.contains("vertex_color")) {
       MutableSpan<ColorGeometry4f> new_vertex_colors =
           self.drawing_->vertex_colors_for_write().slice(new_points);
+      linear_interpolation<ColorGeometry4f>(
+          prev_vertex_color, vertex_color_, new_vertex_colors, is_first_sample);
       if (use_settings_random_ || attributes.contains("vertex_color")) {
         for (const int i : IndexRange(new_points_num)) {
           new_vertex_colors[i] = ed::greasepencil::randomize_color(*settings_,
@@ -860,13 +858,9 @@ struct PaintOperationExecutor {
                                                                    self.stroke_random_val_factor_,
                                                                    self.accum_distance_ +
                                                                        max_spacing_px * i,
-                                                                   vertex_color_,
+                                                                   new_vertex_colors[i],
                                                                    extension_sample.pressure);
         }
-      }
-      else {
-        linear_interpolation<ColorGeometry4f>(
-            prev_vertex_color, vertex_color_, new_vertex_colors, is_first_sample);
       }
       point_attributes_to_skip.add("vertex_color");
     }
@@ -1179,9 +1173,9 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   BKE_curvemapping_init(settings->curve_rand_pressure);
   BKE_curvemapping_init(settings->curve_rand_strength);
   BKE_curvemapping_init(settings->curve_rand_uv);
-  BKE_curvemapping_init(settings->curve_rand_hue);
-  BKE_curvemapping_init(settings->curve_rand_saturation);
-  BKE_curvemapping_init(settings->curve_rand_value);
+  BKE_curvemapping_init(brush->curve_rand_hue);
+  BKE_curvemapping_init(brush->curve_rand_saturation);
+  BKE_curvemapping_init(brush->curve_rand_value);
 
   BLI_assert(grease_pencil->has_active_layer());
   const bke::greasepencil::Layer &layer = *grease_pencil->get_active_layer();
@@ -1261,7 +1255,7 @@ static void smooth_stroke(bke::greasepencil::Drawing &drawing,
   const IndexRange stroke = IndexRange::from_single(active_curve);
   const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
-  const VArray<bool> point_selection = VArray<bool>::ForSingle(true, curves.points_num());
+  const VArray<bool> point_selection = VArray<bool>::from_single(true, curves.points_num());
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position");

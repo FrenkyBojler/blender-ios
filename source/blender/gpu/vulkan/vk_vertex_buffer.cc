@@ -15,6 +15,10 @@
 #include "vk_state_manager.hh"
 #include "vk_vertex_buffer.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"gpu.vulkan"};
+
 namespace blender::gpu {
 
 VKVertexBuffer::~VKVertexBuffer()
@@ -69,6 +73,8 @@ void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, cons
     /* Allocating huge buffers can fail, in that case we skip copying data. */
     return;
   }
+  BLI_assert_msg(start_offset + data_size_in_bytes <= buffer_.size_in_bytes(),
+                 "Out of bound write to vertex buffer");
   if (buffer_.is_mapped()) {
     buffer_.update_sub_immediately(start_offset, data_size_in_bytes, data);
   }
@@ -92,8 +98,17 @@ void VKVertexBuffer::read(void *data) const
   /* Allocating huge buffers can fail, in that case we skip copying data. */
   if (buffer_.is_allocated()) {
     VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::DeviceToHost);
-    staging_buffer.copy_from_device(context);
-    staging_buffer.host_buffer_get().read(context, data);
+    VKBuffer &buffer = staging_buffer.host_buffer_get();
+    if (buffer.is_mapped()) {
+      staging_buffer.copy_from_device(context);
+      staging_buffer.host_buffer_get().read(context, data);
+    }
+    else {
+      CLOG_ERROR(
+          &LOG,
+          "Unable to read data from vertex buffer via a staging buffer as the staging buffer "
+          "could not be allocated. ");
+    }
   }
 }
 
@@ -135,17 +150,29 @@ void VKVertexBuffer::upload_data_direct(const VKBuffer &host_buffer)
 
 void VKVertexBuffer::upload_data_via_staging_buffer(VKContext &context)
 {
-  VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::HostToDevice);
-  upload_data_direct(staging_buffer.host_buffer_get());
-  staging_buffer.copy_to_device(context);
+  VKStagingBuffer staging_buffer(
+      buffer_, VKStagingBuffer::Direction::HostToDevice, 0, this->size_used_get());
+  VKBuffer &buffer = staging_buffer.host_buffer_get();
+  if (buffer.is_allocated()) {
+    upload_data_direct(buffer);
+    staging_buffer.copy_to_device(context);
+  }
+  else {
+    CLOG_ERROR(&LOG,
+               "Unable to upload data to vertex buffer via a staging buffer as the staging buffer "
+               "could not be allocated. Vertex buffer will be filled with on zeros to reduce "
+               "drawing artifacts due to read from uninitialized memory.");
+    buffer_.clear(context, 0u);
+  }
 }
 
 void VKVertexBuffer::upload_data()
 {
   if (!buffer_.is_allocated()) {
     allocate();
-    /* If allocation fails, don't upload.*/
+    /* If allocation fails, don't upload. */
     if (!buffer_.is_allocated()) {
+      CLOG_ERROR(&LOG, "Unable to allocate vertex buffer. Most likely an out of memory issue.");
       return;
     }
   }
@@ -184,7 +211,8 @@ void VKVertexBuffer::allocate()
                  vk_buffer_usage,
                  0,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 VmaAllocationCreateFlags(0));
+                 VmaAllocationCreateFlags(0),
+                 0.8f);
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }
 
