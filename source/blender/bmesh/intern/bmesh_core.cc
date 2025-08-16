@@ -1278,8 +1278,67 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
 
     /* Otherwise, automatically reuse the existing face. */
     else {
-      BM_face_kill(bm, f_new);
-      f_new = f_existing;
+
+      /* Double pairs often have opposite winding. Determine which face has winding like its neighbors. */
+      int new_face_matching_edges = 0;
+      int existing_face_matching_edges = 0;
+      BMIter iter;
+      BMLoop *l_iter;
+
+      /* Check winding only at all the 4-face loops that are about to become manifold.
+       *
+       * At these 4-face loops:
+       * - One loop belongs to the original, un-joined, face that has not been deleted yet.
+       * - One loop belongs to the new face,
+       * - One loop belongs to the double face,
+       * - One loop is exterior and provides evidence of the correct winding.
+       */
+      BM_ITER_ELEM (l_iter, &iter, f_new, BM_LOOPS_OF_FACE) {
+        if (BM_edge_face_count_at_most(l_iter->e, 5) == 4) {
+
+          /* Identify which loops are which. */
+          BMIter iter2;
+          BMLoop *l_iter2;
+          BMLoop *l_existing = nullptr;
+          BMLoop *l_exterior = nullptr;
+          BM_ITER_ELEM (l_iter2, &iter2, l_iter, BM_LOOPS_OF_LOOP) {
+
+            /* Skip the loops that belong to the original face, or to the new face. */
+            if (BM_ELEM_API_FLAG_TEST(l_iter2->f, _FLAG_JF) || l_iter2->f == f_new) {
+              continue;
+            }
+
+            /* The remaining loops belong to either the existing double or the exterior.
+             * Determine which.*/
+            if (l_iter2->f == f_existing) {
+              l_existing = l_iter2;
+            }
+            else {
+              l_exterior = l_iter2;
+            }
+          }
+
+          BLI_assert(l_existing && l_exterior);
+
+          if (l_exterior->v != l_iter->v) {
+            new_face_matching_edges++;
+          }
+          if (l_exterior->v != l_existing->v) {
+            existing_face_matching_edges++;
+          }
+        }
+      }
+
+      /* Retain whichever face is better.  In a tie, prefer the existing face. */
+      if (new_face_matching_edges > existing_face_matching_edges) {
+        BM_face_kill(bm, f_existing);
+        f_existing = nullptr;
+      }
+      else
+      {
+        BM_face_kill(bm, f_new);
+        f_new = f_existing;
+      }
     }
   }
 
