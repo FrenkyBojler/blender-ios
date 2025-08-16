@@ -1074,24 +1074,18 @@ def _activate_by_item(context, space_type, item, index, *, as_fallback=False):
 
     handle_map = _activate_by_item._cursor_draw_handle
     # view_type used when in VSE, check if view_type exists because not every space_data it.
-    if hasattr(context.space_data, "view_type"):
-        handle = handle_map.pop(bpy.context.space_data.view_type, None)
-    else:
-        handle = handle_map.pop(space_type, None)
+    key = getattr(context.space_data, "view_type", space_type)
+    handle = handle_map.pop(key, None)
     if handle is not None:
         WindowManager.draw_cursor_remove(handle)
     if item.draw_cursor is not None:
         def handle_fn(context, item, tool, xy):
             item.draw_cursor(context, tool, xy)
-        if hasattr(context.space_data, "view_type"):
-            if context.space_data.view_type == 'PREVIEW':
-                handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'PREVIEW')
-            else:
-                handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'WINDOW')
-            handle_map[context.space_data.view_type] = handle
+        if key == 'PREVIEW':
+            handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'PREVIEW')
         else:
             handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'WINDOW')
-            handle_map[space_type] = handle
+        handle_map[key] = handle
 
 
 _activate_by_item._cursor_draw_handle = {}
