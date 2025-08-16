@@ -114,8 +114,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(400, 14)) {
-    FROM_DEFAULT_V4_UCHAR(space_view3d.asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(space_view3d.asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
   }
 
   if (!USER_VERSION_ATLEAST(400, 24)) {
@@ -162,8 +162,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(402, 21)) {
-    FROM_DEFAULT_V4_UCHAR(space_image.asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(space_image.asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
   }
 
   if (!USER_VERSION_ATLEAST(402, 47)) {
@@ -233,10 +233,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 
   if (!USER_VERSION_ATLEAST(405, 14)) {
     FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
-  }
-
-  if (!USER_VERSION_ATLEAST(405, 82)) {
-    FROM_DEFAULT_V4_UCHAR(space_clip.anim_preview_range);
   }
 
   if (!USER_VERSION_ATLEAST(500, 5)) {
@@ -317,6 +313,87 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_vector);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 16)) {
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 18)) {
+    FROM_DEFAULT_V4_UCHAR(space_preferences.button);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 19)) {
+    btheme->tui.menu_shadow_fac = U_theme_default.tui.menu_shadow_fac;
+    btheme->tui.menu_shadow_width = U_theme_default.tui.menu_shadow_width;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 24)) {
+    FROM_DEFAULT_V4_UCHAR(tui.panel_title);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_text);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 25)) {
+    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_properties.button);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 29)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.console_output);
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 45)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_repeat);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 47)) {
+    if (btheme->tui.panel_title[3] == 0) {
+      btheme->tui.panel_title[3] = 255;
+    }
+    if (btheme->tui.panel_text[3] == 0) {
+      btheme->tui.panel_text[3] = 255;
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 50)) {
+    FROM_DEFAULT_V4_UCHAR(common.anim.preview_range);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 52)) {
+    FROM_DEFAULT_V4_UCHAR(tui.waxis);
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 55)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_repeat);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 56)) {
+    FROM_DEFAULT_V4_UCHAR(common.anim.playhead);
+    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker);
+    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker_selected);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_sub);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_group);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_group_active);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 60)) {
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_free);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vect);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_align);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_free);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_vect);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_align);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex_select);
+    btheme->common.curves.handle_vertex_size = U_theme_default.common.curves.handle_vertex_size;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -352,11 +429,11 @@ static void do_version_select_mouse(const UserDef *userdef, wmKeyMapItem *kmi)
       break;
     case EVT_TWEAK_S:
       kmi->type = (left) ? LEFTMOUSE : RIGHTMOUSE;
-      kmi->val = KM_CLICK_DRAG;
+      kmi->val = KM_PRESS_DRAG;
       break;
     case EVT_TWEAK_A:
       kmi->type = (left) ? RIGHTMOUSE : LEFTMOUSE;
-      kmi->val = KM_CLICK_DRAG;
+      kmi->val = KM_PRESS_DRAG;
       break;
     default:
       break;
@@ -413,7 +490,7 @@ static bool keymap_item_update_tweak_event(wmKeyMapItem *kmi, void * /*user_data
   else {
     kmi->direction = KM_ANY;
   }
-  kmi->val = KM_CLICK_DRAG;
+  kmi->val = KM_PRESS_DRAG;
   return false;
 }
 
@@ -732,7 +809,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   /* If the userdef was created on a different platform, it may have an
    * unsupported GPU backend selected.  If so, pick a supported default. */
 #ifdef __APPLE__
-  if (userdef->gpu_backend == GPU_BACKEND_OPENGL) {
+  if (userdef->gpu_backend == GPU_BACKEND_OPENGL || userdef->gpu_backend == GPU_BACKEND_VULKAN) {
     userdef->gpu_backend = GPU_BACKEND_METAL;
   }
 #else
@@ -1578,6 +1655,10 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(500, 11)) {
     userdef->gpu_flag &= ~USER_GPU_FLAG_UNUSED_0;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 59)) {
+    userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
   }
 
   /**

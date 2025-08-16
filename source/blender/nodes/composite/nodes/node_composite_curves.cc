@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -18,8 +17,7 @@
 #include "DNA_color_types.h"
 
 #include "BKE_colortools.hh"
-
-#include "UI_interface.hh"
+#include "BKE_node.hh"
 
 #include "GPU_material.hh"
 
@@ -34,8 +32,8 @@ namespace blender::nodes::node_composite_time_curves_cc {
 
 static void cmp_node_time_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("Start Frame").default_value(1).compositor_expects_single_value();
-  b.add_input<decl::Int>("End Frame").default_value(250).compositor_expects_single_value();
+  b.add_input<decl::Int>("Start Frame").default_value(1);
+  b.add_input<decl::Int>("End Frame").default_value(250);
 
   b.add_output<decl::Float>("Fac");
 }
@@ -131,6 +129,7 @@ namespace blender::nodes::node_composite_rgb_curves_cc {
 
 static void cmp_node_rgbcurves_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Float>("Fac")
       .default_value(1.0f)
       .min(0.0f)

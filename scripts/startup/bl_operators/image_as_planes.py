@@ -367,19 +367,11 @@ class TextureProperties_MixIn:
         description="How the image is extrapolated past its original bounds",
     )
 
-    t = bpy.types.Image.bl_rna.properties["alpha_mode"]
-    alpha_mode: EnumProperty(
-        name=t.name,
-        items=tuple((e.identifier, e.name, e.description) for e in t.enum_items),
-        default=t.default,
-        description=t.description,
-    )
-
-    t = bpy.types.ImageUser.bl_rna.properties["use_auto_refresh"]
+    _ImageUser_use_auto_refresh = bpy.types.ImageUser.bl_rna.properties["use_auto_refresh"]
     use_auto_refresh: BoolProperty(
-        name=t.name,
+        name=_ImageUser_use_auto_refresh.name,
         default=True,
-        description=t.description,
+        description=_ImageUser_use_auto_refresh.description,
     )
 
     relative: BoolProperty(
@@ -400,9 +392,6 @@ class TextureProperties_MixIn:
 
             row = body.row(align=False, heading="Alpha")
             row.prop(self, "use_transparency", text="")
-            sub = row.row(align=True)
-            sub.active = self.use_transparency
-            sub.prop(self, "alpha_mode", text="")
 
             body.prop(self, "use_auto_refresh")
 
@@ -944,8 +933,6 @@ class IMAGE_OT_import_as_mesh_planes(
     def apply_image_options(self, image):
         if not self.use_transparency:
             image.alpha_mode = 'NONE'
-        else:
-            image.alpha_mode = self.alpha_mode
 
         if self.relative:
             try:  # Can't always find the relative path (between drive letters on windows).

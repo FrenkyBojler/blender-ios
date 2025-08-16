@@ -338,10 +338,8 @@ typedef struct SpaceSeq {
 
   /** Deprecated: offset for drawing the image preview. */
   float xof DNA_DEPRECATED, yof DNA_DEPRECATED;
-  /** Weird name for the sequencer subtype (seq, image, luma... etc). */
-  short mainb;
-  /** ESpaceSeq_Proxy_RenderSize. */
-  short render_size;
+  short mainb; /* eSpaceSeq_RegionType; strange name for view type (image, histogram, ...). */
+  short render_size; /* eSpaceSeq_Proxy_RenderSize. */
   short chanshown;
   short zebra;
   int flag;
@@ -396,10 +394,10 @@ typedef struct FileSelectParams {
   /**
    * Directory.
    *
-   * \note #FILE_MAX_LIBEXTRA == `1024 + 66`, this is for extreme case when 1023 length path
+   * \note #FILE_MAX_LIBEXTRA == `1024 + 258`, this is for extreme case when 1023 length path
    * needs to be linked in, where `foo.blend/Armature` need adding.
    */
-  char dir[/*FILE_MAX_LIBEXTRA*/ 1090];
+  char dir[/*FILE_MAX_LIBEXTRA*/ 1282];
   char file[/*FILE_MAXFILE*/ 256];
 
   char renamefile[/*FILE_MAXFILE*/ 256];

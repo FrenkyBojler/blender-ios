@@ -19,6 +19,7 @@
 namespace blender::bke {
 
 enum class AttrDomain : int8_t;
+enum class AttrType : int16_t;
 struct AttributeAccessorFunctions;
 
 namespace mesh {
@@ -184,7 +185,7 @@ short2 corner_space_custom_normal_to_data(const CornerNormalSpace &lnor_space,
                                           const float3 &custom_lnor);
 
 /**
- * Compute split normals, i.e. vertex normals associated with each face. Used to visualize sharp
+ * Compute custom normals, i.e. vertex normals associated with each face. Used to visualize sharp
  * edges (or non-smooth faces) without actually modifying the geometry (splitting edges).
  *
  * \param sharp_edges: Optional array of sharp edge tags, used to split the evaluated normals on
@@ -414,7 +415,7 @@ void mesh_select_face_flush(Mesh &mesh);
 void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
                                                 StringRef id,
                                                 AttrDomain domain,
-                                                eCustomDataType data_type);
+                                                bke::AttrType data_type);
 
 void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
@@ -424,6 +425,7 @@ void mesh_data_update(Depsgraph &depsgraph,
 /** Remove strings referring to attributes if they no longer exist. */
 void mesh_remove_invalid_attribute_strings(Mesh &mesh);
 
+void mesh_apply_spatial_organization(Mesh &mesh);
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 
 }  // namespace blender::bke

@@ -75,10 +75,9 @@ enum ThemeColorID {
   TH_PANEL_HEADER,
   TH_PANEL_BACK,
   TH_PANEL_SUB_BACK,
+  TH_PANEL_OUTLINE,
 
   TH_BUTBACK,
-  TH_BUTBACK_TEXT,
-  TH_BUTBACK_TEXT_HI,
 
   TH_SHADE1,
   TH_SHADE2,
@@ -342,6 +341,8 @@ enum ThemeColorID {
   TH_AXIS_X, /* X/Y/Z Axis */
   TH_AXIS_Y,
   TH_AXIS_Z,
+
+  TH_AXIS_W, /* W (quaternion and axis-angle rotations) */
 
   TH_GIZMO_HI,
   TH_GIZMO_PRIMARY,
