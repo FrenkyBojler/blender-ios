@@ -1300,7 +1300,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       local_corner_visited.fill(false);
 
       int start_local_corner = 0;
-      while (start_local_corner != -1) {
+      while (start_local_corner != local_corner_visited.size()) {
         corners_in_fan.clear();
         traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
 
@@ -1323,8 +1323,11 @@ void normals_calc_corners(const Span<float3> vert_positions,
         }
         local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), true);
         BLI_assert(!local_corner_visited.as_span().take_front(start_local_corner).contains(false));
-        start_local_corner +=
-            local_corner_visited.as_span().drop_front(start_local_corner).first_index_try(false);
+        start_local_corner = std::distance(
+            local_corner_visited.begin(),
+            std::find(local_corner_visited.begin() + start_local_corner,
+                      local_corner_visited.end(),
+                      false));
       }
       BLI_assert(visited_count == corner_infos.size());
     }
