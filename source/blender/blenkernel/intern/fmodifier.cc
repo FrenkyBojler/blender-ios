@@ -1029,8 +1029,8 @@ static void fcm_smooth_frame(const FCurve *fcu,
   float total_weight = 0.0f;
 
   /* Define sampling window around the frame using the kernel size. */
-  const int start_frame = floorf(evaltime - kernel_size / 2.0f);
-  const int end_frame = ceilf(evaltime + kernel_size / 2.0f);
+  const int start_frame = floorf(evaltime - kernel_size);
+  const int end_frame = ceilf(evaltime + kernel_size);
 
   const float two_sigma_sq = 2.0f * sigma * sigma;
 
@@ -1069,9 +1069,7 @@ static void fcm_smooth_evaluate(
     fcm_smooth_frame(fcu, fcm, &prev_value, prev_time);
     fcm_smooth_frame(fcu, fcm, &next_value, next_time);
 
-    const float lerp_factor = evaltime - prev_time;
-    const float current_value = prev_value + (next_value - prev_value) * lerp_factor;
-    *cvalue = current_value;
+    *cvalue = interpf(next_value, prev_value, evaltime - prev_time);
   }
 
   /* Otherwise, we directly calcuate the value. */
