@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
+#include "BLI_binary_search.hh"
 #include "BLI_lazy_threading.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.h"
@@ -217,6 +218,54 @@ static void parallel_for_impl_individual_size_lookup(
 
 #endif /* WITH_TBB */
 
+#ifdef WITH_TBB
+
+class AccumulatedRangeSplit {
+ public:
+  IndexRange range;
+  int64_t grain_size;
+  const TaskSizeHints_AccumulatedLookup *size_hints;
+
+  AccumulatedRangeSplit(const IndexRange range_value,
+                        const int64_t grain_size_value,
+                        const TaskSizeHints_AccumulatedLookup &size_hints_value)
+      : range(range_value), grain_size(grain_size_value), size_hints(&size_hints_value)
+  {
+  }
+
+  AccumulatedRangeSplit(AccumulatedRangeSplit &other, tbb::split /* split */)
+  {
+    AccumulatedRangeSplit::split(other, *this, other);
+  }
+
+  static void split(const AccumulatedRangeSplit full,
+                    AccumulatedRangeSplit &r_front,
+                    AccumulatedRangeSplit &r_back)
+  {
+    const int64_t half_of_total_size = full.size_hints->lookup_accumulated_size(full.range) / 2;
+    const int64_t middle = binary_search::first_if(full.range.index_range(), [&](const int64_t i) {
+      const IndexRange first_lalf = full.range.take_front(i + 1);
+      return half_of_total_size < full.size_hints->lookup_accumulated_size(first_lalf);
+    });
+
+    r_front = full;
+    r_back = full;
+
+    r_front.range = full.range.take_front(middle);
+    r_back.range = full.range.drop_front(middle);
+  }
+
+  bool empty() const
+  {
+    return this->range.is_empty();
+  }
+
+  bool is_divisible() const
+  {
+    return this->grain_size < this->size_hints->lookup_accumulated_size(this->range);
+  }
+};
+
 static void parallel_for_impl_accumulated_size_lookup(
     const IndexRange range,
     const int64_t grain_size,
@@ -229,22 +278,12 @@ static void parallel_for_impl_accumulated_size_lookup(
     function(range);
     return;
   }
-  const int64_t total_size = size_hints.lookup_accumulated_size(range);
-  if (total_size <= grain_size) {
-    function(range);
-    return;
-  }
-  const int64_t middle = range.size() / 2;
-  const IndexRange left_range = range.take_front(middle);
-  const IndexRange right_range = range.drop_front(middle);
-  threading::parallel_invoke(
-      [&]() {
-        parallel_for_impl_accumulated_size_lookup(left_range, grain_size, function, size_hints);
-      },
-      [&]() {
-        parallel_for_impl_accumulated_size_lookup(right_range, grain_size, function, size_hints);
-      });
+
+  tbb::parallel_for(
+      AccumulatedRangeSplit(range, grain_size, size_hints),
+      [function](const AccumulatedRangeSplit &subrange) { function(subrange.range); });
 }
+#endif /* WITH_TBB */
 
 void parallel_for_impl(const IndexRange range,
                        const int64_t grain_size,
