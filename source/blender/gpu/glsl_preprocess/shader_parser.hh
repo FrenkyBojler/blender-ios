@@ -1097,8 +1097,10 @@ struct Parser {
     std::stable_sort(mutations_.begin(), mutations_.end());
 
     /* Make sure to pad the input string in case of insertion after the last char. */
+    bool added_trailing_new_line = false;
     if (data_.str.back() != '\n') {
       data_.str += '\n';
+      added_trailing_new_line = true;
     }
 
     int64_t offset = 0;
@@ -1107,6 +1109,10 @@ struct Parser {
       offset += mut.replacement.size() - mut.src_range.size;
     }
     mutations_.clear();
+
+    if (added_trailing_new_line) {
+      data_.str.pop_back();
+    }
     return true;
   }
 
