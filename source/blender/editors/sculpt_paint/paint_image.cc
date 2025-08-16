@@ -12,11 +12,11 @@
 #include <cstdio>
 #include <cstring>
 
+#include "BLI_math_color.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.hh"
-#include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -45,7 +45,6 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
-#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "NOD_texture.h"
@@ -396,12 +395,14 @@ void paint_brush_color_get(const Paint *paint,
       copy_v3_v3(r_color, color_gr);
     }
     else if (color_jitter_settings) {
-      copy_v3_v3(r_color,
-                 BKE_paint_randomize_color(*color_jitter_settings,
-                                           *initial_hsv_jitter,
-                                           distance,
-                                           pressure,
-                                           BKE_brush_color_get(paint, br)));
+      /* Perform color jitter with sRGB transfer function. This is inconsistent with other
+       * paint modes which do it in linear space. But arguably it's better to do it in the
+       * more perceptually uniform color space. */
+      blender::float3 color = BKE_brush_color_get(paint, br);
+      linearrgb_to_srgb_v3_v3(color, color);
+      color = BKE_paint_randomize_color(
+          *color_jitter_settings, *initial_hsv_jitter, distance, pressure, color);
+      srgb_to_linearrgb_v3_v3(r_color, color);
     }
     else {
       copy_v3_v3(r_color, BKE_brush_color_get(paint, br));
