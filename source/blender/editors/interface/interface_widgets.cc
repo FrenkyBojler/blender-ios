@@ -3686,6 +3686,10 @@ static void widget_numbut_draw(const uiBut *but,
       /* Z Axis. */
       copy_v3_v3_uchar(wcol_zone.inner, btheme->tui.zaxis);
     }
+    else if (index == 3) {
+      /* W Axis. */
+      copy_v3_v3_uchar(wcol_zone.inner, btheme->tui.waxis);
+    }
 
     if ((state->but_flag & UI_HOVER) || state->is_text_input) {
       wcol_zone.inner[3] = 255;
