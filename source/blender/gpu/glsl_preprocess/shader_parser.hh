@@ -103,6 +103,7 @@ enum TokenType : char {
   Decrement = 'D',
   Private = 'v',
   Public = 'V',
+  Enum = 'M',
 };
 
 enum class ScopeType : char {
@@ -370,6 +371,9 @@ struct ParserData {
           else if (word == "public") {
             c = Public;
           }
+          else if (word == "enum") {
+            c = Enum;
+          }
         }
       }
     }
@@ -434,6 +438,9 @@ struct ParserData {
             break;
           case BracketOpen:
             if (tok_id >= 2 && token_types[tok_id - 2] == Struct) {
+              enter_scope(ScopeType::Local, tok_id);
+            }
+            else if (tok_id >= 2 && token_types[tok_id - 2] == Enum) {
               enter_scope(ScopeType::Local, tok_id);
             }
             else if (tok_id >= 2 && token_types[tok_id - 2] == Namespace) {
