@@ -1073,7 +1073,7 @@ def _activate_by_item(context, space_type, item, index, *, as_fallback=False):
     WindowManager = bpy.types.WindowManager
 
     handle_map = _activate_by_item._cursor_draw_handle
-    # view_type used when in VSE but need to check if it exists because not every space_data has view_type.
+    # view_type used when in VSE, check if view_type exists because not every space_data it.
     if hasattr(context.space_data, "view_type"):
         handle = handle_map.pop(bpy.context.space_data.view_type, None)
     else:
