@@ -1322,7 +1322,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
           break;
         }
         local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), true);
-        start_local_corner = local_corner_visited.first_index_of_try(false);
+        BLI_assert(!local_corner_visited.as_span().take_front(start_local_corner).contains(false));
+        start_local_corner +=
+            local_corner_visited.as_span().drop_front(start_local_corner).first_index_try(false);
       }
       BLI_assert(visited_count == corner_infos.size());
     }
