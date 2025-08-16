@@ -30,6 +30,12 @@ struct wmOperatorType;
 
 void VIEW3D_OT_toggle_matcap_flip(wmOperatorType *ot);
 
+/* Light modal operators */
+
+void VIEW3D_OT_light_normal_positioning(wmOperatorType *ot);
+void VIEW3D_OT_light_reflection_positioning(wmOperatorType *ot);
+void VIEW3D_OT_light_shadow_positioning(wmOperatorType *ot);
+
 /* `view3d_context.cc` */
 
 int view3d_context(const bContext *C, const char *member, bContextDataResult *result);

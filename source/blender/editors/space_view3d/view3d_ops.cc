@@ -249,6 +249,10 @@ void view3d_operatortypes()
   WM_operatortype_append(VIEW3D_OT_ruler_add);
   WM_operatortype_append(VIEW3D_OT_ruler_remove);
 
+  WM_operatortype_append(VIEW3D_OT_light_normal_positioning);
+  WM_operatortype_append(VIEW3D_OT_light_reflection_positioning);
+  WM_operatortype_append(VIEW3D_OT_light_shadow_positioning);
+
   blender::ed::transform::transform_operatortypes();
 }
 
