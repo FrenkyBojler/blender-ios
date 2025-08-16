@@ -456,12 +456,24 @@ struct ParserData {
 };
 
 struct Token {
+  /* String view for nicer debugging experience. Isn't actually used. */
+  std::string_view str_view;
+
   const ParserData *data;
   int64_t index;
 
   static Token invalid()
   {
-    return {nullptr, 0};
+    return {"", nullptr, 0};
+  }
+
+  static Token from_position(const ParserData *data, int64_t index)
+  {
+    if (index < 0 || index > (data->token_offsets.offsets.size() - 2)) {
+      return invalid();
+    }
+    IndexRange index_range = data->token_offsets[index];
+    return {std::string_view(data->str).substr(index_range.start, index_range.size), data, index};
   }
 
   bool is_valid() const
@@ -484,11 +496,11 @@ struct Token {
 
   Token prev() const
   {
-    return {data, index - 1};
+    return from_position(data, index - 1);
   }
   Token next() const
   {
-    return {data, index + 1};
+    return from_position(data, index + 1);
   }
 
   /* Only usable when building with whitespace. */
@@ -605,17 +617,32 @@ struct Token {
 };
 
 struct Scope {
+  /* String view for nicer debugging experience. Isn't actually used. */
+  std::string_view token_view;
+  std::string_view str_view;
+
   const ParserData *data;
   size_t index;
 
+  static Scope from_position(const ParserData *data, size_t index)
+  {
+    IndexRange index_range = data->scope_ranges[index];
+    int str_start = data->token_offsets[index_range.start].start;
+    int str_end = data->token_offsets[index_range.last()].last();
+    return {std::string_view(data->token_types).substr(index_range.start, index_range.size),
+            std::string_view(data->str).substr(str_start, str_end - str_start),
+            data,
+            index};
+  }
+
   Token start() const
   {
-    return {data, range().start};
+    return Token::from_position(data, range().start);
   }
 
   Token end() const
   {
-    return {data, range().last()};
+    return Token::from_position(data, range().last());
   }
 
   IndexRange range() const
@@ -648,7 +675,7 @@ struct Scope {
   Token find_token(const char token_type) const
   {
     size_t pos = data->token_types.substr(range().start, range().size).find(token_type);
-    return (pos != std::string::npos) ? Token{data, int64_t(range().start + pos)} :
+    return (pos != std::string::npos) ? Token::from_position(data, range().start + pos) :
                                         Token::invalid();
   }
 
@@ -667,11 +694,11 @@ struct Scope {
 
     size_t pos = 0;
     while ((pos = scope_tokens.find(pattern, pos)) != std::string::npos) {
-      match[0] = {data, int64_t(range().start + pos)};
+      match[0] = Token::from_position(data, range().start + pos);
       /* Do not match preprocessor directive by default. */
       if (match[0].scope().type() != ScopeType::Preprocessor) {
         for (int i = 1; i < pattern.size(); i++) {
-          match[i] = Token{data, int64_t(range().start + pos + i)};
+          match[i] = Token::from_position(data, range().start + pos + i);
         }
         callback(match);
       }
@@ -684,7 +711,7 @@ struct Scope {
   {
     size_t pos = this->index;
     while ((pos = data->scope_types.find(char(type), pos)) != std::string::npos) {
-      Scope scope{data, pos};
+      Scope scope = Scope::from_position(data, pos);
       if (scope.start().index > this->end().index) {
         /* Found scope starts after this scope. End iteration. */
         break;
@@ -700,10 +727,10 @@ struct Scope {
 
 inline Scope Token::scope() const
 {
-  return {data, size_t(data->token_scope[index])};
+  return Scope::from_position(data, data->token_scope[index]);
 }
 
-void ParserData::parse_scopes(report_callback &report_error)
+inline void ParserData::parse_scopes(report_callback &report_error)
 {
   {
     /* Scope detection. */
@@ -852,7 +879,7 @@ void ParserData::parse_scopes(report_callback &report_error)
 
     if (scopes.top().type != ScopeType::Global) {
       ScopeItem scope_item = scopes.top();
-      Token token{this, scope_ranges[scope_item.index].start};
+      Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
       report_error(
           token.line_number(), token.char_number(), token.line_str(), "unterminated scope");
 
@@ -923,7 +950,7 @@ struct Parser {
   {
     size_t pos = 0;
     while ((pos = data_.scope_types.find(char(type), pos)) != std::string::npos) {
-      callback(Scope{&data_, pos});
+      callback(Scope::from_position(&data_, pos));
       pos += 1;
     }
   }

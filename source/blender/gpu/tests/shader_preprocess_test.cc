@@ -1107,8 +1107,8 @@ ww(ww=0){ww=0,w=0,w={0};{w=w=w,wP;i(wEw){r;}}})";
   }
   {
     Parser parser("float i;", no_err_report);
-    parser.insert_after(Token{&parser.data_get(), 0}, "A ");
-    parser.insert_after(Token{&parser.data_get(), 0}, "B  ");
+    parser.insert_after(Token::from_position(&parser.data_get(), 0), "A ");
+    parser.insert_after(Token::from_position(&parser.data_get(), 0), "B  ");
     EXPECT_EQ(parser.result_get(), "float A B  i;");
   }
   {
@@ -1118,8 +1118,8 @@ A
 B
 )";
     Parser parser(input, no_err_report);
-    Token A = {&parser.data_get(), 1};
-    Token B = {&parser.data_get(), 5};
+    Token A = Token::from_position(&parser.data_get(), 1);
+    Token B = Token::from_position(&parser.data_get(), 5);
 
     EXPECT_EQ(A.str_no_whitespace(), "A");
     EXPECT_EQ(B.str_no_whitespace(), "B");
