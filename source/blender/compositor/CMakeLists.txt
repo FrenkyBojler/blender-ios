@@ -243,7 +243,6 @@ set(GLSL_SRC
   shaders/compositor_parallel_reduction.glsl
   shaders/compositor_pixelate.glsl
   shaders/compositor_plane_deform_anisotropic.glsl
-  shaders/compositor_plane_deform_mask.glsl
   shaders/compositor_plane_deform_motion_blur.glsl
   shaders/compositor_plane_deform_motion_blur_mask.glsl
   shaders/compositor_plane_deform.glsl

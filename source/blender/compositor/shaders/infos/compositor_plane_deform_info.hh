@@ -4,16 +4,6 @@
 
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_CREATE_INFO(compositor_plane_deform_mask)
-LOCAL_GROUP_SIZE(16, 16)
-PUSH_CONSTANT(float4x4, homography_matrix)
-PUSH_CONSTANT(bool, is_x_clipped)
-PUSH_CONSTANT(bool, is_y_clipped)
-IMAGE(0, SFLOAT_16, write, image2D, mask_img)
-COMPUTE_SOURCE("compositor_plane_deform_mask.glsl")
-DO_STATIC_COMPILATION()
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(compositor_plane_deform)
 LOCAL_GROUP_SIZE(16, 16)
 PUSH_CONSTANT(float4x4, homography_matrix)
@@ -24,7 +14,7 @@ GPU_SHADER_CREATE_END()
 GPU_SHADER_CREATE_INFO(compositor_plane_deform_masked)
 ADDITIONAL_INFO(compositor_plane_deform)
 DEFINE("PREMULTIPLY_MASK")
-SAMPLER(1, sampler2D, mask_tx)
+PUSH_CONSTANT(float2, mask_mult)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(compositor_plane_deform_nearest)

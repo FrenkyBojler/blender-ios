@@ -4,6 +4,14 @@
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
+#if defined(PREMULTIPLY_MASK)
+float2 hypot2(float2 a, float2 b)
+{
+  //return float2(length(float2(a.x,b.x)), length(float2(a.y,b.y)));
+  return sqrt(float2(a.x*a.x+b.x*b.x, a.y*a.y+b.y*b.y));
+}
+#endif
+
 void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
@@ -20,19 +28,37 @@ void main()
     return;
   }
 
-  float m = 1.0f/uvw.z; // 1/w
-  float2 uv = uvw.xy * m;
+  float iw = 1.0f/uvw.z; // 1/w
 
-  // compute derivative of source location per output pixel
+  // compute derivative of source location
   float3 m0 = homography_matrix[0].xyz;
-  float2 dPdx = (m0.xy - uvw.xy * m0.z * m) * m / output_size.x;
+  float2 dPdx = (m0.xy - uvw.xy * m0.z * iw) * iw / output_size;
   float3 m1 = homography_matrix[1].xyz;
-  float2 dPdy = (m1.xy - uvw.xy * m1.z * m) * m / output_size.y;
+  float2 dPdy = (m1.xy - uvw.xy * m1.z * iw) * iw / output_size;
 
-  float4 sampled_color = textureGrad(input_tx, uv, dPdx, dPdy);
+  float m = 1;
 
-  /* Premultiply the mask value as an alpha. */
-  float4 plane_color = sampled_color * texture_load(mask_tx, texel).x;
+  // antialias the horizon line
+  float dw = length(float2(m0.z, m1.z) / output_size);
+  if (dw > uvw.z) m = uvw.z / dw;
 
-  imageStore(output_img, texel, plane_color);
+#if defined(PREMULTIPLY_MASK)
+  float2 pixels = float2(textureSize(input_tx, 0));
+
+  float2 uv = uvw.xy * iw * pixels - 0.5f; // convert from bounds to pixels
+
+  // convert to rectangle and then scale from bounds to pixels
+  float2 wh = hypot2(dPdx, dPdy) * pixels;
+
+  float2 mm = clamp(min(uv + 0.5f, pixels - uv - 0.5f) / wh + 0.5f, 0, 1); // coverage of wh by image
+  if (m < 1) mm = float2(0); // remove artifacts at horizon
+  // mm = max(mm, mask_mult); // keep unclipped sides (nyi for anisotropic)
+  m *= mm.x * mm.y;
+  if (m <= 0) {
+    imageStore(output_img, texel, float4(0.0f));
+    return;
+  }
+#endif
+
+  imageStore(output_img, texel, textureGrad(input_tx, uvw.xy * iw, dPdx, dPdy) * m);
 }

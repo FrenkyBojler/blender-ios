@@ -114,7 +114,8 @@ class CornerPinOperation : public NodeOperation {
 
     /* Only compute the mask if extension modes are not set to clip and if it is not used as an
      * output. */
-    if (this->should_compute_mask()) {
+    if (this->should_compute_mask() && !this->context().use_gpu()) {
+
       Result plane_mask = compute_plane_mask(homography_matrix);
       Result anti_aliased_plane_mask = context().create_result(ResultType::Float);
       smaa(context(), plane_mask, anti_aliased_plane_mask);
@@ -156,17 +157,25 @@ class CornerPinOperation : public NodeOperation {
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
 
     Result &input_image = get_input("Image");
-    GPU_texture_mipmap_mode(input_image, true, true);
     /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
      * cases, as the logic used by the bicubic realization shader expects textures to use
      * bilinear interpolation. */
     const Interpolation interpolation = this->get_interpolation();
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    ExtensionMode extension_mode_x = this->get_extension_mode_x();
+    const bool is_x_clipped = extension_mode_x == ExtensionMode::Clip; if (is_x_clipped) extension_mode_x = ExtensionMode::Extend;
+    ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    const bool is_y_clipped = extension_mode_y == ExtensionMode::Clip; if (is_y_clipped) extension_mode_y = ExtensionMode::Extend;
 
-    const bool use_anisotropic = interpolation == Interpolation::Anisotropic;
-    GPU_texture_filter_mode(input_image, false); // sampleRect always uses nearest
-    GPU_texture_anisotropic_filter(input_image, use_anisotropic);
+    if (is_x_clipped || is_y_clipped) {
+      GPU_shader_uniform_2f(shader, "mask_mult", is_x_clipped ? 0.0f : 1.0f, is_y_clipped ? 0.0f : 1.0f);
+    }
+
+    if (interpolation == Interpolation::Anisotropic) {
+      GPU_texture_mipmap_mode(input_image, true, true);
+      GPU_texture_anisotropic_filter(input_image, true);
+    } else {
+      GPU_texture_filter_mode(input_image, false); // sampleRect always uses nearest
+    }
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
@@ -238,36 +247,7 @@ class CornerPinOperation : public NodeOperation {
 
   Result compute_plane_mask(const float3x3 &homography_matrix)
   {
-    if (this->context().use_gpu()) {
-      return this->compute_plane_mask_gpu(homography_matrix);
-    }
-
     return this->compute_plane_mask_cpu(homography_matrix);
-  }
-
-  Result compute_plane_mask_gpu(const float3x3 &homography_matrix)
-  {
-    const bool is_x_clipped = this->get_extension_mode_x() == ExtensionMode::Clip;
-    const bool is_y_clipped = this->get_extension_mode_y() == ExtensionMode::Clip;
-
-    gpu::Shader *shader = context().get_shader("compositor_plane_deform_mask");
-    GPU_shader_bind(shader);
-
-    GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
-    GPU_shader_uniform_1b(shader, "is_x_clipped", is_x_clipped);
-    GPU_shader_uniform_1b(shader, "is_y_clipped", is_y_clipped);
-
-    const Domain domain = compute_domain();
-    Result plane_mask = context().create_result(ResultType::Float);
-    plane_mask.allocate_texture(domain);
-    plane_mask.bind_as_image(shader, "mask_img");
-
-    compute_dispatch_threads_at_least(shader, domain.size);
-
-    plane_mask.unbind_as_image();
-    GPU_shader_unbind();
-
-    return plane_mask;
   }
 
   Result compute_plane_mask_cpu(const float3x3 &homography_matrix)
