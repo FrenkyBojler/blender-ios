@@ -503,9 +503,6 @@ wmOperatorStatus grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
 
   const PointsRange working_range = copy_point_attributes(
       ranges_selected, tmp_curves, tmp_drawing);
-
-  const PointsRange working_range = copy_point_attributes(
-      ranges_selected, tmp_curves, *dst_drawing);
   copy_curve_attributes(ranges_selected, tmp_curves, *dst_drawing);
 
   clear_selection_attribute(ranges_selected);
