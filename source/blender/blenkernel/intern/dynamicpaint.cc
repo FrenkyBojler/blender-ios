@@ -122,10 +122,10 @@ static int neighStraightY[8] = {0, 1, 0, -1, 1, 1, -1, -1};
 #define MIN_WETNESS 0.001f
 #define MAX_WETNESS 5.0f
 
-/* Is stored in ModifierData.runtime. */
+/** Is stored in ModifierData.runtime. */
 struct DynamicPaintRuntime {
-  struct Mesh *canvas_mesh = nullptr;
-  struct Mesh *brush_mesh = nullptr;
+  Mesh *canvas_mesh = nullptr;
+  Mesh *brush_mesh = nullptr;
   /**
    * Multiple threads may access `brush_mesh` so locking is needed
    * to ensure access is thread safe, see: #143958.
@@ -3889,7 +3889,7 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
   }
 
   /* NOTE(@ideasman42): it might be better to copy the vertex positions then to hold the lock. */
-  static DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_get(brush->pmd);
+  DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_get(brush->pmd);
   std::lock_guard lock{runtime_data->brush_mutex};
   mesh_c = dynamicPaint_brush_mesh_get_no_lock(brush);
   numOfVerts_c = mesh_c->verts_num;
