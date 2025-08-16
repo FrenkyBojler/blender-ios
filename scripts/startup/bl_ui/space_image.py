@@ -1242,6 +1242,11 @@ class IMAGE_PT_paint_settings(Panel, ImagePaintPanel):
     bl_category = "Tool"
     bl_label = "Brush Settings"
 
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and settings.brush is not None
+
     def draw(self, context):
         layout = self.layout
 
