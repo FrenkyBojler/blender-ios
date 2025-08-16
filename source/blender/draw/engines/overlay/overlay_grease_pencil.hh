@@ -135,6 +135,15 @@ class GreasePencil : Overlay {
         edit_handles_ = &sub;
       }
 
+      if (show_lines_) {
+        auto &sub = pass.sub("Lines");
+        sub.shader_set(res.shaders->curve_edit_line.get());
+        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
+        sub.push_constant("use_weight", show_weight_);
+        sub.push_constant("use_grease_pencil", true);
+        edit_lines_ = &sub;
+      }
+
       if (show_points_) {
         auto &sub = pass.sub("Points");
         sub.shader_set(res.shaders->curve_edit_points.get());
@@ -144,15 +153,6 @@ class GreasePencil : Overlay {
         sub.push_constant("do_stroke_endpoints", show_direction);
         sub.push_constant("curve_handle_display", handle_display);
         edit_points_ = &sub;
-      }
-
-      if (show_lines_) {
-        auto &sub = pass.sub("Lines");
-        sub.shader_set(res.shaders->curve_edit_line.get());
-        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
-        sub.push_constant("use_weight", show_weight_);
-        sub.push_constant("use_grease_pencil", true);
-        edit_lines_ = &sub;
       }
     }
 
@@ -196,19 +196,19 @@ class GreasePencil : Overlay {
         edit_handles_->draw_expand(geom, GPU_PRIM_TRIS, 8, 1, manager.unique_handle(ob_ref));
       }
     }
+    if (show_lines_) {
+      gpu::Batch *geom = show_weight_ ? DRW_cache_grease_pencil_weight_lines_get(state.scene, ob) :
+                                        DRW_cache_grease_pencil_edit_lines_get(state.scene, ob);
+      if (geom) {
+        edit_lines_->draw(geom, manager.unique_handle(ob_ref));
+      }
+    }
     if (show_points_) {
       gpu::Batch *geom = show_weight_ ?
                              DRW_cache_grease_pencil_weight_points_get(state.scene, ob) :
                              DRW_cache_grease_pencil_edit_points_get(state.scene, ob);
       if (geom) {
         edit_points_->draw(geom, manager.unique_handle(ob_ref));
-      }
-    }
-    if (show_lines_) {
-      gpu::Batch *geom = show_weight_ ? DRW_cache_grease_pencil_weight_lines_get(state.scene, ob) :
-                                        DRW_cache_grease_pencil_edit_lines_get(state.scene, ob);
-      if (geom) {
-        edit_lines_->draw(geom, manager.unique_handle(ob_ref));
       }
     }
 
