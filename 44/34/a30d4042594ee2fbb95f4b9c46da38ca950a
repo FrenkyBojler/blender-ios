@@ -5,3 +5,4 @@ Referenced by commit 5066173fbfb1dfe6c4a122df730b5ab11ae3f4a0, Fix #143110: Cust
 Referenced by pull request #144165, Fix #144135: Weight Paint gradient toolbar missing
 Referenced by commit 63cee26814706c5b713869468ea1b6c200fa3603, Fix #144135: Weight Paint gradient toolbar missing
 Referenced by issue #144643, Missing buttons and Python errors for unified paint settings
+Referenced by pull request #144654, Fix: Grease Pencil panels / buttons not displaying
