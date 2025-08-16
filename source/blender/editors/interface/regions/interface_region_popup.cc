@@ -1096,7 +1096,7 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
     const float pad = std::max((1.0f - ((200.0f * UI_SCALE_FAC) / float(text_width))) / 2.0f,
                                0.01f);
     uiLayout *split = &layout->split(pad, true);
-    uiLayout *padding = &split->column(true);
+    split->column(true);
     uiLayout *buttons = &split->split(1.0f - (pad * 2.0f), true);
     buttons->scale_y_set(1.2f);
 
