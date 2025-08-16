@@ -2143,17 +2143,22 @@ static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, 
       C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
+
   /* Title and explanation text. */
   uiLayout *col = &layout->column(false);
   col->scale_y_set(0.8f);
   uiItemL_ex(
       col, RPT_("Failed to load using Vulkan, using OpenGL instead."), ICON_NONE, true, false);
   col->separator(1.3f, LayoutSeparatorType::Space);
+
   col->label(RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
   col->label(RPT_("The graphics backend can be changed in the System section of the Preferences."),
              ICON_NONE);
+
   UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
+
   return block;
 }
 
