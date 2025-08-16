@@ -176,15 +176,22 @@ void bmesh_face_swap_data(BMFace *f_a, BMFace *f_b);
  *    they are replaced by the new face.
  * \param r_double: A pointer to a BMFace* that is controls processing of doubled faces.
  * - When `r_double` is nullptr:
- *   - If a new face would be made which would double an existing face, then instead of creating a
- *     new face, the existing face will be reused and returned instead.
+ *   - If a new face would be made which would double an existing face, then one or the other of
+ *     the doubles will be removed.  The returned face might be the new face (with attributes
+ *     interpolated from attributes on the `faces` list), or it might also be the existing face
+ *     (with attributes unchanged)./ The returned face may have a flipped face orientation, if the
+ *     passed faces and the existing double all had flipped face orientations.
  *   - The calling function must not make ANY assumption about whether the returned BMFace* is
  *     new, or a reused face that may already have set header flags, contain custom data, etc.
  * - When `r_double` is a pointer to a BMFace*:
  *   - If the new join face is not a double of an existing face, then `r_double` is set to nullptr.
  *   - If the new join face doubles an existing face, then `r_double` is set to the existing face,
- *     and the return value is the newly created face. The double will NOT be removed, meaning the
- *     BMesh is in an invalid state, and the calling function must fix that inconsistency.
+ *     and the return value is the newly created face (with attributes interpolated from attributes
+ *     on the `faces` list). The double will NOT be removed, meaning the BMesh is in an invalid
+ *     state, and the calling function is responsible for fixing that inconsistency.
+ *   - The face orientations of the new face and r_double might match the surrounding mesh, might
+ *     be flipped, and might be opposite from each other.  It is up to the calling function to
+ *     decide whether face orientation needs to be adjusted to prevent flipped faces.
  *   - If an error occurs and nullptr is returned, `r_double` will be set to nullptr as well.
  *
  * \note this is a generic, flexible join faces function,
