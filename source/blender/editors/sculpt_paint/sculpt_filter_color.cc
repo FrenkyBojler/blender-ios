@@ -605,6 +605,7 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
                                           0.0f,
                                           1.0f);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
+  RNA_def_property_subtype(prop, PROP_COLOR);
 }
 
 }  // namespace blender::ed::sculpt_paint::color

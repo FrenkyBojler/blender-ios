@@ -274,7 +274,7 @@ struct ProjPaintState {
   /* PROJ_SRC_**** */
   int source;
 
-  /* Scene linear paint color. It can change depending of inverted mode or not. */
+  /* Scene linear paint color. It can change depending on inverted mode or not. */
   float paint_color_linear[3];
   float dither;
 

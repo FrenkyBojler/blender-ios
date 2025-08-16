@@ -435,7 +435,7 @@ typedef struct tPaletteColorHSV {
 
 typedef struct PaletteColor {
   struct PaletteColor *next, *prev;
-  /* two values, one to store rgb, other to store values for sculpt/weight */
+  /* Two values, one to store color, other to store values for sculpt/weight. */
   float color[3];
   float value;
 

@@ -25,6 +25,7 @@
 #include "DNA_sequence_types.h"
 #include "DNA_world_types.h"
 
+#include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_numbers.hh"
@@ -739,7 +740,8 @@ static void version_seq_text_from_legacy(Main *bmain)
   }
 }
 
-static void for_each_mode_paint_settings(Scene &scene, void (*func)(Scene &scene, Paint *paint))
+static void for_each_mode_paint_settings(
+    Scene &scene, blender::FunctionRef<void(Scene &scene, Paint *paint)> func)
 {
   func(scene, reinterpret_cast<Paint *>(scene.toolsettings->vpaint));
   func(scene, reinterpret_cast<Paint *>(scene.toolsettings->wpaint));
