@@ -1279,28 +1279,31 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
     /* Otherwise, automatically reuse the existing face. */
     else {
 
-      /* Double pairs often have opposite winding. Determine which face has winding like its neighbors. */
+      /* Face doubles will often have opposite face orientations.
+       * Walk all edges to determine which face has orientation most similar to its neighbors. */
       int new_face_matching_edges = 0;
       int existing_face_matching_edges = 0;
       BMIter iter;
       BMLoop *l_iter;
 
-      /* Check winding only at all the 4-face loops that are about to become manifold.
+      /* Check winding only at the loops that have *four* faces.  This is an unusual criteria.
+       * It's correct because at each edge, two of these four faces are about to be removed.
+       * This will leave two-face (manifold) loops, which are what would normally be inspected.
        *
-       * At these 4-face loops:
-       * - One loop belongs to the original, un-joined, face that has not been deleted yet.
-       * - One loop belongs to the new face,
-       * - One loop belongs to the double face,
-       * - One loop is exterior and provides evidence of the correct winding.
+       * At each these 4-face loops:
+       * - One loop still belongs to an original, unjoined face, which has not been deleted yet.
+       * - One loop belongs to the new face.
+       * - One loop belongs to the existing double face.
+       * - The remaining loop is exterior, so it provides the evidence of the desired orientation.
        */
       BM_ITER_ELEM (l_iter, &iter, f_new, BM_LOOPS_OF_FACE) {
         if (BM_edge_face_count_at_most(l_iter->e, 5) == 4) {
+          BMLoop *l_existing = nullptr;
+          BMLoop *l_exterior = nullptr;
 
           /* Identify which loops are which. */
           BMIter iter2;
           BMLoop *l_iter2;
-          BMLoop *l_existing = nullptr;
-          BMLoop *l_exterior = nullptr;
           BM_ITER_ELEM (l_iter2, &iter2, l_iter, BM_LOOPS_OF_LOOP) {
 
             /* Skip the loops that belong to the original face, or to the new face. */
@@ -1309,7 +1312,7 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
             }
 
             /* The remaining loops belong to either the existing double or the exterior.
-             * Determine which.*/
+             * Determine which is which. */
             if (l_iter2->f == f_existing) {
               l_existing = l_iter2;
             }
@@ -1318,8 +1321,11 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
             }
           }
 
+          /* Make sure both loops have been identified.*/
           BLI_assert(l_existing && l_exterior);
 
+          /* *Mismatched* loop verts means the two loops wind in opposite directions -- both loops
+           * are counterclockwise.  This indicates that the faces have *matching* orientations. */
           if (l_exterior->v != l_iter->v) {
             new_face_matching_edges++;
           }
@@ -1329,15 +1335,18 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
         }
       }
 
-      /* Retain whichever face is better.  In a tie, prefer the existing face. */
-      if (new_face_matching_edges > existing_face_matching_edges) {
-        BM_face_kill(bm, f_existing);
-        f_existing = nullptr;
-      }
-      else
-      {
+      /* Remove whichever face is worse. In a tie remove the new face, keep the existing face. */
+      if (existing_face_matching_edges >= new_face_matching_edges) {
+        /* Reuse the existing face.
+         * f_existing remains set, reusing_face will be true and attribute copy is skipped. */
         BM_face_kill(bm, f_new);
         f_new = f_existing;
+      }
+      else {
+        /* Use the new face.
+         * f_existing is nullptr, reusing_face will be false, attribute data will be copied. */
+        BM_face_kill(bm, f_existing);
+        f_existing = nullptr;
       }
     }
   }
