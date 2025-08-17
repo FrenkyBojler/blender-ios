@@ -1489,7 +1489,7 @@ static void rna_WindowManager_operators_begin(CollectionPropertyIterator *iter, 
 static void rna_WindowManager_keyconfigs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
-  rna_iterator_listbase_begin(iter, ptr, &wm->runtime->operators, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &wm->runtime->keyconfigs, nullptr);
 }
 
 static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
