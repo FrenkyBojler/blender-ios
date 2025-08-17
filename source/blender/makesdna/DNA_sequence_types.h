@@ -333,12 +333,12 @@ typedef struct EditingRuntime {
 typedef struct Editing {
   /**
    * Pointer to the current list of strips being edited (can be within a meta-strip).
-   * \note Use #active_strips() to access, rather than using this variable directly.
+   * \note Use #current_strips() to access, rather than using this variable directly.
    */
   ListBase *seqbasep;
   /**
    * Pointer to the current list of channels being displayed (can be within a meta-strip).
-   * \note Use #active_displayed_channels() to access, rather than using this variable directly.
+   * \note Use #current_channels() to access, rather than using this variable directly.
    */
   ListBase *displayed_channels;
   void *_pad0;
@@ -365,12 +365,12 @@ typedef struct Editing {
 
 #ifdef __cplusplus
   /** Access currently displayed strips, from root sequence or a meta-strip. */
-  ListBase *active_strips();
-  ListBase *active_strips() const;
+  ListBase *current_strips();
+  ListBase *current_strips() const;
 
   /** Access currently displayed channels, from root sequence or a meta-strip. */
-  ListBase *active_displayed_channels();
-  ListBase *active_displayed_channels() const;
+  ListBase *current_channels();
+  ListBase *current_channels() const;
 #endif
 } Editing;
 

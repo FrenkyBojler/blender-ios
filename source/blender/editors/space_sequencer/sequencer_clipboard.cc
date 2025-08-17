@@ -172,7 +172,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
                                    scene_src,
                                    scene_dst,
                                    &scene_dst->ed->seqbase,
-                                   scene_src->ed->active_strips(),
+                                   scene_src->ed->current_strips(),
                                    seq::StripDuplicate::Selected,
                                    0);
 
@@ -317,7 +317,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->active_strips());
+  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
 
   if (selected.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -326,7 +326,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   blender::VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
   seq::iterator_set_expand(
-      scene, ed->active_strips(), effect_chain, seq::query_strip_effect_chain);
+      scene, ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
 
   blender::VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
