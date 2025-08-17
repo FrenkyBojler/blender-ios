@@ -396,6 +396,20 @@ class NODE_OT_swap_node(NodeSwapOperator, NodeAddOperator, Operator):
         options={'SKIP_SAVE'},
     )
 
+    @staticmethod
+    def get_zone_pair(tree, node):
+        # Get paired output node
+        if hasattr(node, "paired_output"):
+            return node, node.paired_output
+
+        # Get paired input node
+        for input_node in tree.nodes:
+            if hasattr(input_node, "paired_output"):
+                if input_node.paired_output == node:
+                    return input_node, node
+                
+        return None
+        
     @classmethod
     def description(cls, _context, properties):
         from nodeitems_builtins import node_tree_group_type
@@ -415,6 +429,8 @@ class NODE_OT_swap_node(NodeSwapOperator, NodeAddOperator, Operator):
     
     def execute(self, context):
         old_node = context.active_node
+        tree = old_node.id_data
+
         self.deselect_nodes(context)
 
         node_new = self.create_node(context, self.type)
@@ -422,16 +438,28 @@ class NODE_OT_swap_node(NodeSwapOperator, NodeAddOperator, Operator):
             for socket in node_new.outputs:
                 if socket.name != self.visible_output:
                     socket.hide = True
-        
-        tree = old_node.id_data
         node_new.location = old_node.location
 
-        self.transfer_input_values(old_node, node_new)
-        
-        self.transfer_links(tree, old_node, node_new, is_input=True)
-        self.transfer_links(tree, old_node, node_new, is_input=False)
+        zone_pair = self.get_zone_pair(tree, old_node)
 
-        tree.nodes.remove(old_node)
+        if zone_pair is not None:
+            input_node, output_node = zone_pair
+
+            self.transfer_input_values(input_node, node_new)
+            
+            self.transfer_links(tree, input_node, node_new, is_input=True)
+            self.transfer_links(tree, output_node, node_new, is_input=False)
+
+            for node in zone_pair:
+                tree.nodes.remove(node)
+        else:
+            self.transfer_input_values(old_node, node_new)
+            
+            self.transfer_links(tree, old_node, node_new, is_input=True)
+            self.transfer_links(tree, old_node, node_new, is_input=False)
+
+            tree.nodes.remove(old_node)
+
         return {'FINISHED'}
     
     
