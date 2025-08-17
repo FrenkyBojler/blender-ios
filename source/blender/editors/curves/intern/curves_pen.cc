@@ -57,13 +57,623 @@ enum class PenModal : int8_t {
   SnapAngle = 2,
 };
 
-enum class ElementMode : int8_t {
-  None = 0,
-  Point = 1,
-  Edge = 2,
-  HandleLeft = 3,
-  HandleRight = 4,
-};
+/* Used when creating a single curve from nothing. */
+constexpr float default_handle_px_distance = 16.0f;
+
+/* Snaps to the closest diagonal, horizontal or vertical. */
+static float2 snap_8_angles(const float2 &p)
+{
+  using namespace math;
+  const float sin225 = sin(AngleRadian::from_degree(22.5f));
+  return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
+}
+
+float2 PenToolOperation::layer_to_screen(const float4x4 &layer_to_object,
+                                         const float3 &point) const
+{
+  return ED_view3d_project_float_v2_m4(
+      vc.region, math::transform_point(layer_to_object, point), projection);
+}
+
+float3 PenToolOperation::screen_to_layer(const float4x4 &layer_to_world,
+                                         const float2 &screen_co,
+                                         const float3 &depth_point_layer) const
+{
+  const float3 depth_point = math::transform_point(layer_to_world, depth_point_layer);
+  float3 proj_point;
+  ED_view3d_win_to_3d(vc.v3d, vc.region, depth_point, screen_co, proj_point);
+  return math::transform_point(math::invert(layer_to_world), proj_point);
+}
+
+void PenToolOperation::move_segment(bke::CurvesGeometry &curves,
+                                    const float4x4 &layer_to_world) const
+{
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  MutableSpan<float3> positions = curves.positions_for_write();
+  MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
+  MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
+  MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+  MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+
+  const int curve_i = this->closest_element.curve_index;
+  const IndexRange points = points_by_curve[curve_i];
+  const int point_i1 = this->closest_element.point_index;
+  const int point_i2 = (this->closest_element.point_index + 1 - points.first()) % points.size() +
+                       points.first();
+
+  const float3 depth_point = positions[point_i1];
+  const float3 Pm = this->screen_to_layer(layer_to_world, this->mouse_co, depth_point);
+  const float3 P0 = positions[point_i1];
+  const float3 P3 = positions[point_i2];
+  const float3 p1 = handles_right[point_i1];
+  const float3 p2 = handles_left[point_i2];
+  const float3 k2 = p1 - p2;
+
+  const float t = this->closest_element.edge_t;
+  const float t_sq = t * t;
+  const float t_cu = t_sq * t;
+  const float one_minus_t = 1.0f - t;
+  const float one_minus_t_sq = one_minus_t * one_minus_t;
+  const float one_minus_t_cu = one_minus_t_sq * one_minus_t;
+
+  /**
+   * Equation of the starting Bezier Curve:
+   *      => b(t) = (1-t)^3 * p0 + 3(1-t)^2 * t * p1 + 3(1-t) * t^2 * p2 + t^3 * p3
+   *
+   * Equation of the moved Bezier Curve:
+   *      => B(t) = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
+   *
+   * The moved Bezier curve has four unknowns: P0, P1, P2 and P3
+   * We want the end points to stay the same so: P0 = p0 and P3 = p3
+   *
+   * Mouse location (Pm) should satisfy the equation Pm = B(t).
+   * The last constraint used is that the vector between P1 and P2 doesn't change after moving.
+   * Therefore: => k2 = p1 - p2 = P1 - P2
+   *
+   * Using all four equations we can solve for P1 as:
+   *      => P1 = (Pm - (1-t)^3 * P0 - t^3 * P3) / (3(1-t) * t) + k2 * t
+   * And P2 as:
+   *      => P2 = P1 - k2
+   */
+
+  const float denom = 3.0f * one_minus_t * t;
+  if (denom == 0.0f) {
+    return;
+  }
+
+  const float3 P1 = (Pm - one_minus_t_cu * P0 - t_cu * P3) / denom + k2 * t;
+  const float3 P2 = P1 - k2;
+
+  handles_right[point_i1] = P1;
+  handles_left[point_i2] = P2;
+  handle_types_right[point_i1] = BEZIER_HANDLE_FREE;
+  handle_types_left[point_i2] = BEZIER_HANDLE_FREE;
+
+  /* Only change `Align`, Keep `Vector` and `Auto` the same. */
+  if (handle_types_left[point_i1] == BEZIER_HANDLE_ALIGN) {
+    handle_types_left[point_i1] = BEZIER_HANDLE_FREE;
+  }
+  if (handle_types_right[point_i2] == BEZIER_HANDLE_ALIGN) {
+    handle_types_right[point_i2] = BEZIER_HANDLE_FREE;
+  }
+
+  curves.calculate_bezier_auto_handles();
+}
+
+bool PenToolOperation::move_handles_in_curve(bke::CurvesGeometry &curves,
+                                             const IndexMask &bezier_points,
+                                             const float4x4 &layer_to_world,
+                                             const float4x4 &layer_to_object) const
+{
+  if (bezier_points.is_empty()) {
+    return false;
+  }
+
+  MutableSpan<float3> positions = curves.positions_for_write();
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+
+  MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
+  MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
+  MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+  MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+
+  const VArray<bool> left_selected = *attributes.lookup_or_default<bool>(
+      ".selection_handle_left", bke::AttrDomain::Point, true);
+  const VArray<bool> right_selected = *attributes.lookup_or_default<bool>(
+      ".selection_handle_right", bke::AttrDomain::Point, true);
+
+  bezier_points.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
+    const float3 depth_point = positions[point_i];
+    float2 offset = this->xy - this->prev_xy;
+
+    if ((this->move_point && !this->point_added &&
+         !(left_selected[point_i] || right_selected[point_i])) ||
+        this->move_entire)
+    {
+      const float2 pos = this->layer_to_screen(layer_to_object, positions[point_i]);
+      const float2 pos_left = this->layer_to_screen(layer_to_object, handles_left[point_i]);
+      const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
+      positions[point_i] = this->screen_to_layer(layer_to_world, pos + offset, depth_point);
+      handles_left[point_i] = this->screen_to_layer(
+          layer_to_world, pos_left + offset, depth_point);
+      handles_right[point_i] = this->screen_to_layer(
+          layer_to_world, pos_right + offset, depth_point);
+      return;
+    }
+
+    if (this->move_handle) {
+      const float2 pos_right = this->layer_to_screen(layer_to_object, handles_right[point_i]);
+      handles_right[point_i] = this->screen_to_layer(
+          layer_to_world, pos_right + offset, depth_point);
+      handle_types_left[point_i] = BEZIER_HANDLE_FREE;
+      handle_types_right[point_i] = BEZIER_HANDLE_FREE;
+      return;
+    }
+
+    const bool is_left = !right_selected[point_i];
+    const float2 center_point = this->layer_to_screen(layer_to_object, depth_point);
+    offset = this->mouse_co - this->center_of_mass_co;
+
+    if (this->snap_angle) {
+      offset = snap_8_angles(offset);
+    }
+
+    if (this->point_added) {
+      handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+      handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+    }
+
+    if (is_left) {
+      if (handle_types_right[point_i] == BEZIER_HANDLE_AUTO) {
+        handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+      }
+      handle_types_left[point_i] = handle_types_right[point_i];
+      if (handle_types_right[point_i] == BEZIER_HANDLE_VECTOR) {
+        handle_types_left[point_i] = BEZIER_HANDLE_FREE;
+      }
+
+      if (this->point_added) {
+        handles_left[point_i] = this->project(center_point + offset);
+      }
+      else {
+        handles_left[point_i] = this->screen_to_layer(
+            layer_to_world, center_point + offset, depth_point);
+      }
+
+      if (handle_types_right[point_i] == BEZIER_HANDLE_ALIGN) {
+        handles_right[point_i] = 2.0f * depth_point - handles_left[point_i];
+      }
+    }
+    else {
+      if (handle_types_left[point_i] == BEZIER_HANDLE_AUTO) {
+        handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+      }
+      handle_types_right[point_i] = handle_types_left[point_i];
+      if (handle_types_left[point_i] == BEZIER_HANDLE_VECTOR) {
+        handle_types_right[point_i] = BEZIER_HANDLE_FREE;
+      }
+
+      if (this->point_added) {
+        handles_right[point_i] = this->project(center_point + offset);
+      }
+      else {
+        handles_right[point_i] = this->screen_to_layer(
+            layer_to_world, center_point + offset, depth_point);
+      }
+
+      if (handle_types_left[point_i] == BEZIER_HANDLE_ALIGN) {
+        handles_left[point_i] = 2.0f * depth_point - handles_right[point_i];
+      }
+    }
+  });
+
+  curves.calculate_bezier_auto_handles();
+
+  return true;
+}
+
+std::optional<bke::CurvesGeometry> PenToolOperation::extrude_curves(
+    const bke::CurvesGeometry &src,
+    const float4x4 &layer_to_object,
+    const IndexMask editable_curves) const
+{
+  const bke::AttributeAccessor src_attributes = src.attributes();
+  const OffsetIndices<int> points_by_curve = src.points_by_curve();
+  const VArray<bool> &src_cyclic = src.cyclic();
+  const VArray<int8_t> types = src.curve_types();
+  const int old_points_num = src.points_num();
+
+  const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
+      ".selection", bke::AttrDomain::Point, true);
+  const VArray<bool> left_selected = *src_attributes.lookup_or_default<bool>(
+      ".selection_handle_left", bke::AttrDomain::Point, true);
+  const VArray<bool> right_selected = *src_attributes.lookup_or_default<bool>(
+      ".selection_handle_right", bke::AttrDomain::Point, true);
+
+  Vector<int> dst_to_src_points(old_points_num);
+  array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
+
+  Vector<bool> dst_selected_start(old_points_num, false);
+  Vector<bool> dst_selected_center(old_points_num, false);
+  Vector<bool> dst_selected_end(old_points_num, false);
+
+  Array<int> dst_curve_counts(src.curves_num());
+  offset_indices::copy_group_sizes(
+      points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
+
+  /* Point offset keeps track of the points inserted. */
+  int point_offset = 0;
+  editable_curves.foreach_index([&](const int curve_index) {
+    const IndexRange curve_points = points_by_curve[curve_index];
+    /* Skip cyclic curves unless they only have one point. */
+    if (src_cyclic[curve_index] && curve_points.size() != 1) {
+      return;
+    }
+    const bool is_bezier = types[curve_index] == CURVE_TYPE_BEZIER;
+
+    bool first_selected = point_selection[curve_points.first()];
+    if (is_bezier) {
+      first_selected |= left_selected[curve_points.first()];
+      first_selected |= right_selected[curve_points.first()];
+    }
+
+    bool last_selected = point_selection[curve_points.last()];
+    if (is_bezier) {
+      last_selected |= left_selected[curve_points.last()];
+      last_selected |= right_selected[curve_points.last()];
+    }
+
+    if (first_selected) {
+      if (curve_points.size() != 1) {
+        /* Start-point extruded, we insert a new point at the beginning of the curve. */
+        dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
+        dst_selected_start.insert(curve_points.first() + point_offset, true);
+        dst_selected_center.insert(curve_points.first() + point_offset, !is_bezier);
+        dst_selected_end.insert(curve_points.first() + point_offset, false);
+        dst_curve_counts[curve_index]++;
+        point_offset++;
+      }
+    }
+
+    if (last_selected) {
+      /* End-point extruded, we insert a new point at the end of the curve. */
+      dst_to_src_points.insert(curve_points.last() + point_offset + 1, curve_points.last());
+      dst_selected_end.insert(curve_points.last() + point_offset + 1, true);
+      dst_selected_center.insert(curve_points.last() + point_offset + 1, !is_bezier);
+      dst_selected_start.insert(curve_points.last() + point_offset + 1, false);
+      dst_curve_counts[curve_index]++;
+      point_offset++;
+    }
+  });
+
+  if (point_offset == 0) {
+    return std::nullopt;
+  }
+
+  bke::CurvesGeometry dst(dst_to_src_points.size(), src.curves_num());
+  BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
+
+  /* Setup curve offsets, based on the number of points in each curve. */
+  MutableSpan<int> new_curve_offsets = dst.offsets_for_write();
+  array_utils::copy(dst_curve_counts.as_span(), new_curve_offsets.drop_back(1));
+  offset_indices::accumulate_counts_to_offsets(new_curve_offsets);
+
+  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+  /* Selection attribute. */
+  bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+      dst, bke::AttrDomain::Point, bke::AttrType::Bool);
+  bke::GSpanAttributeWriter selection_left = ed::curves::ensure_selection_attribute(
+      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_left");
+  bke::GSpanAttributeWriter selection_right = ed::curves::ensure_selection_attribute(
+      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_right");
+  selection_left.span.copy_from(dst_selected_start.as_span());
+  selection.span.copy_from(dst_selected_center.as_span());
+  selection_right.span.copy_from(dst_selected_end.as_span());
+  selection_left.finish();
+  selection.finish();
+  selection_right.finish();
+
+  bke::copy_attributes(
+      src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Point,
+                         bke::AttrDomain::Point,
+                         bke::attribute_filter_from_skip_ref(
+                             {".selection", ".selection_handle_left", ".selection_handle_right"}),
+                         dst_to_src_points,
+                         dst_attributes);
+
+  Span<float3> src_positions = src.positions();
+  MutableSpan<float3> dst_positions = dst.positions_for_write();
+  MutableSpan<bool> dst_cyclic = dst.cyclic_for_write();
+  const Array<int> dst_point_to_curve_map = dst.point_to_curve_map();
+  MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
+  MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
+  MutableSpan<float> radius = dst.radius_for_write();
+  for (const int i : dst_to_src_points.index_range()) {
+    if (!(dst_selected_end[i] || dst_selected_start[i])) {
+      continue;
+    }
+    const float3 depth_point = src_positions[dst_to_src_points[i]];
+    const float2 pos = this->layer_to_screen(layer_to_object, depth_point) -
+                       this->center_of_mass_co + this->mouse_co;
+    dst_positions[i] = this->project(pos);
+    handle_types_left[i] = this->extrude_handle;
+    handle_types_right[i] = this->extrude_handle;
+    radius[i] = this->radius;
+    dst_cyclic[dst_point_to_curve_map[i]] = false;
+  }
+
+  dst.update_curve_types();
+  dst.calculate_bezier_auto_handles();
+  if (src.nurbs_has_custom_knots()) {
+    IndexMaskMemory memory;
+    const VArray<int8_t> curve_types = src.curve_types();
+    const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
+    const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
+    const IndexMask include_curves = IndexMask::from_predicate(
+        src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
+          return curve_types[curve_index] == CURVE_TYPE_NURBS &&
+                 knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
+                 points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();
+        });
+    bke::curves::nurbs::update_custom_knot_modes(
+        include_curves.complement(dst.curves_range(), memory),
+        NURBS_KNOT_MODE_ENDPOINT,
+        NURBS_KNOT_MODE_NORMAL,
+        dst);
+    bke::curves::nurbs::gather_custom_knots(src, include_curves, 0, dst);
+  }
+  return dst;
+}
+
+void PenToolOperation::insert_point_to_curve(bke::CurvesGeometry &src) const
+{
+  const bke::AttributeAccessor src_attributes = src.attributes();
+  const OffsetIndices<int> points_by_curve = src.points_by_curve();
+  const int old_points_num = src.points_num();
+  const int src_point_index = this->closest_element.point_index;
+  const int dst_point_index = src_point_index + 1;
+  const int curve_index = this->closest_element.curve_index;
+  const IndexRange points = points_by_curve[curve_index];
+  const int src_point_index_2 = (src_point_index + 1 - points.first()) % points.size() +
+                                points.first();
+  const int dst_point_index_2 = (dst_point_index - points.first() + 1) % (points.size() + 1) +
+                                points.first();
+
+  Vector<int> dst_to_src_points(old_points_num);
+  array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
+
+  Array<int> dst_curve_counts(src.curves_num());
+  offset_indices::copy_group_sizes(
+      points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
+
+  dst_to_src_points.insert(src_point_index + 1, src_point_index);
+  dst_curve_counts[curve_index]++;
+
+  bke::CurvesGeometry dst(dst_to_src_points.size(), src.curves_num());
+  BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
+
+  /* Setup curve offsets, based on the number of points in each curve. */
+  MutableSpan<int> new_curve_offsets = dst.offsets_for_write();
+  array_utils::copy(dst_curve_counts.as_span(), new_curve_offsets.drop_back(1));
+  offset_indices::accumulate_counts_to_offsets(new_curve_offsets);
+
+  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+  /* Selection attribute. */
+  for (const StringRef selection_attribute_name :
+       ed::curves::get_curves_selection_attribute_names(src))
+  {
+    bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+        dst, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+    ed::curves::fill_selection_false(selection_writer.span);
+    ed::curves::fill_selection_true(selection_writer.span,
+                                    IndexRange::from_single(dst_point_index));
+    selection_writer.finish();
+  }
+
+  bke::copy_attributes(
+      src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Point,
+                         bke::AttrDomain::Point,
+                         bke::attribute_filter_from_skip_ref(
+                             {".selection", ".selection_handle_left", ".selection_handle_right"}),
+                         dst_to_src_points,
+                         dst_attributes);
+
+  Span<float3> src_positions = src.positions();
+  MutableSpan<float3> dst_positions = dst.positions_for_write();
+  MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
+  MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
+  const Span<float3> src_handles_left = *src.handle_positions_left();
+  const Span<float3> src_handles_right = *src.handle_positions_right();
+  MutableSpan<float3> dst_handles_left = dst.handle_positions_left_for_write();
+  MutableSpan<float3> dst_handles_right = dst.handle_positions_right_for_write();
+  handle_types_left[dst_point_index] = BEZIER_HANDLE_ALIGN;
+  handle_types_right[dst_point_index] = BEZIER_HANDLE_ALIGN;
+
+  const bke::curves::bezier::Insertion inserted_point = bke::curves::bezier::insert(
+      src_positions[src_point_index],
+      src_handles_right[src_point_index],
+      src_handles_left[src_point_index_2],
+      src_positions[src_point_index_2],
+      this->closest_element.edge_t);
+
+  dst_positions[dst_point_index] = inserted_point.position;
+  dst_handles_left[dst_point_index] = inserted_point.left_handle;
+  dst_handles_right[dst_point_index] = inserted_point.right_handle;
+  dst_handles_right[dst_point_index - 1] = inserted_point.handle_prev;
+  dst_handles_left[dst_point_index_2] = inserted_point.handle_next;
+  handle_types_right[dst_point_index - 1] = BEZIER_HANDLE_FREE;
+  handle_types_left[dst_point_index_2] = BEZIER_HANDLE_FREE;
+
+  dst.update_curve_types();
+  dst.calculate_bezier_auto_handles();
+  if (src.nurbs_has_custom_knots()) {
+    IndexMaskMemory memory;
+    const VArray<int8_t> curve_types = src.curve_types();
+    const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
+    const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
+    const IndexMask include_curves = IndexMask::from_predicate(
+        src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
+          return curve_types[curve_index] == CURVE_TYPE_NURBS &&
+                 knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
+                 points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();
+        });
+    bke::curves::nurbs::update_custom_knot_modes(
+        include_curves.complement(dst.curves_range(), memory),
+        NURBS_KNOT_MODE_ENDPOINT,
+        NURBS_KNOT_MODE_NORMAL,
+        dst);
+    bke::curves::nurbs::gather_custom_knots(src, include_curves, 0, dst);
+  }
+
+  src = std::move(dst);
+}
+
+void PenToolOperation::add_single_point_and_curve(bke::CurvesGeometry &curves,
+                                                  const float4x4 &layer_to_world) const
+{
+  const float3 depth_point = this->project(this->mouse_co);
+
+  ed::greasepencil::add_single_curve(curves, true);
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+  Set<std::string> curve_attributes_to_skip;
+
+  curves.positions_for_write().last() = depth_point;
+  curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
+  curve_attributes_to_skip.add("curve_type");
+  curves.handle_types_left_for_write().last() = this->extrude_handle;
+  curves.handle_types_right_for_write().last() = this->extrude_handle;
+  curves.update_curve_types();
+
+  const int material_index = this->vc.obact->actcol - 1;
+  if (material_index != 0) {
+    bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
+        "material_index",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
+    material_indexes.span.last() = material_index;
+    material_indexes.finish();
+    curve_attributes_to_skip.add("material_index");
+  }
+
+  bke::SpanAttributeWriter<float> aspect_ratios = attributes.lookup_or_add_for_write_span<float>(
+      "aspect_ratio",
+      bke::AttrDomain::Curve,
+      bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
+  aspect_ratios.span.last() = 1.0f;
+  aspect_ratios.finish();
+  curve_attributes_to_skip.add("aspect_ratio");
+
+  bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
+      "u_scale",
+      bke::AttrDomain::Curve,
+      bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
+  u_scales.span.last() = 1.0f;
+  u_scales.finish();
+  curve_attributes_to_skip.add("u_scale");
+
+  MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+  MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+  handles_left.last() = this->screen_to_layer(layer_to_world,
+                                              this->mouse_co -
+                                                  float2(default_handle_px_distance / 2.0f, 0.0f),
+                                              depth_point);
+  handles_right.last() = this->screen_to_layer(layer_to_world,
+                                               this->mouse_co +
+                                                   float2(default_handle_px_distance / 2.0f, 0.0f),
+                                               depth_point);
+  curves.radius_for_write().last() = this->radius;
+
+  for (const StringRef selection_attribute_name :
+       ed::curves::get_curves_selection_attribute_names(curves))
+  {
+    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+        curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+
+    ed::curves::fill_selection_true(selection.span,
+                                    IndexRange::from_single(curves.points_range().last()));
+    selection.finish();
+  }
+
+  /* Initialize the rest of the attributes with default values. */
+  bke::fill_attribute_range_default(
+      attributes,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_from_skip_ref({"position",
+                                           "opacity",
+                                           "radius",
+                                           "handle_left",
+                                           "handle_right",
+                                           "handle_type_left",
+                                           "handle_type_right",
+                                           ".selection",
+                                           ".selection_handle_left",
+                                           ".selection_handle_right"}),
+      curves.points_range().take_back(1));
+  bke::fill_attribute_range_default(attributes,
+                                    bke::AttrDomain::Curve,
+                                    bke::attribute_filter_from_skip_ref(curve_attributes_to_skip),
+                                    curves.curves_range().take_back(1));
+}
+
+bool PenToolOperation::close_curve_and_select(bke::CurvesGeometry &curves,
+                                              const IndexRange points,
+                                              const bool clear_selection)
+{
+  bool changed = false;
+
+  for (const StringRef selection_attribute_name :
+       ed::curves::get_curves_selection_attribute_names(curves))
+  {
+    bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+        curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+
+    const bool last_selected = ed::curves::has_anything_selected(
+        selection_writer.span.slice(IndexRange::from_single(points.last())));
+    const bool first_selected = ed::curves::has_anything_selected(
+        selection_writer.span.slice(IndexRange::from_single(points.first())));
+
+    /* Close the curve by selecting the other end point. */
+    if ((this->closest_element.point_index == points.first() && last_selected) ||
+        (this->closest_element.point_index == points.last() && first_selected))
+    {
+      curves.cyclic_for_write()[this->closest_element.curve_index] = true;
+      curves.calculate_bezier_auto_handles();
+      changed = true;
+    }
+
+    if (clear_selection) {
+      ed::curves::fill_selection_false(selection_writer.span);
+    }
+
+    if (this->select_point) {
+      if ((selection_attribute_name == ".selection" &&
+           this->closest_element.element_mode == ElementMode::Point) ||
+          (selection_attribute_name == ".selection_handle_left" &&
+           this->closest_element.element_mode == ElementMode::HandleLeft) ||
+          (selection_attribute_name == ".selection_handle_right" &&
+           this->closest_element.element_mode == ElementMode::HandleRight))
+      {
+
+        ed::curves::fill_selection_true(
+            selection_writer.span, IndexRange::from_single(this->closest_element.point_index));
+        changed = true;
+      }
+    }
+
+    selection_writer.finish();
+  }
+
+  return changed;
+}
 
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus curves_pen_invoke(bContext * /*C*/,

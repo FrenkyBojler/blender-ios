@@ -19,11 +19,11 @@
 #include "DNA_windowmanager_enums.h"
 
 #include "ED_select_utils.hh"
+#include "ED_view3d.hh"
 
 struct bContext;
 struct Curves;
 struct UndoType;
-struct ViewContext;
 struct rcti;
 struct TransVertStore;
 struct wmKeyConfig;
@@ -45,6 +45,142 @@ void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf);
 
 namespace pen_tool {
 
+enum class ElementMode : int8_t {
+  None = 0,
+  Point = 1,
+  Edge = 2,
+  HandleLeft = 3,
+  HandleRight = 4,
+};
+
+/* Used to scale the default select distance. */
+constexpr float selection_distance_factor = 0.9f;
+constexpr float selection_distance_factor_edge = 0.5f;
+
+/* Edges are prioritized less than all other types. */
+constexpr float selection_edge_priority_factor = 0.1f;
+/* Points will overwrite edges to allow control point to be selected easier. */
+constexpr float selection_point_overwrite_edge_distance_factor = 0.7f;
+
+constexpr float selection_point_overwrite_edge_distance_factor_sq =
+    selection_point_overwrite_edge_distance_factor *
+    selection_point_overwrite_edge_distance_factor;
+
+/* Total number of curve handle types. */
+constexpr int CURVE_HANDLE_TYPES_NUM = 4;
+
+struct ClosestElement {
+  float distance_squared = std::numeric_limits<float>::max();
+  ElementMode element_mode;
+  int point_index = -1;
+  int curve_index = -1;
+  float edge_t = -1.0f;
+  int drawing_index = -1;
+
+  bool is_closer(const float new_distance_squared,
+                 const ElementMode new_element_mode,
+                 const float threshold_distance) const
+  {
+    const float threshold_distance_sq = threshold_distance * threshold_distance;
+
+    if (new_distance_squared > threshold_distance_sq) {
+      return false;
+    }
+
+    float old_priority = 1.0f;
+    float new_priority = 1.0f;
+
+    if (this->element_mode == ElementMode::Edge) {
+      if (new_element_mode != ElementMode::Edge) {
+        old_priority = selection_edge_priority_factor;
+
+        /* Overwrite edges with points if the point is within the overwrite distance. */
+        if (new_distance_squared <
+            threshold_distance_sq * selection_point_overwrite_edge_distance_factor_sq)
+        {
+          return true;
+        }
+      }
+    }
+    else {
+      if (new_element_mode == ElementMode::Edge) {
+        new_priority = selection_edge_priority_factor;
+
+        /* Overwrite edges with points if the point is within the overwrite distance. */
+        if (this->distance_squared <
+            threshold_distance_sq * selection_point_overwrite_edge_distance_factor_sq)
+        {
+          return false;
+        }
+      }
+    }
+
+    if (new_distance_squared * old_priority < this->distance_squared * new_priority) {
+      return true;
+    }
+
+    return false;
+  }
+};
+
+class PenToolOperation {
+ public:
+  ViewContext vc;
+
+  float threshold_distance;
+  float threshold_distance_edge;
+
+  bool extrude_point;
+  bool delete_point;
+  bool insert_point;
+  bool move_seg;
+  bool select_point;
+  bool move_point;
+  bool cycle_handle_type;
+  int extrude_handle;
+  float radius;
+
+  bool move_entire;
+  bool snap_angle;
+  bool move_handle;
+
+  bool point_added;
+  bool point_removed;
+
+  float4x4 projection;
+  float2 mouse_co;
+  float2 xy;
+  float2 prev_xy;
+  float2 center_of_mass_co;
+  ClosestElement closest_element;
+
+  virtual float3 project(const float2 &screen_co) const = 0;
+
+  float2 layer_to_screen(const float4x4 &layer_to_object, const float3 &point) const;
+
+  float3 screen_to_layer(const float4x4 &layer_to_world,
+                         const float2 &screen_co,
+                         const float3 &depth_point_layer) const;
+
+  void move_segment(bke::CurvesGeometry &curves, const float4x4 &layer_to_world) const;
+  bool move_handles_in_curve(bke::CurvesGeometry &curves,
+                             const IndexMask &bezier_points,
+                             const float4x4 &layer_to_world,
+                             const float4x4 &layer_to_object) const;
+
+  std::optional<bke::CurvesGeometry> extrude_curves(const bke::CurvesGeometry &src,
+                                                    const float4x4 &layer_to_object,
+                                                    const IndexMask editable_curves) const;
+
+  void insert_point_to_curve(bke::CurvesGeometry &src) const;
+
+  void add_single_point_and_curve(bke::CurvesGeometry &curves,
+                                  const float4x4 &layer_to_world) const;
+
+  bool close_curve_and_select(bke::CurvesGeometry &curves,
+                              const IndexRange points,
+                              bool clear_selection);
+};
 void pen_tool_common_props(wmOperatorType *ot);
 
 }  // namespace pen_tool
