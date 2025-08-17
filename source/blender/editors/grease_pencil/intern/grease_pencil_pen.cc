@@ -40,12 +40,6 @@
 
 namespace blender::ed::greasepencil {
 
-static const EnumPropertyItem prop_handle_types[] = {
-    {BEZIER_HANDLE_AUTO, "AUTO", 0, "Auto", ""},
-    {BEZIER_HANDLE_VECTOR, "VECTOR", 0, "Vector", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 enum class PenModal : int8_t {
   /* Move the handles of the adjacent control point. */
   MoveHandle = 0,
@@ -1401,33 +1395,8 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
   /* Flags. */
   ot->flag = OPTYPE_UNDO;
 
-  /* properties */
-  WM_operator_properties_mouse_select(ot);
-
-  RNA_def_boolean(ot->srna,
-                  "extrude_point",
-                  false,
-                  "Extrude Point",
-                  "Add a point connected to the last selected point");
-  RNA_def_enum(ot->srna,
-               "extrude_handle",
-               prop_handle_types,
-               BEZIER_HANDLE_VECTOR,
-               "Extrude Handle Type",
-               "Type of the extruded handle");
-  RNA_def_boolean(ot->srna, "delete_point", false, "Delete Point", "Delete an existing point");
-  RNA_def_boolean(
-      ot->srna, "insert_point", false, "Insert Point", "Insert Point into a curve segment");
-  RNA_def_boolean(ot->srna, "move_segment", false, "Move Segment", "Delete an existing point");
-  RNA_def_boolean(
-      ot->srna, "select_point", false, "Select Point", "Select a point or its handles");
-  RNA_def_boolean(ot->srna, "move_point", false, "Move Point", "Move a point or its handles");
-  RNA_def_boolean(ot->srna,
-                  "cycle_handle_type",
-                  false,
-                  "Cycle Handle Type",
-                  "Cycle between all four handle types");
-  RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, FLT_MAX, "Radius", "", 0.0f, 10.0f);
+  /* Properties. */
+  ed::curves::pen_tool_common_props(ot);
 }
 
 }  // namespace blender::ed::greasepencil

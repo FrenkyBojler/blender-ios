@@ -64,7 +64,9 @@ enum class ElementMode : int8_t {
 };
 
 /* Invoke handler: Initialize the operator. */
-static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curves_pen_invoke(bContext * /*C*/,
+                                          wmOperator *op,
+                                          const wmEvent * /*event*/)
 {
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
@@ -74,27 +76,16 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
 }
 
 /* Modal handler: Events handling during interactive part. */
-static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curves_pen_modal(bContext * /*C*/,
+                                         wmOperator * /*op*/,
+                                         const wmEvent * /*event*/)
 {
   /* Still running... */
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void CURVES_OT_pen(wmOperatorType *ot)
+void pen_tool_common_props(wmOperatorType *ot)
 {
-  /* Identifiers. */
-  ot->name = "Curves Pen";
-  ot->idname = "CURVES_OT_pen";
-  ot->description = "Construct and edit splines";
-
-  /* Callbacks. */
-  ot->invoke = curves_pen_invoke;
-  ot->modal = curves_pen_modal;
-
-  /* Flags. */
-  ot->flag = OPTYPE_UNDO;
-
-  /* properties */
   WM_operator_properties_mouse_select(ot);
 
   RNA_def_boolean(ot->srna,
@@ -121,6 +112,24 @@ static void CURVES_OT_pen(wmOperatorType *ot)
                   "Cycle Handle Type",
                   "Cycle between all four handle types");
   RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, FLT_MAX, "Radius", "", 0.0f, 10.0f);
+}
+
+static void CURVES_OT_pen(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Curves Pen";
+  ot->idname = "CURVES_OT_pen";
+  ot->description = "Construct and edit splines";
+
+  /* Callbacks. */
+  ot->invoke = curves_pen_invoke;
+  ot->modal = curves_pen_modal;
+
+  /* Flags. */
+  ot->flag = OPTYPE_UNDO;
+
+  /* Properties. */
+  pen_tool_common_props(ot);
 }
 
 void ED_operatortypes_curves_pen()

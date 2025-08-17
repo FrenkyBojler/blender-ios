@@ -40,6 +40,7 @@ void operatormacros_curves();
 void undosys_type_register(UndoType *ut);
 void keymap_curves(wmKeyConfig *keyconf);
 
+void pen_tool_common_props(wmOperatorType *ot);
 void ED_operatortypes_curves_pen();
 void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf);
 
