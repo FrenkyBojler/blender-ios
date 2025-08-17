@@ -138,10 +138,10 @@ static float2 snap_8_angles(const float2 &p)
   return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
 }
 
-struct PenToolOperation {
+class PenToolOperation {
+ public:
   ViewContext vc;
 
-  GreasePencil *grease_pencil;
   Vector<MutableDrawingInfo> drawings;
 
   /* Helper class to project screen space coordinates to 3D. */
@@ -783,7 +783,12 @@ struct PenToolOperation {
   }
 };
 
-static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
+class GreasePencilPenToolOperation : public PenToolOperation {
+ public:
+  GreasePencil *grease_pencil;
+};
+
+static void grease_pencil_pen_update_view(bContext *C, GreasePencilPenToolOperation &ptd)
 {
   GreasePencil *grease_pencil = ptd.grease_pencil;
 
@@ -794,7 +799,7 @@ static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
 }
 
 /* Will check if the point or handle is closer than the existing element. */
-static void pen_find_closest_point_or_handle(const PenToolOperation &ptd,
+static void pen_find_closest_point_or_handle(const GreasePencilPenToolOperation &ptd,
                                              const bke::greasepencil::Drawing &drawing,
                                              const int layer_index,
                                              const int drawing_index,
@@ -879,7 +884,7 @@ static float2 line_segment_closest_point(const float2 &pos_1,
 }
 
 /* Will check if the edge point is closer than the existing element. */
-static void pen_find_closest_edge_point(const PenToolOperation &ptd,
+static void pen_find_closest_edge_point(const GreasePencilPenToolOperation &ptd,
                                         const bke::greasepencil::Drawing &drawing,
                                         const int layer_index,
                                         const int drawing_index,
@@ -969,7 +974,8 @@ static void pen_find_closest_edge_point(const PenToolOperation &ptd,
   });
 }
 
-static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, const float2 &mouse_co)
+static ClosestElement pen_find_closest_element(const GreasePencilPenToolOperation &ptd,
+                                               const float2 &mouse_co)
 {
   ClosestElement closest_element;
   closest_element.element_mode = ElementMode::None;
@@ -988,7 +994,7 @@ static ClosestElement pen_find_closest_element(const PenToolOperation &ptd, cons
 /**
  * Will return true if a new curve can be created, and report any errors.
  */
-static bool pen_can_create_new_curve(const PenToolOperation &ptd, wmOperator *op)
+static bool pen_can_create_new_curve(const GreasePencilPenToolOperation &ptd, wmOperator *op)
 {
   if (!ptd.grease_pencil->has_active_layer()) {
     BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
@@ -1024,7 +1030,8 @@ static bool pen_can_create_new_curve(const PenToolOperation &ptd, wmOperator *op
   return true;
 }
 
-static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool ends_only)
+static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
+                                       const bool ends_only)
 {
   float2 pos = float2(0.0f, 0.0f);
   int num = 0;
@@ -1071,7 +1078,9 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
   return pos / num;
 }
 
-static void pen_status_indicators(bContext *C, wmOperator *op, const PenToolOperation & /*ptd*/)
+static void pen_status_indicators(bContext *C,
+                                  wmOperator *op,
+                                  const GreasePencilPenToolOperation & /*ptd*/)
 {
   WorkspaceStatus status(C);
   status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
@@ -1098,9 +1107,9 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
   /* Allocate new data. */
-  PenToolOperation *ptd_pointer = MEM_new<PenToolOperation>(__func__);
+  GreasePencilPenToolOperation *ptd_pointer = MEM_new<GreasePencilPenToolOperation>(__func__);
   op->customdata = ptd_pointer;
-  PenToolOperation &ptd = *ptd_pointer;
+  GreasePencilPenToolOperation &ptd = *ptd_pointer;
 
   ptd.vc = vc;
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(vc.obact->data);
@@ -1289,7 +1298,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 /* Exit and free memory. */
 static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
 {
-  PenToolOperation *ptd = static_cast<PenToolOperation *>(op->customdata);
+  GreasePencilPenToolOperation *ptd = static_cast<GreasePencilPenToolOperation *>(op->customdata);
 
   /* Clear status message area. */
   ED_workspace_status_text(C, nullptr);
@@ -1306,7 +1315,8 @@ static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
 /* Modal handler: Events handling during interactive part. */
 static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  PenToolOperation &ptd = *reinterpret_cast<PenToolOperation *>(op->customdata);
+  GreasePencilPenToolOperation &ptd = *reinterpret_cast<GreasePencilPenToolOperation *>(
+      op->customdata);
 
   ptd.mouse_co = float2(event->mval);
   ptd.xy = float2(event->xy);
