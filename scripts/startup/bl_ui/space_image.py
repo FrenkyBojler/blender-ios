@@ -39,7 +39,7 @@ from bpy.app.translations import (
 )
 
 
-class ImagePaintPanel:
+class ImagePaintPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
 
