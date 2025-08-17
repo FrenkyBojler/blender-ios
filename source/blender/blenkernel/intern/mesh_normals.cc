@@ -1252,7 +1252,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
     Vector<bool, 16> local_corner_visited;
     Vector<int, 16> corners_in_fan;
 
-    Vector<CornerSpaceGroup, 0> &local_space_groups = space_groups.local();
+    Vector<CornerSpaceGroup, 0> *local_space_groups =
+        r_fan_spaces ? local_space_groups = &space_groups.local() : nullptr;
 
     for (const int vert : range) {
       const float3 vert_position = vert_positions[vert];
@@ -1309,7 +1310,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
             for (const int i : corners_in_fan.index_range()) {
               corners_fan[i] = corner_infos[corners_in_fan[i]].corner;
             }
-            local_space_groups.append({std::move(corners_fan), space});
+            local_space_groups->append({std::move(corners_fan), space});
           }
         }
 
@@ -1323,7 +1324,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       }
       BLI_assert(visited_count == corner_infos.size());
     }
-  }, threading::accumulated_task_sizes([&](const IndexRange range) { return vert_to_face_map.offsets[range].size(); }));
+  });
 
   if (!r_fan_spaces) {
     return;
@@ -1344,27 +1345,22 @@ void normals_calc_corners(const Span<float3> vert_positions,
     r_fan_spaces->corners_by_space.reinitialize(space_offsets.total_size());
   }
 
-  threading::parallel_for(
-      all_space_groups.index_range(),
-      1024 * 4,
-      [&](const IndexRange range) {
-        for (const int thread_i : range) {
-          Vector<CornerSpaceGroup, 0> &local_space_groups = all_space_groups[thread_i];
-          for (const int group_i : local_space_groups.index_range()) {
-            const int space_index = space_offsets[thread_i][group_i];
-            r_fan_spaces->spaces[space_index] = local_space_groups[group_i].space;
+  threading::parallel_for(all_space_groups.index_range(), 1024 * 4, [&](const IndexRange range) {
+    for (const int thread_i : range) {
+      Vector<CornerSpaceGroup, 0> &local_space_groups = all_space_groups[thread_i];
+      for (const int group_i : local_space_groups.index_range()) {
+        const int space_index = space_offsets[thread_i][group_i];
+        r_fan_spaces->spaces[space_index] = local_space_groups[group_i].space;
 
-            for (const int corner_index : local_space_groups[group_i].corners_fan) {
-              r_fan_spaces->corner_space_indices[corner_index] = space_index;
-            }
-
-            r_fan_spaces->corners_by_space[space_index] = std::move(
-                local_space_groups[group_i].corners_fan);
-          }
+        for (const int corner_index : local_space_groups[group_i].corners_fan) {
+          r_fan_spaces->corner_space_indices[corner_index] = space_index;
         }
-      },
-      threading::accumulated_task_sizes(
-          [&](const IndexRange range) { return space_offsets[range].size(); }));
+
+        r_fan_spaces->corners_by_space[space_index] = std::move(
+            local_space_groups[group_i].corners_fan);
+      }
+    }
+  });
 }
 
 #undef INDEX_UNSET
