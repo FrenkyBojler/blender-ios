@@ -21,15 +21,6 @@ struct FresnelThinFilm {
   float ior;
 };
 
-struct FresnelF82Tint {
-  FresnelThinFilm thin_film;
-
-  /* Perpendicular reflectivity. */
-  Spectrum f0;
-  /* Precomputed (1-cos)^6 factor for edge tint. */
-  Spectrum b;
-};
-
 template<typename T> struct ComplexIOR {
   T eta;
   T k;
@@ -492,7 +483,7 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
                                         const float ambient_ior,
                                         const FresnelThinFilm thin_film,
                                         const ComplexIOR<SpectrumOrFloat> substrate_ior,
-                                        ccl_private const FresnelF82Tint *f82_tint,
+                                        ccl_private const Spectrum *F82,
                                         const float cos_theta_1,
                                         ccl_private float *r_cos_theta_3)
 {
@@ -518,12 +509,16 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   SpectrumOrFloat R23_s, R23_p, phi23_s, phi23_p;
   if constexpr (fresnel_info<SpectrumOrFloat>::conductive) {
     /* Material is a conductor. */
-    if (f82_tint != nullptr) {
-      /* Calculate reflectance based on F82 Tint values if the caller provided them. */
-      const Spectrum f0 = F0_from_ior(ior_from_F0(f82_tint->f0) / film_ior);
-      const Spectrum R23 = fresnel_f82(-cos_theta_2, f0, f82_tint->b);
-      R23_s = R23;
-      R23_p = R23;
+    if (F82 != nullptr) {
+      /* Calculate reflectance using the F82 model if the caller requested it. */
+
+      /* Scale n and k by the film ior, and recompute F0 according to "Artist Friendly Metallic
+       * Fresnel" by Ole Gulbrandsen, Eqs. (14,15). */
+      const Spectrum n = substrate_ior.eta / film_ior;
+      const Spectrum k_sq = sqr(substrate_ior.k / film_ior);
+      const Spectrum F0 = (sqr(n - 1.0f) + k_sq) / (sqr(n + 1.0f) + k_sq);
+      R23_s = fresnel_f82(-cos_theta_2, F0, fresnel_f82_B(F0, *F82));
+      R23_p = R23_s;
 
       fresnel_conductor_polarized(
           -cos_theta_2, film_ior, substrate_ior, nullptr, nullptr, &phi23_s, &phi23_p);
