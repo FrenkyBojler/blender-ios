@@ -11,11 +11,10 @@
 #include "DNA_outliner_types.h"
 #include "DNA_scene_types.h"
 
-#include "DEG_depsgraph_query.hh"
-
 #include "../outliner_intern.hh"
 #include "common.hh"
 #include "tree_display.hh"
+#include "tree_element_depsgraph_id_node.hh"
 
 namespace blender::ed::outliner {
 
@@ -33,12 +32,10 @@ ListBase TreeDisplayEvaluationTime::build_tree(const TreeSourceData &source_data
   Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(
       source_data.bmain, scene, source_data.view_layer);
 
-  TreeElement *telem = add_element(
-      &tree, nullptr, (void *)&scene->id, nullptr, TSE_DEPSGRAPH_ID_NODE, -1);
-
-  DEG_foreach_dependent_ID(depsgraph, &scene->id, [&](ID *id_orig) {
-    add_element(&telem->subtree, nullptr, (void *)id_orig, telem, TSE_DEPSGRAPH_ID_NODE, 0);
-  });
+  DepsgraphIDNodeData data;
+  data.depsgraph = depsgraph;
+  data.orig_id = &scene->id;
+  add_element(&tree, nullptr, (void *)&data, nullptr, TSE_DEPSGRAPH_ID_NODE, -1);
 
   return tree;
 }

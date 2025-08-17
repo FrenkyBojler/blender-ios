@@ -206,8 +206,8 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
       return std::make_unique<TreeElementActionSlot>(
           legacy_te, *reinterpret_cast<blender::animrig::Slot *>(create_data));
     case TSE_DEPSGRAPH_ID_NODE:
-      return std::make_unique<TreeElementDepsgraphIDNode>(legacy_te,
-                                                          *reinterpret_cast<ID *>(create_data));
+      return std::make_unique<TreeElementDepsgraphIDNode>(
+          legacy_te, *reinterpret_cast<DepsgraphIDNodeData *>(create_data));
 
     default:
       break;
