@@ -491,12 +491,27 @@ class NODE_OT_swap_zone(NodeSwapOperator, NodeAddZoneOperator, Operator):
         "GeometryNodeClosureInput" : "Wrap nodes inside a closure that could be executed later",
     }
 
+    @staticmethod
+    def get_zone_pair(tree, node):
+        # Get paired output node
+        if hasattr(node, "paired_output"):
+            return node, node.paired_output
+
+        # Get paired input node
+        for input_node in tree.nodes:
+            if hasattr(input_node, "paired_output"):
+                if input_node.paired_output == node:
+                    return input_node, node
+                
+        return None
+
     @classmethod
     def description(cls, _context, properties):
         return cls.zone_tooltips.get(properties.input_node_type, None)
 
     @classmethod
     def poll(cls, context):
+        
         return (
             (context.area is not None)
             and (context.area.type == "NODE_EDITOR")
@@ -517,26 +532,49 @@ class NODE_OT_swap_zone(NodeSwapOperator, NodeAddZoneOperator, Operator):
         
         # Simulation input must be paired with the output.
         input_node.pair_with_output(output_node)
-        
-        input_node.location = old_node.location
-        output_node.location = old_node.location
 
-        input_node.location -= Vector(self.offset)
-        output_node.location += Vector(self.offset)
-        
+        zone_pair = self.get_zone_pair(tree, old_node)
+
+        if zone_pair is not None:
+            old_input_node, old_output_node = zone_pair
+            
+            input_node.location = old_input_node.location
+            output_node.location = old_output_node.location
+
+            self.transfer_input_values(old_input_node, input_node)
+            self.transfer_input_values(old_output_node, output_node)
+
+            self.transfer_links(tree, old_input_node, input_node, is_input=True)
+            self.transfer_links(tree, old_input_node, input_node, is_input=False)
+
+            self.transfer_links(tree, old_output_node, output_node, is_input=True)
+            self.transfer_links(tree, old_output_node, output_node, is_input=False)
+
+            for node in zone_pair:
+                tree.nodes.remove(node)
+        else:
+            input_node.location = old_node.location
+            output_node.location = old_node.location
+
+            input_node.location -= Vector(self.offset)
+            output_node.location += Vector(self.offset)
+
+            self.transfer_input_values(old_node, input_node)
+
+            self.transfer_links(tree, old_node, input_node, is_input=True)
+            self.transfer_links(tree, old_node, output_node, is_input=False)
+
+            tree.nodes.remove(old_node)
+            
         if self.add_default_geometry_link:
             # Connect geometry sockets by default if available.
             # Get the sockets by their types, because the name is not guaranteed due to i18n.
             from_socket = next(s for s in input_node.outputs if s.type == 'GEOMETRY')
             to_socket = next(s for s in output_node.inputs if s.type == 'GEOMETRY')
-            tree.links.new(to_socket, from_socket)
 
-        self.transfer_input_values(old_node, input_node)
+            if not (from_socket.is_linked or to_socket.is_linked):
+                tree.links.new(to_socket, from_socket)
 
-        self.transfer_links(tree, old_node, input_node, is_input=True)
-        self.transfer_links(tree, old_node, output_node, is_input=False)
-
-        tree.nodes.remove(old_node)
         return {'FINISHED'}
 
 
