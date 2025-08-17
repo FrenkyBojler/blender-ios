@@ -28,6 +28,47 @@ from bpy.app.translations import (
 )
 
 
+def cast_value(source, target):
+    source_type = source.type
+    target_type = target.type
+
+    value=source.default_value
+
+    single_value_to_color = lambda value : Vector((value, value, value, 1.0))
+    single_value_to_vector = lambda value : Vector([value,] * len(target.default_value))
+    color_to_float = lambda color : (0.2126 * color[0]) + (0.7152 * color[1]) + (0.0722 * color[2])
+    vector_to_float = lambda vector : sum(vector)/len(vector)
+
+    func_map = {
+        ('VALUE', 'INT') : int,
+        ('VALUE', 'BOOLEAN') : bool,
+        ('VALUE', 'RGBA') : single_value_to_color,
+        ('VALUE', 'VECTOR') : single_value_to_vector,
+        ('INT', 'BOOLEAN') : bool,
+        ('INT', 'RGBA') : single_value_to_color,
+        ('INT', 'VECTOR') : single_value_to_vector,
+        ('BOOLEAN', 'RGBA') : single_value_to_color,
+        ('BOOLEAN', 'VECTOR') : single_value_to_vector,
+        ('RGBA', 'VALUE') : color_to_float,
+        ('RGBA', 'INT') : lambda color : int(color_to_float(color)),
+        ('RGBA', 'BOOLEAN') : lambda color : bool(color_to_float(color)),
+        ('RGBA', 'VECTOR') : lambda color : color[:len(target.default_value)],
+        ('VECTOR', 'VALUE') : vector_to_float,
+        ('VECTOR', 'INT') : lambda vector : int(vector_to_float(vector)),
+        ('VECTOR', 'BOOLEAN') : lambda vector : bool(vector_to_float(vector)),
+        ('VECTOR', 'RGBA') : lambda vector : list(vector).extend([0.0] * (len(target.default_value) - len(vector))) 
+    }
+
+    if source_type == target_type:
+        return value
+    
+    cast_func = func_map.get((source_type, target_type))
+    if cast_func is not None:
+        return cast_func(value)
+
+    return None
+
+
 class NodeSetting(PropertyGroup):
     __slots__ = ()
 
@@ -148,7 +189,12 @@ class NodeSwapOperator:
     def transfer_input_values(old_node, new_node):
         for input in old_node.inputs:
             try:
-                new_node.inputs[input.name].default_value = input.default_value
+                new_socket = new_node.inputs[input.name]
+                new_value = cast_value(source=input, target=new_socket)
+
+                if new_value is not None:
+                    new_socket.default_value = new_value
+
             except (AttributeError, KeyError):
                 pass
 
