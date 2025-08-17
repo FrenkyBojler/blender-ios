@@ -4108,6 +4108,11 @@ void draw_outliner(const bContext *C, bool do_rebuild)
           mainvar, block, region, space_outliner, &space_outliner->tree, x);
     }
   }
+  else if (space_outliner->outlinevis == SO_EVALUATION_TIME) {
+    int buttons_start_x = outliner_data_api_buttons_start_x(tree_width);
+    outliner_draw_separator(region, buttons_start_x);
+    outliner_draw_separator(region, buttons_start_x + OL_RNA_COL_SIZEX);
+  }
   else if (right_column_width > 0.0f) {
     /* draw restriction columns */
     RestrictPropertiesActive props_active;

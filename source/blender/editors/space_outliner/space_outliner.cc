@@ -328,7 +328,12 @@ static void outliner_main_region_message_subscribe(const wmRegionMessageSubscrib
   msg_sub_value_region_tag_redraw.user_data = region;
   msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
 
-  if (ELEM(space_outliner->outlinevis, SO_VIEW_LAYER, SO_SCENES, SO_OVERRIDES_LIBRARY)) {
+  if (ELEM(space_outliner->outlinevis,
+           SO_VIEW_LAYER,
+           SO_SCENES,
+           SO_OVERRIDES_LIBRARY,
+           SO_EVALUATION_TIME))
+  {
     WM_msg_subscribe_rna_anon_prop(mbus, Window, view_layer, &msg_sub_value_region_tag_redraw);
   }
 }

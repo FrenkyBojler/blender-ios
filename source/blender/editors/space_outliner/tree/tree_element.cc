@@ -23,6 +23,7 @@
 #include "tree_element_collection.hh"
 #include "tree_element_constraint.hh"
 #include "tree_element_defgroup.hh"
+#include "tree_element_depsgraph_id_node.hh"
 #include "tree_element_driver.hh"
 #include "tree_element_edit_bone.hh"
 #include "tree_element_gpencil_effect.hh"
@@ -204,6 +205,9 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
     case TSE_ACTION_SLOT:
       return std::make_unique<TreeElementActionSlot>(
           legacy_te, *reinterpret_cast<blender::animrig::Slot *>(create_data));
+    case TSE_DEPSGRAPH_ID_NODE:
+      return std::make_unique<TreeElementDepsgraphIDNode>(legacy_te,
+                                                          *reinterpret_cast<ID *>(create_data));
 
     default:
       break;

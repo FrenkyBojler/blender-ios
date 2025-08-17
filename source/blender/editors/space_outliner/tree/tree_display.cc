@@ -38,6 +38,8 @@ std::unique_ptr<AbstractTreeDisplay> AbstractTreeDisplay::create_from_display_mo
       break;
     case SO_VIEW_LAYER:
       return std::make_unique<TreeDisplayViewLayer>(space_outliner);
+    case SO_EVALUATION_TIME:
+      return std::make_unique<TreeDisplayEvaluationTime>(space_outliner);
   }
 
   BLI_assert_unreachable();

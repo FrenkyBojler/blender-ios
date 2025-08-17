@@ -365,6 +365,10 @@ TreeElement *AbstractTreeDisplay::add_element(ListBase *lb,
     BLI_assert_msg(te->abstract_element != nullptr,
                    "Expected override types to be ported to new Outliner tree-element design");
   }
+  else if (type == TSE_DEPSGRAPH_ID_NODE) {
+    BLI_assert_msg(te->abstract_element != nullptr,
+                   "Expected this ID type to be ported to new Outliner tree-element design");
+  }
   else {
     /* Other cases must be caught above. */
     BLI_assert(TSE_IS_REAL_ID(tselem));

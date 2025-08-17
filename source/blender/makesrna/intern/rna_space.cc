@@ -4136,6 +4136,11 @@ static void rna_def_space_outliner(BlenderRNA *brna)
        ICON_ORPHAN_DATA,
        "Unused Data",
        "Display data that is unused and/or will be lost when the file is reloaded"},
+      {SO_EVALUATION_TIME,
+       "SO_EVALUATION_TIME",
+       ICON_TIME,
+       "Evaluation Time",
+       "Display evaluation times of data-blocks of the current scene and viewlayer"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

@@ -284,4 +284,17 @@ class TreeDisplayDataAPI final : public AbstractTreeDisplay {
   bool is_lazy_built() const override;
 };
 
+/* -------------------------------------------------------------------- */
+/* Data API Tree-Display */
+
+/**
+ * \brief Tree-Display for the Scenes display mode
+ */
+class TreeDisplayEvaluationTime final : public AbstractTreeDisplay {
+ public:
+  TreeDisplayEvaluationTime(SpaceOutliner &space_outliner);
+
+  ListBase build_tree(const TreeSourceData &source_data) override;
+};
+
 }  // namespace blender::ed::outliner

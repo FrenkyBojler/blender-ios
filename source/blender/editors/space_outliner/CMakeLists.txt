@@ -31,6 +31,7 @@ set(SRC
   tree/common.cc
   tree/tree_display.cc
   tree/tree_display_data.cc
+  tree/tree_display_evaluation_time.cc
   tree/tree_display_libraries.cc
   tree/tree_display_orphaned.cc
   tree/tree_display_override_library_hierarchies.cc
@@ -46,6 +47,7 @@ set(SRC
   tree/tree_element_collection.cc
   tree/tree_element_constraint.cc
   tree/tree_element_defgroup.cc
+  tree/tree_element_depsgraph_id_node.cc
   tree/tree_element_driver.cc
   tree/tree_element_edit_bone.cc
   tree/tree_element_gpencil_effect.cc
@@ -92,6 +94,7 @@ set(SRC
   tree/tree_element_collection.hh
   tree/tree_element_constraint.hh
   tree/tree_element_defgroup.hh
+  tree/tree_element_depsgraph_id_node.hh
   tree/tree_element_driver.hh
   tree/tree_element_edit_bone.hh
   tree/tree_element_gpencil_effect.hh
