@@ -1290,17 +1290,25 @@ void normals_calc_corners(const Span<float3> vert_positions,
       edge_dirs.resize(edge_infos.size());
       calc_edge_directions(vert_positions, local_edge_by_vert, vert_position, edge_dirs);
 
+      local_corner_visited.resize(vert_faces.size());
+      local_corner_visited.fill(false);
+
       /* Though we are protected from traversing to the same corner twice by the fact that 3-way
        * connections are marked sharp, we need to maintain the "visited" status of each corner so
        * we can find the next start corner for each subsequent fan traversal. Keeping track of the
        * number of visited corners is a quick way to avoid this book keeping for the final fan (and
        * there are usually just two, so that should be worth it). */
       int visited_count = 0;
-      local_corner_visited.resize(vert_faces.size());
-      local_corner_visited.fill(false);
-
       int start_local_corner = 0;
-      while (start_local_corner != local_corner_visited.size()) {
+      BLI_assert(vert_faces.size() == corner_infos.size());
+      while (visited_count < corner_infos.size()) {
+        /* Start traversing the next smooth fan mixed in shared index space. */
+        BLI_assert(!local_corner_visited.as_span().take_front(start_local_corner).contains(false));
+        BLI_assert(local_corner_visited.as_span().drop_front(start_local_corner).contains(false));
+        while (local_corner_visited[start_local_corner]) {
+          start_local_corner++;
+        }
+
         corners_in_fan.clear();
         traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
 
@@ -1317,17 +1325,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
           r_corner_normals[info.corner] = fan_normal;
         }
 
-        visited_count += corners_in_fan.size();
-        if (visited_count == corner_infos.size()) {
-          break;
-        }
         local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), true);
-        BLI_assert(!local_corner_visited.as_span().take_front(start_local_corner).contains(false));
-        start_local_corner = std::distance(
-            local_corner_visited.begin(),
-            std::find(local_corner_visited.begin() + start_local_corner,
-                      local_corner_visited.end(),
-                      false));
+        visited_count += corners_in_fan.size();
       }
       BLI_assert(visited_count == corner_infos.size());
     }
