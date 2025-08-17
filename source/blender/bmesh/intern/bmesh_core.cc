@@ -1343,7 +1343,6 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
 
       BM_face_kill(bm, f_new);
       f_new = f_existing;
-
     }
   }
 
