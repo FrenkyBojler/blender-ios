@@ -12,13 +12,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry").multi_input();
+  b.add_input<decl::Geometry>("Geometry")
+      .multi_input()
+      .description("Geometries to merge together by concatenating their elements");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Vector<GeometrySet> geometry_sets = params.extract_input<Vector<GeometrySet>>("Geometry");
+  Vector<SocketValueVariant> input_values = params.extract_input<Vector<SocketValueVariant>>(
+      "Geometry");
+  Vector<GeometrySet> geometry_sets;
+  for (SocketValueVariant &value : input_values) {
+    geometry_sets.append(value.extract<GeometrySet>());
+  }
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Geometry");
 

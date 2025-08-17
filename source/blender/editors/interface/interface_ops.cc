@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_armature_types.h"
+#include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h" /* for handling geometry nodes properties */
 #include "DNA_object_types.h"   /* for OB_DATA_SUPPORT_ID */
@@ -24,6 +25,7 @@
 #include "BLI_math_color.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLF_api.hh"
 #include "BLT_lang.hh"
@@ -627,7 +629,7 @@ static wmOperatorStatus override_type_set_button_invoke(bContext *C,
                                                         const wmEvent * /*event*/)
 {
 #if 0 /* Disabled for now */
-  return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_DEFAULT);
+  return WM_menu_invoke_ex(C, op, blender::wm::OpCallContext::InvokeDefault);
 #else
   RNA_enum_set(op->ptr, "type", LIBOVERRIDE_OP_REPLACE);
   return override_type_set_button_exec(C, op);
@@ -1023,8 +1025,8 @@ static void override_idtemplate_menu()
   MenuType *mt;
 
   mt = MEM_callocN<MenuType>(__func__);
-  STRNCPY(mt->idname, "UI_MT_idtemplate_liboverride");
-  STRNCPY(mt->label, N_("Library Override"));
+  STRNCPY_UTF8(mt->idname, "UI_MT_idtemplate_liboverride");
+  STRNCPY_UTF8(mt->label, N_("Library Override"));
   mt->poll = override_idtemplate_menu_poll;
   mt->draw = override_idtemplate_menu_draw;
   WM_menutype_add(mt);
@@ -1086,6 +1088,22 @@ static void ui_context_fcurve_modifiers_via_fcurve(bContext *C,
         /* Since names are unique it is safe to break here. */
         break;
       }
+    }
+  }
+}
+
+static void ui_context_selected_key_blocks(ID *owner_id_key, blender::Vector<PointerRNA> *r_lb)
+{
+  /* This function chooses to return the selected keyblocks of the owning Key ID.
+   * The other option would be to return identically named keyblocks from selected objects. I
+   * (christoph) think that the first case is more useful which is why the function works as it
+   * does. */
+  Key *containing_key = reinterpret_cast<Key *>(owner_id_key);
+  LISTBASE_FOREACH (KeyBlock *, key_block, &containing_key->block) {
+    /* This does not use the function `shape_key_is_selected` since that would include the active
+     * shapekey which is not required for this function to work. */
+    if (key_block->flag & KEYBLOCK_SEL) {
+      r_lb->append(RNA_pointer_create_discrete(owner_id_key, &RNA_ShapeKey, key_block));
     }
   }
 }
@@ -1156,7 +1174,15 @@ bool UI_context_copy_to_selected_list(bContext *C,
   }
 
   if (RNA_struct_is_a(ptr->type, &RNA_EditBone)) {
-    *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+    /* Special case when we do this for #edit_bone.lock.
+     * (if the edit_bone is locked, it is not included in "selected_editable_bones"). */
+    const char *prop_id = RNA_property_identifier(prop);
+    if (STREQ(prop_id, "lock")) {
+      *r_lb = CTX_data_collection_get(C, "selected_bones");
+    }
+    else {
+      *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+    }
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_PoseBone)) {
     *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
@@ -1243,6 +1269,9 @@ bool UI_context_copy_to_selected_list(bContext *C,
   else if (RNA_struct_is_a(ptr->type, &RNA_MovieTrackingTrack)) {
     *r_lb = CTX_data_collection_get(C, "selected_movieclip_tracks");
   }
+  else if (RNA_struct_is_a(ptr->type, &RNA_ShapeKey)) {
+    ui_context_selected_key_blocks(ptr->owner_id, r_lb);
+  }
   else if (const std::optional<std::string> path_from_bone =
                RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_PoseBone);
            RNA_struct_is_a(ptr->type, &RNA_Constraint) && path_from_bone)
@@ -1287,6 +1316,12 @@ bool UI_context_copy_to_selected_list(bContext *C,
 
     *r_lb = lb;
     *r_path = path;
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_AssetMetaData)) {
+    /* Remap from #AssetRepresentation to #AssetMetaData. */
+    blender::Vector<PointerRNA> list_of_things = CTX_data_collection_get(C, "selected_assets");
+    CTX_data_collection_remap_property(list_of_things, "metadata");
+    *r_lb = list_of_things;
   }
   else if (CTX_wm_space_outliner(C)) {
     const ID *id = ptr->owner_id;
@@ -1982,8 +2017,8 @@ static bool jump_to_target_button(bContext *C, bool poll)
     }
     /* For string properties with prop_search, look up the search collection item. */
     if (type == PROP_STRING) {
-      const uiButSearch *search_but = (but->type == UI_BTYPE_SEARCH_MENU) ? (uiButSearch *)but :
-                                                                            nullptr;
+      const uiButSearch *search_but = (but->type == ButType::SearchMenu) ? (uiButSearch *)but :
+                                                                           nullptr;
 
       if (search_but && search_but->items_update_fn == ui_rna_collection_search_update_fn) {
         uiRNACollectionSearch *coll_search = static_cast<uiRNACollectionSearch *>(search_but->arg);
@@ -2158,7 +2193,7 @@ static wmOperatorStatus editsource_text_edit(bContext *C,
   RNA_int_set(&op_props, "column", 0);
 
   wmOperatorStatus result = WM_operator_name_call_ptr(
-      C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+      C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
   return result;
 }
@@ -2419,7 +2454,7 @@ static wmOperatorStatus drop_color_invoke(bContext *C, wmOperator *op, const wmE
    * if it does copy the data */
   but = ui_region_find_active_but(region);
 
-  if (but && but->type == UI_BTYPE_COLOR && but->rnaprop) {
+  if (but && but->type == ButType::Color && but->rnaprop) {
     if (!has_alpha) {
       color[3] = 1.0f;
     }
@@ -2502,12 +2537,9 @@ static bool drop_name_poll(bContext *C)
 static wmOperatorStatus drop_name_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   uiBut *but = UI_but_active_drop_name_button(C);
-  char *str = RNA_string_get_alloc(op->ptr, "string", nullptr, 0, nullptr);
+  std::string str = RNA_string_get(op->ptr, "string");
 
-  if (str) {
-    ui_but_set_string_interactive(C, but, str);
-    MEM_freeN(str);
-  }
+  ui_but_set_string_interactive(C, but, str.c_str());
 
   return OPERATOR_FINISHED;
 }

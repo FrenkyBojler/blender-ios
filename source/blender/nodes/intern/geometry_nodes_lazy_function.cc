@@ -22,6 +22,7 @@
 
 #include "NOD_geometry_exec.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
 
@@ -53,6 +54,9 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "GEO_foreach_geometry.hh"
+
+#include "list_function_eval.hh"
 #include "volume_grid_function_eval.hh"
 
 #include <fmt/format.h>
@@ -350,23 +354,13 @@ class LazyFunctionForMultiInput : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
   {
-    /* Currently we only have multi-inputs for geometry and value sockets. This could be
-     * generalized in the future. */
-    base_type_->to_static_type_tag<GeometrySet, SocketValueVariant>([&](auto type_tag) {
-      using T = typename decltype(type_tag)::type;
-      if constexpr (std::is_void_v<T>) {
-        /* This type is not supported in this node for now. */
-        BLI_assert_unreachable();
-      }
-      else {
-        void *output_ptr = params.get_output_data_ptr(0);
-        Vector<T> &values = *new (output_ptr) Vector<T>();
-        for (const int i : inputs_.index_range()) {
-          values.append(params.extract_input<T>(i));
-        }
-        params.output_set(0);
-      }
-    });
+    BLI_assert(base_type_ == &CPPType::get<SocketValueVariant>());
+    void *output_ptr = params.get_output_data_ptr(0);
+    auto &values = *new (output_ptr) Vector<SocketValueVariant>();
+    for (const int i : inputs_.index_range()) {
+      values.append(params.extract_input<SocketValueVariant>(i));
+    }
+    params.output_set(0);
   }
 };
 
@@ -517,10 +511,10 @@ static void execute_multi_function_on_value_variant__field(
   /* Construct the new field node. */
   std::shared_ptr<fn::FieldOperation> operation;
   if (owned_fn) {
-    operation = fn::FieldOperation::Create(owned_fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(owned_fn, std::move(input_fields));
   }
   else {
-    operation = fn::FieldOperation::Create(fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(fn, std::move(input_fields));
   }
 
   /* Store the new fields in the output. */
@@ -536,7 +530,7 @@ static void execute_multi_function_on_value_variant__field(
  * Executes a multi-function. If all inputs are single values, the results will also be single
  * values. If any input is a field, the outputs will also be fields.
  */
-[[nodiscard]] static bool execute_multi_function_on_value_variant(
+[[nodiscard]] bool execute_multi_function_on_value_variant(
     const MultiFunction &fn,
     const std::shared_ptr<MultiFunction> &owned_fn,
     const Span<SocketValueVariant *> input_values,
@@ -547,6 +541,7 @@ static void execute_multi_function_on_value_variant__field(
   /* Check input types which determine how the function is evaluated. */
   bool any_input_is_field = false;
   bool any_input_is_volume_grid = false;
+  bool any_input_is_list = false;
   for (const int i : input_values.index_range()) {
     const SocketValueVariant &value = *input_values[i];
     if (value.is_context_dependent_field()) {
@@ -555,11 +550,18 @@ static void execute_multi_function_on_value_variant__field(
     else if (value.is_volume_grid()) {
       any_input_is_volume_grid = true;
     }
+    else if (value.is_list()) {
+      any_input_is_list = true;
+    }
   }
 
   if (any_input_is_volume_grid) {
     return execute_multi_function_on_value_variant__volume_grid(
         fn, input_values, output_values, r_error_message);
+  }
+  if (any_input_is_list) {
+    execute_multi_function_on_value_variant__list(fn, input_values, output_values, user_data);
+    return true;
   }
   if (any_input_is_field) {
     execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
@@ -881,7 +883,7 @@ class LazyFunctionForViewerNode : public LazyFunction {
       return;
     }
 
-    GeometrySet geometry = params.extract_input<GeometrySet>(0);
+    GeometrySet geometry = params.extract_input<SocketValueVariant>(0).extract<GeometrySet>();
     const NodeGeometryViewer *storage = static_cast<NodeGeometryViewer *>(bnode_.storage);
 
     if (use_field_input_) {
@@ -899,7 +901,7 @@ class LazyFunctionForViewerNode : public LazyFunction {
         }
       }
       else {
-        geometry.modify_geometry_sets([&](GeometrySet &geometry) {
+        geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
           for (const bke::GeometryComponent::Type type :
                {bke::GeometryComponent::Type::Mesh,
                 bke::GeometryComponent::Type::PointCloud,
@@ -1013,7 +1015,7 @@ class LazyFunctionForGizmoNode : public LazyFunction {
           socket->identifier, *socket->typeinfo->geometry_nodes_cpp_type, lf::ValueUsage::Maybe);
     }
     r_lf_index_by_bsocket[bnode.output_socket(0).index_in_tree()] =
-        outputs_.append_and_get_index_as("Transform", CPPType::get<GeometrySet>());
+        outputs_.append_and_get_index_as("Transform", CPPType::get<SocketValueVariant>());
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
@@ -1030,7 +1032,7 @@ class LazyFunctionForGizmoNode : public LazyFunction {
       edit_data.gizmo_edit_hints_ = std::make_unique<bke::GizmoEditHints>();
       edit_data.gizmo_edit_hints_->gizmo_transforms.add(
           {user_data.compute_context->hash(), bnode_.identifier}, float4x4::identity());
-      params.set_output(0, std::move(geometry));
+      params.set_output(0, SocketValueVariant::From(std::move(geometry)));
     }
 
     /* Request all inputs so that their values can be logged. */
@@ -2064,7 +2066,7 @@ struct GeometryNodesLazyFunctionBuilder {
         case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT:
           this->build_foreach_geometry_element_zone_function(zone);
           break;
-        case GEO_NODE_CLOSURE_OUTPUT:
+        case NODE_CLOSURE_OUTPUT:
           this->build_closure_zone_function(zone);
           break;
         default: {
@@ -2157,7 +2159,8 @@ struct GeometryNodesLazyFunctionBuilder {
         lf_graph.add_link(lf_from, lf_to);
       }
       else {
-        lf_to.set_default_value(lf_to.type().default_value());
+        const bNodeSocket &bsocket = zone.output_node()->input_socket(i + 1);
+        lf_to.set_default_value(bsocket.typeinfo->geometry_nodes_default_cpp_value);
       }
     }
 
@@ -2955,7 +2958,7 @@ struct GeometryNodesLazyFunctionBuilder {
         this->build_menu_switch_node(bnode, graph_params);
         break;
       }
-      case GEO_NODE_EVALUATE_CLOSURE: {
+      case NODE_EVALUATE_CLOSURE: {
         this->build_evaluate_closure_node(bnode, graph_params);
         break;
       }
@@ -3226,8 +3229,8 @@ struct GeometryNodesLazyFunctionBuilder {
           const bNodeLink *link = multi_input_lazy_function.links[i];
           graph_params.lf_input_by_multi_input_link.add(link, &lf_multi_input_socket);
           mapping_->bsockets_by_lf_socket_map.add(&lf_multi_input_socket, bsocket);
-          const void *default_value = lf_multi_input_socket.type().default_value();
-          lf_multi_input_socket.set_default_value(default_value);
+          lf_multi_input_socket.set_default_value(
+              bsocket->typeinfo->geometry_nodes_default_cpp_value);
         }
       }
       else {
@@ -3801,7 +3804,6 @@ struct GeometryNodesLazyFunctionBuilder {
         continue;
       }
       const bke::bNodeSocketType &to_typeinfo = *type_with_links.typeinfo;
-      const CPPType &to_type = *to_typeinfo.geometry_nodes_cpp_type;
       const Span<const bNodeLink *> links = type_with_links.links;
 
       lf::OutputSocket *converted_from_lf_socket = this->insert_type_conversion_if_necessary(
@@ -3811,9 +3813,8 @@ struct GeometryNodesLazyFunctionBuilder {
         const Vector<lf::InputSocket *> lf_link_targets = this->find_link_targets(*link,
                                                                                   graph_params);
         if (converted_from_lf_socket == nullptr) {
-          const void *default_value = to_type.default_value();
           for (lf::InputSocket *to_lf_socket : lf_link_targets) {
-            to_lf_socket->set_default_value(default_value);
+            to_lf_socket->set_default_value(to_typeinfo.geometry_nodes_default_cpp_value);
           }
         }
         else {
