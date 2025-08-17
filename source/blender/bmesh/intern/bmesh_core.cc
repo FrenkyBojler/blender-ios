@@ -1335,19 +1335,15 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
         }
       }
 
-      /* Remove whichever face is worse. In a tie remove the new face, keep the existing face. */
-      if (existing_face_matching_edges >= new_face_matching_edges) {
-        /* Reuse the existing face.
-         * f_existing remains set, reusing_face will be true and attribute copy is skipped. */
-        BM_face_kill(bm, f_new);
-        f_new = f_existing;
+      /* If the new faces had better orientation than the doubled face, flip the doubled face. */
+      if (new_face_matching_edges > existing_face_matching_edges) {
+        const int cd_loop_mdisp_offset = CustomData_get_offset(&bm->ldata, CD_MDISPS);
+        BM_face_normal_flip_ex(bm, f_existing, cd_loop_mdisp_offset, true);
       }
-      else {
-        /* Use the new face.
-         * f_existing is nullptr, reusing_face will be false, attribute data will be copied. */
-        BM_face_kill(bm, f_existing);
-        f_existing = nullptr;
-      }
+
+      BM_face_kill(bm, f_new);
+      f_new = f_existing;
+
     }
   }
 
