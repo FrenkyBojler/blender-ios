@@ -1253,7 +1253,7 @@ class IMAGE_PT_paint_settings(Panel, ImagePaintPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        settings = context.tool_settings.image_paint
+        settings = self.paint_settings(context)
         brush = settings.brush
 
         if brush:
@@ -1267,13 +1267,18 @@ class IMAGE_PT_paint_settings_advanced(Panel, ImagePaintPanel):
     bl_label = "Advanced"
     bl_ui_units_x = 12
 
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and settings.brush is not None
+
     def draw(self, context):
         layout = self.layout
 
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        settings = context.tool_settings.image_paint
+        settings = self.paint_settings(context)
         brush = settings.brush
         if brush:
             brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
