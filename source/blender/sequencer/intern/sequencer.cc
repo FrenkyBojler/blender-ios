@@ -424,12 +424,12 @@ ListBase *active_seqbase_get(const Editing *ed)
     return nullptr;
   }
 
-  return ed->active_strips();
+  return ed->current_strips();
 }
 
 void active_seqbase_set(Editing *ed, Strip *meta_strip)
 {
-  ed->active_meta_strip = meta_strip;
+  ed->current_meta_strip = meta_strip;
 }
 
 static MetaStack *seq_meta_stack_alloc(const Scene *scene, Strip *strip_meta)
@@ -1155,34 +1155,34 @@ void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase)
 
 }  // namespace blender::seq
 
-ListBase *Editing::active_strips()
+ListBase *Editing::current_strips()
 {
-  if (this->active_meta_strip) {
-    return &this->active_meta_strip->seqbase;
+  if (this->current_meta_strip) {
+    return &this->current_meta_strip->seqbase;
   }
   return &this->seqbase;
 }
 
-ListBase *Editing::active_strips() const
+ListBase *Editing::current_strips() const
 {
-  if (this->active_meta_strip) {
-    return &this->active_meta_strip->seqbase;
+  if (this->current_meta_strip) {
+    return &this->current_meta_strip->seqbase;
   }
   return &const_cast<ListBase &>(this->seqbase);
 }
 
-ListBase *Editing::active_displayed_channels()
+ListBase *Editing::current_channels()
 {
-  if (this->displayed_channels_strip) {
-    return &this->displayed_channels_strip->channels;
+  if (this->current_channels_strip) {
+    return &this->current_channels_strip->channels;
   }
   return &this->channels;
 }
 
-ListBase *Editing::active_displayed_channels() const
+ListBase *Editing::current_channels() const
 {
-  if (this->displayed_channels_strip) {
-    return &this->displayed_channels_strip->channels;
+  if (this->current_channels_strip) {
+    return &this->current_channels_strip->channels;
   }
   return &const_cast<ListBase &>(this->channels);
 }

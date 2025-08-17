@@ -1348,10 +1348,10 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
     ed->act_strip = static_cast<Strip *>(
         BLO_read_get_new_data_address_no_us(reader, ed->act_strip, sizeof(Strip)));
-    ed->active_meta_strip = static_cast<Strip *>(
-        BLO_read_get_new_data_address_no_us(reader, ed->active_meta_strip, sizeof(Strip)));
-    ed->displayed_channels_strip = static_cast<Strip *>(
-        BLO_read_get_new_data_address_no_us(reader, ed->displayed_channels_strip, sizeof(Strip)));
+    ed->current_meta_strip = static_cast<Strip *>(
+        BLO_read_get_new_data_address_no_us(reader, ed->current_meta_strip, sizeof(Strip)));
+    ed->current_channels_strip = static_cast<Strip *>(
+        BLO_read_get_new_data_address_no_us(reader, ed->current_channels_strip, sizeof(Strip)));
     ed->prefetch_job = nullptr;
     ed->runtime.strip_lookup = nullptr;
     ed->runtime.media_presence = nullptr;

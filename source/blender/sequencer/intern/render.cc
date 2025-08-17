@@ -1991,8 +1991,8 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     chanshown = 0;
   }
   else {
-    seqbasep = ed->active_strips();
-    channels = ed->active_displayed_channels();
+    seqbasep = ed->current_strips();
+    channels = ed->current_channels();
   }
 
   intra_frame_cache_set_cur_frame(

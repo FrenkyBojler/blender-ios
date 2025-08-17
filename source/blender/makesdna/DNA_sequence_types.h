@@ -332,8 +332,8 @@ typedef struct EditingRuntime {
 
 typedef struct Editing {
   /** The current list of strips being edited (can be within a meta-strip). */
-  Strip *active_meta_strip;
-  Strip *displayed_channels_strip;
+  Strip *current_meta_strip;
+  Strip *current_channels_strip;
   void *_pad0;
   /** Pointer to the top-most strips. */
   ListBase seqbase;
@@ -358,12 +358,12 @@ typedef struct Editing {
 
 #ifdef __cplusplus
   /** Access currently displayed strips, from root sequence or a meta-strip. */
-  ListBase *active_strips();
-  ListBase *active_strips() const;
+  ListBase *current_strips();
+  ListBase *current_strips() const;
 
   /** Access currently displayed channels, from root sequence or a meta-strip. */
-  ListBase *active_displayed_channels();
-  ListBase *active_displayed_channels() const;
+  ListBase *current_channels();
+  ListBase *current_channels() const;
 #endif
 } Editing;
 

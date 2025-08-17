@@ -171,7 +171,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
                                    scene_src,
                                    scene_dst,
                                    &scene_dst->ed->seqbase,
-                                   scene_src->ed->active_strips(),
+                                   scene_src->ed->current_strips(),
                                    seq::StripDuplicate::Selected,
                                    0);
 
@@ -315,7 +315,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->active_strips());
+  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
 
   if (selected.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -324,7 +324,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   blender::VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
   seq::iterator_set_expand(
-      scene, ed->active_strips(), effect_chain, seq::query_strip_effect_chain);
+      scene, ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
 
   blender::VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
@@ -497,7 +497,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   BKE_id_delete(bmain_dst, scene_src);
 
   Strip *iseq_first = static_cast<Strip *>(nseqbase.first);
-  BLI_movelisttolist(ed_dst->active_strips(), &nseqbase);
+  BLI_movelisttolist(ed_dst->current_strips(), &nseqbase);
   /* Restore "first" pointer as BLI_movelisttolist sets it to nullptr */
   nseqbase.first = iseq_first;
 
@@ -515,8 +515,8 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
      * strip. */
     seq::transform_translate_strip(scene_dst, istrip, ofs);
     /* Ensure, that pasted strips don't overlap. */
-    if (seq::transform_test_overlap(scene_dst, ed_dst->active_strips(), istrip)) {
-      seq::transform_seqbase_shuffle(ed_dst->active_strips(), istrip, scene_dst);
+    if (seq::transform_test_overlap(scene_dst, ed_dst->current_strips(), istrip)) {
+      seq::transform_seqbase_shuffle(ed_dst->current_strips(), istrip, scene_dst);
     }
   }
 
