@@ -40,6 +40,8 @@
 
 namespace blender::ed::curves {
 
+namespace pen_tool {
+
 static const EnumPropertyItem prop_handle_types[] = {
     {BEZIER_HANDLE_AUTO, "AUTO", 0, "Auto", ""},
     {BEZIER_HANDLE_VECTOR, "VECTOR", 0, "Vector", ""},
@@ -114,6 +116,8 @@ void pen_tool_common_props(wmOperatorType *ot)
   RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, FLT_MAX, "Radius", "", 0.0f, 10.0f);
 }
 
+}  // namespace pen_tool
+
 static void CURVES_OT_pen(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -122,14 +126,14 @@ static void CURVES_OT_pen(wmOperatorType *ot)
   ot->description = "Construct and edit splines";
 
   /* Callbacks. */
-  ot->invoke = curves_pen_invoke;
-  ot->modal = curves_pen_modal;
+  ot->invoke = pen_tool::curves_pen_invoke;
+  ot->modal = pen_tool::curves_pen_modal;
 
   /* Flags. */
   ot->flag = OPTYPE_UNDO;
 
   /* Properties. */
-  pen_tool_common_props(ot);
+  pen_tool::pen_tool_common_props(ot);
 }
 
 void ED_operatortypes_curves_pen()
@@ -140,7 +144,7 @@ void ED_operatortypes_curves_pen()
 
 void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
-  using namespace blender::ed::curves;
+  using namespace blender::ed::curves::pen_tool;
   static const EnumPropertyItem modal_items[] = {
       {int(PenModal::MoveHandle),
        "MOVE_HANDLE",

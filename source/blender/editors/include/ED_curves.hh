@@ -40,9 +40,14 @@ void operatormacros_curves();
 void undosys_type_register(UndoType *ut);
 void keymap_curves(wmKeyConfig *keyconf);
 
-void pen_tool_common_props(wmOperatorType *ot);
 void ED_operatortypes_curves_pen();
 void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf);
+
+namespace pen_tool {
+
+void pen_tool_common_props(wmOperatorType *ot);
+
+}  // namespace pen_tool
 
 /**
  * Return an owning pointer to an array of point normals the same size as the number of control

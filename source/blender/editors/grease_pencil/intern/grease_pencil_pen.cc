@@ -1396,7 +1396,7 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 
   /* Properties. */
-  ed::curves::pen_tool_common_props(ot);
+  ed::curves::pen_tool::pen_tool_common_props(ot);
 }
 
 }  // namespace blender::ed::greasepencil
