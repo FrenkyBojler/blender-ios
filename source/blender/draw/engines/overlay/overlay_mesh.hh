@@ -817,8 +817,7 @@ class MeshUVs : Overlay {
     const bool is_paint_mode = ELEM(
         state.ctx_mode, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
     const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
-    const bool is_face_selectable = (is_edit_object || (is_paint_mode && use_face_selection)) &&
-                                    space_image->mode != SI_MODE_UV;
+    const bool is_face_selectable = (is_edit_object || (is_paint_mode && use_face_selection));
     const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
                                                                      CD_PROP_FLOAT2) != -1;
     const bool has_active_edit_uvmap = is_edit_object && (CustomData_get_active_layer(
