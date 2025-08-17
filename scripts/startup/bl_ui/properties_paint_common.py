@@ -1166,7 +1166,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
                 text="Radius",
                 slider=True,
             )
-        if mode in {'PAINT_TEXTURE', 'PAINT_2D'}:
+        if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT'}:
             if getattr(brush, "use_pressure_size", False) and hasattr(brush, "curve_paint_size") and brush.curve_paint_size:
                 layout.template_curve_mapping(brush, "curve_paint_size", brush=True, use_negative_slope=True)
         if size_mode:
@@ -1184,8 +1184,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             pressure_name=pressure_name,
             slider=True,
         )
-        # Pen pressure mapping curve for Strength in shared settings (Texture/2D Paint).
-        if mode in {'PAINT_TEXTURE', 'PAINT_2D'}:
+        if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT'}:
             if getattr(brush, "use_pressure_strength", False) and hasattr(brush, "curve_paint_strength") and brush.curve_paint_strength:
                 layout.template_curve_mapping(brush, "curve_paint_strength", brush=True, use_negative_slope=True)
         layout.separator()

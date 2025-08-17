@@ -537,7 +537,12 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
   }
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, paint_mode)) {
-    cache->radius = cache->initial_radius * cache->pressure;
+    float pressure_eval = cache->pressure;
+    if (brush.curve_paint_size) {
+      BKE_curvemapping_init(brush.curve_paint_size);
+      pressure_eval = BKE_curvemapping_evaluateF(brush.curve_paint_size, 0, cache->pressure);
+    }
+    cache->radius = cache->initial_radius * pressure_eval;
   }
   else {
     cache->radius = cache->initial_radius;
@@ -557,10 +562,31 @@ void get_brush_alpha_data(const SculptSession &ss,
                           float *r_brush_alpha_value,
                           float *r_brush_alpha_pressure)
 {
-  *r_brush_size_pressure = BKE_brush_size_get(&paint, &brush) *
-                           (BKE_brush_use_size_pressure(&brush) ? ss.cache->pressure : 1.0f);
+  const float pressure_raw = ss.cache->pressure;
+
+  /* Size: apply pressure if enabled, with optional curve remap. */
+  float size_pressure = 1.0f;
+  if (BKE_brush_use_size_pressure(&brush)) {
+    size_pressure = pressure_raw;
+    if (brush.curve_paint_size) {
+      BKE_curvemapping_init(brush.curve_paint_size);
+      size_pressure = BKE_curvemapping_evaluateF(brush.curve_paint_size, 0, pressure_raw);
+    }
+  }
+  *r_brush_size_pressure = BKE_brush_size_get(&paint, &brush) * size_pressure;
+
+  /* Strength: base alpha and pressure multiplier (optionally curve-mapped). */
   *r_brush_alpha_value = BKE_brush_alpha_get(&paint, &brush);
-  *r_brush_alpha_pressure = (BKE_brush_use_alpha_pressure(&brush) ? ss.cache->pressure : 1.0f);
+
+  float alpha_pressure = 1.0f;
+  if (BKE_brush_use_alpha_pressure(&brush)) {
+    alpha_pressure = pressure_raw;
+    if (brush.curve_paint_strength) {
+      BKE_curvemapping_init(brush.curve_paint_strength);
+      alpha_pressure = BKE_curvemapping_evaluateF(brush.curve_paint_strength, 0, pressure_raw);
+    }
+  }
+  *r_brush_alpha_pressure = alpha_pressure;
 }
 
 void last_stroke_update(const float location[3], Paint &paint)
