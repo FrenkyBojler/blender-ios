@@ -4335,7 +4335,7 @@ static uiBlock *block_create_foreign_file_warning(bContext *C, ARegion *region, 
   col->separator();
   col = &split->column(false);
   uiBut *but = uiDefIconTextBut(
-      block, UI_BTYPE_BUT, 0, ICON_NONE, IFACE_("Ok"), 0, 0, 50, UI_UNIT_Y, nullptr, 0, 0, "");
+      block, ButType::But, 0, ICON_NONE, IFACE_("Ok"), 0, 0, 50, UI_UNIT_Y, nullptr, std::nullopt);
   UI_but_func_set(but, wm_block_foreign_file_warning_ok, block, nullptr);
   UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
   UI_but_flag_enable(but, UI_BUT_ACTIVE_DEFAULT);
