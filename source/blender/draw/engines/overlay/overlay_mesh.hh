@@ -867,7 +867,7 @@ class MeshUVs : Overlay {
       }
     }
 
-    /* Selectable faces in 3D viewport that change sync with image editor paint mode. */
+    /* Selectable faces in 3D viewport that sync with image editor paint mode. */
     if ((has_active_object_uvmap || has_active_edit_uvmap) && is_face_selectable) {
       if (show_wireframe_) {
         gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(ob, mesh);
