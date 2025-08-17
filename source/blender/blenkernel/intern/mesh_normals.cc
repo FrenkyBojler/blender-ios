@@ -1238,7 +1238,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
   }
 
   struct CornerSpaceGroup {
-    /* Maybe acyclic and unordered set of adjoint corners in same smooth group around vertex. */
+    /* Maybe acyclic and unordered set of adjacent corners in same smooth group around vertex. */
     Array<int> corners_fan;
     CornerNormalSpace space;
   };
