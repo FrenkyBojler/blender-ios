@@ -348,6 +348,62 @@ char *MSLGeneratorInterface::msl_patch_default_get()
   return msl_patch_default;
 }
 
+static void split_array(StringRefNull input, std::string &r_name, std::string &r_array)
+{
+  size_t array_start = input.find('[');
+  if (array_start != std::string::npos) {
+    r_name = input.substr(0, array_start);
+    r_array = input.substr(array_start);
+  }
+  else {
+    r_name = input;
+    r_array = "";
+  }
+}
+
+static void shared_variable_args(const shader::ShaderCreateInfo &info, std::stringstream &ss)
+{
+  bool first = true;
+  for (const shader::ShaderCreateInfo::SharedVariable &var : info.shared_variables_) {
+    std::string array, name;
+    split_array(var.name, name, array);
+    ss << (first ? ' ' : ',') << "threadgroup " << to_string(var.type) << "(&_" << name << ")"
+       << array;
+    first = false;
+  }
+}
+
+static void shared_variable_assign(const shader::ShaderCreateInfo &info, std::stringstream &ss)
+{
+  bool first = true;
+  for (const shader::ShaderCreateInfo::SharedVariable &var : info.shared_variables_) {
+    std::string array, name;
+    split_array(var.name, name, array);
+    ss << (first ? ':' : ',') << name << "(_" << name << ")";
+    first = false;
+  }
+}
+
+static void shared_variable_declare(const shader::ShaderCreateInfo &info, std::stringstream &ss)
+{
+  for (const shader::ShaderCreateInfo::SharedVariable &var : info.shared_variables_) {
+    std::string array, name;
+    split_array(var.name, name, array);
+    ss << "threadgroup " << to_string(var.type) << ' ' << name << array << ";";
+  }
+}
+
+static void shared_variable_pass(const shader::ShaderCreateInfo &info, std::stringstream &ss)
+{
+  bool first = true;
+  for (const shader::ShaderCreateInfo::SharedVariable &var : info.shared_variables_) {
+    std::string array, name;
+    split_array(var.name, name, array);
+    ss << (first ? ' ' : ',') << name;
+    first = false;
+  }
+}
+
 /* Specialization constants will evaluate using a dynamic value if provided at PSO compile time. */
 static void generate_specialization_constant_declarations(const shader::ShaderCreateInfo *info,
                                                           std::stringstream &ss)
@@ -978,14 +1034,17 @@ bool MTLShader::generate_msl_from_glsl_compute(const shader::ShaderCreateInfo *i
   /* Compute constructor for Shared memory blocks, as we must pass
    * local references from entry-point function scope into the class
    * instantiation. */
-  ss_compute << get_stage_class_name(ShaderStage::COMPUTE)
-             << "(MSL_SHARED_VARS_ARGS) MSL_SHARED_VARS_ASSIGN {}\n";
+  ss_compute << get_stage_class_name(ShaderStage::COMPUTE) << "(MSL_SHARED_VARS_ARGS ";
+  shared_variable_args(*info, ss_compute);
+  ss_compute << ") MSL_SHARED_VARS_ASSIGN";
+  shared_variable_assign(*info, ss_compute);
+  ss_compute << "{}\n";
 
   /* Class Closing Bracket to end shader global scope. */
   ss_compute << "};" << std::endl;
 
   /* Generate Vertex shader entry-point function containing resource bindings. */
-  ss_compute << msl_iface.generate_msl_compute_entry_stub();
+  ss_compute << msl_iface.generate_msl_compute_entry_stub(*info);
 
 #ifndef NDEBUG
   /* In debug mode, we inject the name of the shader into the entry-point function
@@ -1561,7 +1620,8 @@ std::string MSLGeneratorInterface::generate_msl_fragment_entry_stub()
   return out.str();
 }
 
-std::string MSLGeneratorInterface::generate_msl_compute_entry_stub()
+std::string MSLGeneratorInterface::generate_msl_compute_entry_stub(
+    const shader::ShaderCreateInfo &info)
 {
   static const char *shader_stage_inst_name = get_shader_stage_instance_name(ShaderStage::COMPUTE);
   std::stringstream out;
@@ -1588,8 +1648,11 @@ std::string MSLGeneratorInterface::generate_msl_compute_entry_stub()
   out << this->generate_msl_compute_inputs_string();
   out << ") {" << std::endl << std::endl;
   out << "MSL_SHARED_VARS_DECLARE\n";
+  shared_variable_declare(info, out);
+
   out << "\t" << get_stage_class_name(ShaderStage::COMPUTE) << " " << shader_stage_inst_name
       << " MSL_SHARED_VARS_PASS;\n";
+  shared_variable_pass(info, out);
 
   /* Copy global variables. */
   /* Entry point parameters for gl Globals. */
