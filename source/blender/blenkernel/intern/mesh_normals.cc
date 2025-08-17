@@ -1296,10 +1296,10 @@ void normals_calc_corners(const Span<float3> vert_positions,
        * number of visited corners is a quick way to avoid this book keeping for the final fan (and
        * there are usually just two, so that should be worth it). */
       int visited_count = 0;
-      int start_local_corner = 0;
       local_corner_visited.resize(vert_faces.size());
       local_corner_visited.fill(false);
 
+      int start_local_corner = 0;
       while (visited_count < corner_infos.size()) {
         /* Start traversing the next smooth fan mixed in shared index space. */
         BLI_assert(!local_corner_visited.as_span().take_front(start_local_corner).contains(false));
