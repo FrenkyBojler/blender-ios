@@ -19,6 +19,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_colortools.hh"
 
 #include "BLT_translation.hh"
 
@@ -90,7 +91,12 @@ bool curves_sculpt_poll_view3d(bContext *C)
 float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_extension)
 {
   if (BKE_brush_use_size_pressure(&brush)) {
-    return stroke_extension.pressure;
+    float pressure = stroke_extension.pressure;
+    if (brush.curve_paint_size) {
+      BKE_curvemapping_init(brush.curve_paint_size);
+      pressure = BKE_curvemapping_evaluateF(brush.curve_paint_size, 0, pressure);
+    }
+    return pressure;
   }
   return 1.0f;
 }
@@ -105,7 +111,12 @@ float brush_radius_get(const Paint &paint,
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension)
 {
   if (BKE_brush_use_alpha_pressure(&brush)) {
-    return stroke_extension.pressure;
+    float pressure = stroke_extension.pressure;
+    if (brush.curve_paint_strength) {
+      BKE_curvemapping_init(brush.curve_paint_strength);
+      pressure = BKE_curvemapping_evaluateF(brush.curve_paint_strength, 0, pressure);
+    }
+    return pressure;
   }
   return 1.0f;
 }
