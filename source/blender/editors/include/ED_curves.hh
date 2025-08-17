@@ -40,6 +40,9 @@ void operatormacros_curves();
 void undosys_type_register(UndoType *ut);
 void keymap_curves(wmKeyConfig *keyconf);
 
+void ED_operatortypes_curves_pen();
+void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf);
+
 /**
  * Return an owning pointer to an array of point normals the same size as the number of control
  * points. The normals depend on the normal mode for each curve and the "tilt" attribute and may be

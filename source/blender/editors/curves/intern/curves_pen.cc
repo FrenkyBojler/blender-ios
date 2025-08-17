@@ -38,7 +38,9 @@
 
 #include "UI_resources.hh"
 
-namespace blender::ed::greasepencil {
+namespace blender::ed::curves {
+
+using namespace blender::ed::greasepencil;
 
 static const EnumPropertyItem prop_handle_types[] = {
     {BEZIER_HANDLE_AUTO, "AUTO", 0, "Auto", ""},
@@ -151,7 +153,7 @@ struct PenToolOperation {
   Vector<MutableDrawingInfo> drawings;
 
   /* Helper class to project screen space coordinates to 3D. */
-  DrawingPlacement placement;
+  // DrawingPlacement placement;
 
   float threshold_distance;
   float threshold_distance_edge;
@@ -194,6 +196,12 @@ struct PenToolOperation {
     float3 proj_point;
     ED_view3d_win_to_3d(vc.v3d, vc.region, depth_point, screen_co, proj_point);
     return math::transform_point(math::invert(layer_to_world), proj_point);
+  }
+
+  float3 project(const float2 &screen_co) const
+
+  {
+    return this->screen_to_layer(float4x4::identity(), screen_co, float3(0.0f));
   }
 
   void move_segment(bke::CurvesGeometry &curves, const float4x4 &layer_to_world) const
@@ -344,7 +352,7 @@ struct PenToolOperation {
         }
 
         if (this->point_added) {
-          handles_left[point_i] = this->placement.project(center_point + offset);
+          handles_left[point_i] = this->project(center_point + offset);
         }
         else {
           handles_left[point_i] = this->screen_to_layer(
@@ -365,7 +373,7 @@ struct PenToolOperation {
         }
 
         if (this->point_added) {
-          handles_right[point_i] = this->placement.project(center_point + offset);
+          handles_right[point_i] = this->project(center_point + offset);
         }
         else {
           handles_right[point_i] = this->screen_to_layer(
@@ -510,7 +518,7 @@ struct PenToolOperation {
       const float3 depth_point = src_positions[dst_to_src_points[i]];
       const float2 pos = this->layer_to_screen(layer_to_object, depth_point) -
                          this->center_of_mass_co + this->mouse_co;
-      dst_positions[i] = this->placement.project(pos);
+      dst_positions[i] = this->project(pos);
       handle_types_left[i] = this->extrude_handle;
       handle_types_right[i] = this->extrude_handle;
       radius[i] = this->radius;
@@ -650,7 +658,7 @@ struct PenToolOperation {
   void add_single_point_and_curve(bke::CurvesGeometry &curves,
                                   const float4x4 &layer_to_world) const
   {
-    const float3 depth_point = this->placement.project(this->mouse_co);
+    const float3 depth_point = this->project(this->mouse_co);
 
     ed::greasepencil::add_single_curve(curves, true);
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
@@ -1086,7 +1094,7 @@ static void pen_status_indicators(bContext *C, wmOperator *op, const PenToolOper
 }
 
 /* Invoke handler: Initialize the operator. */
-static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
@@ -1113,18 +1121,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.grease_pencil = grease_pencil;
   ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
   View3D *view3d = CTX_wm_view3d(C);
-
-  /* Initialize helper class for projecting screen space coordinates. */
-  DrawingPlacement placement = DrawingPlacement(
-      *vc.scene, *vc.region, *view3d, *vc.obact, grease_pencil->get_active_layer());
-  if (placement.use_project_to_surface()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
-  }
-  else if (placement.use_project_to_stroke()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
-  }
-
-  ptd.placement = placement;
 
   /* Distance threshold for mouse clicks to affect the spline or its points */
   ptd.mouse_co = float2(event->mval);
@@ -1309,7 +1305,7 @@ static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
 }
 
 /* Modal handler: Events handling during interactive part. */
-static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   PenToolOperation &ptd = *reinterpret_cast<PenToolOperation *>(op->customdata);
 
@@ -1386,16 +1382,16 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
+static void CURVES_OT_pen(wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Grease Pencil Pen";
-  ot->idname = "GREASE_PENCIL_OT_pen";
+  ot->name = "Curves Pen";
+  ot->idname = "CURVES_OT_pen";
   ot->description = "Construct and edit splines";
 
   /* Callbacks. */
-  ot->invoke = grease_pencil_pen_invoke;
-  ot->modal = grease_pencil_pen_modal;
+  ot->invoke = curves_pen_invoke;
+  ot->modal = curves_pen_modal;
 
   /* Flags. */
   ot->flag = OPTYPE_UNDO;
@@ -1429,17 +1425,15 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
   RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, FLT_MAX, "Radius", "", 0.0f, 10.0f);
 }
 
-}  // namespace blender::ed::greasepencil
-
-void ED_operatortypes_grease_pencil_pen()
+void ED_operatortypes_curves_pen()
 {
-  using namespace blender::ed::greasepencil;
-  WM_operatortype_append(GREASE_PENCIL_OT_pen);
+  using namespace blender::ed::curves;
+  WM_operatortype_append(CURVES_OT_pen);
 }
 
-void ED_grease_pencil_pentool_modal_keymap(wmKeyConfig *keyconf)
+void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
-  using namespace blender::ed::greasepencil;
+  using namespace blender::ed::curves;
   static const EnumPropertyItem modal_items[] = {
       {int(PenModal::MoveHandle),
        "MOVE_HANDLE",
@@ -1467,5 +1461,7 @@ void ED_grease_pencil_pentool_modal_keymap(wmKeyConfig *keyconf)
   }
 
   keymap = WM_modalkeymap_ensure(keyconf, "Pen Tool Modal Map", modal_items);
-  WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_pen");
+  WM_modalkeymap_assign(keymap, "CURVES_OT_pen");
 }
+
+}  // namespace blender::ed::curves
