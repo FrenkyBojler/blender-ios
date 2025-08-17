@@ -1299,11 +1299,10 @@ void normals_calc_corners(const Span<float3> vert_positions,
           const CornerNormalSpace space = handle_fan_result_and_custom_normals(
               custom_normals, corner_infos, edge_dirs, corners_in_fan, fan_normal);
           if (r_fan_spaces) {
-            Array<int> corners_fan(corners_in_fan.size());
+            local_space_groups->append({Array<int>(corners_in_fan.size()), space});
             for (const int i : corners_in_fan.index_range()) {
-              corners_fan[i] = corner_infos[corners_in_fan[i]].corner;
+              local_space_groups->last().corners_fan[i] = corner_infos[corners_in_fan[i]].corner;
             }
-            local_space_groups->append({std::move(corners_fan), space});
           }
         }
 
