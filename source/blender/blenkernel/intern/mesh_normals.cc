@@ -1290,9 +1290,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
       edge_dirs.resize(edge_infos.size());
       calc_edge_directions(vert_positions, local_edge_by_vert, vert_position, edge_dirs);
 
-      local_corner_visited.resize(vert_faces.size());
-      local_corner_visited.fill(false);
-
       /* Though we are protected from traversing to the same corner twice by the fact that 3-way
        * connections are marked sharp, we need to maintain the "visited" status of each corner so
        * we can find the next start corner for each subsequent fan traversal. Keeping track of the
@@ -1300,7 +1297,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
        * there are usually just two, so that should be worth it). */
       int visited_count = 0;
       int start_local_corner = 0;
-      BLI_assert(vert_faces.size() == corner_infos.size());
+      local_corner_visited.resize(vert_faces.size());
+      local_corner_visited.fill(false);
+
       while (visited_count < corner_infos.size()) {
         /* Start traversing the next smooth fan mixed in shared index space. */
         BLI_assert(!local_corner_visited.as_span().take_front(start_local_corner).contains(false));
