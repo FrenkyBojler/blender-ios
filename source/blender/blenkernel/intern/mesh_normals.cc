@@ -1252,8 +1252,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
     Vector<bool, 16> local_corner_visited;
     Vector<int, 16> corners_in_fan;
 
-    Vector<CornerSpaceGroup, 0> *local_space_groups =
-        r_fan_spaces ? local_space_groups = &space_groups.local() : nullptr;
+    Vector<CornerSpaceGroup, 0> *local_space_groups = (r_fan_spaces != nullptr) ?
+                                                          &space_groups.local() :
+                                                          nullptr;
 
     for (const int vert : range) {
       const float3 vert_position = vert_positions[vert];
@@ -1356,11 +1357,14 @@ void normals_calc_corners(const Span<float3> vert_positions,
       for (const int group_i : local_space_groups.index_range()) {
         const int space_index = space_offsets[thread_i][group_i];
         r_fan_spaces->spaces[space_index] = local_space_groups[group_i].space;
-
-        for (const int corner_index : local_space_groups[group_i].corners_fan) {
-          r_fan_spaces->corner_space_indices[corner_index] = space_index;
-        }
-
+        r_fan_spaces->corner_space_indices.as_mutable_span().fill_indices(
+            local_space_groups[group_i].corners_fan.as_span(), space_index);
+      }
+      if (!r_fan_spaces->create_corners_by_space) {
+        continue;
+      }
+      for (const int group_i : local_space_groups.index_range()) {
+        const int space_index = space_offsets[thread_i][group_i];
         r_fan_spaces->corners_by_space[space_index] = std::move(
             local_space_groups[group_i].corners_fan);
       }
