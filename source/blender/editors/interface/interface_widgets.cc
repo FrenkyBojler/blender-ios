@@ -3545,7 +3545,7 @@ static void widget_numbut_draw(const uiBut *but,
 {
   const float rad = widget_radius_from_zoom(zoom, wcol);
   const int handle_width = min_ii(BLI_rcti_size_x(rect) / 3, BLI_rcti_size_y(rect) * 0.7f);
-  const int axis_width = min_ii(BLI_rcti_size_x(rect) / 3, U.widget_unit * zoom * 0.1333f);
+  const int axis_width = min_ii(BLI_rcti_size_x(rect) / 3, U.widget_unit * zoom * 0.1f);
   const int draw_axis = (but->rnaprop && ELEM(RNA_property_subtype(but->rnaprop),
                                               PROP_ACCELERATION,
                                               PROP_AXISANGLE,
