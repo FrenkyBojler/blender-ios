@@ -49,7 +49,7 @@ void clamp_anisotropy(inout float2 du_dx_texels,
                       inout float2 du_dy_texels,
                       float max_factor_between_axes)
 {
-  // Make du/dx the longer axis; clamp the shorter (du/dy) if needed.
+  /* Make du/dx the longer axis; clamp the shorter (du/dy) if needed. */
   float len_squared_dx = dot(du_dx_texels, du_dx_texels);
   float len_squared_dy = dot(du_dy_texels, du_dy_texels);
   if (len_squared_dx < len_squared_dy) {
@@ -101,8 +101,8 @@ float smootherstep01(float x)
   return ((6.0*t - 15.0)*t + 10.0) * t*t*t;
 }
 
-// Optional edge fade if LUT is unwindowed (keeps interior identical)
-// Fade starts at r_soft (≈0.92–0.95) and goes to 0 with zero slope at r=1.
+/* Optional edge fade if LUT is unwindowed (keeps interior identical)
+ Fade starts at r_soft (≈0.92–0.95) and goes to 0 with zero slope at r=1. */
 float apply_edge_fade(float w_lut, float r2, bool usePreWindowedLUT)
 {
   if (usePreWindowedLUT) return w_lut;  // LUT already windowed
@@ -133,27 +133,24 @@ Ellipse build_ellipse(int2 size, float2 uv_center_norm,
   Ellipse E;
   E.valid = false;
 
-  // Derivatives in texel space
+  /* Derivatives in texel space */
   float2 du_dx_texels = float2(du_dx_norm.x * float(size.x),
                                du_dx_norm.y * float(size.y));
   float2 du_dy_texels = float2(du_dy_norm.x * float(size.x),
                                du_dy_norm.y * float(size.y));
 
-  // Anisotropy clamp (PBRT-style)
   if (max_factor_between_axes > 1.0) {
     clamp_anisotropy(du_dx_texels, du_dy_texels, max_factor_between_axes);
   }
 
-  // PBRT-style coefficients with +1 pixel filter, then normalize so r^2<1
-  // The dot(...) read components explicitly; for clarity:
-  // dv_dx = du_dx_texels.y, dv_dy = du_dy_texels.y; du_dx = du_dx_texels.x, du_dy = du_dy_texels.x
+  /* PBRT-style coefficients with +1 pixel filter, then normalize so r^2<1
+  The dot(...) read components explicitly; for clarity:
+  dv_dx = du_dx_texels.y, dv_dy = du_dy_texels.y; du_dx = du_dx_texels.x, du_dy = du_dy_texels.x */
   float A = dot(du_dx_texels.yx, du_dx_texels.yx) + dot(du_dy_texels.yx, du_dy_texels.yx) + 1.0;
 
   float B = -2.0 * (du_dx_texels.x * du_dx_texels.y + du_dy_texels.x * du_dy_texels.y);
   float C = dot(du_dx_texels.xx, du_dx_texels.xx) + dot(du_dy_texels.xx, du_dy_texels.xx) + 1.0;
 
-
-  // Correct explicit version (more readable):
   float dv_dx = du_dx_texels.y;
   float dv_dy = du_dy_texels.y;
   float du_dx = du_dx_texels.x;
@@ -190,7 +187,7 @@ Ellipse build_ellipse(int2 size, float2 uv_center_norm,
   int t0 = int(ceil (center_v_texel - v_extent));
   int t1 = int(floor(center_v_texel + v_extent));
 
-  // Clip to source bounds to avoid OOB
+  /* Clip to source bounds to avoid OOB */
   s0 = clamp(s0, 0, size.x - 1);
   s1 = clamp(s1, 0, size.x - 1);
   t0 = clamp(t0, 0, size.y - 1);
@@ -215,7 +212,7 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
   float max_factor_between_axes = 8.0f;
   float4 out_color = float4(0.0f);
   int2 image_dimensions = int2(textureSize(input_tx, 0));
-  // Build ellipse & bbox in source texel space
+  /* Build ellipse & bbox in source texel space */
   Ellipse E = build_ellipse(image_dimensions, coordinates, x_gradient, y_gradient,
                             max_factor_between_axes);
   if (!E.valid) {
@@ -225,7 +222,7 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
   float4 accum = float4(0.0);
   float wsum = 0.0;
 
-  // Incremental evaluation across each scanline
+  /* Incremental evaluation across each scanline */
   for (int y = E.t0; y <= E.t1; ++y) {
     float delta_v = float(y) - E.center_v_texel;
 
@@ -237,10 +234,11 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
 
     for (int x = E.s0; x <= E.s1; ++x) {
       if (r2 < 1.0) {
+        /* INFO: we can implement different version with different fades which would
+        affect the discontinuities differently.
+        float w = apply_edge_fade(w_lut, r2, uUsePreWindowedLUT); */
         float weight = lookup_ewa_weight(r2);
-        // float w = apply_edge_fade(w_lut, r2, uUsePreWindowedLUT);
         if (weight > 0.0) {
-          // Integer texel fetch from source (level 0, no filtering)
           float4 rgba = texelFetch(input_tx, int2(x, y), 0);
           accum += weight * rgba;
           wsum  += weight;
