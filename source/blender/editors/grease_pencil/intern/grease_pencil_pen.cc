@@ -142,8 +142,6 @@ class PenToolOperation {
  public:
   ViewContext vc;
 
-  Vector<MutableDrawingInfo> drawings;
-
   float threshold_distance;
   float threshold_distance_edge;
 
@@ -785,6 +783,7 @@ class PenToolOperation {
 class GreasePencilPenToolOperation : public PenToolOperation {
  public:
   GreasePencil *grease_pencil;
+  Vector<MutableDrawingInfo> drawings;
 
   /* Helper class to project screen space coordinates to 3D. */
   DrawingPlacement placement;
