@@ -144,9 +144,6 @@ class PenToolOperation {
 
   Vector<MutableDrawingInfo> drawings;
 
-  /* Helper class to project screen space coordinates to 3D. */
-  DrawingPlacement placement;
-
   float threshold_distance;
   float threshold_distance_edge;
 
@@ -173,6 +170,8 @@ class PenToolOperation {
   float2 prev_xy;
   float2 center_of_mass_co;
   ClosestElement closest_element;
+
+  virtual float3 project(const float2 &screen_co) const = 0;
 
   float2 layer_to_screen(const float4x4 &layer_to_object, const float3 &point) const
   {
@@ -338,7 +337,7 @@ class PenToolOperation {
         }
 
         if (this->point_added) {
-          handles_left[point_i] = this->placement.project(center_point + offset);
+          handles_left[point_i] = this->project(center_point + offset);
         }
         else {
           handles_left[point_i] = this->screen_to_layer(
@@ -359,7 +358,7 @@ class PenToolOperation {
         }
 
         if (this->point_added) {
-          handles_right[point_i] = this->placement.project(center_point + offset);
+          handles_right[point_i] = this->project(center_point + offset);
         }
         else {
           handles_right[point_i] = this->screen_to_layer(
@@ -504,7 +503,7 @@ class PenToolOperation {
       const float3 depth_point = src_positions[dst_to_src_points[i]];
       const float2 pos = this->layer_to_screen(layer_to_object, depth_point) -
                          this->center_of_mass_co + this->mouse_co;
-      dst_positions[i] = this->placement.project(pos);
+      dst_positions[i] = this->project(pos);
       handle_types_left[i] = this->extrude_handle;
       handle_types_right[i] = this->extrude_handle;
       radius[i] = this->radius;
@@ -644,7 +643,7 @@ class PenToolOperation {
   void add_single_point_and_curve(bke::CurvesGeometry &curves,
                                   const float4x4 &layer_to_world) const
   {
-    const float3 depth_point = this->placement.project(this->mouse_co);
+    const float3 depth_point = this->project(this->mouse_co);
 
     ed::greasepencil::add_single_curve(curves, true);
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
@@ -786,6 +785,14 @@ class PenToolOperation {
 class GreasePencilPenToolOperation : public PenToolOperation {
  public:
   GreasePencil *grease_pencil;
+
+  /* Helper class to project screen space coordinates to 3D. */
+  DrawingPlacement placement;
+
+  float3 project(const float2 &screen_co) const
+  {
+    return this->placement.project(screen_co);
+  }
 };
 
 static void grease_pencil_pen_update_view(bContext *C, GreasePencilPenToolOperation &ptd)
