@@ -44,6 +44,7 @@
 #include "BKE_image_format.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_paint.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
@@ -2205,6 +2206,20 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
       }
       FOREACH_NODETREE_END;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 57)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->curve_paint_size == nullptr) {
+        brush->curve_paint_size = BKE_paint_default_curve();
+      }
+      if (brush->curve_paint_strength == nullptr) {
+        brush->curve_paint_strength = BKE_paint_default_curve();
+      }
+      if (brush->curve_paint_jitter == nullptr) {
+        brush->curve_paint_jitter = BKE_paint_default_curve();
+      }
     }
   }
 
