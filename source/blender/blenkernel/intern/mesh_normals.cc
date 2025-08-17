@@ -1118,19 +1118,6 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
     /* Reverse the corners added so the final order is consistent with the next traversal. */
     result_fan.as_mutable_span().reverse();
 
-    if (UNLIKELY(!found_cyclic_fan)) {
-      /* We was in a middle of acyclic sequence of the corners and also have to visit other part of
-       * the sequence. */
-      current = start_local_corner;
-      local_edge = corner_infos[current].local_edge_prev;
-      while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
-        current = mesh::edge_other_vert(int2(edge->local_corner_1, edge->local_corner_2), current);
-        BLI_assert(current != start_local_corner);
-        result_fan.append(current);
-        local_edge = corner_infos[current].local_edge_prev;
-      }
-    }
-
     if (found_cyclic_fan) {
       /* To match behavior from the previous implementation of face corner normal calculation, the
        * final fan is rotated so that the smallest face corner index comes first. */
