@@ -1,10 +1,14 @@
-#include "gpu_shader_math_base_lib.glsl"
 
+#pragma once
+
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_glsl_cpp_stubs.hh"
 
 // TODO: Potentially needs to be saved as a texture
-int EWA_LUT_SIZE = 256;
-int EWA_GAUSS_MAXIDX = EWA_LUT_SIZE - 1;
-float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {
+#define EWA_LUT_SIZE     256
+#define EWA_GAUSS_MAXIDX (EWA_LUT_SIZE - 1)
+
+const float EWA_GAUSS_LUT[EWA_LUT_SIZE] = float_array(
   1.000000f, 0.992188f, 0.984436f, 0.976745f, 0.969114f, 0.961543f, 0.954031f, 0.946578f,
   0.939183f, 0.931846f, 0.924566f, 0.917342f, 0.910176f, 0.903065f, 0.896010f, 0.889010f,
   0.882064f, 0.875173f, 0.868336f, 0.861552f, 0.854821f, 0.848143f, 0.841517f, 0.834943f,
@@ -36,7 +40,7 @@ float EWA_GAUSS_LUT[EWA_LUT_SIZE] = {
   0.160403f, 0.154976f, 0.148978f, 0.142453f, 0.135454f, 0.128045f, 0.120298f, 0.112287f,
   0.104092f, 0.095795f, 0.087478f, 0.079221f, 0.071103f, 0.063199f, 0.055579f, 0.048310f,
   0.041449f, 0.035048f, 0.029150f, 0.023791f, 0.018994f, 0.014776f, 0.011143f, 0.008087f,
-  0.005594f, 0.003634f, 0.002167f, 0.001143f, 0.000496f, 0.000151f, 0.000019f, 0.000000f};
+  0.005594f, 0.003634f, 0.002167f, 0.001143f, 0.000496f, 0.000151f, 0.000019f, 0.000000f);
 
 
 void clamp_anisotropy(inout float2 du_dx_texels,
@@ -157,11 +161,12 @@ Ellipse build_ellipse(int2 size, float2 uv_center_norm,
   B = -2.0 * (du_dx*dv_dx + du_dy*dv_dy);
   C = du_dx*du_dx + du_dy*du_dy + 1.0;
 
-  float inv = 1.0 / (A * C - 0.25 * B * B);
-  if (inv < 0.0) {
-    return E;  // degenerate
+  float denom = A * C - 0.25 * B * B;
+  if (!(denom > 0.0)) {
+    return E;
   }
 
+  float inv = 1.0 / denom;
   A *= inv;
   B *= inv;
   C *= inv;
@@ -202,22 +207,17 @@ Ellipse build_ellipse(int2 size, float2 uv_center_norm,
   return E;
 }
 
-float4 ewa_sampling(int2 image_dimensions, int2 texel, float2 gradient_x, float2 gradient_y, float
-                    max_factor_between_axes)
+float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, float2 y_gradient
+                   /*should be pushed as a constant? float max_factor_between_axes = 8.0f*/)
 {
-  int2 texel = int2(gl_GlobalInvocationID.xy);
-  int2 output_img_dimensions = texture_size(output_img);
-
-  float2 uv_center_norm = texture_load(input_tx, float2(texel) + 0.5) / float2(output_img).xy;
-  float2 du_dx_norm     = gradient_x / float2(output_img);
-  float2 du_dy_norm     = gradient_y / float2(output_img);
-
+  float max_factor_between_axes = 8.0f;
+  float4 out_color = float4(0.0f);
+  int2 image_dimensions = int2(textureSize(input_tx, 0));
   // Build ellipse & bbox in source texel space
-  Ellipse E = build_ellipse(image_dimensions, uv_center_norm, du_dx_norm, du_dy_norm,
+  Ellipse E = build_ellipse(image_dimensions, coordinates, x_gradient, y_gradient,
                             max_factor_between_axes);
   if (!E.valid) {
-    imageStore(output_img, texel, float4(0.0));
-    return;
+    return out_color;
   }
 
   float4 accum = float4(0.0);
@@ -235,13 +235,13 @@ float4 ewa_sampling(int2 image_dimensions, int2 texel, float2 gradient_x, float2
 
     for (int x = E.s0; x <= E.s1; ++x) {
       if (r2 < 1.0) {
-        float w_lut = lookup_ewa_weight(r2);
+        float weight = lookup_ewa_weight(r2);
         // float w = apply_edge_fade(w_lut, r2, uUsePreWindowedLUT);
-        if (w > 0.0) {
+        if (weight > 0.0) {
           // Integer texel fetch from source (level 0, no filtering)
-          float4 rgba = texture_load(input_tx, texel);
-          accum += w * rgba;
-          wsum  += w;
+          float4 rgba = texelFetch(input_tx, int2(x, y), 0);
+          accum += weight * rgba;
+          wsum  += weight;
         }
       }
       r2 += dR;
@@ -249,6 +249,6 @@ float4 ewa_sampling(int2 image_dimensions, int2 texel, float2 gradient_x, float2
     }
   }
 
-  float4 out_color = (wsum > 0.0) ? (accum / wsum) : float4(0.0);
+  out_color = (wsum > 0.0) ? (accum / wsum) : float4(0.0);
   return out_color;
 }

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
+#include "gpu_shader_ewa_sampler_lib.glsl"
 
 void main()
 {
@@ -26,7 +27,9 @@ void main()
   float2 x_gradient = (homography_matrix[0].xy / transformed_coordinates.z) / output_size.x;
   float2 y_gradient = (homography_matrix[1].xy / transformed_coordinates.z) / output_size.y;
 
-  float4 sampled_color = textureGrad(input_tx, projected_coordinates, x_gradient, y_gradient);
+  //float4 sampled_color = textureGrad(input_tx, projected_coordinates, x_gradient, y_gradient);
+  // TODO: Remove this once approved.
+  float4 sampled_color = texture_ewa(input_tx, projected_coordinates, x_gradient, y_gradient);
 
   /* Premultiply the mask value as an alpha. */
   float4 plane_color = sampled_color * texture_load(mask_tx, texel).x;
