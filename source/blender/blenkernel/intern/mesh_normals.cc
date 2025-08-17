@@ -1252,9 +1252,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
     Vector<bool, 16> local_corner_visited;
     Vector<int, 16> corners_in_fan;
 
-    Vector<CornerSpaceGroup, 0> *local_space_groups = (r_fan_spaces != nullptr) ?
-                                                          &space_groups.local() :
-                                                          nullptr;
+    Vector<CornerSpaceGroup, 0> *local_space_groups = r_fan_spaces ? &space_groups.local() :
+                                                                     nullptr;
 
     for (const int vert : range) {
       const float3 vert_position = vert_positions[vert];
