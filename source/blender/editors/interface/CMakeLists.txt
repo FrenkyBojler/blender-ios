@@ -55,7 +55,6 @@ set(SRC
   interface_string_search.cc
   interface_style.cc
   templates/interface_template_asset_shelf_popover.cc
-  templates/interface_template_asset_view.cc
   templates/interface_template_attribute_search.cc
   templates/interface_template_bone_collection_tree.cc
   templates/interface_template_cache_file.cc
@@ -129,6 +128,7 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   PRIVATE bf::nodes

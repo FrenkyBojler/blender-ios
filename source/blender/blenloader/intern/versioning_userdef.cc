@@ -114,8 +114,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(400, 14)) {
-    FROM_DEFAULT_V4_UCHAR(space_view3d.asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(space_view3d.asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
   }
 
   if (!USER_VERSION_ATLEAST(400, 24)) {
@@ -162,8 +162,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(402, 21)) {
-    FROM_DEFAULT_V4_UCHAR(space_image.asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(space_image.asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
   }
 
   if (!USER_VERSION_ATLEAST(402, 47)) {
@@ -235,8 +235,163 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
   }
 
-  if (!USER_VERSION_ATLEAST(405, 82)) {
-    FROM_DEFAULT_V4_UCHAR(space_clip.anim_preview_range);
+  if (!USER_VERSION_ATLEAST(500, 5)) {
+    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_file.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_graph.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_info.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_action.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_nla.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_image.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_text.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_outliner.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_node.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_preferences.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_console.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_clip.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_topbar.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_statusbar.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.tab_back);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 6)) {
+    /* Match the selected/unselected outline colors. */
+    copy_v4_v4_uchar(btheme->tui.wcol_box.outline_sel, U_theme_default.tui.wcol_box.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_list_item.outline_sel,
+                     U_theme_default.tui.wcol_list_item.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_menu.outline_sel, U_theme_default.tui.wcol_menu.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_menu_back.outline_sel,
+                     U_theme_default.tui.wcol_menu_back.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_menu_item.outline_sel,
+                     U_theme_default.tui.wcol_menu_item.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_num.outline_sel, U_theme_default.tui.wcol_num.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_numslider.outline_sel,
+                     U_theme_default.tui.wcol_numslider.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_option.outline_sel, U_theme_default.tui.wcol_option.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_pie_menu.outline_sel,
+                     U_theme_default.tui.wcol_pie_menu.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_progress.outline_sel,
+                     U_theme_default.tui.wcol_progress.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_pulldown.outline_sel,
+                     U_theme_default.tui.wcol_pulldown.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_radio.outline_sel, U_theme_default.tui.wcol_radio.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_regular.outline_sel,
+                     U_theme_default.tui.wcol_regular.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_scroll.outline_sel, U_theme_default.tui.wcol_scroll.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_tab.outline_sel, U_theme_default.tui.wcol_tab.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_text.outline_sel, U_theme_default.tui.wcol_text.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_toggle.outline_sel, U_theme_default.tui.wcol_toggle.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_tool.outline_sel, U_theme_default.tui.wcol_tool.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_toolbar_item.outline_sel,
+                     U_theme_default.tui.wcol_toolbar_item.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_tooltip.outline_sel,
+                     U_theme_default.tui.wcol_tooltip.outline);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 9)) {
+    FROM_DEFAULT_V4_UCHAR(tui.panel_header);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_back);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_sub_back);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 12)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxs);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxb);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxn);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxv);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxc);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxd);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_attribute);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_filter);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_geometry);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_output);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_script);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_shader);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_texture);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_vector);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 16)) {
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 18)) {
+    FROM_DEFAULT_V4_UCHAR(space_preferences.button);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 19)) {
+    btheme->tui.menu_shadow_fac = U_theme_default.tui.menu_shadow_fac;
+    btheme->tui.menu_shadow_width = U_theme_default.tui.menu_shadow_width;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 24)) {
+    FROM_DEFAULT_V4_UCHAR(tui.panel_title);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_text);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 25)) {
+    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_properties.button);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 29)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.console_output);
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 45)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_repeat);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 47)) {
+    if (btheme->tui.panel_title[3] == 0) {
+      btheme->tui.panel_title[3] = 255;
+    }
+    if (btheme->tui.panel_text[3] == 0) {
+      btheme->tui.panel_text[3] = 255;
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 50)) {
+    FROM_DEFAULT_V4_UCHAR(common.anim.preview_range);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 52)) {
+    FROM_DEFAULT_V4_UCHAR(tui.waxis);
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 55)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_repeat);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 56)) {
+    FROM_DEFAULT_V4_UCHAR(common.anim.playhead);
+    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker);
+    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker_selected);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_sub);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_group);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_group_active);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 60)) {
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_free);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vect);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_align);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_free);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_vect);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_align);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex_select);
+    btheme->common.curves.handle_vertex_size = U_theme_default.common.curves.handle_vertex_size;
   }
 
   /**
@@ -274,11 +429,11 @@ static void do_version_select_mouse(const UserDef *userdef, wmKeyMapItem *kmi)
       break;
     case EVT_TWEAK_S:
       kmi->type = (left) ? LEFTMOUSE : RIGHTMOUSE;
-      kmi->val = KM_CLICK_DRAG;
+      kmi->val = KM_PRESS_DRAG;
       break;
     case EVT_TWEAK_A:
       kmi->type = (left) ? RIGHTMOUSE : LEFTMOUSE;
-      kmi->val = KM_CLICK_DRAG;
+      kmi->val = KM_PRESS_DRAG;
       break;
     default:
       break;
@@ -335,7 +490,7 @@ static bool keymap_item_update_tweak_event(wmKeyMapItem *kmi, void * /*user_data
   else {
     kmi->direction = KM_ANY;
   }
-  kmi->val = KM_CLICK_DRAG;
+  kmi->val = KM_PRESS_DRAG;
   return false;
 }
 
@@ -654,7 +809,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   /* If the userdef was created on a different platform, it may have an
    * unsupported GPU backend selected.  If so, pick a supported default. */
 #ifdef __APPLE__
-  if (userdef->gpu_backend == GPU_BACKEND_OPENGL) {
+  if (userdef->gpu_backend == GPU_BACKEND_OPENGL || userdef->gpu_backend == GPU_BACKEND_VULKAN) {
     userdef->gpu_backend = GPU_BACKEND_METAL;
   }
 #else
@@ -839,14 +994,14 @@ void blo_do_versions_userdef(UserDef *userdef)
       userdef->anisotropic_filter = 1;
     }
 
-    if (userdef->ndof_sensitivity == 0.0f) {
-      userdef->ndof_sensitivity = 1.0f;
+    if (userdef->ndof_translation_sensitivity == 0.0f) {
+      userdef->ndof_translation_sensitivity = 1.0f;
       userdef->ndof_flag = (NDOF_LOCK_HORIZON | NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM |
                             NDOF_SHOULD_ROTATE);
     }
 
-    if (userdef->ndof_orbit_sensitivity == 0.0f) {
-      userdef->ndof_orbit_sensitivity = userdef->ndof_sensitivity;
+    if (userdef->ndof_rotation_sensitivity == 0.0f) {
+      userdef->ndof_rotation_sensitivity = userdef->ndof_translation_sensitivity;
 
       if (!(userdef->flag & USER_TRACKBALL)) {
         userdef->ndof_flag |= NDOF_TURNTABLE;
@@ -1329,10 +1484,6 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
-  if (!USER_VERSION_ATLEAST(402, 51)) {
-    userdef->sequencer_editor_flag |= USER_SEQ_ED_SIMPLE_TWEAKING;
-  }
-
   if (!USER_VERSION_ATLEAST(402, 56)) {
     BKE_preferences_extension_repo_add_default_system(userdef);
   }
@@ -1500,6 +1651,14 @@ void blo_do_versions_userdef(UserDef *userdef)
     if (userdef->gpu_shader_workers > 0) {
       userdef->shader_compilation_method = USER_SHADER_COMPILE_SUBPROCESS;
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 11)) {
+    userdef->gpu_flag &= ~USER_GPU_FLAG_UNUSED_0;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 59)) {
+    userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
   }
 
   /**

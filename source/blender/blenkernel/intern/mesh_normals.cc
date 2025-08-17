@@ -294,6 +294,10 @@ blender::bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_fac
 {
   using namespace blender;
   using namespace blender::bke;
+  if (this->faces_num == 0) {
+    return MeshNormalDomain::Point;
+  }
+
   const bke::AttributeAccessor attributes = this->attributes();
   if (const std::optional<AttributeMetaData> custom = attributes.lookup_meta_data("custom_normal"))
   {
@@ -407,6 +411,9 @@ blender::Span<blender::float3> Mesh::face_normals() const
 {
   using namespace blender;
   using namespace blender::bke;
+  if (this->faces_num == 0) {
+    return {};
+  }
   this->runtime->face_normals_cache.ensure([&](NormalsCache &r_data) {
     if (const GAttributeReader custom = this->attributes().lookup("custom_normal")) {
       if (custom.varray.type().is<float3>()) {
@@ -459,6 +466,9 @@ blender::Span<blender::float3> Mesh::corner_normals() const
 {
   using namespace blender;
   using namespace blender::bke;
+  if (this->faces_num == 0) {
+    return {};
+  }
   this->runtime->corner_normals_cache.ensure([&](NormalsCache &r_data) {
     const OffsetIndices<int> faces = this->faces();
     switch (this->normals_domain()) {
@@ -1096,7 +1106,7 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
     int local_edge = corner_infos[current].local_edge_next;
     bool found_cyclic_fan = false;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
-      current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
+      current = mesh::edge_other_vert(int2(edge->local_corner_1, edge->local_corner_2), current);
       if (current == start_local_corner) {
         found_cyclic_fan = true;
         break;
@@ -1153,7 +1163,7 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
 {
   if (local_corners_in_fan.size() == 1) {
     /* Logically this special case is unnecessary, but due to floating point precision it is
-     * required for the output to be the same as previous versions of the algorithm.*/
+     * required for the output to be the same as previous versions of the algorithm. */
     return face_normals[corner_infos[local_corners_in_fan.first()].face];
   }
   float3 fan_normal(0);
@@ -1167,7 +1177,7 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
   return math::normalize(fan_normal);
 }
 
-/* Don't inline this function to simplify the code path without custom normals.*/
+/** Don't inline this function to simplify the code path without custom normals. */
 BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     const Span<short2> custom_normals,
     const Span<VertCornerInfo> corner_infos,
@@ -1243,7 +1253,14 @@ void normals_calc_corners(const Span<float3> vert_positions,
       r_fan_spaces->corners_by_space.reserve(corner_verts.size());
     }
   }
-  threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
+
+  int64_t grain_size = 256;
+  /* Decrease parallelism in case where lock is used to avoid contention. */
+  if (!custom_normals.is_empty() || r_fan_spaces) {
+    grain_size = std::max(int64_t(16384), vert_positions.size() / 2);
+  }
+
+  threading::parallel_for(vert_positions.index_range(), grain_size, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
     LocalEdgeVectorSet local_edge_by_vert;
     Vector<VertEdgeInfo, 16> edge_infos;

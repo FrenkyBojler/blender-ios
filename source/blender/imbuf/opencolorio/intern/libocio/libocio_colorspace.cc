@@ -50,7 +50,7 @@ static bool color_space_is_invertible(const OCIO_NAMESPACE::ConstColorSpaceRcPtr
   }
 
   if (ocio_color_space->getTransform(OCIO_NAMESPACE::COLORSPACE_DIR_TO_REFERENCE)) {
-    /* if there's defined transform to reference space,  color space could be converted to scene
+    /* if there's defined transform to reference space, color space could be converted to scene
      * linear. */
     return true;
   }
@@ -130,7 +130,7 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
 {
   this->index = index;
 
-  is_inveetible_ = color_space_is_invertible(ocio_color_space);
+  is_invertible_ = color_space_is_invertible(ocio_color_space);
 }
 
 bool LibOCIOColorSpace::is_scene_linear() const
