@@ -377,7 +377,13 @@ class ZoneOperator:
 
     @classmethod
     def description(cls, _context, properties):
-        return cls.zone_tooltips.get(properties.input_node_type, None)
+        input_node_type = getattr(properties, "input_node_type", None)
+
+        # For Add Zone operators, use class variable instead of operator property
+        if input_node_type is None:
+            input_node_type = cls.input_node_type
+
+        return cls.zone_tooltips.get(input_node_type, None)
 
 
 class NodeAddZoneOperator(ZoneOperator, NodeAddOperator):
