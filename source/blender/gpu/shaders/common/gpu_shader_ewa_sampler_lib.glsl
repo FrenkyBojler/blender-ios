@@ -95,6 +95,10 @@ float lookup_ewa_weight(float r2_normalized)
   return w0 * (1.0f - frac) + w1 * frac;
 }
 
+float compute_gaussian_weight(float r2_normalized, float alpha) {
+  return exp(-alpha * max(0.0f, r2_normalized));
+}
+
 float smootherstep01(float x)
 {
   float t = clamp(x, 0.0, 1.0);
@@ -102,7 +106,7 @@ float smootherstep01(float x)
 }
 
 /* Optional edge fade if LUT is unwindowed (keeps interior identical)
- Fade starts at r_soft (≈0.92–0.95) and goes to 0 with zero slope at r=1. */
+ Fade starts at r_soft (≈0.92-0.95) and goes to 0 with zero slope at r=1. */
 float apply_edge_fade(float w_lut, float r2, bool usePreWindowedLUT)
 {
   if (usePreWindowedLUT) return w_lut;  // LUT already windowed
@@ -238,6 +242,7 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
         affect the discontinuities differently.
         float w = apply_edge_fade(w_lut, r2, uUsePreWindowedLUT); */
         float weight = lookup_ewa_weight(r2);
+        //float weight = compute_gaussian_weight(r2, 2.0f);
         if (weight > 0.0) {
           float4 rgba = texelFetch(input_tx, int2(x, y), 0);
           accum += weight * rgba;
