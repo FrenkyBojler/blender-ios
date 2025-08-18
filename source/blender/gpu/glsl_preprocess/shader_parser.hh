@@ -819,6 +819,11 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           else if (scopes.top().type == ScopeType::Struct) {
             enter_scope(ScopeType::FunctionArgs, tok_id);
           }
+          else if (scopes.top().type == ScopeType::Function &&
+                   (tok_id >= 1 && token_types[tok_id - 1] == Word))
+          {
+            enter_scope(ScopeType::FunctionCall, tok_id);
+          }
           else {
             enter_scope(ScopeType::Local, tok_id);
           }
