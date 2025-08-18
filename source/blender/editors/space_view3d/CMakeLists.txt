@@ -40,9 +40,6 @@ set(SRC
   view3d_gizmo_tool_generic.cc
   view3d_header.cc
   view3d_iterators.cc
-  view3d_light_modal_normals.cc
-  view3d_light_modal_reflections.cc
-  view3d_light_modal_shadow.cc
   view3d_navigate.cc
   view3d_navigate_fly.cc
   view3d_navigate_smoothview.cc

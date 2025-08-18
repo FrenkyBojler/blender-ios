@@ -435,7 +435,7 @@ class _defs_light_positioning:
             description="Interactively position a light based on surface normals using mouse raycast",
             icon="LIGHT",
             cursor='CROSS',
-            operator="VIEW3D_OT_light_normal_positioning",
+            operator="OBJECT_OT_light_normal_positioning",
             keymap="3D View Tool: Light Normal Positioning",
         )
 
@@ -447,7 +447,7 @@ class _defs_light_positioning:
             description="Interactively position a light based on specular reflection using mouse raycast",
             icon="LIGHT",
             cursor='CROSS',
-            operator="VIEW3D_OT_light_reflection_positioning",
+            operator="OBJECT_OT_light_reflection_positioning",
             keymap="3D View Tool: Light Reflection Positioning",
         )
 
@@ -459,7 +459,7 @@ class _defs_light_positioning:
             description="Interactively position a light for shadow casting (two-step process)",
             icon="LIGHT",
             cursor='CROSS',
-            operator="VIEW3D_OT_light_shadow_positioning",
+            operator="OBJECT_OT_light_shadow_positioning",
             keymap="3D View Tool: Light Shadow Positioning",
         )
 

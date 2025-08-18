@@ -30,11 +30,6 @@ struct wmOperatorType;
 
 void VIEW3D_OT_toggle_matcap_flip(wmOperatorType *ot);
 
-/* Light modal operators */
-
-void VIEW3D_OT_light_normal_positioning(wmOperatorType *ot);
-void VIEW3D_OT_light_reflection_positioning(wmOperatorType *ot);
-void VIEW3D_OT_light_shadow_positioning(wmOperatorType *ot);
 
 /* `view3d_context.cc` */
 
@@ -205,6 +200,8 @@ void VIEW3D_GGT_light_spot(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_light_point(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_light_area(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_light_target(wmGizmoGroupType *gzgt);
+void VIEW3D_GGT_light_normal_positioning(wmGizmoGroupType *gzgt);
+void VIEW3D_GGT_light_reflection_positioning(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_camera(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_camera_view(wmGizmoGroupType *gzgt);
 void VIEW3D_GGT_force_field(wmGizmoGroupType *gzgt);

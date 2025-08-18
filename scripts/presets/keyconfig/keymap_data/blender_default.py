@@ -7327,7 +7327,7 @@ def km_3d_view_tool_light_normal_positioning(params):
         "3D View Tool: Light Normal Positioning",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
-            ("VIEW3D_OT_light_normal_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+            ("OBJECT_OT_light_normal_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
         ]},
     )
 
@@ -7337,7 +7337,7 @@ def km_3d_view_tool_light_reflection_positioning(params):
         "3D View Tool: Light Reflection Positioning",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
-            ("VIEW3D_OT_light_reflection_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+            ("OBJECT_OT_light_reflection_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
         ]},
     )
 
@@ -7347,7 +7347,7 @@ def km_3d_view_tool_light_shadow_positioning(params):
         "3D View Tool: Light Shadow Positioning",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
-            ("VIEW3D_OT_light_shadow_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+            ("OBJECT_OT_light_shadow_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
         ]},
     )
 
