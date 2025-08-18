@@ -34,6 +34,18 @@ class ForceBundle : public NestedBundleCommon {
   static std::optional<ForceBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
+class TorqueBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.Torque";
+
+  std::string filter;
+  fn::Field<bool> selection;
+  fn::Field<float3> torque;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<TorqueBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
+};
+
 class DampingBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.Damping";

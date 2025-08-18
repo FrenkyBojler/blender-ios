@@ -63,6 +63,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(CurveSegmentXPBDConstraintBundle::get_bundle_type());
   types.append(OverpressureXPBDConstraintBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
+  types.append(TorqueBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -185,9 +186,10 @@ struct WorldData {
   BundleVectorSet<SphericalSelfCollisionXPBDConstraintBundle> spherical_self_collision_constraints;
   BundleVectorSet<OverpressureXPBDConstraintBundle> overpressure_constraints;
   BundleVectorSet<DampingBundle> dampings;
+  BundleVectorSet<TorqueBundle> torques;
 };
 
-static AttrDomain get_position_domain(const bke::GeometryComponent::Type type)
+static AttrDomain get_simulation_domain(const bke::GeometryComponent::Type type)
 {
   return type == bke::GeometryComponent::Type::Instance ? AttrDomain::Instance : AttrDomain::Point;
 }
@@ -223,11 +225,12 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.spherical_self_collision_constraints);
     parse_bundle(params, errors, world.overpressure_constraints);
     parse_bundle(params, errors, world.dampings);
+    parse_bundle(params, errors, world.torques);
   });
   return world;
 }
 
-static void integrate_velocities(
+static void integrate_linear_velocities(
     XPBDState &state,
     const Map<SimPointsKey, Span<float3>> &accelerations_map,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
@@ -241,7 +244,6 @@ static void integrate_velocities(
 
     /* Approximation of exponential decay. */
     const float linear_damping_factor = std::max(1.0f - props.linear_damping * delta_time, 0.0f);
-    const float angular_damping_factor = std::max(1.0f - props.angular_damping * delta_time, 0.0f);
 
     threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
       for (const int i : range) {
@@ -251,25 +253,43 @@ static void integrate_velocities(
         sim_points.positions[i] += sim_points.velocities[i] * delta_time;
       }
     });
-    if (sim_points.has_rotation) {
-      threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
-          /* There are no "torque fields" yet. */
-          const float3 external_torque(0.0f, 0.0f, 0.0f);
-          /* TODO: Support customizable inertia. */
-          const float3 inertia(1.0f);
-          float3 &angular_velocity = sim_points.angular_velocities[i];
-          const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
-          angular_velocity += delta_time *
-                              math::safe_divide(external_torque - precession, inertia);
-          angular_velocity *= angular_damping_factor;
-          math::Quaternion &rotation = sim_points.rotations[i];
-          const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
-          rotation = math::normalize(
-              math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
-        }
-      });
+  }
+}
+
+static void integrate_angular_velocities(
+    XPBDState &state,
+    const Map<SimPointsKey, Span<float3>> &torques_map,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float delta_time)
+{
+  for (auto item : state.sim_points.items()) {
+    SimPoints &sim_points = item.value;
+    if (!sim_points.has_rotation) {
+      continue;
     }
+    const std::optional<Span<float3>> torques = torques_map.lookup_try(item.key);
+
+    const SimPointsWorldProperties &props = sim_points_props.lookup(item.key);
+    const int points_num = sim_points.positions.size();
+
+    /* Approximation of exponential decay. */
+    const float angular_damping_factor = std::max(1.0f - props.angular_damping * delta_time, 0.0f);
+
+    threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        const float3 &external_torque = torques.has_value() ? (*torques)[i] : float3(0.0f);
+        /* TODO: Support customizable inertia. */
+        const float3 inertia(1.0f);
+        float3 &angular_velocity = sim_points.angular_velocities[i];
+        const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
+        angular_velocity += delta_time * math::safe_divide(external_torque - precession, inertia);
+        angular_velocity *= angular_damping_factor;
+        math::Quaternion &rotation = sim_points.rotations[i];
+        const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
+        rotation = math::normalize(
+            math::Quaternion(float4(rotation) + delta_time * 0.5f * float4(direction)));
+      }
+    });
   }
 }
 
@@ -562,7 +582,7 @@ static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
     if (!component) {
       continue;
     }
-    const bke::AttrDomain domain = get_position_domain(type);
+    const bke::AttrDomain domain = get_simulation_domain(type);
     const int domain_size = component->attribute_domain_size(domain);
     const Span<float> inverse_masses = sim_points_props.lookup(sim_points_key).inverse_masses;
 
@@ -595,6 +615,52 @@ static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
   return accelerations_map;
 }
 
+static Map<SimPointsKey, Span<float3>> compute_external_torques(
+    ResourceScope &scope,
+    const XPBDState &state,
+    const WorldData &world,
+    const Span<SimPointsKey> keys,
+    const Span<GeometrySet> applied_geometries)
+{
+  Map<SimPointsKey, Span<float3>> torques_map;
+  for (const SimPointsKey &sim_points_key : keys) {
+    const int geometry_i = world.geometries.index_of_as(sim_points_key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_i];
+    const SimPoints &sim_points = state.sim_points.lookup(sim_points_key);
+    if (!sim_points.has_rotation) {
+      continue;
+    }
+    const bke::GeometryComponent::Type type = sim_points_key.type;
+    const bke::GeometryComponent *component = applied_geometry.get_component(type);
+    if (!component) {
+      continue;
+    }
+    Vector used_torques = filter_bundles_for_path<TorqueBundle>(world.torques,
+                                                                sim_points_key.path);
+    if (used_torques.is_empty()) {
+      continue;
+    }
+    const AttrDomain domain = get_simulation_domain(type);
+    const int domain_size = component->attribute_domain_size(domain);
+    MutableSpan<float3> result = scope.allocator().allocate_array<float3>(domain_size);
+    result.fill(float3(0.0f));
+
+    bke::GeometryFieldContext field_context(*component, domain);
+    for (const TorqueBundle *torque_bundle : used_torques) {
+      fn::FieldEvaluator field_evaluator{field_context, domain_size};
+      field_evaluator.set_selection(torque_bundle->selection);
+      field_evaluator.add(torque_bundle->torque);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      const VArray<float3> torques_varray = field_evaluator.get_evaluated<float3>(0);
+      mask.foreach_index([&](const int i) { result[i] += torques_varray[i]; });
+    }
+
+    torques_map.add(sim_points_key, result);
+  }
+  return torques_map;
+}
+
 static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_properties(
     ResourceScope &scope,
     const WorldData &world,
@@ -613,7 +679,7 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
       continue;
     }
 
-    const bke::AttrDomain domain = get_position_domain(type);
+    const bke::AttrDomain domain = get_simulation_domain(type);
     const int domain_size = component->attribute_domain_size(domain);
 
     MutableSpan<float> result_masses = scope.allocator().allocate_array<float>(domain_size);
@@ -1272,7 +1338,7 @@ static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_posit
     if (!component) {
       continue;
     }
-    const AttrDomain domain = get_position_domain(type);
+    const AttrDomain domain = get_simulation_domain(type);
     const int domain_size = component->attribute_domain_size(domain);
     const SimPoints &sim_points = state.sim_points.lookup(key);
 
@@ -1342,6 +1408,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
       compute_sim_point_world_properties(scope, world, keys, applied_geometries);
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
       scope, world, keys, sim_points_props, applied_geometries);
+  const Map<SimPointsKey, Span<float3>> torques_map = compute_external_torques(
+      scope, state, world, keys, applied_geometries);
   const Map<SimPointsKey, Map<int, PinnedPositionAnimation>> pinned_position_animations =
       compute_pinned_position_animations(
           state, world, applied_geometries, keys, is_initialization);
@@ -1396,7 +1464,8 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
     /* Integrate linear and angular velocities. This also applies external forces. */
     if (sub_delta_time > 0.0f) {
-      integrate_velocities(state, accelerations_map, sim_points_props, sub_delta_time);
+      integrate_linear_velocities(state, accelerations_map, sim_points_props, sub_delta_time);
+      integrate_angular_velocities(state, torques_map, sim_points_props, sub_delta_time);
     }
 
     /* Move pinned points to the correct position for the current substep. */

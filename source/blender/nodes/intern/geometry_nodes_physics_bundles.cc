@@ -59,6 +59,32 @@ std::optional<ForceBundle> ForceBundle::parse(const Bundle &bundle, BundleParseE
   return behavior;
 }
 
+const FlatBundleTypePtr &TorqueBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(TorqueBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Bool>("selection").default_value(true).supports_field();
+    b.add<decl::Vector>("torque").supports_field();
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<TorqueBundle> TorqueBundle::parse(const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  TorqueBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
+  bundle_parse_member(bundle, "torque", behavior.torque, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 const FlatBundleTypePtr &DampingBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
