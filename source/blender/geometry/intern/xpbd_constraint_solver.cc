@@ -117,7 +117,9 @@ void solve_gauss_seidel_one_at_a_time(const Span<MutablePointsRef> points_refs,
 
   for (const ConstraintSet &constraint_set : constraint_sets) {
     constraint_set.evaluator->evaluate_serial_gauss_seidel(
-        updater, readonly_points_refs, constraint_mask);
+        updater,
+        readonly_points_refs,
+        constraint_mask.as_span().take_front(constraint_set.indices->constraints_num));
   }
 }
 
