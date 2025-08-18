@@ -26,6 +26,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_span.hh"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
@@ -1003,7 +1004,7 @@ bool bone_autoside_name(
     /* Subtract 1 from #MAXBONENAME for the null byte. Add 1 to the extension for the '.' */
     const int basename_maxncpy = (MAXBONENAME - 1) - (1 + strlen(extension));
     BLI_str_utf8_truncate_at_size(basename, basename_maxncpy);
-    BLI_snprintf_utf8(name, MAXBONENAME, "%s.%s", basename, extension);
+    BLI_snprintf(name, MAXBONENAME, "%s.%s", basename, extension);
 
     return true;
   }
