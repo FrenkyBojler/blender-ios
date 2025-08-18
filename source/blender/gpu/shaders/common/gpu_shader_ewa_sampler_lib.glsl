@@ -6,7 +6,7 @@
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_glsl_cpp_stubs.hh"
 
-// TODO: Potentially needs to be saved as a texture
+// TODO: Pass as 2D texture
 #define EWA_LUT_SIZE     256
 #define EWA_GAUSS_MAXIDX (EWA_LUT_SIZE - 1)
 
@@ -47,7 +47,7 @@ const float EWA_GAUSS_LUT[EWA_LUT_SIZE] = float_array(
 
 void clamp_anisotropy(inout float2 du_dx_texels,
                       inout float2 du_dy_texels,
-                      float max_factor_between_axes)
+                      float max_ratio_between_axes)
 {
   /* Make du/dx the longer axis; clamp the shorter (du/dy) if needed. */
   float len_squared_dx = dot(du_dx_texels, du_dx_texels);
@@ -62,12 +62,12 @@ void clamp_anisotropy(inout float2 du_dx_texels,
     len_squared_dy = tmpf;
   }
 
-  float long_len  = sqrt(max(0.0, len_squared_dx));
-  float short_len = sqrt(max(0.0, len_squared_dy));
+  float long_len  = sqrt(len_squared_dx);
+  float short_len = sqrt(len_squared_dy);
 
-  if (max_factor_between_axes > 1.0 && short_len > 0.0 && long_len > max_factor_between_axes *
+  if (max_ratio_between_axes > 1.0 && short_len > 0.0 && long_len > max_ratio_between_axes *
     short_len) {
-    float scale = long_len / (max_factor_between_axes * short_len);
+    float scale = long_len / (max_ratio_between_axes * short_len);
     du_dy_texels *= scale;
   }
 }
@@ -96,7 +96,7 @@ float lookup_ewa_weight(float r2_normalized)
 }
 
 float compute_gaussian_weight(float r2_normalized, float alpha) {
-  return exp(-alpha * max(0.0f, r2_normalized));
+  return exp(-alpha * r2_normalized);
 }
 
 float smootherstep01(float x)
@@ -109,16 +109,21 @@ float smootherstep01(float x)
  Fade starts at r_soft (≈0.92-0.95) and goes to 0 with zero slope at r=1. */
 float apply_edge_fade(float w_lut, float r2, bool usePreWindowedLUT)
 {
-  if (usePreWindowedLUT) return w_lut;  // LUT already windowed
-  if (r2 >= 1.0) return 0.0;
+  if (usePreWindowedLUT) {
+    return w_lut;
+  }
+  if (r2 >= 1.0f) {
+    return 0.0f;
+  }
 
-  const float r_soft = 0.92;     // begin fading in last ~8% of radius
+  /* begin fading in last ~8% of radius */
+  const float r_soft = 0.92f;
   float r2_soft = r_soft * r_soft;
   if (r2 <= r2_soft) {
     return w_lut;
   }
 
-  float r = sqrt(max(0.0, r2));
+  float r = sqrt(r2);
   float t = (r - r_soft) / (1.0 - r_soft);
   float fade = 1.0 - smootherstep01(t);
   return w_lut * fade;
@@ -131,42 +136,30 @@ struct Ellipse {
   bool valid;
 };
 
-Ellipse build_ellipse(int2 size, float2 uv_center_norm,
-                      float2 du_dx_norm, float2 du_dy_norm, float max_factor_between_axes)
+Ellipse build_ellipse(float2 uv_center_norm, float2 du_dx_texels, float2 du_dy_texels, float max_ratio_between_axes)
 {
-  Ellipse E;
-  E.valid = false;
-
-  /* Derivatives in texel space */
-  float2 du_dx_texels = float2(du_dx_norm.x * float(size.x),
-                               du_dx_norm.y * float(size.y));
-  float2 du_dy_texels = float2(du_dy_norm.x * float(size.x),
-                               du_dy_norm.y * float(size.y));
-
-  if (max_factor_between_axes > 1.0) {
-    clamp_anisotropy(du_dx_texels, du_dy_texels, max_factor_between_axes);
+  /* Clamps the ellipsoid based on the ratio between the axes.
+  This leads to better performance, because thin ellipsoids will be adjusted,
+  but also leads to neglectable blurring. */
+  if (max_ratio_between_axes > 1.0) {
+    clamp_anisotropy(du_dx_texels, du_dy_texels, max_ratio_between_axes);
   }
 
-  /* PBRT-style coefficients with +1 pixel filter, then normalize so r^2<1
-  The dot(...) read components explicitly; for clarity:
-  dv_dx = du_dx_texels.y, dv_dy = du_dy_texels.y; du_dx = du_dx_texels.x, du_dy = du_dy_texels.x */
-  float A = dot(du_dx_texels.yx, du_dx_texels.yx) + dot(du_dy_texels.yx, du_dy_texels.yx) + 1.0;
-
-  float B = -2.0 * (du_dx_texels.x * du_dx_texels.y + du_dy_texels.x * du_dy_texels.y);
-  float C = dot(du_dx_texels.xx, du_dx_texels.xx) + dot(du_dy_texels.xx, du_dy_texels.xx) + 1.0;
 
   float dv_dx = du_dx_texels.y;
   float dv_dy = du_dy_texels.y;
   float du_dx = du_dx_texels.x;
   float du_dy = du_dy_texels.x;
 
-  A = dv_dx*dv_dx + dv_dy*dv_dy + 1.0;
-  B = -2.0 * (du_dx*dv_dx + du_dy*dv_dy);
-  C = du_dx*du_dx + du_dy*du_dy + 1.0;
+  float A = dv_dx*dv_dx + dv_dy*dv_dy + 1.0;
+  float B = -2.0 * (du_dx*dv_dx + du_dy*dv_dy);
+  float C = du_dx*du_dx + du_dy*du_dy + 1.0;
 
   float denom = A * C - 0.25 * B * B;
   if (!(denom > 0.0)) {
-    return E;
+    Ellipse e;
+    e.valid = false;
+    return e;
   }
 
   float inv = 1.0 / denom;
@@ -174,76 +167,83 @@ Ellipse build_ellipse(int2 size, float2 uv_center_norm,
   B *= inv;
   C *= inv;
 
-  float center_u_texel = uv_center_norm.x * float(size.x) - 0.5;
-  float center_v_texel = uv_center_norm.y * float(size.y) - 0.5;
+  float center_u_texel = uv_center_norm.x - 0.5;
+  float center_v_texel = uv_center_norm.y - 0.5;
 
   float conic_discriminant = -B * B + 4.0 * A * C;
   if (conic_discriminant < 0.0) {
-    return E;
+    Ellipse e;
+    e.valid = false;
+    return e;
   }
 
   float inv_conic_discriminant = 1.0 / conic_discriminant;
-  float u_extent = 2.0 * inv_conic_discriminant * sqrt(max(0.0, conic_discriminant * C));
-  float v_extent = 2.0 * inv_conic_discriminant * sqrt(max(0.0, A * conic_discriminant));
+  float u_extent = 2.0 * inv_conic_discriminant * sqrt(conic_discriminant * C);
+  float v_extent = 2.0 * inv_conic_discriminant * sqrt(A * conic_discriminant);
 
   int s0 = int(ceil (center_u_texel - u_extent));
   int s1 = int(floor(center_u_texel + u_extent));
   int t0 = int(ceil (center_v_texel - v_extent));
   int t1 = int(floor(center_v_texel + v_extent));
 
-  /* Clip to source bounds to avoid OOB */
-  s0 = clamp(s0, 0, size.x - 1);
-  s1 = clamp(s1, 0, size.x - 1);
-  t0 = clamp(t0, 0, size.y - 1);
-  t1 = clamp(t1, 0, size.y - 1);
-
-  E.A = A;
-  E.B = B;
-  E.C = C;
-  E.center_u_texel = center_u_texel;
-  E.center_v_texel = center_v_texel;
-  E.s0 = s0;
-  E.s1 = s1;
-  E.t0 = t0;
-  E.t1 = t1;
-  E.valid = (s0 <= s1 && t0 <= t1);
-  return E;
+  Ellipse e;
+  e.A = A;
+  e.B = B;
+  e.C = C;
+  e.center_u_texel = center_u_texel;
+  e.center_v_texel = center_v_texel;
+  e.s0 = s0;
+  e.s1 = s1;
+  e.t0 = t0;
+  e.t1 = t1;
+  e.valid = (s0 <= s1 && t0 <= t1);
+  return e;
 }
 
 float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, float2 y_gradient
-                   /*should be pushed as a constant? float max_factor_between_axes = 8.0f*/)
+                   /*should be pushed as a constant? float max_ratio_between_axes = 8.0f*/)
 {
-  float max_factor_between_axes = 8.0f;
-  float4 out_color = float4(0.0f);
-  int2 image_dimensions = int2(textureSize(input_tx, 0));
-  /* Build ellipse & bbox in source texel space */
-  Ellipse E = build_ellipse(image_dimensions, coordinates, x_gradient, y_gradient,
-                            max_factor_between_axes);
-  if (!E.valid) {
-    return out_color;
+  float max_ratio_between_axes = 8.0f;
+
+  /* Bring derivatives to texel space */
+  float2 size = float2(textureSize(input_tx, 0));
+
+  float2 uv_center_norm = float2(coordinates.x * size.x, coordinates.y * size.y);
+  float2 du_dx_texels = float2(x_gradient.x * size.x, x_gradient.y * size.y);
+  float2 du_dy_texels = float2(y_gradient.x * size.x, y_gradient.y * size.y);
+  // float2 du_dx_texels = float2(du_dx_norm.x * float(size.x),
+  //                              du_dx_norm.y * float(size.y));
+  // float2 du_dy_texels = float2(du_dy_norm.x * float(size.x),
+  //                              du_dy_norm.y * float(size.y));
+
+  /* Build ellipse & bbox in texel space */
+  Ellipse e = build_ellipse(uv_center_norm, du_dx_texels, du_dy_texels, max_ratio_between_axes);
+
+  if (!e.valid) {
+    return float4(0.0f);
   }
 
-  float4 accum = float4(0.0);
-  float wsum = 0.0;
+  float4 accum = float4(0.0f);
+  float wsum = 0.0f;
 
   /* Incremental evaluation across each scanline */
-  for (int y = E.t0; y <= E.t1; ++y) {
-    float delta_v = float(y) - E.center_v_texel;
+  for (int y = e.t0; y <= e.t1; ++y) {
+    float delta_v = float(y) - e.center_v_texel;
 
-    float delta_u0 = float(E.s0) - E.center_u_texel;
-    float r2 = E.A * delta_u0 * delta_u0 + E.B * delta_u0 * delta_v + E.C * delta_v * delta_v;
+    float delta_u0 = float(e.s0) - e.center_u_texel;
+    float r2 = e.A * delta_u0 * delta_u0 + e.B * delta_u0 * delta_v + e.C * delta_v * delta_v;
 
-    float dR = E.A * (2.0 * delta_u0 + 1.0) + E.B * delta_v;
-    float ddR = 2.0 * E.A;
+    float dR = e.A * (2.0f * delta_u0 + 1.0f) + e.B * delta_v;
+    float ddR = 2.0f * e.A;
 
-    for (int x = E.s0; x <= E.s1; ++x) {
-      if (r2 < 1.0) {
+    for (int x = e.s0; x <= e.s1; ++x) {
+      if (r2 < 1.0f) {
         /* INFO: we can implement different version with different fades which would
         affect the discontinuities differently.
         float w = apply_edge_fade(w_lut, r2, uUsePreWindowedLUT); */
         float weight = lookup_ewa_weight(r2);
         //float weight = compute_gaussian_weight(r2, 2.0f);
-        if (weight > 0.0) {
+        if (weight > 0.0f) {
           float4 rgba = texelFetch(input_tx, int2(x, y), 0);
           accum += weight * rgba;
           wsum  += weight;
@@ -254,6 +254,6 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
     }
   }
 
-  out_color = (wsum > 0.0) ? (accum / wsum) : float4(0.0);
+  float4 out_color = (wsum > 0.0f) ? (accum / wsum) : float4(0.0f);
   return out_color;
 }
