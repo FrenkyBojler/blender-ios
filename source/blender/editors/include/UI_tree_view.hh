@@ -276,8 +276,8 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   bool is_collapsible() const;
 
   int count_parents() const;
-  AbstractTreeViewItem* get_parent();
-  AbstractTreeViewItem* get_child();
+  AbstractTreeViewItem *get_parent();
+  AbstractTreeViewItem *get_child();
 
  protected:
   /** See AbstractViewItem::get_rename_string(). */

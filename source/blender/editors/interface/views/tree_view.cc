@@ -629,12 +629,12 @@ int AbstractTreeViewItem::count_parents() const
   return i;
 }
 
-AbstractTreeViewItem* AbstractTreeViewItem::get_parent()
+AbstractTreeViewItem *AbstractTreeViewItem::get_parent()
 {
   return parent_;
 }
 
-AbstractTreeViewItem* AbstractTreeViewItem::get_child()
+AbstractTreeViewItem *AbstractTreeViewItem::get_child()
 {
   if (children_.is_empty()) {
     return nullptr;
