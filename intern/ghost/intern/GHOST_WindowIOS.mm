@@ -1073,8 +1073,6 @@ typedef struct UserInputEvent {
 
   toolbar_live_text_item = [[UIBarButtonItem alloc] initWithCustomView:toolbar_text_field];
 
-  toolbar_text_field.inputAccessoryView = toolbar;
-
   toolbar_done_editing_item = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                            target:nil
@@ -1184,6 +1182,7 @@ typedef struct UserInputEvent {
     [self generateKeyboardReturnEvent];
   }
 }
+
 
 - (void)handleDoneButton
 {
@@ -1304,7 +1303,9 @@ typedef struct UserInputEvent {
   /* Initial highlighting and text-cursor position. */
   switch (keyboard_properties.inital_text_state) {
     case GHOST_KeyboardProperties::select_all_text: {
-      [toolbar_text_field selectAll:nil];
+        [toolbar_text_field performSelector:@selector(selectAll:)
+                      withObject:nil
+                      afterDelay:0.1];
       break;
     }
     case GHOST_KeyboardProperties::select_text_range: {
