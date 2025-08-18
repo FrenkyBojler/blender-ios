@@ -329,7 +329,20 @@ bool DEG_iterator_object_is_visible(eEvaluationMode eval_mode, const Object *ob)
  */
 bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eval_mode);
 
+namespace evil {
 /**
+ * WARNING: DON'T USE!!!
+ *
+ * These functions are exposed publicly as a temporary measure as we figure out how to fully get
+ * rid of temporary objects in the Draw module.
+ *
+ * TODO: Link to design/TODO issue.
+ *
+ * DON'T ADD NEW USE CASES FOR THESE FUNCTIONS.
+ */
+
+/**
+ * WARNING: DON'T USE!!!
  * Generates a temporary object for a given dupli instance.
  *
  * Returns true if the resulting object should be visible, otherwise the temp object should be
@@ -347,9 +360,11 @@ bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eva
                                                        ObjectRuntimeHandle *r_temp_runtime);
 
 /**
+ * WARNING: DON'T USE!!!
  * Frees any property allocated when calling DEG_iterator_temp_object_from_dupli.
  */
 void DEG_iterator_temp_object_free_properties(const DupliObject *dupli, Object *temp_object);
+}  // namespace evil
 
 /** \} */
 

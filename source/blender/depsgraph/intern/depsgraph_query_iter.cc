@@ -48,6 +48,9 @@
 
 namespace deg = blender::deg;
 
+using evil::DEG_iterator_temp_object_free_properties;
+using evil::DEG_iterator_temp_object_from_dupli;
+
 /* ************************ DEG ITERATORS ********************* */
 
 namespace {
@@ -474,12 +477,12 @@ bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eva
   return false;
 }
 
-bool DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
-                                         const DupliObject *dupli,
-                                         eEvaluationMode eval_mode,
-                                         bool do_matrix_setup,
-                                         Object *r_temp_object,
-                                         ObjectRuntimeHandle *r_temp_runtime)
+bool evil::DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
+                                               const DupliObject *dupli,
+                                               eEvaluationMode eval_mode,
+                                               bool do_matrix_setup,
+                                               Object *r_temp_object,
+                                               ObjectRuntimeHandle *r_temp_runtime)
 {
   *r_temp_object = blender::dna::shallow_copy(*dupli->ob);
   r_temp_object->runtime = r_temp_runtime;
@@ -536,7 +539,7 @@ void ensure_id_properties_freed(const IDProperty *dupli_idprops, IDProperty **te
   *temp_dupli_idprops = nullptr;
 }
 
-void DEG_iterator_temp_object_free_properties(const DupliObject *dupli, Object *temp_object)
+void evil::DEG_iterator_temp_object_free_properties(const DupliObject *dupli, Object *temp_object)
 {
   ensure_id_properties_freed(dupli->ob->id.properties, &temp_object->id.properties);
   ensure_id_properties_freed(dupli->ob->id.system_properties, &temp_object->id.system_properties);
