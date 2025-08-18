@@ -64,8 +64,10 @@ struct ParticleDrawSource {
   ParticleSystem *psys = nullptr;
   ModifierData *md = nullptr;
   PTCacheEdit *edit = nullptr;
+  int additional_subdivision = 0;
 
   Vector<int> points_by_curve_storage;
+  Vector<int> evaluated_points_by_curve_storage;
 
   int curves_num()
   {
@@ -85,11 +87,20 @@ struct ParticleDrawSource {
 
   int evaluated_points_num()
   {
-    /* TODO subdiv*/
-    return points_num();
+    if (additional_subdivision == 0) {
+      return points_num();
+    }
+    evaluated_points_by_curve();
+    return evaluated_points_by_curve_storage.last();
+  }
+
+  int resolution()
+  {
+    return 1 << additional_subdivision;
   }
 
   OffsetIndices<int> points_by_curve();
+  OffsetIndices<int> evaluated_points_by_curve();
   ParticleSpans particles_get();
 };
 
@@ -203,6 +214,8 @@ struct CurvesEvalCache {
 
   /* --- Legacy Hair Particle system. --- */
 
+  int additional_subdivision = 0;
+
   void ensure_attribute(CurvesModule &module,
                         ParticleDrawSource &src,
                         const Mesh &mesh,
@@ -210,12 +223,11 @@ struct CurvesEvalCache {
                         const int index);
   void ensure_attributes(CurvesModule &module,
                          ParticleDrawSource &src,
-                         const GPUMaterial *gpu_material,
-                         int additional_subdivision);
+                         const GPUMaterial *gpu_material);
 
   void ensure_common(ParticleDrawSource &src);
 
-  void ensure_positions(CurvesModule &module, ParticleDrawSource &src, int additional_subdivision);
+  void ensure_positions(CurvesModule &module, ParticleDrawSource &src);
 
   gpu::VertBufPtr &indirection_buf_get(CurvesModule &module,
                                        ParticleDrawSource &src,

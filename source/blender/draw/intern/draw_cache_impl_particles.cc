@@ -282,6 +282,27 @@ OffsetIndices<int> ParticleDrawSource::points_by_curve()
   return points_by_curve_storage.as_span();
 }
 
+OffsetIndices<int> ParticleDrawSource::evaluated_points_by_curve()
+{
+  if (additional_subdivision == 0) {
+    return points_by_curve();
+  }
+
+  if (!evaluated_points_by_curve_storage.is_empty()) {
+    return evaluated_points_by_curve_storage.as_span();
+  }
+  int segment_multiplier = this->resolution();
+
+  int total = 0;
+  evaluated_points_by_curve_storage.append(total);
+  particles_get().foreach_strand([&](Span<ParticleCacheKey> strand) {
+    int size = strand.size();
+    total += (size > 1) ? size * segment_multiplier : 1;
+    evaluated_points_by_curve_storage.append(total);
+  });
+  return evaluated_points_by_curve_storage.as_span();
+}
+
 static void count_cache_segment_keys(ParticleCacheKey **pathcache,
                                      const int num_path_cache_keys,
                                      ParticleHairCache *hair_cache)
@@ -1042,7 +1063,8 @@ void drw_particle_update_ptcache(Object *object_eval, ParticleSystem *psys)
 ParticleDrawSource drw_particle_get_hair_source(Object *object,
                                                 ParticleSystem *psys,
                                                 ModifierData *md,
-                                                PTCacheEdit *edit)
+                                                PTCacheEdit *edit,
+                                                const int additional_subdivision)
 {
   const DRWContext *draw_ctx = DRW_context_get();
   ParticleDrawSource src;
@@ -1050,6 +1072,7 @@ ParticleDrawSource drw_particle_get_hair_source(Object *object,
   src.psys = psys;
   src.md = md;
   src.edit = edit;
+  src.additional_subdivision = math::clamp(additional_subdivision, 0, 3);
   if (psys_in_edit_mode(draw_ctx->depsgraph, psys)) {
     src.object = DEG_get_original(object);
     src.psys = psys_orig_get(psys);
@@ -1064,7 +1087,7 @@ gpu::Batch *DRW_particles_batch_cache_get_hair(Object *object,
   ParticleBatchCache *cache = particle_batch_cache_get(psys);
   if (cache->hair.hairs == nullptr) {
     drw_particle_update_ptcache(object, psys);
-    ParticleDrawSource source = drw_particle_get_hair_source(object, psys, md, nullptr);
+    ParticleDrawSource source = drw_particle_get_hair_source(object, psys, md, nullptr, 0);
     ensure_seg_pt_count(source.edit, source.psys, &cache->hair);
     particle_batch_cache_ensure_pos_and_seg(source.edit, source.psys, source.md, &cache->hair);
     cache->hair.hairs = GPU_batch_create(
@@ -1450,8 +1473,7 @@ void CurvesEvalCache::ensure_attribute(CurvesModule & /*module*/,
 
 void CurvesEvalCache::ensure_attributes(CurvesModule &module,
                                         ParticleDrawSource &src,
-                                        const GPUMaterial *gpu_material,
-                                        int /*additional_subdivision*/)
+                                        const GPUMaterial *gpu_material)
 {
   ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)src.md;
   if (psmd == nullptr || psmd->mesh_final == nullptr || src.curves_num() == 0) {
@@ -1501,13 +1523,12 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
   }
 
   points_by_curve_buf = gpu::VertBuf::new_from_span(src.points_by_curve().data());
-  /* TODO subdiv. */
-  evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(src.points_by_curve().data());
+  evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(
+      src.evaluated_points_by_curve().data());
 
   /* Use the same type for all curves. */
-  /* TODO subdiv. */
   auto type_varray = VArray<int8_t>::from_single(CURVE_TYPE_CATMULL_ROM, src.curves_num());
-  auto resolution_varray = VArray<int32_t>::from_single(1, src.curves_num());
+  auto resolution_varray = VArray<int32_t>::from_single(src.resolution(), src.curves_num());
   /* Not used. */
   auto cyclic_offsets_varray = VArray<int32_t>::from_single(0, 2);
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
@@ -1530,9 +1551,7 @@ static float hair_shape_radius(float shape, float root, float tip, float time)
   return (radius * (root - tip)) + tip;
 }
 
-void CurvesEvalCache::ensure_positions(CurvesModule &module,
-                                       ParticleDrawSource &src,
-                                       int /*additional_subdivision*/)
+void CurvesEvalCache::ensure_positions(CurvesModule &module, ParticleDrawSource &src)
 {
   if (evaluated_pos_rad_buf) {
     return;
@@ -1625,7 +1644,11 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
 CurvesEvalCache &hair_particle_get_eval_cache(ParticleDrawSource &src)
 {
   ParticleBatchCache *cache = particle_batch_cache_get(src.psys);
-  return cache->hair.eval_cache;
+  CurvesEvalCache &eval_cache = cache->hair.eval_cache;
+  if (assign_if_different(eval_cache.additional_subdivision, src.additional_subdivision)) {
+    eval_cache.clear();
+  }
+  return eval_cache;
 }
 
 }  // namespace blender::draw

@@ -40,10 +40,11 @@ blender::gpu::VertBuf *hair_pos_buffer_get(Scene *scene,
   CurvesModule &module = *drw_get().data->curves_module;
 
   drw_particle_update_ptcache(object, psys);
-  ParticleDrawSource source = drw_particle_get_hair_source(object, psys, md, nullptr);
+  ParticleDrawSource source = drw_particle_get_hair_source(
+      object, psys, md, nullptr, scene->r.hair_subdiv);
 
   CurvesEvalCache &cache = hair_particle_get_eval_cache(source);
-  cache.ensure_positions(module, source, scene->r.hair_subdiv);
+  cache.ensure_positions(module, source);
 
   return cache.evaluated_pos_rad_buf.get();
 }
@@ -60,25 +61,26 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
   Object *object = ob_ref.object;
 
   drw_particle_update_ptcache(object, psys);
-  ParticleDrawSource source = drw_particle_get_hair_source(object, psys, md, nullptr);
 
-  int subdiv = scene->r.hair_subdiv;
+  ParticleDrawSource source = drw_particle_get_hair_source(
+      object, psys, md, nullptr, scene->r.hair_subdiv);
+
+  CurvesEvalCache &cache = hair_particle_get_eval_cache(source);
+
   const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND)   ? 0 :
                                (scene->r.hair_type == SCE_HAIR_SHAPE_CYLINDER) ? 3 :
                                                                                  1;
-  CurvesEvalCache &cache = hair_particle_get_eval_cache(source);
 
-  /* TODO(fclem): Need to cache the point count. */
-  // if (source.evaluated_point_count() == 0) {
-  //   /* Nothing to draw. Just return an empty drawcall that will be skipped. */
-  //   return cache.batch_get(0, 0, face_per_segment);
-  // }
+  if (source.psys->totchild + source.psys->totpart == 0) {
+    /* Nothing to draw. Just return an empty drawcall that will be skipped. */
+    return cache.batch_get(0, 0, face_per_segment, false);
+  }
 
   /* TODO(fclem): Remove Global access. */
   CurvesModule &module = *drw_get().data->curves_module;
 
-  cache.ensure_positions(module, source, subdiv);
-  cache.ensure_attributes(module, source, gpu_material, subdiv);
+  cache.ensure_positions(module, source);
+  cache.ensure_attributes(module, source, gpu_material);
 
   gpu::VertBufPtr &indirection_buf = cache.indirection_buf_get(module, source, face_per_segment);
 

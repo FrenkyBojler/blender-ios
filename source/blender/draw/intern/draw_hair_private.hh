@@ -151,7 +151,8 @@ void drw_particle_update_ptcache(Object *object_eval, ParticleSystem *psys);
 ParticleDrawSource drw_particle_get_hair_source(Object *object,
                                                 ParticleSystem *psys,
                                                 ModifierData *md,
-                                                PTCacheEdit *edit);
+                                                PTCacheEdit *edit,
+                                                int additional_subdivision);
 
 CurvesEvalCache &hair_particle_get_eval_cache(ParticleDrawSource &src);
 
