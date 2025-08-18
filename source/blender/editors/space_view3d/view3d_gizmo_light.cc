@@ -566,7 +566,7 @@ static void WIDGETGROUP_light_target_setup(const bContext * /*C*/, wmGizmoGroup 
   UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
   UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
 
-  gz->scale_basis = 0.06f;
+  gz->scale_basis = 0.08f;
 
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_transform_axis_target", true);
 
@@ -597,7 +597,7 @@ static void WIDGETGROUP_light_target_draw_prepare(const bContext *C, wmGizmoGrou
       madd_v3_v3fl(gz->matrix_basis[3], gz->matrix_basis[2], -la->spotsize);
     }
   }
-  gz->matrix_offset[3][2] -= 23.0;
+  gz->matrix_offset[3][2] -= 24.0;
   WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_OFFSET_SCALE, true);
 }
 
