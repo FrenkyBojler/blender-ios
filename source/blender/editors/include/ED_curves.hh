@@ -191,14 +191,20 @@ class PenToolOperation {
                               bool clear_selection);
 };
 
-void pen_find_closest_point_or_handle(const PenToolOperation &ptd,
-                                      const bke::CurvesGeometry &curves,
-                                      const IndexMask &editable_points,
-                                      const IndexMask &bezier_points,
-                                      const float4x4 &layer_to_object,
-                                      int drawing_index,
-                                      const float2 &mouse_co,
-                                      ClosestElement &r_closest_element);
+void pen_find_closest_point(const PenToolOperation &ptd,
+                            const bke::CurvesGeometry &curves,
+                            const IndexMask &editable_points,
+                            const float4x4 &layer_to_object,
+                            int drawing_index,
+                            const float2 &mouse_co,
+                            ClosestElement &r_closest_element);
+void pen_find_closest_handle(const PenToolOperation &ptd,
+                             const bke::CurvesGeometry &curves,
+                             const IndexMask &bezier_points,
+                             const float4x4 &layer_to_object,
+                             int drawing_index,
+                             const float2 &mouse_co,
+                             ClosestElement &r_closest_element);
 void pen_find_closest_edge_point(const PenToolOperation &ptd,
                                  const bke::CurvesGeometry &curves,
                                  const IndexMask &editable_curves,

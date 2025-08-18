@@ -93,14 +93,10 @@ static ClosestElement pen_find_closest_element(const GreasePencilPenToolOperatio
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
         *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
 
-    pen_find_closest_point_or_handle(ptd,
-                                     curves,
-                                     editable_points,
-                                     bezier_points,
-                                     layer_to_object,
-                                     drawing_index,
-                                     mouse_co,
-                                     closest_element);
+    pen_find_closest_point(
+        ptd, curves, editable_points, layer_to_object, drawing_index, mouse_co, closest_element);
+    pen_find_closest_handle(
+        ptd, curves, bezier_points, layer_to_object, drawing_index, mouse_co, closest_element);
     pen_find_closest_edge_point(
         ptd, curves, editable_curves, layer_to_object, drawing_index, mouse_co, closest_element);
   }
