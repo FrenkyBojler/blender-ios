@@ -13,7 +13,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 #include "BLI_threads.h"
@@ -89,7 +89,7 @@ Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v
   const Editing *ed = seq::editing_get(scene);
   Vector<Strip *> strips;
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     if (min_ii(seq::time_left_handle_frame_get(scene, strip), seq::time_start_frame_get(strip)) >
         v2d->cur.xmax)
     {
@@ -222,7 +222,8 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Strip *
 
   if (strip->type == STRIP_TYPE_SOUND_RAM && strip->sound != nullptr) {
     /* Visualize sub-frame sound offsets. */
-    const double sound_offset = (strip->sound->offset_time + strip->sound_offset) * FPS;
+    const double sound_offset = (strip->sound->offset_time + strip->sound_offset) *
+                                scene->frames_per_second();
     strip_ctx.content_start += sound_offset;
     strip_ctx.content_end += sound_offset;
   }
@@ -483,7 +484,7 @@ static void draw_seq_waveform_overlay(TimelineDrawContext *timeline_ctx,
                            SEQ_TIMELINE_WAVEFORMS_HALF) != 0;
 
   const float frames_per_pixel = BLI_rctf_size_x(&v2d->cur) / timeline_ctx->region->winx;
-  const float samples_per_frame = SOUND_WAVE_SAMPLES_PER_SECOND / FPS;
+  const float samples_per_frame = SOUND_WAVE_SAMPLES_PER_SECOND / scene->frames_per_second();
   const float samples_per_pixel = samples_per_frame * frames_per_pixel;
   const float bottom = strip_ctx->bottom + timeline_ctx->pixely * 2.0f;
   const float top = strip_ctx->strip_content_top;
@@ -500,8 +501,8 @@ static void draw_seq_waveform_overlay(TimelineDrawContext *timeline_ctx,
   const float draw_end_frame = min_ff(v2d->cur.xmax,
                                       strip_ctx->right_handle - timeline_ctx->pixelx * 3.0f);
   /* Offset must be also aligned, otherwise waveform flickers when moving left handle. */
-  float sample_start_frame = draw_start_frame -
-                             (strip->sound->offset_time + strip->sound_offset) * FPS;
+  float sample_start_frame = draw_start_frame - (strip->sound->offset_time + strip->sound_offset) *
+                                                    scene->frames_per_second();
 
   const int pixels_to_draw = round_fl_to_int((draw_end_frame - draw_start_frame) /
                                              frames_per_pixel);
@@ -747,7 +748,7 @@ static void draw_handle_transform_text(const TimelineDrawContext *timeline_ctx,
   BLF_set_default();
 
   /* Calculate if strip is wide enough for showing the labels. */
-  size_t numstr_len = SNPRINTF_RLEN(
+  size_t numstr_len = SNPRINTF_UTF8_RLEN(
       numstr, "%d%d", int(strip_ctx->left_handle), int(strip_ctx->right_handle));
   const float tot_width = BLF_width(BLF_default(), numstr, numstr_len);
 
@@ -761,11 +762,11 @@ static void draw_handle_transform_text(const TimelineDrawContext *timeline_ctx,
   float text_x = strip_ctx->left_handle;
 
   if (handle == STRIP_HANDLE_LEFT) {
-    numstr_len = SNPRINTF_RLEN(numstr, "%d", int(strip_ctx->left_handle));
+    numstr_len = SNPRINTF_UTF8_RLEN(numstr, "%d", int(strip_ctx->left_handle));
     text_x += text_margin;
   }
   else {
-    numstr_len = SNPRINTF_RLEN(numstr, "%d", int(strip_ctx->right_handle - 1));
+    numstr_len = SNPRINTF_UTF8_RLEN(numstr, "%d", int(strip_ctx->right_handle - 1));
     text_x = strip_ctx->right_handle -
              (text_margin + timeline_ctx->pixelx * BLF_width(BLF_default(), numstr, numstr_len));
   }
@@ -806,43 +807,43 @@ static void draw_seq_text_get_source(const Strip *strip, char *r_source, size_t 
     }
     case STRIP_TYPE_SOUND_RAM: {
       if (strip->sound != nullptr) {
-        BLI_strncpy(r_source, strip->sound->filepath, source_maxncpy);
+        BLI_strncpy_utf8(r_source, strip->sound->filepath, source_maxncpy);
       }
       break;
     }
     case STRIP_TYPE_MULTICAM: {
-      BLI_snprintf(r_source, source_maxncpy, "Channel: %d", strip->multicam_source);
+      BLI_snprintf_utf8(r_source, source_maxncpy, "Channel: %d", strip->multicam_source);
       break;
     }
     case STRIP_TYPE_TEXT: {
       const TextVars *textdata = static_cast<TextVars *>(strip->effectdata);
-      BLI_strncpy(r_source, textdata->text_ptr, source_maxncpy);
+      BLI_strncpy_utf8(r_source, textdata->text_ptr, source_maxncpy);
       break;
     }
     case STRIP_TYPE_SCENE: {
       if (strip->scene != nullptr) {
         if (strip->scene_camera != nullptr) {
-          BLI_snprintf(r_source,
-                       source_maxncpy,
-                       "%s (%s)",
-                       strip->scene->id.name + 2,
-                       strip->scene_camera->id.name + 2);
+          BLI_snprintf_utf8(r_source,
+                            source_maxncpy,
+                            "%s (%s)",
+                            strip->scene->id.name + 2,
+                            strip->scene_camera->id.name + 2);
         }
         else {
-          BLI_strncpy(r_source, strip->scene->id.name + 2, source_maxncpy);
+          BLI_strncpy_utf8(r_source, strip->scene->id.name + 2, source_maxncpy);
         }
       }
       break;
     }
     case STRIP_TYPE_MOVIECLIP: {
       if (strip->clip != nullptr) {
-        BLI_strncpy(r_source, strip->clip->id.name + 2, source_maxncpy);
+        BLI_strncpy_utf8(r_source, strip->clip->id.name + 2, source_maxncpy);
       }
       break;
     }
     case STRIP_TYPE_MASK: {
       if (strip->mask != nullptr) {
-        BLI_strncpy(r_source, strip->mask->id.name + 2, source_maxncpy);
+        BLI_strncpy_utf8(r_source, strip->mask->id.name + 2, source_maxncpy);
       }
       break;
     }
@@ -877,7 +878,7 @@ static size_t draw_seq_text_get_overlay_string(TimelineDrawContext *timeline_ctx
 
   char strip_duration_text[16];
   if (timeline_ctx->sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_DURATION) {
-    SNPRINTF(strip_duration_text, "%d", int(strip_ctx->strip_length));
+    SNPRINTF_UTF8(strip_duration_text, "%d", int(strip_ctx->strip_length));
     if (i != 0) {
       text_array[i++] = text_sep;
     }

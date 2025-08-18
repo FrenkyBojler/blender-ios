@@ -665,6 +665,8 @@ class NODE_MT_gn_utilities_base(Menu):
         self.draw_menu(layout, path="Utilities/Text")
         self.draw_menu(layout, path="Utilities/Vector")
         layout.separator()
+        self.draw_menu(layout, path="Utilities/Bundle")
+        self.draw_menu(layout, path="Utilities/Closure")
         self.draw_menu(layout, path="Utilities/Field")
         self.draw_menu(layout, path="Utilities/Math")
         if context.preferences.experimental.use_geometry_nodes_lists:
@@ -673,18 +675,12 @@ class NODE_MT_gn_utilities_base(Menu):
         self.draw_menu(layout, path="Utilities/Rotation")
         self.draw_menu(layout, path="Utilities/Deprecated")
         layout.separator()
-        if context.preferences.experimental.use_bundle_and_closure_nodes:
-            self.closure_zone(layout, label="Closure")
-            self.node_operator(layout, "GeometryNodeEvaluateClosure")
         self.for_each_element_zone(layout, label="For Each Element")
         self.node_operator(layout, "GeometryNodeIndexSwitch")
         self.node_operator(layout, "GeometryNodeMenuSwitch")
         self.node_operator(layout, "FunctionNodeRandomValue")
         self.repeat_zone(layout, label="Repeat")
         self.node_operator(layout, "GeometryNodeSwitch")
-        if context.preferences.experimental.use_bundle_and_closure_nodes:
-            self.node_operator(layout, "GeometryNodeCombineBundle")
-            self.node_operator(layout, "GeometryNodeSeparateBundle")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -754,6 +750,32 @@ class NODE_MT_gn_utilities_matrix_base(Menu):
         self.node_operator(layout, "FunctionNodeTransformDirection")
         self.node_operator(layout, "FunctionNodeTransformPoint")
         self.node_operator(layout, "FunctionNodeTransposeMatrix")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+
+class NODE_MT_category_utilities_bundle(Menu):
+    bl_idname = "NODE_MT_category_utilities_bundle"
+    bl_label = "Bundle"
+    menu_path = "Utilities/Bundle"
+
+    def draw(self, context):
+        layout = self.layout
+        self.node_operator(layout, "NodeCombineBundle")
+        self.node_operator(layout, "NodeSeparateBundle")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
+
+
+class NODE_MT_category_utilities_closure(Menu):
+    bl_idname = "NODE_MT_category_utilities_closure"
+    bl_label = "Closure"
+    menu_path = "Utilities/Closure"
+
+    def draw(self, context):
+        layout = self.layout
+        self.closure_zone(layout, label="Closure")
+        self.node_operator(layout, "NodeEvaluateClosure")
 
         node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 

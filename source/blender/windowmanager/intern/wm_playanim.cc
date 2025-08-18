@@ -36,6 +36,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -1589,12 +1590,16 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr p
 static GHOST_WindowHandle playanim_window_open(
     GHOST_SystemHandle ghost_system, const char *title, int posx, int posy, int sizex, int sizey)
 {
-  GHOST_GPUSettings gpusettings = {0};
+  GHOST_GPUSettings gpu_settings = {0};
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  gpusettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  gpusettings.preferred_device.index = U.gpu_preferred_index;
-  gpusettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpusettings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.preferred_device.index = U.gpu_preferred_index;
+  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  if (GPU_backend_vsync_is_overridden()) {
+    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   {
     bool screen_size_valid = false;
@@ -1649,7 +1654,7 @@ static GHOST_WindowHandle playanim_window_open(
                             /* Could optionally start full-screen. */
                             GHOST_kWindowStateNormal,
                             false,
-                            gpusettings);
+                            gpu_settings);
 }
 
 static void playanim_window_zoom(PlayState &ps, const float zoom_offset)
@@ -1729,10 +1734,10 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   IMB_init();
   MOV_init();
 
-  STRNCPY(ps.display_ctx.display_settings.display_device,
-          IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
-  IMB_colormanagement_init_default_view_settings(&ps.display_ctx.view_settings,
-                                                 &ps.display_ctx.display_settings);
+  STRNCPY_UTF8(ps.display_ctx.display_settings.display_device,
+               IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
+  IMB_colormanagement_init_untonemapped_view_settings(&ps.display_ctx.view_settings,
+                                                      &ps.display_ctx.display_settings);
   ps.display_ctx.ui_scale = 1.0f;
 
   while ((argc > 0) && (argv[0][0] == '-')) {

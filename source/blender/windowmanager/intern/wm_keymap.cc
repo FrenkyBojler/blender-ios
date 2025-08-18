@@ -198,7 +198,7 @@ static bool wm_keymap_item_equals(wmKeyMapItem *a, wmKeyMapItem *b)
   return (wm_keymap_item_equals_result(a, b) && a->type == b->type && a->val == b->val &&
           a->shift == b->shift && a->ctrl == b->ctrl && a->alt == b->alt && a->oskey == b->oskey &&
           a->hyper == b->hyper && a->keymodifier == b->keymodifier && a->maptype == b->maptype &&
-          ((a->val != KM_CLICK_DRAG) || (a->direction == b->direction)) &&
+          ((a->val != KM_PRESS_DRAG) || (a->direction == b->direction)) &&
           ((ISKEYBOARD(a->type) == 0) ||
            (a->flag & KMI_REPEAT_IGNORE) == (b->flag & KMI_REPEAT_IGNORE)));
 }
@@ -290,11 +290,11 @@ static void wm_keymap_diff_item_free(wmKeyMapDiffItem *kmdi)
 
 wmKeyConfig *WM_keyconfig_new(wmWindowManager *wm, const char *idname, bool user_defined)
 {
-  BLI_assert(!BLI_findstring(&wm->keyconfigs, idname, offsetof(wmKeyConfig, idname)));
+  BLI_assert(!BLI_findstring(&wm->runtime->keyconfigs, idname, offsetof(wmKeyConfig, idname)));
   /* Create new configuration. */
   wmKeyConfig *keyconf = MEM_callocN<wmKeyConfig>("wmKeyConfig");
   STRNCPY_UTF8(keyconf->idname, idname);
-  BLI_addtail(&wm->keyconfigs, keyconf);
+  BLI_addtail(&wm->runtime->keyconfigs, keyconf);
 
   if (user_defined) {
     keyconf->flag |= KEYCONF_USER;
@@ -306,7 +306,7 @@ wmKeyConfig *WM_keyconfig_new(wmWindowManager *wm, const char *idname, bool user
 wmKeyConfig *WM_keyconfig_ensure(wmWindowManager *wm, const char *idname, bool user_defined)
 {
   wmKeyConfig *keyconf = static_cast<wmKeyConfig *>(
-      BLI_findstring(&wm->keyconfigs, idname, offsetof(wmKeyConfig, idname)));
+      BLI_findstring(&wm->runtime->keyconfigs, idname, offsetof(wmKeyConfig, idname)));
   if (keyconf) {
     if (keyconf == wm->defaultconf) {
       /* For default configuration, we need to keep keymap
@@ -328,14 +328,14 @@ wmKeyConfig *WM_keyconfig_ensure(wmWindowManager *wm, const char *idname, bool u
 
 void WM_keyconfig_remove(wmWindowManager *wm, wmKeyConfig *keyconf)
 {
-  BLI_assert(BLI_findindex(&wm->keyconfigs, keyconf) != -1);
+  BLI_assert(BLI_findindex(&wm->runtime->keyconfigs, keyconf) != -1);
   if (STREQLEN(U.keyconfigstr, keyconf->idname, sizeof(U.keyconfigstr))) {
     STRNCPY(U.keyconfigstr, wm->defaultconf->idname);
     U.runtime.is_dirty = true;
     WM_keyconfig_update_tag(nullptr, nullptr);
   }
 
-  BLI_remlink(&wm->keyconfigs, keyconf);
+  BLI_remlink(&wm->runtime->keyconfigs, keyconf);
   WM_keyconfig_free(keyconf);
 
   /* Clear pointers. */
@@ -370,7 +370,7 @@ static wmKeyConfig *WM_keyconfig_active(wmWindowManager *wm)
 
   /* First try from preset. */
   keyconf = static_cast<wmKeyConfig *>(
-      BLI_findstring(&wm->keyconfigs, U.keyconfigstr, offsetof(wmKeyConfig, idname)));
+      BLI_findstring(&wm->runtime->keyconfigs, U.keyconfigstr, offsetof(wmKeyConfig, idname)));
   if (keyconf) {
     return keyconf;
   }
@@ -1236,7 +1236,7 @@ std::optional<std::string> WM_keymap_item_raw_to_string(const int8_t shift,
     if (val == KM_DBL_CLICK) {
       result_array.append(IFACE_("dbl-"));
     }
-    else if (val == KM_CLICK_DRAG) {
+    else if (val == KM_PRESS_DRAG) {
       result_array.append(IFACE_("drag-"));
     }
     result_array.append(WM_key_event_string(type, compact));
@@ -1723,7 +1723,7 @@ bool WM_keymap_item_compare(const wmKeyMapItem *k1, const wmKeyMapItem *k2)
     if (k1->val != k2->val) {
       return false;
     }
-    if (k1->val == KM_CLICK_DRAG && (k1->direction != k2->direction)) {
+    if (k1->val == KM_PRESS_DRAG && (k1->direction != k2->direction)) {
       return false;
     }
   }
@@ -1795,7 +1795,7 @@ void WM_keyconfig_update_tag(wmKeyMap *keymap, wmKeyMapItem *kmi)
   }
 }
 
-void WM_keyconfig_update_operatortype()
+void WM_keyconfig_update_operatortype_tag()
 {
   wm_keymap_update_flag |= WM_KEYMAP_UPDATE_OPERATORTYPE;
 }
@@ -1861,6 +1861,17 @@ static wmKeyMap *wm_keymap_preset(wmWindowManager *wm, wmKeyConfig *keyconf, wmK
   return keymap;
 }
 
+void WM_keyconfig_update_on_startup(wmWindowManager *wm)
+{
+  /* Ignore #WM_KEYMAP_UPDATE_OPERATORTYPE flag on startup,
+   * it's likely to be enabled because it's set when registering any operator
+   * however running this is unnecessary since the key-map hasn't been initialized.
+   * It's harmless but would add redundant initialization every startup. */
+  wm_keymap_update_flag &= ~WM_KEYMAP_UPDATE_OPERATORTYPE;
+
+  WM_keyconfig_update_ex(wm, false);
+}
+
 void WM_keyconfig_update(wmWindowManager *wm)
 {
   WM_keyconfig_update_ex(wm, false);
@@ -1889,7 +1900,7 @@ void WM_keyconfig_update_ex(wmWindowManager *wm, bool keep_properties)
     /* One or more operator-types have been removed, this won't happen often
      * but when it does we have to check _every_ key-map item. */
     wm_keymap_item_properties_update_ot_from_list(&U.user_keymaps, keep_properties);
-    LISTBASE_FOREACH (wmKeyConfig *, kc, &wm->keyconfigs) {
+    LISTBASE_FOREACH (wmKeyConfig *, kc, &wm->runtime->keyconfigs) {
       wm_keymap_item_properties_update_ot_from_list(&kc->keymaps, keep_properties);
     }
 
@@ -2172,7 +2183,7 @@ wmKeyMapItem *WM_keymap_item_find_match(wmKeyMap *km_base,
 
   if (!wm_keymap_is_match(km_base, km_match)) {
     BKE_reportf(
-        reports, RPT_ERROR, "KeyMap \"%s\" doesn't match \"%s\"", idname, km_match->idname);
+        reports, RPT_ERROR, "KeyMap \"%s\" does not match \"%s\"", idname, km_match->idname);
     return nullptr;
   }
 

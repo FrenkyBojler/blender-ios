@@ -13,9 +13,7 @@ class NODE_MT_compositor_node_input_base(Menu):
     bl_label = "Input"
 
     def draw(self, context):
-        snode = context.space_data
-        is_group = (len(snode.path) > 1)
-
+        del context
         layout = self.layout
         self.draw_menu(layout, path="Input/Constant")
         layout.separator()
@@ -63,9 +61,7 @@ class NODE_MT_compositor_node_output_base(Menu):
     bl_label = "Output"
 
     def draw(self, context):
-        snode = context.space_data
-        is_group = (len(snode.path) > 1)
-
+        del context
         layout = self.layout
         self.node_operator(layout, "NodeGroupOutput")
         self.node_operator(layout, "CompositorNodeViewer")
@@ -150,7 +146,6 @@ class NODE_MT_compositor_node_filter_base(Menu):
         self.node_operator(layout, "CompositorNodeKuwahara")
         self.node_operator(layout, "CompositorNodePixelate")
         self.node_operator(layout, "CompositorNodePosterize")
-        self.node_operator(layout, "CompositorNodeSunBeams")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 

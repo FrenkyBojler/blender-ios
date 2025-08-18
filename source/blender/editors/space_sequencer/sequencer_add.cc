@@ -10,12 +10,15 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "AS_asset_representation.hh"
+
 #include "DNA_sequence_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -48,8 +51,9 @@
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
+#include "ED_asset.hh"
+#include "ED_asset_menu_utils.hh"
 #include "ED_scene.hh"
-/* For menu, popup, icons, etc. */
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_time_scrub_ui.hh"
@@ -235,11 +239,11 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
   int timeline_frame = scene->r.cfra;
   int proximity = INT_MAX;
 
-  if (!ed || !ed->seqbasep) {
+  if (!ed || !ed->current_strips()) {
     return 1;
   }
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     const int strip_end = seq::time_right_handle_frame_get(scene, strip);
     if (ELEM(type, -1, strip->type) && (strip_end <= timeline_frame) &&
         (timeline_frame - strip_end < proximity))
@@ -535,7 +539,7 @@ static void seq_load_apply_generic_options(bContext *C, wmOperator *op, Strip *s
   }
 
   if (RNA_boolean_get(op->ptr, "overlap") == true ||
-      !seq::transform_test_overlap(scene, ed->seqbasep, strip) ||
+      !seq::transform_test_overlap(scene, ed->current_strips(), strip) ||
       RNA_boolean_get(op->ptr, "move_strips"))
   {
     /* No overlap should be handled or the strip is not overlapping, exit early. */
@@ -550,11 +554,11 @@ static void seq_load_apply_generic_options(bContext *C, wmOperator *op, Strip *s
     ScrArea *area = CTX_wm_area(C);
     const bool use_sync_markers = (((SpaceSeq *)area->spacedata.first)->flag & SEQ_MARKER_TRANS) !=
                                   0;
-    seq::transform_handle_overlap(scene, ed->seqbasep, strip_col, use_sync_markers);
+    seq::transform_handle_overlap(scene, ed->current_strips(), strip_col, use_sync_markers);
   }
   else {
     /* Shuffle strip channel to fix overlaps. */
-    seq::transform_seqbase_shuffle(ed->seqbasep, strip, scene);
+    seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
   }
 }
 
@@ -575,7 +579,7 @@ static bool seq_load_apply_generic_options_only_test_overlap(bContext *C,
     seq::select_active_set(scene, strip);
   }
 
-  return seq::transform_test_overlap(scene, ed->seqbasep, strip);
+  return seq::transform_test_overlap(scene, ed->current_strips(), strip);
 }
 
 static bool seq_effect_add_properties_poll(const bContext * /*C*/,
@@ -625,7 +629,7 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *
   load_data_init_from_operator(&load_data, C, op);
   load_data.scene = sce_seq;
 
-  Strip *strip = seq::add_scene_strip(scene, ed->seqbasep, &load_data);
+  Strip *strip = seq::add_scene_strip(scene, ed->current_strips(), &load_data);
   seq_load_apply_generic_options(C, op, strip);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -643,7 +647,7 @@ static void sequencer_disable_one_time_properties(bContext *C, wmOperator *op)
 {
   Editing *ed = seq::editing_get(CTX_data_sequencer_scene(C));
   /* Disable following properties if there are any existing strips, unless overridden by user. */
-  if (ed && ed->seqbasep && ed->seqbasep->first) {
+  if (ed && ed->current_strips() && ed->current_strips()->first) {
     if (RNA_struct_find_property(op->ptr, "use_framerate")) {
       RNA_boolean_set(op->ptr, "use_framerate", false);
     }
@@ -730,13 +734,13 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext *C, wmOperat
   load_data_init_from_operator(&load_data, C, op);
 
   int type = RNA_enum_get(op->ptr, "type");
-  Scene *scene_new = ED_scene_sequencer_add(bmain, C, eSceneCopyMethod(type), false);
+  Scene *scene_new = ED_scene_sequencer_add(bmain, C, eSceneCopyMethod(type));
   if (scene_new == nullptr) {
     return OPERATOR_CANCELLED;
   }
   load_data.scene = scene_new;
 
-  Strip *strip = seq::add_scene_strip(scene, ed->seqbasep, &load_data);
+  Strip *strip = seq::add_scene_strip(scene, ed->current_strips(), &load_data);
   seq_load_apply_generic_options(C, op, strip);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -759,44 +763,6 @@ static wmOperatorStatus sequencer_add_scene_strip_new_invoke(bContext *C,
   return sequencer_add_scene_strip_new_exec(C, op);
 }
 
-static const EnumPropertyItem *strip_new_sequencer_enum_itemf(bContext *C,
-                                                              PointerRNA * /*ptr*/,
-                                                              PropertyRNA * /*prop*/,
-                                                              bool *r_free)
-{
-  EnumPropertyItem *item = nullptr;
-  int totitem = 0;
-  uint item_index;
-
-  item_index = RNA_enum_from_value(strip_new_scene_items, SCE_COPY_NEW);
-  RNA_enum_item_add(&item, &totitem, &strip_new_scene_items[item_index]);
-
-  bool has_scene_or_no_context = false;
-  if (C == nullptr) {
-    /* For documentation generation. */
-    has_scene_or_no_context = true;
-  }
-  else {
-    Scene *scene = CTX_data_sequencer_scene(C);
-    Strip *strip = seq::select_active_get(scene);
-    if (strip && (strip->type == STRIP_TYPE_SCENE) && (strip->scene != nullptr)) {
-      has_scene_or_no_context = true;
-    }
-  }
-
-  if (has_scene_or_no_context) {
-    int values[] = {SCE_COPY_EMPTY, SCE_COPY_LINK_COLLECTION, SCE_COPY_FULL};
-    for (int i = 0; i < ARRAY_SIZE(values); i++) {
-      item_index = RNA_enum_from_value(strip_new_scene_items, values[i]);
-      RNA_enum_item_add(&item, &totitem, &strip_new_scene_items[item_index]);
-    }
-  }
-
-  RNA_enum_item_end(&item, &totitem);
-  *r_free = true;
-  return item;
-}
-
 void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -815,7 +781,6 @@ void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
   sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME | SEQPROP_MOVE);
 
   ot->prop = RNA_def_enum(ot->srna, "type", strip_new_scene_items, SCE_COPY_NEW, "Type", "");
-  RNA_def_enum_funcs(ot->prop, strip_new_sequencer_enum_itemf);
 }
 
 static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
@@ -847,7 +812,7 @@ static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperat
   }
   load_data.clip = clip;
 
-  Strip *strip = seq::add_movieclip_strip(scene, ed->seqbasep, &load_data);
+  Strip *strip = seq::add_movieclip_strip(scene, ed->current_strips(), &load_data);
   seq_load_apply_generic_options(C, op, strip);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -923,7 +888,7 @@ static wmOperatorStatus sequencer_add_mask_strip_exec(bContext *C, wmOperator *o
   load_data_init_from_operator(&load_data, C, op);
   load_data.mask = mask;
 
-  Strip *strip = seq::add_mask_strip(scene, ed->seqbasep, &load_data);
+  Strip *strip = seq::add_mask_strip(scene, ed->current_strips(), &load_data);
   seq_load_apply_generic_options(C, op, strip);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -992,7 +957,7 @@ static void sequencer_add_free(bContext * /*C*/, wmOperator *op)
 static IMB_Proxy_Size seq_get_proxy_size_flags(bContext *C)
 {
   bScreen *screen = CTX_wm_screen(C);
-  IMB_Proxy_Size proxy_sizes = IMB_Proxy_Size(0);
+  IMB_Proxy_Size proxy_sizes = IMB_PROXY_NONE;
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
       switch (sl->spacetype) {
@@ -1001,7 +966,8 @@ static IMB_Proxy_Size seq_get_proxy_size_flags(bContext *C)
           if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
             continue;
           }
-          proxy_sizes |= IMB_Proxy_Size(seq::rendersize_to_proxysize(sseq->render_size));
+          proxy_sizes |= seq::rendersize_to_proxysize(
+              eSpaceSeq_Proxy_RenderSize(sseq->render_size));
         }
       }
     }
@@ -1049,7 +1015,7 @@ static void sequencer_add_movie_sync_sound_strip(
   strip_sound->len = std::max(strip_movie->len, strip_sound->len);
 
   /* Ensure that length matches the movie strip even if the underlying sound data
-   * doesn't match up (e.g. it is longer).  */
+   * doesn't match up (e.g. it is longer). */
   seq::time_right_handle_frame_set(
       scene, strip_sound, seq::time_right_handle_frame_get(scene, strip_movie));
   seq::time_left_handle_frame_set(
@@ -1079,14 +1045,14 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
     Strip *strip_movie = nullptr;
     Strip *strip_sound = nullptr;
 
-    strip_movie = seq::add_movie_strip(bmain, scene, ed->seqbasep, load_data);
+    strip_movie = seq::add_movie_strip(bmain, scene, ed->current_strips(), load_data);
 
     if (strip_movie == nullptr) {
       BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
     }
     else {
       if (RNA_boolean_get(op->ptr, "sound")) {
-        strip_sound = seq::add_sound_strip(bmain, scene, ed->seqbasep, load_data);
+        strip_sound = seq::add_sound_strip(bmain, scene, ed->current_strips(), load_data);
         sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
         added_strips.append(strip_movie);
 
@@ -1124,7 +1090,7 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
       ScrArea *area = CTX_wm_area(C);
       const bool use_sync_markers = (((SpaceSeq *)area->spacedata.first)->flag &
                                      SEQ_MARKER_TRANS) != 0;
-      seq::transform_handle_overlap(scene, ed->seqbasep, added_strips, use_sync_markers);
+      seq::transform_handle_overlap(scene, ed->current_strips(), added_strips, use_sync_markers);
     }
   }
 }
@@ -1142,14 +1108,14 @@ static bool sequencer_add_movie_single_strip(bContext *C,
   Strip *strip_sound = nullptr;
   blender::Vector<Strip *> added_strips;
 
-  strip_movie = seq::add_movie_strip(bmain, scene, ed->seqbasep, load_data);
+  strip_movie = seq::add_movie_strip(bmain, scene, ed->current_strips(), load_data);
 
   if (strip_movie == nullptr) {
     BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
     return false;
   }
   if (RNA_boolean_get(op->ptr, "sound")) {
-    strip_sound = seq::add_sound_strip(bmain, scene, ed->seqbasep, load_data);
+    strip_sound = seq::add_sound_strip(bmain, scene, ed->current_strips(), load_data);
     sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
     added_strips.append(strip_movie);
 
@@ -1180,7 +1146,7 @@ static bool sequencer_add_movie_single_strip(bContext *C,
       ScrArea *area = CTX_wm_area(C);
       const bool use_sync_markers = (((SpaceSeq *)area->spacedata.first)->flag &
                                      SEQ_MARKER_TRANS) != 0;
-      seq::transform_handle_overlap(scene, ed->seqbasep, added_strips, use_sync_markers);
+      seq::transform_handle_overlap(scene, ed->current_strips(), added_strips, use_sync_markers);
     }
   }
   else {
@@ -1224,7 +1190,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
                                                        RNA_struct_find_property(op->ptr, "files"));
 
   char vt_old[64];
-  STRNCPY(vt_old, scene->view_settings.view_transform);
+  STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
   float fps_old = scene->r.frs_sec / scene->r.frs_sec_base;
 
   if (tot_files > 1) {
@@ -1415,7 +1381,7 @@ static void sequencer_add_sound_multiple_strips(bContext *C,
     RNA_string_get(&itemptr, "name", file_only);
     BLI_path_join(load_data->path, sizeof(load_data->path), dir_only, file_only);
     STRNCPY(load_data->name, file_only);
-    Strip *strip = seq::add_sound_strip(bmain, scene, ed->seqbasep, load_data);
+    Strip *strip = seq::add_sound_strip(bmain, scene, ed->current_strips(), load_data);
     if (strip == nullptr) {
       BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
     }
@@ -1434,7 +1400,7 @@ static bool sequencer_add_sound_single_strip(bContext *C, wmOperator *op, seq::L
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_ensure(scene);
 
-  Strip *strip = seq::add_sound_strip(bmain, scene, ed->seqbasep, load_data);
+  Strip *strip = seq::add_sound_strip(bmain, scene, ed->current_strips(), load_data);
   if (strip == nullptr) {
     BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
     return false;
@@ -1671,9 +1637,9 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
   }
 
   char vt_old[64];
-  STRNCPY(vt_old, scene->view_settings.view_transform);
+  STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
 
-  Strip *strip = seq::add_image_strip(CTX_data_main(C), scene, ed->seqbasep, &load_data);
+  Strip *strip = seq::add_image_strip(CTX_data_main(C), scene, ed->current_strips(), &load_data);
 
   if (!STREQ(vt_old, scene->view_settings.view_transform)) {
     BKE_reportf(op->reports,
@@ -1823,7 +1789,7 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
     }
   }
 
-  Strip *strip = seq::add_effect_strip(scene, ed->seqbasep, &load_data);
+  Strip *strip = seq::add_effect_strip(scene, ed->current_strips(), &load_data);
   seq_load_apply_generic_options(C, op, strip);
 
   if (strip->type == STRIP_TYPE_COLOR) {
@@ -1966,6 +1932,103 @@ void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot)
                              0.0f,
                              1.0f);
   RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
+}
+
+static Scene *sequencer_add_scene_asset(const bContext &C,
+                                        const asset_system::AssetRepresentation &asset,
+                                        ReportList & /*reports*/)
+{
+  Main &bmain = *CTX_data_main(&C);
+  Scene *scene_asset = reinterpret_cast<Scene *>(
+      asset::asset_local_id_ensure_imported(bmain, asset));
+  return scene_asset;
+}
+
+static wmOperatorStatus sequencer_add_scene_asset_invoke(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
+  Editing *ed = seq::editing_ensure(scene);
+  BLI_assert(ed != nullptr);
+
+  sequencer_disable_one_time_properties(C, op);
+
+  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_SCENE, event);
+  const asset_system::AssetRepresentation *asset =
+      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *op->ptr, op->reports);
+  if (!asset) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Scene *scene_asset = sequencer_add_scene_asset(*C, *asset, *op->reports);
+  if (!scene_asset) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const char *error_msg;
+  if (!have_free_channels(C, op, 1, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
+    return OPERATOR_CANCELLED;
+  }
+
+  if (RNA_boolean_get(op->ptr, "replace_sel")) {
+    deselect_all_strips(scene);
+  }
+
+  seq::LoadData load_data;
+  load_data_init_from_operator(&load_data, C, op);
+  load_data.scene = scene_asset;
+
+  Strip *strip = seq::add_scene_strip(scene, ed->current_strips(), &load_data);
+  seq_load_apply_generic_options(C, op, strip);
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+  DEG_relations_tag_update(bmain);
+  sequencer_select_do_updates(C, scene);
+
+  if (RNA_boolean_get(op->ptr, "move_strips")) {
+    move_strips(C);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static std::string sequencer_add_scene_asset_get_description(bContext *C,
+                                                             wmOperatorType * /*ot*/,
+                                                             PointerRNA *ptr)
+{
+  const asset_system::AssetRepresentation *asset =
+      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *ptr, nullptr);
+  if (!asset) {
+    return "";
+  }
+  const AssetMetaData &asset_data = asset->get_metadata();
+  if (!asset_data.description) {
+    return "";
+  }
+  return TIP_(asset_data.description);
+}
+
+void SEQUENCER_OT_add_scene_strip_from_scene_asset(wmOperatorType *ot)
+{
+  ot->name = "Add Scene Asset";
+  ot->description = "Add a scene strip from a scene asset";
+  ot->idname = "SEQUENCER_OT_add_scene_strip_from_scene_asset";
+
+  ot->invoke = sequencer_add_scene_asset_invoke;
+  ot->poll = ED_operator_sequencer_active_editable;
+  ot->get_description = sequencer_add_scene_asset_get_description;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME | SEQPROP_MOVE);
+
+  asset::operator_asset_reference_props_register(*ot->srna);
 }
 
 }  // namespace blender::ed::vse

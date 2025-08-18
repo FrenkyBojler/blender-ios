@@ -24,7 +24,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_asset.hh"
@@ -396,7 +396,7 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
   keymap = WM_keymap_ensure(wm->defaultconf, "Sculpt Curves", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
-  /* NOTE: Grease Pencil handlers used to be added using `ED_KEYMAP_GPENCIL` in
+  /* NOTE: Grease Pencil handlers used to be added using #ED_KEYMAP_GPENCIL in
    * `ed_default_handlers` because it needed to be added to multiple editors (as other editors use
    * annotations.). But for OB_GREASE_PENCIL, we only need it to register the keymaps for the
    * 3D View. */
@@ -1123,6 +1123,8 @@ static void view3d_buttons_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   keymap = WM_keymap_ensure(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
@@ -1378,6 +1380,8 @@ static void view3d_tools_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   keymap = WM_keymap_ensure(wm->defaultconf, "3D View Generic", SPACE_VIEW3D, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
@@ -1593,7 +1597,7 @@ void ED_spacetype_view3d()
   ARegionType *art;
 
   st->spaceid = SPACE_VIEW3D;
-  STRNCPY(st->name, "View3D");
+  STRNCPY_UTF8(st->name, "View3D");
 
   st->create = view3d_create;
   st->free = view3d_free;

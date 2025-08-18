@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a775d58b2e0e')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'066280446c16')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-21 08:48+0000\n"
-"PO-Revision-Date: 2025-04-14 08:34+0000\n"
+"POT-Creation-Date: 2025-08-18 09:16+0000\n"
+"PO-Revision-Date: 2025-07-23 15:14+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
 "Language: pl\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
-"X-Generator: Weblate 5.10.1"
+"X-Generator: Weblate 5.12.1"
 
 
 msgid "Shader AOV"
@@ -3321,10 +3321,6 @@ msgid "Radius of head of bone (for Envelope deform only)"
 msgstr "Promień początkowej części kości, która definiuje obwiednię (tylko dla deformacji wyrażanej przez obwiednie)"
 
 
-msgid "Bone is not visible when it is not in Edit Mode (i.e. in Object or Pose Modes)"
-msgstr "Kość jest niewidoczna gdy nie jest w Trybie Edycji (np. gdy jest w Trybie Obiektowym lub w Trybie Pozy)"
-
-
 msgid "Selectable"
 msgstr "Klikalna"
 
@@ -3415,10 +3411,6 @@ msgstr "Gdy kość ma parenta, początek kości jest połączony z końcem paren
 
 msgid "Cyclic Offset"
 msgstr "Przesunięcie cykliczne"
-
-
-msgid "When bone doesn't have a parent, it receives cyclic offset effects (Deprecated)"
-msgstr "Gdy kość nie posiada kości nadrzędnej, używa cyklicznych efektów przesunięcia (przestarzałe)"
 
 
 msgid "Deform"
@@ -10798,6 +10790,10 @@ msgid "Codec"
 msgstr "Kodek"
 
 
+msgid "Video"
+msgstr "Wideo"
+
+
 msgid "Image Preview"
 msgstr "Podgląd obrazu"
 
@@ -11576,68 +11572,40 @@ msgid "Mask"
 msgstr "Maska"
 
 
-msgid "Snap"
-msgstr "Przyciągnij"
+msgid "Face Data"
+msgstr "Dane ściany"
 
 
 msgid "Proportional Editing Falloff"
 msgstr "Proporcjonalne edytowanie spadku"
 
 
-msgid "Mirror"
-msgstr "Odbicie lustrzane"
-
-
-msgid "Local View"
-msgstr "Widok lokalny"
-
-
-msgid "Viewpoint"
-msgstr "Punkt obserwacji"
-
-
-msgid "Navigation"
-msgstr "Nawigacja"
-
-
-msgid "Select Linked"
-msgstr "Zaznacz powiązane"
-
-
-msgid "Assign Material"
-msgstr "Przypisanie materiału"
-
-
-msgid "Metaball"
-msgstr "Metakula"
-
-
-msgid "Light"
-msgstr "Światło"
-
-
-msgid "Light Probe"
-msgstr "Sonda świetlna"
-
-
-msgid "Rigid Body"
-msgstr "Bryła sztywna"
+msgid "Snap"
+msgstr "Przyciągnij"
 
 
 msgid "Apply"
 msgstr "Zastosuj"
 
 
-msgid "Track"
-msgstr "Ścieżka"
-
-
-msgid "Quick Effects"
-msgstr "Szybkie efekty"
+msgid "Bone Collections"
+msgstr "Kolekcja kości"
 
 
 msgid "Show/Hide"
 msgstr "Pokaż/Ukryj"
+
+
+msgid "Local View"
+msgstr "Widok lokalny"
+
+
+msgid "Mirror"
+msgstr "Odbicie lustrzane"
+
+
+msgid "Convert"
+msgstr "Konwertuj"
 
 
 msgid "Clean Up"
@@ -11648,24 +11616,52 @@ msgid "Asset"
 msgstr "Prefabrykat"
 
 
-msgid "Convert"
-msgstr "Konwertuj"
+msgid "Quick Effects"
+msgstr "Szybkie efekty"
 
 
-msgid "Bone Collections"
-msgstr "Kolekcja kości"
+msgid "Track"
+msgstr "Ścieżka"
 
 
-msgid "Face Data"
-msgstr "Dane ściany"
+msgid "Navigation"
+msgstr "Nawigacja"
 
 
-msgid "Merge"
-msgstr "Scal"
+msgid "Viewpoint"
+msgstr "Punkt obserwacji"
+
+
+msgid "Rigid Body"
+msgstr "Bryła sztywna"
+
+
+msgid "Light Probe"
+msgstr "Sonda świetlna"
+
+
+msgid "Light"
+msgstr "Światło"
+
+
+msgid "Metaball"
+msgstr "Metakula"
+
+
+msgid "Assign Material"
+msgstr "Przypisanie materiału"
 
 
 msgid "Text"
 msgstr "Tekst"
+
+
+msgid "Select Linked"
+msgstr "Zaznacz powiązane"
+
+
+msgid "Merge"
+msgstr "Scal"
 
 
 msgid "Catalog"
@@ -17365,20 +17361,8 @@ msgid "Active Tool"
 msgstr "Aktywne narzędzie"
 
 
-msgid "Shadow Settings"
-msgstr "Ustawienia cienia"
-
-
-msgid "Compositor"
-msgstr "Kompozytor"
-
-
-msgid "Motion Tracking"
-msgstr "Śledzenie ruchu"
-
-
-msgid "Mesh Edit Mode"
-msgstr "Tryb edycji siatki"
+msgid "Snapping"
+msgstr "Przyciąganie"
 
 
 msgid "Measurement"
@@ -17389,12 +17373,24 @@ msgid "Curve Edit Mode"
 msgstr "Tryb edycji krzywej"
 
 
-msgid "Snapping"
-msgstr "Przyciąganie"
+msgid "Mesh Edit Mode"
+msgstr "Tryb edycji siatki"
+
+
+msgid "Motion Tracking"
+msgstr "Śledzenie ruchu"
 
 
 msgid "Transform Orientations"
 msgstr "Orientacje przekształcenia"
+
+
+msgid "Compositor"
+msgstr "Kompozytor"
+
+
+msgid "Shadow Settings"
+msgstr "Ustawienia cienia"
 
 
 msgid "Aperture"
@@ -17603,10 +17599,6 @@ msgstr "Kodowanie"
 
 msgid "Audio"
 msgstr "Audio"
-
-
-msgid "Video"
-msgstr "Wideo"
 
 
 msgid "Metadata"
@@ -20360,10 +20352,6 @@ msgid "Renders"
 msgstr "Rendery"
 
 
-msgid "Homogeneous"
-msgstr "Jednorodny"
-
-
 msgid "Max Samples"
 msgstr "Maksimum próbek"
 
@@ -20908,13 +20896,8 @@ msgstr "Usuń wszystkie grupy"
 
 
 msgctxt "Operator"
-msgid "Move to Top"
-msgstr "Przesuń w górę"
-
-
-msgctxt "Operator"
-msgid "Move to Bottom"
-msgstr "Przesuń w dół"
+msgid "Flip"
+msgstr "Odwróć"
 
 
 msgid "Resolution Viewport"
@@ -21332,6 +21315,16 @@ msgid "Volume Files"
 msgstr "Pliki kubatury"
 
 
+msgctxt "Operator"
+msgid "Move to Top"
+msgstr "Przesuń w górę"
+
+
+msgctxt "Operator"
+msgid "Move to Bottom"
+msgstr "Przesuń w dół"
+
+
 msgid "No active asset"
 msgstr "Brak aktywnego zasobu"
 
@@ -21723,6 +21716,21 @@ msgstr "Ścieżki/pliki"
 msgctxt "Operator"
 msgid "Movie"
 msgstr "Film"
+
+
+msgctxt "Operator"
+msgid "Delete Keyframes..."
+msgstr "Usuń klatki kluczowe..."
+
+
+msgctxt "Operator"
+msgid "Clear Keyframes..."
+msgstr "Wyczyść klatki kluczowe..."
+
+
+msgctxt "Operator"
+msgid "Interactive Mirror"
+msgstr "Lustro interaktywne"
 
 
 msgctxt "Operator"
@@ -22390,11 +22398,6 @@ msgstr "Użytkownik:"
 
 
 msgctxt "Operator"
-msgid "Interactive Mirror"
-msgstr "Lustro interaktywne"
-
-
-msgctxt "Operator"
 msgid "Selection to Active"
 msgstr "Zaznaczenie do aktywnego"
 
@@ -22644,16 +22647,6 @@ msgstr "Siatka płaszczyzny"
 
 
 msgctxt "Operator"
-msgid "Delete Keyframes..."
-msgstr "Usuń klatki kluczowe..."
-
-
-msgctxt "Operator"
-msgid "Clear Keyframes..."
-msgstr "Wyczyść klatki kluczowe..."
-
-
-msgctxt "Operator"
 msgid "Bake Action..."
 msgstr "Akcja przeliczenia..."
 
@@ -22835,11 +22828,6 @@ msgstr "Wydłuż ściany"
 msgctxt "Operator"
 msgid "Extrude Faces Along Normals"
 msgstr "Wydłuż ściany wzdłuż wektorów normalnych"
-
-
-msgctxt "Operator"
-msgid "Flip"
-msgstr "Odwróć"
 
 
 msgctxt "Operator"
@@ -23340,14 +23328,6 @@ msgid "Undefined Type"
 msgstr "Niezdefiniowany typ"
 
 
-msgid "Can't add Rigid Body to non mesh object"
-msgstr "Nie można dodać Bryły Sztywnej do obiektu innego typu niż siatka"
-
-
-msgid "Can't create Rigid Body world"
-msgstr "Nie mogę utworzyć świata Brył Sztywnych"
-
-
 msgid "Compiled without Bullet physics engine"
 msgstr "Skompilowano bez silnika fizyki Bullet"
 
@@ -23715,10 +23695,6 @@ msgstr "Nie usuwam klatek kluczowych w zablokowanej krzywej-F '%s', obiekt '%s'"
 
 msgid "\"%s\" property cannot be animated"
 msgstr "Właściwość \"%s\" nie moży być animowana"
-
-
-msgid "Button doesn't appear to have any property information attached (ptr.data = %p, prop = %p)"
-msgstr "Wygląda na to, że przycisk nie posiada załączonej żadnej informacji o właściwości (ptr.data = %p, prop = %p)"
 
 
 msgid "Cannot remove built in keying set"
@@ -24600,10 +24576,6 @@ msgid "Swap Areas"
 msgstr "Zamień obszary"
 
 
-msgid "Can't edit external library data"
-msgstr "Nie można edytować zewnętrznych danych biblioteki"
-
-
 msgid "No filepath given"
 msgstr "Nie podano ścieżki pliku"
 
@@ -24729,16 +24701,8 @@ msgid "Path selection requires two matching elements to be selected"
 msgstr "Zaznaczanie ścieżki wymaga zaznaczenia dwóch pasujących elementów"
 
 
-msgid "Cannot rip selected faces"
-msgstr "Nie mogę rozpruć zaznaczonych ścian"
-
-
 msgid "Cannot rip multiple disconnected vertices"
 msgstr "Nie mogę rozpruć wielu rozłączonych wierzchołków"
-
-
-msgid "Rip failed"
-msgstr "Rozpruwanie nie powiodło się"
 
 
 msgid "Vertex select - Shift-Click for multiple modes, Ctrl-Click contracts selection"
@@ -25075,10 +25039,6 @@ msgid "No active image found in material \"%s\" (%d) for object \"%s\""
 msgstr "Nie odnaleziono aktywnego obrazu w materiale \"%s\" (%d) dla obiektu \"%s\""
 
 
-msgid "Object \"%s\" is not a mesh or can't be converted to a mesh (Curve, Text, Surface or Metaball)"
-msgstr "Obiekt \"%s\" nie jest siatką lub nie może być przekształcony na siatkę (Krzywa, Tekst, Powierzchnia lub Metaball)"
-
-
 msgid "Uninitialized image %s"
 msgstr "Nie zainicjowany obraz %s"
 
@@ -25169,10 +25129,6 @@ msgstr "Nie można edytować danych biblioteki"
 
 msgid "Skipping object '%s', data '%s' has already been processed with a previous object"
 msgstr "Pomijam obiekt '%s', dane '%s' zostały już przerobione z poprzednim obiektem"
-
-
-msgid "Can't edit linked mesh or curve data"
-msgstr "Nie można edytować powiązanej siatki lub krzywej"
 
 
 msgid "Requires selected vertices or active vertex group"
@@ -25329,10 +25285,6 @@ msgstr "Osierocona biblioteka obiektów dodana do aktualnej sceny w celu unikni�
 
 msgid "Incorrect context for running object data unlink"
 msgstr "Nieprawidłowy kontekst dla odłączenia danych"
-
-
-msgid "Can't unlink this object data"
-msgstr "Nie mogę odłączyć tych danych obiektu"
 
 
 msgid "Select Collection"
@@ -26255,10 +26207,6 @@ msgid "See Modifiers panel below"
 msgstr "Patrz panel modyfikatorów poniżej"
 
 
-msgid "F-Curve doesn't have any keyframes as it only contains sampled points"
-msgstr "Krzywa F nie posiada żadnych klatek kluczowych, ponieważ ma tylko próbkowane punkty"
-
-
 msgid "No active keyframe on F-Curve"
 msgstr "Brak aktywnej klatki kluczowej dla krzywej F"
 
@@ -26363,10 +26311,6 @@ msgid "Hard coded Non-Linear, Gamma:1.7"
 msgstr "Twardo zakodowane nieliniowo, Gamma 1.7"
 
 
-msgid "Can't Load Image"
-msgstr "Nie można załadować obrazu"
-
-
 msgid "%d float channel(s)"
 msgstr "%d kanał(y) float"
 
@@ -26409,10 +26353,6 @@ msgstr "Zostanie zapisane %d obrazów w %s"
 
 msgid "Saved %s"
 msgstr "Zapisano %s"
-
-
-msgid "can't save image while rendering"
-msgstr "nie można zapisać obrazu podczas renderowania"
 
 
 msgid "No packed files to unpack"
@@ -26559,10 +26499,6 @@ msgid "Strip None"
 msgstr "Pasek None"
 
 
-msgid "Can't reload with running modal operators"
-msgstr "Nie można załadować ponownie gdy działa operator modalny"
-
-
 msgid "Movie clip not found"
 msgstr "Nie odnaleziono klipu filmowego"
 
@@ -26577,10 +26513,6 @@ msgstr "Plik '%s' nie mógł być załadowany"
 
 msgid "Please select two strips"
 msgstr "Proszę zaznaczyć dwa paski"
-
-
-msgid "Can't overwrite export file"
-msgstr "Nie mogę nadpisać pliku do eksportu"
 
 
 msgid "Rows:"
@@ -27019,10 +26951,6 @@ msgid "Bone selection count error"
 msgstr "Błąd ilości kości w selekcji"
 
 
-msgid "Linked data can't text-space transform"
-msgstr "Zlinkowane dane nie pozwalają na transformację text-space"
-
-
 msgid "Unsupported object type for text-space transform"
 msgstr "Nieobsługiwany format dla transformacji text-space"
 
@@ -27294,6 +27222,10 @@ msgstr "Nadpisać %s"
 
 msgid "UV Vertex"
 msgstr "Wierzchołek UV"
+
+
+msgid "Rip failed"
+msgstr "Rozpruwanie nie powiodło się"
 
 
 msgid "Cannot split selection when sync selection is enabled"
@@ -27929,18 +27861,6 @@ msgid "Result"
 msgstr "Wynik"
 
 
-msgid "Path:"
-msgstr "Ścieżka:"
-
-
-msgid "Layer:"
-msgstr "Warstwa:"
-
-
-msgid "File Subpath:"
-msgstr "Podścieżka pliku:"
-
-
 msgid "Val"
 msgstr "Val"
 
@@ -28345,10 +28265,6 @@ msgstr "Render niemożliwy, brak kamery"
 
 msgid "No border area selected"
 msgstr "Nie zaznaczono obramowania"
-
-
-msgid "No render output node in scene"
-msgstr "Brak output node w scenie"
 
 
 msgid "All render layers are disabled"
