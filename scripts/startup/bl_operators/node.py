@@ -220,6 +220,7 @@ class NODE_OT_add_typed_bundle(NodeAddOperator, bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        self.deselect_nodes(context)
         node = self.create_node(context, "NodeCombineBundle")
         node.bundle_items.new("STRING", "Type")
         return {"FINISHED"}
