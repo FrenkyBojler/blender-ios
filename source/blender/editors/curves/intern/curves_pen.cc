@@ -1023,22 +1023,18 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   //   }
   // });
 
-  // if (add_single) {
-  //   if (pen_can_create_new_curve(ptd, op)) {
-  //     bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
-  //     bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
-  //         layer, ptd.vc.scene->r.cfra);
-  //     bke::CurvesGeometry &curves = drawing->strokes_for_write();
-  //     const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+  if (add_single) {
+    if (true) {
+      Curves *curves_id = static_cast<Curves *>(ptd.vc.obedit->data);
+      bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
-  //     ptd.add_single_point_and_curve(curves, layer_to_world);
-  //     drawing->opacities_for_write().last() = 1.0f;
-  //     drawing->tag_topology_changed();
+      ptd.add_single_point_and_curve(curves, float4x4::identity());
+      curves.tag_topology_changed();
 
-  //     changed.store(true, std::memory_order_relaxed);
-  //     point_added = true;
-  //   }
-  // }
+      changed.store(true, std::memory_order_relaxed);
+      point_added = true;
+    }
+  }
 
   pen_status_indicators(C, op);
   if (changed) {
