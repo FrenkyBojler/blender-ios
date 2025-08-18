@@ -433,14 +433,14 @@ class NODE_MT_gn_mesh_base(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        self.draw_menu(layout, path="Geometry/Read")
-        self.draw_menu(layout, path="Geometry/Sample")
-        self.draw_menu(layout, path="Geometry/Write")
+        self.draw_menu(layout, path="Mesh/Read")
+        self.draw_menu(layout, path="Mesh/Sample")
+        self.draw_menu(layout, path="Mesh/Write")
         layout.separator()
-        self.draw_menu(layout, path="Geometry/Operations")
-        self.draw_menu(layout, path="Geometry/Mesh")
-        self.draw_menu(layout, path="Geometry/Topology")
-        self.draw_menu(layout, path="Geometry/UV")
+        self.draw_menu(layout, path="Mesh/Operations")
+        self.draw_menu(layout, path="Mesh/Primitives")
+        self.draw_menu(layout, path="Mesh/Topology")
+        self.draw_menu(layout, path="Mesh/UV")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
