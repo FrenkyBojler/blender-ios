@@ -33,6 +33,7 @@
 #include "ED_outliner.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLT_translation.hh"
@@ -58,6 +59,16 @@ bool operator==(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b)
 }
 
 bool operator!=(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b)
+{
+  return !(a == b);
+}
+
+bool operator==(const SpreadsheetBundlePathElem &a, const SpreadsheetBundlePathElem &b)
+{
+  return STREQ(a.identifier, b.identifier);
+}
+
+bool operator!=(const SpreadsheetBundlePathElem &a, const SpreadsheetBundlePathElem &b)
 {
   return !(a == b);
 }
@@ -606,6 +617,8 @@ int VolumeDataSource::tot_rows() const
   return BKE_volume_num_grids(volume);
 }
 
+ListDataSource::ListDataSource(nodes::ListPtr list) : list_(std::move(list)) {}
+
 void ListDataSource::foreach_default_column_ids(
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
 {
@@ -754,10 +767,10 @@ bke::SocketValueVariant geometry_display_data_get(const SpaceSpreadsheet *ssprea
       return {};
     }
     const GPointer ptr = value.get_single_ptr();
-    if (!ptr.is_type<nodes::Bundle>()) {
+    if (!ptr.is_type<nodes::BundlePtr>()) {
       return {};
     }
-    const nodes::Bundle *bundle = ptr.get<nodes::Bundle>();
+    const nodes::BundlePtr &bundle = *ptr.get<nodes::BundlePtr>();
     const nodes::BundleItemValue *item = bundle->lookup(bundle_path_elem.identifier);
     if (!item) {
       return {};
@@ -823,7 +836,7 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   if (display_data.is_list()) {
     return std::make_unique<ListDataSource>(display_data.extract<nodes::ListPtr>());
   }
-  if (display_data.is_single()) {
+  if (!display_data.is_single()) {
     return {};
   }
   const GPointer ptr = display_data.get_single_ptr();

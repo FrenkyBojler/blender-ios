@@ -1138,6 +1138,10 @@ typedef struct SpreadsheetTableID {
 
 typedef struct SpreadsheetBundlePathElem {
   char *identifier;
+#ifdef __cplusplus
+  friend bool operator==(const SpreadsheetBundlePathElem &a, const SpreadsheetBundlePathElem &b);
+  friend bool operator!=(const SpreadsheetBundlePathElem &a, const SpreadsheetBundlePathElem &b);
+#endif
 } SpreadsheetBundlePathElem;
 
 typedef struct SpreadsheetTableIDGeometry {

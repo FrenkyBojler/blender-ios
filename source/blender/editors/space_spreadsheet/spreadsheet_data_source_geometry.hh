@@ -95,7 +95,7 @@ class ListDataSource : public DataSource {
   nodes::ListPtr list_;
 
  public:
-  ListDataSource(nodes::ListPtr list) : list_(std::move(list)) {}
+  ListDataSource(nodes::ListPtr list);
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
