@@ -2871,87 +2871,96 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
                                                      const wmEvent *event)
 {
   ARegion &region = *CTX_wm_region(C);
-  Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
+  const Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
 
-  AbstractView &view = *UI_region_view_find_at(&region, event->xy, 0);
-  if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(&view)) {
+  AbstractTreeViewItem &active_item = *dynamic_cast<AbstractTreeViewItem *>(
+      UI_region_views_find_active_item(&region));
+
+  AbstractTreeView &tree_view = active_item.get_tree_view();
+  AbstractTreeViewItem *next_item = nullptr;
+
+  auto move_up = [&]() {
     bool found_active = false;
-    AbstractTreeViewItem *next_item = nullptr;
+    tree_view.foreach_item(
+        [&](AbstractTreeViewItem &item) {
+          found_active |= item.is_active();
+          if (!found_active) {
+            /* Store the element which is just before the active. */
+            next_item = &item;
+          }
+        },
+        AbstractTreeView::IterOptions::SkipCollapsed);
+  };
 
-    auto move_up = [&]() {
-      tree_view->foreach_item(
-          [&](AbstractTreeViewItem &item) {
-            found_active |= item.is_active();
-            if (!found_active) {
-              next_item = &item;
-            }
-          },
-          AbstractTreeView::IterOptions::SkipCollapsed);
-    };
+  auto move_down = [&]() {
+    bool found_active = false;
+    tree_view.foreach_item(
+        [&](AbstractTreeViewItem &item) {
+          if (found_active) {
+            /* Store the element next to the active. */
+            next_item = &item;
+            found_active = false;
+          }
+          found_active = item.is_active();
+        },
+        AbstractTreeView::IterOptions::SkipCollapsed);
+  };
 
-    auto move_down = [&]() {
-      tree_view->foreach_item(
-          [&](AbstractTreeViewItem &item) {
-            if (found_active) {
-              next_item = &item;
-              found_active = false;
-            }
-            found_active = item.is_active();
-          },
-          AbstractTreeView::IterOptions::SkipCollapsed);
-    };
-
-    auto move_left = [&]() {
-      AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
-          UI_region_views_find_active_item(&region));
-      if (!active_item->is_collapsible() || active_item->is_collapsed()) {
-        next_item = active_item->get_parent();
-        return;
-      }
-
-      active_item->set_collapsed(true);
-      };
-
-    auto move_right = [&]() {
-      AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
-          UI_region_views_find_active_item(&region));
-
-      if (!active_item->is_collapsible()) {
-        return;
-      }
-
-      if (active_item->is_collapsed())
-      {
-        active_item->set_collapsed(false);
-        return;
-      }
-      next_item = active_item->get_child();
-    };
-
-    switch (direction) {
-      case Direction::UP: {
-        move_up();
-        break;
-      }
-      case Direction::Down: {
-        move_down();
-        break;
-      }
-      case Direction::LEFT: {
-        move_left();
-        break;
-      }
-      case Direction::RIGHT: {
-        move_right();
-        break;
-      }
+  auto move_left = [&]() {
+    if (!active_item.is_collapsible() || active_item.is_collapsed()) {
+      next_item = active_item.get_parent();
+      return;
     }
 
-    if (next_item) {
-      next_item->activate(*C);
+    active_item.set_collapsed(true);
+  };
+
+  auto move_right = [&]() {
+    if (!active_item.is_collapsible()) {
+      return;
+    }
+
+    if (active_item.is_collapsed()) {
+      active_item.set_collapsed(false);
+      return;
+    }
+    next_item = active_item.get_child();
+  };
+
+  switch (direction) {
+    case Direction::UP: {
+      move_up();
+      break;
+    }
+    case Direction::Down: {
+      move_down();
+      break;
+    }
+    case Direction::LEFT: {
+      move_left();
+      break;
+    }
+    case Direction::RIGHT: {
+      move_right();
+      break;
     }
   }
+
+  if (next_item) {
+    next_item->activate(*C);
+  }
+
+  ED_region_tag_redraw(&region);
   return OPERATOR_FINISHED;
+}
+
+static bool ui_tree_view_item_navigate_poll(bContext *C)
+{
+  const ARegion &region = *CTX_wm_region(C);
+  const AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
+      UI_region_views_find_active_item(&region));
+
+  return active_item != nullptr;
 }
 
 static void UI_OT_view_item_navigate(wmOperatorType *ot)
@@ -2961,7 +2970,7 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
   ot->description = "Navigate view item";
 
   ot->invoke = ui_view_item_navigate_invoke;
-  ot->poll = ui_view_focused_poll;
+  ot->poll = ui_tree_view_item_navigate_poll;
 
   ot->flag = OPTYPE_INTERNAL;
 
