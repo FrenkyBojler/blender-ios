@@ -369,10 +369,9 @@ class Preprocessor {
         scope.foreach_match("t<>ww<", [&](const std::vector<Token> &tokens) {
           const Scope template_args = tokens[5].scope();
           const Token fn_name = tokens[4];
-          string fn_name_str = fn_name.str_no_whitespace() + "_";
-          template_args.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
-            fn_name_str += arg.start().str_no_whitespace() + "_";
-          });
+          string fn_name_str = fn_name.str() + "_";
+          template_args.foreach_scope(ScopeType::TemplateArg,
+                                      [&](Scope arg) { fn_name_str += arg.start().str() + "_"; });
           parser.erase(template_args);
           parser.erase(tokens[0], tokens[2]);
           parser.replace(fn_name, fn_name_str);
@@ -408,8 +407,8 @@ class Preprocessor {
         temp.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
           const Token type = arg.start();
           const Token name = type.next();
-          const string name_str = name.str_no_whitespace();
-          const string type_str = type.str_no_whitespace();
+          const string name_str = name.str();
+          const string type_str = type.str();
 
           arg_list.emplace_back(name_str);
 
@@ -419,7 +418,7 @@ class Preprocessor {
             /* Search argument list for typenames. If typename matches, the template argument is
              * present inside the function signature. */
             fn_args.foreach_match("ww", [&](const std::vector<Token> &tokens) {
-              if (tokens[0].str_no_whitespace() == name_str) {
+              if (tokens[0].str() == name_str) {
                 found = true;
               }
             });
@@ -457,18 +456,18 @@ class Preprocessor {
         Scope parent_scope = temp.scope();
         string specialization_pattern = "tww<" + arg_pattern.substr(1) + ">(";
         parent_scope.foreach_match(specialization_pattern, [&](const std::vector<Token> &tokens) {
-          if (fn_name.str_no_whitespace() != tokens[2].str_no_whitespace()) {
+          if (fn_name.str() != tokens[2].str()) {
             return;
           }
           /* Parse template values. */
           vector<pair<string, string>> arg_name_value_pairs;
           for (int i = 0; i < arg_list.size(); i++) {
-            arg_name_value_pairs.emplace_back(arg_list[i], tokens[4 + 2 * i].str_no_whitespace());
+            arg_name_value_pairs.emplace_back(arg_list[i], tokens[4 + 2 * i].str());
           }
           /* Specialize template content. */
           Parser instance_parser(fn_decl, report_error, true);
           instance_parser.foreach_match("w", [&](const std::vector<Token> &tokens) {
-            string token_str = tokens[0].str_no_whitespace();
+            string token_str = tokens[0].str();
             for (const auto &arg_name_value : arg_name_value_pairs) {
               if (token_str == arg_name_value.first) {
                 instance_parser.replace(tokens[0], arg_name_value.second);
@@ -484,10 +483,11 @@ class Preprocessor {
           }
           /* Paste template content in place of instantiation. */
           Token end_of_instantiation = tokens.back().scope().end().next();
+          string instance = instance_parser.result_get();
           parser.insert_line_number(tokens.front().str_index_start() - 1, fn_start.line_number());
           parser.replace(tokens.front().str_index_start(),
                          end_of_instantiation.str_index_last_no_whitespace(),
-                         instance_parser.result_get());
+                         instance);
           parser.insert_line_number(end_of_instantiation.line_end() + 1,
                                     end_of_instantiation.line_number() + 1);
         });
@@ -1018,7 +1018,7 @@ class Preprocessor {
       /* Change C++ swizzle functions into plain swizzle. */
       /** IMPORTANT: This prevent the usage of any method with a swizzle name. */
       scope.foreach_match(".w()", [&](const std::vector<Token> &tokens) {
-        string method_name = tokens[1].str_no_whitespace();
+        string method_name = tokens[1].str();
         if (method_name.length() > 1 && method_name.length() <= 4 &&
             (method_name.find_first_not_of("xyzw") == string::npos ||
              method_name.find_first_not_of("rgba") == string::npos))
@@ -1288,8 +1288,7 @@ class Preprocessor {
             if (is_static) {
               scope.foreach_match("mww(", [&](const std::vector<Token> &tokens) {
                 const Token fn_name = tokens[2];
-                fn_parser.replace(
-                    fn_name, fn_name, struct_name.str_no_whitespace() + "::" + fn_name.str());
+                fn_parser.replace(fn_name, fn_name, struct_name.str() + "::" + fn_name.str());
               });
             }
             else {
@@ -1301,12 +1300,10 @@ class Preprocessor {
                 if (is_const) {
                   fn_parser.erase(args.end().next());
                   fn_parser.insert_after(args.start(),
-                                         "const " + struct_name.str_no_whitespace() + " this_" +
-                                             suffix);
+                                         "const " + struct_name.str() + " this_" + suffix);
                 }
                 else {
-                  fn_parser.insert_after(args.start(),
-                                         struct_name.str_no_whitespace() + " &this_" + suffix);
+                  fn_parser.insert_after(args.start(), struct_name.str() + " &this_" + suffix);
                 }
               });
             }
@@ -1449,14 +1446,14 @@ class Preprocessor {
 
     parser.foreach_function([&](bool, Token fn_type, Token, Scope, bool, Scope fn_body) {
       fn_body.foreach_match("w(w,", [&](const std::vector<Token> &tokens) {
-        string func_name = tokens[0].str_no_whitespace();
+        string func_name = tokens[0].str();
         if (func_name != "specialization_constant_get" && func_name != "push_constant_get" &&
             func_name != "interface_get" && func_name != "attribute_get" &&
             func_name != "buffer_get" && func_name != "sampler_get" && func_name != "image_get")
         {
           return;
         }
-        string info_name = tokens[2].str_no_whitespace();
+        string info_name = tokens[2].str();
         Scope scope = tokens[0].scope();
         /* We can be in expression scope. Take parent scope until we find a local scope. */
         while (scope.type() != ScopeType::Function && scope.type() != ScopeType::Local) {
@@ -1488,10 +1485,10 @@ class Preprocessor {
 
     string guard_start = "#if defined(CREATE_INFO_" + info + ")\n";
     string guard_else;
-    if (fn_type.is_valid() && fn_type.str_no_whitespace() != "void") {
+    if (fn_type.is_valid() && fn_type.str() != "void") {
       guard_else += "#else\n";
       guard_else += line_start;
-      guard_else += "  " + fn_type.str_no_whitespace() + " result;\n";
+      guard_else += "  " + fn_type.str() + " result;\n";
       guard_else += "  return result;\n";
     }
     string guard_end = "#endif\n";
@@ -1581,7 +1578,7 @@ class Preprocessor {
             return;
           }
 
-          const bool has_non_void_return_type = fn_type.str_no_whitespace() != "void";
+          const bool has_non_void_return_type = fn_type.str() != "void";
 
           string args_decl;
           string args_names;
@@ -1596,7 +1593,7 @@ class Preprocessor {
               args_names += comma + arg.end().str();
             }
             else {
-              string arg_name = equal.prev().str_no_whitespace();
+              string arg_name = equal.prev().str();
               string value = parser.substr_range_inclusive(equal.next(), arg.end());
               string decl = parser.substr_range_inclusive(arg.start(), equal.prev());
 
@@ -1605,7 +1602,7 @@ class Preprocessor {
                 fn_call = "return " + fn_call;
               }
               string overload;
-              overload += fn_type.str();
+              overload += fn_type.str() + " ";
               overload += fn_name.str() + '(' + args_decl + ")\n";
               overload += "{\n";
               overload += "#line " + std::to_string(fn_type.line_number()) + "\n";
@@ -1656,10 +1653,10 @@ class Preprocessor {
 
     auto add_mutation = [&](Token type, Token arg_name, Token last_tok) {
       if (type.prev() == Const) {
-        parser.replace(type.prev(), last_tok, type.str() + arg_name.str());
+        parser.replace(type.prev(), last_tok, type.str() + " " + arg_name.str());
       }
       else {
-        parser.replace(type, last_tok, "inout " + type.str() + arg_name.str());
+        parser.replace(type, last_tok, "inout " + type.str() + " " + arg_name.str());
       }
     };
 

@@ -545,14 +545,14 @@ struct Token {
     return (pos == std::string::npos) ? (data->str.size() - 1) : (pos - 1);
   }
 
-  std::string str() const
+  std::string str_with_whitespace() const
   {
     return data->str.substr(index_range().start, index_range().size);
   }
 
-  std::string str_no_whitespace() const
+  std::string str() const
   {
-    std::string str = this->str();
+    std::string str = this->str_with_whitespace();
     return str.substr(0, str.find_last_not_of(" \n") + 1);
   }
 

@@ -1121,8 +1121,8 @@ B
     Token A = Token::from_position(&parser.data_get(), 1);
     Token B = Token::from_position(&parser.data_get(), 5);
 
-    EXPECT_EQ(A.str_no_whitespace(), "A");
-    EXPECT_EQ(B.str_no_whitespace(), "B");
+    EXPECT_EQ(A.str(), "A");
+    EXPECT_EQ(B.str(), "B");
     EXPECT_EQ(A.line_number(), 2);
     EXPECT_EQ(B.line_number(), 100);
   }
