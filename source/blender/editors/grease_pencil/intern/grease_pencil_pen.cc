@@ -75,22 +75,17 @@ static void grease_pencil_pen_update_view(bContext *C, GreasePencilPenToolOperat
 
 /* Will check if the point or handle is closer than the existing element. */
 static void pen_find_closest_point_or_handle(const GreasePencilPenToolOperation &ptd,
-                                             const bke::greasepencil::Drawing &drawing,
-                                             const int layer_index,
+                                             const bke::CurvesGeometry &curves,
+                                             const IndexMask &editable_points,
+                                             const IndexMask &bezier_points,
+                                             const float4x4 &layer_to_object,
                                              const int drawing_index,
                                              const float2 &mouse_co,
                                              ClosestElement &r_closest_element)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
   const Span<float3> positions = curves.positions();
-
-  const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(layer_index);
-  const float4x4 layer_to_object = layer.local_transform();
   const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
-  IndexMaskMemory memory;
-  const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
-      *ptd.vc.obact, drawing, layer_index, memory);
   editable_points.foreach_index([&](const int point_i) {
     const float2 pos_proj = ptd.layer_to_screen(layer_to_object, positions[point_i]);
     const float distance_squared = math::distance_squared(pos_proj, mouse_co);
@@ -108,8 +103,6 @@ static void pen_find_closest_point_or_handle(const GreasePencilPenToolOperation 
 
   const Span<float3> handle_left = *curves.handle_positions_left();
   const Span<float3> handle_right = *curves.handle_positions_right();
-  const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-      *ptd.vc.obact, drawing, layer_index, ptd.vc.v3d->overlay.handle_display, memory);
 
   bezier_points.foreach_index([&](const int point_i) {
     const float2 pos_proj = ptd.layer_to_screen(layer_to_object, handle_left[point_i]);
@@ -160,25 +153,19 @@ static float2 line_segment_closest_point(const float2 &pos_1,
 
 /* Will check if the edge point is closer than the existing element. */
 static void pen_find_closest_edge_point(const GreasePencilPenToolOperation &ptd,
-                                        const bke::greasepencil::Drawing &drawing,
-                                        const int layer_index,
+                                        const bke::CurvesGeometry &curves,
+                                        const IndexMask &editable_curves,
+                                        const float4x4 &layer_to_object,
                                         const int drawing_index,
                                         const float2 &mouse_co,
                                         ClosestElement &r_closest_element)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
   const Span<float3> positions = curves.positions();
   const Span<float3> evaluated_positions = curves.evaluated_positions();
   const VArray<bool> cyclic = curves.cyclic();
   const VArray<int8_t> types = curves.curve_types();
-
-  IndexMaskMemory memory;
-  const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
-      *ptd.vc.obact, drawing, layer_index, memory);
-  const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(layer_index);
-  const float4x4 layer_to_object = layer.local_transform();
 
   editable_curves.foreach_index([&](const int curve_i) {
     const IndexRange src_points = points_by_curve[curve_i];
@@ -257,11 +244,28 @@ static ClosestElement pen_find_closest_element(const GreasePencilPenToolOperatio
 
   for (const int drawing_index : ptd.drawings.index_range()) {
     const MutableDrawingInfo &info = ptd.drawings[drawing_index];
+    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+    const float4x4 layer_to_object = layer.local_transform();
 
-    pen_find_closest_point_or_handle(
-        ptd, info.drawing, info.layer_index, drawing_index, mouse_co, closest_element);
+    IndexMaskMemory memory;
+    const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+        *ptd.vc.obact, info.drawing, info.layer_index, memory);
+    const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
+        *ptd.vc.obact, info.drawing, info.layer_index, memory);
+    const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+        *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display, memory);
+
+    pen_find_closest_point_or_handle(ptd,
+                                     curves,
+                                     editable_points,
+                                     bezier_points,
+                                     layer_to_object,
+                                     drawing_index,
+                                     mouse_co,
+                                     closest_element);
     pen_find_closest_edge_point(
-        ptd, info.drawing, info.layer_index, drawing_index, mouse_co, closest_element);
+        ptd, curves, editable_curves, layer_to_object, drawing_index, mouse_co, closest_element);
   }
   return closest_element;
 }
