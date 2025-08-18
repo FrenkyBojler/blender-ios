@@ -1246,15 +1246,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           CornerNormalSpaceArray *r_fan_spaces,
                           MutableSpan<float3> r_corner_normals)
 {
-  if (r_fan_spaces) {
-    /* These are potentially-wasteful over-allocations. */
-    r_fan_spaces->spaces.reserve(corner_verts.size());
-    r_fan_spaces->corner_space_indices.reinitialize(corner_verts.size());
-    if (r_fan_spaces->create_corners_by_space) {
-      r_fan_spaces->corners_by_space.reserve(corner_verts.size());
-    }
-  }
-
   threading::EnumerableThreadSpecific<Vector<CornerSpaceGroup, 0>> space_groups;
 
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
@@ -1355,6 +1346,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       space_groups_count);
 
   r_fan_spaces->spaces.reinitialize(space_offsets.total_size());
+  r_fan_spaces->corner_space_indices.reinitialize(corner_verts.size());
   if (r_fan_spaces->create_corners_by_space) {
     r_fan_spaces->corners_by_space.reinitialize(space_offsets.total_size());
   }
