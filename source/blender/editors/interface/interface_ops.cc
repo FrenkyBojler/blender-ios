@@ -58,6 +58,7 @@
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
+#include "UI_tree_view.hh"
 
 #include "interface_intern.hh"
 
@@ -2872,32 +2873,48 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 
   AbstractView &view = *UI_region_view_find_at(&region, event->xy, 0);
 
-  bool found_active = false;
-  AbstractViewItem *next_item = nullptr;
-  view.foreach_view_item([&](AbstractViewItem &item) {
+  if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(&view)) {
+    bool found_active = false;
+    AbstractTreeViewItem *next_item = nullptr;
+
+    auto move_up = [&]() {
+      tree_view->foreach_item(
+          [&](AbstractTreeViewItem &item) {
+            found_active |= item.is_active();
+            if (!found_active) {
+              next_item = &item;
+            }
+          },
+          AbstractTreeView::IterOptions::SkipCollapsed);
+    };
+
+    auto move_down = [&]() {
+      tree_view->foreach_item(
+          [&](AbstractTreeViewItem &item) {
+            if (found_active) {
+              next_item = &item;
+              found_active = false;
+            }
+            found_active = item.is_active();
+          },
+          AbstractTreeView::IterOptions::SkipCollapsed);
+    };
+
     switch (direction) {
       case Direction::UP: {
-        found_active |= item.is_active();
-        if (!found_active) {
-          next_item = &item;
-        }
+        move_up();
         break;
       }
       case Direction::Down: {
-        if (found_active) {
-          next_item = &item;
-          found_active = false;
-        }
-        found_active = item.is_active();
+        move_down();
         break;
       }
     }
-  });
 
-  if (next_item) {
-    next_item->activate(*C);
+    if (next_item) {
+      next_item->activate(*C);
+    }
   }
-
   return OPERATOR_FINISHED;
 }
 
@@ -2915,6 +2932,7 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
   static const EnumPropertyItem direction_enum_items[] = {
       {int(Direction::UP), "UP", 0, "Up", "Select element above the active"},
       {int(Direction::Down), "DOWN", 0, "Down", "Select element below the active"},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   RNA_def_enum(ot->srna,
