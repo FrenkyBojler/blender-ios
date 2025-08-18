@@ -1072,6 +1072,8 @@ typedef struct UserInputEvent {
                forControlEvents:UIControlEventEditingDidEnd];
 
   toolbar_live_text_item = [[UIBarButtonItem alloc] initWithCustomView:toolbar_text_field];
+    
+  toolbar_text_field.inputAccessoryView = toolbar;
 
   toolbar_done_editing_item = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
