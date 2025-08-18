@@ -777,6 +777,16 @@ int Result::reference_count() const
   return reference_count_;
 }
 
+int64_t Result::size_in_bytes() const
+{
+  const int64_t pixel_size = this->get_cpp_type().size;
+  if (this->is_single_value()) {
+    return pixel_size;
+  }
+  const int2 image_size = this->domain().size;
+  return pixel_size * image_size.x * image_size.y;
+}
+
 GPointer Result::single_value() const
 {
   return std::visit([](const auto &value) { return GPointer(&value); }, single_value_);

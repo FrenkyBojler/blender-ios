@@ -69,13 +69,15 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
 
   /* Zero pad the image to the required spatial domain size, storing each channel in planar
    * format for better cache locality, that is, RRRR...GGGG...BBBB. */
-  parallel_for(spatial_size, [&](const int2 texel) {
-    const float4 pixel_color = input_cpu.load_pixel_zero<float4>(texel);
-    for (const int channel : IndexRange(channels_count)) {
-      const int64_t base_index = texel.y * spatial_size.x + texel.x;
-      const int64_t output_index = base_index + spatial_pixels_per_channel * channel;
-      image_spatial_domain[output_index] = pixel_color[channel];
-    }
+  threading::memory_bandwidth_bound_task(spatial_pixels_count * sizeof(float), [&]() {
+    parallel_for(spatial_size, [&](const int2 texel) {
+      const float4 pixel_color = input_cpu.load_pixel_zero<float4>(texel);
+      for (const int channel : IndexRange(channels_count)) {
+        const int64_t base_index = texel.y * spatial_size.x + texel.x;
+        const int64_t output_index = base_index + spatial_pixels_per_channel * channel;
+        image_spatial_domain[output_index] = pixel_color[channel];
+      }
+    });
   });
 
   threading::parallel_for(IndexRange(channels_count), 1, [&](const IndexRange sub_range) {
@@ -164,15 +166,17 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
   output_cpu.allocate_texture(input.domain(), true, ResultStorageType::CPU);
 
   /* Copy the result to the output. */
-  parallel_for(image_size, [&](const int2 texel) {
-    float4 color = float4(0.0f);
-    for (const int channel : IndexRange(channels_count)) {
-      const int64_t base_index = texel.x + texel.y * spatial_size.x;
-      const int64_t input_index = base_index + spatial_pixels_per_channel * channel;
-      color[channel] = image_spatial_domain[input_index];
-    }
-    color.w = input_cpu.load_pixel<float4>(texel).w;
-    output_cpu.store_pixel(texel, color);
+  threading::memory_bandwidth_bound_task(input.size_in_bytes(), [&]() {
+    parallel_for(image_size, [&](const int2 texel) {
+      float4 color = float4(0.0f);
+      for (const int channel : IndexRange(channels_count)) {
+        const int64_t base_index = texel.x + texel.y * spatial_size.x;
+        const int64_t input_index = base_index + spatial_pixels_per_channel * channel;
+        color[channel] = image_spatial_domain[input_index];
+      }
+      color.w = input_cpu.load_pixel<float4>(texel).w;
+      output_cpu.store_pixel(texel, color);
+    });
   });
 
   if (context.use_gpu()) {

@@ -360,6 +360,9 @@ class Result {
   /* Computes the number of channels of the result based on its type. */
   int64_t channels_count() const;
 
+  /* Computes the size of the result's data in bytes. */
+  int64_t size_in_bytes() const;
+
   blender::gpu::Texture *gpu_texture() const;
 
   GSpan cpu_data() const;
