@@ -864,6 +864,7 @@ class MeshUVs : Overlay {
 
         analysis_ps_.draw(geom, res_handle);
       }
+      return;
     }
 
     /* Selectable faces in 3D viewport that sync with image editor paint mode. */
@@ -876,6 +877,7 @@ class MeshUVs : Overlay {
         gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_faces(ob, mesh);
         faces_ps_.draw(geom, res_handle);
       }
+      return;
     }
 
     /* Non-selectable & Non-editable faces in image editor paint mode. */
