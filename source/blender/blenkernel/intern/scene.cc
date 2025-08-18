@@ -1363,14 +1363,88 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     blender::seq::blend_read(reader, &ed->seqbase);
     BLO_read_struct_list(reader, SeqTimelineChannel, &ed->channels);
 
-    /* stack */
-    BLO_read_struct_list(reader, MetaStack, &(ed->metastack));
+    /* link metastack, slight abuse of structs here,
+     * have to restore pointer to internal part in struct */
+    {
+      const int seqbase_offset_file = BLO_read_struct_member_offset(
+          reader, "Strip", "ListBase", "seqbase");
+      const int channels_offset_file = BLO_read_struct_member_offset(
+          reader, "Strip", "ListBase", "channels");
+      const size_t seqbase_offset_mem = offsetof(Strip, seqbase);
+      const size_t channels_offset_mem = offsetof(Strip, channels);
 
-    LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
-      BLO_read_struct(reader, Strip, &ms->parent_strip);
+      /* seqbase root pointer */
+      if (ed->seqbasep == old_seqbasep || seqbase_offset_file < 0) {
+        ed->seqbasep = &ed->seqbase;
+      }
+      else {
+        void *seqbase_poin = POINTER_OFFSET(ed->seqbasep, -seqbase_offset_file);
 
-      ms->old_strip = static_cast<Strip *>(
-          BLO_read_get_new_data_address_no_us(reader, ms->old_strip, sizeof(Strip)));
+        seqbase_poin = BLO_read_get_new_data_address_no_us(reader, seqbase_poin, sizeof(Strip));
+
+        if (seqbase_poin) {
+          ed->seqbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset_mem);
+        }
+        else {
+          ed->seqbasep = &ed->seqbase;
+        }
+      }
+
+      /* Active channels root pointer. */
+      if (ELEM(ed->displayed_channels, old_displayed_channels, nullptr) ||
+          channels_offset_file < 0)
+      {
+        ed->displayed_channels = &ed->channels;
+      }
+      else {
+        void *channels_poin = POINTER_OFFSET(ed->displayed_channels, -channels_offset_file);
+        channels_poin = BLO_read_get_new_data_address_no_us(
+            reader, channels_poin, sizeof(SeqTimelineChannel));
+
+        if (channels_poin) {
+          ed->displayed_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset_mem);
+        }
+        else {
+          ed->displayed_channels = &ed->channels;
+        }
+      }
+
+      /* stack */
+      BLO_read_struct_list(reader, MetaStack, &(ed->metastack));
+
+      LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
+        BLO_read_struct(reader, Strip, &ms->parent_strip);
+
+        if (ms->oldbasep == old_seqbasep || seqbase_offset_file < 0) {
+          ms->oldbasep = &ed->seqbase;
+        }
+        else {
+          void *seqbase_poin = POINTER_OFFSET(ms->oldbasep, -seqbase_offset_file);
+          seqbase_poin = BLO_read_get_new_data_address_no_us(reader, seqbase_poin, sizeof(Strip));
+          if (seqbase_poin) {
+            ms->oldbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset_mem);
+          }
+          else {
+            ms->oldbasep = &ed->seqbase;
+          }
+        }
+
+        if (ELEM(ms->old_channels, old_displayed_channels, nullptr) || channels_offset_file < 0) {
+          ms->old_channels = &ed->channels;
+        }
+        else {
+          void *channels_poin = POINTER_OFFSET(ms->old_channels, -channels_offset_file);
+          channels_poin = BLO_read_get_new_data_address_no_us(
+              reader, channels_poin, sizeof(SeqTimelineChannel));
+
+          if (channels_poin) {
+            ms->old_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset_mem);
+          }
+          else {
+            ms->old_channels = &ed->channels;
+          }
+        }
+      }
     }
   }
 
