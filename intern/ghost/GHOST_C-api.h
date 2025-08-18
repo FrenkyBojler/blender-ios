@@ -74,6 +74,8 @@ extern void GHOST_hideOnScreenKeyboard(GHOST_WindowHandle window_handle);
 
 extern const char *GHOST_getKeyboardInput(GHOST_WindowHandle window_handle);
 
+extern const bool GHOST_getExternalKeyboard(GHOST_WindowHandle window_handle);
+
 #endif
 
 /**

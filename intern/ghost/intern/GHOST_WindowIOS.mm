@@ -286,7 +286,7 @@ typedef struct UserInputEvent {
   bool onscreen_keyboard_active;
   const char *text_field_string;
   GHOST_KeyboardProperties current_keyboard_properties;
-  bool external_keyboard_connected;
+  GCKeyboard *external_keyboard;
 
   /* Toolbar */
   bool toolbar_enabled;
@@ -295,6 +295,7 @@ typedef struct UserInputEvent {
   UIBarButtonItem *toolbar_live_text_item;
   UIBarButtonItem *toolbar_done_editing_item;
   UIBarButtonItem *toolbar_cancel_editing_item;
+  UITextField *toolbar_text_field;
 
   /* Direct event handling state tracking */
   std::unordered_map<uint64_t, GHOST_TButton> touch_button_map;
@@ -350,7 +351,6 @@ typedef struct UserInputEvent {
   toolbar_enabled = true;
   toolbar = nil;
   last_tap_with_pencil = false;
-  external_keyboard_connected = [GCKeyboard coalescedKeyboard] != nil;
 
   /* Register for notifications of chnanges to the onscreen keyboard. */
   [[NSNotificationCenter defaultCenter] addObserver:self
@@ -730,13 +730,14 @@ typedef struct UserInputEvent {
   UIPressesEvent *pressEvent = (UIPressesEvent *)event;
 
   for (UIPress *press in pressEvent.allPresses) {
-    if (external_keyboard_connected) {
+    if (external_keyboard) {
       if (onscreen_keyboard_active && text_field.isFirstResponder) {
+        [toolbar_text_field resignFirstResponder];
         [text_field resignFirstResponder];
         onscreen_keyboard_active = false;
         IOS_INPUT_LOG(@"Resigned keyboard due to external keyboard input");
       }
-      // Directly insert input into Blender, bypass text field
+      /* Directly insert input into Blender, bypass text field. */
       [self handleKeyPress:press];
     }
   }
@@ -763,15 +764,15 @@ typedef struct UserInputEvent {
 
   NSString *keyString = press.key.charactersIgnoringModifiers;
 
-  // Check if this is a modifier key
+  /* Check if this is a modifier key. */
   ghostModifierKey = convertIOSModToGHOST(press.key.keyCode);
 
-  // Check if this is a regular key
+  /* Check if this is a regular key. */
   if (keyString && keyString.length > 0) {
     ghostKey = convertIOSKeyToGHOST(keyString);
   }
 
-  // Send modifier event only if it's a modifier key
+  /* Send modifier event only if it's a modifier key. */
   if (ghostModifierKey != GHOST_kKeyUnknown) {
     GHOST_EventKey *modEvent = new GHOST_EventKey(
         GHOST_GetMilliSeconds((GHOST_SystemHandle)system),
@@ -782,7 +783,7 @@ typedef struct UserInputEvent {
     system->pushEvent(modEvent);
   }
 
-  // Send regular key event only if it's a regular key
+  /* Send regular key event only if it's a regular key. */
   if (ghostKey != GHOST_kKeyUnknown) {
     /* Create GHOST event with UTF8 string for character input */
     NSString *utf8String = nil;
@@ -1038,10 +1039,41 @@ typedef struct UserInputEvent {
                                                      target:nil
                                                      action:nil];
 
-  toolbar_live_text_item = [[UIBarButtonItem alloc] initWithTitle:@""
-                                                            style:UIBarButtonItemStylePlain
-                                                           target:nil
-                                                           action:nil];
+  toolbar_text_field = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 250, 30)];
+  toolbar_text_field.borderStyle = UITextBorderStyleRoundedRect;
+  toolbar_text_field.font = [UIFont systemFontOfSize:14];
+  toolbar_text_field.textColor = UIColor.labelColor;
+  toolbar_text_field.clearButtonMode = UITextFieldViewModeWhileEditing;
+  toolbar_text_field.autocorrectionType = UITextAutocorrectionTypeNo;
+  toolbar_text_field.userInteractionEnabled = YES;
+  toolbar_text_field.enabled = YES;
+  toolbar_text_field.returnKeyType = UIReturnKeyDefault;
+  toolbar_text_field.autocapitalizationType = UITextAutocapitalizationTypeNone;
+  toolbar_text_field.spellCheckingType = UITextSpellCheckingTypeNo;
+
+  /* important: size so it’s tappable */
+  CGRect frame = CGRectMake(0, 0, 200, 32);
+  toolbar_text_field.frame = frame;
+
+  [toolbar_text_field addTarget:self
+                         action:@selector(handleKeyboardEditChange:)
+               forControlEvents:UIControlEventEditingChanged];
+
+  [toolbar_text_field addTarget:self
+                         action:@selector(handleKeyboardReturn:)
+               forControlEvents:UIControlEventEditingDidEndOnExit];
+
+  [toolbar_text_field addTarget:self
+                         action:@selector(handleKeyboardEditBegin:)
+               forControlEvents:UIControlEventEditingDidBegin];
+
+  [toolbar_text_field addTarget:self
+                         action:@selector(handleKeyboardEditEnd:)
+               forControlEvents:UIControlEventEditingDidEnd];
+
+  toolbar_live_text_item = [[UIBarButtonItem alloc] initWithCustomView:toolbar_text_field];
+
+  toolbar_text_field.inputAccessoryView = toolbar;
 
   toolbar_done_editing_item = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
@@ -1055,8 +1087,9 @@ typedef struct UserInputEvent {
 
   /* Prevents editing of tip and live text fields. */
   toolbar_tip_item.enabled = NO;
-  toolbar_live_text_item.enabled = NO;
-  toolbar_live_text_item.tintColor = UIColor.blackColor;
+  toolbar_live_text_item.enabled = YES;
+  toolbar_live_text_item.tintColor = UIColor.labelColor;
+  ;
 
   /* Set the live text to a fixed width. */
   /* IOS_FIXME - should this be set dynamically? Need to move out of init if so. */
@@ -1106,8 +1139,8 @@ typedef struct UserInputEvent {
   @synchronized(self) {
 
     /* Update the text in the tool bar as the edits arrive. */
-    if (toolbar_live_text_item) {
-      toolbar_live_text_item.title = text_field.text;
+    if (toolbar_text_field) {
+      toolbar_text_field.text = text_field.text;
       /* Force toolbar to update */
       [toolbar setNeedsLayout];
       [toolbar layoutIfNeeded];
@@ -1162,7 +1195,7 @@ typedef struct UserInputEvent {
 {
   IOS_INPUT_LOG(@"Keyboard Cancel button press detected %@", text_field.text);
   /* Restore the original text and return */
-  text_field.text = original_text;
+  toolbar_text_field.text = original_text;
   [self generateKeyboardReturnEvent];
 }
 
@@ -1176,7 +1209,8 @@ typedef struct UserInputEvent {
   if (!text_field) {
     text_field = [[UITextField alloc] init];
 
-    text_field.contentScaleFactor = window->getWindowScaleFactor();
+    text_field.hidden = YES;
+    text_field.userInteractionEnabled = NO;
 
     if (toolbar_enabled) {
       [self initToolbar];
@@ -1184,26 +1218,6 @@ typedef struct UserInputEvent {
     }
 
     [window->rootWindow addSubview:text_field];
-
-    /* Add a handler for when 'return' is pressed on keyboard. */
-    [text_field addTarget:self
-                   action:@selector(handleKeyboardReturn:)
-         forControlEvents:UIControlEventEditingDidEndOnExit];
-
-    /* Add a handler for when the text field changes. */
-    [text_field addTarget:self
-                   action:@selector(handleKeyboardEditChange:)
-         forControlEvents:UIControlEventEditingChanged];
-
-    /* Add a handler for when user edits a text field. */
-    [text_field addTarget:self
-                   action:@selector(handleKeyboardEditBegin:)
-         forControlEvents:UIControlEventEditingDidBegin];
-
-    /* Add a handler for when user finishes editing a text field. */
-    [text_field addTarget:self
-                   action:@selector(handleKeyboardEditEnd:)
-         forControlEvents:UIControlEventEditingDidEnd];
   }
 }
 
@@ -1239,31 +1253,14 @@ typedef struct UserInputEvent {
   /* Save this set of keyboard properties */
   current_keyboard_properties = keyboard_properties;
 
-  /* Convert the text box coords to display coords */
-  CGRect displayRect;
-  [self convertWindowCoordToDisplayCoordWithWindow:keyboard_properties.text_box_origin[0]
-                                           windowY:keyboard_properties.text_box_origin[1]
-                                          displayX:&displayRect.origin.x
-                                          displayY:&displayRect.origin.y
-                                             flipY:true];
-
-  [self convertWindowCoordToDisplayCoordWithWindow:keyboard_properties.text_box_size[0]
-                                           windowY:keyboard_properties.text_box_size[1]
-                                          displayX:&displayRect.size.width
-                                          displayY:&displayRect.size.height
-                                             flipY:false];
-
-  /* Where to display the text on-screen. */
-  text_field.frame = displayRect;
-
   /* Initialise text with existing string. */
-  text_field.text = keyboard_properties.text_string ?
-                        [NSString stringWithUTF8String:keyboard_properties.text_string] :
-                        @"";
+  toolbar_text_field.text = keyboard_properties.text_string ?
+                                [NSString stringWithUTF8String:keyboard_properties.text_string] :
+                                @"";
   /* Take a copy of the string so we can restore it if neccessary */
   original_text = keyboard_properties.text_string ?
                       [NSString stringWithUTF8String:keyboard_properties.text_string] :
-                      @"";
+                      [@"" copy];
 
   /* Set keyboard type and text alignment.
    * NOTE - the keyboard type is only honoured if using an Apple
@@ -1271,24 +1268,24 @@ typedef struct UserInputEvent {
    * Otherwise it will just be the default full screen type. */
   switch (keyboard_properties.keyboard_type) {
     case GHOST_KeyboardProperties::ascii_keyboard_type: {
-      text_field.keyboardType = UIKeyboardTypeASCIICapable;
-      text_field.textAlignment = NSTextAlignmentLeft;
+      toolbar_text_field.keyboardType = UIKeyboardTypeASCIICapable;
+      toolbar_text_field.textAlignment = NSTextAlignmentLeft;
       break;
     }
     case GHOST_KeyboardProperties::decimal_numpad_keyboard_type: {
-      text_field.keyboardType = UIKeyboardTypeDecimalPad;
-      text_field.textAlignment = NSTextAlignmentCenter;
+      toolbar_text_field.keyboardType = UIKeyboardTypeDecimalPad;
+      toolbar_text_field.textAlignment = NSTextAlignmentCenter;
       break;
     }
     case GHOST_KeyboardProperties::numpad_keyboard_type: {
-      text_field.keyboardType = UIKeyboardTypeNumberPad;
-      text_field.textAlignment = NSTextAlignmentCenter;
+      toolbar_text_field.keyboardType = UIKeyboardTypeNumberPad;
+      toolbar_text_field.textAlignment = NSTextAlignmentCenter;
       break;
     }
     default: {
       /* What's the sensible baviour here? Default? Assert? */
-      text_field.keyboardType = UIKeyboardTypeDefault;
-      text_field.textAlignment = NSTextAlignmentLeft;
+      toolbar_text_field.keyboardType = UIKeyboardTypeDefault;
+      toolbar_text_field.textAlignment = NSTextAlignmentLeft;
     }
   }
   /* Reset keyboard type to default if not using Apple Pencil
@@ -1298,48 +1295,40 @@ typedef struct UserInputEvent {
   }
 
   /* Set light/dark mode or adopt system default. */
-  text_field.keyboardAppearance = UIKeyboardAppearanceDefault;
+  toolbar_text_field.keyboardAppearance = UIKeyboardAppearanceDefault;
 
   /* This seems sensible given Blender's typical behaviour. */
-  text_field.autocorrectionType = UITextAutocorrectionTypeNo;
-  text_field.spellCheckingType = UITextSpellCheckingTypeNo;
-
-  /* Set font size. */
-  float fontSize = keyboard_properties.font_size / window->getWindowScaleFactor();
-  text_field.font = [UIFont systemFontOfSize:fontSize];
-
-  /* Set font color. */
-  text_field.textColor = [UIColor colorWithRed:keyboard_properties.font_color[0]
-                                         green:keyboard_properties.font_color[1]
-                                          blue:keyboard_properties.font_color[2]
-                                         alpha:keyboard_properties.font_color[3]];
+  toolbar_text_field.autocorrectionType = UITextAutocorrectionTypeNo;
+  toolbar_text_field.spellCheckingType = UITextSpellCheckingTypeNo;
 
   /* Initial highlighting and text-cursor position. */
   switch (keyboard_properties.inital_text_state) {
     case GHOST_KeyboardProperties::select_all_text: {
-      [text_field selectAll:nil];
+      [toolbar_text_field selectAll:nil];
       break;
     }
     case GHOST_KeyboardProperties::select_text_range: {
-      UITextPosition *startPosition = [text_field
-          positionFromPosition:text_field.beginningOfDocument
+      UITextPosition *startPosition = [toolbar_text_field
+          positionFromPosition:toolbar_text_field.beginningOfDocument
                         offset:keyboard_properties.text_select_range[0]];
-      UITextPosition *endPosition = [text_field
-          positionFromPosition:text_field.beginningOfDocument
+      UITextPosition *endPosition = [toolbar_text_field
+          positionFromPosition:toolbar_text_field.beginningOfDocument
                         offset:keyboard_properties.text_select_range[1]];
-      text_field.selectedTextRange = [text_field textRangeFromPosition:startPosition
-                                                            toPosition:endPosition];
+      toolbar_text_field.selectedTextRange = [toolbar_text_field
+          textRangeFromPosition:startPosition
+                     toPosition:endPosition];
       break;
     }
     case GHOST_KeyboardProperties::move_cursor_to_start: {
-      UITextPosition *beginning = text_field.beginningOfDocument;
-      text_field.selectedTextRange = [text_field textRangeFromPosition:beginning
-                                                            toPosition:beginning];
+      UITextPosition *beginning = toolbar_text_field.beginningOfDocument;
+      toolbar_text_field.selectedTextRange = [toolbar_text_field textRangeFromPosition:beginning
+                                                                            toPosition:beginning];
       break;
     }
     case GHOST_KeyboardProperties::move_cursor_to_end: {
-      UITextPosition *end = text_field.endOfDocument;
-      text_field.selectedTextRange = [text_field textRangeFromPosition:end toPosition:end];
+      UITextPosition *end = toolbar_text_field.endOfDocument;
+      toolbar_text_field.selectedTextRange = [toolbar_text_field textRangeFromPosition:end
+                                                                            toPosition:end];
       break;
     }
     default: {
@@ -1349,7 +1338,6 @@ typedef struct UserInputEvent {
 
   /* Setup the tool bar if it's enabled. */
   if (toolbar_enabled) {
-    toolbar_live_text_item.title = text_field.text;
     toolbar_tip_item.title = keyboard_properties.tip_text ?
                                  [NSString stringWithCString:keyboard_properties.tip_text
                                                     encoding:NSUTF8StringEncoding] :
@@ -1359,28 +1347,19 @@ typedef struct UserInputEvent {
 
 - (void)externalKeyboardChange:(NSNotification *)notification
 {
-  external_keyboard_connected = [GCKeyboard coalescedKeyboard] != nil;
-  IOS_INPUT_LOG(@"External Keyboard %s",
-                external_keyboard_connected ? "Connected" : "Disconnected");
+  external_keyboard = notification.object;
+  IOS_INPUT_LOG(@"External Keyboard %s", external_keyboard != nil ? "Connected" : "Disconnected");
 
-  if (external_keyboard_connected) {
+  if (external_keyboard) {
     if (toolbar) {
       toolbar.hidden = YES;
       toolbar.userInteractionEnabled = NO;
-    }
-    if (text_field) {
-      text_field.hidden = YES;
-      text_field.userInteractionEnabled = NO;
     }
   }
   else {
     if (toolbar) {
       toolbar.hidden = NO;
       toolbar.userInteractionEnabled = YES;
-    }
-    if (text_field) {
-      text_field.hidden = NO;
-      text_field.userInteractionEnabled = YES;
     }
   }
 }
@@ -1400,7 +1379,6 @@ typedef struct UserInputEvent {
 - (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   for (UIPress *press in presses) {
-    //    [self handleKeyPress:press withEvent:event];
     [self handleKeyPress:press];
   }
 
@@ -1410,7 +1388,6 @@ typedef struct UserInputEvent {
 - (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event
 {
   for (UIPress *press in presses) {
-    //      [self handleKeyPress:press withEvent:event];
     [self handleKeyPress:press];
   }
 
@@ -1432,24 +1409,23 @@ typedef struct UserInputEvent {
   @synchronized(self) {
     IOS_INPUT_LOG(@"Keyboard popup request received %@", text_field.text);
 
-    // If external keyboard is connected, do not show text field or toolbar
-    if (external_keyboard_connected) {
+    /* If external keyboard is connected, do not show toolbar. */
+    if (external_keyboard) {
       if (toolbar) {
         toolbar.hidden = YES;
       }
-      if (text_field) {
-        text_field.hidden = YES;
-        text_field.userInteractionEnabled = NO;
-      }
-      // No need to show keyboard, just return success
       return GHOST_kSuccess;
     }
 
     [self setupKeyboard:keyboard_properties];
 
+    /* Embrace the jankiness. Enable the hidden textfield then redirect to toolbar textfield. */
     if (!onscreen_keyboard_active) {
       text_field.userInteractionEnabled = YES;
-      if (![text_field becomeFirstResponder]) {
+      if ([text_field becomeFirstResponder]) {
+        [toolbar_text_field becomeFirstResponder];
+      }
+      else {
         GHOST_ASSERT(FALSE, "GHOST_SystemIOS::popupOnScreenKeyboard Failed to display keyboard");
       }
       onscreen_keyboard_active = true;
@@ -1473,6 +1449,7 @@ typedef struct UserInputEvent {
       onscreen_keyboard_active = false;
 
       /* Shut down the keyboard. */
+      [toolbar_text_field resignFirstResponder];
       [text_field resignFirstResponder];
       /*
        IOS_FIXME - Note: This may cause the console to display the warning message:
@@ -1482,18 +1459,20 @@ typedef struct UserInputEvent {
        */
 
       IOS_INPUT_LOG(@"Resigned keyboard responder");
+
+      /* Not sure if this is needed anymore. */
       /*
        This is required to disable any subsequent interactions with the text field that could
        potentially bypass Blender's input handling (since the UITextField is now live
        on the view)
        */
-      text_field.userInteractionEnabled = NO;
+      //      text_field.userInteractionEnabled = NO;
 
       /* Save the input to a c-string */
-      text_field_string = [[text_field text] UTF8String];
+      text_field_string = [[toolbar_text_field text] UTF8String];
 
       /* Delete the text field copy of the string */
-      text_field.text = nil;
+      toolbar_text_field.text = nil;
     }
   }
   IOS_INPUT_LOG(@"Text field value was %s", text_field_string);
@@ -1506,12 +1485,17 @@ typedef struct UserInputEvent {
   @synchronized(self) {
 
     /* Update text string if one exists */
-    if (text_field.text && ![text_field.text isEqualToString:@""]) {
+    if (toolbar_text_field.text && ![toolbar_text_field.text isEqualToString:@""]) {
       /* Save the input to a c-string */
-      text_field_string = [[text_field text] UTF8String];
+      text_field_string = [[toolbar_text_field text] UTF8String];
     }
   }
   return text_field_string;
+}
+
+- (const bool)getExternalKeyboard
+{
+  return external_keyboard != nil;
 }
 
 @end
@@ -2164,6 +2148,12 @@ const char *GHOST_WindowIOS::getLastKeyboardString()
 {
   GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
   return [ghost_rootWindow getLastKeyboardString];
+}
+
+const bool GHOST_WindowIOS::getExternalKeyboard()
+{
+  GHOSTUIWindow *ghost_rootWindow = (GHOSTUIWindow *)rootWindow;
+  return [ghost_rootWindow getExternalKeyboard];
 }
 
 UITextField *GHOST_WindowIOS::getUITextField()

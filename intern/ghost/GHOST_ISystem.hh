@@ -471,6 +471,8 @@ class GHOST_ISystem {
   virtual GHOST_TSuccess hideOnScreenKeyboard(GHOST_IWindow *window) = 0;
 
   virtual const char *getKeyboardInput(GHOST_IWindow *window) = 0;
+
+  virtual const bool getExternalKeyboard(GHOST_IWindow *window) = 0;
 #endif
 
   /**

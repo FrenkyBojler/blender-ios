@@ -82,78 +82,112 @@ GHOST_TKey convertIOSKeyToGHOST(NSString *key)
   }
 
   /* Handle additional special keys by string name */
-  if ([key isEqualToString:UIKeyInputF1])
+  if ([key isEqualToString:UIKeyInputF1]) {
     return GHOST_kKeyF1;
-  if ([key isEqualToString:UIKeyInputF2])
+  }
+  if ([key isEqualToString:UIKeyInputF2]) {
     return GHOST_kKeyF2;
-  if ([key isEqualToString:UIKeyInputF3])
+  }
+  if ([key isEqualToString:UIKeyInputF3]) {
     return GHOST_kKeyF3;
-  if ([key isEqualToString:UIKeyInputF4])
+  }
+  if ([key isEqualToString:UIKeyInputF4]) {
     return GHOST_kKeyF4;
-  if ([key isEqualToString:UIKeyInputF5])
+  }
+  if ([key isEqualToString:UIKeyInputF5]) {
     return GHOST_kKeyF5;
-  if ([key isEqualToString:UIKeyInputF6])
+  }
+  if ([key isEqualToString:UIKeyInputF6]) {
     return GHOST_kKeyF6;
-  if ([key isEqualToString:UIKeyInputF7])
+  }
+  if ([key isEqualToString:UIKeyInputF7]) {
     return GHOST_kKeyF7;
-  if ([key isEqualToString:UIKeyInputF8])
+  }
+  if ([key isEqualToString:UIKeyInputF8]) {
     return GHOST_kKeyF8;
-  if ([key isEqualToString:UIKeyInputF9])
+  }
+  if ([key isEqualToString:UIKeyInputF9]) {
     return GHOST_kKeyF9;
-  if ([key isEqualToString:UIKeyInputF10])
+  }
+  if ([key isEqualToString:UIKeyInputF10]) {
     return GHOST_kKeyF10;
-  if ([key isEqualToString:UIKeyInputF11])
+  }
+  if ([key isEqualToString:UIKeyInputF11]) {
     return GHOST_kKeyF11;
-  if ([key isEqualToString:UIKeyInputF12])
+  }
+  if ([key isEqualToString:UIKeyInputF12]) {
     return GHOST_kKeyF12;
+  }
 
   /* Additional navigation and editing keys */
-  if ([key isEqualToString:@"Home"])
+  if ([key isEqualToString:@"Home"]) {
     return GHOST_kKeyHome;
-  if ([key isEqualToString:@"End"])
+  }
+  if ([key isEqualToString:@"End"]) {
     return GHOST_kKeyEnd;
-  if ([key isEqualToString:@"Page Up"])
+  }
+  if ([key isEqualToString:@"Page Up"]) {
     return GHOST_kKeyUpPage;
-  if ([key isEqualToString:@"Page Down"])
+  }
+  if ([key isEqualToString:@"Page Down"]) {
     return GHOST_kKeyDownPage;
-  if ([key isEqualToString:@"Insert"])
+  }
+  if ([key isEqualToString:@"Insert"]) {
     return GHOST_kKeyInsert;
-  if ([key isEqualToString:@"Delete"])
+  }
+  if ([key isEqualToString:@"Delete"]) {
     return GHOST_kKeyDelete;
+  }
 
   /* Keypad/Numeric keys */
-  if ([key isEqualToString:@"Keypad 0"])
+  if ([key isEqualToString:@"Keypad 0"]) {
     return GHOST_kKeyNumpad0;
-  if ([key isEqualToString:@"Keypad 1"])
+  }
+  if ([key isEqualToString:@"Keypad 1"]) {
     return GHOST_kKeyNumpad1;
-  if ([key isEqualToString:@"Keypad 2"])
+  }
+  if ([key isEqualToString:@"Keypad 2"]) {
     return GHOST_kKeyNumpad2;
-  if ([key isEqualToString:@"Keypad 3"])
+  }
+  if ([key isEqualToString:@"Keypad 3"]) {
     return GHOST_kKeyNumpad3;
-  if ([key isEqualToString:@"Keypad 4"])
+  }
+  if ([key isEqualToString:@"Keypad 4"]) {
     return GHOST_kKeyNumpad4;
-  if ([key isEqualToString:@"Keypad 5"])
+  }
+  if ([key isEqualToString:@"Keypad 5"]) {
     return GHOST_kKeyNumpad5;
-  if ([key isEqualToString:@"Keypad 6"])
+  }
+  if ([key isEqualToString:@"Keypad 6"]) {
     return GHOST_kKeyNumpad6;
-  if ([key isEqualToString:@"Keypad 7"])
+  }
+  if ([key isEqualToString:@"Keypad 7"]) {
     return GHOST_kKeyNumpad7;
-  if ([key isEqualToString:@"Keypad 8"])
+  }
+  if ([key isEqualToString:@"Keypad 8"]) {
     return GHOST_kKeyNumpad8;
-  if ([key isEqualToString:@"Keypad 9"])
+  }
+  if ([key isEqualToString:@"Keypad 9"]) {
     return GHOST_kKeyNumpad9;
-  if ([key isEqualToString:@"Keypad ."])
+  }
+  if ([key isEqualToString:@"Keypad ."]) {
     return GHOST_kKeyNumpadPeriod;
-  if ([key isEqualToString:@"Keypad +"])
+  }
+  if ([key isEqualToString:@"Keypad +"]) {
     return GHOST_kKeyNumpadPlus;
-  if ([key isEqualToString:@"Keypad -"])
+  }
+  if ([key isEqualToString:@"Keypad -"]) {
     return GHOST_kKeyNumpadMinus;
-  if ([key isEqualToString:@"Keypad *"])
+  }
+  if ([key isEqualToString:@"Keypad *"]) {
     return GHOST_kKeyNumpadAsterisk;
-  if ([key isEqualToString:@"Keypad /"])
+  }
+  if ([key isEqualToString:@"Keypad /"]) {
     return GHOST_kKeyNumpadSlash;
-  if ([key isEqualToString:@"Keypad Enter"])
+  }
+  if ([key isEqualToString:@"Keypad Enter"]) {
     return GHOST_kKeyNumpadEnter;
+  }
 
   /* For regular character keys, get the first character */
   unichar character = [key characterAtIndex:0];
@@ -659,6 +693,17 @@ const char *GHOST_SystemIOS::getKeyboardInput(GHOST_IWindow *window)
   GHOST_WindowIOS *windowIOS = (GHOST_WindowIOS *)window;
 
   return windowIOS->getLastKeyboardString();
+}
+
+const bool GHOST_SystemIOS::getExternalKeyboard(GHOST_IWindow *window)
+{
+  if (!validWindow((GHOST_IWindow *)window)) {
+    return false;
+  }
+
+  GHOST_WindowIOS *windowIOS = (GHOST_WindowIOS *)window;
+
+  return windowIOS->getExternalKeyboard();
 }
 
 // Note: called from NSWindow subclass
