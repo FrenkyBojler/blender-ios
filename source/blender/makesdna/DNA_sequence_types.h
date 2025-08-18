@@ -331,9 +331,9 @@ typedef struct EditingRuntime {
 } EditingRuntime;
 
 typedef struct Editing {
-  /** The current list of strips being edited (can be within a meta-strip). */
+  /** The current meta-strip being edited, may be null. */
   Strip *current_meta_strip;
-  /** The current list of channels being displayed being edited (can be within a meta-strip). */
+  /** The current meta-strip used for displaying channels, may be null. */
   Strip *current_channels_strip;
   void *_pad0;
   /** Pointer to the top-most strips. */
