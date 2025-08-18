@@ -194,16 +194,6 @@ static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
   return pos / num;
 }
 
-static void pen_status_indicators(bContext *C,
-                                  wmOperator *op,
-                                  const GreasePencilPenToolOperation & /*ptd*/)
-{
-  WorkspaceStatus status(C);
-  status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
-  status.opmodal(IFACE_("Move Current Handle"), op->type, int(PenModal::MoveHandle));
-  status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
-}
-
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -400,7 +390,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     }
   }
 
-  pen_status_indicators(C, op, ptd);
+  pen_status_indicators(C, op);
   if (changed) {
     grease_pencil_pen_update_view(C, ptd);
   }
@@ -498,7 +488,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     });
   }
 
-  pen_status_indicators(C, op, ptd);
+  pen_status_indicators(C, op);
   if (changed) {
     grease_pencil_pen_update_view(C, ptd);
   }

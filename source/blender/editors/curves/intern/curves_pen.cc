@@ -829,6 +829,14 @@ void pen_find_closest_edge_point(const PenToolOperation &ptd,
   });
 }
 
+void pen_status_indicators(bContext *C, wmOperator *op)
+{
+  WorkspaceStatus status(C);
+  status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
+  status.opmodal(IFACE_("Move Current Handle"), op->type, int(PenModal::MoveHandle));
+  status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
+}
+
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus curves_pen_invoke(bContext * /*C*/,
                                           wmOperator *op,
