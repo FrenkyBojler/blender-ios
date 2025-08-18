@@ -724,7 +724,7 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
     });
 
     /* Set mass of pinned points to infinity (i.e. the inverse mass is 0). */
-    const Vector<const PinnedPositionXPBDConstraintBundle *> pinned_position_constraints =
+    const Vector pinned_position_constraints =
         filter_bundles_for_path<PinnedPositionXPBDConstraintBundle>(
             world.pinned_position_constraints, key.path);
     for (const PinnedPositionXPBDConstraintBundle *constraint : pinned_position_constraints) {
@@ -732,9 +732,22 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
       pin_evaluator.set_selection(constraint->selection);
       pin_evaluator.evaluate();
       const IndexMask mask = pin_evaluator.get_evaluated_selection_as_mask();
-      if (!mask.is_empty()) {
-        mask.foreach_index(GrainSize(1024), [&](const int i) { result_masses[i] = 0.0f; });
-      }
+      mask.foreach_index(GrainSize(1024), [&](const int i) { result_masses[i] = 0.0f; });
+    }
+
+    /* Set inertia of pinned rotations to infinity (i.e. the inverse inertia is 0). */
+    const Vector pinned_rotation_constraints =
+        filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
+            world.pinned_rotation_constraints, key.path);
+    for (const PinnedRotationXPBDConstraintBundle *constraint : pinned_rotation_constraints) {
+      fn::FieldEvaluator pin_evaluator{field_context, domain_size};
+      pin_evaluator.set_selection(constraint->selection);
+      pin_evaluator.evaluate();
+      const IndexMask mask = pin_evaluator.get_evaluated_selection_as_mask();
+      mask.foreach_index(GrainSize(1024), [&](const int i) {
+        result_inertias[i] = float3(std::numeric_limits<float>::infinity());
+        result_inverse_inertias[i] = float3(0.0f);
+      });
     }
 
     const Vector damping_bundles = filter_bundles_for_path<DampingBundle>(world.dampings,
@@ -1283,6 +1296,7 @@ static void update_linear_velocities(XPBDState &state,
                                      const Span<Array<float3>> all_prev_positions,
                                      const float delta_time)
 {
+  const float inv_delta_time = math::safe_rcp(delta_time);
   for (const int key_i : keys.index_range()) {
     const Span<float3> prev_positions = all_prev_positions[key_i];
     SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
@@ -1292,7 +1306,7 @@ static void update_linear_velocities(XPBDState &state,
       for (const int i : range) {
         const float3 &prev_position = prev_positions[i];
         const float3 &new_position = new_positions[i];
-        const float3 velocity = (new_position - prev_position) / delta_time;
+        const float3 velocity = (new_position - prev_position) * inv_delta_time;
         velocities[i] = velocity;
       }
     });
@@ -1304,6 +1318,7 @@ static void update_angular_velocities(XPBDState &state,
                                       const Span<Array<math::Quaternion>> all_prev_rotations,
                                       const float delta_time)
 {
+  const float inv_delta_time = math::safe_rcp(delta_time);
   for (const int key_i : keys.index_range()) {
     SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
     if (!sim_points.has_rotation) {
@@ -1316,8 +1331,8 @@ static void update_angular_velocities(XPBDState &state,
       for (const int i : range) {
         angular_velocities[i] =
             2.0f *
-            (math::invert_normalized(prev_rotations[i]) * new_rotations[i]).imaginary_part() /
-            delta_time;
+            (math::invert_normalized(prev_rotations[i]) * new_rotations[i]).imaginary_part() *
+            inv_delta_time;
       }
     });
   }
