@@ -27,12 +27,20 @@ class BoneColor;
 struct AnimData;
 struct BoneCollection;
 
-/* this system works on different transformation space levels;
+/* The Armature system works on different transformation space levels:
  *
- * 1) Bone Space;      with each Bone having its own (0,0,0) origin
- * 2) Armature Space;  the rest position, in Object space, Bones Spaces are applied hierarchical
- * 3) Pose Space;      the animation position, in Object space
- * 4) World Space;     Object matrix applied to Pose or Armature space
+ * 1) Bone Space:     In the orientation of the parent bone, position relative
+ *                    to the parent's tail. Same as Armature Space for bones
+ *                    without parent.
+ * 2) Armature Space: The bone's rest transform in Object space. This is the
+ *                    multiplication of the bone space matrices of the bone and
+ *                    all its ancestors.
+ * 3) Pose Space:     The bone's posed transform in Object space. This is the
+ *                    same space as Armature Space, except that it represents
+ *                    the current bone transform instead of the rest pose.
+ *                    See bPoseChannel::pose_mat
+ * 4) Channel Space:  The bone's local transform relative to its rest transform.
+ *                    See bPoseChannel::chan_mat
  */
 
 typedef struct BoneColor {
@@ -73,16 +81,14 @@ typedef struct Bone {
 
   /** Roll is input for edit-mode, length calculated. */
   float roll;
-  /* Head/tail in bone space. Bone space: in the orientation of the parent bone,
-   * position relative to the parent's tail. */
+  /** Head position in Bone Space (see top of this file). */
   float head[3];
+  /** Tail position in Bone Space (see top of this file). */
   float tail[3];
-  /* bone.matrix in RNA, rotation relative to parent (aka 'in parent space').
-   * When the bone has no parent, is relative to the armature space, which (at
-   * least in this case) has XYZ oriented same as the world.
-   * In other words: the bone's rotation in bone space.
+  /**
+   * Bone matrix in Bone Space (see top of this file).
    *
-   * Computed in BKE_armature_where_is_bone(). */
+   * bone.matrix in RNA. Computed in BKE_armature_where_is_bone(). */
   float bone_mat[3][3];
 
   int flag;
