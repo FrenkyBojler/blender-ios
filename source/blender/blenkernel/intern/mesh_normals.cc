@@ -1180,7 +1180,7 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
 
 struct CornerSpaceGroup {
   /* Maybe acyclic and unordered set of adjacent corners in same smooth group around vertex. */
-  Array<int> corners_fan;
+  Array<int> fan_corners;
   CornerNormalSpace space;
 };
 
@@ -1226,12 +1226,12 @@ BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     return;
   }
 
-  Array<int> corners_fan(local_corners_in_fan.size());
+  Array<int> fan_corners(local_corners_in_fan.size());
   for (const int i : local_corners_in_fan.index_range()) {
     const VertCornerInfo &info = corner_infos[local_corners_in_fan[i]];
-    corners_fan[i] = info.corner;
+    fan_corners[i] = info.corner;
   }
-  r_local_space_groups.append({std::move(corners_fan), fan_space});
+  r_local_space_groups.append({std::move(fan_corners), fan_space});
 }
 
 void normals_calc_corners(const Span<float3> vert_positions,
@@ -1368,7 +1368,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
         const int space_index = space_offsets[thread_i][group_i];
         r_fan_spaces->spaces[space_index] = local_space_groups[group_i].space;
         r_fan_spaces->corner_space_indices.as_mutable_span().fill_indices(
-            local_space_groups[group_i].corners_fan.as_span(), space_index);
+            local_space_groups[group_i].fan_corners.as_span(), space_index);
       }
       if (!r_fan_spaces->create_corners_by_space) {
         continue;
@@ -1376,7 +1376,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       for (const int group_i : local_space_groups.index_range()) {
         const int space_index = space_offsets[thread_i][group_i];
         r_fan_spaces->corners_by_space[space_index] = std::move(
-            local_space_groups[group_i].corners_fan);
+            local_space_groups[group_i].fan_corners);
       }
     }
   });
