@@ -2261,7 +2261,7 @@ class GlareOperation : public NodeOperation {
 
   Result execute_sun_beams_gpu(Result &highlights, const int max_steps)
   {
-    gpu::Shader *shader = context().get_shader("compositor_glare_sun_beams");
+    gpu::Shader *shader = context().get_shader(this->get_compositor_sun_beams_shader());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2fv(shader, "source", this->get_sun_position());
@@ -2288,9 +2288,9 @@ class GlareOperation : public NodeOperation {
   const char *get_compositor_sun_beams_shader()
   {
     if (this->get_use_jitter()) {
-      return "compositor_sun_beams_jitter";
+      return "compositor_glare_sun_beams_jitter";
     }
-    return "compositor_sun_beams";
+    return "compositor_glare_sun_beams";
   }
 
   Result execute_sun_beams_cpu(Result &highlights, const int max_steps)
@@ -2322,8 +2322,13 @@ class GlareOperation : public NodeOperation {
 
       int number_of_steps = this->get_use_jitter() ? (1.0f - this->get_jitter_factor()) * steps :
                                                      steps;
+      float seed = noise::hash_to_float(texel.x, texel.y);
+      float run = 0.61803398875f;
+      float position_index = 0.0f;
+
       for (int i = 0; i <= number_of_steps; i++) {
-        float position_index = this->get_sample_position(texel, i, this->get_use_jitter(), steps);
+        position_index = this->get_sample_position(
+            i, this->get_use_jitter(), steps, run, position_index);
         float2 position = coordinates + position_index * step_vector;
 
         /* We are already past the image boundaries, if the jetter was activated then we have to
@@ -2363,36 +2368,41 @@ class GlareOperation : public NodeOperation {
    * quasirandom sequence to perform quasi-Monte Carlo sampling over the range [0, steps].
    * Otherwise, it returns the integer index `i` directly.
    */
-  float get_sample_position(const int2 texel, const int i, const bool use_jitter, const int steps)
+
+  float get_sample_position(
+      const int i, const bool use_jitter, const int steps, float &run, float position_index)
   {
     if (use_jitter) {
-      float seed = noise::hash_to_float(texel.x, texel.y);
-      return this->r1_low_discrepancy_sequence(seed, i) * steps;
+      return FibonacciWordSequenceNext(position_index, run, steps);
     }
     return i;
   }
 
-  /* Generates a low-discrepancy quasirandom value in the [0, 1) range using the R1 sequence.
+  /* Generates a low-discrepancy quasirandom value in the [0, 1) range using
+   * the Fibonacci Word Sampling method.
    *
-   * This implementation is based on the quasirandom sequence described in:
+   * This implementation is based on the sequence described in:
    *
-   *   "The Unreasonable Effectiveness of Quasirandom Sequences." Extreme Learning, 2021.
-   *   https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences
+   *   "Fibonacci Word Sampling: A Sorted Golden Ratio Low Discrepancy Sequence."
+   *   Demofox Blog, 2023.
+   *   https://blog.demofox.org/2023/02/17/fibonacci-word-sampling-a-sorted-golden-ratio-low-discrepancy-sequence/
    *
-   * Additionally, it incorporates the enhancement proposed in:
-   *
-   *   "A Better R2 Sequence." Marty's Mods, 2022.
-   *   https://www.martysmods.com/a-better-r2-sequence
-   *
-   * The sequence uses a toroidal combined with a scaled irrational increment
-   * derived from the golden ratio to ensure well-distributed, non-repeating samples.
-   * The improved formulation significantly extends usable index range under floating-point
-   * precision constraints while preserving the low-discrepancy property.
+   * The method constructs sample positions by iteratively dividing the unit
+   * interval into "big" and "small" gaps, following the structure of the
+   * Fibonacci word. The relative gap sizes are derived from the golden ratio,
+   * producing evenly spread points with only two distinct spacing values.
    */
-  float r1_low_discrepancy_sequence(const float seed, const int i)
+
+  float FibonacciWordSequenceNext(float last, float &run, const int steps)
   {
-    constexpr float golden_ratio = math::numbers::phi_v<float>;
-    return math::fract(-seed + (1.0f - 1.0f / golden_ratio) * i);
+    const float c_goldenRatio = 1.61803398875f;
+    const float c_goldenRatioConjugate = 0.61803398875f;
+    float big = 1.0f / ((1.0f - this->get_jitter_factor()) * steps);
+    float small = big * c_goldenRatioConjugate;
+    run += c_goldenRatio;
+    float shift = math::floor(run);
+    run -= shift;
+    return (last / steps + ((shift == 1.0f) ? small : big)) * steps;
   }
 
   /* ----------

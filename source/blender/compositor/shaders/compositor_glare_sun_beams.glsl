@@ -22,28 +22,32 @@ float hash_iqint3_f(uint2 p)
   return float(n ^ (n >> 15)) * (1.0f / float(0xffffffffU));
 }
 
-/* Generates a low-discrepancy quasirandom value in the [0, 1) range using the R1 sequence.
+/* Generates a low-discrepancy quasirandom value in the [0, 1) range using
+ * the Fibonacci Word Sampling method.
  *
- * This implementation is based on the quasirandom sequence described in:
+ * This implementation is based on the sequence described in:
  *
- *   "The Unreasonable Effectiveness of Quasirandom Sequences." Extreme Learning, 2021.
- *   https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences
+ *   "Fibonacci Word Sampling: A Sorted Golden Ratio Low Discrepancy Sequence."
+ *   Demofox Blog, 2023.
+ *   https://blog.demofox.org/2023/02/17/fibonacci-word-sampling-a-sorted-golden-ratio-low-discrepancy-sequence/
  *
- * Additionally, it incorporates the enhancement proposed in:
- *
- *   "A Better R2 Sequence." Marty's Mods, 2022.
- *   https://www.martysmods.com/a-better-r2-sequence
- *
- * The sequence uses a toroidal combined with a scaled irrational increment
- * derived from the golden ratio to ensure well-distributed, non-repeating samples.
- * The improved formulation significantly extends usable index range under floating-point
- * precision constraints while preserving the low-discrepancy property.
+ * The method constructs sample positions by iteratively dividing the unit
+ * interval into "big" and "small" gaps, following the structure of the
+ * Fibonacci word. The relative gap sizes are derived from the golden ratio,
+ * producing evenly spread points with only two distinct spacing values.
  */
-float r1_low_discrepancy_sequence(const float seed, const int i)
-{
-  constexpr float golden_ratio = 1.618033988749894848204586834365638118;
-  return fract(-seed + (1.0f - 1.0f / golden_ratio) * i);
-}
+
+  float FibonacciWordSequenceNext(float last, inout float run, int steps)
+  {
+    constexpr float c_goldenRatio = 1.61803398875f;
+    constexpr float c_goldenRatioConjugate = 0.61803398875f;
+    float big = 1.0f / float((1.0f - jitter_factor) * steps);
+    float small = big * c_goldenRatioConjugate;
+    run += c_goldenRatio;
+    float shift = floor(run);
+    run -= shift;
+    return (last /steps + ((shift == 1.0f) ? small : big)) * steps;
+  }
 
 /* Returns an index for a position along the path between the texel and the source.
  *
@@ -51,11 +55,10 @@ float r1_low_discrepancy_sequence(const float seed, const int i)
  * quasirandom sequence to perform quasi-Monte Carlo sampling over the range [0, steps].
  * Otherwise, it returns the integer index `i` directly.
  */
-float get_sample_position(int2 texel, int i, int steps)
+float get_sample_position(const int i, const int steps, inout float run, float position_index)
 {
 #if defined(JITTER)
-  float seed = hash_iqint3_f(texel);
-  return r1_low_discrepancy_sequence(seed, i) * steps;
+  return FibonacciWordSequenceNext(position_index, run, steps);
 #else
   return i;
 #endif
@@ -89,8 +92,12 @@ void main()
   int number_of_steps = steps;
 #endif
 
+  float seed = hash_iqint3_f(uint2(texel));
+  float run = 0.61803398875f;
+  float position_index = 0.0f;
+
   for (int i = 0; i <= number_of_steps; i++) {
-    float position_index = get_sample_position(texel, i, steps);
+    position_index = get_sample_position(i, steps, run, position_index);
     float2 position = coordinates + position_index * step_vector;
 
     /* We are already past the image boundaries, if the jetter was activated then we have to
