@@ -1515,7 +1515,7 @@ class Preprocessor {
             if (class_tok.is_valid()) {
               name = enum_name.str_no_whitespace() + "::" + name;
             }
-            string decl = "static constexpr " + type_str + " " + name + value + ";\n";
+            string decl = "constant static constexpr " + type_str + " " + name + value + ";\n";
             parser.insert_line_number(insert_at + 1, scope.start().line_number());
             parser.insert_after(insert_at + 1, decl);
           });
