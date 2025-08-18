@@ -105,8 +105,6 @@ class ShaderCache {
   gpu::StaticShader curves_evaluate_float2 = {"draw_curves_interpolate_float2_attribute"};
   gpu::StaticShader curves_evaluate_float = {"draw_curves_interpolate_float_attribute"};
   gpu::StaticShader curves_evaluate_length_intercept = {"draw_curves_evaluate_length_intercept"};
-  /* TODO(fclem): Legacy. To remove. */
-  gpu::StaticShader hair_refine = {"draw_hair_refine_compute"};
   gpu::StaticShader debug_draw_display = {"draw_debug_draw_display"};
   gpu::StaticShader draw_visibility_compute = {"draw_visibility_compute"};
   gpu::StaticShader draw_view_finalize = {"draw_view_finalize"};
@@ -156,11 +154,6 @@ class ShaderCache {
 }  // namespace blender::draw::Shader
 
 using namespace blender::draw::Shader;
-
-blender::gpu::Shader *DRW_shader_hair_refine_get(ParticleRefineShader /*refinement*/)
-{
-  return ShaderCache::get().hair_refine.get();
-}
 
 blender::gpu::Shader *DRW_shader_curves_topology_get()
 {

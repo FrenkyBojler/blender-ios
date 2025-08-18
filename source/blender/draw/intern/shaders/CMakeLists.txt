@@ -26,7 +26,6 @@ set(SRC_GLSL_FRAG
 )
 
 set(SRC_GLSL_COMP
-  draw_hair_refine_comp.glsl
   draw_command_generate_comp.glsl
   # Failed because of mixed definition of ObjectInfos
   # draw_resource_finalize_comp.glsl
