@@ -49,19 +49,36 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
 
   /* We only process the color channels, the alpha channel is written to the output as is. */
   constexpr int channels_count = 3;
-  const int64_t spatial_pixels_per_channel = int64_t(spatial_size.x) * spatial_size.y;
-  const int64_t frequency_pixels_per_channel = int64_t(frequency_size.x) * frequency_size.y;
-  const int64_t spatial_pixels_count = spatial_pixels_per_channel * channels_count;
+  const int64_t spatial_pixels_count = int64_t(spatial_size.x) * spatial_size.y;
+  const int64_t frequency_pixels_count = int64_t(frequency_size.x) * frequency_size.y;
+
+  /* A structure to gather all buffers that need to be forward transformed from the real to the
+   * frequency domain. */
+  struct ForwardTransformTask {
+    float *input;
+    std::complex<float> *output;
+  };
+  Vector<ForwardTransformTask> forward_transform_tasks;
 
   /* Allocate a real buffer and a complex buffer for each of the channels for the FFT input and
-   * output respectively. */
+   * output respectively, then add a forward transform task for it. */
   Array<float *> image_spatial_domain_channels(channels_count);
   Array<std::complex<float> *> image_frequency_domain_channels(channels_count);
   for (const int channel : IndexRange(channels_count)) {
-    image_spatial_domain_channels[channel] = fftwf_alloc_real(spatial_pixels_per_channel);
+    image_spatial_domain_channels[channel] = fftwf_alloc_real(spatial_pixels_count);
     image_frequency_domain_channels[channel] = reinterpret_cast<std::complex<float> *>(
-        fftwf_alloc_complex(frequency_pixels_per_channel));
+        fftwf_alloc_complex(frequency_pixels_count));
+    forward_transform_tasks.append(ForwardTransformTask{image_spatial_domain_channels[channel],
+                                                        image_frequency_domain_channels[channel]});
   }
+
+  /* Allocate a real buffer and a complex buffer for the kernel FFT input and output, adding a
+   * forward transform task for it. */
+  float *kernel_spatial_domain = fftwf_alloc_real(spatial_pixels_count);
+  std::complex<float> *kernel_frequency_domain = reinterpret_cast<std::complex<float> *>(
+      fftwf_alloc_complex(frequency_pixels_count));
+  forward_transform_tasks.append(
+      ForwardTransformTask{kernel_spatial_domain, kernel_frequency_domain});
 
   /* Create a real to complex and complex to real plans to transform the image to the frequency
    * domain.
@@ -88,6 +105,7 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
       FFTW_ESTIMATE);
 
   Result input_cpu = context.use_gpu() ? input.download_to_cpu() : input;
+  Result kernel_cpu = context.use_gpu() ? kernel.download_to_cpu() : kernel;
 
   /* Zero pad the image to the required spatial domain size, storing each channel in planar
    * format for better cache locality, that is, RRRR...GGGG...BBBB. */
@@ -102,23 +120,8 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
     });
   });
 
-  threading::parallel_for(IndexRange(channels_count), 1, [&](const IndexRange sub_range) {
-    for (const int64_t channel : sub_range) {
-      fftwf_execute_dft_r2c(
-          forward_plan,
-          image_spatial_domain_channels[channel],
-          reinterpret_cast<fftwf_complex *>(image_frequency_domain_channels[channel]));
-    }
-  });
-
-  float *kernel_spatial_domain = fftwf_alloc_real(spatial_size.x * spatial_size.y);
-  std::complex<float> *kernel_frequency_domain = reinterpret_cast<std::complex<float> *>(
-      fftwf_alloc_complex(frequency_pixels_per_channel));
-
   /* Use a double to sum the kernel since floats are not stable with threaded summation. */
   threading::EnumerableThreadSpecific<double> sum_by_thread([]() { return 0.0; });
-
-  Result kernel_cpu = context.use_gpu() ? kernel.download_to_cpu() : kernel;
 
   /* Compute the kernel while zero padding to match the spatial size. */
   parallel_for(spatial_size, [&](const int2 texel) {
@@ -137,16 +140,23 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
     sum_by_thread.local() += kernel_value;
   });
 
-  fftwf_execute_dft_r2c(forward_plan,
-                        kernel_spatial_domain,
-                        reinterpret_cast<fftwf_complex *>(kernel_frequency_domain));
-
   /* The computed kernel is not normalized and should be normalized, but instead of normalizing the
    * kernel during computation, we normalize it in the frequency domain when convolving the kernel
    * to the image since we will be doing sample normalization anyways. This is okay since the
    * Fourier transform is linear. */
   const float normalization_factor = float(
       std::accumulate(sum_by_thread.begin(), sum_by_thread.end(), 0.0));
+
+  /* Transform all necessary data from the real domain to the frequency domain. */
+  threading::parallel_for(
+      forward_transform_tasks.index_range(), 1, [&](const IndexRange sub_range) {
+        for (const int64_t i : sub_range) {
+          fftwf_execute_dft_r2c(
+              forward_plan,
+              forward_transform_tasks[i].input,
+              reinterpret_cast<fftwf_complex *>(forward_transform_tasks[i].output));
+        }
+      });
 
   /* Multiply the kernel and the image in the frequency domain to perform the convolution. The
    * FFT is not normalized, meaning the result of the FFT followed by an inverse FFT will result
