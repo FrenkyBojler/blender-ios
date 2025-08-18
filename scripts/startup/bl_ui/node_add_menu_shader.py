@@ -133,7 +133,8 @@ class NODE_MT_shader_node_input_base(Menu):
         )
         self.node_operator(layout, "ShaderNodeWireframe")
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_shader_node_output_base(Menu):
@@ -167,7 +168,8 @@ class NODE_MT_shader_node_output_base(Menu):
             poll=world_shader_nodes_poll(context),
         )
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_shader_node_shader_base(Menu):
@@ -290,7 +292,8 @@ class NODE_MT_shader_node_shader_base(Menu):
             "ShaderNodeVolumeCoefficients",
         )
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_shader_node_color_base(Menu):
@@ -307,7 +310,8 @@ class NODE_MT_shader_node_color_base(Menu):
         self.color_mix_node(context, layout)
         self.node_operator(layout, "ShaderNodeRGBCurve")
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_shader_node_converter_base(Menu):
@@ -332,7 +336,8 @@ class NODE_MT_shader_node_converter_base(Menu):
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeWavelength")
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_shader_node_texture_base(Menu):
@@ -355,7 +360,8 @@ class NODE_MT_shader_node_texture_base(Menu):
         self.node_operator(layout, "ShaderNodeTexWave")
         self.node_operator(layout, "ShaderNodeTexWhiteNoise")
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_shader_node_vector_base(Menu):
@@ -374,7 +380,8 @@ class NODE_MT_shader_node_vector_base(Menu):
         self.node_operator(layout, "ShaderNodeVectorRotate")
         self.node_operator(layout, "ShaderNodeVectorTransform")
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_shader_node_script_base(Menu):
@@ -385,7 +392,8 @@ class NODE_MT_shader_node_script_base(Menu):
 
         self.node_operator(layout, "ShaderNodeScript")
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 add_menus = {

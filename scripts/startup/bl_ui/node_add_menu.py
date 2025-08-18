@@ -199,6 +199,8 @@ def new_empty_group(layout, operator_id):
 
 
 class AddNodeMenu:
+    draw_assets = True
+
     @staticmethod
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
         return node_add_menu.node_operator(layout, "node.add_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
@@ -248,6 +250,8 @@ class AddNodeMenu:
 
 
 class SwapNodeMenu:
+    draw_assets = False
+
     @staticmethod
     def node_operator(layout, node_type, *, label=None, poll=None, search_weight=0.0, translate=True):
         return node_add_menu.node_operator(layout, "node.swap_node", node_type, label=label, poll=poll, search_weight=search_weight, translate=translate)
@@ -326,7 +330,8 @@ class NODE_MT_group_base(Menu):
     def draw(self, context):
         layout = self.layout
         self.draw_group_menu(context, layout)
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_layout_base(Menu):
@@ -337,7 +342,8 @@ class NODE_MT_layout_base(Menu):
         self.node_operator(layout, "NodeFrame", search_weight=-1)
         self.node_operator(layout, "NodeReroute")
 
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+        if self.draw_assets:
+            node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
 def generate_menu(bl_idname: str, template: Menu, layout_base: Menu, pathing_dict: dict = None):
