@@ -40,27 +40,9 @@
 
 namespace blender::ed::greasepencil {
 
-enum class PenModal : int8_t {
-  /* Move the handles of the adjacent control point. */
-  MoveHandle = 0,
-  /* Move the entire point even if only the handles are selected. */
-  MoveEntire = 1,
-  /* Snap the handles to multiples of 45 degrees. */
-  SnapAngle = 2,
-};
-
 /* Used to scale the default select distance. */
 constexpr float selection_distance_factor = 0.9f;
 constexpr float selection_distance_factor_edge = 0.5f;
-
-/* Edges are prioritized less than all other types. */
-constexpr float selection_edge_priority_factor = 0.1f;
-/* Points will overwrite edges to allow control point to be selected easier. */
-constexpr float selection_point_overwrite_edge_distance_factor = 0.7f;
-
-constexpr float selection_point_overwrite_edge_distance_factor_sq =
-    selection_point_overwrite_edge_distance_factor *
-    selection_point_overwrite_edge_distance_factor;
 
 /* Total number of curve handle types. */
 constexpr int CURVE_HANDLE_TYPES_NUM = 4;
@@ -712,7 +694,7 @@ void ED_operatortypes_grease_pencil_pen()
 
 void ED_grease_pencil_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
-  using namespace blender::ed::greasepencil;
+  using namespace blender::ed::curves::pen_tool;
   static const EnumPropertyItem modal_items[] = {
       {int(PenModal::MoveHandle),
        "MOVE_HANDLE",

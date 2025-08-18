@@ -48,15 +48,6 @@ static const EnumPropertyItem prop_handle_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-enum class PenModal : int8_t {
-  /* Move the handles of the adjacent control point. */
-  MoveHandle = 0,
-  /* Move the entire point even if only the handles are selected. */
-  MoveEntire = 1,
-  /* Snap the handles to multiples of 45 degrees. */
-  SnapAngle = 2,
-};
-
 /* Used when creating a single curve from nothing. */
 constexpr float default_handle_px_distance = 16.0f;
 
