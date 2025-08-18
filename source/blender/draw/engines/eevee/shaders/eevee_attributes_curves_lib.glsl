@@ -32,8 +32,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_curves)
 #ifdef OBINFO_LIB
 float3 attr_load_orco(CurvesPoint point, float4 orco, int index)
 {
-  float3 P = curves::get_curve_root_pos(point.point_id, point.curve_segment);
-  float3 lP = transform_point(drw_modelinv(), P);
+  float3 lP = curves::get_curve_root_pos(point.point_id, point.curve_segment);
   return drw_object_orco(lP);
 }
 #endif
