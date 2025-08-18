@@ -1521,7 +1521,7 @@ static int rna_Object_active_shape_key_index_get(PointerRNA *ptr)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
 
-  return std::max<int>(ob->shapenr - 1, 0);
+  return std::max<int>(ob->shapenr - 1, -1);
 }
 
 static void rna_Object_active_shape_key_index_set(PointerRNA *ptr, int value)
