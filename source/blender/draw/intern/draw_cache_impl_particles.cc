@@ -277,38 +277,38 @@ ParticleSpans ParticleDrawSource::particles_get()
 
 OffsetIndices<int> ParticleDrawSource::points_by_curve()
 {
-  if (!points_by_curve_storage.is_empty()) {
-    return points_by_curve_storage.as_span();
+  if (!points_by_curve_storage_.is_empty()) {
+    return points_by_curve_storage_.as_span();
   }
 
   int total = 0;
-  points_by_curve_storage.append(total);
+  points_by_curve_storage_.append(total);
   particles_get().foreach_strand([&](Span<ParticleCacheKey> strand) {
     total += strand.size();
-    points_by_curve_storage.append(total);
+    points_by_curve_storage_.append(total);
   });
-  return points_by_curve_storage.as_span();
+  return points_by_curve_storage_.as_span();
 }
 
 OffsetIndices<int> ParticleDrawSource::evaluated_points_by_curve()
 {
-  if (additional_subdivision == 0) {
+  if (additional_subdivision_ == 0) {
     return points_by_curve();
   }
 
-  if (!evaluated_points_by_curve_storage.is_empty()) {
-    return evaluated_points_by_curve_storage.as_span();
+  if (!evaluated_points_by_curve_storage_.is_empty()) {
+    return evaluated_points_by_curve_storage_.as_span();
   }
   int segment_multiplier = this->resolution();
 
   int total = 0;
-  evaluated_points_by_curve_storage.append(total);
+  evaluated_points_by_curve_storage_.append(total);
   particles_get().foreach_strand([&](Span<ParticleCacheKey> strand) {
     int size = strand.size();
     total += (size > 1) ? size * segment_multiplier : 1;
-    evaluated_points_by_curve_storage.append(total);
+    evaluated_points_by_curve_storage_.append(total);
   });
-  return evaluated_points_by_curve_storage.as_span();
+  return evaluated_points_by_curve_storage_.as_span();
 }
 
 static void count_cache_segment_keys(ParticleCacheKey **pathcache,
@@ -1082,12 +1082,12 @@ ParticleDrawSource drw_particle_get_hair_source(Object *object,
   ParticleBatchCache *cache = particle_batch_cache_get(psys);
 
   ParticleDrawSource src = ParticleDrawSource(cache->hair.points_by_curve_storage,
-                                              cache->hair.evaluated_points_by_curve_storage);
+                                              cache->hair.evaluated_points_by_curve_storage,
+                                              math::clamp(additional_subdivision, 0, 3));
   src.object = object;
   src.psys = psys;
   src.md = md;
   src.edit = edit;
-  src.additional_subdivision = math::clamp(additional_subdivision, 0, 3);
   return src;
 }
 
@@ -1471,14 +1471,14 @@ void CurvesEvalCache::ensure_attribute(CurvesModule & /*module*/,
 
   /* Existing final data may have been for a different attribute (with a different name or domain),
    * free the data. */
-  curve_attributes_buf[index].reset();
+  this->curve_attributes_buf[index].reset();
 
   /* Ensure final data for points. */
   if (attributes_point_domain[index]) {
     BLI_assert_unreachable();
   }
   else {
-    curve_attributes_buf[index] = std::move(attr_buf);
+    this->curve_attributes_buf[index] = std::move(attr_buf);
   }
 }
 
@@ -1512,7 +1512,7 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
     if (!drw_attributes_overlap(&attr_used, &attrs_needed)) {
       /* Some new attributes have been added, free all and start over. */
       for (const int i : IndexRange(GPU_MAX_ATTR)) {
-        curve_attributes_buf[i].reset();
+        this->curve_attributes_buf[i].reset();
       }
       drw_attributes_merge(&attr_used, &attrs_needed);
     }
@@ -1520,7 +1520,7 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
   }
 
   for (const int i : attr_used.index_range()) {
-    if (curve_attributes_buf[i]) {
+    if (this->curve_attributes_buf[i]) {
       continue;
     }
     ensure_attribute(module, src, mesh, attr_used[i], i);
@@ -1533,8 +1533,8 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
     return;
   }
 
-  points_by_curve_buf = gpu::VertBuf::new_from_span(src.points_by_curve().data());
-  evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(
+  this->points_by_curve_buf = gpu::VertBuf::new_from_span(src.points_by_curve().data());
+  this->evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(
       src.evaluated_points_by_curve().data());
 
   /* Use the same type for all curves. */
@@ -1544,9 +1544,9 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
   auto cyclic_offsets_varray = VArray<int32_t>::from_single(0, 2);
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  curves_type_buf = gpu::VertBuf::new_from_varray(type_varray);
-  curves_resolution_buf = gpu::VertBuf::new_from_varray(resolution_varray);
-  curves_cyclic_buf = gpu::VertBuf::new_from_varray(cyclic_offsets_varray);
+  this->curves_type_buf = gpu::VertBuf::new_from_varray(type_varray);
+  this->curves_resolution_buf = gpu::VertBuf::new_from_varray(resolution_varray);
+  this->curves_cyclic_buf = gpu::VertBuf::new_from_varray(cyclic_offsets_varray);
 }
 
 /* Copied from cycles. */
@@ -1570,9 +1570,9 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, ParticleDrawSource 
 
   if (src.curves_num() == 0) {
     /* Garbage data. */
-    evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(1);
-    evaluated_time_buf = gpu::VertBuf::new_device_only<float>(4);
-    curves_length_buf = gpu::VertBuf::new_device_only<float>(4);
+    this->evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(1);
+    this->evaluated_time_buf = gpu::VertBuf::new_device_only<float>(4);
+    this->curves_length_buf = gpu::VertBuf::new_device_only<float>(4);
     return;
   }
 
@@ -1603,7 +1603,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, ParticleDrawSource 
     }
   });
 
-  evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(src.evaluated_points_num());
+  this->evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(src.evaluated_points_num());
 
   float4x4 transform = src.object->world_to_object();
 
@@ -1620,8 +1620,8 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, ParticleDrawSource 
                             transform);
 
   /* TODO(fclem): Make time and length optional. */
-  evaluated_time_buf = gpu::VertBuf::new_device_only<float>(src.evaluated_points_num());
-  curves_length_buf = gpu::VertBuf::new_device_only<float>(src.curves_num());
+  this->evaluated_time_buf = gpu::VertBuf::new_device_only<float>(src.evaluated_points_num());
+  this->curves_length_buf = gpu::VertBuf::new_device_only<float>(src.curves_num());
 
   module.evaluate_curve_length_intercept(false, src.curves_num(), *this);
 }
@@ -1656,7 +1656,7 @@ CurvesEvalCache &hair_particle_get_eval_cache(ParticleDrawSource &src)
 {
   ParticleBatchCache *cache = particle_batch_cache_get(src.psys);
   CurvesEvalCache &eval_cache = cache->hair.eval_cache;
-  if (assign_if_different(eval_cache.additional_subdivision, src.additional_subdivision)) {
+  if (assign_if_different(eval_cache.resolution, src.resolution())) {
     particle_batch_cache_clear_hair(&cache->hair);
   }
   return eval_cache;

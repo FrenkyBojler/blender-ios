@@ -60,50 +60,55 @@ struct ParticleSpans {
 };
 
 struct ParticleDrawSource {
+ public:
   Object *object = nullptr;
   ParticleSystem *psys = nullptr;
   ModifierData *md = nullptr;
   PTCacheEdit *edit = nullptr;
-  int additional_subdivision = 0;
 
-  Vector<int> &points_by_curve_storage;
-  Vector<int> &evaluated_points_by_curve_storage;
+ private:
+  Vector<int> &points_by_curve_storage_;
+  Vector<int> &evaluated_points_by_curve_storage_;
+  int additional_subdivision_;
 
+ public:
   ParticleDrawSource(Vector<int> &points_by_curve_storage,
-                     Vector<int> &evaluated_points_by_curve_storage)
-      : points_by_curve_storage(points_by_curve_storage),
-        evaluated_points_by_curve_storage(evaluated_points_by_curve_storage)
+                     Vector<int> &evaluated_points_by_curve_storage,
+                     int additional_subdivision)
+      : points_by_curve_storage_(points_by_curve_storage),
+        evaluated_points_by_curve_storage_(evaluated_points_by_curve_storage),
+        additional_subdivision_(additional_subdivision)
   {
   }
 
   int curves_num()
   {
-    if (points_by_curve_storage.is_empty()) {
+    if (points_by_curve_storage_.is_empty()) {
       points_by_curve();
     }
-    return points_by_curve_storage.size() - 1;
+    return points_by_curve_storage_.size() - 1;
   }
 
   int points_num()
   {
-    if (points_by_curve_storage.is_empty()) {
+    if (points_by_curve_storage_.is_empty()) {
       points_by_curve();
     }
-    return points_by_curve_storage.last();
+    return points_by_curve_storage_.last();
   }
 
   int evaluated_points_num()
   {
-    if (additional_subdivision == 0) {
+    if (additional_subdivision_ == 0) {
       return points_num();
     }
     evaluated_points_by_curve();
-    return evaluated_points_by_curve_storage.last();
+    return evaluated_points_by_curve_storage_.last();
   }
 
   int resolution()
   {
-    return 1 << additional_subdivision;
+    return 1 << additional_subdivision_;
   }
 
   OffsetIndices<int> points_by_curve();
@@ -221,7 +226,7 @@ struct CurvesEvalCache {
 
   /* --- Legacy Hair Particle system. --- */
 
-  int additional_subdivision = 0;
+  int resolution = 0;
 
   void ensure_attribute(CurvesModule &module,
                         ParticleDrawSource &src,

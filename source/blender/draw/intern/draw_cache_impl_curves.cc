@@ -604,7 +604,7 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
 
   /* Existing final data may have been for a different attribute (with a different name or domain),
    * free the data. */
-  evaluated_attributes_buf[index].reset();
+  this->evaluated_attributes_buf[index].reset();
 
   /* Ensure final data for points. */
   if (attributes_point_domain[index]) {
@@ -616,7 +616,7 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
       ensure_nurbs(curves);
     }
 
-    evaluated_attributes_buf[index] = alloc_evaluated_point_attribute_vbo(
+    this->evaluated_attributes_buf[index] = alloc_evaluated_point_attribute_vbo(
         format, name, evaluated_point_count_with_cyclic(curves));
 
     module.evaluate_curve_attribute(curves.has_curve_with_type(CURVE_TYPE_CATMULL_ROM),
@@ -628,10 +628,10 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
                                     *this,
                                     CURVES_EVAL_FLOAT4,
                                     std::move(attr_buf),
-                                    evaluated_attributes_buf[index]);
+                                    this->evaluated_attributes_buf[index]);
   }
   else {
-    evaluated_attributes_buf[index] = std::move(attr_buf);
+    this->evaluated_attributes_buf[index] = std::move(attr_buf);
   }
 }
 
@@ -660,8 +660,8 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
     if (!drw_attributes_overlap(&attr_used, &attrs_needed)) {
       /* Some new attributes have been added, free all and start over. */
       for (const int i : IndexRange(GPU_MAX_ATTR)) {
-        curve_attributes_buf[i].reset();
-        evaluated_attributes_buf[i].reset();
+        this->curve_attributes_buf[i].reset();
+        this->evaluated_attributes_buf[i].reset();
       }
       drw_attributes_merge(&attr_used, &attrs_needed);
     }
@@ -669,7 +669,7 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
   }
 
   for (const int i : attr_used.index_range()) {
-    if (curve_attributes_buf[i] || evaluated_attributes_buf[i]) {
+    if (this->curve_attributes_buf[i] || this->evaluated_attributes_buf[i]) {
       continue;
     }
     ensure_attribute(module, curves, attr_used[i], i);
@@ -678,28 +678,28 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
 
 void CurvesEvalCache::ensure_common(const bke::CurvesGeometry &curves)
 {
-  if (points_by_curve_buf) {
+  if (this->points_by_curve_buf) {
     return;
   }
-  points_by_curve_buf = gpu::VertBuf::new_from_span(curves.points_by_curve().data());
-  evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(
+  this->points_by_curve_buf = gpu::VertBuf::new_from_span(curves.points_by_curve().data());
+  this->evaluated_points_by_curve_buf = gpu::VertBuf::new_from_span(
       curves.evaluated_points_by_curve().data());
 
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  curves_type_buf = gpu::VertBuf::new_from_varray(curves.curve_types());
-  curves_resolution_buf = gpu::VertBuf::new_from_varray(curves.resolution());
-  curves_cyclic_buf = gpu::VertBuf::new_from_varray(curves.cyclic());
+  this->curves_type_buf = gpu::VertBuf::new_from_varray(curves.curve_types());
+  this->curves_resolution_buf = gpu::VertBuf::new_from_varray(curves.resolution());
+  this->curves_cyclic_buf = gpu::VertBuf::new_from_varray(curves.cyclic());
 }
 
 void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
 {
-  if (handles_positions_left_buf) {
+  if (this->handles_positions_left_buf) {
     return;
   }
-  handles_positions_left_buf = gpu::VertBuf::new_from_span(curves.handle_positions_left());
-  handles_positions_right_buf = gpu::VertBuf::new_from_span(curves.handle_positions_right());
-  bezier_offsets_buf = gpu::VertBuf::new_from_span(
+  this->handles_positions_left_buf = gpu::VertBuf::new_from_span(curves.handle_positions_left());
+  this->handles_positions_right_buf = gpu::VertBuf::new_from_span(curves.handle_positions_right());
+  this->bezier_offsets_buf = gpu::VertBuf::new_from_span(
       curves.runtime->evaluated_offsets_cache.data().all_bezier_offsets.as_span());
 }
 
@@ -712,9 +712,9 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
 
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
-  curves_order_buf = gpu::VertBuf::new_from_varray(curves.nurbs_orders());
+  this->curves_order_buf = gpu::VertBuf::new_from_varray(curves.nurbs_orders());
   if (!curves.nurbs_weights().is_empty()) {
-    control_weights_buf = gpu::VertBuf::new_from_span(curves.nurbs_weights());
+    this->control_weights_buf = gpu::VertBuf::new_from_span(curves.nurbs_weights());
   }
 
   curves.ensure_can_interpolate_to_evaluated();
@@ -735,8 +735,8 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
     basis_cache_packed.append(0);
   }
 
-  basis_cache_offset_buf = gpu::VertBuf::new_from_span(basis_cache_offset.as_span());
-  basis_cache_buf = gpu::VertBuf::new_from_span(basis_cache_packed.as_span());
+  this->basis_cache_offset_buf = gpu::VertBuf::new_from_span(basis_cache_offset.as_span());
+  this->basis_cache_buf = gpu::VertBuf::new_from_span(basis_cache_packed.as_span());
 }
 
 int CurvesEvalCache::evaluated_point_count_with_cyclic(const bke::CurvesGeometry &curves)
@@ -766,7 +766,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
   gpu::VertBufPtr points_pos_buf = gpu::VertBuf::new_from_span(curves.positions());
   gpu::VertBufPtr points_rad_buf = gpu::VertBuf::new_from_varray(curves.radius());
 
-  evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(
+  this->evaluated_pos_rad_buf = gpu::VertBuf::new_device_only<float4>(
       evaluated_point_count_with_cyclic(curves));
 
   module.evaluate_positions(curves.has_curve_with_type(CURVE_TYPE_CATMULL_ROM),
@@ -781,9 +781,9 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
                             evaluated_pos_rad_buf);
 
   /* TODO(fclem): Make time and length optional. */
-  evaluated_time_buf = gpu::VertBuf::new_device_only<float>(
+  this->evaluated_time_buf = gpu::VertBuf::new_device_only<float>(
       evaluated_point_count_with_cyclic(curves));
-  curves_length_buf = gpu::VertBuf::new_device_only<float>(curves.curves_num());
+  this->curves_length_buf = gpu::VertBuf::new_device_only<float>(curves.curves_num());
 
   module.evaluate_curve_length_intercept(
       curves.might_have_cyclic_curve(), curves.curves_num(), *this);
