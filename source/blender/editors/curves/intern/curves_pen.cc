@@ -1193,15 +1193,8 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
       const float4x4 layer_to_object = float4x4::identity();
       const float4x4 layer_to_world = float4x4::identity();
 
-      // IndexMaskMemory memory;
-      // const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-      //     *ptd.vc.obact,
-      //     info.drawing,
-      //     info.layer_index,
-      //     ptd.vc.v3d->overlay.handle_display,
-      //     memory);
-      /* TODO. */
-      const IndexMask bezier_points = curves.points_range();
+      IndexMaskMemory memory;
+      const IndexMask bezier_points = retrieve_all_selected_points(curves, memory);
 
       if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
         changed.store(true, std::memory_order_relaxed);
