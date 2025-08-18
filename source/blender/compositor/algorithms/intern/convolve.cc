@@ -70,10 +70,11 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
   /* Zero pad the image to the required spatial domain size, storing each channel in planar
    * format for better cache locality, that is, RRRR...GGGG...BBBB. */
   parallel_for(spatial_size, [&](const int2 texel) {
+    const float4 pixel_color = input_cpu.load_pixel_zero<float4>(texel);
     for (const int channel : IndexRange(channels_count)) {
       const int64_t base_index = texel.y * spatial_size.x + texel.x;
       const int64_t output_index = base_index + spatial_pixels_per_channel * channel;
-      image_spatial_domain[output_index] = input_cpu.load_pixel_zero<float4>(texel)[channel];
+      image_spatial_domain[output_index] = pixel_color[channel];
     }
   });
 
@@ -88,7 +89,7 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
 
   float *kernel_spatial_domain = fftwf_alloc_real(spatial_size.x * spatial_size.y);
   std::complex<float> *kernel_frequency_domain = reinterpret_cast<std::complex<float> *>(
-      fftwf_alloc_complex(frequency_pixels_per_channel * channels_count));
+      fftwf_alloc_complex(frequency_pixels_per_channel));
 
   /* Use a double to sum the kernel since floats are not stable with threaded summation. */
   threading::EnumerableThreadSpecific<double> sum_by_thread([]() { return 0.0; });
@@ -96,26 +97,20 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
   Result kernel_cpu = context.use_gpu() ? kernel.download_to_cpu() : kernel;
 
   /* Compute the kernel while zero padding to match the spatial size. */
-  threading::parallel_for(IndexRange(spatial_size.y), 1, [&](const IndexRange sub_y_range) {
-    double &sum = sum_by_thread.local();
-    for (const int64_t y : sub_y_range) {
-      for (const int64_t x : IndexRange(spatial_size.x)) {
-        const int2 texel = int2(x, y);
-        const int2 kernel_center = kernel_size / 2;
-        const int2 kernel_texel = kernel_center - texel;
+  parallel_for(spatial_size, [&](const int2 texel) {
+    const int2 kernel_center = kernel_size / 2;
+    const int2 kernel_texel = kernel_center - texel;
 
-        /* We offset the computed kernel with wrap around such that it is centered at the zero
-         * point, which is the expected format for doing circular convolutions in the frequency
-         * domain. */
-        int64_t input_x = mod_i(kernel_texel.x, spatial_size.x);
-        int64_t input_y = mod_i(kernel_texel.y, spatial_size.y);
-        const int2 texelll = int2(input_x, input_y);
+    /* We offset the computed kernel with wrap around such that it is centered at the zero
+     * point, which is the expected format for doing circular convolutions in the frequency
+     * domain. */
+    int64_t input_x = mod_i(kernel_texel.x, spatial_size.x);
+    int64_t input_y = mod_i(kernel_texel.y, spatial_size.y);
+    const int2 texelll = int2(input_x, input_y);
 
-        const float kernel_value = kernel_cpu.load_pixel_zero<float>(texelll);
-        kernel_spatial_domain[texel.x + texel.y * spatial_size.x] = kernel_value;
-        sum += kernel_value;
-      }
-    }
+    const float kernel_value = kernel_cpu.load_pixel_zero<float>(texelll);
+    kernel_spatial_domain[texel.x + texel.y * spatial_size.x] = kernel_value;
+    sum_by_thread.local() += kernel_value;
   });
 
   fftwf_execute_dft_r2c(forward_plan,
