@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "BLI_multi_value_map.hh"
 
 #include "GEO_xpbd_common_constraint_set_indices.hh"
@@ -96,13 +97,27 @@ ConstraintSet::ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluat
 void solve_gauss_seidel_one_at_a_time(const Span<MutablePointsRef> points_refs,
                                       const Span<ConstraintSet> constraint_sets)
 {
+  if (constraint_sets.is_empty()) {
+    return;
+  }
+  const int max_constraints_num = std::max_element(
+                                      constraint_sets.begin(),
+                                      constraint_sets.end(),
+                                      [](const ConstraintSet &a, const ConstraintSet &b) {
+                                        return a.indices->constraints_num <
+                                               b.indices->constraints_num;
+                                      })
+                                      ->indices->constraints_num;
+
+  Vector<int> constraint_mask(max_constraints_num);
+  array_utils::fill_index_range<int>(constraint_mask, 0);
+
   const Vector<PointsRef> readonly_points_refs = points_refs;
   GaussSeidelUpdater updater{points_refs};
+
   for (const ConstraintSet &constraint_set : constraint_sets) {
-    for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
-      constraint_set.evaluator->evaluate_parallel_gauss_seidel(
-          updater, readonly_points_refs, IndexRange::from_single(constraint_i));
-    }
+    constraint_set.evaluator->evaluate_serial_gauss_seidel(
+        updater, readonly_points_refs, constraint_mask);
   }
 }
 
