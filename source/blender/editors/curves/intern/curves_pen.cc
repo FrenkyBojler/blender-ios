@@ -703,9 +703,7 @@ void pen_find_closest_handle(const PenToolOperation &ptd,
                              const float2 &mouse_co,
                              ClosestElement &r_closest_element)
 {
-  const Span<float3> positions = curves.positions();
   const Array<int> point_to_curve_map = curves.point_to_curve_map();
-
   const Span<float3> handle_left = *curves.handle_positions_left();
   const Span<float3> handle_right = *curves.handle_positions_right();
 
