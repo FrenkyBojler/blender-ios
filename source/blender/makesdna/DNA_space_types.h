@@ -1152,9 +1152,8 @@ typedef struct SpreadsheetTableIDGeometry {
 
   int viewer_item_identifier;
 
-  /** List of #SpreadsheetBundlePathElem. */
-  SpreadsheetBundlePathElem *bundle_path;
   int bundle_path_num;
+  SpreadsheetBundlePathElem *bundle_path;
 
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested

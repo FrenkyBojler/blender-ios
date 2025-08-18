@@ -33,6 +33,8 @@ void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
   dst.layer_index = src.layer_index;
   dst.instance_ids = static_cast<SpreadsheetInstanceID *>(MEM_dupallocN(src.instance_ids));
   dst.instance_ids_num = src.instance_ids_num;
+  dst.bundle_path = static_cast<SpreadsheetBundlePathElem *>(MEM_dupallocN(src.bundle_path));
+  dst.bundle_path_num = src.bundle_path_num;
 }
 
 SpreadsheetTableID *spreadsheet_table_id_copy(const SpreadsheetTableID &src_table_id)
@@ -55,6 +57,7 @@ void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
       auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
       BKE_viewer_path_clear(&table_id_->viewer_path);
       MEM_SAFE_FREE(table_id_->instance_ids);
+      MEM_SAFE_FREE(table_id_->bundle_path);
       break;
     }
   }
@@ -72,6 +75,8 @@ void spreadsheet_table_id_blend_write_content_geometry(BlendWriter *writer,
   BKE_viewer_path_blend_write(writer, &table_id->viewer_path);
   BLO_write_struct_array(
       writer, SpreadsheetInstanceID, table_id->instance_ids_num, table_id->instance_ids);
+  BLO_write_struct_array(
+      writer, SpreadsheetBundlePathElem, table_id->bundle_path_num, table_id->bundle_path);
 }
 
 void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTableID *table_id)
@@ -94,6 +99,8 @@ void spreadsheet_table_id_blend_read(BlendDataReader *reader, SpreadsheetTableID
       BKE_viewer_path_blend_read_data(reader, &table_id_->viewer_path);
       BLO_read_struct_array(
           reader, SpreadsheetInstanceID, table_id_->instance_ids_num, &table_id_->instance_ids);
+      BLO_read_struct_array(
+          reader, SpreadsheetBundlePathElem, table_id_->bundle_path_num, &table_id_->bundle_path);
       break;
     }
   }
@@ -138,7 +145,9 @@ bool spreadsheet_table_id_match(const SpreadsheetTableID &a, const SpreadsheetTa
              a_.attribute_domain == b_.attribute_domain &&
              a_.object_eval_state == b_.object_eval_state && a_.layer_index == b_.layer_index &&
              blender::Span(a_.instance_ids, a_.instance_ids_num) ==
-                 blender::Span(b_.instance_ids, b_.instance_ids_num);
+                 blender::Span(b_.instance_ids, b_.instance_ids_num) &&
+             blender::Span(a_.bundle_path, a_.bundle_path_num) ==
+                 blender::Span(b_.bundle_path, b_.bundle_path_num);
     }
   }
   return true;
