@@ -227,7 +227,6 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
     for (int x = e.s0; x <= e.s1; ++x) {
       if (r2 < 1.0f) {
         float weight = compute_ewa_weight(r2, EWA_EDGE_MODE_NONE, 2.0f, 0.92f);
-        //float weight = compute_gaussian_weight(r2, 2.0f);
         if (weight > 0.0f) {
           float4 rgba = texelFetch(input_tx, int2(x, y), 0);
           accum += weight * rgba;
