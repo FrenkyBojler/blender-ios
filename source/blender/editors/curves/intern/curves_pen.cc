@@ -863,13 +863,190 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
 }
 
 /* Invoke handler: Initialize the operator. */
-static wmOperatorStatus curves_pen_invoke(bContext * /*C*/,
-                                          wmOperator *op,
-                                          const wmEvent * /*event*/)
+static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
+
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+
+  wmWindow *win = CTX_wm_window(C);
+  /* Set cursor to indicate modal. */
+  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
+
+  /* Allocate new data. */
+  CurvesPenToolOperation *ptd_pointer = MEM_new<CurvesPenToolOperation>(__func__);
+  op->customdata = ptd_pointer;
+  CurvesPenToolOperation &ptd = *ptd_pointer;
+
+  ptd.vc = vc;
+  ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
+
+  /* Distance threshold for mouse clicks to affect the spline or its points */
+  ptd.mouse_co = float2(event->mval);
+  ptd.threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
+  ptd.threshold_distance_edge = ED_view3d_select_dist_px() * selection_distance_factor_edge;
+
+  ptd.extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
+  ptd.delete_point = RNA_boolean_get(op->ptr, "delete_point");
+  ptd.insert_point = RNA_boolean_get(op->ptr, "insert_point");
+  ptd.move_seg = RNA_boolean_get(op->ptr, "move_segment");
+  ptd.select_point = RNA_boolean_get(op->ptr, "select_point");
+  ptd.move_point = RNA_boolean_get(op->ptr, "move_point");
+  ptd.cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
+  ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
+  ptd.radius = RNA_float_get(op->ptr, "radius");
+
+  ptd.move_entire = false;
+  ptd.snap_angle = false;
+
+  /* Add a modal handler for this operator. */
+  WM_event_add_modal_handler(C, op);
+
+  if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  std::atomic<bool> add_single = ptd.extrude_point;
+  std::atomic<bool> changed = false;
+  std::atomic<bool> point_added = false;
+  std::atomic<bool> point_removed = false;
+  // ptd.drawings = retrieve_editable_drawings(*ptd.vc.scene, *ptd.grease_pencil);
+  // ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
+  // ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
+
+  // threading::parallel_for(ptd.drawings.index_range(), 1, [&](const IndexRange drawing_range) {
+  //   for (const int drawing_index : drawing_range) {
+  //     const MutableDrawingInfo &info = ptd.drawings[drawing_index];
+  //     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+
+  //     if (curves.is_empty()) {
+  //       continue;
+  //     }
+
+  //     if (ptd.closest_element.element_mode == ElementMode::Edge) {
+  //       add_single.store(false, std::memory_order_relaxed);
+  //       if (ptd.insert_point) {
+  //         ptd.insert_point_to_curve(curves);
+  //         info.drawing.tag_topology_changed();
+  //         changed.store(true, std::memory_order_relaxed);
+  //       }
+  //       continue;
+  //     }
+
+  //     if (ptd.closest_element.element_mode == ElementMode::None) {
+  //       if (ptd.extrude_point) {
+  //         const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+  //         const float4x4 layer_to_object = layer.local_transform();
+
+  //         IndexMaskMemory memory;
+  //         const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
+  //             *ptd.vc.obact, info.drawing, info.layer_index, memory);
+  //         const bke::CurvesGeometry &src = info.drawing.strokes();
+
+  //         if (std::optional<bke::CurvesGeometry> result = ptd.extrude_curves(
+  //                 src, layer_to_object, editable_curves))
+  //         {
+  //           curves = std::move(*result);
+  //         }
+  //         else {
+  //           for (const StringRef selection_attribute_name :
+  //                ed::curves::get_curves_selection_attribute_names(curves))
+  //           {
+  //             bke::GSpanAttributeWriter selection_writer =
+  //             ed::curves::ensure_selection_attribute(
+  //                 curves, bke::AttrDomain::Point, bke::AttrType::Bool,
+  //                 selection_attribute_name);
+  //             ed::curves::fill_selection_false(selection_writer.span);
+  //             selection_writer.finish();
+  //           }
+  //           continue;
+  //         }
+
+  //         add_single.store(false, std::memory_order_relaxed);
+  //         point_added.store(true, std::memory_order_relaxed);
+  //         info.drawing.tag_topology_changed();
+
+  //         changed.store(true, std::memory_order_relaxed);
+  //         continue;
+  //       }
+
+  //       continue;
+  //     }
+
+  //     if (drawing_index != ptd.closest_element.drawing_index) {
+  //       if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
+  //         for (const StringRef selection_attribute_name :
+  //              ed::curves::get_curves_selection_attribute_names(curves))
+  //         {
+  //           bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+  //               curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+  //           ed::curves::fill_selection_false(selection_writer.span);
+  //           selection_writer.finish();
+  //         }
+  //       }
+
+  //       continue;
+  //     }
+
+  //     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  //     const IndexRange points = points_by_curve[ptd.closest_element.curve_index];
+
+  //     if (event->val == KM_DBL_CLICK && ptd.cycle_handle_type) {
+  //       const int8_t handle_type = curves.handle_types_right()[ptd.closest_element.point_index];
+  //       /* Cycle to the next type. */
+  //       const int8_t new_handle_type = (handle_type + 1) % CURVE_HANDLE_TYPES_NUM;
+
+  //       curves.handle_types_left_for_write()[ptd.closest_element.point_index] = new_handle_type;
+  //       curves.handle_types_right_for_write()[ptd.closest_element.point_index] =
+  //       new_handle_type; curves.calculate_bezier_auto_handles();
+  //       info.drawing.tag_topology_changed();
+  //       add_single.store(false, std::memory_order_relaxed);
+  //     }
+
+  //     if (ptd.delete_point) {
+  //       curves.remove_points(IndexRange::from_single(ptd.closest_element.point_index), {});
+  //       add_single.store(false, std::memory_order_relaxed);
+  //       point_removed.store(true, std::memory_order_relaxed);
+  //       info.drawing.tag_topology_changed();
+  //       continue;
+  //     }
+
+  //     const bool clear_selection = event->val != KM_DBL_CLICK && !ptd.delete_point;
+  //     if (ptd.close_curve_and_select(curves, points, clear_selection)) {
+  //       info.drawing.tag_topology_changed();
+  //       add_single.store(false, std::memory_order_relaxed);
+  //     }
+
+  //     changed.store(true, std::memory_order_relaxed);
+  //   }
+  // });
+
+  // if (add_single) {
+  //   if (pen_can_create_new_curve(ptd, op)) {
+  //     bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
+  //     bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
+  //         layer, ptd.vc.scene->r.cfra);
+  //     bke::CurvesGeometry &curves = drawing->strokes_for_write();
+  //     const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+
+  //     ptd.add_single_point_and_curve(curves, layer_to_world);
+  //     drawing->opacities_for_write().last() = 1.0f;
+  //     drawing->tag_topology_changed();
+
+  //     changed.store(true, std::memory_order_relaxed);
+  //     point_added = true;
+  //   }
+  // }
+
+  pen_status_indicators(C, op);
+  if (changed) {
+    // grease_pencil_pen_update_view(C, ptd);
+  }
+
+  // ptd.point_added = point_added;
+  // ptd.point_removed = point_removed;
 
   return OPERATOR_RUNNING_MODAL;
 }
