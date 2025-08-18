@@ -1754,7 +1754,7 @@ static void wm_history_file_update()
  *   - A smaller thumbnail is stored in the `.blend` file itself, sized at #BLEN_THUMB_SIZE.
  *     The size is kept small to prevent thumbnails bloating the size of `.blend` files.
  *
- *     The this thumbnail will be extracted if the file is shared or the local thumbnail cache
+ *     The thumbnail will be extracted if the file is shared or the local thumbnail cache
  *     is cleared. see: `blendthumb_extract.cc` for logic that extracts the thumbnail.
  *
  * \{ */
@@ -2855,7 +2855,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
       filepath = filepath_buf;
       if (BLI_access(filepath, R_OK)) {
         BKE_reportf(
-            op->reports, RPT_ERROR, "Can't read alternative start-up file: \"%s\"", filepath);
+            op->reports, RPT_ERROR, "Cannot read alternative start-up file: \"%s\"", filepath);
         return OPERATOR_CANCELLED;
       }
     }
@@ -4283,6 +4283,35 @@ void wm_test_autorun_warning(bContext *C)
     wmWindow *prevwin = CTX_wm_window(C);
     CTX_wm_window_set(C, win);
     UI_popup_block_invoke(C, block_create_autorun_warning, nullptr, nullptr);
+    CTX_wm_window_set(C, prevwin);
+  }
+}
+
+void wm_test_foreign_file_warning(bContext *C)
+{
+  if (!G_MAIN->is_read_invalid) {
+    return;
+  }
+
+  G_MAIN->is_read_invalid = false;
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = (wm->winactive) ? wm->winactive : static_cast<wmWindow *>(wm->windows.first);
+
+  if (win) {
+    /* We want this warning on the Main window, not a child window even if active. See #118765. */
+    if (win->parent) {
+      win = win->parent;
+    }
+
+    wmWindow *prevwin = CTX_wm_window(C);
+    CTX_wm_window_set(C, win);
+    UI_alert(C,
+             RPT_("Unable to Load File"),
+             RPT_("The file specified is not a valid Blend document."),
+             ALERT_ICON_ERROR,
+             false);
+
     CTX_wm_window_set(C, prevwin);
   }
 }
