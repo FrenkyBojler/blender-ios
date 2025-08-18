@@ -360,7 +360,7 @@ class NODE_OT_swap_empty_group(NodeSwapOperator, bpy.types.Operator):
         return group
 
 
-class NodeAddZoneOperator(NodeAddOperator):
+class ZoneOperator:
     offset: FloatVectorProperty(
         name="Offset",
         description="Offset of nodes from the cursor when added",
@@ -368,6 +368,19 @@ class NodeAddZoneOperator(NodeAddOperator):
         default=(150, 0),
     )
 
+    zone_tooltips = {
+        "GeometryNodeSimulationInput" : "Simulate the execution of nodes across a time span",
+        "GeometryNodeRepeatInput" : "Execute nodes with a dynamic number of repetitions",
+        "GeometryNodeForeachGeometryElementInput" : "Perform operations separately for each geometry element (e.g. vertices, edges, etc.)",
+        "GeometryNodeClosureInput" : "Wrap nodes inside a closure that could be executed later",
+    }
+
+    @classmethod
+    def description(cls, _context, properties):
+        return cls.zone_tooltips.get(properties.input_node_type, None)
+
+
+class NodeAddZoneOperator(ZoneOperator, NodeAddOperator):
     add_default_geometry_link = True
 
     def execute(self, context):
@@ -504,7 +517,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
         return {'FINISHED'}
     
     
-class NODE_OT_swap_zone(NodeSwapOperator, Operator):
+class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
     bl_idname = "node.swap_zone"
     bl_label = "Swap Zone" 
     bl_options = {"REGISTER", "UNDO"}
@@ -524,21 +537,7 @@ class NODE_OT_swap_zone(NodeSwapOperator, Operator):
         description="When enabled, create a link between geometry sockets in this zone",
         default=False,
     )
-
-    offset: FloatVectorProperty(
-        name="Offset",
-        description="Offset of nodes from the cursor when added",
-        size=2,
-        default=(150, 0),
-    )
-
-    zone_tooltips = {
-        "GeometryNodeSimulationInput" : "Simulate the execution of nodes across a time span",
-        "GeometryNodeRepeatInput" : "Execute nodes with a dynamic number of repetitions",
-        "GeometryNodeForeachGeometryElementInput" : "Perform operations separately for each geometry element (e.g. vertices, edges, etc.)",
-        "GeometryNodeClosureInput" : "Wrap nodes inside a closure that could be executed later",
-    }
-
+    
     @staticmethod
     def get_zone_pair(tree, node):
         # Get paired output node
@@ -552,10 +551,6 @@ class NODE_OT_swap_zone(NodeSwapOperator, Operator):
                     return input_node, node
                 
         return None
-
-    @classmethod
-    def description(cls, _context, properties):
-        return cls.zone_tooltips.get(properties.input_node_type, None)
     
     def execute(self, context):
         old_node = context.active_node
