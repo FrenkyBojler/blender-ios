@@ -988,14 +988,47 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
+bool PenToolOperation::initialize(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+
+  this->vc = vc;
+  this->projection = ED_view3d_ob_project_mat_get(this->vc.rv3d, this->vc.obact);
+
+  /* Distance threshold for mouse clicks to affect the spline or its points */
+  this->mouse_co = float2(event->mval);
+  this->threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
+  this->threshold_distance_edge = ED_view3d_select_dist_px() * selection_distance_factor_edge;
+
+  this->extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
+  this->delete_point = RNA_boolean_get(op->ptr, "delete_point");
+  this->insert_point = RNA_boolean_get(op->ptr, "insert_point");
+  this->move_seg = RNA_boolean_get(op->ptr, "move_segment");
+  this->select_point = RNA_boolean_get(op->ptr, "select_point");
+  this->move_point = RNA_boolean_get(op->ptr, "move_point");
+  this->cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
+  this->extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
+  this->radius = RNA_float_get(op->ptr, "radius");
+
+  this->move_entire = false;
+  this->snap_angle = false;
+
+  /* Add a modal handler for this operator. */
+  WM_event_add_modal_handler(C, op);
+
+  if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
+    return true;
+  }
+
+  return false;
+}
+
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
-
-  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   wmWindow *win = CTX_wm_window(C);
   /* Set cursor to indicate modal. */
@@ -1006,31 +1039,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   op->customdata = ptd_pointer;
   CurvesPenToolOperation &ptd = *ptd_pointer;
 
-  ptd.vc = vc;
-  ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
-
-  /* Distance threshold for mouse clicks to affect the spline or its points */
-  ptd.mouse_co = float2(event->mval);
-  ptd.threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
-  ptd.threshold_distance_edge = ED_view3d_select_dist_px() * selection_distance_factor_edge;
-
-  ptd.extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
-  ptd.delete_point = RNA_boolean_get(op->ptr, "delete_point");
-  ptd.insert_point = RNA_boolean_get(op->ptr, "insert_point");
-  ptd.move_seg = RNA_boolean_get(op->ptr, "move_segment");
-  ptd.select_point = RNA_boolean_get(op->ptr, "select_point");
-  ptd.move_point = RNA_boolean_get(op->ptr, "move_point");
-  ptd.cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
-  ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
-  ptd.radius = RNA_float_get(op->ptr, "radius");
-
-  ptd.move_entire = false;
-  ptd.snap_angle = false;
-
-  /* Add a modal handler for this operator. */
-  WM_event_add_modal_handler(C, op);
-
-  if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
+  if (ptd.initialize(C, op, event)) {
     return OPERATOR_RUNNING_MODAL;
   }
 

@@ -197,13 +197,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
    * region before allowing drawing to take place. */
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
 
-  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
-
-  if (vc.scene->toolsettings->gpencil_selectmode_edit != GP_SELECTMODE_POINT) {
-    BKE_report(op->reports, RPT_ERROR, "Selection Mode must be Points");
-    return OPERATOR_CANCELLED;
-  }
-
   wmWindow *win = CTX_wm_window(C);
   /* Set cursor to indicate modal. */
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
@@ -213,48 +206,30 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   op->customdata = ptd_pointer;
   GreasePencilPenToolOperation &ptd = *ptd_pointer;
 
-  ptd.vc = vc;
-  GreasePencil *grease_pencil = static_cast<GreasePencil *>(vc.obact->data);
+  if (ptd.initialize(C, op, event)) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  if (ptd.vc.scene->toolsettings->gpencil_selectmode_edit != GP_SELECTMODE_POINT) {
+    BKE_report(op->reports, RPT_ERROR, "Selection Mode must be Points");
+    return OPERATOR_CANCELLED;
+  }
+
+  GreasePencil *grease_pencil = static_cast<GreasePencil *>(ptd.vc.obact->data);
   ptd.grease_pencil = grease_pencil;
-  ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
   View3D *view3d = CTX_wm_view3d(C);
 
   /* Initialize helper class for projecting screen space coordinates. */
   DrawingPlacement placement = DrawingPlacement(
-      *vc.scene, *vc.region, *view3d, *vc.obact, grease_pencil->get_active_layer());
+      *ptd.vc.scene, *ptd.vc.region, *view3d, *ptd.vc.obact, grease_pencil->get_active_layer());
   if (placement.use_project_to_surface()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), ptd.vc.region, view3d);
   }
   else if (placement.use_project_to_stroke()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), ptd.vc.region, view3d);
   }
 
   ptd.placement = placement;
-
-  /* Distance threshold for mouse clicks to affect the spline or its points */
-  ptd.mouse_co = float2(event->mval);
-  ptd.threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
-  ptd.threshold_distance_edge = ED_view3d_select_dist_px() * selection_distance_factor_edge;
-
-  ptd.extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
-  ptd.delete_point = RNA_boolean_get(op->ptr, "delete_point");
-  ptd.insert_point = RNA_boolean_get(op->ptr, "insert_point");
-  ptd.move_seg = RNA_boolean_get(op->ptr, "move_segment");
-  ptd.select_point = RNA_boolean_get(op->ptr, "select_point");
-  ptd.move_point = RNA_boolean_get(op->ptr, "move_point");
-  ptd.cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
-  ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
-  ptd.radius = RNA_float_get(op->ptr, "radius");
-
-  ptd.move_entire = false;
-  ptd.snap_angle = false;
-
-  /* Add a modal handler for this operator. */
-  WM_event_add_modal_handler(C, op);
-
-  if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
-    return OPERATOR_RUNNING_MODAL;
-  }
 
   std::atomic<bool> add_single = ptd.extrude_point;
   std::atomic<bool> changed = false;

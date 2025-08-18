@@ -189,6 +189,8 @@ class PenToolOperation {
   bool close_curve_and_select(bke::CurvesGeometry &curves,
                               const IndexRange points,
                               bool clear_selection);
+
+  bool initialize(bContext *C, wmOperator *op, const wmEvent *event);
 };
 
 void pen_find_closest_point(const PenToolOperation &ptd,
