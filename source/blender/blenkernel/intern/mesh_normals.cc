@@ -1178,13 +1178,21 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
   return math::normalize(fan_normal);
 }
 
+struct CornerSpaceGroup {
+  /* Maybe acyclic and unordered set of adjacent corners in same smooth group around vertex. */
+  Array<int> corners_fan;
+  CornerNormalSpace space;
+};
+
 /** Don't inline this function to simplify the code path without custom normals. */
-BLI_NOINLINE static CornerNormalSpace handle_fan_result_and_custom_normals(
+BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     const Span<short2> custom_normals,
     const Span<VertCornerInfo> corner_infos,
     const Span<float3> edge_dirs,
     const Span<int> local_corners_in_fan,
-    float3 &fan_normal)
+    float3 &fan_normal,
+    CornerNormalSpaceArray *r_fan_spaces,
+    Vector<CornerSpaceGroup, 0> &r_local_space_groups)
 {
   const int local_edge_first = corner_infos[local_corners_in_fan.first()].local_edge_next;
   const int local_edge_last = corner_infos[local_corners_in_fan.last()].local_edge_prev;
@@ -1213,7 +1221,17 @@ BLI_NOINLINE static CornerNormalSpace handle_fan_result_and_custom_normals(
     average_custom_normal /= local_corners_in_fan.size();
     fan_normal = corner_space_custom_data_to_normal(fan_space, short2(average_custom_normal));
   }
-  return fan_space;
+
+  if (!r_fan_spaces) {
+    return;
+  }
+
+  Array<int> corners_fan(local_corners_in_fan.size());
+  for (const int i : local_corners_in_fan.index_range()) {
+    const VertCornerInfo &info = corner_infos[local_corners_in_fan[i]];
+    corners_fan[i] = info.corner;
+  }
+  r_local_space_groups.append({std::move(corners_fan), fan_space});
 }
 
 void normals_calc_corners(const Span<float3> vert_positions,
@@ -1237,14 +1255,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
     }
   }
 
-  struct CornerSpaceGroup {
-    /* Maybe acyclic and unordered set of adjacent corners in same smooth group around vertex. */
-    Array<int> corners_fan;
-    CornerNormalSpace space;
-  };
   threading::EnumerableThreadSpecific<Vector<CornerSpaceGroup, 0>> space_groups;
 
-  threading::parallel_for(vert_positions.index_range(), 1024 * 4, [&](const IndexRange range) {
+  threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
     LocalEdgeVectorSet local_edge_by_vert;
     Vector<VertEdgeInfo, 16> edge_infos;
@@ -1296,15 +1309,13 @@ void normals_calc_corners(const Span<float3> vert_positions,
             corner_infos, edge_dirs, face_normals, corners_in_fan);
 
         if (UNLIKELY(!custom_normals.is_empty() || r_fan_spaces)) {
-          const CornerNormalSpace space = handle_fan_result_and_custom_normals(
-              custom_normals, corner_infos, edge_dirs, corners_in_fan, fan_normal);
-          if (r_fan_spaces) {
-            Array<int> corners_fan(corners_in_fan.size());
-            for (const int i : corners_in_fan.index_range()) {
-              corners_fan[i] = corner_infos[corners_in_fan[i]].corner;
-            }
-            local_space_groups->append({std::move(corners_fan), space});
-          }
+          handle_fan_result_and_custom_normals(custom_normals,
+                                               corner_infos,
+                                               edge_dirs,
+                                               corners_in_fan,
+                                               fan_normal,
+                                               r_fan_spaces,
+                                               *local_space_groups);
         }
 
         for (const int local_corner : corners_in_fan) {
