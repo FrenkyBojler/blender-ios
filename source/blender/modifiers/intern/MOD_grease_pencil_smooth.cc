@@ -23,7 +23,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_smooth_curves.hh"
@@ -126,7 +126,7 @@ static void deform_drawing(const ModifierData &md,
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
-  const VArray<bool> point_selection = VArray<bool>::ForSingle(true, curves.points_num());
+  const VArray<bool> point_selection = VArray<bool>::from_single(true, curves.points_num());
 
   VArray<float> influences;
   const bool use_influence_vertex_group = mmd.influence.vertex_group_name[0] != '\0';
@@ -140,10 +140,10 @@ static void deform_drawing(const ModifierData &md,
             vgroup_weights_factored[i] = vgroup_weights[i] * influence;
           }
         });
-    influences = VArray<float>::ForContainer(vgroup_weights_factored);
+    influences = VArray<float>::from_container(vgroup_weights_factored);
   }
   else {
-    influences = VArray<float>::ForSingle(influence, curves.points_num());
+    influences = VArray<float>::from_single(influence, curves.points_num());
   }
 
   if (smooth_position) {
@@ -244,7 +244,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   row->prop(ptr, "use_edit_uv", UI_ITEM_R_TOGGLE, IFACE_("UV"), ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "step", UI_ITEM_NONE, IFACE_("Repeat"), ICON_NONE);

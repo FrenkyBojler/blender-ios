@@ -21,6 +21,20 @@ from .config import TestConfig
 from .device import TestMachine
 
 
+class TestFailure(Exception):
+    def __init__(self, *args, message, output_lines=[], **kwargs):
+        super().__init__(message, *args)
+        self.message = message
+        self.output_lines = output_lines
+
+    def __str__(self):
+        msg = self.message
+        if self.output_lines:
+            msg += f":\n{'': <10} | "
+            msg += f"\n{'': <10} | ".join(l.rstrip(' \r\n\t') for l in self.output_lines)
+        return msg
+
+
 class TestEnvironment:
     def __init__(self, blender_git_dir: pathlib.Path, base_dir: pathlib.Path):
         self.blender_git_dir = blender_git_dir
@@ -223,7 +237,7 @@ class TestEnvironment:
 
         # Raise error on failure
         if proc.returncode != 0 and not silent:
-            raise Exception("Error executing command")
+            raise TestFailure(message="Error executing command", output_lines=lines)
 
         return lines
 
@@ -231,7 +245,7 @@ class TestEnvironment:
         # Execute Blender command with arguments.
         common_args = ['--factory-startup', '-noaudio', '--enable-autoexec', '--python-exit-code', '1']
         if foreground:
-            common_args += ['--no-window-focus', '--window-geometry', '0', '0', '1024', '768']
+            common_args += ['--no-window-focus', '--window-geometry', '0', '0', '1024', '768', '--gpu-vsync', 'off']
         else:
             common_args += ['--background']
 

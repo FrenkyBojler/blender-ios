@@ -62,21 +62,6 @@ void deg_invalidate_iterator_work_data(DEGObjectIterData *data)
 #endif
 }
 
-void ensure_id_properties_freed(const Object *dupli_object, Object *temp_dupli_object)
-{
-  if (temp_dupli_object->id.properties == nullptr) {
-    /* No ID properties in temp data-block -- no leak is possible. */
-    return;
-  }
-  if (temp_dupli_object->id.properties == dupli_object->id.properties) {
-    /* Temp copy of object did not modify ID properties. */
-    return;
-  }
-  /* Free memory which is owned by temporary storage which is about to get overwritten. */
-  IDP_FreeProperty(temp_dupli_object->id.properties);
-  temp_dupli_object->id.properties = nullptr;
-}
-
 bool deg_object_hide_original(eEvaluationMode eval_mode, const Object *ob, const DupliObject *dob)
 {
   /* Automatic hiding if this object is being instanced on verts/faces/frames
@@ -528,17 +513,23 @@ bool DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
   return true;
 }
 
-void DEG_iterator_temp_object_free_properties(const DupliObject *dupli, Object *temp_object)
+void ensure_id_properties_freed(const IDProperty *dupli_idprops, IDProperty **temp_dupli_idprops)
 {
-  if (temp_object->id.properties == nullptr) {
+  if (*temp_dupli_idprops == nullptr) {
     /* No ID properties in temp data-block -- no leak is possible. */
     return;
   }
-  if (temp_object->id.properties == dupli->ob->id.properties) {
+  if (*temp_dupli_idprops == dupli_idprops) {
     /* Temp copy of object did not modify ID properties. */
     return;
   }
   /* Free memory which is owned by temporary storage which is about to get overwritten. */
-  IDP_FreeProperty(temp_object->id.properties);
-  temp_object->id.properties = nullptr;
+  IDP_FreeProperty(*temp_dupli_idprops);
+  *temp_dupli_idprops = nullptr;
+}
+
+void DEG_iterator_temp_object_free_properties(const DupliObject *dupli, Object *temp_object)
+{
+  ensure_id_properties_freed(dupli->ob->id.properties, &temp_object->id.properties);
+  ensure_id_properties_freed(dupli->ob->id.system_properties, &temp_object->id.system_properties);
 }

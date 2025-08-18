@@ -158,8 +158,9 @@ static void pick_input_link_by_link_intersect(const bContext &C,
   }
 }
 
-static bool socket_is_available(bNodeTree * /*ntree*/, bNodeSocket *sock, const bool allow_used)
+static bool socket_is_available(bNodeTree *ntree, bNodeSocket *sock, const bool allow_used)
 {
+  ntree->ensure_topology_cache();
   if (!sock->is_visible()) {
     return false;
   }
@@ -216,6 +217,34 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
     }
   }
 
+  /* If the target is an extend socket, then connect the first available socket that is not
+   * already linked to the target node. */
+  ntree->ensure_topology_cache();
+  if (STREQ(sock_target->idname, "NodeSocketVirtual")) {
+    LISTBASE_FOREACH (bNodeSocket *, output, &node->outputs) {
+      if (!output->is_icon_visible()) {
+        continue;
+      }
+
+      /* Find out if the socket is already linked to the target node. */
+      const Span<bNodeSocket *> directly_linked_sockets = output->directly_linked_sockets();
+      bool is_output_linked_to_target_node = false;
+      for (bNodeSocket *socket : directly_linked_sockets) {
+        if (&socket->owner_node() == &sock_target->owner_node()) {
+          is_output_linked_to_target_node = true;
+          break;
+        }
+      }
+
+      /* Already linked, ignore it. */
+      if (is_output_linked_to_target_node) {
+        continue;
+      }
+
+      return output;
+    }
+  }
+
   /* Always allow linking to an reroute node. The socket type of the reroute sockets might change
    * after the link has been created. */
   if (node->is_reroute()) {
@@ -236,7 +265,7 @@ static bNodeSocket *best_socket_input(bNodeTree *ntree, bNode *node, int num, in
 
   /* Find sockets of higher 'types' first (i.e. image). */
   int a = 0;
-  for (int socktype = maxtype; socktype >= 0; socktype--) {
+  for (int socktype = maxtype; socktype >= SOCK_CUSTOM; socktype--) {
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       if (!socket_is_available(ntree, sock, replace)) {
         a++;
@@ -257,7 +286,8 @@ static bNodeSocket *best_socket_input(bNodeTree *ntree, bNode *node, int num, in
   return nullptr;
 }
 
-static bool snode_autoconnect_input(SpaceNode &snode,
+static bool snode_autoconnect_input(bContext &C,
+                                    SpaceNode &snode,
                                     bNode *node_fr,
                                     bNodeSocket *sock_fr,
                                     bNode *node_to,
@@ -270,7 +300,23 @@ static bool snode_autoconnect_input(SpaceNode &snode,
     bke::node_remove_socket_links(*ntree, *sock_to);
   }
 
-  bke::node_add_link(*ntree, *node_fr, *sock_fr, *node_to, *sock_to);
+  bNodeLink &link = bke::node_add_link(*ntree, *node_fr, *sock_fr, *node_to, *sock_to);
+
+  if (link.fromnode->typeinfo->insert_link) {
+    bke::NodeInsertLinkParams params{*ntree, *link.fromnode, link, &C};
+    if (!link.fromnode->typeinfo->insert_link(params)) {
+      bke::node_remove_link(ntree, link);
+      return false;
+    }
+  }
+  if (link.tonode->typeinfo->insert_link) {
+    bke::NodeInsertLinkParams params{*ntree, *link.tonode, link, &C};
+    if (!link.tonode->typeinfo->insert_link(params)) {
+      bke::node_remove_link(ntree, link);
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -320,7 +366,10 @@ void update_multi_input_indices_for_removed_links(bNode &node)
   }
 }
 
-static void snode_autoconnect(SpaceNode &snode, const bool allow_multiple, const bool replace)
+static void snode_autoconnect(bContext &C,
+                              SpaceNode &snode,
+                              const bool allow_multiple,
+                              const bool replace)
 {
   bNodeTree *ntree = snode.edittree;
   Vector<bNode *> sorted_nodes = get_selected_nodes(*ntree).extract_vector();
@@ -356,7 +405,7 @@ static void snode_autoconnect(SpaceNode &snode, const bool allow_multiple, const
           continue;
         }
 
-        if (snode_autoconnect_input(snode, node_fr, sock_fr, node_to, sock_to, replace)) {
+        if (snode_autoconnect_input(C, snode, node_fr, sock_fr, node_to, sock_to, replace)) {
           // numlinks++;
         }
       }
@@ -380,7 +429,7 @@ static void snode_autoconnect(SpaceNode &snode, const bool allow_multiple, const
           continue;
         }
 
-        if (snode_autoconnect_input(snode, node_fr, sock_fr, node_to, sock_to, replace)) {
+        if (snode_autoconnect_input(C, snode, node_fr, sock_fr, node_to, sock_to, replace)) {
           // numlinks++;
           break;
         }
@@ -1215,13 +1264,15 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
     bNodeLink *new_link = MEM_mallocN<bNodeLink>(__func__);
     *new_link = link;
     if (link.fromnode->typeinfo->insert_link) {
-      if (!link.fromnode->typeinfo->insert_link(&ntree, link.fromnode, new_link)) {
+      bke::NodeInsertLinkParams params{ntree, *link.fromnode, *new_link, &C};
+      if (!link.fromnode->typeinfo->insert_link(params)) {
         MEM_freeN(new_link);
         continue;
       }
     }
     if (link.tonode->typeinfo->insert_link) {
-      if (!link.tonode->typeinfo->insert_link(&ntree, link.tonode, new_link)) {
+      bke::NodeInsertLinkParams params{ntree, *link.tonode, *new_link, &C};
+      if (!link.tonode->typeinfo->insert_link(params)) {
         MEM_freeN(new_link);
         continue;
       }
@@ -1613,7 +1664,7 @@ static wmOperatorStatus node_make_link_exec(bContext *C, wmOperator *op)
 
   ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
 
-  snode_autoconnect(snode, true, replace);
+  snode_autoconnect(*C, snode, true, replace);
 
   /* Deselect sockets after linking. */
   node_deselect_all_input_sockets(node_tree, false);

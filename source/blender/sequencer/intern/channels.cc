@@ -14,7 +14,7 @@
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -27,7 +27,7 @@ namespace blender::seq {
 
 ListBase *channels_displayed_get(const Editing *ed)
 {
-  return ed->displayed_channels;
+  return ed->current_channels();
 }
 
 void channels_displayed_set(Editing *ed, ListBase *channels)
@@ -40,7 +40,7 @@ void channels_ensure(ListBase *channels)
   /* Allocate channels. Channel 0 is never used, but allocated to prevent off by 1 issues. */
   for (int i = 0; i < MAX_CHANNELS + 1; i++) {
     SeqTimelineChannel *channel = MEM_callocN<SeqTimelineChannel>("seq timeline channel");
-    SNPRINTF(channel->name, DATA_("Channel %d"), i);
+    SNPRINTF_UTF8(channel->name, DATA_("Channel %d"), i);
     channel->index = i;
     BLI_addtail(channels, channel);
   }

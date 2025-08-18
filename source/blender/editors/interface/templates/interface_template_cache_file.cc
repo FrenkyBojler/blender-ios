@@ -7,8 +7,8 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
@@ -25,7 +25,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 using blender::StringRefNull;
@@ -114,12 +114,12 @@ void uiTemplateCacheFileTimeSettings(uiLayout *layout, PointerRNA *fileptr)
 
   row = &layout->row(true, IFACE_("Override Frame"));
   sub = &row->row(true);
-  uiLayoutSetPropDecorate(sub, false);
+  sub->use_property_decorate_set(false);
   sub->prop(fileptr, "override_frame", UI_ITEM_NONE, "", ICON_NONE);
   subsub = &sub->row(true);
   subsub->active_set(RNA_boolean_get(fileptr, "override_frame"));
   subsub->prop(fileptr, "frame", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemDecoratorR(row, fileptr, "frame", 0);
+  row->decorator(fileptr, "frame", 0);
 
   row = &layout->row(false);
   row->prop(fileptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -146,7 +146,7 @@ uiListType *UI_UL_cache_file_layers()
 {
   uiListType *list_type = (uiListType *)MEM_callocN(sizeof(*list_type), __func__);
 
-  STRNCPY(list_type->idname, "UI_UL_cache_file_layers");
+  STRNCPY_UTF8(list_type->idname, "UI_UL_cache_file_layers");
   list_type->draw_item = cache_file_layer_item;
 
   return list_type;
@@ -245,7 +245,7 @@ void uiTemplateCacheFile(uiLayout *layout,
 
   uiLayout *row, *sub;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   row = &layout->row(true);
   row->prop(&fileptr, "filepath", UI_ITEM_NONE, std::nullopt, ICON_NONE);

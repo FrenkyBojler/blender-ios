@@ -2665,6 +2665,8 @@ class WM_OT_toolbar_prompt(Operator):
 
 
 class BatchRenameAction(bpy.types.PropertyGroup):
+    __slots__ = ()
+
     # category: StringProperty()
     type: EnumProperty(
         name="Operation",
@@ -2761,7 +2763,7 @@ class WM_OT_batch_rename(Operator):
             ('CURVE', "Curves", "", 'CURVE_DATA', 4),
             ('META', "Metaballs", "", 'META_DATA', 5),
             ('VOLUME', "Volumes", "", 'VOLUME_DATA', 6),
-            ('GPENCIL', "Grease Pencils", "", 'OUTLINER_DATA_GREASEPENCIL', 7),
+            ('GREASEPENCIL', "Grease Pencils", "", 'OUTLINER_DATA_GREASEPENCIL', 7),
             ('ARMATURE', "Armatures", "", 'ARMATURE_DATA', 8),
             ('LATTICE', "Lattices", "", 'LATTICE_DATA', 9),
             ('LIGHT', "Lights", "", 'LIGHT_DATA', 10),
@@ -2910,7 +2912,7 @@ class WM_OT_batch_rename(Operator):
             'CURVE': ("curves", iface_("Curve(s)"), bpy.types.Curve),
             'META': ("metaballs", iface_("Metaball(s)"), bpy.types.MetaBall),
             'VOLUME': ("volumes", iface_("Volume(s)"), bpy.types.Volume),
-            'GPENCIL': ("grease_pencils", iface_("Grease Pencil(s)"), bpy.types.GreasePencil),
+            'GREASEPENCIL': ("grease_pencils_v3", iface_("Grease Pencil(s)"), bpy.types.GreasePencilv3),
             'ARMATURE': ("armatures", iface_("Armature(s)"), bpy.types.Armature),
             'LATTICE': ("lattices", iface_("Lattice(s)"), bpy.types.Lattice),
             'LIGHT': ("lights", iface_("Light(s)"), bpy.types.Light),
@@ -3551,6 +3553,10 @@ class WM_MT_region_toggle_pie(Menu):
                 continue
             # In some cases channels exists but can't be toggled.
             assert hasattr(space_data, attr)
+
+            if space_data.is_property_readonly(attr):
+                continue
+
             # Technically possible these double-up, in practice this should never happen.
             if region_type in region_by_type:
                 print("{:s}: Unexpected double-up of region types {!r}".format(cls.__name__, region_type))
