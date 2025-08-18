@@ -1318,6 +1318,7 @@ void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf)
   };
 
   wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Pen Tool Modal Map");
+  WM_modalkeymap_assign(keymap, "CURVES_OT_pen");
 
   /* This function is called for each space-type, only needs to add map once. */
   if (keymap && keymap->modal_items) {
@@ -1325,7 +1326,6 @@ void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf)
   }
 
   keymap = WM_modalkeymap_ensure(keyconf, "Pen Tool Modal Map", modal_items);
-  WM_modalkeymap_assign(keymap, "CURVES_OT_pen");
 }
 
 }  // namespace blender::ed::curves
