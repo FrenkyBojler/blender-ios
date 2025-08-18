@@ -76,7 +76,7 @@ struct CurvesModule {
                                 bool has_nurbs,
                                 bool has_cyclic,
                                 int curve_count,
-                                struct CurvesEvalCache &cache,
+                                CurvesEvalCache &cache,
                                 CurvesEvalShader shader_type,
                                 gpu::VertBufPtr input_buf,
                                 gpu::VertBufPtr &output_buf,
@@ -91,7 +91,7 @@ struct CurvesModule {
                           bool has_nurbs,
                           bool has_cyclic,
                           int curve_count,
-                          struct CurvesEvalCache &cache,
+                          CurvesEvalCache &cache,
                           gpu::VertBufPtr input_pos_buf,
                           gpu::VertBufPtr input_rad_buf,
                           gpu::VertBufPtr &output_pos_buf,
@@ -112,13 +112,11 @@ struct CurvesModule {
                              transform);
   }
 
-  void evaluate_curve_length_intercept(bool has_cyclic,
-                                       int curve_count,
-                                       struct CurvesEvalCache &cache);
+  void evaluate_curve_length_intercept(bool has_cyclic, int curve_count, CurvesEvalCache &cache);
 
   gpu::VertBufPtr evaluate_topology_indirection(const int curve_count,
                                                 const int point_count,
-                                                struct CurvesEvalCache &cache,
+                                                CurvesEvalCache &cache,
                                                 bool is_ribbon,
                                                 bool has_cyclic);
 

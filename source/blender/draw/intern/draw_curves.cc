@@ -106,7 +106,7 @@ void CurvesModule::dispatch(const int curve_count, PassSimple::Sub &pass)
 
 gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_count,
                                                             const int point_count,
-                                                            struct CurvesEvalCache &cache,
+                                                            CurvesEvalCache &cache,
                                                             bool is_ribbon,
                                                             bool has_cyclic)
 {
@@ -265,7 +265,7 @@ void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
 
 void CurvesModule::evaluate_curve_length_intercept(const bool has_cyclic,
                                                    const int curve_count,
-                                                   struct CurvesEvalCache &cache)
+                                                   CurvesEvalCache &cache)
 {
   gpu::Shader *shader = DRW_shader_curves_refine_get(CURVES_EVAL_LENGTH_INTERCEPT);
 
