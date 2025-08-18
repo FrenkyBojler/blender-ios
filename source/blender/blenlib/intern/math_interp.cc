@@ -1321,7 +1321,10 @@ BLI_INLINE Ellipse build_ellipse(const int2 &image_dimensions,
         du_dx_texels, dv_dx_texels, du_dy_texels, dv_dy_texels, max_ratio_between_axes);
   }
 
-  /* Unnormalized quadratic coefficients (+1 acts like a 1×1 pixel prefilter). */
+  /* We add one to the A/C coefficients, because we sum over a discrete grid (one sample per texel
+   * center). A texel can still contribute even if its center lies just outside the true ellipse,
+   * as long as its 1×1 area overlaps the ellipse. If we only test the true ellipse we will miss
+   * those border texels, causing artefacts. */
   float A = dv_dx_texels * dv_dx_texels + dv_dy_texels * dv_dy_texels + 1.0f;
   float B = -2.0f * (du_dx_texels * dv_dx_texels + du_dy_texels * dv_dy_texels);
   float C = du_dx_texels * du_dx_texels + du_dy_texels * du_dy_texels + 1.0f;

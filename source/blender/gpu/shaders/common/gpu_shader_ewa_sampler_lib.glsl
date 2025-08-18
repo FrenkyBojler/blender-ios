@@ -151,6 +151,10 @@ Ellipse build_ellipse(float2 uv_center_norm, float2 du_dx_texels, float2 du_dy_t
   float du_dx = du_dx_texels.x;
   float du_dy = du_dy_texels.x;
 
+  /* We add one to the A/C coefficients, because we sum over a discrete grid (one sample per texel center).
+  A texel can still contribute even if its center lies just outside the true ellipse,
+  as long as its 1×1 area overlaps the ellipse. If we only test the true ellipse we will miss those border
+  texels, causing artefacts. */
   float A = dv_dx*dv_dx + dv_dy*dv_dy + 1.0;
   float B = -2.0 * (du_dx*dv_dx + du_dy*dv_dy);
   float C = du_dx*du_dx + du_dy*du_dy + 1.0;
