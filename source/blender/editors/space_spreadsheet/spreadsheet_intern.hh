@@ -6,6 +6,7 @@
 
 #include "BKE_geometry_set.hh"
 
+#include "BKE_node_socket_value.hh"
 #include "DNA_space_types.h"
 
 struct ARegionType;
@@ -15,6 +16,9 @@ struct SpaceSpreadsheet;
 struct ARegion;
 struct SpreadsheetColumn;
 struct bContext;
+namespace blender::nodes {
+class Bundle;
+}
 namespace blender::nodes::geo_eval_log {
 class ViewerNodeLog;
 }
@@ -55,8 +59,11 @@ Object *spreadsheet_get_object_eval(const SpaceSpreadsheet *sspreadsheet,
 
 const nodes::geo_eval_log::ViewerNodeLog *viewer_node_log_lookup(
     const SpaceSpreadsheet &sspreadsheet);
-std::optional<bke::GeometrySet> spreadsheet_get_display_geometry_set(
-    const SpaceSpreadsheet *sspreadsheet, Object *object_eval);
+
+bke::SocketValueVariant geometry_display_data_get(const SpaceSpreadsheet *sspreadsheet,
+                                                  Object *object_eval);
+std::optional<bke::GeometrySet> root_geometry_set_get(const SpaceSpreadsheet *sspreadsheet,
+                                                      Object *object_eval);
 
 void spreadsheet_data_set_region_panels_register(ARegionType &region_type);
 

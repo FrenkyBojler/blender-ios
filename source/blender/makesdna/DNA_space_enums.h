@@ -1039,7 +1039,6 @@ typedef enum eSpreadsheetColumnFlag {
 typedef enum eSpreadsheetTableIDType {
   /** This table uses the #SpreadsheetTableIDGeometry key. */
   SPREADSHEET_TABLE_ID_TYPE_GEOMETRY = 0,
-  SPREADSHEET_TABLE_ID_TYPE_BUNDLE = 1,
 } eSpreadsheetTableType;
 
 typedef enum eSpreadsheetTableFlag {

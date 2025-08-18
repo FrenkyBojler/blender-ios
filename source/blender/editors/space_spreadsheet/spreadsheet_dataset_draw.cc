@@ -34,6 +34,9 @@
 #include "ED_outliner.hh"
 #include "ED_spreadsheet.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_log.hh"
+
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_dataset_draw.hh"
 #include "spreadsheet_intern.hh"
@@ -206,7 +209,6 @@ class GeometryInstancesTreeView : public ui::AbstractTreeView {
 
   void build_tree_for_instances(ui::TreeViewItemContainer &parent, const bke::Instances &instances)
   {
-
     const Span<bke::InstanceReference> references = instances.references();
     for (const int reference_i : references.index_range()) {
       auto &reference_item = parent.add_tree_item<InstanceReferenceViewItem>(instances,
@@ -998,18 +1000,44 @@ std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
   return false;
 }
 
-///////
+class BundleItem;
 
-//////
-
-///////
-
-class ViewerDataTreeViewItem : public ui::AbstractTreeViewItem {
+class ViewerNodeItem : public ui::AbstractTreeViewItem {
  private:
-  int viewer_path_index_;
+  int identifier_;
+
+  friend BundleItem;
 
  public:
-  ViewerDataTreeViewItem(int viewer_path_index) : viewer_path_index_(viewer_path_index) {}
+  ViewerNodeItem(const nodes::geo_eval_log::ViewerNodeLog::Item &item)
+      : identifier_(item.identifier)
+  {
+    // TODO: NAME
+    // label_ = item.name;
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    row.label(std::to_string(identifier_), ICON_NONE);
+  }
+
+  void on_activate(bContext &C) override;
+  std::optional<bool> should_be_active() const override;
+};
+
+class BundleItem : public ui::AbstractTreeViewItem {
+ private:
+  std::string key_;
+
+  friend ViewerNodeItem;
+
+ public:
+  BundleItem(const StringRef key) : key_(key) {}
+
+  void build_row(uiLayout &row) override
+  {
+    row.label(key_, ICON_NONE);
+  }
 
   void on_activate(bContext &C) override;
   std::optional<bool> should_be_active() const override;
@@ -1020,7 +1048,8 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
   SpaceSpreadsheet &sspreadsheet_;
   bScreen &screen_;
 
-  friend ViewerDataTreeViewItem;
+  friend ViewerNodeItem;
+  friend BundleItem;
 
  public:
   ViewerDataTreeView(const bContext &C)
@@ -1030,64 +1059,101 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
 
   void build_tree() override
   {
-    const ViewerPath &viewer_path = sspreadsheet_.geometry_id.viewer_path;
-
-    int index;
-    LISTBASE_FOREACH_INDEX (const ViewerPathElem *, elem, &viewer_path.path, index) {
-      if (elem == viewer_path.path.first) {
-        /* The root item is drawn above the tree view already. */
-        continue;
-      }
-      this->add_viewer_path_elem(index, *elem);
+    const nodes::geo_eval_log::ViewerNodeLog *log = viewer_node_log_lookup(sspreadsheet_);
+    for (const nodes::geo_eval_log::ViewerNodeLog::Item &item : log->items) {
+      this->add_tree_item<ViewerNodeItem>(item);
     }
   }
 
-  void add_viewer_path_elem(const int index, const ViewerPathElem &elem)
+  void build_bundle(ui::AbstractTreeViewItem &parent, const nodes::Bundle &bundle)
   {
-    switch (ViewerPathElemType(elem.type)) {
-      case VIEWER_PATH_ELEM_TYPE_ID: {
-        this->add_tree_item<IDViewerPathItem>(index,
-                                              reinterpret_cast<const IDViewerPathElem &>(elem));
-        break;
-      }
-      case VIEWER_PATH_ELEM_TYPE_MODIFIER: {
-        this->add_tree_item<ModifierViewerPathItem>(
-            index, reinterpret_cast<const ModifierViewerPathElem &>(elem));
-        break;
-      }
-      case VIEWER_PATH_ELEM_TYPE_GROUP_NODE: {
-        this->add_tree_item<GroupNodeViewerPathItem>(
-            index, reinterpret_cast<const GroupNodeViewerPathElem &>(elem));
-        break;
-      }
-      case VIEWER_PATH_ELEM_TYPE_VIEWER_NODE: {
-        this->add_tree_item<ViewerNodeViewerPathItem>(
-            index, reinterpret_cast<const ViewerNodeViewerPathElem &>(elem));
-        break;
-      }
-      case VIEWER_PATH_ELEM_TYPE_SIMULATION_ZONE: {
-        this->add_tree_item<SimulationViewerPathPathItem>(
-            index, reinterpret_cast<const SimulationZoneViewerPathElem &>(elem));
-        break;
-      }
-      case VIEWER_PATH_ELEM_TYPE_REPEAT_ZONE: {
-        this->add_tree_item<RepeatViewerPathItem>(
-            index, reinterpret_cast<const RepeatZoneViewerPathElem &>(elem));
-        break;
-      }
-      case VIEWER_PATH_ELEM_TYPE_FOREACH_GEOMETRY_ELEMENT_ZONE: {
-        this->add_tree_item<ForeachElementViewerPathItem>(
-            index, reinterpret_cast<const ForeachGeometryElementZoneViewerPathElem &>(elem));
-        break;
-      }
-      case VIEWER_PATH_ELEM_TYPE_EVALUATE_CLOSURE: {
-        this->add_tree_item<EvaluteClosureViewerPathItem>(
-            index, reinterpret_cast<const EvaluateClosureNodeViewerPathElem &>(elem));
-        break;
-      }
+    for (const nodes::Bundle::StoredItem &item : bundle.items()) {
+      parent.add_tree_item<BundleItem>(item.key);
     }
   }
 };
+
+void ViewerNodeItem::on_activate(bContext & /*C*/)
+{
+  const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
+  SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
+  SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
+  table_id.viewer_item_identifier = identifier_;
+  WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+}
+
+std::optional<bool> ViewerNodeItem::should_be_active() const
+{
+  const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
+  const SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
+  const SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
+  // TODO: nullopt if it's a bundle and can't be active on its own.
+  if (table_id.bundle_path_num != 0) {
+    return false;
+  }
+  return table_id.viewer_item_identifier == identifier_;
+}
+
+void BundleItem::on_activate(bContext & /*C*/)
+{
+  const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
+  SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
+  SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
+  Vector<std::string> identifiers;
+  this->foreach_parent([&](const ui::AbstractTreeViewItem &item) {
+    if (const auto *viewer_node_item = dynamic_cast<const ViewerNodeItem *>(&item)) {
+      table_id.viewer_item_identifier = viewer_node_item->identifier_;
+    }
+    else if (const auto *bundle_item = dynamic_cast<const BundleItem *>(&item)) {
+      identifiers.append(bundle_item->key_);
+    }
+  });
+  identifiers.as_mutable_span().reverse();
+  if (table_id.bundle_path) {
+    MEM_freeN(table_id.bundle_path);
+  }
+  table_id.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(identifiers.size(),
+                                                                      __func__);
+  table_id.bundle_path_num = identifiers.size();
+  for (const int i : identifiers.index_range()) {
+    table_id.bundle_path[i].identifier = BLI_strdupn(identifiers[i].data(), identifiers[i].size());
+  }
+  WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+}
+
+std::optional<bool> BundleItem::should_be_active() const
+{
+  const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
+  const SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
+  const SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
+
+  int viewer_item_identifier = 0;
+  Vector<std::string> identifiers;
+  this->foreach_parent([&](const ui::AbstractTreeViewItem &item) {
+    if (const auto *viewer_node_item = dynamic_cast<const ViewerNodeItem *>(&item)) {
+      viewer_item_identifier = viewer_node_item->identifier_;
+    }
+    else if (const auto *bundle_item = dynamic_cast<const BundleItem *>(&item)) {
+      identifiers.append(bundle_item->key_);
+    }
+  });
+  identifiers.as_mutable_span().reverse();
+
+  if (table_id.viewer_item_identifier != viewer_item_identifier) {
+    return false;
+  }
+  if (identifiers.size() != table_id.bundle_path_num) {
+    return false;
+  }
+  for (const int i : identifiers.index_range()) {
+    if (table_id.bundle_path[i].identifier != identifiers[i]) {
+      return false;
+    }
+  }
+
+  // TODO: nullopt if it's a bundle and can't be active on its own.
+  return true;
+}
 
 static void draw_context_panel_without_context(uiLayout &layout)
 {
@@ -1197,27 +1263,28 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  const std::optional<bke::GeometrySet> root_geometry = spreadsheet_get_display_geometry_set(
-      sspreadsheet, object);
-
-  if (uiLayout *panel = layout->panel(C, "instance tree", false, IFACE_("Geometry"))) {
-    ui::AbstractTreeView *tree_view = UI_block_add_view(
-        *block,
-        "Instances Tree View",
-        std::make_unique<GeometryInstancesTreeView>(*root_geometry, *C));
-    tree_view->set_context_menu_title("Instance");
-    ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *panel, {}, false);
-  }
-  if (uiLayout *panel = layout->panel(C, "geometry_domain_tree_view", false, IFACE_("Domain"))) {
-    bke::GeometrySet instance_geometry = get_geometry_set_for_instance_ids(
-        *root_geometry,
-        {sspreadsheet->geometry_id.instance_ids, sspreadsheet->geometry_id.instance_ids_num});
-    ui::AbstractTreeView *tree_view = UI_block_add_view(
-        *block,
-        "Data Set Tree View",
-        std::make_unique<GeometryDataSetTreeView>(std::move(instance_geometry), *C));
-    tree_view->set_context_menu_title("Domain");
-    ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *panel, {}, false);
+  if (const std::optional<bke::GeometrySet> root_geometry = root_geometry_set_get(sspreadsheet,
+                                                                                  object))
+  {
+    if (uiLayout *panel = layout->panel(C, "instance tree", false, IFACE_("Geometry"))) {
+      ui::AbstractTreeView *tree_view = UI_block_add_view(
+          *block,
+          "Instances Tree View",
+          std::make_unique<GeometryInstancesTreeView>(*root_geometry, *C));
+      tree_view->set_context_menu_title("Instance");
+      ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *panel, {}, false);
+    }
+    if (uiLayout *panel = layout->panel(C, "geometry_domain_tree_view", false, IFACE_("Domain"))) {
+      bke::GeometrySet instance_geometry = get_geometry_set_for_instance_ids(
+          *root_geometry,
+          {sspreadsheet->geometry_id.instance_ids, sspreadsheet->geometry_id.instance_ids_num});
+      ui::AbstractTreeView *tree_view = UI_block_add_view(
+          *block,
+          "Data Set Tree View",
+          std::make_unique<GeometryDataSetTreeView>(std::move(instance_geometry), *C));
+      tree_view->set_context_menu_title("Domain");
+      ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *panel, {}, false);
+    }
   }
 }
 

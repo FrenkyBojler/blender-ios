@@ -1136,6 +1136,10 @@ typedef struct SpreadsheetTableID {
   int type;
 } SpreadsheetTableID;
 
+typedef struct SpreadsheetBundlePathElem {
+  char *identifier;
+} SpreadsheetBundlePathElem;
+
 typedef struct SpreadsheetTableIDGeometry {
   SpreadsheetTableID base;
   char _pad0[4];
@@ -1145,6 +1149,13 @@ typedef struct SpreadsheetTableIDGeometry {
    * can be pinned so that it stays constant even when the active node changes.
    */
   ViewerPath viewer_path;
+
+  int viewer_item_identifier;
+
+  /** List of #SpreadsheetBundlePathElem. */
+  SpreadsheetBundlePathElem *bundle_path;
+  int bundle_path_num;
+
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested
    * instances.
