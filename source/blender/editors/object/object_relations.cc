@@ -32,7 +32,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector_set.hh"
 
@@ -476,7 +476,7 @@ void parent_set(Object *ob, Object *par, const int type, const char *substr)
   ob->parent = par;
   ob->partype &= ~PARTYPE;
   ob->partype |= type;
-  STRNCPY(ob->parsubstr, substr);
+  STRNCPY_UTF8(ob->parsubstr, substr);
 }
 
 const EnumPropertyItem prop_make_parent_types[] = {
@@ -591,7 +591,7 @@ static bool parent_set_with_depsgraph(ReportList *reports,
 
   /* Handle types. */
   if (pchan) {
-    STRNCPY(ob->parsubstr, pchan->name);
+    STRNCPY_UTF8(ob->parsubstr, pchan->name);
   }
   else {
     ob->parsubstr[0] = 0;
@@ -950,19 +950,18 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
 
-  PointerRNA opptr;
-#if 0
-  uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_OBJECT);
-#else
-  opptr = layout->op(ot, IFACE_("Object"), ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+  PointerRNA opptr = layout->op(
+      ot, IFACE_("Object"), ICON_NONE, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
   RNA_boolean_set(&opptr, "keep_transform", false);
 
-  opptr = layout->op(
-      ot, IFACE_("Object (Keep Transform)"), ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
+  opptr = layout->op(ot,
+                     IFACE_("Object (Keep Transform)"),
+                     ICON_NONE,
+                     wm::OpCallContext::ExecDefault,
+                     UI_ITEM_NONE);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
   RNA_boolean_set(&opptr, "keep_transform", true);
-#endif
 
   PointerRNA op_ptr = layout->op(
       "OBJECT_OT_parent_no_inverse_set", IFACE_("Object (Without Inverse)"), ICON_NONE);
@@ -1007,27 +1006,37 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   if (parent->type == OB_ARMATURE) {
 
     if (can_support.armature_deform) {
-      uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE);
+      op_ptr = layout->op(ot, IFACE_("Armature Deform"), ICON_NONE);
+      RNA_enum_set(&op_ptr, "type", PAR_ARMATURE);
     }
     if (can_support.empty_groups) {
-      uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_NAME);
+      op_ptr = layout->op(ot, IFACE_("   With Empty Groups"), ICON_NONE);
+      RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_NAME);
     }
     if (can_support.envelope_weights) {
-      uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_ENVELOPE);
+      op_ptr = layout->op(ot, IFACE_("   With Envelope Weights"), ICON_NONE);
+      RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_ENVELOPE);
     }
     if (can_support.automatic_weights) {
-      uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_ARMATURE_AUTO);
+      op_ptr = layout->op(ot, IFACE_("   With Automatic Weights"), ICON_NONE);
+      RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_AUTO);
     }
-    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_BONE);
-    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_BONE_RELATIVE);
+    op_ptr = layout->op(ot, IFACE_("Bone"), ICON_NONE);
+    RNA_enum_set(&op_ptr, "type", PAR_BONE);
+    op_ptr = layout->op(ot, IFACE_("Bone Relative"), ICON_NONE);
+    RNA_enum_set(&op_ptr, "type", PAR_BONE_RELATIVE);
   }
   else if (parent->type == OB_CURVES_LEGACY) {
-    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_CURVE);
-    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_FOLLOW);
-    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_PATH_CONST);
+    op_ptr = layout->op(ot, IFACE_("Curve Deform"), ICON_NONE);
+    RNA_enum_set(&op_ptr, "type", PAR_CURVE);
+    op_ptr = layout->op(ot, IFACE_("Follow Path"), ICON_NONE);
+    RNA_enum_set(&op_ptr, "type", PAR_FOLLOW);
+    op_ptr = layout->op(ot, IFACE_("Path Constraint"), ICON_NONE);
+    RNA_enum_set(&op_ptr, "type", PAR_PATH_CONST);
   }
   else if (parent->type == OB_LATTICE) {
-    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_LATTICE);
+    op_ptr = layout->op(ot, IFACE_("Lattice Deform"), ICON_NONE);
+    RNA_enum_set(&op_ptr, "type", PAR_LATTICE);
   }
   else if (parent->type == OB_MESH) {
     if (can_support.attach_surface) {
@@ -1037,8 +1046,10 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 
   /* vertex parenting */
   if (OB_TYPE_SUPPORT_PARVERT(parent->type)) {
-    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_VERTEX);
-    uiItemEnumO_ptr(layout, ot, std::nullopt, ICON_NONE, "type", PAR_VERTEX_TRI);
+    op_ptr = layout->op(ot, IFACE_("Vertex"), ICON_NONE);
+    RNA_enum_set(&op_ptr, "type", PAR_VERTEX);
+    op_ptr = layout->op(ot, IFACE_("Vertex (Triangle)"), ICON_NONE);
+    RNA_enum_set(&op_ptr, "type", PAR_VERTEX_TRI);
   }
 
   UI_popup_menu_end(C, pup);
@@ -1990,7 +2001,7 @@ static void single_obdata_users(
                                                  LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
             break;
           default:
-            printf("ERROR %s: can't copy %s\n", __func__, id->name);
+            printf("ERROR %s: cannot copy %s\n", __func__, id->name);
             BLI_assert_msg(0, "This should never happen.");
 
             /* We need to end the FOREACH_OBJECT_FLAG_BEGIN iterator to prevent memory leak. */
@@ -3136,7 +3147,7 @@ void OBJECT_OT_drop_geometry_nodes(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "show_datablock_in_modifier",
                   true,
-                  "Show the datablock selector in the modifier",
+                  "Show the data-block selector in the modifier",
                   "");
 }
 
@@ -3170,7 +3181,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
         ob->data = nullptr;
       }
       else {
-        BKE_report(op->reports, RPT_ERROR, "Can't unlink this object data");
+        BKE_report(op->reports, RPT_ERROR, "Cannot unlink this object data");
         return OPERATOR_CANCELLED;
       }
     }

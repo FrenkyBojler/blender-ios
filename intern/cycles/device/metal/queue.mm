@@ -146,7 +146,7 @@ void MetalDeviceQueue::update_capture(DeviceKernel kernel)
 
   /* Handle single-capture start trigger. */
   if (kernel == capture_kernel_) {
-    /* Start capturing when the we hit the Nth dispatch of the specified kernel. */
+    /* Start capturing when we hit the Nth dispatch of the specified kernel. */
     if (capture_dispatch_counter_ == 0) {
       begin_capture();
     }
@@ -285,7 +285,7 @@ int MetalDeviceQueue::num_concurrent_states(const size_t state_size) const
     size_t total_state_size = result * state_size;
     if (max_recommended_working_set - allocated_so_far - total_state_size * 2 >= min_headroom) {
       result *= 2;
-      metal_printf("Doubling state count to exploit available RAM (new size = %d)\n", result);
+      metal_printf("Doubling state count to exploit available RAM (new size = %d)", result);
     }
   }
   return result;
@@ -376,7 +376,7 @@ void MetalDeviceQueue::init_execution()
       }
       else {
         /* The GPU address of a 1D buffer texture is written into the slot data field. */
-        write_resource(&texture_info[slot].data, id<MTLBuffer>(texture_slot_map[slot]), slot);
+        write_resource(&texture_info[slot].data, id<MTLBuffer>(texture_slot_map[slot]), 0);
       }
     }
   }
@@ -398,8 +398,8 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
 
     debug_enqueue_begin(kernel, work_size);
 
-    VLOG_DEVICE_STATS << "Metal queue launch " << device_kernel_as_string(kernel) << ", work_size "
-                      << work_size;
+    LOG_STATS << "Metal queue launch " << device_kernel_as_string(kernel) << ", work_size "
+              << work_size;
 
     id<MTLComputeCommandEncoder> mtlComputeCommandEncoder = get_compute_encoder(kernel);
 
@@ -425,8 +425,10 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
 
     /* Prepare the dynamic "enqueue" arguments */
     size_t dynamic_bytes_written = 0;
+    size_t max_size_in_bytes = 0;
     for (size_t i = 0; i < args.count; i++) {
       size_t size_in_bytes = args.sizes[i];
+      max_size_in_bytes = max(max_size_in_bytes, size_in_bytes);
       dynamic_bytes_written = round_up(dynamic_bytes_written, size_in_bytes);
       memcpy(dynamic_args + dynamic_bytes_written, args.values[i], size_in_bytes);
       if (args.types[i] == DeviceKernelArguments::POINTER) {
@@ -437,6 +439,9 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       }
       dynamic_bytes_written += size_in_bytes;
     }
+    /* Apply conventional struct alignment (stops asserts firing when API validation is enabled).
+     */
+    dynamic_bytes_written = round_up(dynamic_bytes_written, max_size_in_bytes);
 
     /* Check that the dynamic args didn't overflow. */
     assert(dynamic_bytes_written <= sizeof(dynamic_args));

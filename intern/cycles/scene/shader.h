@@ -81,15 +81,11 @@ class Shader : public Node {
   NODE_SOCKET_API(EmissionSampling, emission_sampling_method)
   NODE_SOCKET_API(bool, use_transparent_shadow)
   NODE_SOCKET_API(bool, use_bump_map_correction)
-  NODE_SOCKET_API(bool, heterogeneous_volume)
   NODE_SOCKET_API(VolumeSampling, volume_sampling_method)
   NODE_SOCKET_API(int, volume_interpolation_method)
-  NODE_SOCKET_API(float, volume_step_rate)
 
   /* displacement */
   NODE_SOCKET_API(DisplacementMethod, displacement_method)
-
-  float prev_volume_step_rate;
 
   /* synchronization */
   bool need_update_uvs;
@@ -117,6 +113,7 @@ class Shader : public Node {
   bool has_surface_spatial_varying;
   bool has_volume_spatial_varying;
   bool has_volume_attribute_dependency;
+  bool has_light_path_node;
 
   float3 emission_estimate;
   EmissionSampling emission_sampling;
@@ -226,6 +223,7 @@ class ShaderManager {
   static thread_mutex lookup_table_mutex;
 
   unordered_map<const float *, size_t> bsdf_tables;
+  size_t thin_film_table_offset_;
 
   thread_spin_lock attribute_lock_;
 
@@ -238,6 +236,7 @@ class ShaderManager {
   float3 rec709_to_g;
   float3 rec709_to_b;
   bool is_rec709;
+  vector<float> thin_film_table;
 
   template<std::size_t n>
   size_t ensure_bsdf_table(DeviceScene *dscene, Scene *scene, const float (&table)[n])
@@ -248,6 +247,8 @@ class ShaderManager {
                                 Scene *scene,
                                 const float *table,
                                 const size_t n);
+
+  void compute_thin_film_table(const Transform &xyz_to_rgb);
 
   uint get_graph_kernel_features(ShaderGraph *graph);
 

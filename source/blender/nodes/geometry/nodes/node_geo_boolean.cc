@@ -25,8 +25,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  auto &first_geometry = b.add_input<decl::Geometry>("Mesh 1").only_realized_data().supported_type(
-      GeometryComponent::Type::Mesh);
+  auto &first_geometry = b.add_input<decl::Geometry>("Mesh 1")
+                             .only_realized_data()
+                             .supported_type(GeometryComponent::Type::Mesh)
+                             .description("Base mesh to subtract geometry from");
 
   if (node != nullptr) {
     switch (geometry::boolean::Operation(node->custom1)) {
@@ -34,12 +36,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       case geometry::boolean::Operation::Union:
         b.add_input<decl::Geometry>("Mesh", "Mesh 2")
             .supported_type(GeometryComponent::Type::Mesh)
-            .multi_input();
+            .multi_input()
+            .description("Meshes to union or intersect");
         break;
       case geometry::boolean::Operation::Difference:
         b.add_input<decl::Geometry>("Mesh 2")
             .supported_type(GeometryComponent::Type::Mesh)
-            .multi_input();
+            .multi_input()
+            .description("Mesh that is subtracted from the first mesh");
         break;
     }
   }
@@ -136,9 +140,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  Vector<GeometrySet> geometry_sets = params.extract_input<Vector<GeometrySet>>("Mesh 2");
+  GeoNodesMultiInput<GeometrySet> geometry_sets =
+      params.extract_input<GeoNodesMultiInput<GeometrySet>>("Mesh 2");
 
-  for (const GeometrySet &geometry : geometry_sets) {
+  for (const GeometrySet &geometry : geometry_sets.values) {
     if (const Mesh *mesh = geometry.get_mesh()) {
       meshes.append(mesh);
       transforms.append(float4x4::identity());
@@ -243,7 +248,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<GeometrySet> all_geometries;
   all_geometries.append(set_a);
-  all_geometries.extend(geometry_sets);
+  all_geometries.extend(geometry_sets.values);
 
   const std::array types_to_join = {GeometryComponent::Type::Edit};
   GeometrySet result_geometry = geometry::join_geometries(

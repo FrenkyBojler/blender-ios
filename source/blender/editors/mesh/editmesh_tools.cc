@@ -2469,6 +2469,9 @@ static wmOperatorStatus edbm_hide_exec(bContext *C, wmOperator *op)
       }
     }
 
+    /* Only if symmetry is enabled. */
+    EDBM_select_mirrored_extend_all(obedit, em);
+
     if (EDBM_mesh_hide(em, unselected)) {
       EDBMUpdate_Params params{};
       params.calc_looptris = true;
@@ -4781,7 +4784,7 @@ struct FillGridSplitJoin {
  *
  * This is done only when there are faces selected. Once split this way, fill_grid will
  * interpolate using only the data from the selected faces, not the data from the surrounding
- * faces. This matters for  UV edges and face corner colors - the data from the faces being
+ * faces. This matters for UV edges and face corner colors - the data from the faces being
  * replaced is the right data to use for the interpolation. This relies on the fact that the
  * "exterior" edge of an island is topologically the same as the "interior" edge around a hole.
  *
@@ -4813,21 +4816,26 @@ static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
     BLI_assert(e_dst);
 
     /* For edges, flip the selection from the edge of the hole to the edge of the island. */
-    BM_elem_flag_disable(e, BM_ELEM_SELECT);
     BM_elem_flag_enable(e_dst, BM_ELEM_SELECT);
 
-    /* For verts, flip the selection from the edge of the hole to the edge of the island.
-     * Also add it to the weld map. But check selection first. Don't try to add the same vert to
-     * the map more than once. If the selection was changed false, it's already been processed. */
-    if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
-      BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
-    }
-    if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
-      BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
+    /* When these match, the source edge has been deleted. */
+    if (e != e_dst) {
+      BM_elem_flag_disable(e, BM_ELEM_SELECT);
+
+      /* For verts, flip the selection from the edge of the hole to the edge of the island.
+       * Also add it to the weld map. But check selection first. Don't try to add the same vert to
+       * the map more than once. If the selection was changed false, it's already been processed.
+       */
+      if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
+        BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
+        BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
+        BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
+      }
+      if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
+        BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
+        BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
+        BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
+      }
     }
   }
 
@@ -7990,7 +7998,6 @@ static wmOperatorStatus edbm_mark_freestyle_edge_exec(bContext *C, wmOperator *o
 {
   BMEdge *eed;
   BMIter iter;
-  FreestyleEdge *fed;
   const bool clear = RNA_boolean_get(op->ptr, "clear");
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -8010,25 +8017,23 @@ static wmOperatorStatus edbm_mark_freestyle_edge_exec(bContext *C, wmOperator *o
       continue;
     }
 
-    if (!CustomData_has_layer(&em->bm->edata, CD_FREESTYLE_EDGE)) {
-      BM_data_layer_add(em->bm, &em->bm->edata, CD_FREESTYLE_EDGE);
+    BM_data_layer_ensure_named(bm, &em->bm->edata, CD_PROP_BOOL, "freestyle_edge");
+    const int offset = CustomData_get_offset_named(&em->bm->edata, CD_PROP_BOOL, "freestyle_edge");
+    if (offset == -1) {
+      continue;
     }
 
     if (clear) {
       BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
         if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-          fed = static_cast<FreestyleEdge *>(
-              CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_FREESTYLE_EDGE));
-          fed->flag &= ~FREESTYLE_EDGE_MARK;
+          BM_ELEM_CD_SET_BOOL(eed, offset, false);
         }
       }
     }
     else {
       BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
         if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-          fed = static_cast<FreestyleEdge *>(
-              CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_FREESTYLE_EDGE));
-          fed->flag |= FREESTYLE_EDGE_MARK;
+          BM_ELEM_CD_SET_BOOL(eed, offset, true);
         }
       }
     }
@@ -8070,7 +8075,6 @@ static wmOperatorStatus edbm_mark_freestyle_face_exec(bContext *C, wmOperator *o
 {
   BMFace *efa;
   BMIter iter;
-  FreestyleFace *ffa;
   const bool clear = RNA_boolean_get(op->ptr, "clear");
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -8088,25 +8092,23 @@ static wmOperatorStatus edbm_mark_freestyle_face_exec(bContext *C, wmOperator *o
       continue;
     }
 
-    if (!CustomData_has_layer(&em->bm->pdata, CD_FREESTYLE_FACE)) {
-      BM_data_layer_add(em->bm, &em->bm->pdata, CD_FREESTYLE_FACE);
+    BM_data_layer_ensure_named(em->bm, &em->bm->edata, CD_PROP_BOOL, "freestyle_edge");
+    const int offset = CustomData_get_offset_named(&em->bm->edata, CD_PROP_BOOL, "freestyle_edge");
+    if (offset == -1) {
+      continue;
     }
 
     if (clear) {
       BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
         if (BM_elem_flag_test(efa, BM_ELEM_SELECT) && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-          ffa = static_cast<FreestyleFace *>(
-              CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_FREESTYLE_FACE));
-          ffa->flag &= ~FREESTYLE_FACE_MARK;
+          BM_ELEM_CD_SET_BOOL(efa, offset, false);
         }
       }
     }
     else {
       BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
         if (BM_elem_flag_test(efa, BM_ELEM_SELECT) && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-          ffa = static_cast<FreestyleFace *>(
-              CustomData_bmesh_get(&em->bm->pdata, efa->head.data, CD_FREESTYLE_FACE));
-          ffa->flag |= FREESTYLE_FACE_MARK;
+          BM_ELEM_CD_SET_BOOL(efa, offset, true);
         }
       }
     }

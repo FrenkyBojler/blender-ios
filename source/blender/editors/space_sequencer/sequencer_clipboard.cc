@@ -168,8 +168,13 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
   /* Create an empty sequence editor data to store all copied strips. */
   scene_dst->ed = MEM_callocN<Editing>(__func__);
   scene_dst->ed->seqbasep = &scene_dst->ed->seqbase;
-  seq::seqbase_duplicate_recursive(
-      scene_src, scene_dst, &scene_dst->ed->seqbase, scene_src->ed->seqbasep, 0, 0);
+  seq::seqbase_duplicate_recursive(bmain_src,
+                                   scene_src,
+                                   scene_dst,
+                                   &scene_dst->ed->seqbase,
+                                   scene_src->ed->current_strips(),
+                                   seq::StripDuplicate::Selected,
+                                   0);
 
   BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
   scene_dst->ed->displayed_channels = &scene_dst->ed->channels;
@@ -309,10 +314,10 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
 wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->seqbasep);
+  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
 
   if (selected.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -320,7 +325,8 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   blender::VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
-  seq::iterator_set_expand(scene, ed->seqbasep, effect_chain, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(
+      scene, ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
 
   blender::VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
@@ -431,7 +437,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Scene *scene_dst = CTX_data_scene(C);
+  Scene *scene_dst = CTX_data_sequencer_scene(C);
   Editing *ed_dst = seq::editing_ensure(scene_dst); /* Creates "ed" if it's missing. */
   int ofs;
 
@@ -476,7 +482,13 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   ListBase nseqbase = {nullptr, nullptr};
   /* NOTE: seq::seqbase_duplicate_recursive() takes care of generating
    * new UIDs for sequences in the new list. */
-  seq::seqbase_duplicate_recursive(scene_src, scene_dst, &nseqbase, &scene_src->ed->seqbase, 0, 0);
+  seq::seqbase_duplicate_recursive(bmain_dst,
+                                   scene_src,
+                                   scene_dst,
+                                   &nseqbase,
+                                   &scene_src->ed->seqbase,
+                                   seq::StripDuplicate::Selected,
+                                   0);
 
   /* BKE_main_merge will copy the scene_src and its action into bmain_dst. Remove them as
    * we merge the data from these manually.

@@ -40,7 +40,7 @@
  */
 #define IDP_ARRAY_REALLOC_LIMIT 200
 
-static CLG_LogRef LOG = {"bke.idprop"};
+static CLG_LogRef LOG = {"lib.idprop"};
 
 /** Local size table, aligned with #eIDPropertyType. */
 static size_t idp_size_table[] = {
@@ -769,6 +769,13 @@ IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop, const blender::Stri
   return BLI_listbase_find<IDProperty>(prop->data.group,
                                        [&](const IDProperty &elem) { return elem.name == name; });
 }
+
+IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop, const char *name)
+{
+  BLI_assert(prop->type == IDP_GROUP);
+  return (IDProperty *)BLI_findstring(&prop->data.group, name, offsetof(IDProperty, name));
+}
+
 IDProperty *IDP_GetPropertyTypeFromGroup(const IDProperty *prop,
                                          const blender::StringRef name,
                                          const char type)

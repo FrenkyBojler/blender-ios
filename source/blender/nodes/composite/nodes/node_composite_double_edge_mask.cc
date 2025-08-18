@@ -102,8 +102,8 @@ class DoubleEdgeMaskOperation : public NodeOperation {
 
   void compute_boundary_gpu(Result &inner_boundary, Result &outer_boundary)
   {
-    GPUShader *shader = context().get_shader("compositor_double_edge_mask_compute_boundary",
-                                             ResultPrecision::Half);
+    gpu::Shader *shader = context().get_shader("compositor_double_edge_mask_compute_boundary",
+                                               ResultPrecision::Half);
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1b(shader, "include_all_inner_edges", include_all_inner_edges());
@@ -219,7 +219,7 @@ class DoubleEdgeMaskOperation : public NodeOperation {
   void compute_gradient_gpu(const Result &flooded_inner_boundary,
                             const Result &flooded_outer_boundary)
   {
-    GPUShader *shader = context().get_shader("compositor_double_edge_mask_compute_gradient");
+    gpu::Shader *shader = context().get_shader("compositor_double_edge_mask_compute_gradient");
     GPU_shader_bind(shader);
 
     const Result &inner_mask = get_input("Inner Mask");
@@ -331,6 +331,7 @@ static void register_node_type_cmp_doubleedgemask()
   ntype.declare = file_ns::cmp_node_double_edge_mask_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_double_edge_mask;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  blender::bke::node_type_size(ntype, 145, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

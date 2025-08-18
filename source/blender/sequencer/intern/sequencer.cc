@@ -10,23 +10,23 @@
 
 #define DNA_DEPRECATED_ALLOW
 
-#include "BKE_duplilist.hh"
-#include "BLI_assert.h"
-#include "BLI_map.hh"
-#include "DNA_listBase.h"
-#include "SEQ_transform.hh"
 #include <cstddef>
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_listBase.h"
+#include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string_utf8.h"
 
+#include "BKE_duplilist.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -52,6 +52,7 @@
 #include "SEQ_sound.hh"
 #include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
+#include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
 #include "BLO_read_write.hh"
@@ -59,6 +60,7 @@
 #include "cache/final_image_cache.hh"
 #include "cache/intra_frame_cache.hh"
 #include "cache/source_image_cache.hh"
+#include "modifier.hh"
 #include "prefetch.hh"
 #include "sequencer.hh"
 #include "utils.hh"
@@ -424,7 +426,7 @@ ListBase *active_seqbase_get(const Editing *ed)
     return nullptr;
   }
 
-  return ed->seqbasep;
+  return ed->current_strips();
 }
 
 void active_seqbase_set(Editing *ed, ListBase *seqbase)
@@ -500,11 +502,12 @@ Strip *meta_stack_pop(Editing *ed)
 /** \name Duplicate Functions
  * \{ */
 
-static Strip *strip_duplicate(const Scene *scene_src,
+static Strip *strip_duplicate(Main *bmain,
+                              const Scene *scene_src,
                               Scene *scene_dst,
                               ListBase *new_seq_list,
                               Strip *strip,
-                              int dupe_flag,
+                              const StripDuplicate dupe_flag,
                               const int flag,
                               blender::Map<Strip *, Strip *> &strip_map)
 {
@@ -548,6 +551,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
 
     modifier_list_copy(strip_new, strip);
   }
+  BLI_assert(modifier_persistent_uids_are_valid(*strip));
 
   if (is_strip_connected(strip)) {
     BLI_listbase_clear(&strip_new->connections);
@@ -562,16 +566,34 @@ static Strip *strip_duplicate(const Scene *scene_src,
     channels_duplicate(&strip_new->channels, &strip->channels);
   }
   else if (strip->type == STRIP_TYPE_SCENE) {
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->scene != nullptr) {
+      Scene *scene_old = strip_new->scene;
+      strip_new->scene = BKE_scene_duplicate(bmain, scene_old, SCE_COPY_FULL);
+    }
     strip_new->data->stripdata = nullptr;
     if (strip->scene_sound) {
       strip_new->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene_dst, strip_new);
     }
   }
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
-    /* avoid assert */
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->clip != nullptr) {
+      MovieClip *clip_old = strip_new->clip;
+      strip_new->clip = reinterpret_cast<MovieClip *>(
+          BKE_id_copy(bmain, reinterpret_cast<ID *>(clip_old)));
+      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+        id_us_min(&strip_new->clip->id);
+      }
+    }
   }
   else if (strip->type == STRIP_TYPE_MASK) {
-    /* avoid assert */
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->mask != nullptr) {
+      Mask *mask_old = strip_new->mask;
+      strip_new->mask = reinterpret_cast<Mask *>(
+          BKE_id_copy(bmain, reinterpret_cast<ID *>(mask_old)));
+      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+        id_us_min(&strip_new->mask->id);
+      }
+    }
   }
   else if (strip->type == STRIP_TYPE_MOVIE) {
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
@@ -601,7 +623,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
     BLI_assert_unreachable();
   }
 
-  /* When using #STRIP_DUPE_UNIQUE_NAME, it is mandatory to add new strips in relevant container
+  /* When using StripDuplicate::UniqueName, it is mandatory to add new strips in relevant container
    * (scene or meta's one), *before* checking for unique names. Otherwise the meta's list is empty
    * and hence we miss all sequencer strips in that meta that have already been duplicated,
    * (see #55668). Note that unique name check itself could be done at a later step in calling
@@ -612,7 +634,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
   }
 
   if (scene_src == scene_dst) {
-    if (dupe_flag & STRIP_DUPE_UNIQUE_NAME) {
+    if (int(dupe_flag & StripDuplicate::UniqueName) != 0) {
       strip_unique_name_set(scene_dst, &scene_dst->ed->seqbase, strip_new);
     }
   }
@@ -625,31 +647,36 @@ static Strip *strip_duplicate(const Scene *scene_src,
   return strip_new;
 }
 
-static Strip *strip_duplicate_recursive_impl(const Scene *scene_src,
+static Strip *strip_duplicate_recursive_impl(Main *bmain,
+                                             const Scene *scene_src,
                                              Scene *scene_dst,
                                              ListBase *new_seq_list,
                                              Strip *strip,
-                                             const int dupe_flag,
+                                             const StripDuplicate dupe_flag,
                                              blender::Map<Strip *, Strip *> &strip_map)
 {
   Strip *strip_new = strip_duplicate(
-      scene_src, scene_dst, new_seq_list, strip, dupe_flag, 0, strip_map);
+      bmain, scene_src, scene_dst, new_seq_list, strip, dupe_flag, 0, strip_map);
   if (strip->type == STRIP_TYPE_META) {
     LISTBASE_FOREACH (Strip *, s, &strip->seqbase) {
       strip_duplicate_recursive_impl(
-          scene_src, scene_dst, &strip_new->seqbase, s, dupe_flag, strip_map);
+          bmain, scene_src, scene_dst, &strip_new->seqbase, s, dupe_flag, strip_map);
     }
   }
   return strip_new;
 }
 
-Strip *strip_duplicate_recursive(
-    const Scene *scene_src, Scene *scene_dst, ListBase *new_seq_list, Strip *strip, int dupe_flag)
+Strip *strip_duplicate_recursive(Main *bmain,
+                                 const Scene *scene_src,
+                                 Scene *scene_dst,
+                                 ListBase *new_seq_list,
+                                 Strip *strip,
+                                 const StripDuplicate dupe_flag)
 {
   blender::Map<Strip *, Strip *> strip_map;
 
   Strip *strip_new = strip_duplicate_recursive_impl(
-      scene_src, scene_dst, new_seq_list, strip, dupe_flag, strip_map);
+      bmain, scene_src, scene_dst, new_seq_list, strip, dupe_flag, strip_map);
 
   seq_new_fix_links_recursive(strip_new, strip_map);
   if (is_strip_connected(strip_new)) {
@@ -659,27 +686,29 @@ Strip *strip_duplicate_recursive(
   return strip_new;
 }
 
-static void seqbase_dupli_recursive(const Scene *scene_src,
+static void seqbase_dupli_recursive(Main *bmain,
+                                    const Scene *scene_src,
                                     Scene *scene_dst,
                                     ListBase *nseqbase,
                                     const ListBase *seqbase,
-                                    int dupe_flag,
+                                    const StripDuplicate dupe_flag,
                                     const int flag,
                                     blender::Map<Strip *, Strip *> &strip_map)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) == 0 && (dupe_flag & STRIP_DUPE_ALL) == 0) {
+    if ((strip->flag & SELECT) == 0 && int(dupe_flag & StripDuplicate::All) == 0) {
       continue;
     }
 
     Strip *strip_new = strip_duplicate(
-        scene_src, scene_dst, nseqbase, strip, dupe_flag, flag, strip_map);
+        bmain, scene_src, scene_dst, nseqbase, strip, dupe_flag, flag, strip_map);
     BLI_assert(strip_new != nullptr);
 
     if (strip->type == STRIP_TYPE_META) {
       /* Always include meta all strip children. */
-      int dupe_flag_recursive = dupe_flag | STRIP_DUPE_ALL;
-      seqbase_dupli_recursive(scene_src,
+      const StripDuplicate dupe_flag_recursive = dupe_flag | StripDuplicate::All;
+      seqbase_dupli_recursive(bmain,
+                              scene_src,
                               scene_dst,
                               &strip_new->seqbase,
                               &strip->seqbase,
@@ -690,16 +719,18 @@ static void seqbase_dupli_recursive(const Scene *scene_src,
   }
 }
 
-void seqbase_duplicate_recursive(const Scene *scene_src,
+void seqbase_duplicate_recursive(Main *bmain,
+                                 const Scene *scene_src,
                                  Scene *scene_dst,
                                  ListBase *nseqbase,
                                  const ListBase *seqbase,
-                                 int dupe_flag,
+                                 const StripDuplicate dupe_flag,
                                  const int flag)
 {
   blender::Map<Strip *, Strip *> strip_map;
 
-  seqbase_dupli_recursive(scene_src, scene_dst, nseqbase, seqbase, dupe_flag, flag, strip_map);
+  seqbase_dupli_recursive(
+      bmain, scene_src, scene_dst, nseqbase, seqbase, dupe_flag, flag, strip_map);
 
   /* Fix effect, modifier, and connected strip links. */
   LISTBASE_FOREACH (Strip *, strip, nseqbase) {
@@ -888,7 +919,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   BLO_read_struct(reader, Stereo3dFormat, &strip->stereo3d_format);
 
   if (strip->type & STRIP_TYPE_EFFECT) {
-    strip->flag |= SEQ_EFFECT_NOT_LOADED;
+    strip->runtime.flag |= STRIP_EFFECT_NOT_LOADED;
   }
 
   if (strip->type == STRIP_TYPE_TEXT) {
@@ -936,7 +967,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
     }
 
     /* need to load color balance to it could be converted to modifier */
-    BLO_read_struct(reader, StripColorBalance, &strip->data->color_balance);
+    BLO_read_struct(reader, StripColorBalance, &strip->data->color_balance_legacy);
   }
 
   modifier_blend_read_data(reader, &strip->modifiers);
@@ -1026,14 +1057,16 @@ static void strip_update_sound_properties(const Scene *scene, const Strip *strip
 static void strip_update_sound_modifiers(Strip *strip)
 {
   void *sound_handle = strip->sound->playback_handle;
-  if (!BLI_listbase_is_empty(&strip->modifiers)) {
-    LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-      sound_handle = sound_modifier_recreator(strip, smd, sound_handle);
-    }
+  bool needs_update = false;
+
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    sound_handle = sound_modifier_recreator(strip, smd, sound_handle, needs_update);
   }
 
-  /* Assign modified sound back to `strip`. */
-  BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
+  if (needs_update) {
+    /* Assign modified sound back to `strip`. */
+    BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
+  }
 }
 
 static bool must_update_strip_sound(Scene *scene, Strip *strip)
@@ -1047,9 +1080,16 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
   if (strip->sound == nullptr || !must_update_strip_sound(scene, strip)) {
     return;
   }
+
   /* Ensure strip is playing correct sound. */
-  BKE_sound_update_scene_sound(strip->scene_sound, strip->sound);
-  strip_update_sound_modifiers(strip);
+  if (BLI_listbase_is_empty(&strip->modifiers)) {
+    /* Just use playback handle from sound ID. */
+    BKE_sound_update_scene_sound(strip->scene_sound, strip->sound);
+  }
+  else {
+    /* Use Playback handle from sound ID as input for modifier stack. */
+    strip_update_sound_modifiers(strip);
+  }
 }
 
 static bool scene_sequencer_is_used(const Scene *scene, ListBase *seqbase)
@@ -1118,3 +1158,23 @@ void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase)
 }
 
 }  // namespace blender::seq
+
+ListBase *Editing::current_strips()
+{
+  return this->seqbasep;
+}
+ListBase *Editing::current_strips() const
+{
+  /* NOTE: Const correctness is non-existent with ListBase anyway. */
+  return this->seqbasep;
+}
+
+ListBase *Editing::current_channels()
+{
+  return this->displayed_channels;
+}
+ListBase *Editing::current_channels() const
+{
+  /* NOTE: Const correctness is non-existent with ListBase anyway. */
+  return this->displayed_channels;
+}

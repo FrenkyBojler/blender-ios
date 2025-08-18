@@ -996,7 +996,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
           bArmature *arm = static_cast<bArmature *>(ob->data);
 
           /* Skipping - is currently hidden. */
-          if (!blender::animrig::bone_is_visible_pchan(arm, pchan)) {
+          if (!blender::animrig::bone_is_visible(arm, pchan)) {
             return true;
           }
         }
@@ -1022,7 +1022,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
       /* Get strip name, and check if this strip is selected. */
       Editing *ed = blender::seq::editing_get(scene);
       if (ed) {
-        strip = blender::seq::get_strip_by_name(ed->seqbasep, strip_name, false);
+        strip = blender::seq::get_strip_by_name(ed->current_strips(), strip_name, false);
       }
 
       /* Can only add this F-Curve if it is selected. */
@@ -1126,7 +1126,7 @@ static bool skip_fcurve_with_name(
   /* get type info for channel */
   acf = ANIM_channel_get_typeinfo(&ale_dummy);
   if (acf && acf->name) {
-    char name[256]; /* hopefully this will be enough! */
+    char name[ANIM_CHAN_NAME_SIZE];
 
     /* get name */
     acf->name(&ale_dummy, name);
@@ -1424,7 +1424,7 @@ static size_t animfilter_fcurves_span(bAnimContext *ac,
     /* Note that this might not be the same as ale->adt->slot_handle. The reason this F-Curve is
      * shown could be because it's in the Action editor, showing ale->adt->action with _all_
      * slots, and this F-Curve could be from a different slot than what's used by the owner
-     * of `ale->adt`.  */
+     * of `ale->adt`. */
     ale->slot_handle = slot_handle;
 
     BLI_addtail(anim_data, ale);
@@ -2216,7 +2216,7 @@ static size_t animdata_filter_grease_pencil_data(bAnimContext *ac,
 
   /* The Grease Pencil mode is not supposed to show channels for regular F-Curves from regular
    * Actions. At some point this might be desirable, but it would also require changing the
-   * filtering flags for pretty much all operators running there.  */
+   * filtering flags for pretty much all operators running there. */
   const bool show_animdata = grease_pencil->adt && (ac->datatype != ANIMCONT_GPENCIL);
 
   /* When asked from "AnimData" blocks (i.e. the top-level containers for normal animation),
@@ -3691,7 +3691,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
   }
 
   /* Annotations are always shown if "Only Show Selected" is disabled. This works in the Timeline
-   * as well as in the Dope Sheet.*/
+   * as well as in the Dope Sheet. */
   if (!(ac->ads->filterflag & ADS_FILTER_ONLYSEL) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL))
   {
     LISTBASE_FOREACH (bGPdata *, gp_data, &ac->bmain->gpencils) {

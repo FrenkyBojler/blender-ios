@@ -405,13 +405,13 @@ class TVertex : public ViewVertex {
     return _FrontSVertex->getPoint3D();
   }
 
-  /** Returns the projected 3D  x coordinate of the vertex. */
+  /** Returns the projected 3D x coordinate of the vertex. */
   virtual real getProjectedX() const
   {
     return _FrontSVertex->point2D().x();
   }
 
-  /** Returns the projected 3D  y coordinate of the vertex. */
+  /** Returns the projected 3D y coordinate of the vertex. */
   virtual real getProjectedY() const
   {
     return _FrontSVertex->point2D().y();
@@ -1301,7 +1301,7 @@ class ViewEdge : public Interface1D {
 
   inline const SShape *occluded_shape() const;
 
-  inline const bool occludee_empty() const
+  inline bool occludee_empty() const
   {
     if (_aShape == 0) {
       return true;

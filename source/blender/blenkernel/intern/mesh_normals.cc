@@ -294,6 +294,10 @@ blender::bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_fac
 {
   using namespace blender;
   using namespace blender::bke;
+  if (this->faces_num == 0) {
+    return MeshNormalDomain::Point;
+  }
+
   const bke::AttributeAccessor attributes = this->attributes();
   if (const std::optional<AttributeMetaData> custom = attributes.lookup_meta_data("custom_normal"))
   {
@@ -407,6 +411,9 @@ blender::Span<blender::float3> Mesh::face_normals() const
 {
   using namespace blender;
   using namespace blender::bke;
+  if (this->faces_num == 0) {
+    return {};
+  }
   this->runtime->face_normals_cache.ensure([&](NormalsCache &r_data) {
     if (const GAttributeReader custom = this->attributes().lookup("custom_normal")) {
       if (custom.varray.type().is<float3>()) {
@@ -459,6 +466,9 @@ blender::Span<blender::float3> Mesh::corner_normals() const
 {
   using namespace blender;
   using namespace blender::bke;
+  if (this->faces_num == 0) {
+    return {};
+  }
   this->runtime->corner_normals_cache.ensure([&](NormalsCache &r_data) {
     const OffsetIndices<int> faces = this->faces();
     switch (this->normals_domain()) {
@@ -1096,7 +1106,7 @@ static void traverse_fan_local_corners(const Span<VertCornerInfo> corner_infos,
     int local_edge = corner_infos[current].local_edge_next;
     bool found_cyclic_fan = false;
     while (const EdgeTwoCorners *edge = std::get_if<EdgeTwoCorners>(&edge_infos[local_edge])) {
-      current = current == edge->local_corner_1 ? edge->local_corner_2 : edge->local_corner_1;
+      current = mesh::edge_other_vert(int2(edge->local_corner_1, edge->local_corner_2), current);
       if (current == start_local_corner) {
         found_cyclic_fan = true;
         break;
@@ -1153,7 +1163,7 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
 {
   if (local_corners_in_fan.size() == 1) {
     /* Logically this special case is unnecessary, but due to floating point precision it is
-     * required for the output to be the same as previous versions of the algorithm.*/
+     * required for the output to be the same as previous versions of the algorithm. */
     return face_normals[corner_infos[local_corners_in_fan.first()].face];
   }
   float3 fan_normal(0);
@@ -1167,7 +1177,7 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
   return math::normalize(fan_normal);
 }
 
-/* Don't inline this function to simplify the code path without custom normals.*/
+/** Don't inline this function to simplify the code path without custom normals. */
 BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     const Span<short2> custom_normals,
     const Span<VertCornerInfo> corner_infos,
@@ -1290,7 +1300,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
       local_corner_visited.fill(false);
 
       int start_local_corner = 0;
-      while (start_local_corner != -1) {
+      while (true) {
         corners_in_fan.clear();
         traverse_fan_local_corners(corner_infos, edge_infos, start_local_corner, corners_in_fan);
 
@@ -1311,8 +1321,14 @@ void normals_calc_corners(const Span<float3> vert_positions,
         if (visited_count == corner_infos.size()) {
           break;
         }
+
         local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), true);
-        start_local_corner = local_corner_visited.first_index_of_try(false);
+        BLI_assert(!local_corner_visited.as_span().take_front(start_local_corner).contains(false));
+        BLI_assert(local_corner_visited.as_span().drop_front(start_local_corner).contains(false));
+        /* Will start traversing the next smooth fan mixed in shared index space. */
+        while (local_corner_visited[start_local_corner]) {
+          start_local_corner++;
+        }
       }
       BLI_assert(visited_count == corner_infos.size());
     }

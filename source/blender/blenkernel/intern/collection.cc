@@ -19,6 +19,7 @@
 #include "BLI_math_base.h"
 #include "BLI_mutex.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -55,7 +56,7 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.collection"};
+static CLG_LogRef LOG = {"object.collection"};
 
 /**
  * Extra asserts that #Collection.gobject_hash is valid which are too slow even for debug mode.
@@ -427,7 +428,7 @@ static Collection *collection_add(Main *bmain,
   char name[MAX_ID_NAME - 2];
 
   if (name_custom) {
-    STRNCPY(name, name_custom);
+    STRNCPY_UTF8(name, name_custom);
   }
   else {
     BKE_collection_new_name_get(collection_parent, name);
@@ -544,7 +545,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy)
 {
   /* Master collection is not real datablock, can't be removed. */
   if (collection->flag & COLLECTION_IS_MASTER) {
-    BLI_assert_msg(0, "Scene master collection can't be deleted");
+    BLI_assert_msg(0, "Scene master collection cannot be deleted");
     return false;
   }
 
@@ -771,7 +772,8 @@ Collection *BKE_collection_duplicate(Main *bmain,
      * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
      * and therefore not remapping their obdata to the newly duplicated one.
      * See #139715. */
-    BKE_libblock_relink_to_newid(bmain, &collection_new->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE);
+    BKE_libblock_relink_to_newid(
+        bmain, &collection_new->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
@@ -799,27 +801,26 @@ Collection *BKE_collection_duplicate(Main *bmain,
 /** \name Collection Naming
  * \{ */
 
-void BKE_collection_new_name_get(Collection *collection_parent, char *rname)
+void BKE_collection_new_name_get(Collection *collection_parent, char r_name[MAX_ID_NAME - 2])
 {
-  char *name;
-
+  const size_t name_maxncpy = MAX_ID_NAME - 2;
   if (!collection_parent) {
-    name = BLI_strdup(DATA_("Collection"));
+    BLI_strncpy_utf8(r_name, DATA_("Collection"), name_maxncpy);
   }
   else if (collection_parent->flag & COLLECTION_IS_MASTER) {
-    name = BLI_sprintfN(DATA_("Collection %d"),
-                        BLI_listbase_count(&collection_parent->children) + 1);
+    BLI_snprintf_utf8(r_name,
+                      name_maxncpy,
+                      DATA_("Collection %d"),
+                      BLI_listbase_count(&collection_parent->children) + 1);
   }
   else {
     const int number = BLI_listbase_count(&collection_parent->children) + 1;
     const int digits = integer_digits_i(number);
-    const int max_len = sizeof(collection_parent->id.name) - 1 /* Null terminator. */ -
-                        (1 + digits) /* " %d" */ - 2 /* ID */;
-    name = BLI_sprintfN("%.*s %d", max_len, collection_parent->id.name + 2, number);
+    const size_t name_part_maxncpy = name_maxncpy - (1 + digits);
+    const size_t name_part_len = BLI_strncpy_utf8_rlen(
+        r_name, collection_parent->id.name + 2, name_part_maxncpy);
+    BLI_snprintf(r_name + name_part_len, name_maxncpy - name_part_len, " %d", number);
   }
-
-  BLI_strncpy(rname, name, MAX_ID_NAME - 2);
-  MEM_freeN(name);
 }
 
 const char *BKE_collection_ui_name_get(Collection *collection)
@@ -1100,6 +1101,29 @@ bool BKE_collection_has_object_recursive_instanced_orig_id(Collection *collectio
       return true;
     }
   }
+  return false;
+}
+
+bool BKE_collection_contains_geometry_recursive(const Collection *collection)
+{
+  LISTBASE_FOREACH (CollectionObject *, col_ob, &collection->gobject) {
+    if (col_ob->ob->visibility_flag & OB_HIDE_RENDER) {
+      continue;
+    }
+    if (OB_TYPE_IS_GEOMETRY(col_ob->ob->type)) {
+      return true;
+    }
+  }
+
+  LISTBASE_FOREACH (CollectionChild *, child_col, &collection->children) {
+    if (child_col->collection->flag & COLLECTION_HIDE_RENDER) {
+      continue;
+    }
+    if (BKE_collection_contains_geometry_recursive(child_col->collection)) {
+      return true;
+    }
+  }
+
   return false;
 }
 
