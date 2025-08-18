@@ -193,8 +193,9 @@ bool BLI_windows_register_blend_extension(const bool all_users)
   GetModuleFileName(0, blender_path, sizeof(blender_path));
 
   /* Prevent overflow when we add -launcher to the executable name. */
-  if (strlen(blender_path) > (sizeof(blender_path) - 10))
+  if (strlen(blender_path) > (sizeof(blender_path) - 10)) {
     return false;
+  }
 
   /* Replace the actual app name with the wrapper. */
   blender_app = strstr(blender_path, "blender.exe");
@@ -476,7 +477,7 @@ void BLI_windows_get_default_root_dir(char root[4])
         }
       }
       if (0 == rc) {
-        printf("ERROR in 'BLI_windows_get_default_root_dir': can't find a valid drive!\n");
+        printf("ERROR in 'BLI_windows_get_default_root_dir': cannot find a valid drive!\n");
         root[0] = 'C';
         root[1] = ':';
         root[2] = '\\';

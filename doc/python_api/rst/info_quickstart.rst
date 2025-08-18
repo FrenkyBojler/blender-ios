@@ -161,6 +161,8 @@ Data is added and removed via methods on the collections in :mod:`bpy.data`, e.g
    >>> bpy.data.meshes.remove(mesh)
 
 
+.. _info_quickstart-custom_properties:
+
 Custom Properties
 ^^^^^^^^^^^^^^^^^
 
@@ -196,6 +198,9 @@ Note that these properties can only be assigned basic Python types:
 - dictionary (only string keys are supported, values must be basic types too)
 
 These properties are valid outside of Python. They can be animated by curves or used in driver paths.
+
+For a list of types that support custom properties see:
+:ref:`types supporting custom properties <bpy_types-custom_properties>`.
 
 
 Context
@@ -447,9 +452,22 @@ Using low-level functions:
 .. code-block:: python
 
    obj = bpy.context.object
-   obj.animation_data_create()
-   obj.animation_data.action = bpy.data.actions.new(name="MyAction")
-   fcu_z = obj.animation_data.action.fcurves.new(data_path="location", index=2)
+
+   # Create the action, with a slot for the object, a layer, and a keyframe strip:
+   action = bpy.data.actions.new(name="MyAction")
+   slot = action.slots.new(obj.id_type, obj.name)
+   strip = action.layers.new("MyLayer").strips.new(type='KEYFRAME')
+
+   # Create a channelbag to hold the F-Curves for the slot:
+   channelbag = strip.channelbag(slot, ensure=True)
+
+   # Create the F-Curve with two keyframes:
+   fcu_z = channelbag.fcurves.new(data_path="location", index=2)
    fcu_z.keyframe_points.add(2)
    fcu_z.keyframe_points[0].co = 10.0, 0.0
    fcu_z.keyframe_points[1].co = 20.0, 1.0
+
+   # Assign the action and the slot to the object:
+   adt = obj.animation_data_create()
+   adt.action = action
+   adt.action_slot = slot

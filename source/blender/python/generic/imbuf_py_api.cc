@@ -15,7 +15,7 @@
 
 #include "py_capi_utils.hh"
 
-#include "python_compat.hh"
+#include "python_compat.hh" /* IWYU pragma: keep. */
 
 #include "imbuf_py_api.hh" /* own include */
 
@@ -322,13 +322,16 @@ static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void * /*closu
 
   ImBuf *ibuf = self->ibuf;
   const Py_ssize_t value_str_len_max = sizeof(ibuf->filepath);
+  PyObject *value_coerce = nullptr;
   Py_ssize_t value_str_len;
-  const char *value_str = PyUnicode_AsUTF8AndSize(value, &value_str_len);
+  const char *value_str = PyC_UnicodeAsBytesAndSize(value, &value_str_len, &value_coerce);
   if (value_str_len >= value_str_len_max) {
     PyErr_Format(PyExc_TypeError, "filepath length over %zd", value_str_len_max - 1);
+    Py_XDECREF(value_coerce);
     return -1;
   }
   memcpy(ibuf->filepath, value_str, value_str_len + 1);
+  Py_XDECREF(value_coerce);
   return 0;
 }
 
@@ -403,7 +406,7 @@ static PyObject *py_imbuf_repr(Py_ImBuf *self)
 
 static Py_hash_t py_imbuf_hash(Py_ImBuf *self)
 {
-  return _Py_HashPointer(self->ibuf);
+  return Py_HashPointer(self->ibuf);
 }
 
 PyTypeObject Py_ImBuf_Type = {

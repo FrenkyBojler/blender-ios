@@ -20,7 +20,9 @@
 
 #pragma once
 
-struct GPUShader;
+namespace blender::gpu {
+class Shader;
+}  // namespace blender::gpu
 
 enum eGPUBuiltinShader {
   /** Glyph drawing shader used by the BLF module. */
@@ -104,6 +106,8 @@ enum eGPUBuiltinShader {
    */
   GPU_SHADER_3D_FLAT_COLOR,
   GPU_SHADER_3D_POLYLINE_FLAT_COLOR,
+  GPU_SHADER_3D_POINT_FLAT_COLOR,
+
   /**
    * Take a 3D position and color for each vertex with perspective correct interpolation.
    *
@@ -112,6 +116,7 @@ enum eGPUBuiltinShader {
    */
   GPU_SHADER_3D_SMOOTH_COLOR,
   GPU_SHADER_3D_POLYLINE_SMOOTH_COLOR,
+
   /**
    * Take a single color for all the vertices and a 3D position for each vertex.
    *
@@ -120,6 +125,8 @@ enum eGPUBuiltinShader {
    */
   GPU_SHADER_3D_UNIFORM_COLOR,
   GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR,
+  GPU_SHADER_3D_POINT_UNIFORM_COLOR,
+
   /**
    * Draw a texture in 3D. Take a 3D position and a 2D texture coordinate for each vertex.
    *
@@ -147,8 +154,10 @@ enum eGPUShaderConfig {
 };
 #define GPU_SHADER_CFG_LEN (GPU_SHADER_CFG_CLIPPED + 1)
 
-GPUShader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
-                                                     eGPUShaderConfig sh_cfg);
-GPUShader *GPU_shader_get_builtin_shader(eGPUBuiltinShader shader);
+blender::gpu::Shader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
+                                                                eGPUShaderConfig sh_cfg);
+blender::gpu::Shader *GPU_shader_get_builtin_shader(eGPUBuiltinShader shader);
+
+void GPU_shader_builtin_warm_up();
 
 void GPU_shader_free_builtin_shaders();

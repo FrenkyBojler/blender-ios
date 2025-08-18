@@ -21,7 +21,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "node_geometry_util.hh"
 
@@ -53,8 +53,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
         C, panel, ntree, output_node);
     socket_items::ui::draw_active_item_props<RepeatItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
@@ -78,8 +78,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNodeTree *tree = b.tree_or_null();
   if (node && tree) {
     const NodeGeometryRepeatInput &storage = node_storage(*node);
-    const bNode *output_node = tree->node_by_id(storage.output_node_id);
-    if (output_node) {
+    if (const bNode *output_node = tree->node_by_id(storage.output_node_id)) {
       const auto &output_storage = *static_cast<const NodeGeometryRepeatOutput *>(
           output_node->storage);
       for (const int i : IndexRange(output_storage.items_num)) {
@@ -95,11 +94,15 @@ static void node_declare(NodeDeclarationBuilder &b)
           input_decl.supports_field();
           output_decl.dependent_field({input_decl.index()});
         }
+        input_decl.structure_type(StructureType::Dynamic);
+        output_decl.structure_type(StructureType::Dynamic);
       }
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -115,17 +118,17 @@ static void node_label(const bNodeTree * /*ntree*/,
                        char *label,
                        const int label_maxncpy)
 {
-  BLI_strncpy_utf8(label, IFACE_("Repeat"), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Repeat"), label_maxncpy);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  bNode *output_node = ntree->node_by_id(node_storage(*node).output_node_id);
+  bNode *output_node = params.ntree.node_by_id(node_storage(params.node).output_node_id);
   if (!output_node) {
     return true;
   }
   return socket_items::try_add_item_via_any_extend_socket<RepeatItemsAccessor>(
-      *ntree, *node, *output_node, *link);
+      params.ntree, params.node, *output_node, params.link);
 }
 
 static void node_register()
@@ -175,10 +178,14 @@ static void node_declare(NodeDeclarationBuilder &b)
         input_decl.supports_field();
         output_decl.dependent_field({input_decl.index()});
       }
+      input_decl.structure_type(StructureType::Dynamic);
+      output_decl.structure_type(StructureType::Dynamic);
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -211,10 +218,10 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
   socket_items::copy_array<RepeatItemsAccessor>(*src_node, *dst_node);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<RepeatItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_operators()
@@ -225,7 +232,9 @@ static void node_operators()
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
-  if (!RepeatItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type))) {
+  if (!RepeatItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type),
+                                                 params.node_tree().type))
+  {
     return;
   }
   params.add_item_full_name(IFACE_("Repeat"), [](LinkSearchOpParams &params) {
@@ -238,7 +247,10 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
     socket_items::clear<RepeatItemsAccessor>(output_node);
     socket_items::add_item_with_socket_type_and_name<RepeatItemsAccessor>(
-        output_node, eNodeSocketDatatype(params.socket.type), params.socket.name);
+        params.node_tree,
+        output_node,
+        eNodeSocketDatatype(params.socket.type),
+        params.socket.name);
     update_node_declaration_and_sockets(params.node_tree, input_node);
     update_node_declaration_and_sockets(params.node_tree, output_node);
     if (params.socket.in_out == SOCK_IN) {

@@ -57,6 +57,7 @@ set(SRC
   gizmo/intern/wm_gizmo_target_props.cc
   gizmo/intern/wm_gizmo_type.cc
   message_bus/intern/wm_message_bus.cc
+  message_bus/intern/wm_message_bus_remote_io.cc
   message_bus/intern/wm_message_bus_rna.cc
   message_bus/intern/wm_message_bus_static.cc
 
@@ -115,6 +116,16 @@ if(WIN32)
   add_definitions(-DNOMINMAX)
 endif()
 
+if(WITH_HEADLESS)
+  add_definitions(-DWITH_HEADLESS)
+else()
+  # SVG cursors.
+  list(APPEND LIB
+    PRIVATE bf::extern::nanosvg
+    PRIVATE bf::editor::datafiles
+  )
+endif()
+
 if(WITH_AUDASPACE)
   list(APPEND INC_SYS
     ${AUDASPACE_C_INCLUDE_DIRS}
@@ -138,10 +149,6 @@ endif()
 
 if(WITH_VULKAN_BACKEND)
   add_definitions(-DWITH_VULKAN_BACKEND)
-endif()
-
-if(WITH_OPENCOLLADA)
-  add_definitions(-DWITH_COLLADA)
 endif()
 
 if(WITH_CODEC_FFMPEG)

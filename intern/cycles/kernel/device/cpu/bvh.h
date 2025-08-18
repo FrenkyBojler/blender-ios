@@ -51,7 +51,8 @@ using numhit_t = uint32_t;
     (RTCFeatureFlags)(RTC_FEATURE_FLAG_TRIANGLE | RTC_FEATURE_FLAG_INSTANCE | \
                       RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS | RTC_FEATURE_FLAG_POINT | \
                       RTC_FEATURE_FLAG_MOTION_BLUR | RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE | \
-                      RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE)
+                      RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE | \
+                      RTC_FEATURE_FLAG_ROUND_LINEAR_CURVE)
 #endif
 
 #define EMBREE_IS_HAIR(x) (x & 1)
@@ -289,7 +290,7 @@ ccl_device_forceinline void kernel_embree_filter_occluded_shadow_all_func_impl(
   }
 
   if (intersection_skip_shadow_already_recoded(
-          kg, ctx->isect_s, current_isect.object, current_isect.prim, ctx->num_recorded_hits))
+          ctx->isect_s, current_isect.object, current_isect.prim, ctx->num_recorded_hits))
   {
     *args->valid = 0;
     return;

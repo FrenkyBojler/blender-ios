@@ -19,6 +19,7 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
@@ -30,7 +31,6 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
@@ -179,34 +179,20 @@ int UI_searchbox_size_x()
   return 12 * UI_UNIT_X;
 }
 
-int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn update_fn)
+static int ui_searchbox_size_x_from_items(const uiSearchItems &items)
 {
   using namespace blender;
-
-  uiSearchItems items{};
-  /* Upper bound on the number of item names that are checked. */
-  items.maxitem = 1000;
-  items.maxstrlen = 256;
-
-  /* Prepare name buffers. */
-  Array<char> names_buffer(items.maxitem * items.maxstrlen);
-  Array<char *> names(items.maxitem);
-  items.names = names.data();
-  for (int i : IndexRange(items.maxitem)) {
-    names[i] = names_buffer.data() + i * items.maxstrlen;
-  }
-
-  /* Gather the names shown in the search box. */
-  update_fn(C, nullptr, "", &items, true);
 
   /* Compute the width of each item. */
   Array<int> item_widths(items.totitem);
   threading::parallel_for(item_widths.index_range(), 256, [&](const IndexRange range) {
     for (const int i : range) {
       const blender::StringRefNull name = items.names[i];
+      const int icon = items.icons ? items.icons[i] : ICON_NONE;
       const float text_width = BLF_width(BLF_default(), name.c_str(), name.size(), nullptr);
+      const float icon_with_padding = icon == ICON_NONE ? 0.0f : UI_ICON_SIZE + UI_UNIT_X;
       const float padding = UI_UNIT_X;
-      item_widths[i] = int(text_width + padding);
+      item_widths[i] = int(text_width + padding + icon_with_padding);
     }
   });
 
@@ -218,6 +204,34 @@ int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn updat
   /* Avoid extremely wide boxes. */
   box_width = std::min(box_width, UI_searchbox_size_x() * 5);
   return box_width;
+}
+
+int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn update_fn, void *arg)
+{
+  using namespace blender;
+
+  uiSearchItems items{};
+  /* Upper bound on the number of item names that are checked. */
+  items.maxitem = 1000;
+  items.maxstrlen = 256;
+
+  /* Prepare name buffers. */
+  Array<char> names_buffer(items.maxitem * items.maxstrlen);
+  Array<char *> names(items.maxitem);
+  Array<int> icons(items.maxitem);
+  items.names = names.data();
+  items.icons = icons.data();
+  for (int i : IndexRange(items.maxitem)) {
+    names[i] = names_buffer.data() + i * items.maxstrlen;
+  }
+
+  /* Gather the items shown in the search box. */
+  update_fn(C, arg, "", &items, true);
+
+  /* This is lazy-initialized in #UI_search_item_add. */
+  MEM_SAFE_FREE(items.name_prefix_offsets);
+
+  return ui_searchbox_size_x_from_items(items);
 }
 
 int UI_search_items_find_index(const uiSearchItems *items, const char *name)
@@ -328,7 +342,7 @@ bool ui_searchbox_apply(uiBut *but, ARegion *region)
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
   uiButSearch *search_but = (uiButSearch *)but;
 
-  BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+  BLI_assert(but->type == ButType::SearchMenu);
 
   search_but->item_active = nullptr;
 
@@ -363,7 +377,7 @@ static ARegion *wm_searchbox_tooltip_init(
 
   LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      if (but->type != UI_BTYPE_SEARCH_MENU) {
+      if (but->type != ButType::SearchMenu) {
         continue;
       }
 
@@ -396,7 +410,7 @@ bool ui_searchbox_event(
   bool handled = false;
   bool tooltip_timer_started = false;
 
-  BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+  BLI_assert(but->type == ButType::SearchMenu);
 
   if (type == MOUSEPAN) {
     ui_pan_to_scroll(event, &type, &val);
@@ -435,6 +449,14 @@ bool ui_searchbox_event(
       }
       break;
     case MOUSEMOVE: {
+      /* Ignore the mouse event, in case the search popup is created underneath the cursor.
+       * We always want the first result to be selected by default. See: #144168 */
+      if (event->xy[0] == event->prev_xy[0] && event->xy[1] == event->prev_xy[1]) {
+        ui_searchbox_select(C, region, but, 0);
+        handled = true;
+        break;
+      }
+
       bool is_inside = false;
 
       if (BLI_rcti_isect_pt(&region->winrct, event->xy[0], event->xy[1])) {
@@ -500,7 +522,7 @@ void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool re
   uiButSearch *search_but = (uiButSearch *)but;
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
 
-  BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+  BLI_assert(but->type == ButType::SearchMenu);
 
   /* reset vars */
   data->items.totitem = 0;
@@ -579,10 +601,15 @@ int ui_searchbox_autocomplete(bContext *C, ARegion *region, uiBut *but, char *st
   uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
   int match = AUTOCOMPLETE_NO_MATCH;
 
-  BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+  BLI_assert(but->type == ButType::SearchMenu);
 
   if (str[0]) {
-    data->items.autocpl = UI_autocomplete_begin(str, ui_but_string_get_maxncpy(but));
+    int maxncpy = ui_but_string_get_maxncpy(but);
+    if (maxncpy == 0) {
+      /* The string length is dynamic, just assume a reasonable length. */
+      maxncpy = strlen(str) + 1024;
+    }
+    data->items.autocpl = UI_autocomplete_begin(str, maxncpy);
 
     ui_searchbox_update_fn(C, search_but, but->editstr, &data->items);
 
@@ -823,22 +850,6 @@ static void ui_searchbox_region_listen_fn(const wmRegionListenerParams *params)
   }
 }
 
-static uiMenuItemSeparatorType ui_searchbox_item_separator(uiSearchboxData *data)
-{
-  uiMenuItemSeparatorType separator_type = data->use_shortcut_sep ?
-                                               UI_MENU_ITEM_SEPARATOR_SHORTCUT :
-                                               UI_MENU_ITEM_SEPARATOR_NONE;
-  if (separator_type == UI_MENU_ITEM_SEPARATOR_NONE && !data->preview) {
-    for (int a = 0; a < data->items.totitem; a++) {
-      if (data->items.but_flags[a] & UI_BUT_HAS_SEP_CHAR) {
-        separator_type = UI_MENU_ITEM_SEPARATOR_HINT;
-        break;
-      }
-    }
-  }
-  return separator_type;
-}
-
 static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
 {
   uiSearchboxData *data = (uiSearchboxData *)region->regiondata;
@@ -880,12 +891,7 @@ static void ui_searchbox_region_layout_fn(const bContext *C, ARegion *region)
     }
   }
   else {
-    int searchbox_width = int(float(UI_searchbox_size_x()) * 1.4f);
-
-    /* We should make this wider if there is a path or hint on the right. */
-    if (ui_searchbox_item_separator(data) != UI_MENU_ITEM_SEPARATOR_NONE) {
-      searchbox_width += 12 * data->fstyle.points * UI_SCALE_FAC;
-    }
+    const int searchbox_width = ui_searchbox_size_x_from_items(data->items);
 
     rctf rect_fl;
     rect_fl.xmin = but->rect.xmin;
@@ -1110,7 +1116,7 @@ static void ui_searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegio
         else {
           int text_pre_len;
           text_pre_p += 1;
-          text_pre_len = BLI_strncpy_rlen(
+          text_pre_len = BLI_strncpy_utf8_rlen(
               text_pre, ot->idname, min_ii(sizeof(text_pre), text_pre_p - ot->idname));
           text_pre[text_pre_len] = ':';
           text_pre[text_pre_len + 1] = '\0';

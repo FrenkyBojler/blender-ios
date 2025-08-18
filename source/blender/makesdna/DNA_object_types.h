@@ -42,6 +42,7 @@ struct BoundBox;
 struct Collection;
 struct Curve;
 struct FluidsimSettings;
+struct ImageUser;
 struct Ipo;
 struct LightgroupMembership;
 struct Material;
@@ -56,8 +57,7 @@ struct bGPdata;
 /** Vertex Groups - Name Info */
 typedef struct bDeformGroup {
   struct bDeformGroup *next, *prev;
-  /** MAX_VGROUP_NAME. */
-  char name[64];
+  char name[/*MAX_VGROUP_NAME*/ 64];
   /* need this flag for locking weights */
   char flag, _pad0[7];
 } bDeformGroup;
@@ -65,8 +65,7 @@ typedef struct bDeformGroup {
 #ifdef DNA_DEPRECATED_ALLOW
 typedef struct bFaceMap {
   struct bFaceMap *next, *prev;
-  /** MAX_VGROUP_NAME. */
-  char name[64];
+  char name[/*MAX_VGROUP_NAME*/ 64];
   char flag;
   char _pad0[7];
 } bFaceMap;
@@ -207,8 +206,8 @@ typedef struct Object {
   short partype;
   /** Can be vertex indices. */
   int par1, par2, par3;
-  /** String describing sub-object info, `MAX_ID_NAME - 2`. */
-  char parsubstr[64];
+  /** String describing sub-object info. */
+  char parsubstr[/*MAX_NAME*/ 64];
   struct Object *parent, *track;
   /* Proxy pointer are deprecated, only kept for conversion to liboverrides. */
   struct Object *proxy DNA_DEPRECATED;
@@ -256,7 +255,7 @@ typedef struct Object {
   char *matbits;
   /** Copy of mesh, curve & meta struct member of same name (keep in sync). */
   int totcol;
-  /** Currently selected material in the UI. */
+  /** Currently selected material in the UI (one-based). */
   int actcol;
 
   /* rot en drot have to be together! (transform('r' en 's')) */
@@ -421,8 +420,7 @@ typedef struct ObHook {
   /** If not zero, falloff is distance where influence zero. */
   float falloff;
 
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   int *indexar;
   /** Curindex is cache for fast lookup. */
@@ -679,9 +677,8 @@ enum {
   /** Unknown state, clear before use. */
   OB_DONE = 1 << 10,
   OB_FLAG_USE_SIMULATION_CACHE = 1 << 11,
-#ifdef DNA_DEPRECATED_ALLOW
-  OB_FLAG_UNUSED_12 = 1 << 12, /* cleared */
-#endif
+  /** Used for the clipboard to mark the active object. */
+  OB_FLAG_ACTIVE_CLIPBOARD = 1 << 12,
 };
 
 /** #Object.visibility_flag */

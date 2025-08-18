@@ -30,14 +30,13 @@ inline bool socket_type_supported_in_closure(const eNodeSocketDatatype socket_ty
               SOCK_CLOSURE);
 }
 
-struct ClosureInputItemsAccessor {
-  using ItemT = NodeGeometryClosureInputItem;
+struct ClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
+  using ItemT = NodeClosureInputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeClosureOutput";
+  static constexpr StringRefNull node_idname = "NodeClosureOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
-  static constexpr bool has_single_identifier_str = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_closure_input_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_closure_input_item_remove";
@@ -53,7 +52,7 @@ struct ClosureInputItemsAccessor {
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryClosureOutput *>(node.storage);
+    auto *storage = static_cast<NodeClosureOutput *>(node.storage);
     return {&storage->input_items.items,
             &storage->input_items.items_num,
             &storage->input_items.active_index};
@@ -83,7 +82,7 @@ struct ClosureInputItemsAccessor {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return socket_type_supported_in_closure(socket_type);
   }
@@ -93,7 +92,7 @@ struct ClosureInputItemsAccessor {
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryClosureOutput *>(node.storage);
+    auto *storage = static_cast<NodeClosureOutput *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->input_items.next_identifier++;
     socket_items::set_item_name_and_make_unique<ClosureInputItemsAccessor>(node, item, name);
@@ -105,14 +104,13 @@ struct ClosureInputItemsAccessor {
   }
 };
 
-struct ClosureOutputItemsAccessor {
-  using ItemT = NodeGeometryClosureOutputItem;
+struct ClosureOutputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
+  using ItemT = NodeClosureOutputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeClosureOutput";
+  static constexpr StringRefNull node_idname = "NodeClosureOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
-  static constexpr bool has_single_identifier_str = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_closure_output_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_closure_output_item_remove";
@@ -128,7 +126,7 @@ struct ClosureOutputItemsAccessor {
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryClosureOutput *>(node.storage);
+    auto *storage = static_cast<NodeClosureOutput *>(node.storage);
     return {&storage->output_items.items,
             &storage->output_items.items_num,
             &storage->output_items.active_index};
@@ -158,7 +156,7 @@ struct ClosureOutputItemsAccessor {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return socket_type_supported_in_closure(socket_type);
   }
@@ -168,7 +166,7 @@ struct ClosureOutputItemsAccessor {
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryClosureOutput *>(node.storage);
+    auto *storage = static_cast<NodeClosureOutput *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->output_items.next_identifier++;
     socket_items::set_item_name_and_make_unique<ClosureOutputItemsAccessor>(node, item, name);
@@ -180,14 +178,13 @@ struct ClosureOutputItemsAccessor {
   }
 };
 
-struct EvaluateClosureInputItemsAccessor {
-  using ItemT = NodeGeometryEvaluateClosureInputItem;
+struct EvaluateClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
+  using ItemT = NodeEvaluateClosureInputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeEvaluateClosure";
+  static constexpr StringRefNull node_idname = "NodeEvaluateClosure";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
-  static constexpr bool has_single_identifier_str = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_evaluate_closure_input_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_evaluate_closure_input_item_remove";
@@ -203,7 +200,7 @@ struct EvaluateClosureInputItemsAccessor {
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node.storage);
+    auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     return {&storage->input_items.items,
             &storage->input_items.items_num,
             &storage->input_items.active_index};
@@ -233,7 +230,7 @@ struct EvaluateClosureInputItemsAccessor {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return socket_type_supported_in_closure(socket_type);
   }
@@ -243,9 +240,10 @@ struct EvaluateClosureInputItemsAccessor {
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node.storage);
+    auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->input_items.next_identifier++;
+    item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
     socket_items::set_item_name_and_make_unique<EvaluateClosureInputItemsAccessor>(
         node, item, name);
   }
@@ -256,14 +254,13 @@ struct EvaluateClosureInputItemsAccessor {
   }
 };
 
-struct EvaluateClosureOutputItemsAccessor {
-  using ItemT = NodeGeometryEvaluateClosureOutputItem;
+struct EvaluateClosureOutputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
+  using ItemT = NodeEvaluateClosureOutputItem;
   static StructRNA *item_srna;
   static int node_type;
-  static constexpr StringRefNull node_idname = "GeometryNodeEvaluateClosure";
+  static constexpr StringRefNull node_idname = "NodeEvaluateClosure";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
-  static constexpr bool has_single_identifier_str = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_evaluate_closure_output_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_evaluate_closure_output_item_remove";
@@ -279,7 +276,7 @@ struct EvaluateClosureOutputItemsAccessor {
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node.storage);
+    auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     return {&storage->output_items.items,
             &storage->output_items.items_num,
             &storage->output_items.active_index};
@@ -309,7 +306,7 @@ struct EvaluateClosureOutputItemsAccessor {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return socket_type_supported_in_closure(socket_type);
   }
@@ -319,9 +316,10 @@ struct EvaluateClosureOutputItemsAccessor {
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node.storage);
+    auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->output_items.next_identifier++;
+    item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
     socket_items::set_item_name_and_make_unique<EvaluateClosureOutputItemsAccessor>(
         node, item, name);
   }

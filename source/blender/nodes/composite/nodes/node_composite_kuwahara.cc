@@ -16,7 +16,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
@@ -37,18 +37,18 @@ static void cmp_node_kuwahara_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("Size")
       .default_value(6.0f)
+      .min(0.0f)
       .description("The size of the filter in pixels")
-      .compositor_domain_priority(1);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Int>("Uniformity")
       .default_value(4)
       .min(0)
       .description(
           "Controls the uniformity of the direction of the filter. Higher values produces more "
-          "uniform directions")
-      .compositor_expects_single_value();
+          "uniform directions");
   b.add_input<decl::Float>("Sharpness")
       .default_value(1.0f)
       .subtype(PROP_FACTOR)
@@ -56,8 +56,7 @@ static void cmp_node_kuwahara_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .description(
           "Controls the sharpness of the filter. 0 means completely smooth while 1 means "
-          "completely sharp")
-      .compositor_expects_single_value();
+          "completely sharp");
   b.add_input<decl::Float>("Eccentricity")
       .default_value(1.0f)
       .subtype(PROP_FACTOR)
@@ -65,15 +64,13 @@ static void cmp_node_kuwahara_declare(NodeDeclarationBuilder &b)
       .max(2.0f)
       .description(
           "Controls how directional the filter is. 0 means the filter is completely "
-          "omnidirectional while 2 means it is maximally directed along the edges of the image")
-      .compositor_expects_single_value();
+          "omnidirectional while 2 means it is maximally directed along the edges of the image");
   b.add_input<decl::Bool>("High Precision")
       .default_value(false)
       .description(
-          "Uses a more precise but slower method. Use if the output contains undesirable noise.")
-      .compositor_expects_single_value();
+          "Uses a more precise but slower method. Use if the output contains undesirable noise.");
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_kuwahara(bNodeTree * /*ntree*/, bNode *node)
@@ -154,7 +151,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
   void execute_classic_convolution_gpu()
   {
-    GPUShader *shader = context().get_shader(get_classic_convolution_shader_name());
+    gpu::Shader *shader = context().get_shader(get_classic_convolution_shader_name());
     GPU_shader_bind(shader);
 
     const Result &input_image = get_input("Image");
@@ -222,7 +219,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
   void execute_classic_summed_area_table_gpu(const Result &table, const Result &squared_table)
   {
-    GPUShader *shader = context().get_shader(get_classic_summed_area_table_shader_name());
+    gpu::Shader *shader = context().get_shader(get_classic_summed_area_table_shader_name());
     GPU_shader_bind(shader);
 
     Result &size_input = get_input("Size");
@@ -364,7 +361,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
   void execute_anisotropic_gpu(const Result &structure_tensor)
   {
-    GPUShader *shader = context().get_shader(get_anisotropic_shader_name());
+    gpu::Shader *shader = context().get_shader(get_anisotropic_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "eccentricity", this->compute_eccentricity());
@@ -668,7 +665,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
         weighted_sum += color_mean * weight;
       }
 
-      /* Fallback to the original color if all sector weights are zero due to very high standard
+      /* Fall back to the original color if all sector weights are zero due to very high standard
        * deviation and sharpness. */
       if (sum_of_weights == 0.0f) {
         weighted_sum = center_color;
@@ -691,7 +688,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
   Result compute_structure_tensor_gpu()
   {
-    GPUShader *shader = context().get_shader(
+    gpu::Shader *shader = context().get_shader(
         "compositor_kuwahara_anisotropic_compute_structure_tensor");
     GPU_shader_bind(shader);
 
@@ -848,6 +845,7 @@ static void register_node_type_cmp_kuwahara()
   blender::bke::node_type_storage(
       ntype, "NodeKuwaharaData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  blender::bke::node_type_size(ntype, 150, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

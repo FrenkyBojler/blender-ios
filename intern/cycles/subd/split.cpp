@@ -157,7 +157,7 @@ std::pair<int, float> DiagSplit::T(const Patch *patch,
   res = limit_edge_factor(patch, uv_start, uv_end, res);
 
   /* Limit edge factor so we don't go beyond max depth. -3 is so that
-   * for triangle patches, all 3 edges get an oppportunity to get split. */
+   * for triangle patches, all 3 edges get an opportunity to get split. */
   if (depth >= DSPLIT_MAX_DEPTH - 3 && res == DSPLIT_NON_UNIFORM) {
     res = DSPLIT_MAX_SEGMENTS;
   }
@@ -593,11 +593,14 @@ void DiagSplit::split_triangle(SubPatch &&sub)
    * platforms rather than choice being decided by precision. */
   const float bias = 1.00012345f;
 
-  /* Pick longest edge that must be split. */
-  float max_length = 0;
-  int split_index_0 = 0;
+  /* Pick longest edge that must be split. Note that in degenerate cases edges may have
+   * zero length but still requires splitting at depth 0. */
+  float max_length = 0.0f;
+  int split_index_0 = -1;
   for (int i = 0; i < 3; i++) {
-    if (sub.edges[i].edge->must_split() && sub.edges[i].edge->length > max_length) {
+    if (sub.edges[i].edge->must_split() &&
+        (split_index_0 == -1 || sub.edges[i].edge->length > max_length))
+    {
       split_index_0 = i;
       max_length = sub.edges[i].edge->length * bias;
     }

@@ -32,6 +32,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -54,7 +55,7 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "bmesh.hh"
@@ -128,7 +129,7 @@ Cache::~Cache() = default;
 
 void cache_init(bContext *C,
                 Object &ob,
-                const Sculpt &sd,
+                Sculpt &sd,
                 const undo::Type undo_type,
                 const float mval_fl[2],
                 float area_normal_radius,
@@ -161,8 +162,8 @@ void cache_init(bContext *C,
     copy_m4_m4(ss.filter_cache->viewmat_inv.ptr(), vc.rv3d->viewinv);
   }
 
-  Scene *scene = CTX_data_scene(C);
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
 
   float3 co;
 
@@ -172,7 +173,7 @@ void cache_init(bContext *C,
 
     float radius;
     if (brush) {
-      object_space_radius_get(vc, *scene, *brush, co, area_normal_radius);
+      radius = object_space_radius_get(vc, sd.paint, *brush, co, area_normal_radius);
     }
     else {
       radius = paint_calc_object_space_radius(vc, co, float(ups->size) * area_normal_radius);
@@ -199,9 +200,9 @@ void cache_init(bContext *C,
 
     mul_m4_v3(ob.object_to_world().ptr(), co);
 
-    add_v3_v3(ups->average_stroke_accum, co);
-    ups->average_stroke_counter++;
-    ups->last_stroke_valid = true;
+    add_v3_v3(paint_runtime->average_stroke_accum, co);
+    paint_runtime->average_stroke_counter++;
+    paint_runtime->last_stroke_valid = true;
   }
   else {
     /* Use last normal. */
@@ -1713,7 +1714,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *ss.bm;
-      BM_mesh_elem_index_ensure(&bm, BM_VERT);
+      vert_random_access_ensure(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int node_index) {
@@ -1934,6 +1935,7 @@ static void mesh_filter_surface_smooth_init(Object &object,
   filter::Cache *filter_cache = ss.filter_cache;
 
   filter_cache->surface_smooth_laplacian_disp.reinitialize(totvert);
+  filter_cache->surface_smooth_laplacian_disp.fill(float3(0.0f));
   filter_cache->surface_smooth_shape_preservation = shape_preservation;
   filter_cache->surface_smooth_current_vertex = current_vertex_displacement;
 }
@@ -2122,7 +2124,7 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay
   const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
   const float strength = RNA_float_get(op->ptr, "strength");
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   const IndexMask &node_mask = ss.filter_cache->node_mask;
   if (auto_mask::is_enabled(sd, ob, nullptr) && ss.filter_cache->automasking &&
@@ -2378,7 +2380,7 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
 
   const View3D *v3d = CTX_wm_view3d(C);
   const Base *base = CTX_data_active_base(C);
@@ -2422,7 +2424,7 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
     cursor_geometry_info_update(C, &cgi, mval_fl, false);
   }
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
   if (needs_topology_info) {
     boundary::ensure_boundary_info(ob);
   }
@@ -2439,7 +2441,9 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  }
 
   sculpt_filter_specific_init(*depsgraph, filter_type, op, ob);
 

@@ -140,19 +140,28 @@ void RNA_struct_blender_type_set(StructRNA *srna, void *blender_type);
 IDProperty **RNA_struct_idprops_p(PointerRNA *ptr);
 IDProperty *RNA_struct_idprops(PointerRNA *ptr, bool create);
 bool RNA_struct_idprops_check(const StructRNA *srna);
-bool RNA_struct_idprops_register_check(const StructRNA *type);
+bool RNA_struct_system_idprops_register_check(const StructRNA *type);
 bool RNA_struct_idprops_datablock_allowed(const StructRNA *type);
+
+/** Get root IDProperty for system-defined runtime properties. */
+IDProperty **RNA_struct_system_idprops_p(PointerRNA *ptr);
+IDProperty *RNA_struct_system_idprops(PointerRNA *ptr, bool create);
+/** Return `true` if the given RNA type supports system-defined IDProperties. */
+bool RNA_struct_system_idprops_check(StructRNA *srna);
 /**
  * Whether given type implies datablock usage by IDProperties.
  * This is used to prevent classes allowed to have IDProperties,
  * but not datablock ones, to indirectly use some
  * (e.g. by assigning an IDP_GROUP containing some IDP_ID pointers...).
+ *
+ * \note This is currently giving results for both user-defined and system-defined IDProperties,
+ * there is no distinction for this between both storages.
  */
 bool RNA_struct_idprops_contains_datablock(const StructRNA *type);
 /**
  * Remove an id-property.
  */
-bool RNA_struct_idprops_unset(PointerRNA *ptr, const char *identifier);
+bool RNA_struct_system_idprops_unset(PointerRNA *ptr, const char *identifier);
 
 PropertyRNA *RNA_struct_find_property(PointerRNA *ptr, const char *identifier);
 
@@ -175,6 +184,22 @@ bool RNA_struct_contains_property(PointerRNA *ptr, PropertyRNA *prop_test);
 unsigned int RNA_struct_count_properties(StructRNA *srna);
 
 /**
+ * Return the closest ancestor (itself included) matching the requested RNA
+ * type.
+ *
+ * The check starts from `ptr` itself, and then works its way up to the parent,
+ * then grandparent, etc. The first one that matches is returned as an
+ * `AncestorPointerRNA`.
+ *
+ * Base types are considered matching, so e.g. an RNA pointer of type
+ * `RNA_SpotLight` will also match `RNA_Light`.
+ *
+ * \return The matching pointer if any, or `nullopt` otherwise.
+ */
+std::optional<AncestorPointerRNA> RNA_struct_search_closest_ancestor_by_type(
+    PointerRNA *ptr, const StructRNA *srna);
+
+/**
  * Low level direct access to type->properties,
  * note this ignores parent classes so should be used with care.
  */
@@ -189,8 +214,12 @@ PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifi
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
 const ListBase *RNA_struct_type_functions(StructRNA *srna);
 
-char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len)
-    ATTR_WARN_UNUSED_RESULT;
+[[nodiscard]] char *RNA_struct_name_get_alloc_ex(
+    PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop);
+[[nodiscard]] char *RNA_struct_name_get_alloc(PointerRNA *ptr,
+                                              char *fixedbuf,
+                                              int fixedlen,
+                                              int *r_len);
 
 /**
  * Use when registering structs with the #STRUCT_PUBLIC_NAMESPACE flag.
@@ -210,6 +239,8 @@ bool RNA_struct_bl_idname_ok_or_report(ReportList *reports,
 const char *RNA_property_identifier(const PropertyRNA *prop);
 const char *RNA_property_description(PropertyRNA *prop);
 
+const DeprecatedRNA *RNA_property_deprecated(const PropertyRNA *prop);
+
 PropertyType RNA_property_type(PropertyRNA *prop);
 PropertySubType RNA_property_subtype(PropertyRNA *prop);
 PropertyUnit RNA_property_unit(PropertyRNA *prop);
@@ -223,6 +254,7 @@ int RNA_property_override_flag(PropertyRNA *prop);
  *       the only way to set tags. Hence, at this point we assume the tag bit-field to be valid.
  */
 int RNA_property_tags(PropertyRNA *prop);
+PropertyPathTemplateType RNA_property_path_template_type(PropertyRNA *prop);
 bool RNA_property_builtin(PropertyRNA *prop);
 void *RNA_property_py_data_get(PropertyRNA *prop);
 
@@ -273,6 +305,10 @@ int RNA_enum_bitflag_identifiers(const EnumPropertyItem *item,
                                  int value,
                                  const char **r_identifier);
 bool RNA_enum_name(const EnumPropertyItem *item, int value, const char **r_name);
+bool RNA_enum_name_gettexted(const EnumPropertyItem *item,
+                             int value,
+                             const char *translation_context,
+                             const char **r_name);
 bool RNA_enum_description(const EnumPropertyItem *item, int value, const char **r_description);
 int RNA_enum_from_value(const EnumPropertyItem *item, int value);
 int RNA_enum_from_identifier(const EnumPropertyItem *item, const char *identifier);
@@ -375,7 +411,7 @@ bool RNA_property_animated(PointerRNA *ptr, PropertyRNA *prop);
 /**
  * With LibOverrides, a property may be animatable and anim-editable, but not driver-editable (in
  * case the reference data already has an animation data, its Action can be an editable local ID,
- * but the drivers are directly stored in the animdata, overriding these is not supported
+ * but the drivers are directly stored in the animation-data, overriding these is not supported
  * currently).
  *
  * Like #RNA_property_anim_editable, this also checks the actual data referenced by the RNA pointer
@@ -653,6 +689,12 @@ bool RNA_enum_icon_from_value(const EnumPropertyItem *item, int value, int *r_ic
 bool RNA_enum_name_from_value(const EnumPropertyItem *item, int value, const char **r_name);
 
 void RNA_string_get(PointerRNA *ptr, const char *name, char *value);
+/**
+ * Retrieve string from a string property, or an empty string if the property does not exist.
+ * \note This mostly exists as a C++ replacement for #RNA_string_get_alloc or a simpler replacement
+ * for the overload with a return pointer argument with easy support for arbitrary length strings.
+ */
+std::string RNA_string_get(PointerRNA *ptr, const char *name);
 char *RNA_string_get_alloc(PointerRNA *ptr,
                            const char *name,
                            char *fixedbuf,
@@ -737,8 +779,8 @@ void RNA_collection_clear(PointerRNA *ptr, const char *name);
  * without the RNA considering it to be "set", see #IDP_FLAG_GHOST.
  * This is used for operators, where executing an operator that has run previously
  * will re-use the last value (unless #PROP_SKIP_SAVE property is set).
- * In this case, the presence of the an existing value shouldn't prevent it being initialized
- * from the context. Even though the this value will be returned if it's requested,
+ * In this case, the presence of an existing value shouldn't prevent it being initialized
+ * from the context. Even though this value will be returned if it's requested,
  * it's not considered to be set (as it would if the menu item or key-map defined it's value).
  * Set `use_ghost` to true for default behavior, otherwise false to check if there is a value
  * exists internally and would be returned on request.

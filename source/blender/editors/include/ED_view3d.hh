@@ -236,10 +236,10 @@ bool ED_view3d_has_depth_buffer_updated(const Depsgraph *depsgraph, const View3D
 
 /**
  * Utilities to perform navigation.
- * Call `ED_view3d_navigation_init` to create a context and `ED_view3d_navigation_do` to perform
+ * Call #ED_view3d_navigation_init to create a context and #ED_view3d_navigation_do to perform
  * navigation in modal operators.
  *
- * \note modal map events can also be used in `ED_view3d_navigation_do`.
+ * \note modal map events can also be used in #ED_view3d_navigation_do.
  */
 ViewOpsData *ED_view3d_navigation_init(bContext *C, const wmKeyMapItem *kmi_merge);
 bool ED_view3d_navigation_do(bContext *C,
@@ -706,11 +706,13 @@ bool ED_view3d_win_to_3d_on_plane_int(
  * \param zfac: The depth result typically calculated by #ED_view3d_calc_zfac
  * (see its doc-string for details).
  * \param r_out: The resulting world-space delta.
+ * \param precise: Use a more precise calculation but increases the cost of this function.
  */
 void ED_view3d_win_to_delta(const ARegion *region,
                             const float xy_delta[2],
                             float zfac,
-                            float r_out[3]);
+                            float r_out[3],
+                            bool precise = false);
 /**
  * Calculate a 3D origin from 2D window coordinates.
  * \note Orthographic views have a less obvious origin,
@@ -961,7 +963,7 @@ bool ED_view3d_depth_read_cached_seg(const ViewDepths *vd,
  * Returns viewport color in linear space, matching #ED_space_node_color_sample().
  */
 class ViewportColorSampleSession {
-  GPUTexture *tex = nullptr;
+  blender::gpu::Texture *tex = nullptr;
   blender::ushort4 *data = nullptr;
   int tex_w, tex_h;
   rcti valid_rect;
@@ -1040,7 +1042,7 @@ ViewContext ED_view3d_viewcontext_init(bContext *C, Depsgraph *depsgraph);
  * When iterating over objects in object-mode it doesn't make sense to perform
  * an edit-mode action on an object that happens to contain edit-mode data.
  * In some cases these values are cleared allowing the owner of `vc` to explicitly
- * disable edit-mode operation (to force object selection in edit-mode for e.g.).
+ * disable edit-mode operation (to force object selection in edit-mode for example).
  * So object-mode specific values should remain cleared when initialized with another object.
  */
 void ED_view3d_viewcontext_init_object(ViewContext *vc, Object *obact);

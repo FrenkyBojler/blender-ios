@@ -19,7 +19,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -1226,7 +1226,7 @@ void ED_spacetype_clip()
   ARegionType *art;
 
   st->spaceid = SPACE_CLIP;
-  STRNCPY(st->name, "Clip");
+  STRNCPY_UTF8(st->name, "Clip");
 
   st->create = clip_create;
   st->free = clip_free;
@@ -1275,6 +1275,7 @@ void ED_spacetype_clip()
   art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
   art->poll = clip_properties_region_poll;
   art->init = clip_properties_region_init;
+  art->snap_size = ED_region_generic_panel_region_snap_size;
   art->draw = clip_properties_region_draw;
   art->listener = clip_properties_region_listener;
   BLI_addhead(&st->regiontypes, art);

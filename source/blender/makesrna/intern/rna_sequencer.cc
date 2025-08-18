@@ -20,10 +20,10 @@
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-
 #include "RNA_types.hh"
-#include "UI_resources.hh"
 #include "rna_internal.hh"
+
+#include "UI_resources.hh"
 
 #include "SEQ_effects.hh"
 #include "SEQ_sequencer.hh"
@@ -307,6 +307,13 @@ static void rna_SequenceEditor_update_cache(Main * /*bmain*/, Scene *scene, Poin
 
   blender::seq::relations_free_imbuf(scene, &ed->seqbase, false);
   blender::seq::cache_cleanup(scene);
+}
+
+static void rna_SequenceEditor_cache_settings_changed(Main * /*bmain*/,
+                                                      Scene *scene,
+                                                      PointerRNA * /*ptr*/)
+{
+  blender::seq::cache_settings_changed(scene);
 }
 
 /* internal use */
@@ -600,7 +607,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
   ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   /* check channel increment or decrement */
-  const int channel_delta = (value >= strip->machine) ? 1 : -1;
+  const int channel_delta = (value >= strip->channel) ? 1 : -1;
   blender::seq::strip_channel_set(strip, value);
 
   if (blender::seq::transform_test_overlap(scene, seqbase, strip)) {
@@ -777,6 +784,32 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
   }
 }
 
+static int rna_Strip_text_length(PointerRNA *ptr)
+{
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  TextVars *text = static_cast<TextVars *>(strip->effectdata);
+  return text->text_len_bytes;
+}
+
+static void rna_Strip_text_get(PointerRNA *ptr, char *value)
+{
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  TextVars *text = static_cast<TextVars *>(strip->effectdata);
+  memcpy(value, text->text_ptr, text->text_len_bytes + 1);
+}
+
+static void rna_Strip_text_set(PointerRNA *ptr, const char *value)
+{
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  TextVars *text = static_cast<TextVars *>(strip->effectdata);
+
+  if (text->text_ptr) {
+    MEM_freeN(text->text_ptr);
+  }
+  text->text_ptr = BLI_strdup(value);
+  text->text_len_bytes = strlen(text->text_ptr);
+}
+
 static StructRNA *rna_Strip_refine(PointerRNA *ptr)
 {
   Strip *strip = (Strip *)ptr->data;
@@ -852,6 +885,12 @@ static IDProperty **rna_Strip_idprops(PointerRNA *ptr)
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
   return &strip->prop;
+}
+
+static IDProperty **rna_Strip_system_idprops(PointerRNA *ptr)
+{
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  return &strip->system_properties;
 }
 
 static bool rna_MovieStrip_reload_if_needed(ID *scene_id, Strip *strip, Main *bmain)
@@ -1452,10 +1491,11 @@ static StripModifierData *rna_Strip_modifier_new(
     return nullptr;
   }
   else {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(C);
     StripModifierData *smd;
 
     smd = blender::seq::modifier_new(strip, name, type);
+    blender::seq::modifier_persistent_uid_init(*strip, *smd);
 
     blender::seq::relations_invalidate_cache(scene, strip);
 
@@ -1471,7 +1511,7 @@ static void rna_Strip_modifier_remove(Strip *strip,
                                       PointerRNA *smd_ptr)
 {
   StripModifierData *smd = static_cast<StripModifierData *>(smd_ptr->data);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (blender::seq::modifier_remove(strip, smd) == false) {
     BKE_report(reports, RPT_ERROR, "Modifier was not found in the stack");
@@ -1486,7 +1526,7 @@ static void rna_Strip_modifier_remove(Strip *strip,
 
 static void rna_Strip_modifier_clear(Strip *strip, bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   blender::seq::modifier_clear(strip);
 
@@ -2107,12 +2147,12 @@ static void rna_def_strip(BlenderRNA *brna)
       {STRIP_TYPE_MOVIECLIP, "MOVIECLIP", 0, "Clip", ""},
       {STRIP_TYPE_MASK, "MASK", 0, "Mask", ""},
       {STRIP_TYPE_SOUND_RAM, "SOUND", 0, "Sound", ""},
-      {STRIP_TYPE_CROSS, "CROSS", 0, "Cross", ""},
+      {STRIP_TYPE_CROSS, "CROSS", 0, "Crossfade", ""},
       {STRIP_TYPE_ADD, "ADD", 0, "Add", ""},
       {STRIP_TYPE_SUB, "SUBTRACT", 0, "Subtract", ""},
       {STRIP_TYPE_ALPHAOVER, "ALPHA_OVER", 0, "Alpha Over", ""},
       {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", ""},
-      {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Cross", ""},
+      {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Crossfade", ""},
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", ""},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", ""},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", ""},
@@ -2132,6 +2172,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_struct_refine_func(srna, "rna_Strip_refine");
   RNA_def_struct_path_func(srna, "rna_Strip_path");
   RNA_def_struct_idprops_func(srna, "rna_Strip_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_Strip_system_idprops");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_funcs(
@@ -2256,7 +2297,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_frame_change_update");
 
   prop = RNA_def_property(srna, "channel", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "machine");
+  RNA_def_property_int_sdna(prop, nullptr, "channel");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 1, blender::seq::MAX_CHANNELS);
   RNA_def_property_ui_text(prop, "Channel", "Y position of the sequence strip");
@@ -2519,10 +2560,14 @@ static void rna_def_editor(BlenderRNA *brna)
                            "Cache Raw",
                            "Cache raw images read from disk, for faster tweaking of strip "
                            "parameters at the cost of memory usage");
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_cache_settings_changed");
 
   prop = RNA_def_property(srna, "use_cache_final", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_STORE_FINAL_OUT);
   RNA_def_property_ui_text(prop, "Cache Final", "Cache final image for each frame");
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_cache_settings_changed");
 
   prop = RNA_def_property(srna, "use_prefetch", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "cache_flag", SEQ_CACHE_PREFETCH_ENABLE);
@@ -3136,12 +3181,12 @@ static void rna_def_wipe(StructRNA *srna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem wipe_type_items[] = {
-      {blender::seq::DO_SINGLE_WIPE, "SINGLE", 0, "Single", ""},
-      {blender::seq::DO_DOUBLE_WIPE, "DOUBLE", 0, "Double", ""},
-      /* not used yet {DO_BOX_WIPE, "BOX", 0, "Box", ""}, */
-      /* not used yet {DO_CROSS_WIPE, "CROSS", 0, "Cross", ""}, */
-      {blender::seq::DO_IRIS_WIPE, "IRIS", 0, "Iris", ""},
-      {blender::seq::DO_CLOCK_WIPE, "CLOCK", 0, "Clock", ""},
+      {SEQ_WIPE_SINGLE, "SINGLE", 0, "Single", ""},
+      {SEQ_WIPE_DOUBLE, "DOUBLE", 0, "Double", ""},
+      /* not used yet {SEQ_WIPE_BOX, "BOX", 0, "Box", ""}, */
+      /* not used yet {SEQ_WIPE_CROSS, "CROSS", 0, "Cross", ""}, */
+      {SEQ_WIPE_IRIS, "IRIS", 0, "Iris", ""},
+      {SEQ_WIPE_CLOCK, "CLOCK", 0, "Clock", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -3520,6 +3565,9 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "text", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "text_ptr");
+  RNA_def_property_string_funcs(
+      prop, "rna_Strip_text_get", "rna_Strip_text_length", "rna_Strip_text_set");
   RNA_def_property_ui_text(prop, "Text", "Text that will be displayed");
   RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
@@ -3614,8 +3662,8 @@ static EffectInfo def_effects[] = {
      "Sequence strip creating an image filled with a single color",
      rna_def_solid_color,
      0},
-    {"CrossStrip", "Cross Strip", "Cross Sequence", nullptr, 2},
-    {"GammaCrossStrip", "Gamma Cross Strip", "Gamma Cross Strip", nullptr, 2},
+    {"CrossStrip", "Crossfade Strip", "Crossfade Strip", nullptr, 2},
+    {"GammaCrossStrip", "Gamma Crossfade Strip", "Gamma Crossfade Strip", nullptr, 2},
     {"GlowStrip", "Glow Strip", "Sequence strip creating a glow effect", rna_def_glow, 1},
     {"MulticamStrip",
      "Multicam Select Strip",
@@ -3669,18 +3717,18 @@ static void rna_def_modifier(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem mask_input_type_items[] = {
-      {SEQUENCE_MASK_INPUT_STRIP, "STRIP", 0, "Strip", "Use sequencer strip as mask input"},
-      {SEQUENCE_MASK_INPUT_ID, "ID", 0, "Mask", "Use mask ID as mask input"},
+      {STRIP_MASK_INPUT_STRIP, "STRIP", 0, "Strip", "Use sequencer strip as mask input"},
+      {STRIP_MASK_INPUT_ID, "ID", 0, "Mask", "Use mask ID as mask input"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem mask_time_items[] = {
-      {SEQUENCE_MASK_TIME_RELATIVE,
+      {STRIP_MASK_TIME_RELATIVE,
        "RELATIVE",
        0,
        "Relative",
        "Mask animation is offset to start of strip"},
-      {SEQUENCE_MASK_TIME_ABSOLUTE,
+      {STRIP_MASK_TIME_ABSOLUTE,
        "ABSOLUTE",
        0,
        "Absolute",
@@ -3707,14 +3755,14 @@ static void rna_def_modifier(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
   prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQUENCE_MODIFIER_MUTE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", STRIP_MODIFIER_FLAG_MUTE);
   RNA_def_property_ui_text(prop, "Mute", "Mute this modifier");
   RNA_def_property_ui_icon(prop, ICON_HIDE_OFF, -1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQUENCE_MODIFIER_EXPANDED);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", STRIP_MODIFIER_FLAG_EXPANDED);
   RNA_def_property_ui_text(prop, "Expanded", "Mute expanded settings for the modifier");
   RNA_def_property_ui_icon(prop, ICON_RIGHTARROW, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
@@ -3957,21 +4005,21 @@ static void rna_def_sound_equalizer_modifier(BlenderRNA *brna)
                        "min_freq",
                        SOUND_EQUALIZER_DEFAULT_MIN_FREQ,
                        0.0,
-                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ, /*  Hard min and max */
+                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ, /* Hard min and max */
                        "Minimum Frequency",
                        "Minimum Frequency",
                        0.0,
-                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ); /*  Soft min and max */
+                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ); /* Soft min and max */
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_float(func,
                        "max_freq",
                        SOUND_EQUALIZER_DEFAULT_MAX_FREQ,
                        0.0,
-                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ, /*  Hard min and max */
+                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ, /* Hard min and max */
                        "Maximum Frequency",
                        "Maximum Frequency",
                        0.0,
-                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ); /*  Soft min and max */
+                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ); /* Soft min and max */
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* return type */

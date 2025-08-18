@@ -38,7 +38,7 @@
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 using blender::Array;
 
@@ -2273,7 +2273,7 @@ static StructRNA *bpy_prop_deferred_data_or_srna(PyObject *self,
     self = PyTuple_GET_ITEM(args, 0);
     args = PyTuple_New(0);
 
-    /* This will be #BPy_BoolProperty` or one of the functions that define a type. */
+    /* This will be #BPy_BoolProperty or one of the functions that define a type. */
     PyCFunctionWithKeywords method_fn = (PyCFunctionWithKeywords)(void *)method_def->ml_meth;
     *r_deferred_result = method_fn(self, args, kw);
     Py_DECREF(args);
@@ -3886,14 +3886,14 @@ PyDoc_STRVAR(
     "         Python must keep a reference to the strings returned by the callback or Blender\n"
     "         will misbehave or even crash."
     "\n"
-    "   :type items: Sequence["
+    "   :type items: Iterable["
     "tuple[str, str, str] | "
     "tuple[str, str, str, int] | "
     "tuple[str, str, str, int, int] | "
     "None] | "
     "Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.Context` | None], "
     /* NOTE(@ideasman42): a type alias would be useful here (same as above). */
-    "Sequence["
+    "Iterable["
     "tuple[str, str, str] | "
     "tuple[str, str, str, int] | "
     "tuple[str, str, str, int, int] | "

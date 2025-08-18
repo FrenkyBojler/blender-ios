@@ -241,6 +241,101 @@ void EDBM_select_mirrored(BMEditMesh *em,
   *r_totfail = totfail;
 }
 
+bool EDBM_select_mirrored_extend_all(Object *obedit, BMEditMesh *em)
+{
+  BMesh *bm = em->bm;
+  int selectmode = em->selectmode;
+  bool changed = false;
+
+  if (bm->totfacesel == 0) {
+    selectmode &= ~SCE_SELECT_FACE;
+  }
+  if (bm->totedgesel == 0) {
+    selectmode &= ~SCE_SELECT_EDGE;
+  }
+  if (bm->totvertsel == 0) {
+    selectmode &= ~SCE_SELECT_VERTEX;
+  }
+
+  if (selectmode == 0) {
+    return changed;
+  }
+
+  char symmetry_htype = 0;
+  if (selectmode & SCE_SELECT_FACE) {
+    symmetry_htype |= BM_FACE;
+  }
+  if (selectmode & SCE_SELECT_EDGE) {
+    symmetry_htype |= BM_EDGE;
+  }
+  if (selectmode & SCE_SELECT_VERTEX) {
+    symmetry_htype |= BM_VERT;
+  }
+  if (std::optional<EditMeshSymmetryHelper> symmetry_helper =
+          EditMeshSymmetryHelper::create_if_needed(obedit, symmetry_htype))
+  {
+    const char hflag = BM_ELEM_SELECT;
+    BMIter iter;
+
+    if (selectmode & SCE_SELECT_FACE) {
+      blender::Vector<BMFace *> source_faces;
+      source_faces.reserve(bm->totfacesel);
+      BMFace *f;
+      BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, hflag)) {
+          source_faces.append(f);
+        }
+      }
+      const int totfacesel_prev = bm->totfacesel;
+      for (BMFace *f_orig : source_faces) {
+        symmetry_helper->set_hflag_on_mirror_faces(f_orig, hflag, true);
+      }
+      if (bm->totfacesel != totfacesel_prev) {
+        changed = true;
+      }
+    }
+    if (selectmode & SCE_SELECT_EDGE) {
+      blender::Vector<BMEdge *> source_edges;
+      source_edges.reserve(bm->totedgesel);
+      BMEdge *e;
+      BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, hflag)) {
+          source_edges.append(e);
+        }
+      }
+      const int totedgesel_prev = bm->totedgesel;
+      for (BMEdge *e_orig : source_edges) {
+        symmetry_helper->set_hflag_on_mirror_edges(e_orig, hflag, true);
+      }
+      if (bm->totedgesel != totedgesel_prev) {
+        changed = true;
+      }
+    }
+    if (selectmode & SCE_SELECT_VERTEX) {
+      blender::Vector<BMVert *> source_verts;
+      source_verts.reserve(bm->totvertsel);
+      BMVert *v;
+      BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, hflag)) {
+          source_verts.append(v);
+        }
+      }
+      const int totvertsel_prev = bm->totvertsel;
+      for (BMVert *v_orig : source_verts) {
+        symmetry_helper->set_hflag_on_mirror_verts(v_orig, hflag, true);
+      }
+      if (bm->totvertsel != totvertsel_prev) {
+        changed = true;
+      }
+    }
+    if (changed) {
+      EDBM_selectmode_flush(em);
+    }
+  }
+
+  return changed;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1461,7 +1556,7 @@ static wmOperatorStatus edbm_select_mode_invoke(bContext *C, wmOperator *op, con
   /* Bypass when in UV non sync-select mode, fall through to keymap that edits. */
   if (CTX_wm_space_image(C)) {
     ToolSettings *ts = CTX_data_tool_settings(C);
-    if ((ts->uv_flag & UV_SYNC_SELECTION) == 0) {
+    if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) == 0) {
       return OPERATOR_PASS_THROUGH;
     }
     /* Bypass when no action is needed. */
@@ -2294,12 +2389,8 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
     EDBM_selectmode_flush(em);
 
     if (efa) {
-      /* Change active material on object. */
-      if (efa->mat_nr != obedit->actcol - 1) {
-        obedit->actcol = efa->mat_nr + 1;
-        em->mat_nr = efa->mat_nr;
-        WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, nullptr);
-      }
+      blender::ed::object::material_active_index_set(obedit, efa->mat_nr);
+      em->mat_nr = efa->mat_nr;
     }
 
     /* Changing active object is handy since it allows us to
@@ -2708,9 +2799,9 @@ bool EDBM_selectmode_set_multi(bContext *C, const short selectmode)
  *
  * While this is almost always the case as the UI syncs the values when set,
  * it's not guaranteed because objects can be shared across scenes and each
- * scene has it's own select-mode which is applied to the object when entering edit-mode.
+ * scene has its own select-mode which is applied to the object when entering edit-mode.
  *
- * This function should only be used when the an operation would cause errors
+ * This function should only be used when an operation would cause errors
  * when applied in the wrong selection mode.
  *
  * \return True when a change was made.
@@ -4213,7 +4304,7 @@ static wmOperatorStatus edbm_select_mirror_exec(bContext *C, wmOperator *op)
   }
 
   if (tot_mirr || tot_fail) {
-    ED_mesh_report_mirror_ex(op, tot_mirr, tot_fail, select_mode);
+    ED_mesh_report_mirror_ex(*op->reports, tot_mirr, tot_fail, select_mode);
   }
   return OPERATOR_FINISHED;
 }

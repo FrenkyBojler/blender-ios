@@ -58,6 +58,7 @@ class VKShader : public Shader {
   virtual ~VKShader();
 
   void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) override;
+  void init() override {}
 
   void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
   void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
@@ -121,7 +122,7 @@ class VKShader : public Shader {
   bool finalize_shader_module(VKShaderModule &shader_module, const char *stage_name);
   bool finalize_descriptor_set_layouts(VKDevice &vk_device,
                                        const VKShaderInterface &shader_interface);
-  bool finalize_pipeline_layout(VkDevice vk_device, const VKShaderInterface &shader_interface);
+  bool finalize_pipeline_layout(VKDevice &device, const VKShaderInterface &shader_interface);
 
   /**
    * \brief features available on newer implementation such as native barycentric coordinates

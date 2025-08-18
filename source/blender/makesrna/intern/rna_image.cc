@@ -556,13 +556,6 @@ static void rna_Image_resolution_set(PointerRNA *ptr, const float *values)
   BKE_image_release_ibuf(im, ibuf, lock);
 }
 
-static int rna_Image_bindcode_get(PointerRNA *ptr)
-{
-  Image *ima = (Image *)ptr->data;
-  GPUTexture *tex = ima->gputexture[TEXTARGET_2D][0];
-  return (tex) ? GPU_texture_opengl_bindcode(tex) : 0;
-}
-
 static int rna_Image_depth_get(PointerRNA *ptr)
 {
   Image *im = (Image *)ptr->data;
@@ -676,7 +669,7 @@ static void rna_Image_pixels_set(PointerRNA *ptr, const float *values)
     /* NOTE: Do update from the set() because typically pixels.foreach_set() is used to update
      * the values, and it does not invoke the update(). */
 
-    ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID | IB_MIPMAP_INVALID;
+    ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
     BKE_image_mark_dirty(ima, ibuf);
     if (!G.background) {
       BKE_image_free_gputextures(ima);
@@ -1005,7 +998,7 @@ static void rna_def_udim_tile(BlenderRNA *brna)
       0,
       0,
       "Size",
-      "Width and height of the tile buffer in pixels, zero when image data can't be loaded",
+      "Width and height of the tile buffer in pixels, zero when image data cannot be loaded",
       0,
       0);
   RNA_def_property_subtype(prop, PROP_PIXEL);
@@ -1170,7 +1163,7 @@ static void rna_def_image(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "File Name", "Image/Movie file name (without data refreshing)");
 
   prop = RNA_def_property(srna, "file_format", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_image_type_items);
+  RNA_def_property_enum_items(prop, rna_enum_image_type_all_items);
   RNA_def_property_enum_funcs(
       prop, "rna_Image_file_format_get", "rna_Image_file_format_set", nullptr);
   RNA_def_property_ui_text(prop, "File Format", "Format used for re-saving this file");
@@ -1296,12 +1289,6 @@ static void rna_def_image(BlenderRNA *brna)
       prop, "Display Aspect", "Display Aspect for this image, does not affect rendering");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, nullptr);
 
-  prop = RNA_def_property(srna, "bindcode", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_funcs(prop, "rna_Image_bindcode_get", nullptr, nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Bindcode", "OpenGL bindcode");
-  RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, nullptr);
-
   prop = RNA_def_property(srna, "render_slots", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "RenderSlot");
   RNA_def_property_collection_sdna(prop, nullptr, "renderslots", nullptr);
@@ -1332,7 +1319,7 @@ static void rna_def_image(BlenderRNA *brna)
       0,
       0,
       "Size",
-      "Width and height of the image buffer in pixels, zero when image data can't be loaded",
+      "Width and height of the image buffer in pixels, zero when image data cannot be loaded",
       0,
       0);
   RNA_def_property_subtype(prop, PROP_PIXEL);

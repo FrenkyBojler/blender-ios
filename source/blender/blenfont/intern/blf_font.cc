@@ -188,14 +188,16 @@ static ft_pix blf_unscaled_F26Dot6_to_pixels(FontBLF *font, FT_Pos value)
 static void blf_batch_draw_init()
 {
   GPUVertFormat format = {0};
-  g_batch.pos_loc = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  g_batch.pos_loc = GPU_vertformat_attr_add(
+      &format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   g_batch.col_loc = GPU_vertformat_attr_add(
-      &format, "col", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
-  g_batch.offset_loc = GPU_vertformat_attr_add(&format, "offset", GPU_COMP_I32, 1, GPU_FETCH_INT);
+      &format, "col", blender::gpu::VertAttrType::UNORM_8_8_8_8);
+  g_batch.offset_loc = GPU_vertformat_attr_add(
+      &format, "offset", blender::gpu::VertAttrType::SINT_32);
   g_batch.glyph_size_loc = GPU_vertformat_attr_add(
-      &format, "glyph_size", GPU_COMP_I32, 2, GPU_FETCH_INT);
+      &format, "glyph_size", blender::gpu::VertAttrType::SINT_32_32);
   g_batch.glyph_flags_loc = GPU_vertformat_attr_add(
-      &format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
+      &format, "flags", blender::gpu::VertAttrType::UINT_32);
 
   g_batch.verts = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STREAM);
   GPU_vertbuf_data_alloc(*g_batch.verts, BLF_BATCH_DRAW_LEN_MAX);
@@ -281,7 +283,7 @@ void blf_batch_draw_begin(FontBLF *font)
   }
 }
 
-static GPUTexture *blf_batch_cache_texture_load()
+static blender::gpu::Texture *blf_batch_cache_texture_load()
 {
   GlyphCacheBLF *gc = g_batch.glyph_cache;
   BLI_assert(gc);
@@ -334,7 +336,7 @@ void blf_batch_draw()
     blf_draw_cache_flush();
   }
 
-  GPUTexture *texture = blf_batch_cache_texture_load();
+  blender::gpu::Texture *texture = blf_batch_cache_texture_load();
   GPU_vertbuf_data_len_set(*g_batch.verts, g_batch.glyph_len);
   GPU_vertbuf_use(g_batch.verts); /* Send data. */
 
@@ -438,6 +440,25 @@ BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
 #endif
   }
   return g;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UTF8 Utilities (Internal)
+ * \{ */
+
+/**
+ * Only assert on invalid UTF8 handling if the strings are valid UTF8.
+ */
+[[maybe_unused]] static int blf_str_is_utf8_valid_lazy_init(const char *str,
+                                                            const size_t str_len,
+                                                            int &is_utf8_valid)
+{
+  if (is_utf8_valid == -1) {
+    is_utf8_valid = BLI_str_utf8_invalid_byte(str, str_len) == -1;
+  }
+  return is_utf8_valid;
 }
 
 /** \} */
@@ -852,6 +873,9 @@ size_t blf_font_width_to_rstrlen(
   const char *s, *s_prev;
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+#ifndef NDEBUG
+  int is_utf8_valid = -1;
+#endif
 
   i = BLI_strnlen(str, str_len);
   s = BLI_str_find_prev_char_utf8(&str[i], str);
@@ -869,7 +893,9 @@ size_t blf_font_width_to_rstrlen(
 
     i_tmp = i_prev;
     g_prev = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i_tmp, nullptr);
-    BLI_assert(i_tmp == i);
+    BLI_assert(i_tmp == i ||
+               /* TODO: proper handling of non UTF8 strings. */
+               (blf_str_is_utf8_valid_lazy_init(str, str_len, is_utf8_valid) == 0));
 
     if (blf_font_width_to_strlen_glyph_process(font, gc, g_prev, g, &pen_x, width)) {
       break;
@@ -1639,7 +1665,7 @@ static void blf_font_fill(FontBLF *font)
   font->clip_rec.xmax = 0;
   font->clip_rec.ymin = 0;
   font->clip_rec.ymax = 0;
-  font->flags = 0;
+  font->flags = BLF_NONE;
   font->size = 0;
   font->char_weight = 400;
   font->char_slant = 0.0f;
@@ -1959,7 +1985,6 @@ struct FaceDetails {
 
 /* Details about the fallback fonts we ship, so that we can load only when needed. */
 static const FaceDetails static_face_details[] = {
-    {"lastresort.woff2", UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX},
     {"Noto Sans CJK Regular.woff2",
      0,
      TT_UCR_CJK_SYMBOLS | TT_UCR_HIRAGANA | TT_UCR_KATAKANA | TT_UCR_BOPOMOFO | TT_UCR_CJK_MISC |

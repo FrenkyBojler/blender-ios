@@ -134,7 +134,7 @@ class Meshes : Overlay {
      * Doing so lets us distinguish back-faces from front-faces. */
     DRWState face_culling = (show_retopology_) ? DRW_STATE_CULL_BACK : DRWState(0);
 
-    GPUTexture **depth_tex = (state.xray_flag_enabled) ? &res.depth_tx : &res.dummy_depth_tx;
+    gpu::Texture **depth_tex = (state.xray_flag_enabled) ? &res.depth_tx : &res.dummy_depth_tx;
 
     {
       auto &pass = edit_mesh_prepass_ps_;
@@ -164,7 +164,7 @@ class Meshes : Overlay {
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(pass_state, state.clipping_plane_count);
 
-      auto shader_pass = [&](GPUShader *shader, const char *name) {
+      auto shader_pass = [&](gpu::Shader *shader, const char *name) {
         auto &sub = pass.sub(name);
         sub.shader_set(shader);
         sub.bind_texture("depth_tx", depth_tex);
@@ -306,7 +306,7 @@ class Meshes : Overlay {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     Object *ob = ob_ref.object;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
@@ -604,7 +604,7 @@ class MeshUVs : Overlay {
         const bool hide_faces = space_image->flag & SI_NO_DRAWFACES;
         select_face_ = !show_mesh_analysis_ && !hide_faces;
 
-        if (tool_setting->uv_flag & UV_SYNC_SELECTION) {
+        if (tool_setting->uv_flag & UV_FLAG_SYNC_SELECT) {
           const char sel_mode_3d = tool_setting->selectmode;
           if (tool_setting->uv_sticky == SI_STICKY_VERTEX) {
             /* NOTE: Ignore #SCE_SELECT_VERTEX because a single selected edge
@@ -633,10 +633,12 @@ class MeshUVs : Overlay {
     {
       /* Wireframe UV Overlay. */
       const bool show_wireframe_uv_edit = space_image->flag & SI_DRAWSHADOW;
-      const bool show_wireframe_uv_guide = !(space_image->flag & SI_NO_DRAW_UV_GUIDE);
+      const bool show_wireframe_uv_guide = !(space_image->flag & SI_NO_DRAW_UV_GUIDE) &&
+                                           (space_mode_is_paint || space_mode_is_uv);
 
       if (space_mode_is_uv && object_mode_is_edit) {
         show_wireframe_ = show_wireframe_uv_edit;
+        show_face_overlay_ = !(space_image->flag & SI_NO_DRAWFACES);
       }
       else {
         show_wireframe_ = show_wireframe_uv_guide;
@@ -682,7 +684,7 @@ class MeshUVs : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
                      DRW_STATE_BLEND_ALPHA);
 
-      GPUShader *sh = res.shaders->uv_edit_edge.get();
+      gpu::Shader *sh = res.shaders->uv_edit_edge.get();
       pass.specialize_constant(sh, "use_edge_select", select_edge_);
       pass.shader_set(sh);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
@@ -782,7 +784,7 @@ class MeshUVs : Overlay {
     const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
                                                                      CD_PROP_FLOAT2) != -1;
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     if (show_wireframe_ && has_active_object_uvmap) {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(*ob, mesh);
@@ -815,7 +817,7 @@ class MeshUVs : Overlay {
                                                               &mesh.runtime->edit_mesh->bm->ldata,
                                                               CD_PROP_FLOAT2) != -1);
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     if (has_active_edit_uvmap && is_uv_editable) {
       if (show_uv_edit_) {
@@ -1084,7 +1086,8 @@ class MeshUVs : Overlay {
     BKE_maskrasterize_handle_free(handle);
 
     mask_texture_.free();
-    mask_texture_.ensure_2d(GPU_R16F, int2(width, height), GPU_TEXTURE_USAGE_SHADER_READ, buffer);
+    mask_texture_.ensure_2d(
+        gpu::TextureFormat::SFLOAT_16, int2(width, height), GPU_TEXTURE_USAGE_SHADER_READ, buffer);
 
     MEM_freeN(buffer);
   }
