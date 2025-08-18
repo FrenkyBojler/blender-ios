@@ -427,11 +427,6 @@ ListBase *active_seqbase_get(const Editing *ed)
   return ed->current_strips();
 }
 
-void active_seqbase_set(Editing *ed, Strip *meta_strip)
-{
-  ed->current_meta_strip = meta_strip;
-}
-
 static MetaStack *seq_meta_stack_alloc(const Scene *scene, Strip *strip_meta)
 {
   Editing *ed = editing_get(scene);
@@ -471,13 +466,10 @@ void meta_stack_set(const Scene *scene, Strip *dst)
       seq_meta_stack_alloc(scene, meta_parent);
     }
 
-    active_seqbase_set(ed, dst);
-    channels_displayed_set(ed, dst);
+    ed->current_meta_strip = dst;
   }
   else {
-    /* Go to top level, exiting meta strip. */
-    active_seqbase_set(ed, nullptr);
-    channels_displayed_set(ed, nullptr);
+    ed->current_meta_strip = nullptr;
   }
 }
 
@@ -485,8 +477,7 @@ Strip *meta_stack_pop(Editing *ed)
 {
   MetaStack *ms = meta_stack_active_get(ed);
   Strip *meta_parent = ms->parent_strip;
-  active_seqbase_set(ed, ms->old_strip);
-  channels_displayed_set(ed, ms->old_strip);
+  ed->current_meta_strip = ms->old_strip;
   BLI_remlink(&ed->metastack, ms);
   MEM_freeN(ms);
   return meta_parent;
@@ -1174,16 +1165,16 @@ ListBase *Editing::current_strips() const
 
 ListBase *Editing::current_channels()
 {
-  if (this->current_channels_strip) {
-    return &this->current_channels_strip->channels;
+  if (this->current_meta_strip) {
+    return &this->current_meta_strip->channels;
   }
   return &this->channels;
 }
 
 ListBase *Editing::current_channels() const
 {
-  if (this->current_channels_strip) {
-    return &this->current_channels_strip->channels;
+  if (this->current_meta_strip) {
+    return &this->current_meta_strip->channels;
   }
   /* NOTE: Const correctness is non-existent with ListBase anyway. */
   return &const_cast<ListBase &>(this->channels);
