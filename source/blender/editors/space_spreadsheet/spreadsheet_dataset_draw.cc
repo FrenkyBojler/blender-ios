@@ -1002,27 +1002,54 @@ std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
 
 class BundleItem;
 
+struct ViewerBundlePath {
+  int viewer_item;
+  Vector<StringRef> bundles;
+  BLI_STRUCT_EQUALITY_OPERATORS_2(ViewerBundlePath, viewer_item, bundles);
+
+  ViewerBundlePath() = default;
+  explicit ViewerBundlePath(const SpreadsheetTableIDGeometry &table_id)
+      : viewer_item(table_id.viewer_item_identifier)
+  {
+    for (const auto &elem : Span(table_id.bundle_path, table_id.bundle_path_num)) {
+      this->bundles.append(elem.identifier);
+    }
+  }
+
+  void store(SpreadsheetTableIDGeometry &table_id)
+  {
+    table_id.viewer_item_identifier = this->viewer_item;
+    if (table_id.bundle_path) {
+      MEM_freeN(table_id.bundle_path);
+    }
+    table_id.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(this->bundles.size(),
+                                                                        __func__);
+    table_id.bundle_path_num = this->bundles.size();
+    for (const int i : this->bundles.index_range()) {
+      table_id.bundle_path[i].identifier = BLI_strdupn(this->bundles[i].data(),
+                                                       this->bundles[i].size());
+    }
+  }
+};
+
 class ViewerNodeItem : public ui::AbstractTreeViewItem {
  private:
-  int identifier_;
+  const nodes::geo_eval_log::ViewerNodeLog::Item &item_;
 
   friend BundleItem;
 
  public:
-  ViewerNodeItem(const nodes::geo_eval_log::ViewerNodeLog::Item &item)
-      : identifier_(item.identifier)
-  {
-    // TODO: NAME
-    // label_ = item.name;
-  }
+  ViewerNodeItem(const nodes::geo_eval_log::ViewerNodeLog::Item &item) : item_(item) {}
 
   void build_row(uiLayout &row) override
   {
-    row.label(std::to_string(identifier_), ICON_NONE);
+    row.label(item_.name, ICON_NONE);
   }
 
   void on_activate(bContext &C) override;
   std::optional<bool> should_be_active() const override;
+
+  ViewerBundlePath get_path() const;
 };
 
 class BundleItem : public ui::AbstractTreeViewItem {
@@ -1041,6 +1068,8 @@ class BundleItem : public ui::AbstractTreeViewItem {
 
   void on_activate(bContext &C) override;
   std::optional<bool> should_be_active() const override;
+
+  ViewerBundlePath get_path() const;
 };
 
 class ViewerDataTreeView : public ui::AbstractTreeView {
@@ -1061,24 +1090,55 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
   {
     const nodes::geo_eval_log::ViewerNodeLog *log = viewer_node_log_lookup(sspreadsheet_);
     for (const nodes::geo_eval_log::ViewerNodeLog::Item &item : log->items) {
-      this->add_tree_item<ViewerNodeItem>(item);
+      auto &child_item = this->add_tree_item<ViewerNodeItem>(item);
+      const bke::SocketValueVariant &value = item.value;
+      if (!value.is_single()) {
+        continue;
+      }
+      const GPointer single_value = value.get_single_ptr();
+      if (!single_value.is_type<nodes::BundlePtr>()) {
+        continue;
+      }
+      const nodes::BundlePtr &bundle_ptr = *single_value.get<nodes::BundlePtr>();
+      this->build_bundle(child_item, *bundle_ptr);
     }
   }
 
   void build_bundle(ui::AbstractTreeViewItem &parent, const nodes::Bundle &bundle)
   {
     for (const nodes::Bundle::StoredItem &item : bundle.items()) {
-      parent.add_tree_item<BundleItem>(item.key);
+      auto &child_item = parent.add_tree_item<BundleItem>(item.key);
+      const auto *stored_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value);
+      if (!stored_value) {
+        continue;
+      }
+      const bke::SocketValueVariant &value = stored_value->value;
+      if (!value.is_single()) {
+        continue;
+      }
+      const GPointer single_value = value.get_single_ptr();
+      if (!single_value.is_type<nodes::BundlePtr>()) {
+        continue;
+      }
+      const nodes::BundlePtr &bundle_ptr = *single_value.get<nodes::BundlePtr>();
+      this->build_bundle(child_item, *bundle_ptr);
     }
   }
 };
+
+ViewerBundlePath ViewerNodeItem::get_path() const
+{
+  ViewerBundlePath path;
+  path.viewer_item = item_.identifier;
+  return path;
+}
 
 void ViewerNodeItem::on_activate(bContext & /*C*/)
 {
   const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
   SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
   SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
-  table_id.viewer_item_identifier = identifier_;
+  this->get_path().store(table_id);
   WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 }
 
@@ -1087,11 +1147,23 @@ std::optional<bool> ViewerNodeItem::should_be_active() const
   const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
   const SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
   const SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
-  // TODO: nullopt if it's a bundle and can't be active on its own.
-  if (table_id.bundle_path_num != 0) {
-    return false;
-  }
-  return table_id.viewer_item_identifier == identifier_;
+  return ViewerBundlePath(table_id) == this->get_path();
+}
+
+ViewerBundlePath BundleItem::get_path() const
+{
+  ViewerBundlePath path;
+  this->foreach_parent([&](const ui::AbstractTreeViewItem &item) {
+    if (const auto *viewer_node_item = dynamic_cast<const ViewerNodeItem *>(&item)) {
+      path.viewer_item = viewer_node_item->item_.identifier;
+    }
+    else if (const auto *bundle_item = dynamic_cast<const BundleItem *>(&item)) {
+      path.bundles.append(bundle_item->key_);
+    }
+  });
+  path.bundles.append(key_);
+  path.bundles.as_mutable_span().reverse();
+  return path;
 }
 
 void BundleItem::on_activate(bContext & /*C*/)
@@ -1099,25 +1171,7 @@ void BundleItem::on_activate(bContext & /*C*/)
   const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
   SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
   SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
-  Vector<std::string> identifiers;
-  this->foreach_parent([&](const ui::AbstractTreeViewItem &item) {
-    if (const auto *viewer_node_item = dynamic_cast<const ViewerNodeItem *>(&item)) {
-      table_id.viewer_item_identifier = viewer_node_item->identifier_;
-    }
-    else if (const auto *bundle_item = dynamic_cast<const BundleItem *>(&item)) {
-      identifiers.append(bundle_item->key_);
-    }
-  });
-  identifiers.as_mutable_span().reverse();
-  if (table_id.bundle_path) {
-    MEM_freeN(table_id.bundle_path);
-  }
-  table_id.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(identifiers.size(),
-                                                                      __func__);
-  table_id.bundle_path_num = identifiers.size();
-  for (const int i : identifiers.index_range()) {
-    table_id.bundle_path[i].identifier = BLI_strdupn(identifiers[i].data(), identifiers[i].size());
-  }
+  this->get_path().store(table_id);
   WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 }
 
@@ -1126,33 +1180,8 @@ std::optional<bool> BundleItem::should_be_active() const
   const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
   const SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
   const SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
-
-  int viewer_item_identifier = 0;
-  Vector<std::string> identifiers;
-  this->foreach_parent([&](const ui::AbstractTreeViewItem &item) {
-    if (const auto *viewer_node_item = dynamic_cast<const ViewerNodeItem *>(&item)) {
-      viewer_item_identifier = viewer_node_item->identifier_;
-    }
-    else if (const auto *bundle_item = dynamic_cast<const BundleItem *>(&item)) {
-      identifiers.append(bundle_item->key_);
-    }
-  });
-  identifiers.as_mutable_span().reverse();
-
-  if (table_id.viewer_item_identifier != viewer_item_identifier) {
-    return false;
-  }
-  if (identifiers.size() != table_id.bundle_path_num) {
-    return false;
-  }
-  for (const int i : identifiers.index_range()) {
-    if (table_id.bundle_path[i].identifier != identifiers[i]) {
-      return false;
-    }
-  }
-
   // TODO: nullopt if it's a bundle and can't be active on its own.
-  return true;
+  return ViewerBundlePath(table_id) == this->get_path();
 }
 
 static void draw_context_panel_without_context(uiLayout &layout)
@@ -1204,9 +1233,9 @@ static void draw_context_panel_content(const bContext &C, uiLayout &layout)
   {
     uiBlock *block = layout.block();
     ui::AbstractTreeView *tree_view = UI_block_add_view(
-        *block, "Viewer Data", std::make_unique<ViewerPathTreeView>(C));
+        *block, "Viewer Data", std::make_unique<ViewerDataTreeView>(C));
     tree_view->set_context_menu_title("Viewer Data");
-    ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
+    ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, false);
     if (uiLayout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
       draw_viewer_path_panel(C, *panel);
     }

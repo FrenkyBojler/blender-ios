@@ -242,6 +242,7 @@ class ViewerNodeLog {
  public:
   struct Item {
     int identifier;
+    StringRef name;
     bke::SocketValueVariant value;
   };
 
