@@ -40,10 +40,6 @@
 
 namespace blender::ed::greasepencil {
 
-/* Used to scale the default select distance. */
-constexpr float selection_distance_factor = 0.9f;
-constexpr float selection_distance_factor_edge = 0.5f;
-
 /* Total number of curve handle types. */
 constexpr int CURVE_HANDLE_TYPES_NUM = 4;
 
