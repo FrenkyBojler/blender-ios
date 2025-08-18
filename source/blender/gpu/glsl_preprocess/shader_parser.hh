@@ -103,6 +103,7 @@ enum TokenType : char {
   Decrement = 'D',
   Private = 'v',
   Public = 'V',
+  Enum = 'M',
 };
 
 enum class ScopeType : char {
