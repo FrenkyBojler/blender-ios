@@ -12,6 +12,8 @@
 
 #include <climits>
 
+#include "BLI_timeit.hh"
+
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
@@ -1250,17 +1252,125 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           MutableSpan<float3> r_corner_normals,
                           std::optional<bool> has_no_loos_verts)
 {
+  SCOPED_TIMER_AVERAGED(AT);
   threading::EnumerableThreadSpecific<Vector<CornerSpaceGroup, 0>> space_groups;
 
+  if (has_no_loos_verts.value_or(false) &&
+      vert_to_face_map.offsets[vert_positions.index_range()].size() == vert_positions.size())
+  {
+    const bool need_custom_normals = !custom_normals.is_empty() || r_fan_spaces;
+
+    BLI_assert(std::all_of(vert_to_face_map.begin(),
+                           vert_to_face_map.end(),
+                           [&](const Span<int> faces) { return faces.size() == 1; }));
+
+    if (!need_custom_normals) {
+      threading::parallel_for(corner_verts.index_range(), 2048, [&](const IndexRange range) {
+        for (const int corner : range) {
+          const int vert = corner_verts[corner];
+          const int face = vert_to_face_map[vert].first();
+          r_corner_normals[corner] = face_normals[face];
+        }
+      });
+      return;
+    }
+
+    Vector<CornerSpaceGroup, 0> *local_space_groups = r_fan_spaces ? &space_groups.local() :
+                                                                     nullptr;
+    if (r_fan_spaces) {
+      local_space_groups->resize(corner_verts.size());
+    }
+
+    threading::parallel_for(corner_verts.index_range(), 2048, [&](const IndexRange range) {
+      for (const int corner : range) {
+        const int vert = corner_verts[corner];
+        const int face = vert_to_face_map[vert].first();
+        const int corner_prev = face_corner_prev(faces[face], corner);
+        const int corner_next = face_corner_next(faces[face], corner);
+
+        const float3 prev_edge_dir = math::normalize(vert_positions[corner_verts[corner_prev]] -
+                                                     vert_positions[vert]);
+        const float3 next_edge_dir = math::normalize(vert_positions[corner_verts[corner_next]] -
+                                                     vert_positions[vert]);
+
+        const CornerNormalSpace fan_space = corner_fan_space_define(
+            face_normals[face], prev_edge_dir, next_edge_dir, {});
+
+        if (!custom_normals.is_empty()) {
+          r_corner_normals[corner] = corner_space_custom_data_to_normal(fan_space,
+                                                                        custom_normals[corner]);
+        }
+        else {
+          r_corner_normals[corner] = face_normals[face];
+        }
+
+        if (r_fan_spaces) {
+          (*local_space_groups)[corner] = {{corner}, fan_space};
+        }
+      }
+    });
+
+    return;
+  }
+
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
+    const bool need_custom_normals = !custom_normals.is_empty() || r_fan_spaces;
+
+    Vector<CornerSpaceGroup, 0> *local_space_groups = r_fan_spaces ? &space_groups.local() :
+                                                                     nullptr;
+
     if (has_no_loos_verts.value_or(false) &&
         vert_to_face_map.offsets[range].size() == range.size())
     {
       BLI_assert(std::all_of(range.begin(), range.end(), [&](const int64_t i) {
-        return !vert_to_face_map[i].is_empty();
+        return vert_to_face_map[i].size() == 1;
       }));
 
-      // return;
+      if (!need_custom_normals) {
+        for (const int vert : range) {
+          const int face = vert_to_face_map[vert].first();
+          const int corner = face_find_corner_from_vert(faces[face], corner_verts, vert);
+          r_corner_normals[corner] = face_normals[face];
+        }
+        return;
+      }
+
+      const int start_local_space_index = local_space_groups != nullptr ?
+                                              local_space_groups->size() :
+                                              -1;
+      if (r_fan_spaces) {
+        local_space_groups->resize(local_space_groups->size() + range.size());
+      }
+
+      for (const int vert : range) {
+        const int face = vert_to_face_map[vert].first();
+        const int corner = face_find_corner_from_vert(faces[face], corner_verts, vert);
+        const int corner_prev = face_corner_prev(faces[face], corner);
+        const int corner_next = face_corner_next(faces[face], corner);
+
+        const float3 prev_edge_dir = math::normalize(vert_positions[corner_verts[corner_prev]] -
+                                                     vert_positions[vert]);
+        const float3 next_edge_dir = math::normalize(vert_positions[corner_verts[corner_next]] -
+                                                     vert_positions[vert]);
+
+        const CornerNormalSpace fan_space = corner_fan_space_define(
+            face_normals[face], prev_edge_dir, next_edge_dir, {});
+
+        if (!custom_normals.is_empty()) {
+          r_corner_normals[corner] = corner_space_custom_data_to_normal(fan_space,
+                                                                        custom_normals[corner]);
+        }
+        else {
+          r_corner_normals[corner] = face_normals[face];
+        }
+
+        if (r_fan_spaces) {
+          (*local_space_groups)[start_local_space_index + vert - range.start()] = {{corner},
+                                                                                   fan_space};
+        }
+      }
+
+      return;
     }
 
     Vector<VertCornerInfo, 16> corner_infos;
@@ -1269,9 +1379,6 @@ void normals_calc_corners(const Span<float3> vert_positions,
     Vector<float3, 16> edge_dirs;
     Vector<bool, 16> local_corner_visited;
     Vector<int, 16> corners_in_fan;
-
-    Vector<CornerSpaceGroup, 0> *local_space_groups = r_fan_spaces ? &space_groups.local() :
-                                                                     nullptr;
 
     for (const int vert : range) {
       const float3 vert_position = vert_positions[vert];
