@@ -3132,8 +3132,7 @@ static void do_version_blur_defocus_nodes_remove_gamma(bNodeTree *node_tree)
       continue;
     }
 
-    bNode *gamma_node = blender::bke::node_add_static_node(
-        nullptr, *node_tree, SH_NODE_GAMMA);
+    bNode *gamma_node = blender::bke::node_add_static_node(nullptr, *node_tree, SH_NODE_GAMMA);
     gamma_node->parent = link->tonode->parent;
     gamma_node->location[0] = link->tonode->location[0] - link->tonode->width - 20.0f;
     gamma_node->location[1] = link->tonode->location[1];
@@ -3167,8 +3166,7 @@ static void do_version_blur_defocus_nodes_remove_gamma(bNodeTree *node_tree)
       continue;
     }
 
-    bNode *gamma_node = blender::bke::node_add_static_node(
-        nullptr, *node_tree, SH_NODE_GAMMA);
+    bNode *gamma_node = blender::bke::node_add_static_node(nullptr, *node_tree, SH_NODE_GAMMA);
     gamma_node->parent = link->fromnode->parent;
     gamma_node->location[0] = link->fromnode->location[0] + link->fromnode->width + 20.0f;
     gamma_node->location[1] = link->fromnode->location[1];
