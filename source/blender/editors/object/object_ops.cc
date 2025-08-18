@@ -36,9 +36,6 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_transform_apply);
   WM_operatortype_append(OBJECT_OT_parent_inverse_apply);
   WM_operatortype_append(OBJECT_OT_transform_axis_target);
-  WM_operatortype_append(OBJECT_OT_light_normal_positioning);
-  WM_operatortype_append(OBJECT_OT_light_reflection_positioning);
-  WM_operatortype_append(OBJECT_OT_light_shadow_positioning);
   WM_operatortype_append(OBJECT_OT_origin_set);
 
   WM_operatortype_append(OBJECT_OT_mode_set);

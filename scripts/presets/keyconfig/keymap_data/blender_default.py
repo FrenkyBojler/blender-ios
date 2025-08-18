@@ -1832,12 +1832,6 @@ def km_view3d(params):
             op_tool_cycle("builtin.select_box", {"type": 'W', "value": 'PRESS'}),
         ])
 
-    # Tool activation
-    items.extend([
-        ("wm.tool_set_by_id", {"type": 'ONE', "value": 'PRESS'}, {"properties": [("name", "builtin.light_normal_positioning")]}),
-        ("wm.tool_set_by_id", {"type": 'TWO', "value": 'PRESS'}, {"properties": [("name", "builtin.light_reflection_positioning")]}),
-        ("wm.tool_set_by_id", {"type": 'THREE', "value": 'PRESS'}, {"properties": [("name", "builtin.light_shadow_positioning")]}),
-    ])
 
     return keymap
 
@@ -7322,34 +7316,6 @@ def km_3d_view_tool_move(params):
     )
 
 
-def km_3d_view_tool_light_normal_positioning(params):
-    return (
-        "3D View Tool: Light Normal Positioning",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": [
-            ("OBJECT_OT_light_normal_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
-        ]},
-    )
-
-
-def km_3d_view_tool_light_reflection_positioning(params):
-    return (
-        "3D View Tool: Light Reflection Positioning",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": [
-            ("OBJECT_OT_light_reflection_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
-        ]},
-    )
-
-
-def km_3d_view_tool_light_shadow_positioning(params):
-    return (
-        "3D View Tool: Light Shadow Positioning",
-        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": [
-            ("OBJECT_OT_light_shadow_positioning", {"type": params.tool_mouse, "value": 'PRESS'}, None),
-        ]},
-    )
 
 
 def km_3d_view_tool_rotate(params):
@@ -8791,9 +8757,6 @@ def generate_keymaps(params=None):
         *(km_3d_view_tool_select_lasso(params, fallback=fallback) for fallback in (False, True)),
         km_3d_view_tool_transform(params),
         km_3d_view_tool_move(params),
-        km_3d_view_tool_light_normal_positioning(params),
-        km_3d_view_tool_light_reflection_positioning(params),
-        km_3d_view_tool_light_shadow_positioning(params),
         km_3d_view_tool_rotate(params),
         km_3d_view_tool_scale(params),
         km_3d_view_tool_shear(params),

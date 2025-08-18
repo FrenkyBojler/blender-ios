@@ -421,47 +421,6 @@ class _defs_transform:
             draw_settings=draw_settings,
         )
 
-class _defs_light_positioning:
-    # @staticmethod
-    # def light_context_visibility(context):
-    #     """Check if active object is a light to dertmine tool visibility"""
-    #     return active_object is not None and active_object.type == "LIGHT"
-
-    @ToolDef.from_fn
-    def light_normal_positioning():
-        return dict(
-            idname="builtin.light_normal_positioning",
-            label="Light Normal Positioning",
-            description="Interactively position a light based on surface normals using mouse raycast",
-            icon="LIGHT",
-            cursor='CROSS',
-            operator="OBJECT_OT_light_normal_positioning",
-            keymap="3D View Tool: Light Normal Positioning",
-        )
-
-    @ToolDef.from_fn
-    def light_reflection_positioning():        
-        return dict(
-            idname="builtin.light_reflection_positioning",
-            label="Light Reflection Positioning",
-            description="Interactively position a light based on specular reflection using mouse raycast",
-            icon="LIGHT",
-            cursor='CROSS',
-            operator="OBJECT_OT_light_reflection_positioning",
-            keymap="3D View Tool: Light Reflection Positioning",
-        )
-
-    @ToolDef.from_fn
-    def light_shadow_positioning():        
-        return dict(
-            idname="builtin.light_shadow_positioning",
-            label="Light Shadow Positioning",
-            description="Interactively position a light for shadow casting (two-step process)",
-            icon="LIGHT",
-            cursor='CROSS',
-            operator="OBJECT_OT_light_shadow_positioning",
-            keymap="3D View Tool: Light Shadow Positioning",
-        )
 
 
 class _defs_view3d_select:
@@ -3614,9 +3573,6 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             _tools_view3d_add,
             None,
-            _defs_light_positioning.light_normal_positioning,
-            _defs_light_positioning.light_reflection_positioning,
-            _defs_light_positioning.light_shadow_positioning,
         ],
         'POSE': [
             *_tools_default,

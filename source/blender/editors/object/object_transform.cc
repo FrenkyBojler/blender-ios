@@ -2185,6 +2185,44 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   xfd->is_translate = false;
 
   xfd->init_event = WM_userdef_event_type_from_keymap_type(event->type);
+  
+  /* Initialize light positioning */
+  xfd->light_mode = LIGHT_POSITION_NORMAL;
+  xfd->is_light_positioning = object_is_target_compat(xfd->vc.obact);
+  zero_v3(xfd->shadow_target_location);
+  xfd->shadow_target_set = false;
+  
+  /* Calculate initial offset distance from current light position */
+  float calculated_distance = 0.0f;
+  bool distance_calculated = false;
+  
+  if (xfd->is_light_positioning && xfd->depths && 
+      (uint(event->mval[0]) < xfd->depths->w) && (uint(event->mval[1]) < xfd->depths->h)) {
+    
+    float depth_fl = 1.0f;
+    ED_view3d_depth_read_cached(xfd->depths, event->mval, 0, &depth_fl);
+    
+    if (depth_fl != 1.0f) {
+      double depth = double(depth_fl);
+      if ((depth > xfd->depths->depth_range[0]) && (depth < xfd->depths->depth_range[1])) {
+        float mouse_world_pos[3];
+        if (ED_view3d_depth_unproject_v3(xfd->vc.region, event->mval, depth, mouse_world_pos)) {
+          float distance_vec[3];
+          sub_v3_v3v3(distance_vec, xfd->vc.obact->object_to_world().location(), mouse_world_pos);
+          calculated_distance = len_v3(distance_vec);
+          if (calculated_distance >= 0.1f) {
+            xfd->light_offset_distance = calculated_distance;
+            distance_calculated = true;
+          }
+        }
+      }
+    }
+  }
+  
+  /* If we couldn't calculate the real distance, use simple fallback */
+  if (!distance_calculated) {
+    xfd->light_offset_distance = 5.0f; /* Simple fallback for all cases (Arbritrary value) */
+  }
 
   xfd->object_data.append({});
   xfd->object_data.last().ob = xfd->vc.obact;
@@ -2221,10 +2259,61 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
   view3d_operator_needs_gpu(C);
 
+  /* Handle light positioning mode changes for light objects 
+   * Key mapping:
+   * - Default: Target mode (rotation to cursor) 
+   * - CTRL: Normal mode (translate along surface normal)
+   * - CTRL+ALT: Reflection mode (optimal reflection positioning)
+   * - ALT: Shadow mode (place target, then position light for shadows)
+   */
+  if (xfd->is_light_positioning) {
+    LightPositioningMode modal_mode = LIGHT_POSITION_NORMAL;
+    
+    if ((event->modifier & KM_CTRL) && (event->modifier & KM_ALT)) {
+      modal_mode = LIGHT_POSITION_REFLECTION;
+    }
+    else if (event->modifier & KM_ALT) {
+      modal_mode = LIGHT_POSITION_SHADOW;
+    }
+    
+    /* Handle shadow mode activation - set target on first ALT press */
+    if (modal_mode == LIGHT_POSITION_SHADOW && xfd->light_mode != LIGHT_POSITION_SHADOW) {
+      if (!xfd->shadow_target_set) {
+        /* Place shadow target at current mouse position */
+        const ViewDepths *depths = xfd->depths;
+        if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
+          float depth_fl = 1.0f;
+          ED_view3d_depth_read_cached(depths, event->mval, 0, &depth_fl);
+          if (xfd->prev.is_depth_valid && depth_fl == 1.0f) {
+            depth_fl = xfd->prev.depth;
+          }
+          double depth = double(depth_fl);
+          if ((depth > depths->depth_range[0]) && (depth < depths->depth_range[1])) {
+            float target_location[3];
+            if (ED_view3d_depth_unproject_v3(xfd->vc.region, event->mval, depth, target_location)) {
+              copy_v3_v3(xfd->shadow_target_location, target_location);
+              xfd->shadow_target_set = true;
+            }
+          }
+        }
+      }
+    }
+    else if (modal_mode != LIGHT_POSITION_SHADOW) {
+      /* Reset shadow target when exiting shadow mode */
+      xfd->shadow_target_set = false;
+    }
+    
+
+    xfd->light_mode = modal_mode;
+  }
+
   const bool is_translate = event->modifier & KM_CTRL;
   const bool is_translate_init = is_translate && (xfd->is_translate != is_translate);
+  
+  /* Handle ALT-only shadow mode for light objects */
+  const bool is_light_shadow_mode = xfd->is_light_positioning && (event->modifier & KM_ALT) && !(event->modifier & KM_CTRL);
 
-  if (event->type == MOUSEMOVE || is_translate_init) {
+  if (event->type == MOUSEMOVE || is_translate_init || is_light_shadow_mode) {
     const ViewDepths *depths = xfd->depths;
     if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
       float depth_fl = 1.0f;
@@ -2253,7 +2342,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
         xfd->prev.depth = depth_fl;
         xfd->prev.is_depth_valid = true;
         if (ED_view3d_depth_unproject_v3(region, event->mval, depth, location_world)) {
-          if (is_translate) {
+          if (is_translate || is_light_shadow_mode) {
 
             float normal[3];
             bool normal_found = false;
@@ -2265,7 +2354,98 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
               normal_found = true;
             }
 
-            {
+            /* Handle special light positioning modes (reflection and shadow) */
+            if (xfd->is_light_positioning && normal_found && 
+                (xfd->light_mode == LIGHT_POSITION_REFLECTION || xfd->light_mode == LIGHT_POSITION_SHADOW)) {
+              for (XFormAxisItem &item : xfd->object_data) {
+                if (!object_is_target_compat(item.ob)) {
+                  continue; /* Skip non-light objects */
+                }
+                
+                /* The offset distance is consistent throughout the modal execution.
+                 * It's calculated once at initialization and only changes with Z-axis adjustment. */
+
+                float final_location[3];
+                float final_normal[3];
+                
+                switch (xfd->light_mode) {
+                  case LIGHT_POSITION_REFLECTION:
+                    /* Reflection positioning: calculate reflection direction */
+                    {
+                      float view_dir[3];
+                      ED_view3d_win_to_vector(xfd->vc.region, (float[]){float(event->mval[0]), float(event->mval[1])}, view_dir);
+                      normalize_v3(view_dir);
+                      
+                      /* Calculate reflection direction using Blender's reflect function */
+                      float reflected_dir[3];
+                      reflect_v3_v3v3(reflected_dir, view_dir, normal);
+                      
+                      copy_v3_v3(final_location, location_world);
+                      madd_v3_v3fl(final_location, reflected_dir, xfd->light_offset_distance);
+                      copy_v3_v3(final_normal, reflected_dir);
+                    }
+                    break;
+                    
+                  case LIGHT_POSITION_SHADOW:
+                    /* Shadow positioning: position light to cast shadows from target */
+                    if (xfd->shadow_target_set) {
+                      float direction_to_target[3];
+                      sub_v3_v3v3(direction_to_target, xfd->shadow_target_location, location_world);
+                      normalize_v3(direction_to_target);
+                      
+                      copy_v3_v3(final_location, xfd->shadow_target_location);
+                      madd_v3_v3fl(final_location, direction_to_target, xfd->light_offset_distance);
+                      copy_v3_v3(final_normal, direction_to_target);
+                    }
+                    else {
+                      /* Fallback to normal mode if shadow target not set */
+                      copy_v3_v3(final_normal, normal);
+                      copy_v3_v3(final_location, location_world);
+                      madd_v3_v3fl(final_location, final_normal, xfd->light_offset_distance);
+                    }
+                    break;
+                    
+                  default:
+                    /* Should not reach here since we filter the modes above */
+                    copy_v3_v3(final_normal, normal);
+                    copy_v3_v3(final_location, location_world);
+                    madd_v3_v3fl(final_location, final_normal, xfd->light_offset_distance);
+                    break;
+                }
+
+                /* Apply the position and orientation */
+                object_apply_location(item.ob, final_location);
+                copy_v3_v3(item.ob->runtime->object_to_world.location(), final_location);
+                
+                /* Orient light toward the target */
+                float target_location[3];
+                switch (xfd->light_mode) {
+                  case LIGHT_POSITION_SHADOW:
+                    if (xfd->shadow_target_set) {
+                      copy_v3_v3(target_location, xfd->shadow_target_location);
+                    }
+                    else {
+                      copy_v3_v3(target_location, location_world);
+                    }
+                    break;
+                  default:
+                    copy_v3_v3(target_location, location_world);
+                    break;
+                }
+
+                object_orient_to_location(item.ob, item.rot_mat, item.rot_mat[2], target_location, item.is_z_flip);
+                
+                DEG_id_tag_update(&item.ob->id, ID_RECALC_TRANSFORM);
+                WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, item.ob);
+              }
+              
+              if (normal_found) {
+                copy_v3_v3(xfd->prev.normal, normal);
+                xfd->prev.is_normal_valid = true;
+              }
+            }
+            else {
+              /* Original non-light positioning logic */
 #ifdef USE_RELATIVE_ROTATION
               if (is_translate_init && xfd->object_data.size() > 1) {
                 float xform_rot_offset_inv_first[3][3];
@@ -2289,14 +2469,20 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
               for (const int i : xfd->object_data.index_range()) {
                 XFormAxisItem &item = xfd->object_data[i];
                 if (is_translate_init) {
-                  float ob_axis[3];
-                  item.xform_dist = len_v3v3(item.ob->object_to_world().location(),
-                                             location_world);
-                  normalize_v3_v3(ob_axis, item.ob->object_to_world().ptr()[2]);
-                  /* Scale to avoid adding distance when moving between surfaces. */
-                  if (normal_found) {
-                    float scale = fabsf(dot_v3v3(ob_axis, normal));
-                    item.xform_dist *= scale;
+                  /* For light positioning, use the fixed offset distance to maintain consistency */
+                  if (xfd->is_light_positioning && object_is_target_compat(item.ob)) {
+                    item.xform_dist = xfd->light_offset_distance;
+                  }
+                  else {
+                    float ob_axis[3];
+                    item.xform_dist = len_v3v3(item.ob->object_to_world().location(),
+                                               location_world);
+                    normalize_v3_v3(ob_axis, item.ob->object_to_world().ptr()[2]);
+                    /* Scale to avoid adding distance when moving between surfaces. */
+                    if (normal_found) {
+                      float scale = fabsf(dot_v3v3(ob_axis, normal));
+                      item.xform_dist *= scale;
+                    }
                   }
                 }
 
@@ -2320,7 +2506,10 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                   float loc[3];
 
                   copy_v3_v3(loc, location_world);
-                  madd_v3_v3fl(loc, target_normal, item.xform_dist);
+                  /* For light positioning, use the fixed offset distance to maintain consistency */
+                  float offset_distance = (xfd->is_light_positioning && object_is_target_compat(item.ob)) ? 
+                                         xfd->light_offset_distance : item.xform_dist;
+                  madd_v3_v3fl(loc, target_normal, offset_distance);
                   object_apply_location(item.ob, loc);
                   /* so orient behaves as expected */
                   copy_v3_v3(item.ob->runtime->object_to_world.location(), loc);
@@ -2336,7 +2525,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                 copy_v3_v3(xfd->prev.normal, normal);
                 xfd->prev.is_normal_valid = true;
               }
-            }
+            } /* End of original positioning logic */
           }
           else {
             for (XFormAxisItem &item : xfd->object_data) {
@@ -2419,1025 +2608,6 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 }
 
 #undef USE_RELATIVE_ROTATION
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Light Normal Positioning Modal Operator
- * \{ */
-
-/* Shadow positioning stages */
-enum ShadowPositioningStage {
-  SHADOW_STAGE_TARGET = 0,  /* Hold click: place target */
-  SHADOW_STAGE_LIGHT = 1,   /* Continue holding: position light */
-};
-
-/** 
- * Unified data structure for all light positioning operators.
- */
-struct LightPositioningData {
-  /** Light object being positioned. */
-  Object *light_ob;
-  /** Mouse position. x, y value */
-  int mval[2];
-  /** Snap context for raycasting. */
-  blender::ed::transform::SnapObjectContext *snap_context;
-  /** Dependency graph. */
-  Depsgraph *depsgraph;
-  /** View3D context. */
-  View3D *v3d;
-  /** 3D region. */
-  ARegion *region;
-  /** Region view 3D. */
-  RegionView3D *rv3d;
-  /** Timer for updates. */
-  wmTimer *timer;
-  /** Current offset distance from surface. */
-  float offset_distance;
-  /** Whether Z-axis adjustment mode is active. */
-  bool z_adjust_mode;
-  /** Initial mouse X position when Z adjustment started. */
-  int z_adjust_initial_mval_x;
-  /** Light position when Z adjustment started. */
-  float z_adjust_initial_light_pos[3];
-  /** Light local Z direction when Z adjustment started. */
-  float light_local_z[3];
-  /** Whether operator is active (left mouse held). */
-  bool is_active;
-  /** Interpolated normal for smooth positioning. */
-  float interpolated_normal[3];
-  /** Previous hit normal for interpolation (used by normal positioning). */
-  float prev_normal[3];
-  /** Whether this is the first hit. */
-  bool first_hit;
-  /** View context for depth/normal access. */
-  ViewContext vc;
-  /** Depths for normal smoothing. */
-  ViewDepths *depths;
-  /** Whether reflection mode is active (CTRL key held). */
-  bool reflection_mode;
-  
-  /* Shadow positioning specific fields */
-  /** Target location (3D position for shadow calculations). */
-  float target_location[3];
-  /** Current stage of operation. */
-  ShadowPositioningStage stage;
-};
-
-
-/**
- * Perform raycast and snap for light positioning.
- * Common utility shared between normal and reflection positioning.
- */
-static bool light_positioning_raycast(const LightPositioningData *lpd,
-                                    const int mval[2],
-                                    float r_hit_location[3],
-                                    float r_hit_normal[3])
-{
-  float ray_start[3], ray_normal[3];
-  float mval_fl[2] = {float(mval[0]), float(mval[1])};
-  
-  ED_view3d_win_to_ray(lpd->region, mval_fl, ray_start, ray_normal);
-
-  /* Enhanced snap parameters */
-  blender::ed::transform::SnapObjectParams snap_params = {};
-  snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
-  snap_params.edit_mode_type = blender::ed::transform::SNAP_GEOM_FINAL;
-
-  return blender::ed::transform::snap_object_project_ray(lpd->snap_context,
-                                                        lpd->depsgraph,
-                                                        lpd->v3d,
-                                                        &snap_params,
-                                                        ray_start,
-                                                        ray_normal,
-                                                        nullptr,
-                                                        r_hit_location,
-                                                        r_hit_normal);
-}
-
-/**
- * Handle Z-axis adjustment mode for light positioning.
- * Common utility shared between all light positioning modes.
- */
-static void light_positioning_z_adjust(LightPositioningData *lpd)
-{
-  float mouse_delta_x = float(lpd->mval[0] - lpd->z_adjust_initial_mval_x);
-  float z_offset = mouse_delta_x * 0.05f; /* Scale factor for sensitivity */
-  
-  /* Position light at initial position + Z offset along stored local Z direction */
-  float final_location[3];
-  madd_v3_v3v3fl(final_location, lpd->z_adjust_initial_light_pos, lpd->light_local_z, z_offset);
-  copy_v3_v3(lpd->light_ob->loc, final_location);
-}
-
-/**
- * Common cleanup for light positioning operators.
- * Handles resources shared between normal and reflection positioning.
- */
-static void light_positioning_cleanup(bContext *C, LightPositioningData *lpd)
-{
-  if (lpd) {
-    /* Clean up resources. */
-    if (lpd->snap_context) {
-      blender::ed::transform::snap_object_context_destroy(lpd->snap_context);
-    }
-    if (lpd->timer) {
-      wmWindowManager *wm = CTX_wm_manager(C);
-      WM_event_timer_remove(wm, CTX_wm_window(C), lpd->timer);
-    }
-    if (lpd->depths) {
-      ED_view3d_depths_free(lpd->depths);
-    }
-    
-    MEM_freeN(lpd);
-  }
-}
-
-/**
- * Unified cleanup function for all light positioning modal operators.
- * Used by normal, reflection, and shadow positioning.
- */
-static void light_positioning_modal_cleanup(bContext *C, wmOperator *op)
-{
-  LightPositioningData *lpd = static_cast<LightPositioningData *>(op->customdata);
-  light_positioning_cleanup(C, lpd);
-  op->customdata = nullptr;
-
-  /* Restore cursor. */
-  WM_cursor_modal_restore(CTX_wm_window(C));
-}
-
-/**
- * Update light position for reflection mode (ALT key held).
- */
-static void light_modal_update_reflection_position(bContext *C, LightPositioningData *lmd)
-{
-  if (!lmd->light_ob || lmd->light_ob->type != OB_LAMP || !lmd->is_active) {
-    return;
-  }
-
-  if (lmd->z_adjust_mode) {
-    /* Z-axis adjustment mode: same as normal mode */
-    light_positioning_z_adjust(lmd);
-  }
-  else {
-    /* Reflection positioning mode */
-    float ray_start[3], ray_normal[3];
-    float mval_fl[2] = {float(lmd->mval[0]), float(lmd->mval[1])};
-    
-    ED_view3d_win_to_ray(lmd->region, mval_fl, ray_start, ray_normal);
-
-    float hit_location[3], hit_normal[3];
-    bool hit = light_positioning_raycast(lmd, lmd->mval, hit_location, hit_normal);
-
-    if (hit) {
-      /* Use reused normal smoothing algorithm */
-      if (get_smoothed_surface_normal(&lmd->vc, lmd->depths, lmd->mval, lmd->interpolated_normal)) {
-        lmd->first_hit = false;
-      } else {
-        /* Use hit normal as fallback */
-        copy_v3_v3(lmd->interpolated_normal, hit_normal);
-      }
-
-      /* Calculate incident vector (from ray origin to hit location) */
-      float incident_vec[3];
-      sub_v3_v3v3(incident_vec, ray_start, hit_location);
-      normalize_v3(incident_vec);
-      
-      /* Calculate reflection vector using smoothed normal */
-      float reflection_vec[3];
-      reflect_v3_v3v3(reflection_vec, incident_vec, lmd->interpolated_normal);
-      
-      /* Position light opposite to reflection direction with dynamic offset */
-      float final_location[3];
-      mul_v3_v3fl(final_location, reflection_vec, -lmd->offset_distance);
-      add_v3_v3(final_location, hit_location);
-      copy_v3_v3(lmd->light_ob->loc, final_location);
-
-      /* Orient light toward hit location for reflection */
-      float direction_to_hit[3];
-      sub_v3_v3v3(direction_to_hit, hit_location, final_location);
-      normalize_v3(direction_to_hit);
-      
-      float z_axis[3] = {0.0f, 0.0f, -1.0f}; /* Light forward direction */
-      float quat[4];
-      rotation_between_vecs_to_quat(quat, z_axis, direction_to_hit);
-      quat_to_eul(lmd->light_ob->rot, quat);
-    }
-  }
-
-  /* Tag for update */
-  DEG_id_tag_update(&lmd->light_ob->id, ID_RECALC_TRANSFORM);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, lmd->light_ob);
-}
-
-static void light_modal_update_position(bContext *C, LightPositioningData *lmd)
-{
-  if (!lmd->light_ob || lmd->light_ob->type != OB_LAMP || !lmd->is_active) {
-    return;
-  }
-
-  /* Switch between normal and reflection modes based on reflection_mode flag */
-  if (lmd->reflection_mode) {
-    light_modal_update_reflection_position(C, lmd);
-    return;
-  }
-
-  if (lmd->z_adjust_mode) {
-    /* Z-axis adjustment mode: move light along its local Z-axis using left/right mouse movement */
-    light_positioning_z_adjust(lmd);
-  }
-  else {
-    /* Normal positioning mode with enhanced snapping */
-    float hit_location[3], hit_normal[3];
-    bool hit = light_positioning_raycast(lmd, lmd->mval, hit_location, hit_normal);
-
-    if (hit) {
-      /* Use reused normal smoothing algorithm */
-      if (get_smoothed_surface_normal(&lmd->vc, lmd->depths, lmd->mval, lmd->interpolated_normal)) {
-        copy_v3_v3(lmd->prev_normal, lmd->interpolated_normal);
-        lmd->first_hit = false;
-      } else if (!lmd->first_hit) {
-        /* Fallback to previous normal */
-        copy_v3_v3(lmd->interpolated_normal, lmd->prev_normal);
-      } else {
-        /* Use hit normal as fallback */
-        copy_v3_v3(lmd->interpolated_normal, hit_normal);
-      }
-
-      /* Position light with offset along smoothed normal */
-      float final_location[3];
-      madd_v3_v3v3fl(final_location, hit_location, lmd->interpolated_normal, lmd->offset_distance);
-      copy_v3_v3(lmd->light_ob->loc, final_location);
-
-      /* Orient light toward hit location */
-      float direction_to_hit[3];
-      sub_v3_v3v3(direction_to_hit, hit_location, final_location);
-      normalize_v3(direction_to_hit);
-      
-      float z_axis[3] = {0.0f, 0.0f, -1.0f}; /* Light forward direction */
-      float quat[4];
-      rotation_between_vecs_to_quat(quat, z_axis, direction_to_hit);
-      quat_to_eul(lmd->light_ob->rot, quat);
-    }
-  }
-
-  /* Tag for update */
-  DEG_id_tag_update(&lmd->light_ob->id, ID_RECALC_TRANSFORM);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, lmd->light_ob);
-}
-
-static wmOperatorStatus light_normal_positioning_invoke(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent *event)
-{
-  /* Check context. */
-  if (CTX_wm_view3d(C) == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Must be in 3D View");
-    return OPERATOR_CANCELLED;
-  }
-
-  Object *ob = CTX_data_active_object(C);
-  if (!ob || ob->type != OB_LAMP) {
-    BKE_report(op->reports, RPT_WARNING, "No light object selected");
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Allocate modal data. */
-  LightPositioningData *lmd = static_cast<LightPositioningData *>(MEM_callocN(sizeof(LightPositioningData), __func__));
-  
-  /* Initialize modal data. */
-  lmd->light_ob = ob;
-  lmd->mval[0] = event->mval[0];
-  lmd->mval[1] = event->mval[1];
-  lmd->region = CTX_wm_region(C);
-  lmd->rv3d = CTX_wm_region_view3d(C);
-  lmd->v3d = CTX_wm_view3d(C);
-  lmd->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  lmd->z_adjust_mode = false;
-  lmd->is_active = true;  /* Start active immediately */
-  lmd->first_hit = true;
-  lmd->reflection_mode = false;  /* Start in normal mode */
-  zero_v3(lmd->interpolated_normal);
-  zero_v3(lmd->prev_normal);
-  
-  /* Initialize ViewContext for depth/normal access */
-  lmd->vc = ED_view3d_viewcontext_init(C, lmd->depsgraph);
-  
-  /* Initialize depths for normal smoothing - same as transform_axis_target */
-  ED_view3d_depth_override(lmd->vc.depsgraph, lmd->vc.region, lmd->vc.v3d, 
-                          nullptr, V3D_DEPTH_NO_GPENCIL, false, &lmd->depths);
-  
-  /* Create snap context. */
-  lmd->snap_context = blender::ed::transform::snap_object_context_create(CTX_data_scene(C), 0);
-  
-  /* Calculate initial offset distance from current light position */
-  float ray_start[3], ray_normal[3];
-  float mval_fl[2] = {float(lmd->mval[0]), float(lmd->mval[1])};
-  ED_view3d_win_to_ray(lmd->region, mval_fl, ray_start, ray_normal);
-  
-  blender::ed::transform::SnapObjectParams snap_params = {};
-  snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
-  
-  float hit_location[3], hit_normal[3];
-  bool hit = blender::ed::transform::snap_object_project_ray(lmd->snap_context,
-                                                            lmd->depsgraph,
-                                                            lmd->v3d,
-                                                            &snap_params,
-                                                            ray_start,
-                                                            ray_normal,
-                                                            nullptr,
-                                                            hit_location,
-                                                            hit_normal);
-  
-  if (hit) {
-    /* Use current distance between light and hit as initial offset */
-    float distance_vec[3];
-    sub_v3_v3v3(distance_vec, lmd->light_ob->loc, hit_location);
-    lmd->offset_distance = len_v3(distance_vec);
-  } else {
-    /* Fallback to default distance */
-    lmd->offset_distance = 4.0f;
-  }
-
-  /* Add timer. */
-  wmWindowManager *wm = CTX_wm_manager(C);
-  lmd->timer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.02f);
-
-  /* Set custom data. */
-  op->customdata = lmd;
-
-  /* Change cursor. */
-  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_CROSS);
-
-  /* Add modal handler. */
-  WM_event_add_modal_handler(C, op);
-
-  /* Initial position update */
-  light_modal_update_position(C, lmd);
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
-static wmOperatorStatus light_normal_positioning_modal(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent *event)
-{
-  LightPositioningData *lmd = static_cast<LightPositioningData *>(op->customdata);
-
-  switch (event->type) {
-    case MOUSEMOVE:
-      /* Update mouse position and light location. */
-      lmd->mval[0] = event->mval[0];
-      lmd->mval[1] = event->mval[1];
-      light_modal_update_position(C, lmd);
-      break;
-
-    case LEFTMOUSE:
-      if (event->val == KM_PRESS) {
-        /* Left mouse press - continue positioning (already active) */
-        light_modal_update_position(C, lmd);
-      }
-      else if (event->val == KM_RELEASE) {
-        /* Confirm placement on left mouse release */
-        light_positioning_modal_cleanup(C, op);
-        return OPERATOR_FINISHED;
-      }
-      break;
-      
-    case EVT_LEFTCTRLKEY:
-    case EVT_RIGHTCTRLKEY:
-      if (event->val == KM_PRESS) {
-        /* Switch to reflection mode when CTRL is pressed */
-        lmd->reflection_mode = true;
-        light_modal_update_position(C, lmd);
-      }
-      else if (event->val == KM_RELEASE) {
-        /* Switch back to normal mode when CTRL is released */
-        lmd->reflection_mode = false;
-        light_modal_update_position(C, lmd);
-      }
-      break;
-
-    case EVT_ZKEY:
-      if (event->val == KM_PRESS) {
-        /* Start Z-axis adjustment mode */
-        lmd->z_adjust_mode = true;
-        lmd->z_adjust_initial_mval_x = lmd->mval[0];
-        copy_v3_v3(lmd->z_adjust_initial_light_pos, lmd->light_ob->loc);
-        
-        /* Calculate light's local Z axis from its current rotation */
-        float light_matrix[4][4];
-        loc_eul_size_to_mat4(light_matrix, 
-                             lmd->light_ob->loc, 
-                             lmd->light_ob->rot, 
-                             lmd->light_ob->scale);
-        
-        /* Extract local Z axis (negative Z for light forward direction) */
-        lmd->light_local_z[0] = -light_matrix[2][0];
-        lmd->light_local_z[1] = -light_matrix[2][1];
-        lmd->light_local_z[2] = -light_matrix[2][2];
-      }
-      else if (event->val == KM_RELEASE) {
-        /* End Z-axis adjustment mode and update offset distance */
-        lmd->z_adjust_mode = false;
-        
-        /* Calculate new offset distance from current position to last hit */
-        float ray_start[3], ray_normal[3];
-        float mval_fl[2] = {float(lmd->mval[0]), float(lmd->mval[1])};
-        ED_view3d_win_to_ray(lmd->region, mval_fl, ray_start, ray_normal);
-        
-        blender::ed::transform::SnapObjectParams snap_params = {};
-        snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
-        
-        float hit_location[3], hit_normal[3];
-        bool hit = blender::ed::transform::snap_object_project_ray(lmd->snap_context,
-                                                                  lmd->depsgraph,
-                                                                  lmd->v3d,
-                                                                  &snap_params,
-                                                                  ray_start,
-                                                                  ray_normal,
-                                                                  nullptr,
-                                                                  hit_location,
-                                                                  hit_normal);
-        
-        if (hit) {
-          float distance_vec[3];
-          sub_v3_v3v3(distance_vec, lmd->light_ob->loc, hit_location);
-          lmd->offset_distance = len_v3(distance_vec);
-        }
-        
-        /* Resume normal positioning */
-        light_modal_update_position(C, lmd);
-      }
-      break;
-
-    case EVT_ESCKEY:
-    case RIGHTMOUSE:
-      if (event->val == KM_PRESS) {
-        /* Cancel operation. */
-        light_positioning_modal_cleanup(C, op);
-        return OPERATOR_CANCELLED;
-      }
-      break;
-
-    case MIDDLEMOUSE:
-    case WHEELUPMOUSE:
-    case WHEELDOWNMOUSE:
-      /* Pass through for navigation. */
-      return OPERATOR_PASS_THROUGH;
-
-    case TIMER:
-      /* Periodic update. */
-      light_modal_update_position(C, lmd);
-      break;
-
-    default:
-      /* Ignore other events. */
-      break;
-  }
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
-static void light_normal_positioning_cancel(bContext *C, wmOperator *op)
-{
-  light_positioning_modal_cleanup(C, op);
-}
-
-void OBJECT_OT_light_normal_positioning(wmOperatorType *ot)
-{
-  /* Identifiers. */
-  ot->name = "Raycast light from normals";
-  ot->description = "Interactively position a light based on surface normals using mouse raycast";
-  ot->idname = "OBJECT_OT_light_normal_positioning";
-
-  /* API callbacks. */
-  ot->invoke = light_normal_positioning_invoke;
-  ot->modal = light_normal_positioning_modal;
-  ot->cancel = light_normal_positioning_cancel;
-  ot->poll = ED_operator_region_view3d_active;
-
-  /* Flags. */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Light Reflection Positioning Modal Operator
- * \{ */
-
-
-
-static void light_reflection_update_position(bContext *C, LightPositioningData *lrd)
-{
-  if (!lrd->light_ob || lrd->light_ob->type != OB_LAMP || !lrd->is_active) {
-    return;
-  }
-
-  if (lrd->z_adjust_mode) {
-    /* Z-axis adjustment mode: move light along its local Z-axis using left/right mouse movement */
-    light_positioning_z_adjust(lrd);
-  }
-  else {
-    /* Normal reflection positioning mode with enhanced snapping */
-    float ray_start[3], ray_normal[3];
-    float mval_fl[2] = {float(lrd->mval[0]), float(lrd->mval[1])};
-    
-    ED_view3d_win_to_ray(lrd->region, mval_fl, ray_start, ray_normal);
-
-    /* Enhanced snap parameters to include edges and vertices */
-    blender::ed::transform::SnapObjectParams snap_params = {};
-    snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
-    snap_params.edit_mode_type = blender::ed::transform::SNAP_GEOM_FINAL;
-
-    float hit_location[3], hit_normal[3];
-    bool hit = blender::ed::transform::snap_object_project_ray(lrd->snap_context,
-                                                              lrd->depsgraph,
-                                                              lrd->v3d,
-                                                              &snap_params,
-                                                              ray_start,
-                                                              ray_normal,
-                                                              nullptr,
-                                                              hit_location,
-                                                              hit_normal);
-
-    if (hit) {
-      /* Use reused normal smoothing algorithm */
-      if (get_smoothed_surface_normal(&lrd->vc, lrd->depths, lrd->mval, lrd->interpolated_normal)) {
-        lrd->first_hit = false;
-      } else {
-        /* Use hit normal as fallback */
-        copy_v3_v3(lrd->interpolated_normal, hit_normal);
-      }
-
-      /* Calculate incident vector (from ray origin to hit location) */
-      float incident_vec[3];
-      sub_v3_v3v3(incident_vec, ray_start, hit_location);
-      normalize_v3(incident_vec);
-      
-      /* Calculate reflection vector using smoothed normal */
-      float reflection_vec[3];
-      reflect_v3_v3v3(reflection_vec, incident_vec, lrd->interpolated_normal);
-      
-      /* Position light opposite to reflection direction with dynamic offset */
-      float final_location[3];
-      mul_v3_v3fl(final_location, reflection_vec, -lrd->offset_distance);
-      add_v3_v3(final_location, hit_location);
-      copy_v3_v3(lrd->light_ob->loc, final_location);
-      
-      /* Orient light to point towards hit location */
-      float direction_to_hit[3];
-      sub_v3_v3v3(direction_to_hit, hit_location, final_location);
-      normalize_v3(direction_to_hit);
-      
-      float z_axis[3] = {0.0f, 0.0f, -1.0f}; /* Light forward direction */
-      float quat[4];
-      rotation_between_vecs_to_quat(quat, z_axis, direction_to_hit);
-      quat_to_eul(lrd->light_ob->rot, quat);
-    }
-  }
-
-  /* Tag for update */
-  DEG_id_tag_update(&lrd->light_ob->id, ID_RECALC_TRANSFORM);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, lrd->light_ob);
-}
-
-static wmOperatorStatus light_reflection_positioning_invoke(bContext *C,
-                                                           wmOperator *op,
-                                                           const wmEvent *event)
-{
-  /* Check context. */
-  if (CTX_wm_view3d(C) == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Must be in 3D View");
-    return OPERATOR_CANCELLED;
-  }
-
-  Object *ob = CTX_data_active_object(C);
-  if (!ob || ob->type != OB_LAMP) {
-    BKE_report(op->reports, RPT_WARNING, "No light object selected");
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Allocate modal data. */
-  LightPositioningData *lrd = static_cast<LightPositioningData *>(MEM_callocN(sizeof(LightPositioningData), __func__));
-  
-  /* Initialize modal data. */
-  lrd->light_ob = ob;
-  lrd->mval[0] = event->mval[0];
-  lrd->mval[1] = event->mval[1];
-  lrd->region = CTX_wm_region(C);
-  lrd->rv3d = CTX_wm_region_view3d(C);
-  lrd->v3d = CTX_wm_view3d(C);
-  lrd->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  lrd->z_adjust_mode = false;
-  lrd->is_active = true;  /* Start active immediately */
-  lrd->first_hit = true;
-  zero_v3(lrd->interpolated_normal);
-  
-  /* Initialize ViewContext for depth/normal access */
-  lrd->vc = ED_view3d_viewcontext_init(C, lrd->depsgraph);
-  
-  /* Initialize depths for normal smoothing - same as transform_axis_target */
-  ED_view3d_depth_override(lrd->vc.depsgraph, lrd->vc.region, lrd->vc.v3d, 
-                          nullptr, V3D_DEPTH_NO_GPENCIL, false, &lrd->depths);
-
-  /* Create snap context. */
-  lrd->snap_context = blender::ed::transform::snap_object_context_create(CTX_data_scene(C), 0);
-  
-  /* Calculate initial offset distance from current light position */
-  float ray_start[3], ray_normal[3];
-  float mval_fl[2] = {float(lrd->mval[0]), float(lrd->mval[1])};
-  ED_view3d_win_to_ray(lrd->region, mval_fl, ray_start, ray_normal);
-  
-  blender::ed::transform::SnapObjectParams snap_params = {};
-  snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
-  
-  float hit_location[3], hit_normal[3];
-  bool hit = blender::ed::transform::snap_object_project_ray(lrd->snap_context,
-                                                            lrd->depsgraph,
-                                                            lrd->v3d,
-                                                            &snap_params,
-                                                            ray_start,
-                                                            ray_normal,
-                                                            nullptr,
-                                                            hit_location,
-                                                            hit_normal);
-  
-  if (hit) {
-    /* Use current distance between light and hit as initial offset */
-    float distance_vec[3];
-    sub_v3_v3v3(distance_vec, lrd->light_ob->loc, hit_location);
-    lrd->offset_distance = len_v3(distance_vec);
-  } else {
-    /* Fallback to default distance */
-    lrd->offset_distance = 4.0f;
-  }
-
-  /* Add timer. */
-  wmWindowManager *wm = CTX_wm_manager(C);
-  lrd->timer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.02f);
-
-  /* Set custom data. */
-  op->customdata = lrd;
-
-  /* Set modal cursor. */
-  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_CROSS);
-
-  /* Add modal handler. */
-  WM_event_add_modal_handler(C, op);
-
-  /* Initial position update */
-  light_reflection_update_position(C, lrd);
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
-static wmOperatorStatus light_reflection_positioning_modal(bContext *C,
-                                                          wmOperator *op,
-                                                          const wmEvent *event)
-{
-  LightPositioningData *lrd = static_cast<LightPositioningData *>(op->customdata);
-
-  switch (event->type) {
-    case MOUSEMOVE:
-      lrd->mval[0] = event->mval[0];
-      lrd->mval[1] = event->mval[1];
-      light_reflection_update_position(C, lrd);
-      break;
-    
-    case LEFTMOUSE:
-      if (event->val == KM_PRESS) {
-        /* Left mouse press - continue positioning (already active) */
-        light_reflection_update_position(C, lrd);
-      }
-      else if (event->val == KM_RELEASE) {
-        /* Confirm placement on left mouse release */
-        light_positioning_modal_cleanup(C, op);
-        return OPERATOR_FINISHED;
-      }
-      break;
-    
-    case EVT_ZKEY:
-      if (event->val == KM_PRESS) {
-        /* Start Z-axis adjustment mode */
-        lrd->z_adjust_mode = true;
-        lrd->z_adjust_initial_mval_x = lrd->mval[0];
-        copy_v3_v3(lrd->z_adjust_initial_light_pos, lrd->light_ob->loc);
-        
-        /* Calculate light's local Z axis from its current rotation */
-        float light_matrix[4][4];
-        loc_eul_size_to_mat4(light_matrix, 
-                             lrd->light_ob->loc, 
-                             lrd->light_ob->rot, 
-                             lrd->light_ob->scale);
-        
-        /* Extract local Z axis (negative Z for light forward direction) */
-        lrd->light_local_z[0] = -light_matrix[2][0];
-        lrd->light_local_z[1] = -light_matrix[2][1];
-        lrd->light_local_z[2] = -light_matrix[2][2];
-      }
-      else if (event->val == KM_RELEASE) {
-        /* End Z-axis adjustment mode and update offset distance */
-        lrd->z_adjust_mode = false;
-        
-        /* Calculate new offset distance from current position to last hit */
-        float ray_start[3], ray_normal[3];
-        float mval_fl[2] = {float(lrd->mval[0]), float(lrd->mval[1])};
-        ED_view3d_win_to_ray(lrd->region, mval_fl, ray_start, ray_normal);
-        
-        blender::ed::transform::SnapObjectParams snap_params = {};
-        snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
-        
-        float hit_location[3], hit_normal[3];
-        bool hit = blender::ed::transform::snap_object_project_ray(lrd->snap_context,
-                                                                  lrd->depsgraph,
-                                                                  lrd->v3d,
-                                                                  &snap_params,
-                                                                  ray_start,
-                                                                  ray_normal,
-                                                                  nullptr,
-                                                                  hit_location,
-                                                                  hit_normal);
-        
-        if (hit) {
-          float distance_vec[3];
-          sub_v3_v3v3(distance_vec, lrd->light_ob->loc, hit_location);
-          lrd->offset_distance = len_v3(distance_vec);
-        }
-        
-        /* Resume normal positioning */
-        light_reflection_update_position(C, lrd);
-      }
-      break;
-
-    case EVT_ESCKEY:
-      light_positioning_modal_cleanup(C, op);
-      return OPERATOR_CANCELLED;
-      
-    case MIDDLEMOUSE:
-    case WHEELUPMOUSE:
-    case WHEELDOWNMOUSE:
-      return OPERATOR_PASS_THROUGH;
-
-    case TIMER:
-      /* Update position periodically. */
-      light_reflection_update_position(C, lrd);
-      break;
-
-    default:
-      /* Ignore other events. */
-      break;
-  }
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
-static void light_reflection_positioning_cancel(bContext *C, wmOperator *op)
-{
-  light_positioning_modal_cleanup(C, op);
-}
-
-void OBJECT_OT_light_reflection_positioning(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Light Reflection Positioning";
-  ot->description = "Interactively position light based on specular reflection";
-  ot->idname = "OBJECT_OT_light_reflection_positioning";
-
-  /* api callbacks */
-  ot->invoke = light_reflection_positioning_invoke;
-  ot->modal = light_reflection_positioning_modal;
-  ot->cancel = light_reflection_positioning_cancel;
-  ot->poll = ED_operator_region_view3d_active;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Light Shadow Positioning Modal Operator
- * \{ */
-
-
-
-static void light_shadow_update_position(bContext *C, LightPositioningData *lsd)
-{
-  if (!lsd->light_ob || lsd->light_ob->type != OB_LAMP || !lsd->is_active) {
-    return;
-  }
-
-  if (lsd->z_adjust_mode) {
-    /* Z-axis adjustment mode: move light along its local Z-axis using left/right mouse movement */
-    light_positioning_z_adjust(lsd);
-  }
-  else {
-    /* Shadow positioning mode */
-    float hit_location[3], hit_normal[3];
-    bool hit = light_positioning_raycast(lsd, lsd->mval, hit_location, hit_normal);
-
-    if (hit) {
-      if (lsd->stage == SHADOW_STAGE_TARGET) {
-        /* Stage 1: Set target location (during left mouse hold) */
-        copy_v3_v3(lsd->target_location, hit_location);
-        lsd->stage = SHADOW_STAGE_LIGHT;
-      }
-      else if (lsd->stage == SHADOW_STAGE_LIGHT) {
-        /* Stage 2: Position light based on shadow target */
-        
-        /* Calculate direction from shadow location to target */
-        float direction_to_target[3];
-        sub_v3_v3v3(direction_to_target, lsd->target_location, hit_location);
-        normalize_v3(direction_to_target);
-        
-        /* Place light at target location with offset in calculated direction */
-        float distance = lsd->offset_distance;
-        float final_location[3];
-        madd_v3_v3v3fl(final_location, lsd->target_location, direction_to_target, distance);
-        copy_v3_v3(lsd->light_ob->loc, final_location);
-        
-        /* Orient light toward hit location (shadow target) */
-        float direction_to_hit[3];
-        sub_v3_v3v3(direction_to_hit, hit_location, final_location);
-        normalize_v3(direction_to_hit);
-        
-        /* Use negative Z axis for light forward direction */
-        float neg_z_axis[3] = {0.0f, 0.0f, -1.0f};
-        float quat[4];
-        rotation_between_vecs_to_quat(quat, neg_z_axis, direction_to_hit);
-        quat_to_eul(lsd->light_ob->rot, quat);
-      }
-    }
-  }
-
-  /* Tag for update */
-  DEG_id_tag_update(&lsd->light_ob->id, ID_RECALC_TRANSFORM);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, lsd->light_ob);
-}
-
-static wmOperatorStatus light_shadow_positioning_invoke(bContext *C,
-                                                       wmOperator *op,
-                                                       const wmEvent *event)
-{
-  /* Check context. */
-  if (CTX_wm_view3d(C) == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Must be in 3D View");
-    return OPERATOR_CANCELLED;
-  }
-
-  Object *ob = CTX_data_active_object(C);
-  if (!ob || ob->type != OB_LAMP) {
-    BKE_report(op->reports, RPT_ERROR, "No light object selected");
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Allocate modal data. */
-  LightPositioningData *lsd = static_cast<LightPositioningData *>(MEM_callocN(sizeof(LightPositioningData), __func__));
-  
-  /* Initialize modal data. */
-  lsd->light_ob = ob;
-  zero_v3(lsd->target_location);
-  lsd->mval[0] = event->mval[0];
-  lsd->mval[1] = event->mval[1];
-  lsd->region = CTX_wm_region(C);
-  lsd->rv3d = CTX_wm_region_view3d(C);
-  lsd->v3d = CTX_wm_view3d(C);
-  lsd->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  lsd->stage = SHADOW_STAGE_TARGET;
-  lsd->z_adjust_mode = false;
-  lsd->is_active = true;  /* Start active immediately */
-  lsd->offset_distance = 10.0f;  /* Default shadow distance */
-
-  /* Create snap context. */
-  lsd->snap_context = blender::ed::transform::snap_object_context_create(CTX_data_scene(C), 0);
-
-  /* Add timer. */
-  wmWindowManager *wm = CTX_wm_manager(C);
-  lsd->timer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.02f);
-
-  /* Set custom data. */
-  op->customdata = lsd;
-
-  /* Set modal cursor. */
-  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_CROSS);
-
-  /* Add modal handler. */
-  WM_event_add_modal_handler(C, op);
-
-  /* Initial position update */
-  light_shadow_update_position(C, lsd);
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
-static wmOperatorStatus light_shadow_positioning_modal(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent *event)
-{
-  LightPositioningData *lsd = static_cast<LightPositioningData *>(op->customdata);
-
-  switch (event->type) {
-    case MOUSEMOVE:
-      lsd->mval[0] = event->mval[0];
-      lsd->mval[1] = event->mval[1];
-      if (lsd->stage == SHADOW_STAGE_LIGHT) {
-        light_shadow_update_position(C, lsd);
-      }
-      break;
-    
-    case LEFTMOUSE:
-      if (event->val == KM_PRESS) {
-        /* Left mouse press - set target if not set, continue positioning */
-        light_shadow_update_position(C, lsd);
-      }
-      else if (event->val == KM_RELEASE) {
-        /* Confirm placement on left mouse release */
-        light_positioning_modal_cleanup(C, op);
-        return OPERATOR_FINISHED;
-      }
-      break;
-    
-    case EVT_ZKEY:
-      if (event->val == KM_PRESS && lsd->stage == SHADOW_STAGE_LIGHT) {
-        /* Start Z-axis adjustment mode (only available in stage 2) */
-        lsd->z_adjust_mode = true;
-        lsd->z_adjust_initial_mval_x = lsd->mval[0];
-        copy_v3_v3(lsd->z_adjust_initial_light_pos, lsd->light_ob->loc);
-        
-        /* Calculate light's local Z axis from its current rotation */
-        float light_matrix[4][4];
-        loc_eul_size_to_mat4(light_matrix, 
-                             lsd->light_ob->loc, 
-                             lsd->light_ob->rot, 
-                             lsd->light_ob->scale);
-        
-        /* Extract local Z axis (negative Z for light forward direction) */
-        lsd->light_local_z[0] = -light_matrix[2][0];
-        lsd->light_local_z[1] = -light_matrix[2][1];
-        lsd->light_local_z[2] = -light_matrix[2][2];
-      }
-      else if (event->val == KM_RELEASE && lsd->z_adjust_mode) {
-        /* End Z-axis adjustment mode and update offset distance */
-        lsd->z_adjust_mode = false;
-        
-        /* Calculate new offset distance from current position to target */
-        float distance_vec[3];
-        sub_v3_v3v3(distance_vec, lsd->light_ob->loc, lsd->target_location);
-        lsd->offset_distance = len_v3(distance_vec);
-        
-        /* Resume normal positioning */
-        light_shadow_update_position(C, lsd);
-      }
-      break;
-
-    case EVT_ESCKEY:
-      light_positioning_modal_cleanup(C, op);
-      return OPERATOR_CANCELLED;
-      
-    case MIDDLEMOUSE:
-    case WHEELUPMOUSE:
-    case WHEELDOWNMOUSE:
-      return OPERATOR_PASS_THROUGH;
-
-    case TIMER:
-      /* Update position periodically if in light positioning stage. */
-      if (lsd->stage == SHADOW_STAGE_LIGHT) {
-        light_shadow_update_position(C, lsd);
-      }
-      break;
-
-    default:
-      /* Ignore other events. */
-      break;
-  }
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
-static void light_shadow_positioning_cancel(bContext *C, wmOperator *op)
-{
-  light_positioning_modal_cleanup(C, op);
-}
-
-void OBJECT_OT_light_shadow_positioning(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Light Shadow Positioning";
-  ot->description = "Interactively position light for shadow casting (two-step process)";
-  ot->idname = "OBJECT_OT_light_shadow_positioning";
-
-  /* api callbacks */
-  ot->invoke = light_shadow_positioning_invoke;
-  ot->modal = light_shadow_positioning_modal;
-  ot->cancel = light_shadow_positioning_cancel;
-  ot->poll = ED_operator_region_view3d_active;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
-}
 
 /** \} */
 

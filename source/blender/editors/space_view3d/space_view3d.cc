@@ -471,8 +471,6 @@ static void view3d_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_light_point);
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_light_area);
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_light_target);
-  WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_light_normal_positioning);
-  WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_light_reflection_positioning);
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_force_field);
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_camera);
   WM_gizmogrouptype_append_and_link(gzmap_type, VIEW3D_GGT_camera_view);
