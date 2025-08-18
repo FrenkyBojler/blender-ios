@@ -577,15 +577,6 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
     wm_window_free(C, wm, win);
   }
 
-  while (wmOperator *op = static_cast<wmOperator *>(BLI_pophead(&wm->runtime->operators))) {
-    WM_operator_free(op);
-  }
-
-  while (wmKeyConfig *keyconf = static_cast<wmKeyConfig *>(BLI_pophead(&wm->runtime->keyconfigs)))
-  {
-    WM_keyconfig_free(keyconf);
-  }
-
   if (wm->message_bus != nullptr) {
     WM_msgbus_destroy(wm->message_bus);
   }
@@ -593,16 +584,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 #ifdef WITH_PYTHON
   BPY_callback_wm_free(wm);
 #endif
-  BLI_freelistN(&wm->runtime->paintcursors);
-
-  WM_drag_free_list(&wm->runtime->drags);
 
   wm_reports_free(wm);
-
-  /* NOTE(@ideasman42): typically timers are associated with windows and timers will have been
-   * freed when the windows are removed. However timers can be created which don't have windows
-   * and in this case it's necessary to free them on exit, see: #109953. */
-  WM_event_timers_free_all(wm);
 
   if (wm->undo_stack) {
     BKE_undosys_stack_destroy(wm->undo_stack);

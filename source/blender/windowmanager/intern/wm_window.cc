@@ -2315,16 +2315,6 @@ void WM_event_timer_free_data(wmTimer *timer)
   }
 }
 
-void WM_event_timers_free_all(wmWindowManager *wm)
-{
-  BLI_assert_msg(BLI_listbase_is_empty(&wm->windows),
-                 "This should only be called when freeing the window-manager");
-  while (wmTimer *timer = static_cast<wmTimer *>(BLI_pophead(&wm->runtime->timers))) {
-    WM_event_timer_free_data(timer);
-    MEM_freeN(timer);
-  }
-}
-
 void WM_event_timer_remove(wmWindowManager *wm, wmWindow * /*win*/, wmTimer *timer)
 {
   /* Extra security check. */
