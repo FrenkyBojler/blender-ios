@@ -235,39 +235,30 @@ ShapePoint shape_point_get(const Point pt, const float3 V)
   return shape;
 }
 
-#  ifdef GPU_VERTEX_SHADER
-float get_customdata_float(const samplerBuffer cd_buf)
+float get_customdata_float(const int curve_id, const samplerBuffer cd_buf)
 {
-  /* TODO(fclem): Pass curve_id to this function. */
-  return texelFetch(cd_buf, int(0)).x;
+  return texelFetch(cd_buf, curve_id).x;
 }
 
-float2 get_customdata_vec2(const samplerBuffer cd_buf)
+float2 get_customdata_vec2(const int curve_id, const samplerBuffer cd_buf)
 {
-  /* TODO(fclem): Pass curve_id to this function. */
-  return texelFetch(cd_buf, int(0)).xy;
+  return texelFetch(cd_buf, curve_id).xy;
 }
 
-float3 get_customdata_vec3(const samplerBuffer cd_buf)
+float3 get_customdata_vec3(const int curve_id, const samplerBuffer cd_buf)
 {
-  /* TODO(fclem): Pass curve_id to this function. */
-  return texelFetch(cd_buf, int(0)).xyz;
+  return texelFetch(cd_buf, curve_id).xyz;
 }
 
-float4 get_customdata_vec4(const samplerBuffer cd_buf)
+float4 get_customdata_vec4(const int curve_id, const samplerBuffer cd_buf)
 {
-  /* TODO(fclem): Pass curve_id to this function. */
-  return texelFetch(cd_buf, int(0)).xyzw;
+  return texelFetch(cd_buf, curve_id).xyzw;
 }
-#  endif
 
-float3 get_curve_root_pos()
+float3 get_curve_root_pos(const int point_id, const int curve_segment)
 {
-  /* TODO(fclem): Pass point_id and curve_segment to this function. */
-  uint point_id = 0;
-  uint curve_segment = 0;
-  uint start_point = point_id - curve_segment;
-  return texelFetch(curves_pos_rad_buf, int(start_point)).xyz;
+  int curve_start = point_id - curve_segment;
+  return texelFetch(curves_pos_rad_buf, int(curve_start)).xyz;
 }
 
 }  // namespace curves

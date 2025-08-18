@@ -55,7 +55,7 @@ void main()
 #endif
 
   init_globals();
-  attrib_load();
+  attrib_load(GPencilPoint(0));
 
   interp.P += nodetree_displacement();
 

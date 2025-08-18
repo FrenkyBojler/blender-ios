@@ -71,12 +71,12 @@ void main()
 
   view_clipping_distances(world_pos);
 
-  uv_interp = curves::get_customdata_vec2(au);
+  uv_interp = curves::get_customdata_vec2(ws_pt.curve_id, au);
 
   normal_interp = normalize(drw_normal_world_to_view(nor));
 
   workbench_material_data_get(int(drw_custom_id()),
-                              curves::get_customdata_vec3(ac),
+                              curves::get_customdata_vec3(ws_pt.curve_id, ac),
                               color_interp,
                               alpha_interp,
                               _roughness,

@@ -870,8 +870,30 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.vertex_out_interfaces_.clear();
   }
 
+  const char *domain_type = "";
+  switch (geometry_type) {
+    case MAT_GEOM_MESH:
+      domain_type = "MeshVertex";
+      break;
+    case MAT_GEOM_POINTCLOUD:
+      domain_type = "PointCloudPoint";
+      break;
+    case MAT_GEOM_CURVES:
+      domain_type = "CurvesPoint";
+      break;
+    case MAT_GEOM_WORLD:
+      domain_type = "WorldPoint";
+      break;
+    case MAT_GEOM_GPENCIL:
+      domain_type = "GPencilPoint";
+      break;
+    case MAT_GEOM_VOLUME:
+      domain_type = "VolumePoint";
+      break;
+  }
+
   std::stringstream attr_load;
-  attr_load << "void attrib_load()\n";
+  attr_load << "void attrib_load(" << domain_type << " domain)\n";
   attr_load << "{\n";
   attr_load << (!codegen.attr_load.empty() ? codegen.attr_load : "");
   attr_load << "}\n\n";
@@ -880,10 +902,10 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
   if (do_vertex_attrib_load) {
     vert_gen << global_vars.str() << attr_load.str();
-    frag_gen << "void attrib_load() {}\n"; /* Placeholder. */
+    frag_gen << "void attrib_load(" << domain_type << " domain) {}\n"; /* Placeholder. */
   }
   else {
-    vert_gen << "void attrib_load() {}\n"; /* Placeholder. */
+    vert_gen << "void attrib_load(" << domain_type << " domain) {}\n"; /* Placeholder. */
     frag_gen << global_vars.str() << attr_load.str();
   }
 

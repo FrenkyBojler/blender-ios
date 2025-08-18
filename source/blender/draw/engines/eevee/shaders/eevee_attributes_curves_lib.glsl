@@ -17,11 +17,10 @@ SHADER_LIBRARY_CREATE_INFO(draw_curves)
 #include "draw_curves_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
+#include "eevee_nodetree_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_matrix_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
-
-#ifdef GPU_VERTEX_SHADER
 
 /* -------------------------------------------------------------------- */
 /** \name Curve
@@ -30,55 +29,53 @@ SHADER_LIBRARY_CREATE_INFO(draw_curves)
  * Per attribute scope follows loading order.
  * \{ */
 
-#  ifdef OBINFO_LIB
-float3 attr_load_orco(float4 orco, int index)
+#ifdef OBINFO_LIB
+float3 attr_load_orco(CurvesPoint point, float4 orco, int index)
 {
-  float3 P = curves::get_curve_root_pos();
+  float3 P = curves::get_curve_root_pos(point.point_id, point.curve_segment);
   float3 lP = transform_point(drw_modelinv(), P);
   return drw_object_orco(lP);
 }
-#  endif
+#endif
 
 /* Return the index to use for looking up the attribute value in the sampler
  * based on the attribute scope (point or spline). */
-int curves_attribute_element_id(int index)
+int curves_attribute_element_id(CurvesPoint point, int index)
 {
   if (drw_curves.is_point_attribute[index][0] != 0u) {
-    return int(curve_interp.point_id);
+    return int(point.point_id);
   }
-  return curve_interp_flat.strand_id;
+  return point.curve_id;
 }
 
-float4 attr_load_tangent(samplerBuffer cd_buf, int index)
+float4 attr_load_tangent(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
   /* Not supported for the moment. */
   return float4(0.0f, 0.0f, 0.0f, 1.0f);
 }
-float3 attr_load_uv(samplerBuffer cd_buf, int index)
+float3 attr_load_uv(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
-  return texelFetch(cd_buf, curve_interp_flat.strand_id).rgb;
+  return texelFetch(cd_buf, point.curve_id).rgb;
 }
-float4 attr_load_color(samplerBuffer cd_buf, int index)
+float4 attr_load_color(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
-  return texelFetch(cd_buf, curve_interp_flat.strand_id).rgba;
+  return texelFetch(cd_buf, point.curve_id).rgba;
 }
-float4 attr_load_vec4(samplerBuffer cd_buf, int index)
+float4 attr_load_vec4(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
-  return texelFetch(cd_buf, curves_attribute_element_id(index)).rgba;
+  return texelFetch(cd_buf, curves_attribute_element_id(point, index)).rgba;
 }
-float3 attr_load_vec3(samplerBuffer cd_buf, int index)
+float3 attr_load_vec3(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
-  return texelFetch(cd_buf, curves_attribute_element_id(index)).rgb;
+  return texelFetch(cd_buf, curves_attribute_element_id(point, index)).rgb;
 }
-float2 attr_load_vec2(samplerBuffer cd_buf, int index)
+float2 attr_load_vec2(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
-  return texelFetch(cd_buf, curves_attribute_element_id(index)).rg;
+  return texelFetch(cd_buf, curves_attribute_element_id(point, index)).rg;
 }
-float attr_load_float(samplerBuffer cd_buf, int index)
+float attr_load_float(CurvesPoint point, samplerBuffer cd_buf, int index)
 {
-  return texelFetch(cd_buf, curves_attribute_element_id(index)).r;
+  return texelFetch(cd_buf, curves_attribute_element_id(point, index)).r;
 }
 
 /** \} */
-
-#endif
