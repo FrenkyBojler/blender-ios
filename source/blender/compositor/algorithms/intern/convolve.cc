@@ -10,6 +10,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_fftw.hh"
 #include "BLI_index_range.hh"
+#include "BLI_memory_utils.hh"
 #include "BLI_task.hh"
 
 #if defined(WITH_FFTW3)
@@ -24,13 +25,17 @@
 
 namespace blender::compositor {
 
-void convolve(Context &context, const Result &input, const Result &kernel, Result &output)
+void convolve(Context &context,
+              const Result &input,
+              const Result &kernel,
+              Result &output,
+              const bool normalize_kernel)
 {
+#if defined(WITH_FFTW3)
   BLI_assert(input.type() == ResultType::Color);
   BLI_assert(kernel.type() == ResultType::Float);
   BLI_assert(output.type() == ResultType::Color);
 
-#if defined(WITH_FFTW3)
   /* Since we will be doing a circular convolution, we need to zero pad the input image by the
    * kernel size and vice versa to avoid the kernel affecting the pixels at the other side of
    * image. The kernel size is limited by the image size since it will have no effect on the image
@@ -48,7 +53,7 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
   const int2 frequency_size = int2(spatial_size.x / 2 + 1, spatial_size.y);
 
   /* We only process the color channels, the alpha channel is written to the output as is. */
-  constexpr int channels_count = 3;
+  constexpr int input_channels_count = 3;
   const int64_t spatial_pixels_count = int64_t(spatial_size.x) * spatial_size.y;
   const int64_t frequency_pixels_count = int64_t(frequency_size.x) * frequency_size.y;
 
@@ -62,15 +67,22 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
 
   /* Allocate a real buffer and a complex buffer for each of the channels for the FFT input and
    * output respectively, then add a forward transform task for it. */
-  Array<float *> image_spatial_domain_channels(channels_count);
-  Array<std::complex<float> *> image_frequency_domain_channels(channels_count);
-  for (const int channel : IndexRange(channels_count)) {
+  Array<float *> image_spatial_domain_channels(input_channels_count);
+  Array<std::complex<float> *> image_frequency_domain_channels(input_channels_count);
+  for (const int channel : image_spatial_domain_channels.index_range()) {
     image_spatial_domain_channels[channel] = fftwf_alloc_real(spatial_pixels_count);
     image_frequency_domain_channels[channel] = reinterpret_cast<std::complex<float> *>(
         fftwf_alloc_complex(frequency_pixels_count));
     forward_transform_tasks.append(ForwardTransformTask{image_spatial_domain_channels[channel],
                                                         image_frequency_domain_channels[channel]});
   }
+
+  BLI_SCOPED_DEFER([&]() {
+    for (const int channel : image_spatial_domain_channels.index_range()) {
+      fftwf_free(image_spatial_domain_channels[channel]);
+      fftwf_free(image_frequency_domain_channels[channel]);
+    }
+  });
 
   /* Allocate a real buffer and a complex buffer for the kernel FFT input and output, adding a
    * forward transform task for it. */
@@ -79,6 +91,11 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
       fftwf_alloc_complex(frequency_pixels_count));
   forward_transform_tasks.append(
       ForwardTransformTask{kernel_spatial_domain, kernel_frequency_domain});
+
+  BLI_SCOPED_DEFER([&]() {
+    fftwf_free(kernel_spatial_domain);
+    fftwf_free(kernel_frequency_domain);
+  });
 
   /* Create a real to complex and complex to real plans to transform the image to the frequency
    * domain.
@@ -104,17 +121,30 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
       image_spatial_domain_channels[0],
       FFTW_ESTIMATE);
 
+  BLI_SCOPED_DEFER([&]() {
+    fftwf_destroy_plan(forward_plan);
+    fftwf_destroy_plan(backward_plan);
+  });
+
+  /* Download GPU results to CPU for GPU contexts. */
   Result input_cpu = context.use_gpu() ? input.download_to_cpu() : input;
   Result kernel_cpu = context.use_gpu() ? kernel.download_to_cpu() : kernel;
+
+  BLI_SCOPED_DEFER([&]() {
+    if (context.use_gpu()) {
+      input_cpu.release();
+      kernel_cpu.release();
+    }
+  });
 
   /* Zero pad the image to the required spatial domain size, storing each channel in planar
    * format for better cache locality, that is, RRRR...GGGG...BBBB. */
   threading::memory_bandwidth_bound_task(spatial_pixels_count * sizeof(float), [&]() {
     parallel_for(spatial_size, [&](const int2 texel) {
       const float4 pixel_color = input_cpu.load_pixel_zero<float4>(texel);
-      for (const int channel : IndexRange(channels_count)) {
+      for (const int channel : IndexRange(input_channels_count)) {
         float *buffer = image_spatial_domain_channels[channel];
-        const int64_t index = texel.y * spatial_size.x + texel.x;
+        const int64_t index = texel.y * int64_t(spatial_size.x) + texel.x;
         buffer[index] = pixel_color[channel];
       }
     });
@@ -124,19 +154,17 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
   threading::EnumerableThreadSpecific<double> sum_by_thread([]() { return 0.0; });
 
   /* Compute the kernel while zero padding to match the spatial size. */
+  const int2 kernel_center = kernel_size / 2;
   parallel_for(spatial_size, [&](const int2 texel) {
-    const int2 kernel_center = kernel_size / 2;
-    const int2 kernel_texel = kernel_center - texel;
-
     /* We offset the computed kernel with wrap around such that it is centered at the zero
      * point, which is the expected format for doing circular convolutions in the frequency
      * domain. */
-    int64_t input_x = mod_i(kernel_texel.x, spatial_size.x);
-    int64_t input_y = mod_i(kernel_texel.y, spatial_size.y);
-    const int2 texelll = int2(input_x, input_y);
+    const int2 centered_texel = kernel_center - texel;
+    const int2 wrapped_texel = int2(mod_i(centered_texel.x, spatial_size.x),
+                                    mod_i(centered_texel.y, spatial_size.y));
 
-    const float kernel_value = kernel_cpu.load_pixel_zero<float>(texelll);
-    kernel_spatial_domain[texel.x + texel.y * spatial_size.x] = kernel_value;
+    const float kernel_value = kernel_cpu.load_pixel_zero<float>(wrapped_texel);
+    kernel_spatial_domain[texel.x + texel.y * int64_t(spatial_size.x)] = kernel_value;
     sum_by_thread.local() += kernel_value;
   });
 
@@ -144,8 +172,8 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
    * kernel during computation, we normalize it in the frequency domain when convolving the kernel
    * to the image since we will be doing sample normalization anyways. This is okay since the
    * Fourier transform is linear. */
-  const float normalization_factor = float(
-      std::accumulate(sum_by_thread.begin(), sum_by_thread.end(), 0.0));
+  const float sum = float(std::accumulate(sum_by_thread.begin(), sum_by_thread.end(), 0.0));
+  const float normalization_factor = normalize_kernel ? sum : 1.0f;
 
   /* Transform all necessary data from the real domain to the frequency domain. */
   threading::parallel_for(
@@ -165,10 +193,10 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
    * of the FFTW manual for more information. */
   const float normalization_scale = float(spatial_size.x) * spatial_size.y * normalization_factor;
   threading::parallel_for(IndexRange(frequency_size.y), 1, [&](const IndexRange sub_y_range) {
-    for (const int64_t channel : IndexRange(channels_count)) {
+    for (const int64_t channel : IndexRange(input_channels_count)) {
       for (const int64_t y : sub_y_range) {
         for (const int64_t x : IndexRange(frequency_size.x)) {
-          const int64_t index = x + y * frequency_size.x;
+          const int64_t index = x + y * int64_t(frequency_size.x);
           const std::complex<float> kernel_value = kernel_frequency_domain[index];
           image_frequency_domain_channels[channel][index] *= kernel_value / normalization_scale;
         }
@@ -176,7 +204,8 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
     }
   });
 
-  threading::parallel_for(IndexRange(channels_count), 1, [&](const IndexRange sub_range) {
+  /* Transform channels from the frequency domain to the real domain. */
+  threading::parallel_for(IndexRange(input_channels_count), 1, [&](const IndexRange sub_range) {
     for (const int64_t channel : sub_range) {
       fftwf_execute_dft_c2r(
           backward_plan,
@@ -192,8 +221,8 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
   threading::memory_bandwidth_bound_task(input.size_in_bytes(), [&]() {
     parallel_for(image_size, [&](const int2 texel) {
       float4 color = float4(0.0f);
-      for (const int channel : IndexRange(channels_count)) {
-        const int64_t index = texel.x + texel.y * spatial_size.x;
+      for (const int channel : IndexRange(input_channels_count)) {
+        const int64_t index = texel.x + texel.y * int64_t(spatial_size.x);
         color[channel] = image_spatial_domain_channels[channel][index];
       }
       color.w = input_cpu.load_pixel<float4>(texel).w;
@@ -202,23 +231,12 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
   });
 
   if (context.use_gpu()) {
-    input_cpu.release();
-    kernel_cpu.release();
     output = output_cpu.upload_to_gpu(true);
     output_cpu.release();
   }
   else {
     output.steal_data(output_cpu);
   }
-
-  fftwf_destroy_plan(forward_plan);
-  fftwf_destroy_plan(backward_plan);
-  for (const int channel : IndexRange(channels_count)) {
-    fftwf_free(image_spatial_domain_channels[channel]);
-    fftwf_free(image_frequency_domain_channels[channel]);
-  }
-  fftwf_free(kernel_spatial_domain);
-  fftwf_free(kernel_frequency_domain);
 #else
   output.allocate_texture(input.domain());
   if (context.use_gpu()) {

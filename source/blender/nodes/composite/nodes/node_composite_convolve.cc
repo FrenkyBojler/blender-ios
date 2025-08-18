@@ -12,7 +12,13 @@ namespace blender::nodes::node_composite_convolve_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image").hide_value().structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Kernel").hide_value().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Float>("Kernel")
+      .hide_value()
+      .structure_type(StructureType::Dynamic)
+      .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
+  b.add_input<decl::Bool>("Normalize Kernel")
+      .default_value(true)
+      .description("Normalizes the kernel such that it integrates to one");
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
@@ -34,7 +40,12 @@ class ConvolveOperation : public NodeOperation {
       return;
     }
 
-    convolve(this->context(), input, kernel, output);
+    convolve(this->context(), input, kernel, output, this->get_normalize_kernel());
+  }
+
+  bool get_normalize_kernel()
+  {
+    return this->get_input("Normalize Kernel").get_single_value_default(true);
   }
 };
 
