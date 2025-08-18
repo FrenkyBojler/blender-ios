@@ -629,6 +629,19 @@ int AbstractTreeViewItem::count_parents() const
   return i;
 }
 
+AbstractTreeViewItem* AbstractTreeViewItem::get_parent()
+{
+  return parent_;
+}
+
+AbstractTreeViewItem* AbstractTreeViewItem::get_child()
+{
+  if (children_.is_empty()) {
+    return nullptr;
+  }
+  return children_.first().get();
+}
+
 bool AbstractTreeViewItem::set_state_active()
 {
   if (AbstractViewItem::set_state_active()) {

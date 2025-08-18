@@ -2862,6 +2862,8 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
 enum class Direction {
   UP,
   Down,
+  LEFT,
+  RIGHT,
 };
 
 static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
@@ -2872,7 +2874,6 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
   Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
 
   AbstractView &view = *UI_region_view_find_at(&region, event->xy, 0);
-
   if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(&view)) {
     bool found_active = false;
     AbstractTreeViewItem *next_item = nullptr;
@@ -2900,6 +2901,33 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
           AbstractTreeView::IterOptions::SkipCollapsed);
     };
 
+    auto move_left = [&]() {
+      AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
+          UI_region_views_find_active_item(&region));
+      if (!active_item->is_collapsible() || active_item->is_collapsed()) {
+        next_item = active_item->get_parent();
+        return;
+      }
+
+      active_item->set_collapsed(true);
+      };
+
+    auto move_right = [&]() {
+      AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
+          UI_region_views_find_active_item(&region));
+
+      if (!active_item->is_collapsible()) {
+        return;
+      }
+
+      if (active_item->is_collapsed())
+      {
+        active_item->set_collapsed(false);
+        return;
+      }
+      next_item = active_item->get_child();
+    };
+
     switch (direction) {
       case Direction::UP: {
         move_up();
@@ -2907,6 +2935,14 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
       }
       case Direction::Down: {
         move_down();
+        break;
+      }
+      case Direction::LEFT: {
+        move_left();
+        break;
+      }
+      case Direction::RIGHT: {
+        move_right();
         break;
       }
     }
@@ -2932,6 +2968,8 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
   static const EnumPropertyItem direction_enum_items[] = {
       {int(Direction::UP), "UP", 0, "Up", "Select element above the active"},
       {int(Direction::Down), "DOWN", 0, "Down", "Select element below the active"},
+      {int(Direction::LEFT), "LEFT", 0, "Left", "Collapse active"},
+      {int(Direction::RIGHT), "RIGHT", 0, "Right", "Uncollapse active"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

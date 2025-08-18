@@ -1054,6 +1054,10 @@ def km_user_interface(_params):
          {"properties": [("direction", 'UP')]}),
         ("ui.view_item_navigate", {"type": 'DOWN_ARROW', "value": 'PRESS', "repeat": True},
          {"properties": [("direction", 'DOWN')]}),
+        ("ui.view_item_navigate", {"type": 'LEFT_ARROW', "value": 'PRESS', "repeat": True},
+         {"properties": [("direction", 'LEFT')]}),
+        ("ui.view_item_navigate", {"type": 'RIGHT_ARROW', "value": 'PRESS', "repeat": True},
+         {"properties": [("direction", 'RIGHT')]}),
     ])
 
     return keymap
