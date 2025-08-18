@@ -75,7 +75,7 @@ void Camera::init()
   float overscan = 0.0f;
   if ((inst_.scene->eevee.flag & SCE_EEVEE_OVERSCAN) && (inst_.drw_view || inst_.render)) {
     overscan = inst_.scene->eevee.overscan / 100.0f;
-    if (inst_.rv3d->dist == 0.0f || v3d_camera_params_get().lens == 0.0f) {
+    if (inst_.drw_view && (inst_.rv3d->dist == 0.0f || v3d_camera_params_get().lens == 0.0f)) {
       /* In this cases we need to use the v3d winmat as-is. */
       overscan = 0.0f;
     }
