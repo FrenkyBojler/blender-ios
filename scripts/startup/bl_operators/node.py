@@ -94,6 +94,23 @@ class NodeOperator:
         options={'SKIP_SAVE'},
     )
 
+    @classmethod
+    def description(cls, _context, properties):
+        from nodeitems_builtins import node_tree_group_type
+
+        nodetype = properties["type"]
+        if nodetype in node_tree_group_type.values():
+            for setting in properties.settings:
+                if setting.name == "node_tree":
+                    node_group = eval(setting.value)
+                    if node_group.description:
+                        return node_group.description
+        bl_rna = bpy.types.Node.bl_rna_get_subclass(nodetype)
+        if bl_rna is not None:
+            return tip_(bl_rna.description)
+        else:
+            return ""
+        
     @staticmethod
     def store_mouse_cursor(context, event):
         space = context.space_data
@@ -279,23 +296,6 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
         else:
             return {'CANCELLED'}
 
-    @classmethod
-    def description(cls, _context, properties):
-        from nodeitems_builtins import node_tree_group_type
-
-        nodetype = properties["type"]
-        if nodetype in node_tree_group_type.values():
-            for setting in properties.settings:
-                if setting.name == "node_tree":
-                    node_group = eval(setting.value)
-                    if node_group.description:
-                        return node_group.description
-        bl_rna = bpy.types.Node.bl_rna_get_subclass(nodetype)
-        if bl_rna is not None:
-            return tip_(bl_rna.description)
-        else:
-            return ""
-
 
 class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
     bl_idname = "node.add_empty_group"
@@ -467,23 +467,6 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                     return input_node, node
                 
         return None
-        
-    @classmethod
-    def description(cls, _context, properties):
-        from nodeitems_builtins import node_tree_group_type
-
-        nodetype = properties["type"]
-        if nodetype in node_tree_group_type.values():
-            for setting in properties.settings:
-                if setting.name == "node_tree":
-                    node_group = eval(setting.value)
-                    if node_group.description:
-                        return node_group.description
-        bl_rna = bpy.types.Node.bl_rna_get_subclass(nodetype)
-        if bl_rna is not None:
-            return tip_(bl_rna.description)
-        else:
-            return ""
     
     def execute(self, context):
         old_node = context.active_node
