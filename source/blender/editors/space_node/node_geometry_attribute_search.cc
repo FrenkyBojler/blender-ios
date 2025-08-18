@@ -6,10 +6,12 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
 
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_context.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_legacy_types.hh"
@@ -25,6 +27,7 @@
 #include "ED_undo.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geometry_nodes_log.hh"
@@ -198,7 +201,8 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   if (node->type_legacy == GEO_NODE_INPUT_NAMED_ATTRIBUTE && item->data_type.has_value()) {
     NodeGeometryInputNamedAttribute &storage = *static_cast<NodeGeometryInputNamedAttribute *>(
         node->storage);
-    const eCustomDataType new_type = data_type_in_attribute_input_node(*item->data_type);
+    const eCustomDataType new_type = data_type_in_attribute_input_node(
+        *bke::attr_type_to_custom_data_type(*item->data_type));
     if (new_type != storage.data_type) {
       storage.data_type = new_type;
       /* Make the output socket with the new type on the attribute input node active. */
@@ -216,7 +220,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   BLI_assert(socket->type == SOCK_STRING);
 
   bNodeSocketValueString *value = static_cast<bNodeSocketValueString *>(socket->default_value);
-  BLI_strncpy(value->value, item->name.c_str(), MAX_NAME);
+  BLI_strncpy_utf8(value->value, item->name.c_str(), MAX_NAME);
 
   ED_undo_push(C, "Assign Attribute Name");
 }
@@ -229,7 +233,7 @@ void node_geometry_add_attribute_search_button(const bContext & /*C*/,
 {
   uiBlock *block = layout.block();
   uiBut *but = uiDefIconTextButR(block,
-                                 UI_BTYPE_SEARCH_MENU,
+                                 ButType::SearchMenu,
                                  0,
                                  ICON_NONE,
                                  "",
@@ -240,15 +244,13 @@ void node_geometry_add_attribute_search_button(const bContext & /*C*/,
                                  &socket_ptr,
                                  "default_value",
                                  0,
-                                 0.0f,
-                                 0.0f,
                                  "");
   UI_but_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *static_cast<const bNodeSocket *>(socket_ptr.data);
   AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
   data->node_id = node.identifier;
-  STRNCPY(data->socket_identifier, socket.identifier);
+  STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 
   UI_but_func_search_set_results_are_suggestions(but, true);
   UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);

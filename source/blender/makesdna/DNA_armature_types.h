@@ -61,12 +61,7 @@ typedef struct Bone {
   struct Bone *next, *prev;
   /** User-Defined Properties on this Bone. */
   IDProperty *prop;
-  /**
-   * System-Defined Properties storage.
-   *
-   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
-   * management consistency.
-   */
+  /** System-Defined Properties storage. */
   IDProperty *system_properties;
   void *_pad0;
   /** Parent (IK parent if appropriate flag is set). */
@@ -284,12 +279,7 @@ typedef struct BoneCollection {
 
   /** Custom properties. */
   struct IDProperty *prop;
-  /**
-   * Custom system IDProperties.
-   *
-   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
-   * management consistency.
-   */
+  /** Custom system IDProperties. */
   struct IDProperty *system_properties;
 
 #ifdef __cplusplus
@@ -426,8 +416,8 @@ typedef enum eBone_Flag {
    *
    * However the bone may not be visible to the user since the bones collection
    * may be hidden.
-   * In most cases `blender::animrig::bone_is_visible_editbone` or
-   * `blender::animrig::bone_is_visible_pchan` should be used to check if the bone is visible to
+   * In most cases `blender::animrig::bone_is_visible` or
+   * `blender::animrig::bone_is_visible` should be used to check if the bone is visible to
    * the user before operating on them.
    */
   BONE_SELECTED = (1 << 0),

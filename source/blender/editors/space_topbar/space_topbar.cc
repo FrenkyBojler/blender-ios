@@ -11,7 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -24,6 +24,7 @@
 #include "ED_space_api.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -187,7 +188,7 @@ static void topbar_header_region_message_subscribe(const wmRegionMessageSubscrib
 static void recent_files_menu_draw(const bContext * /*C*/, Menu *menu)
 {
   uiLayout *layout = menu->layout;
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   if (uiTemplateRecentFiles(layout, U.recent_files) != 0) {
     layout->separator();
     layout->op("WM_OT_clear_recent_files", IFACE_("Clear Recent Files List..."), ICON_TRASH);
@@ -202,9 +203,9 @@ static void recent_files_menu_register()
   MenuType *mt;
 
   mt = MEM_callocN<MenuType>("spacetype info menu recent files");
-  STRNCPY(mt->idname, "TOPBAR_MT_file_open_recent");
-  STRNCPY(mt->label, N_("Open Recent"));
-  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(mt->idname, "TOPBAR_MT_file_open_recent");
+  STRNCPY_UTF8(mt->label, N_("Open Recent"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = recent_files_menu_draw;
   WM_menutype_add(mt);
 }
@@ -259,9 +260,9 @@ static void undo_history_menu_register()
   MenuType *mt;
 
   mt = MEM_callocN<MenuType>(__func__);
-  STRNCPY(mt->idname, "TOPBAR_MT_undo_history");
-  STRNCPY(mt->label, N_("Undo History"));
-  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(mt->idname, "TOPBAR_MT_undo_history");
+  STRNCPY_UTF8(mt->label, N_("Undo History"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = undo_history_draw_menu;
   WM_menutype_add(mt);
 }
@@ -277,7 +278,7 @@ void ED_spacetype_topbar()
   ARegionType *art;
 
   st->spaceid = SPACE_TOPBAR;
-  STRNCPY(st->name, "Top Bar");
+  STRNCPY_UTF8(st->name, "Top Bar");
 
   st->create = topbar_create;
   st->free = topbar_free;

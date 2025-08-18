@@ -13,8 +13,10 @@
 #include "BLI_assert.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_utildefines.h"
 
 #include "DNA_node_types.h"
+#include "RNA_access.hh"
 #include "RNA_types.hh"
 
 #include "GPU_shader.hh"
@@ -38,37 +40,48 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Vector")
       .dimensions(2)
       .default_value({1.0f, 1.0f})
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_TRANSLATION)
-      .compositor_domain_priority(1);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("X Scale")
       .default_value(0.0f)
       .min(-1000.0f)
       .max(1000.0f)
-      .compositor_domain_priority(2);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("Y Scale")
       .default_value(0.0f)
       .min(-1000.0f)
       .max(1000.0f)
-      .compositor_domain_priority(3);
-  b.add_output<decl::Color>("Image");
+      .structure_type(StructureType::Dynamic);
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void cmp_node_init_displace(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeDisplaceData *data = MEM_callocN<NodeDisplaceData>(__func__);
   data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
+  data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
+  data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
   node->storage = data;
 }
 
 static void cmp_buts_displace(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  uiLayout &column_interpolation_extension_modes = layout->column(true);
+
+  column_interpolation_extension_modes.prop(
+      ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  if (RNA_enum_get(ptr, "interpolation") != CMP_NODE_INTERPOLATION_ANISOTROPIC) {
+    uiLayout &row = column_interpolation_extension_modes.row(true);
+    row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  }
 }
 
 using namespace blender::compositor;
@@ -97,7 +110,9 @@ class DisplaceOperation : public NodeOperation {
   void execute_gpu()
   {
     const Interpolation interpolation = this->get_interpolation();
-    GPUShader *shader = context().get_shader(this->get_shader_name(interpolation));
+    const ExtensionMode extension_x = this->get_extension_mode_x();
+    const ExtensionMode extension_y = this->get_extension_mode_y();
+    gpu::Shader *shader = context().get_shader(this->get_shader_name(interpolation));
     GPU_shader_bind(shader);
 
     const Result &input_image = get_input("Image");
@@ -110,7 +125,8 @@ class DisplaceOperation : public NodeOperation {
           interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
       GPU_texture_filter_mode(input_image, use_bilinear);
     }
-    GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+    GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_x));
+    GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_y));
     input_image.bind_as_texture(shader, "input_tx");
 
     const Result &input_displacement = get_input("Vector");
@@ -143,6 +159,8 @@ class DisplaceOperation : public NodeOperation {
     const Result &y_scale = get_input("Y Scale");
 
     const Interpolation interpolation = this->get_interpolation();
+    const ExtensionMode extension_x = this->get_extension_mode_x();
+    const ExtensionMode extension_y = this->get_extension_mode_y();
     const Domain domain = compute_domain();
     Result &output = get_result("Image");
     output.allocate_texture(domain);
@@ -153,8 +171,15 @@ class DisplaceOperation : public NodeOperation {
       this->compute_anisotropic(size, image, output, input_displacement, x_scale, y_scale);
     }
     else {
-      this->compute_interpolation(
-          interpolation, size, image, output, input_displacement, x_scale, y_scale);
+      this->compute_interpolation(interpolation,
+                                  size,
+                                  image,
+                                  output,
+                                  input_displacement,
+                                  x_scale,
+                                  y_scale,
+                                  extension_x,
+                                  extension_y);
     }
   }
 
@@ -164,26 +189,16 @@ class DisplaceOperation : public NodeOperation {
                              Result &output,
                              const Result &input_displacement,
                              const Result &x_scale,
-                             const Result &y_scale) const
+                             const Result &y_scale,
+                             const ExtensionMode &extension_mode_x,
+                             const ExtensionMode &extension_mode_y) const
   {
     parallel_for(size, [&](const int2 base_texel) {
       const float2 coordinates = compute_coordinates(
           base_texel, size, input_displacement, x_scale, y_scale);
-      switch (interpolation) {
-        /* The anisotropic case requires gradient computation and is handled separately. */
-        case Interpolation::Anisotropic:
-          BLI_assert_unreachable();
-          break;
-        case Interpolation::Nearest:
-          output.store_pixel(base_texel, image.sample_nearest_zero(coordinates));
-          break;
-        case Interpolation::Bilinear:
-          output.store_pixel(base_texel, image.sample_bilinear_zero(coordinates));
-          break;
-        case Interpolation::Bicubic:
-          output.store_pixel(base_texel, image.sample_cubic_wrap(coordinates, false, false));
-          break;
-      }
+      output.store_pixel(
+          base_texel,
+          image.sample(coordinates, interpolation, extension_mode_x, extension_mode_y));
     });
   }
 
@@ -269,8 +284,8 @@ class DisplaceOperation : public NodeOperation {
      * transform it into the normalized sampler space. */
     float2 scale = float2(x_scale.load_pixel_extended<float, true>(texel),
                           y_scale.load_pixel_extended<float, true>(texel));
-    float2 displacement = input_displacement.load_pixel_extended<float3, true>(texel).xy() *
-                          scale / float2(size);
+    float2 displacement = input_displacement.load_pixel_extended<float2, true>(texel) * scale /
+                          float2(size);
     return coordinates - displacement;
   }
 
@@ -306,6 +321,36 @@ class DisplaceOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
+  ExtensionMode get_extension_mode_x()
+  {
+    switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    BLI_assert_unreachable();
+    return ExtensionMode::Clip;
+  }
+
+  ExtensionMode get_extension_mode_y()
+  {
+    switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    BLI_assert_unreachable();
+    return ExtensionMode::Clip;
+  }
+
   bool is_identity()
   {
     const Result &input_image = get_input("Image");
@@ -315,7 +360,7 @@ class DisplaceOperation : public NodeOperation {
 
     const Result &input_displacement = get_input("Vector");
     if (input_displacement.is_single_value() &&
-        math::is_zero(input_displacement.get_single_value<float3>().xy()))
+        math::is_zero(input_displacement.get_single_value<float2>()))
     {
       return true;
     }

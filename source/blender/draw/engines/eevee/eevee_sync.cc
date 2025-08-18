@@ -264,18 +264,28 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
   Material &material = inst_.materials.material_get(
       ob, has_motion, material_slot - 1, MAT_GEOM_POINTCLOUD);
 
-  auto drawcall_add = [&](MaterialPass &matpass) {
+  auto drawcall_add = [&](MaterialPass &matpass, bool dual_sided = false) {
     if (matpass.sub_pass == nullptr) {
       return;
     }
     PassMain::Sub &object_pass = matpass.sub_pass->sub("Point Cloud Sub Pass");
     gpu::Batch *geometry = pointcloud_sub_pass_setup(object_pass, ob, matpass.gpumat);
-    object_pass.draw(geometry, res_handle);
+    if (dual_sided) {
+      /* WORKAROUND: Hack to generate backfaces. Should also be baked into the Index Buf too at
+       * some point in the future. */
+      object_pass.push_constant("ptcloud_backface", false);
+      object_pass.draw(geometry, res_handle);
+      object_pass.push_constant("ptcloud_backface", true);
+      object_pass.draw(geometry, res_handle);
+    }
+    else {
+      object_pass.draw(geometry, res_handle);
+    }
   };
 
   if (material.has_volume) {
     /* Only support single volume material for now. */
-    drawcall_add(material.volume_occupancy);
+    drawcall_add(material.volume_occupancy, true);
     drawcall_add(material.volume_material);
     inst_.volume.object_sync(ob_handle);
 
@@ -400,7 +410,7 @@ void SyncModule::sync_curves(Object *ob,
     mat_nr = particle_sys->part->omat;
   }
 
-  if (res_handle.raw == 0) {
+  if (!res_handle.is_valid()) {
     /* For curve objects. */
     res_handle = inst_.manager->unique_handle(ob_ref);
   }
@@ -469,7 +479,8 @@ void SyncModule::sync_curves(Object *ob,
 
 /** \} */
 
-void foreach_hair_particle_handle(ObjectRef &ob_ref,
+void foreach_hair_particle_handle(Instance &inst,
+                                  ObjectRef &ob_ref,
                                   ObjectHandle ob_handle,
                                   HairHandleCallback callback)
 {
@@ -479,8 +490,10 @@ void foreach_hair_particle_handle(ObjectRef &ob_ref,
     if (md->type == eModifierType_ParticleSystem) {
       ParticleSystem *particle_sys = reinterpret_cast<ParticleSystemModifierData *>(md)->psys;
       ParticleSettings *part_settings = particle_sys->part;
-      const int draw_as = (part_settings->draw_as == PART_DRAW_REND) ? part_settings->ren_as :
-                                                                       part_settings->draw_as;
+      /* Only use the viewport drawing mode for material preview. */
+      const int draw_as = (part_settings->draw_as == PART_DRAW_REND || !inst.is_viewport()) ?
+                              part_settings->ren_as :
+                              part_settings->draw_as;
       if (draw_as != PART_DRAW_PATH ||
           !DRW_object_is_visible_psys_in_active_context(ob_ref.object, particle_sys))
       {

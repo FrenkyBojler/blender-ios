@@ -35,10 +35,10 @@ void GPU_batch_zero(Batch *batch)
   std::fill_n(batch->verts, ARRAY_SIZE(batch->verts), nullptr);
   std::fill_n(batch->inst, ARRAY_SIZE(batch->inst), nullptr);
   batch->elem = nullptr;
-  batch->resource_id_buf = nullptr;
   batch->flag = eGPUBatchFlag(0);
   batch->prim_type = GPUPrimType(0);
   batch->shader = nullptr;
+  batch->procedural_vertices = 0;
 }
 
 Batch *GPU_batch_calloc()
@@ -80,6 +80,24 @@ void GPU_batch_init_ex(Batch *batch,
   batch->prim_type = primitive_type;
   batch->flag = owns_flag | GPU_BATCH_INIT | GPU_BATCH_DIRTY;
   batch->shader = nullptr;
+  batch->procedural_vertices = 0;
+}
+
+Batch *GPU_batch_create_procedural(GPUPrimType primitive_type, int32_t vertex_count)
+{
+  Batch *batch = GPU_batch_calloc();
+  for (auto &v : batch->verts) {
+    v = nullptr;
+  }
+  for (auto &v : batch->inst) {
+    v = nullptr;
+  }
+  batch->elem = nullptr;
+  batch->prim_type = primitive_type;
+  batch->flag = GPU_BATCH_INIT | GPU_BATCH_DIRTY;
+  batch->shader = nullptr;
+  batch->procedural_vertices = vertex_count;
+  return batch;
 }
 
 void GPU_batch_copy(Batch *batch_dst, Batch *batch_src)
@@ -92,6 +110,7 @@ void GPU_batch_copy(Batch *batch_dst, Batch *batch_src)
   for (int v = 1; v < GPU_BATCH_VBO_MAX_LEN; v++) {
     batch_dst->verts[v] = batch_src->verts[v];
   }
+  batch_dst->procedural_vertices = batch_src->procedural_vertices;
 }
 
 void GPU_batch_clear(Batch *batch)
@@ -114,6 +133,7 @@ void GPU_batch_clear(Batch *batch)
     }
   }
   batch->flag = GPU_BATCH_INVALID;
+  batch->procedural_vertices = 0;
 }
 
 void GPU_batch_discard(Batch *batch)
@@ -209,13 +229,6 @@ bool GPU_batch_vertbuf_has(const Batch *batch, const VertBuf *vertex_buf)
   return false;
 }
 
-void GPU_batch_resource_id_buf_set(Batch *batch, GPUStorageBuf *resource_id_buf)
-{
-  BLI_assert(resource_id_buf);
-  batch->flag |= GPU_BATCH_DIRTY;
-  batch->resource_id_buf = resource_id_buf;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -224,7 +237,7 @@ void GPU_batch_resource_id_buf_set(Batch *batch, GPUStorageBuf *resource_id_buf)
  * \{ */
 
 void GPU_batch_set_shader(Batch *batch,
-                          GPUShader *shader,
+                          blender::gpu::Shader *shader,
                           const shader::SpecializationConstants *constants_state)
 {
   batch->shader = shader;
@@ -232,7 +245,7 @@ void GPU_batch_set_shader(Batch *batch,
 }
 
 static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
-                                       GPUShader *shader,
+                                       blender::gpu::Shader *shader,
                                        VertBuf *vbo)
 {
   const GPUVertFormat *format = &vbo->format;
@@ -285,10 +298,10 @@ static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
 }
 
 void GPU_batch_bind_as_resources(Batch *batch,
-                                 GPUShader *shader,
+                                 blender::gpu::Shader *shader,
                                  const shader::SpecializationConstants *constants)
 {
-  const ShaderInterface *interface = unwrap(shader)->interface;
+  const ShaderInterface *interface = shader->interface;
   if (interface->ssbo_attr_mask_ == 0) {
     return;
   }
@@ -422,7 +435,7 @@ void GPU_batch_draw(Batch *batch)
 {
   BLI_assert(batch != nullptr);
   GPU_shader_bind(batch->shader);
-  if (unwrap(batch->shader)->is_polyline) {
+  if (batch->shader->is_polyline) {
     polyline_draw_workaround(batch, 0, batch->vertex_count_get(), 0, 0);
   }
   else {
@@ -434,7 +447,7 @@ void GPU_batch_draw_range(Batch *batch, int vertex_first, int vertex_count)
 {
   BLI_assert(batch != nullptr);
   GPU_shader_bind(batch->shader);
-  if (unwrap(batch->shader)->is_polyline) {
+  if (batch->shader->is_polyline) {
     polyline_draw_workaround(batch, vertex_first, vertex_count, 0, 0);
   }
   else {
@@ -447,7 +460,7 @@ void GPU_batch_draw_instance_range(Batch *batch, int instance_first, int instanc
   BLI_assert(batch != nullptr);
   BLI_assert(batch->inst[0] == nullptr);
   /* Not polyline shaders support instancing. */
-  BLI_assert(unwrap(batch->shader)->is_polyline == false);
+  BLI_assert(batch->shader->is_polyline == false);
 
   GPU_shader_bind(batch->shader);
   GPU_batch_draw_advanced(batch, 0, 0, instance_first, instance_count);
@@ -461,7 +474,10 @@ void GPU_batch_draw_advanced(
   Context::get()->assert_framebuffer_shader_compatibility(Context::get()->shader);
 
   if (vertex_count == 0) {
-    if (batch->elem) {
+    if (batch->procedural_vertices > 0) {
+      vertex_count = batch->procedural_vertices;
+    }
+    else if (batch->elem) {
       vertex_count = batch->elem_()->index_len_get();
     }
     else {
@@ -484,7 +500,7 @@ void GPU_batch_draw_advanced(
   batch->draw(vertex_first, vertex_count, instance_first, instance_count);
 }
 
-void GPU_batch_draw_indirect(Batch *batch, GPUStorageBuf *indirect_buf, intptr_t offset)
+void GPU_batch_draw_indirect(Batch *batch, blender::gpu::StorageBuf *indirect_buf, intptr_t offset)
 {
   BLI_assert(batch != nullptr);
   BLI_assert(indirect_buf != nullptr);
@@ -494,8 +510,11 @@ void GPU_batch_draw_indirect(Batch *batch, GPUStorageBuf *indirect_buf, intptr_t
   batch->draw_indirect(indirect_buf, offset);
 }
 
-void GPU_batch_multi_draw_indirect(
-    Batch *batch, GPUStorageBuf *indirect_buf, int count, intptr_t offset, intptr_t stride)
+void GPU_batch_multi_draw_indirect(Batch *batch,
+                                   blender::gpu::StorageBuf *indirect_buf,
+                                   int count,
+                                   intptr_t offset,
+                                   intptr_t stride)
 {
   BLI_assert(batch != nullptr);
   BLI_assert(indirect_buf != nullptr);
@@ -515,7 +534,7 @@ void GPU_batch_program_set_builtin_with_config(Batch *batch,
                                                eGPUBuiltinShader shader_id,
                                                eGPUShaderConfig sh_cfg)
 {
-  GPUShader *shader = GPU_shader_get_builtin_shader_with_config(shader_id, sh_cfg);
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader_with_config(shader_id, sh_cfg);
   GPU_batch_set_shader(batch, shader);
 }
 

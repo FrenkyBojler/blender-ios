@@ -13,7 +13,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 static void keymap_item_modified(bContext * /*C*/, void *kmi_p, void * /*unused*/)
@@ -60,9 +60,9 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
       uiBlock *block = row->block();
       UI_block_emboss_set(block, blender::ui::EmbossType::None);
       but = uiDefIconButO(block,
-                          UI_BTYPE_BUT,
+                          ButType::But,
                           "UI_OT_unset_property_button",
-                          WM_OP_EXEC_DEFAULT,
+                          blender::wm::OpCallContext::ExecDefault,
                           ICON_X,
                           0,
                           0,

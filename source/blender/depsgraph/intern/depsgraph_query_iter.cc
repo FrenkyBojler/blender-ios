@@ -62,19 +62,27 @@ void deg_invalidate_iterator_work_data(DEGObjectIterData *data)
 #endif
 }
 
-void ensure_id_properties_freed(const Object *dupli_object, Object *temp_dupli_object)
+bool deg_object_hide_original(eEvaluationMode eval_mode, Object *ob, DupliObject *dob)
 {
-  if (temp_dupli_object->id.properties == nullptr) {
-    /* No ID properties in temp data-block -- no leak is possible. */
-    return;
+  /* Automatic hiding if this object is being instanced on verts/faces/frames
+   * by its parent. Ideally this should not be needed, but due to the wrong
+   * dependency direction in the data design there is no way to keep the object
+   * visible otherwise. The better solution eventually would be for objects
+   * to specify which object they instance, instead of through parenting.
+   *
+   * This function should not be used for meta-balls. They have custom visibility rules, as hiding
+   * the base meta-ball will also hide all the other balls in the group. */
+  if (eval_mode == DAG_EVAL_RENDER || dob) {
+    const int hide_original_types = OB_DUPLIVERTS | OB_DUPLIFACES;
+
+    if (!dob || !(dob->type & hide_original_types)) {
+      if (ob->parent && (ob->parent->transflag & hide_original_types)) {
+        return true;
+      }
+    }
   }
-  if (temp_dupli_object->id.properties == dupli_object->id.properties) {
-    /* Temp copy of object did not modify ID properties. */
-    return;
-  }
-  /* Free memory which is owned by temporary storage which is about to get overwritten. */
-  IDP_FreeProperty(temp_dupli_object->id.properties);
-  temp_dupli_object->id.properties = nullptr;
+
+  return false;
 }
 
 void deg_iterator_duplis_init(DEGObjectIterData *data, Object *object)
@@ -531,17 +539,24 @@ bool DEG_iterator_setup_temp_object(Object *dupli_parent,
   return true;
 }
 
-void DEG_iterator_free_temp_object_properties(const Object *dupli_object, Object *temp_object)
+void ensure_id_properties_freed(const IDProperty *dupli_idprops, IDProperty **temp_dupli_idprops)
 {
-  if (temp_object->id.properties == nullptr) {
+  if (*temp_dupli_idprops == nullptr) {
     /* No ID properties in temp data-block -- no leak is possible. */
     return;
   }
-  if (temp_object->id.properties == dupli_object->id.properties) {
+  if (*temp_dupli_idprops == dupli_idprops) {
     /* Temp copy of object did not modify ID properties. */
     return;
   }
   /* Free memory which is owned by temporary storage which is about to get overwritten. */
-  IDP_FreeProperty(temp_object->id.properties);
-  temp_object->id.properties = nullptr;
+  IDP_FreeProperty(*temp_dupli_idprops);
+  *temp_dupli_idprops = nullptr;
+}
+
+void DEG_iterator_free_temp_object_properties(const Object *dupli_object, Object *temp_object)
+{
+  ensure_id_properties_freed(dupli_object->id.properties, &temp_object->id.properties);
+  ensure_id_properties_freed(dupli_object->id.system_properties,
+                             &temp_object->id.system_properties);
 }
