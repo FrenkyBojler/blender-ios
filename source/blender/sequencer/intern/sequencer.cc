@@ -1168,6 +1168,7 @@ ListBase *Editing::current_strips() const
   if (this->current_meta_strip) {
     return &this->current_meta_strip->seqbase;
   }
+  /* NOTE: Const correctness is non-existent with ListBase anyway. */
   return &const_cast<ListBase &>(this->seqbase);
 }
 
@@ -1184,5 +1185,6 @@ ListBase *Editing::current_channels() const
   if (this->current_channels_strip) {
     return &this->current_channels_strip->channels;
   }
+  /* NOTE: Const correctness is non-existent with ListBase anyway. */
   return &const_cast<ListBase &>(this->channels);
 }
