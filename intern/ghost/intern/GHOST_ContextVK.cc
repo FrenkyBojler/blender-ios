@@ -574,7 +574,8 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #endif
                                  int contextMajorVersion,
                                  int contextMinorVersion,
-                                 const GHOST_GPUDevice &preferred_device)
+                                 const GHOST_GPUDevice &preferred_device,
+                                 const GHOST_WindowHDRInfo *hdr_info)
     : GHOST_Context(context_params),
 #ifdef _WIN32
       hwnd_(hwnd),
@@ -593,6 +594,7 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
       context_major_version_(contextMajorVersion),
       context_minor_version_(contextMinorVersion),
       preferred_device_(preferred_device),
+      hdr_info_(hdr_info),
       surface_(VK_NULL_HANDLE),
       swapchain_(VK_NULL_HANDLE),
       frame_data_(GHOST_FRAMES_IN_FLIGHT),
@@ -720,6 +722,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   swap_chain_data.submission_fence = submission_frame_data.submission_fence;
   swap_chain_data.acquire_semaphore = submission_frame_data.acquire_semaphore;
   swap_chain_data.present_semaphore = swapchain_image.present_semaphore;
+  swap_chain_data.sdr_scale = (hdr_info_) ? hdr_info_->sdr_white_level : 1.0f;
 
   vkResetFences(device, 1, &submission_frame_data.submission_fence);
   if (swap_buffers_pre_callback_) {
@@ -767,6 +770,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanSwapChainFormat(
   r_swap_chain_data->image = VK_NULL_HANDLE;
   r_swap_chain_data->surface_format = surface_format_;
   r_swap_chain_data->extent = render_extent_;
+  r_swap_chain_data->sdr_scale = (hdr_info_) ? hdr_info_->sdr_white_level : 1.0f;
 
   return GHOST_kSuccess;
 }

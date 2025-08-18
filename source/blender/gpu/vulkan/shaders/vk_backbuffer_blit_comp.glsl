@@ -20,6 +20,6 @@ void main()
    * most SDR sRGB displays decode with gamma 2.2, and that's what we are trying
    * to match.
    */
-  color.rgb = sign(color.rgb) * pow(abs(color.rgb), vec3(2.2f));
+  color.rgb = sign(color.rgb) * pow(abs(color.rgb), vec3(2.2f)) * sdr_scale;
   imageStore(dst_img, ivec2(dst_texel), color);
 }

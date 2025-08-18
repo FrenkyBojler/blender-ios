@@ -396,6 +396,7 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
                                       to_gpu_format(swap_chain_data.surface_format.format));
     Shader *shader = device.vk_backbuffer_blit_sh_get();
     GPU_shader_bind(shader);
+    GPU_shader_uniform_1f(shader, "sdr_scale", swap_chain_data.sdr_scale);
     VKStateManager &state_manager = state_manager_get();
     state_manager.image_bind(color_attachment, 0);
     state_manager.image_bind(&swap_chain_texture, 1);
