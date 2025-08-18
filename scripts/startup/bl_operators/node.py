@@ -521,7 +521,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
         return {'FINISHED'}
     
     
-class NODE_OT_swap_zone(NodeSwapOperator, NodeAddZoneOperator, Operator):
+class NODE_OT_swap_zone(NodeSwapOperator, Operator):
     bl_idname = "node.swap_zone"
     bl_label = "Swap Zone" 
     bl_options = {"REGISTER", "UNDO"}
@@ -540,6 +540,13 @@ class NODE_OT_swap_zone(NodeSwapOperator, NodeAddZoneOperator, Operator):
         name="Add Geometry Link",
         description="When enabled, create a link between geometry sockets in this zone",
         default=False,
+    )
+
+    offset: FloatVectorProperty(
+        name="Offset",
+        description="Offset of nodes from the cursor when added",
+        size=2,
+        default=(150, 0),
     )
 
     zone_tooltips = {
