@@ -20,6 +20,7 @@
 
 #include "SEQ_effects.hh"
 #include "SEQ_relations.hh"
+#include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
@@ -36,6 +37,37 @@
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
+
+static TextVarsRuntime *temp_text_runtime_get(const Scene *scene, const Strip *strip)
+{
+  float2 scene_render_size(scene->r.xsch, scene->r.ysch);
+  const TextVars *data = static_cast<TextVars *>(strip->effectdata);
+  const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                               ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
+  const int font = seq::text_effect_font_init(nullptr, strip, font_flags);
+  /* It's easier to create RenderData than overloaded `text_effect_calc_runtime` function. */
+  seq::RenderData render_data;
+  render_data.scene = const_cast<Scene *>(scene);
+  render_data.rectx = scene_render_size.x;
+  render_data.recty = scene_render_size.y;
+  render_data.preview_render_size = SEQ_RENDER_SIZE_PROXY_100;
+  return seq::text_effect_calc_runtime(&render_data, strip, font, int2(scene_render_size));
+}
+
+static void offset_strip_image(const Scene *scene, const Strip *strip)
+{
+  TextVars *data = static_cast<TextVars *>(strip->effectdata);
+  TextVarsRuntime *runtime = data->runtime;
+  TextVarsRuntime *runtime_temp = temp_text_runtime_get(scene, strip);
+  int text_box_width = BLI_rcti_size_x(&runtime->text_boundbox);
+  int text_box_width_new = BLI_rcti_size_x(&runtime_temp->text_boundbox);
+  int offset = text_box_width_new - text_box_width;
+
+  StripTransform *transform = strip->data->transform;
+  float offset_ratio = (transform->origin[0] - 0.5f) * -1.0f;
+
+  transform->xofs += offset * offset_ratio;
+}
 
 static bool sequencer_text_editing_poll(bContext *C)
 {
@@ -169,6 +201,7 @@ static void text_editing_update(const bContext *C)
 {
   Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   seq::relations_invalidate_cache_raw(CTX_data_sequencer_scene(C), strip);
+  offset_strip_image(CTX_data_scene(C), strip);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
 }
 

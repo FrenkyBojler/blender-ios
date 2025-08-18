@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "../blenfont/BLF_enums.hh"
+
 #include "DNA_vec_types.h"
 
 #include "BLI_math_vector_types.hh"
@@ -97,5 +99,11 @@ struct TextVarsRuntime {
   int font;
   bool editing_is_active; /* UI uses this to differentiate behavior. */
 };
+
+TextVarsRuntime *text_effect_calc_runtime(const RenderData *context,
+                                          const Strip *strip,
+                                          int font,
+                                          const int2 image_size);
+int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags);
 
 }  // namespace blender::seq
