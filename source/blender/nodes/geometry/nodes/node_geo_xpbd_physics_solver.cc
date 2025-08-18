@@ -62,6 +62,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(SphericalSelfCollisionXPBDConstraintBundle::get_bundle_type());
   types.append(CurveSegmentXPBDConstraintBundle::get_bundle_type());
   types.append(OverpressureXPBDConstraintBundle::get_bundle_type());
+  types.append(DampingBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -122,6 +123,8 @@ struct SimPointsKey {
 struct SimPointsWorldProperties {
   Span<float> inverse_masses;
   Span<float> frictions;
+  float linear_damping;
+  float angular_damping;
 };
 
 struct DistanceConstraintLengths {
@@ -181,6 +184,7 @@ struct WorldData {
   BundleVectorSet<InfiniteGroundPlaneBundle> infinite_ground_planes;
   BundleVectorSet<SphericalSelfCollisionXPBDConstraintBundle> spherical_self_collision_constraints;
   BundleVectorSet<OverpressureXPBDConstraintBundle> overpressure_constraints;
+  BundleVectorSet<DampingBundle> dampings;
 };
 
 static AttrDomain get_position_domain(const bke::GeometryComponent::Type type)
@@ -218,22 +222,32 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.infinite_ground_planes);
     parse_bundle(params, errors, world.spherical_self_collision_constraints);
     parse_bundle(params, errors, world.overpressure_constraints);
+    parse_bundle(params, errors, world.dampings);
   });
   return world;
 }
 
-static void integrate_velocities(XPBDState &state,
-                                 const Map<SimPointsKey, Span<float3>> &accelerations_map,
-                                 const float delta_time)
+static void integrate_velocities(
+    XPBDState &state,
+    const Map<SimPointsKey, Span<float3>> &accelerations_map,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float delta_time)
 {
   for (auto item : state.sim_points.items()) {
     SimPoints &sim_points = item.value;
     const Span<float3> accelerations = accelerations_map.lookup(item.key);
+    const SimPointsWorldProperties &props = sim_points_props.lookup(item.key);
     const int points_num = sim_points.positions.size();
+
+    /* Approximation of exponential decay. */
+    const float linear_damping_factor = std::max(1.0f - props.linear_damping * delta_time, 0.0f);
+    const float angular_damping_factor = std::max(1.0f - props.angular_damping * delta_time, 0.0f);
+
     threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         const float3 &acceleration = accelerations[i];
         sim_points.velocities[i] += acceleration * delta_time;
+        sim_points.velocities[i] *= linear_damping_factor;
         sim_points.positions[i] += sim_points.velocities[i] * delta_time;
       }
     });
@@ -248,6 +262,7 @@ static void integrate_velocities(XPBDState &state,
           const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
           angular_velocity += delta_time *
                               math::safe_divide(external_torque - precession, inertia);
+          angular_velocity *= angular_damping_factor;
           math::Quaternion &rotation = sim_points.rotations[i];
           const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
           rotation = math::normalize(
@@ -585,7 +600,18 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
         mask.foreach_index(GrainSize(1024), [&](const int i) { result_masses[i] = 0.0f; });
       }
     }
-    properties_map.add_new(key, {result_masses, result_frictions});
+
+    const Vector damping_bundles = filter_bundles_for_path<DampingBundle>(world.dampings,
+                                                                          key.path);
+    float linear_damping = 0.0f;
+    float angular_damping = 0.0f;
+    for (const DampingBundle *damping_bundle : damping_bundles) {
+      linear_damping += damping_bundle->linear_damping;
+      angular_damping += damping_bundle->angular_damping;
+    }
+
+    properties_map.add_new(key,
+                           {result_masses, result_frictions, linear_damping, angular_damping});
   }
   return properties_map;
 }
@@ -1324,7 +1350,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
     /* Integrate linear and angular velocities. This also applies external forces. */
     if (sub_delta_time > 0.0f) {
-      integrate_velocities(state, accelerations_map, sub_delta_time);
+      integrate_velocities(state, accelerations_map, sim_points_props, sub_delta_time);
     }
 
     /* Move pinned points to the correct position for the current substep. */

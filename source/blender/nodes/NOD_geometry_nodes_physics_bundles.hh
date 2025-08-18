@@ -34,6 +34,16 @@ class ForceBundle : public NestedBundleCommon {
   static std::optional<ForceBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
+class DampingBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.Damping";
+  std::string filter;
+  float linear_damping;
+  float angular_damping;
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<DampingBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
+};
+
 enum class RigidBodyCollisionShapeType {
   Box,
   Sphere,

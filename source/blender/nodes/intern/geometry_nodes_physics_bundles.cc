@@ -59,6 +59,32 @@ std::optional<ForceBundle> ForceBundle::parse(const Bundle &bundle, BundleParseE
   return behavior;
 }
 
+const FlatBundleTypePtr &DampingBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(DampingBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Float>("linear_damping").min(0.0f);
+    b.add<decl::Float>("angular_damping").min(0.0f);
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+std::optional<DampingBundle> DampingBundle::parse(const Bundle &bundle,
+                                                  BundleParseErrors &r_errors)
+{
+  DampingBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "linear_damping", behavior.linear_damping, r_errors);
+  bundle_parse_member(bundle, "angular_damping", behavior.angular_damping, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 const FlatBundleTypePtr &RigidBodyInstancesBundle::get_bundle_type()
 {
   static const FlatBundleTypePtr bundle_type = []() {
