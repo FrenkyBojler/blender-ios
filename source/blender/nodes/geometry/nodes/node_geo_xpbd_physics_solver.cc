@@ -1407,7 +1407,8 @@ static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_posit
         const float3 &old_position = is_initialization ? pinned_positions_varray[point_i] :
                                                          sim_points.positions[point_i];
         const float3 &new_position = pinned_positions_varray[point_i];
-        animations_map.add(point_i, {old_position, new_position});
+        animations_map.add(point_i,
+                           {math::normalize(old_position), math::normalize(new_position)});
       });
     }
     if (!animations_map.is_empty()) {
