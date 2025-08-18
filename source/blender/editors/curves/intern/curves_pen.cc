@@ -847,6 +847,55 @@ class CurvesPenToolOperation : public PenToolOperation {
   }
 };
 
+static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const bool ends_only)
+{
+  float2 pos = float2(0.0f, 0.0f);
+  int num = 0;
+
+  for (const int curves_index : ptd.all_curves.index_range()) {
+    const Curves *curves_id = ptd.all_curves[curves_index];
+    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    const Span<float3> positions = curves.positions();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const Array<int> point_to_curve_map = curves.point_to_curve_map();
+    const VArray<bool> &cyclic = curves.cyclic();
+
+    // IndexMaskMemory memory;
+    // const IndexMask selection = ed::greasepencil::retrieve_editable_and_selected_points(
+    //     *ptd.vc.obact, info.drawing, info.layer_index, memory);
+    // const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+    //     *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display,
+    //     memory);
+    // const IndexMask all_points = IndexMask::from_union(selection, bezier_points, memory);
+
+    /* TODO. */
+    const IndexMask all_points = curves.points_range();
+
+    all_points.foreach_index([&](const int64_t point_i) {
+      if (ends_only) {
+        const int curve_i = point_to_curve_map[point_i];
+        const IndexRange points = points_by_curve[curve_i];
+
+        /* Skip cyclic curves unless they only have one point. */
+        if (cyclic[curve_i] && points.size() != 1) {
+          return;
+        }
+
+        if (point_i != points.first() && point_i != points.last()) {
+          return;
+        }
+      }
+      pos += ptd.layer_to_screen(float4x4::identity(), positions[point_i]);
+      num++;
+    });
+  }
+
+  if (num == 0) {
+    return pos;
+  }
+  return pos / num;
+}
+
 static void pen_update_view(bContext *C, CurvesPenToolOperation &ptd)
 {
   for (Curves *curves_id : ptd.all_curves) {
@@ -929,7 +978,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
     ptd.all_curves.append(curves_id);
   }
 
-  // ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
+  ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
 
   ClosestElement closest_element;
   closest_element.element_mode = ElementMode::None;
@@ -1092,7 +1141,7 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
   }
 
   std::atomic<bool> changed = false;
-  // ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
+  ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
 
   if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
     // const MutableDrawingInfo &info = ptd.drawings[ptd.closest_element.drawing_index];
