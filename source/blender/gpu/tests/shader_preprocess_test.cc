@@ -783,7 +783,7 @@ enum class enum_class : int {
 #line 2
 #define enum_class int
 #line 3
-static constexpr int enum_class_VALUE = 0;
+constant static constexpr int enum_class_VALUE = 0;
 #line 5
 )";
     string error;
