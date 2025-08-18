@@ -881,23 +881,23 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
                                       bool is_dialog)
 {
   /* A new window is created when page-flip mode is required for a window. */
-  GHOST_GPUSettings gpuSettings = {0};
+  GHOST_GPUSettings gpu_settings = {0};
   if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP) {
-    gpuSettings.flags |= GHOST_gpuStereoVisual;
+    gpu_settings.flags |= GHOST_gpuStereoVisual;
   }
 
   if (G.debug & G_DEBUG_GPU) {
-    gpuSettings.flags |= GHOST_gpuDebugContext;
+    gpu_settings.flags |= GHOST_gpuDebugContext;
   }
 
   eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  gpuSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  gpuSettings.preferred_device.index = U.gpu_preferred_index;
-  gpuSettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpuSettings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.preferred_device.index = U.gpu_preferred_index;
+  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
   if (GPU_backend_vsync_is_overridden()) {
-    gpuSettings.flags |= GHOST_gpuVSyncIsOverridden;
-    gpuSettings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
   }
 
   int posx = 0;
@@ -925,7 +925,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
       win->sizey,
       (GHOST_TWindowState)win->windowstate,
       is_dialog,
-      gpuSettings);
+      gpu_settings);
 
   if (ghostwin) {
     win->gpuctx = GPU_context_create(ghostwin, nullptr);
@@ -2152,31 +2152,6 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
   return GHOST_kDrawingContextTypeNone;
 }
 
-static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, void * /*arg1*/)
-{
-  uiBlock *block = UI_block_begin(
-      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
-
-  uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
-
-  /* Title and explanation text. */
-  uiLayout *col = &layout->column(false);
-  col->scale_y_set(0.8f);
-  uiItemL_ex(
-      col, RPT_("Failed to load using Vulkan, using OpenGL instead."), ICON_NONE, true, false);
-  col->separator(1.3f, LayoutSeparatorType::Space);
-
-  col->label(RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
-  col->label(RPT_("The graphics backend can be changed in the System section of the Preferences."),
-             ICON_NONE);
-
-  UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
-
-  return block;
-}
-
 void wm_test_gpu_backend_fallback(bContext *C)
 {
   if (!bool(G.f & G_FLAG_GPU_BACKEND_FALLBACK)) {
@@ -2200,7 +2175,14 @@ void wm_test_gpu_backend_fallback(bContext *C)
 
     wmWindow *prevwin = CTX_wm_window(C);
     CTX_wm_window_set(C, win);
-    UI_popup_block_invoke(C, block_create_gpu_backend_fallback, nullptr, nullptr);
+    std::string message = RPT_("Updating GPU drivers may solve this issue.");
+    message += RPT_(
+        "The graphics backend can be changed in the System section of the Preferences.");
+    UI_alert(C,
+             RPT_("Failed to load using Vulkan, using OpenGL instead."),
+             message,
+             ALERT_ICON_ERROR,
+             false);
     CTX_wm_window_set(C, prevwin);
   }
 }
@@ -3170,21 +3152,21 @@ void *WM_system_gpu_context_create()
   BLI_assert(BLI_thread_is_main());
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
-  GHOST_GPUSettings gpuSettings = {0};
+  GHOST_GPUSettings gpu_settings = {0};
   const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  gpuSettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   if (G.debug & G_DEBUG_GPU) {
-    gpuSettings.flags |= GHOST_gpuDebugContext;
+    gpu_settings.flags |= GHOST_gpuDebugContext;
   }
-  gpuSettings.preferred_device.index = U.gpu_preferred_index;
-  gpuSettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpuSettings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.preferred_device.index = U.gpu_preferred_index;
+  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
   if (GPU_backend_vsync_is_overridden()) {
-    gpuSettings.flags |= GHOST_gpuVSyncIsOverridden;
-    gpuSettings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
   }
 
-  return GHOST_CreateGPUContext(g_system, gpuSettings);
+  return GHOST_CreateGPUContext(g_system, gpu_settings);
 }
 
 void WM_system_gpu_context_dispose(void *context)
