@@ -1111,10 +1111,10 @@ static void apply_friction(XPBDState &state,
   }
 }
 
-static void update_velocities(XPBDState &state,
-                              const VectorSet<SimPointsKey> &keys,
-                              const Span<Array<float3>> all_prev_positions,
-                              const float delta_time)
+static void update_linear_velocities(XPBDState &state,
+                                     const VectorSet<SimPointsKey> &keys,
+                                     const Span<Array<float3>> all_prev_positions,
+                                     const float delta_time)
 {
   for (const int key_i : keys.index_range()) {
     const Span<float3> prev_positions = all_prev_positions[key_i];
@@ -1127,6 +1127,30 @@ static void update_velocities(XPBDState &state,
         const float3 &new_position = new_positions[i];
         const float3 velocity = (new_position - prev_position) / delta_time;
         velocities[i] = velocity;
+      }
+    });
+  }
+}
+
+static void update_angular_velocities(XPBDState &state,
+                                      const VectorSet<SimPointsKey> &keys,
+                                      const Span<Array<math::Quaternion>> all_prev_rotations,
+                                      const float delta_time)
+{
+  for (const int key_i : keys.index_range()) {
+    SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
+    if (!sim_points.has_rotation) {
+      continue;
+    }
+    const Span<math::Quaternion> prev_rotations = all_prev_rotations[key_i];
+    const Span<math::Quaternion> new_rotations = sim_points.rotations;
+    MutableSpan<float3> angular_velocities = sim_points.angular_velocities;
+    threading::parallel_for(IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        angular_velocities[i] =
+            2.0f *
+            (math::invert_normalized(prev_rotations[i]) * new_rotations[i]).imaginary_part() /
+            delta_time;
       }
     });
   }
@@ -1273,8 +1297,13 @@ static void update_and_step_xpbd_state(XPBDState &state,
       scope, state, world, applied_geometries, keys, sim_points_props, static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
+  Array<Array<math::Quaternion>> all_prev_rotations(keys.size());
   for (const int i : keys.index_range()) {
-    all_prev_positions[i].reinitialize(state.sim_points.lookup(keys[i]).points_num);
+    const SimPoints &sim_points = state.sim_points.lookup(keys[i]);
+    all_prev_positions[i].reinitialize(sim_points.points_num);
+    if (sim_points.has_rotation) {
+      all_prev_rotations[i].reinitialize(sim_points.points_num);
+    }
   }
 
   const Vector<geometry::xpbd_constraint_solver::MutablePointsRef> points_refs =
@@ -1283,10 +1312,14 @@ static void update_and_step_xpbd_state(XPBDState &state,
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
     const float factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
 
-    /* Remember previous positions. */
+    /* Remember previous positions and rotations. */
     for (const int i : keys.index_range()) {
       const SimPointsKey &key = keys[i];
-      all_prev_positions[i].as_mutable_span().copy_from(state.sim_points.lookup(key).positions);
+      const SimPoints &sim_points = state.sim_points.lookup(key);
+      all_prev_positions[i].as_mutable_span().copy_from(sim_points.positions);
+      if (sim_points.has_rotation) {
+        all_prev_rotations[i].as_mutable_span().copy_from(sim_points.rotations);
+      }
     }
 
     /* Integrate linear and angular velocities. This also applies external forces. */
@@ -1312,7 +1345,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
       /* Apply friction by updating current positions before the new velocity is computed. */
       apply_friction(state, contacts, keys, all_prev_positions);
       /* Update velocities based on previous and new positions. */
-      update_velocities(state, keys, all_prev_positions, sub_delta_time);
+      update_linear_velocities(state, keys, all_prev_positions, sub_delta_time);
+      /* Update angular velocities based on previous and new rotations. */
+      update_angular_velocities(state, keys, all_prev_rotations, sub_delta_time);
     }
   }
 
