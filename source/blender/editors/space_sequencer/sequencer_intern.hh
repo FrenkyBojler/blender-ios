@@ -397,5 +397,8 @@ blender::Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const 
 /* `sequencer_clipboard.cc` */
 wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
 wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_clipboard_paste_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event);
 
 }  // namespace blender::ed::vse

@@ -392,6 +392,16 @@ static bool sequencer_paste_animation(Main *bmain_dst, Scene *scene_dst, Scene *
   return true;
 }
 
+wmOperatorStatus sequencer_clipboard_paste_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
+{
+  RNA_int_set(op->ptr, "x", event->mval[0]);
+  RNA_int_set(op->ptr, "y", event->mval[1]);
+  const int test_mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
+  return sequencer_clipboard_paste_exec(C, op);
+}
+
 wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
@@ -399,6 +409,10 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   const BlendFileReadParams params{};
   BlendFileReadReport bf_reports{};
   BlendFileData *bfd = BKE_blendfile_read(filepath, &params, &bf_reports);
+  const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
+
+  /* For checking if region type is Preview. */
+  ARegion *region = CTX_wm_region(C);
 
   if (bfd == nullptr) {
     BKE_report(op->reports, RPT_INFO, "No data to paste");
@@ -507,6 +521,9 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     /* Ensure, that pasted strips don't overlap. */
     if (seq::transform_test_overlap(scene_dst, ed_dst->seqbasep, istrip)) {
       seq::transform_seqbase_shuffle(ed_dst->seqbasep, istrip, scene_dst);
+    }
+    if (region->regiontype == RGN_TYPE_PREVIEW) {
+      printf("RGN_TYPE_PREVIEW\n");
     }
   }
 
