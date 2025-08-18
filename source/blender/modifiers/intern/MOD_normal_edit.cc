@@ -508,7 +508,8 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd,
                                              sharp_faces,
                                              custom_nors_dst.span,
                                              nullptr,
-                                             corner_normals);
+                                             corner_normals,
+                                             (result->loose_edges().count == 0) && (ELEM(0, result->loose_verts().count, result->verts_no_face().count)));
   }
 
   MOD_get_vgroup(ob, result, enmd->defgrp_name, &dvert, &defgrp_index);

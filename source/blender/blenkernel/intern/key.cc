@@ -2263,7 +2263,8 @@ void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
         sharp_faces,
         custom_normals,
         nullptr,
-        {reinterpret_cast<blender::float3 *>(r_loop_normals), corner_verts.size()});
+        {reinterpret_cast<blender::float3 *>(r_loop_normals), corner_verts.size()},
+        (mesh->loose_edges().count == 0) && (ELEM(0, mesh->loose_verts().count, mesh->verts_no_face().count)));
   }
 
   if (free_vert_normals) {

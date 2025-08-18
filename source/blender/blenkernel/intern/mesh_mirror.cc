@@ -417,7 +417,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
                                              sharp_faces,
                                              clnors,
                                              &lnors_spacearr,
-                                             corner_normals);
+                                             corner_normals,
+                                             (result->loose_edges().count == 0) && (ELEM(0, result->loose_verts().count, result->verts_no_face().count)));
 
     /* mirroring has to account for loops being reversed in faces in second half */
     for (const int i : src_faces.index_range()) {

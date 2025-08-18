@@ -200,7 +200,8 @@ void normals_calc_corners(Span<float3> vert_positions,
                           Span<bool> sharp_faces,
                           Span<short2> custom_normals,
                           CornerNormalSpaceArray *r_fan_spaces,
-                          MutableSpan<float3> r_corner_normals);
+                          MutableSpan<float3> r_corner_normals,
+                          std::optional<bool> has_no_loos_verts = std::nullopt);
 
 /**
  * \param sharp_faces: Optional array used to mark specific faces for sharp shading.
