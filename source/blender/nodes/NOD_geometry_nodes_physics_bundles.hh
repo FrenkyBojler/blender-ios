@@ -96,6 +96,9 @@ class XPBDGeometryBundle : public NestedBundleCommon {
   bke::GeometrySet geometry;
   fn::Field<float> mass;
   fn::Field<float> friction;
+  bool has_rotation;
+  std::string output_rotation_name;
+  fn::Field<math::Quaternion> initial_rotations;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<XPBDGeometryBundle> parse(const Bundle &bundle,

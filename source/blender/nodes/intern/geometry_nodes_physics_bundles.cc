@@ -154,6 +154,9 @@ const FlatBundleTypePtr &XPBDGeometryBundle::get_bundle_type()
     b.add<decl::Geometry>("geometry").supported_type(bke::GeometryComponent::Type::Mesh);
     b.add<decl::Float>("mass").default_value(1.0f).min(0.0f);
     b.add<decl::Float>("friction").default_value(0.5f).min(0.0f);
+    b.add<decl::Bool>("has_rotation").default_value(false);
+    b.add<decl::Rotation>("initial_rotation").supports_field();
+    b.add<decl::String>("output_rotation_name");
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -168,6 +171,9 @@ std::optional<XPBDGeometryBundle> XPBDGeometryBundle::parse(const Bundle &bundle
   bundle_parse_member(bundle, "geometry", behavior.geometry, r_errors);
   bundle_parse_member(bundle, "mass", behavior.mass, r_errors);
   bundle_parse_member(bundle, "friction", behavior.friction, r_errors);
+  bundle_parse_member(bundle, "has_rotation", behavior.has_rotation, r_errors);
+  bundle_parse_member(bundle, "initial_rotation", behavior.initial_rotations, r_errors);
+  bundle_parse_member(bundle, "output_rotation_name", behavior.output_rotation_name, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }

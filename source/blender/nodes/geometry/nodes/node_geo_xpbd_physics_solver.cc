@@ -273,7 +273,25 @@ static void integrate_velocities(
   }
 }
 
-static void apply_simulation_to_mesh(GeometrySet &geometry, const SimPoints &sim_points)
+static void store_rotation_if_necessary(const XPBDGeometryBundle &bundle,
+                                        const SimPoints &sim_points,
+                                        const bke::AttrDomain domain,
+                                        bke::MutableAttributeAccessor attributes)
+{
+  if (!bundle.has_rotation || !sim_points.has_rotation || bundle.output_rotation_name.empty()) {
+    return;
+  }
+  attributes.remove(bundle.output_rotation_name);
+  bke::SpanAttributeWriter<math::Quaternion> attribute =
+      attributes.lookup_or_add_for_write_only_span<math::Quaternion>(bundle.output_rotation_name,
+                                                                     domain);
+  attribute.span.copy_from(sim_points.rotations);
+  attribute.finish();
+}
+
+static void apply_simulation_to_mesh(const XPBDGeometryBundle &bundle,
+                                     GeometrySet &geometry,
+                                     const SimPoints &sim_points)
 {
   if (!geometry.has_mesh()) {
     return;
@@ -285,9 +303,13 @@ static void apply_simulation_to_mesh(GeometrySet &geometry, const SimPoints &sim
   MutableSpan<float3> mesh_positions = mesh->vert_positions_for_write();
   mesh_positions.copy_from(sim_points.positions);
   mesh->tag_positions_changed();
+
+  store_rotation_if_necessary(bundle, sim_points, AttrDomain::Point, mesh->attributes_for_write());
 }
 
-static void apply_simulation_to_pointcloud(GeometrySet &geometry, const SimPoints &sim_points)
+static void apply_simulation_to_pointcloud(const XPBDGeometryBundle &bundle,
+                                           GeometrySet &geometry,
+                                           const SimPoints &sim_points)
 {
   if (!geometry.has_pointcloud()) {
     return;
@@ -299,9 +321,14 @@ static void apply_simulation_to_pointcloud(GeometrySet &geometry, const SimPoint
   MutableSpan<float3> pointcloud_positions = pointcloud->positions_for_write();
   pointcloud_positions.copy_from(sim_points.positions);
   pointcloud->tag_positions_changed();
+
+  store_rotation_if_necessary(
+      bundle, sim_points, AttrDomain::Point, pointcloud->attributes_for_write());
 }
 
-static void apply_simulation_to_curves(GeometrySet &geometry, const SimPoints &sim_points)
+static void apply_simulation_to_curves(const XPBDGeometryBundle &bundle,
+                                       GeometrySet &geometry,
+                                       const SimPoints &sim_points)
 {
   if (!geometry.has_curves()) {
     return;
@@ -314,9 +341,14 @@ static void apply_simulation_to_curves(GeometrySet &geometry, const SimPoints &s
   MutableSpan<float3> curves_positions = curves.positions_for_write();
   curves_positions.copy_from(sim_points.positions);
   curves.tag_positions_changed();
+
+  store_rotation_if_necessary(
+      bundle, sim_points, AttrDomain::Point, curves.attributes_for_write());
 }
 
-static void apply_simulation_to_instances(GeometrySet &geometry, const SimPoints &sim_points)
+static void apply_simulation_to_instances(const XPBDGeometryBundle &bundle,
+                                          GeometrySet &geometry,
+                                          const SimPoints &sim_points)
 {
   if (!geometry.has_instances()) {
     return;
@@ -327,23 +359,14 @@ static void apply_simulation_to_instances(GeometrySet &geometry, const SimPoints
   bke::Instances *instances = geometry.get_instances_for_write();
   MutableSpan<float4x4> transforms = instances->transforms_for_write();
   const Span<float3> positions = sim_points.positions;
-  if (sim_points.has_rotation) {
-    const Span<math::Quaternion> rotations = sim_points.rotations;
-    threading::parallel_for(transforms.index_range(), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        float4x4 &transform = transforms[i];
-        const float3 scale = math::to_scale<true>(transform);
-        transform = math::from_loc_rot_scale<float4x4>(positions[i], rotations[i], scale);
-      }
-    });
-  }
-  else {
-    threading::parallel_for(transforms.index_range(), 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        transforms[i].location() = positions[i];
-      }
-    });
-  }
+  threading::parallel_for(transforms.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      transforms[i].location() = positions[i];
+    }
+  });
+
+  store_rotation_if_necessary(
+      bundle, sim_points, AttrDomain::Instance, instances->attributes_for_write());
 }
 
 static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBDState &state)
@@ -353,29 +376,56 @@ static GeometrySet apply_simulation(const XPBDGeometryBundle &bundle, const XPBD
   if (geometry.has_mesh()) {
     const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
     if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
-      apply_simulation_to_mesh(geometry, *sim_points);
+      apply_simulation_to_mesh(bundle, geometry, *sim_points);
     }
   }
   if (geometry.has_pointcloud()) {
     const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::PointCloud};
     if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
-      apply_simulation_to_pointcloud(geometry, *sim_points);
+      apply_simulation_to_pointcloud(bundle, geometry, *sim_points);
     }
   }
   if (geometry.has_curves()) {
     const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Curve};
     if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
-      apply_simulation_to_curves(geometry, *sim_points);
+      apply_simulation_to_curves(bundle, geometry, *sim_points);
     }
   }
   if (geometry.has_instances()) {
     const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Instance};
     if (const SimPoints *sim_points = state.sim_points.lookup_ptr(key)) {
-      apply_simulation_to_instances(geometry, *sim_points);
+      apply_simulation_to_instances(bundle, geometry, *sim_points);
     }
   }
 
   return geometry;
+}
+
+static void ensure_rotation_data(SimPoints &sim_points,
+                                 const XPBDGeometryBundle &bundle,
+                                 const fn::FieldContext &field_context)
+{
+  if (bundle.has_rotation) {
+    if (!sim_points.has_rotation) {
+      /* Initialize new rotation data. */
+      sim_points.has_rotation = true;
+      sim_points.rotations.reinitialize(sim_points.points_num);
+      sim_points.angular_velocities.reinitialize(sim_points.points_num);
+      sim_points.angular_velocities.fill(float3(0.0f));
+      fn::FieldEvaluator field_evaluator{field_context, sim_points.points_num};
+      field_evaluator.add_with_destination(bundle.initial_rotations,
+                                           sim_points.rotations.as_mutable_span());
+      field_evaluator.evaluate();
+    }
+  }
+  else {
+    if (sim_points.has_rotation) {
+      /* Remove the simulation data because it was disabled on the bundle. */
+      sim_points.has_rotation = false;
+      sim_points.rotations.reinitialize(0);
+      sim_points.angular_velocities.reinitialize(0);
+    }
+  }
 }
 
 static void update_xpbd_state_for_geometry(XPBDState &state,
@@ -400,6 +450,8 @@ static void update_xpbd_state_for_geometry(XPBDState &state,
       sim_points.velocities.fill(float3(0.0f));
       new_sim_points = std::move(sim_points);
     }
+    ensure_rotation_data(
+        *new_sim_points, bundle, bke::MeshFieldContext(*current_mesh, AttrDomain::Point));
     r_sim_points.add(key, std::move(*new_sim_points));
   }
   if (current_geometry.has_pointcloud()) {
@@ -419,6 +471,8 @@ static void update_xpbd_state_for_geometry(XPBDState &state,
       sim_points.velocities.fill(float3(0.0f));
       new_sim_points = std::move(sim_points);
     }
+    ensure_rotation_data(
+        *new_sim_points, bundle, bke::PointCloudFieldContext(*current_pointcloud));
     r_sim_points.add(key, std::move(*new_sim_points));
   }
   if (current_geometry.has_curves()) {
@@ -439,6 +493,8 @@ static void update_xpbd_state_for_geometry(XPBDState &state,
       sim_points.velocities.fill(float3(0.0f));
       new_sim_points = std::move(sim_points);
     }
+    ensure_rotation_data(
+        *new_sim_points, bundle, bke::CurvesFieldContext(*current_curves_id, AttrDomain::Point));
     r_sim_points.add(key, std::move(*new_sim_points));
   }
   if (current_geometry.has_instances()) {
@@ -454,27 +510,17 @@ static void update_xpbd_state_for_geometry(XPBDState &state,
       SimPoints sim_points;
       const int instances_num = current_instances->instances_num();
       sim_points.points_num = instances_num;
-      sim_points.has_rotation = true;
       sim_points.positions.reinitialize(instances_num);
-      sim_points.rotations.reinitialize(instances_num);
+      sim_points.velocities.reinitialize(instances_num);
+      sim_points.velocities.fill(float3(0.0f));
       const Span<float4x4> transforms = current_instances->transforms();
       threading::parallel_for(
           sim_points.positions.index_range(), 1024, [&](const IndexRange range) {
             for (const int i : range) {
-              float3 location;
-              math::Quaternion rotation;
-              float3 scale;
-              math::to_loc_rot_scale_safe<true>(transforms[i], location, rotation, scale);
-
-              sim_points.positions[i] = location;
-              sim_points.rotations[i] = rotation;
+              sim_points.positions[i] = transforms[i].location();
             }
           });
-      sim_points.velocities.reinitialize(instances_num);
-      sim_points.velocities.fill(float3(0.0f));
-      sim_points.angular_velocities.reinitialize(instances_num);
-      sim_points.angular_velocities.fill(float3(0.0f));
-
+      ensure_rotation_data(sim_points, bundle, bke::InstancesFieldContext(*current_instances));
       new_sim_points = std::move(sim_points);
     }
     r_sim_points.add(key, std::move(*new_sim_points));
