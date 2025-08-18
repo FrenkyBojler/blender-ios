@@ -71,7 +71,7 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
                                (scene->r.hair_type == SCE_HAIR_SHAPE_CYLINDER) ? 3 :
                                                                                  1;
 
-  if (source.psys->totchild + source.psys->totpart == 0) {
+  if (source.evaluated_points_num() == 0) {
     /* Nothing to draw. Just return an empty drawcall that will be skipped. */
     return cache.batch_get(0, 0, face_per_segment, false);
   }

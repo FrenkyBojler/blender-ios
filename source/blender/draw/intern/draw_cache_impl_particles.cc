@@ -72,6 +72,11 @@ struct ParticleHairCache {
   int elems_len;
   int point_len;
 
+  /* Equivalent to the new Curves data structure.
+   * Allows to create the eval cache. */
+  Vector<int> points_by_curve_storage;
+  Vector<int> evaluated_points_by_curve_storage;
+
   CurvesEvalCache eval_cache;
 };
 
@@ -206,6 +211,9 @@ static void particle_batch_cache_clear_hair(ParticleHairCache *hair_cache)
   GPU_BATCH_DISCARD_SAFE(hair_cache->hairs);
   GPU_VERTBUF_DISCARD_SAFE(hair_cache->pos);
   GPU_INDEXBUF_DISCARD_SAFE(hair_cache->indices);
+
+  hair_cache->evaluated_points_by_curve_storage.clear();
+  hair_cache->points_by_curve_storage.clear();
 
   hair_cache->eval_cache.clear();
 }
@@ -1067,16 +1075,19 @@ ParticleDrawSource drw_particle_get_hair_source(Object *object,
                                                 const int additional_subdivision)
 {
   const DRWContext *draw_ctx = DRW_context_get();
-  ParticleDrawSource src;
+  if (psys_in_edit_mode(draw_ctx->depsgraph, psys)) {
+    object = DEG_get_original(object);
+    psys = psys_orig_get(psys);
+  }
+  ParticleBatchCache *cache = particle_batch_cache_get(psys);
+
+  ParticleDrawSource src = ParticleDrawSource(cache->hair.points_by_curve_storage,
+                                              cache->hair.evaluated_points_by_curve_storage);
   src.object = object;
   src.psys = psys;
   src.md = md;
   src.edit = edit;
   src.additional_subdivision = math::clamp(additional_subdivision, 0, 3);
-  if (psys_in_edit_mode(draw_ctx->depsgraph, psys)) {
-    src.object = DEG_get_original(object);
-    src.psys = psys_orig_get(psys);
-  }
   return src;
 }
 
@@ -1646,7 +1657,7 @@ CurvesEvalCache &hair_particle_get_eval_cache(ParticleDrawSource &src)
   ParticleBatchCache *cache = particle_batch_cache_get(src.psys);
   CurvesEvalCache &eval_cache = cache->hair.eval_cache;
   if (assign_if_different(eval_cache.additional_subdivision, src.additional_subdivision)) {
-    eval_cache.clear();
+    particle_batch_cache_clear_hair(&cache->hair);
   }
   return eval_cache;
 }

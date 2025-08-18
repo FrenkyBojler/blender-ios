@@ -66,8 +66,15 @@ struct ParticleDrawSource {
   PTCacheEdit *edit = nullptr;
   int additional_subdivision = 0;
 
-  Vector<int> points_by_curve_storage;
-  Vector<int> evaluated_points_by_curve_storage;
+  Vector<int> &points_by_curve_storage;
+  Vector<int> &evaluated_points_by_curve_storage;
+
+  ParticleDrawSource(Vector<int> &points_by_curve_storage,
+                     Vector<int> &evaluated_points_by_curve_storage)
+      : points_by_curve_storage(points_by_curve_storage),
+        evaluated_points_by_curve_storage(evaluated_points_by_curve_storage)
+  {
+  }
 
   int curves_num()
   {
