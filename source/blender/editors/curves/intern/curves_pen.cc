@@ -860,18 +860,10 @@ static float2 calculate_center_of_mass(const CurvesPenToolOperation &ptd, const 
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
     const VArray<bool> &cyclic = curves.cyclic();
 
-    // IndexMaskMemory memory;
-    // const IndexMask selection = ed::greasepencil::retrieve_editable_and_selected_points(
-    //     *ptd.vc.obact, info.drawing, info.layer_index, memory);
-    // const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-    //     *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display,
-    //     memory);
-    // const IndexMask all_points = IndexMask::from_union(selection, bezier_points, memory);
+    IndexMaskMemory memory;
+    const IndexMask selection = retrieve_all_selected_points(curves, memory);
 
-    /* TODO. */
-    const IndexMask all_points = curves.points_range();
-
-    all_points.foreach_index([&](const int64_t point_i) {
+    selection.foreach_index([&](const int64_t point_i) {
       if (ends_only) {
         const int curve_i = point_to_curve_map[point_i];
         const IndexRange points = points_by_curve[curve_i];
