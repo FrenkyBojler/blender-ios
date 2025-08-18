@@ -80,13 +80,13 @@ class NodeSetting(PropertyGroup):
     )
 
 
-# Base class for node "Add" operators.
-class NodeAddOperator:
+class NodeOperator:
     use_transform: BoolProperty(
         name="Use Transform",
         description="Start transform operator after inserting the node",
         default=False,
     )
+    
     settings: CollectionProperty(
         name="Settings",
         description="Settings to be applied on the newly created node",
@@ -155,6 +155,9 @@ class NodeAddOperator:
         node.location = space.cursor_location
         return node
 
+
+# Base class for node "Add" operators.
+class NodeAddOperator(NodeOperator):
     @classmethod
     def poll(cls, context):
         space = context.space_data
@@ -175,7 +178,7 @@ class NodeAddOperator:
         return result
     
 
-class NodeSwapOperator:
+class NodeSwapOperator(NodeOperator):
     @classmethod
     def poll(cls, context):
         return (
@@ -234,6 +237,15 @@ class NodeSwapOperator:
 
                     except KeyError:
                         pass
+
+    def invoke(self, context, event):
+        self.store_mouse_cursor(context, event)
+        result = self.execute(context)
+
+        if self.use_transform and ('FINISHED' in result):
+            bpy.ops.node.translate_attach_remove_on_cancel('INVOKE_DEFAULT')
+
+        return result
 
 
 # Simple basic operator for adding a node.
@@ -314,7 +326,7 @@ class NODE_OT_add_empty_group(NodeAddOperator, bpy.types.Operator):
         return group
 
 
-class NODE_OT_swap_empty_group(NodeSwapOperator, NodeAddOperator, bpy.types.Operator):
+class NODE_OT_swap_empty_group(NodeSwapOperator, bpy.types.Operator):
     bl_idname = "node.swap_empty_group"
     bl_label = "Swap Empty Group"
     bl_description = "Replace active node with an empty group"
@@ -426,7 +438,7 @@ class NODE_OT_add_closure_zone(NodeAddZoneOperator, Operator):
     add_default_geometry_link = False
     
     
-class NODE_OT_swap_node(NodeSwapOperator, NodeAddOperator, Operator):
+class NODE_OT_swap_node(NodeSwapOperator, Operator):
     bl_idname = "node.swap_node"
     bl_label = "Swap Node" 
     bl_options = {"REGISTER", "UNDO"}
@@ -513,7 +525,7 @@ class NODE_OT_swap_zone(NodeSwapOperator, NodeAddZoneOperator, Operator):
     bl_idname = "node.swap_zone"
     bl_label = "Swap Zone" 
     bl_options = {"REGISTER", "UNDO"}
-    
+
     input_node_type: StringProperty(
         name="Input Node",
         description="Specifies the input node used the created zone",
