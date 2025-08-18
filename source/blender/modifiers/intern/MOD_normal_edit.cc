@@ -498,18 +498,20 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd,
   if (use_current_clnors) {
     corner_normals.reinitialize(corner_verts.size());
     const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
-    blender::bke::mesh::normals_calc_corners(positions,
-                                             faces,
-                                             corner_verts,
-                                             corner_edges,
-                                             result->vert_to_face_map(),
-                                             result->face_normals_true(),
-                                             sharp_edges.span,
-                                             sharp_faces,
-                                             custom_nors_dst.span,
-                                             nullptr,
-                                             corner_normals,
-                                             (result->loose_edges().count == 0) && (ELEM(0, result->loose_verts().count, result->verts_no_face().count)));
+    blender::bke::mesh::normals_calc_corners(
+        positions,
+        faces,
+        corner_verts,
+        corner_edges,
+        result->vert_to_face_map(),
+        result->face_normals_true(),
+        sharp_edges.span,
+        sharp_faces,
+        custom_nors_dst.span,
+        nullptr,
+        corner_normals,
+        (result->loose_edges().count == 0) &&
+            (ELEM(0, result->loose_verts().count, result->verts_no_face().count)));
   }
 
   MOD_get_vgroup(ob, result, enmd->defgrp_name, &dvert, &defgrp_index);

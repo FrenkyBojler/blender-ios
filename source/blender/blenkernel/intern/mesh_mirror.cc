@@ -407,18 +407,20 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     /* calculate custom normals into corner_normals, then mirror first half into second half */
     const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
     const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
-    blender::bke::mesh::normals_calc_corners(result->vert_positions(),
-                                             result_faces,
-                                             result_corner_verts,
-                                             result_corner_edges,
-                                             result->vert_to_face_map(),
-                                             result->face_normals_true(),
-                                             sharp_edges,
-                                             sharp_faces,
-                                             clnors,
-                                             &lnors_spacearr,
-                                             corner_normals,
-                                             (result->loose_edges().count == 0) && (ELEM(0, result->loose_verts().count, result->verts_no_face().count)));
+    blender::bke::mesh::normals_calc_corners(
+        result->vert_positions(),
+        result_faces,
+        result_corner_verts,
+        result_corner_edges,
+        result->vert_to_face_map(),
+        result->face_normals_true(),
+        sharp_edges,
+        sharp_faces,
+        clnors,
+        &lnors_spacearr,
+        corner_normals,
+        (result->loose_edges().count == 0) &&
+            (ELEM(0, result->loose_verts().count, result->verts_no_face().count)));
 
     /* mirroring has to account for loops being reversed in faces in second half */
     for (const int i : src_faces.index_range()) {

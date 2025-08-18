@@ -496,18 +496,20 @@ blender::Span<blender::float3> Mesh::corner_normals() const
         MutableSpan<float3> data = r_data.ensure_vector_size(this->corners_num);
         const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
         const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
-        mesh::normals_calc_corners(this->vert_positions(),
-                                   this->faces(),
-                                   this->corner_verts(),
-                                   this->corner_edges(),
-                                   this->vert_to_face_map(),
-                                   this->face_normals_true(),
-                                   sharp_edges,
-                                   sharp_faces,
-                                   VArraySpan<short2>(custom.varray.typed<short2>()),
-                                   nullptr,
-                                   data,
-                                   (this->loose_edges().count == 0) && (ELEM(0, this->loose_verts().count, this->verts_no_face().count)));
+        mesh::normals_calc_corners(
+            this->vert_positions(),
+            this->faces(),
+            this->corner_verts(),
+            this->corner_edges(),
+            this->vert_to_face_map(),
+            this->face_normals_true(),
+            sharp_edges,
+            sharp_faces,
+            VArraySpan<short2>(custom.varray.typed<short2>()),
+            nullptr,
+            data,
+            (this->loose_edges().count == 0) &&
+                (ELEM(0, this->loose_verts().count, this->verts_no_face().count)));
       }
     }
   });
@@ -1251,10 +1253,13 @@ void normals_calc_corners(const Span<float3> vert_positions,
   threading::EnumerableThreadSpecific<Vector<CornerSpaceGroup, 0>> space_groups;
 
   threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
-    if (has_no_loos_verts.value_or(false) && vert_to_face_map.offsets[range].size() == range.size()) {
-      BLI_assert(std::all_of(range.begin(), range.end(), [&](const int64_t i) { return !vert_to_face_map[i].is_empty(); }));
-      
-      
+    if (has_no_loos_verts.value_or(false) &&
+        vert_to_face_map.offsets[range].size() == range.size())
+    {
+      BLI_assert(std::all_of(range.begin(), range.end(), [&](const int64_t i) {
+        return !vert_to_face_map[i].is_empty();
+      }));
+
       // return;
     }
 
