@@ -892,8 +892,7 @@ uint my_func() {
   return i;
 #else
 #line 3
-  uint result;
-  return result;
+  return uint(0);
 #endif
 #line 6
 }
