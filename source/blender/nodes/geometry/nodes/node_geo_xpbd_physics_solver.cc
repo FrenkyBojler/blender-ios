@@ -64,6 +64,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(OverpressureXPBDConstraintBundle::get_bundle_type());
   types.append(DampingBundle::get_bundle_type());
   types.append(TorqueBundle::get_bundle_type());
+  types.append(PinnedRotationXPBDConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -189,6 +190,7 @@ struct WorldData {
   BundleVectorSet<OverpressureXPBDConstraintBundle> overpressure_constraints;
   BundleVectorSet<DampingBundle> dampings;
   BundleVectorSet<TorqueBundle> torques;
+  BundleVectorSet<PinnedRotationXPBDConstraintBundle> pinned_rotation_constraints;
 };
 
 static AttrDomain get_simulation_domain(const bke::GeometryComponent::Type type)
@@ -228,6 +230,7 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.overpressure_constraints);
     parse_bundle(params, errors, world.dampings);
     parse_bundle(params, errors, world.torques);
+    parse_bundle(params, errors, world.pinned_rotation_constraints);
   });
   return world;
 }
@@ -438,6 +441,12 @@ static void ensure_rotation_data(SimPoints &sim_points,
       field_evaluator.add_with_destination(bundle.initial_rotations,
                                            sim_points.rotations.as_mutable_span());
       field_evaluator.evaluate();
+      threading::parallel_for(
+          IndexRange(sim_points.points_num), 1024, [&](const IndexRange range) {
+            for (const int i : range) {
+              sim_points.rotations[i] = math::normalize(sim_points.rotations[i]);
+            }
+          });
     }
   }
   else {
@@ -1335,6 +1344,11 @@ struct PinnedPositionAnimation {
   float3 end;
 };
 
+struct PinnedRotationAnimation {
+  math::Quaternion start;
+  math::Quaternion end;
+};
+
 static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_position_animations(
     const XPBDState &state,
     const WorldData &world,
@@ -1388,6 +1402,61 @@ static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_posit
   return result;
 }
 
+static Map<SimPointsKey, Map<int, PinnedRotationAnimation>> computed_pinned_rotation_animations(
+    const XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const bool is_initialization)
+{
+  Map<SimPointsKey, Map<int, PinnedRotationAnimation>> result;
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+    if (!sim_points.has_rotation) {
+      continue;
+    }
+    const bke::GeometryComponent::Type type = key.type;
+    const bke::GeometryComponent *component = applied_geometry.get_component(type);
+    if (!component) {
+      continue;
+    }
+    const AttrDomain domain = get_simulation_domain(type);
+    const int domain_size = component->attribute_domain_size(domain);
+
+    const Vector constraint_bundles = filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
+        world.pinned_rotation_constraints, key.path);
+
+    bke::GeometryFieldContext field_context(*component, domain);
+    Map<int, PinnedRotationAnimation> animations_map;
+    for (const PinnedRotationXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      fn::FieldEvaluator field_evaluator{field_context, domain_size};
+      field_evaluator.set_selection(constraint_bundle->selection);
+      field_evaluator.add(constraint_bundle->rotation);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      if (mask.is_empty()) {
+        continue;
+      }
+      const VArray<math::Quaternion> rotations_varray =
+          field_evaluator.get_evaluated<math::Quaternion>(0);
+      mask.foreach_index([&](const int point_i) {
+        const math::Quaternion &old_rotation = is_initialization ? rotations_varray[point_i] :
+                                                                   sim_points.rotations[point_i];
+        const math::Quaternion &new_rotation = rotations_varray[point_i];
+        animations_map.add(point_i,
+                           {math::normalize(old_rotation), math::normalize(new_rotation)});
+      });
+    }
+    if (!animations_map.is_empty()) {
+      result.add(key, std::move(animations_map));
+    }
+  }
+  return result;
+}
+
 static void update_pinned_positions(
     XPBDState &state,
     const Map<SimPointsKey, Map<int, PinnedPositionAnimation>> &pinned_position_animations,
@@ -1402,6 +1471,25 @@ static void update_pinned_positions(
       const PinnedPositionAnimation &animation = animation_map_item.value;
       const float3 current_position = math::interpolate(animation.start, animation.end, factor);
       sim_points.positions[point_i] = current_position;
+    }
+  }
+}
+
+static void update_pinned_rotations(
+    XPBDState &state,
+    const Map<SimPointsKey, Map<int, PinnedRotationAnimation>> &pinned_rotation_animations,
+    const float factor)
+{
+  for (const auto item : pinned_rotation_animations.items()) {
+    const SimPointsKey &key = item.key;
+    SimPoints &sim_points = state.sim_points.lookup(key);
+    const Map<int, PinnedRotationAnimation> &animations_map = item.value;
+    for (const auto animation_map_item : animations_map.items()) {
+      const int point_i = animation_map_item.key;
+      const PinnedRotationAnimation &animation = animation_map_item.value;
+      const math::Quaternion current_rotation = math::interpolate(
+          animation.start, animation.end, factor);
+      sim_points.rotations[point_i] = current_rotation;
     }
   }
 }
@@ -1432,6 +1520,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
       scope, state, world, keys, applied_geometries);
   const Map<SimPointsKey, Map<int, PinnedPositionAnimation>> pinned_position_animations =
       compute_pinned_position_animations(
+          state, world, applied_geometries, keys, is_initialization);
+  const Map<SimPointsKey, Map<int, PinnedRotationAnimation>> pinned_rotation_animations =
+      computed_pinned_rotation_animations(
           state, world, applied_geometries, keys, is_initialization);
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
@@ -1490,6 +1581,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
     /* Move pinned points to the correct position for the current substep. */
     update_pinned_positions(state, pinned_position_animations, factor);
+    update_pinned_rotations(state, pinned_rotation_animations, factor);
 
     /* Find current collisisons and generate constraints to resolve them. */
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =

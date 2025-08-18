@@ -156,6 +156,19 @@ class PinnedPositionXPBDConstraintBundle : public NestedBundleCommon {
                                                                  BundleParseErrors &r_errors);
 };
 
+class PinnedRotationXPBDConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.PinnedRotationXPBDConstraint";
+
+  std::string filter;
+  fn::Field<bool> selection;
+  fn::Field<math::Quaternion> rotation;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<PinnedRotationXPBDConstraintBundle> parse(const Bundle &bundle,
+                                                                 BundleParseErrors &r_errors);
+};
+
 class OverpressureXPBDConstraintBundle : public NestedBundleCommon {
  public:
   static constexpr StringRefNull name = "Blender.OverpressureXPBDConstraint";
