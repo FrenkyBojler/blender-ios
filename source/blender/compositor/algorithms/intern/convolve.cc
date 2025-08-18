@@ -5,6 +5,7 @@
 #include <complex>
 #include <numeric>
 
+#include "BLI_array.hh"
 #include "BLI_assert.h"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_fftw.hh"
@@ -51,18 +52,39 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
   const int64_t spatial_pixels_per_channel = int64_t(spatial_size.x) * spatial_size.y;
   const int64_t frequency_pixels_per_channel = int64_t(frequency_size.x) * frequency_size.y;
   const int64_t spatial_pixels_count = spatial_pixels_per_channel * channels_count;
-  const int64_t frequency_pixels_count = frequency_pixels_per_channel * channels_count;
 
-  float *image_spatial_domain = fftwf_alloc_real(spatial_pixels_count);
-  std::complex<float> *image_frequency_domain = reinterpret_cast<std::complex<float> *>(
-      fftwf_alloc_complex(frequency_pixels_count));
+  /* Allocate a real buffer and a complex buffer for each of the channels for the FFT input and
+   * output respectively. */
+  Array<float *> image_spatial_domain_channels(channels_count);
+  Array<std::complex<float> *> image_frequency_domain_channels(channels_count);
+  for (const int channel : IndexRange(channels_count)) {
+    image_spatial_domain_channels[channel] = fftwf_alloc_real(spatial_pixels_per_channel);
+    image_frequency_domain_channels[channel] = reinterpret_cast<std::complex<float> *>(
+        fftwf_alloc_complex(frequency_pixels_per_channel));
+  }
 
-  /* Create a real to complex plan to transform the image to the frequency domain. */
+  /* Create a real to complex and complex to real plans to transform the image to the frequency
+   * domain.
+   *
+   * Notice that FFTW provides an advanced interface as per Section 4.4.2 Advanced Real-data DFTs
+   * to transform all image channels simultaneously with interleaved pixel layouts. But profiling
+   * showed better performance when running a single plan in parallel for all image channels with a
+   * planner pixel format, so this is what we will be doing.
+   *
+   * The input and output buffers here are dummy buffers and still not initialized, because they
+   * are required by the planner internally for planning and their data will be overwritten. So
+   * make sure not to initialize the buffers before creating the plan. */
   fftwf_plan forward_plan = fftwf_plan_dft_r2c_2d(
       spatial_size.y,
       spatial_size.x,
-      image_spatial_domain,
-      reinterpret_cast<fftwf_complex *>(image_frequency_domain),
+      image_spatial_domain_channels[0],
+      reinterpret_cast<fftwf_complex *>(image_frequency_domain_channels[0]),
+      FFTW_ESTIMATE);
+  fftwf_plan backward_plan = fftwf_plan_dft_c2r_2d(
+      spatial_size.y,
+      spatial_size.x,
+      reinterpret_cast<fftwf_complex *>(image_frequency_domain_channels[0]),
+      image_spatial_domain_channels[0],
       FFTW_ESTIMATE);
 
   Result input_cpu = context.use_gpu() ? input.download_to_cpu() : input;
@@ -73,19 +95,19 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
     parallel_for(spatial_size, [&](const int2 texel) {
       const float4 pixel_color = input_cpu.load_pixel_zero<float4>(texel);
       for (const int channel : IndexRange(channels_count)) {
-        const int64_t base_index = texel.y * spatial_size.x + texel.x;
-        const int64_t output_index = base_index + spatial_pixels_per_channel * channel;
-        image_spatial_domain[output_index] = pixel_color[channel];
+        float *buffer = image_spatial_domain_channels[channel];
+        const int64_t index = texel.y * spatial_size.x + texel.x;
+        buffer[index] = pixel_color[channel];
       }
     });
   });
 
   threading::parallel_for(IndexRange(channels_count), 1, [&](const IndexRange sub_range) {
     for (const int64_t channel : sub_range) {
-      fftwf_execute_dft_r2c(forward_plan,
-                            image_spatial_domain + spatial_pixels_per_channel * channel,
-                            reinterpret_cast<fftwf_complex *>(image_frequency_domain) +
-                                frequency_pixels_per_channel * channel);
+      fftwf_execute_dft_r2c(
+          forward_plan,
+          image_spatial_domain_channels[channel],
+          reinterpret_cast<fftwf_complex *>(image_frequency_domain_channels[channel]));
     }
   });
 
@@ -136,29 +158,20 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
     for (const int64_t channel : IndexRange(channels_count)) {
       for (const int64_t y : sub_y_range) {
         for (const int64_t x : IndexRange(frequency_size.x)) {
-          const int64_t base_index = x + y * frequency_size.x;
-          const int64_t output_index = base_index + frequency_pixels_per_channel * channel;
-          const std::complex<float> kernel_value = kernel_frequency_domain[base_index];
-          image_frequency_domain[output_index] *= kernel_value / normalization_scale;
+          const int64_t index = x + y * frequency_size.x;
+          const std::complex<float> kernel_value = kernel_frequency_domain[index];
+          image_frequency_domain_channels[channel][index] *= kernel_value / normalization_scale;
         }
       }
     }
   });
 
-  /* Create a complex to real plan to transform the image to the real domain. */
-  fftwf_plan backward_plan = fftwf_plan_dft_c2r_2d(
-      spatial_size.y,
-      spatial_size.x,
-      reinterpret_cast<fftwf_complex *>(image_frequency_domain),
-      image_spatial_domain,
-      FFTW_ESTIMATE);
-
   threading::parallel_for(IndexRange(channels_count), 1, [&](const IndexRange sub_range) {
     for (const int64_t channel : sub_range) {
-      fftwf_execute_dft_c2r(backward_plan,
-                            reinterpret_cast<fftwf_complex *>(image_frequency_domain) +
-                                frequency_pixels_per_channel * channel,
-                            image_spatial_domain + spatial_pixels_per_channel * channel);
+      fftwf_execute_dft_c2r(
+          backward_plan,
+          reinterpret_cast<fftwf_complex *>(image_frequency_domain_channels[channel]),
+          image_spatial_domain_channels[channel]);
     }
   });
 
@@ -170,9 +183,8 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
     parallel_for(image_size, [&](const int2 texel) {
       float4 color = float4(0.0f);
       for (const int channel : IndexRange(channels_count)) {
-        const int64_t base_index = texel.x + texel.y * spatial_size.x;
-        const int64_t input_index = base_index + spatial_pixels_per_channel * channel;
-        color[channel] = image_spatial_domain[input_index];
+        const int64_t index = texel.x + texel.y * spatial_size.x;
+        color[channel] = image_spatial_domain_channels[channel][index];
       }
       color.w = input_cpu.load_pixel<float4>(texel).w;
       output_cpu.store_pixel(texel, color);
@@ -191,8 +203,10 @@ void convolve(Context &context, const Result &input, const Result &kernel, Resul
 
   fftwf_destroy_plan(forward_plan);
   fftwf_destroy_plan(backward_plan);
-  fftwf_free(image_spatial_domain);
-  fftwf_free(image_frequency_domain);
+  for (const int channel : IndexRange(channels_count)) {
+    fftwf_free(image_spatial_domain_channels[channel]);
+    fftwf_free(image_frequency_domain_channels[channel]);
+  }
   fftwf_free(kernel_spatial_domain);
   fftwf_free(kernel_frequency_domain);
 #else
