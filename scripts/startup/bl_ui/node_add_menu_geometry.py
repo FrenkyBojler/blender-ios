@@ -754,8 +754,7 @@ class NODE_MT_gn_utilities_matrix_base(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_category_utilities_bundle(Menu):
-    bl_idname = "NODE_MT_category_utilities_bundle"
+class NODE_MT_category_utilities_bundle_base(Menu):
     bl_label = "Bundle"
     menu_path = "Utilities/Bundle"
 
@@ -767,8 +766,7 @@ class NODE_MT_category_utilities_bundle(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.menu_path)
 
 
-class NODE_MT_category_utilities_closure(Menu):
-    bl_idname = "NODE_MT_category_utilities_closure"
+class NODE_MT_category_utilities_closure_base(Menu):
     bl_label = "Closure"
     menu_path = "Utilities/Closure"
 
@@ -973,6 +971,8 @@ add_menus = {
     "NODE_MT_geometry_node_GEO_COLOR" : NODE_MT_gn_utilities_color_base,
     "NODE_MT_category_GEO_TEXT" : NODE_MT_gn_utilities_text_base,
     "NODE_MT_category_GEO_VECTOR" : NODE_MT_gn_utilities_vector_base,
+    "NODE_MT_category_utilities_bundle" : NODE_MT_category_utilities_bundle_base,
+    "NODE_MT_category_utilities_closure" : NODE_MT_category_utilities_closure_base,
     "NODE_MT_category_GEO_UTILITIES_FIELD" : NODE_MT_gn_utilities_field_base,
     "NODE_MT_category_GEO_UTILITIES_MATH" : NODE_MT_gn_utilities_math_base,
     "NODE_MT_category_GEO_UTILITIES_ROTATION" : NODE_MT_gn_utilities_rotation_base,
@@ -1061,6 +1061,8 @@ swap_menus = {
     "NODE_MT_gn_utilities_color_swap" : NODE_MT_gn_utilities_color_base,
     "NODE_MT_gn_utilities_text_swap" : NODE_MT_gn_utilities_text_base,
     "NODE_MT_gn_utilities_vector_swap" : NODE_MT_gn_utilities_vector_base,
+    "NODE_MT_gn_utilities_bundle_swap" : NODE_MT_category_utilities_bundle_base,
+    "NODE_MT_gn_utilities_closure_swap" : NODE_MT_category_utilities_closure_base,
     "NODE_MT_gn_utilities_field_swap" : NODE_MT_gn_utilities_field_base,
     "NODE_MT_gn_utilities_math_swap" : NODE_MT_gn_utilities_math_base,
     "NODE_MT_gn_utilities_rotation_swap" : NODE_MT_gn_utilities_rotation_base,

@@ -305,8 +305,8 @@ class SwapNodeMenu:
     @staticmethod
     def closure_zone(layout, label):
         props = layout.operator("node.swap_zone", text=label)
-        props.input_node_type = "GeometryNodeClosureInput"
-        props.output_node_type = "GeometryNodeClosureOutput"
+        props.input_node_type = "NodeClosureInput"
+        props.output_node_type = "NodeClosureOutput"
         props.add_default_geometry_link = False
         props.use_transform = True   
 
