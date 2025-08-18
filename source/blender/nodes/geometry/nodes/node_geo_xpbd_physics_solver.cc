@@ -945,23 +945,36 @@ static Contacts gather_contacts(
         contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
       }
     }
+    const Vector spherical_self_collision_constraints =
+        filter_bundles_for_path<SphericalSelfCollisionXPBDConstraintBundle>(
+            world.spherical_self_collision_constraints, key.path);
+    std::optional<VArray<float>> radii;
     if (type == bke::GeometryComponent::Type::PointCloud) {
       const bke::PointCloudComponent &pointcloud_component =
           *static_cast<const bke::PointCloudComponent *>(component);
       if (const PointCloud *pointcloud = pointcloud_component.get()) {
-        const Vector spherical_self_collision_constraints =
-            filter_bundles_for_path<SphericalSelfCollisionXPBDConstraintBundle>(
-                world.spherical_self_collision_constraints, key.path);
-        const VArraySpan<float> radii = pointcloud->radius();
-        DynamicSphereContacts sphere_contacts;
-        for ([[maybe_unused]] const SphericalSelfCollisionXPBDConstraintBundle *constraint_bundle :
-             spherical_self_collision_constraints)
-        {
-          gather_sphere_contacts(sim_points, radii, sphere_contacts);
-        }
-        if (!sphere_contacts.indices.is_empty()) {
-          contacts.dynamic_sphere_contacts.add_new(key, std::move(sphere_contacts));
-        }
+        radii.emplace(pointcloud->radius());
+      }
+    }
+    else if (type == bke::GeometryComponent::Type::Curve) {
+      const bke::CurveComponent &curves_component = *static_cast<const bke::CurveComponent *>(
+          component);
+      if (const Curves *curves_id = curves_component.get()) {
+        const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+        radii.emplace(curves.radius());
+      }
+    }
+    if (radii.has_value()) {
+      const VArraySpan<float> radii_span = *radii;
+      DynamicSphereContacts sphere_contacts;
+      for ([[maybe_unused]] const SphericalSelfCollisionXPBDConstraintBundle *constraint_bundle :
+           spherical_self_collision_constraints)
+      {
+        /* TODO: Avoid self collisions with direct neighbor.*/
+        gather_sphere_contacts(sim_points, radii_span, sphere_contacts);
+      }
+      if (!sphere_contacts.indices.is_empty()) {
+        contacts.dynamic_sphere_contacts.add_new(key, std::move(sphere_contacts));
       }
     }
   }
