@@ -217,12 +217,12 @@ class Preprocessor {
         pragma_once_linting(str, filename, report_error);
       }
       str = preprocessor_directive_mutation(str);
-      str = swizzle_function_mutation(str);
+      str = swizzle_function_mutation(str, report_error);
       if (language == BLENDER_GLSL) {
         str = struct_method_mutation(str, report_error);
         str = method_call_mutation(str, report_error);
         str = stage_function_mutation(str);
-        str = resource_guard_mutation(str);
+        str = resource_guard_mutation(str, report_error);
         str = loop_unroll(str, report_error);
         str = assert_processing(str, filename);
         static_strings_parsing(str);
@@ -242,11 +242,11 @@ class Preprocessor {
         str = namespace_mutation(str, report_error);
         str = namespace_separator_mutation(str);
       }
-      str = argument_reference_mutation(str);
-      str = default_argument_mutation(str);
+      str = argument_reference_mutation(str, report_error);
+      str = default_argument_mutation(str, report_error);
       str = variable_reference_mutation(str, report_error);
       str = template_definition_mutation(str, report_error);
-      str = template_call_mutation(str);
+      str = template_call_mutation(str, report_error);
       str = enum_macro_injection(str);
     }
 #ifdef __APPLE__ /* Limiting to Apple hardware since GLSL compilers might have issues. */
@@ -362,7 +362,7 @@ class Preprocessor {
     std::string out_str = str;
 
     {
-      Parser parser(out_str);
+      Parser parser(out_str, report_error);
 
       parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
         /* Replace full specialization by simple functions. */
@@ -382,7 +382,7 @@ class Preprocessor {
       out_str = parser.result_get();
     }
     {
-      Parser parser(out_str);
+      Parser parser(out_str, report_error);
 
       parser.foreach_scope(ScopeType::Template, [&](Scope temp) {
         /* Parse template declaration. */
@@ -466,7 +466,7 @@ class Preprocessor {
             arg_name_value_pairs.emplace_back(arg_list[i], tokens[4 + 2 * i].str_no_whitespace());
           }
           /* Specialize template content. */
-          Parser instance_parser(fn_decl, true);
+          Parser instance_parser(fn_decl, report_error, true);
           instance_parser.foreach_match("w", [&](const std::vector<Token> &tokens) {
             string token_str = tokens[0].str_no_whitespace();
             for (const auto &arg_name_value : arg_name_value_pairs) {
@@ -514,12 +514,12 @@ class Preprocessor {
     return out_str;
   }
 
-  std::string template_call_mutation(const std::string &str)
+  std::string template_call_mutation(const std::string &str, report_callback &report_error)
   {
     using namespace std;
     using namespace shader::parser;
 
-    Parser parser(str, true);
+    Parser parser(str, report_error, true);
     /* This rely on our codestyle that do not put spaces between template name and the opening
      * angle bracket. */
     parser.foreach_match("w<", [&](const std::vector<Token> &tokens) {
@@ -1007,12 +1007,12 @@ class Preprocessor {
     return std::regex_replace(str, regex, "");
   }
 
-  std::string swizzle_function_mutation(const std::string &str)
+  std::string swizzle_function_mutation(const std::string &str, report_callback &report_error)
   {
     using namespace std;
     using namespace shader::parser;
 
-    Parser parser(str);
+    Parser parser(str, report_error);
 
     parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
       /* Change C++ swizzle functions into plain swizzle. */
@@ -1215,7 +1215,7 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    Parser parser(str);
+    Parser parser(str, report_error);
 
     parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
       /* `class` -> `struct` */
@@ -1283,7 +1283,7 @@ class Preprocessor {
           string fn_content = parser.substr_range_inclusive(fn_start.line_start(),
                                                             fn_body.end().line_end() + 1);
 
-          Parser fn_parser(fn_content);
+          Parser fn_parser(fn_content, report_error);
           fn_parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
             if (is_static) {
               scope.foreach_match("mww(", [&](const std::vector<Token> &tokens) {
@@ -1340,7 +1340,7 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    Parser parser(str);
+    Parser parser(str, report_error);
 
     do {
       parser.foreach_scope(ScopeType::Function, [&](Scope scope) {
@@ -1440,12 +1440,12 @@ class Preprocessor {
     return out;
   }
 
-  std::string resource_guard_mutation(const std::string &str)
+  std::string resource_guard_mutation(const std::string &str, report_callback &report_error)
   {
     using namespace std;
     using namespace shader::parser;
 
-    Parser parser(str);
+    Parser parser(str, report_error);
 
     parser.foreach_function([&](bool, Token fn_type, Token, Scope, bool, Scope fn_body) {
       fn_body.foreach_match("w(w,", [&](const std::vector<Token> &tokens) {
@@ -1568,12 +1568,12 @@ class Preprocessor {
    * Expand functions with default arguments to function overloads.
    * Expects formatted input and that function bodies are followed by newline.
    */
-  std::string default_argument_mutation(std::string str)
+  std::string default_argument_mutation(std::string str, report_callback &report_error)
   {
     using namespace std;
     using namespace shader::parser;
 
-    Parser parser(str);
+    Parser parser(str, report_error);
 
     parser.foreach_function(
         [&](bool, Token fn_type, Token fn_name, Scope fn_args, bool, Scope fn_body) {
@@ -1647,12 +1647,12 @@ class Preprocessor {
   }
 
   /* To be run before `argument_decorator_macro_injection()`. */
-  std::string argument_reference_mutation(std::string &str)
+  std::string argument_reference_mutation(std::string &str, report_callback &report_error)
   {
     using namespace std;
     using namespace shader::parser;
 
-    Parser parser(str);
+    Parser parser(str, report_error);
 
     auto add_mutation = [&](Token type, Token arg_name, Token last_tok) {
       if (type.prev() == Const) {
