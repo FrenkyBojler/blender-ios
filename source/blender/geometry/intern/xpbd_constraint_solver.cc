@@ -100,7 +100,7 @@ void solve_gauss_seidel_one_at_a_time(const Span<MutablePointsRef> points_refs,
   GaussSeidelUpdater updater{points_refs};
   for (const ConstraintSet &constraint_set : constraint_sets) {
     for (const int constraint_i : IndexRange(constraint_set.indices->constraints_num)) {
-      constraint_set.evaluator->evaluate(
+      constraint_set.evaluator->evaluate_parallel_gauss_seidel(
           updater, readonly_points_refs, IndexRange::from_single(constraint_i));
     }
   }
@@ -125,7 +125,8 @@ void solve_jacobian_non_deterministic(const Span<MutablePointsRef> points_refs,
         for (const int constraint_set_i : constraint_sets_range) {
           const ConstraintSet &constraint_set = constraint_sets[constraint_set_i];
           const IndexMask mask = IndexRange(constraint_set.indices->constraints_num);
-          constraint_set.evaluator->evaluate(updater, readonly_points_refs, mask);
+          constraint_set.evaluator->evaluate_parallel_non_deterministic_jacobian(
+              updater, readonly_points_refs, mask);
         }
       });
 
@@ -195,7 +196,8 @@ void solve_gauss_seidel_parallel(const Span<MutablePointsRef> points_refs,
             const Span<IndexMask> independent_masks =
                 constraint_set->indices->get_independent_masks();
             for (const IndexMask &mask : independent_masks) {
-              constraint_set->evaluator->evaluate(updater, readonly_points_refs, mask);
+              constraint_set->evaluator->evaluate_parallel_gauss_seidel(
+                  updater, readonly_points_refs, mask);
             }
           }
         }
@@ -204,7 +206,8 @@ void solve_gauss_seidel_parallel(const Span<MutablePointsRef> points_refs,
   for (const ConstraintSet *constraint_set : multi_target_constraints) {
     const Span<IndexMask> independent_masks = constraint_set->indices->get_independent_masks();
     for (const IndexMask &mask : independent_masks) {
-      constraint_set->evaluator->evaluate(updater, readonly_points_refs, mask);
+      constraint_set->evaluator->evaluate_parallel_gauss_seidel(
+          updater, readonly_points_refs, mask);
     }
   }
 }
