@@ -243,7 +243,7 @@ class NodeSwapOperator(NodeOperator):
         result = self.execute(context)
 
         if self.use_transform and ('FINISHED' in result):
-            bpy.ops.node.translate_attach_remove_on_cancel('INVOKE_DEFAULT')
+            bpy.ops.node.translate_attach('INVOKE_DEFAULT')
 
         return result
 
