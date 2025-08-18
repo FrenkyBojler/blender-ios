@@ -1179,35 +1179,35 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
 
   if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
-    // const MutableDrawingInfo &info = ptd.drawings[ptd.closest_element.drawing_index];
-    // const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-    // const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
-    // bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    Curves *curves_id = static_cast<Curves *>(ptd.vc.obedit->data);
+    bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
-    // ptd.move_segment(curves, layer_to_world);
-    // info.drawing.tag_topology_changed();
+    ptd.move_segment(curves, float4x4::identity());
+    curves.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
   }
   else {
-    // threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
-    //   bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    //   const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-    //   const float4x4 layer_to_object = layer.local_transform();
-    //   const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+    threading::parallel_for_each(ptd.all_curves, [&](Curves *curves_id) {
+      bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
-    //   IndexMaskMemory memory;
-    //   const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-    //       *ptd.vc.obact,
-    //       info.drawing,
-    //       info.layer_index,
-    //       ptd.vc.v3d->overlay.handle_display,
-    //       memory);
+      const float4x4 layer_to_object = float4x4::identity();
+      const float4x4 layer_to_world = float4x4::identity();
 
-    //   if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
-    //     changed.store(true, std::memory_order_relaxed);
-    //     info.drawing.tag_topology_changed();
-    //   }
-    // });
+      // IndexMaskMemory memory;
+      // const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+      //     *ptd.vc.obact,
+      //     info.drawing,
+      //     info.layer_index,
+      //     ptd.vc.v3d->overlay.handle_display,
+      //     memory);
+      /* TODO. */
+      const IndexMask bezier_points = curves.points_range();
+
+      if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
+        changed.store(true, std::memory_order_relaxed);
+        curves.tag_topology_changed();
+      }
+    });
   }
 
   pen_status_indicators(C, op);
