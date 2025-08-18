@@ -377,12 +377,12 @@ static void wm_file_read_setup_wm_use_new(bContext *C,
   wm->op_undo_depth = old_wm->op_undo_depth;
 
   /* Move existing key configurations into the new WM. */
-  wm->keyconfigs = old_wm->keyconfigs;
+  wm->runtime->keyconfigs = old_wm->runtime->keyconfigs;
   wm->addonconf = old_wm->addonconf;
   wm->defaultconf = old_wm->defaultconf;
   wm->userconf = old_wm->userconf;
 
-  BLI_listbase_clear(&old_wm->keyconfigs);
+  BLI_listbase_clear(&old_wm->runtime->keyconfigs);
   old_wm->addonconf = nullptr;
   old_wm->defaultconf = nullptr;
   old_wm->userconf = nullptr;
@@ -4283,6 +4283,35 @@ void wm_test_autorun_warning(bContext *C)
     wmWindow *prevwin = CTX_wm_window(C);
     CTX_wm_window_set(C, win);
     UI_popup_block_invoke(C, block_create_autorun_warning, nullptr, nullptr);
+    CTX_wm_window_set(C, prevwin);
+  }
+}
+
+void wm_test_foreign_file_warning(bContext *C)
+{
+  if (!G_MAIN->is_read_invalid) {
+    return;
+  }
+
+  G_MAIN->is_read_invalid = false;
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = (wm->winactive) ? wm->winactive : static_cast<wmWindow *>(wm->windows.first);
+
+  if (win) {
+    /* We want this warning on the Main window, not a child window even if active. See #118765. */
+    if (win->parent) {
+      win = win->parent;
+    }
+
+    wmWindow *prevwin = CTX_wm_window(C);
+    CTX_wm_window_set(C, win);
+    UI_alert(C,
+             RPT_("Unable to Load File"),
+             RPT_("The file specified is not a valid Blend document."),
+             ALERT_ICON_ERROR,
+             false);
+
     CTX_wm_window_set(C, prevwin);
   }
 }
