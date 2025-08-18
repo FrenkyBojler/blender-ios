@@ -149,6 +149,8 @@ struct CornerNormalSpace {
 
 /**
  * Storage for corner fan coordinate spaces for an entire mesh.
+ * For performance reason the distribution of #spaces and index mapping of them in
+ * #corner_space_indices are non-deterministic.
  */
 struct CornerNormalSpaceArray {
   /**
