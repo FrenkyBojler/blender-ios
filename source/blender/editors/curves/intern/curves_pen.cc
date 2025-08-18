@@ -905,6 +905,45 @@ static void pen_update_view(bContext *C, CurvesPenToolOperation &ptd)
   ED_region_tag_redraw(ptd.vc.region);
 }
 
+static ClosestElement pen_find_closest_element(const CurvesPenToolOperation &ptd,
+                                               const float2 &mouse_co)
+{
+  ClosestElement closest_element;
+  closest_element.element_mode = ElementMode::None;
+
+  for (const int curves_index : ptd.all_curves.index_range()) {
+    const Curves *curves_id = ptd.all_curves[curves_index];
+    const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    const float4x4 layer_to_object = float4x4::identity();
+
+    // IndexMaskMemory memory;
+    // const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+    //     *ptd.vc.obact, info.drawing, info.layer_index, memory);
+    // const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
+    //     *ptd.vc.obact, info.drawing, info.layer_index, memory);
+    // const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+    //     *ptd.vc.obact, info.drawing, info.layer_index, ptd.vc.v3d->overlay.handle_display,
+    //     memory);
+
+    /* TODO. */
+    const IndexMask editable_points = curves.points_range();
+    const IndexMask editable_curves = curves.curves_range();
+    const IndexMask bezier_points = curves.points_range();
+
+    pen_find_closest_point_or_handle(ptd,
+                                     curves,
+                                     editable_points,
+                                     bezier_points,
+                                     layer_to_object,
+                                     curves_index,
+                                     mouse_co,
+                                     closest_element);
+    pen_find_closest_edge_point(
+        ptd, curves, editable_curves, layer_to_object, curves_index, mouse_co, closest_element);
+  }
+  return closest_element;
+}
+
 /* Exit and free memory. */
 static void curves_pen_exit(bContext *C, wmOperator *op)
 {
@@ -979,11 +1018,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
-
-  ClosestElement closest_element;
-  closest_element.element_mode = ElementMode::None;
-  ptd.closest_element = closest_element;
-  // ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
+  ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
   threading::parallel_for(ptd.all_curves.index_range(), 1, [&](const IndexRange curves_range) {
     for (const int curves_index : curves_range) {
