@@ -246,7 +246,7 @@ void DRW_particle_batch_cache_free(ParticleSystem *psys)
   psys->batch_cache = nullptr;
 }
 
-void ParticleSpans::foreach_strand(std::function<void(Span<ParticleCacheKey>)> callback)
+void ParticleSpans::foreach_strand(FunctionRef<void(Span<ParticleCacheKey>)> callback)
 {
   for (const auto &particle : parent) {
     callback(Span<ParticleCacheKey>(particle, particle->segments + 1));

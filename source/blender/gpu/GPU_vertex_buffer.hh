@@ -138,7 +138,7 @@ class VertBuf {
     return buf;
   }
 
-  template<typename T> static VertBufPtr new_from_varray(const VArray<T> array)
+  template<typename T> static VertBufPtr new_from_varray(const VArray<T> &array)
   {
     BLI_assert(!array.is_empty());
     VertBufPtr buf = VertBufPtr(GPU_vertbuf_create_with_format_ex(

@@ -56,7 +56,7 @@ struct ParticleSpans {
   Span<ParticleCacheKey *> parent;
   Span<ParticleCacheKey *> children;
 
-  void foreach_strand(std::function<void(Span<ParticleCacheKey>)> callback);
+  void foreach_strand(FunctionRef<void(Span<ParticleCacheKey>)> callback);
 };
 
 struct ParticleDrawSource {
@@ -200,7 +200,7 @@ struct CurvesEvalCache {
 
   void ensure_attribute(struct CurvesModule &module,
                         const bke::CurvesGeometry &curves,
-                        const StringRef name,
+                        StringRef name,
                         int index);
   void ensure_attributes(struct CurvesModule &module,
                          const bke::CurvesGeometry &curves,
@@ -261,7 +261,7 @@ void curves_bind_resources(draw::PassMain::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           const std::optional<StringRef> uv_name);
+                           std::optional<StringRef> uv_name);
 
 void curves_bind_resources(draw::PassSimple::Sub &sub_ps,
                            CurvesModule &module,
@@ -269,6 +269,6 @@ void curves_bind_resources(draw::PassSimple::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           const std::optional<StringRef> uv_name);
+                           std::optional<StringRef> uv_name);
 
 }  // namespace blender::draw
