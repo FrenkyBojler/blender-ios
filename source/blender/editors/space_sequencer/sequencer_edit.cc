@@ -1945,10 +1945,13 @@ static wmOperatorStatus sequencer_offset_clear_exec(bContext *C, wmOperator * /*
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
+  Strip *strip;
   ListBase *channels = seq::channels_displayed_get(seq::editing_get(scene));
 
   /* For effects, try to find a replacement input. */
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+  for (strip = static_cast<Strip *>(ed->current_strips()->first); strip;
+       strip = static_cast<Strip *>(strip->next))
+  {
     if (seq::transform_is_locked(channels, strip)) {
       continue;
     }
@@ -1959,11 +1962,15 @@ static wmOperatorStatus sequencer_offset_clear_exec(bContext *C, wmOperator * /*
   }
 
   /* Update lengths, etc. */
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+  strip = static_cast<Strip *>(ed->current_strips()->first);
+  while (strip) {
     seq::relations_invalidate_cache(scene, strip);
+    strip = strip->next;
   }
 
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+  for (strip = static_cast<Strip *>(ed->current_strips()->first); strip;
+       strip = static_cast<Strip *>(strip->next))
+  {
     if ((strip->type & STRIP_TYPE_EFFECT) == 0 && (strip->flag & SELECT)) {
       if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
@@ -2402,7 +2409,7 @@ static void swap_strips(Scene *scene, Strip *strip_a, Strip *strip_b)
 static Strip *find_next_prev_strip(Scene *scene, Strip *test, int lr, int sel)
 {
   /* sel: 0==unselected, 1==selected, -1==don't care. */
-  Strip *best_strip = nullptr;
+  Strip *strip, *best_strip = nullptr;
   Editing *ed = seq::editing_get(scene);
 
   int dist, best_dist;
@@ -2412,7 +2419,8 @@ static Strip *find_next_prev_strip(Scene *scene, Strip *test, int lr, int sel)
     return nullptr;
   }
 
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+  strip = static_cast<Strip *>(ed->current_strips()->first);
+  while (strip) {
     if ((strip != test) && (test->channel == strip->channel) &&
         ((sel == -1) || (sel == (strip->flag & SELECT))))
     {
@@ -2446,6 +2454,7 @@ static Strip *find_next_prev_strip(Scene *scene, Strip *test, int lr, int sel)
         best_strip = strip;
       }
     }
+    strip = static_cast<Strip *>(strip->next);
   }
   return best_strip; /* Can be nullptr. */
 }
