@@ -556,15 +556,6 @@ class NODE_OT_swap_zone(NodeSwapOperator, Operator):
     @classmethod
     def description(cls, _context, properties):
         return cls.zone_tooltips.get(properties.input_node_type, None)
-
-    @classmethod
-    def poll(cls, context):
-        
-        return (
-            (context.area is not None)
-            and (context.area.type == "NODE_EDITOR")
-            and (context.active_node is not None)
-        )
     
     def execute(self, context):
         old_node = context.active_node
