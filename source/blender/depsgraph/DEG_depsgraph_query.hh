@@ -320,6 +320,11 @@ void DEG_iterator_objects_end(BLI_Iterator *iter);
  * \{ */
 
 /**
+ * Returns true if the object should be visible on the given context.
+ */
+bool DEG_iterator_object_is_visible(eEvaluationMode eval_mode, const Object *ob);
+
+/**
  * Returns true if the dupli instance should be visible on the given context.
  */
 bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eval_mode);

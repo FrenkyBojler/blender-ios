@@ -224,7 +224,7 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
     if (data->flag & DEG_ITER_OBJECT_FLAG_VISIBLE) {
       ob_visibility = BKE_object_visibility(object, data->eval_mode);
 
-      if (object->type != OB_MBALL && deg_object_hide_original(data->eval_mode, object, nullptr)) {
+      if (!DEG_iterator_object_is_visible(data->eval_mode, object)) {
         continue;
       }
     }
@@ -450,6 +450,14 @@ void DEG_iterator_ids_next(BLI_Iterator *iter)
 }
 
 void DEG_iterator_ids_end(BLI_Iterator * /*iter*/) {}
+
+bool DEG_iterator_object_is_visible(eEvaluationMode eval_mode, const Object *ob)
+{
+  if (ob->type == OB_MBALL) {
+    return true;
+  }
+  return !deg_object_hide_original(eval_mode, ob, nullptr);
+}
 
 bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eval_mode)
 {
