@@ -2828,9 +2828,6 @@ struct RegionMoveData {
   ARegion *region;
   ScrArea *area;
   wmWindow *win;
-  bScreen *screen;
-  double start_time;
-  double end_time;
   void *draw_callback;
   int bigger, smaller, origval;
   int orig_xy[2];
@@ -2913,31 +2910,7 @@ static void region_scale_draw_cb(const wmWindow * /*win*/, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
-  float factor = 1.0f;
-  const double now = BLI_time_now_seconds();
-  if (now < rmd->end_time) {
-    factor = pow((now - rmd->start_time) / (rmd->end_time - rmd->start_time), 2);
-    rmd->screen->do_refresh = true;
-  }
-  screen_draw_region_scale_highlight(rmd->region, factor);
-}
-
-static void region_scale_out_draw_cb(const wmWindow * /*win*/, void *userdata)
-{
-  RegionMoveData *rmd = static_cast<RegionMoveData *>(userdata);
-  double now = BLI_time_now_seconds();
-  if (now > rmd->end_time) {
-    WM_draw_cb_exit(rmd->win, rmd->draw_callback);
-    MEM_freeN(rmd);
-    rmd = nullptr;
-    return;
-  }
-  float factor = 1.0f;
-  if (now < rmd->end_time) {
-    factor = 1.0f - pow((now - rmd->start_time) / (rmd->end_time - rmd->start_time), 2);
-    rmd->screen->do_refresh = true;
-  }
-  screen_draw_region_scale_highlight(rmd->region, factor);
+  screen_draw_region_scale_highlight(rmd->region);
 }
 
 static void region_scale_exit(wmOperator *op)
@@ -2945,11 +2918,8 @@ static void region_scale_exit(wmOperator *op)
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
   WM_draw_cb_exit(rmd->win, rmd->draw_callback);
 
+  MEM_freeN(rmd);
   op->customdata = nullptr;
-
-	rmd->start_time = BLI_time_now_seconds();
-  rmd->end_time = rmd->start_time + REGION_MOVE_LINE_FADEOUT;
-  rmd->draw_callback = WM_draw_cb_activate(rmd->win, region_scale_out_draw_cb, rmd);
 
   screen_modal_action_end();
 }
@@ -3021,9 +2991,6 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     CLAMP(rmd->maxsize, 0, 1000);
 
     rmd->win = CTX_wm_window(C);
-    rmd->screen = CTX_wm_screen(C);
-    rmd->start_time = BLI_time_now_seconds();
-    rmd->end_time = rmd->start_time + REGION_MOVE_LINE_FADEIN;
     rmd->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), region_scale_draw_cb, op);
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
@@ -6200,7 +6167,7 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   wmWindow *win_cur = CTX_wm_window(C);
   /* Use eventstate, not event from _invoke, so this can be called through exec(). */
   const wmEvent *event = win_cur->eventstate;
-  int sizex = (500 + UI_NAVIGATION_REGION_WIDTH) * UI_SCALE_FAC;
+  int sizex = (680 + UI_NAVIGATION_REGION_WIDTH) * UI_SCALE_FAC;
   int sizey = 520 * UI_SCALE_FAC;
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "section");
@@ -6222,24 +6189,15 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   };
 
   /* changes context! */
-  if (WM_window_open(C,
-                     nullptr,
-                     &window_rect,
-                     SPACE_USERPREF,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
+  if (ScrArea *area = ED_screen_temp_space_open(
+          C, nullptr, &window_rect, SPACE_USERPREF, U.preferences_display_type, false))
   {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
-    ScrArea *area = CTX_wm_area(C);
-    ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
+    ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
-    region->flag |= RGN_FLAG_HIDDEN;
-    ED_region_visibility_change_update(C, area, region);
+    region_header->flag |= RGN_FLAG_HIDDEN;
+    ED_region_visibility_change_update(C, area, region_header);
 
     return OPERATOR_FINISHED;
   }

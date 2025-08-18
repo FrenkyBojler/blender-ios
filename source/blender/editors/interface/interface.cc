@@ -71,11 +71,15 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "CLG_log.h"
+
 #include "interface_intern.hh"
 
 using blender::StringRef;
 using blender::StringRefNull;
 using blender::Vector;
+
+static CLG_LogRef LOG = {"ui"};
 
 /* prototypes. */
 static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p);
@@ -2508,7 +2512,7 @@ void ui_but_v3_get(uiBut *but, float vec[3])
   }
   else {
     if (but->editvec == nullptr) {
-      fprintf(stderr, "%s: cannot get color, should never happen\n", __func__);
+      CLOG_WARN(&LOG, "%s: cannot get color, should never happen", __func__);
       zero_v3(vec);
     }
   }
@@ -2573,7 +2577,7 @@ void ui_but_v4_get(uiBut *but, float vec[4])
   }
   else {
     if (but->editvec == nullptr) {
-      fprintf(stderr, "%s: can't get color, should never happen\n", __func__);
+      CLOG_WARN(&LOG, "%s: can't get color, should never happen", __func__);
       zero_v4(vec);
     }
   }
@@ -5101,6 +5105,11 @@ uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short 
 {
   ImBuf *ibuf = UI_icon_alert_imbuf_get((eAlertIcon)icon, float(width));
   if (ibuf) {
+    if (icon == ALERT_ICON_ERROR) {
+      uchar color[4];
+      UI_GetThemeColor4ubv(TH_ERROR, color);
+      return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, color);
+    }
     bTheme *btheme = UI_GetTheme();
     return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, btheme->tui.wcol_menu_back.text);
   }

@@ -274,53 +274,45 @@ void screen_draw_move_highlight(const wmWindow *win,
       &rect, inner, nullptr, 1.0f, outline, width - U.pixelsize, 2.5f * UI_SCALE_FAC);
 }
 
-void screen_draw_region_scale_highlight(ARegion *region, float anim_factor)
+void screen_draw_region_scale_highlight(ARegion *region)
 {
   rctf rect;
   BLI_rctf_rcti_copy(&rect, &region->winrct);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
-  bool is_hidden = (region->flag & RGN_FLAG_HIDDEN) != 0;
-  const float half_width = (2.0f * U.pixelsize * (is_hidden ? 1.0f : anim_factor));
-  const float movement = (4.0f * U.pixelsize * anim_factor);
-
   switch (region->alignment) {
     case RGN_ALIGN_RIGHT:
-      rect.xmax = rect.xmin;
-      if (is_hidden) {
-        BLI_rctf_translate(&rect, -movement, 0.0f);
-      }
-      BLI_rctf_pad(&rect, half_width, -EDITORRADIUS);
+      rect.xmax = rect.xmin - U.pixelsize;
+      rect.xmin = rect.xmax - (4.0f * U.pixelsize);
+      rect.ymax -= EDITORRADIUS;
+      rect.ymin += EDITORRADIUS;
       break;
     case RGN_ALIGN_LEFT:
-      rect.xmin = rect.xmax;
-      if (is_hidden) {
-        BLI_rctf_translate(&rect, movement, 0.0f);
-      }
-      BLI_rctf_pad(&rect, half_width, -EDITORRADIUS);
+      rect.xmin = rect.xmax + U.pixelsize;
+      rect.xmax = rect.xmin + (4.0f * U.pixelsize);
+      rect.ymax -= EDITORRADIUS;
+      rect.ymin += EDITORRADIUS;
       break;
     case RGN_ALIGN_TOP:
-      rect.ymax = rect.ymin;
-      if (is_hidden) {
-        BLI_rctf_translate(&rect, 0.0f, -movement);
-      }
-      BLI_rctf_pad(&rect, -EDITORRADIUS, half_width);
+      rect.ymax = rect.ymin - U.pixelsize;
+      rect.ymin = rect.ymax - (4.0f * U.pixelsize);
+      rect.xmax -= EDITORRADIUS;
+      rect.xmin += EDITORRADIUS;
       break;
     case RGN_ALIGN_BOTTOM:
-      rect.ymin = rect.ymax;
-      if (is_hidden) {
-        BLI_rctf_translate(&rect, 0.0f, movement);
-      }
-      BLI_rctf_pad(&rect, -EDITORRADIUS, half_width);
+      rect.ymin = rect.ymax + U.pixelsize;
+      rect.ymax = rect.ymin + (4.0f * U.pixelsize);
+      rect.xmax -= EDITORRADIUS;
+      rect.xmin += EDITORRADIUS;
       break;
     default:
       return;
   }
 
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f * (is_hidden ? 1.0f : anim_factor)};
-  float outline[4] = {0.0f, 0.0f, 0.0f, 0.3f * (is_hidden ? 1.0f : anim_factor)};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+  float outline[4] = {0.0f, 0.0f, 0.0f, 0.3f};
   UI_draw_roundbox_4fv_ex(
-      &rect, inner, nullptr, 1.0f, outline, 1.0f * U.pixelsize, 2.0f * UI_SCALE_FAC);
+      &rect, inner, nullptr, 1.0f, outline, 1.0f * U.pixelsize, 2.5f * UI_SCALE_FAC);
 }
 
 static void screen_draw_area_drag_tip(
