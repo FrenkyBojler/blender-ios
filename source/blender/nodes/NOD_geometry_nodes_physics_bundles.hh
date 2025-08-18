@@ -111,6 +111,7 @@ class XPBDGeometryBundle : public NestedBundleCommon {
   bool has_rotation;
   std::string output_rotation_name;
   fn::Field<math::Quaternion> initial_rotations;
+  fn::Field<float3> inertia;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<XPBDGeometryBundle> parse(const Bundle &bundle,

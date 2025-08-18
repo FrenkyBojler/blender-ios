@@ -183,6 +183,7 @@ const FlatBundleTypePtr &XPBDGeometryBundle::get_bundle_type()
     b.add<decl::Bool>("has_rotation").default_value(false);
     b.add<decl::Rotation>("initial_rotation").supports_field();
     b.add<decl::String>("output_rotation_name");
+    b.add<decl::Vector>("inertia").default_value(float3(1.0f)).supports_field();
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -200,6 +201,7 @@ std::optional<XPBDGeometryBundle> XPBDGeometryBundle::parse(const Bundle &bundle
   bundle_parse_member(bundle, "has_rotation", behavior.has_rotation, r_errors);
   bundle_parse_member(bundle, "initial_rotation", behavior.initial_rotations, r_errors);
   bundle_parse_member(bundle, "output_rotation_name", behavior.output_rotation_name, r_errors);
+  bundle_parse_member(bundle, "inertia", behavior.inertia, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }

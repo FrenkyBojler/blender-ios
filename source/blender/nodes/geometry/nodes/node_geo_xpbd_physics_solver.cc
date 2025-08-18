@@ -124,6 +124,8 @@ struct SimPointsKey {
 struct SimPointsWorldProperties {
   Span<float> inverse_masses;
   Span<float> frictions;
+  Span<float3> inertias;
+  Span<float3> inverse_inertias;
   float linear_damping;
   float angular_damping;
 };
@@ -278,11 +280,11 @@ static void integrate_angular_velocities(
     threading::parallel_for(IndexRange(points_num), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         const float3 &external_torque = torques.has_value() ? (*torques)[i] : float3(0.0f);
-        /* TODO: Support customizable inertia. */
-        const float3 inertia(1.0f);
+        const float3 &inertia = props.inertias[i];
+        const float3 &inverse_inertia = props.inverse_inertias[i];
         float3 &angular_velocity = sim_points.angular_velocities[i];
         const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
-        angular_velocity += delta_time * math::safe_divide(external_torque - precession, inertia);
+        angular_velocity += delta_time * (external_torque - precession) * inverse_inertia;
         angular_velocity *= angular_damping_factor;
         math::Quaternion &rotation = sim_points.rotations[i];
         const math::Quaternion direction = rotation * math::Quaternion(0, angular_velocity);
@@ -685,17 +687,30 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
     MutableSpan<float> result_masses = scope.allocator().allocate_array<float>(domain_size);
     MutableSpan<float> result_frictions = scope.allocator().allocate_array<float>(domain_size);
 
+    MutableSpan<float3> result_inertias;
+    MutableSpan<float3> result_inverse_inertias;
+
     auto &field_context = scope.construct<bke::GeometryFieldContext>(*component, domain);
     auto &field_evaluator = scope.construct<fn::FieldEvaluator>(field_context, domain_size);
     field_evaluator.add_with_destination(geometry_bundle.mass, result_masses);
     field_evaluator.add_with_destination(geometry_bundle.friction, result_frictions);
+    if (geometry_bundle.has_rotation) {
+      result_inertias = scope.allocator().allocate_array<float3>(domain_size);
+      result_inverse_inertias = scope.allocator().allocate_array<float3>(domain_size);
+      field_evaluator.add_with_destination(geometry_bundle.inertia, result_inertias);
+    }
     field_evaluator.evaluate();
 
-    /* Invert masses and clamp frictions. */
+    /* Invert masses and inertias and clamp frictions. */
     threading::parallel_for(IndexRange(domain_size), 1024, [&](const IndexRange range) {
       for (const int i : range) {
-        result_masses[i] = std::max(0.0f, math::safe_divide(1.0f, result_masses[i]));
+        result_masses[i] = std::max(0.0f, math::safe_rcp(result_masses[i]));
         result_frictions[i] = std::max(0.0f, result_frictions[i]);
+      }
+      if (geometry_bundle.has_rotation) {
+        for (const int i : range) {
+          result_inverse_inertias[i] = math::safe_rcp(result_inertias[i]);
+        }
       }
     });
 
@@ -723,7 +738,12 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
     }
 
     properties_map.add_new(key,
-                           {result_masses, result_frictions, linear_damping, angular_damping});
+                           {result_masses,
+                            result_frictions,
+                            result_inertias,
+                            result_inverse_inertias,
+                            linear_damping,
+                            angular_damping});
   }
   return properties_map;
 }
