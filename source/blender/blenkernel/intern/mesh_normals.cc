@@ -1308,7 +1308,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
         float3 fan_normal = accumulate_fan_normal(
             corner_infos, edge_dirs, face_normals, corners_in_fan);
 
-        if (UNLIKELY(!custom_normals.is_empty() || r_fan_spaces)) {
+        if (!custom_normals.is_empty() || r_fan_spaces) {
           handle_fan_result_and_custom_normals(custom_normals,
                                                corner_infos,
                                                edge_dirs,
