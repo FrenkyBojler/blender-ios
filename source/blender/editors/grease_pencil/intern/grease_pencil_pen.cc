@@ -493,32 +493,7 @@ void ED_operatortypes_grease_pencil_pen()
 void ED_grease_pencil_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
   using namespace blender::ed::curves::pen_tool;
-  static const EnumPropertyItem modal_items[] = {
-      {int(PenModal::MoveHandle),
-       "MOVE_HANDLE",
-       0,
-       "Move Current Handle",
-       "Move the current handle of the control point freely"},
-      {int(PenModal::MoveEntire),
-       "MOVE_ENTIRE",
-       0,
-       "Move Entire Point",
-       "Move the entire point using its handles"},
-      {int(PenModal::SnapAngle),
-       "SNAP_ANGLE",
-       0,
-       "Snap Angle",
-       "Snap the handle angle to 45 degrees"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
 
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Pen Tool Modal Map");
+  wmKeyMap *keymap = ensure_keymap(keyconf);
   WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_pen");
-
-  /* This function is called for each space-type, only needs to add map once. */
-  if (keymap && keymap->modal_items) {
-    return;
-  }
-
-  keymap = WM_modalkeymap_ensure(keyconf, "Pen Tool Modal Map", modal_items);
 }

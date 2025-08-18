@@ -28,6 +28,7 @@ struct rcti;
 struct TransVertStore;
 struct wmKeyConfig;
 struct wmOperator;
+struct wmKeyMap;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
 struct GSpanAttributeWriter;
@@ -217,6 +218,7 @@ void pen_find_closest_edge_point(const PenToolOperation &ptd,
 
 void pen_status_indicators(bContext *C, wmOperator *op);
 void pen_tool_common_props(wmOperatorType *ot);
+wmKeyMap *ensure_keymap(wmKeyConfig *keyconf);
 
 }  // namespace pen_tool
 

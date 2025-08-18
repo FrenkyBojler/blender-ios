@@ -1278,6 +1278,41 @@ void pen_tool_common_props(wmOperatorType *ot)
   RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, FLT_MAX, "Radius", "", 0.0f, 10.0f);
 }
 
+wmKeyMap *ensure_keymap(wmKeyConfig *keyconf)
+{
+  using namespace blender::ed::curves::pen_tool;
+  static const EnumPropertyItem modal_items[] = {
+      {int(PenModal::MoveHandle),
+       "MOVE_HANDLE",
+       0,
+       "Move Current Handle",
+       "Move the current handle of the control point freely"},
+      {int(PenModal::MoveEntire),
+       "MOVE_ENTIRE",
+       0,
+       "Move Entire Point",
+       "Move the entire point using its handles"},
+      {int(PenModal::SnapAngle),
+       "SNAP_ANGLE",
+       0,
+       "Snap Angle",
+       "Snap the handle angle to 45 degrees"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Pen Tool Modal Map");
+
+  /* This function is called for each space-type and both Grease Pencil and Curves, only needs to
+   * add map once. */
+  if (keymap && keymap->modal_items) {
+    return keymap;
+  }
+
+  keymap = WM_modalkeymap_ensure(keyconf, "Pen Tool Modal Map", modal_items);
+
+  return keymap;
+}
+
 }  // namespace pen_tool
 
 static void CURVES_OT_pen(wmOperatorType *ot)
@@ -1307,34 +1342,9 @@ void ED_operatortypes_curves_pen()
 void ED_curves_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
   using namespace blender::ed::curves::pen_tool;
-  static const EnumPropertyItem modal_items[] = {
-      {int(PenModal::MoveHandle),
-       "MOVE_HANDLE",
-       0,
-       "Move Current Handle",
-       "Move the current handle of the control point freely"},
-      {int(PenModal::MoveEntire),
-       "MOVE_ENTIRE",
-       0,
-       "Move Entire Point",
-       "Move the entire point using its handles"},
-      {int(PenModal::SnapAngle),
-       "SNAP_ANGLE",
-       0,
-       "Snap Angle",
-       "Snap the handle angle to 45 degrees"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
 
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Pen Tool Modal Map");
+  wmKeyMap *keymap = ensure_keymap(keyconf);
   WM_modalkeymap_assign(keymap, "CURVES_OT_pen");
-
-  /* This function is called for each space-type, only needs to add map once. */
-  if (keymap && keymap->modal_items) {
-    return;
-  }
-
-  keymap = WM_modalkeymap_ensure(keyconf, "Pen Tool Modal Map", modal_items);
 }
 
 }  // namespace blender::ed::curves
