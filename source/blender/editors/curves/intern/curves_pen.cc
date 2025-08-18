@@ -837,6 +837,31 @@ void pen_status_indicators(bContext *C, wmOperator *op)
   status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
 }
 
+class CurvesPenToolOperation : public PenToolOperation {
+ public:
+  float3 project(const float2 &screen_co) const
+  {
+    return this->screen_to_layer(float4x4::identity(), screen_co, float3(0.0f));
+  }
+};
+
+/* Exit and free memory. */
+static void curves_pen_exit(bContext *C, wmOperator *op)
+{
+  CurvesPenToolOperation *ptd = static_cast<CurvesPenToolOperation *>(op->customdata);
+
+  /* Clear status message area. */
+  ED_workspace_status_text(C, nullptr);
+
+  WM_cursor_modal_restore(ptd->vc.win);
+
+  // grease_pencil_pen_update_view(C, *ptd);
+
+  MEM_delete(ptd);
+  /* Clear pointer. */
+  op->customdata = nullptr;
+}
+
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus curves_pen_invoke(bContext * /*C*/,
                                           wmOperator *op,
@@ -850,10 +875,79 @@ static wmOperatorStatus curves_pen_invoke(bContext * /*C*/,
 }
 
 /* Modal handler: Events handling during interactive part. */
-static wmOperatorStatus curves_pen_modal(bContext * /*C*/,
-                                         wmOperator * /*op*/,
-                                         const wmEvent * /*event*/)
+static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  CurvesPenToolOperation &ptd = *reinterpret_cast<CurvesPenToolOperation *>(op->customdata);
+
+  ptd.mouse_co = float2(event->mval);
+  ptd.xy = float2(event->xy);
+  ptd.prev_xy = float2(event->prev_xy);
+
+  if (event->type == EVENT_NONE) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+    curves_pen_exit(C, op);
+    return OPERATOR_FINISHED;
+  }
+  if (ptd.point_removed) {
+    curves_pen_exit(C, op);
+    return OPERATOR_FINISHED;
+  }
+
+  if (event->type == EVT_MODAL_MAP) {
+    if (event->val == int(PenModal::MoveEntire)) {
+      ptd.move_entire = !ptd.move_entire;
+    }
+    else if (event->val == int(PenModal::SnapAngle)) {
+      ptd.snap_angle = !ptd.snap_angle;
+    }
+    else if (event->val == int(PenModal::MoveHandle)) {
+      ptd.move_handle = !ptd.move_handle;
+    }
+  }
+
+  std::atomic<bool> changed = false;
+  // ptd.center_of_mass_co = calculate_center_of_mass(ptd, false);
+
+  if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
+    // const MutableDrawingInfo &info = ptd.drawings[ptd.closest_element.drawing_index];
+    // const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+    // const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+    // bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+
+    // ptd.move_segment(curves, layer_to_world);
+    // info.drawing.tag_topology_changed();
+    changed.store(true, std::memory_order_relaxed);
+  }
+  else {
+    // threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
+    //   bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    //   const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+    //   const float4x4 layer_to_object = layer.local_transform();
+    //   const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+
+    //   IndexMaskMemory memory;
+    //   const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+    //       *ptd.vc.obact,
+    //       info.drawing,
+    //       info.layer_index,
+    //       ptd.vc.v3d->overlay.handle_display,
+    //       memory);
+
+    //   if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
+    //     changed.store(true, std::memory_order_relaxed);
+    //     info.drawing.tag_topology_changed();
+    //   }
+    // });
+  }
+
+  pen_status_indicators(C, op);
+  if (changed) {
+    // grease_pencil_pen_update_view(C, ptd);
+  }
+
   /* Still running... */
   return OPERATOR_RUNNING_MODAL;
 }
