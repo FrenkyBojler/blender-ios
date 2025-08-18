@@ -116,7 +116,6 @@
 /* DRW module. */
 #include "draw_curves_info.hh"
 #include "draw_debug_info.hh"
-#include "draw_hair_refine_info.hh"
 #include "draw_object_infos_info.hh"
 #include "draw_view_info.hh"
 #include "gpu_shader_fullscreen_info.hh"

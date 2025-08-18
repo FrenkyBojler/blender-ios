@@ -697,8 +697,12 @@ void CurvesEvalCache::ensure_bezier(const bke::CurvesGeometry &curves)
   if (this->handles_positions_left_buf) {
     return;
   }
-  this->handles_positions_left_buf = gpu::VertBuf::new_from_span(curves.handle_positions_left());
-  this->handles_positions_right_buf = gpu::VertBuf::new_from_span(curves.handle_positions_right());
+  this->handles_positions_left_buf = gpu::VertBuf::new_from_span(
+      curves.handle_positions_left().has_value() ? curves.handle_positions_left().value() :
+                                                   curves.positions());
+  this->handles_positions_right_buf = gpu::VertBuf::new_from_span(
+      curves.handle_positions_right().has_value() ? curves.handle_positions_right().value() :
+                                                    curves.positions());
   this->bezier_offsets_buf = gpu::VertBuf::new_from_span(
       curves.runtime->evaluated_offsets_cache.data().all_bezier_offsets.as_span());
 }
@@ -713,8 +717,8 @@ void CurvesEvalCache::ensure_nurbs(const bke::CurvesGeometry &curves)
   /* TODO(fclem): Optimize shaders to avoid needing to upload this data if data is uniform.
    * This concerns all varray. */
   this->curves_order_buf = gpu::VertBuf::new_from_varray(curves.nurbs_orders());
-  if (!curves.nurbs_weights().is_empty()) {
-    this->control_weights_buf = gpu::VertBuf::new_from_span(curves.nurbs_weights());
+  if (curves.nurbs_weights().has_value()) {
+    this->control_weights_buf = gpu::VertBuf::new_from_span(curves.nurbs_weights().value());
   }
 
   curves.ensure_can_interpolate_to_evaluated();
