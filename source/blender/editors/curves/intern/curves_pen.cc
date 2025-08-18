@@ -839,11 +839,22 @@ void pen_status_indicators(bContext *C, wmOperator *op)
 
 class CurvesPenToolOperation : public PenToolOperation {
  public:
+  Vector<Curves *> all_curves;
+
   float3 project(const float2 &screen_co) const
   {
     return this->screen_to_layer(float4x4::identity(), screen_co, float3(0.0f));
   }
 };
+
+static void pen_update_view(bContext *C, CurvesPenToolOperation &ptd)
+{
+  for (Curves *curves_id : ptd.all_curves) {
+    DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
+  }
+  ED_region_tag_redraw(ptd.vc.region);
+}
 
 /* Exit and free memory. */
 static void curves_pen_exit(bContext *C, wmOperator *op)
@@ -855,7 +866,7 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
 
   WM_cursor_modal_restore(ptd->vc.win);
 
-  // grease_pencil_pen_update_view(C, *ptd);
+  pen_update_view(C, *ptd);
 
   MEM_delete(ptd);
   /* Clear pointer. */
@@ -914,13 +925,10 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   std::atomic<bool> point_removed = false;
 
   VectorSet<Curves *> unique_curves = get_unique_editable_curves(*C);
-  Vector<Curves *> all_curves;
-
   for (Curves *curves_id : unique_curves) {
-    all_curves.append(curves_id);
+    ptd.all_curves.append(curves_id);
   }
 
-  // ptd.drawings = retrieve_editable_drawings(*ptd.vc.scene, *ptd.grease_pencil);
   // ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
 
   ClosestElement closest_element;
@@ -928,9 +936,9 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   ptd.closest_element = closest_element;
   // ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
-  threading::parallel_for(all_curves.index_range(), 1, [&](const IndexRange curves_range) {
+  threading::parallel_for(ptd.all_curves.index_range(), 1, [&](const IndexRange curves_range) {
     for (const int curves_index : curves_range) {
-      Curves *curves_id = all_curves[curves_index];
+      Curves *curves_id = ptd.all_curves[curves_index];
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
       if (curves.is_empty()) {
@@ -1040,14 +1048,7 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
 
   pen_status_indicators(C, op);
   if (changed) {
-    /* TODO. */
-    for (Curves *curves_id : unique_curves) {
-      DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
-    }
-    ED_region_tag_redraw(ptd.vc.region);
-
-    // grease_pencil_pen_update_view(C, ptd);
+    pen_update_view(C, ptd);
   }
 
   ptd.point_added = point_added;
@@ -1127,7 +1128,7 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
 
   pen_status_indicators(C, op);
   if (changed) {
-    // grease_pencil_pen_update_view(C, ptd);
+    pen_update_view(C, ptd);
   }
 
   /* Still running... */
