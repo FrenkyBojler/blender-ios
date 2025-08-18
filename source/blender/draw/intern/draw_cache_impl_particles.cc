@@ -1373,9 +1373,21 @@ static gpu::VertBufPtr interpolate_face_corner_attribute_to_curve(ParticleDrawSo
   }
 
   if (is_simple) {
-    /* TODO(fclem): Optimize this case (compute once per parent particle). */
+    /* Fallback array if parent particles are not displayed. */
+    Vector<OutputT> parent_data;
+    if (part_spans.parent.is_empty()) {
+      parent_data.reserve(src.psys->totpart);
+      for (int particle_index : IndexRange(src.psys->totpart)) {
+        parent_data.append(interpolate(particles[particle_index], mfaces, attr));
+      }
+    }
+
+    Span<OutputT> data_parent(part_spans.parent.is_empty() ? parent_data.data() : data.data(),
+                              src.psys->totpart);
+
     for (const int particle_index : part_spans.children.index_range()) {
-      data[curve_index++] = interpolate(particles[children[particle_index].parent], mfaces, attr);
+      /* Simple copy of the parent data. */
+      data[curve_index++] = data_parent[children[particle_index].parent];
     }
   }
   else {
