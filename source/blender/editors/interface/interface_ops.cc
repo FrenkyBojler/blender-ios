@@ -2831,6 +2831,33 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+static wmOperatorStatus ui_view_item_delete_invoke(bContext *C,
+                                                   wmOperator * /*op*/,
+                                                   const wmEvent * /*event*/)
+{
+  AbstractView *view = get_view_focused(C);
+
+  view->foreach_view_item([&](AbstractViewItem &item) {
+    if (item.is_active() || item.is_selected()) {
+      item.delete_item(C);
+    }
+  });
+
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_item_delete(wmOperatorType *ot)
+{
+  ot->name = "Delete";
+  ot->idname = "UI_OT_view_item_delete";
+  ot->description = "Delete selected list item";
+
+  ot->invoke = ui_view_item_delete_invoke;
+  ot->poll = ui_view_focused_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+}
+
 enum class Direction {
   UP,
   Down,
@@ -3001,6 +3028,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_view_scroll);
   WM_operatortype_append(UI_OT_view_item_rename);
   WM_operatortype_append(UI_OT_view_item_select);
+  WM_operatortype_append(UI_OT_view_item_delete);
   WM_operatortype_append(UI_OT_view_item_navigate);
 
   WM_operatortype_append(UI_OT_override_add_button);
