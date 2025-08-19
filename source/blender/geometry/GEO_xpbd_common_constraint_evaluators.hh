@@ -452,8 +452,8 @@ class RodBendAndTwistConstraintEvaluator
     const math::Quaternion &rot_diff = math::invert_normalized(r0) * r1;
     const float4 rot_diff_f = float4(rot_diff);
 
-    const float4 residual_neg = rest_rot_f - rot_diff_f;
-    const float4 residual_pos = rest_rot_f + rot_diff_f;
+    const float4 residual_neg = rot_diff_f - rest_rot_f;
+    const float4 residual_pos = rot_diff_f + rest_rot_f;
     const float4 residual = math::length_squared(residual_neg) <
                                     math::length_squared(residual_pos) ?
                                 residual_neg :
@@ -462,7 +462,7 @@ class RodBendAndTwistConstraintEvaluator
     const float4 lambda = residual / (inv_lumped_inertia0 + inv_lumped_inertia1 + compliance_term);
 
     const math::Quaternion offset0 = r1 * math::Quaternion(lambda * inv_lumped_inertia0);
-    const math::Quaternion offset1 = r0 * math::Quaternion(lambda * inv_lumped_inertia1);
+    const math::Quaternion offset1 = r0 * math::Quaternion(-lambda * inv_lumped_inertia1);
 
     updater.update_rotation(points_ref_i0, v0, offset0);
     updater.update_rotation(points_ref_i1, v1, offset1);
