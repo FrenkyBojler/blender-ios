@@ -101,8 +101,7 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
 
       swap_chain_format_ = swap_chain_data.surface_format;
       GCaps.hdr_viewport_support = ELEM(swap_chain_format_.format,
-                                        VK_FORMAT_R16G16B16A16_SFLOAT,
-                                        VK_FORMAT_A2B10G10R10_UNORM_PACK32) &&
+                                        VK_FORMAT_R16G16B16A16_SFLOAT) &&
                                    ELEM(swap_chain_format_.colorSpace,
                                         VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
                                         VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT);

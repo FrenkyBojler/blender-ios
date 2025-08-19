@@ -127,9 +127,6 @@ TextureFormat to_gpu_format(const VkFormat format)
     case VK_FORMAT_R16G16B16A16_SFLOAT:
       return TextureFormat::SFLOAT_16_16_16_16;
 
-    case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
-      return TextureFormat::UNORM_10_10_10_2;
-
     default:
       BLI_assert_unreachable();
   }
