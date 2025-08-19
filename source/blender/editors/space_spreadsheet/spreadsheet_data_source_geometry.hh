@@ -12,6 +12,7 @@
 #include "BKE_instances.hh"
 
 #include "NOD_geometry_nodes_bundle_fwd.hh"
+#include "NOD_geometry_nodes_closure_fwd.hh"
 #include "NOD_geometry_nodes_list_fwd.hh"
 
 #include "spreadsheet_data_source.hh"
@@ -112,6 +113,22 @@ class BundleDataSource : public DataSource {
 
  public:
   BundleDataSource(nodes::BundlePtr bundle);
+
+  void foreach_default_column_ids(
+      FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
+
+  std::unique_ptr<ColumnValues> get_column_values(
+      const SpreadsheetColumnID &column_id) const override;
+
+  int tot_rows() const override;
+};
+
+class ClosureSignatureDataSource : public DataSource {
+  nodes::ClosurePtr closure_;
+  SpreadsheetClosureInputOutput in_out_;
+
+ public:
+  ClosureSignatureDataSource(nodes::ClosurePtr closure, SpreadsheetClosureInputOutput in_out);
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;

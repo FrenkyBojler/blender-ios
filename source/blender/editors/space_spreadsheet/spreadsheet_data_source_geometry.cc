@@ -33,6 +33,7 @@
 #include "ED_outliner.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_log.hh"
 
@@ -667,14 +668,14 @@ std::unique_ptr<ColumnValues> BundleDataSource::get_column_values(
   const Span<nodes::Bundle::StoredItem> items = bundle_->items();
   if (STREQ(column_id.name, "Identifier")) {
     return std::make_unique<ColumnValues>(
-        IFACE_("Identifier"),
-        VArray<std::string>::from_func(bundle_->size(),
-                                       [items](int64_t index) { return items[index].key; }));
+        IFACE_("Identifier"), VArray<std::string>::from_func(items.size(), [items](int64_t index) {
+          return items[index].key;
+        }));
   }
   if (STREQ(column_id.name, "Type")) {
     return std::make_unique<ColumnValues>(
         IFACE_("Type"),
-        VArray<std::string>::from_func(bundle_->size(), [items](int64_t index) -> std::string {
+        VArray<std::string>::from_func(items.size(), [items](int64_t index) -> std::string {
           const nodes::BundleItemValue &value = items[index].value;
           if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&value.value)) {
             return socket_value->type->label;
@@ -692,6 +693,58 @@ std::unique_ptr<ColumnValues> BundleDataSource::get_column_values(
 int BundleDataSource::tot_rows() const
 {
   return bundle_->size();
+}
+
+ClosureSignatureDataSource::ClosureSignatureDataSource(nodes::ClosurePtr closure,
+                                                       const SpreadsheetClosureInputOutput in_out)
+    : closure_(std::move(closure)), in_out_(in_out)
+{
+}
+
+void ClosureSignatureDataSource::foreach_default_column_ids(
+    FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
+{
+  const Span<nodes::ClosureSignature::Item> items = in_out_ == SPREADSHEET_CLOSURE_INPUT ?
+                                                        closure_->signature().inputs :
+                                                        closure_->signature().outputs;
+  if (items.is_empty()) {
+    return;
+  }
+
+  for (const char *name : {"Identifier", "Type"}) {
+    SpreadsheetColumnID column_id{(char *)name};
+    fn(column_id, false);
+  }
+}
+
+std::unique_ptr<ColumnValues> ClosureSignatureDataSource::get_column_values(
+    const SpreadsheetColumnID &column_id) const
+{
+  const Span<nodes::ClosureSignature::Item> items = in_out_ == SPREADSHEET_CLOSURE_INPUT ?
+                                                        closure_->signature().inputs :
+                                                        closure_->signature().outputs;
+  if (STREQ(column_id.name, "Identifier")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Identifier"), VArray<std::string>::from_func(items.size(), [items](int64_t index) {
+          return items[index].key;
+        }));
+  }
+  if (STREQ(column_id.name, "Type")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Type"), VArray<std::string>::from_func(items.size(), [items](int64_t index) {
+          return items[index].type->label;
+        }));
+  }
+  return {};
+}
+
+int ClosureSignatureDataSource::tot_rows() const
+{
+  const Span<nodes::ClosureSignature::Item> items = in_out_ == SPREADSHEET_CLOSURE_INPUT ?
+                                                        closure_->signature().inputs :
+                                                        closure_->signature().outputs;
+
+  return items.size();
 }
 
 SingleValueDataSource::SingleValueDataSource(const GPointer value)
@@ -918,6 +971,14 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   }
   if (ptr.is_type<nodes::BundlePtr>()) {
     return std::make_unique<BundleDataSource>(display_data.extract<nodes::BundlePtr>());
+  }
+  if (ptr.is_type<nodes::ClosurePtr>()) {
+    const auto in_out = SpreadsheetClosureInputOutput(
+        sspreadsheet->geometry_id.closure_input_output);
+    if (in_out != SPREADSHEET_CLOSURE_NONE) {
+      return std::make_unique<ClosureSignatureDataSource>(
+          display_data.extract<nodes::ClosurePtr>(), in_out);
+    }
   }
   const eSpreadsheetColumnValueType column_type = cpp_type_to_column_type(*ptr.type());
   if (column_type == SPREADSHEET_VALUE_TYPE_UNKNOWN) {
