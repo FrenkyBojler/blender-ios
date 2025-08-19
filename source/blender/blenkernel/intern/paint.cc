@@ -678,7 +678,7 @@ bool BKE_paint_brush_set(Main *bmain,
 
   /* Ensure we have a brush with appropriate mode to assign.
    * Could happen if contents of asset blend were manually changed. */
-  if (!BKE_paint_brush_poll(paint, brush)) {
+  if (brush == nullptr || !BKE_paint_brush_poll(paint, brush)) {
     return false;
   }
 

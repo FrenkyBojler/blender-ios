@@ -405,7 +405,8 @@ static void toolsystem_brush_activate_from_toolref_for_object_paint(Main *bmain,
     else {
       if (paint->tool_brush_bindings.main_brush_asset_reference) {
         /* TODO: Check and fix me here as well */
-        BKE_paint_brush_set(bmain, paint, paint->tool_brush_bindings.main_brush_asset_reference);
+        bool result = BKE_paint_brush_set(bmain, paint, paint->tool_brush_bindings.main_brush_asset_reference);
+        printf("TS: %d\n", result);
         toolsystem_main_brush_binding_update_from_active(paint);
       }
       else {
