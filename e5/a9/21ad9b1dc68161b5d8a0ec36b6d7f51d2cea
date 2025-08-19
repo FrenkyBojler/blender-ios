@@ -1,3 +1,4 @@
 Referenced by pull request #141729, Fix #141415: crash when pasting node group node in some cases.
 Referenced by commit f7c24c290e18f1fc82f3ffb8e94403a5825ec2ab, Fix #141415: crash when pasting node group node in some cases.
 Referenced by issue #141423, ASAN `heap-use-after-free` crash when pasting driver referencing deleted ID
+Referenced by pull request #144799, Fix #141415: crash when pasting node group node in some cases.
