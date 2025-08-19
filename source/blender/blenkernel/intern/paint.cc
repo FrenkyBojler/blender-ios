@@ -1227,7 +1227,8 @@ static void paint_runtime_init(const ToolSettings *ts, Paint *paint)
 
   if (paint == &ts->imapaint.paint) {
     paint->runtime->ob_mode = OB_MODE_TEXTURE_PAINT;
-    /* TODO: Odd case of this being both 2D & 3D */
+    /* Note: This is an odd case where 3D Texture paint and Image Paint share the same struct.
+     * It would be equally valid to assign PaintMode::Texture2D to this. */
     paint->runtime->paint_mode = PaintMode::Texture3D;
   }
   else if (ts->sculpt && paint == &ts->sculpt->paint) {
