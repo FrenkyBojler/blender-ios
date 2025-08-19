@@ -53,6 +53,8 @@ class GreasePencilPenToolOperation : public PenToolOperation {
   /* Helper class to project screen space coordinates to 3D. */
   DrawingPlacement placement;
 
+  Vector<float4x4> layer_to_objects;
+
   float3 project(const float2 &screen_co) const
   {
     return this->placement.project(screen_co);
@@ -78,8 +80,7 @@ static ClosestElement pen_find_closest_element(const GreasePencilPenToolOperatio
   for (const int drawing_index : ptd.drawings.index_range()) {
     const MutableDrawingInfo &info = ptd.drawings[drawing_index];
     const bke::CurvesGeometry &curves = info.drawing.strokes();
-    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-    const float4x4 layer_to_object = layer.local_transform();
+    const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
 
     IndexMaskMemory memory;
     const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
@@ -147,8 +148,7 @@ static float2 calculate_center_of_mass(const GreasePencilPenToolOperation &ptd,
   for (const int drawing_index : ptd.drawings.index_range()) {
     const MutableDrawingInfo &info = ptd.drawings[drawing_index];
     const bke::CurvesGeometry &curves = info.drawing.strokes();
-    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-    const float4x4 layer_to_object = layer.local_transform();
+    const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
     const Span<float3> positions = curves.positions();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
@@ -232,6 +232,13 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   std::atomic<bool> point_added = false;
   std::atomic<bool> point_removed = false;
   ptd.drawings = retrieve_editable_drawings(*ptd.vc.scene, *ptd.grease_pencil);
+
+  for (const int drawing_index : ptd.drawings.index_range()) {
+    const MutableDrawingInfo &info = ptd.drawings[drawing_index];
+    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+    ptd.layer_to_objects.append(layer.local_transform());
+  }
+
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
   ptd.closest_element = pen_find_closest_element(ptd, ptd.mouse_co);
 
@@ -256,8 +263,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
       if (ptd.closest_element.element_mode == ElementMode::None) {
         if (ptd.extrude_point) {
-          const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-          const float4x4 layer_to_object = layer.local_transform();
+          const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
 
           IndexMaskMemory memory;
           const IndexMask editable_curves = ed::greasepencil::retrieve_editable_strokes(
@@ -412,23 +418,26 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     changed.store(true, std::memory_order_relaxed);
   }
   else {
-    threading::parallel_for_each(ptd.drawings, [&](const MutableDrawingInfo &info) {
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-      const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-      const float4x4 layer_to_object = layer.local_transform();
-      const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+    threading::parallel_for(ptd.drawings.index_range(), 1, [&](const IndexRange drawing_range) {
+      for (const int drawing_index : drawing_range) {
+        const MutableDrawingInfo &info = ptd.drawings[drawing_index];
+        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+        const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
+        const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
+        const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
 
-      IndexMaskMemory memory;
-      const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-          *ptd.vc.obact,
-          info.drawing,
-          info.layer_index,
-          ptd.vc.v3d->overlay.handle_display,
-          memory);
+        IndexMaskMemory memory;
+        const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
+            *ptd.vc.obact,
+            info.drawing,
+            info.layer_index,
+            ptd.vc.v3d->overlay.handle_display,
+            memory);
 
-      if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
-        changed.store(true, std::memory_order_relaxed);
-        info.drawing.tag_topology_changed();
+        if (ptd.move_handles_in_curve(curves, bezier_points, layer_to_world, layer_to_object)) {
+          changed.store(true, std::memory_order_relaxed);
+          info.drawing.tag_topology_changed();
+        }
       }
     });
   }
