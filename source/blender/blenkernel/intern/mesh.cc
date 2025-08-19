@@ -1354,6 +1354,22 @@ Mesh *BKE_mesh_copy_for_eval(const Mesh &source)
       BKE_id_copy_ex(nullptr, &source.id, nullptr, LIB_ID_COPY_LOCALIZE));
 }
 
+Mesh *BKE_mesh_copy_for_eval_isolated(const Mesh &source)
+{
+  Mesh *result = BKE_mesh_copy_for_eval(source);
+
+  /* Currently the cache is cleared to prevent any data sharing,
+   * although it could be duplicated to avoids having to recalculate the cache. */
+  BKE_mesh_runtime_clear_cache(result);
+
+  CustomData_ensure_layers_are_mutable(&result->face_data, result->faces_num);
+  CustomData_ensure_layers_are_mutable(&result->corner_data, result->corners_num);
+  CustomData_ensure_layers_are_mutable(&result->edge_data, result->edges_num);
+  CustomData_ensure_layers_are_mutable(&result->vert_data, result->verts_num);
+
+  return result;
+}
+
 BMesh *BKE_mesh_to_bmesh_ex(const Mesh *mesh,
                             const BMeshCreateParams *create_params,
                             const BMeshFromMeshParams *convert_params)

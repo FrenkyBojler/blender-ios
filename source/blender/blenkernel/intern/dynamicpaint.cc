@@ -318,16 +318,6 @@ static Mesh *dynamicPaint_brush_mesh_get_no_lock(DynamicPaintBrushSettings *brus
   return runtime_data->brush_mesh;
 }
 
-static void mesh_shared_data_clear(Mesh *mesh)
-{
-  BKE_mesh_runtime_clear_cache(mesh);
-
-  CustomData_ensure_layers_are_mutable(&mesh->face_data, mesh->faces_num);
-  CustomData_ensure_layers_are_mutable(&mesh->corner_data, mesh->corners_num);
-  CustomData_ensure_layers_are_mutable(&mesh->edge_data, mesh->edges_num);
-  CustomData_ensure_layers_are_mutable(&mesh->vert_data, mesh->verts_num);
-}
-
 /**
  * A copy function that managers locking.
  */
@@ -341,8 +331,7 @@ static Mesh *dynamicPaint_brush_mesh_copy(DynamicPaintBrushSettings *brush)
   Mesh *result;
   {
     std::lock_guard lock{runtime_data->brush_mutex};
-    result = BKE_mesh_copy_for_eval(*runtime_data->brush_mesh);
-    mesh_shared_data_clear(result);
+    result = BKE_mesh_copy_for_eval_isolated(*runtime_data->brush_mesh);
   }
   return result;
 }
@@ -2117,8 +2106,7 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
-    runtime_data->brush_mesh = BKE_mesh_copy_for_eval(*result);
-    mesh_shared_data_clear(runtime_data->brush_mesh);
+    runtime_data->brush_mesh = BKE_mesh_copy_for_eval_isolated(*result);
   }
 
   return result;

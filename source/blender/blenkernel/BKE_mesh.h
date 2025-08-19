@@ -124,6 +124,13 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
  * Performs copy for use during evaluation.
  */
 Mesh *BKE_mesh_copy_for_eval(const Mesh &source);
+/**
+ * A specialized version of #BKE_mesh_copy_for_eval that doesn't share any data with `source`.
+ *
+ * \note This is needed when the lifetime of `source` may be less than that of the return value.
+ * It may also be needed when `source` is manipulated in a separate thread.
+ */
+Mesh *BKE_mesh_copy_for_eval_isolated(const Mesh &source);
 
 /**
  * These functions construct a new Mesh,
