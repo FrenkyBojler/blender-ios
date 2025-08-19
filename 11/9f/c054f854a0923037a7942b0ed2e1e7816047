@@ -1,3 +1,4 @@
 Referenced by issue #143983, Crashing when selecting unattached node output
 Referenced by pull request #144015, Fix #143983: crash when shader node from properties editor
 Referenced by commit 9bf9f587f947b45e6ef7a975df2444ea1fcf323a, Fix #143983: crash when shader node from properties editor
+Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
