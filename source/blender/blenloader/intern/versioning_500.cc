@@ -518,6 +518,58 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
   }
 }
 
+/* Hosek / Wilkie and Preetham sky textures were removed, so switch all sky texture nodes
+ * over to Nishita, and try our best to generally match the brightness between the
+ * old and new sky texture. */
+static void do_version_remove_old_sky_textures(bNodeTree *node_tree, bNode *node)
+{
+  NodeTexSky *tex = (NodeTexSky *)node->storage;
+  if (tex->sky_model != 2) {
+    /* old_sky_model == 2 was Nishita prior to the removal of the other sky textures. */
+    /* Do some extra versioning to try and generally match the look of Nishita with
+     * the old sky textures. */
+
+    /* The old sky textures did not have sun discs */
+    tex->sun_disc = false;
+
+    /* Nishita is brighter than the old sky texture, so reduce it's brightness. */
+    bNodeSocket *color_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Color");
+    LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
+      if (link->fromsock == color_output) {
+        /* Add a HSV node with the value set to 0.05 to try and match Nishita's brightness to the
+         * old sky textures. */
+        bNode *hsv = blender::bke::node_add_static_node(nullptr, *node_tree, SH_NODE_HUE_SAT);
+        hsv->parent = node->parent;
+        hsv->location[0] = node->location[0] + node->width + 20.0f;
+        hsv->location[1] = node->location[1];
+
+        /* Set value input to 0.05. */
+        bNodeSocket *hsv_v_in = blender::bke::node_find_socket(*hsv, SOCK_IN, "Value");
+        hsv_v_in->default_value_typed<bNodeSocketValueFloat>()->value = 0.05f;
+
+        /* Connect sky texture to HSV node. */
+        bNodeSocket *hsv_color_in = blender::bke::node_find_socket(*hsv, SOCK_IN, "Color");
+        blender::bke::node_add_link(
+            *node_tree, *link->fromnode, *link->fromsock, *hsv, *hsv_color_in);
+
+        /* Connect HSV node to whatever the sky texture was connected to. */
+        bNodeSocket *hsv_color_out = blender::bke::node_find_socket(*hsv, SOCK_OUT, "Color");
+        blender::bke::node_add_link(
+            *node_tree, *hsv, *hsv_color_out, *link->tonode, *link->tosock);
+
+        /* Remove old link */
+        blender::bke::node_remove_link(node_tree, *link);
+
+        /* TODO: Figure out how to take the direction input of the old sky texture and use it to
+         * set the Sun elevantion/rotation. */
+      }
+    }
+  }
+
+  /* 0 is the new value for the Nishita sky model */
+  tex->sky_model = 0;
+}
+
 static void do_version_transform_geometry_options_to_inputs(bNodeTree &ntree, bNode &node)
 {
   if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
@@ -1814,13 +1866,11 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 23)) {
-    /* Change default Sky Texture to Nishita (after removal of old sky models) */
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_SHADER) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == SH_NODE_TEX_SKY && node->storage) {
-            NodeTexSky *tex = (NodeTexSky *)node->storage;
-            tex->sky_model = 0;
+            do_version_remove_old_sky_textures(ntree, node);
           }
         }
       }
