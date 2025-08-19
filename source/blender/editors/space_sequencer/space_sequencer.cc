@@ -126,7 +126,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   BLI_addtail(&sseq->regionbase, static_cast<void *>(region));
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_RIGHT;
-  region->flag = RGN_FLAG_HIDDEN;
+  region->sizex = UI_PANEL_CATEGORY_MIN_WIDTH;
 
   /* Toolbar. */
   region = BKE_area_region_new();

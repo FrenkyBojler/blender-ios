@@ -156,7 +156,7 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   BLI_addtail(&simage->regionbase, region);
   region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_RIGHT;
-  region->flag = RGN_FLAG_HIDDEN;
+  region->sizex = UI_PANEL_CATEGORY_MIN_WIDTH;
 
   /* scopes/uv sculpt/paint */
   region = BKE_area_region_new();

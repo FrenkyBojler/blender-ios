@@ -50,6 +50,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 
 #include "BLT_translation.hh"
 
@@ -60,6 +61,8 @@
 #include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
+
+#include "UI_interface_c.hh"
 
 #include "versioning_common.hh"
 
@@ -2280,6 +2283,20 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
         lmd->radius = float(lmd->thickness_legacy) *
                       bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 100)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (ELEM(area->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_SEQ)) {
+          ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
+          if (region) {
+            region->flag &= ~RGN_FLAG_HIDDEN;
+            region->sizex = UI_PANEL_CATEGORY_MIN_WIDTH;
+          }
+        }
       }
     }
   }
