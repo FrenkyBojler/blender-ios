@@ -18,6 +18,11 @@ class BrushType(enum.Enum):
     CLAY_STRIPS = "Clay Strips"
     SMOOTH = "Smooth"
 
+class ExpensiveBrushType(enum.Enum):
+    DRAG_CLOTH = "Drag Cloth"
+    BEND_TWIST_CLOTH = "Bend/Twist Cloth"
+    STRETCH_MOVE_CLOTH = "Stretch/Move Cloth"
+
 
 def set_view3d_context_override(context_override):
     """
@@ -40,7 +45,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def prepare_sculpt_scene(context: any, mode: SculptMode, subdivision_level=3):
+def prepare_sculpt_scene(context: any, mode: SculptMode, subdivision_level=3, test_multithreading=False):
     """
     Prepare a clean state of the scene suitable for benchmarking
 
@@ -66,15 +71,20 @@ def prepare_sculpt_scene(context: any, mode: SculptMode, subdivision_level=3):
     group = bpy.data.node_groups.new("Test", 'GeometryNodeTree')
     group.interface.new_socket("Geometry", in_out='OUTPUT', socket_type='NodeSocketGeometry')
     group_output_node = group.nodes.new('NodeGroupOutput')
-
-    if mode == SculptMode.MESH:
-        size = 1500
-    elif mode == SculptMode.MULTIRES:
-        size = 150
-    elif mode == SculptMode.DYNTOPO:
-        size = 500
+    if(test_multithreading):
+        if mode == SculptMode.MESH:
+            size = 125
+        else:
+            raise NotImplementedError
     else:
-        raise NotImplementedError
+        if mode == SculptMode.MESH:
+            size = 1500
+        elif mode == SculptMode.MULTIRES:
+            size = 150
+        elif mode == SculptMode.DYNTOPO:
+            size = 500
+        else:
+            raise NotImplementedError
 
     grid_node = group.nodes.new('GeometryNodeMeshGrid')
     grid_node.inputs["Size X"].default_value = 2.0
@@ -189,6 +199,40 @@ def _run_brush_test(args: dict):
 
     return sum(measurements) / len(measurements)
 
+def _run_multithreading_inside_node_test(args: dict):
+    import bpy
+    import time
+    context = bpy.context
+
+    timeout = 10
+    total_time_start = time.time()
+
+    # Create an undo stack explicitly. This isn't created by default in background mode.
+    bpy.ops.ed.undo_push()
+
+    prepare_brush(context, args['brush_type'])
+
+    min_measurements = 5
+    max_measurements = 100
+
+    measurements = []
+    while True:
+        prepare_sculpt_scene(context, args['mode'], test_multithreading=True)
+        context_override = context.copy()
+        set_view3d_context_override(context_override)
+        with context.temp_override(**context_override):
+            if args.get('spatial_reorder', False):
+                bpy.ops.mesh.reorder_vertices_spatial()
+            start = time.time()
+            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
+            measurements.append(time.time() - start)
+
+        if len(measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
+            break
+        if len(measurements) >= max_measurements:
+            break
+
+    return sum(measurements) / len(measurements)
 
 def _run_bvh_test(args: dict):
     import bpy
@@ -360,6 +404,29 @@ class SculptMultiresSubdivideTest(api.Test):
 
     def run(self, env, _device_id):
         result, _ = env.run_in_blender(_run_subdivide_test, {}, [self.filepath])
+
+        return {'time': result}
+
+class MultithreadingInsideNodeTest(api.Test):
+    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: ExpensiveBrushType):
+        self.filepath = filepath
+        self.mode = mode
+        self.brush_type = brush_type
+
+    def name(self):
+        return "{}_{}_multithreading_inside_node".format(self.mode.name.lower(), self.brush_type.name.lower())
+
+    def category(self):
+        return "sculpt"
+
+    def run(self, env, _device_id):
+        args = {
+            'mode': self.mode,
+            'brush_type': self.brush_type,
+            'brush_type': self.brush_type,
+        }
+
+        result, _ = env.run_in_blender(_run_multithreading_inside_node_test, args, [self.filepath])
 
         return {'time': result}
 
