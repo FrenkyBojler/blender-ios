@@ -301,6 +301,9 @@ static void integrate_angular_velocities(
         const float3 &external_torque = torques.has_value() ? (*torques)[i] : float3(0.0f);
         const float3 &inertia = props.inertias[i];
         const float3 &inverse_inertia = props.inverse_inertias[i];
+        if (math::is_zero(inverse_inertia)) {
+          continue;
+        }
         float3 &angular_velocity = sim_points.angular_velocities[i];
         const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
         angular_velocity += delta_time * (external_torque - precession) * inverse_inertia;
