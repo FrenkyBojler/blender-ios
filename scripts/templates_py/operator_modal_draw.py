@@ -23,7 +23,7 @@ def draw_callback_px(self, context):
     batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": self.mouse_path})
     batch.draw(shader)
 
-    # restore opengl defaults
+    # restore gpu defaults
     gpu.state.blend_set('NONE')
 
 
