@@ -42,6 +42,7 @@
 
 #include "SEQ_animation.hh"
 #include "SEQ_iterator.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
@@ -55,6 +56,7 @@
 #include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 
+#include "UI_view2d.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -410,6 +412,10 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   BlendFileReadReport bf_reports{};
   BlendFileData *bfd = BKE_blendfile_read(filepath, &params, &bf_reports);
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
+  float2 view_mval;
+  View2D *v2d = UI_view2d_fromcontext(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  UI_view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   /* For checking if region type is Preview. */
   ARegion *region = CTX_wm_region(C);
@@ -523,7 +529,10 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
       seq::transform_seqbase_shuffle(ed_dst->seqbasep, istrip, scene_dst);
     }
     if (region->regiontype == RGN_TYPE_PREVIEW) {
-      printf("RGN_TYPE_PREVIEW\n");
+      StripTransform *transform = istrip->data->transform;
+      transform->xofs = view_mval[0];
+      transform->yofs = view_mval[1];
+      seq::relations_invalidate_cache(scene, istrip);
     }
   }
 
