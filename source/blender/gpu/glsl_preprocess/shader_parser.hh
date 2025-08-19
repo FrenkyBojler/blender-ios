@@ -771,9 +771,7 @@ inline void ParserData::parse_scopes(report_callback &report_error)
     for (char &c : token_types) {
       tok_id++;
 
-      const ScopeItem scope = scopes.top();
-
-      if (scope.type == ScopeType::Preprocessor) {
+      if (scopes.top().type == ScopeType::Preprocessor) {
         if (TokenType(c) == NewLine) {
           exit_scope(tok_id);
         }
@@ -788,7 +786,7 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           enter_scope(ScopeType::Preprocessor, tok_id);
           break;
         case Assign:
-          if (scope.type == ScopeType::Assignment) {
+          if (scopes.top().type == ScopeType::Assignment) {
             /* Chained assignments. */
             exit_scope(tok_id - 1);
           }
@@ -804,13 +802,13 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           else if (tok_id >= 2 && token_types[tok_id - 2] == Namespace) {
             enter_scope(ScopeType::Namespace, tok_id);
           }
-          else if (scope.type == ScopeType::Global) {
+          else if (scopes.top().type == ScopeType::Global) {
             enter_scope(ScopeType::Function, tok_id);
           }
-          else if (scope.type == ScopeType::Struct) {
+          else if (scopes.top().type == ScopeType::Struct) {
             enter_scope(ScopeType::Function, tok_id);
           }
-          else if (scope.type == ScopeType::Namespace) {
+          else if (scopes.top().type == ScopeType::Namespace) {
             enter_scope(ScopeType::Function, tok_id);
           }
           else {
@@ -818,13 +816,14 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           }
           break;
         case ParOpen:
-          if (scope.type == ScopeType::Global) {
+          if (scopes.top().type == ScopeType::Global) {
             enter_scope(ScopeType::FunctionArgs, tok_id);
           }
-          else if (scope.type == ScopeType::Struct) {
+          else if (scopes.top().type == ScopeType::Struct) {
             enter_scope(ScopeType::FunctionArgs, tok_id);
           }
-          else if ((scope.type == ScopeType::Function || scope.type == ScopeType::Local) &&
+          else if ((scopes.top().type == ScopeType::Function ||
+                    scopes.top().type == ScopeType::Local) &&
                    (tok_id >= 1 && token_types[tok_id - 1] == Word))
           {
             enter_scope(ScopeType::FunctionCall, tok_id);
@@ -846,22 +845,22 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           }
           break;
         case AngleClose:
-          if (in_template && scope.type == ScopeType::Assignment) {
+          if (in_template && scopes.top().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
-          if (scope.type == ScopeType::TemplateArg) {
+          if (scopes.top().type == ScopeType::TemplateArg) {
             exit_scope(tok_id - 1);
           }
-          if (scope.type == ScopeType::Template) {
+          if (scopes.top().type == ScopeType::Template) {
             exit_scope(tok_id);
           }
           break;
         case BracketClose:
         case ParClose:
-          if (scope.type == ScopeType::Assignment) {
+          if (scopes.top().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
-          if (scope.type == ScopeType::FunctionArg) {
+          if (scopes.top().type == ScopeType::FunctionArg) {
             exit_scope(tok_id - 1);
           }
           exit_scope(tok_id);
@@ -871,21 +870,21 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           break;
         case SemiColon:
         case Comma:
-          if (scope.type == ScopeType::Assignment) {
+          if (scopes.top().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
-          if (scope.type == ScopeType::FunctionArg) {
+          if (scopes.top().type == ScopeType::FunctionArg) {
             exit_scope(tok_id - 1);
           }
-          if (scope.type == ScopeType::TemplateArg) {
+          if (scopes.top().type == ScopeType::TemplateArg) {
             exit_scope(tok_id - 1);
           }
           break;
         default:
-          if (scope.type == ScopeType::FunctionArgs) {
+          if (scopes.top().type == ScopeType::FunctionArgs) {
             enter_scope(ScopeType::FunctionArg, tok_id);
           }
-          if (scope.type == ScopeType::Template) {
+          if (scopes.top().type == ScopeType::Template) {
             enter_scope(ScopeType::TemplateArg, tok_id);
           }
           break;
