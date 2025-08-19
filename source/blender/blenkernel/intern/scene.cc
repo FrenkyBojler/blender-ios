@@ -1041,6 +1041,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   tos->unified_paint_settings.size *= 2;
   tos->unified_paint_settings.unprojected_radius *= 2.0f;
 
+  tos->uvsculpt.size *= 2;
+
   BLO_write_struct(writer, ToolSettings, tos);
 
   if (tos->unified_paint_settings.curve_rand_hue) {
@@ -1203,6 +1205,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
    * In the case of `brush_blend_write`, the size value does not need restoring after writing
    * because that one was directly under `Brush` id which is copied. See `brush_blend_write` in
    * `blenkernel/intern/brush.cc`. */
+  tos->uvsculpt.size /= 2;
   tos->unified_paint_settings.size /= 2;
   tos->unified_paint_settings.unprojected_radius /= 2.0f;
 }
@@ -1266,6 +1269,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     if (BLO_read_fileversion_get(reader) >= 500) {
       ups->size = std::max(ups->size / 2, 1);
       ups->unprojected_radius = std::max(ups->unprojected_radius / 2, 0.001f);
+
+      sce->toolsettings->uvsculpt.size = std::max(sce->toolsettings->uvsculpt.size / 2, 1);
     }
 
     BLO_read_struct(reader, CurveMapping, &ups->curve_rand_hue);
