@@ -363,6 +363,37 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.waxis);
   }
 
+  if (!USER_VERSION_ATLEAST(405, 55)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_closure);
+    FROM_DEFAULT_V4_UCHAR(space_node.node_zone_repeat);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 56)) {
+    FROM_DEFAULT_V4_UCHAR(common.anim.playhead);
+    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker);
+    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker_selected);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_sub);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_group);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_group_active);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 60)) {
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_free);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vect);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_align);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_free);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_vect);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_align);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_sel_auto_clamped);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex);
+    FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex_select);
+    btheme->common.curves.handle_vertex_size = U_theme_default.common.curves.handle_vertex_size;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1624,6 +1655,10 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(500, 11)) {
     userdef->gpu_flag &= ~USER_GPU_FLAG_UNUSED_0;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 59)) {
+    userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
   }
 
   /**

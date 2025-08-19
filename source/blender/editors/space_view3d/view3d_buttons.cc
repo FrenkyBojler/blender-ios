@@ -344,7 +344,7 @@ static CurvesPointSelectionStatus init_curves_point_selection_status(
   }
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
-  const Span<float> nurbs_weights = curves.nurbs_weights();
+  const std::optional<Span<float>> nurbs_weights = curves.nurbs_weights();
   const VArray<float> radius = curves.radius();
   const VArray<float> tilt = curves.tilt();
   const Span<float3> positions = curves.positions();
@@ -372,8 +372,7 @@ static CurvesPointSelectionStatus init_curves_point_selection_status(
             add_v3_v3(value.median.location, positions[point]);
             value.total_nurbs_weights += is_nurbs;
             value.median.nurbs_weight += is_nurbs ?
-                                             (nurbs_weights.is_empty() ? 1.0f :
-                                                                         nurbs_weights[point]) :
+                                             (nurbs_weights ? (*nurbs_weights)[point] : 1.0f) :
                                              0;
             value.median.radius += radius[point];
             value.median.tilt += tilt[point];
@@ -387,9 +386,11 @@ static CurvesPointSelectionStatus init_curves_point_selection_status(
     return status;
   }
 
-  auto add_handles = [&](StringRef selection_attribute, Span<float3> positions) {
+  auto add_handles = [&](StringRef selection_attribute, std::optional<Span<float3>> positions) {
+    if (!positions) {
+      return;
+    }
     const IndexMask selection = retrieve_selected_points(curves, selection_attribute, memory);
-
     if (selection.is_empty()) {
       return;
     }
@@ -397,7 +398,7 @@ static CurvesPointSelectionStatus init_curves_point_selection_status(
     status.total += selection.size();
 
     selection.foreach_index(
-        [&](const int point) { add_v3_v3(status.median.location, positions[point]); });
+        [&](const int point) { add_v3_v3(status.median.location, (*positions)[point]); });
   };
 
   add_handles(".selection_handle_left", curves.handle_positions_left());
@@ -497,6 +498,7 @@ struct CurvesSelectionStatus {
   int curve_count = 0;
   int nurbs_count = 0;
   int bezier_count = 0;
+  int poly_count = 0;
 
   int cyclic_count = 0;
   int nurbs_knot_mode_sum = 0;
@@ -511,6 +513,7 @@ struct CurvesSelectionStatus {
     return {a.curve_count + b.curve_count,
             a.nurbs_count + b.nurbs_count,
             a.bezier_count + b.bezier_count,
+            a.poly_count + b.poly_count,
             a.cyclic_count + b.cyclic_count,
             a.nurbs_knot_mode_sum + b.nurbs_knot_mode_sum,
             std::max(a.nurbs_knot_mode_max, b.nurbs_knot_mode_max),
@@ -550,10 +553,12 @@ static CurvesSelectionStatus init_curves_selection_status(
           const CurveType curve_type = CurveType(curve_types[curve]);
           const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
           const bool is_bezier = curve_type == CURVE_TYPE_BEZIER;
+          const bool is_poly = curve_type == CURVE_TYPE_POLY;
 
           value.curve_count++;
           value.nurbs_count += is_nurbs;
           value.bezier_count += is_bezier;
+          value.poly_count += is_poly;
 
           value.cyclic_count += cyclic[curve];
 
@@ -2502,15 +2507,17 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
     });
   }
 
-  add_labeled_field(
-      "Resolution", status.resolution_max * status.curve_count == status.resolution_sum, [&]() {
-        uiBut *but = uiDefButI(
-            block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.resolution, 1, 64, "");
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, -1);
-        UI_but_func_set(but, handle_curves_resolution, nullptr, nullptr);
-        return but;
-      });
+  if (status.poly_count == 0) {
+    add_labeled_field(
+        "Resolution", status.resolution_max * status.curve_count == status.resolution_sum, [&]() {
+          uiBut *but = uiDefButI(
+              block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.resolution, 1, 64, "");
+          UI_but_number_step_size_set(but, 1);
+          UI_but_number_precision_set(but, -1);
+          UI_but_func_set(but, handle_curves_resolution, nullptr, nullptr);
+          return but;
+        });
+  }
 }
 
 void view3d_buttons_register(ARegionType *art)

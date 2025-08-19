@@ -13,6 +13,7 @@
 #include "BLI_compiler_compat.h"
 #include "BLI_span.hh"
 
+#include "BKE_node_socket_value_fwd.hh"
 #include "BKE_volume_enums.hh"
 
 /* for FOREACH_NODETREE_BEGIN */
@@ -123,7 +124,7 @@ using NodeDeclareDynamicFunction = void (*)(const bNodeTree &tree,
                                             const bNode &node,
                                             blender::nodes::NodeDeclarationBuilder &builder);
 using SocketGetCPPValueFunction = void (*)(const void *socket_value, void *r_value);
-using SocketGetGeometryNodesCPPValueFunction = void (*)(const void *socket_value, void *r_value);
+using SocketGetGeometryNodesCPPValueFunction = SocketValueVariant (*)(const void *socket_value);
 
 /* Adds socket link operations that are specific to this node type. */
 using NodeGatherSocketLinkOperationsFunction =
@@ -204,12 +205,10 @@ struct bNodeSocketType {
   const blender::CPPType *base_cpp_type = nullptr;
   /* Get the value of this socket in a generic way. */
   SocketGetCPPValueFunction get_base_cpp_value = nullptr;
-  /* Get geometry nodes cpp type. */
-  const blender::CPPType *geometry_nodes_cpp_type = nullptr;
   /* Get geometry nodes cpp value. */
   SocketGetGeometryNodesCPPValueFunction get_geometry_nodes_cpp_value = nullptr;
   /* Default value for this socket type. */
-  const void *geometry_nodes_default_cpp_value = nullptr;
+  const SocketValueVariant *geometry_nodes_default_value = nullptr;
 };
 
 using NodeInitExecFunction = void *(*)(bNodeExecContext *context,
@@ -347,11 +346,6 @@ struct bNodeType {
   /* Get an instance of this node's compositor operation. Freeing the instance is the
    * responsibility of the caller. */
   NodeGetCompositorOperationFunction get_compositor_operation = nullptr;
-
-  /* A message to display in the node header for unsupported compositor nodes. The message
-   * is assumed to be static and thus require no memory handling. This field is to be removed when
-   * all nodes are supported. */
-  const char *compositor_unsupported_message = nullptr;
 
   /* Build a multi-function for this node. */
   NodeMultiFunctionBuildFunction build_multi_function = nullptr;
@@ -1015,7 +1009,7 @@ void node_internal_relink(bNodeTree &ntree, bNode &node);
 
 void node_position_relative(bNode &from_node,
                             const bNode &to_node,
-                            const bNodeSocket &from_sock,
+                            const bNodeSocket *from_sock,
                             const bNodeSocket &to_sock);
 
 void node_position_propagate(bNode &node);
