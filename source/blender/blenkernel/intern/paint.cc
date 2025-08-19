@@ -763,7 +763,8 @@ static AssetWeakReference *paint_brush_asset_reference_ptr_from_essentials(
 static std::optional<AssetWeakReference> paint_brush_asset_reference_from_essentials(
     const char *name, const PaintMode paint_mode)
 {
-  const char *essentials_file_name = paint_brush_essentials_asset_file_name_from_paint_mode(paint_mode);
+  const char *essentials_file_name = paint_brush_essentials_asset_file_name_from_paint_mode(
+      paint_mode);
   if (!essentials_file_name) {
     return {};
   }
