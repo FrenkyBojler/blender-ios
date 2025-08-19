@@ -10,7 +10,8 @@
 /* Implementation based on PBRT:
  * https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/util/mipmap.cpp#L301
  * Book excerpt:
- * https://pbr-book.org/4ed/Textures_and_Materials/Image_Texture#fragment-ComputeEWAellipseaxes-0 */
+ * https://pbr-book.org/4ed/Textures_and_Materials/Image_Texture#fragment-ComputeEWAellipseaxes-0
+ */
 
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
  * than the `max_ratio_between_axes` times shorter than the long axis. Inputs are the
@@ -107,11 +108,10 @@ Ellipse build_ellipse(float2 uv_texel_space,
 
   float2 uv_coord_center = uv_texel_space - 0.5f;
 
-
   float conic_discriminant = -b * b + 4.0 * a * c;
   float inv_conic_discriminant = 1.0 / conic_discriminant;
-  float2 uv_extent = 2.0f * inv_conic_discriminant * sqrt(float2(conic_discriminant * c,
-                                                                 conic_discriminant * a));
+  float2 uv_extent = 2.0f * inv_conic_discriminant *
+                     sqrt(float2(conic_discriminant * c, conic_discriminant * a));
   int2 st_lower_bound = int2(ceil(uv_coord_center - uv_extent));
   int2 st_upper_bound = int2(floor(uv_coord_center + uv_extent));
 
