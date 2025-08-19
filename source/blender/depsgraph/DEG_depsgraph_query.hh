@@ -333,10 +333,8 @@ namespace evil {
 /**
  * WARNING: DON'T USE!!!
  *
- * These functions are exposed publicly as a temporary measure as we figure out how to fully get
- * rid of temporary objects in the Draw module.
- *
- * TODO: Link to design/TODO issue.
+ * These functions are exposed publicly as a temporary measure while we figure out how to fully get
+ * rid of temporary objects in the Draw module (See #144811).
  *
  * DON'T ADD NEW USE CASES FOR THESE FUNCTIONS.
  */
