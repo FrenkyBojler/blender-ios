@@ -264,6 +264,10 @@ void LightManager::test_enabled_lights(Scene *scene)
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
+    if (!light->is_enabled) {
+      continue;
+    }
+
     light->is_enabled = light->has_contribution(scene, object);
     has_portal |= light->is_portal;
 
@@ -1139,7 +1143,7 @@ void LightManager::device_update_background(Device *device,
 
   marg_cdf[res.y].y = 1.0f;
 
-  LOG_WORK << "Background MIS build time " << time_dt() - time_start;
+  LOG_DEBUG << "Background MIS build time " << time_dt() - time_start;
 
   /* update device */
   dscene->light_background_marginal_cdf.copy_to_device();
