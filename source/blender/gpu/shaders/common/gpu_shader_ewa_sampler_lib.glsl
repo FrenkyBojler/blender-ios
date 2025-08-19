@@ -10,8 +10,7 @@
 /* Implementation based on PBRT:
  * https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/util/mipmap.cpp#L301
  * Book excerpt:
- * https://pbr-book.org/4ed/Textures_and_Materials/Image_Texture#fragment-ComputeEWAellipseaxes-0
- */
+ * https://pbr-book.org/4ed/Textures_and_Materials/Image_Texture#fragment-ComputeEWAellipseaxes-0 */
 
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
  * than the `max_ratio_between_axes` times shorter than the long axis. Inputs are the
@@ -68,8 +67,8 @@ Ellipse build_ellipse(float2 uv_texel_space,
                       float max_ratio_between_axes)
 {
   /* Clamps the ellipsoid based on the ratio between the axes.
-  This leads to better performance, because thin ellipsoids will be adjusted,
-  but also leads to neglectable blurring. */
+   * This leads to better performance, because thin ellipsoids will be adjusted,
+   * but also leads to neglectable blurring. */
   if (max_ratio_between_axes > 1.0) {
     clamp_anisotropy(x_gradient_texel_space, y_gradient_texel_space, max_ratio_between_axes);
   }
@@ -159,10 +158,11 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
   float2 x_gradient_texel_space = x_gradient * size;
   float2 y_gradient_texel_space = y_gradient * size;
 
-  /* Build ellipse & bbox in texel space */
+  /* Build ellipsoid. */
   Ellipse ellipse = build_ellipse(
       uv_texel_space, x_gradient_texel_space, y_gradient_texel_space, max_ratio_between_axes);
 
+  /* Check whether ellipse is degenerative or numerically unstable. */
   if (!ellipse.valid) {
     return float4(0.0f);
   }
