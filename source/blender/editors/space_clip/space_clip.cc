@@ -19,7 +19,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -661,14 +661,15 @@ static void clip_main_region_init(wmWindowManager *wm, ARegion *region)
    * since the space clip manages its own v2d in #movieclip_main_area_set_view2d */
 
   /* mask polls mode */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -826,17 +827,20 @@ static void clip_preview_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Time Scrub", SPACE_CLIP, RGN_TYPE_PREVIEW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Clip Time Scrub", SPACE_CLIP, RGN_TYPE_PREVIEW);
   WM_event_add_keymap_handler_poll(
       &region->runtime->handlers, keymap, ED_time_scrub_event_in_region_poll);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Graph Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Clip Graph Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -846,13 +850,14 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   SpaceClip *sc = CTX_wm_space_clip(C);
   Scene *scene = CTX_data_scene(C);
   short cfra_flag = 0;
+  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
   if (sc->flag & SC_LOCK_TIMECURSOR) {
     ED_clip_graph_center_current_frame(scene, region);
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
@@ -872,10 +877,10 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
 
   /* current frame indicator */
-  ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS);
+  ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS, !minimized);
 
   /* scrollers */
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
     UI_view2d_scrollers_draw(v2d, &scroller_mask);
@@ -900,18 +905,22 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
   short cfra_flag = 0;
+  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
   if (clip) {
     BKE_tracking_dopesheet_update(&clip->tracking);
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
   /* time grid */
-  UI_view2d_draw_lines_x__discrete_frames_or_seconds(v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
+  if (!minimized) {
+    UI_view2d_draw_lines_x__discrete_frames_or_seconds(
+        v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
+  }
 
   /* data... */
   clip_draw_dopesheet_main(sc, region, scene);
@@ -929,10 +938,10 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
 
   /* current frame indicator */
-  ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS);
+  ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS, !minimized);
 
   /* scrollers */
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
     UI_view2d_scrollers_draw(v2d, nullptr);
   }
@@ -976,7 +985,8 @@ static void clip_channels_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -1062,7 +1072,7 @@ static void clip_tools_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -1126,7 +1136,7 @@ static void clip_properties_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -1221,7 +1231,7 @@ void ED_spacetype_clip()
   ARegionType *art;
 
   st->spaceid = SPACE_CLIP;
-  STRNCPY(st->name, "Clip");
+  STRNCPY_UTF8(st->name, "Clip");
 
   st->create = clip_create;
   st->free = clip_free;
@@ -1270,6 +1280,7 @@ void ED_spacetype_clip()
   art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
   art->poll = clip_properties_region_poll;
   art->init = clip_properties_region_init;
+  art->snap_size = ED_region_generic_panel_region_snap_size;
   art->draw = clip_properties_region_draw;
   art->listener = clip_properties_region_listener;
   BLI_addhead(&st->regiontypes, art);

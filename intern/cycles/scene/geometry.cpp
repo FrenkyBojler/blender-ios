@@ -347,6 +347,7 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
   bool volume_images_updated = false;
 
   for (Geometry *geom : scene->geometry) {
+    const bool prev_has_volume = geom->has_volume;
     geom->has_volume = false;
 
     update_attribute_realloc_flags(device_update_flags, geom->attributes);
@@ -429,10 +430,20 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
       device_update_flags |= DEVICE_MESH_DATA_NEEDS_REALLOC;
     }
 
+    if (geom->has_volume) {
+      if (geom->is_modified()) {
+        scene->volume_manager->tag_update(geom);
+      }
+      if (!prev_has_volume) {
+        scene->volume_manager->tag_update();
+      }
+    }
+    else if (prev_has_volume) {
+      scene->volume_manager->tag_update(geom);
+    }
+
     if (geom->is_hair()) {
-      /* Set curve shape, still a global scene setting for now. */
       Hair *hair = static_cast<Hair *>(geom);
-      hair->curve_shape = scene->params.hair_shape;
 
       if (hair->need_update_rebuild) {
         device_update_flags |= DEVICE_CURVE_DATA_NEEDS_REALLOC;
@@ -664,13 +675,9 @@ void GeometryManager::device_update_volume_images(Device *device, Scene *scene, 
       }
 
       const ImageHandle &handle = attr.data_voxel();
-      /* We can build directly from OpenVDB data structures, no need to
-       * load such images early. */
-      if (!handle.vdb_loader()) {
-        const int slot = handle.svm_slot();
-        if (slot != -1) {
-          volume_images.insert(slot);
-        }
+      const int slot = handle.svm_slot();
+      if (slot != -1) {
+        volume_images.insert(slot);
       }
     }
   }
@@ -692,11 +699,11 @@ void GeometryManager::device_update(Device *device,
     return;
   }
 
-  VLOG_INFO << "Total " << scene->geometry.size() << " meshes.";
+  LOG_INFO << "Total " << scene->geometry.size() << " meshes.";
 
   bool true_displacement_used = false;
   bool curve_shadow_transparency_used = false;
-  size_t total_tess_needed = 0;
+  size_t num_tessellation = 0;
 
   {
     const scoped_callback_timer timer([scene](double time) {
@@ -710,13 +717,9 @@ void GeometryManager::device_update(Device *device,
         if (geom->is_mesh() || geom->is_volume()) {
           Mesh *mesh = static_cast<Mesh *>(geom);
 
-          if (mesh->need_attribute(scene, ATTR_STD_POSITION_UNDISPLACED)) {
-            mesh->add_undisplaced();
-          }
-
           /* Test if we need tessellation and setup normals if required. */
           if (mesh->need_tesselation()) {
-            total_tess_needed++;
+            num_tessellation++;
             /* OPENSUBDIV Catmull-Clark does not make use of input normals and will overwrite them.
              */
 #ifdef WITH_OPENSUBDIV
@@ -754,58 +757,68 @@ void GeometryManager::device_update(Device *device,
   }
 
   /* Tessellate meshes that are using subdivision */
-  if (total_tess_needed) {
-    const scoped_callback_timer timer([scene](double time) {
-      if (scene->update_stats) {
-        scene->update_stats->geometry.times.add_entry(
-            {"device_update (adaptive subdivision)", time});
-      }
-    });
+  const scoped_callback_timer timer([scene, num_tessellation](double time) {
+    if (scene->update_stats) {
+      scene->update_stats->geometry.times.add_entry(
+          {(num_tessellation) ? "device_update (tessellation and tangents)" :
+                                "device_update (tangents)",
+           time});
+    }
+  });
 
-    Camera *dicing_camera = scene->dicing_camera;
+  Camera *dicing_camera = scene->dicing_camera;
+  if (num_tessellation) {
     dicing_camera->set_screen_size(dicing_camera->get_full_width(),
                                    dicing_camera->get_full_height());
     dicing_camera->update(scene);
+  }
 
-    size_t i = 0;
-    for (Geometry *geom : scene->geometry) {
-      if (!(geom->is_modified() && geom->is_mesh())) {
-        continue;
+  size_t i = 0;
+  for (Geometry *geom : scene->geometry) {
+    if (!(geom->is_modified() && geom->is_mesh())) {
+      continue;
+    }
+
+    Mesh *mesh = static_cast<Mesh *>(geom);
+
+    if (num_tessellation && mesh->need_tesselation()) {
+      string msg = "Tessellating ";
+      if (mesh->name.empty()) {
+        msg += string_printf("%u/%u", (uint)(i + 1), (uint)num_tessellation);
+      }
+      else {
+        msg += string_printf(
+            "%s %u/%u", mesh->name.c_str(), (uint)(i + 1), (uint)num_tessellation);
       }
 
-      Mesh *mesh = static_cast<Mesh *>(geom);
-      if (mesh->need_tesselation()) {
-        string msg = "Tessellating ";
-        if (mesh->name.empty()) {
-          msg += string_printf("%u/%u", (uint)(i + 1), (uint)total_tess_needed);
-        }
-        else {
-          msg += string_printf(
-              "%s %u/%u", mesh->name.c_str(), (uint)(i + 1), (uint)total_tess_needed);
-        }
+      progress.set_status("Updating Mesh", msg);
 
-        progress.set_status("Updating Mesh", msg);
+      SubdParams subd_params(mesh);
+      subd_params.dicing_rate = mesh->get_subd_dicing_rate();
+      subd_params.max_level = mesh->get_subd_max_level();
+      subd_params.objecttoworld = mesh->get_subd_objecttoworld();
+      subd_params.camera = dicing_camera;
 
-        SubdParams subd_params(mesh);
-        subd_params.dicing_rate = mesh->get_subd_dicing_rate();
-        subd_params.max_level = mesh->get_subd_max_level();
-        subd_params.objecttoworld = mesh->get_subd_objecttoworld();
-        subd_params.camera = dicing_camera;
+      mesh->tessellate(subd_params);
 
-        DiagSplit dsplit(subd_params);
-        mesh->tessellate(&dsplit);
+      i++;
+    }
 
-        i++;
-
-        if (progress.get_cancel()) {
-          return;
-        }
-      }
+    /* Apply generated attribute if needed or remove if not needed */
+    mesh->update_generated(scene);
+    /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
+    mesh->update_tangents(scene, true);
+    if (!mesh->has_true_displacement()) {
+      mesh->update_tangents(scene, false);
     }
 
     if (progress.get_cancel()) {
       return;
     }
+  }
+
+  if (progress.get_cancel()) {
+    return;
   }
 
   /* Update images needed for true displacement. */
@@ -835,6 +848,24 @@ void GeometryManager::device_update(Device *device,
     });
     device_update_mesh(device, dscene, scene, progress);
   }
+
+  if (progress.get_cancel()) {
+    return;
+  }
+
+  /* Apply transforms, to prepare for static BVH building. */
+  if (scene->params.bvh_type == BVH_TYPE_STATIC) {
+    const scoped_callback_timer timer([scene](double time) {
+      if (scene->update_stats) {
+        scene->update_stats->object.times.add_entry(
+            {"device_update (apply static transforms)", time});
+      }
+    });
+
+    progress.set_status("Updating Objects", "Applying Static Transformations");
+    scene->object_manager->apply_static_transforms(dscene, scene, progress);
+  }
+
   if (progress.get_cancel()) {
     return;
   }
@@ -854,7 +885,6 @@ void GeometryManager::device_update(Device *device,
   /* Update displacement and hair shadow transparency. */
   bool displacement_done = false;
   bool curve_shadow_transparency_done = false;
-  size_t num_bvh = 0;
 
   {
     /* Copy constant data needed by shader evaluation. */
@@ -882,12 +912,6 @@ void GeometryManager::device_update(Device *device,
         }
       }
 
-      if (geom->is_modified() || geom->need_update_bvh_for_offset) {
-        if (geom->need_build_bvh(bvh_layout)) {
-          num_bvh++;
-        }
-      }
-
       if (progress.get_cancel()) {
         return;
       }
@@ -898,7 +922,7 @@ void GeometryManager::device_update(Device *device,
     return;
   }
 
-  /* Device re-update after displacement. */
+  /* Device re-update after applying transforms and displacement. */
   if (displacement_done || curve_shadow_transparency_done) {
     const scoped_callback_timer timer([scene](double time) {
       if (scene->update_stats) {
@@ -935,26 +959,30 @@ void GeometryManager::device_update(Device *device,
     first_bvh_build = false;
 
     size_t i = 0;
+    size_t num_bvh = 0;
     for (Geometry *geom : scene->geometry) {
       if (geom->is_modified() || geom->need_update_bvh_for_offset) {
         need_update_scene_bvh = true;
+
+        if (geom->need_build_bvh(bvh_layout)) {
+          i++;
+          num_bvh++;
+        }
+
         if (use_multithreaded_build) {
-          pool.push([geom, device, dscene, scene, &progress, i, num_bvh] {
+          pool.push([geom, device, dscene, scene, &progress, i, &num_bvh] {
             geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
           });
         }
         else {
           geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
         }
-        if (geom->need_build_bvh(bvh_layout)) {
-          i++;
-        }
       }
     }
 
     TaskPool::Summary summary;
     pool.wait_work(&summary);
-    VLOG_WORK << "Objects BVH build pool statistics:\n" << summary.full_report();
+    LOG_DEBUG << "Objects BVH build pool statistics:\n" << summary.full_report();
   }
 
   for (Shader *shader : scene->shaders) {

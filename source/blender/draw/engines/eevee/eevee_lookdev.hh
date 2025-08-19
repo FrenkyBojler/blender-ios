@@ -35,7 +35,7 @@ class LookdevView;
 
 using blender::draw::Framebuffer;
 using blender::draw::PassSimple;
-using blender::draw::ResourceHandle;
+using blender::draw::ResourceHandleRange;
 using blender::draw::Texture;
 using blender::draw::View;
 
@@ -72,8 +72,8 @@ class LookdevWorld {
   bNode *environment_node_ = nullptr;
   bNodeSocketValueFloat *intensity_socket_ = nullptr;
   bNodeSocketValueFloat *angle_socket_ = nullptr;
-  ::Image image = {};
-  ::World world = {};
+  ::Image *image = nullptr;
+  ::World *world = nullptr;
 
   LookdevParameters parameters_;
 
@@ -86,7 +86,7 @@ class LookdevWorld {
 
   ::World *world_get()
   {
-    return &world;
+    return world;
   }
 
   float background_opacity_get() const
@@ -165,7 +165,10 @@ class LookdevModule {
   void display();
 
  private:
-  void sync_pass(PassSimple &pass, gpu::Batch *geom, ::Material *mat, ResourceHandle res_handle);
+  void sync_pass(PassSimple &pass,
+                 gpu::Batch *geom,
+                 ::Material *mat,
+                 ResourceHandleRange res_handle);
   void sync_display();
 
   float calc_viewport_scale();

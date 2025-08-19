@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Release Candidate (b'f896f7ffc32a')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'066280446c16')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-17 16:18+0000\n"
-"PO-Revision-Date: 2024-05-03 12:13+0000\n"
+"POT-Creation-Date: 2025-08-18 09:16+0000\n"
+"PO-Revision-Date: 2025-07-23 15:03+0000\n"
 "Last-Translator: Nooby Noober <iamanoobynoober@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
 "Language: fa\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 5.5.2\n"
+"X-Generator: Weblate 5.12.1\n"
 "X-Poedit-Country: IRAN, ISLAMIC REPUBLIC OF\n"
 "X-Poedit-Language: Persian\n"
 "X-Poedit-SourceCharset: utf-8"
@@ -60,6 +60,10 @@ msgstr "ﺎﻫAOV ﺖﺳﺮﻬﻓ"
 
 msgid "Collection of AOVs"
 msgstr "ﺎﻫAOV ﻪﻋﻮﻤﺠﻣ"
+
+
+msgid "F-Curves"
+msgstr "ﻑﺍ ﯽﻨﺤﻨﻣ"
 
 
 msgid "Action F-Curves"
@@ -583,10 +587,6 @@ msgid "Tweak Mode Action Storage"
 msgstr "ﯼﺯﺎﺳ ﻪﻨﯿﻬﺑ ﺖﻟﺎﺣ ﻡﺍﺪﻗﺍ ﯼﺯﺎﺳ ﻩﺮﯿﺧﺫ"
 
 
-msgid "Slot to temporarily hold the main action while in tweak mode"
-msgstr "ﺖﺳﺍ ﯼﺯﺎﺳ ﻪﻨﯿﻬﺑ ﺖﻟﺎﺣ ﺭﺩ ﻪﮐ ﯽﻟﺎﺣ ﺭﺩ ﯽﻠﺻﺍ ﻡﺍﺪﻗﺍ ﺖﻗﻮﻣ ﻦﺘﺷﺍﺩ ﻪﮕﻧ ﯼﺍﺮﺑ ﯽﯾﺎﻀﻓ"
-
-
 msgid "Drivers"
 msgstr "ﺎﻫﺭﻮﯾﺍﺭﺩ"
 
@@ -803,6 +803,30 @@ msgid "Display Paths of poses within specified range"
 msgstr "ﻩﺪﺷ ﺺﺨﺸﻣ ﻩﺯﺎﺑ ﺭﺩ ﺎﻫ‌ﺖﺳﮊ ﯼﺎﻫﺮﯿﺴﻣ ﺶﯾﺎﻤﻧ"
 
 
+msgid "Hide"
+msgstr "ﻥﺎﻬﻨﭘ"
+
+
+msgid "Opacity"
+msgstr "ﯼﺭﺪﮐِ"
+
+
+msgid "Frames"
+msgstr "ﺎﻫ‌ﻢﯾﺮﻓ"
+
+
+msgid "Info"
+msgstr "ﺕﺎﻋﻼ﻿ﻃﺍ"
+
+
+msgid "Onion Skinning"
+msgstr "ﺯﺎﯿﭘ ﺖﺳﻮﭘ"
+
+
+msgid "Default"
+msgstr "ﺽﺮﻓ ﺶﯿﭘ"
+
+
 msgid "Any Type"
 msgstr "ﻉﻮﻧ ﺮﻫ"
 
@@ -939,10 +963,6 @@ msgid "Interactive programmatic console for advanced editing and script developm
 msgstr "ﺖﭙﯾﺮﮑﺳﺍ ﻪﻌﺳﻮﺗ ﻭ ﻪﺘﻓﺮﺸﯿﭘ ﺶﯾﺍﺮﯾﻭ ﯼﺍﺮﺑ ﯽﻠﻣﺎﻌﺗ ﯼﺍ ﻪﻣﺎﻧﺮﺑ ﻝﻮﺴﻨﮐ"
 
 
-msgid "Info"
-msgstr "ﺕﺎﻋﻼ﻿ﻃﺍ"
-
-
 msgid "Log of operations, warnings and error messages"
 msgstr "ﺎﻄﺧ ﯼﺎﻫ ﻡﺎﯿﭘ ﻭ ﺎﻫﺭﺍﺪﺸﻫ ،ﺎﻫ‌ﺕﺎﯿﻠﻤﻋ ﺵﺭﺍﺰﮔ"
 
@@ -1019,12 +1039,16 @@ msgid "Layer"
 msgstr "ﻪﯾﻻ﻿"
 
 
+msgid "Single"
+msgstr "ﯽﮑﺗ"
+
+
 msgid "Extend"
 msgstr "ﺵﺮﺘﺴﮔ"
 
 
 msgid "Object"
-msgstr "ءﯽﺷ"
+msgstr "ﺊﺷ"
 
 
 msgid "None"
@@ -1067,16 +1091,16 @@ msgid "Handle 2 Type"
 msgstr "2 ﻪﺘﺳﺩ ﻉﻮﻧ"
 
 
-msgid "Hide"
-msgstr "ﻥﺎﻬﻨﭘ"
-
-
 msgid "Visibility status"
 msgstr "ﺪﯾﺩ ﻥﺍﺪﯿﻣ ﺖﯿﻌﺿﻭ"
 
 
 msgid "Weight"
 msgstr "ﻥﺯﻭ"
+
+
+msgid "Cache Files"
+msgstr "ﺶﮐ ﯼﺎﻫ ﻞﯾﺎﻓ"
 
 
 msgid "Grease Pencil"
@@ -1223,6 +1247,10 @@ msgid "Children"
 msgstr "ﻥﺍﺪﻧﺯﺮﻓ"
 
 
+msgid "B-Bone"
+msgstr "ﯽﺸﻤﺧ ﻥﺍﻮﺨﺘﺳﺍ"
+
+
 msgid "Parent"
 msgstr "ﻊﺒﻨﻣ"
 
@@ -1290,10 +1318,6 @@ msgstr "ﻢﺴﺟ ﺮﯿﺴﻣ"
 
 msgid "Background Image"
 msgstr "ﻪﻨﯿﻣﺯ ﺲﭘ ﺮﯾﻮﺼﺗ"
-
-
-msgid "Opacity"
-msgstr "ﯼﺭﺪﮐِ"
 
 
 msgid "Stretch"
@@ -1836,10 +1860,6 @@ msgid "Copy Z"
 msgstr "Z ﯽﭙﮐ"
 
 
-msgid "Default"
-msgstr "ﺽﺮﻓ ﺶﯿﭘ"
-
-
 msgid "Fixed Position"
 msgstr "ﺖﺑﺎﺛ ﺖﯿﻌﻗﻮﻣ"
 
@@ -1890,10 +1910,6 @@ msgstr "Z ﻪﻨﯿﻤﮐ"
 
 msgid "Uniform"
 msgstr "ﻥﺎﺴﮑﯾ"
-
-
-msgid "Script"
-msgstr "ﺖﭙﯾﺮﮑﺳﺍ"
 
 
 msgid "Front"
@@ -2248,14 +2264,6 @@ msgid "Visibility"
 msgstr "ﺪﯾﺩ"
 
 
-msgid "Frames"
-msgstr "ﺎﻫ‌ﻢﯾﺮﻓ"
-
-
-msgid "Onion Skinning"
-msgstr "ﺯﺎﯿﭘ ﺖﺳﻮﭘ"
-
-
 msgid "Spacing"
 msgstr "ﻪﻠﺻﺎﻓ"
 
@@ -2272,16 +2280,16 @@ msgid "Tools"
 msgstr "ﺭﺍﺰﺑﺍ"
 
 
+msgid "Ping Pong"
+msgstr "ﮓﻨﭘ ﮓﻨﯿﭘ"
+
+
 msgid "Local Matrix"
 msgstr "ﯽﻠﺤﻣ ﺲﮑﯾﺮﺗﺎﻣ"
 
 
 msgid "Parent Bone"
 msgstr "ﺪﻟﺍﻭ ﻥﺍﻮﺨﺘﺳﺍ"
-
-
-msgid "Ping Pong"
-msgstr "ﮓﻨﭘ ﮓﻨﯿﭘ"
 
 
 msgid "Red"
@@ -2300,16 +2308,16 @@ msgid "Library"
 msgstr "ﻪﻧﺎﺨﺑﺎﺘﮐ"
 
 
+msgid "Library Override"
+msgstr "ﻪﻧﺎﺨﺑﺎﺘﮐ ﻮﻐﻟ"
+
+
 msgid "Layers"
 msgstr "ﺎﻫ‌ﻪﯾﻻ﻿"
 
 
 msgid "Feature Set"
 msgstr "ﯽﮔﮋﯾﻭ ﻪﻋﻮﻤﺠﻣ"
-
-
-msgid "B-Bone"
-msgstr "ﯽﺸﻤﺧ ﻥﺍﻮﺨﺘﺳﺍ"
 
 
 msgid "Edit Bones"
@@ -2385,6 +2393,21 @@ msgid "Scale"
 msgstr "ﺱﺎﯿﻘﻣ"
 
 
+msgctxt "Brush"
+msgid "Draw"
+msgstr "ﯽﺷﺎﻘﻧ"
+
+
+msgctxt "Brush"
+msgid "Fill"
+msgstr "ﻥﺩﺮﮐ ﺮﭘ"
+
+
+msgctxt "Brush"
+msgid "Erase"
+msgstr "ﻥﺩﺮﮐ‌ﮎﺎﭘ"
+
+
 msgctxt "GPencil"
 msgid "Smooth"
 msgstr "ﻑﺎﺻ"
@@ -2403,21 +2426,6 @@ msgstr "ﻥﺩﺮﮐ ﯽﻓﺩﺎﺼﺗ"
 msgctxt "GPencil"
 msgid "Clone"
 msgstr "ﻥﺎﺴﻤﻫ ﻦﺘﺧﺎﺳ"
-
-
-msgctxt "Brush"
-msgid "Draw"
-msgstr "ﯽﺷﺎﻘﻧ"
-
-
-msgctxt "Brush"
-msgid "Fill"
-msgstr "ﻥﺩﺮﮐ ﺮﭘ"
-
-
-msgctxt "Brush"
-msgid "Erase"
-msgstr "ﻥﺩﺮﮐ‌ﮎﺎﭘ"
 
 
 msgid "Draw"
@@ -2557,6 +2565,10 @@ msgid "V"
 msgstr "V"
 
 
+msgid "Normalize"
+msgstr "ﯼﺯﺎﺳ ﯼﺩﺎﻋ"
+
+
 msgid "Spot Blend"
 msgstr "ﻪﻄﻘﻧ ﺐﯿﮐﺮﺗ"
 
@@ -2579,12 +2591,20 @@ msgid "Cube"
 msgstr "ﺐﻌﮑﻣ"
 
 
+msgid "Attribute"
+msgstr "ﯽﮔﮋﯾﻭ"
+
+
 msgid "Distort"
 msgstr "ﻥﺩﺮﮐ‌ﺞﮐ"
 
 
 msgid "Filter"
 msgstr "ﯽﻓﺎﺻ"
+
+
+msgid "Script"
+msgstr "ﺖﭙﯾﺮﮑﺳﺍ"
 
 
 msgid "Interface"
@@ -2941,24 +2961,24 @@ msgid "Pivot Point"
 msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
 
 
+msgid "Apply"
+msgstr "ﻝﺎﻤﻋﺍ"
+
+
 msgid "Mirror"
 msgstr "ﻪﻨﯾﺁ"
 
 
-msgid "Add Image"
-msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
+msgid "Convert"
+msgstr "ﻞﯾﺪﺒﺗ"
 
 
 msgid "Relations"
 msgstr "ﻂﺑﺍﻭﺭ"
 
 
-msgid "Apply"
-msgstr "ﻝﺎﻤﻋﺍ"
-
-
-msgid "Convert"
-msgstr "ﻞﯾﺪﺒﺗ"
+msgid "Add Image"
+msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
 
 
 msgid "Text"
@@ -3225,10 +3245,6 @@ msgid "Double"
 msgstr "ﯽﯾﺎﺗﻭﺩ"
 
 
-msgid "Normalize"
-msgstr "ﯼﺯﺎﺳ ﯼﺩﺎﻋ"
-
-
 msgid "Use Red Channel"
 msgstr "ﺰﻣﺮﻗ ﻝﺎﻧﺎﮐ ﺯﺍ ﻩﺩﺎﻔﺘﺳﺍ"
 
@@ -3269,14 +3285,6 @@ msgid "Show Texture"
 msgstr "ﺖﻓﺎﺑ ﺶﯾﺎﻤﻧ"
 
 
-msgid "Color Sigma"
-msgstr "ﺎﻤﮕﯿﺳ ﮓﻧﺭ"
-
-
-msgid "Space Sigma"
-msgstr "ﺎﻤﮕﯿﺳ ﯼﺎﻀﻓ"
-
-
 msgctxt "NodeTree"
 msgid "Filter Type"
 msgstr "ﺮﺘﻠﯿﻓ ﻉﻮﻧ"
@@ -3296,20 +3304,8 @@ msgid "Brightness/Contrast"
 msgstr "ﺖﺳﺍﺮﺘﻨﮐ /ﯽﯾﺎﻨﺷﻭﺭ"
 
 
-msgid "Single"
-msgstr "ﯽﮑﺗ"
-
-
 msgid "Color Balance"
 msgstr "ﮓﻧﺭ ﻝﺩﺎﻌﺗ"
-
-
-msgid "H"
-msgstr "H"
-
-
-msgid "S"
-msgstr "S"
 
 
 msgid "Color Spill"
@@ -3332,32 +3328,12 @@ msgid "Filter Type"
 msgstr "ﺮﺘﻠﯿﻓ ﻉﻮﻧ"
 
 
-msgid "Flip X"
-msgstr "X ﯼﺯﺎﺳ‌ﻪﻨﯾﺮﻗ"
-
-
-msgid "Flip Y"
-msgstr "Y ﯼﺯﺎﺳ‌ﻪﻨﯾﺮﻗ"
-
-
-msgid "Angle Offset"
-msgstr "ﺖﺴﻓﺍ ﻪﯾﻭﺍﺯ"
-
-
 msgid "Glare Type"
 msgstr "ﻊﺸﻌﺸﺗ ﻉﻮﻧ"
 
 
 msgid "Simple Star"
 msgstr "ﻩﺩﺎﺳ ﻩﺭﺎﺘﺳ"
-
-
-msgid "Uniformity"
-msgstr "ﻥﺎﺴﮑﯾ"
-
-
-msgid "Projector"
-msgstr "ﺭﻮﺘﮐﮊﻭﺮﭘ"
 
 
 msgid "Combined"
@@ -3392,28 +3368,12 @@ msgid "Stabilize 2D"
 msgstr "2D ﺖﯿﺒﺜﺗ"
 
 
-msgid "Node Output"
-msgstr "ﻩﺮﮔ ﯽﺟﻭﺮﺧ"
-
-
 msgid "Translate"
 msgstr "ﯽﯾﺎﺠﺑﺎﺟ"
 
 
-msgid "X Axis"
-msgstr "X ﺭﻮﺤﻣ"
-
-
-msgid "Y Axis"
-msgstr "Y ﺭﻮﺤﻣ"
-
-
 msgid "Vector Blur"
 msgstr "ﯼﺭﺍﺩﺮﺑ ﯽﮔﺮﯿﺗ"
-
-
-msgid "Min Speed"
-msgstr "ﻪﻨﯿﻤﮐ ﺖﻋﺮﺳ"
 
 
 msgid "And"
@@ -3509,12 +3469,16 @@ msgid "Air"
 msgstr "ﺍﻮﻫ"
 
 
-msgid "Sun Direction"
-msgstr "ﺪﯿﺷﺭﻮﺧ ﺖﻬﺟ"
-
-
 msgid "Wave Texture"
 msgstr "ﺭﺍﺩ ﺝﻮﻣ ﺖﻓﺎﺑ"
+
+
+msgid "X Axis"
+msgstr "X ﺭﻮﺤﻣ"
+
+
+msgid "Y Axis"
+msgstr "Y ﺭﻮﺤﻣ"
 
 
 msgid "Z Axis"
@@ -3525,8 +3489,8 @@ msgid "Texture Node"
 msgstr "ﺖﻓﺎﺑ ﻩﺮﮔ"
 
 
-msgid "Separate RGBA"
-msgstr "RGBA ﻥﺩﺮﮐ‌ﺍﺪﺟ"
+msgid "Node Output"
+msgstr "ﻩﺮﮔ ﯽﺟﻭﺮﺧ"
 
 
 msgid "Value to Normal"
@@ -3799,13 +3763,13 @@ msgid "Constraint"
 msgstr "ﺖﯾﺩﻭﺪﺤﻣ"
 
 
-msgid "Less"
-msgstr "ﺮﺘﻤﮐ"
-
-
 msgctxt "Operator"
 msgid "Separate"
 msgstr "ﺍﺪﺟ"
+
+
+msgid "Less"
+msgstr "ﺮﺘﻤﮐ"
 
 
 msgid "Select shortest path between two selections"
@@ -3928,11 +3892,6 @@ msgstr "UV ﻪﺸﻘﻧ ﻑﺬﺣ"
 
 
 msgctxt "Operator"
-msgid "Hide"
-msgstr "ﻥﺎﻬﻨﭘ"
-
-
-msgctxt "Operator"
 msgid "Toggle Node Options"
 msgstr "ﻩﺮﮔ ﯼﺎﻫ ﻪﻨﯾﺰﮔ ﭻﯾﻮﺳ"
 
@@ -4034,6 +3993,11 @@ msgstr "ﺩﻮﺷ ﻦﯿﯿﻌﺗ ﻪﯾﺎﺴﻤﻫ ﯼﺎﻫ‌ﻪﺤﻔﺻ �
 msgctxt "Operator"
 msgid "Add Text"
 msgstr "ﻦﺘﻣ ﻥﺩﻭﺰﻓﺍ"
+
+
+msgctxt "Operator"
+msgid "Hide"
+msgstr "ﻥﺎﻬﻨﭘ"
 
 
 msgid "Paste"
@@ -4242,6 +4206,10 @@ msgid "URL to open"
 msgstr "ﻥﺩﺮﮐ‌ﺯﺎﺑ ﯼﺍﺮﺑ ﯽﺘﻧﺮﺘﻨﯾﺍ ﺱﺭﺩﺁ"
 
 
+msgid "Unified Paint Settings"
+msgstr "ﺪﺤﺘﻣ ﯽﺷﺎﻘﻧ ﺕﺎﻤﯿﻈﻨﺗ"
+
+
 msgid "Clone Map"
 msgstr "ﻪﺸﻘﻧ ﻥﻮﻠﮐ"
 
@@ -4354,10 +4322,6 @@ msgid "Timeline"
 msgstr "ﻥﺎﻣﺯ ﺭﻮﺤﻣ"
 
 
-msgid "Panel Colors"
-msgstr "ﻞﻨﭘ ﮓﻧﺭ"
-
-
 msgid "Tab"
 msgstr "Tab"
 
@@ -4372,10 +4336,6 @@ msgstr "ﺮﯾﻮﺼﺗ ﺮﮕﺸﯾﺍﺮﯾﻭ"
 
 msgid "Invert Zoom Direction"
 msgstr "ﺩﻮﺷ ﺲﮑﻋﺮﺑ ﻡﻭﺯ ﺖﻬﺟ"
-
-
-msgid "Lock Horizon"
-msgstr "ﻖﻓﺍ ﻞﻔﻗ"
 
 
 msgid "Turntable"
@@ -4511,6 +4471,14 @@ msgid "3D"
 msgstr "3D"
 
 
+msgid "Flip X"
+msgstr "X ﯼﺯﺎﺳ‌ﻪﻨﯾﺮﻗ"
+
+
+msgid "Flip Y"
+msgstr "Y ﯼﺯﺎﺳ‌ﻪﻨﯾﺮﻗ"
+
+
 msgid "Animation End Offset"
 msgstr "ﻦﺸﯿﻤﯿﻧﺍ ﻥﺎﯾﺎﭘ ﺖﺴﻓﺍ"
 
@@ -4585,10 +4553,6 @@ msgstr "ﺎﻔﻟﺁ ﻥﻮﮑﯾﺁ"
 
 msgid "Camera Path"
 msgstr "ﻦﯿﺑﺭﻭﺩ ﺮﯿﺴﻣ"
-
-
-msgid "Unified Paint Settings"
-msgstr "ﺪﺤﺘﻣ ﯽﺷﺎﻘﻧ ﺕﺎﻤﯿﻈﻨﺗ"
 
 
 msgid "UV Sculpt"
@@ -4715,8 +4679,8 @@ msgid "Not Set"
 msgstr "ﻩﺪﺸﻧ ﺺﺨﺸﻣ"
 
 
-msgid "Endpoint"
-msgstr "ﯽﻧﺎﯾﺎﭘ ﻪﻄﻘﻧ"
+msgid "Auto Normalize"
+msgstr "ﺭﺎﮐﺩﻮﺧ ﯼﺯﺎﺳ ﯼﺩﺎﻋ"
 
 
 msgctxt "Operator"
@@ -4746,6 +4710,10 @@ msgstr "ﯼﺮﺑﺯ ﻥﺎﯾﺎﭘ"
 
 msgid "Random Order"
 msgstr "ﯽﻓﺩﺎﺼﺗ ﺕﺭﻮﺻ"
+
+
+msgid "Endpoint"
+msgstr "ﯽﻧﺎﯾﺎﭘ ﻪﻄﻘﻧ"
 
 
 msgid "Use Particle's Radius"
@@ -4813,6 +4781,10 @@ msgid "B"
 msgstr "B"
 
 
+msgid "Lock Horizon"
+msgstr "ﻖﻓﺍ ﻞﻔﻗ"
+
+
 msgid "Location:"
 msgstr ":ﻥﺎﮑﻣ"
 
@@ -4829,18 +4801,6 @@ msgstr "ﻥﺍﻮﺨﺘﺳﺍ ﺕﺎﻤﯿﻈﻨﺗ"
 msgctxt "Operator"
 msgid "View Selected"
 msgstr "ﻩﺪﺷ ﺏﺎﺨﺘﻧﺍ ﻩﺪﻫﺎﺸﻣ"
-
-
-msgid "Creases"
-msgstr "ﺎﻫ ﻦﯿﭼ"
-
-
-msgid "Seams"
-msgstr "ﺎﻫ ﺯﺭﺩ"
-
-
-msgid "Auto Normalize"
-msgstr "ﺭﺎﮐﺩﻮﺧ ﯼﺯﺎﺳ ﯼﺩﺎﻋ"
 
 
 msgid "Multi-Paint"
@@ -4962,6 +4922,14 @@ msgid "Reset Curve"
 msgstr "ﯽﻨﺤﻨﻣ ﯽﻧﺎﺸﻧﺯﺎﺑ"
 
 
+msgid "H"
+msgstr "H"
+
+
+msgid "S"
+msgstr "S"
+
+
 msgid "Zoom in"
 msgstr "ﯽﯾﺎﻤﻨﮔﺭﺰﺑ"
 
@@ -5078,6 +5046,10 @@ msgid "Stop animation playback"
 msgstr "ﻦﺸﯿﻤﯿﻧﺍ ﺶﺨﭘ ﻒﻗﻮﺗ"
 
 
+msgid "Seams"
+msgstr "ﺎﻫ ﺯﺭﺩ"
+
+
 msgid "3D View "
 msgstr " .ﯼﺪﻌﺑ ﻪﺳ ﺪﯾﺩ"
 
@@ -5150,10 +5122,6 @@ msgid "No images have been changed"
 msgstr "ﺩﺮﮑﻧ ﺮﯿﯿﻐﺗ ﯽﺴﮑﻋ ﭻﯿﻫ"
 
 
-msgid "{} (Float)"
-msgstr "(ﺭﻭﺎﻨﺷ) {}"
-
-
 msgid "No Recent Files"
 msgstr "ﺩﺭﺍﺪﻧ ﺩﻮﺟﻭ ﺮﯿﺧﺍ ﻞﯾﺎﻓ"
 
@@ -5166,12 +5134,12 @@ msgid "Crease:"
 msgstr ":ﻦﯿﭼ"
 
 
-msgid "Weight:"
-msgstr ":ﻥﺯﻭ"
-
-
 msgid "Radius:"
 msgstr ":ﻉﺎﻌﺷ"
+
+
+msgid "Weight:"
+msgstr ":ﻥﺯﻭ"
 
 
 msgid "4L"
@@ -5186,96 +5154,16 @@ msgid "Motion"
 msgstr "ﺖﮐﺮﺣ"
 
 
+msgid "Uniformity"
+msgstr "ﻥﺎﺴﮑﯾ"
+
+
 msgid "Old"
 msgstr "ﯽﻤﯾﺪﻗ"
 
 
 msgid "Blender File View"
 msgstr "ﺭﺪﻨﻠﺑ ﻞﯾﺎﻓ ﺶﯾﺎﻤﻧ"
-
-
-msgid "English (English)"
-msgstr "(English) ﯽﺴﯿﻠﮕﻧﺍ"
-
-
-msgid "Japanese (日本語)"
-msgstr "(日本語) ﯽﻨﭘﺍﮊ"
-
-
-msgid "Italian (Italiano)"
-msgstr "(Italiano) ﯽﯾﺎﯿﻟﺎﺘﯾﺍ"
-
-
-msgid "German (Deutsch)"
-msgstr "(Deutsch) ﯽﻧﺎﻤﻟﺁ"
-
-
-msgid "Finnish (Suomi)"
-msgstr "(Suomi) ﯼﺪﻧﻼ﻿ﻨﻓ"
-
-
-msgid "Swedish (Svenska)"
-msgstr "(Svenska) ﯼﺪﺋﻮﺳ"
-
-
-msgid "French (Français)"
-msgstr "(Français) ﯼﻮﺴﻧﺍﺮﻓ"
-
-
-msgid "Spanish (Español)"
-msgstr "(Español) ﯽﯾﺎﯿﻧﺎﭙﺳﺍ"
-
-
-msgid "Catalan (Català)"
-msgstr "(Català) ﯽﻧﻻ﻿ﺎﺗﺎﮐ"
-
-
-msgid "Portuguese (Português)"
-msgstr "(Português) ﯽﻟﺎﻐﺗﺮﭘ"
-
-
-msgid "Simplified Chinese (简体中文)"
-msgstr "(简体中文) ﻩﺩﺎﺳ ﯽﻨﯿﭼ"
-
-
-msgid "Traditional Chinese (繁體中文)"
-msgstr "(繁體中文) ﯽﺘﻨﺳ ﯽﻨﯿﭼ"
-
-
-msgid "Russian (Русский)"
-msgstr "(Русский) ﯽﺳﻭﺭ"
-
-
-msgid "Croatian (Hrvatski)"
-msgstr "(Hrvatski) ﯽﺗﺍﻭﺮﮐ"
-
-
-msgid "Polish (Polski)"
-msgstr "(Polski) ﯽﻧﺎﺘﺴﻬﻟ"
-
-
-msgid "Romanian (Român)"
-msgstr "(Român) ﯽﯾﺎﯿﻧﺎﻣﻭﺭ"
-
-
-msgid "Arabic (ﺔﻴﺑﺮﻌﻟﺍ)"
-msgstr "(ﺔﯿﺑﺮﻌﻟﺍ) ﯼﺯﺎﺗ"
-
-
-msgid "Bulgarian (Български)"
-msgstr "(Български) ﯼﺭﺎﻐﻠﺑ"
-
-
-msgid "Greek (Ελληνικά)"
-msgstr "(Ελληνικά) ﯽﻧﺎﻧﻮﯾ"
-
-
-msgid "Persian (ﯽﺳﺭﺎﻓ)"
-msgstr "(ﯽﺳﺭﺎﻓ) ﯽﺳﺭﺎﻓ"
-
-
-msgid "Indonesian (Bahasa indonesia)"
-msgstr "(Bahasa indonesia) ﯼﺰﻧﻭﺪﻧﺍ"
 
 
 msgid "Smooth by Angle"

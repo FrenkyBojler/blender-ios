@@ -47,6 +47,7 @@ DEF_ENUM(rna_enum_boidrule_type_items)
 DEF_ENUM(rna_enum_strip_modifier_type_items)
 DEF_ENUM(rna_enum_strip_video_modifier_type_items)
 DEF_ENUM(rna_enum_strip_sound_modifier_type_items)
+DEF_ENUM(rna_enum_strip_scale_method_items)
 DEF_ENUM(rna_enum_object_shaderfx_type_items)
 
 DEF_ENUM(rna_enum_modifier_triangulate_quad_method_items)
@@ -56,7 +57,7 @@ DEF_ENUM(rna_enum_shrinkwrap_type_items)
 DEF_ENUM(rna_enum_shrinkwrap_face_cull_items)
 DEF_ENUM(rna_enum_node_warning_type_items)
 
-DEF_ENUM(rna_enum_image_type_items)
+DEF_ENUM(rna_enum_image_type_all_items)
 DEF_ENUM(rna_enum_image_color_mode_items)
 DEF_ENUM(rna_enum_image_color_depth_items)
 DEF_ENUM(rna_enum_image_generated_type_items)
@@ -74,7 +75,7 @@ DEF_ENUM(rna_enum_stereo3d_display_items)
 DEF_ENUM(rna_enum_stereo3d_anaglyph_type_items)
 DEF_ENUM(rna_enum_stereo3d_interlace_type_items)
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
 DEF_ENUM(rna_enum_exr_codec_items)
 #endif
 DEF_ENUM(rna_enum_color_sets_items)
@@ -119,6 +120,7 @@ DEF_ENUM(rna_enum_brush_image_brush_type_items)
 DEF_ENUM(rna_enum_brush_curve_preset_items)
 
 DEF_ENUM(rna_enum_grease_pencil_selectmode_items)
+DEF_ENUM(rna_enum_stroke_depth_order_items)
 
 DEF_ENUM(rna_enum_axis_xy_items)
 DEF_ENUM(rna_enum_axis_xyz_items)
@@ -178,6 +180,7 @@ DEF_ENUM(rna_enum_node_socket_in_out_items)
 DEF_ENUM(rna_enum_node_socket_type_items)
 
 DEF_ENUM(rna_enum_node_tree_interface_item_type_items)
+DEF_ENUM(rna_enum_node_socket_structure_type_items)
 
 DEF_ENUM(rna_enum_node_math_items)
 DEF_ENUM(rna_enum_mapping_type_items)

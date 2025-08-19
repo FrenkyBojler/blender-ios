@@ -9,6 +9,7 @@
  */
 
 #include "BLI_index_mask_fwd.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_string_ref.hh"
 
@@ -18,6 +19,7 @@
 namespace blender::bke {
 
 enum class AttrDomain : int8_t;
+enum class AttrType : int16_t;
 struct AttributeAccessorFunctions;
 
 namespace mesh {
@@ -147,15 +149,17 @@ struct CornerNormalSpace {
 
 /**
  * Storage for corner fan coordinate spaces for an entire mesh.
+ * For performance reason the distribution of #spaces and index mapping of them in
+ * #corner_space_indices are non-deterministic.
  */
 struct CornerNormalSpaceArray {
   /**
    * The normal coordinate spaces, potentially shared between multiple face corners in a smooth fan
    * connected to a vertex (and not per face corner). Depending on the mesh (the amount of sharing
    * / number of sharp edges / size of each fan), there may be many fewer spaces than face corners,
-   * so they are stored in a separate array.
+   * so they are stored in a separate vector.
    */
-  Array<CornerNormalSpace> spaces;
+  Vector<CornerNormalSpace> spaces;
 
   /**
    * The index of the data in the #spaces array for each face corner (the array size is the
@@ -167,7 +171,7 @@ struct CornerNormalSpaceArray {
    * A map containing the face corners that make up each space,
    * in the order that they were processed (winding around a vertex).
    */
-  Array<Array<int>> corners_by_space;
+  Vector<Array<int>> corners_by_space;
   /** Whether to create the above map when calculating normals. */
   bool create_corners_by_space = false;
 };
@@ -176,37 +180,36 @@ short2 corner_space_custom_normal_to_data(const CornerNormalSpace &lnor_space,
                                           const float3 &custom_lnor);
 
 /**
- * Compute split normals, i.e. vertex normals associated with each face. Used to visualize sharp
+ * Compute custom normals, i.e. vertex normals associated with each face. Used to visualize sharp
  * edges (or non-smooth faces) without actually modifying the geometry (splitting edges).
  *
  * \param sharp_edges: Optional array of sharp edge tags, used to split the evaluated normals on
  * each side of the edge.
  * \param sharp_faces: Optional array of sharp face tags, used to split the evaluated normals on
  * the face's edges.
- * \param r_lnors_spacearr: Optional return data filled with information about the custom
+ * \param r_fan_spaces: Optional return data filled with information about the custom
  * normals spaces for each grouped fan of face corners.
  */
 void normals_calc_corners(Span<float3> vert_positions,
-                          Span<int2> edges,
                           OffsetIndices<int> faces,
                           Span<int> corner_verts,
                           Span<int> corner_edges,
-                          Span<int> corner_to_face_map,
+                          GroupedSpan<int> vert_to_face_map,
                           Span<float3> face_normals,
                           Span<bool> sharp_edges,
                           Span<bool> sharp_faces,
                           Span<short2> custom_normals,
-                          CornerNormalSpaceArray *r_lnors_spacearr,
+                          CornerNormalSpaceArray *r_fan_spaces,
                           MutableSpan<float3> r_corner_normals);
 
 /**
  * \param sharp_faces: Optional array used to mark specific faces for sharp shading.
  */
 void normals_corner_custom_set(Span<float3> vert_positions,
-                               Span<int2> edges,
                                OffsetIndices<int> faces,
                                Span<int> corner_verts,
                                Span<int> corner_edges,
+                               GroupedSpan<int> vert_to_face_map,
                                Span<float3> vert_normals,
                                Span<float3> face_normals,
                                Span<bool> sharp_faces,
@@ -218,10 +221,10 @@ void normals_corner_custom_set(Span<float3> vert_positions,
  * \param sharp_faces: Optional array used to mark specific faces for sharp shading.
  */
 void normals_corner_custom_set_from_verts(Span<float3> vert_positions,
-                                          Span<int2> edges,
                                           OffsetIndices<int> faces,
                                           Span<int> corner_verts,
                                           Span<int> corner_edges,
+                                          GroupedSpan<int> vert_to_face_map,
                                           Span<float3> vert_normals,
                                           Span<float3> face_normals,
                                           Span<bool> sharp_faces,
@@ -363,6 +366,10 @@ Mesh *mesh_new_no_attributes(int verts_num, int edges_num, int faces_num, int co
 /** Calculate edges from faces. */
 void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, bool select_new_edges);
 
+void mesh_translate(Mesh &mesh, const float3 &translation, bool do_shape_keys);
+
+void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys);
+
 void mesh_flip_faces(Mesh &mesh, const IndexMask &selection);
 
 void mesh_ensure_required_data_layers(Mesh &mesh);
@@ -403,7 +410,7 @@ void mesh_select_face_flush(Mesh &mesh);
 void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
                                                 StringRef id,
                                                 AttrDomain domain,
-                                                eCustomDataType data_type);
+                                                bke::AttrType data_type);
 
 void mesh_data_update(Depsgraph &depsgraph,
                       const Scene &scene,
@@ -413,6 +420,7 @@ void mesh_data_update(Depsgraph &depsgraph,
 /** Remove strings referring to attributes if they no longer exist. */
 void mesh_remove_invalid_attribute_strings(Mesh &mesh);
 
+void mesh_apply_spatial_organization(Mesh &mesh);
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 
 }  // namespace blender::bke

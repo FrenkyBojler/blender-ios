@@ -26,6 +26,7 @@ set(INC
 
 set(INC_SYS
   ${ZLIB_INCLUDE_DIRS}
+  ${ZSTD_INCLUDE_DIRS}
 
   # For `vfontdata_freetype.cc`.
   ${FREETYPE_INCLUDE_DIRS}
@@ -41,6 +42,7 @@ set(SRC
   intern/action_mirror.cc
   intern/addon.cc
   intern/anim_data.cc
+  intern/anim_data_bmain_utils.cc
   intern/anim_path.cc
   intern/anim_sys.cc
   intern/anim_visualization.cc
@@ -55,7 +57,10 @@ set(SRC
   intern/asset_weak_reference.cc
   intern/attribute.cc
   intern/attribute_access.cc
+  intern/attribute_legacy_convert.cc
   intern/attribute_math.cc
+  intern/attribute_storage.cc
+  intern/attribute_storage_access.cc
   intern/autoexec.cc
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
@@ -236,6 +241,7 @@ set(SRC
   intern/node_tree_field_inferencing.cc
   intern/node_tree_interface.cc
   intern/node_tree_reference_lifetimes.cc
+  intern/node_tree_structure_type_inferencing.cc
   intern/node_tree_update.cc
   intern/node_tree_zones.cc
   intern/object.cc
@@ -248,10 +254,12 @@ set(SRC
   intern/packedFile.cc
   intern/paint.cc
   intern/paint_canvas.cc
+  intern/paint_runtime.cc
   intern/particle.cc
   intern/particle_child.cc
   intern/particle_distribute.cc
   intern/particle_system.cc
+  intern/path_templates.cc
   intern/pbvh.cc
   intern/pbvh_bmesh.cc
   intern/pbvh_pixels.cc
@@ -302,12 +310,14 @@ set(SRC
   intern/type_conversions.cc
   intern/undo_system.cc
   intern/unit.cc
+  intern/uvproject.cc
   intern/vfont.cc
   intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
   intern/viewer_path.cc
   intern/volume.cc
   intern/volume_grid.cc
+  intern/volume_grid_fields.cc
   intern/volume_grid_file_cache.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
@@ -331,7 +341,10 @@ set(SRC
   BKE_attribute.hh
   BKE_attribute_filter.hh
   BKE_attribute_filters.hh
+  BKE_attribute_legacy_convert.hh
   BKE_attribute_math.hh
+  BKE_attribute_storage.hh
+  BKE_attribute_storage_blend_write.hh
   BKE_autoexec.hh
   BKE_bake_data_block_id.hh
   BKE_bake_data_block_map.hh
@@ -363,6 +376,8 @@ set(SRC
   BKE_colorband.hh
   BKE_colortools.hh
   BKE_compositor.hh
+  BKE_compute_context_cache.hh
+  BKE_compute_context_cache_fwd.hh
   BKE_compute_contexts.hh
   BKE_constraint.h
   BKE_context.hh
@@ -466,6 +481,7 @@ set(SRC
   BKE_node_legacy_types.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
+  BKE_node_socket_value_fwd.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
   BKE_node_tree_reference_lifetimes.hh
@@ -480,7 +496,9 @@ set(SRC
   BKE_paint.hh
   BKE_paint_bvh.hh
   BKE_paint_bvh_pixels.hh
+  BKE_paint_types.hh
   BKE_particle.h
+  BKE_path_templates.hh
   BKE_pointcache.h
   BKE_pointcloud.hh
   BKE_pose_backup.h
@@ -513,12 +531,14 @@ set(SRC
   BKE_type_conversions.hh
   BKE_undo_system.hh
   BKE_unit.hh
+  BKE_uvproject.h
   BKE_vfont.hh
   BKE_vfontdata.hh
   BKE_viewer_path.hh
   BKE_volume.hh
   BKE_volume_enums.hh
   BKE_volume_grid.hh
+  BKE_volume_grid_fields.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh
   BKE_volume_grid_type_traits.hh
@@ -570,6 +590,7 @@ set(LIB
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
+  PUBLIC bf::intern::optional::openvdb  # Contains intern-openvdb items in public headers
   bf_intern_libmv  # Uses stub when disabled.
   bf_intern_mikktspace
   bf_intern_opensubdiv  # Uses stub when disabled.
@@ -633,19 +654,19 @@ if(WITH_BULLET)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_WEBP)
-  add_definitions(-DWITH_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -769,20 +790,6 @@ if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-endif()
-
 if(WITH_QUADRIFLOW)
   list(APPEND INC
     ../../../intern/quadriflow
@@ -795,6 +802,10 @@ endif()
 
 if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
+endif()
+
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
 endif()
 
 # # Warnings as errors, this is too strict!
@@ -812,11 +823,15 @@ add_dependencies(bf_blenkernel bf_rna)
 if(WITH_GTESTS)
   set(TEST_SRC
     intern/action_test.cc
+    intern/armature_deform_test.cc
     intern/armature_test.cc
     intern/asset_metadata_test.cc
+    intern/attribute_storage_test.cc
     intern/bpath_test.cc
+    intern/brush_test.cc
     intern/cryptomatte_test.cc
     intern/curves_geometry_test.cc
+    intern/deform_test.cc
     intern/fcurve_test.cc
     intern/file_handler_test.cc
     intern/grease_pencil_test.cc
@@ -831,6 +846,7 @@ if(WITH_GTESTS)
     intern/lib_remap_test.cc
     intern/main_test.cc
     intern/nla_test.cc
+    intern/path_templates_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
     intern/volume_test.cc

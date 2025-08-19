@@ -9,6 +9,7 @@
  * \brief Low-level operations for curves.
  */
 
+#include "BLI_array_utils.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_index_mask_fwd.hh"
@@ -22,6 +23,7 @@
 #include "BLI_virtual_array_fwd.hh"
 
 #include "BKE_attribute_math.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_curves.h"
 
 struct BlendDataReader;
@@ -74,6 +76,9 @@ class CurvesGeometryRuntime {
   /** Implicit sharing user count for #CurvesGeometry::curve_offsets. */
   const ImplicitSharingInfo *curve_offsets_sharing_info = nullptr;
 
+  /** Implicit sharing user count for #CurvesGeometry::custom_knots. */
+  const ImplicitSharingInfo *custom_knots_sharing_info = nullptr;
+
   /**
    * The cached number of curves with each type. Unlike other caches here, this is not computed
    * lazily, since it is needed so often and types are not adjusted much anyway.
@@ -89,6 +94,8 @@ class CurvesGeometryRuntime {
     Vector<int> all_bezier_offsets;
   };
   mutable SharedCache<EvaluatedOffsets> evaluated_offsets_cache;
+
+  mutable SharedCache<std::optional<Vector<int>>> cyclic_offsets_cache;
 
   mutable SharedCache<Vector<curves::nurbs::BasisCache>> nurbs_basis_cache;
 
@@ -121,6 +128,12 @@ class CurvesGeometryRuntime {
 
   /** The maximum of the "material_index" attribute. */
   mutable SharedCache<std::optional<int>> max_material_index_cache;
+
+  /**
+   * Offsets of custom knots in #CurvesGeometry::custom_knots for each curve in #CurvesGeometry.
+   * For curves with no custom knots next offset value stays the same.
+   */
+  mutable SharedCache<Vector<int>> custom_knot_offsets_cache;
 
   /** Stores weak references to material data blocks. */
   std::unique_ptr<bake::BakeMaterialsList> bake_materials;
@@ -264,9 +277,9 @@ class CurvesGeometry : public ::CurvesGeometry {
    * values may be generated automatically based on the handle types. Call #tag_positions_changed
    * after changes.
    */
-  Span<float3> handle_positions_left() const;
+  std::optional<Span<float3>> handle_positions_left() const;
   MutableSpan<float3> handle_positions_left_for_write();
-  Span<float3> handle_positions_right() const;
+  std::optional<Span<float3>> handle_positions_right() const;
   MutableSpan<float3> handle_positions_right_for_write();
 
   /**
@@ -286,14 +299,46 @@ class CurvesGeometry : public ::CurvesGeometry {
   /**
    * The weight for each control point for NURBS curves. Call #tag_positions_changed after changes.
    */
-  Span<float> nurbs_weights() const;
+  std::optional<Span<float>> nurbs_weights() const;
   MutableSpan<float> nurbs_weights_for_write();
 
   /**
    * UV coordinate for each curve that encodes where the curve is attached to the surface mesh.
    */
-  Span<float2> surface_uv_coords() const;
+  std::optional<Span<float2>> surface_uv_coords() const;
   MutableSpan<float2> surface_uv_coords_for_write();
+
+  /**
+   * Custom knots for NURBS curves with knots mode #NURBS_KNOT_MODE_CUSTOM.
+   */
+  Span<float> nurbs_custom_knots() const;
+  MutableSpan<float> nurbs_custom_knots_for_write();
+
+  /**
+   * The offsets of every curve into arrays on #CurvesGeometry::nurbs_custom_knots.
+   * Curves with knot mode other than #NURBS_KNOT_MODE_CUSTOM will have zero sized #IndexRange.
+   */
+  OffsetIndices<int> nurbs_custom_knots_by_curve() const;
+
+  /**
+   * Builds mask of NURBS curves with knot mode #NURBS_KNOT_MODE_CUSTOM.
+   */
+  IndexMask nurbs_custom_knot_curves(IndexMaskMemory &memory) const;
+
+  bool nurbs_has_custom_knots() const;
+
+  /**
+   * Resizes custom knots array depending on topological data.
+   * Depends on curve offsets, knot modes, orders and cyclic data.
+   * Used to resize internal knots array before writing knots.
+   */
+  void nurbs_custom_knots_update_size();
+
+  /**
+   * Resizes custom knots array. Used when knots number is known in advance and knot values are set
+   * together with topological data.
+   */
+  void nurbs_custom_knots_resize(int knots_num);
 
   /**
    * Vertex group data, encoded as an array of indices and weights for every vertex.
@@ -309,7 +354,11 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   void count_memory(MemoryCounter &memory) const;
 
-  /** Get the largest material index used by the curves or `nullopt` if there are none. */
+  /**
+   * Get the largest material index used by the geometry or `nullopt` if there are none.
+   * The returned value is clamped between 0 and MAXMAT even if the stored material indices may be
+   * out of that range.
+   */
   std::optional<int> material_index_max() const;
 
  private:
@@ -335,6 +384,12 @@ class CurvesGeometry : public ::CurvesGeometry {
    * evaluated offsets cache is current.
    */
   Span<int> bezier_evaluated_offsets_for_curve(int curve_index) const;
+
+  /**
+   * A prefix sum of the cyclic attribute, in other words the number of cyclic curves that precede
+   * each curve. Used for rendering. If there are no cyclic curves, `std::nullopt` is returned.
+   */
+  std::optional<Span<int>> cyclic_offsets() const;
 
   Span<float3> evaluated_positions() const;
   Span<float3> evaluated_tangents() const;
@@ -450,16 +505,17 @@ class CurvesGeometry : public ::CurvesGeometry {
    * Helper struct for `CurvesGeometry::blend_write_*` functions.
    */
   struct BlendWriteData {
-    /* The point custom data layers to be written. */
-    Vector<CustomDataLayer, 16> point_layers;
-    /* The curve custom data layers to be written. */
-    Vector<CustomDataLayer, 16> curve_layers;
+    ResourceScope &scope;
+    Vector<CustomDataLayer, 16> &point_layers;
+    Vector<CustomDataLayer, 16> &curve_layers;
+    AttributeStorage::BlendWriteData attribute_data;
+    explicit BlendWriteData(ResourceScope &scope);
   };
   /**
    * This function needs to be called before `blend_write` and before the `CurvesGeometry` struct
-   * is written because it can mutate the `CustomData` struct.
+   * is written because it can mutate the `CustomData` and `AttributeStorage` structs.
    */
-  BlendWriteData blend_write_prepare();
+  void blend_write_prepare(BlendWriteData &write_data);
   void blend_write(BlendWriter &writer, ID &id, const BlendWriteData &write_data);
 };
 
@@ -808,8 +864,12 @@ bool check_valid_num_and_order(int points_num, int8_t order, bool cyclic, KnotsM
  * for predictability and so that cached basis weights of NURBS curves with these properties can be
  * shared.
  */
-int calculate_evaluated_num(
-    int points_num, int8_t order, bool cyclic, int resolution, KnotsMode knots_mode);
+int calculate_evaluated_num(int points_num,
+                            int8_t order,
+                            bool cyclic,
+                            int resolution,
+                            KnotsMode knots_mode,
+                            Span<float> knots);
 
 /**
  * Calculate the length of the knot vector for a NURBS curve with the given properties.
@@ -817,6 +877,24 @@ int calculate_evaluated_num(
  * last evaluated points that are also influenced by the first control points.
  */
 int knots_num(int points_num, int8_t order, bool cyclic);
+
+/**
+ * Calculate the total number of control points for a NURBS curve including virtual/repeated points
+ * for a cyclic/closed curve.
+ */
+int control_points_num(int num_control_points, int8_t order, bool cyclic);
+
+/**
+ * Depending on KnotsMode calculates knots or copies custom knots into given `MutableSpan`.
+ * Adds `order - 1` length tail for cyclic curves.
+ */
+void load_curve_knots(KnotsMode mode,
+                      int points_num,
+                      int8_t order,
+                      bool cyclic,
+                      IndexRange curve_knots,
+                      Span<float> custom_knots,
+                      MutableSpan<float> knots);
 
 /**
  * Calculate the knots for a curve given its properties, based on built-in standards defined by
@@ -830,6 +908,16 @@ void calculate_knots(
     int points_num, KnotsMode mode, int8_t order, bool cyclic, MutableSpan<float> knots);
 
 /**
+ * Compute the number of occurrences of each unique knot value (so knot multiplicity),
+ * forming a sequence for which: `sum(multiplicity) == knots.size()`.
+ *
+ * Example:
+ * Knots: [0, 0, 0, 0.1, 0.3, 0.4, 0.4, 0.4]
+ * Result: [3, 1, 1, 3]
+ */
+Vector<int> calculate_multiplicity_sequence(Span<float> knots);
+
+/**
  * Based on the knots, the order, and other properties of a NURBS curve, calculate a cache that can
  * be used to more simply interpolate attributes to the evaluated points later. The cache includes
  * two pieces of information for every evaluated point: the first control point that influences it,
@@ -838,6 +926,7 @@ void calculate_knots(
 void calculate_basis_cache(int points_num,
                            int evaluated_num,
                            int8_t order,
+                           int resolution,
                            bool cyclic,
                            Span<float> knots,
                            BasisCache &basis_cache);
@@ -899,6 +988,10 @@ inline int CurvesGeometry::points_num() const
 inline int CurvesGeometry::curves_num() const
 {
   return this->curve_num;
+}
+inline bool CurvesGeometry::nurbs_has_custom_knots() const
+{
+  return this->custom_knot_num != 0;
 }
 inline bool CurvesGeometry::is_empty() const
 {
@@ -1034,6 +1127,27 @@ inline float3 calculate_vector_handle(const float3 &point, const float3 &next_po
 }
 
 }  // namespace bezier
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name NURBS Inline Methods
+ * \{ */
+
+namespace nurbs {
+
+inline int knots_num(const int points_num, const int8_t order, const bool cyclic)
+{
+  /* Cyclic: points_num + order * 2 - 1 */
+  return points_num + order + cyclic * (order - 1);
+}
+
+inline int control_points_num(const int points_num, const int8_t order, const bool cyclic)
+{
+  return points_num + cyclic * (order - 1);
+}
+
+}  // namespace nurbs
 
 /** \} */
 

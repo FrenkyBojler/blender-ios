@@ -8,8 +8,10 @@
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
@@ -23,6 +25,7 @@
 #include "BKE_image.hh"
 #include "BKE_image_save.hh"
 #include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "RE_pipeline.h"
 
@@ -44,6 +47,12 @@ FileOutput::FileOutput(const std::string &path,
 
   render_result_->rectx = size.x;
   render_result_->recty = size.y;
+
+  /* NOTE: set dummy values which will won't be used unless overwritten.
+   * When `save_as_render` is set, this is overwritten by the scenes PPM setting.
+   * We *could* support setting the DPI in the file output node too. */
+  render_result_->ppm[0] = 0.0;
+  render_result_->ppm[1] = 0.0;
 
   /* File outputs are always single layer, as images are actually stored in passes on that single
    * layer. Create a single unnamed layer to add the passes to. A single unnamed layer is treated
@@ -70,14 +79,14 @@ void FileOutput::add_view(const char *view_name)
 
   RenderView *render_view = MEM_callocN<RenderView>("Render View For File Output.");
   BLI_addtail(&render_result_->views, render_view);
-  STRNCPY(render_view->name, view_name);
+  STRNCPY_UTF8(render_view->name, view_name);
 }
 
 void FileOutput::add_view(const char *view_name, int channels, float *buffer)
 {
   RenderView *render_view = MEM_callocN<RenderView>("Render View For File Output.");
   BLI_addtail(&render_result_->views, render_view);
-  STRNCPY(render_view->name, view_name);
+  STRNCPY_UTF8(render_view->name, view_name);
 
   render_view->ibuf = IMB_allocImBuf(
       render_result_->rectx, render_result_->recty, channels * 8, 0);
@@ -108,6 +117,7 @@ void FileOutput::add_pass(const char *pass_name,
   render_pass->ibuf = IMB_allocImBuf(
       render_result_->rectx, render_result_->recty, channels_count * 8, 0);
   render_pass->ibuf->channels = channels_count;
+  copy_v2_v2_db(render_pass->ibuf->ppm, render_result_->ppm);
   IMB_assign_float_buffer(render_pass->ibuf, buffer, IB_TAKE_OWNERSHIP);
 }
 
@@ -125,6 +135,12 @@ void FileOutput::save(Scene *scene)
   BKE_render_result_stamp_info(scene, nullptr, render_result_, false);
   for (const auto &field : meta_data_.items()) {
     BKE_render_result_stamp_data(render_result_, field.key.c_str(), field.value.c_str());
+  }
+
+  /* NOTE: without this the file will be written without any density information.
+   * So always write this. */
+  if (save_as_render_ || true) {
+    BKE_scene_ppm_get(&scene->r, render_result_->ppm);
   }
 
   BKE_image_render_write(

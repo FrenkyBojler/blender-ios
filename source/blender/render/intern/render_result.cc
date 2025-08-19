@@ -17,7 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -146,7 +146,7 @@ void render_result_views_shallowcopy(RenderResult *dst, RenderResult *src)
     rv = MEM_callocN<RenderView>("new render view");
     BLI_addtail(&dst->views, rv);
 
-    STRNCPY(rv->name, rview->name);
+    STRNCPY_UTF8(rv->name, rview->name);
 
     rv->ibuf = rview->ibuf;
   }
@@ -182,7 +182,7 @@ static int get_num_planes_for_pass_ibuf(const RenderPass &render_pass)
       return R_IMF_PLANES_RGBA;
   }
 
-  /* Fallback to a commonly used default value of planes for odd-ball number of channel. */
+  /* Fall back to a commonly used default value of planes for odd-ball number of channel. */
   return R_IMF_PLANES_RGBA;
 }
 
@@ -210,6 +210,7 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
 
   rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, get_num_planes_for_pass_ibuf(*rp), 0);
   rp->ibuf->channels = rp->channels;
+  copy_v2_v2_db(rp->ibuf->ppm, rr->ppm);
   IMB_assign_float_buffer(rp->ibuf, buffer_data, IB_TAKE_OWNERSHIP);
   assign_render_pass_ibuf_colorspace(*rp);
 
@@ -219,7 +220,7 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
       buffer_data[x] = PASS_VECTOR_MAX;
     }
   }
-  else if (STREQ(rp->name, RE_PASSNAME_Z)) {
+  else if (STREQ(rp->name, RE_PASSNAME_DEPTH)) {
     for (int x = rectsize - 1; x >= 0; x--) {
       buffer_data[x] = 10e10;
     }
@@ -291,6 +292,8 @@ RenderResult *render_result_new(Render *re,
   rr->rectx = rectx;
   rr->recty = recty;
 
+  BKE_scene_ppm_get(&re->r, rr->ppm);
+
   /* tilerect is relative coordinates within render disprect. do not subtract crop yet */
   rr->tilerect.xmin = partrct->xmin - re->disprect.xmin;
   rr->tilerect.xmax = partrct->xmax - re->disprect.xmin;
@@ -312,7 +315,7 @@ RenderResult *render_result_new(Render *re,
     rl = MEM_callocN<RenderLayer>("new render layer");
     BLI_addtail(&rr->layers, rl);
 
-    STRNCPY(rl->name, view_layer->name);
+    STRNCPY_UTF8(rl->name, view_layer->name);
     rl->layflag = view_layer->layflag;
 
     rl->passflag = view_layer->passflag;
@@ -459,7 +462,7 @@ void RE_pass_set_buffer_data(RenderPass *pass, float *data)
   IMB_assign_float_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
 }
 
-GPUTexture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
+blender::gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
 {
   ImBuf *ibuf = rpass->ibuf;
 
@@ -478,9 +481,11 @@ GPUTexture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
     return nullptr;
   }
 
-  const eGPUTextureFormat format = (rpass->channels == 1) ? GPU_R32F :
-                                   (rpass->channels == 3) ? GPU_RGB32F :
-                                                            GPU_RGBA32F;
+  const blender::gpu::TextureFormat format = (rpass->channels == 1) ?
+                                                 blender::gpu::TextureFormat::SFLOAT_32 :
+                                             (rpass->channels == 3) ?
+                                                 blender::gpu::TextureFormat::SFLOAT_32_32_32 :
+                                                 blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
 
   /* TODO(sergey): Use utility to assign the texture. */
   ibuf->gpu.texture = GPU_texture_create_2d("RenderBuffer.gpu_texture",
@@ -542,7 +547,7 @@ static int passtype_from_name(const char *name)
   ((void)0)
 
   CHECK_PASS(COMBINED);
-  CHECK_PASS(Z);
+  CHECK_PASS(DEPTH);
   CHECK_PASS(VECTOR);
   CHECK_PASS(NORMAL);
   CHECK_PASS(UV);
@@ -622,7 +627,7 @@ static void *ml_addview_cb(void *base, const char *str)
   RenderResult *rr = static_cast<RenderResult *>(base);
 
   RenderView *rv = MEM_callocN<RenderView>("new render view");
-  STRNCPY(rv->name, str);
+  STRNCPY_UTF8(rv->name, str);
 
   /* For stereo drawing we need to ensure:
    * STEREO_LEFT_NAME  == STEREO_LEFT_ID and
@@ -715,6 +720,8 @@ RenderResult *render_result_new_from_exr(
   rr->rectx = rectx;
   rr->recty = recty;
 
+  IMB_exr_get_ppm(exrhandle, rr->ppm);
+
   IMB_exr_multilayer_convert(exrhandle, rr, ml_addview_cb, ml_addlayer_cb, ml_addpass_cb);
 
   LISTBASE_FOREACH (RenderLayer *, rl, &rr->layers) {
@@ -726,6 +733,8 @@ RenderResult *render_result_new_from_exr(
     LISTBASE_FOREACH (RenderPass *, rpass, &rl->passes) {
       rpass->rectx = rectx;
       rpass->recty = recty;
+
+      copy_v2_v2_db(rpass->ibuf->ppm, rr->ppm);
 
       if (RE_RenderPassIsColor(rpass)) {
         IMB_colormanagement_transform_float(rpass->ibuf->float_buffer.data,
@@ -749,7 +758,7 @@ void render_result_view_new(RenderResult *rr, const char *viewname)
 {
   RenderView *rv = MEM_callocN<RenderView>("new render view");
   BLI_addtail(&rr->views, rv);
-  STRNCPY(rv->name, viewname);
+  STRNCPY_UTF8(rv->name, viewname);
 }
 
 void render_result_views_new(RenderResult *rr, const RenderData *rd)
@@ -1027,6 +1036,11 @@ static void render_result_exr_file_cache_path(Scene *sce,
     root = root_buf;
   }
 
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * If #filename is already long (it is initialized from the blend-file name itself), adding the
+   * scene name can cause the file name to be truncated.
+   */
   SNPRINTF(filename_full, "cached_RR_%s_%s_%s.exr", filename, sce->id.name + 2, path_hexdigest);
 
   BLI_path_join(r_path, FILE_CACHE_MAX, root, filename_full);
@@ -1103,6 +1117,8 @@ ImBuf *RE_render_result_rect_to_ibuf(RenderResult *rr,
 
   /* float factor for random dither, imbuf takes care of it */
   ibuf->dither = dither;
+
+  copy_v2_v2_db(ibuf->ppm, rr->ppm);
 
   /* prepare to gamma correct to sRGB color space
    * note that sequence editor can generate 8bpc render buffers
@@ -1185,7 +1201,8 @@ void render_result_rect_fill_zero(RenderResult *rr, const int view_id)
   ImBuf *ibuf = RE_RenderViewEnsureImBuf(rr, rv);
 
   if (!ibuf->float_buffer.data && !ibuf->byte_buffer.data) {
-    uint8_t *data = MEM_calloc_arrayN<uint8_t>(4 * rr->rectx * rr->recty, "render_seq rect");
+    uint8_t *data = MEM_calloc_arrayN<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty),
+                                               "render_seq rect");
     IMB_assign_byte_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
     return;
   }
@@ -1343,6 +1360,9 @@ RenderResult *RE_DuplicateRenderResult(RenderResult *rr)
   new_rr->ibuf = IMB_dupImBuf(rr->ibuf);
 
   new_rr->stamp_data = BKE_stamp_data_copy(new_rr->stamp_data);
+
+  copy_v2_v2_db(new_rr->ppm, rr->ppm);
+
   return new_rr;
 }
 

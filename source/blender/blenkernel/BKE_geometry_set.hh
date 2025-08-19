@@ -9,7 +9,6 @@
  */
 
 #include <iosfwd>
-#include <mutex>
 
 #include "BLI_bounds_types.hh"
 #include "BLI_function_ref.hh"
@@ -17,6 +16,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_counter_fwd.hh"
+#include "BLI_mutex.hh"
 
 /* For #Map. */
 #include "BKE_attribute.hh"
@@ -210,12 +210,6 @@ struct GeometrySet {
    * Remove all geometry components with types that are not in the provided list.
    */
   void keep_only(Span<GeometryComponent::Type> component_types);
-  /**
-   * Keeps the provided geometry types, but also instances and edit data.
-   * Instances must not be removed while using #modify_geometry_sets.
-   */
-  void keep_only_during_modify(Span<GeometryComponent::Type> component_types);
-  void remove_geometry_during_modify();
 
   void add(const GeometryComponent &component);
 
@@ -224,7 +218,8 @@ struct GeometrySet {
    */
   Vector<const GeometryComponent *> get_components() const;
 
-  std::optional<Bounds<float3>> compute_boundbox_without_instances(bool use_radius = true) const;
+  std::optional<Bounds<float3>> compute_boundbox_without_instances(bool use_radius = true,
+                                                                   bool use_subdiv = false) const;
 
   friend std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set);
 
@@ -245,6 +240,13 @@ struct GeometrySet {
    * instances so that they can be owned.
    */
   void ensure_owns_all_data();
+  /**
+   * Typically, multiple #GeometrySet may share the same #GeometryComponent. This is fine as long
+   * as we can guarantee that the data is read-only. However, if some geometry is available in
+   * Python, that guarantee is not possible currently. For that case it can make sense that the
+   * #GeometrySet is the unique owner of the geometries it contains.
+   */
+  void ensure_no_shared_components();
 
   using AttributeForeachCallback = FunctionRef<void(StringRef attribute_id,
                                                     const AttributeMetaData &meta_data,
@@ -263,14 +265,6 @@ struct GeometrySet {
 
   Vector<GeometryComponent::Type> gather_component_types(bool include_instances,
                                                          bool ignore_empty) const;
-
-  using ForeachSubGeometryCallback = FunctionRef<void(GeometrySet &geometry_set)>;
-
-  /**
-   * Modify every (recursive) instance separately. This is often more efficient than realizing all
-   * instances just to change the same thing on all of them.
-   */
-  void modify_geometry_sets(ForeachSubGeometryCallback callback);
 
   /* Utility methods for creation. */
   /**
@@ -598,7 +592,7 @@ class CurveComponent : public GeometryComponent {
    * even when the new curve data structure is used.
    */
   mutable Curve *curve_for_render_ = nullptr;
-  mutable std::mutex curve_for_render_mutex_;
+  mutable Mutex curve_for_render_mutex_;
 
  public:
   CurveComponent();

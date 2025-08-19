@@ -34,7 +34,7 @@ def create_object_data(obj_type, name):
     if obj_type == 'VOLUME':
         return bpy.data.volumes.new(name)
     if obj_type == 'GREASEPENCIL':
-        return bpy.data.grease_pencils.new(name)
+        return bpy.data.grease_pencils_v3.new(name)
     if obj_type == 'ARMATURE':
         return bpy.data.armatures.new(name)
     if obj_type == 'LATTICE':
@@ -197,7 +197,7 @@ class ArtifactManager:
 
         self.temp_artifacts = []
 
-        for key, obj in self.artifact_reuse_table.items():
+        for key, obj in list(self.artifact_reuse_table.items()):
             if obj in self.used_artifacts:
                 obj.hide_viewport = True
                 obj.hide_render = True

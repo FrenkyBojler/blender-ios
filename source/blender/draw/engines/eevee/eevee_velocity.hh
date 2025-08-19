@@ -13,8 +13,11 @@
 
 #pragma once
 
+#include <variant>
+
 #include "BLI_map.hh"
 
+#include "GPU_batch.hh"
 #include "eevee_shader_shared.hh"
 #include "eevee_sync.hh"
 
@@ -34,11 +37,39 @@ class VelocityModule {
   };
   struct VelocityGeometryData {
     /** VertBuf not yet ready to be copied to the #VelocityGeometryBuf. */
-    gpu::VertBuf *pos_buf = nullptr;
+    std::variant<std::monostate, gpu::Batch *, gpu::VertBuf *> pos_buf;
     /* Offset in the #VelocityGeometryBuf to the start of the data. In vertex. */
     int ofs = 0;
     /* Length of the vertex buffer. In vertex. */
     int len = 0;
+
+    gpu::VertBuf *pos_buf_get() const
+    {
+      if (std::holds_alternative<gpu::VertBuf *>(this->pos_buf)) {
+        return std::get<gpu::VertBuf *>(this->pos_buf);
+      }
+      if (std::holds_alternative<gpu::Batch *>(this->pos_buf)) {
+        gpu::VertBuf *buf = std::get<gpu::Batch *>(this->pos_buf)->verts_(1);
+        if (!buf) {
+          return nullptr;
+        }
+        BLI_assert(STREQ(buf->format.names, "pos"));
+        return buf;
+      }
+      return nullptr;
+    }
+
+    /* Returns true if the data is or **will** be available after the end of sync. */
+    bool has_data() const
+    {
+      if (std::holds_alternative<gpu::VertBuf *>(this->pos_buf)) {
+        return true;
+      }
+      if (std::holds_alternative<gpu::Batch *>(this->pos_buf)) {
+        return true;
+      }
+      return false;
+    }
   };
   /**
    * The map contains indirection indices to the obmat and geometry in each step buffer.
@@ -108,7 +139,7 @@ class VelocityModule {
   bool step_object_sync(ObjectKey &object_key,
                         const ObjectRef &object_ref,
                         int recalc,
-                        ResourceHandle resource_handle,
+                        ResourceHandleRange resource_handle,
                         ModifierData *modifier_data = nullptr,
                         ParticleSystem *particle_sys = nullptr);
 

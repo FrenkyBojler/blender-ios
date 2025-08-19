@@ -5,7 +5,7 @@
 /** \file
  * \ingroup pygen
  *
- * This file defines the `bgl` module, used for drawing text in OpenGL.
+ * This file defines the `blf` module, used for drawing text to the GPU or image buffers.
  */
 
 /* Future-proof, See https://docs.python.org/3/c-api/arg.html#strings-and-buffers */
@@ -13,7 +13,7 @@
 
 #include "blf_py_api.hh"
 
-#include "../generic/py_capi_utils.hh"
+#include "py_capi_utils.hh"
 
 #include <Python.h>
 
@@ -25,7 +25,8 @@
 #include "../../imbuf/IMB_imbuf.hh"
 #include "../../imbuf/IMB_imbuf_types.hh"
 
-#include "python_compat.hh"
+#include "python_compat.hh" /* IWYU pragma: keep. */
+
 #include "python_utildefines.hh"
 
 #include "imbuf_py_api.hh"
@@ -33,7 +34,7 @@
 struct BPyBLFImBufContext {
   PyObject_HEAD /* Required Python macro. */
   PyObject *py_imbuf;
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display;
 
   int fontid;
   BLFBufferState *buffer_state;
@@ -323,7 +324,7 @@ static PyObject *py_blf_disable(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  BLF_disable(fontid, option);
+  BLF_disable(fontid, FontFlags(option));
 
   Py_RETURN_NONE;
 }
@@ -348,7 +349,7 @@ static PyObject *py_blf_enable(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  BLF_enable(fontid, option);
+  BLF_enable(fontid, FontFlags(option));
 
   Py_RETURN_NONE;
 }
@@ -572,9 +573,14 @@ static int py_blf_bind_imbuf_clear(BPyBLFImBufContext *self)
   return 0;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef py_blf_bind_imbuf_methods[] = {
@@ -583,8 +589,12 @@ static PyMethodDef py_blf_bind_imbuf_methods[] = {
     {nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyTypeObject BPyBLFImBufContext_Type = {
@@ -687,7 +697,7 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
     return nullptr;
   }
 
-  ColorManagedDisplay *display = nullptr;
+  const ColorManagedDisplay *display = nullptr;
   if (display_name) {
     display = IMB_colormanagement_display_get_named(display_name);
     if (UNLIKELY(display == nullptr)) {
@@ -724,6 +734,16 @@ static PyObject *py_blf_bind_imbuf(PyObject * /*self*/, PyObject *args, PyObject
 
 /** \} */
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 /*----------------------------MODULE INIT-------------------------*/
 static PyMethodDef BLF_methods[] = {
     {"aspect", (PyCFunction)py_blf_aspect, METH_VARARGS, py_blf_aspect_doc},
@@ -750,6 +770,14 @@ static PyMethodDef BLF_methods[] = {
 
     {nullptr, nullptr, 0, nullptr},
 };
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
 
 PyDoc_STRVAR(
     /* Wrap. */

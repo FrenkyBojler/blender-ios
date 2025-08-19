@@ -11,10 +11,13 @@
 #include <cstring>
 
 #include "BLI_array.hh"
+#include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
-#include "BLI_string.h"
+#include "BLI_rand.hh"
+#include "BLI_set.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 
@@ -37,11 +40,56 @@
 
 #include "BLO_read_write.hh"
 
+#include "modifier.hh"
 #include "render.hh"
 
 namespace blender::seq {
 
 /* -------------------------------------------------------------------- */
+
+static bool modifier_has_persistent_uid(const Strip &strip, int uid)
+{
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip.modifiers) {
+    if (smd->persistent_uid == uid) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void modifier_persistent_uid_init(const Strip &strip, StripModifierData &smd)
+{
+  uint64_t hash = blender::get_default_hash(blender::StringRef(smd.name));
+  blender::RandomNumberGenerator rng{uint32_t(hash)};
+  while (true) {
+    const int new_uid = rng.get_int32();
+    if (new_uid <= 0) {
+      continue;
+    }
+    if (modifier_has_persistent_uid(strip, new_uid)) {
+      continue;
+    }
+    smd.persistent_uid = new_uid;
+    break;
+  }
+}
+
+bool modifier_persistent_uids_are_valid(const Strip &strip)
+{
+  Set<int> uids;
+  int modifiers_num = 0;
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip.modifiers) {
+    if (smd->persistent_uid <= 0) {
+      return false;
+    }
+    uids.add(smd->persistent_uid);
+    modifiers_num++;
+  }
+  if (uids.size() != modifiers_num) {
+    return false;
+  }
+  return true;
+}
 
 static float4 load_pixel_premul(const uchar *ptr)
 {
@@ -173,20 +221,20 @@ template<typename T> static void apply_modifier_op(T &op, ImBuf *ibuf, const ImB
  */
 static ImBuf *modifier_render_mask_input(const RenderData *context,
                                          int mask_input_type,
-                                         Strip *mask_sequence,
+                                         Strip *mask_strip,
                                          Mask *mask_id,
                                          int timeline_frame,
                                          int fra_offset)
 {
   ImBuf *mask_input = nullptr;
 
-  if (mask_input_type == SEQUENCE_MASK_INPUT_STRIP) {
-    if (mask_sequence) {
+  if (mask_input_type == STRIP_MASK_INPUT_STRIP) {
+    if (mask_strip) {
       SeqRenderState state;
-      mask_input = seq_render_strip(context, &state, mask_sequence, timeline_frame);
+      mask_input = seq_render_strip(context, &state, mask_strip, timeline_frame);
     }
   }
-  else if (mask_input_type == SEQUENCE_MASK_INPUT_ID) {
+  else if (mask_input_type == STRIP_MASK_INPUT_ID) {
     /* Note that we do not request mask to be float image: if it is that is
      * fine, but if it is a byte image then we also just take that without
      * extra memory allocations or conversions. All modifiers are expected
@@ -197,13 +245,13 @@ static ImBuf *modifier_render_mask_input(const RenderData *context,
   return mask_input;
 }
 
-static ImBuf *modifier_mask_get(SequenceModifierData *smd,
+static ImBuf *modifier_mask_get(StripModifierData *smd,
                                 const RenderData *context,
                                 int timeline_frame,
                                 int fra_offset)
 {
   return modifier_render_mask_input(
-      context, smd->mask_input_type, smd->mask_sequence, smd->mask_id, timeline_frame, fra_offset);
+      context, smd->mask_input_type, smd->mask_strip, smd->mask_id, timeline_frame, fra_offset);
 }
 
 /* -------------------------------------------------------------------- */
@@ -413,7 +461,7 @@ struct ColorBalanceApplyOp {
   }
 };
 
-static void colorBalance_init_data(SequenceModifierData *smd)
+static void colorBalance_init_data(StripModifierData *smd)
 {
   ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
 
@@ -431,7 +479,7 @@ static void colorBalance_init_data(SequenceModifierData *smd)
 }
 
 static void colorBalance_apply(const StripScreenQuad & /*quad*/,
-                               SequenceModifierData *smd,
+                               StripModifierData *smd,
                                ImBuf *ibuf,
                                ImBuf *mask)
 {
@@ -448,7 +496,7 @@ static void colorBalance_apply(const StripScreenQuad & /*quad*/,
 /** \name White Balance Modifier
  * \{ */
 
-static void whiteBalance_init_data(SequenceModifierData *smd)
+static void whiteBalance_init_data(StripModifierData *smd)
 {
   WhiteBalanceModifierData *cbmd = (WhiteBalanceModifierData *)smd;
   copy_v3_fl(cbmd->white_value, 1.0f);
@@ -486,7 +534,7 @@ struct WhiteBalanceApplyOp {
 };
 
 static void whiteBalance_apply(const StripScreenQuad & /*quad*/,
-                               SequenceModifierData *smd,
+                               StripModifierData *smd,
                                ImBuf *ibuf,
                                ImBuf *mask)
 {
@@ -505,21 +553,21 @@ static void whiteBalance_apply(const StripScreenQuad & /*quad*/,
 /** \name Curves Modifier
  * \{ */
 
-static void curves_init_data(SequenceModifierData *smd)
+static void curves_init_data(StripModifierData *smd)
 {
   CurvesModifierData *cmd = (CurvesModifierData *)smd;
 
   BKE_curvemapping_set_defaults(&cmd->curve_mapping, 4, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
 }
 
-static void curves_free_data(SequenceModifierData *smd)
+static void curves_free_data(StripModifierData *smd)
 {
   CurvesModifierData *cmd = (CurvesModifierData *)smd;
 
   BKE_curvemapping_free_data(&cmd->curve_mapping);
 }
 
-static void curves_copy_data(SequenceModifierData *target, SequenceModifierData *smd)
+static void curves_copy_data(StripModifierData *target, StripModifierData *smd)
 {
   CurvesModifierData *cmd = (CurvesModifierData *)smd;
   CurvesModifierData *cmd_target = (CurvesModifierData *)target;
@@ -548,7 +596,7 @@ struct CurvesApplyOp {
 };
 
 static void curves_apply(const StripScreenQuad & /*quad*/,
-                         SequenceModifierData *smd,
+                         StripModifierData *smd,
                          ImBuf *ibuf,
                          ImBuf *mask)
 {
@@ -575,7 +623,7 @@ static void curves_apply(const StripScreenQuad & /*quad*/,
 /** \name Hue Correct Modifier
  * \{ */
 
-static void hue_correct_init_data(SequenceModifierData *smd)
+static void hue_correct_init_data(StripModifierData *smd)
 {
   HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
   int c;
@@ -594,14 +642,14 @@ static void hue_correct_init_data(SequenceModifierData *smd)
   hcmd->curve_mapping.cur = 1;
 }
 
-static void hue_correct_free_data(SequenceModifierData *smd)
+static void hue_correct_free_data(StripModifierData *smd)
 {
   HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
 
   BKE_curvemapping_free_data(&hcmd->curve_mapping);
 }
 
-static void hue_correct_copy_data(SequenceModifierData *target, SequenceModifierData *smd)
+static void hue_correct_copy_data(StripModifierData *target, StripModifierData *smd)
 {
   HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
   HueCorrectModifierData *hcmd_target = (HueCorrectModifierData *)target;
@@ -652,7 +700,7 @@ struct HueCorrectApplyOp {
 };
 
 static void hue_correct_apply(const StripScreenQuad & /*quad*/,
-                              SequenceModifierData *smd,
+                              StripModifierData *smd,
                               ImBuf *ibuf,
                               ImBuf *mask)
 {
@@ -695,7 +743,7 @@ struct BrightContrastApplyOp {
 };
 
 static void brightcontrast_apply(const StripScreenQuad & /*quad*/,
-                                 SequenceModifierData *smd,
+                                 StripModifierData *smd,
                                  ImBuf *ibuf,
                                  ImBuf *mask)
 {
@@ -772,7 +820,7 @@ struct MaskApplyOp {
 };
 
 static void maskmodifier_apply(const StripScreenQuad & /*quad*/,
-                               SequenceModifierData * /*smd*/,
+                               StripModifierData * /*smd*/,
                                ImBuf *ibuf,
                                ImBuf *mask)
 {
@@ -803,7 +851,7 @@ struct AvgLogLum {
   float igm;
 };
 
-static void tonemapmodifier_init_data(SequenceModifierData *smd)
+static void tonemapmodifier_init_data(StripModifierData *smd)
 {
   SequencerTonemapModifierData *tmmd = (SequencerTonemapModifierData *)smd;
   /* Same as tone-map compositor node. */
@@ -818,14 +866,16 @@ static void tonemapmodifier_init_data(SequenceModifierData *smd)
 }
 
 /* Convert chunk of float image pixels to scene linear space, in-place. */
-static void pixels_to_scene_linear_float(ColorSpace *colorspace, float4 *pixels, int64_t count)
+static void pixels_to_scene_linear_float(const ColorSpace *colorspace,
+                                         float4 *pixels,
+                                         int64_t count)
 {
   IMB_colormanagement_colorspace_to_scene_linear(
       (float *)(pixels), int(count), 1, 4, colorspace, false);
 }
 
 /* Convert chunk of byte image pixels to scene linear space, into a destination array. */
-static void pixels_to_scene_linear_byte(ColorSpace *colorspace,
+static void pixels_to_scene_linear_byte(const ColorSpace *colorspace,
                                         const uchar *pixels,
                                         float4 *dst,
                                         int64_t count)
@@ -843,7 +893,7 @@ static void pixels_to_scene_linear_byte(ColorSpace *colorspace,
 
 static void scene_linear_to_image_chunk_float(ImBuf *ibuf, IndexRange range)
 {
-  ColorSpace *colorspace = ibuf->float_buffer.colorspace;
+  const ColorSpace *colorspace = ibuf->float_buffer.colorspace;
   float4 *fptr = reinterpret_cast<float4 *>(ibuf->float_buffer.data);
   IMB_colormanagement_scene_linear_to_colorspace(
       (float *)(fptr + range.first()), int(range.size()), 1, 4, colorspace);
@@ -851,7 +901,7 @@ static void scene_linear_to_image_chunk_float(ImBuf *ibuf, IndexRange range)
 
 static void scene_linear_to_image_chunk_byte(float4 *src, ImBuf *ibuf, IndexRange range)
 {
-  ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
+  const ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
   IMB_colormanagement_scene_linear_to_colorspace(
       (float *)src, int(range.size()), 1, 4, colorspace);
   const float4 *src_ptr = src;
@@ -1046,7 +1096,7 @@ static AreaLuminance tonemap_calc_input_luminance(const StripScreenQuad &quad, c
 }
 
 static void tonemapmodifier_apply(const StripScreenQuad &quad,
-                                  SequenceModifierData *smd,
+                                  StripModifierData *smd,
                                   ImBuf *ibuf,
                                   ImBuf *mask)
 {
@@ -1111,7 +1161,7 @@ static void tonemapmodifier_apply(const StripScreenQuad &quad,
 /** \name Public Modifier Functions
  * \{ */
 
-static StripModifierTypeInfo modifiersTypes[NUM_SEQUENCE_MODIFIER_TYPES] = {
+static StripModifierTypeInfo modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {
     {}, /* First entry is unused. */
     {
         /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color Balance"),
@@ -1189,27 +1239,27 @@ static StripModifierTypeInfo modifiersTypes[NUM_SEQUENCE_MODIFIER_TYPES] = {
 
 const StripModifierTypeInfo *modifier_type_info_get(int type)
 {
-  if (type <= 0 || type >= NUM_SEQUENCE_MODIFIER_TYPES) {
+  if (type <= 0 || type >= NUM_STRIP_MODIFIER_TYPES) {
     return nullptr;
   }
   return &modifiersTypes[type];
 }
 
-SequenceModifierData *modifier_new(Strip *strip, const char *name, int type)
+StripModifierData *modifier_new(Strip *strip, const char *name, int type)
 {
-  SequenceModifierData *smd;
+  StripModifierData *smd;
   const StripModifierTypeInfo *smti = modifier_type_info_get(type);
 
-  smd = static_cast<SequenceModifierData *>(MEM_callocN(smti->struct_size, "sequence modifier"));
+  smd = static_cast<StripModifierData *>(MEM_callocN(smti->struct_size, "sequence modifier"));
 
   smd->type = type;
-  smd->flag |= SEQUENCE_MODIFIER_EXPANDED;
+  smd->flag |= STRIP_MODIFIER_FLAG_EXPANDED;
 
   if (!name || !name[0]) {
-    STRNCPY(smd->name, smti->name);
+    STRNCPY_UTF8(smd->name, CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, smti->name));
   }
   else {
-    STRNCPY(smd->name, name);
+    STRNCPY_UTF8(smd->name, name);
   }
 
   BLI_addtail(&strip->modifiers, smd);
@@ -1223,7 +1273,7 @@ SequenceModifierData *modifier_new(Strip *strip, const char *name, int type)
   return smd;
 }
 
-bool modifier_remove(Strip *strip, SequenceModifierData *smd)
+bool modifier_remove(Strip *strip, StripModifierData *smd)
 {
   if (BLI_findindex(&strip->modifiers, smd) == -1) {
     return false;
@@ -1237,9 +1287,9 @@ bool modifier_remove(Strip *strip, SequenceModifierData *smd)
 
 void modifier_clear(Strip *strip)
 {
-  SequenceModifierData *smd, *smd_next;
+  StripModifierData *smd, *smd_next;
 
-  for (smd = static_cast<SequenceModifierData *>(strip->modifiers.first); smd; smd = smd_next) {
+  for (smd = static_cast<StripModifierData *>(strip->modifiers.first); smd; smd = smd_next) {
     smd_next = smd->next;
     modifier_free(smd);
   }
@@ -1247,7 +1297,7 @@ void modifier_clear(Strip *strip)
   BLI_listbase_clear(&strip->modifiers);
 }
 
-void modifier_free(SequenceModifierData *smd)
+void modifier_free(StripModifierData *smd)
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
 
@@ -1258,7 +1308,7 @@ void modifier_free(SequenceModifierData *smd)
   MEM_freeN(smd);
 }
 
-void modifier_unique_name(Strip *strip, SequenceModifierData *smd)
+void modifier_unique_name(Strip *strip, StripModifierData *smd)
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
 
@@ -1266,29 +1316,29 @@ void modifier_unique_name(Strip *strip, SequenceModifierData *smd)
                  smd,
                  CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, smti->name),
                  '.',
-                 offsetof(SequenceModifierData, name),
+                 offsetof(StripModifierData, name),
                  sizeof(smd->name));
 }
 
-SequenceModifierData *modifier_find_by_name(Strip *strip, const char *name)
+StripModifierData *modifier_find_by_name(Strip *strip, const char *name)
 {
-  return static_cast<SequenceModifierData *>(
-      BLI_findstring(&(strip->modifiers), name, offsetof(SequenceModifierData, name)));
+  return static_cast<StripModifierData *>(
+      BLI_findstring(&(strip->modifiers), name, offsetof(StripModifierData, name)));
 }
 
-static bool skip_modifier(Scene *scene, const SequenceModifierData *smd, int timeline_frame)
+static bool skip_modifier(Scene *scene, const StripModifierData *smd, int timeline_frame)
 {
   using namespace blender::seq;
 
-  if (smd->mask_sequence == nullptr) {
+  if (smd->mask_strip == nullptr) {
     return false;
   }
-  const bool strip_has_ended_skip = smd->mask_input_type == SEQUENCE_MASK_INPUT_STRIP &&
-                                    smd->mask_time == SEQUENCE_MASK_TIME_RELATIVE &&
+  const bool strip_has_ended_skip = smd->mask_input_type == STRIP_MASK_INPUT_STRIP &&
+                                    smd->mask_time == STRIP_MASK_TIME_RELATIVE &&
                                     !time_strip_intersects_frame(
-                                        scene, smd->mask_sequence, timeline_frame);
-  const bool missing_data_skip = !sequence_has_valid_data(smd->mask_sequence) ||
-                                 media_presence_is_missing(scene, smd->mask_sequence);
+                                        scene, smd->mask_strip, timeline_frame);
+  const bool missing_data_skip = !strip_has_valid_data(smd->mask_strip) ||
+                                 media_presence_is_missing(scene, smd->mask_strip);
 
   return strip_has_ended_skip || missing_data_skip;
 }
@@ -1304,7 +1354,7 @@ void modifier_apply_stack(const RenderData *context,
     render_imbuf_from_sequencer_space(context->scene, ibuf);
   }
 
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
 
     /* could happen if modifier is being removed or not exists in current version of blender */
@@ -1313,16 +1363,16 @@ void modifier_apply_stack(const RenderData *context,
     }
 
     /* modifier is muted, do nothing */
-    if (smd->flag & SEQUENCE_MODIFIER_MUTE) {
+    if (smd->flag & STRIP_MODIFIER_FLAG_MUTE) {
       continue;
     }
 
     if (smti->apply && !skip_modifier(context->scene, smd, timeline_frame)) {
       int frame_offset;
-      if (smd->mask_time == SEQUENCE_MASK_TIME_RELATIVE) {
+      if (smd->mask_time == STRIP_MASK_TIME_RELATIVE) {
         frame_offset = strip->start;
       }
-      else /* if (smd->mask_time == SEQUENCE_MASK_TIME_ABSOLUTE) */ {
+      else /* if (smd->mask_time == STRIP_MASK_TIME_ABSOLUTE) */ {
         frame_offset = smd->mask_id ? ((Mask *)smd->mask_id)->sfra : 0;
       }
 
@@ -1339,25 +1389,29 @@ void modifier_apply_stack(const RenderData *context,
   }
 }
 
-void modifier_list_copy(Strip *seqn, Strip *strip)
+StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src)
 {
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
-    SequenceModifierData *smdn;
-    const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
+  const StripModifierTypeInfo *smti = modifier_type_info_get(mod_src->type);
+  StripModifierData *mod_new = static_cast<StripModifierData *>(MEM_dupallocN(mod_src));
 
-    smdn = static_cast<SequenceModifierData *>(MEM_dupallocN(smd));
+  if (smti && smti->copy_data) {
+    smti->copy_data(mod_new, mod_src);
+  }
 
-    if (smti && smti->copy_data) {
-      smti->copy_data(smdn, smd);
-    }
+  BLI_addtail(&strip_dst.modifiers, mod_new);
+  BLI_uniquename(&strip_dst.modifiers,
+                 mod_new,
+                 "Strip Modifier",
+                 '.',
+                 offsetof(StripModifierData, name),
+                 sizeof(StripModifierData::name));
+  return mod_new;
+}
 
-    BLI_addtail(&seqn->modifiers, smdn);
-    BLI_uniquename(&seqn->modifiers,
-                   smdn,
-                   "Strip Modifier",
-                   '.',
-                   offsetof(SequenceModifierData, name),
-                   sizeof(SequenceModifierData::name));
+void modifier_list_copy(Strip *strip_new, Strip *strip)
+{
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    modifier_copy(*strip_new, smd);
   }
 }
 
@@ -1374,7 +1428,7 @@ int sequence_supports_modifiers(Strip *strip)
 
 void modifier_blend_write(BlendWriter *writer, ListBase *modbase)
 {
-  LISTBASE_FOREACH (SequenceModifierData *, smd, modbase) {
+  LISTBASE_FOREACH (StripModifierData *, smd, modbase) {
     const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
 
     if (smti) {
@@ -1399,18 +1453,18 @@ void modifier_blend_write(BlendWriter *writer, ListBase *modbase)
       }
     }
     else {
-      BLO_write_struct(writer, SequenceModifierData, smd);
+      BLO_write_struct(writer, StripModifierData, smd);
     }
   }
 }
 
 void modifier_blend_read_data(BlendDataReader *reader, ListBase *lb)
 {
-  BLO_read_struct_list(reader, SequenceModifierData, lb);
+  BLO_read_struct_list(reader, StripModifierData, lb);
 
-  LISTBASE_FOREACH (SequenceModifierData *, smd, lb) {
-    if (smd->mask_sequence) {
-      BLO_read_struct(reader, Strip, &smd->mask_sequence);
+  LISTBASE_FOREACH (StripModifierData *, smd, lb) {
+    if (smd->mask_strip) {
+      BLO_read_struct(reader, Strip, &smd->mask_strip);
     }
 
     if (smd->type == seqModifierType_Curves) {

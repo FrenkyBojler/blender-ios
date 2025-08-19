@@ -125,7 +125,7 @@ PyDoc_STRVAR(
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmlayeraccess_collection__shape_doc,
-    "Vertex shapekey absolute location (as a 3D Vector).\n"
+    "Vertex shape-key absolute location (as a 3D Vector).\n"
     "\n"
     ":type: :class:`BMLayerCollection` of :class:`mathutils.Vector`");
 PyDoc_STRVAR(
@@ -140,20 +140,6 @@ PyDoc_STRVAR(
     "Accessor for skin layer.\n"
     "\n"
     ":type: :class:`BMLayerCollection` of :class:`bmesh.types.BMVertSkin`");
-#ifdef WITH_FREESTYLE
-PyDoc_STRVAR(
-    /* Wrap. */
-    bpy_bmlayeraccess_collection__freestyle_edge_doc,
-    "Accessor for Freestyle edge layer.\n"
-    "\n"
-    ":type: :class:`BMLayerCollection`");
-PyDoc_STRVAR(
-    /* Wrap. */
-    bpy_bmlayeraccess_collection__freestyle_face_doc,
-    "Accessor for Freestyle face layer.\n"
-    "\n"
-    ":type: :class:`BMLayerCollection`");
-#endif
 
 static PyObject *bpy_bmlayeraccess_collection_get(BPy_BMLayerAccess *self, void *flag)
 {
@@ -311,13 +297,6 @@ static PyGetSetDef bpy_bmlayeraccess_edge_getseters[] = {
      (setter) nullptr,
      bpy_bmlayeraccess_collection__string_doc,
      (void *)CD_PROP_STRING},
-#ifdef WITH_FREESTYLE
-    {"freestyle",
-     (getter)bpy_bmlayeraccess_collection_get,
-     (setter) nullptr,
-     bpy_bmlayeraccess_collection__freestyle_edge_doc,
-     (void *)CD_FREESTYLE_EDGE},
-#endif
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
 
@@ -357,14 +336,6 @@ static PyGetSetDef bpy_bmlayeraccess_face_getseters[] = {
      (setter) nullptr,
      bpy_bmlayeraccess_collection__string_doc,
      (void *)CD_PROP_STRING},
-
-#ifdef WITH_FREESTYLE
-    {"freestyle",
-     (getter)bpy_bmlayeraccess_collection_get,
-     (setter) nullptr,
-     bpy_bmlayeraccess_collection__freestyle_face_doc,
-     (void *)CD_FREESTYLE_FACE},
-#endif
 
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
@@ -762,9 +733,14 @@ static PyMethodDef bpy_bmlayeritem_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpy_bmelemseq_methods[] = {
@@ -791,8 +767,12 @@ static PyMethodDef bpy_bmelemseq_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /* Sequences

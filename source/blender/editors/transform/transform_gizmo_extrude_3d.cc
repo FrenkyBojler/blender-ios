@@ -112,8 +112,7 @@ static void gizmo_mesh_extrude_orientation_matrix_set_for_adjust(GizmoExtrudeGro
 
 static void gizmo_mesh_extrude_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  GizmoExtrudeGroup *ggd = static_cast<GizmoExtrudeGroup *>(
-      MEM_callocN(sizeof(GizmoExtrudeGroup), __func__));
+  GizmoExtrudeGroup *ggd = MEM_callocN<GizmoExtrudeGroup>(__func__);
   gzgroup->customdata = ggd;
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
@@ -283,7 +282,7 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
   /* Adjust current operator. */
   /* Don't use 'WM_operator_last_redo' because selection actions will be ignored. */
-  wmOperator *op = static_cast<wmOperator *>(CTX_wm_manager(C)->operators.last);
+  wmOperator *op = static_cast<wmOperator *>(CTX_wm_manager(C)->runtime->operators.last);
   bool has_redo = (op && op->type == ggd->ot_extrude);
   wmOperator *op_xform = static_cast<wmOperator *>(has_redo ? op->macro.last : nullptr);
 

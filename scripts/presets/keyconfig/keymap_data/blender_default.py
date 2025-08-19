@@ -96,7 +96,7 @@ class Params:
         #
         # NOTE: This is typically used for active tool key-map items however it should never
         # be used for selection tools (the default box-select tool for example).
-        # Since this means with RMB select enabled in edit-mode for e.g.
+        # Since this means with RMB select enabled in edit-mode for example
         # `Ctrl-LMB` would be caught by box-select instead of add/extrude.
         "tool_maybe_tweak_event",
     )
@@ -259,7 +259,7 @@ def _fallback_id(text, fallback):
 
 
 def any_except(*args):
-    mod = {"ctrl": -1, "alt": -1, "shift": -1, "oskey": -1}
+    mod = {"ctrl": -1, "alt": -1, "shift": -1, "oskey": -1, "hyper": -1}
     for arg in args:
         del mod[arg]
     return mod
@@ -476,7 +476,7 @@ def _template_items_object_subdivision_set():
     return [
         ("object.subdivision_set",
          {"type": NUMBERS_0[i], "value": 'PRESS', "ctrl": True},
-         {"properties": [("level", i), ("relative", False)]})
+         {"properties": [("level", i), ("relative", False), ("ensure_modifier", True)]})
         for i in range(6)
     ]
 
@@ -534,11 +534,14 @@ def _template_items_uv_select_mode(params):
             op_menu("IMAGE_MT_uvs_select_mode", {"type": 'TAB', "value": 'PRESS', "ctrl": True}),
 
             *_template_items_editmode_mesh_select_mode(params),
-            # Hack to prevent fall-through, when sync select isn't enabled (and the island button isn't visible).
-            ("mesh.select_mode", {"type": 'FOUR', "value": 'PRESS'}, None),
             *(("uv.select_mode", {"type": NUMBERS_1[i], "value": 'PRESS'},
                {"properties": [("type", e)]})
-              for i, e in enumerate(('VERTEX', 'EDGE', 'FACE', 'ISLAND')))
+              for i, e in enumerate(('VERTEX', 'EDGE', 'FACE'))),
+            # Prior to v5.0 UV island was exposed as a selection mode.
+            # Even though it's not longer a distinct mode, keep the shortcut
+            # as it's handy and visually the 4th item in the UI.
+            ("wm.context_toggle", {"type": 'FOUR', "value": 'PRESS'},
+             {"properties": [("data_path", "tool_settings.use_uv_select_island")]}),
         ]
 
 
@@ -603,7 +606,7 @@ def _template_items_tool_select(
     if params.select_mouse == 'LEFTMOUSE':
         # Use 'PRESS' for immediate select without delay.
         # Tools that allow dragging anywhere should _NOT_ enable the fallback tool
-        # unless it is expected that the tool should operate on the selection (click-drag to rip for e.g.).
+        # unless it is expected that the tool should operate on the selection (click-drag to rip for example).
         return [
             (operator, {"type": 'LEFTMOUSE', "value": 'PRESS'},
              {"properties": [
@@ -739,13 +742,13 @@ def km_window(params):
         # NDOF settings
         op_panel("USERPREF_PT_ndof_settings", {"type": 'NDOF_BUTTON_MENU', "value": 'PRESS'}),
         ("wm.context_scale_float", {"type": 'NDOF_BUTTON_PLUS', "value": 'PRESS'},
-         {"properties": [("data_path", "preferences.inputs.ndof_sensitivity"), ("value", 1.1)]}),
+         {"properties": [("data_path", "preferences.inputs.ndof_translation_sensitivity"), ("value", 1.1)]}),
         ("wm.context_scale_float", {"type": 'NDOF_BUTTON_MINUS', "value": 'PRESS'},
-         {"properties": [("data_path", "preferences.inputs.ndof_sensitivity"), ("value", 1.0 / 1.1)]}),
+         {"properties": [("data_path", "preferences.inputs.ndof_translation_sensitivity"), ("value", 1.0 / 1.1)]}),
         ("wm.context_scale_float", {"type": 'NDOF_BUTTON_PLUS', "value": 'PRESS', "shift": True},
-         {"properties": [("data_path", "preferences.inputs.ndof_sensitivity"), ("value", 1.5)]}),
+         {"properties": [("data_path", "preferences.inputs.ndof_translation_sensitivity"), ("value", 1.5)]}),
         ("wm.context_scale_float", {"type": 'NDOF_BUTTON_MINUS', "value": 'PRESS', "shift": True},
-         {"properties": [("data_path", "preferences.inputs.ndof_sensitivity"), ("value", 2.0 / 3.0)]}),
+         {"properties": [("data_path", "preferences.inputs.ndof_translation_sensitivity"), ("value", 2.0 / 3.0)]}),
         ("info.reports_display_update", {"type": 'TIMER_REPORT', "value": 'ANY', "any": True}, None),
     ])
 
@@ -939,7 +942,9 @@ def km_view2d(_params):
         ("view2d.pan", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "shift": True}, None),
         ("view2d.pan", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
         ("view2d.scroll_right", {"type": 'WHEELDOWNMOUSE', "value": 'PRESS', "ctrl": True}, None),
+        ("view2d.scroll_right", {"type": 'WHEELRIGHTMOUSE', "value": 'PRESS'}, None),
         ("view2d.scroll_left", {"type": 'WHEELUPMOUSE', "value": 'PRESS', "ctrl": True}, None),
+        ("view2d.scroll_left", {"type": 'WHEELLEFTMOUSE', "value": 'PRESS'}, None),
         ("view2d.scroll_down", {"type": 'WHEELDOWNMOUSE', "value": 'PRESS', "shift": True}, None),
         ("view2d.scroll_up", {"type": 'WHEELUPMOUSE', "value": 'PRESS', "shift": True}, None),
         ("view2d.ndof", {"type": 'NDOF_MOTION', "value": 'ANY'}, None),
@@ -1037,6 +1042,14 @@ def km_user_interface(_params):
         ("ui.view_scroll", {"type": 'WHEELUPMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'WHEELDOWNMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("extend", True)]}),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
+         {"properties": [("range_select", True)]}),
+        ("ui.view_item_rename", {"type": 'F2', "value": 'PRESS'}, None),
+        ("ui.view_item_delete", {"type": 'X', "value": 'PRESS'}, None),
+        ("ui.view_item_delete", {"type": 'DEL', "value": 'PRESS'}, None),
     ])
 
     return keymap
@@ -1323,8 +1336,8 @@ def km_outliner(params):
         ("outliner.collection_new", {"type": 'C', "value": 'PRESS'}, None),
         ("outliner.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("outliner.delete", {"type": 'DEL', "value": 'PRESS'}, None),
-        ("object.move_to_collection", {"type": 'M', "value": 'PRESS'}, None),
-        ("object.link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}, None),
+        op_menu("OBJECT_MT_move_to_collection", {"type": 'M', "value": 'PRESS'}),
+        op_menu("OBJECT_MT_link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}),
         ("outliner.collection_exclude_set", {"type": 'E', "value": 'PRESS'}, None),
         ("outliner.collection_exclude_clear", {"type": 'E', "value": 'PRESS', "alt": True}, None),
         ("outliner.hide", {"type": 'H', "value": 'PRESS'}, None),
@@ -1334,6 +1347,7 @@ def km_outliner(params):
         # Copy/paste.
         ("outliner.id_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("outliner.id_paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        *_template_object_hide_collection_from_number_keys(),
     ])
 
     return keymap
@@ -1536,6 +1550,10 @@ def km_view3d(params):
             ("view3d.rotate", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
             ("view3d.move", {"type": 'TRACKPADPAN', "value": 'ANY', "shift": True}, None),
         )),
+        ("view3d.view_pan", {"type": 'WHEELLEFTMOUSE', "value": 'PRESS'},
+            {"properties": [("type", 'PANLEFT')]}),
+        ("view3d.view_pan", {"type": 'WHEELRIGHTMOUSE', "value": 'PRESS'},
+            {"properties": [("type", 'PANRIGHT')]}),
         ("view3d.zoom", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "ctrl": True}, None),
         ("view3d.dolly", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("view3d.view_selected", {"type": 'NUMPAD_PERIOD', "value": 'PRESS', "ctrl": True},
@@ -1840,8 +1858,8 @@ def km_graph_editor_generic(params):
          {"properties": [("only_active", False)]}),
         ("anim.channels_select_filter", {"type": 'F', "value": 'PRESS', "ctrl": True}, None),
         *_template_items_hide_reveal_actions("graph.hide", "graph.reveal"),
-        ("wm.context_set_enum", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
-         {"properties": [("data_path", "area.type"), ("value", 'DOPESHEET_EDITOR')]}),
+        ("screen.space_type_set_or_cycle", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
+         {"properties": [("space_type", 'DOPESHEET_EDITOR')]}),
     ])
 
     return keymap
@@ -1923,10 +1941,6 @@ def km_graph_editor(params):
         ("graph.delete", {"type": 'DEL', "value": 'PRESS'}, {"properties": [("confirm", False)]}),
         ("graph.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
         ("graph.keyframe_insert", {"type": 'I', "value": 'PRESS'}, None),
-        ("graph.keyframe_jump", {"type": 'UP_ARROW', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", True)]}),
-        ("graph.keyframe_jump", {"type": 'DOWN_ARROW', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", False)]}),
         ("graph.click_insert", {"type": params.action_mouse, "value": 'CLICK', "ctrl": True}, None),
         ("graph.click_insert", {"type": params.action_mouse, "value": 'CLICK', "shift": True, "ctrl": True},
          {"properties": [("extend", True)]}),
@@ -2208,9 +2222,9 @@ def km_node_editor(params):
          {"properties": [("factor", 1.2)]}),
         ("node.backimage_fit", {"type": 'HOME', "value": 'PRESS', "alt": True}, None),
         ("node.backimage_sample", {"type": params.action_mouse, "value": 'PRESS', "alt": True}, None),
-        ("node.link_make", {"type": 'F', "value": 'PRESS'},
+        ("node.link_make", {"type": 'J', "value": 'PRESS'},
          {"properties": [("replace", False)]}),
-        ("node.link_make", {"type": 'F', "value": 'PRESS', "shift": True},
+        ("node.link_make", {"type": 'J', "value": 'PRESS', "shift": True},
          {"properties": [("replace", True)]}),
         op_menu("NODE_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
         ("node.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True},
@@ -2221,7 +2235,7 @@ def km_node_editor(params):
          {"properties": [("NODE_OT_translate_attach", [("TRANSFORM_OT_translate", [("view2d_edge_pan", True)])])]}),
         ("node.parent_set", {"type": 'P', "value": 'PRESS', "ctrl": True}, None),
         ("node.detach", {"type": 'P', "value": 'PRESS', "alt": True}, None),
-        ("node.join", {"type": 'J', "value": 'PRESS', "ctrl": True}, None),
+        ("node.join_named", {"type": 'F', "value": 'PRESS'}, None),
         ("node.hide_toggle", {"type": 'H', "value": 'PRESS'}, None),
         ("node.mute_toggle", {"type": 'M', "value": 'PRESS'}, None),
         ("node.preview_toggle", {"type": 'H', "value": 'PRESS', "shift": True}, None),
@@ -2596,6 +2610,7 @@ def km_dopesheet(params):
         ("action.easing_type", {"type": 'E', "value": 'PRESS', "ctrl": True}, None),
         ("action.keyframe_type", {"type": 'R', "value": 'PRESS'}, None),
         ("action.bake_keys", {"type": 'O', "value": 'PRESS', "shift": True, "alt": True}, None),
+        ("grease_pencil.layer_isolate", {"type": 'NUMPAD_ASTERIX', "value": 'PRESS'}, None),
         op_menu("DOPESHEET_MT_delete", {"type": 'X', "value": 'PRESS'}),
         ("action.delete", {"type": 'DEL', "value": 'PRESS'}, {"properties": [("confirm", False)]}),
         ("action.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
@@ -2944,10 +2959,10 @@ def km_text(params):
 # Editor (Sequencer)
 
 
-def km_sequencercommon(params):
+def km_sequencer_generic(params):
     items = []
     keymap = (
-        "SequencerCommon",
+        "Video Sequence Editor",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": items},
     )
@@ -3040,6 +3055,7 @@ def km_sequencer(params):
          {"properties": [("adjust_length", True)]}),
         ("sequencer.offset_clear", {"type": 'O', "value": 'PRESS', "alt": True}, None),
         ("sequencer.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+        ("sequencer.duplicate_move_linked", {"type": 'D', "value": 'PRESS', "alt": True}, None),
         ("sequencer.retiming_key_delete", {"type": 'X', "value": 'PRESS'}, None),
         ("sequencer.retiming_key_delete", {"type": 'DEL', "value": 'PRESS'}, None),
         ("sequencer.delete", {"type": 'X', "value": 'PRESS'}, None),
@@ -3057,13 +3073,13 @@ def km_sequencer(params):
         ("sequencer.view_selected", {"type": 'NUMPAD_PERIOD', "value": 'PRESS'}, None),
         ("sequencer.view_frame", {"type": 'NUMPAD_0', "value": 'PRESS'}, None),
         ("sequencer.strip_jump", {"type": 'PAGE_UP', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", True), ("center", False)]}),
-        ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True},
          {"properties": [("next", False), ("center", False)]}),
+        ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True},
+         {"properties": [("next", True), ("center", False)]}),
         ("sequencer.strip_jump", {"type": 'PAGE_UP', "value": 'PRESS', "alt": True, "repeat": True},
-         {"properties": [("next", True), ("center", True)]}),
-        ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "alt": True, "repeat": True},
          {"properties": [("next", False), ("center", True)]}),
+        ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "alt": True, "repeat": True},
+         {"properties": [("next", True), ("center", True)]}),
         ("sequencer.swap", {"type": 'LEFT_ARROW', "value": 'PRESS', "alt": True, "repeat": True},
          {"properties": [("side", 'LEFT')]}),
         ("sequencer.swap", {"type": 'RIGHT_ARROW', "value": 'PRESS', "alt": True, "repeat": True},
@@ -3150,10 +3166,10 @@ def _seq_preview_text_edit_cursor_move():
     return items
 
 
-def km_sequencerpreview(params):
+def km_sequencer_preview(params):
     items = []
     keymap = (
-        "SequencerPreview",
+        "Preview",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": items},
     )
@@ -3207,6 +3223,8 @@ def km_sequencerpreview(params):
 
         # Transform Actions.
         *_template_items_transform_actions(params, use_mirror=True),
+        ("transform.translate", {"type": 'PERIOD', "ctrl": True, "value": 'PRESS'},
+         {"properties": [("translate_origin", True)]}),
 
         # Edit.
         ("sequencer.strip_transform_clear", {"type": 'G', "alt": True, "value": 'PRESS'},
@@ -3217,11 +3235,37 @@ def km_sequencerpreview(params):
          {"properties": [("property", 'ROTATION')]}),
 
         ("sequencer.preview_duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+        ("sequencer.preview_duplicate_move_linked", {"type": 'D', "value": 'PRESS', "alt": True}, None),
+        ("sequencer.mute", {"type": 'H', "value": 'PRESS'},
+         {"properties": [("unselected", False)]}),
+        ("sequencer.mute", {"type": 'H', "value": 'PRESS', "shift": True},
+         {"properties": [("unselected", True)]}),
+        ("sequencer.unmute", {"type": 'H', "value": 'PRESS', "alt": True},
+         {"properties": [("unselected", False)]}),
         ("sequencer.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("sequencer.delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        ("sequencer.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        ("sequencer.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("sequencer.paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "shift": True},
+         {"properties": [("keep_offset", True)]}),
+
+        # Animation
+        ("anim.keying_set_active_set", {"type": 'K', "value": 'PRESS', "shift": True}, None),
+        ("anim.keyframe_insert_menu", {"type": 'K', "value": 'PRESS'}, {"properties": [("always_prompt", True)]}),
+        ("anim.keyframe_delete_vse", {"type": 'I', "value": 'PRESS', "alt": True}, None),
 
         *_template_items_context_menu("SEQUENCER_MT_preview_context_menu", params.context_menu_event),
     ])
+
+    if params.use_pie_click_drag:
+        items.extend([
+            ("anim.keyframe_insert", {"type": 'I', "value": 'CLICK'}, None),
+            op_menu_pie("ANIM_MT_keyframe_insert_pie", {"type": 'I', "value": 'CLICK_DRAG'}),
+        ])
+    else:
+        items.extend([
+            ("anim.keyframe_insert", {"type": 'I', "value": 'PRESS'}, None),
+        ])
 
     if not params.legacy:
         # New pie menus.
@@ -3599,6 +3643,9 @@ def km_spreadsheet_generic(params):
             sidebar_key={"type": 'N', "value": 'PRESS'},
             channels_key={"type": 'T', "value": 'PRESS'},
         ),
+        ("spreadsheet.resize_column", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("spreadsheet.fit_column", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
+        ("spreadsheet.reorder_columns", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, None),
     ])
 
     return keymap
@@ -3997,7 +4044,7 @@ def km_grease_pencil_edit_mode(params):
         ("grease_pencil.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
 
         # Split Stroke
-        ("grease_pencil.stroke_split", {"type": 'V', "value": 'PRESS'}, None),
+        ("grease_pencil.stroke_split", {"type": 'V', "value": 'PRESS', "shift": True}, None),
 
         # Extrude and move selected points
         op_tool_optional(
@@ -4295,15 +4342,15 @@ def km_grease_pencil_fill_tool(_params):
          None),
         ("grease_pencil.fill", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
          {"properties": [("invert", True)]}),
-        # Use regular stroke operator when holding shift to draw lines.
-        ("grease_pencil.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
+        # Use regular stroke operator when holding alt to draw fill guides.
+        ("grease_pencil.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
          None),
     ])
 
     return keymap
 
 
-def km_grease_pencil_fill_tool_modal_map(params):
+def km_grease_pencil_fill_tool_modal_map(_params):
     items = []
     keymap = (
         "Fill Tool Modal Map",
@@ -4396,11 +4443,10 @@ def km_object_mode(params):
          {"type": 'G', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("collection.objects_remove_active", {"type": 'G', "value": 'PRESS', "shift": True, "alt": True}, None),
         *_template_items_object_subdivision_set(),
-        ("object.move_to_collection", {"type": 'M', "value": 'PRESS'}, None),
-        ("object.link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}, None),
+        op_menu("OBJECT_MT_move_to_collection", {"type": 'M', "value": 'PRESS'}),
+        op_menu("OBJECT_MT_link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}),
         *_template_items_hide_reveal_actions("object.hide_view_set", "object.hide_view_clear"),
         ("object.hide_collection", {"type": 'H', "value": 'PRESS', "ctrl": True}, None),
-        *_template_object_hide_collection_from_number_keys(),
         *_template_items_context_menu("VIEW3D_MT_object_context_menu", params.context_menu_event),
     ])
 
@@ -4600,7 +4646,7 @@ def km_paint_curve(params):
 
 def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=False, color=False, zoom=False):
     brush_path = "tool_settings." + paint + ".brush"
-    unified_path = "tool_settings.unified_paint_settings"
+    unified_path = "tool_settings." + paint + ".unified_paint_settings"
     rotation = "mask_texture_slot.angle" if secondary_rotation else "texture_slot.angle"
     return {
         "properties": [
@@ -4755,6 +4801,34 @@ def _template_uv_select(*, type, value, select_passthrough, legacy):
         # needed so pass-through is able to de-select other items.
         items.append((
             "uv.select",
+            {"type": type, "value": 'CLICK'},
+            {"properties": [("deselect_all", True)]},
+        ))
+
+    return items
+
+
+def _template_mask_select(*, type, value, select_passthrough, legacy):
+
+    # See: `use_tweak_select_passthrough` doc-string.
+    if select_passthrough and (value in {'CLICK', 'RELEASE'}):
+        select_passthrough = False
+
+    items = [
+        ("mask.select", {"type": type, "value": value},
+         {"properties": [
+             *((("deselect_all", True),) if not legacy else ()),
+             *((("select_passthrough", True),) if select_passthrough else ()),
+         ]}),
+        ("mask.select", {"type": type, "value": value, "shift": True},
+         {"properties": [("toggle", True)]}),
+    ]
+
+    if select_passthrough:
+        # Add an additional click item to de-select all other items,
+        # needed so pass-through is able to de-select other items.
+        items.append((
+            "mask.select",
             {"type": type, "value": 'CLICK'},
             {"properties": [("deselect_all", True)]},
         ))
@@ -5098,9 +5172,9 @@ def km_sculpt(params):
         # Subdivision levels
         *_template_items_object_subdivision_set(),
         ("object.subdivision_set", {"type": 'ONE', "value": 'PRESS', "alt": True, "repeat": True},
-         {"properties": [("level", -1), ("relative", True)]}),
+         {"properties": [("level", -1), ("relative", True), ("ensure_modifier", False)]}),
         ("object.subdivision_set", {"type": 'TWO', "value": 'PRESS', "alt": True, "repeat": True},
-         {"properties": [("level", 1), ("relative", True)]}),
+         {"properties": [("level", 1), ("relative", True), ("ensure_modifier", False)]}),
         # Mask
         ("paint.mask_flood_fill", {"type": 'M', "value": 'PRESS', "alt": True},
          {"properties": [("mode", 'VALUE'), ("value", 0.0)]}),
@@ -5198,6 +5272,7 @@ def km_sculpt(params):
          {"properties": [
              ("asset_library_type", 'ESSENTIALS'),
              ("relative_asset_identifier", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Mask"),
+             ("use_toggle", True)
          ]}),
         *_template_asset_shelf_popup("VIEW3D_AST_brush_sculpt", params.spacebar_action),
     ])
@@ -5949,10 +6024,12 @@ def km_transform_modal_map(params):
         ("INSERTOFS_TOGGLE_DIR", {"type": 'T', "value": 'PRESS'}, None),
         ("NODE_ATTACH_ON", {"type": 'LEFT_ALT', "value": 'RELEASE', "any": True}, None),
         ("NODE_ATTACH_OFF", {"type": 'LEFT_ALT', "value": 'PRESS', "any": True}, None),
+        ("NODE_FRAME", {"type": 'F', "value": 'PRESS'}, None),
         ("AUTOCONSTRAIN", {"type": 'MIDDLEMOUSE', "value": 'ANY', **alt_without_navigaton}, None),
         ("AUTOCONSTRAINPLANE", {"type": 'MIDDLEMOUSE', "value": 'ANY', "shift": True, **alt_without_navigaton}, None),
         ("PRECISION", {"type": 'LEFT_SHIFT', "value": 'ANY', "any": True}, None),
         ("PRECISION", {"type": 'RIGHT_SHIFT', "value": 'ANY', "any": True}, None),
+        ("STRIP_CLAMP_TOGGLE", {"type": 'C', "value": 'PRESS', "any": True}, None),
     ])
 
     if params.use_alt_navigation:
@@ -6552,6 +6629,32 @@ def km_node_resize_modal_map(_params):
 
     return keymap
 
+
+def km_sequencer_slip_modal_map(_params):
+    items = []
+    keymap = (
+        "Slip Modal",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'RELEASE', "any": True}, None),
+        ("CONFIRM", {"type": 'RET', "value": 'RELEASE', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'RELEASE', "any": True}, None),
+        ("CONFIRM", {"type": 'SPACE', "value": 'RELEASE', "any": True}, None),
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("PRECISION_ENABLE", {"type": 'LEFT_SHIFT', "value": 'PRESS', "any": True}, None),
+        ("PRECISION_DISABLE", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
+        ("PRECISION_ENABLE", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
+        ("PRECISION_DISABLE", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
+        ("CLAMP_TOGGLE", {"type": 'C', "value": 'PRESS', "any": True}, None),
+    ])
+
+    return keymap
+
 # Fallback for gizmos that don't have custom a custom key-map.
 
 
@@ -6884,6 +6987,148 @@ def km_image_editor_tool_uv_scale(params):
         {"items": [
             ("transform.resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
              {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
+
+# ------------------------------------------------------------------------------
+# Tool System (Mask Editor)
+
+def km_image_editor_tool_mask_cursor(params):
+    return (
+        "Image Editor Tool: Mask, Cursor",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("mask.cursor_set", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+            # Don't use `tool_maybe_tweak_event` since it conflicts with `PRESS` that places the cursor.
+            ("transform.translate", params.tool_tweak_event,
+             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_select(params, *, fallback):
+    return (
+        _fallback_id("Image Editor Tool: Mask, Tweak", fallback),
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
+                params, "mask.select", "mask.cursor_set", fallback=fallback)),
+            *([] if params.use_fallback_tool_select_handled else
+              _template_mask_select(
+                  type=params.select_mouse,
+                  value=params.select_mouse_value,
+                  select_passthrough=params.use_tweak_select_passthrough,
+                  legacy=params.legacy,
+            )),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_select_box(params, *, fallback):
+    return (
+        _fallback_id("Image Editor Tool: Mask, Select Box", fallback),
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_box",
+                # Don't use `tool_maybe_tweak_event`, see comment for this slot.
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   params.tool_tweak_event))),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_select_circle(params, *, fallback):
+    return (
+        _fallback_id("Image Editor Tool: Mask, Select Circle", fallback),
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_circle",
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   {"type": params.tool_mouse, "value": 'PRESS'}),
+                properties=[("wait_for_input", False)])),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_select_lasso(params, *, fallback):
+    return (
+        _fallback_id("Image Editor Tool: Mask, Select Lasso", fallback),
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_lasso",
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   params.tool_tweak_event))),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_move(params):
+    return (
+        "Image Editor Tool: Mask, Move",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.translate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
+             {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_rotate(params):
+    return (
+        "Image Editor Tool: Mask, Rotate",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.rotate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
+             {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_scale(params):
+    return (
+        "Image Editor Tool: Mask, Scale",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
+             {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_transform(params):
+    return (
+        "Image Editor Tool: Mask, Transform",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("transform.resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
+             {"properties": [("release_confirm", True)]}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_primitive_square(params):
+    return (
+        "Image Editor Tool: Mask, Box",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("mask.primitive_square_add", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+             {"properties": []}),
+        ]},
+    )
+
+
+def km_image_editor_tool_mask_primitive_circle(params):
+    return (
+        "Image Editor Tool: Mask, Circle",
+        {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("mask.primitive_circle_add", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+             {"properties": []}),
         ]},
     )
 
@@ -7945,7 +8190,7 @@ def km_3d_view_tool_paint_grease_pencil_trim(params):
 # ------------------------------------------------------------------------------
 # Tool System (3D View, Grease Pencil, Paint)
 
-def km_grease_pencil_primitive_tool_modal_map(params):
+def km_grease_pencil_primitive_tool_modal_map(_params):
     items = []
     keymap = (
         "Primitive Tool Modal Map",
@@ -7973,7 +8218,7 @@ def km_grease_pencil_primitive_tool_modal_map(params):
     return keymap
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_line(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_line(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Line",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -7984,14 +8229,11 @@ def km_3d_view_tool_paint_grease_pencil_primitive_line(params):
                 {"properties": []}),
             ("grease_pencil.primitive_line", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
                 {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-                {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_polyline(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_polyline(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Polyline",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8000,14 +8242,11 @@ def km_3d_view_tool_paint_grease_pencil_primitive_polyline(params):
              {"properties": []}),
             ("grease_pencil.primitive_polyline", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_box(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_box(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Box",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8018,14 +8257,11 @@ def km_3d_view_tool_paint_grease_pencil_primitive_box(params):
              {"properties": []}),
             ("grease_pencil.primitive_box", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_circle(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_circle(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Circle",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8036,14 +8272,11 @@ def km_3d_view_tool_paint_grease_pencil_primitive_circle(params):
              {"properties": []}),
             ("grease_pencil.primitive_circle", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_arc(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_arc(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Arc",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
@@ -8054,23 +8287,17 @@ def km_3d_view_tool_paint_grease_pencil_primitive_arc(params):
              {"properties": []}),
             ("grease_pencil.primitive_arc", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
 
-def km_3d_view_tool_paint_grease_pencil_primitive_curve(params):
+def km_3d_view_tool_paint_grease_pencil_primitive_curve(_params):
     return (
         "3D View Tool: Paint Grease Pencil, Curve",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
             ("grease_pencil.primitive_curve", {"type": 'LEFTMOUSE', "value": 'PRESS'},
              {"properties": []}),
-            # Lasso select
-            ("grease_pencil.select_lasso",
-             {"type": params.action_mouse, "value": 'CLICK_DRAG', "ctrl": True, "alt": True}, None),
         ]},
     )
 
@@ -8092,7 +8319,7 @@ def km_3d_view_tool_paint_grease_pencil_eyedropper(params):
     )
 
 
-def km_grease_pencil_interpolate_tool_modal_map(params):
+def km_grease_pencil_interpolate_tool_modal_map(_params):
     items = []
     keymap = (
         "Interpolate Tool Modal Map",
@@ -8112,6 +8339,53 @@ def km_grease_pencil_interpolate_tool_modal_map(params):
 
     return keymap
 
+
+def km_grease_pencil_pen_tool_modal_map(_params):
+    items = []
+    keymap = (
+        "Pen Tool Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("MOVE_HANDLE", {"type": 'LEFT_CTRL', "value": 'ANY', "any": True}, None),
+        ("MOVE_ENTIRE", {"type": 'LEFT_ALT', "value": 'ANY', "any": True}, None),
+        ("SNAP_ANGLE", {"type": 'LEFT_SHIFT', "value": 'ANY', "any": True}, None),
+    ])
+
+    return keymap
+
+
+def km_3d_view_tool_edit_grease_pencil_pen(params):
+    return (
+        "3D View Tool: Edit Grease Pencil, Pen",
+        {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
+        {"items": [
+            ("grease_pencil.pen", {"type": params.tool_mouse, "value": 'PRESS'},
+             {"properties": [
+                 ("extrude_point", True),
+                 ("move_segment", True),
+                 ("select_point", True),
+                 ("move_point", True),
+                 ("extrude_handle", "VECTOR"),
+             ]}),
+            ("grease_pencil.pen", {"type": params.tool_mouse, "value": 'PRESS', "shift": True},
+             {"properties": [
+                 ("extrude_point", True),
+                 ("move_segment", True),
+                 ("select_point", True),
+                 ("move_point", True),
+                 ("extrude_handle", "AUTO"),
+             ]}),
+            ("grease_pencil.pen", {"type": params.tool_mouse, "value": 'PRESS', "ctrl": True},
+             {"properties": [("insert_point", True), ("delete_point", True)]}),
+            ("grease_pencil.pen", {"type": params.tool_mouse, "value": 'DOUBLE_CLICK'},
+             {"properties": [("cycle_handle_type", True)]}),
+        ]},
+    )
+
+
 # ------------------------------------------------------------------------------
 # Grease Pencil: Texture Gradient Tool
 
@@ -8129,7 +8403,7 @@ def km_3d_view_tool_edit_grease_pencil_texture_gradient(params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Generic)
 
-def km_sequencer_editor_tool_generic_select_timeline_rcs(params):
+def km_sequencer_tool_generic_select_rcs(params):
     return [
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS',
@@ -8144,9 +8418,10 @@ def km_sequencer_editor_tool_generic_select_timeline_rcs(params):
     ]
 
 
-def km_sequencer_editor_tool_generic_select_timeline_lcs(params):
+def km_sequencer_tool_generic_select_lcs(_params):
     return [
-        ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+         {"properties": [("deselect_all", True)]}),
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "shift": True}, {"properties": [("toggle", True)]}),
         ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS',
@@ -8154,16 +8429,16 @@ def km_sequencer_editor_tool_generic_select_timeline_lcs(params):
     ]
 
 
-def km_sequencer_editor_tool_generic_select_box_timeline(params, *, fallback):
+def km_sequencer_tool_generic_select_box(params, *, fallback):
     return (
-        _fallback_id("Sequencer Timeline Tool: Select Box", fallback),
+        _fallback_id("Sequencer Tool: Select Box", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
-            # Combine the tweak functionality into the select box tool.
+            # Add tweak functionality to the select box tool.
             # This gives one standard tool for all selection and transform behavior.
-            *(km_sequencer_editor_tool_generic_select_timeline_rcs(params)
+            *(km_sequencer_tool_generic_select_rcs(params)
               if (params.select_mouse == 'RIGHTMOUSE') else
-              km_sequencer_editor_tool_generic_select_timeline_lcs(params)),
+              km_sequencer_tool_generic_select_lcs(params)),
             # Don't use `tool_maybe_tweak_event`, see comment for this slot.
             *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
                 "sequencer.select_box",
@@ -8174,9 +8449,9 @@ def km_sequencer_editor_tool_generic_select_box_timeline(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_select_preview(params, *, fallback):
+def km_sequencer_preview_tool_generic_select(params, *, fallback):
     return (
-        _fallback_id("Sequencer Preview Tool: Tweak", fallback),
+        _fallback_id("Preview Tool: Tweak", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("sequencer.text_cursor_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
@@ -8191,9 +8466,9 @@ def km_sequencer_editor_tool_generic_select_preview(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_select_box_preview(params, *, fallback):
+def km_sequencer_preview_tool_generic_select_box(params, *, fallback):
     return (
-        _fallback_id("Sequencer Preview Tool: Select Box", fallback),
+        _fallback_id("Preview Tool: Select Box", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("sequencer.text_cursor_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
@@ -8207,9 +8482,9 @@ def km_sequencer_editor_tool_generic_select_box_preview(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_cursor(params):
+def km_sequencer_preview_tool_generic_cursor(params):
     return (
-        "Sequencer Tool: Cursor",
+        "Preview Tool: Cursor",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("sequencer.cursor_set", {"type": params.tool_mouse, "value": 'PRESS'}, None),
@@ -8223,7 +8498,7 @@ def km_sequencer_editor_tool_generic_cursor(params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Timeline)
 
-def km_sequencer_editor_tool_blade(_params):
+def km_sequencer_tool_blade(_params):
     return (
         "Sequencer Tool: Blade",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -8242,9 +8517,9 @@ def km_sequencer_editor_tool_blade(_params):
 # ------------------------------------------------------------------------------
 # Tool System (Sequencer, Preview)
 
-def km_sequencer_editor_tool_sample(params):
+def km_sequencer_preview_tool_sample(params):
     return (
-        "Sequencer Tool: Sample",
+        "Preview Tool: Sample",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("sequencer.sample", {"type": params.tool_mouse, "value": 'PRESS'}, None),
@@ -8252,9 +8527,9 @@ def km_sequencer_editor_tool_sample(params):
     )
 
 
-def km_sequencer_editor_tool_move(params):
+def km_sequencer_preview_tool_move(params):
     return (
-        "Sequencer Tool: Move",
+        "Preview Tool: Move",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("transform.translate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
@@ -8263,9 +8538,9 @@ def km_sequencer_editor_tool_move(params):
     )
 
 
-def km_sequencer_editor_tool_rotate(params):
+def km_sequencer_preview_tool_rotate(params):
     return (
-        "Sequencer Tool: Rotate",
+        "Preview Tool: Rotate",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("transform.rotate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
@@ -8274,9 +8549,9 @@ def km_sequencer_editor_tool_rotate(params):
     )
 
 
-def km_sequencer_editor_tool_scale(params):
+def km_sequencer_preview_tool_scale(params):
     return (
-        "Sequencer Tool: Scale",
+        "Preview Tool: Scale",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             ("transform.resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
@@ -8351,9 +8626,9 @@ def generate_keymaps(params=None):
         km_nla_editor(params),
         km_text_generic(params),
         km_text(params),
-        km_sequencercommon(params),
+        km_sequencer_generic(params),
         km_sequencer(params),
-        km_sequencerpreview(params),
+        km_sequencer_preview(params),
         km_sequencer_channels(params),
         km_console(params),
         km_clip(params),
@@ -8431,8 +8706,10 @@ def generate_keymaps(params=None):
         km_node_link_modal_map(params),
         km_node_resize_modal_map(params),
         km_grease_pencil_primitive_tool_modal_map(params),
+        km_grease_pencil_pen_tool_modal_map(params),
         km_grease_pencil_fill_tool_modal_map(params),
         km_grease_pencil_interpolate_tool_modal_map(params),
+        km_sequencer_slip_modal_map(params),
 
         # Gizmos.
         km_generic_gizmo(params),
@@ -8464,6 +8741,17 @@ def generate_keymaps(params=None):
         km_image_editor_tool_uv_move(params),
         km_image_editor_tool_uv_rotate(params),
         km_image_editor_tool_uv_scale(params),
+        km_image_editor_tool_mask_cursor(params),
+        *(km_image_editor_tool_mask_select(params, fallback=fallback) for fallback in (False, True)),
+        *(km_image_editor_tool_mask_select_box(params, fallback=fallback) for fallback in (False, True)),
+        *(km_image_editor_tool_mask_select_circle(params, fallback=fallback) for fallback in (False, True)),
+        *(km_image_editor_tool_mask_select_lasso(params, fallback=fallback) for fallback in (False, True)),
+        km_image_editor_tool_mask_move(params),
+        km_image_editor_tool_mask_rotate(params),
+        km_image_editor_tool_mask_scale(params),
+        km_image_editor_tool_mask_transform(params),
+        km_image_editor_tool_mask_primitive_circle(params),
+        km_image_editor_tool_mask_primitive_square(params),
         *(km_node_editor_tool_select(params, fallback=fallback) for fallback in (False, True)),
         *(km_node_editor_tool_select_box(params, fallback=fallback) for fallback in (False, True)),
         *(km_node_editor_tool_select_lasso(params, fallback=fallback) for fallback in (False, True)),
@@ -8553,20 +8841,21 @@ def generate_keymaps(params=None):
         km_3d_view_tool_paint_grease_pencil_primitive_circle(params),
         km_3d_view_tool_paint_grease_pencil_primitive_arc(params),
         km_3d_view_tool_paint_grease_pencil_primitive_curve(params),
-        *(km_sequencer_editor_tool_generic_select_box_timeline(params, fallback=fallback)
+        *(km_sequencer_tool_generic_select_box(params, fallback=fallback)
           for fallback in (False, True)),
-        *(km_sequencer_editor_tool_generic_select_preview(params, fallback=fallback)
+        *(km_sequencer_preview_tool_generic_select(params, fallback=fallback)
           for fallback in (False, True)),
-        *(km_sequencer_editor_tool_generic_select_box_preview(params, fallback=fallback)
+        *(km_sequencer_preview_tool_generic_select_box(params, fallback=fallback)
           for fallback in (False, True)),
         km_3d_view_tool_paint_grease_pencil_trim(params),
         km_3d_view_tool_edit_grease_pencil_texture_gradient(params),
-        km_sequencer_editor_tool_generic_cursor(params),
-        km_sequencer_editor_tool_blade(params),
-        km_sequencer_editor_tool_sample(params),
-        km_sequencer_editor_tool_move(params),
-        km_sequencer_editor_tool_rotate(params),
-        km_sequencer_editor_tool_scale(params),
+        km_sequencer_tool_blade(params),
+        km_sequencer_preview_tool_generic_cursor(params),
+        km_sequencer_preview_tool_sample(params),
+        km_sequencer_preview_tool_move(params),
+        km_sequencer_preview_tool_rotate(params),
+        km_sequencer_preview_tool_scale(params),
+        km_3d_view_tool_edit_grease_pencil_pen(params),
         km_3d_view_tool_edit_grease_pencil_interpolate(params),
         km_3d_view_tool_paint_grease_pencil_interpolate(params),
         km_3d_view_tool_paint_grease_pencil_eyedropper(params),

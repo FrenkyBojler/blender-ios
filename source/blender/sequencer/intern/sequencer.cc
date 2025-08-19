@@ -8,23 +8,25 @@
  * \ingroup bke
  */
 
-#include "BKE_duplilist.hh"
-#include "BLI_assert.h"
-#include "BLI_map.hh"
-#include "DNA_listBase.h"
-#include "SEQ_transform.hh"
-#include <cstddef>
 #define DNA_DEPRECATED_ALLOW
+
+#include <cstddef>
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_listBase.h"
+#include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_string_utf8.h"
 
+#include "BKE_duplilist.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -50,11 +52,15 @@
 #include "SEQ_sound.hh"
 #include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
+#include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
 #include "BLO_read_write.hh"
 
-#include "image_cache.hh"
+#include "cache/final_image_cache.hh"
+#include "cache/intra_frame_cache.hh"
+#include "cache/source_image_cache.hh"
+#include "modifier.hh"
 #include "prefetch.hh"
 #include "sequencer.hh"
 #include "utils.hh"
@@ -124,7 +130,7 @@ static void seq_free_strip(StripData *data)
   MEM_freeN(data);
 }
 
-Strip *sequence_alloc(ListBase *lb, int timeline_frame, int machine, int type)
+Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
 {
   Strip *strip;
 
@@ -136,7 +142,7 @@ Strip *sequence_alloc(ListBase *lb, int timeline_frame, int machine, int type)
 
   strip->flag = SELECT;
   strip->start = timeline_frame;
-  strip_channel_set(strip, machine);
+  strip_channel_set(strip, channel);
   strip->sat = 1.0;
   strip->mul = 1.0;
   strip->blend_opacity = 100.0;
@@ -168,19 +174,19 @@ Strip *sequence_alloc(ListBase *lb, int timeline_frame, int machine, int type)
 }
 
 /* only give option to skip cache locally (static func) */
-static void seq_sequence_free_ex(Scene *scene,
-                                 Strip *strip,
-                                 const bool do_cache,
-                                 const bool do_id_user)
+static void seq_strip_free_ex(Scene *scene,
+                              Strip *strip,
+                              const bool do_cache,
+                              const bool do_id_user)
 {
   if (strip->data) {
     seq_free_strip(strip->data);
   }
 
-  relations_sequence_free_anim(strip);
+  relations_strip_free_anim(strip);
 
   if (strip->type & STRIP_TYPE_EFFECT) {
-    EffectHandle sh = effect_handle_get(strip);
+    EffectHandle sh = strip_effect_handle_get(strip);
     sh.free(strip, do_id_user);
   }
 
@@ -198,8 +204,8 @@ static void seq_sequence_free_ex(Scene *scene,
   if (scene) {
     Editing *ed = scene->ed;
 
-    if (ed->act_seq == strip) {
-      ed->act_seq = nullptr;
+    if (ed->act_strip == strip) {
+      ed->act_strip = nullptr;
     }
 
     if (strip->scene_sound && ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
@@ -210,6 +216,10 @@ static void seq_sequence_free_ex(Scene *scene,
   if (strip->prop) {
     IDP_FreePropertyContent_ex(strip->prop, do_id_user);
     MEM_freeN(strip->prop);
+  }
+  if (strip->system_properties) {
+    IDP_FreePropertyContent_ex(strip->system_properties, do_id_user);
+    MEM_freeN(strip->system_properties);
   }
 
   /* free modifiers */
@@ -245,21 +255,21 @@ static void seq_sequence_free_ex(Scene *scene,
   MEM_freeN(strip);
 }
 
-void sequence_free(Scene *scene, Strip *strip)
+void strip_free(Scene *scene, Strip *strip)
 {
-  seq_sequence_free_ex(scene, strip, true, true);
+  seq_strip_free_ex(scene, strip, true, true);
 }
 
-void seq_free_sequence_recurse(Scene *scene, Strip *strip, const bool do_id_user)
+void seq_free_strip_recurse(Scene *scene, Strip *strip, const bool do_id_user)
 {
-  Strip *iseq, *iseq_next;
+  Strip *istrip, *istrip_next;
 
-  for (iseq = static_cast<Strip *>(strip->seqbase.first); iseq; iseq = iseq_next) {
-    iseq_next = iseq->next;
-    seq_free_sequence_recurse(scene, iseq, do_id_user);
+  for (istrip = static_cast<Strip *>(strip->seqbase.first); istrip; istrip = istrip_next) {
+    istrip_next = istrip->next;
+    seq_free_strip_recurse(scene, istrip, do_id_user);
   }
 
-  seq_sequence_free_ex(scene, strip, false, do_id_user);
+  seq_strip_free_ex(scene, strip, false, do_id_user);
 }
 
 Editing *editing_get(const Scene *scene)
@@ -274,8 +284,7 @@ Editing *editing_ensure(Scene *scene)
 
     ed = scene->ed = MEM_callocN<Editing>("addseq");
     ed->seqbasep = &ed->seqbase;
-    ed->cache = nullptr;
-    ed->cache_flag = (SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
+    ed->cache_flag = (SEQ_CACHE_PREFETCH_ENABLE | SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     ed->displayed_channels = &ed->channels;
     channels_ensure(ed->displayed_channels);
@@ -293,17 +302,19 @@ void editing_free(Scene *scene, const bool do_id_user)
   }
 
   seq_prefetch_free(scene);
-  seq_cache_destruct(scene);
 
   /* handle cache freeing above */
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, &ed->seqbase) {
-    seq_free_sequence_recurse(scene, strip, do_id_user);
+    seq_free_strip_recurse(scene, strip, do_id_user);
   }
 
   BLI_freelistN(&ed->metastack);
   strip_lookup_free(ed);
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_destroy(scene);
+  blender::seq::intra_frame_cache_destroy(scene);
+  blender::seq::source_image_cache_destroy(scene);
+  blender::seq::final_image_cache_destroy(scene);
   channels_free(&ed->channels);
 
   MEM_freeN(ed);
@@ -314,12 +325,12 @@ void editing_free(Scene *scene, const bool do_id_user)
 static void seq_new_fix_links_recursive(Strip *strip, blender::Map<Strip *, Strip *> strip_map)
 {
   if (strip->type & STRIP_TYPE_EFFECT) {
-    strip->seq1 = strip_map.lookup_default(strip->seq1, strip->seq1);
-    strip->seq2 = strip_map.lookup_default(strip->seq2, strip->seq2);
+    strip->input1 = strip_map.lookup_default(strip->input1, strip->input1);
+    strip->input2 = strip_map.lookup_default(strip->input2, strip->input2);
   }
 
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
-    smd->mask_sequence = strip_map.lookup_default(smd->mask_sequence, smd->mask_sequence);
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    smd->mask_strip = strip_map.lookup_default(smd->mask_strip, smd->mask_strip);
   }
 
   if (is_strip_connected(strip)) {
@@ -329,8 +340,8 @@ static void seq_new_fix_links_recursive(Strip *strip, blender::Map<Strip *, Stri
   }
 
   if (strip->type == STRIP_TYPE_META) {
-    LISTBASE_FOREACH (Strip *, seqn, &strip->seqbase) {
-      seq_new_fix_links_recursive(seqn, strip_map);
+    LISTBASE_FOREACH (Strip *, strip_n, &strip->seqbase) {
+      seq_new_fix_links_recursive(strip_n, strip_map);
     }
   }
 }
@@ -415,10 +426,10 @@ ListBase *active_seqbase_get(const Editing *ed)
     return nullptr;
   }
 
-  return ed->seqbasep;
+  return ed->current_strips();
 }
 
-void seqbase_active_set(Editing *ed, ListBase *seqbase)
+void active_seqbase_set(Editing *ed, ListBase *seqbase)
 {
   ed->seqbasep = seqbase;
 }
@@ -429,15 +440,15 @@ static MetaStack *seq_meta_stack_alloc(const Scene *scene, Strip *strip_meta)
 
   MetaStack *ms = MEM_mallocN<MetaStack>("metastack");
   BLI_addhead(&ed->metastack, ms);
-  ms->parseq = strip_meta;
+  ms->parent_strip = strip_meta;
 
   /* Reference to previously displayed timeline data. */
-  Strip *higher_level_meta = SEQ_lookup_meta_by_strip(ed, strip_meta);
+  Strip *higher_level_meta = lookup_meta_by_strip(ed, strip_meta);
   ms->oldbasep = higher_level_meta ? &higher_level_meta->seqbase : &ed->seqbase;
   ms->old_channels = higher_level_meta ? &higher_level_meta->channels : &ed->channels;
 
-  ms->disp_range[0] = time_left_handle_frame_get(scene, ms->parseq);
-  ms->disp_range[1] = time_right_handle_frame_get(scene, ms->parseq);
+  ms->disp_range[0] = time_left_handle_frame_get(scene, ms->parent_strip);
+  ms->disp_range[1] = time_right_handle_frame_get(scene, ms->parent_strip);
   return ms;
 }
 
@@ -450,26 +461,26 @@ MetaStack *meta_stack_active_get(const Editing *ed)
   return static_cast<MetaStack *>(ed->metastack.last);
 }
 
-void meta_stack_set(const Scene *scene, Strip *dst_seq)
+void meta_stack_set(const Scene *scene, Strip *dst)
 {
   Editing *ed = editing_get(scene);
   /* Clear metastack */
   BLI_freelistN(&ed->metastack);
 
-  if (dst_seq != nullptr) {
+  if (dst != nullptr) {
     /* Allocate meta stack in a way, that represents meta hierarchy in timeline. */
-    seq_meta_stack_alloc(scene, dst_seq);
-    Strip *meta_parent = dst_seq;
-    while ((meta_parent = SEQ_lookup_meta_by_strip(ed, meta_parent))) {
+    seq_meta_stack_alloc(scene, dst);
+    Strip *meta_parent = dst;
+    while ((meta_parent = lookup_meta_by_strip(ed, meta_parent))) {
       seq_meta_stack_alloc(scene, meta_parent);
     }
 
-    seqbase_active_set(ed, &dst_seq->seqbase);
-    channels_displayed_set(ed, &dst_seq->channels);
+    active_seqbase_set(ed, &dst->seqbase);
+    channels_displayed_set(ed, &dst->channels);
   }
   else {
     /* Go to top level, exiting meta strip. */
-    seqbase_active_set(ed, &ed->seqbase);
+    active_seqbase_set(ed, &ed->seqbase);
     channels_displayed_set(ed, &ed->channels);
   }
 }
@@ -477,8 +488,8 @@ void meta_stack_set(const Scene *scene, Strip *dst_seq)
 Strip *meta_stack_pop(Editing *ed)
 {
   MetaStack *ms = meta_stack_active_get(ed);
-  Strip *meta_parent = ms->parseq;
-  seqbase_active_set(ed, ms->oldbasep);
+  Strip *meta_parent = ms->parent_strip;
+  active_seqbase_set(ed, ms->oldbasep);
   channels_displayed_set(ed, ms->old_channels);
   BLI_remlink(&ed->metastack, ms);
   MEM_freeN(ms);
@@ -491,180 +502,215 @@ Strip *meta_stack_pop(Editing *ed)
 /** \name Duplicate Functions
  * \{ */
 
-static Strip *strip_dupli(const Scene *scene_src,
-                          Scene *scene_dst,
-                          ListBase *new_seq_list,
-                          Strip *strip,
-                          int dupe_flag,
-                          const int flag,
-                          blender::Map<Strip *, Strip *> &strip_map)
+static Strip *strip_duplicate(Main *bmain,
+                              const Scene *scene_src,
+                              Scene *scene_dst,
+                              ListBase *new_seq_list,
+                              Strip *strip,
+                              const StripDuplicate dupe_flag,
+                              const int flag,
+                              blender::Map<Strip *, Strip *> &strip_map)
 {
-  Strip *seqn = static_cast<Strip *>(MEM_dupallocN(strip));
-  strip_map.add(strip, seqn);
+  Strip *strip_new = static_cast<Strip *>(MEM_dupallocN(strip));
+  strip_map.add(strip, strip_new);
 
   if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
-    relations_session_uid_generate(seqn);
+    relations_session_uid_generate(strip_new);
   }
 
-  seqn->data = static_cast<StripData *>(MEM_dupallocN(strip->data));
+  strip_new->data = static_cast<StripData *>(MEM_dupallocN(strip->data));
 
-  seqn->stereo3d_format = static_cast<Stereo3dFormat *>(MEM_dupallocN(strip->stereo3d_format));
+  strip_new->stereo3d_format = static_cast<Stereo3dFormat *>(
+      MEM_dupallocN(strip->stereo3d_format));
 
   /* XXX: add F-Curve duplication stuff? */
 
   if (strip->data->crop) {
-    seqn->data->crop = static_cast<StripCrop *>(MEM_dupallocN(strip->data->crop));
+    strip_new->data->crop = static_cast<StripCrop *>(MEM_dupallocN(strip->data->crop));
   }
 
   if (strip->data->transform) {
-    seqn->data->transform = static_cast<StripTransform *>(MEM_dupallocN(strip->data->transform));
+    strip_new->data->transform = static_cast<StripTransform *>(
+        MEM_dupallocN(strip->data->transform));
   }
 
   if (strip->data->proxy) {
-    seqn->data->proxy = static_cast<StripProxy *>(MEM_dupallocN(strip->data->proxy));
-    seqn->data->proxy->anim = nullptr;
+    strip_new->data->proxy = static_cast<StripProxy *>(MEM_dupallocN(strip->data->proxy));
+    strip_new->data->proxy->anim = nullptr;
   }
 
   if (strip->prop) {
-    seqn->prop = IDP_CopyProperty_ex(strip->prop, flag);
+    strip_new->prop = IDP_CopyProperty_ex(strip->prop, flag);
+  }
+  if (strip->system_properties) {
+    strip_new->system_properties = IDP_CopyProperty_ex(strip->system_properties, flag);
   }
 
-  if (seqn->modifiers.first) {
-    BLI_listbase_clear(&seqn->modifiers);
+  if (strip_new->modifiers.first) {
+    BLI_listbase_clear(&strip_new->modifiers);
 
-    modifier_list_copy(seqn, strip);
+    modifier_list_copy(strip_new, strip);
   }
+  BLI_assert(modifier_persistent_uids_are_valid(*strip));
 
   if (is_strip_connected(strip)) {
-    BLI_listbase_clear(&seqn->connections);
-    connections_duplicate(&seqn->connections, &strip->connections);
+    BLI_listbase_clear(&strip_new->connections);
+    connections_duplicate(&strip_new->connections, &strip->connections);
   }
 
   if (strip->type == STRIP_TYPE_META) {
-    seqn->data->stripdata = nullptr;
+    strip_new->data->stripdata = nullptr;
 
-    BLI_listbase_clear(&seqn->seqbase);
-    BLI_listbase_clear(&seqn->channels);
-    channels_duplicate(&seqn->channels, &strip->channels);
+    BLI_listbase_clear(&strip_new->seqbase);
+    BLI_listbase_clear(&strip_new->channels);
+    channels_duplicate(&strip_new->channels, &strip->channels);
   }
   else if (strip->type == STRIP_TYPE_SCENE) {
-    seqn->data->stripdata = nullptr;
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->scene != nullptr) {
+      Scene *scene_old = strip_new->scene;
+      strip_new->scene = BKE_scene_duplicate(bmain, scene_old, SCE_COPY_FULL);
+    }
+    strip_new->data->stripdata = nullptr;
     if (strip->scene_sound) {
-      seqn->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene_dst, seqn);
+      strip_new->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene_dst, strip_new);
     }
   }
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
-    /* avoid assert */
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->clip != nullptr) {
+      MovieClip *clip_old = strip_new->clip;
+      strip_new->clip = reinterpret_cast<MovieClip *>(
+          BKE_id_copy(bmain, reinterpret_cast<ID *>(clip_old)));
+      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+        id_us_min(&strip_new->clip->id);
+      }
+    }
   }
   else if (strip->type == STRIP_TYPE_MASK) {
-    /* avoid assert */
+    if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->mask != nullptr) {
+      Mask *mask_old = strip_new->mask;
+      strip_new->mask = reinterpret_cast<Mask *>(
+          BKE_id_copy(bmain, reinterpret_cast<ID *>(mask_old)));
+      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+        id_us_min(&strip_new->mask->id);
+      }
+    }
   }
   else if (strip->type == STRIP_TYPE_MOVIE) {
-    seqn->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
-    BLI_listbase_clear(&seqn->anims);
+    strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
+    BLI_listbase_clear(&strip_new->anims);
   }
   else if (strip->type == STRIP_TYPE_SOUND_RAM) {
-    seqn->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
-    seqn->scene_sound = nullptr;
+    strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
+    strip_new->scene_sound = nullptr;
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-      id_us_plus((ID *)seqn->sound);
+      id_us_plus((ID *)strip_new->sound);
     }
   }
   else if (strip->type == STRIP_TYPE_IMAGE) {
-    seqn->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
+    strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
   }
   else if (strip->type & STRIP_TYPE_EFFECT) {
     EffectHandle sh;
-    sh = effect_handle_get(strip);
+    sh = strip_effect_handle_get(strip);
     if (sh.copy) {
-      sh.copy(seqn, strip, flag);
+      sh.copy(strip_new, strip, flag);
     }
 
-    seqn->data->stripdata = nullptr;
+    strip_new->data->stripdata = nullptr;
   }
   else {
     /* sequence type not handled in duplicate! Expect a crash now... */
     BLI_assert_unreachable();
   }
 
-  /* When using #STRIP_DUPE_UNIQUE_NAME, it is mandatory to add new sequences in relevant container
+  /* When using StripDuplicate::UniqueName, it is mandatory to add new strips in relevant container
    * (scene or meta's one), *before* checking for unique names. Otherwise the meta's list is empty
-   * and hence we miss all sequence-strips in that meta that have already been duplicated,
+   * and hence we miss all sequencer strips in that meta that have already been duplicated,
    * (see #55668). Note that unique name check itself could be done at a later step in calling
-   * code, once all sequence-strips have bee duplicated (that was first, simpler solution),
+   * code, once all sequencer strips have been duplicated (that was first, simpler solution),
    * but then handling of animation data will be broken (see #60194). */
   if (new_seq_list != nullptr) {
-    BLI_addtail(new_seq_list, seqn);
+    BLI_addtail(new_seq_list, strip_new);
   }
 
   if (scene_src == scene_dst) {
-    if (dupe_flag & STRIP_DUPE_UNIQUE_NAME) {
-      sequence_base_unique_name_recursive(scene_dst, &scene_dst->ed->seqbase, seqn);
+    if (int(dupe_flag & StripDuplicate::UniqueName) != 0) {
+      strip_unique_name_set(scene_dst, &scene_dst->ed->seqbase, strip_new);
     }
   }
 
   if (strip->retiming_keys != nullptr) {
-    seqn->retiming_keys = static_cast<SeqRetimingKey *>(MEM_dupallocN(strip->retiming_keys));
-    seqn->retiming_keys_num = strip->retiming_keys_num;
+    strip_new->retiming_keys = static_cast<SeqRetimingKey *>(MEM_dupallocN(strip->retiming_keys));
+    strip_new->retiming_keys_num = strip->retiming_keys_num;
   }
 
-  return seqn;
+  return strip_new;
 }
 
-static Strip *sequence_dupli_recursive_do(const Scene *scene_src,
-                                          Scene *scene_dst,
-                                          ListBase *new_seq_list,
-                                          Strip *strip,
-                                          const int dupe_flag,
-                                          blender::Map<Strip *, Strip *> &strip_map)
+static Strip *strip_duplicate_recursive_impl(Main *bmain,
+                                             const Scene *scene_src,
+                                             Scene *scene_dst,
+                                             ListBase *new_seq_list,
+                                             Strip *strip,
+                                             const StripDuplicate dupe_flag,
+                                             blender::Map<Strip *, Strip *> &strip_map)
 {
-  Strip *seqn = strip_dupli(scene_src, scene_dst, new_seq_list, strip, dupe_flag, 0, strip_map);
+  Strip *strip_new = strip_duplicate(
+      bmain, scene_src, scene_dst, new_seq_list, strip, dupe_flag, 0, strip_map);
   if (strip->type == STRIP_TYPE_META) {
     LISTBASE_FOREACH (Strip *, s, &strip->seqbase) {
-      sequence_dupli_recursive_do(scene_src, scene_dst, &seqn->seqbase, s, dupe_flag, strip_map);
+      strip_duplicate_recursive_impl(
+          bmain, scene_src, scene_dst, &strip_new->seqbase, s, dupe_flag, strip_map);
     }
   }
-  return seqn;
+  return strip_new;
 }
 
-Strip *sequence_dupli_recursive(
-    const Scene *scene_src, Scene *scene_dst, ListBase *new_seq_list, Strip *strip, int dupe_flag)
+Strip *strip_duplicate_recursive(Main *bmain,
+                                 const Scene *scene_src,
+                                 Scene *scene_dst,
+                                 ListBase *new_seq_list,
+                                 Strip *strip,
+                                 const StripDuplicate dupe_flag)
 {
   blender::Map<Strip *, Strip *> strip_map;
 
-  Strip *seqn = sequence_dupli_recursive_do(
-      scene_src, scene_dst, new_seq_list, strip, dupe_flag, strip_map);
+  Strip *strip_new = strip_duplicate_recursive_impl(
+      bmain, scene_src, scene_dst, new_seq_list, strip, dupe_flag, strip_map);
 
-  seq_new_fix_links_recursive(seqn, strip_map);
-  if (is_strip_connected(seqn)) {
-    cut_one_way_connections(seqn);
+  seq_new_fix_links_recursive(strip_new, strip_map);
+  if (is_strip_connected(strip_new)) {
+    cut_one_way_connections(strip_new);
   }
 
-  return seqn;
+  return strip_new;
 }
 
-static void seqbase_dupli_recursive(const Scene *scene_src,
+static void seqbase_dupli_recursive(Main *bmain,
+                                    const Scene *scene_src,
                                     Scene *scene_dst,
                                     ListBase *nseqbase,
                                     const ListBase *seqbase,
-                                    int dupe_flag,
+                                    const StripDuplicate dupe_flag,
                                     const int flag,
                                     blender::Map<Strip *, Strip *> &strip_map)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) == 0 && (dupe_flag & STRIP_DUPE_ALL) == 0) {
+    if ((strip->flag & SELECT) == 0 && int(dupe_flag & StripDuplicate::All) == 0) {
       continue;
     }
 
-    Strip *seqn = strip_dupli(scene_src, scene_dst, nseqbase, strip, dupe_flag, flag, strip_map);
-    BLI_assert(seqn != nullptr);
+    Strip *strip_new = strip_duplicate(
+        bmain, scene_src, scene_dst, nseqbase, strip, dupe_flag, flag, strip_map);
+    BLI_assert(strip_new != nullptr);
 
     if (strip->type == STRIP_TYPE_META) {
       /* Always include meta all strip children. */
-      int dupe_flag_recursive = dupe_flag | STRIP_DUPE_ALL;
-      seqbase_dupli_recursive(scene_src,
+      const StripDuplicate dupe_flag_recursive = dupe_flag | StripDuplicate::All;
+      seqbase_dupli_recursive(bmain,
+                              scene_src,
                               scene_dst,
-                              &seqn->seqbase,
+                              &strip_new->seqbase,
                               &strip->seqbase,
                               dupe_flag_recursive,
                               flag,
@@ -673,16 +719,18 @@ static void seqbase_dupli_recursive(const Scene *scene_src,
   }
 }
 
-void sequence_base_dupli_recursive(const Scene *scene_src,
-                                   Scene *scene_dst,
-                                   ListBase *nseqbase,
-                                   const ListBase *seqbase,
-                                   int dupe_flag,
-                                   const int flag)
+void seqbase_duplicate_recursive(Main *bmain,
+                                 const Scene *scene_src,
+                                 Scene *scene_dst,
+                                 ListBase *nseqbase,
+                                 const ListBase *seqbase,
+                                 const StripDuplicate dupe_flag,
+                                 const int flag)
 {
   blender::Map<Strip *, Strip *> strip_map;
 
-  seqbase_dupli_recursive(scene_src, scene_dst, nseqbase, seqbase, dupe_flag, flag, strip_map);
+  seqbase_dupli_recursive(
+      bmain, scene_src, scene_dst, nseqbase, seqbase, dupe_flag, flag, strip_map);
 
   /* Fix effect, modifier, and connected strip links. */
   LISTBASE_FOREACH (Strip *, strip, nseqbase) {
@@ -698,7 +746,7 @@ void sequence_base_dupli_recursive(const Scene *scene_src,
 
 bool is_valid_strip_channel(const Strip *strip)
 {
-  return strip->machine >= 1 && strip->machine <= MAX_CHANNELS;
+  return strip->channel >= 1 && strip->channel <= MAX_CHANNELS;
 }
 
 SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings)
@@ -746,9 +794,15 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
         case STRIP_TYPE_GAUSSIAN_BLUR:
           BLO_write_struct(writer, GaussianBlurVars, strip->effectdata);
           break;
-        case STRIP_TYPE_TEXT:
-          BLO_write_struct(writer, TextVars, strip->effectdata);
-          break;
+        case STRIP_TYPE_TEXT: {
+          TextVars *text = static_cast<TextVars *>(strip->effectdata);
+          if (!BLO_write_is_undo(writer)) {
+            /* Copy current text into legacy buffer. */
+            STRNCPY_UTF8(text->text_legacy, text->text_ptr);
+          }
+          BLO_write_struct(writer, TextVars, text);
+          BLO_write_string(writer, text->text_ptr);
+        } break;
         case STRIP_TYPE_COLORMIX:
           BLO_write_struct(writer, ColorMixVars, strip->effectdata);
           break;
@@ -781,6 +835,9 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
 
   if (strip->prop) {
     IDP_BlendWrite(writer, strip->prop);
+  }
+  if (strip->system_properties) {
+    IDP_BlendWrite(writer, strip->system_properties);
   }
 
   modifier_blend_write(writer, &strip->modifiers);
@@ -820,8 +877,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   /* Do as early as possible, so that other parts of reading can rely on valid session UID. */
   relations_session_uid_generate(strip);
 
-  BLO_read_struct(reader, Strip, &strip->seq1);
-  BLO_read_struct(reader, Strip, &strip->seq2);
+  BLO_read_struct(reader, Strip, &strip->input1);
+  BLO_read_struct(reader, Strip, &strip->input2);
 
   if (strip->effectdata) {
     switch (strip->type) {
@@ -843,9 +900,12 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
       case STRIP_TYPE_GAUSSIAN_BLUR:
         BLO_read_struct(reader, GaussianBlurVars, &strip->effectdata);
         break;
-      case STRIP_TYPE_TEXT:
+      case STRIP_TYPE_TEXT: {
         BLO_read_struct(reader, TextVars, &strip->effectdata);
-        break;
+        TextVars *text = static_cast<TextVars *>(strip->effectdata);
+        BLO_read_string(reader, &text->text_ptr);
+        text->text_len_bytes = text->text_ptr ? strlen(text->text_ptr) : 0;
+      } break;
       case STRIP_TYPE_COLORMIX:
         BLO_read_struct(reader, ColorMixVars, &strip->effectdata);
         break;
@@ -859,7 +919,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   BLO_read_struct(reader, Stereo3dFormat, &strip->stereo3d_format);
 
   if (strip->type & STRIP_TYPE_EFFECT) {
-    strip->flag |= SEQ_EFFECT_NOT_LOADED;
+    strip->runtime.flag |= STRIP_EFFECT_NOT_LOADED;
   }
 
   if (strip->type == STRIP_TYPE_TEXT) {
@@ -870,6 +930,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 
   BLO_read_struct(reader, IDProperty, &strip->prop);
   IDP_BlendDataRead(reader, &strip->prop);
+  BLO_read_struct(reader, IDProperty, &strip->system_properties);
+  IDP_BlendDataRead(reader, &strip->system_properties);
 
   BLO_read_struct(reader, StripData, &strip->data);
   if (strip->data && strip->data->done == 0) {
@@ -905,7 +967,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
     }
 
     /* need to load color balance to it could be converted to modifier */
-    BLO_read_struct(reader, StripColorBalance, &strip->data->color_balance);
+    BLO_read_struct(reader, StripColorBalance, &strip->data->color_balance_legacy);
   }
 
   modifier_blend_read_data(reader, &strip->modifiers);
@@ -995,14 +1057,16 @@ static void strip_update_sound_properties(const Scene *scene, const Strip *strip
 static void strip_update_sound_modifiers(Strip *strip)
 {
   void *sound_handle = strip->sound->playback_handle;
-  if (!BLI_listbase_is_empty(&strip->modifiers)) {
-    LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
-      sound_handle = sound_modifier_recreator(strip, smd, sound_handle);
-    }
+  bool needs_update = false;
+
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    sound_handle = sound_modifier_recreator(strip, smd, sound_handle, needs_update);
   }
 
-  /* Assign modified sound back to `strip`. */
-  BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
+  if (needs_update) {
+    /* Assign modified sound back to `strip`. */
+    BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
+  }
 }
 
 static bool must_update_strip_sound(Scene *scene, Strip *strip)
@@ -1016,9 +1080,16 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
   if (strip->sound == nullptr || !must_update_strip_sound(scene, strip)) {
     return;
   }
+
   /* Ensure strip is playing correct sound. */
-  BKE_sound_update_scene_sound(strip->scene_sound, strip->sound);
-  strip_update_sound_modifiers(strip);
+  if (BLI_listbase_is_empty(&strip->modifiers)) {
+    /* Just use playback handle from sound ID. */
+    BKE_sound_update_scene_sound(strip->scene_sound, strip->sound);
+  }
+  else {
+    /* Use Playback handle from sound ID as input for modifier stack. */
+    strip_update_sound_modifiers(strip);
+  }
 }
 
 static bool scene_sequencer_is_used(const Scene *scene, ListBase *seqbase)
@@ -1075,7 +1146,7 @@ static bool strip_sound_update_cb(Strip *strip, void *user_data)
   return true;
 }
 
-void eval_sequences(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase)
+void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase)
 {
   DEG_debug_print_eval(depsgraph, __func__, scene->id.name, scene);
   BKE_sound_ensure_scene(scene);
@@ -1087,3 +1158,23 @@ void eval_sequences(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase)
 }
 
 }  // namespace blender::seq
+
+ListBase *Editing::current_strips()
+{
+  return this->seqbasep;
+}
+ListBase *Editing::current_strips() const
+{
+  /* NOTE: Const correctness is non-existent with ListBase anyway. */
+  return this->seqbasep;
+}
+
+ListBase *Editing::current_channels()
+{
+  return this->displayed_channels;
+}
+ListBase *Editing::current_channels() const
+{
+  /* NOTE: Const correctness is non-existent with ListBase anyway. */
+  return this->displayed_channels;
+}

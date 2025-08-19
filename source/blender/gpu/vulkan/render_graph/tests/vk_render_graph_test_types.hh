@@ -29,12 +29,9 @@ class CommandBufferLog : public VKCommandBufferInterface {
   bool is_recording_ = false;
 
  public:
-  CommandBufferLog(Vector<std::string> &log,
-                   bool use_dynamic_rendering_ = true,
-                   bool use_dynamic_rendering_local_read_ = true)
+  CommandBufferLog(Vector<std::string> &log, bool use_dynamic_rendering_local_read_ = true)
       : log_(log)
   {
-    use_dynamic_rendering = use_dynamic_rendering_;
     use_dynamic_rendering_local_read = use_dynamic_rendering_local_read_;
   }
   virtual ~CommandBufferLog() {}
@@ -457,19 +454,49 @@ class CommandBufferLog : public VKCommandBufferInterface {
                         uint32_t /*query_count*/) override
   {
   }
+
+  void set_viewport(const Vector<VkViewport> viewports) override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "set_viewport(num_viewports=" << viewports.size() << ")";
+    log_.append(ss.str());
+  }
+
+  void set_scissor(const Vector<VkRect2D> scissors) override
+  {
+    EXPECT_TRUE(is_recording_);
+    std::stringstream ss;
+    ss << "set_scissor(num_scissors=" << scissors.size() << ")";
+    log_.append(ss.str());
+  }
+
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT * /*vk_debug_utils_label*/) override {}
   void end_debug_utils_label() override {}
+
+  /* VK_EXT_descriptor_buffer */
+  void bind_descriptor_buffers(
+      uint32_t /*buffer_count*/,
+      const VkDescriptorBufferBindingInfoEXT * /*p_binding_infos*/) override
+  {
+  }
+  void set_descriptor_buffer_offsets(VkPipelineBindPoint /*pipeline_bind_point*/,
+                                     VkPipelineLayout /*layout*/,
+                                     uint32_t /*first_set*/,
+                                     uint32_t /*set_count*/,
+                                     const uint32_t * /*p_buffer_indices*/,
+                                     const VkDeviceSize * /*p_offsets*/) override
+  {
+  }
 };
 
 class VKRenderGraphTest : public ::testing::Test {
  public:
   VKRenderGraphTest()
   {
-    resources.use_dynamic_rendering = use_dynamic_rendering;
     resources.use_dynamic_rendering_local_read = use_dynamic_rendering_local_read;
     render_graph = std::make_unique<VKRenderGraph>(resources);
-    command_buffer = std::make_unique<CommandBufferLog>(
-        log, use_dynamic_rendering, use_dynamic_rendering_local_read);
+    command_buffer = std::make_unique<CommandBufferLog>(log, use_dynamic_rendering_local_read);
   }
 
  protected:
@@ -477,21 +504,17 @@ class VKRenderGraphTest : public ::testing::Test {
   VKResourceStateTracker resources;
   std::unique_ptr<VKRenderGraph> render_graph;
   std::unique_ptr<CommandBufferLog> command_buffer;
-  bool use_dynamic_rendering = true;
   bool use_dynamic_rendering_local_read = true;
 };
 
-class VKRenderGraphTest_P : public ::testing::TestWithParam<std::tuple<bool, bool>> {
+class VKRenderGraphTest_P : public ::testing::TestWithParam<std::tuple<bool>> {
  public:
   VKRenderGraphTest_P()
   {
-    use_dynamic_rendering = std::get<0>(GetParam());
-    use_dynamic_rendering_local_read = std::get<1>(GetParam());
-    resources.use_dynamic_rendering = use_dynamic_rendering;
+    use_dynamic_rendering_local_read = std::get<0>(GetParam());
     resources.use_dynamic_rendering_local_read = use_dynamic_rendering_local_read;
     render_graph = std::make_unique<VKRenderGraph>(resources);
-    command_buffer = std::make_unique<CommandBufferLog>(
-        log, use_dynamic_rendering, use_dynamic_rendering_local_read);
+    command_buffer = std::make_unique<CommandBufferLog>(log, use_dynamic_rendering_local_read);
   }
 
  protected:

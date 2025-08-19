@@ -25,6 +25,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
@@ -100,7 +101,7 @@
 /* Constraint Target Macros */
 #define VALID_CONS_TARGET(ct) ((ct) && (ct->tar))
 
-static CLG_LogRef LOG = {"bke.constraint"};
+static CLG_LogRef LOG = {"object.constraint"};
 
 /* ************************ Constraints - General Utilities *************************** */
 /* These functions here don't act on any specific constraints, and are therefore should/will
@@ -559,15 +560,12 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
   else if (mesh_eval) {
     const blender::Span<blender::float3> positions = mesh_eval->vert_positions();
     const blender::Span<blender::float3> vert_normals = mesh_eval->vert_normals();
-    const MDeformVert *dvert = static_cast<const MDeformVert *>(
-        CustomData_get_layer(&mesh_eval->vert_data, CD_MDEFORMVERT));
-
+    const blender::Span<MDeformVert> dverts = mesh_eval->deform_verts();
     /* check that dvert is a valid pointers (just in case) */
-    if (dvert) {
-
+    if (!dverts.is_empty()) {
       /* get the average of all verts with that are in the vertex-group */
       for (const int i : positions.index_range()) {
-        const MDeformVert *dv = &dvert[i];
+        const MDeformVert *dv = &dverts[i];
         const MDeformWeight *dw = BKE_defvert_find_index(dv, defgroup);
 
         if (dw && dw->weight > 0.0f) {
@@ -883,7 +881,7 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
     ct = MEM_callocN<bConstraintTarget>("tempConstraintTarget"); \
 \
     ct->tar = datatar; \
-    STRNCPY(ct->subtarget, datasubtarget); \
+    STRNCPY_UTF8(ct->subtarget, datasubtarget); \
     ct->space = con->tarspace; \
     ct->flag = CONSTRAINT_TAR_TEMP; \
 \
@@ -940,7 +938,7 @@ static bool default_get_tarmat_full_bbone(Depsgraph * /*depsgraph*/,
       bConstraintTarget *ctn = ct->next; \
       if (no_copy == 0) { \
         datatar = ct->tar; \
-        STRNCPY(datasubtarget, ct->subtarget); \
+        STRNCPY_UTF8(datasubtarget, ct->subtarget); \
         con->tarspace = char(ct->space); \
       } \
 \
@@ -2466,139 +2464,6 @@ static bConstraintTypeInfo CTI_SAMEVOL = {
     /*evaluate_constraint*/ samevolume_evaluate,
 };
 
-/* ----------- Python Constraint -------------- */
-
-static void pycon_free(bConstraint *con)
-{
-  bPythonConstraint *data = static_cast<bPythonConstraint *>(con->data);
-
-  /* id-properties */
-  IDP_FreeProperty(data->prop);
-
-  /* multiple targets */
-  BLI_freelistN(&data->targets);
-}
-
-static void pycon_copy(bConstraint *con, bConstraint *srccon)
-{
-  bPythonConstraint *pycon = (bPythonConstraint *)con->data;
-  bPythonConstraint *opycon = (bPythonConstraint *)srccon->data;
-
-  pycon->prop = IDP_CopyProperty(opycon->prop);
-  BLI_duplicatelist(&pycon->targets, &opycon->targets);
-}
-
-static void pycon_new_data(void *cdata)
-{
-  bPythonConstraint *data = (bPythonConstraint *)cdata;
-
-  /* Everything should be set correctly by calloc, except for the prop->type constant. */
-  data->prop = MEM_callocN<IDProperty>("PyConstraintProps");
-  data->prop->type = IDP_GROUP;
-}
-
-static int pycon_get_tars(bConstraint *con, ListBase *list)
-{
-  if (con && list) {
-    bPythonConstraint *data = static_cast<bPythonConstraint *>(con->data);
-
-    list->first = data->targets.first;
-    list->last = data->targets.last;
-
-    return data->tarnum;
-  }
-
-  return 0;
-}
-
-static void pycon_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
-{
-  bPythonConstraint *data = static_cast<bPythonConstraint *>(con->data);
-
-  /* targets */
-  LISTBASE_FOREACH (bConstraintTarget *, ct, &data->targets) {
-    func(con, (ID **)&ct->tar, false, userdata);
-  }
-
-  /* script */
-  func(con, (ID **)&data->text, true, userdata);
-}
-
-/* Whether this approach is maintained remains to be seen (aligorith) */
-static bool pycon_get_tarmat(Depsgraph * /*depsgraph*/,
-                             bConstraint *con,
-                             bConstraintOb *cob,
-                             bConstraintTarget *ct,
-                             float /*ctime*/)
-{
-#ifdef WITH_PYTHON
-  bPythonConstraint *data = static_cast<bPythonConstraint *>(con->data);
-#endif
-
-  if (!VALID_CONS_TARGET(ct)) {
-    unit_ct_matrix_nullsafe(ct);
-    return false;
-  }
-
-  if (ct->tar->type == OB_CURVES_LEGACY && ct->tar->runtime->curve_cache == nullptr) {
-    unit_m4(ct->matrix);
-    return false;
-  }
-
-  /* firstly calculate the matrix the normal way, then let the py-function override
-   * this matrix if it needs to do so
-   */
-  constraint_target_to_mat4(ct->tar,
-                            ct->subtarget,
-                            cob,
-                            ct->matrix,
-                            CONSTRAINT_SPACE_WORLD,
-                            ct->space,
-                            con->flag,
-                            con->headtail);
-
-/* only execute target calculation if allowed */
-#ifdef WITH_PYTHON
-  if (G.f & G_FLAG_SCRIPT_AUTOEXEC) {
-    BPY_pyconstraint_target(data, ct);
-  }
-#endif
-  return true;
-}
-
-static void pycon_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targets)
-{
-#ifndef WITH_PYTHON
-  UNUSED_VARS(con, cob, targets);
-  return;
-#else
-  bPythonConstraint *data = static_cast<bPythonConstraint *>(con->data);
-
-  /* only evaluate in python if we're allowed to do so */
-  if ((G.f & G_FLAG_SCRIPT_AUTOEXEC) == 0) {
-    return;
-  }
-
-  /* Now, run the actual 'constraint' function, which should only access the matrices */
-  BPY_pyconstraint_exec(data, cob, targets);
-#endif /* WITH_PYTHON */
-}
-
-static bConstraintTypeInfo CTI_PYTHON = {
-    /*type*/ CONSTRAINT_TYPE_PYTHON,
-    /*size*/ sizeof(bPythonConstraint),
-    /*name*/ N_("Script"),
-    /*struct_name*/ "bPythonConstraint",
-    /*free_data*/ pycon_free,
-    /*id_looper*/ pycon_id_looper,
-    /*copy_data*/ pycon_copy,
-    /*new_data*/ pycon_new_data,
-    /*get_constraint_targets*/ pycon_get_tars,
-    /*flush_constraint_targets*/ nullptr,
-    /*get_target_matrix*/ pycon_get_tarmat,
-    /*evaluate_constraint*/ pycon_evaluate,
-};
-
 /* ----------- Armature Constraint -------------- */
 
 static void armdef_free(bConstraint *con)
@@ -2778,17 +2643,15 @@ static void armdef_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targ
 {
   bArmatureConstraint *data = static_cast<bArmatureConstraint *>(con->data);
 
-  float sum_mat[4][4], input_co[3];
-  DualQuat sum_dq;
-  float weight = 0.0f;
-
   /* Prepare for blending. */
-  zero_m4(sum_mat);
-  memset(&sum_dq, 0, sizeof(sum_dq));
+  float sum_mat[4][4] = {};
+  DualQuat sum_dq = {};
+  float weight = 0.0f;
 
   DualQuat *pdq = (data->flag & CONSTRAINT_ARMATURE_QUATERNION) ? &sum_dq : nullptr;
   bool use_envelopes = (data->flag & CONSTRAINT_ARMATURE_ENVELOPE) != 0;
 
+  float input_co[3];
   if (cob->pchan && cob->pchan->bone && !(data->flag & CONSTRAINT_ARMATURE_CUR_LOCATION)) {
     /* For constraints on bones, use the rest position to bind b-bone segments
      * and envelopes, to allow safely changing the bone location as if parented. */
@@ -2908,6 +2771,10 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
 {
   bActionConstraint *data = static_cast<bActionConstraint *>(con->data);
 
+  /* Initialize return matrix. This needs to happen even when there is no
+   * Action, to avoid returning an all-zeroes matrix. */
+  unit_m4(ct->matrix);
+
   if (!data->act) {
     /* Without an Action, this constraint cannot do anything. */
     return false;
@@ -2921,9 +2788,6 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
   float tempmat[4][4], vec[3];
   float s, t;
   short axis;
-
-  /* initialize return matrix */
-  unit_m4(ct->matrix);
 
   /* Skip targets if we're using local float property to set action time */
   if (use_eval_time) {
@@ -3049,6 +2913,11 @@ static void actcon_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targ
 
   if (VALID_CONS_TARGET(ct) || data->flag & ACTCON_USE_EVAL_TIME) {
     switch (data->mix_mode) {
+      /* Replace the input transformation. */
+      case ACTCON_MIX_REPLACE:
+        copy_m4_m4(cob->matrix, ct->matrix);
+        break;
+
       /* Simple matrix multiplication. */
       case ACTCON_MIX_BEFORE_FULL:
         mul_m4_m4m4(cob->matrix, ct->matrix, cob->matrix);
@@ -3633,8 +3502,9 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
 
     dist = normalize_v3(vec);
 
-    /* Only Y constrained object axis scale should be used, to keep same length when scaling it. */
-    dist /= size[1];
+    /* Only Y constrained object axis scale should be used, to keep same length when scaling it.
+     * Use safe divide to avoid creating a matrix with NAN values, see: #141612. */
+    dist = blender::math::safe_divide(dist, size[1]);
 
     /* data->orglength==0 occurs on first run, and after 'R' button is clicked */
     if (data->orglength == 0) {
@@ -3711,7 +3581,7 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
         damptrack_do_transform(cob->matrix, vec, TRACK_Y);
         break;
       case PLANE_X:
-        /* New Y aligns  object target connection. */
+        /* New Y aligns object target connection. */
         copy_v3_v3(cob->matrix[1], vec);
 
         /* Build new Z vector. */
@@ -3727,7 +3597,7 @@ static void stretchto_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
         normalize_v3_v3(cob->matrix[0], xx);
         break;
       case PLANE_Z:
-        /* New Y aligns  object target connection. */
+        /* New Y aligns object target connection. */
         copy_v3_v3(cob->matrix[1], vec);
 
         /* Build new X vector. */
@@ -5502,7 +5372,8 @@ static void transformcache_evaluate(bConstraint *con, bConstraintOb *cob, ListBa
   }
 
   const float frame = DEG_get_ctime(cob->depsgraph);
-  const double time = BKE_cachefile_time_offset(cache_file, double(frame), FPS);
+  const double time = BKE_cachefile_time_offset(
+      cache_file, double(frame), scene->frames_per_second());
 
   if (!data->reader || !STREQ(data->reader_object_path, data->object_path)) {
     STRNCPY(data->reader_object_path, data->object_path);
@@ -5518,7 +5389,7 @@ static void transformcache_evaluate(bConstraint *con, bConstraintOb *cob, ListBa
     case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
       blender::io::usd::USD_get_transform(
-          data->reader, cob->matrix, time * FPS, cache_file->scale);
+          data->reader, cob->matrix, time * scene->frames_per_second(), cache_file->scale);
 #  endif
       break;
     case CACHE_FILE_TYPE_INVALID:
@@ -5575,7 +5446,7 @@ static bConstraintTypeInfo CTI_TRANSFORM_CACHE = {
 };
 
 /* ************************* Constraints Type-Info *************************** */
-/* All of the constraints api functions use bConstraintTypeInfo structs to carry out
+/* All of the constraints API functions use #bConstraintTypeInfo structs to carry out
  * and operations that involve constraint specific code.
  */
 
@@ -5597,7 +5468,7 @@ static void constraints_init_typeinfo()
   constraintsTypeInfo[8] = &CTI_ROTLIKE;          /* Copy Rotation Constraint */
   constraintsTypeInfo[9] = &CTI_LOCLIKE;          /* Copy Location Constraint */
   constraintsTypeInfo[10] = &CTI_SIZELIKE;        /* Copy Scale Constraint */
-  constraintsTypeInfo[11] = &CTI_PYTHON;          /* Python/Script Constraint */
+  constraintsTypeInfo[11] = nullptr;              /* Python/Script Constraint: DEPRECATED. */
   constraintsTypeInfo[12] = &CTI_ACTION;          /* Action Constraint */
   constraintsTypeInfo[13] = &CTI_LOCKTRACK;       /* Locked-Track Constraint */
   constraintsTypeInfo[14] = &CTI_DISTLIMIT;       /* Limit Distance Constraint */
@@ -5770,7 +5641,7 @@ bool BKE_constraint_apply_for_object(Depsgraph *depsgraph,
   /* Do this all in the evaluated domain (e.g. shrinkwrap needs to access evaluated constraint
    * target mesh). */
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   bConstraint *con_eval = BKE_constraints_find_name(&ob_eval->constraints, con->name);
 
   bConstraint *new_con = BKE_constraint_duplicate_ex(con_eval, 0, ID_IS_EDITABLE(ob));
@@ -5822,7 +5693,7 @@ bool BKE_constraint_apply_for_pose(
   /* Do this all in the evaluated domain (e.g. shrinkwrap needs to access evaluated constraint
    * target mesh). */
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
   bConstraint *con_eval = BKE_constraints_find_name(&pchan_eval->constraints, con->name);
 
@@ -5919,7 +5790,7 @@ static bConstraint *add_new_constraint_internal(const char *name, short type)
   }
 
   /* copy the name */
-  STRNCPY(con->name, newName);
+  STRNCPY_UTF8(con->name, newName);
 
   /* return the new constraint */
   return con;
@@ -6181,10 +6052,7 @@ static bConstraint *constraint_list_find_from_target(ListBase *constraints, bCon
   LISTBASE_FOREACH (bConstraint *, con, constraints) {
     ListBase *targets = nullptr;
 
-    if (con->type == CONSTRAINT_TYPE_PYTHON) {
-      targets = &((bPythonConstraint *)con->data)->targets;
-    }
-    else if (con->type == CONSTRAINT_TYPE_ARMATURE) {
+    if (con->type == CONSTRAINT_TYPE_ARMATURE) {
       targets = &((bArmatureConstraint *)con->data)->targets;
     }
 
@@ -6233,7 +6101,7 @@ static bConstraint *constraint_find_original(Object *ob,
                                              bConstraint *con,
                                              Object **r_orig_ob)
 {
-  Object *orig_ob = (Object *)DEG_get_original_id(&ob->id);
+  Object *orig_ob = DEG_get_original(ob);
 
   if (ELEM(orig_ob, nullptr, ob)) {
     return nullptr;
@@ -6346,7 +6214,7 @@ void BKE_constraint_targets_flush(bConstraint *con, ListBase *targets, bool no_c
 
     if (!no_copy) {
       con->space_object = ct->tar;
-      STRNCPY(con->space_subtarget, ct->subtarget);
+      STRNCPY_UTF8(con->space_subtarget, ct->subtarget);
     }
 
     BLI_freelinkN(targets, ct);
@@ -6587,20 +6455,6 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
 
       /* do any constraint specific stuff */
       switch (con->type) {
-        case CONSTRAINT_TYPE_PYTHON: {
-          bPythonConstraint *data = static_cast<bPythonConstraint *>(con->data);
-
-          /* write targets */
-          LISTBASE_FOREACH (bConstraintTarget *, ct, &data->targets) {
-            BLO_write_struct(writer, bConstraintTarget, ct);
-          }
-
-          /* Write ID Properties -- and copy this comment EXACTLY for easy finding
-           * of library blocks that implement this. */
-          IDP_BlendWrite(writer, data->prop);
-
-          break;
-        }
         case CONSTRAINT_TYPE_ARMATURE: {
           bArmatureConstraint *data = static_cast<bArmatureConstraint *>(con->data);
 
@@ -6643,9 +6497,6 @@ void BKE_constraint_blend_read_data(BlendDataReader *reader, ID *id_owner, ListB
 
     /* Patch for error introduced by changing constraints (don't know how). */
     /* NOTE(@ton): If `con->data` type changes, DNA cannot resolve the pointer!. */
-    /* FIXME This is likely dead code actually, since it used to be in
-     * constraint 'read_lib', so it would have crashed on null pointer access in any of
-     * the code below? But does not hurt to keep it around as a safety measure. */
     if (con->data == nullptr) {
       con->type = CONSTRAINT_TYPE_NULL;
     }
@@ -6656,15 +6507,6 @@ void BKE_constraint_blend_read_data(BlendDataReader *reader, ID *id_owner, ListB
     }
 
     switch (con->type) {
-      case CONSTRAINT_TYPE_PYTHON: {
-        bPythonConstraint *data = static_cast<bPythonConstraint *>(con->data);
-
-        BLO_read_struct_list(reader, bConstraintTarget, &data->targets);
-
-        BLO_read_struct(reader, IDProperty, &data->prop);
-        IDP_BlendDataRead(reader, &data->prop);
-        break;
-      }
       case CONSTRAINT_TYPE_ARMATURE: {
         bArmatureConstraint *data = static_cast<bArmatureConstraint *>(con->data);
 

@@ -10,8 +10,6 @@
 
 #ifdef _WIN32
 #  include <vulkan/vulkan_win32.h>
-#elif defined(__APPLE__)
-#  include <MoltenVK/vk_mvk_moltenvk.h>
 #else /* X11/WAYLAND. */
 #  ifdef WITH_GHOST_X11
 #    include <vulkan/vulkan_xlib.h>
@@ -23,8 +21,9 @@
 
 #include "vulkan/vk_ghost_api.hh"
 
-#include <vector>
+#include "CLG_log.h"
 
+#include <array>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -32,10 +31,13 @@
 #include <mutex>
 #include <optional>
 #include <sstream>
+#include <vector>
 
 #include <sys/stat.h>
 
 using namespace std;
+
+static CLG_LogRef LOG = {"ghost.context"};
 
 static const char *vulkan_error_as_string(VkResult result)
 {
@@ -92,20 +94,62 @@ static const char *vulkan_error_as_string(VkResult result)
   do { \
     VkResult r = (__expression); \
     if (r != VK_SUCCESS) { \
-      fprintf(stderr, \
-              "Vulkan Error : %s:%d : %s failled with %s\n", \
-              __FILE__, \
-              __LINE__, \
-              __STR(__expression), \
-              vulkan_error_as_string(r)); \
+      CLOG_ERROR(&LOG, \
+                 "Vulkan: %s resulted in code %s.", \
+                 __STR(__expression), \
+                 vulkan_error_as_string(r)); \
       return GHOST_kFailure; \
     } \
   } while (0)
 
-#define DEBUG_PRINTF(...) \
-  if (m_debug) { \
-    printf(__VA_ARGS__); \
+/* Check if the given extension name is in the extension_list.
+ */
+static bool contains_extension(const vector<VkExtensionProperties> &extension_list,
+                               const char *extension_name)
+{
+  for (const VkExtensionProperties &extension_properties : extension_list) {
+    if (strcmp(extension_properties.extensionName, extension_name) == 0) {
+      return true;
+    }
   }
+  return false;
+};
+
+/* -------------------------------------------------------------------- */
+/** \name Swap-chain resources
+ * \{ */
+
+void GHOST_SwapchainImage::destroy(VkDevice vk_device)
+{
+  vkDestroySemaphore(vk_device, present_semaphore, nullptr);
+  present_semaphore = VK_NULL_HANDLE;
+  vk_image = VK_NULL_HANDLE;
+}
+
+void GHOST_FrameDiscard::destroy(VkDevice vk_device)
+{
+  while (!swapchains.empty()) {
+    VkSwapchainKHR vk_swapchain = swapchains.back();
+    swapchains.pop_back();
+    vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
+  }
+  while (!semaphores.empty()) {
+    VkSemaphore vk_semaphore = semaphores.back();
+    semaphores.pop_back();
+    vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
+  }
+}
+
+void GHOST_Frame::destroy(VkDevice vk_device)
+{
+  vkDestroyFence(vk_device, submission_fence, nullptr);
+  submission_fence = VK_NULL_HANDLE;
+  vkDestroySemaphore(vk_device, acquire_semaphore, nullptr);
+  acquire_semaphore = VK_NULL_HANDLE;
+  discard_pile.destroy(vk_device);
+}
+
+/* \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Vulkan Device
@@ -120,27 +164,38 @@ class GHOST_DeviceVK {
 
   uint32_t generic_queue_family = 0;
 
-  VkPhysicalDeviceProperties properties = {};
+  VkPhysicalDeviceProperties2 properties = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+  };
+  VkPhysicalDeviceVulkan12Properties properties_12 = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
+  };
   VkPhysicalDeviceFeatures2 features = {};
   VkPhysicalDeviceVulkan11Features features_11 = {};
   VkPhysicalDeviceVulkan12Features features_12 = {};
+  VkPhysicalDeviceRobustness2FeaturesEXT features_robustness2 = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
 
   int users = 0;
 
   /** Mutex to externally synchronize access to queue. */
   std::mutex queue_mutex;
 
+  bool use_vk_ext_swapchain_maintenance_1 = false;
+
  public:
   GHOST_DeviceVK(VkInstance vk_instance, VkPhysicalDevice vk_physical_device)
       : instance(vk_instance), physical_device(vk_physical_device)
   {
-    vkGetPhysicalDeviceProperties(physical_device, &properties);
+    properties.pNext = &properties_12;
+    vkGetPhysicalDeviceProperties2(physical_device, &properties);
 
     features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
     features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     features.pNext = &features_11;
     features_11.pNext = &features_12;
+    features_12.pNext = &features_robustness2;
 
     vkGetPhysicalDeviceFeatures2(physical_device, &features);
   }
@@ -193,10 +248,25 @@ class GHOST_DeviceVK {
     vector<VkDeviceQueueCreateInfo> queue_create_infos;
     vector<const char *> device_extensions(required_extensions);
     for (const char *optional_extension : optional_extensions) {
-      if (has_extensions({optional_extension})) {
+      const bool extension_found = has_extensions({optional_extension});
+      if (extension_found) {
+        CLOG_DEBUG(&LOG, "Vulkan: enable optional extension: `%s`", optional_extension);
         device_extensions.push_back(optional_extension);
       }
+      else {
+        CLOG_DEBUG(&LOG, "Vulkan: optional extension not found: `%s`", optional_extension);
+      }
     }
+
+    /* Check if the given extension name will be enabled. */
+    auto extension_enabled = [=](const char *extension_name) {
+      for (const char *device_extension_name : device_extensions) {
+        if (strcmp(device_extension_name, extension_name) == 0) {
+          return true;
+        }
+      }
+      return false;
+    };
 
     float queue_priorities[] = {1.0f};
     VkDeviceQueueCreateInfo graphic_queue_create_info = {};
@@ -207,11 +277,8 @@ class GHOST_DeviceVK {
     queue_create_infos.push_back(graphic_queue_create_info);
 
     VkPhysicalDeviceFeatures device_features = {};
-#ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
-    /* MoltenVK supports logicOp, needs to be build with MVK_USE_METAL_PRIVATE_API. */
     device_features.logicOp = VK_TRUE;
-#endif
     device_features.dualSrcBlend = VK_TRUE;
     device_features.imageCubeArray = VK_TRUE;
     device_features.multiDrawIndirect = VK_TRUE;
@@ -229,67 +296,87 @@ class GHOST_DeviceVK {
     device_create_info.ppEnabledExtensionNames = device_extensions.data();
     device_create_info.pEnabledFeatures = &device_features;
 
-    void *device_create_info_p_next = nullptr;
+    std::vector<void *> feature_struct_ptr;
 
     /* Enable vulkan 11 features when supported on physical device. */
     VkPhysicalDeviceVulkan11Features vulkan_11_features = {};
     vulkan_11_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-    vulkan_11_features.pNext = device_create_info_p_next;
-    vulkan_11_features.shaderDrawParameters = features_11.shaderDrawParameters;
-    device_create_info_p_next = &vulkan_11_features;
+    vulkan_11_features.shaderDrawParameters = VK_TRUE;
+    feature_struct_ptr.push_back(&vulkan_11_features);
 
     /* Enable optional vulkan 12 features when supported on physical device. */
     VkPhysicalDeviceVulkan12Features vulkan_12_features = {};
     vulkan_12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan_12_features.shaderOutputLayer = features_12.shaderOutputLayer;
     vulkan_12_features.shaderOutputViewportIndex = features_12.shaderOutputViewportIndex;
+    vulkan_12_features.bufferDeviceAddress = features_12.bufferDeviceAddress;
     vulkan_12_features.timelineSemaphore = VK_TRUE;
-    vulkan_12_features.pNext = device_create_info_p_next;
-    device_create_info_p_next = &vulkan_12_features;
+    feature_struct_ptr.push_back(&vulkan_12_features);
 
     /* Enable provoking vertex. */
     VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_features = {};
     provoking_vertex_features.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT;
     provoking_vertex_features.provokingVertexLast = VK_TRUE;
-    provoking_vertex_features.pNext = device_create_info_p_next;
-    device_create_info_p_next = &provoking_vertex_features;
+    feature_struct_ptr.push_back(&provoking_vertex_features);
 
     /* Enable dynamic rendering. */
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
     dynamic_rendering.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
     dynamic_rendering.dynamicRendering = VK_TRUE;
-    if (has_extensions({VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME})) {
-      dynamic_rendering.pNext = device_create_info_p_next;
-      device_create_info_p_next = &dynamic_rendering;
-    }
+    feature_struct_ptr.push_back(&dynamic_rendering);
 
     VkPhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
         dynamic_rendering_unused_attachments = {};
     dynamic_rendering_unused_attachments.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_FEATURES_EXT;
     dynamic_rendering_unused_attachments.dynamicRenderingUnusedAttachments = VK_TRUE;
-    if (has_extensions({VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME})) {
-      dynamic_rendering_unused_attachments.pNext = device_create_info_p_next;
-      device_create_info_p_next = &dynamic_rendering_unused_attachments;
+    if (extension_enabled(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&dynamic_rendering_unused_attachments);
     }
 
     VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR dynamic_rendering_local_read = {};
     dynamic_rendering_local_read.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR;
     dynamic_rendering_local_read.dynamicRenderingLocalRead = VK_TRUE;
-    if (has_extensions({VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME})) {
-      dynamic_rendering_local_read.pNext = device_create_info_p_next;
-      device_create_info_p_next = &dynamic_rendering_local_read;
+    if (extension_enabled(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&dynamic_rendering_local_read);
+    }
+
+    /* VK_EXT_robustness2 */
+    VkPhysicalDeviceRobustness2FeaturesEXT robustness_2_features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
+    if (extension_enabled(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME)) {
+      robustness_2_features.nullDescriptor = features_robustness2.nullDescriptor;
+      feature_struct_ptr.push_back(&robustness_2_features);
     }
 
     /* Query for Mainenance4 (core in Vulkan 1.3). */
     VkPhysicalDeviceMaintenance4FeaturesKHR maintenance_4 = {};
     maintenance_4.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
     maintenance_4.maintenance4 = VK_TRUE;
-    if (has_extensions({VK_KHR_MAINTENANCE_4_EXTENSION_NAME})) {
-      maintenance_4.pNext = device_create_info_p_next;
-      device_create_info_p_next = &maintenance_4;
+    if (extension_enabled(VK_KHR_MAINTENANCE_4_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&maintenance_4);
+    }
+
+    /* Swap-chain maintenance 1 is optional. */
+    VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance_1 = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT, nullptr, VK_TRUE};
+    if (extension_enabled(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&swapchain_maintenance_1);
+      use_vk_ext_swapchain_maintenance_1 = true;
+    }
+
+    /* Descriptor buffers */
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT,
+        nullptr,
+        VK_TRUE,
+        VK_FALSE,
+        VK_FALSE,
+        VK_FALSE};
+    if (extension_enabled(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&descriptor_buffer);
     }
 
     /* Query and enable Fragment Shader Barycentrics. */
@@ -297,12 +384,33 @@ class GHOST_DeviceVK {
     fragment_shader_barycentric.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
     fragment_shader_barycentric.fragmentShaderBarycentric = VK_TRUE;
-    if (has_extensions({VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME})) {
-      fragment_shader_barycentric.pNext = device_create_info_p_next;
-      device_create_info_p_next = &fragment_shader_barycentric;
+    if (extension_enabled(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&fragment_shader_barycentric);
     }
 
-    device_create_info.pNext = device_create_info_p_next;
+    /* VK_EXT_memory_priority */
+    VkPhysicalDeviceMemoryPriorityFeaturesEXT memory_priority = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT, nullptr, VK_TRUE};
+    if (extension_enabled(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&memory_priority);
+    }
+
+    /* VK_EXT_pageable_device_local_memory */
+    VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT pageable_device_local_memory = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT,
+        nullptr,
+        VK_TRUE};
+    if (extension_enabled(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&pageable_device_local_memory);
+    }
+
+    /* Link all registered feature structs. */
+    for (int i = 1; i < feature_struct_ptr.size(); i++) {
+      ((VkBaseInStructure *)(feature_struct_ptr[i - 1]))->pNext =
+          (VkBaseInStructure *)(feature_struct_ptr[i]);
+    }
+
+    device_create_info.pNext = feature_struct_ptr[0];
     vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
   }
 
@@ -327,8 +435,6 @@ class GHOST_DeviceVK {
       }
       generic_queue_family++;
     }
-
-    fprintf(stderr, "Couldn't find any Graphic queue family on selected device\n");
   }
 };
 
@@ -399,7 +505,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
 #endif
 
     int device_score = 0;
-    switch (device_vk.properties.deviceType) {
+    switch (device_vk.properties.properties.deviceType) {
       case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
         device_score = 400;
         break;
@@ -417,8 +523,8 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
     }
     /* User has configured a preferred device. Add bonus score when vendor and device match. Driver
      * id isn't considered as drivers update more frequently and can break the device selection. */
-    if (device_vk.properties.deviceID == preferred_device.device_id &&
-        device_vk.properties.vendorID == preferred_device.vendor_id)
+    if (device_vk.properties.properties.deviceID == preferred_device.device_id &&
+        device_vk.properties.properties.vendorID == preferred_device.vendor_id)
     {
       device_score += 500;
       if (preferred_device.index == device_index) {
@@ -432,7 +538,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
   }
 
   if (best_physical_device == VK_NULL_HANDLE) {
-    fprintf(stderr, "Error: No suitable Vulkan Device found!\n");
+    CLOG_ERROR(&LOG, "No suitable Vulkan Device found!");
     return GHOST_kFailure;
   }
 
@@ -443,7 +549,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
 
 /** \} */
 
-GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
+GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #ifdef _WIN32
                                  HWND hwnd,
 #elif defined(__APPLE__)
@@ -460,32 +566,29 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
 #endif
                                  int contextMajorVersion,
                                  int contextMinorVersion,
-                                 int debug,
                                  const GHOST_GPUDevice &preferred_device)
-    : GHOST_Context(stereoVisual),
+    : GHOST_Context(context_params),
 #ifdef _WIN32
-      m_hwnd(hwnd),
+      hwnd_(hwnd),
 #elif defined(__APPLE__)
-      m_metal_layer(metal_layer),
+      metal_layer_(metal_layer),
 #else
-      m_platform(platform),
+      platform_(platform),
       /* X11 */
-      m_display(display),
-      m_window(window),
+      display_(display),
+      window_(window),
       /* Wayland */
-      m_wayland_surface(wayland_surface),
-      m_wayland_display(wayland_display),
-      m_wayland_window_info(wayland_window_info),
+      wayland_surface_(wayland_surface),
+      wayland_display_(wayland_display),
+      wayland_window_info_(wayland_window_info),
 #endif
-      m_context_major_version(contextMajorVersion),
-      m_context_minor_version(contextMinorVersion),
-      m_debug(debug),
-      m_preferred_device(preferred_device),
-      m_command_pool(VK_NULL_HANDLE),
-      m_command_buffer(VK_NULL_HANDLE),
-      m_surface(VK_NULL_HANDLE),
-      m_swapchain(VK_NULL_HANDLE),
-      m_fence(VK_NULL_HANDLE)
+      context_major_version_(contextMajorVersion),
+      context_minor_version_(contextMinorVersion),
+      preferred_device_(preferred_device),
+      surface_(VK_NULL_HANDLE),
+      swapchain_(VK_NULL_HANDLE),
+      frame_data_(GHOST_FRAMES_IN_FLIGHT),
+      render_frame_(0)
 {
 }
 
@@ -497,15 +600,8 @@ GHOST_ContextVK::~GHOST_ContextVK()
 
     destroySwapchain();
 
-    if (m_command_buffer != VK_NULL_HANDLE) {
-      vkFreeCommandBuffers(device_vk.device, m_command_pool, 1, &m_command_buffer);
-      m_command_buffer = VK_NULL_HANDLE;
-    }
-    if (m_command_pool != VK_NULL_HANDLE) {
-      vkDestroyCommandPool(device_vk.device, m_command_pool, nullptr);
-    }
-    if (m_surface != VK_NULL_HANDLE) {
-      vkDestroySurfaceKHR(device_vk.instance, m_surface, nullptr);
+    if (surface_ != VK_NULL_HANDLE) {
+      vkDestroySurfaceKHR(device_vk.instance, surface_, nullptr);
     }
 
     device_vk.users--;
@@ -515,104 +611,139 @@ GHOST_ContextVK::~GHOST_ContextVK()
   }
 }
 
-GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
+GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
   VkDevice device = vulkan_device->device;
 
-  if (m_swapchain != VK_NULL_HANDLE) {
-    vkDestroySwapchainKHR(device, m_swapchain, nullptr);
-  }
-  if (m_fence != VK_NULL_HANDLE) {
-    vkDestroyFence(device, m_fence, nullptr);
-    m_fence = VK_NULL_HANDLE;
-  }
-  return GHOST_kSuccess;
-}
-
-GHOST_TSuccess GHOST_ContextVK::swapBuffers()
-{
-  if (m_swapchain == VK_NULL_HANDLE) {
-    return GHOST_kFailure;
-  }
-
+  /* This method is called after all the draw calls in the application, and it signals that
+   * we are ready to both (1) submit commands for those draw calls to the device and
+   * (2) begin building the next frame. It is assumed as an invariant that the submission fence
+   * in the current GHOST_Frame has been signaled. So, we wait for the *next* GHOST_Frame's
+   * submission fence to be signaled, to ensure the invariant holds for the next call to
+   * `swapBuffers`.
+   *
+   * We will pass the current GHOST_Frame to the swap_buffers_pre_callback_ for command buffer
+   * submission, and it is the responsibility of that callback to use the current GHOST_Frame's
+   * fence for it's submission fence. Since the callback is called after we wait for the next frame
+   * to be complete, it is also safe in the callback to clean up resources associated with the next
+   * frame.
+   */
+  render_frame_ = (render_frame_ + 1) % frame_data_.size();
+  GHOST_Frame &submission_frame_data = frame_data_[render_frame_];
+  /* Wait for previous time that the frame was used to finish rendering. Presenting can
+   * still happen in parallel, but acquiring needs can only happen when the frame acquire semaphore
+   * has been signaled and waited for. */
+  vkWaitForFences(device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
+  submission_frame_data.discard_pile.destroy(device);
+  bool use_hdr_swapchain = false;
 #ifdef WITH_GHOST_WAYLAND
   /* Wayland doesn't provide a WSI with windowing capabilities, therefore cannot detect whether the
-   * swap-chain needs to be recreated. But as a side effect we can recreate the swap chain before
+   * swap-chain needs to be recreated. But as a side effect we can recreate the swap-chain before
    * presenting. */
-  if (m_wayland_window_info) {
-    const bool recreate_swapchain =
-        ((m_wayland_window_info->size[0] !=
-          std::max(m_render_extent.width, m_render_extent_min.width)) ||
-         (m_wayland_window_info->size[1] !=
-          std::max(m_render_extent.height, m_render_extent_min.height)));
+  if (wayland_window_info_) {
+    const bool recreate_swapchain = ((wayland_window_info_->size[0] !=
+                                      std::max(render_extent_.width, render_extent_min_.width)) ||
+                                     (wayland_window_info_->size[1] !=
+                                      std::max(render_extent_.height, render_extent_min_.height)));
+    use_hdr_swapchain = wayland_window_info_->is_color_managed;
 
     if (recreate_swapchain) {
       /* Swap-chain is out of date. Recreate swap-chain. */
-      destroySwapchain();
-      createSwapchain();
+      recreateSwapchain(use_hdr_swapchain);
     }
   }
 #endif
+  /* There is no valid swapchain as the previous window was minimized. User can have maximized the
+   * window so we need to check if the swapchain can be created. */
+  if (swapchain_ == VK_NULL_HANDLE) {
+    recreateSwapchain(use_hdr_swapchain);
+  }
 
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
-  VkDevice device = vulkan_device->device;
-
-  /* Some platforms (NVIDIA/Wayland) can receive an out of date swapchain when acquiring the next
-   * swapchain image. Other do it when calling vkQueuePresent. */
-  VkResult result = VK_ERROR_OUT_OF_DATE_KHR;
+  /* Acquiree next image, swapchain can be (or become) invalid when minimizing window.*/
   uint32_t image_index = 0;
-  while (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    result = vkAcquireNextImageKHR(
-        device, m_swapchain, UINT64_MAX, VK_NULL_HANDLE, m_fence, &image_index);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-      destroySwapchain();
-      createSwapchain();
+  if (swapchain_ != VK_NULL_HANDLE) {
+    /* Some platforms (NVIDIA/Wayland) can receive an out of date swapchain when acquiring the next
+     * swapchain image. Other do it when calling vkQueuePresent. */
+    VkResult acquire_result = VK_ERROR_OUT_OF_DATE_KHR;
+    while (swapchain_ != VK_NULL_HANDLE &&
+           (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR))
+    {
+      acquire_result = vkAcquireNextImageKHR(device,
+                                             swapchain_,
+                                             UINT64_MAX,
+                                             submission_frame_data.acquire_semaphore,
+                                             VK_NULL_HANDLE,
+                                             &image_index);
+      if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
+        recreateSwapchain(use_hdr_swapchain);
+      }
     }
   }
-  VK_CHECK(vkWaitForFences(device, 1, &m_fence, VK_TRUE, UINT64_MAX));
-  VK_CHECK(vkResetFences(device, 1, &m_fence));
+
+  /* Fast path for invalid swapchains. When not valid we don't acquire/present, but we do render to
+   * make sure the render graphs don't keep memory allocated that isn't used. */
+  if (swapchain_ == VK_NULL_HANDLE) {
+    CLOG_TRACE(
+        &LOG,
+        "Swap-chain invalid (due to minimized window), perform rendering to reduce render graph "
+        "resources.");
+    GHOST_VulkanSwapChainData swap_chain_data = {};
+    if (swap_buffers_pre_callback_) {
+      swap_buffers_pre_callback_(&swap_chain_data);
+    }
+    if (swap_buffers_post_callback_) {
+      swap_buffers_post_callback_();
+    }
+
+    return GHOST_kSuccess;
+  }
+
+  CLOG_DEBUG(&LOG,
+             "Acquired swap-chain image (render_frame=%lu, image_index=%u)",
+             render_frame_,
+             image_index);
+  GHOST_SwapchainImage &swapchain_image = swapchain_images_[image_index];
 
   GHOST_VulkanSwapChainData swap_chain_data;
-  swap_chain_data.image = m_swapchain_images[image_index];
-  swap_chain_data.surface_format = m_surface_format;
-  swap_chain_data.extent = m_render_extent;
+  swap_chain_data.image = swapchain_image.vk_image;
+  swap_chain_data.surface_format = surface_format_;
+  swap_chain_data.extent = render_extent_;
+  swap_chain_data.submission_fence = submission_frame_data.submission_fence;
+  swap_chain_data.acquire_semaphore = submission_frame_data.acquire_semaphore;
+  swap_chain_data.present_semaphore = swapchain_image.present_semaphore;
 
+  vkResetFences(device, 1, &submission_frame_data.submission_fence);
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
   }
 
   VkPresentInfoKHR present_info = {};
   present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  present_info.waitSemaphoreCount = 0;
-  present_info.pWaitSemaphores = nullptr;
+  present_info.waitSemaphoreCount = 1;
+  present_info.pWaitSemaphores = &swapchain_image.present_semaphore;
   present_info.swapchainCount = 1;
-  present_info.pSwapchains = &m_swapchain;
+  present_info.pSwapchains = &swapchain_;
   present_info.pImageIndices = &image_index;
   present_info.pResults = nullptr;
 
-  result = VK_SUCCESS;
+  VkResult present_result = VK_SUCCESS;
   {
     std::scoped_lock lock(vulkan_device->queue_mutex);
-    result = vkQueuePresentKHR(m_present_queue, &present_info);
+    present_result = vkQueuePresentKHR(present_queue_, &present_info);
   }
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-    /* Swap-chain is out of date. Recreate swap-chain and skip this frame. */
-    destroySwapchain();
-    createSwapchain();
+
+  if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
+    recreateSwapchain(use_hdr_swapchain);
     if (swap_buffers_post_callback_) {
       swap_buffers_post_callback_();
     }
     return GHOST_kSuccess;
   }
-  if (result != VK_SUCCESS) {
-    fprintf(stderr,
-            "Error: Failed to present swap chain image : %s\n",
-            vulkan_error_as_string(result));
-    if (swap_buffers_post_callback_) {
-      swap_buffers_post_callback_();
-    }
-    return GHOST_kFailure;
+  if (present_result != VK_SUCCESS) {
+    CLOG_ERROR(&LOG,
+               "Vulkan: failed to present swap-chain image : %s",
+               vulkan_error_as_string(present_result));
   }
 
   if (swap_buffers_post_callback_) {
@@ -626,8 +757,8 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanSwapChainFormat(
     GHOST_VulkanSwapChainData *r_swap_chain_data)
 {
   r_swap_chain_data->image = VK_NULL_HANDLE;
-  r_swap_chain_data->surface_format = m_surface_format;
-  r_swap_chain_data->extent = m_render_extent;
+  r_swap_chain_data->surface_format = surface_format_;
+  r_swap_chain_data->extent = render_extent_;
 
   return GHOST_kSuccess;
 }
@@ -649,7 +780,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
         vulkan_device->physical_device,
         vulkan_device->device,
         vulkan_device->generic_queue_family,
-        m_graphic_queue,
+        graphic_queue_,
         &vulkan_device->queue_mutex,
     };
   }
@@ -659,20 +790,26 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
 
 GHOST_TSuccess GHOST_ContextVK::setVulkanSwapBuffersCallbacks(
     std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffers_pre_callback,
-    std::function<void(void)> swap_buffers_post_callback)
+    std::function<void(void)> swap_buffers_post_callback,
+    std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback,
+    std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback)
 {
   swap_buffers_pre_callback_ = swap_buffers_pre_callback;
   swap_buffers_post_callback_ = swap_buffers_post_callback;
+  openxr_acquire_framebuffer_image_callback_ = openxr_acquire_framebuffer_image_callback;
+  openxr_release_framebuffer_image_callback_ = openxr_release_framebuffer_image_callback;
   return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_ContextVK::activateDrawingContext()
 {
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_ContextVK::releaseDrawingContext()
 {
+  active_context_ = nullptr;
   return GHOST_kSuccess;
 }
 
@@ -706,27 +843,40 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
     extensions_enabled.push_back(extension_name);
   }
   else {
-    fprintf(stderr, "Error: %s not found.\n", extension_name);
+    CLOG_ERROR(&LOG, "Vulkan: required extension not found: %s", extension_name);
   }
 }
 
-static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
+static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
+                                        VkPhysicalDevice device,
                                         VkSurfaceKHR surface,
                                         VkPresentModeKHR *r_presentMode)
 {
-  // TODO cleanup: we are not going to use MAILBOX as it isn't supported by renderdoc.
   uint32_t present_count;
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, nullptr);
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
-  /* MAILBOX is the lowest latency V-Sync enabled mode so use it if available */
-  for (auto present_mode : presents) {
-    if (present_mode == VK_PRESENT_MODE_FIFO_KHR) {
-      *r_presentMode = present_mode;
-      return GHOST_kSuccess;
+
+  if (vsync != GHOST_kVSyncModeUnset) {
+    const bool vsync_off = (vsync == GHOST_kVSyncModeOff);
+    if (vsync_off) {
+      for (auto present_mode : presents) {
+        if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+          *r_presentMode = present_mode;
+          return GHOST_kSuccess;
+        }
+      }
+      CLOG_WARN(&LOG,
+                "Vulkan: VSync off was requested via --gpu-vsync, "
+                "but VK_PRESENT_MODE_IMMEDIATE_KHR is not supported.");
     }
   }
-  /* FIFO present mode is always available. */
+
+  /* MAILBOX is the lowest latency V-Sync enabled mode. We will use it if available as it fixes
+   * some lag on NVIDIA/Intel GPUs. */
+  /* TODO: select the correct presentation mode based on the actual being performed by the user.
+   * When low latency is required (paint cursor) we should select mailbox, otherwise we can do FIFO
+   * to reduce CPU/GPU usage. */
   for (auto present_mode : presents) {
     if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
       *r_presentMode = present_mode;
@@ -734,35 +884,10 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
     }
   }
 
-  fprintf(stderr, "Error: FIFO present mode is not supported by the swap chain!\n");
-
-  return GHOST_kFailure;
-}
-
-GHOST_TSuccess GHOST_ContextVK::createCommandPools()
-{
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
-  VkCommandPoolCreateInfo poolInfo = {};
-  poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  poolInfo.queueFamilyIndex = vulkan_device->generic_queue_family;
-
-  VK_CHECK(vkCreateCommandPool(vulkan_device->device, &poolInfo, nullptr, &m_command_pool));
-  return GHOST_kSuccess;
-}
-
-GHOST_TSuccess GHOST_ContextVK::createGraphicsCommandBuffer()
-{
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
-  assert(m_command_pool != VK_NULL_HANDLE);
-  assert(m_command_buffer == VK_NULL_HANDLE);
-  VkCommandBufferAllocateInfo alloc_info = {};
-  alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  alloc_info.commandPool = m_command_pool;
-  alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  alloc_info.commandBufferCount = 1;
-
-  VK_CHECK(vkAllocateCommandBuffers(vulkan_device->device, &alloc_info, &m_command_buffer));
+  /* FIFO present mode is always available and we (should) prefer it as it will keep the main loop
+   * running along the monitor refresh rate. Mailbox and FIFO relaxed can generate a lot of frames
+   * that will never be displayed. */
+  *r_presentMode = VK_PRESENT_MODE_FIFO_KHR;
   return GHOST_kSuccess;
 }
 
@@ -773,6 +898,7 @@ GHOST_TSuccess GHOST_ContextVK::createGraphicsCommandBuffer()
  */
 static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
                                 const VkSurfaceKHR surface,
+                                bool use_hdr_swapchain,
                                 VkSurfaceFormatKHR &r_surfaceFormat)
 {
   uint32_t format_count;
@@ -780,49 +906,103 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vector<VkSurfaceFormatKHR> formats(format_count);
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
-        format.format == VK_FORMAT_R8G8B8A8_UNORM)
-    {
-      r_surfaceFormat = format;
-      return true;
-    }
-  }
+  array<pair<VkColorSpaceKHR, VkFormat>, 4> selection_order = {
+      make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R16G16B16A16_SFLOAT),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R8G8B8A8_UNORM),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_B8G8R8A8_UNORM),
+  };
 
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
-        format.format == VK_FORMAT_B8G8R8A8_UNORM)
-    {
-      r_surfaceFormat = format;
-      return true;
+  for (pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
+    if (pair.second == VK_FORMAT_R16G16B16A16_SFLOAT && !use_hdr_swapchain) {
+      continue;
+    }
+    for (const VkSurfaceFormatKHR &format : formats) {
+      if (format.colorSpace == pair.first && format.format == pair.second) {
+        r_surfaceFormat = format;
+        return true;
+      }
     }
   }
 
   return false;
 }
 
-GHOST_TSuccess GHOST_ContextVK::createSwapchain()
+GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
+{
+  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
+  VkDevice device = vulkan_device->device;
+
+  const VkSemaphoreCreateInfo vk_semaphore_create_info = {
+      VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
+  const VkFenceCreateInfo vk_fence_create_info = {
+      VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+  for (GHOST_SwapchainImage &swapchain_image : swapchain_images_) {
+    /* VK_EXT_swapchain_maintenance1 reuses present semaphores. */
+    if (swapchain_image.present_semaphore == VK_NULL_HANDLE) {
+      VK_CHECK(vkCreateSemaphore(
+          device, &vk_semaphore_create_info, nullptr, &swapchain_image.present_semaphore));
+    }
+  }
+
+  for (int index = 0; index < frame_data_.size(); index++) {
+    GHOST_Frame &frame_data = frame_data_[index];
+    /* VK_EXT_swapchain_maintenance1 reuses acquire semaphores. */
+    if (frame_data.acquire_semaphore == VK_NULL_HANDLE) {
+      VK_CHECK(vkCreateSemaphore(
+          device, &vk_semaphore_create_info, nullptr, &frame_data.acquire_semaphore));
+    }
+    if (frame_data.submission_fence == VK_NULL_HANDLE) {
+      VK_CHECK(
+          vkCreateFence(device, &vk_fence_create_info, nullptr, &frame_data.submission_fence));
+    }
+  }
+
+  return GHOST_kSuccess;
+}
+
+GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
 
   VkPhysicalDevice physical_device = vulkan_device->physical_device;
 
-  m_surface_format = {};
-  if (!selectSurfaceFormat(physical_device, m_surface, m_surface_format)) {
+  surface_format_ = {};
+  if (!selectSurfaceFormat(physical_device, surface_, use_hdr_swapchain, surface_format_)) {
     return GHOST_kFailure;
   }
 
   VkPresentModeKHR present_mode;
-  if (!selectPresentMode(physical_device, m_surface, &present_mode)) {
+  if (!selectPresentMode(getVSync(), physical_device, surface_, &present_mode)) {
     return GHOST_kFailure;
   }
 
-  VkSurfaceCapabilitiesKHR capabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, m_surface, &capabilities);
+  /* Query the surface capabilities for the given present mode on the surface. */
+  VkSurfacePresentScalingCapabilitiesEXT vk_surface_present_scaling_capabilities = {
+      VK_STRUCTURE_TYPE_SURFACE_PRESENT_SCALING_CAPABILITIES_EXT,
+  };
+  VkSurfaceCapabilities2KHR vk_surface_capabilities = {
+      VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR,
+      &vk_surface_present_scaling_capabilities,
+  };
+  VkSurfacePresentModeEXT vk_surface_present_mode = {
+      VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_EXT, nullptr, present_mode};
+  VkPhysicalDeviceSurfaceInfo2KHR vk_physical_device_surface_info = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR, &vk_surface_present_mode, surface_};
+  VkSurfaceCapabilitiesKHR capabilities = {};
 
-  m_render_extent = capabilities.currentExtent;
-  m_render_extent_min = capabilities.minImageExtent;
-  if (m_render_extent.width == UINT32_MAX) {
+  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(
+        physical_device, &vk_physical_device_surface_info, &vk_surface_capabilities));
+    capabilities = vk_surface_capabilities.surfaceCapabilities;
+  }
+  else {
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface_, &capabilities);
+  }
+
+  render_extent_ = capabilities.currentExtent;
+  render_extent_min_ = capabilities.minImageExtent;
+  if (render_extent_.width == UINT32_MAX) {
     /* Window Manager is going to set the surface size based on the given size.
      * Choose something between minImageExtent and maxImageExtent. */
     int width = 0;
@@ -830,9 +1010,9 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
 
 #ifdef WITH_GHOST_WAYLAND
     /* Wayland doesn't provide a windowing API via WSI. */
-    if (m_wayland_window_info) {
-      width = m_wayland_window_info->size[0];
-      height = m_wayland_window_info->size[1];
+    if (wayland_window_info_) {
+      width = wayland_window_info_->size[0];
+      height = wayland_window_info_->size[1];
     }
 #endif
 
@@ -841,98 +1021,169 @@ GHOST_TSuccess GHOST_ContextVK::createSwapchain()
       height = 720;
     }
 
-    m_render_extent.width = width;
-    m_render_extent.height = height;
+    render_extent_.width = width;
+    render_extent_.height = height;
 
-    if (capabilities.minImageExtent.width > m_render_extent.width) {
-      m_render_extent.width = capabilities.minImageExtent.width;
+    if (capabilities.minImageExtent.width > render_extent_.width) {
+      render_extent_.width = capabilities.minImageExtent.width;
     }
-    if (capabilities.minImageExtent.height > m_render_extent.height) {
-      m_render_extent.height = capabilities.minImageExtent.height;
+    if (capabilities.minImageExtent.height > render_extent_.height) {
+      render_extent_.height = capabilities.minImageExtent.height;
     }
   }
 
-  /* Driver can stall if only using minimal image count. */
-  uint32_t image_count = capabilities.minImageCount + 1;
+  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width > render_extent_.width)
+    {
+      render_extent_.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
+    }
+    if (vk_surface_present_scaling_capabilities.minScaledImageExtent.height >
+        render_extent_.height)
+    {
+      render_extent_.height = vk_surface_present_scaling_capabilities.minScaledImageExtent.height;
+    }
+  }
+
+  /* Discard swapchain resources of current swapchain. */
+  GHOST_FrameDiscard &discard_pile = frame_data_[render_frame_].discard_pile;
+  for (GHOST_SwapchainImage &swapchain_image : swapchain_images_) {
+    swapchain_image.vk_image = VK_NULL_HANDLE;
+    if (swapchain_image.present_semaphore != VK_NULL_HANDLE) {
+      discard_pile.semaphores.push_back(swapchain_image.present_semaphore);
+      swapchain_image.present_semaphore = VK_NULL_HANDLE;
+    }
+  }
+
+  /* Swap-chains with out any resolution should not be created. In the case the render extent is
+   * zero we should not use the swap-chain.
+   *
+   * VUID-VkSwapchainCreateInfoKHR-imageExtent-01689
+   */
+  if (render_extent_.width == 0 || render_extent_.height == 0) {
+    if (swapchain_) {
+      discard_pile.swapchains.push_back(swapchain_);
+      swapchain_ = VK_NULL_HANDLE;
+    }
+    return GHOST_kFailure;
+  }
+
+  /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
+   * actions that require low latency (paint cursor, UI resizing). MAILBOX prefers triple
+   * buffering. */
+  uint32_t image_count_requested = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 3 : 2;
   /* NOTE: maxImageCount == 0 means no limit. */
-  if (image_count > capabilities.maxImageCount && capabilities.maxImageCount > 0) {
-    image_count = capabilities.maxImageCount;
+  if (capabilities.minImageCount != 0 && image_count_requested < capabilities.minImageCount) {
+    image_count_requested = capabilities.minImageCount;
   }
-  if (capabilities.minImageCount <= 3 && image_count > 3) {
-    image_count = 3;
+  if (capabilities.maxImageCount != 0 && image_count_requested > capabilities.maxImageCount) {
+    image_count_requested = capabilities.maxImageCount;
   }
+
+  VkSwapchainKHR old_swapchain = swapchain_;
+
+  /* First time we stretch the swapchain image as it can happen that the first frame size isn't
+   * correctly reported by the initial swapchain. All subsequent creations will use one to one as
+   * that can reduce resizing artifacts. */
+  VkPresentScalingFlagBitsEXT vk_present_scaling = old_swapchain == VK_NULL_HANDLE ?
+                                                       VK_PRESENT_SCALING_STRETCH_BIT_EXT :
+                                                       VK_PRESENT_SCALING_ONE_TO_ONE_BIT_EXT;
+
+  VkSwapchainPresentModesCreateInfoEXT vk_swapchain_present_modes = {
+      VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT, nullptr, 1, &present_mode};
+  VkSwapchainPresentScalingCreateInfoEXT vk_swapchain_present_scaling = {
+      VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_SCALING_CREATE_INFO_EXT,
+      &vk_swapchain_present_modes,
+      vk_surface_present_scaling_capabilities.supportedPresentScaling & vk_present_scaling,
+      vk_surface_present_scaling_capabilities.supportedPresentGravityX &
+          VK_PRESENT_GRAVITY_MIN_BIT_EXT,
+      vk_surface_present_scaling_capabilities.supportedPresentGravityY &
+          VK_PRESENT_GRAVITY_MAX_BIT_EXT,
+  };
 
   VkSwapchainCreateInfoKHR create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  create_info.surface = m_surface;
-  create_info.minImageCount = image_count;
-  create_info.imageFormat = m_surface_format.format;
-  create_info.imageColorSpace = m_surface_format.colorSpace;
-  create_info.imageExtent = m_render_extent;
+  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+    create_info.pNext = &vk_swapchain_present_scaling;
+  }
+  create_info.surface = surface_;
+  create_info.minImageCount = image_count_requested;
+  create_info.imageFormat = surface_format_.format;
+  create_info.imageColorSpace = surface_format_.colorSpace;
+  create_info.imageExtent = render_extent_;
   create_info.imageArrayLayers = 1;
-  create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
   create_info.preTransform = capabilities.currentTransform;
   create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   create_info.presentMode = present_mode;
   create_info.clipped = VK_TRUE;
-  create_info.oldSwapchain = VK_NULL_HANDLE; /* TODO Window resize */
+  create_info.oldSwapchain = old_swapchain;
   create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
   create_info.queueFamilyIndexCount = 0;
   create_info.pQueueFamilyIndices = nullptr;
 
   VkDevice device = vulkan_device->device;
-  VK_CHECK(vkCreateSwapchainKHR(device, &create_info, nullptr, &m_swapchain));
+  VK_CHECK(vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain_));
 
   /* image_count may not be what we requested! Getter for final value. */
-  vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, nullptr);
-  m_swapchain_images.resize(image_count);
-  vkGetSwapchainImagesKHR(device, m_swapchain, &image_count, m_swapchain_images.data());
-
-  VkFenceCreateInfo fence_info = {};
-  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  VK_CHECK(vkCreateFence(device, &fence_info, nullptr, &m_fence));
-
-  /* Change image layout from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR. */
-  VkCommandBufferBeginInfo begin_info = {};
-  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  VK_CHECK(vkBeginCommandBuffer(m_command_buffer, &begin_info));
-  VkImageMemoryBarrier *barriers = new VkImageMemoryBarrier[image_count];
-  for (int i = 0; i < image_count; i++) {
-    VkImageMemoryBarrier &barrier = barriers[i];
-    barrier = {};
-
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    barrier.image = m_swapchain_images[i];
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+  uint32_t actual_image_count = 0;
+  vkGetSwapchainImagesKHR(device, swapchain_, &actual_image_count, nullptr);
+  /* Some platforms require a minimum amount of render frames that is larger than we expect. When
+   * that happens we should increase the number of frames in flight. We could also consider
+   * splitting the frame in flight and image specific data. */
+  assert(actual_image_count <= GHOST_FRAMES_IN_FLIGHT);
+  swapchain_images_.resize(actual_image_count);
+  std::vector<VkImage> swapchain_images(actual_image_count);
+  vkGetSwapchainImagesKHR(device, swapchain_, &actual_image_count, swapchain_images.data());
+  for (int index = 0; index < actual_image_count; index++) {
+    swapchain_images_[index].vk_image = swapchain_images[index];
   }
-  vkCmdPipelineBarrier(m_command_buffer,
-                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                       VK_DEPENDENCY_BY_REGION_BIT,
-                       0,
-                       nullptr,
-                       0,
-                       nullptr,
-                       image_count,
-                       barriers);
-  VK_CHECK(vkEndCommandBuffer(m_command_buffer));
+  CLOG_DEBUG(&LOG,
+             "Vulkan: recreating swapchain: width=%u, height=%u, format=%d, colorSpace=%d, "
+             "present_mode=%d, image_count_requested=%u, image_count_acquired=%u, swapchain=%lx, "
+             "old_swapchain=%lx",
+             render_extent_.width,
+             render_extent_.height,
+             surface_format_.format,
+             surface_format_.colorSpace,
+             present_mode,
+             image_count_requested,
+             actual_image_count,
+             uint64_t(swapchain_),
+             uint64_t(old_swapchain));
+  /* Construct new semaphores. It can be that image_count is larger than previously. We only need
+   * to fill in where the handle is `VK_NULL_HANDLE`. */
+  /* Previous handles from the frame data cannot be used and should be discarded. */
+  for (GHOST_Frame &frame : frame_data_) {
+    discard_pile.semaphores.push_back(frame.acquire_semaphore);
+    frame.acquire_semaphore = VK_NULL_HANDLE;
+  }
+  if (old_swapchain) {
+    discard_pile.swapchains.push_back(old_swapchain);
+  }
+  initializeFrameData();
 
-  VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
-  VkSubmitInfo submit_info = {};
-  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submit_info.pWaitDstStageMask = wait_stages;
-  submit_info.commandBufferCount = 1;
-  submit_info.pCommandBuffers = &m_command_buffer;
-  submit_info.signalSemaphoreCount = 0;
-  submit_info.pSignalSemaphores = nullptr;
-  VK_CHECK(vkQueueSubmit(m_graphic_queue, 1, &submit_info, nullptr));
-  VK_CHECK(vkQueueWaitIdle(m_graphic_queue));
+  image_count_ = actual_image_count;
 
-  delete[] barriers;
+  return GHOST_kSuccess;
+}
+
+GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
+{
+  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
+  VkDevice device = vulkan_device->device;
+
+  if (swapchain_ != VK_NULL_HANDLE) {
+    vkDestroySwapchainKHR(device, swapchain_, nullptr);
+  }
+  VK_CHECK(vkDeviceWaitIdle(device));
+  for (GHOST_SwapchainImage &swapchain_image : swapchain_images_) {
+    swapchain_image.destroy(device);
+  }
+  swapchain_images_.clear();
+  for (GHOST_Frame &frame_data : frame_data_) {
+    frame_data.destroy(device);
+  }
+  frame_data_.clear();
 
   return GHOST_kSuccess;
 }
@@ -944,7 +1195,7 @@ const char *GHOST_ContextVK::getPlatformSpecificSurfaceExtension() const
 #elif defined(__APPLE__)
   return VK_EXT_METAL_SURFACE_EXTENSION_NAME;
 #else /* UNIX/Linux */
-  switch (m_platform) {
+  switch (platform_) {
 #  ifdef WITH_GHOST_X11
     case GHOST_kVulkanPlatformX11:
       return VK_KHR_XLIB_SURFACE_EXTENSION_NAME;
@@ -964,21 +1215,25 @@ const char *GHOST_ContextVK::getPlatformSpecificSurfaceExtension() const
 
 GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 {
+  bool use_hdr_swapchain = false;
 #ifdef _WIN32
-  const bool use_window_surface = (m_hwnd != nullptr);
+  const bool use_window_surface = (hwnd_ != nullptr);
 #elif defined(__APPLE__)
-  const bool use_window_surface = (m_metal_layer != nullptr);
+  const bool use_window_surface = (metal_layer_ != nullptr);
 #else /* UNIX/Linux */
   bool use_window_surface = false;
-  switch (m_platform) {
+  switch (platform_) {
 #  ifdef WITH_GHOST_X11
     case GHOST_kVulkanPlatformX11:
-      use_window_surface = (m_display != nullptr) && (m_window != (Window) nullptr);
+      use_window_surface = (display_ != nullptr) && (window_ != (Window) nullptr);
       break;
 #  endif
 #  ifdef WITH_GHOST_WAYLAND
     case GHOST_kVulkanPlatformWayland:
-      use_window_surface = (m_wayland_display != nullptr) && (m_wayland_surface != nullptr);
+      use_window_surface = (wayland_display_ != nullptr) && (wayland_surface_ != nullptr);
+      if (wayland_window_info_) {
+        use_hdr_swapchain = wayland_window_info_->is_color_managed;
+      }
       break;
 #  endif
     case GHOST_kVulkanPlatformHeadless:
@@ -992,7 +1247,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vector<const char *> optional_device_extensions;
   vector<const char *> extensions_enabled;
 
-  if (m_debug) {
+  if (context_params_.is_debug) {
     requireExtension(extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
@@ -1000,36 +1255,60 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     const char *native_surface_extension_name = getPlatformSpecificSurfaceExtension();
     requireExtension(extensions_available, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
-
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
+
+    /* X11 doesn't use the correct swapchain offset, flipping can squash the first frames. */
+    const bool use_swapchain_maintenance1 =
+#ifdef WITH_GHOST_X11
+        platform_ != GHOST_kVulkanPlatformX11 &&
+#endif
+        contains_extension(extensions_available, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
+        contains_extension(extensions_available, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+    if (use_swapchain_maintenance1) {
+      requireExtension(
+          extensions_available, extensions_enabled, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
+      requireExtension(extensions_available,
+                       extensions_enabled,
+                       VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+      optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+    }
   }
+
+  /* External memory extensions. */
+#ifdef _WIN32
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+#elif not defined(__APPLE__)
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+#endif
+
 #ifdef __APPLE__
   optional_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
 #else
   required_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
 #endif
-  optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+  required_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-
-  /* Enable MoltenVK required instance extensions. */
-#ifdef __APPLE__
-  requireExtension(
-      extensions_available, extensions_enabled, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-#endif
+  optional_device_extensions.push_back(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {
+
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = "Blender";
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Blender";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_MAKE_VERSION(m_context_major_version, m_context_minor_version, 0);
+    app_info.apiVersion = VK_MAKE_VERSION(context_major_version_, context_minor_version_, 0);
 
     /* Create Instance */
     VkInstanceCreateInfo create_info = {};
@@ -1037,18 +1316,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     create_info.pApplicationInfo = &app_info;
     create_info.enabledExtensionCount = uint32_t(extensions_enabled.size());
     create_info.ppEnabledExtensionNames = extensions_enabled.data();
-
-    /* VkValidationFeaturesEXT */
-    VkValidationFeaturesEXT validationFeatures = {};
-    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-    validationFeatures.enabledValidationFeatureCount = 1;
-
-    VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {
-        VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
-    validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
-    if (m_debug) {
-      create_info.pNext = &validationFeatures;
-    }
 
 #ifdef __APPLE__
     create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -1065,24 +1332,24 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     VkWin32SurfaceCreateInfoKHR surface_create_info = {};
     surface_create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     surface_create_info.hinstance = GetModuleHandle(nullptr);
-    surface_create_info.hwnd = m_hwnd;
-    VK_CHECK(vkCreateWin32SurfaceKHR(instance, &surface_create_info, nullptr, &m_surface));
+    surface_create_info.hwnd = hwnd_;
+    VK_CHECK(vkCreateWin32SurfaceKHR(instance, &surface_create_info, nullptr, &surface_));
 #elif defined(__APPLE__)
     VkMetalSurfaceCreateInfoEXT info = {};
     info.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     info.pNext = nullptr;
     info.flags = 0;
-    info.pLayer = m_metal_layer;
-    VK_CHECK(vkCreateMetalSurfaceEXT(instance, &info, nullptr, &m_surface));
+    info.pLayer = metal_layer_;
+    VK_CHECK(vkCreateMetalSurfaceEXT(instance, &info, nullptr, &surface_));
 #else
-    switch (m_platform) {
+    switch (platform_) {
 #  ifdef WITH_GHOST_X11
       case GHOST_kVulkanPlatformX11: {
         VkXlibSurfaceCreateInfoKHR surface_create_info = {};
         surface_create_info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
-        surface_create_info.dpy = m_display;
-        surface_create_info.window = m_window;
-        VK_CHECK(vkCreateXlibSurfaceKHR(instance, &surface_create_info, nullptr, &m_surface));
+        surface_create_info.dpy = display_;
+        surface_create_info.window = window_;
+        VK_CHECK(vkCreateXlibSurfaceKHR(instance, &surface_create_info, nullptr, &surface_));
         break;
       }
 #  endif
@@ -1090,14 +1357,14 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
       case GHOST_kVulkanPlatformWayland: {
         VkWaylandSurfaceCreateInfoKHR surface_create_info = {};
         surface_create_info.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
-        surface_create_info.display = m_wayland_display;
-        surface_create_info.surface = m_wayland_surface;
-        VK_CHECK(vkCreateWaylandSurfaceKHR(instance, &surface_create_info, nullptr, &m_surface));
+        surface_create_info.display = wayland_display_;
+        surface_create_info.surface = wayland_surface_;
+        VK_CHECK(vkCreateWaylandSurfaceKHR(instance, &surface_create_info, nullptr, &surface_));
         break;
       }
 #  endif
       case GHOST_kVulkanPlatformHeadless: {
-        m_surface = VK_NULL_HANDLE;
+        surface_ = VK_NULL_HANDLE;
         break;
       }
     }
@@ -1105,24 +1372,22 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #endif
   }
 
-  if (!ensure_vulkan_device(instance, m_surface, m_preferred_device, required_device_extensions)) {
+  if (!ensure_vulkan_device(instance, surface_, preferred_device_, required_device_extensions)) {
     return GHOST_kFailure;
   }
 
   vulkan_device->users++;
   vulkan_device->ensure_device(required_device_extensions, optional_device_extensions);
 
-  vkGetDeviceQueue(
-      vulkan_device->device, vulkan_device->generic_queue_family, 0, &m_graphic_queue);
+  vkGetDeviceQueue(vulkan_device->device, vulkan_device->generic_queue_family, 0, &graphic_queue_);
 
-  createCommandPools();
-  createGraphicsCommandBuffer();
   if (use_window_surface) {
     vkGetDeviceQueue(
-        vulkan_device->device, vulkan_device->generic_queue_family, 0, &m_present_queue);
-    createSwapchain();
+        vulkan_device->device, vulkan_device->generic_queue_family, 0, &present_queue_);
+    recreateSwapchain(use_hdr_swapchain);
   }
 
+  active_context_ = this;
   return GHOST_kSuccess;
 }
 

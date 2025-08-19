@@ -59,7 +59,6 @@ void sequencer_operatortypes()
 
   WM_operatortype_append(SEQUENCER_OT_rebuild_proxy);
   WM_operatortype_append(SEQUENCER_OT_enable_proxies);
-  WM_operatortype_append(SEQUENCER_OT_change_effect_input);
   WM_operatortype_append(SEQUENCER_OT_change_effect_type);
   WM_operatortype_append(SEQUENCER_OT_change_path);
   WM_operatortype_append(SEQUENCER_OT_change_scene);
@@ -117,6 +116,7 @@ void sequencer_operatortypes()
   WM_operatortype_append(SEQUENCER_OT_sound_strip_add);
   WM_operatortype_append(SEQUENCER_OT_image_strip_add);
   WM_operatortype_append(SEQUENCER_OT_effect_strip_add);
+  WM_operatortype_append(SEQUENCER_OT_add_scene_strip_from_scene_asset);
 
   /* sequencer_modifiers.c */
   WM_operatortype_append(SEQUENCER_OT_strip_modifier_add);
@@ -141,36 +141,53 @@ void sequencer_operatortypes()
 void sequencer_keymap(wmKeyConfig *keyconf)
 {
   /* Common items ------------------------------------------------------------------ */
-  WM_keymap_ensure(keyconf, "SequencerCommon", SPACE_SEQ, RGN_TYPE_WINDOW);
+  WM_keymap_ensure(keyconf, "Video Sequence Editor", SPACE_SEQ, RGN_TYPE_WINDOW);
 
   /* Strips Region --------------------------------------------------------------- */
   WM_keymap_ensure(keyconf, "Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
 
   /* Preview Region ----------------------------------------------------------- */
-  WM_keymap_ensure(keyconf, "SequencerPreview", SPACE_SEQ, RGN_TYPE_WINDOW);
+  WM_keymap_ensure(keyconf, "Preview", SPACE_SEQ, RGN_TYPE_WINDOW);
 
   /* Channels Region ----------------------------------------------------------- */
   WM_keymap_ensure(keyconf, "Sequencer Channels", SPACE_SEQ, RGN_TYPE_WINDOW);
+
+  slip_modal_keymap(keyconf);
 }
 
 void ED_operatormacros_sequencer()
 {
   wmOperatorType *ot;
+  wmOperatorTypeMacro *otmacro;
 
   ot = WM_operatortype_append_macro("SEQUENCER_OT_duplicate_move",
                                     "Duplicate Strips",
                                     "Duplicate selected strips and move them",
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
-
   WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
+  WM_operatortype_macro_define(ot, "TRANSFORM_OT_seq_slide");
+
+  ot = WM_operatortype_append_macro("SEQUENCER_OT_duplicate_move_linked",
+                                    "Duplicate Strips",
+                                    "Duplicate selected strips, but not their data, and move them",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  otmacro = WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
+  RNA_boolean_set(otmacro->ptr, "linked", true);
   WM_operatortype_macro_define(ot, "TRANSFORM_OT_seq_slide");
 
   ot = WM_operatortype_append_macro("SEQUENCER_OT_preview_duplicate_move",
                                     "Duplicate Strips",
                                     "Duplicate selected strips and move them",
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
-
   WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
+  WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+
+  ot = WM_operatortype_append_macro("SEQUENCER_OT_preview_duplicate_move_linked",
+                                    "Duplicate Strips",
+                                    "Duplicate selected strips, but not their data, and move them",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  otmacro = WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
+  RNA_boolean_set(otmacro->ptr, "linked", true);
   WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 
   ot = WM_operatortype_append_macro("SEQUENCER_OT_retiming_add_freeze_frame_slide",

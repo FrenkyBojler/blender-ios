@@ -111,6 +111,32 @@ struct PointerRNA {
   {
     this->reset();
   }
+
+  /**
+   * Get the data as a specific type. This expects that the caller knows what the type is and has
+   * undefined behavior otherwise. Using this method is less verbose than casting the type at the
+   * call-site and allows us to potentially add run-time type checks in the future.
+   *
+   * This method is intentionally const while still returning a non-const pointer. This is because
+   * the constness of the `PointerRNA` is not propagated to the data it references. One can always
+   * just copy the `PointerRNA` to get a non-const version of it.
+   */
+  template<typename T> T *data_as() const
+  {
+    return static_cast<T *>(this->data);
+  }
+
+  /**
+   * Get the immediate parent pointer, if any.
+   */
+  PointerRNA parent() const
+  {
+    if (ancestors.is_empty()) {
+      return PointerRNA();
+    }
+
+    return PointerRNA(owner_id, ancestors.last().type, ancestors.last().data);
+  }
 };
 
 extern const PointerRNA PointerRNA_NULL;
@@ -268,7 +294,7 @@ enum PropertySubType {
 
 /* Make sure enums are updated with these */
 /* HIGHEST FLAG IN USE: 1u << 31
- * FREE FLAGS: 13, 14, 15. */
+ * FREE FLAGS: 13. */
 enum PropertyFlag {
   /**
    * Editable means the property is editable in the user
@@ -321,6 +347,18 @@ enum PropertyFlag {
   PROP_PROPORTIONAL = (1 << 26),
 
   /* pointers */
+
+  /**
+   * Mark this property as handling ID user count.
+   *
+   * This is done automatically by the auto-generated setter function. If an RNA property has a
+   * custom setter, it's the setter's responsibility to correctly update the user count.
+   *
+   * \note In most basic cases, makesrna will automatically set this flag, based on the
+   * `STRUCT_ID_REFCOUNT` flag of the defined pointer type. This only works if makesrna can find a
+   * matching DNA property though, 'virtual' RNA properties (using both a getter and setter) will
+   * never get this flag defined automatically.
+   */
   PROP_ID_REFCOUNT = (1 << 6),
 
   /**
@@ -409,11 +447,48 @@ enum PropertyFlag {
    * as having the +/- operators available in the file browser.
    */
   PROP_PATH_OUTPUT = (1 << 2),
+  /**
+   * Path supports relative prefix: `//`,
+   * paths which don't support the relative suffix show a warning if the suffix is used.
+   */
+  PROP_PATH_SUPPORTS_BLEND_RELATIVE = (1 << 15),
+
+  /**
+   * Paths that are evaluated with templating.
+   *
+   * Note that this doesn't cause the property to support templating, but rather
+   * *indicates* to other parts of Blender whether it supports templating.
+   * Support for templating needs to be manually implemented.
+   *
+   * When this is set, the property's `path_template_type` field should also be
+   * set.
+   *
+   * \see The top-level documentation of BKE_path_templates.hh.
+   */
+  PROP_PATH_SUPPORTS_TEMPLATES = (1 << 14),
 
   /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
   PROP_SKIP_PRESET = (1 << 11),
 };
 ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
+
+/**
+ * For properties that support path templates, this indicates which
+ * purpose-specific variables (if any) should be available to them and how those
+ * variables should be built.
+ *
+ * \see The top-level documentation of BKE_path_templates.hh.
+ */
+enum PropertyPathTemplateType {
+  /* Only supports general and type-specific variables, no purpose-specific
+   * variables. */
+  PROP_VARIABLES_NONE = 0,
+
+  /* Supports render output variables.
+   *
+   * \see BKE_add_template_variables_for_render_path() */
+  PROP_VARIABLES_RENDER_OUTPUT,
+};
 
 /**
  * Flags related to comparing and overriding RNA properties.
@@ -565,7 +640,7 @@ struct RawArray {
 };
 
 /**
- * This struct is are typically defined in arrays which define an *enum* for RNA,
+ * This struct is typically defined in arrays which define an *enum* for RNA,
  * which is used by the RNA API both for user-interface and the Python API.
  */
 struct EnumPropertyItem {
@@ -665,7 +740,7 @@ ENUM_OPERATORS(eStringPropertySearchFlag, PROP_STRING_SEARCH_SUGGESTION)
  * \param prop: RNA property. This must have its #StringPropertyRNA.search callback set,
  * to check this use `RNA_property_string_search_flag(prop) & PROP_STRING_SEARCH_SUPPORTED`.
  * \param edit_text: Optionally use the string being edited by the user as a basis
- * for the search results (auto-complete Python attributes for e.g.).
+ * for the search results (auto-complete Python attributes for example).
  * \param visit_fn: This function is called with every search candidate and is typically
  * responsible for storing the search results.
  */
@@ -749,8 +824,20 @@ enum FunctionFlag {
   FUNC_USE_SELF_ID = (1 << 11),
 
   /**
+   * Pass 'self' data as a PointerRNA (by value), rather than as a pointer of the relevant DNA
+   * type.
+   *
+   * Mutually exclusive with #FUNC_NO_SELF and #FUNC_USE_SELF_TYPE.
+   *
+   * Useful for functions that need to access `self` as RNA data, not as DNA data (e.g. when doing
+   * 'generic', type-agnostic processing).
+   */
+  FUNC_SELF_AS_RNA = (1 << 13),
+  /**
    * Do not pass the object (DNA struct pointer) from which it is called,
    * used to define static or class functions.
+   *
+   * Mutually exclusive with #FUNC_SELF_AS_RNA.
    */
   FUNC_NO_SELF = (1 << 0),
   /** Pass RNA type, used to define class functions, only valid when #FUNC_NO_SELF is set. */
@@ -797,8 +884,13 @@ struct FunctionRNA;
 /* Struct */
 
 enum StructFlag {
-  /** Indicates that this struct is an ID struct, and to use reference-counting. */
+  /** Indicates that this struct is an ID struct. */
   STRUCT_ID = (1 << 0),
+  /**
+   * Indicates that this ID type's usages should typically be refcounted (i.e. makesrna will
+   * automatically set `PROP_ID_REFCOUNT` to PointerRNA properties that have this RNA type
+   * assigned).
+   */
   STRUCT_ID_REFCOUNT = (1 << 1),
   /** defaults on, indicates when changes in members of a StructRNA should trigger undo steps. */
   STRUCT_UNDO = (1 << 2),
@@ -858,10 +950,33 @@ struct BlenderRNA;
  * order to make them definable through RNA.
  */
 struct ExtensionRNA {
+  /**
+   * \note For Python types this holds the Python class but does *not* own a reference.
+   * The same value is typically stored in `srna->py_type` which does own a reference.
+   */
   void *data;
   StructRNA *srna;
   StructCallbackFunc call;
   StructFreeFunc free;
+};
+
+/**
+ * Information about deprecated properties.
+ *
+ * Used by the API documentation and Python API to print warnings
+ * when accessing a deprecated property.
+ */
+struct DeprecatedRNA {
+  /** Single line deprecation message, suggest alternatives where possible. */
+  const char *note;
+  /** The released version this was deprecated. */
+  short version;
+  /**
+   * The version this will be removed.
+   * The value represents major, minor versions (sub-version isn't supported).
+   * Compatible with #Main::versionfile (e.g. `502` for `v5.2`).
+   */
+  short removal_version;
 };
 
 /* Primitive types. */
