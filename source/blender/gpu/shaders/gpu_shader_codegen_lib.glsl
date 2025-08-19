@@ -232,7 +232,7 @@ struct GlobalData {
   packed_float2 barycentric_coords;
   packed_float3 barycentric_dists;
   /** Hair thickness in world space. */
-  float hair_radius;
+  float hair_diameter;
   /** Index of the strand for per strand effects. */
   int hair_strand_id;
   /** Ray properties (approximation). */

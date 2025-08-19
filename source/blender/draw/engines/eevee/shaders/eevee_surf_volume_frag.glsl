@@ -31,7 +31,7 @@ GlobalData init_globals(float3 wP)
   surf.N = float3(0.0f);
   surf.Ng = float3(0.0f);
   surf.is_strand = false;
-  surf.hair_radius = 0.0f;
+  surf.hair_diameter = 0.0f;
   surf.hair_strand_id = 0;
   surf.barycentric_coords = float2(0.0f);
   surf.barycentric_dists = float3(0.0f);

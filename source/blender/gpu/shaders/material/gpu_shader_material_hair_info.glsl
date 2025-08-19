@@ -16,7 +16,7 @@ void node_hair_info(float hair_intercept,
   is_strand = float(g_data.is_strand);
   out_intercept = hair_intercept;
   out_length = hair_length;
-  thickness = g_data.hair_radius;
+  thickness = g_data.hair_diameter;
   normal = g_data.curve_N;
   /* TODO: could be precomputed per strand instead. */
   random = wang_hash_noise(uint(g_data.hair_strand_id));

@@ -25,14 +25,9 @@ void main()
   init_interface();
 
   const curves::Point ls_pt = curves::point_get(uint(gl_VertexID));
-  curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
+  const curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
 
   const float3 V = drw_world_incident_vector(ws_pt.P);
-#ifdef MAT_SHADOW
-  /* Since point clouds always face the view, camera and shadow orientation don't match.
-   * Apply a bias to avoid self-shadow issues. */
-  ws_pt.P -= V * ws_pt.radius;
-#endif
 
   const curves::ShapePoint pt = curves::shape_point_get(ws_pt, V);
   interp.P = pt.P;
@@ -40,6 +35,9 @@ void main()
   interp.N = pt.curve_N;
   curve_interp.binormal = pt.curve_B;
   curve_interp.tangent = pt.curve_T;
+  /* Unscaled radius is used to feed the thickness attribute. */
+  curve_interp.diameter_attribute = ls_pt.radius;
+  /* Final radius is used for correct normal interpolation. */
   curve_interp.radius = ws_pt.radius;
   /* Scaled by radius for correct interpolation. */
   curve_interp.time_width = ws_pt.azimuthal_offset * ws_pt.radius;
@@ -66,6 +64,12 @@ void main()
   attrib_load(CurvesPoint(ws_pt.curve_id, ws_pt.point_id, ws_pt.curve_segment));
 
   interp.P += nodetree_displacement();
+
+#ifdef MAT_SHADOW
+  /* Since curves always face the view, camera and shadow orientation don't match.
+   * Apply a bias to avoid self-shadow issues. */
+  interp.P -= V * ws_pt.radius;
+#endif
 
 #ifdef MAT_CLIP_PLANE
   clip_interp.clip_distance = dot(clip_plane.plane, float4(interp.P, 1.0f));
