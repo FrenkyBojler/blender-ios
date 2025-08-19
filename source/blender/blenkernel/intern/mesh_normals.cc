@@ -1291,8 +1291,8 @@ void normals_calc_corners(const Span<float3> vert_positions,
         const float3 face_normal = face_normals[face_i];
         const IndexRange face = faces[face_i];
 
-        const float3 last_edge_dir = math::normalize(vert_positions[corner_verts[face.last()]] -
-                                                     vert_positions[corner_verts[face.first()]]);
+        const float3 last_edge_dir = math::normalize(vert_positions[corner_verts[face.first()]] -
+                                                     vert_positions[corner_verts[face.last()]]);
         float3 iter_edge_dir = last_edge_dir;
 
         for (const int corner : range) {
@@ -1302,28 +1302,19 @@ void normals_calc_corners(const Span<float3> vert_positions,
           const float3 prev_edge_dir = iter_edge_dir;
           iter_edge_dir = next_edge_dir;
 
-          r_fan_spaces->spaces[corner] = corner_fan_space_define(
-              face_normal, prev_edge_dir, next_edge_dir, {});
+          const CornerNormalSpace fan_space = corner_fan_space_define(face_normal, prev_edge_dir, next_edge_dir, {});
+          if (r_fan_spaces) {
+            r_fan_spaces->spaces[corner] = fan_space;
+          }
+
+          if (!custom_normals.is_empty()) {
+            r_corner_normals[corner] = corner_space_custom_data_to_normal(fan_space, custom_normals[corner]);
+          }
         }
 
         iter_edge_dir = last_edge_dir;
-        if (custom_normals.is_empty()) {
-          return;
-        }
-
-        for (const int corner : range) {
-          const int corner_next = face_corner_next(face, corner);
-          const float3 next_edge_dir = math::normalize(vert_positions[corner_verts[corner_next]] -
-                                                       vert_positions[corner_verts[corner]]);
-          const float3 prev_edge_dir = iter_edge_dir;
-          iter_edge_dir = next_edge_dir;
-
-          r_corner_normals[corner] = corner_space_custom_data_to_normal(
-              r_fan_spaces->spaces[corner], custom_normals[corner]);
-        }
       }
     });
-
     return;
   }
 
