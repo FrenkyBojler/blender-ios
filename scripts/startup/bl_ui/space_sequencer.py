@@ -9,6 +9,7 @@ from bpy.types import (
     Panel,
 )
 from bpy.app.translations import (
+    pgettext_iface as iface_,
     contexts as i18n_contexts,
     pgettext_iface as iface_,
     pgettext_rpt as rpt_,
@@ -192,7 +193,10 @@ class SEQUENCER_HT_header(Header):
         sub = row.row(align=True)
         sub.popover(panel="SEQUENCER_PT_snapping")
         if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
-            layout.popover(panel="SEQUENCER_PT_playhead_snapping")
+            row = layout.row(align=True)
+            row.prop(tool_settings, "use_snap_playhead", text="")
+            sub = row.row(align=True)
+            sub.popover(panel="SEQUENCER_PT_playhead_snapping", text="")
         layout.separator_spacer()
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
@@ -796,15 +800,17 @@ class SEQUENCER_MT_add_scene(Menu):
 
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("sequencer.scene_strip_add_new", text="New Scene", icon='ADD').type = 'NEW'
+        layout.operator("sequencer.scene_strip_add_new", text="Empty Scene", icon='ADD').type = 'EMPTY'
+
+        layout.menu_contents("SEQUENCER_MT_scene_add_root_catalogs")
 
         bpy_data_scenes_len = len(bpy.data.scenes)
         if bpy_data_scenes_len > 10:
-            layout.separator()
+            layout.label(text="Scenes", icon='NONE')
             layout.operator_context = 'INVOKE_DEFAULT'
             layout.operator("sequencer.scene_strip_add", text="Scene...", icon='SCENE_DATA')
         elif bpy_data_scenes_len > 1:
-            layout.separator()
+            layout.label(text="Scenes", icon='NONE')
             scene = context.scene
             for sc_item in bpy.data.scenes:
                 if sc_item == scene:
@@ -985,6 +991,33 @@ class SEQUENCER_MT_strip_animation(Menu):
         layout.operator("anim.keyframe_insert", text="Insert Keyframe")
         layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set").always_prompt = True
         layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
+        layout.operator("anim.keyframe_delete_vse", text="Delete Keyframes...")
+        layout.operator("anim.keyframe_clear_vse", text="Clear Keyframes...")
+
+
+class SEQUENCER_MT_strip_mirror(Menu):
+    bl_label = "Mirror"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_PREVIEW'
+
+        layout.operator("transform.mirror", text="Interactive Mirror")
+
+        layout.separator()
+
+        for (space_name, space_id) in (("Global", 'GLOBAL'), ("Local", 'LOCAL')):
+            for axis_index, axis_name in enumerate("XY"):
+                props = layout.operator(
+                    "transform.mirror",
+                    text="{:s} {:s}".format(axis_name, iface_(space_name)),
+                    translate=False,
+                )
+                props.constraint_axis[axis_index] = True
+                props.orient_type = space_id
+
+            if space_id == 'GLOBAL':
+                layout.separator()
 
 
 class SEQUENCER_MT_strip_input(Menu):
@@ -1140,8 +1173,11 @@ class SEQUENCER_MT_strip(Menu):
         strip = context.active_strip
 
         if has_preview:
+            layout.menu("SEQUENCER_MT_strip_mirror")
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.operator("sequencer.copy", text="Copy")
+            layout.operator("sequencer.paste", text="Paste")
             layout.separator()
             layout.menu("SEQUENCER_MT_strip_animation")
             layout.separator()
@@ -1166,6 +1202,7 @@ class SEQUENCER_MT_strip(Menu):
             layout.operator("sequencer.copy", text="Copy")
             layout.operator("sequencer.paste", text="Paste")
             layout.operator("sequencer.duplicate_move", text="Duplicate")
+            layout.operator("sequencer.duplicate_move_linked", text="Duplicate Linked")
 
         layout.separator()
         layout.operator("sequencer.delete", text="Delete")
@@ -3192,6 +3229,7 @@ classes = (
     SEQUENCER_MT_strip_text,
     SEQUENCER_MT_strip_show_hide,
     SEQUENCER_MT_strip_animation,
+    SEQUENCER_MT_strip_mirror,
     SEQUENCER_MT_strip_input,
     SEQUENCER_MT_strip_lock_mute,
     SEQUENCER_MT_image,
