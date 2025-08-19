@@ -414,6 +414,22 @@ static void node_operators()
   socket_items::ops::make_common_operators<GeoViewerItemsAccessor>();
 }
 
+static void node_free_storage(bNode *node)
+{
+  socket_items::destruct_array<GeoViewerItemsAccessor>(*node);
+  MEM_freeN(node->storage);
+}
+
+static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
+{
+  const NodeGeometryViewer &src_storage = node_storage(*src_node);
+  auto *dst_storage = MEM_mallocN<NodeGeometryViewer>(__func__);
+  *dst_storage = src_storage;
+  dst_node->storage = dst_storage;
+
+  socket_items::copy_array<GeoViewerItemsAccessor>(*src_node, *dst_node);
+}
+
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<GeoViewerItemsAccessor>(
@@ -440,7 +456,7 @@ static void node_register()
   ntype.enum_name_legacy = "VIEWER";
   ntype.nclass = NODE_CLASS_OUTPUT;
   blender::bke::node_type_storage(
-      ntype, "NodeGeometryViewer", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometryViewer", node_free_storage, node_copy_storage);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
