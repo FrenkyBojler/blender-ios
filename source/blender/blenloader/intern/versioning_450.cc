@@ -6508,7 +6508,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           continue;
         }
         lmd->radius = float(lmd->thickness_legacy) *
-                      bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+                      blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
       }
     }
   }
