@@ -18,11 +18,13 @@ class ColorSpace;
 }
 }  // namespace blender
 struct AssetWeakReference;
+enum class PaintMode : int8_t;
 
 namespace blender::bke {
 struct PaintRuntime : NonCopyable, NonMovable {
   bool initialized = false;
   uint16_t ob_mode = 0;
+  PaintMode paint_mode = PaintMode::Invalid;
   AssetWeakReference *previous_active_brush_reference = nullptr;
 
   blender::float2 last_rake = float2(0.0f, 0.0f);
