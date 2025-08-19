@@ -299,12 +299,19 @@ static int attribute_index_in_material(GPUMaterial *gpu_material,
 
   ListBase gpu_attrs = GPU_material_attributes(gpu_material);
   LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
-    if (gpu_attr->name == name || (is_curve_length && gpu_attr->is_hair_length) ||
-        (is_curve_intercept && gpu_attr->is_hair_intercept))
-    {
+    if (gpu_attr->is_hair_length == true) {
+      if (gpu_attr->is_hair_length == is_curve_length) {
+        return index;
+      }
+    }
+    else if (gpu_attr->is_hair_intercept == true) {
+      if (gpu_attr->is_hair_intercept == is_curve_intercept) {
+        return index;
+      }
+    }
+    else if (gpu_attr->name == name) {
       return index;
     }
-
     index++;
   }
 
