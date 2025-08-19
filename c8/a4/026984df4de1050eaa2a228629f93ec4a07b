@@ -1,0 +1,1 @@
+Referenced by commit ca60419b3a0b5634147a1bc2e1b0523b68d172e4, Mesh: Avoid mutex lock in hot loop for custom normals
