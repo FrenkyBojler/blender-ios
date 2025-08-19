@@ -17,7 +17,7 @@
 #ifndef __HIPEW6_H__
 #define __HIPEW6_H__
 
-#define WIN_DRIVER "amdhip64_6.dll"
+#define WIN_DRIVER "amdhip64_7, amdhip64_6.dll"
 
 #define hipIpcMemLazyEnablePeerAccess 0x01
 
