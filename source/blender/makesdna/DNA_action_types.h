@@ -517,10 +517,9 @@ typedef enum ePchanGizmoMode {
    */
   PCHAN_GIZMO_MODE_CUSTOM_LOCATION,
   /**
-   * Places the gizmo at the Custom Transform location, using the orientation of the space it is
-   * in. This works like the "Parent" option for gizmos, hence the name.
+   * Places the gizmo at the location and orientation of the evaluated Custom Transform.
    */
-  PCHAN_GIZMO_MODE_PARENT_SPACE,
+  PCHAN_GIZMO_MODE_LOCAL_SPACE,
 } ePchanGizmoMode;
 
 /* NOTE: It doesn't take custom_scale_xyz into account. */

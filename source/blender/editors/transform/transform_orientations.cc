@@ -289,8 +289,8 @@ bool gimbal_axis_pose(Object *ob, const bPoseChannel *pchan, float gmat[3][3])
     return false;
   }
   /* Get the pchan to use for the rest of the calculations. If
-   * PCHAN_GIZMO_MODE_PARENT_SPACE is enabled, then we use pchan->custom_tx for rest of
-   * the calculations because custom_tx's parent affects pchan's gizmo pose orientation. */
+   * PCHAN_GIZMO_MODE_LOCAL_SPACE is enabled, then we use pchan->custom_tx for rest of
+   * the calculations. */
   const bArmature *arm = static_cast<bArmature *>(ob->data);
   pchan = BKE_pose_channel_gizmo_get_gimbal_pchan(arm, pchan, mat);
 

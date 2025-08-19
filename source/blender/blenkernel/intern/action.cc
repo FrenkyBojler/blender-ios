@@ -1447,7 +1447,7 @@ static bool pose_channel_gizmo_use_localized_transform(const bArmature *arm,
     return false;
   }
 
-  return pose_bone->gizmo_mode == PCHAN_GIZMO_MODE_PARENT_SPACE;
+  return pose_bone->gizmo_mode == PCHAN_GIZMO_MODE_LOCAL_SPACE;
 }
 
 /**
@@ -1470,33 +1470,10 @@ void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
     return;
   }
 
-  BLI_assert(pose_bone->custom);
   BLI_assert(pose_bone->custom_tx);
 
   const bPoseChannel *custom_tx_bone = pose_bone->custom_tx;
-
-  /* Get custom_tx_bone's current rest pose matrix in armature space. The word `rest` refers to
-   * using custom_tx_bone's EditMode armature-space matrix relative to its parent. */
-  float pose_from_custom_tx[3][3];
-  {
-    BoneParentTransform bpt;
-    BKE_bone_parent_transform_calc_from_pchan(custom_tx_bone, &bpt);
-    copy_m3_m4(pose_from_custom_tx, bpt.rotscale_mat);
-  }
-
-  float custom_tx_from_pose_bone[3][3];
-  pose_channel_rest_pose_custom_tx_from_pchan(pose_bone, custom_tx_from_pose_bone);
-
-  /* Get pose_bone's current local matrix. */
-  float current_pose_bone_local[3][3];
-  {
-    float pchan_basis_m4[4][4];
-    BKE_armature_mat_pose_to_bone(pose_bone, pose_bone->pose_mat, pchan_basis_m4);
-    copy_m3_m4(current_pose_bone_local, pchan_basis_m4);
-  }
-
-  mul_m3_series(
-      r_pose_orientation, pose_from_custom_tx, custom_tx_from_pose_bone, current_pose_bone_local);
+  copy_m3_m4(r_pose_orientation, custom_tx_bone->pose_mat);
 }
 
 void BKE_pose_channel_gizmo_location(const bArmature *arm,

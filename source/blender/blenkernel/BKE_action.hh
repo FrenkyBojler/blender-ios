@@ -311,7 +311,7 @@ bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan);
 
 /**
  * Get the effective gizmo location, accounting for PCHAN_GIZMO_MODE_CUSTOM_LOCATION
- * and PCHAN_GIZMO_MODE_PARENT_SPACE
+ * and PCHAN_GIZMO_MODE_LOCAL_SPACE
  */
 void BKE_pose_channel_gizmo_location(const bArmature *arm,
                                      const bPoseChannel *pose_bone,
@@ -319,7 +319,7 @@ void BKE_pose_channel_gizmo_location(const bArmature *arm,
 
 /**
  * Get the effective gizmo pose orientation, accounting for
- * PCHAN_GIZMO_MODE_PARENT_SPACE.
+ * PCHAN_GIZMO_MODE_LOCAL_SPACE.
  */
 void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
                                         const bPoseChannel *pose_bone,
@@ -327,14 +327,14 @@ void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
 
 /**
  * Get the effective BoneParentTransform to use for gizmos, accounting for
- * PCHAN_GIZMO_MODE_PARENT_SPACE.
+ * PCHAN_GIZMO_MODE_LOCAL_SPACE.
  */
 void BKE_pose_channel_gizmo_parent_transform(const bArmature *arm,
                                              const bPoseChannel *pose_bone,
                                              BoneParentTransform *r_bpt);
 
 /**
- * This accounts for PCHAN_GIZMO_MODE_PARENT_SPACE.
+ * This accounts for PCHAN_GIZMO_MODE_LOCAL_SPACE.
  * If enabled, we calculate r_modified_local_mat relative to pchan's custom_tx then return
  * custom_tx. If disabled, this is a noop.
  */
