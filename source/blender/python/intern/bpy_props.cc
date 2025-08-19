@@ -1351,12 +1351,11 @@ static void bpy_prop_float_array_set_fn(PointerRNA *ptr, PropertyRNA *prop, cons
 /** \name String Property Callbacks
  * \{ */
 
-static std::string bpy_stdstring_from_py_object(PyObject *str_obj,
-                                                const std::string &default_value,
-                                                const size_t max_length,
-                                                PyObject *py_func)
+static std::optional<std::string> bpy_stdstring_from_py_object(PyObject *str_obj,
+                                                               const size_t max_length,
+                                                               PyObject *py_func)
 {
-  std::string ret_value = default_value;
+  std::optional<std::string> ret_value{};
 
   /* TODO: handle bytes strings. */
   if (str_obj == nullptr) {
@@ -1407,7 +1406,8 @@ static std::string bpy_prop_string_get_locked_fn(PointerRNA *ptr, PropertyRNA *p
     Py_DECREF(args);
   }
 
-  return bpy_stdstring_from_py_object(ret, "", RNA_property_string_maxlength(prop), py_func);
+  return bpy_stdstring_from_py_object(ret, RNA_property_string_maxlength(prop), py_func)
+      .value_or("");
 }
 
 static std::string bpy_prop_string_get_fn(PointerRNA *ptr, PropertyRNA *prop)
@@ -1449,8 +1449,8 @@ static std::string bpy_prop_string_get_transform_locked_fn(PointerRNA *ptr,
     Py_DECREF(args);
   }
 
-  return bpy_stdstring_from_py_object(
-      ret, curr_value, RNA_property_string_maxlength(prop), py_func);
+  return bpy_stdstring_from_py_object(ret, RNA_property_string_maxlength(prop), py_func)
+      .value_or(curr_value);
 }
 
 static std::string bpy_prop_string_get_transform_fn(PointerRNA *ptr,
@@ -1570,7 +1570,8 @@ static std::string bpy_prop_string_set_transform_fn(PointerRNA *ptr,
   }
 
   std::string ret_value = bpy_stdstring_from_py_object(
-      ret, curr_value, RNA_property_string_maxlength(prop), py_func);
+                              ret, RNA_property_string_maxlength(prop), py_func)
+                              .value_or(curr_value);
 
   bpy_prop_gil_rna_writable_end(bpy_state);
 
