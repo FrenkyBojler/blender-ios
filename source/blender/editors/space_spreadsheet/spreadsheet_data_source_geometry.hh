@@ -11,6 +11,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
+#include "NOD_geometry_nodes_bundle_fwd.hh"
 #include "NOD_geometry_nodes_list_fwd.hh"
 
 #include "spreadsheet_data_source.hh"
@@ -96,6 +97,21 @@ class ListDataSource : public DataSource {
 
  public:
   ListDataSource(nodes::ListPtr list);
+
+  void foreach_default_column_ids(
+      FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;
+
+  std::unique_ptr<ColumnValues> get_column_values(
+      const SpreadsheetColumnID &column_id) const override;
+
+  int tot_rows() const override;
+};
+
+class BundleDataSource : public DataSource {
+  nodes::BundlePtr bundle_;
+
+ public:
+  BundleDataSource(nodes::BundlePtr bundle);
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;

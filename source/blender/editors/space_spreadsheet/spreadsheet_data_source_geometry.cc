@@ -646,6 +646,54 @@ int ListDataSource::tot_rows() const
   return list_->size();
 }
 
+BundleDataSource::BundleDataSource(nodes::BundlePtr bundle) : bundle_(std::move(bundle)) {}
+
+void BundleDataSource::foreach_default_column_ids(
+    FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
+{
+  if (bundle_->is_empty()) {
+    return;
+  }
+
+  for (const char *name : {"Identifier", "Type"}) {
+    SpreadsheetColumnID column_id{(char *)name};
+    fn(column_id, false);
+  }
+}
+
+std::unique_ptr<ColumnValues> BundleDataSource::get_column_values(
+    const SpreadsheetColumnID &column_id) const
+{
+  const Span<nodes::Bundle::StoredItem> items = bundle_->items();
+  if (STREQ(column_id.name, "Identifier")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Identifier"),
+        VArray<std::string>::from_func(bundle_->size(),
+                                       [items](int64_t index) { return items[index].key; }));
+  }
+  if (STREQ(column_id.name, "Type")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Type"),
+        VArray<std::string>::from_func(bundle_->size(), [items](int64_t index) -> std::string {
+          const nodes::BundleItemValue &value = items[index].value;
+          if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&value.value)) {
+            return socket_value->type->label;
+          }
+          if (const auto *internal_value = std::get_if<nodes::BundleItemInternalValue>(
+                  &value.value)) {
+            return internal_value->value->type_name();
+          }
+          return "";
+        }));
+  }
+  return {};
+}
+
+int BundleDataSource::tot_rows() const
+{
+  return bundle_->size();
+}
+
 SingleValueDataSource::SingleValueDataSource(const GPointer value)
     : value_gvarray_(GVArray::from_single(*value.type(), 1, value.get()))
 {
@@ -867,6 +915,9 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
                                                 sspreadsheet->flag &
                                                     SPREADSHEET_FLAG_SHOW_INTERNAL_ATTRIBUTES,
                                                 layer_index);
+  }
+  if (ptr.is_type<nodes::BundlePtr>()) {
+    return std::make_unique<BundleDataSource>(display_data.extract<nodes::BundlePtr>());
   }
   const eSpreadsheetColumnValueType column_type = cpp_type_to_column_type(*ptr.type());
   if (column_type == SPREADSHEET_VALUE_TYPE_UNKNOWN) {

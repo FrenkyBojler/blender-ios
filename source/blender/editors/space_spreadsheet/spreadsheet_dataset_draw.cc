@@ -1182,7 +1182,6 @@ std::optional<bool> BundleItem::should_be_active() const
   const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
   const SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
   const SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
-  // TODO: nullopt if it's a bundle and can't be active on its own.
   return ViewerBundlePath(table_id) == this->get_path();
 }
 
@@ -1242,10 +1241,10 @@ static void draw_context_panel_content(const bContext &C, uiLayout &layout)
   if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
-        if (uiLayout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
+    if (uiLayout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
       draw_viewer_path_panel(C, *panel);
     }
-if (uiLayout *panel = layout.panel(&C, "viewer data", true, IFACE_("Viewer Data"))) {
+    if (uiLayout *panel = layout.panel(&C, "viewer data", true, IFACE_("Viewer Data"))) {
       draw_viewer_data_panel(C, *panel);
     }
   }
