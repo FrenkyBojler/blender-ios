@@ -1334,13 +1334,6 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   };
   Vector<BatchCreateData> batch_info;
 
-  const bool use_face_selection = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL);
-  /* Sculpt mode does not support selection, therefore the generic `is_paint_mode` check cannot be
-   * used */
-  const bool is_face_selectable =
-      ELEM(ob.mode, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT) &&
-      use_face_selection;
-
   {
     const BufferList list = BufferList::Final;
     if (batches_to_create & MBC_SURFACE) {
@@ -1454,6 +1447,13 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       batch_info.append(std::move(batch));
     }
     if (batches_to_create & MBC_UV_FACES) {
+      const bool use_face_selection = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL);
+      /* Sculpt mode does not support selection, therefore the generic `is_paint_mode` check cannot
+       * be used */
+      const bool is_face_selectable =
+          ELEM(ob.mode, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT) &&
+          use_face_selection;
+
       const IBOType ibo = is_face_selectable || is_editmode ? IBOType::UVTris : IBOType::Tris;
       BatchCreateData batch{*cache.batch.uv_faces, GPU_PRIM_TRIS, list, ibo, {}};
       if (cache.cd_used.uv != 0) {

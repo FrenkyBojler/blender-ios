@@ -813,7 +813,7 @@ class MeshUVs : Overlay {
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
     const bool is_uv_editable = is_edit_object && space_image->mode == SI_MODE_UV;
-    /* Sculpt is left out here because selection does not exist in it */
+    /* Sculpt is left out here because selection does not exist in it. */
     const bool is_paint_mode = ELEM(
         state.ctx_mode, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
     const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
@@ -880,7 +880,7 @@ class MeshUVs : Overlay {
       return;
     }
 
-    /* Non-selectable & Non-editable faces in image editor paint mode. */
+    /* Non-selectable & non-editable faces in image editor paint mode. */
     if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable &&
         !is_face_selectable)
     {
