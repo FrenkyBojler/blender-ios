@@ -54,6 +54,7 @@ class GreasePencilPenToolOperation : public PenToolOperation {
   DrawingPlacement placement;
 
   Vector<float4x4> layer_to_objects;
+  Vector<float4x4> layer_to_worlds;
   std::optional<int> active_drawing_index;
 
   float3 project(const float2 &screen_co) const
@@ -240,6 +241,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     const MutableDrawingInfo &info = ptd.drawings[drawing_index];
     const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
     ptd.layer_to_objects.append(layer.local_transform());
+    ptd.layer_to_worlds.append(layer.to_world_space(*ptd.vc.obact));
   }
 
   ptd.active_drawing_index = std::nullopt;
@@ -369,8 +371,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   if (add_single) {
     if (pen_can_create_new_curve(ptd, op)) {
       const MutableDrawingInfo &info = ptd.drawings[*ptd.active_drawing_index];
-      const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-      const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+      const float4x4 &layer_to_world = ptd.layer_to_worlds[*ptd.active_drawing_index];
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
       ptd.add_single_point_and_curve(curves, layer_to_world);
@@ -428,8 +429,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
   if (ptd.move_seg && ptd.closest_element.element_mode == ElementMode::Edge) {
     const MutableDrawingInfo &info = ptd.drawings[ptd.closest_element.drawing_index];
-    const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
-    const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+    const float4x4 &layer_to_world = ptd.layer_to_worlds[ptd.closest_element.drawing_index];
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
     ptd.move_segment(curves, layer_to_world);
@@ -441,9 +441,8 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
       for (const int drawing_index : drawing_range) {
         const MutableDrawingInfo &info = ptd.drawings[drawing_index];
         bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-        const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
         const float4x4 &layer_to_object = ptd.layer_to_objects[drawing_index];
-        const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+        const float4x4 &layer_to_world = ptd.layer_to_worlds[drawing_index];
 
         IndexMaskMemory memory;
         const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
