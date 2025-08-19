@@ -1552,12 +1552,14 @@ void CurvesEvalCache::ensure_common(ParticleDrawSource &src)
 /* Copied from cycles. */
 static float hair_shape_radius(float shape, float root, float tip, float time)
 {
+  BLI_assert(time >= 0.0f);
+  BLI_assert(time <= 1.0f);
   float radius = 1.0f - time;
   if (shape < 0.0f) {
-    radius = pow(radius, 1.0f + shape);
+    radius = powf(radius, 1.0f + shape);
   }
   else {
-    radius = pow(radius, 1.0f / (1.0f - shape));
+    radius = powf(radius, 1.0f / (1.0f - shape));
   }
   return (radius * (root - tip)) + tip;
 }
