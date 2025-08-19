@@ -1253,6 +1253,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           MutableSpan<float3> r_corner_normals,
                           std::optional<bool> has_no_loos_verts)
 {
+  SCOPED_TIMER_AVERAGED(AT);
   BLI_assert(r_corner_normals.size() == faces.total_size());
   BLI_assert(vert_positions.size() == vert_to_face_map.size());
   BLI_assert(corner_verts.size() == corner_edges.size());
@@ -1274,15 +1275,15 @@ void normals_calc_corners(const Span<float3> vert_positions,
     if (r_fan_spaces) {
       r_fan_spaces->spaces.reinitialize(r_corner_normals.size());
       r_fan_spaces->corner_space_indices.reinitialize(r_corner_normals.size());
+      array_utils::fill_index_range(r_fan_spaces->corner_space_indices.as_mutable_span());
       if (r_fan_spaces->create_corners_by_space) {
         r_fan_spaces->corners_by_space.reinitialize(r_corner_normals.size());
+        threading::parallel_for(r_corner_normals.index_range(), 1024, [&](const IndexRange range) {
+          for (const int i : range) {
+            r_fan_spaces->corners_by_space[i] = {i};
+          }
+        });
       }
-      array_utils::fill_index_range(r_fan_spaces->corner_space_indices.as_mutable_span());
-      threading::parallel_for(r_corner_normals.index_range(), 1024, [&](const IndexRange range) {
-        for (const int i : range) {
-          r_fan_spaces->corners_by_space[i] = {i};
-        }
-      });
     }
 
     threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
@@ -1374,8 +1375,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
         }
 
         if (r_fan_spaces) {
-          (*local_space_groups)[start_local_space_index + vert - range.start()] = {{corner},
-                                                                                   fan_space};
+          local_space_groups->last(range.last(vert - range.start())) = {{corner}, fan_space};
         }
       }
 
