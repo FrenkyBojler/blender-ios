@@ -350,7 +350,7 @@ class RodStretchAndShearConstraintEvaluator
     const float inv_m0 = inverse_masses_[v0];
     const float inv_m1 = inverse_masses_[v1];
     const float3 &inertia = inertias_[constraint_i];
-    const float compliance_term = 0.0f;  // compliance_terms_[constraint_i];
+    const float compliance_term = compliance_terms_[constraint_i];
     const float rest_length = rest_lengths_[constraint_i];
 
     /* Lumped weight for the rotation influence. The higher the inertia, the lower the change of
