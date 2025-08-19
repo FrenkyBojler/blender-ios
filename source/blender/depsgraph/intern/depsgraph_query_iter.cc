@@ -232,11 +232,10 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
       }
     }
 
-    if ((ob_visibility & OB_VISIBLE_INSTANCES) &&
-        ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
-    {
-      data->dupli_parent = object;
-      if (data->flag & DEG_ITER_OBJECT_FLAG_DUPLI) {
+    if (ob_visibility & OB_VISIBLE_INSTANCES) {
+      if ((data->flag & DEG_ITER_OBJECT_FLAG_DUPLI) &&
+          ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
+      {
         BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
         object_duplilist(
             data->graph, data->scene, object, data->settings->included_objects, data->dupli_list);
