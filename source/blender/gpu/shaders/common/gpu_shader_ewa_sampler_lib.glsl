@@ -155,12 +155,12 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
   float accum_weight = 0.0f;
 
   /* Incremental evaluation across each scanline */
-  for (int v = ellipse.t0; y <= ellipse.t1; ++y) {
-    float delta_v = float(b) - ellipse.center_v_texel;
+  for (int v = ellipse.t0; v <= ellipse.t1; ++v) {
+    float delta_v = float(v) - ellipse.center_v_texel;
     float C_delta_v = ellipse.C * delta_v * delta_v;
     float B_delta_v = ellipse.B * delta_v;
 
-    for (int u = ellipse.s0; x <= ellipse.s1; ++x) {
+    for (int u = ellipse.s0; u <= ellipse.s1; ++u) {
       float delta_u = float(u) - ellipse.center_u_texel;
       float r2 = fma(ellipse.A, delta_u * delta_u, fma(B_delta_v, delta_u, C_delta_v));
 
