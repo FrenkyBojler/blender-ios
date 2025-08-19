@@ -144,7 +144,7 @@ blender::ui::ItemType uiItem::type() const
   return type_;
 };
 
-uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type){};
+uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type) {};
 
 using uiItemType = blender::ui::ItemType;
 using uiItemInternalFlag = blender::ui::ItemInternalFlag;
@@ -2629,8 +2629,9 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
     return;
   }
 
-  uiLayout &col = this->column(true);
-  uiLayout &row = col.row(true);
+  uiLayout &col = this->overlap();
+  col.alignment_set(blender::ui::LayoutAlign::Expand);
+
   if (block->oldblock && block->oldblock->textbox_status.contains_as(idname)) {
     block->textbox_status.add(block->oldblock->textbox_status.lookup_key_as(idname));
   }
@@ -2643,30 +2644,56 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
 
   TextboxStatus &textbox_status = *block->textbox_status.lookup_key_as(idname).get();
   float line_heigth = UI_UNIT_Y * 0.75;
+  col.row(true);//.alignment_set(blender::ui::LayoutAlign::Expand);
   uiBut *but = uiDefButR_prop(block,
                               ButType::TextBox,
                               0,
                               RNA_property_ui_name(prop),
                               0,
                               0,
-                              0,
-                              line_heigth * textbox_status.visible_lines_get(),
+                              25,
+                              line_heigth * (textbox_status.visible_lines_get() + 1),
                               ptr,
                               prop,
                               0,
                               0,
                               0,
                               std::nullopt);
-
   uiButTextBox *textbox = static_cast<uiButTextBox *>(but);
   textbox->status = &textbox_status;
 
   /* Clamp scroll, resizing the region could add/remove wrapped lines. */
   textbox->line_scroll_set(textbox->line_scroll());
 
-  uiLayoutItemBx *box = ui_layout_box(&row, ButType::Roundbox);
-  box->no_pad = true;
-  box->row(true);
+  uiLayout &sub = col.column(true);
+
+  sub.column(true);
+  uiDefBut(block,
+           ButType::Sepr,
+           0,
+           "",
+           0,
+           0,
+           0,
+           line_heigth * textbox_status.visible_lines_get(),
+           nullptr,
+           0.0,
+           0.0,
+           "");
+  uiDefIconButI(block,
+                ButType::Grip,
+                0,
+                ICON_GRIP,
+                1111,
+                11111,
+                UI_UNIT_X * 10.0f,
+                UI_UNIT_Y * 0.5f,
+                &textbox_status.visible_height,
+                0.0f,
+                0.0f,
+                "");
+
+  col.row(true).alignment_set(blender::ui::LayoutAlign::Right);
 
   but = uiDefButI(
       block,
@@ -2675,30 +2702,14 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
       "",
       0,
       0,
-      ((0.45f * U.widget_unit) + (2.0f * U.pixelsize)) *
-          0.75f,  //                 V2D_SCROLL_WIDTH * 3/4
-      line_heigth * textbox_status.visible_lines_get(),
+      UI_TEXT_MARGIN_X * U.widget_unit,
+      line_heigth * (textbox_status.visible_lines_get() + 1),
       &textbox_status.line_scroll,
       0,
       std::max<int>(textbox_status.last_total_lines - textbox_status.visible_lines_get(), 0),
       "");
   uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
   but_scroll->visual_height = textbox_status.visible_lines_get();
-
-  col.column(true);
-
-  but = uiDefIconButI(block,
-                      ButType::Grip,
-                      0,
-                      ICON_GRIP,
-                      0,
-                      0,
-                      UI_UNIT_X * 10.0f,
-                      UI_UNIT_Y * 0.5f,
-                      &textbox_status.visible_height,
-                      0.0f,
-                      0.0f,
-                      "");
 }
 
 void uiLayout::prop_search(PointerRNA *ptr,

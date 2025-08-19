@@ -3110,13 +3110,11 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *reg
 {
   rcti rect;
   ui_but_to_pixelrect(&rect, region, textbox->block, textbox);
-  const int text_padding = round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) /
-                                           textbox->block->aspect);
-  rect.xmin += text_padding;
+  const int text_padding = std::floor((UI_TEXT_MARGIN_X * U.widget_unit) / textbox->block->aspect);
   uiFontStyle fstyle = UI_style_get()->widget;
   ui_fontscale(&fstyle.points, textbox->block->aspect);
   UI_fontstyle_set(&fstyle);
-  return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect));
+  return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect) - 2 * text_padding);
 }
 
 static void ui_but_textbox_add_scroll(const ARegion *region, uiButTextBox *textbox, int step)
@@ -3172,7 +3170,7 @@ static void ui_but_textbox_textedit_set_cursor_pos(uiBut *but,
 
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
   int line_under_mouse = textbox->line_scroll() +
-                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines());
+                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines() + 1);
   line_under_mouse = std::clamp<int>(
       line_under_mouse,
       std::max<int>(0, textbox->line_scroll() - 1),
@@ -3339,7 +3337,7 @@ static void ui_but_textbox_jump_line(ARegion *region,
   const char *str = text_edit.edit_string;
   const int len = strlen(str);
   ui_but_update(textbox);
-  if (textbox->selend != textbox->selsta) {
+  if (textbox->selend == textbox->selsta) {
     textbox->selsta = textbox->selend = textbox->pos;
   }
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
@@ -3384,7 +3382,7 @@ static void ui_but_textbox_jump_line(ARegion *region,
     return;
   }
 
-  if (append_selection && select) {
+  if (append_selection) {
     textbox->selend = textbox->pos;
   }
   else {

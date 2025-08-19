@@ -1079,8 +1079,10 @@ void UI_widgetbase_draw_cache_flush()
   if (g_widget_base_batch.count == 1) {
     /* draw single */
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
-    GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (const float(*)[4])g_widget_base_batch.params);
+    GPU_batch_uniform_4fv_array(batch,
+                                "parameters",
+                                MAX_WIDGET_PARAMETERS,
+                                (const float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1089,7 +1091,7 @@ void UI_widgetbase_draw_cache_flush()
     GPU_batch_uniform_4fv_array(batch,
                                 "parameters",
                                 MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
-                                (float(*)[4])g_widget_base_batch.params);
+                                (float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw_instance_range(batch, 0, g_widget_base_batch.count);
   }
@@ -1137,7 +1139,7 @@ static void draw_widgetbase_batch(uiWidgetBase *wtb)
     blender::gpu::Batch *batch = ui_batch_roundbox_widget_get();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (float(*)[4]) & wtb->uniform_params);
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (float (*)[4]) & wtb->uniform_params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -2014,12 +2016,12 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   uiButTextBox *textbox_but = static_cast<uiButTextBox *>(but);
   const int visible_lines = textbox_but->visible_lines();
-
+  const int text_padding = std::floor((UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect);
   const char *drawstr = but->drawstr.c_str();
   const blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
-      textbox_but, BLI_rcti_size_x(rect));
+      textbox_but, BLI_rcti_size_x(rect) - text_padding);
 
-  const int line_height = BLI_rcti_size_y(rect) / visible_lines;
+  const int line_height = BLI_rcti_size_y(rect) / (visible_lines + 1);
 
   const int scroll = textbox_but->line_scroll();
   const char *raw_begin = lines[0].begin();
