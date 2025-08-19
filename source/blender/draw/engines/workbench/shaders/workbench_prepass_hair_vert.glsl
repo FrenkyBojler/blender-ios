@@ -27,13 +27,12 @@ float integer_noise(int n)
   return (float(nn) / 1073741824.0f);
 }
 
-float3 workbench_hair_random_normal(float3 tangent, float3 binor, float rand)
+float3 workbench_hair_random_normal(float3 tangent, float3 binor, float3 nor, float rand)
 {
   /* To "simulate" anisotropic shading, randomize hair normal per strand. */
-  float3 nor = cross(tangent, binor);
   nor = normalize(mix(nor, -tangent, rand * 0.1f));
   float cos_theta = (rand * 2.0f - 1.0f) * 0.2f;
-  float sin_theta = sqrt(max(0.0f, 1.0f - cos_theta * cos_theta));
+  float sin_theta = sin_from_cos(cos_theta);
   nor = nor * sin_theta + binor * cos_theta;
   return nor;
 }
@@ -47,10 +46,10 @@ void workbench_hair_random_material(float rand,
   rand -= 0.5f;
   rand *= 0.1f;
   /* Add some variation to the hairs to avoid uniform look. */
-  metallic = clamp(metallic + rand, 0.0f, 1.0f);
-  roughness = clamp(roughness + rand, 0.0f, 1.0f);
+  metallic = saturate(metallic + rand);
+  roughness = saturate(roughness + rand);
   /* Modulate by color intensity to reduce very high contrast when color is dark. */
-  color = clamp(color + rand * (color + 0.05f), 0.0f, 1.0f);
+  color = saturate(color + rand * (color + 0.05f));
 }
 
 void main()
@@ -65,8 +64,15 @@ void main()
   float hair_rand = integer_noise(ws_pt.curve_id);
 
   float3 nor = pt.N;
-  if (drw_curves.half_cylinder_face_count < 2) {
-    nor = workbench_hair_random_normal(pt.curve_T, pt.curve_B, hair_rand);
+  if (drw_curves.half_cylinder_face_count == 1) {
+    /* Very cheap smooth normal using attribute interpolator.
+     * Using the correct normals over the cylinder (-1..1) leads to unwanted result as the
+     * interpolation is not spherical but linear. So we use a smaller range (-SQRT2..SQRT2) in
+     * which the linear interpolation is close enough to the desired result. */
+    nor = pt.N + pt.curve_N;
+  }
+  else if (drw_curves.half_cylinder_face_count == 0) {
+    nor = workbench_hair_random_normal(pt.curve_T, pt.curve_B, pt.curve_N, hair_rand);
   }
 
   view_clipping_distances(world_pos);
