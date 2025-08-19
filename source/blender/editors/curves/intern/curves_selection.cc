@@ -95,9 +95,21 @@ IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
                                    StringRef attribute_name,
                                    IndexMaskMemory &memory)
 {
-  return IndexMask::from_bools(
-      *curves.attributes().lookup_or_default<bool>(attribute_name, bke::AttrDomain::Point, true),
-      memory);
+  const VArray<bool> selected = *curves.attributes().lookup_or_default<bool>(
+      attribute_name, bke::AttrDomain::Point, true);
+
+  if (attribute_name == ".selection") {
+    return IndexMask::from_bools(selected, memory);
+  }
+
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+  const VArray<int8_t> types = curves.curve_types();
+
+  return IndexMask::from_predicate(
+      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
+        return selected[point_i] && is_bezier;
+      });
 }
 
 IndexMask retrieve_selected_points(const Curves &curves_id, IndexMaskMemory &memory)
