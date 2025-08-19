@@ -78,21 +78,38 @@ IndexMask retrieve_selected_curves(const Curves &curves_id, IndexMaskMemory &mem
 
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
 {
-  return retrieve_selected_points(curves, ".selection", memory);
+  return IndexMask::from_bools(
+      *curves.attributes().lookup_or_default<bool>(".selection", bke::AttrDomain::Point, true),
+      memory);
 }
 
 IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves, IndexMaskMemory &memory)
 {
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+  const VArray<int8_t> types = curves.curve_types();
+
+  const IndexMask bezier_points = IndexMask::from_predicate(
+      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
+        return is_bezier;
+      });
+
   Vector<IndexMask> selection_by_attribute;
   for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves)) {
-    selection_by_attribute.append(
-        ed::curves::retrieve_selected_points(curves, selection_name, memory));
+    if (selection_name == ".selection") {
+      selection_by_attribute.append(ed::curves::retrieve_selected_points(curves, memory));
+    }
+    else {
+      selection_by_attribute.append(
+          ed::curves::retrieve_selected_points(curves, selection_name, bezier_points, memory));
+    }
   }
   return IndexMask::from_union(selection_by_attribute, memory);
 }
 
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
                                    StringRef attribute_name,
+                                   const IndexMask &bezier_points,
                                    IndexMaskMemory &memory)
 {
   const VArray<bool> selected = *curves.attributes().lookup_or_default<bool>(
@@ -102,14 +119,7 @@ IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
     return IndexMask::from_bools(selected, memory);
   }
 
-  const Array<int> point_to_curve_map = curves.point_to_curve_map();
-  const VArray<int8_t> types = curves.curve_types();
-
-  return IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
-        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
-        return selected[point_i] && is_bezier;
-      });
+  return IndexMask::from_bools(bezier_points, selected, memory);
 }
 
 IndexMask retrieve_selected_points(const Curves &curves_id, IndexMaskMemory &memory)

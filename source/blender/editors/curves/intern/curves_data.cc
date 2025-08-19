@@ -41,10 +41,25 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
 {
   const Span<StringRef> selection_names = ed::curves::get_curves_selection_attribute_names(curves);
 
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+  const VArray<int8_t> types = curves.curve_types();
+
   IndexMaskMemory memory;
+  const IndexMask bezier_points = IndexMask::from_predicate(
+      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
+        return is_bezier;
+      });
+
   std::array<IndexMask, 3> selection;
   for (const int i : selection_names.index_range()) {
-    selection[i] = ed::curves::retrieve_selected_points(curves, selection_names[i], memory);
+    if (selection_names[i] == ".selection") {
+      selection[i] = ed::curves::retrieve_selected_points(curves, memory);
+    }
+    else {
+      selection[i] = ed::curves::retrieve_selected_points(
+          curves, selection_names[i], bezier_points, memory);
+    }
   }
 
   if (skip_handles) {
