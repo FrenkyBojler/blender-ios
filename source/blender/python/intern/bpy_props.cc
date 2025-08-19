@@ -417,16 +417,21 @@ static PyObject *pyrna_struct_as_instance(PointerRNA *ptr)
   return self;
 }
 
-static void bpy_prop_assign_flag(PropertyRNA *prop, const int flag)
+static void bpy_prop_assign_flag(PropertyRNA *prop, int flag)
 {
-  const int flag_mask = ((PROP_ANIMATABLE) & ~flag);
+  /* Map `READ_ONLY` to `EDITABLE`. */
+  flag ^= PROP_EDITABLE;
 
-  if (flag) {
-    RNA_def_property_flag(prop, PropertyFlag(flag));
+  /* The default is editable. */
+  const int flag_mask_set = (flag & ~PROP_EDITABLE);
+  const int flag_mask_clear = ((PROP_ANIMATABLE | PROP_EDITABLE) & ~flag);
+
+  if (flag_mask_set) {
+    RNA_def_property_flag(prop, PropertyFlag(flag_mask_set));
   }
 
-  if (flag_mask) {
-    RNA_def_property_clear_flag(prop, PropertyFlag(flag_mask));
+  if (flag_mask_clear) {
+    RNA_def_property_clear_flag(prop, PropertyFlag(flag_mask_clear));
   }
 }
 
@@ -2711,11 +2716,6 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "count) and step divisible by 100.\n" \
   "   :type precision: int\n"
 
-#define BPY_PROPDEF_READONLY_DOC \
-  "   :arg is_readonly: Whether the property is editable. " \
-  "Will be overridden to ``True`` when ``get`` is specified, but not ``set``.\n" \
-  "   :type is_readonly: bool\n"
-
 #define BPY_PROPDEF_UPDATE_DOC \
   "   :arg update: Function to be called when this value is modified,\n" \
   "      This function must take 2 values (self, context) and return None.\n" \
@@ -2739,7 +2739,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      This function must take 1 value (self) and return the value of the property.\n" \
   "\n" \
   "      .. note:: Defining this callback without a matching ``set`` one will make " \
-  "the property read-only (even if ``is_readonly`` option is set)." \
+  "the property read-only (even if ``READ_ONLY`` option is not set)." \
   "\n" \
   "   :type get: Callable[[:class:`bpy.types.bpy_struct`], " ty "]\n"
 
@@ -2845,7 +2845,6 @@ PyDoc_STRVAR(
     "override=set(), "
     "tags=set(), "
     "subtype='NONE', "
-    "is_readonly=False, "
     "update=None, "
     "get=None, "
     "set=None, "
@@ -2855,9 +2854,8 @@ PyDoc_STRVAR(
     "   Returns a new boolean property definition.\n"
     "\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC BPY_PROPDEF_OPTIONS_DOC
         BPY_PROPDEF_OPTIONS_OVERRIDE_DOC BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_SUBTYPE_NUMBER_DOC
-            BPY_PROPDEF_READONLY_DOC BPY_PROPDEF_UPDATE_DOC BPY_PROPDEF_GET_DOC("bool")
-                BPY_PROPDEF_SET_DOC("bool") BPY_PROPDEF_GET_TRANSFORM_DOC("bool")
-                    BPY_PROPDEF_SET_TRANSFORM_DOC("bool"));
+            BPY_PROPDEF_UPDATE_DOC BPY_PROPDEF_GET_DOC("bool") BPY_PROPDEF_SET_DOC("bool")
+                BPY_PROPDEF_GET_TRANSFORM_DOC("bool") BPY_PROPDEF_SET_TRANSFORM_DOC("bool"));
 static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
@@ -2875,7 +2873,6 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
   const char *name = nullptr, *description = "";
   const char *translation_context = nullptr;
   bool default_value = false;
-  bool is_readonly = false;
   PropertyRNA *prop;
   BPy_EnumProperty_Parse options_enum{};
   options_enum.items = rna_enum_property_flag_items;
@@ -2909,7 +2906,6 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
       "override",
       "tags",
       "subtype",
-      "is_readonly",
       "update",
       "get",
       "set",
@@ -2929,7 +2925,6 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
       "O&" /* `override` */
       "O&" /* `tags` */
       "O&" /* `subtype` */
-      "O&" /* `is_readonly` */
       "O"  /* `update` */
       "O"  /* `get` */
       "O"  /* `set` */
@@ -2957,8 +2952,6 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
                                         &tags_enum,
                                         pyrna_enum_value_parse_string,
                                         &subtype_enum,
-                                        PyC_ParseBool,
-                                        &is_readonly,
                                         &update_fn,
                                         &get_fn,
                                         &set_fn,
@@ -3003,9 +2996,6 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
   }
   if (override_enum.is_set) {
     bpy_prop_assign_flag_override(prop, override_enum.value);
-  }
-  if (is_readonly) {
-    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   }
   bpy_prop_callback_assign_update(prop, update_fn);
   if (!bpy_prop_callback_assign_boolean(prop, get_fn, set_fn, get_transform_fn, set_transform_fn))
