@@ -1020,7 +1020,7 @@ static void paint_brush_default_essentials_name_get(
 }
 
 std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(
-    PaintMode paint_mode, std::optional<int> brush_type)
+    const PaintMode paint_mode, std::optional<int> brush_type)
 {
   blender::StringRefNull name;
 

@@ -213,7 +213,6 @@ bool BKE_paint_brush_set(Paint *paint, Brush *brush);
  * the brush if necessary.
  *
  * \return False if unable to set the brush to the provided asset reference. True otherwise.
- * \note If you need to unset the paint brush, for whatever reason. See #BKE_paint_brush_set
  */
 bool BKE_paint_brush_set(Main *bmain,
                          Paint *paint,
