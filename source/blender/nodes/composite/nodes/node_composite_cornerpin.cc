@@ -142,14 +142,14 @@ class CornerPinOperation : public NodeOperation {
   void compute_plane(const float3x3 &homography_matrix, Result *plane_mask)
   {
     if (this->context().use_gpu()) {
-      this->compute_plane_gpu(homography_matrix, plane_mask);
+      this->compute_plane_gpu(homography_matrix);
     }
     else {
       this->compute_plane_cpu(homography_matrix, plane_mask);
     }
   }
 
-  void compute_plane_gpu(const float3x3 &homography_matrix, Result *plane_mask)
+  void compute_plane_gpu(const float3x3 &homography_matrix)
   {
     gpu::Shader *shader = this->context().get_shader(this->get_shader_name());
     GPU_shader_bind(shader);
@@ -157,9 +157,6 @@ class CornerPinOperation : public NodeOperation {
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
 
     Result &input_image = get_input("Image");
-    /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
-     * cases, as the logic used by the bicubic realization shader expects textures to use
-     * bilinear interpolation. */
     const Interpolation interpolation = this->get_interpolation();
     ExtensionMode extension_mode_x = this->get_extension_mode_x();
     const bool is_x_clipped = extension_mode_x == ExtensionMode::Clip; if (is_x_clipped) extension_mode_x = ExtensionMode::Extend;
@@ -179,9 +176,6 @@ class CornerPinOperation : public NodeOperation {
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
-    if (plane_mask) {
-      plane_mask->bind_as_texture(shader, "mask_tx");
-    }
 
     const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
@@ -191,9 +185,6 @@ class CornerPinOperation : public NodeOperation {
     compute_dispatch_threads_at_least(shader, domain.size);
 
     input_image.unbind_as_texture();
-    if (plane_mask) {
-      plane_mask->unbind_as_texture();
-    }
 
     output_image.unbind_as_image();
     GPU_shader_unbind();
