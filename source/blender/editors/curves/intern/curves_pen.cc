@@ -48,8 +48,15 @@ static const EnumPropertyItem prop_handle_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+/* Used to scale the default select distance. */
+constexpr float selection_distance_factor = 0.9f;
+constexpr float selection_distance_factor_edge = 0.5f;
+
 /* Used when creating a single curve from nothing. */
 constexpr float default_handle_px_distance = 16.0f;
+
+/* Total number of curve handle types. */
+constexpr int CURVE_HANDLE_TYPES_NUM = 4;
 
 /* Snaps to the closest diagonal, horizontal or vertical. */
 static float2 snap_8_angles(const float2 &p)

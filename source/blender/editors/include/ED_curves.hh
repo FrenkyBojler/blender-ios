@@ -63,10 +63,6 @@ enum class ElementMode : int8_t {
   HandleRight = 4,
 };
 
-/* Used to scale the default select distance. */
-constexpr float selection_distance_factor = 0.9f;
-constexpr float selection_distance_factor_edge = 0.5f;
-
 /* Edges are prioritized less than all other types. */
 constexpr float selection_edge_priority_factor = 0.1f;
 /* Points will overwrite edges to allow control point to be selected easier. */
@@ -75,9 +71,6 @@ constexpr float selection_point_overwrite_edge_distance_factor = 0.7f;
 constexpr float selection_point_overwrite_edge_distance_factor_sq =
     selection_point_overwrite_edge_distance_factor *
     selection_point_overwrite_edge_distance_factor;
-
-/* Total number of curve handle types. */
-constexpr int CURVE_HANDLE_TYPES_NUM = 4;
 
 struct ClosestElement {
   float distance_squared = std::numeric_limits<float>::max();
