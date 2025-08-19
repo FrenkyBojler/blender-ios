@@ -563,7 +563,7 @@ static void mesh_batch_cache_discard_uvedit(MeshBatchCache &cache)
        VBOType::EditUVData,
        VBOType::FaceDotUV,
        VBOType::FaceDotEditUVData},
-      {IBOType::EditUVTris, IBOType::EditUVLines, IBOType::EditUVPoints, IBOType::EditUVFaceDots});
+      {IBOType::EditUVTris, IBOType::EditUVLines, IBOType::EditUVPoints, IBOType::EditUVFaceDots, IBOType::UVLines, IBOType::UVTris});
 
   cache.tot_area = 0.0f;
   cache.tot_uv_area = 0.0f;
@@ -575,10 +575,11 @@ static void mesh_batch_cache_discard_uvedit(MeshBatchCache &cache)
 
 static void mesh_batch_cache_discard_uvedit_select(MeshBatchCache &cache)
 {
+  printf("DISCARD SELECT\n");
   discard_buffers(
       cache,
       {VBOType::EditUVData, VBOType::FaceDotEditUVData},
-      {IBOType::EditUVTris, IBOType::EditUVLines, IBOType::EditUVPoints, IBOType::EditUVFaceDots});
+      {IBOType::EditUVTris, IBOType::EditUVLines, IBOType::EditUVPoints, IBOType::EditUVFaceDots, IBOType::UVLines, IBOType::UVTris});
 }
 
 void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
