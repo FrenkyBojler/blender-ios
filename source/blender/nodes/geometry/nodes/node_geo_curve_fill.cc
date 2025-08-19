@@ -6,6 +6,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_delaunay_2d.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_task_size_hints.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
@@ -145,13 +146,16 @@ static Array<meshintersect::CDT_result<double>> do_group_aware_cdt(
   /* The grain size should be larger as each group gets smaller. */
   const int domain_size = curve_group_ids.size();
   const int avg_group_size = domain_size / groups_num;
-  const int grain_size = std::max(8192 / avg_group_size, 1);
-  threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
-    for (const int group_index : range) {
-      const IndexMask &mask = group_masks[group_index];
-      cdt_results[group_index] = do_cdt_with_mask(curves, output_type, mask);
-    }
-  });
+  threading::parallel_for(
+      IndexRange(groups_num),
+      2048,
+      [&](const IndexRange range) {
+        for (const int group_index : range) {
+          const IndexMask &mask = group_masks[group_index];
+          cdt_results[group_index] = do_cdt_with_mask(curves, output_type, mask);
+        }
+      },
+      threading::constant_task_sizes(avg_group_size));
 
   return cdt_results;
 }

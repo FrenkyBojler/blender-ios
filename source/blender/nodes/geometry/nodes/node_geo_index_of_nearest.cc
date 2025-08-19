@@ -6,6 +6,7 @@
 #include "BLI_kdtree.h"
 #include "BLI_map.hh"
 #include "BLI_task.hh"
+#include "BLI_task_size_hints.hh"
 
 #include "node_geometry_util.hh"
 
@@ -117,16 +118,19 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
 
     /* The grain size should be larger as each tree gets smaller. */
     const int avg_tree_size = domain_size / group_indexing.size();
-    const int grain_size = std::max(8192 / avg_tree_size, 1);
-    threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
-      for (const int group_index : range) {
-        const IndexMask &tree_mask = all_indices_by_group_id[group_index];
-        const IndexMask &lookup_mask = lookup_indices_by_group_id[group_index];
-        KDTree_3d *tree = build_kdtree(positions, tree_mask);
-        find_neighbors(*tree, positions, lookup_mask, result);
-        BLI_kdtree_3d_free(tree);
-      }
-    });
+    threading::parallel_for(
+        IndexRange(groups_num),
+        2048,
+        [&](const IndexRange range) {
+          for (const int group_index : range) {
+            const IndexMask &tree_mask = all_indices_by_group_id[group_index];
+            const IndexMask &lookup_mask = lookup_indices_by_group_id[group_index];
+            KDTree_3d *tree = build_kdtree(positions, tree_mask);
+            find_neighbors(*tree, positions, lookup_mask, result);
+            BLI_kdtree_3d_free(tree);
+          }
+        },
+        threading::constant_task_sizes(avg_tree_size));
 
     return VArray<int>::from_container(std::move(result));
   }
