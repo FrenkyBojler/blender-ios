@@ -289,6 +289,212 @@ class GHOST_DeviceVK {
     }
   }
 
+  bool has_extensions(const vector<const char *> &required_extensions)
+  {
+    uint32_t ext_count;
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &ext_count, nullptr);
+
+    vector<VkExtensionProperties> available_exts(ext_count);
+    vkEnumerateDeviceExtensionProperties(
+        physical_device, nullptr, &ext_count, available_exts.data());
+
+    for (const auto &extension_needed : required_extensions) {
+      bool found = false;
+      for (const auto &extension : available_exts) {
+        if (strcmp(extension_needed, extension.extensionName) == 0) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void ensure_device(vector<const char *> &required_extensions,
+                     vector<const char *> &optional_extensions)
+  {
+    if (device != VK_NULL_HANDLE) {
+      return;
+    }
+    init_generic_queue_family();
+
+    vector<VkDeviceQueueCreateInfo> queue_create_infos;
+    vector<const char *> device_extensions(required_extensions);
+    for (const char *optional_extension : optional_extensions) {
+      const bool extension_found = has_extensions({optional_extension});
+      if (extension_found) {
+        CLOG_INFO(&LOG, 2, "enable optional extension: `%s`", optional_extension);
+        device_extensions.push_back(optional_extension);
+      }
+      else {
+        CLOG_INFO(&LOG, 2, "optional extension not found: `%s`", optional_extension);
+      }
+    }
+
+    /* Check if the given extension name will be enabled. */
+    auto extension_enabled = [=](const char *extension_name) {
+      for (const char *device_extension_name : device_extensions) {
+        if (strcmp(device_extension_name, extension_name) == 0) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    float queue_priorities[] = {1.0f};
+    VkDeviceQueueCreateInfo graphic_queue_create_info = {};
+    graphic_queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    graphic_queue_create_info.queueFamilyIndex = generic_queue_family;
+    graphic_queue_create_info.queueCount = 1;
+    graphic_queue_create_info.pQueuePriorities = queue_priorities;
+    queue_create_infos.push_back(graphic_queue_create_info);
+
+    VkPhysicalDeviceFeatures device_features = {};
+#ifndef __APPLE__
+    device_features.geometryShader = VK_TRUE;
+    /* MoltenVK supports logicOp, needs to be build with MVK_USE_METAL_PRIVATE_API. */
+    device_features.logicOp = VK_TRUE;
+#endif
+    device_features.dualSrcBlend = VK_TRUE;
+    device_features.imageCubeArray = VK_TRUE;
+    device_features.multiDrawIndirect = VK_TRUE;
+    device_features.multiViewport = VK_TRUE;
+    device_features.shaderClipDistance = VK_TRUE;
+    device_features.drawIndirectFirstInstance = VK_TRUE;
+    device_features.fragmentStoresAndAtomics = VK_TRUE;
+    device_features.samplerAnisotropy = features.features.samplerAnisotropy;
+
+    VkDeviceCreateInfo device_create_info = {};
+    device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    device_create_info.queueCreateInfoCount = uint32_t(queue_create_infos.size());
+    device_create_info.pQueueCreateInfos = queue_create_infos.data();
+    device_create_info.enabledExtensionCount = uint32_t(device_extensions.size());
+    device_create_info.ppEnabledExtensionNames = device_extensions.data();
+    device_create_info.pEnabledFeatures = &device_features;
+
+    std::vector<void *> feature_struct_ptr;
+
+    /* Enable vulkan 11 features when supported on physical device. */
+    VkPhysicalDeviceVulkan11Features vulkan_11_features = {};
+    vulkan_11_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+    vulkan_11_features.shaderDrawParameters = features_11.shaderDrawParameters;
+    feature_struct_ptr.push_back(&vulkan_11_features);
+
+    /* Enable optional vulkan 12 features when supported on physical device. */
+    VkPhysicalDeviceVulkan12Features vulkan_12_features = {};
+    vulkan_12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan_12_features.shaderOutputLayer = features_12.shaderOutputLayer;
+    vulkan_12_features.shaderOutputViewportIndex = features_12.shaderOutputViewportIndex;
+    vulkan_12_features.bufferDeviceAddress = features_12.bufferDeviceAddress;
+    vulkan_12_features.timelineSemaphore = VK_TRUE;
+    feature_struct_ptr.push_back(&vulkan_12_features);
+
+    /* Enable provoking vertex. */
+    VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_features = {};
+    provoking_vertex_features.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT;
+    provoking_vertex_features.provokingVertexLast = VK_TRUE;
+    feature_struct_ptr.push_back(&provoking_vertex_features);
+
+    /* Enable dynamic rendering. */
+    VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
+    dynamic_rendering.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+    dynamic_rendering.dynamicRendering = VK_TRUE;
+    if (extension_enabled(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&dynamic_rendering);
+    }
+
+    VkPhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT
+        dynamic_rendering_unused_attachments = {};
+    dynamic_rendering_unused_attachments.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_FEATURES_EXT;
+    dynamic_rendering_unused_attachments.dynamicRenderingUnusedAttachments = VK_TRUE;
+    if (extension_enabled(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&dynamic_rendering_unused_attachments);
+    }
+
+    VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR dynamic_rendering_local_read = {};
+    dynamic_rendering_local_read.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR;
+    dynamic_rendering_local_read.dynamicRenderingLocalRead = VK_TRUE;
+    if (extension_enabled(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&dynamic_rendering_local_read);
+    }
+
+    /* VK_EXT_robustness2 */
+    VkPhysicalDeviceRobustness2FeaturesEXT robustness_2_features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
+    if (extension_enabled(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME)) {
+      robustness_2_features.nullDescriptor = features_robustness2.nullDescriptor;
+      feature_struct_ptr.push_back(&robustness_2_features);
+    }
+
+    /* Query for Mainenance4 (core in Vulkan 1.3). */
+    VkPhysicalDeviceMaintenance4FeaturesKHR maintenance_4 = {};
+    maintenance_4.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
+    maintenance_4.maintenance4 = VK_TRUE;
+    if (extension_enabled(VK_KHR_MAINTENANCE_4_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&maintenance_4);
+    }
+
+    /* Swap-chain maintenance 1 is optional. */
+    VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance_1 = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT, nullptr, VK_TRUE};
+    if (extension_enabled(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&swapchain_maintenance_1);
+      use_vk_ext_swapchain_maintenance_1 = true;
+    }
+
+    /* Descriptor buffers */
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT,
+        nullptr,
+        VK_TRUE,
+        VK_FALSE,
+        VK_FALSE,
+        VK_FALSE};
+    if (extension_enabled(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&descriptor_buffer);
+    }
+
+    /* Query and enable Fragment Shader Barycentrics. */
+    VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR fragment_shader_barycentric = {};
+    fragment_shader_barycentric.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
+    fragment_shader_barycentric.fragmentShaderBarycentric = VK_TRUE;
+    if (extension_enabled(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&fragment_shader_barycentric);
+    }
+
+    /* VK_EXT_memory_priority */
+    VkPhysicalDeviceMemoryPriorityFeaturesEXT memory_priority = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT, nullptr, VK_TRUE};
+    if (extension_enabled(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&memory_priority);
+    }
+
+    /* VK_EXT_pageable_device_local_memory */
+    VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT pageable_device_local_memory = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT,
+        nullptr,
+        VK_TRUE};
+    if (extension_enabled(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&pageable_device_local_memory);
+    }
+
+    /* Link all registered feature structs. */
+    for (int i = 1; i < feature_struct_ptr.size(); i++) {
+      ((VkBaseInStructure *)(feature_struct_ptr[i - 1]))->pNext =
+          (VkBaseInStructure *)(feature_struct_ptr[i]);
+    }
+
+    device_create_info.pNext = feature_struct_ptr[0];
+    vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+  }
+
   void init_generic_queue_family()
   {
     uint32_t queue_family_count = 0;
@@ -1361,7 +1567,58 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   }
   GHOST_InstanceVK &instance_vk = vulkan_instance.value();
 
-  /* Initialize VkSurface */
+  /* External memory extensions. */
+#ifdef _WIN32
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+#elif not defined(__APPLE__)
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+#endif
+
+#ifdef __APPLE__
+  optional_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+#else
+  required_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+#endif
+  optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
+
+  VkInstance instance = VK_NULL_HANDLE;
+  if (!vulkan_device.has_value()) {
+
+    VkApplicationInfo app_info = {};
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pApplicationName = "Blender";
+    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName = "Blender";
+    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.apiVersion = VK_MAKE_VERSION(m_context_major_version, m_context_minor_version, 0);
+
+    /* Create Instance */
+    VkInstanceCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    create_info.pApplicationInfo = &app_info;
+    create_info.enabledExtensionCount = uint32_t(extensions_enabled.size());
+    create_info.ppEnabledExtensionNames = extensions_enabled.data();
+
+#ifdef __APPLE__
+    create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+
+    VK_CHECK(vkCreateInstance(&create_info, nullptr, &instance));
+  }
+  else {
+    instance = vulkan_device->instance;
+  }
+
   if (use_window_surface) {
 #ifdef _WIN32
     VkWin32SurfaceCreateInfoKHR surface_create_info = {};

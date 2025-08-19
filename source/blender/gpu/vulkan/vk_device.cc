@@ -32,31 +32,32 @@ namespace blender::gpu {
 
 void VKExtensions::log() const
 {
-  CLOG_DEBUG(&LOG,
-             "Device features\n"
-             " - [%c] shader output viewport index\n"
-             " - [%c] shader output layer\n"
-             " - [%c] fragment shader barycentric\n"
-             "Device extensions\n"
-             " - [%c] descriptor buffer\n"
-             " - [%c] dynamic rendering local read\n"
-             " - [%c] dynamic rendering unused attachments\n"
-             " - [%c] external memory\n"
-             " - [%c] maintenance4\n"
-             " - [%c] memory priority\n"
-             " - [%c] pageable device local memory\n"
-             " - [%c] shader stencil export",
-             shader_output_viewport_index ? 'X' : ' ',
-             shader_output_layer ? 'X' : ' ',
-             fragment_shader_barycentric ? 'X' : ' ',
-             descriptor_buffer ? 'X' : ' ',
-             dynamic_rendering_local_read ? 'X' : ' ',
-             dynamic_rendering_unused_attachments ? 'X' : ' ',
-             external_memory ? 'X' : ' ',
-             maintenance4 ? 'X' : ' ',
-             memory_priority ? 'X' : ' ',
-             pageable_device_local_memory ? 'X' : ' ',
-             GPU_stencil_export_support() ? 'X' : ' ');
+  CLOG_INFO(&LOG,
+            2,
+            "Device features\n"
+            " - [%c] shader output viewport index\n"
+            " - [%c] shader output layer\n"
+            " - [%c] fragment shader barycentric\n"
+            "Device extensions\n"
+            " - [%c] descriptor buffer\n"
+            " - [%c] dynamic rendering\n"
+            " - [%c] dynamic rendering local read\n"
+            " - [%c] dynamic rendering unused attachments\n"
+            " - [%c] external memory\n"
+            " - [%c] memory priority\n"
+            " - [%c] pageable device local memory\n"
+            " - [%c] shader stencil export",
+            shader_output_viewport_index ? 'X' : ' ',
+            shader_output_layer ? 'X' : ' ',
+            fragment_shader_barycentric ? 'X' : ' ',
+            descriptor_buffer ? 'X' : ' ',
+            dynamic_rendering ? 'X' : ' ',
+            dynamic_rendering_local_read ? 'X' : ' ',
+            dynamic_rendering_unused_attachments ? 'X' : ' ',
+            external_memory ? 'X' : ' ',
+            memory_priority ? 'X' : ' ',
+            pageable_device_local_memory ? 'X' : ' ',
+            GPU_stencil_export_support() ? 'X' : ' ');
 }
 
 void VKDevice::reinit()
@@ -276,9 +277,6 @@ void VKDevice::init_memory_allocator()
   }
   if (extensions_.memory_priority) {
     info.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
-  }
-  if (extensions_.maintenance4) {
-    info.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT;
   }
   vmaCreateAllocator(&info, &mem_allocator_);
 
