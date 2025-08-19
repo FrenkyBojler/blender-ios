@@ -417,4 +417,29 @@ std::optional<RodStretchAndShearXPBDConstraintBundle> RodStretchAndShearXPBDCons
   return behavior;
 }
 
+const FlatBundleTypePtr &RodBendAndTwistXPBDConstraintBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(RodBendAndTwistXPBDConstraintBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<RodBendAndTwistXPBDConstraintBundle> RodBendAndTwistXPBDConstraintBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  RodBendAndTwistXPBDConstraintBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 }  // namespace blender::nodes::physics_bundles

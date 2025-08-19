@@ -391,4 +391,82 @@ class RodStretchAndShearConstraintEvaluator
   }
 };
 
+/* Aligns rotations of two consecutive rods based on a rest rotation. */
+class RodBendAndTwistConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<RodBendAndTwistConstraintEvaluator> {
+ private:
+  Span<int2> points_ref_indices_;
+  Span<int2> point_pairs_;
+  Span<float3> inertias_;
+  Span<math::Quaternion> rest_rotations_;
+  Span<float> compliance_terms_;
+
+ public:
+  RodBendAndTwistConstraintEvaluator(const Span<int2> points_ref_indices,
+                                     const Span<int2> point_pairs,
+                                     const Span<float3> inertias,
+                                     const Span<math::Quaternion> rest_rotations,
+                                     const Span<float> compliance_terms)
+      : points_ref_indices_(points_ref_indices),
+        point_pairs_(point_pairs),
+        inertias_(inertias),
+        rest_rotations_(rest_rotations),
+        compliance_terms_(compliance_terms)
+  {
+  }
+
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const Span<PointsRef> points_refs,
+                       const int constraint_i) const
+  {
+    const int2 &points_ref_pair = points_ref_indices_[constraint_i];
+    const int2 &point_pair = point_pairs_[constraint_i];
+    const int points_ref_i0 = points_ref_pair[0];
+    const int points_ref_i1 = points_ref_pair[1];
+    const int v0 = point_pair[0];
+    const int v1 = point_pair[1];
+
+    const math::Quaternion &r0 = points_refs[points_ref_i0].rotations[v0];
+    const math::Quaternion &r1 = points_refs[points_ref_i1].rotations[v1];
+    const float3 &inertia0 = inertias_[v0];
+    const float3 &inertia1 = inertias_[v1];
+
+    const float inv_lumped_inertia0 = math::safe_rcp(0.5f *
+                                                     (inertia0.x + inertia0.y + inertia0.z));
+    const float inv_lumped_inertia1 = math::safe_rcp(0.5f *
+                                                     (inertia1.x + inertia1.y + inertia1.z));
+    if (inv_lumped_inertia0 == 0.0f && inv_lumped_inertia1 == 0.0f) {
+      /* Everything is pinned, so the constraint can't do anything. */
+      return;
+    }
+
+    const float compliance_term = compliance_terms_[constraint_i];
+    const math::Quaternion &rest_rot = rest_rotations_[constraint_i];
+    const float4 rest_rot_f = float4(rest_rot);
+
+    /* Note In "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schoemer) the W
+     * component of the Darboux vector is ignored. In "Sag-Free Initialization for Strand-Based
+     * Hybrid Hair Simulation" (Hsu et al.) it is included to improve stability in cases where the
+     * hair is bent at nearly 180 degrees. */
+    const math::Quaternion &rot_diff = math::invert_normalized(r0) * r1;
+    const float4 rot_diff_f = float4(rot_diff);
+
+    const float4 residual_neg = rest_rot_f - rot_diff_f;
+    const float4 residual_pos = rest_rot_f + rot_diff_f;
+    const float4 residual = math::length_squared(residual_neg) <
+                                    math::length_squared(residual_pos) ?
+                                residual_neg :
+                                residual_pos;
+
+    const float4 lambda = residual / (inv_lumped_inertia0 + inv_lumped_inertia1 + compliance_term);
+
+    const math::Quaternion offset0 = r1 * math::Quaternion(lambda * inv_lumped_inertia0);
+    const math::Quaternion offset1 = r0 * math::Quaternion(lambda * inv_lumped_inertia1);
+
+    updater.update_rotation(points_ref_i0, v0, offset0);
+    updater.update_rotation(points_ref_i1, v1, offset1);
+  }
+};
+
 }  // namespace blender::geometry::xpbd_constraint_solver
