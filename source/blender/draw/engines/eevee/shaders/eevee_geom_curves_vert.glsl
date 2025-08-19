@@ -50,7 +50,7 @@ void main()
    * strand, not its cylinder. Otherwise we would add the rotation velocity. */
   int vert_idx = ws_pt.point_id;
   float3 prv, nxt;
-  float3 pos = ws_pt.P;
+  float3 pos = ls_pt.P;
   velocity_local_pos_get(pos, vert_idx, prv, nxt);
   /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
    * ignores motion from animated displacement. Supporting animated displacement motion vectors
