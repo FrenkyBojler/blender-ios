@@ -200,6 +200,12 @@ typedef struct UserDef_FileSpaceData {
   int temp_win_sizey;
 } UserDef_FileSpaceData;
 
+typedef struct UserDef_Confirmations {
+  char prefs_load_factory;
+  char delete_object;
+  char _pad0[6];
+} UserDef_Confirmations;
+
 /**
  * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
  * unless the #USER_DEVELOPER_UI is known to be enabled.
@@ -615,6 +621,8 @@ typedef struct UserDef {
   UserDef_FileSpaceData file_space_data;
 
   UserDef_Experimental experimental;
+
+  UserDef_Confirmations confirmations;
 
   /** Runtime data (keep last). */
   UserDef_Runtime runtime;

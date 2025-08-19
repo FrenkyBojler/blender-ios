@@ -2296,7 +2296,7 @@ static wmOperatorStatus object_delete_invoke(bContext *C,
                                              wmOperator *op,
                                              const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
+  if (U.confirmations.delete_object) {
     return WM_operator_confirm_ex(C,
                                   op,
                                   IFACE_("Delete selected objects?"),

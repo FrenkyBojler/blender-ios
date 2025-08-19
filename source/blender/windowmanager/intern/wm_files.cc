@@ -2769,14 +2769,18 @@ static wmOperatorStatus wm_userpref_read_invoke(bContext *C,
     title = IFACE_("Load Factory Blender Preferences");
   }
 
-  return WM_operator_confirm_ex(
-      C,
-      op,
-      title.c_str(),
-      IFACE_("To make changes to Preferences permanent, use \"Save Preferences\""),
-      IFACE_("Load"),
-      ALERT_ICON_WARNING,
-      false);
+  if (U.confirmations.prefs_load_factory) {
+    return WM_operator_confirm_ex(
+        C,
+        op,
+        title.c_str(),
+        IFACE_("To make changes to Preferences permanent, use \"Save Preferences\""),
+        IFACE_("Load"),
+        ALERT_ICON_WARNING,
+        false);
+  }
+
+  return wm_userpref_read_exec(C, op);
 }
 
 void WM_OT_read_factory_userpref(wmOperatorType *ot)

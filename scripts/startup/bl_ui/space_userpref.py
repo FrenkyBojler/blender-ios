@@ -270,6 +270,19 @@ class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel)
         col.prop(view, "use_translate_new_dataname", text="New Data")
 
 
+class USERPREF_PT_confirmations(InterfacePanel, CenterAlignMixIn, Panel):
+    bl_label = "Confirmations"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        confirms = prefs.view.confirmations
+
+        col = layout.column()
+        col.prop(confirms, "prefs_load_factory")
+        col.prop(confirms, "delete_object")
+
+
 class USERPREF_PT_interface_editors(InterfacePanel, CenterAlignMixIn, Panel):
     bl_label = "Editors"
 
@@ -3023,6 +3036,7 @@ classes = (
     USERPREF_PT_navigation_fly_walk,
     USERPREF_PT_navigation_fly_walk_navigation,
     USERPREF_PT_navigation_fly_walk_gravity,
+    USERPREF_PT_confirmations,
 
     USERPREF_PT_keymap,
 

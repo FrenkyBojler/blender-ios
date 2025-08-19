@@ -226,6 +226,12 @@ const UserDef U_default = {
             .temp_win_sizey = 600,
         },
 
+    .confirmations =
+        {
+            .prefs_load_factory = 1,
+            .delete_object = 0,
+        },
+
     .sequencer_proxy_setup = USER_SEQ_PROXY_SETUP_AUTOMATIC,
 
     .collection_instance_empty_size = 1.0f,

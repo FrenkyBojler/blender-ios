@@ -4849,6 +4849,22 @@ static void rna_def_userdef_walk_navigation(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Reverse Mouse", "Reverse the vertical movement of the mouse");
 }
 
+static void rna_def_userdef_confirmations(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "UserDef_Confirmations", nullptr);
+  RNA_def_struct_sdna(srna, "UserDef_Confirmations");
+  RNA_def_struct_ui_text(srna, "Confirmations", "Confirmation settings");
+
+  prop = RNA_def_property(srna, "prefs_load_factory", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Loading Factory Preferences", "");
+
+  prop = RNA_def_property(srna, "delete_object", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Deleting Objects", "");
+}
+
 static void rna_def_userdef_view(BlenderRNA *brna)
 {
   static const EnumPropertyItem timecode_styles[] = {
@@ -5365,6 +5381,12 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, nullptr, "font_path_ui_mono");
   RNA_def_property_ui_text(prop, "Monospaced Font", "Path to interface monospaced Font");
   RNA_def_property_update(prop, NC_WINDOW, "rna_userdef_font_update");
+
+  prop = RNA_def_property(srna, "confirmations", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "confirmations");
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_struct_type(prop, "UserDef_Confirmations");
+  RNA_def_property_ui_text(prop, "Confirmations", "Settings for confirmations");
 
   /* Language. */
 
@@ -7519,6 +7541,7 @@ void RNA_def_userdef(BlenderRNA *brna)
   rna_def_userdef_dothemes(brna);
   rna_def_userdef_solidlight(brna);
   rna_def_userdef_walk_navigation(brna);
+  rna_def_userdef_confirmations(brna);
 
   srna = RNA_def_struct(brna, "Preferences", nullptr);
   RNA_def_struct_sdna(srna, "UserDef");
