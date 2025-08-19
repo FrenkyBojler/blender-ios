@@ -63,15 +63,6 @@ enum class ElementMode : int8_t {
   HandleRight = 4,
 };
 
-/* Edges are prioritized less than all other types. */
-constexpr float selection_edge_priority_factor = 0.1f;
-/* Points will overwrite edges to allow control point to be selected easier. */
-constexpr float selection_point_overwrite_edge_distance_factor = 0.7f;
-
-constexpr float selection_point_overwrite_edge_distance_factor_sq =
-    selection_point_overwrite_edge_distance_factor *
-    selection_point_overwrite_edge_distance_factor;
-
 struct ClosestElement {
   float distance_squared = std::numeric_limits<float>::max();
   ElementMode element_mode;
@@ -82,48 +73,7 @@ struct ClosestElement {
 
   bool is_closer(const float new_distance_squared,
                  const ElementMode new_element_mode,
-                 const float threshold_distance) const
-  {
-    const float threshold_distance_sq = threshold_distance * threshold_distance;
-
-    if (new_distance_squared > threshold_distance_sq) {
-      return false;
-    }
-
-    float old_priority = 1.0f;
-    float new_priority = 1.0f;
-
-    if (this->element_mode == ElementMode::Edge) {
-      if (new_element_mode != ElementMode::Edge) {
-        old_priority = selection_edge_priority_factor;
-
-        /* Overwrite edges with points if the point is within the overwrite distance. */
-        if (new_distance_squared <
-            threshold_distance_sq * selection_point_overwrite_edge_distance_factor_sq)
-        {
-          return true;
-        }
-      }
-    }
-    else {
-      if (new_element_mode == ElementMode::Edge) {
-        new_priority = selection_edge_priority_factor;
-
-        /* Overwrite edges with points if the point is within the overwrite distance. */
-        if (this->distance_squared <
-            threshold_distance_sq * selection_point_overwrite_edge_distance_factor_sq)
-        {
-          return false;
-        }
-      }
-    }
-
-    if (new_distance_squared * old_priority < this->distance_squared * new_priority) {
-      return true;
-    }
-
-    return false;
-  }
+                 const float threshold_distance) const;
 };
 
 class PenToolOperation {
