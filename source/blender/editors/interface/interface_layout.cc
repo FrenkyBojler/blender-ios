@@ -183,7 +183,7 @@ blender::ui::ItemType uiItem::type() const
   return type_;
 };
 
-uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type) {};
+uiLayout::uiLayout(blender::ui::ItemType type) : uiItem(type){};
 
 using uiItemType = blender::ui::ItemType;
 using uiItemInternalFlag = blender::ui::ItemInternalFlag;
@@ -2666,6 +2666,11 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
         "string property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
     return;
   }
+  if (block->textbox_status.contains_as(idname)) {
+    ui_item_disabled(this, propname.c_str());
+    RNA_warning("textbox id already in use: %s", idname.c_str());
+    return;
+  }
 
   uiLayout &col = this->overlap();
   col.alignment_set(blender::ui::LayoutAlign::Expand);
@@ -2682,7 +2687,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
 
   TextboxStatus &textbox_status = *block->textbox_status.lookup_key_as(idname).get();
   float line_heigth = UI_UNIT_Y * 0.75;
-  col.row(true);//.alignment_set(blender::ui::LayoutAlign::Expand);
+  col.row(true);
   uiBut *but = uiDefButR_prop(block,
                               ButType::TextBox,
                               0,
