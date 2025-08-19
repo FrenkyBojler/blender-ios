@@ -151,8 +151,8 @@ inline bool use_single_thread(const TaskSizeHints &size_hints,
  *
  * If you have 2d array and you loop over it first dimension then second dimensio will be a task
  * size. But consider other loop structure if you know second dimension is often larger than first
- * one and you can transpose the loop for free or use linear index space without a lot of
- * complexity.
+ * one and smaller than available number of thread and you can transpose the loop for free or use
+ * 1D index space without a lot of complexity.
  *
  * \param task_size: Approximately uniform cost of each element of the range to loop over with
  * multithreading.
