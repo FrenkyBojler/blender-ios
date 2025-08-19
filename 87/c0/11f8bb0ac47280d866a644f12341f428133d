@@ -2,3 +2,4 @@ Referenced by issue #140240, Regresion: Buttons overlaps each other in color nod
 Referenced by issue #141847, RGB and Value nodes settings are missing in properties menus
 Referenced by pull request #141872, Fix #141847: Input node properties missing in sidebar
 Referenced by commit 7f07124d30f1b8d1eb041d0e3672eb74ba07fcd5, Fix #141847: Input node properties missing in sidebar
+Referenced by issue #144760, Value Node not changeable in Properties Window
