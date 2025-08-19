@@ -1260,9 +1260,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
   {
     const bool need_custom_normals = !custom_normals.is_empty() || r_fan_spaces;
 
-    BLI_assert(std::all_of(vert_to_face_map.begin(),
-                           vert_to_face_map.end(),
-                           [&](const Span<int> faces) { return faces.size() == 1; }));
+    BLI_assert(std::all_of(vert_to_face_map.index_range().begin(),
+                           vert_to_face_map.index_range().end(),
+                           [&](const int vert) { return vert_to_face_map[vert].size() == 1; }));
 
     if (!need_custom_normals) {
       threading::parallel_for(corner_verts.index_range(), 2048, [&](const IndexRange range) {
