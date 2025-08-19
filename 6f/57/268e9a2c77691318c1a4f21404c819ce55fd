@@ -1,3 +1,4 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by pull request #144472, Cleanup: LineArt: Bump version when doing thickness versioning
 Referenced by commit 16820b7dc6763be41f77215afbad2bd07a3c3aeb, Cleanup: LineArt: Bump version when doing thickness versioning
+Referenced by pull request #144783, LineArt: Backport thickness to radius conversion
