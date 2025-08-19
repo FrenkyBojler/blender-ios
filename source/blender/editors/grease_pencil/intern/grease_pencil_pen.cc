@@ -1165,7 +1165,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
       if (curves.is_empty()) {
-        return;
+        continue;
       }
 
       if (ptd.closest_element.element_mode == ElementMode::Edge) {
@@ -1175,7 +1175,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
           info.drawing.tag_topology_changed();
           changed.store(true, std::memory_order_relaxed);
         }
-        return;
+        continue;
       }
 
       if (ptd.closest_element.element_mode == ElementMode::None) {
@@ -1202,7 +1202,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
               ed::curves::fill_selection_false(selection_writer.span);
               selection_writer.finish();
             }
-            return;
+            continue;
           }
 
           add_single.store(false, std::memory_order_relaxed);
@@ -1210,10 +1210,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
           info.drawing.tag_topology_changed();
 
           changed.store(true, std::memory_order_relaxed);
-          return;
+          continue;
         }
 
-        return;
+        continue;
       }
 
       if (drawing_index != ptd.closest_element.drawing_index) {
@@ -1228,7 +1228,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
           }
         }
 
-        return;
+        continue;
       }
 
       const OffsetIndices<int> points_by_curve = curves.points_by_curve();
@@ -1251,7 +1251,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         add_single.store(false, std::memory_order_relaxed);
         point_removed.store(true, std::memory_order_relaxed);
         info.drawing.tag_topology_changed();
-        return;
+        continue;
       }
 
       const bool clear_selection = event->val != KM_DBL_CLICK && !ptd.delete_point;
