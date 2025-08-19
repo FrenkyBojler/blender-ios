@@ -58,6 +58,7 @@
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
+#include "UI_tree_view.hh"
 
 #include "interface_intern.hh"
 
@@ -2857,6 +2858,55 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
+
+static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent * /*event*/)
+{
+  ARegion &region = *CTX_wm_region(C);
+  AbstractView *view = get_view_focused(C);
+  AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
+  const ViewScrollDirection scroll_direction = ViewScrollDirection(
+      RNA_enum_get(op->ptr, "scroll_direction"));
+
+  if (!tree_view || tree_view->is_fully_visible()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  int scroll_value = tree_view->tot_visible_row_count().value_or(0);
+  while (scroll_value != 0) {
+    tree_view->scroll(scroll_direction);
+    scroll_value--;
+  }
+
+  ED_region_tag_redraw(&region);
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_item_page_scroll(wmOperatorType *ot)
+{
+  ot->name = "Scroll page";
+  ot->idname = "UI_OT_view_item_page_scroll";
+  ot->description = "Scroll the list to next page";
+
+  ot->invoke = ui_view_item_scroll_page_invoke;
+  ot->poll = ui_view_focused_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+
+  static const EnumPropertyItem direction_enum_items[] = {
+      {int(ViewScrollDirection::UP), "UP", 0, "Up", "Scroll above to previous page"},
+      {int(ViewScrollDirection::DOWN), "DOWN", 0, "Down", "Scroll below to next page"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  RNA_def_enum(ot->srna,
+               "scroll_direction",
+               direction_enum_items,
+               0,
+               "Scroll Direction",
+               "Scroll to next/previous page in the list.");
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2962,6 +3012,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_view_item_rename);
   WM_operatortype_append(UI_OT_view_item_select);
   WM_operatortype_append(UI_OT_view_item_delete);
+  WM_operatortype_append(UI_OT_view_item_page_scroll);
 
   WM_operatortype_append(UI_OT_override_add_button);
   WM_operatortype_append(UI_OT_override_remove_button);

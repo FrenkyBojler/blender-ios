@@ -1050,6 +1050,10 @@ def km_user_interface(_params):
         ("ui.view_item_rename", {"type": 'F2', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'X', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'DEL', "value": 'PRESS'}, None),
+		("ui.view_item_page_scroll", {"type": 'PAGE_UP', "value": 'PRESS', "repeat": True},
+         {"properties": [("scroll_direction", 'UP')]}),
+        ("ui.view_item_page_scroll", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True},
+         {"properties": [("scroll_direction", 'DOWN')]}),
     ])
 
     return keymap

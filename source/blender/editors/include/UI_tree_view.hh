@@ -146,7 +146,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
-
+  std::optional<int> tot_visible_row_count() const;
   /**
    * \param xy: The mouse coordinates in window space.
    */
@@ -174,7 +174,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
                                                  const TreeViewOrItem &old_items);
   static AbstractTreeViewItem *find_matching_child(
       const AbstractTreeViewItem &lookup_item, const Span<AbstractTreeViewItem *> possible_items);
-  std::optional<int> tot_visible_row_count() const;
 
   bool supports_scrolling() const override;
 
