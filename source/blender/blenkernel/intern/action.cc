@@ -1499,26 +1499,13 @@ void BKE_pose_channel_gizmo_parent_transform(const bArmature *arm,
 
   BKE_bone_parent_transform_calc_from_pchan(pose_bone->custom_tx, r_bpt);
 
+  /* Transforms the spaces in such a way that dragging along the axis handle actually moves the
+   * bone in the direction of that handle in world space instead of modifying it in local space. */
   float custom_tx_from_pchan[3][3];
   pose_channel_rest_pose_custom_tx_from_pchan(pose_bone, custom_tx_from_pchan);
 
   mul_m4_m4m3(r_bpt->loc_mat, r_bpt->loc_mat, custom_tx_from_pchan);
   mul_m4_m4m3(r_bpt->rotscale_mat, r_bpt->rotscale_mat, custom_tx_from_pchan);
-}
-
-const bPoseChannel *BKE_pose_channel_gizmo_get_gimbal_pchan(const bArmature *arm,
-                                                            const bPoseChannel *pose_bone,
-                                                            float r_modified_local_mat[3][3])
-{
-  if (!pose_channel_gizmo_use_localized_transform(arm, pose_bone)) {
-    return pose_bone;
-  }
-
-  float custom_tx_from_owner[3][3];
-  pose_channel_rest_pose_custom_tx_from_pchan(pose_bone, custom_tx_from_owner);
-  mul_m3_m3m3(r_modified_local_mat, custom_tx_from_owner, r_modified_local_mat);
-
-  return pose_bone->custom_tx;
 }
 
 void BKE_pose_channels_hash_ensure(bPose *pose)

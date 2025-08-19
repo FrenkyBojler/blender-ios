@@ -333,15 +333,6 @@ void BKE_pose_channel_gizmo_parent_transform(const bArmature *arm,
                                              const bPoseChannel *pose_bone,
                                              BoneParentTransform *r_bpt);
 
-/**
- * This accounts for PCHAN_GIZMO_MODE_LOCAL_SPACE.
- * If enabled, we calculate r_modified_local_mat relative to pchan's custom_tx then return
- * custom_tx. If disabled, this is a noop.
- */
-const bPoseChannel *BKE_pose_channel_gizmo_get_gimbal_pchan(const bArmature *arm,
-                                                            const bPoseChannel *pose_bone,
-                                                            float r_modified_local_mat[3][3]);
-
 /* Bone Groups API --------------------- */
 
 /**
