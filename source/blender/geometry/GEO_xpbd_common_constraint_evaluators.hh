@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_math_base.h"
 #include "GEO_xpbd_constraint_solver.hh"
 
 #include "BLI_math_vector.hh"
@@ -291,6 +292,102 @@ class OverpressureConstraintEvaluator
         },
         [&](const float a, const float b) { return a + b; });
     return volume / 6.0f;
+  }
+};
+
+/**
+ * Considers a single rod at a time. Tries to enforce that the rotation of the rod is aligned with
+ * the actual tangent of the rod. If it is misaligned, it moves the start position, end position
+ * and rotation of the frame. At the same time, it enforces a certain length.
+ */
+class RodStretchAndShearConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<RodStretchAndShearConstraintEvaluator> {
+ private:
+  Span<int2> points_ref_indices_;
+  Span<int2> point_pairs_;
+  Span<float> inverse_masses_;
+  Span<float3> inertias_;
+  Span<float> rest_lengths_;
+  Span<float> compliance_terms_;
+
+ public:
+  RodStretchAndShearConstraintEvaluator(const Span<int2> points_ref_indices,
+                                        const Span<int2> point_pairs,
+                                        const Span<float> inverse_masses,
+                                        const Span<float3> inertias,
+                                        const Span<float> rest_lengths,
+                                        const Span<float> compliance_terms)
+      : points_ref_indices_(points_ref_indices),
+        point_pairs_(point_pairs),
+        inverse_masses_(inverse_masses),
+        inertias_(inertias),
+        rest_lengths_(rest_lengths),
+        compliance_terms_(compliance_terms)
+  {
+  }
+
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const Span<PointsRef> points_refs,
+                       const int constraint_i) const
+  {
+    const int2 &points_ref_pair = points_ref_indices_[constraint_i];
+    const int2 &point_pair = point_pairs_[constraint_i];
+    const int points_ref_i0 = points_ref_pair[0];
+    const int points_ref_i1 = points_ref_pair[1];
+    const int v0 = point_pair[0];
+    const int v1 = point_pair[1];
+
+    /* TODO: Check if it makes sense to use the rotation of the "following point" to better support
+     * trees of rods. */
+    const int rotation_point_index = 0;
+    const int rotation_points_ref_i = points_ref_pair[rotation_point_index];
+    const int rotation_v = point_pair[rotation_point_index];
+
+    const float3 &p0 = points_refs[points_ref_i0].positions[v0];
+    const float3 &p1 = points_refs[points_ref_i1].positions[v1];
+    const math::Quaternion &rot = points_refs[rotation_points_ref_i].rotations[rotation_v];
+    const float inv_m0 = inverse_masses_[v0];
+    const float inv_m1 = inverse_masses_[v1];
+    const float3 &inertia = inertias_[constraint_i];
+    const float compliance_term = 0.0f;  // compliance_terms_[constraint_i];
+    const float rest_length = rest_lengths_[constraint_i];
+
+    /* Lumped weight for the rotation influence. The higher the inertia, the lower the change of
+     * the rotation should be compared to the change in point positions. */
+    const float inv_lumped_inertia = math::safe_rcp(0.5f * (inertia.x + inertia.y + inertia.z));
+
+    if (inv_m0 == 0.0f && inv_m1 == 0.0f && inv_lumped_inertia == 0.0f) {
+      /* Everything is pinned, so the constraint can't do anything. */
+      return;
+    }
+    if (rest_length <= 0.0f) {
+      /* Can't enforce a specific rod orientation with zero length. Could still just constraint the
+       * length though. */
+      return;
+    }
+
+    /* Current non-normalized tangent of the rod. */
+    const float3 p_diff = p1 - p0;
+    /* Expected non-normalized tangent of the rod based on the rotation. */
+    const float3 forward = math::transform_point(rot, float3(0.0f, 0.0f, rest_length));
+    /* How much the rod is stretched and sheared. */
+    const float3 residual = p_diff - forward;
+
+    /* Based on "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schömer, 2016). */
+    const float3 lambda = residual /
+                          (inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(rest_length) +
+                           compliance_term);
+
+    const float3 offset0 = lambda * inv_m0;
+    const float3 offset1 = -lambda * inv_m1;
+    const math::Quaternion offset_rot = math::Quaternion(
+                                            0.0f, lambda * inv_lumped_inertia * rest_length) *
+                                        rot * math::Quaternion(0, 0, 0, -1);
+
+    updater.update_position(points_ref_i0, v0, offset0);
+    updater.update_position(points_ref_i1, v1, offset1);
+    updater.update_rotation(rotation_points_ref_i, rotation_v, offset_rot);
   }
 };
 

@@ -65,6 +65,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(DampingBundle::get_bundle_type());
   types.append(TorqueBundle::get_bundle_type());
   types.append(PinnedRotationXPBDConstraintBundle::get_bundle_type());
+  types.append(RodStretchAndShearXPBDConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -191,6 +192,7 @@ struct WorldData {
   BundleVectorSet<DampingBundle> dampings;
   BundleVectorSet<TorqueBundle> torques;
   BundleVectorSet<PinnedRotationXPBDConstraintBundle> pinned_rotation_constraints;
+  BundleVectorSet<RodStretchAndShearXPBDConstraintBundle> rod_stretch_and_shear_constraints;
 };
 
 static AttrDomain get_simulation_domain(const bke::GeometryComponent::Type type)
@@ -231,6 +233,7 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.dampings);
     parse_bundle(params, errors, world.torques);
     parse_bundle(params, errors, world.pinned_rotation_constraints);
+    parse_bundle(params, errors, world.rod_stretch_and_shear_constraints);
   });
   return world;
 }
@@ -996,6 +999,80 @@ static void gather_overpressure_constraints(
   }
 }
 
+static void gather_curves_rod_stretch_and_shear_constraints(
+    ResourceScope &scope,
+    XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float delta_time,
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+{
+  const float compliance_factor = math::safe_divide(1.0f, pow2f(delta_time));
+
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Curve) {
+      continue;
+    }
+    const SimPoints &sim_points = state.sim_points.lookup(key);
+    if (!sim_points.has_rotation) {
+      continue;
+    }
+    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const Curves &curves_id = *applied_geometry.get_curves();
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+
+    const Vector constraint_bundles =
+        filter_bundles_for_path<RodStretchAndShearXPBDConstraintBundle>(
+            world.rod_stretch_and_shear_constraints, key.path);
+
+    bke::CurvesFieldContext field_context(curves, bke::AttrDomain::Point);
+    for (const RodStretchAndShearXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
+      fn::FieldEvaluator field_evaluator{field_context, curves.points_num()};
+      field_evaluator.add(constraint_bundle->compliance);
+      field_evaluator.evaluate();
+      const VArray<float> compliances = field_evaluator.get_evaluated<float>(0);
+
+      Vector<int2> &constraint_segments = scope.construct<Vector<int2>>();
+      Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
+
+      for (const int curve_i : curves.curves_range()) {
+        const IndexRange points = points_by_curve[curve_i];
+        if (points.size() <= 1) {
+          continue;
+        }
+        for (const int i : points.index_range().drop_back(1)) {
+          const int point_i = points[i];
+          const int next_point_i = point_i + 1;
+          const float compliance = compliances[point_i];
+          constraint_segments.append({point_i, next_point_i});
+          constraint_compliance_terms.append(compliance * compliance_factor);
+        }
+        /* TODO: Handle cyclic curves. */
+      }
+      const Span<float> constraint_lenghts = prepare_distance_constraint_lengths(
+          scope, state, sim_points.positions, key, constraint_segments);
+      r_constraint_sets.append(
+          {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
+               key_i, constraint_segments),
+           scope
+               .construct<geometry::xpbd_constraint_solver::RodStretchAndShearConstraintEvaluator>(
+                   scope.allocator().construct_array<int2>(constraint_segments.size(),
+                                                           int2(key_i, key_i)),
+                   constraint_segments,
+                   props.inverse_masses,
+                   props.inertias,
+                   constraint_lenghts,
+                   constraint_compliance_terms)});
+    }
+  }
+}
+
 struct StaticPlaneContacts {
   Vector<int> indices;
   Vector<float3> plane_positions;
@@ -1306,7 +1383,8 @@ static void update_linear_velocities(XPBDState &state,
       for (const int i : range) {
         const float3 &prev_position = prev_positions[i];
         const float3 &new_position = new_positions[i];
-        const float3 velocity = (new_position - prev_position) * inv_delta_time;
+        const float3 diff = new_position - prev_position;
+        const float3 velocity = diff * inv_delta_time;
         velocities[i] = velocity;
       }
     });
@@ -1407,8 +1485,7 @@ static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_posit
         const float3 &old_position = is_initialization ? pinned_positions_varray[point_i] :
                                                          sim_points.positions[point_i];
         const float3 &new_position = pinned_positions_varray[point_i];
-        animations_map.add(point_i,
-                           {math::normalize(old_position), math::normalize(new_position)});
+        animations_map.add(point_i, {old_position, new_position});
       });
     }
     if (!animations_map.is_empty()) {
@@ -1562,6 +1639,14 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                    static_constraint_sets);
   gather_overpressure_constraints(
       scope, state, world, applied_geometries, keys, sim_points_props, static_constraint_sets);
+  gather_curves_rod_stretch_and_shear_constraints(scope,
+                                                  state,
+                                                  world,
+                                                  applied_geometries,
+                                                  keys,
+                                                  sim_points_props,
+                                                  sub_delta_time,
+                                                  static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());

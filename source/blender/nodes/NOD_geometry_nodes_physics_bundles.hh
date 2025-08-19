@@ -206,6 +206,18 @@ class SphericalSelfCollisionXPBDConstraintBundle : public NestedBundleCommon {
       const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
+class RodStretchAndShearXPBDConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.RodStretchAndShearXPBDConstraint";
+
+  std::string filter;
+  fn::Field<float> compliance;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<RodStretchAndShearXPBDConstraintBundle> parse(const Bundle &bundle,
+                                                                     BundleParseErrors &r_errors);
+};
+
 inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
     parse_collision_shape_type(const int type)
 {
