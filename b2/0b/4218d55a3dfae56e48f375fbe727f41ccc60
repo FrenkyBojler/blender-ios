@@ -1,1 +1,2 @@
 Referenced by issue #144639, Cycles Rendered viewport will not visually reflect Sun intensity changes after setting it to 0
+Referenced by commit c672aa9ef4b997cf2c831dd8d421cd89f31d85b2, Cleanup: Cycles: Check if background light is enabled in one place.
