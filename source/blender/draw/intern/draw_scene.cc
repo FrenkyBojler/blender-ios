@@ -68,7 +68,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
 
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
 
-    if (ob->type != OB_MBALL && DEG_iterator_object_hide_original(eval_mode, ob, nullptr)) {
+    if (!DEG_iterator_object_is_visible(eval_mode, ob)) {
       continue;
     }
 
@@ -99,7 +99,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
     dupli_map.clear();
     for (DupliObject &dupli : duplilist) {
 
-      if (DEG_iterator_should_skip_dupli(eval_mode, &dupli)) {
+      if (!DEG_iterator_dupli_is_visible(&dupli, eval_mode)) {
         continue;
       }
 
@@ -114,11 +114,11 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
 
       if (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob)) {
         /* Sync the dupli as a single object. */
-        if (!DEG_iterator_setup_temp_object(
-                ob, dupli.ob, dupli.ob_data, &tmp_object, &tmp_runtime, eval_mode) ||
+        if (!evil::DEG_iterator_temp_object_from_dupli(
+                ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
             !should_draw_object_cb(tmp_object))
         {
-          DEG_iterator_free_temp_object_properties(dupli.ob, &tmp_object);
+          evil::DEG_iterator_temp_object_free_properties(&dupli, &tmp_object);
           continue;
         }
 
@@ -130,7 +130,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
         blender::draw::ObjectRef ob_ref(&tmp_object, ob, &dupli);
         draw_object_cb(ob_ref);
 
-        DEG_iterator_free_temp_object_properties(dupli.ob, &tmp_object);
+        evil::DEG_iterator_temp_object_free_properties(&dupli, &tmp_object);
         continue;
       }
 
@@ -160,11 +160,12 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
     }
 
     for (const auto &[key, instances] : dupli_map.items()) {
-      if (!DEG_iterator_setup_temp_object(
-              ob, key.object, key.ob_data, &tmp_object, &tmp_runtime, eval_mode) ||
+      DupliObject *first_dupli = instances.first();
+      if (!evil::DEG_iterator_temp_object_from_dupli(
+              ob, first_dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
           !should_draw_object_cb(tmp_object))
       {
-        DEG_iterator_free_temp_object_properties(key.object, &tmp_object);
+        evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
         continue;
       }
 
@@ -178,7 +179,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
       blender::draw::ObjectRef ob_ref(tmp_object, ob, key, instances);
       draw_object_cb(ob_ref);
 
-      DEG_iterator_free_temp_object_properties(key.object, &tmp_object);
+      evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
     }
   }
   DEG_OBJECT_ITER_END;
