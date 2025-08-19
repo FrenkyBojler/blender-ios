@@ -636,7 +636,7 @@ std::unique_ptr<ColumnValues> ListDataSource::get_column_values(
     const SpreadsheetColumnID &column_id) const
 {
   if (STREQ(column_id.name, "Value")) {
-    return std::make_unique<ColumnValues>(IFACE_("Grid Name"), list_->varray());
+    return std::make_unique<ColumnValues>(IFACE_("Value"), list_->varray());
   }
   return {};
 }
@@ -664,7 +664,7 @@ std::unique_ptr<ColumnValues> SingleValueDataSource::get_column_values(
     const SpreadsheetColumnID &column_id) const
 {
   if (STREQ(column_id.name, "Value")) {
-    return std::make_unique<ColumnValues>(IFACE_("Grid Name"), value_gvarray_);
+    return std::make_unique<ColumnValues>(IFACE_("Value"), value_gvarray_);
   }
   return {};
 }

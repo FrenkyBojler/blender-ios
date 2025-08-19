@@ -6,6 +6,7 @@
 
 #include "BLI_hash.hh"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "DNA_array_utils.hh"
 
@@ -33,7 +34,10 @@ void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
   dst.layer_index = src.layer_index;
   dst.instance_ids = static_cast<SpreadsheetInstanceID *>(MEM_dupallocN(src.instance_ids));
   dst.instance_ids_num = src.instance_ids_num;
-  dst.bundle_path = static_cast<SpreadsheetBundlePathElem *>(MEM_dupallocN(src.bundle_path));
+  dst.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(src.bundle_path_num, __func__);
+  for (const int i : IndexRange(src.bundle_path_num)) {
+    dst.bundle_path[i].identifier = BLI_strdup(src.bundle_path[i].identifier);
+  }
   dst.bundle_path_num = src.bundle_path_num;
 }
 
@@ -57,6 +61,9 @@ void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
       auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
       BKE_viewer_path_clear(&table_id_->viewer_path);
       MEM_SAFE_FREE(table_id_->instance_ids);
+      for (const int i : IndexRange(table_id_->bundle_path_num)) {
+        MEM_freeN(table_id_->bundle_path[i].identifier);
+      }
       MEM_SAFE_FREE(table_id_->bundle_path);
       break;
     }
@@ -77,6 +84,9 @@ void spreadsheet_table_id_blend_write_content_geometry(BlendWriter *writer,
       writer, SpreadsheetInstanceID, table_id->instance_ids_num, table_id->instance_ids);
   BLO_write_struct_array(
       writer, SpreadsheetBundlePathElem, table_id->bundle_path_num, table_id->bundle_path);
+  for (const int i : IndexRange(table_id->bundle_path_num)) {
+    BLO_write_string(writer, table_id->bundle_path[i].identifier);
+  }
 }
 
 void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTableID *table_id)
@@ -101,6 +111,9 @@ void spreadsheet_table_id_blend_read(BlendDataReader *reader, SpreadsheetTableID
           reader, SpreadsheetInstanceID, table_id_->instance_ids_num, &table_id_->instance_ids);
       BLO_read_struct_array(
           reader, SpreadsheetBundlePathElem, table_id_->bundle_path_num, &table_id_->bundle_path);
+      for (const int i : IndexRange(table_id_->bundle_path_num)) {
+        BLO_read_string(reader, &table_id_->bundle_path[i].identifier);
+      }
       break;
     }
   }

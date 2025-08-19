@@ -1091,6 +1091,7 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
     const nodes::geo_eval_log::ViewerNodeLog *log = viewer_node_log_lookup(sspreadsheet_);
     for (const nodes::geo_eval_log::ViewerNodeLog::Item &item : log->items) {
       auto &child_item = this->add_tree_item<ViewerNodeItem>(item);
+      child_item.uncollapse_by_default();
       const bke::SocketValueVariant &value = item.value;
       if (!value.is_single()) {
         continue;
@@ -1108,6 +1109,7 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
   {
     for (const nodes::Bundle::StoredItem &item : bundle.items()) {
       auto &child_item = parent.add_tree_item<BundleItem>(item.key);
+      child_item.uncollapse_by_default();
       const auto *stored_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value);
       if (!stored_value) {
         continue;
@@ -1161,8 +1163,8 @@ ViewerBundlePath BundleItem::get_path() const
       path.bundles.append(bundle_item->key_);
     }
   });
-  path.bundles.append(key_);
   path.bundles.as_mutable_span().reverse();
+  path.bundles.append(key_);
   return path;
 }
 
