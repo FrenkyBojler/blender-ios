@@ -16,18 +16,18 @@
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
  * than the `max_ratio_between_axes` times shorter than the long axis. Inputs are the
  * two derivative vectors in texel space (du/dx, dv/dx) and (du/dy, dv/dy). */
-void clamp_anisotropy(inout float2 x_gradient_texel_space,
-                      inout float2 y_gradient_texel_space,
+void clamp_anisotropy(inout float2 x_gradient,
+                      inout float2 y_gradient,
                       float max_ratio_between_axes)
 {
   /* Make du/dx the longer axis; clamp the shorter (du/dy) if needed. */
-  float len_squared_dx = dot(x_gradient_texel_space, x_gradient_texel_space);
-  float len_squared_dy = dot(y_gradient_texel_space, y_gradient_texel_space);
+  float len_squared_dx = dot(x_gradient, x_gradient);
+  float len_squared_dy = dot(y_gradient, y_gradient);
   if (len_squared_dx < len_squared_dy) {
     /* Swap axes. */
-    float2 tmp = x_gradient_texel_space;
-    x_gradient_texel_space = y_gradient_texel_space;
-    y_gradient_texel_space = tmp;
+    float2 tmp = x_gradient;
+    x_gradient = y_gradient;
+    y_gradient = tmp;
     float tmpf = len_squared_dx;
     len_squared_dx = len_squared_dy;
     len_squared_dy = tmpf;
@@ -40,45 +40,44 @@ void clamp_anisotropy(inout float2 x_gradient_texel_space,
       long_len > max_ratio_between_axes * short_len)
   {
     float scale = long_len / (max_ratio_between_axes * short_len);
-    y_gradient_texel_space *= scale;
+    y_gradient *= scale;
   }
 }
 
-/* Normalized ellipse describing the footprint in texel space:
+/* Ellipsoid describing the footprint in texel space:
  * r^2(dx,dy) = A * dx^2 + B * dxdy + C * dy^2   (inside if r^2 < 1)
- * s_lower_bound..s_upper_bound, t_lower_bound..t_upper_bound: integer
- * bounding box to scan (inclusive)
- * texel_center_x, texel_center_y: center of the footprint in texel coordinates */
+ * lower_bound..upper_bound bounding box to scan (inclusive)
+ * center: center of the footprint in texel coordinates */
 struct Ellipse {
   float a, b, c;
-  float2 uv_coord_center;
-  int2 st_lower_bound;
-  int2 st_upper_bound;
+  float2 center;
+  int2 lower_bound;
+  int2 upper_bound;
   bool valid;
 };
 
-/* Build the normalized ellipse and its integer bounding box from:
- * Follows the standard PBRT formulation:
+/* Build the ellipsoid and its integer bounding box:
+ * Follows the PBRT formulation:
  *   A = (dv/dx)^2 + (dv/dy)^2 + 1
  *   B = -2 * [(du/dx)(dv/dx) + (du/dy)(dv/dy)]
  *   C = (du/dx)^2 + (du/dy)^2 + 1
  * then normalize so "inside" is r^2 < 1. */
-Ellipse build_ellipse(float2 uv_texel_space,
-                      float2 x_gradient_texel_space,
-                      float2 y_gradient_texel_space,
+Ellipse build_ellipse(float2 coordinates,
+                      float2 x_gradient,
+                      float2 y_gradient,
                       float max_ratio_between_axes)
 {
   /* Clamps the ellipsoid based on the ratio between the axes.
    * This leads to better performance, because thin ellipsoids will be adjusted,
    * but also leads to neglectable blurring. */
   if (max_ratio_between_axes > 1.0) {
-    clamp_anisotropy(x_gradient_texel_space, y_gradient_texel_space, max_ratio_between_axes);
+    clamp_anisotropy(x_gradient, y_gradient, max_ratio_between_axes);
   }
 
-  float dv_dx = x_gradient_texel_space.y;
-  float dv_dy = y_gradient_texel_space.y;
-  float du_dx = x_gradient_texel_space.x;
-  float du_dy = y_gradient_texel_space.x;
+  float dv_dx = x_gradient.y;
+  float dv_dy = y_gradient.y;
+  float du_dx = x_gradient.x;
+  float du_dy = y_gradient.x;
 
   /* We add one to the A/C coefficients, because we sum over a discrete grid
    * (one sample per texel center). A texel can still contribute even if its
@@ -106,29 +105,30 @@ Ellipse build_ellipse(float2 uv_texel_space,
   b *= inv;
   c *= inv;
 
-  float2 uv_coord_center = uv_texel_space - 0.5f;
 
   float conic_discriminant = -b * b + 4.0 * a * c;
   float inv_conic_discriminant = 1.0 / conic_discriminant;
-  float2 uv_extent = 2.0f * inv_conic_discriminant *
+  float2 extent = 2.0f * inv_conic_discriminant *
                      sqrt(float2(conic_discriminant * c, conic_discriminant * a));
-  int2 st_lower_bound = int2(ceil(uv_coord_center - uv_extent));
-  int2 st_upper_bound = int2(floor(uv_coord_center + uv_extent));
+
+  float2 center = coordinates - 0.5f;
+  int2 lower_bound = int2(ceil(center - extent));
+  int2 upper_bound = int2(floor(center + extent));
 
   Ellipse e;
   e.a = a;
   e.b = b;
   e.c = c;
-  e.uv_coord_center = uv_coord_center;
-  e.st_lower_bound = st_lower_bound;
-  e.st_upper_bound = st_upper_bound;
-  e.valid = all(lessThanEqual(st_lower_bound, st_upper_bound));
+  e.center = center;
+  e.lower_bound = lower_bound;
+  e.upper_bound = upper_bound;
+  e.valid = all(lessThanEqual(lower_bound, upper_bound));
   return e;
 }
 
 /* Computes the elliptical weighted average for a given input texture with their
  * normalized uv coordinates and the normalized Jacobian (x_gradient, y_gradient). */
-float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, float2 y_gradient)
+float4 texture_ewa(sampler2D input_tx, float2 uv_coordinates, float2 x_gradient, float2 y_gradient)
 {
   /* TODO(Ben): After feedback, check in with users if they need these as accessible
    * paramemters. */
@@ -139,13 +139,13 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
   float2 size = float2(textureSize(input_tx, 0));
 
   /* Scale the gradients back into texel space. */
-  float2 uv_texel_space = coordinates * size;
-  float2 x_gradient_texel_space = x_gradient * size;
-  float2 y_gradient_texel_space = y_gradient * size;
+  float2 coordinates = uv_coordinates * size;
+  x_gradient *= size;
+  y_gradient *= size;
 
   /* Build ellipsoid. */
   Ellipse ellipse = build_ellipse(
-      uv_texel_space, x_gradient_texel_space, y_gradient_texel_space, max_ratio_between_axes);
+      coordinates, x_gradient, y_gradient, max_ratio_between_axes);
 
   /* Check whether ellipse is degenerative or numerically unstable. */
   if (!ellipse.valid) {
@@ -155,13 +155,13 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
   float4 accum_rgba = float4(0.0f);
   float accum_weight = 0.0f;
 
-  for (int y = ellipse.st_lower_bound.y; y <= ellipse.st_upper_bound.y; ++y) {
-    float dy = float(y) - ellipse.uv_coord_center.y;
+  for (int y = ellipse.lower_bound.y; y <= ellipse.upper_bound.y; ++y) {
+    float dy = float(y) - ellipse.center.y;
     float c_dy = ellipse.c * square(dy);
     float b_dy = ellipse.b * dy;
 
-    for (int x = ellipse.st_lower_bound.x; x <= ellipse.st_upper_bound.x; ++x) {
-      float dx = float(x) - ellipse.uv_coord_center.x;
+    for (int x = ellipse.lower_bound.x; x <= ellipse.upper_bound.x; ++x) {
+      float dx = float(x) - ellipse.center.x;
       /* Based on the matrix representation of conic sections:
        * https://en.wikipedia.org/wiki/Matrix_representation_of_conic_sections
        * Evaluates r^2 = A*dx^2 + B*dx*dy + C*dy^2 */
