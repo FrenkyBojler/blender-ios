@@ -6713,6 +6713,23 @@ static void rna_def_userdef_input(BlenderRNA *brna)
                            "restarting Blender for changes to take effect)");
   RNA_def_property_update(prop, 0, "rna_userdef_input_devices");
 
+#  ifdef WITH_XR_OPENXR
+  prop = RNA_def_property(srna, "xr_snap_turn", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "xr_navigation_flag", USER_XR_NAV_SNAP_TURN);
+  RNA_def_property_ui_text(
+      prop, "Snap Turn", "Instantly rotates camera by a fixed angle instead of smoothly turning");
+
+  prop = RNA_def_property(srna, "xr_invert_rotation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "xr_navigation_flag", USER_XR_NAV_INVERT_ROTATION);
+  RNA_def_property_ui_text(
+      prop, "Invert Rotation", "Reverses the direction of rotation input");
+
+  prop = RNA_def_property(srna, "xr_single_controller", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "xr_navigation_flag", USER_XR_NAV_SINGLE_CONTROLLER);
+  RNA_def_property_ui_text(
+      prop, "Snap Turn", "Makes all XR navigation accessible on a single controller");
+#  endif
+
 #  ifdef WITH_INPUT_NDOF
   /* 3D mouse settings */
   /* global options */

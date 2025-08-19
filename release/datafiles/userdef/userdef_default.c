@@ -238,4 +238,6 @@ const UserDef U_default = {
         {
             .is_dirty = 0,
         },
+
+    .xr_navigation_flag = USER_XR_NAV_SNAP_TURN | USER_XR_NAV_SINGLE_CONTROLLER,
 };

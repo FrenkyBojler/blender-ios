@@ -1057,7 +1057,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
   eXrFlyMode mode;
-  bool turn, snap_turn, locz_lock, dir_lock, speed_frame_based;
+  bool turn, snap_turn, invert_rotation, locz_lock, dir_lock, speed_frame_based;
   bool speed_interp_cubic = false;
   float speed, speed_max, speed_p0[2], speed_p1[2];
   GHOST_XrPose nav_pose;
@@ -1069,7 +1069,9 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   mode = (eXrFlyMode)RNA_enum_get(op->ptr, "mode");
   turn = ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT);
 
-  snap_turn = RNA_boolean_get(op->ptr, "snap_turn");
+  snap_turn = U.xr_navigation_flag & USER_XR_NAV_SNAP_TURN;
+  invert_rotation = U.xr_navigation_flag & USER_XR_NAV_INVERT_ROTATION;
+
   locz_lock = RNA_boolean_get(op->ptr, "lock_location_z");
   dir_lock = RNA_boolean_get(op->ptr, "lock_direction");
 
@@ -1162,6 +1164,10 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
     else {
       if (!snap_turn) {
         speed *= delta_time;
+      }
+
+      if (invert_rotation) {
+        speed *= -1.0f;
       }
 
       GHOST_XrPose viewer_pose;

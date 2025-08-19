@@ -603,7 +603,8 @@ typedef struct UserDef {
 
   float collection_instance_empty_size;
   char text_flag;
-  char _pad10[1];
+
+  char xr_navigation_flag;
 
   char file_preview_type; /* eUserpref_File_Preview_Type */
   char statusbar_flag;    /* eUserpref_StatusBar_Flag */
@@ -1091,6 +1092,13 @@ typedef enum eUserpref_FactorDisplay {
   USER_FACTOR_AS_FACTOR = 0,
   USER_FACTOR_AS_PERCENTAGE = 1,
 } eUserpref_FactorDisplay;
+
+/** #UserDef.xr_navigation_flag */
+typedef enum eUserpref_XrNavigationFlags {
+  USER_XR_NAV_SNAP_TURN = (1 << 0),
+  USER_XR_NAV_INVERT_ROTATION = (1 << 1),
+  USER_XR_NAV_SINGLE_CONTROLLER = (1 << 2),
+} eUserpref_XrNavigationFlags;
 
 typedef enum eUserpref_RenderDisplayType {
   USER_RENDER_DISPLAY_NONE = 0,
