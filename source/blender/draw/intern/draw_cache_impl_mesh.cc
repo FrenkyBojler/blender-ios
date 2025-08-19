@@ -575,7 +575,6 @@ static void mesh_batch_cache_discard_uvedit(MeshBatchCache &cache)
 
 static void mesh_batch_cache_discard_uvedit_select(MeshBatchCache &cache)
 {
-  printf("DISCARD SELECT\n");
   discard_buffers(
       cache,
       {VBOType::EditUVData, VBOType::FaceDotEditUVData},
