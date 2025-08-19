@@ -54,6 +54,7 @@ class GreasePencilPenToolOperation : public PenToolOperation {
   DrawingPlacement placement;
 
   Vector<float4x4> layer_to_objects;
+  std::optional<int> active_drawing_index;
 
   float3 project(const float2 &screen_co) const
   {
@@ -135,6 +136,8 @@ static bool pen_can_create_new_curve(const GreasePencilPenToolOperation &ptd, wm
     BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
     return false;
   }
+
+  BLI_assert(ptd.active_drawing_index != std::nullopt);
 
   return true;
 }
@@ -237,6 +240,23 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     const MutableDrawingInfo &info = ptd.drawings[drawing_index];
     const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
     ptd.layer_to_objects.append(layer.local_transform());
+  }
+
+  ptd.active_drawing_index = std::nullopt;
+  const bke::greasepencil::Layer *active_layer = ptd.grease_pencil->get_active_layer();
+
+  if (active_layer != nullptr) {
+    const bke::greasepencil::Drawing *active_drawing = ptd.grease_pencil->get_editable_drawing_at(
+        *active_layer, ptd.vc.scene->r.cfra);
+
+    for (const int drawing_index : ptd.drawings.index_range()) {
+      const MutableDrawingInfo &info = ptd.drawings[drawing_index];
+
+      if (active_drawing == &info.drawing) {
+        BLI_assert(ptd.active_drawing_index == std::nullopt);
+        ptd.active_drawing_index = drawing_index;
+      }
+    }
   }
 
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
@@ -348,15 +368,14 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
   if (add_single) {
     if (pen_can_create_new_curve(ptd, op)) {
-      bke::greasepencil::Layer &layer = *ptd.grease_pencil->get_active_layer();
-      bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
-          layer, ptd.vc.scene->r.cfra);
-      bke::CurvesGeometry &curves = drawing->strokes_for_write();
+      const MutableDrawingInfo &info = ptd.drawings[*ptd.active_drawing_index];
+      const bke::greasepencil::Layer &layer = ptd.grease_pencil->layer(info.layer_index);
       const float4x4 layer_to_world = layer.to_world_space(*ptd.vc.obact);
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
       ptd.add_single_point_and_curve(curves, layer_to_world);
-      drawing->opacities_for_write().last() = 1.0f;
-      drawing->tag_topology_changed();
+      info.drawing.opacities_for_write().last() = 1.0f;
+      info.drawing.tag_topology_changed();
 
       changed.store(true, std::memory_order_relaxed);
       point_added = true;
