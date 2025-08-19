@@ -2253,9 +2253,9 @@ static bool bpy_prop_callback_assign_boolean(PropertyRNA *prop,
 
   if (set_fn && set_fn != Py_None) {
     if (!rna_get_fn) {
-      PyErr_Format(PyExc_ValueError,
-                   "The `set` callback is defined without a matching `get` function, this is not "
-                   "supported. `set_transform` should probably be used instead?");
+      PyErr_SetString(PyExc_ValueError,
+                      "The `set` callback is defined without a matching `get` function, this is "
+                      "not supported. `set_transform` should probably be used instead?");
       return false;
     }
 
@@ -2426,9 +2426,9 @@ static bool bpy_prop_callback_assign_string(PropertyRNA *prop,
 
   if (set_fn && set_fn != Py_None) {
     if (!rna_get_fn) {
-      PyErr_Format(PyExc_ValueError,
-                   "The `set` callback is defined without a matching `get` function, this is not "
-                   "supported. `set_transform` should probably be used instead?");
+      PyErr_SetString(PyExc_ValueError,
+                      "The `set` callback is defined without a matching `get` function, this is "
+                      "not supported. `set_transform` should probably be used instead?");
       return false;
     }
 
@@ -2713,7 +2713,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
 
 #define BPY_PROPDEF_READONLY_DOC \
   "   :arg is_readonly: Whether the property is editable. " \
-  "Will be overridden to `True` when `get` is specified, but not `set`.\n" \
+  "Will be overridden to ``True`` when ``get`` is specified, but not ``set``.\n" \
   "   :type is_readonly: bool\n"
 
 #define BPY_PROPDEF_UPDATE_DOC \
@@ -2738,8 +2738,8 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      system-defined storage is not used for this property.\n" \
   "      This function must take 1 value (self) and return the value of the property.\n" \
   "\n" \
-  "      .. note:: Defining this callback without a matching `set` one will make " \
-  "      the property read-only (even if `is_readonly` option is set)." \
+  "      .. note:: Defining this callback without a matching ``set`` one will make " \
+  "the property read-only (even if ``is_readonly`` option is set)." \
   "\n" \
   "   :type get: Callable[[:class:`bpy.types.bpy_struct`], " ty "]\n"
 
@@ -2748,7 +2748,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      system-defined storage is not used for this property.\n" \
   "      This function must take 2 values (self, value) and return None.\n" \
   "\n" \
-  "      .. note:: Defining this callback without a matching `get` one is invalid." \
+  "      .. note:: Defining this callback without a matching ``get`` one is invalid." \
   "\n" \
   "   :type set: Callable[[:class:`bpy.types.bpy_struct`, " ty "], None]\n"
 
@@ -2759,9 +2759,8 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      and a boolean indicating if the property is currently set),\n" \
   "      and return the final, transformed value of the property.\n" \
   "\n" \
-  "      .. note:: The callback is responsible to ensure that value limits of the property\n" \
-  "      (min/max, length...) are respected.\n" \
-  "      Failing to do so will trigger ValueError exceptions.\n" \
+  "      .. note:: The callback is responsible to ensure that value limits of the property " \
+  "(min/max, length...) are respected. Otherwise a ValueError exception is raised.\n" \
   "\n" \
   "   :type get_transform: Callable[[:class:`bpy.types.bpy_struct`, " ty ", bool], " ty "]\n"
 
@@ -2769,13 +2768,13 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :arg set_transform: Function to be called when this value is 'written',\n" \
   "      if some additional processing must be performed on the given value before storing it.\n" \
   "      This function must take four arguments (self, the given value to store,\n" \
-  "      the currently stored value ('raw' value, without any `get_transform` applied to it),\n" \
+  "      the currently stored value ('raw' value, without any ``get_transform`` applied to " \
+  "it),\n" \
   "      and a boolean indicating if the property is currently set),\n" \
   "      and return the final, transformed value of the property.\n" \
   "\n" \
   "      .. note:: The callback is responsible to ensure that value limits (min/max, " \
-  "length...)\n" \
-  "      are respected. Failing to do so will trigger ValueError exceptions.\n" \
+  "length...) are respected. Otherwise a ValueError exception is raised.\n" \
   "\n" \
   "   :type set_transform: " \
   "Callable[[:class:`bpy.types.bpy_struct`, " ty ", " ty ", bool], " ty "]\n"
