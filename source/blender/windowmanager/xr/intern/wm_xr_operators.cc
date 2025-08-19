@@ -615,20 +615,27 @@ static void WM_OT_xr_navigation_grab(wmOperatorType *ot)
 /** \name XR Raycast Utilities
  * \{ */
 
-#define XR_MAX_RAYCASTS 6
-#define XR_RAYCAST_SPLINE_VERTEX_COUNT 40
+#define XR_MAX_RAYCASTS 8
 
 static const float g_xr_default_raycast_axis[3] = {0.0f, 0.0f, -1.0f};
 static const float g_xr_default_raycast_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
 
 struct XrRaycastData {
+  /** Raycast info */
   bool from_viewer;
+  
+  /** Raycast results */
   bool success;
   float destination_dist;
   int num_points;
-  float points[XR_MAX_RAYCASTS + 1][3];
+  float points[XR_MAX_RAYCASTS + 1][4];
   float direction[3];
+  
+  /** Raycast visualization parameters */
   float color[4];
+  float width;
+  int samples_per_segment;
+  
   void *draw_handle;
 };
 
@@ -722,34 +729,35 @@ static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, voi
     immEnd();
   }
   else {
-    uint col = GPU_vertformat_attr_add(
-        format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-    immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_FLAT_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_XR_RAYCAST);
 
-    float viewport[4];
-    GPU_viewport_size_get_f(viewport);
-    immUniform2fv("viewportSize", &viewport[2]);
+    float forward[3], right[3];
 
-    immUniform1f("lineWidth", 3.0f * U.pixelsize);
+    sub_v3_v3v3(forward, data->points[data->num_points - 1], data->points[0]);
+
+    /** Assume up = { 0, 0, 1 } */
+    copy_v3_fl3(right, forward[1], -forward[0], 0.0f);
+    normalize_v3(right);
+
+    immUniformArray4fv("controlPoints", &data->points[0][0], XR_MAX_RAYCASTS + 1);
+    immUniform4fv("color", data->color);
+    immUniform3fv("rightVector", right);
+    immUniform1f("width", data->width);
+    immUniform1i("controlPointCount", data->num_points);
+    immUniform1i("samplesPerSegment", data->samples_per_segment);
 
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
-    float spline[XR_RAYCAST_SPLINE_VERTEX_COUNT][3];
-    wm_xr_raycast_generate_spline(spline, 
-                                  XR_RAYCAST_SPLINE_VERTEX_COUNT, 
-                                  data->points, 
-                                  data->num_points);
+    /** The number of vertices in the triangle strip is twice the number of
+     *  interpolation samples. */
+    int sampleCount = (data->num_points - 1) * data->samples_per_segment;
+    immBegin(GPU_PRIM_TRI_STRIP, sampleCount * 2);
 
-    immBegin(GPU_PRIM_LINES, (XR_RAYCAST_SPLINE_VERTEX_COUNT - 1) * 2);
-
-    for (int i = 0; i < XR_RAYCAST_SPLINE_VERTEX_COUNT - 1; ++i) {
-      immAttrSkip(col);
-      immVertex3fv(pos, spline[i]);
-
-      immAttr4fv(col, data->color);
-      immVertex3fv(pos, spline[i + 1]);
+    /** Vertex data is overwritten in the vertex shader (can be anything). */
+    for (int i = 0; i < sampleCount * 2; ++i) {
+      immVertex3fv(pos, right);
     }
-
+    
     immEnd();
   }
 
@@ -805,6 +813,8 @@ static void wm_xr_raycast_update(wmOperator *op,
   float axis[3];
 
   data->from_viewer = RNA_boolean_get(op->ptr, "from_viewer");
+  data->width = RNA_float_get(op->ptr, "width");
+  data->samples_per_segment = RNA_int_get(op->ptr, "samples_per_segment");
   RNA_float_get_array(op->ptr, "axis", axis);
   RNA_float_get_array(op->ptr, "color", data->color);
 
@@ -1369,7 +1379,7 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
 static bool wm_xr_navigation_teleport(bContext *C,
                                       wmXrData *xr,
                                       float nav_destination[3],
-                                      float points[XR_MAX_RAYCASTS + 1][3],
+                                      float points[XR_MAX_RAYCASTS + 1][4],
                                       const float direction[3],
                                       int *num_points,
                                       float *ray_dist,
@@ -1597,7 +1607,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                   "Only allow selectable objects to influence raycast result");
   RNA_def_float(ot->srna,
                 "distance",
-                20.0,
+                80.0,
                 0.0,
                 BVH_RAYCAST_DIST_MAX,
                 "",
@@ -1613,6 +1623,24 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 "Downward curvature applied to raycast",
                 0.0,
                 FLT_MAX);
+  RNA_def_float(ot->srna,
+                "width",
+                0.02f,
+                0.0f,
+                FLT_MAX,
+                "Width",
+                "Raycast width",
+                0.0f,
+                FLT_MAX);
+  RNA_def_int(ot->srna,
+              "samples_per_segment",
+              6,
+              2,
+              INT_MAX,
+              "Samples Per Segment",
+              "Interpolation samples per raycast segment",
+              2,
+              INT_MAX);
   RNA_def_boolean(
       ot->srna, "from_viewer", false, "From Viewer", "Use viewer pose as raycast origin");
   RNA_def_float_vector(ot->srna,

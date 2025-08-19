@@ -37,6 +37,7 @@
 #include "gpu_shader_simple_lighting_info.hh"
 #include "gpu_shader_text_info.hh"
 #include "gpu_shader_vignette_info.hh"
+#include "gpu_shader_xr_raycast_info.hh"
 #include "gpu_srgb_to_framebuffer_space_info.hh"
 
 #ifdef WITH_GTESTS

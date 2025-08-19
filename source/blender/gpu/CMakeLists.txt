@@ -512,6 +512,7 @@ set(GLSL_SRC
 
   shaders/gpu_shader_text_vert.glsl
   shaders/gpu_shader_text_frag.glsl
+  shaders/gpu_shader_xr_raycast_vert.glsl
   shaders/gpu_shader_vignette_frag.glsl
   shaders/gpu_shader_keyframe_shape_vert.glsl
   shaders/gpu_shader_keyframe_shape_frag.glsl

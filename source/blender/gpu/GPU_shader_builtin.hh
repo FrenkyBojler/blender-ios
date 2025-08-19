@@ -84,6 +84,11 @@ enum eGPUBuiltinShader {
   /** Draw strip thumbnails in sequencer timeline. */
   GPU_SHADER_SEQUENCER_THUMBS,
 
+  /** Draw vignette in screen space. */
+  GPU_SHADER_VIGNETTE,
+  /** Draw xr raycast as a ruled spline surface. */
+  GPU_SHADER_XR_RAYCAST,
+
   /** Compute shaders to generate 2d index buffers (mainly for curve drawing). */
   GPU_SHADER_INDEXBUF_POINTS,
   GPU_SHADER_INDEXBUF_LINES,
@@ -142,11 +147,6 @@ enum eGPUBuiltinShader {
    * \param pos: in vec3
    */
   GPU_SHADER_3D_IMAGE_COLOR,
-
-  /**
-   * TODO: Write Description
-   */
-  GPU_SHADER_VIGNETTE,
 };
 #define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_3D_IMAGE_COLOR + 1)
 
