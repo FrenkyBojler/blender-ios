@@ -26,6 +26,7 @@
 #include "BLI_memarena.h"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
+#include "BLI_task_size_hints.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_attribute.hh"
@@ -1472,25 +1473,29 @@ void normals_calc_corners(const Span<float3> vert_positions,
   }
 
   const int64_t mean_size = space_offsets.total_size() / space_offsets.size();
-  threading::parallel_for(all_space_groups.index_range(), grain_size, [&](const IndexRange range) {
-    for (const int thread_i : range) {
-      Vector<CornerSpaceGroup, 0> &local_space_groups = all_space_groups[thread_i];
-      for (const int group_i : local_space_groups.index_range()) {
-        const int space_index = space_offsets[thread_i][group_i];
-        r_fan_spaces->spaces[space_index] = local_space_groups[group_i].space;
-        r_fan_spaces->corner_space_indices.as_mutable_span().fill_indices(
-            local_space_groups[group_i].fan_corners.as_span(), space_index);
-      }
-      if (!r_fan_spaces->create_corners_by_space) {
-        continue;
-      }
-      for (const int group_i : local_space_groups.index_range()) {
-        const int space_index = space_offsets[thread_i][group_i];
-        r_fan_spaces->corners_by_space[space_index] = std::move(
-            local_space_groups[group_i].fan_corners);
-      }
-    }
-  });
+  threading::parallel_for(
+      all_space_groups.index_range(),
+      2048,
+      [&](const IndexRange range) {
+        for (const int thread_i : range) {
+          Vector<CornerSpaceGroup, 0> &local_space_groups = all_space_groups[thread_i];
+          for (const int group_i : local_space_groups.index_range()) {
+            const int space_index = space_offsets[thread_i][group_i];
+            r_fan_spaces->spaces[space_index] = local_space_groups[group_i].space;
+            r_fan_spaces->corner_space_indices.as_mutable_span().fill_indices(
+                local_space_groups[group_i].fan_corners.as_span(), space_index);
+          }
+          if (!r_fan_spaces->create_corners_by_space) {
+            continue;
+          }
+          for (const int group_i : local_space_groups.index_range()) {
+            const int space_index = space_offsets[thread_i][group_i];
+            r_fan_spaces->corners_by_space[space_index] = std::move(
+                local_space_groups[group_i].fan_corners);
+          }
+        }
+      },
+      threading::constant_task_sizes(mean_size));
 }
 
 #undef INDEX_UNSET

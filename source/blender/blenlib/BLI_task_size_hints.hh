@@ -145,6 +145,24 @@ inline bool use_single_thread(const TaskSizeHints &size_hints,
 }
 
 /**
+ * Implicit task size is 1 and this imply direct mapping of grain size to size of the range.
+ * If it's known at runtime how costly each element to process is then this should be used to make
+ * this mapping with grain size. As large task size is as smaller range size will be.
+ *
+ * If you have 2d array and you loop over it first dimension then second dimensio will be a task
+ * size. But consider other loop structure if you know second dimension is often larger than first
+ * one and smaller than available number of thread and you can transpose the loop for free or use
+ * 1D index space without a lot of complexity.
+ *
+ * \param task_size: Approximately uniform cost of each element of the range to loop over with
+ * multithreading.
+ */
+inline detail::TaskSizeHints_Static constant_task_sizes(const int64_t task_size)
+{
+  return detail::TaskSizeHints_Static(task_size);
+}
+
+/**
  * Specify how large the task at each index is with a callback. This is especially useful if the
  * size of each individual task can be very different. Specifying the size allows the scheduler to
  * distribute the work across threads more equally.
