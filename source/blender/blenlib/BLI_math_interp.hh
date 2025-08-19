@@ -381,5 +381,6 @@ void BLI_ewa_single_level(const int2 &dimensions,
                           const float2 &uv_dy_norm,
                           const float *buffer,
                           float4 &result,
-                          const float &max_ratio_between_axes = 8.0f);
+                          const float &max_ratio_between_axes = 8.0f,
+                          const float &alpha = 2.0f);
 }

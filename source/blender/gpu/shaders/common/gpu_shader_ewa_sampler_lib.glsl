@@ -4,6 +4,7 @@
 #pragma once
 
 #include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_glsl_cpp_stubs.hh"
 
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
@@ -36,63 +37,6 @@ void clamp_anisotropy(inout float2 du_dx_texels,
   }
 }
 
-float ewa_weight_gaussian_exp(float r2, float alpha) {
-  float r2c = clamp(r2, 0.0f, 1.0f);
-  return exp(-alpha * r2c);
-}
-
-float ewa_weight_gaussian_tent(float r2, float alpha) {
-  if (r2 >= 1.0f) {
-    return 0.0f;
-  }
-  float g = exp(-alpha * r2);
-  float r = sqrt(r2);
-  float fade = max(0.0f, 1.0f - r);  // linear to zero at r=1
-  return g * fade;
-}
-
-float smootherstep(float x)
-{
-  float t = clamp(x, 0.0, 1.0);
-  return ((6.0*t - 15.0)*t + 10.0) * t*t*t;
-}
-
-float ewa_weight_gaussian_smootherstep(float r2,
-                                       float alpha,
-                                       float r_soft)
-{
-  if (r2 >= 1.0f) {
-    return 0.0f;
-  }
-  float g = exp(-alpha * r2);
-
-  float r2_soft = r_soft * r_soft;
-  if (r2 <= r2_soft) {
-    return g;
-  }
-
-  float r = sqrt(r2);
-  float t = (r - r_soft) / (1.0f - r_soft);
-  float fade = 1.0f - smootherstep(t);
-  return g * fade;
-}
-
-const uint EWA_EDGE_MODE_MASK        = 0x3u;
-const uint EWA_EDGE_MODE_NONE        = 0x0u; // 00
-const uint EWA_EDGE_MODE_TENT        = 0x1u; // 01
-const uint EWA_EDGE_MODE_SMOOTHERSTEP= 0x2u; // 10
-
-float compute_ewa_weight(float r2, uint fade_flags, float alpha, float r_soft) {
-  uint mode = (fade_flags & EWA_EDGE_MODE_MASK);
-  if (mode == EWA_EDGE_MODE_TENT) {
-    return ewa_weight_gaussian_tent(r2, alpha);
-  } else if (mode == EWA_EDGE_MODE_SMOOTHERSTEP) {
-    return ewa_weight_gaussian_smootherstep(r2, alpha, r_soft);
-  } else {
-    return ewa_weight_gaussian_exp(r2, alpha);
-  }
-}
-
 /* Normalized ellipse describing the footprint in texel space:
  * r^2(Δu,Δv) = A * Δu^2 + B * ΔuΔv + C * Δv^2   (inside if r^2 < 1)
  * s0..s1, t0..t1: integer bounding box to scan (inclusive)
@@ -115,7 +59,7 @@ struct Ellipse {
  *   B = -2 * [(du/dx)(dv/dx) + (du/dy)(dv/dy)]
  *   C = (du/dx)^2 + (du/dy)^2 + 1
  * then normalize so "inside" is r^2 < 1. */
-Ellipse build_ellipse(float2 uv_center_norm, float2 du_dx_texels, float2 du_dy_texels, float max_ratio_between_axes)
+Ellipse build_ellipse(float2 uv_center, float2 du_dx_texels, float2 du_dy_texels, float max_ratio_between_axes)
 {
   /* Clamps the ellipsoid based on the ratio between the axes.
   This leads to better performance, because thin ellipsoids will be adjusted,
@@ -132,7 +76,7 @@ Ellipse build_ellipse(float2 uv_center_norm, float2 du_dx_texels, float2 du_dy_t
 
   /* We add one to the A/C coefficients, because we sum over a discrete grid (one sample per texel center).
   A texel can still contribute even if its center lies just outside the true ellipse,
-  as long as its 1×1 area overlaps the ellipse. If we only test the true ellipse we will miss those border
+  as long as its 1x1 area overlaps the ellipse. If we only test the true ellipse we will miss those border
   texels, causing artefacts. */
   float A = dv_dx*dv_dx + dv_dy*dv_dy + 1.0;
   float B = -2.0 * (du_dx*dv_dx + du_dy*dv_dy);
@@ -150,8 +94,8 @@ Ellipse build_ellipse(float2 uv_center_norm, float2 du_dx_texels, float2 du_dy_t
   B *= inv;
   C *= inv;
 
-  float center_u_texel = uv_center_norm.x - 0.5;
-  float center_v_texel = uv_center_norm.y - 0.5;
+  float center_u_texel = uv_center.x - 0.5;
+  float center_v_texel = uv_center.y - 0.5;
 
   float conic_discriminant = -B * B + 4.0 * A * C;
   if (conic_discriminant < 0.0) {
@@ -188,24 +132,20 @@ Ellipse build_ellipse(float2 uv_center_norm, float2 du_dx_texels, float2 du_dy_t
  * Book excerpt:
  * https://pbr-book.org/4ed/Textures_and_Materials/Image_Texture#fragment-ComputeEWAellipseaxes-0
  */
-float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, float2 y_gradient
-                   /*should be pushed as a constant? float max_ratio_between_axes = 8.0f*/)
+float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, float2 y_gradient)
 {
+  float alpha = 2.0f;
   float max_ratio_between_axes = 8.0f;
 
   /* Bring derivatives to texel space */
   float2 size = float2(textureSize(input_tx, 0));
 
-  float2 uv_center_norm = float2(coordinates.x * size.x, coordinates.y * size.y);
-  float2 du_dx_texels = float2(x_gradient.x * size.x, x_gradient.y * size.y);
-  float2 du_dy_texels = float2(y_gradient.x * size.x, y_gradient.y * size.y);
-  // float2 du_dx_texels = float2(du_dx_norm.x * float(size.x),
-  //                              du_dx_norm.y * float(size.y));
-  // float2 du_dy_texels = float2(du_dy_norm.x * float(size.x),
-  //                              du_dy_norm.y * float(size.y));
+  float2 uv_center = coordinates * size;
+  float2 du_dx_texels = x_gradient * size;
+  float2 du_dy_texels = y_gradient * size;
 
   /* Build ellipse & bbox in texel space */
-  Ellipse e = build_ellipse(uv_center_norm, du_dx_texels, du_dy_texels, max_ratio_between_axes);
+  Ellipse e = build_ellipse(uv_center, du_dx_texels, du_dy_texels, max_ratio_between_axes);
 
   if (!e.valid) {
     return float4(0.0f);
@@ -217,27 +157,24 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
   /* Incremental evaluation across each scanline */
   for (int y = e.t0; y <= e.t1; ++y) {
     float delta_v = float(y) - e.center_v_texel;
-
-    float delta_u0 = float(e.s0) - e.center_u_texel;
-    float r2 = e.A * delta_u0 * delta_u0 + e.B * delta_u0 * delta_v + e.C * delta_v * delta_v;
-
-    float dR = e.A * (2.0f * delta_u0 + 1.0f) + e.B * delta_v;
-    float ddR = 2.0f * e.A;
+    float C_delta_v = e.C * delta_v * delta_v;
+    float B_delta_v = e.B * delta_v;
 
     for (int x = e.s0; x <= e.s1; ++x) {
+      float delta_u = float(x) - e.center_u_texel;
+      float r2 = fma(e.A, delta_u * delta_u, fma(B_delta_v, delta_u, C_delta_v));
+
       if (r2 < 1.0f) {
-        float weight = compute_ewa_weight(r2, EWA_EDGE_MODE_NONE, 2.0f, 0.92f);
+        float weight = exp(-alpha * r2);
         if (weight > 0.0f) {
           float4 rgba = texelFetch(input_tx, int2(x, y), 0);
           accum += weight * rgba;
-          wsum  += weight;
+          wsum += weight;
         }
       }
-      r2 += dR;
-      dR += ddR;
     }
   }
 
-  float4 out_color = (wsum > 0.0f) ? (accum / wsum) : float4(0.0f);
+  float4 out_color = safe_divide(accum, wsum);
   return out_color;
 }

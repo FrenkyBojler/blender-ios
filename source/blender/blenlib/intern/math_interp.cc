@@ -16,6 +16,7 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_interp.hh"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_simd.hh"
 
@@ -962,71 +963,6 @@ void BLI_ewa_filter(const int width,
 }
 
 namespace blender::math {
-enum class EWAEdgeFade : uint8_t { None, Tent, Smootherstep };
-
-BLI_INLINE float ewa_weight_gaussian_exp(const float r2, const float alpha = 2.0f)
-{
-  const float r2c = std::clamp(r2, 0.0f, 1.0f);
-  return std::exp(-alpha * r2c);
-}
-
-// Gaussian × tent (triangle) fade
-BLI_INLINE float ewa_weight_gaussian_tent(const float r2, const float alpha = 2.0f)
-{
-  if (r2 >= 1.0f) {
-    return 0.0f;
-  }
-  const float g = std::exp(-alpha * r2);
-  const float r = std::sqrt(r2);
-  const float fade = std::max(0.0f, 1.0f - r);  // linear to zero at r=1
-  return g * fade;
-}
-
-/* Gaussian with smootherstep edge band: keeps the interior identical to the
-Gaussian and only fades in the outer ring [r_soft, 1] with C^2 continuity. */
-BLI_INLINE float ewa_weight_gaussian_smootherstep(const float r2,
-                                                  const float alpha = 2.0f,
-                                                  const float r_soft = 0.92f)
-{
-  auto smootherstep = [&](const float t) -> float {
-    const float x = std::clamp(t, 0.0f, 1.0f);
-    return ((6.0f * x - 15.0f) * x + 10.0f) * x * x * x;
-  };
-
-  if (r2 >= 1.0f) {
-    return 0.0f;
-  }
-  const float g = std::exp(-alpha * r2);
-
-  const float r2_soft = r_soft * r_soft;
-  if (r2 <= r2_soft) {
-    return g;
-  }
-
-  const float r = std::sqrt(r2);
-  const float t = (r - r_soft) / (1.0f - r_soft);
-  const float fade = 1.0f - smootherstep(t);
-  return g * fade;
-}
-
-BLI_INLINE float compute_ewa_weight(const float r2,
-                                    const EWAEdgeFade fade_policy = EWAEdgeFade::None,
-                                    const float alpha = 2.0f,
-                                    const float r_soft = 0.92f)
-{
-  switch (fade_policy) {
-    case EWAEdgeFade::None:
-      return ewa_weight_gaussian_exp(r2, alpha);
-    case EWAEdgeFade::Tent:
-      return ewa_weight_gaussian_tent(r2, alpha);
-    case EWAEdgeFade::Smootherstep:
-      return ewa_weight_gaussian_smootherstep(r2, alpha, r_soft);
-  }
-
-  BLI_assert_unreachable();
-  return ewa_weight_gaussian_exp(r2, alpha);
-}
-
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
  * than the `max_ratio_between_axes` times shorter than the long axis. Inputs are the
  * two derivative vectors in texel space (du/dx, dv/dx) and (du/dy, dv/dy). */
@@ -1096,7 +1032,7 @@ BLI_INLINE Ellipse build_ellipse(const int2 &image_dimensions,
 
   /* We add one to the A/C coefficients, because we sum over a discrete grid (one sample per texel
    * center). A texel can still contribute even if its center lies just outside the true ellipse,
-   * as long as its 1×1 area overlaps the ellipse. If we only test the true ellipse we will miss
+   * as long as its 1x1 area overlaps the ellipse. If we only test the true ellipse we will miss
    * those border texels, causing artefacts. */
   float A = dv_dx_texels * dv_dx_texels + dv_dy_texels * dv_dy_texels + 1.0f;
   float B = -2.0f * (du_dx_texels * dv_dx_texels + du_dy_texels * dv_dy_texels);
@@ -1154,7 +1090,8 @@ void BLI_ewa_single_level(const int2 &dimensions,
                           const float2 &uv_dy_norm,
                           const float *buffer,
                           float4 &result,
-                          const float &max_ratio_between_axes)
+                          const float &max_ratio_between_axes,
+                          const float &alpha)
 {
   const Ellipse ellipse = build_ellipse(
       dimensions, uv_center_norm, uv_dx_norm, uv_dy_norm, max_ratio_between_axes);
@@ -1182,18 +1119,16 @@ void BLI_ewa_single_level(const int2 &dimensions,
   /* Scanline evaluation with incremental r^2 updates. */
   for (int v = v_min; v <= v_max; ++v) {
     const float delta_v = float(v) - ellipse.texel_center_y;
-
     const float delta_u_start = float(u_min) - ellipse.texel_center_x;
     float r2_at_pixel = ellipse.A * delta_u_start * delta_u_start +
                         ellipse.B * delta_u_start * delta_v + ellipse.C * delta_v * delta_v;
 
     float r2_step_x = ellipse.A * (2.0f * delta_u_start + 1.0f) + ellipse.B * delta_v;
-
     const float r2_second_derivative_x = 2.0f * ellipse.A;
 
     for (int u = u_min; u <= u_max; ++u) {
       if (r2_at_pixel < 1.0f) {
-        const float gauss_weight = compute_ewa_weight(r2_at_pixel, EWAEdgeFade::None);
+        const float gauss_weight = std::exp(-alpha * r2_at_pixel);
         if (gauss_weight > 0.0f) {
           const int texel_index = (dimensions.x * v + u) * n_channels;
           const float4 rgba = buffer + texel_index;
@@ -1208,11 +1143,6 @@ void BLI_ewa_single_level(const int2 &dimensions,
     }
   }
 
-  if (accum_weight > 0.0f) {
-    result = accum_rgba * (1.0f / accum_weight);
-  }
-  else {
-    result = {0.0f, 0.0f, 0.0f, 0.0f};
-  }
+  result = safe_divide(accum_rgba, accum_weight);
 }
 }  // namespace blender::math
