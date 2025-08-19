@@ -1,0 +1,1 @@
+Referenced by pull request #144822, Cleanup: Rename `BKE_paint_brush_poll` to `BKE_paint_can_use_brush`
