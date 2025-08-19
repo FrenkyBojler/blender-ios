@@ -1780,8 +1780,7 @@ static void area_move_set_limits(wmWindow *win,
     else {
       int x1 = area->winx - int(AREAMINX * UI_SCALE_FAC) - 1;
       if (area->v1->vec.x == 0 || area->v3->vec.x > (win->sizex - 2)) {
-        x1 = area->winx -
-                       int(ceil(std::max(float(U.border_width), 5.0f) * UI_SCALE_FAC));
+        x1 = area->winx - int(ceil(std::max(float(U.border_width), 5.0f) * UI_SCALE_FAC));
       }
       /* if left or right edge selected, test width */
       if (area->v1->editflag && area->v2->editflag) {
