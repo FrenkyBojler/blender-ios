@@ -147,6 +147,8 @@ Ellipse build_ellipse(float2 uv_texel_space,
  * tapped texel within the ellipsoid. */
 float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, float2 y_gradient)
 {
+  /* TODO(Ben): After feedback, check in with users if they need these as accessible
+   * paramemters. */
   constexpr float alpha = 2.0f;
   constexpr float max_ratio_between_axes = 8.0f;
 
