@@ -9819,7 +9819,8 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 
         bt = ui_but_find_mouse_over(region, event);
 
-        if (bt && bt->active != data) {
+        if (bt && bt->active != data && (U.flag & USER_MENU_NEIGHBOR_OPEN)) {
+          /* Close open menu when over another. */
           if (but->type != ButType::Color) { /* exception */
             data->cancel = true;
           }
@@ -11251,7 +11252,9 @@ static int ui_handle_menu_event(bContext *C,
       else {
 
         /* check mouse moving outside of the menu */
-        if (inside == false && (block->flag & (UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_POPOVER))) {
+        if (inside == false && (block->flag & (UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_POPOVER)) &&
+            (U.flag & USER_MENU_MOUSE_OUT_CLOSE))
+        {
           uiSafetyRct *saferct;
 
           ui_mouse_motion_towards_check(block, menu, event->xy, is_parent_inside == false);
@@ -11972,6 +11975,10 @@ static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event
 /* Return true if we should open another menu while one is already open. */
 static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEvent *event)
 {
+  if (!(U.flag & USER_MENU_NEIGHBOR_OPEN)) {
+    return false;
+  }
+
   if (but == but_other || but_other->flag & UI_BUT_DISABLED || but_other->menu_no_hover_open) {
     return false;
   }
