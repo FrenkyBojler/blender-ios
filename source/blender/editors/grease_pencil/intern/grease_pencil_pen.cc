@@ -391,33 +391,11 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   GreasePencilPenToolOperation &ptd = *reinterpret_cast<GreasePencilPenToolOperation *>(
       op->customdata);
 
-  ptd.mouse_co = float2(event->mval);
-  ptd.xy = float2(event->xy);
-  ptd.prev_xy = float2(event->prev_xy);
-
-  if (event->type == EVENT_NONE) {
-    return OPERATOR_RUNNING_MODAL;
-  }
-
-  if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-    grease_pencil_pen_exit(C, op);
-    return OPERATOR_FINISHED;
-  }
-  if (ptd.point_removed) {
-    grease_pencil_pen_exit(C, op);
-    return OPERATOR_FINISHED;
-  }
-
-  if (event->type == EVT_MODAL_MAP) {
-    if (event->val == int(PenModal::MoveEntire)) {
-      ptd.move_entire = !ptd.move_entire;
+  if (std::optional<wmOperatorStatus> result = modal_start(ptd, C, op, event)) {
+    if (*result == OPERATOR_FINISHED) {
+      grease_pencil_pen_exit(C, op);
     }
-    else if (event->val == int(PenModal::SnapAngle)) {
-      ptd.snap_angle = !ptd.snap_angle;
-    }
-    else if (event->val == int(PenModal::MoveHandle)) {
-      ptd.move_handle = !ptd.move_handle;
-    }
+    return *result;
   }
 
   std::atomic<bool> changed = false;

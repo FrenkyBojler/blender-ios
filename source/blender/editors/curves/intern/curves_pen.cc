@@ -1238,11 +1238,11 @@ static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmE
   return OPERATOR_RUNNING_MODAL;
 }
 
-/* Modal handler: Events handling during interactive part. */
-static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
+std::optional<wmOperatorStatus> modal_start(PenToolOperation &ptd,
+                                            bContext * /*C*/,
+                                            wmOperator * /*op*/,
+                                            const wmEvent *event)
 {
-  CurvesPenToolOperation &ptd = *reinterpret_cast<CurvesPenToolOperation *>(op->customdata);
-
   ptd.mouse_co = float2(event->mval);
   ptd.xy = float2(event->xy);
   ptd.prev_xy = float2(event->prev_xy);
@@ -1252,11 +1252,9 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
   }
 
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-    curves_pen_exit(C, op);
     return OPERATOR_FINISHED;
   }
   if (ptd.point_removed) {
-    curves_pen_exit(C, op);
     return OPERATOR_FINISHED;
   }
 
@@ -1270,6 +1268,21 @@ static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEv
     else if (event->val == int(PenModal::MoveHandle)) {
       ptd.move_handle = !ptd.move_handle;
     }
+  }
+
+  return std::nullopt;
+}
+
+/* Modal handler: Events handling during interactive part. */
+static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  CurvesPenToolOperation &ptd = *reinterpret_cast<CurvesPenToolOperation *>(op->customdata);
+
+  if (std::optional<wmOperatorStatus> result = modal_start(ptd, C, op, event)) {
+    if (*result == OPERATOR_FINISHED) {
+      curves_pen_exit(C, op);
+    }
+    return *result;
   }
 
   std::atomic<bool> changed = false;
