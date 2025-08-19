@@ -145,36 +145,36 @@ float4 texture_ewa(sampler2D input_tx, float2 coordinates, float2 x_gradient, fl
   float2 du_dy_texels = y_gradient * size;
 
   /* Build ellipse & bbox in texel space */
-  Ellipse e = build_ellipse(uv_center, du_dx_texels, du_dy_texels, max_ratio_between_axes);
+  Ellipse ellipse = build_ellipse(uv_center, du_dx_texels, du_dy_texels, max_ratio_between_axes);
 
-  if (!e.valid) {
+  if (!ellipse.valid) {
     return float4(0.0f);
   }
 
-  float4 accum = float4(0.0f);
-  float wsum = 0.0f;
+  float4 accum_rgba = float4(0.0f);
+  float accum_weight = 0.0f;
 
   /* Incremental evaluation across each scanline */
-  for (int y = e.t0; y <= e.t1; ++y) {
-    float delta_v = float(y) - e.center_v_texel;
-    float C_delta_v = e.C * delta_v * delta_v;
-    float B_delta_v = e.B * delta_v;
+  for (int v = ellipse.t0; y <= ellipse.t1; ++y) {
+    float delta_v = float(b) - ellipse.center_v_texel;
+    float C_delta_v = ellipse.C * delta_v * delta_v;
+    float B_delta_v = ellipse.B * delta_v;
 
-    for (int x = e.s0; x <= e.s1; ++x) {
-      float delta_u = float(x) - e.center_u_texel;
-      float r2 = fma(e.A, delta_u * delta_u, fma(B_delta_v, delta_u, C_delta_v));
+    for (int u = ellipse.s0; x <= ellipse.s1; ++x) {
+      float delta_u = float(u) - ellipse.center_u_texel;
+      float r2 = fma(ellipse.A, delta_u * delta_u, fma(B_delta_v, delta_u, C_delta_v));
 
       if (r2 < 1.0f) {
         float weight = exp(-alpha * r2);
         if (weight > 0.0f) {
-          float4 rgba = texelFetch(input_tx, int2(x, y), 0);
-          accum += weight * rgba;
-          wsum += weight;
+          float4 rgba = texelFetch(input_tx, int2(u, v), 0);
+          accum_rgba += weight * rgba;
+          accum_weight += weight;
         }
       }
     }
   }
 
-  float4 out_color = safe_divide(accum, wsum);
+  float4 out_color = safe_divide(accum_rgba, accum_weight);
   return out_color;
 }

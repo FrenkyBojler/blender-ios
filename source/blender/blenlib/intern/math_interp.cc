@@ -1119,27 +1119,23 @@ void BLI_ewa_single_level(const int2 &dimensions,
   /* Scanline evaluation with incremental r^2 updates. */
   for (int v = v_min; v <= v_max; ++v) {
     const float delta_v = float(v) - ellipse.texel_center_y;
-    const float delta_u_start = float(u_min) - ellipse.texel_center_x;
-    float r2_at_pixel = ellipse.A * delta_u_start * delta_u_start +
-                        ellipse.B * delta_u_start * delta_v + ellipse.C * delta_v * delta_v;
-
-    float r2_step_x = ellipse.A * (2.0f * delta_u_start + 1.0f) + ellipse.B * delta_v;
-    const float r2_second_derivative_x = 2.0f * ellipse.A;
+    const float C_delta_v = ellipse.C * delta_v * delta_v;
+    const float B_delta_v = ellipse.B * delta_v;
 
     for (int u = u_min; u <= u_max; ++u) {
-      if (r2_at_pixel < 1.0f) {
-        const float gauss_weight = std::exp(-alpha * r2_at_pixel);
-        if (gauss_weight > 0.0f) {
+      float delta_u = float(u) - ellipse.texel_center_x;
+      float r2 = fma(ellipse.A, delta_u * delta_u, fma(B_delta_v, delta_u, C_delta_v));
+
+      if (r2 < 1.0f) {
+        const float weight = std::exp(-alpha * r2);
+        if (weight > 0.0f) {
           const int texel_index = (dimensions.x * v + u) * n_channels;
           const float4 rgba = buffer + texel_index;
 
-          accum_rgba += gauss_weight * rgba;
-          accum_weight += gauss_weight;
+          accum_rgba += weight * rgba;
+          accum_weight += weight;
         }
       }
-
-      r2_at_pixel += r2_step_x;
-      r2_step_x += r2_second_derivative_x;
     }
   }
 
