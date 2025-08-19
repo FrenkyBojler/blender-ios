@@ -1227,30 +1227,40 @@ static void paint_runtime_init(const ToolSettings *ts, Paint *paint)
 
   if (paint == &ts->imapaint.paint) {
     paint->runtime->ob_mode = OB_MODE_TEXTURE_PAINT;
+    /* TODO: Odd case of this being both 2D & 3D */
+    paint->runtime->paint_mode = PaintMode::Texture3D;
   }
   else if (ts->sculpt && paint == &ts->sculpt->paint) {
     paint->runtime->ob_mode = OB_MODE_SCULPT;
+    paint->runtime->paint_mode = PaintMode::Sculpt;
   }
   else if (ts->vpaint && paint == &ts->vpaint->paint) {
     paint->runtime->ob_mode = OB_MODE_VERTEX_PAINT;
+    paint->runtime->paint_mode = PaintMode::Vertex;
   }
   else if (ts->wpaint && paint == &ts->wpaint->paint) {
     paint->runtime->ob_mode = OB_MODE_WEIGHT_PAINT;
+    paint->runtime->paint_mode = PaintMode::Weight;
   }
   else if (ts->gp_paint && paint == &ts->gp_paint->paint) {
     paint->runtime->ob_mode = OB_MODE_PAINT_GREASE_PENCIL;
+    paint->runtime->paint_mode = PaintMode::GPencil;
   }
   else if (ts->gp_vertexpaint && paint == &ts->gp_vertexpaint->paint) {
     paint->runtime->ob_mode = OB_MODE_VERTEX_GREASE_PENCIL;
+    paint->runtime->paint_mode = PaintMode::VertexGPencil;
   }
   else if (ts->gp_sculptpaint && paint == &ts->gp_sculptpaint->paint) {
     paint->runtime->ob_mode = OB_MODE_SCULPT_GREASE_PENCIL;
+    paint->runtime->paint_mode = PaintMode::SculptGPencil;
   }
   else if (ts->gp_weightpaint && paint == &ts->gp_weightpaint->paint) {
     paint->runtime->ob_mode = OB_MODE_WEIGHT_GREASE_PENCIL;
+    paint->runtime->paint_mode = PaintMode::WeightGPencil;
   }
   else if (ts->curves_sculpt && paint == &ts->curves_sculpt->paint) {
     paint->runtime->ob_mode = OB_MODE_SCULPT_CURVES;
+    paint->runtime->paint_mode = PaintMode::SculptCurves;
   }
   else {
     BLI_assert_unreachable();
