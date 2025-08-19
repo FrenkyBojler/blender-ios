@@ -51,7 +51,8 @@ void init_globals_curves()
   g_data.hair_diameter = curve_interp.diameter_attribute * 2.0;
   g_data.hair_strand_id = curve_interp_flat.strand_id;
 #  if defined(USE_BARYCENTRICS) && defined(GPU_FRAGMENT_SHADER)
-  g_data.barycentric_coords = hair_resolve_barycentric(curve_interp.barycentric_coords);
+  g_data.barycentric_coords.y = fract(curve_interp.point_id);
+  g_data.barycentric_coords.x = 1.0 - g_data.barycentric_coords.y;
 #  endif
 #endif
 }
