@@ -157,7 +157,7 @@ inline bool use_single_thread(const TaskSizeHints &size_hints,
  * \param task_size: Approximately uniform cost of each element of the range to loop over with
  * multithreading.
  */
-inline auto constant_task_sizes(const int64_t task_size)
+inline TaskSizeHints_Static constant_task_sizes(const int64_t task_size)
 {
   return detail::TaskSizeHints_Static(task_size);
 }
