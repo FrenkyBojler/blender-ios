@@ -200,7 +200,7 @@ Point object_to_world(Point pt, float4x4 object_to_world)
 {
   pt.P = transform_point(object_to_world, pt.P);
   pt.T = normalize(transform_direction(object_to_world, pt.T));
-  pt.radius *= length(to_scale(object_to_world));
+  pt.radius *= length(to_scale(object_to_world)) * M_SQRT1_3;
   return pt;
 }
 
