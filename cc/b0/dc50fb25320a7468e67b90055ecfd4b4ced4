@@ -5,3 +5,4 @@ Referenced by issue #142285, 3D cursor placement ignores objects, which have the
 Referenced by issue #142399, When Subdiv is enabled, the size in dimension remain the same (GPU Subdiv off)
 Referenced by issue #142738, WORKBENCH with MATCAPS Rendering Issues in Blender 4.5 and 5.0 Alpha
 Referenced by issue #144254, VSE proxies for image sequences do not work (since 4.5)
+Referenced by issue #144760, Value Node not changeable in Properties Window
