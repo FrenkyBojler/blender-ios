@@ -253,6 +253,8 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *screen)
     max_passes_left--;
   } while (needs_another_pass && (max_passes_left > 0));
 
+  rcti remaining_rect = window_rect;
+
   /* Global areas have a fixed size that only changes with the DPI.
    * Here we ensure that exactly this size is set. */
   LISTBASE_FOREACH (ScrArea *, area, &win->global_areas.areabase) {
@@ -260,28 +262,38 @@ void screen_geom_vertices_scale(const wmWindow *win, bScreen *screen)
       continue;
     }
 
-    int height = ED_area_global_size_y(area) - 1;
+    int size = ED_area_global_size_y(area) - 1;
 
     if (area->v1->vec.y > window_rect.ymin) {
-      height += U.pixelsize;
+      size += U.pixelsize;
     }
     if (area->v2->vec.y < (window_rect.ymax - 1)) {
-      height += U.pixelsize;
+      size += U.pixelsize;
     }
 
     /* width */
-    area->v1->vec.x = area->v2->vec.x = window_rect.xmin;
-    area->v3->vec.x = area->v4->vec.x = window_rect.xmax - 1;
+    area->v1->vec.x = area->v2->vec.x = remaining_rect.xmin;
+    area->v3->vec.x = area->v4->vec.x = remaining_rect.xmax - 1;
     /* height */
-    area->v1->vec.y = area->v4->vec.y = window_rect.ymin;
-    area->v2->vec.y = area->v3->vec.y = window_rect.ymax - 1;
+    area->v1->vec.y = area->v4->vec.y = remaining_rect.ymin;
+    area->v2->vec.y = area->v3->vec.y = remaining_rect.ymax - 1;
 
     switch (area->global->align) {
       case GLOBAL_AREA_ALIGN_TOP:
-        area->v1->vec.y = area->v4->vec.y = area->v2->vec.y - height;
+        area->v1->vec.y = area->v4->vec.y = area->v2->vec.y - size;
+        remaining_rect.ymax -= size;
         break;
       case GLOBAL_AREA_ALIGN_BOTTOM:
-        area->v2->vec.y = area->v3->vec.y = area->v1->vec.y + height;
+        area->v2->vec.y = area->v3->vec.y = area->v1->vec.y + size;
+        remaining_rect.ymin += size;
+        break;
+      case GLOBAL_AREA_ALIGN_LEFT:
+        area->v3->vec.x = area->v4->vec.x = area->v1->vec.x + size;
+        remaining_rect.xmin += size;
+        break;
+      case GLOBAL_AREA_ALIGN_RIGHT:
+        area->v1->vec.x = area->v2->vec.x = area->v3->vec.x - size;
+        remaining_rect.xmax -= size;
         break;
     }
   }

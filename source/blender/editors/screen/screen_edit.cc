@@ -1330,6 +1330,20 @@ static void screen_global_statusbar_area_refresh(wmWindow *win, bScreen *screen)
       win, screen, SPACE_STATUSBAR, GLOBAL_AREA_ALIGN_BOTTOM, &rect, size, size_min, size_max);
 }
 
+static void screen_global_editor_dock_area_refresh(wmWindow *win, bScreen *screen)
+{
+  const blender::int2 win_size = WM_window_native_pixel_size(win);
+  /* Reuse header height for width. */
+  const short size = screen_global_header_size();
+  rcti rect;
+
+  BLI_rcti_init(&rect, 0, win_size[0] - 1, 0, win_size[1] - 1);
+  rect.xmin = rect.xmax - size;
+
+  screen_global_area_refresh(
+      win, screen, SPACE_EDITOR_DOCK, GLOBAL_AREA_ALIGN_RIGHT, &rect, size, size, size);
+}
+
 void ED_screen_global_areas_sync(wmWindow *win)
 {
   /* Update screen flags from height in window, this is weak and perhaps
@@ -1359,6 +1373,7 @@ void ED_screen_global_areas_refresh(wmWindow *win)
     return;
   }
 
+  screen_global_editor_dock_area_refresh(win, screen);
   screen_global_topbar_area_refresh(win, screen);
   screen_global_statusbar_area_refresh(win, screen);
 }
