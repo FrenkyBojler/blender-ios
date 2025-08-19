@@ -509,7 +509,13 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
                            128 :
                            (([device supportsFamily:MTLGPUFamilyApple4]) ? 96 : 31);
   if (GCaps.max_textures <= 32) {
+    /* The iOS Simulator has an equivalent Metal GPU Family of Apple2, provide partial support
+     * for this extra platform by skipping this check. See:
+     * https://developer.apple.com/documentation/metal/developing-metal-apps-that-run-in-simulator?language=objc#Treat-Simulator-as-a-special-device
+     */
+#ifndef TARGET_OS_SIMULATOR
     BLI_assert(false);
+#endif
   }
   GCaps.max_samplers = (MTLBackend::capabilities.supports_argument_buffers_tier2) ? 1024 : 16;
 
@@ -531,7 +537,6 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
 
   /* Feature support */
   GCaps.mem_stats_support = false;
-  GCaps.shader_draw_parameters_support = true;
   GCaps.hdr_viewport_support = true;
 
   GCaps.geometry_shader_support = false;
@@ -567,7 +572,6 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.max_work_group_size[2] = max_threads_per_threadgroup_per_dim;
 
   GCaps.stencil_export_support = true;
-  GCaps.clip_control_support = true;
 
   /* OPENGL Related workarounds -- none needed for Metal. */
   GCaps.extensions_len = 0;

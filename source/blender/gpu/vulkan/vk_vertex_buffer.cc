@@ -73,6 +73,8 @@ void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, cons
     /* Allocating huge buffers can fail, in that case we skip copying data. */
     return;
   }
+  BLI_assert_msg(start_offset + data_size_in_bytes <= buffer_.size_in_bytes(),
+                 "Out of bound write to vertex buffer");
   if (buffer_.is_mapped()) {
     buffer_.update_sub_immediately(start_offset, data_size_in_bytes, data);
   }
@@ -208,7 +210,8 @@ void VKVertexBuffer::allocate()
                  vk_buffer_usage,
                  0,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 VmaAllocationCreateFlags(0));
+                 VmaAllocationCreateFlags(0),
+                 0.8f);
   debug::object_label(buffer_.vk_handle(), "VertexBuffer");
 }
 
