@@ -65,6 +65,7 @@ struct MultiresModifierData;
 struct Object;
 struct Paint;
 struct PaintCurve;
+enum class PaintMode : int8_t;
 struct PaintModeSettings;
 struct Palette;
 struct PaletteColor;
@@ -89,29 +90,6 @@ extern const uchar PAINT_CURSOR_TEXTURE_PAINT[3];
 extern const uchar PAINT_CURSOR_SCULPT_CURVES[3];
 extern const uchar PAINT_CURSOR_PAINT_GREASE_PENCIL[3];
 extern const uchar PAINT_CURSOR_SCULPT_GREASE_PENCIL[3];
-
-/* TODO: Move this to BKE_paint_types.hh */
-enum class PaintMode : int8_t {
-  Sculpt = 0,
-  /** Vertex color. */
-  Vertex = 1,
-  Weight = 2,
-  /** 3D view (projection painting). */
-  Texture3D = 3,
-  /** Image space (2D painting). */
-  Texture2D = 4,
-  GPencil = 6,
-  /* Grease Pencil Vertex Paint */
-  VertexGPencil = 7,
-  SculptGPencil = 8,
-  WeightGPencil = 9,
-  /** Curves. */
-  SculptCurves = 10,
-
-  /** Keep last. */
-  /* TODO: Shift the ordering so that invalid is first so that zero-initialization makes sense. */
-  Invalid = 11,
-};
 
 /* overlay invalidation */
 enum ePaintOverlayControlFlags {

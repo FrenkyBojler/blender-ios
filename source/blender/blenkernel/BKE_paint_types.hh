@@ -18,7 +18,27 @@ class ColorSpace;
 }
 }  // namespace blender
 struct AssetWeakReference;
-enum class PaintMode : int8_t;
+enum class PaintMode : int8_t {
+  Sculpt = 0,
+  /** Vertex color. */
+  Vertex = 1,
+  Weight = 2,
+  /** 3D view (projection painting). */
+  Texture3D = 3,
+  /** Image space (2D painting). */
+  Texture2D = 4,
+  GPencil = 6,
+  /* Grease Pencil Vertex Paint */
+  VertexGPencil = 7,
+  SculptGPencil = 8,
+  WeightGPencil = 9,
+  /** Curves. */
+  SculptCurves = 10,
+
+  /** Keep last. */
+  /* TODO: Shift the ordering so that invalid is first so that zero-initialization makes sense. */
+  Invalid = 11,
+};
 
 namespace blender::bke {
 struct PaintRuntime : NonCopyable, NonMovable {
