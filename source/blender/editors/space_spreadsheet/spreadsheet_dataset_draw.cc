@@ -1209,6 +1209,15 @@ static void draw_viewer_path_panel(const bContext &C, uiLayout &layout)
   ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
 }
 
+static void draw_viewer_data_panel(const bContext &C, uiLayout &layout)
+{
+  uiBlock *block = layout.block();
+  ui::AbstractTreeView *tree_view = UI_block_add_view(
+      *block, "Viewer Data", std::make_unique<ViewerDataTreeView>(C));
+  tree_view->set_context_menu_title("Viewer Data");
+  ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, false);
+}
+
 static void draw_context_panel_content(const bContext &C, uiLayout &layout)
 {
   bScreen &screen = *CTX_wm_screen(&C);
@@ -1233,13 +1242,11 @@ static void draw_context_panel_content(const bContext &C, uiLayout &layout)
   if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
-    uiBlock *block = layout.block();
-    ui::AbstractTreeView *tree_view = UI_block_add_view(
-        *block, "Viewer Data", std::make_unique<ViewerDataTreeView>(C));
-    tree_view->set_context_menu_title("Viewer Data");
-    ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, false);
-    if (uiLayout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
+        if (uiLayout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
       draw_viewer_path_panel(C, *panel);
+    }
+if (uiLayout *panel = layout.panel(&C, "viewer data", true, IFACE_("Viewer Data"))) {
+      draw_viewer_data_panel(C, *panel);
     }
   }
 }
