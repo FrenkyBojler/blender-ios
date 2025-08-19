@@ -107,6 +107,8 @@ template<> float output_load<float>(int evaluated_point_index)
 
 void output_write(int evaluated_point_index, InterpPosition interp)
 {
+  /* Clamp radius to 0 to avoid negative radius due to interpolation. */
+  interp.data.w = max(0.0, interp.data.w);
   buffer_get(draw_curves_interpolate_position,
              evaluated_positions_radii_buf)[evaluated_point_index] = interp.data;
 }
