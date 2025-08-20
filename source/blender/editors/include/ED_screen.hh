@@ -224,6 +224,8 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area);
 void ED_area_exit(bContext *C, ScrArea *area);
 blender::StringRefNull ED_area_name(const ScrArea *area);
 int ED_area_icon(const ScrArea *area);
+blender::StringRefNull ED_spacedata_name(const SpaceLink *space_link);
+int ED_spacedata_icon(const SpaceLink *space_link);
 int ED_screen_area_active(const bContext *C);
 void ED_screen_global_areas_refresh(wmWindow *win);
 void ED_screen_global_areas_sync(wmWindow *win);

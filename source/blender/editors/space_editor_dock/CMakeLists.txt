@@ -15,7 +15,10 @@ set(INC_SYS
 
 set(SRC
   editor_dock.cc
+  editor_dock_panels.cc
   space_editor_dock.cc
+
+  editor_dock_intern.hh
 )
 
 set(LIB

@@ -26,6 +26,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "editor_dock_intern.hh"
+
 /* ******************** default callbacks for editordock space ******************** */
 
 static SpaceLink *editor_dock_create(const ScrArea * /*area*/, const Scene * /*scene*/)
@@ -122,8 +124,8 @@ void ED_spacetype_editor_dock()
   art->listener = editor_dock_main_region_listener;
   art->prefsizex = UI_UNIT_X * 5; /* Mainly to avoid glitches */
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
-
   BLI_addhead(&st->regiontypes, art);
+  blender::ed::editor_dock::main_region_panels_register(art);
 
   BKE_spacetype_register(std::move(st));
 }
