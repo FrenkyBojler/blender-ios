@@ -204,18 +204,18 @@ class DistanceConstraintEvaluator
                        const int constraint_i) const
   {
     const int2 &point_pair = point_pairs_[constraint_i];
-    const int v0 = point_pair[0];
-    const int v1 = point_pair[1];
+    const int point_i0 = point_pair[0];
+    const int point_i1 = point_pair[1];
     const Span<float3> positions = points_refs[points_ref_i_].positions;
     const DistanceConstraintResult result = evaluate_distance_constraint(
-        positions[v0],
-        positions[v1],
-        inverse_masses_[v0],
-        inverse_masses_[v1],
+        positions[point_i0],
+        positions[point_i1],
+        inverse_masses_[point_i0],
+        inverse_masses_[point_i1],
         distances_[constraint_i],
         compliance_terms_[constraint_i]);
-    updater.update_position(points_ref_i_, v0, result.offset0);
-    updater.update_position(points_ref_i_, v1, result.offset1);
+    updater.update_position(points_ref_i_, point_i0, result.offset0);
+    updater.update_position(points_ref_i_, point_i1, result.offset1);
   }
 };
 
@@ -294,19 +294,19 @@ class MinimumDistanceConstraintEvaluator
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
-    const int v0 = points_[constraint_i][0];
-    const int v1 = points_[constraint_i][1];
+    const int point_i0 = points_[constraint_i][0];
+    const int point_i1 = points_[constraint_i][1];
     const float min_distance = min_distances_[constraint_i];
-    const float3 &p0 = points_refs[points_ref_i_].positions[v0];
-    const float3 &p1 = points_refs[points_ref_i_].positions[v1];
+    const float3 &p0 = points_refs[points_ref_i_].positions[point_i0];
+    const float3 &p1 = points_refs[points_ref_i_].positions[point_i1];
     const float3 diff = p1 - p0;
     float distance;
     const float3 normalized_dir = math::normalize_and_get_length(diff, distance);
     if (distance >= min_distance) {
       return;
     }
-    const float inv_m0 = inverse_masses_[v0];
-    const float inv_m1 = inverse_masses_[v1];
+    const float inv_m0 = inverse_masses_[point_i0];
+    const float inv_m1 = inverse_masses_[point_i1];
     const float length_diff = min_distance - distance;
     if (length_diff < 1e-5f) {
       return;
@@ -315,8 +315,8 @@ class MinimumDistanceConstraintEvaluator
     const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
     const float3 offset0 = -lambda * inv_m0 * normalized_dir;
     const float3 offset1 = lambda * inv_m1 * normalized_dir;
-    updater.update_position(points_ref_i_, v0, offset0);
-    updater.update_position(points_ref_i_, v1, offset1);
+    updater.update_position(points_ref_i_, point_i0, offset0);
+    updater.update_position(points_ref_i_, point_i1, offset1);
   }
 };
 
@@ -363,18 +363,18 @@ class OverpressureConstraintEvaluator
     Array<float3> gradients(points_num, float3(0.0f));
     for (const int tri_i : tris_.index_range()) {
       const int3 &tri = tris_[tri_i];
-      const int v0 = corner_verts_[tri[0]];
-      const int v1 = corner_verts_[tri[1]];
+      const int point_i0 = corner_verts_[tri[0]];
+      const int point_i1 = corner_verts_[tri[1]];
       const int v2 = corner_verts_[tri[2]];
-      const float3 &p0 = positions[v0];
-      const float3 &p1 = positions[v1];
+      const float3 &p0 = positions[point_i0];
+      const float3 &p1 = positions[point_i1];
       const float3 &p2 = positions[v2];
       const float3 c_1_2 = math::cross(p1, p2);
       const float3 c_2_0 = math::cross(p2, p0);
       const float3 c_0_1 = math::cross(p0, p1);
       const float3 c = c_1_2 + c_2_0 + c_0_1;
-      gradients[v0] += c;
-      gradients[v1] += c;
+      gradients[point_i0] += c;
+      gradients[point_i1] += c;
       gradients[v2] += c;
     }
 
@@ -407,11 +407,11 @@ class OverpressureConstraintEvaluator
         [&](const IndexRange range, float volume) {
           for (const int tri_i : range) {
             const int3 &tri = tris[tri_i];
-            const int v0 = corner_verts[tri[0]];
-            const int v1 = corner_verts[tri[1]];
+            const int point_i0 = corner_verts[tri[0]];
+            const int point_i1 = corner_verts[tri[1]];
             const int v2 = corner_verts[tri[2]];
-            const float3 &p0 = positions[v0];
-            const float3 &p1 = positions[v1];
+            const float3 &p0 = positions[point_i0];
+            const float3 &p1 = positions[point_i1];
             const float3 &p2 = positions[v2];
             volume += math::dot(math::cross(p0, p1), p2);
           }
@@ -463,16 +463,16 @@ class RodStretchAndShearConstraintEvaluator
                        const int constraint_i) const
   {
     const int2 &point_pair = point_pairs_[constraint_i];
-    const int v0 = point_pair[0];
-    const int v1 = point_pair[1];
+    const int point_i0 = point_pair[0];
+    const int point_i1 = point_pair[1];
 
-    const int rotation_i = v0;
+    const int rotation_i = point_i0;
 
-    const float3 &p0 = points_refs[points_ref_i_].positions[v0];
-    const float3 &p1 = points_refs[points_ref_i_].positions[v1];
+    const float3 &p0 = points_refs[points_ref_i_].positions[point_i0];
+    const float3 &p1 = points_refs[points_ref_i_].positions[point_i1];
     const math::Quaternion &rot = points_refs[points_ref_i_].rotations[rotation_i];
-    const float inv_m0 = inverse_masses_[v0];
-    const float inv_m1 = inverse_masses_[v1];
+    const float inv_m0 = inverse_masses_[point_i0];
+    const float inv_m1 = inverse_masses_[point_i1];
     const float3 &inertia = inertias_[constraint_i];
     const float compliance_term = compliance_terms_[constraint_i];
     const float rest_length = rest_lengths_[constraint_i];
@@ -483,11 +483,6 @@ class RodStretchAndShearConstraintEvaluator
 
     if (inv_m0 == 0.0f && inv_m1 == 0.0f && inv_lumped_inertia == 0.0f) {
       /* Everything is pinned, so the constraint can't do anything. */
-      return;
-    }
-    if (rest_length <= 0.0f) {
-      /* Can't enforce a specific rod orientation with zero length. Could still just constraint the
-       * length though. */
       return;
     }
 
@@ -509,8 +504,8 @@ class RodStretchAndShearConstraintEvaluator
                                             0.0f, lambda * inv_lumped_inertia * rest_length) *
                                         rot * math::Quaternion(0, 0, 0, -1);
 
-    updater.update_position(points_ref_i_, v0, offset0);
-    updater.update_position(points_ref_i_, v1, offset1);
+    updater.update_position(points_ref_i_, point_i0, offset0);
+    updater.update_position(points_ref_i_, point_i1, offset1);
     updater.update_rotation(points_ref_i_, rotation_i, offset_rot);
   }
 };
@@ -549,19 +544,18 @@ class RodBendAndTwistConstraintEvaluator
                        const int constraint_i) const
   {
     const int2 &point_pair = point_pairs_[constraint_i];
-    const int v0 = point_pair[0];
-    const int v1 = point_pair[1];
-    const math::Quaternion &r0 = points_refs[points_ref_i_].rotations[v0];
-    const math::Quaternion &r1 = points_refs[points_ref_i_].rotations[v1];
-    const float3 &inertia0 = inertias_[v0];
-    const float3 &inertia1 = inertias_[v1];
-    const float compliance_term = compliance_terms_[constraint_i];
-    const math::Quaternion &rest_rot = rest_rotations_[constraint_i];
-
+    const int point_i0 = point_pair[0];
+    const int point_i1 = point_pair[1];
+    const Span<math::Quaternion> rotations = points_refs[points_ref_i_].rotations;
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-        r0, r1, inertia0, inertia1, rest_rot, compliance_term);
-    updater.update_rotation(points_ref_i_, v0, result.offset0);
-    updater.update_rotation(points_ref_i_, v1, result.offset1);
+        rotations[point_i0],
+        rotations[point_i1],
+        inertias_[point_i0],
+        inertias_[point_i1],
+        rest_rotations_[constraint_i],
+        compliance_terms_[constraint_i]);
+    updater.update_rotation(points_ref_i_, point_i0, result.offset0);
+    updater.update_rotation(points_ref_i_, point_i1, result.offset1);
   }
 };
 
