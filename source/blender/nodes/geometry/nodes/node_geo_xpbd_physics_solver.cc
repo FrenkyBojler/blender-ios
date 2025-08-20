@@ -1214,7 +1214,7 @@ static void gather_curves_rod_bend_and_twist_constraints(
         if (points.size() <= 1) {
           continue;
         }
-        for (const int i : points.index_range().drop_back(1)) {
+        for (const int i : points.index_range().drop_back(2)) {
           const int point_i = points[i];
           const int next_point_i = point_i + 1;
           const float compliance = compliances[point_i];
