@@ -1211,7 +1211,7 @@ static void gather_curves_rod_bend_and_twist_constraints(
 
       for (const int curve_i : curves.curves_range()) {
         const IndexRange points = points_by_curve[curve_i];
-        if (points.size() <= 1) {
+        if (points.size() <= 2) {
           continue;
         }
         for (const int i : points.index_range().drop_back(2)) {
