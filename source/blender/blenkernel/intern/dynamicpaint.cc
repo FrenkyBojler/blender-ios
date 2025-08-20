@@ -278,7 +278,7 @@ void dynamicPaint_Modifier_free_runtime(DynamicPaintRuntime *runtime_data)
     BKE_id_free(nullptr, runtime_data->canvas_mesh);
   }
   {
-    std::scoped_lock lock(runtime_data->brush_mutex);
+    std::lock_guard lock(runtime_data->brush_mutex);
     if (runtime_data->brush_mesh) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
@@ -2068,7 +2068,7 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
   else if (pmd->brush && pmd->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
     DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_ensure(pmd);
     BLI_assert(runtime_data != nullptr);
-    std::lock_guard lock{runtime_data->brush_mutex};
+    std::lock_guard lock(runtime_data->brush_mutex);
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
@@ -4827,7 +4827,7 @@ static bool dynamicPaint_paintSinglePoint(
   }
 
   auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
-  std::lock_guard lock{runtime_data->brush_mutex};
+  std::lock_guard lock(runtime_data->brush_mutex);
   const Mesh *brush_mesh = runtime_data->brush_mesh;
 
   /*
