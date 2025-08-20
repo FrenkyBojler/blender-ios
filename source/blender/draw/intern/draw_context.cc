@@ -549,10 +549,8 @@ struct DupliCacheManager {
     Object *ob = nullptr;
     ID *ob_data = nullptr;
 
-    bool operator==(const DupliObject *ob_dupli)
-    {
-      return this->ob == ob_dupli->ob && this->ob_data == ob_dupli->ob_data;
-    }
+    DupliKey() = default;
+    DupliKey(const DupliObject *ob_dupli) : ob(ob_dupli->ob), ob_data(ob_dupli->ob_data) {}
 
     uint64_t hash() const
     {
@@ -582,17 +580,12 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
   if (ob_ref.is_dupli() == false) {
     return;
   }
-
-  DupliKey duplikey;
-  duplikey.ob = ob_ref.dupli_object_->ob;
-  duplikey.ob_data = ob_ref.dupli_object_->ob_data;
-
-  if (last_key_ == duplikey) {
+  if (last_key_ == ob_ref.dupli_object_) {
     /* Same data as previous iteration. No need to perform the check again. */
     return;
   }
 
-  last_key_ = duplikey;
+  last_key_ = ob_ref.dupli_object_;
 
   if (dupli_set_ == nullptr) {
     dupli_set_ = MEM_new<blender::Set<DupliKey>>("DupliCacheManager::dupli_set_");
