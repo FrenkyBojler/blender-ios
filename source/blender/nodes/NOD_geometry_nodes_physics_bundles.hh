@@ -150,6 +150,7 @@ class PinnedPositionXPBDConstraintBundle : public NestedBundleCommon {
   std::string filter;
   fn::Field<bool> selection;
   fn::Field<float3> position;
+  fn::Field<float> compliance;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<PinnedPositionXPBDConstraintBundle> parse(const Bundle &bundle,
@@ -163,6 +164,7 @@ class PinnedRotationXPBDConstraintBundle : public NestedBundleCommon {
   std::string filter;
   fn::Field<bool> selection;
   fn::Field<math::Quaternion> rotation;
+  fn::Field<float> compliance;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<PinnedRotationXPBDConstraintBundle> parse(const Bundle &bundle,

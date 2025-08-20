@@ -11,17 +11,96 @@
 
 namespace blender::geometry::xpbd_constraint_solver {
 
+struct DistanceConstraintResult {
+  float3 offset0 = float3(0.0f);
+  float3 offset1 = float3(0.0f);
+};
+
+inline DistanceConstraintResult evaluate_distance_constraint(const float3 &p0,
+                                                             const float3 &p1,
+                                                             const float inv_m0,
+                                                             const float inv_m1,
+                                                             const float rest_distance,
+                                                             const float compliance_term)
+{
+  if (inv_m0 == 0.0f && inv_m1 == 0.0f) {
+    return {};
+  }
+
+  const float3 p_diff = p1 - p0;
+  float length;
+  const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
+  const float length_diff = length - rest_distance;
+  const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
+
+  const float3 offset0 = lambda * inv_m0 * normalized_dir;
+  const float3 offset1 = -lambda * inv_m1 * normalized_dir;
+
+  return {offset0, offset1};
+}
+
+struct AlignRotationsConstraintResult {
+  math::Quaternion offset0 = math::Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
+  math::Quaternion offset1 = math::Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
+};
+
+inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
+    const math::Quaternion &r0,
+    const math::Quaternion &r1,
+    const float3 &inertia0,
+    const float3 &inertia1,
+    const math::Quaternion &rest_rotation,
+    const float compliance_term)
+{
+  const float inv_lumped_inertia0 = math::safe_rcp(0.5f * (inertia0.x + inertia0.y + inertia0.z));
+  const float inv_lumped_inertia1 = math::safe_rcp(0.5f * (inertia1.x + inertia1.y + inertia1.z));
+  if (inv_lumped_inertia0 == 0.0f && inv_lumped_inertia1 == 0.0f) {
+    /* Everything is pinned, so the constraint can't do anything. */
+    return {};
+  }
+
+  const float4 rest_rot_f = float4(rest_rotation);
+
+  /* Note In "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schoemer) the W
+   * component of the Darboux vector is ignored. In "Sag-Free Initialization for Strand-Based
+   * Hybrid Hair Simulation" (Hsu et al.) it is included to improve stability in cases where the
+   * hair is bent at nearly 180 degrees. */
+  const math::Quaternion &rot_diff = math::invert_normalized(r0) * r1;
+  const float4 rot_diff_f = float4(rot_diff);
+
+  const float4 residual_neg = rot_diff_f - rest_rot_f;
+  const float4 residual_pos = rot_diff_f + rest_rot_f;
+  const float4 residual = math::length_squared(residual_neg) < math::length_squared(residual_pos) ?
+                              residual_neg :
+                              residual_pos;
+
+  const float4 lambda = residual / (inv_lumped_inertia0 + inv_lumped_inertia1 + compliance_term);
+
+  const math::Quaternion offset0 = r1 * math::Quaternion(lambda * inv_lumped_inertia0);
+  const math::Quaternion offset1 = r0 * math::Quaternion(-lambda * inv_lumped_inertia1);
+
+  return {offset0, offset1};
+}
+
 class PinConstraintEvaluator : public TemplatedConstraintSetEvaluator<PinConstraintEvaluator> {
  private:
   Span<int> points_ref_indices_;
   Span<int> indices_;
   Span<float3> pin_positions_;
+  Span<float> compliance_terms_;
+  Span<float> inverse_masses_;
 
  public:
   PinConstraintEvaluator(const Span<int> points_ref_indices,
                          const Span<int> indices,
-                         const Span<float3> pin_positions)
-      : points_ref_indices_(points_ref_indices), indices_(indices), pin_positions_(pin_positions)
+                         const Span<float3> pin_positions,
+                         const Span<float> compliance_terms,
+                         const Span<float> inverse_masses)
+      : points_ref_indices_(points_ref_indices),
+        indices_(indices),
+        pin_positions_(pin_positions),
+        compliance_terms_(compliance_terms),
+        inverse_masses_(inverse_masses)
   {
   }
 
@@ -32,10 +111,59 @@ class PinConstraintEvaluator : public TemplatedConstraintSetEvaluator<PinConstra
   {
     const int points_ref_i = points_ref_indices_[constraint_i];
     const int i = indices_[constraint_i];
+    const float compliance_term = compliance_terms_[constraint_i];
     const float3 &pin_position = pin_positions_[constraint_i];
     const float3 &p = points_refs[points_ref_i].positions[i];
-    const float3 offset = pin_position - p;
-    updater.update_position(points_ref_i, i, offset);
+    const float inv_m = inverse_masses_[i];
+
+    const DistanceConstraintResult result = evaluate_distance_constraint(
+        p, pin_position, inv_m, 0.0f, 0.0f, compliance_term);
+    updater.update_position(points_ref_i, i, result.offset0);
+  }
+};
+
+class PinRotationConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<PinRotationConstraintEvaluator> {
+ private:
+  Span<int> points_ref_indices_;
+  Span<int> indices_;
+  Span<math::Quaternion> pin_rotations_;
+  Span<float> compliance_terms_;
+  Span<float3> inertias_;
+
+ public:
+  PinRotationConstraintEvaluator(const Span<int> points_ref_indices,
+                                 const Span<int> indices,
+                                 const Span<math::Quaternion> pin_rotations,
+                                 const Span<float> compliance_terms,
+                                 const Span<float3> inertias)
+      : points_ref_indices_(points_ref_indices),
+        indices_(indices),
+        pin_rotations_(pin_rotations),
+        compliance_terms_(compliance_terms),
+        inertias_(inertias)
+  {
+  }
+
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const Span<PointsRef> points_refs,
+                       const int constraint_i) const
+  {
+    const int points_ref_i = points_ref_indices_[constraint_i];
+    const int i = indices_[constraint_i];
+    const math::Quaternion &pin_rotation = pin_rotations_[constraint_i];
+    const float3 &inertia = inertias_[i];
+    const float compliance_term = compliance_terms_[constraint_i];
+
+    const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
+        points_refs[points_ref_i].rotations[i],
+        pin_rotation,
+        inertia,
+        float3(std::numeric_limits<float>::infinity()),
+        pin_rotation,
+        compliance_term);
+    updater.update_rotation(points_ref_i, i, result.offset0);
   }
 };
 
@@ -81,20 +209,10 @@ class DistanceConstraintEvaluator
     const float inv_m1 = inverse_masses_[v1];
     const float compliance_term = compliance_terms_[constraint_i];
 
-    if (inv_m0 == 0.0f && inv_m1 == 0.0f) {
-      return;
-    }
-
-    const float3 p_diff = p1 - p0;
-    float length;
-    const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
-    const float length_diff = length - target_distance;
-    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
-
-    const float3 offset0 = lambda * inv_m0 * normalized_dir;
-    const float3 offset1 = -lambda * inv_m1 * normalized_dir;
-    updater.update_position(points_ref_i0, v0, offset0);
-    updater.update_position(points_ref_i1, v1, offset1);
+    const DistanceConstraintResult result = evaluate_distance_constraint(
+        p0, p1, inv_m0, inv_m1, target_distance, compliance_term);
+    updater.update_position(points_ref_i0, v0, result.offset0);
+    updater.update_position(points_ref_i1, v1, result.offset1);
   }
 };
 
@@ -426,46 +544,17 @@ class RodBendAndTwistConstraintEvaluator
     const int points_ref_i1 = points_ref_pair[1];
     const int v0 = point_pair[0];
     const int v1 = point_pair[1];
-
     const math::Quaternion &r0 = points_refs[points_ref_i0].rotations[v0];
     const math::Quaternion &r1 = points_refs[points_ref_i1].rotations[v1];
     const float3 &inertia0 = inertias_[v0];
     const float3 &inertia1 = inertias_[v1];
-
-    const float inv_lumped_inertia0 = math::safe_rcp(0.5f *
-                                                     (inertia0.x + inertia0.y + inertia0.z));
-    const float inv_lumped_inertia1 = math::safe_rcp(0.5f *
-                                                     (inertia1.x + inertia1.y + inertia1.z));
-    if (inv_lumped_inertia0 == 0.0f && inv_lumped_inertia1 == 0.0f) {
-      /* Everything is pinned, so the constraint can't do anything. */
-      return;
-    }
-
     const float compliance_term = compliance_terms_[constraint_i];
     const math::Quaternion &rest_rot = rest_rotations_[constraint_i];
-    const float4 rest_rot_f = float4(rest_rot);
 
-    /* Note In "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schoemer) the W
-     * component of the Darboux vector is ignored. In "Sag-Free Initialization for Strand-Based
-     * Hybrid Hair Simulation" (Hsu et al.) it is included to improve stability in cases where the
-     * hair is bent at nearly 180 degrees. */
-    const math::Quaternion &rot_diff = math::invert_normalized(r0) * r1;
-    const float4 rot_diff_f = float4(rot_diff);
-
-    const float4 residual_neg = rot_diff_f - rest_rot_f;
-    const float4 residual_pos = rot_diff_f + rest_rot_f;
-    const float4 residual = math::length_squared(residual_neg) <
-                                    math::length_squared(residual_pos) ?
-                                residual_neg :
-                                residual_pos;
-
-    const float4 lambda = residual / (inv_lumped_inertia0 + inv_lumped_inertia1 + compliance_term);
-
-    const math::Quaternion offset0 = r1 * math::Quaternion(lambda * inv_lumped_inertia0);
-    const math::Quaternion offset1 = r0 * math::Quaternion(-lambda * inv_lumped_inertia1);
-
-    updater.update_rotation(points_ref_i0, v0, offset0);
-    updater.update_rotation(points_ref_i1, v1, offset1);
+    const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
+        r0, r1, inertia0, inertia1, rest_rot, compliance_term);
+    updater.update_rotation(points_ref_i0, v0, result.offset0);
+    updater.update_rotation(points_ref_i1, v1, result.offset1);
   }
 };
 

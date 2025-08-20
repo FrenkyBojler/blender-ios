@@ -267,6 +267,7 @@ const FlatBundleTypePtr &PinnedPositionXPBDConstraintBundle::get_bundle_type()
     b.add<decl::String>("filter");
     b.add<decl::Bool>("selection").default_value(true).supports_field();
     b.add<decl::Vector>("position").supports_field();
+    b.add<decl::Float>("compliance").min(0.0f).supports_field();
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -281,6 +282,7 @@ std::optional<PinnedPositionXPBDConstraintBundle> PinnedPositionXPBDConstraintBu
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
   bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
   bundle_parse_member(bundle, "position", behavior.position, r_errors);
+  bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }
@@ -294,6 +296,7 @@ const FlatBundleTypePtr &PinnedRotationXPBDConstraintBundle::get_bundle_type()
     b.add<decl::String>("filter");
     b.add<decl::Bool>("selection").default_value(true).supports_field();
     b.add<decl::Rotation>("rotation").supports_field();
+    b.add<decl::Float>("compliance").min(0.0f).supports_field();
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -308,6 +311,7 @@ std::optional<PinnedRotationXPBDConstraintBundle> PinnedRotationXPBDConstraintBu
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
   bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
   bundle_parse_member(bundle, "rotation", behavior.rotation, r_errors);
+  bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }
