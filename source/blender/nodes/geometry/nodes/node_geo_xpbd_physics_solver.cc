@@ -160,7 +160,7 @@ struct PinPositionsState {
   Map<int, Item> positions;
 };
 
-struct PinRotations {
+struct PinRotationsState {
   struct Item {
     math::Quaternion rotation;
     bool used = true;
@@ -181,7 +181,7 @@ class XPBDState {
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
   Map<SimPointsKey, RelativeRotations> relative_rotations;
   Map<SimPointsKey, PinPositionsState> pin_positions;
-  Map<SimPointsKey, PinRotations> pin_rotations;
+  Map<SimPointsKey, PinRotationsState> pin_rotations;
   Map<SimPointsKey, float> initial_volumes;
 };
 
@@ -237,12 +237,6 @@ template<typename T> struct StartStopPair {
   }
 };
 
-struct PinnedRotationAnimation {
-  float compliance;
-  math::Quaternion start;
-  math::Quaternion end;
-};
-
 struct PinnedPositions {
   Vector<int> hard_indices;
   Vector<StartStopPair<float3>> hard_animations;
@@ -250,6 +244,15 @@ struct PinnedPositions {
   Vector<int> soft_indices;
   Vector<float> soft_compliances;
   Vector<StartStopPair<float3>> soft_animations;
+};
+
+struct PinnedRotations {
+  Vector<int> hard_indices;
+  Vector<StartStopPair<math::Quaternion>> hard_animations;
+
+  Vector<int> soft_indices;
+  Vector<float> soft_compliances;
+  Vector<StartStopPair<math::Quaternion>> soft_animations;
 };
 
 static AttrDomain get_simulation_domain(const bke::GeometryComponent::Type type)
@@ -741,7 +744,8 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
     const WorldData &world,
     const Span<SimPointsKey> keys,
     const Span<GeometrySet> applied_geometries,
-    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map)
+    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
+    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map)
 {
   Map<SimPointsKey, SimPointsWorldProperties> properties_map;
   for (const SimPointsKey &key : keys) {
@@ -749,6 +753,7 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
     const XPBDGeometryBundle &geometry_bundle = world.geometries[geometry_i];
     const GeometrySet &applied_geometry = applied_geometries[geometry_i];
     const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
+    const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
 
     const bke::GeometryComponent::Type type = key.type;
     const bke::GeometryComponent *component = applied_geometry.get_component(type);
@@ -797,22 +802,11 @@ static Map<SimPointsKey, SimPointsWorldProperties> compute_sim_point_world_prope
     }
 
     /* Set inertia of pinned rotations to infinity (i.e. the inverse inertia is 0). */
-    const Vector pinned_rotation_constraints =
-        filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
-            world.pinned_rotation_constraints, key.path);
-    for (const PinnedRotationXPBDConstraintBundle *constraint : pinned_rotation_constraints) {
-      fn::FieldEvaluator pin_evaluator{field_context, domain_size};
-      pin_evaluator.set_selection(constraint->selection);
-      pin_evaluator.add(constraint->compliance);
-      pin_evaluator.evaluate();
-      const IndexMask mask = pin_evaluator.get_evaluated_selection_as_mask();
-      const VArray<float> compliances_varray = pin_evaluator.get_evaluated<float>(0);
-      mask.foreach_index(GrainSize(1024), [&](const int i) {
-        if (compliances_varray[i] <= 0.0f) {
-          result_inertias[i] = float3(std::numeric_limits<float>::infinity());
-          result_inverse_inertias[i] = float3(0.0f);
-        }
-      });
+    if (pinned_rotations) {
+      for (const int i : pinned_rotations->hard_indices) {
+        result_inertias[i] = float3(std::numeric_limits<float>::infinity());
+        result_inverse_inertias[i] = float3(0.0f);
+      }
     }
 
     const Vector damping_bundles = filter_bundles_for_path<DampingBundle>(world.dampings,
@@ -1239,13 +1233,13 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
     ResourceScope &scope,
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const Map<SimPointsKey, PinnedPositions> &pinned_position_map,
+    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
     const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<float3>> result;
-  for (const auto item : pinned_position_map.items()) {
+  for (const auto item : pinned_positions_map.items()) {
     const SimPointsKey &key = item.key;
     const int key_i = keys.index_of(key);
     const PinnedPositions &pinned_positions = item.value;
@@ -1280,42 +1274,37 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
     ResourceScope &scope,
     const VectorSet<SimPointsKey> &keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const Map<SimPointsKey, Map<int, PinnedRotationAnimation>> &pinned_rotation_animations,
+    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
     const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
   const float compliance_factor = compute_compliance_factor(delta_time);
   Map<SimPointsKey, MutableSpan<math::Quaternion>> result;
-  for (const auto item : pinned_rotation_animations.items()) {
+  for (const auto item : pinned_rotations_map.items()) {
     const SimPointsKey &key = item.key;
     const int key_i = keys.index_of(key);
-    const Map<int, PinnedRotationAnimation> &animations_map = item.value;
-    Vector<math::Quaternion> &soft_pinned_rotations = scope.construct<Vector<math::Quaternion>>();
-    Vector<float> &compliance_terms = scope.construct<Vector<float>>();
-    Vector<int> &constraint_indices = scope.construct<Vector<int>>();
-    for (const auto animation_map_item : animations_map.items()) {
-      const int point_i = animation_map_item.key;
-      const PinnedRotationAnimation &animation = animation_map_item.value;
-      if (animation.compliance <= 0.0f) {
-        /* Hard constraints to not use explicit constraints but are set directly in
-         * #update_pinned_rotations. */
-        continue;
-      }
-      /* Will be set later in #update_pinned_rotations. */
-      soft_pinned_rotations.append(math::Quaternion());
-      compliance_terms.append(compliance_factor * animation.compliance);
-      constraint_indices.append(point_i);
-    }
-    if (soft_pinned_rotations.is_empty()) {
+    const PinnedRotations &pinned_rotations = item.value;
+    const int constraints_num = pinned_rotations.soft_indices.size();
+    if (constraints_num == 0) {
       continue;
     }
+
+    MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(constraints_num);
+    for (const int i : pinned_rotations.soft_indices.index_range()) {
+      compliance_terms[i] = pinned_rotations.soft_compliances[i] * compliance_factor;
+    }
+
+    /* Rotations are initialized in #update_pinned_rotations. */
+    MutableSpan<math::Quaternion> soft_pinned_rotations =
+        scope.allocator().allocate_array<math::Quaternion>(constraints_num);
     result.add(key, soft_pinned_rotations);
+
     r_constraint_sets.append(
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
-             key_i, constraint_indices),
+             key_i, pinned_rotations.soft_indices),
          scope.construct<geometry::xpbd_constraint_solver::PinRotationConstraintEvaluator>(
-             scope.allocator().construct_array<int>(constraint_indices.size(), key_i),
-             constraint_indices,
+             scope.allocator().construct_array<int>(constraints_num, key_i),
+             pinned_rotations.soft_indices,
              soft_pinned_rotations,
              compliance_terms,
              sim_points_props.lookup(key).inverse_inertias)});
@@ -1567,8 +1556,8 @@ static void reset_state_usages(XPBDState &state)
       item.used = false;
     }
   }
-  for (PinRotations &pin_rotations : state.pin_rotations.values()) {
-    for (PinRotations::Item &item : pin_rotations.rotations.values()) {
+  for (PinRotationsState &pin_rotations : state.pin_rotations.values()) {
+    for (PinRotationsState::Item &item : pin_rotations.rotations.values()) {
       item.used = false;
     }
   }
@@ -1585,7 +1574,7 @@ static void remove_unused_states(XPBDState &state)
   for (PinPositionsState &pin_positions : state.pin_positions.values()) {
     pin_positions.positions.remove_if([](const auto &item) { return !item.value.used; });
   }
-  for (PinRotations &pin_rotations : state.pin_rotations.values()) {
+  for (PinRotationsState &pin_rotations : state.pin_rotations.values()) {
     pin_rotations.rotations.remove_if([](const auto &item) { return !item.value.used; });
   }
 }
@@ -1782,13 +1771,13 @@ static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
   return result;
 }
 
-static Map<SimPointsKey, Map<int, PinnedRotationAnimation>> computed_pinned_rotation_animations(
+static Map<SimPointsKey, PinnedRotations> computed_pinned_rotation_animations(
     XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
     const VectorSet<SimPointsKey> &keys)
 {
-  Map<SimPointsKey, Map<int, PinnedRotationAnimation>> result;
+  Map<SimPointsKey, PinnedRotations> result;
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world.geometries.index_of_as(key.path);
@@ -1808,10 +1797,10 @@ static Map<SimPointsKey, Map<int, PinnedRotationAnimation>> computed_pinned_rota
     const Vector constraint_bundles = filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
         world.pinned_rotation_constraints, key.path);
 
-    PinRotations &pinned_rotations_state = state.pin_rotations.lookup_or_add_default(key);
+    PinRotationsState &pinned_rotations_state = state.pin_rotations.lookup_or_add_default(key);
+    PinnedRotations pinned_rotations;
 
     bke::GeometryFieldContext field_context(*component, domain);
-    Map<int, PinnedRotationAnimation> animations_map;
     for (const PinnedRotationXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
       fn::FieldEvaluator field_evaluator{field_context, domain_size};
       field_evaluator.set_selection(constraint_bundle->selection);
@@ -1826,20 +1815,26 @@ static Map<SimPointsKey, Map<int, PinnedRotationAnimation>> computed_pinned_rota
           field_evaluator.get_evaluated<math::Quaternion>(0);
       const VArray<float> compliances_varray = field_evaluator.get_evaluated<float>(1);
       mask.foreach_index([&](const int point_i) {
-        PinRotations::Item &old_rotation_item = pinned_rotations_state.rotations.lookup_or_add(
-            point_i, {rotations_varray[point_i]});
+        PinRotationsState::Item &old_rotation_item =
+            pinned_rotations_state.rotations.lookup_or_add(point_i, {rotations_varray[point_i]});
         old_rotation_item.used = true;
         const math::Quaternion &new_rotation = rotations_varray[point_i];
         const float compliance = std::max(0.0f, compliances_varray[point_i]);
-        animations_map.add(point_i,
-                           {compliance,
-                            math::normalize(old_rotation_item.rotation),
-                            math::normalize(new_rotation)});
+        StartStopPair<math::Quaternion> animation{old_rotation_item.rotation, new_rotation};
+        if (compliance == 0.0f) {
+          pinned_rotations.hard_indices.append(point_i);
+          pinned_rotations.hard_animations.append(animation);
+        }
+        else {
+          pinned_rotations.soft_indices.append(point_i);
+          pinned_rotations.soft_compliances.append(compliance);
+          pinned_rotations.soft_animations.append(animation);
+        }
         old_rotation_item.rotation = new_rotation;
       });
     }
-    if (!animations_map.is_empty()) {
-      result.add(key, std::move(animations_map));
+    if (!pinned_rotations.hard_indices.is_empty() || !pinned_rotations.soft_indices.is_empty()) {
+      result.add(key, std::move(pinned_rotations));
     }
   }
   return result;
@@ -1873,29 +1868,27 @@ static void update_pinned_positions(
 
 static void update_pinned_rotations(
     XPBDState &state,
-    const Map<SimPointsKey, Map<int, PinnedRotationAnimation>> &pinned_rotation_animations,
+    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
     const Map<SimPointsKey, MutableSpan<math::Quaternion>> &soft_pinned_rotations_map,
     const float factor)
 {
-  for (const auto item : pinned_rotation_animations.items()) {
+  for (const auto item : pinned_rotations_map.items()) {
     const SimPointsKey &key = item.key;
     SimPoints &sim_points = state.sim_points.lookup(key);
-    const Map<int, PinnedRotationAnimation> &animations_map = item.value;
-    MutableSpan<math::Quaternion> soft_pinned_rotations =
-        soft_pinned_rotations_map.lookup_try(key).value_or(MutableSpan<math::Quaternion>());
-    int soft_i = 0;
-    for (const auto animation_map_item : animations_map.items()) {
-      const int point_i = animation_map_item.key;
-      const PinnedRotationAnimation &animation = animation_map_item.value;
-      const math::Quaternion current_rotation = math::interpolate(
-          animation.start, animation.end, factor);
-      if (animation.compliance == 0.0f) {
-        /* This is a hard constraint, so set the position directly. */
-        sim_points.rotations[point_i] = current_rotation;
-      }
-      else {
-        /* Just update the constraint for soft constraints. */
-        soft_pinned_rotations[soft_i++] = current_rotation;
+    const PinnedRotations &pinned_rotations = item.value;
+    for (const int i : pinned_rotations.hard_indices.index_range()) {
+      const int point_i = pinned_rotations.hard_indices[i];
+      const math::Quaternion current_rotation = pinned_rotations.hard_animations[i].interpolate(
+          factor);
+      sim_points.rotations[point_i] = current_rotation;
+    }
+    if (!pinned_rotations.soft_indices.is_empty()) {
+      /* These rotations are referenced by the constraints, so they get the new rotation. */
+      MutableSpan<math::Quaternion> soft_pinned_rotations = soft_pinned_rotations_map.lookup(key);
+      for (const int i : pinned_rotations.soft_indices.index_range()) {
+        const math::Quaternion current_rotation = pinned_rotations.soft_animations[i].interpolate(
+            factor);
+        soft_pinned_rotations[i] = current_rotation;
       }
     }
   }
@@ -1920,16 +1913,16 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
   const Map<SimPointsKey, PinnedPositions> pinned_positions_map = compute_pinned_positions(
       state, world, applied_geometries, keys);
+  const Map<SimPointsKey, PinnedRotations> pinned_rotations_map =
+      computed_pinned_rotation_animations(state, world, applied_geometries, keys);
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
       compute_sim_point_world_properties(
-          scope, world, keys, applied_geometries, pinned_positions_map);
+          scope, world, keys, applied_geometries, pinned_positions_map, pinned_rotations_map);
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
       scope, world, keys, sim_points_props, applied_geometries);
   const Map<SimPointsKey, Span<float3>> torques_map = compute_external_torques(
       scope, state, world, keys, applied_geometries);
-  const Map<SimPointsKey, Map<int, PinnedRotationAnimation>> pinned_rotation_animations =
-      computed_pinned_rotation_animations(state, world, applied_geometries, keys);
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
@@ -1979,7 +1972,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
       gather_soft_pinned_rotation_constraints(scope,
                                               keys,
                                               sim_points_props,
-                                              pinned_rotation_animations,
+                                              pinned_rotations_map,
                                               sub_delta_time,
                                               static_constraint_sets);
 
@@ -2017,7 +2010,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
 
     /* Move pinned points to the correct position for the current substep. */
     update_pinned_positions(state, pinned_positions_map, soft_pinned_positions_map, factor);
-    update_pinned_rotations(state, pinned_rotation_animations, soft_pinned_rotations_map, factor);
+    update_pinned_rotations(state, pinned_rotations_map, soft_pinned_rotations_map, factor);
 
     /* Find current collisisons and generate constraints to resolve them. */
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> constraint_sets =
