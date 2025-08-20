@@ -262,6 +262,19 @@ class AttachUVSurfaceConstraintBundle : public NestedBundleCommon {
                                                               BundleParseErrors &r_errors);
 };
 
+class DistanceBasedEdgeBendingConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.DistanceBasedEdgeBendingConstraint";
+
+  std::string filter;
+  fn::Field<bool> selection;
+  fn::Field<float> compliance;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<DistanceBasedEdgeBendingConstraintBundle> parse(
+      const Bundle &bundle, BundleParseErrors &r_errors);
+};
+
 inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
     parse_collision_shape_type(const int type)
 {

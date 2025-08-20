@@ -70,6 +70,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(RodBendAndTwistXPBDConstraintBundle::get_bundle_type());
   types.append(AlignPositionsConstraintBundle::get_bundle_type());
   types.append(AttachUVSurfaceConstraintBundle::get_bundle_type());
+  types.append(DistanceBasedEdgeBendingConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -230,6 +231,7 @@ struct WorldData {
   BundleVectorSet<RodBendAndTwistXPBDConstraintBundle> rod_bend_and_twist_constraints;
   BundleVectorSet<AlignPositionsConstraintBundle> align_position_constraints;
   BundleVectorSet<AttachUVSurfaceConstraintBundle> attach_uv_surface_constraints;
+  BundleVectorSet<DistanceBasedEdgeBendingConstraintBundle> distance_based_bending_constraints;
 };
 
 template<typename T> struct StartStopPair {
@@ -302,6 +304,7 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.rod_bend_and_twist_constraints);
     parse_bundle(params, errors, world.align_position_constraints);
     parse_bundle(params, errors, world.attach_uv_surface_constraints);
+    parse_bundle(params, errors, world.distance_based_bending_constraints);
   });
   return world;
 }
@@ -913,6 +916,8 @@ static void gather_edge_length_constraints(
     const float delta_time,
     Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
 {
+  const float compliance_factor = compute_compliance_factor(delta_time);
+
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
     if (key.type != bke::GeometryComponent::Type::Mesh) {
@@ -955,7 +960,6 @@ static void gather_edge_length_constraints(
       /* Prepare per-constraint compliance. */
       MutableSpan<float> compliance_terms = scope.allocator().allocate_array<float>(mask.size());
       field_evaluator.get_evaluated<float>(0).materialize_compressed(mask, compliance_terms);
-      const float compliance_factor = compute_compliance_factor(delta_time);
       threading::parallel_for(mask.index_range(), 512, [&](const IndexRange range) {
         for (float &compliance_term : compliance_terms.slice(range)) {
           compliance_term *= compliance_factor;
@@ -1559,6 +1563,96 @@ static void gather_attach_uv_surface_constraints(
                bary_weights,
                inverse_masses,
                compliance_terms)});
+    }
+  }
+}
+
+static void gather_distance_based_edge_bending_constraints(
+    ResourceScope &scope,
+    XPBDState &state,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float delta_time,
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+{
+  const float compliance_factor = compute_compliance_factor(delta_time);
+
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (key.type != bke::GeometryComponent::Type::Mesh) {
+      continue;
+    }
+    const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+
+    const Mesh &mesh = *applied_geometry.get_mesh();
+    const Span<int2> edges = mesh.edges();
+    const Span<float3> mesh_positions = mesh.vert_positions();
+    const Span<int3> corners_tris = mesh.corner_tris();
+    const Span<int> corners_verts = mesh.corner_verts();
+    const Span<float> inverse_masses = sim_points_props.lookup(key).inverse_masses;
+
+    MultiValueMap<OrderedEdge, int> tris_by_edge;
+    for (const int tri_i : corners_tris.index_range()) {
+      const int3 &tri = corners_tris[tri_i];
+      const int v0 = corners_verts[tri[0]];
+      const int v1 = corners_verts[tri[1]];
+      const int v2 = corners_verts[tri[2]];
+      tris_by_edge.add(OrderedEdge{v0, v1}, tri_i);
+      tris_by_edge.add(OrderedEdge{v1, v2}, tri_i);
+      tris_by_edge.add(OrderedEdge{v2, v0}, tri_i);
+    }
+
+    const Vector constraint_bundles =
+        filter_bundles_for_path<DistanceBasedEdgeBendingConstraintBundle>(
+            world.distance_based_bending_constraints, key.path);
+
+    Vector<int2> &point_pairs = scope.construct<Vector<int2>>();
+    Vector<float> &compliance_terms = scope.construct<Vector<float>>();
+
+    const bke::MeshFieldContext mesh_field_context(mesh, bke::AttrDomain::Edge);
+    for (const DistanceBasedEdgeBendingConstraintBundle *constraint_bundle : constraint_bundles) {
+      fn::FieldEvaluator field_evaluator(mesh_field_context, mesh.edges_num);
+      field_evaluator.set_selection(constraint_bundle->selection);
+      field_evaluator.add(constraint_bundle->compliance);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      if (mask.is_empty()) {
+        continue;
+      }
+      const VArray<float> compliances = field_evaluator.get_evaluated<float>(0);
+      mask.foreach_index([&](const int edge_i) {
+        const int2 &edge = edges[edge_i];
+        const Span<int> tris_at_edge = tris_by_edge.lookup(OrderedEdge(edge));
+        if (tris_at_edge.size() <= 1) {
+          /* Bending constraint needs at least two triangles. */
+          return;
+        }
+        const float compliance = compliances[edge_i];
+        for (const int tri0 : tris_at_edge.index_range()) {
+          for (const int tri1 : tris_at_edge.index_range().drop_front(tri0 + 1)) {
+            const int3 &tri0_corners = corners_tris[tris_at_edge[tri0]];
+            const int3 &tri1_corners = corners_tris[tris_at_edge[tri1]];
+            const int point_i0 = edge[0] ^ edge[1] ^ corners_verts[tri0_corners[0]] ^
+                                 corners_verts[tri0_corners[1]] ^ corners_verts[tri0_corners[2]];
+            const int point_i1 = edge[0] ^ edge[1] ^ corners_verts[tri1_corners[0]] ^
+                                 corners_verts[tri1_corners[1]] ^ corners_verts[tri1_corners[2]];
+            point_pairs.append({point_i0, point_i1});
+            compliance_terms.append(compliance_factor * compliance);
+          }
+        }
+      });
+
+      const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
+          scope, state, mesh_positions, key, point_pairs);
+
+      r_constraint_sets.append(
+          {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
+               key_i, point_pairs),
+           scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
+               key_i, inverse_masses, point_pairs, constraint_lengths, compliance_terms)});
     }
   }
 }
@@ -2239,6 +2333,14 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                        sim_points_props,
                                        sub_delta_time,
                                        static_constraint_sets);
+  gather_distance_based_edge_bending_constraints(scope,
+                                                 state,
+                                                 world,
+                                                 applied_geometries,
+                                                 keys,
+                                                 sim_points_props,
+                                                 sub_delta_time,
+                                                 static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());
