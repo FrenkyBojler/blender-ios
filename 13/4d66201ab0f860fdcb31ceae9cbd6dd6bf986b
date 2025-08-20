@@ -1,1 +1,2 @@
 Referenced by commit 59201ddc289c48d3d6a9b5c93c67e5f3ffbe8344, BPY props: Fix own mistake in recent refactor.
+Referenced by commit 27a613d9eaf468efb14de61edee2e29f0aed8a7c, Fix: BPY props: broken custom set function for strings.
