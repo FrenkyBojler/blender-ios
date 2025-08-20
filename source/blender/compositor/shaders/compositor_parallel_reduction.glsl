@@ -48,9 +48,10 @@
  * expected to define the TYPE macro to be a float or a vec4, depending on the type of data being
  * reduced. */
 
-#include "compositor_parallel_reduction_info.hh"
+#include "infos/compositor_parallel_reduction_info.hh"
 
 COMPUTE_SHADER_CREATE_INFO(compositor_parallel_reduction_shared)
+COMPUTE_SHADER_CREATE_INFO(compositor_parallel_reduction_output_float4)
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
@@ -69,15 +70,6 @@ struct SumSquareDifference {};
 
 /* Initialize. */
 
-float upper_bound_get()
-{
-  return push_constant_get(compositor_sum_squared_difference_float_shared, upper_bound);
-}
-float lower_bound_get()
-{
-  return push_constant_get(compositor_sum_squared_difference_float_shared, lower_bound);
-}
-
 template<typename T, typename Operation> T initialize(T value)
 {
   return value;
@@ -89,11 +81,15 @@ template float4 initialize<float4, MaxVelocity>(float4);
 
 template<> float initialize<float, MaxInRange>(float value)
 {
-  return clamp(value, lower_bound_get(), upper_bound_get());
+  float max = push_constant_get(compositor_maximum_float_in_range, upper_bound);
+  float min = push_constant_get(compositor_maximum_float_in_range, lower_bound);
+  return clamp(value, min, max);
 }
-template<> float initialize<float, MaxInRange>(float value)
+template<> float initialize<float, MinInRange>(float value)
 {
-  return clamp(value, lower_bound_get(), upper_bound_get());
+  float max = push_constant_get(compositor_minimum_float_in_range, upper_bound);
+  float min = push_constant_get(compositor_minimum_float_in_range, lower_bound);
+  return clamp(value, min, max);
 }
 
 template<> float initialize<float, SumSquareDifference>(float value)
@@ -123,14 +119,15 @@ template float reduce<float, SumSquareDifference>(float, float);
 template<> float reduce<float, Min>(float a, float b) { return min(a, b); }
 template<> float reduce<float, Max>(float a, float b) { return max(a, b); }
 /* clang-format on */
-template<> float reduce<float, MaxInRange>(float a, float b)
+template<> float reduce<float, MaxInRange>(float lhs, float rhs)
 {
-  return ((rhs > lhs) && (rhs <= upper_bound)) ? rhs : lhs;
+  float max = push_constant_get(compositor_maximum_float_in_range, upper_bound);
+  return ((rhs > lhs) && (rhs <= max)) ? rhs : lhs;
 }
-template<> float4 reduce<float4, MaxVelocity>(float4 a, float4 b)
+template<> float4 reduce<float4, MaxVelocity>(float4 lhs, float4 rhs)
 {
-  return vec4(dot(lhs.xy, lhs.xy) > dot(rhs.xy, rhs.xy) ? lhs.xy : rhs.xy,
-              dot(lhs.zw, lhs.zw) > dot(rhs.zw, rhs.zw) ? lhs.zw : rhs.zw);
+  return float4(dot(lhs.xy, lhs.xy) > dot(rhs.xy, rhs.xy) ? lhs.xy : rhs.xy,
+                dot(lhs.zw, lhs.zw) > dot(rhs.zw, rhs.zw) ? lhs.zw : rhs.zw);
 }
 
 /* ChannelMix */
@@ -152,20 +149,56 @@ template float4 channel_mix<float4, ChannelRGBA>(float4);
 template<> float channel_mix<float, ChannelR>(float4 value) { return value.r; }
 template<> float channel_mix<float, ChannelG>(float4 value) { return value.g; }
 template<> float channel_mix<float, ChannelB>(float4 value) { return value.b; }
-template<> float2 channel_mix<float2, ChannelRG>(float4 value) { return value.rb; }
-template<> float channel_mix<float, ChannelLuma>(float4 value) { return dot(value.rgb, luminance_coefficients); }
-template<> float channel_mix<float, ChannelLogLuma>(float4 value) { return log(max(dot(value.rgb, luminance_coefficients), 1e-5f)); }
 template<> float channel_mix<float, ChannelMax>(float4 value) { return reduce_max(value.rgb); }
+template<> float2 channel_mix<float2, ChannelRG>(float4 value) { return value.rb; }
+/* clang-format on */
+template<> float channel_mix<float, ChannelLuma>(float4 value)
+{
+  float3 coefficients = push_constant_get(compositor_luminance_shared, luminance_coefficients);
+  return dot(value.rgb, coefficients);
+}
+template<> float channel_mix<float, ChannelLogLuma>(float4 value)
+{
+  float3 coefficients = push_constant_get(compositor_luminance_shared, luminance_coefficients);
+  return log(max(dot(value.rgb, coefficients), 1e-5f));
+}
 
+/* clang-format off */
 template<typename T> T load(float4 value) { return value; }
 template float4 load<float4>(float4);
 template<> float load<float>(float4 value) { return value.x; }
-template<> float load<float2>(float4 value) { return value.xy; }
+template<> float2 load<float2>(float4 value) { return value.xy; }
 
 float4 to_float4(float value) { return float4(value); }
 float4 to_float4(float2 value) { return value.xyyy; }
 float4 to_float4(float4 value) { return value; }
 /* clang-format on */
+
+void load_shared_data(int index, float &r_data)
+{
+  r_data = shared_variable_get(compositor_parallel_reduction_float_shared, reduction_data)[index];
+}
+void load_shared_data(int index, float2 &r_data)
+{
+  r_data = shared_variable_get(compositor_parallel_reduction_float2_shared, reduction_data)[index];
+}
+void load_shared_data(int index, float4 &r_data)
+{
+  r_data = shared_variable_get(compositor_parallel_reduction_float4_shared, reduction_data)[index];
+}
+
+void store_shared_data(int index, float data)
+{
+  shared_variable_get(compositor_parallel_reduction_float_shared, reduction_data)[index] = data;
+}
+void store_shared_data(int index, float2 data)
+{
+  shared_variable_get(compositor_parallel_reduction_float2_shared, reduction_data)[index] = data;
+}
+void store_shared_data(int index, float4 data)
+{
+  shared_variable_get(compositor_parallel_reduction_float4_shared, reduction_data)[index] = data;
+}
 
 template<typename T, typename Operation, typename ChannelMix> void reduction()
 {
@@ -176,7 +209,7 @@ template<typename T, typename Operation, typename ChannelMix> void reduction()
    * not affect the output of the reduction. For instance, sum reductions have an identity of 0.0,
    * while max value reductions have an identity of FLT_MIN */
   if (any(lessThan(texel, int2(0))) || any(greaterThanEqual(texel, texture_size(input_tx)))) {
-    reduction_data[gl_LocalInvocationIndex] = identity<T, Operation>();
+    store_shared_data(gl_LocalInvocationIndex, identity<T, Operation>());
   }
   else {
     float4 value = texture_load_unbound(input_tx, texel);
@@ -193,10 +226,9 @@ template<typename T, typename Operation, typename ChannelMix> void reduction()
      * will be loaded directly and reduced without extra processing. So the developer is expected
      * to define the INITIALIZE and LOAD macros to be expressions that derive the needed value from
      * the loaded value for the initial reduction pass and latter ones respectively. */
-    reduction_data[gl_LocalInvocationIndex] = is_initial_reduction ?
-                                                  initialize<T, Operation>(
-                                                      chanel_mix<T, ChannelMix>(value)) :
-                                                  load<T>(value)
+    T data = is_initial_reduction ? initialize<T, Operation>(channel_mix<T, ChannelMix>(value)) :
+                                    load<T>(value);
+    store_shared_data(gl_LocalInvocationIndex, data);
   }
 
   /* Reduce the reduction data by half on every iteration until only one element remains. See the
@@ -214,8 +246,11 @@ template<typename T, typename Operation, typename ChannelMix> void reduction()
      * lower index, as can be seen in the diagram above. The developer is expected to define the
      * REDUCE macro to be a commutative and associative binary operator suitable for parallel
      * reduction. */
-    reduction_data[gl_LocalInvocationIndex] = reduce<T, Operation>(
-        reduction_data[gl_LocalInvocationIndex], reduction_data[gl_LocalInvocationIndex + stride]);
+    T lhs, rhs;
+    load_shared_data(gl_LocalInvocationIndex, lhs);
+    load_shared_data(gl_LocalInvocationIndex + stride, rhs);
+    T result = reduce<T, Operation>(lhs, rhs);
+    store_shared_data(gl_LocalInvocationIndex, result);
   }
 
   /* Finally, the result of the reduction is available as the first element in the reduction data,
@@ -223,7 +258,9 @@ template<typename T, typename Operation, typename ChannelMix> void reduction()
    * it. */
   barrier();
   if (gl_LocalInvocationIndex == 0) {
-    imageStore(output_img, int2(gl_WorkGroupID.xy), to_float4(reduction_data[0]));
+    T data;
+    load_shared_data(0, data);
+    imageStore(output_img, int2(gl_WorkGroupID.xy), to_float4(data));
   }
 }
 
@@ -234,27 +271,27 @@ template void reduction<float, Sum, ChannelLuma>();
 template void reduction<float, Sum, ChannelLogLuma>();
 template void reduction<float4, Sum, ChannelRGBA>();
 
-void compositor_sum_red()
+void reduce_sum_red()
 {
   reduction<float, Sum, ChannelR>();
 }
-void compositor_sum_green()
+void reduce_sum_green()
 {
   reduction<float, Sum, ChannelG>();
 }
-void compositor_sum_blue()
+void reduce_sum_blue()
 {
   reduction<float, Sum, ChannelB>();
 }
-void compositor_sum_luminance()
+void reduce_sum_luminance()
 {
   reduction<float, Sum, ChannelLuma>();
 }
-void compositor_sum_log_luminance()
+void reduce_sum_log_luminance()
 {
   reduction<float, Sum, ChannelLogLuma>();
 }
-void compositor_sum_color()
+void reduce_sum_color()
 {
   reduction<float4, Sum, ChannelRGBA>();
 }
@@ -264,19 +301,19 @@ template void reduction<float, SumSquareDifference, ChannelG>();
 template void reduction<float, SumSquareDifference, ChannelB>();
 template void reduction<float, SumSquareDifference, ChannelLuma>();
 
-void compositor_sum_red_squared_difference()
+void reduce_sum_red_squared_difference()
 {
   reduction<float, SumSquareDifference, ChannelR>();
 }
-void compositor_sum_green_squared_difference()
+void reduce_sum_green_squared_difference()
 {
   reduction<float, SumSquareDifference, ChannelG>();
 }
-void compositor_sum_blue_squared_difference()
+void reduce_sum_blue_squared_difference()
 {
   reduction<float, SumSquareDifference, ChannelB>();
 }
-void compositor_sum_luminance_squared_difference()
+void reduce_sum_luminance_squared_difference()
 {
   reduction<float, SumSquareDifference, ChannelLuma>();
 }
@@ -284,28 +321,28 @@ void compositor_sum_luminance_squared_difference()
 template void reduction<float, Max, ChannelLuma>();
 template void reduction<float, Max, ChannelMax>();
 template void reduction<float, Max, ChannelR>();
-template void reduction<float, Max, ChannelRG>();
+template void reduction<float2, Max, ChannelRG>();
 
-void compositor_maximum_luminance()
+void reduce_maximum_luminance()
 {
   reduction<float, Max, ChannelLuma>();
 }
-void compositor_maximum_brightness()
+void reduce_maximum_brightness()
 {
   reduction<float, Max, ChannelMax>();
 }
-void compositor_maximum_float()
+void reduce_maximum_float()
 {
   reduction<float, Max, ChannelR>();
 }
-void compositor_maximum_float2()
+void reduce_maximum_float2()
 {
   reduction<float2, Max, ChannelRG>();
 }
 
 template void reduction<float, MaxInRange, ChannelR>();
 
-void compositor_maximum_float_in_range()
+void reduce_maximum_float_in_range()
 {
   reduction<float, MaxInRange, ChannelR>();
 }
@@ -313,25 +350,25 @@ void compositor_maximum_float_in_range()
 template void reduction<float, Min, ChannelLuma>();
 template void reduction<float, Min, ChannelR>();
 
-void compositor_minimum_luminance()
+void reduce_minimum_luminance()
 {
   reduction<float, Min, ChannelLuma>();
 }
-void compositor_minimum_float()
+void reduce_minimum_float()
 {
   reduction<float, Min, ChannelR>();
 }
 
 template void reduction<float, MinInRange, ChannelR>();
 
-void compositor_minimum_float_in_range()
+void reduce_minimum_float_in_range()
 {
   reduction<float, MinInRange, ChannelR>();
 }
 
 template void reduction<float4, MaxVelocity, ChannelRGBA>();
 
-void compositor_max_velocity()
+void reduce_max_velocity()
 {
   reduction<float4, MaxVelocity, ChannelRGBA>();
 }

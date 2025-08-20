@@ -6,6 +6,8 @@ set(INC_GLSL
   .
   ..
 
+  ./library
+
   ../../gpu
   ../../gpu/intern
   ../../gpu/shaders
@@ -88,7 +90,7 @@ set(SRC_GLSL_COMP
 #   compositor_movie_distortion.glsl
 #   compositor_normalize.glsl
 #   compositor_pad.glsl
-#   compositor_parallel_reduction.glsl
+  compositor_parallel_reduction.glsl
 #   compositor_pixelate.glsl
 #   compositor_plane_deform_anisotropic.glsl
 #   compositor_plane_deform_mask.glsl
@@ -127,14 +129,15 @@ set(SRC_GLSL_COMP
 )
 
 set(SRC_GLSL_LIB
+  library/gpu_shader_compositor_texture_utilities.glsl
 )
 
 # Compile shaders with shader code.
 if(WITH_GPU_SHADER_CPP_COMPILATION)
   with_shader_cpp_compilation_config()
 
-  compile_sources_as_cpp(eevee_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
+  compile_sources_as_cpp(compositor_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
   # Only enable to make sure they compile on their own.
   # Otherwise it creates a warning about `pragma once`.
-  # compile_sources_as_cpp(eevee_cpp_shaders_lib "${SRC_GLSL_LIB}" "GPU_LIBRARY_SHADER")
+  compile_sources_as_cpp(compositor_cpp_shaders_lib "${SRC_GLSL_LIB}" "GPU_LIBRARY_SHADER")
 endif()

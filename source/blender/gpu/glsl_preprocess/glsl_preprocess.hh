@@ -1476,9 +1476,10 @@ class Preprocessor {
     parser.foreach_function([&](bool, Token fn_type, Token, Scope, bool, Scope fn_body) {
       fn_body.foreach_match("w(w,", [&](const std::vector<Token> &tokens) {
         string func_name = tokens[0].str();
-        if (func_name != "specialization_constant_get" && func_name != "push_constant_get" &&
-            func_name != "interface_get" && func_name != "attribute_get" &&
-            func_name != "buffer_get" && func_name != "sampler_get" && func_name != "image_get")
+        if (func_name != "specialization_constant_get" && func_name != "shared_variable_get" &&
+            func_name != "push_constant_get" && func_name != "interface_get" &&
+            func_name != "attribute_get" && func_name != "buffer_get" &&
+            func_name != "sampler_get" && func_name != "image_get")
         {
           return;
         }
