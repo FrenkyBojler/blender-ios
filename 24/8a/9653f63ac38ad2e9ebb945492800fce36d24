@@ -1,1 +1,2 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
+Referenced by pull request #144855, [4.5 LTS] Fix: frozen mathutils Vector & Matrix types could be resized
