@@ -82,7 +82,8 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
   return {offset0, offset1};
 }
 
-class PinConstraintEvaluator : public TemplatedConstraintSetEvaluator<PinConstraintEvaluator> {
+class PinnedPositionConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<PinnedPositionConstraintEvaluator> {
  private:
   Span<int> points_ref_indices_;
   Span<int> indices_;
@@ -91,11 +92,11 @@ class PinConstraintEvaluator : public TemplatedConstraintSetEvaluator<PinConstra
   Span<float> inverse_masses_;
 
  public:
-  PinConstraintEvaluator(const Span<int> points_ref_indices,
-                         const Span<int> indices,
-                         const Span<float3> pin_positions,
-                         const Span<float> compliance_terms,
-                         const Span<float> inverse_masses)
+  PinnedPositionConstraintEvaluator(const Span<int> points_ref_indices,
+                                    const Span<int> indices,
+                                    const Span<float3> pin_positions,
+                                    const Span<float> compliance_terms,
+                                    const Span<float> inverse_masses)
       : points_ref_indices_(points_ref_indices),
         indices_(indices),
         pin_positions_(pin_positions),

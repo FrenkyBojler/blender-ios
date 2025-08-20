@@ -1260,7 +1260,7 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
     r_constraint_sets.append(
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
              key_i, pinned_positions.soft_indices),
-         scope.construct<geometry::xpbd_constraint_solver::PinConstraintEvaluator>(
+         scope.construct<geometry::xpbd_constraint_solver::PinnedPositionConstraintEvaluator>(
              scope.allocator().construct_array<int>(constraints_num, key_i),
              pinned_positions.soft_indices,
              soft_pinned_positions,
