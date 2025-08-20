@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_type_conversions.hh"
 #include "NOD_bundle_type.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
@@ -470,6 +471,46 @@ std::optional<AlignPositionsConstraintBundle> AlignPositionsConstraintBundle::pa
   bundle_parse_member(bundle, "group_id", behavior.group_id, r_errors);
   bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
   if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
+const FlatBundleTypePtr &AttachUVSurfaceConstraintBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(AttachUVSurfaceConstraintBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::String>("mesh_path");
+    b.add<decl::Bool>("selection").default_value(true).supports_field();
+    b.add<decl::Vector>("uv_map").supports_field();
+    b.add<decl::Vector>("sample_uv").supports_field();
+    b.add<decl::Float>("compliance").min(0.0f).supports_field();
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<AttachUVSurfaceConstraintBundle> AttachUVSurfaceConstraintBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  AttachUVSurfaceConstraintBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "mesh_path", behavior.mesh_path, r_errors);
+  bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
+  bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
+
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  fn::Field<float3> uv_map;
+  bundle_parse_member(bundle, "uv_map", uv_map, r_errors);
+  behavior.uv_map = conversions.try_convert(uv_map, CPPType::get<float2>());
+  fn::Field<float3> sample_uv;
+  bundle_parse_member(bundle, "sample_uv", sample_uv, r_errors);
+  behavior.sample_uv = conversions.try_convert(sample_uv, CPPType::get<float2>());
+
+  if (r_errors.has_error() || !behavior.uv_map || !behavior.sample_uv) {
     return std::nullopt;
   }
   return behavior;

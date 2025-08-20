@@ -15,6 +15,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "GEO_reverse_uv_sampler.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
@@ -68,6 +69,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(RodStretchAndShearXPBDConstraintBundle::get_bundle_type());
   types.append(RodBendAndTwistXPBDConstraintBundle::get_bundle_type());
   types.append(AlignPositionsConstraintBundle::get_bundle_type());
+  types.append(AttachUVSurfaceConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -227,6 +229,7 @@ struct WorldData {
   BundleVectorSet<RodStretchAndShearXPBDConstraintBundle> rod_stretch_and_shear_constraints;
   BundleVectorSet<RodBendAndTwistXPBDConstraintBundle> rod_bend_and_twist_constraints;
   BundleVectorSet<AlignPositionsConstraintBundle> align_position_constraints;
+  BundleVectorSet<AttachUVSurfaceConstraintBundle> attach_uv_surface_constraints;
 };
 
 template<typename T> struct StartStopPair {
@@ -298,6 +301,7 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.rod_stretch_and_shear_constraints);
     parse_bundle(params, errors, world.rod_bend_and_twist_constraints);
     parse_bundle(params, errors, world.align_position_constraints);
+    parse_bundle(params, errors, world.attach_uv_surface_constraints);
   });
   return world;
 }
@@ -1433,6 +1437,132 @@ static void gather_align_positions_constraints(
   }
 }
 
+static void gather_attach_uv_surface_constraints(
+    ResourceScope &scope,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float delta_time,
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+{
+  const float compliance_factor = compute_compliance_factor(delta_time);
+
+  for (const AttachUVSurfaceConstraintBundle &constraint_bundle :
+       world.attach_uv_surface_constraints)
+  {
+    const SimPointsKey mesh_key{constraint_bundle.mesh_path, bke::GeometryComponent::Type::Mesh};
+    const int mesh_key_i = keys.index_of_try(mesh_key);
+    if (mesh_key_i == -1) {
+      continue;
+    }
+    Vector<int> filtered_keys = filter_sim_points_keys(
+        constraint_bundle.self_path, constraint_bundle.filter, keys);
+    if (filtered_keys.is_empty()) {
+      continue;
+    }
+
+    const int constraint_bundle_i = world.geometries.index_of_as(mesh_key.path);
+    const XPBDGeometryBundle &geometry_bundle = world.geometries[constraint_bundle_i];
+    const Mesh *original_mesh = geometry_bundle.geometry.get_mesh();
+    if (!original_mesh) {
+      continue;
+    }
+    const Span<int3> corner_tris = original_mesh->corner_tris();
+    const Span<int> corner_verts = original_mesh->corner_verts();
+    const Span<float> mesh_inverse_masses = sim_points_props.lookup(mesh_key).inverse_masses;
+
+    bke::MeshFieldContext uv_map_field_context{*original_mesh, bke::AttrDomain::Corner};
+    fn::FieldEvaluator uv_map_field_evaluator{uv_map_field_context, original_mesh->corners_num};
+    uv_map_field_evaluator.add(constraint_bundle.uv_map);
+    uv_map_field_evaluator.evaluate();
+    const VArraySpan<float2> uv_map = uv_map_field_evaluator.get_evaluated<float2>(0);
+
+    geometry::ReverseUVSampler reverse_uv_sampler(uv_map, corner_tris);
+
+    for (const int key_i : filtered_keys) {
+      const SimPointsKey &key = keys[key_i];
+      const bke::GeometryComponent::Type type = key.type;
+      const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+      const bke::GeometryComponent *component =
+          applied_geometries[geometry_bundle_i].get_component(type);
+      if (!component) {
+        continue;
+      }
+      const bke::AttrDomain domain = get_simulation_domain(type);
+      const int domain_size = component->attribute_domain_size(domain);
+      const Span<float> inverse_masses = sim_points_props.lookup(key).inverse_masses;
+
+      const bke::GeometryFieldContext field_context(*component, domain);
+      fn::FieldEvaluator field_evaluator{field_context, domain_size};
+      field_evaluator.set_selection(constraint_bundle.selection);
+      field_evaluator.add(constraint_bundle.sample_uv);
+      field_evaluator.add(constraint_bundle.compliance);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      if (mask.is_empty()) {
+        continue;
+      }
+      const VArray<float2> sample_uvs = field_evaluator.get_evaluated<float2>(0);
+      const VArray<float> compliances = field_evaluator.get_evaluated<float>(1);
+
+      Vector<int> &all_affected_points = scope.construct<Vector<int>>();
+      Vector<int> &all_affected_points_refs = scope.construct<Vector<int>>();
+      Vector<int> &all_affected_points_offsets = scope.construct<Vector<int>>();
+      all_affected_points_offsets.append(0);
+
+      Vector<int> &indices = scope.construct<Vector<int>>();
+      Vector<int3> &triangle_indices = scope.construct<Vector<int3>>();
+      Vector<float3> &bary_weights = scope.construct<Vector<float3>>();
+      Vector<float> &compliance_terms = scope.construct<Vector<float>>();
+      mask.foreach_index([&](const int point_i) {
+        const float2 sample_uv = sample_uvs[point_i];
+        const geometry::ReverseUVSampler::Result result = reverse_uv_sampler.sample(sample_uv);
+        if (result.type != geometry::ReverseUVSampler::ResultType::Ok) {
+          return;
+        }
+        indices.append(point_i);
+        bary_weights.append(result.bary_weights);
+
+        const int3 corners = corner_tris[result.tri_index];
+        const int3 triangle_verts{
+            corner_verts[corners[0]], corner_verts[corners[1]], corner_verts[corners[2]]};
+        triangle_indices.append(triangle_verts);
+
+        const float compliance = compliances[point_i];
+        const float compliance_term = compliance * compliance_factor;
+        compliance_terms.append(compliance_term);
+
+        all_affected_points.append(point_i);
+        all_affected_points_refs.append(key_i);
+        all_affected_points.extend({&triangle_verts[0], 3});
+        all_affected_points_refs.append_n_times(mesh_key_i, 3);
+        all_affected_points_offsets.append(all_affected_points.size());
+      });
+
+      if (indices.is_empty()) {
+        continue;
+      }
+
+      const OffsetIndices<int> all_affected_points_offset_indices(all_affected_points_offsets);
+
+      r_constraint_sets.append(
+          {scope.construct<geometry::xpbd_constraint_solver::MultiNAryConstraintSetIndices>(
+               GroupedSpan<int>{all_affected_points_offset_indices, all_affected_points_refs},
+               GroupedSpan<int>{all_affected_points_offset_indices, all_affected_points}),
+           scope.construct<geometry::xpbd_constraint_solver::AttachUVSurfaceConstraintEvaluator>(
+               mesh_key_i,
+               mesh_inverse_masses,
+               key_i,
+               indices,
+               triangle_indices,
+               bary_weights,
+               inverse_masses,
+               compliance_terms)});
+    }
+  }
+}
+
 struct StaticPlaneContacts {
   Vector<int> indices;
   Vector<float3> plane_positions;
@@ -2102,6 +2232,13 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                      sim_points_props,
                                      sub_delta_time,
                                      static_constraint_sets);
+  gather_attach_uv_surface_constraints(scope,
+                                       world,
+                                       applied_geometries,
+                                       keys,
+                                       sim_points_props,
+                                       sub_delta_time,
+                                       static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());

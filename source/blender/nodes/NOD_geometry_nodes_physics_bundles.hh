@@ -246,6 +246,22 @@ class AlignPositionsConstraintBundle : public NestedBundleCommon {
                                                              BundleParseErrors &r_errors);
 };
 
+class AttachUVSurfaceConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.AttachUVSurfaceConstraint";
+
+  std::string filter;
+  std::string mesh_path;
+  fn::Field<bool> selection;
+  fn::Field<float2> uv_map;
+  fn::Field<float2> sample_uv;
+  fn::Field<float> compliance;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<AttachUVSurfaceConstraintBundle> parse(const Bundle &bundle,
+                                                              BundleParseErrors &r_errors);
+};
+
 inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
     parse_collision_shape_type(const int type)
 {

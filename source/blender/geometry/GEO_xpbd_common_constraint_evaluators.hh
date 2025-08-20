@@ -633,4 +633,83 @@ class AlignPositionsConstraintEvaluator
   }
 };
 
+class AttachUVSurfaceConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<AttachUVSurfaceConstraintEvaluator> {
+ private:
+  /* Mesh data. */
+  int mesh_points_ref_i_;
+  Span<float> mesh_inv_masses_;
+
+  /* The #PointsRef that contains the attached points. */
+  int points_ref_i_;
+
+  /* Indexed by constraint index. */
+  Span<int> indices_;
+  Span<int3> triangle_indices_;
+  Span<float3> bary_weights_;
+  Span<float> compliance_terms_;
+
+  /* Indexed by point index.*/
+  Span<float> inv_masses_;
+
+ public:
+  AttachUVSurfaceConstraintEvaluator(const int mesh_points_ref_i,
+                                     const Span<float> mesh_inv_masses,
+                                     const int points_ref_i,
+                                     const Span<int> indices,
+                                     const Span<int3> triangle_indices,
+                                     const Span<float3> bary_weights,
+                                     const Span<float> inv_masses,
+                                     const Span<float> compliance_terms)
+      : mesh_points_ref_i_(mesh_points_ref_i),
+        mesh_inv_masses_(mesh_inv_masses),
+        points_ref_i_(points_ref_i),
+        indices_(indices),
+        triangle_indices_(triangle_indices),
+        bary_weights_(bary_weights),
+        compliance_terms_(compliance_terms),
+        inv_masses_(inv_masses)
+  {
+  }
+
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const Span<PointsRef> points_refs,
+                       const int constraint_i) const
+  {
+    const int point_i = indices_[constraint_i];
+    const float3 bary_weights = bary_weights_[constraint_i];
+    const float compliance_term = compliance_terms_[constraint_i];
+
+    const float inv_mass = inv_masses_[point_i];
+    const float3 &p = points_refs[points_ref_i_].positions[point_i];
+
+    const int3 triangle = triangle_indices_[constraint_i];
+    const int mesh_i0 = triangle[0];
+    const int mesh_i1 = triangle[1];
+    const int mesh_i2 = triangle[2];
+    const Span<float3> mesh_positions = points_refs[mesh_points_ref_i_].positions;
+    const float3 &mesh_p0 = mesh_positions[mesh_i0];
+    const float3 &mesh_p1 = mesh_positions[mesh_i1];
+    const float3 &mesh_p2 = mesh_positions[mesh_i2];
+    const float mesh_inv_mass0 = mesh_inv_masses_[mesh_i0];
+    const float mesh_inv_mass1 = mesh_inv_masses_[mesh_i1];
+    const float mesh_inv_mass2 = mesh_inv_masses_[mesh_i2];
+
+    const float3 pin_point = bary_weights[0] * mesh_p0 + bary_weights[1] * mesh_p1 +
+                             bary_weights[2] * mesh_p2;
+
+    const float triangle_mass = math::safe_rcp(mesh_inv_mass0) + math::safe_rcp(mesh_inv_mass1) +
+                                math::safe_rcp(mesh_inv_mass2);
+    const float triangle_inv_mass = math::safe_rcp(triangle_mass);
+
+    const DistanceConstraintResult result = evaluate_distance_constraint(
+        p, pin_point, inv_mass, triangle_inv_mass, 0.0f, compliance_term);
+    updater.update_position(points_ref_i_, point_i, result.offset0);
+    updater.update_position(mesh_points_ref_i_, mesh_i0, result.offset1);
+    updater.update_position(mesh_points_ref_i_, mesh_i1, result.offset1);
+    updater.update_position(mesh_points_ref_i_, mesh_i2, result.offset1);
+  }
+};
+
 }  // namespace blender::geometry::xpbd_constraint_solver
