@@ -966,16 +966,20 @@ namespace blender::math {
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
  * than the `max_ratio_between_axes` times shorter than the long axis. Inputs are the
  * two derivative vectors in texel space (du/dx, dv/dx) and (du/dy, dv/dy). */
-BLI_INLINE void clamp_anisotropy(float2 &x_gradient,
-                                 float2 &y_gradient,
-                                 const float max_ratio_between_axes)
+BLI_INLINE std::pair<float2, float2> clamp_anisotropy(const float2 &x_gradient,
+                                                      const float2 &y_gradient,
+                                                      const float max_ratio_between_axes)
 {
+
+  float2 x_grad = x_gradient;
+  float2 y_grad = y_gradient;
+
   /* Make (du/dx, dv/dx) the longer axis, so we clamp the other one if needed. */
-  float len_squared_dx = dot(x_gradient, x_gradient);
-  float len_squared_dy = dot(y_gradient, y_gradient);
+  float len_squared_dx = dot(x_grad, x_grad);
+  float len_squared_dy = dot(y_grad, y_grad);
   if (len_squared_dx < len_squared_dy) {
     /* Swap axes. */
-    std::swap(x_gradient, y_gradient);
+    std::swap(x_grad, y_grad);
     std::swap(len_squared_dx, len_squared_dy);
   }
 
@@ -986,8 +990,10 @@ BLI_INLINE void clamp_anisotropy(float2 &x_gradient,
       long_len > max_ratio_between_axes * short_len)
   {
     float scale = long_len / (max_ratio_between_axes * short_len);
-    y_gradient *= scale;
+    y_grad *= scale;
   }
+
+  return {x_grad, y_grad};
 }
 
 /* Ellipsoid describing the footprint in texel space:
@@ -1013,17 +1019,21 @@ BLI_INLINE Ellipse build_ellipse(const float2 &coordinates,
                                  float2 &y_gradient,
                                  const float &max_ratio_between_axes = 8.0f)
 {
+  float2 x_grad = x_gradient;
+  float2 y_grad = y_gradient;
   /* Clamps the ellipsoid based on the ratio between the axes.
    * This leads to better performance, because thin ellipsoids will be adjusted,
    * but also leads to neglectable blurring. */
   if (max_ratio_between_axes > 1.0f) {
-    clamp_anisotropy(x_gradient, y_gradient, max_ratio_between_axes);
+    auto jacobian = clamp_anisotropy(x_gradient, y_gradient, max_ratio_between_axes);
+    x_grad = jacobian.first;
+    y_grad = jacobian.second;
   }
 
-  const float dv_dx = x_gradient.y;
-  const float dv_dy = y_gradient.y;
-  const float du_dx = x_gradient.x;
-  const float du_dy = y_gradient.x;
+  const float du_dx = x_grad.x;
+  const float du_dy = y_grad.x;
+  const float dv_dx = x_grad.y;
+  const float dv_dy = y_grad.y;
 
   /* We add one to the A/C coefficients, because we sum over a discrete grid
    * (one sample per texel center). A texel can still contribute even if its
@@ -1060,6 +1070,28 @@ BLI_INLINE Ellipse build_ellipse(const float2 &coordinates,
   bool is_valid = (lower_bound.x <= upper_bound.x) && (lower_bound.y <= upper_bound.y);
 
   return {a, b, c, lower_bound, upper_bound, center, is_valid};
+}
+
+BLI_INLINE bool fetch_texel_rgba_wrap(const float *buffer,
+                                      int width,
+                                      int height,
+                                      int u,
+                                      int v,
+                                      InterpWrapMode wrap_u,
+                                      InterpWrapMode wrap_v,
+                                      float4 &rgba_out)
+{
+  const int uu = wrap_coord(float(u), width, wrap_u);
+  const int vv = wrap_coord(float(v), height, wrap_v);
+
+  /* In Border mode, wrap_coord() returns -1 when outside. */
+  if (uu < 0 || vv < 0) {
+    return false;
+  }
+
+  const int texel_index = (width * vv + uu) * 4;
+  rgba_out = buffer + texel_index; /* RGBA, 4 floats per texel */
+  return true;
 }
 
 /* Computes the elliptical weighted average for a given buffer with their
@@ -1114,21 +1146,13 @@ void BLI_ewa_single_level(const int2 &dimensions,
       if (r2 < 1.0f) {
         const float weight = std::exp(-smoothness * r2);
         if (weight > 0.0f) {
-          const int xx = wrap_coord(float(x), dimensions.x, wrap_u);
-          const int yy = wrap_coord(float(y), dimensions.y, wrap_v);
-
-          if ((wrap_u == InterpWrapMode::Border && xx < 0) ||
-              (wrap_v == InterpWrapMode::Border && yy < 0))
+          float4 rgba = {0.0f, 0.0f, 0.0f, 0.0f};
+          if (fetch_texel_rgba_wrap(
+                  buffer, dimensions.x, dimensions.y, x, y, wrap_u, wrap_v, rgba))
           {
-            /* Border mode outside -> skip. */
-            continue;
+            accum_rgba += weight * rgba;
+            accum_weight += weight;
           }
-
-          const int texel_index = (dimensions.x * yy + xx) * 4;
-          const float4 rgba = buffer + texel_index;
-
-          accum_rgba += weight * rgba;
-          accum_weight += weight;
         }
       }
     }
