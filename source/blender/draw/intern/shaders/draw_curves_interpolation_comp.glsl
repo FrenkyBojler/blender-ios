@@ -51,23 +51,27 @@ template<> InterpPosition input_load<InterpPosition>(int point_index)
 }
 template<> float4 input_load<float4>(int point_index)
 {
-  return load_data(
-      buffer_get(draw_curves_interpolate_float4_attribute, attribute_float4_buf)[point_index]);
+  StoredFloat4 data = buffer_get(draw_curves_interpolate_float4_attribute,
+                                 attribute_float4_buf)[point_index];
+  return load_data(data);
 }
 template<> float3 input_load<float3>(int point_index)
 {
-  return load_data(
-      buffer_get(draw_curves_interpolate_float3_attribute, attribute_float3_buf)[point_index]);
+  StoredFloat3 data = buffer_get(draw_curves_interpolate_float3_attribute,
+                                 attribute_float3_buf)[point_index];
+  return load_data(data);
 }
 template<> float2 input_load<float2>(int point_index)
 {
-  return load_data(
-      buffer_get(draw_curves_interpolate_float2_attribute, attribute_float2_buf)[point_index]);
+  StoredFloat2 data = buffer_get(draw_curves_interpolate_float2_attribute,
+                                 attribute_float2_buf)[point_index];
+  return load_data(data);
 }
 template<> float input_load<float>(int point_index)
 {
-  return load_data(
-      buffer_get(draw_curves_interpolate_float_attribute, attribute_float_buf)[point_index]);
+  StoredFloat data = buffer_get(draw_curves_interpolate_float_attribute,
+                                attribute_float_buf)[point_index];
+  return load_data(data);
 }
 
 /** Output Load. */
