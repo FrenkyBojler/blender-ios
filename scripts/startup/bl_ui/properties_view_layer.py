@@ -27,6 +27,7 @@ class ViewLayerButtonsPanel:
     def poll(cls, context):
         return (context.engine in cls.COMPAT_ENGINES)
 
+
 class VIEWLAYER_PT_context_layer(ViewLayerButtonsPanel, Panel):
     bl_label = ""
     bl_options = {'HIDE_HEADER'}
