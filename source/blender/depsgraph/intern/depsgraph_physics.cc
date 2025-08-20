@@ -13,8 +13,10 @@
 #include "BLI_listbase.h"
 
 #include "BKE_collision.h"
+#include "BKE_dynamicpaint.h"
 #include "BKE_effect.h"
 #include "BKE_modifier.hh"
+#include "BKE_object.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_object_force_types.h"
@@ -86,6 +88,62 @@ ListBase *DEG_get_collision_relations(const Depsgraph *graph,
 
 /********************** Depsgraph Building API ************************/
 
+enum class CollisionComponentFlag : uint8_t {
+  None = 0,
+  /** #DEG_OB_COMP_TRANSFORM is set. */
+  Transform = 1 << 0,
+  /** #DEG_OB_COMP_GEOMETRY is set. */
+  Geometry = 1 << 1,
+  /** #DEG_OB_COMP_EVAL_POSE is set. */
+  EvalPose = 1 << 2,
+};
+ENUM_OPERATORS(CollisionComponentFlag, CollisionComponentFlag::EvalPose);
+
+/**
+ * When #BKE_object_modifier_update_subframe is used by a modifier,
+ * it's important the depsgraph tags objects this modifier uses.
+ *
+ * Without this access to objects may not be thread-safe, see: #142137.
+ */
+static void add_collision_relations_with_parents(
+    DepsNodeHandle *handle,
+    Object *ob1,
+    const char *name,
+    const int parent_recursion,
+    uint modifier_type,
+    blender::Map<Object *, CollisionComponentFlag> &object_component_map)
+{
+  auto update_fn = [&handle, &name, &object_component_map](Object *ob, const bool update_mesh) {
+    CollisionComponentFlag &update_flag = object_component_map.lookup_or_add_default(ob);
+    CollisionComponentFlag test_flag;
+
+    test_flag = CollisionComponentFlag::Transform;
+    if ((update_flag & test_flag) == CollisionComponentFlag::None) {
+      update_flag |= test_flag;
+      DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_TRANSFORM, name);
+    }
+
+    if (update_mesh) {
+      test_flag = CollisionComponentFlag::Geometry;
+      if ((update_flag & test_flag) == CollisionComponentFlag::None) {
+        update_flag |= test_flag;
+        DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_GEOMETRY, name);
+      }
+    }
+
+    if (ob->type == OB_ARMATURE) {
+      test_flag = CollisionComponentFlag::EvalPose;
+      if ((update_flag & test_flag) == CollisionComponentFlag::None) {
+        update_flag |= test_flag;
+        DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_EVAL_POSE, name);
+      }
+    }
+  };
+
+  BKE_object_modifier_update_subframe_only_callback(
+      ob1, true, parent_recursion, modifier_type, update_fn);
+}
+
 void DEG_add_collision_relations(DepsNodeHandle *handle,
                                  Object *object,
                                  Collection *collection,
@@ -96,17 +154,42 @@ void DEG_add_collision_relations(DepsNodeHandle *handle,
   Depsgraph *depsgraph = DEG_get_graph_from_handle(handle);
   deg::Depsgraph *deg_graph = (deg::Depsgraph *)depsgraph;
   ListBase *relations = build_collision_relations(deg_graph, collection, modifier_type);
+
+  /* Expand tag objects, matching: #BKE_object_modifier_update_subframe behavior. */
+
+  /* NOTE: #eModifierType_Fluid should be included,
+   * leave out for the purpose of validating the fix for dynamic paint only. */
+  const bool use_recursive_parents = (modifier_type == eModifierType_DynamicPaint);
+
+  blender::Map<Object *, CollisionComponentFlag> *object_component_map = nullptr;
+  const int parent_recursion = OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT;
+  if (use_recursive_parents) {
+    object_component_map = MEM_new<blender::Map<Object *, CollisionComponentFlag>>(__func__);
+  }
+
   LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
     Object *ob1 = relation->ob;
     if (ob1 == object) {
       continue;
     }
-    if (filter_function == nullptr ||
-        filter_function(ob1, BKE_modifiers_findby_type(ob1, (ModifierType)modifier_type)))
+    if (filter_function &&
+        !filter_function(ob1, BKE_modifiers_findby_type(ob1, (ModifierType)modifier_type)))
     {
-      DEG_add_object_pointcache_relation(handle, ob1, DEG_OB_COMP_TRANSFORM, name);
-      DEG_add_object_pointcache_relation(handle, ob1, DEG_OB_COMP_GEOMETRY, name);
+      continue;
     }
+
+    if (use_recursive_parents) {
+      add_collision_relations_with_parents(
+          handle, ob1, name, parent_recursion, modifier_type, *object_component_map);
+      continue;
+    }
+
+    DEG_add_object_pointcache_relation(handle, ob1, DEG_OB_COMP_TRANSFORM, name);
+    DEG_add_object_pointcache_relation(handle, ob1, DEG_OB_COMP_GEOMETRY, name);
+  }
+
+  if (use_recursive_parents) {
+    MEM_delete(object_component_map);
   }
 }
 
