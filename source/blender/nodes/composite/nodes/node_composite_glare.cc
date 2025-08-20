@@ -2320,24 +2320,16 @@ class GlareOperation : public NodeOperation {
       float accumulated_weight = 0.0f;
       float4 accumulated_color = float4(0.0f);
 
-      int number_of_steps = this->get_use_jitter() ? (1.0f - this->get_jitter_factor()) * steps :
-                                                     steps;
+      int number_of_steps = (1.0f - this->get_jitter_factor()) * steps;
       float seed = noise::hash_to_float(texel.x, texel.y);
-      float run = 0.61803398875f;
-      float position_index = 0.0f;
 
       for (int i = 0; i <= number_of_steps; i++) {
-        position_index = this->get_sample_position(
-            i, this->get_use_jitter(), steps, run, position_index);
+        float position_index = this->get_sample_position(i, this->get_use_jitter(), seed);
         float2 position = coordinates + position_index * step_vector;
 
-        /* We are already past the image boundaries, if the jetter was activated then we have to
-         * continue since we are sampling at random positions, on the  other hand if jetter wasn't
-         * activated then any further steps are past the image so we break. */
+        /* We are already past the image boundaries, and any future steps are also past the image
+         * boundaries, so break. */
         if (position.x < 0.0f || position.y < 0.0f || position.x > 1.0f || position.y > 1.0f) {
-          if (this->get_use_jitter()) {
-            continue;
-          }
           break;
         }
 
@@ -2364,45 +2356,20 @@ class GlareOperation : public NodeOperation {
 
   /* Returns an index for a position along the path between the texel and the source.
    *
-   * If jitter is enabled, the position index is determined using a low-discrepancy
-   * quasirandom sequence to perform quasi-Monte Carlo sampling over the range [0, steps].
-   * Otherwise, it returns the integer index `i` directly.
+   * When jitter is enabled, the position index is computed using the Global Shift
+   * sampling technique: a hash-based global shift is applied to the indices which is then
+   * factored to cover the range [0, steps].
+   * Without jitter, the integer index `i` is returned
+   * directly.
    */
 
-  float get_sample_position(
-      const int i, const bool use_jitter, const int steps, float &run, float position_index)
+  float get_sample_position(const int i, const bool use_jitter, const float seed)
   {
     if (use_jitter) {
-      return FibonacciWordSequenceNext(position_index, run, steps);
+      return this->get_jitter_factor() != 1.0f ? (i + seed) / (1.0f - this->get_jitter_factor()) :
+                                                 0.0f;
     }
     return i;
-  }
-
-  /* Generates a low-discrepancy quasirandom value in the [0, 1) range using
-   * the Fibonacci Word Sampling method.
-   *
-   * This implementation is based on the sequence described in:
-   *
-   *   "Fibonacci Word Sampling: A Sorted Golden Ratio Low Discrepancy Sequence."
-   *   Demofox Blog, 2023.
-   *   https://blog.demofox.org/2023/02/17/fibonacci-word-sampling-a-sorted-golden-ratio-low-discrepancy-sequence/
-   *
-   * The method constructs sample positions by iteratively dividing the unit
-   * interval into "big" and "small" gaps, following the structure of the
-   * Fibonacci word. The relative gap sizes are derived from the golden ratio,
-   * producing evenly spread points with only two distinct spacing values.
-   */
-
-  float FibonacciWordSequenceNext(float last, float &run, const int steps)
-  {
-    const float c_goldenRatio = 1.61803398875f;
-    const float c_goldenRatioConjugate = 0.61803398875f;
-    float big = 1.0f / ((1.0f - this->get_jitter_factor()) * steps);
-    float small = big * c_goldenRatioConjugate;
-    run += c_goldenRatio;
-    float shift = math::floor(run);
-    run -= shift;
-    return (last / steps + ((shift == 1.0f) ? small : big)) * steps;
   }
 
   /* ----------
@@ -2653,7 +2620,7 @@ class GlareOperation : public NodeOperation {
 
   float get_jitter_factor()
   {
-    return this->get_input("Jitter").get_single_value_default(0.0f);
+    return math::clamp(this->get_input("Jitter").get_single_value_default(0.0f), 0.0f, 1.0f);
   }
 };
 

@@ -6,59 +6,18 @@
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
-/* 2D hash (iqint3), originally recommended in
- * "Hash Functions for GPU Rendering", JCGT Vol. 9, No. 3, 2020:
- * https://jcgt.org/published/0009/03/02/
- *
- * Updated with modifications inspired by the "Star Nest" fragment shader
- * by Pablo Román Andrioli on ShaderToy:
- * https://www.shadertoy.com/view/4tXyWN
- */
-float hash_iqint3_f(uint2 p)
-{
-  p *= uvec2(73333, 7777);
-  p ^= (uvec2(3333777777) >> (p >> 28));
-  uint n = p.x * p.y;
-  return float(n ^ (n >> 15)) * (1.0f / float(0xffffffffU));
-}
-
-/* Generates a low-discrepancy quasirandom value in the [0, 1) range using
- * the Fibonacci Word Sampling method.
- *
- * This implementation is based on the sequence described in:
- *
- *   "Fibonacci Word Sampling: A Sorted Golden Ratio Low Discrepancy Sequence."
- *   Demofox Blog, 2023.
- *   https://blog.demofox.org/2023/02/17/fibonacci-word-sampling-a-sorted-golden-ratio-low-discrepancy-sequence/
- *
- * The method constructs sample positions by iteratively dividing the unit
- * interval into "big" and "small" gaps, following the structure of the
- * Fibonacci word. The relative gap sizes are derived from the golden ratio,
- * producing evenly spread points with only two distinct spacing values.
- */
-
-  float FibonacciWordSequenceNext(float last, inout float run, int steps)
-  {
-    constexpr float c_goldenRatio = 1.61803398875f;
-    constexpr float c_goldenRatioConjugate = 0.61803398875f;
-    float big = 1.0f / float((1.0f - jitter_factor) * steps);
-    float small = big * c_goldenRatioConjugate;
-    run += c_goldenRatio;
-    float shift = floor(run);
-    run -= shift;
-    return (last /steps + ((shift == 1.0f) ? small : big)) * steps;
-  }
-
 /* Returns an index for a position along the path between the texel and the source.
  *
- * If jitter is enabled, the position index is determined using a low-discrepancy
- * quasirandom sequence to perform quasi-Monte Carlo sampling over the range [0, steps].
- * Otherwise, it returns the integer index `i` directly.
+ * When jitter is enabled, the position index is computed using the Global Shift
+ * sampling technique: a hash-based global shift is applied to the indices which is then
+ * factored to cover the range [0, steps].
+ * Without jitter, the integer index `i` is returned
+ * directly.
  */
-float get_sample_position(const int i, const int steps, inout float run, float position_index)
+float get_sample_position(int i, float seed)
 {
 #if defined(JITTER)
-  return FibonacciWordSequenceNext(position_index, run, steps);
+  return jitter_factor != 1.0 ? (i + seed) / (1.0f - jitter_factor) : 0.0f;
 #else
   return i;
 #endif
@@ -91,22 +50,15 @@ void main()
 #else
   int number_of_steps = steps;
 #endif
-
-  float seed = hash_iqint3_f(uint2(texel));
-  float run = 0.61803398875f;
-  float position_index = 0.0f;
+  float seed = hash_uint2_to_float(uint(texel.x), uint(texel.y));
 
   for (int i = 0; i <= number_of_steps; i++) {
-    position_index = get_sample_position(i, steps, run, position_index);
+    float position_index = get_sample_position(i, seed);
     float2 position = coordinates + position_index * step_vector;
 
-    /* We are already past the image boundaries, if the jetter was activated then we have to
-     * continue since we are sampling at random positions, on the  other hand if jetter wasn't
-     * activated then any further steps are past the image so we break. */
+    /* We are already past the image boundaries, and any future steps are also past the image
+     * boundaries, so break. */
     if (any(lessThan(position, float2(0.0f))) || any(greaterThan(position, float2(1.0f)))) {
-#if defined(JITTER)
-      continue;
-#endif
       break;
     }
 
