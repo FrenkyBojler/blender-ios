@@ -54,6 +54,11 @@ class TestBlendFileOpenLinkSaveAllTestFiles(TestHelper):
             # opengl/ram_glsl.blend
             # Error: Not freed memory blocks: 4, total unfreed memory 0.000427 MB
             "ram_glsl.blend",
+
+            # io_tests/blend_scene/geonodes_import_obj.blend
+            # ERROR Cannot read from OBJ file:'/home/blender/git/blender-vexp/build_asserts/tests/obj/all_tris.obj'.
+            # This is because the file paths used by geonodes import nodes are not remapped.
+            "geonodes_import_obj.blend",
         }
 
         # Directories to exclude relative to `./tests/files/`.
