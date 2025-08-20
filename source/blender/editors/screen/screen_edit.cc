@@ -1350,7 +1350,7 @@ static void screen_global_editor_dock_area_refresh(wmWindow *win, bScreen *scree
 {
   const blender::int2 win_size = WM_window_native_pixel_size(win);
   /* Reuse header height for width. */
-  const short size = screen_global_header_size();
+  const short size = 1.4f * screen_global_header_size();
   rcti rect;
 
   BLI_rcti_init(&rect, 0, win_size[0] - 1, 0, win_size[1] - 1);
