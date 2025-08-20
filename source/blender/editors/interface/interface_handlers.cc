@@ -3171,7 +3171,7 @@ static void ui_but_textbox_textedit_set_cursor_pos(uiBut *but,
 
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
   int line_under_mouse = textbox->line_scroll() +
-                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines() + 1);
+                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines());
   line_under_mouse = std::clamp<int>(
       line_under_mouse,
       std::max<int>(0, textbox->line_scroll() - 1),

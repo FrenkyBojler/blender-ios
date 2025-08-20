@@ -2019,7 +2019,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   const blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
       textbox_but, BLI_rcti_size_x(rect) - text_padding);
 
-  const int line_height = BLI_rcti_size_y(rect) / (visible_lines + 1);
+  const int line_height = BLI_rcti_size_y(rect) / (visible_lines);
 
   const int scroll = textbox_but->line_scroll();
   const char *raw_begin = lines[0].begin();
@@ -2043,7 +2043,9 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       line_select_end = i;
     }
   }
-
+  if (lines.size() <= visible_lines) {
+    textbox_but->block->next_but(but)->flag |= UI_HIDDEN;
+  }
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;
 #endif
