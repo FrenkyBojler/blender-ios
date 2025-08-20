@@ -1515,9 +1515,9 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
   }
   else if (GS(old_id->name) == ID_NT) {
 
-    if (snode->node_group_tree) {
-      if (&snode->node_group_tree->id == old_id) {
-        snode->node_group_tree = reinterpret_cast<bNodeTree *>(new_id);
+    if (snode->selected_node_group) {
+      if (&snode->selected_node_group->id == old_id) {
+        snode->selected_node_group = reinterpret_cast<bNodeTree *>(new_id);
       }
     }
 
@@ -1618,7 +1618,7 @@ static void node_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
   }
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(
-      data, snode->node_group_tree, IDWALK_CB_USER_ONE | IDWALK_CB_DIRECT_WEAK_LINK);
+      data, snode->selected_node_group, IDWALK_CB_USER_ONE | IDWALK_CB_DIRECT_WEAK_LINK);
 
   /* Both `snode->id` and `snode->nodetree` have been remapped now, so their data can be
    * accessed. */

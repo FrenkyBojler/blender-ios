@@ -485,7 +485,7 @@ void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typein
 
   /* Reset members that store tree type-dependant values. */
   snode->node_tree_sub_type = 0;
-  snode->node_group_tree = nullptr;
+  snode->selected_node_group = nullptr;
 }
 
 bool ED_node_is_compositor(const SpaceNode *snode)

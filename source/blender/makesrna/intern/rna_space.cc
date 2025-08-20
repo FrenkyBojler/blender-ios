@@ -2701,7 +2701,8 @@ static void rna_SpaceNodeEditor_node_tree_set(PointerRNA *ptr,
   ED_node_tree_start(region, snode, (bNodeTree *)value.data, nullptr, nullptr);
 }
 
-static bool rna_SpaceNodeEditor_node_group_tree_poll(PointerRNA * /*ptr*/, const PointerRNA value)
+static bool rna_SpaceNodeEditor_selected_node_group_poll(PointerRNA * /*ptr*/,
+                                                         const PointerRNA value)
 {
   const bNodeTree &ntree = *static_cast<const bNodeTree *>(value.data);
   if (ntree.type != NTREE_GEOMETRY) {
@@ -8155,11 +8156,11 @@ static void rna_def_space_node(BlenderRNA *brna)
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_NODE_VIEW, "rna_SpaceNodeEditor_show_backdrop_update");
 
-  prop = RNA_def_property(srna, "node_group_tree", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "selected_node_group", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_funcs(
-      prop, nullptr, nullptr, nullptr, "rna_SpaceNodeEditor_node_group_tree_poll");
+      prop, nullptr, nullptr, nullptr, "rna_SpaceNodeEditor_selected_node_group_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
-  RNA_def_property_ui_text(prop, "Node Group Tree", "Node group to edit");
+  RNA_def_property_ui_text(prop, "Selected Node Group", "Node group to edit");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_node_tree_update");
 
   prop = RNA_def_property(srna, "show_annotation", PROP_BOOLEAN, PROP_NONE);

@@ -879,12 +879,11 @@ typedef struct SpaceNode {
 
   /**
    * Used as the editor's top-level node group for node trees that are not part of the context and
-   * thus needs to be stored in the node editor, and it isn't meant to be set separately from the
-   * editor's regular node group. For instance #SNODE_GEOMETRY_MODIFIER is part of the context
-   * since it is stored on the active modifier, while #SNODE_GEOMETRY_TOOL is not part of the
-   * context.
+   * thus needs to be stored in the node editor. For instance #SNODE_GEOMETRY_MODIFIER is part of
+   * the context since it is stored on the active modifier, while #SNODE_GEOMETRY_TOOL is not part
+   * of the context.
    */
-  struct bNodeTree *node_group_tree;
+  struct bNodeTree *selected_node_group;
 
   /** Grease-pencil data. */
   struct bGPdata *gpd;

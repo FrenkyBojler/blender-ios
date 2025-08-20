@@ -919,7 +919,7 @@ static GeoNodesLog *get_root_log(const SpaceNode &snode)
     case SNODE_GEOMETRY_TOOL: {
       const ed::geometry::GeoOperatorLog &log =
           ed::geometry::node_group_operator_static_eval_log();
-      if (snode.node_group_tree->id.name + 2 != log.node_group_name) {
+      if (snode.selected_node_group->id.name + 2 != log.node_group_name) {
         return {};
       }
       return log.log.get();

@@ -203,7 +203,7 @@ DNA_STRUCT_RENAME_MEMBER(SceneEEVEE, shadow_cube_size, shadow_cube_size_deprecat
 DNA_STRUCT_RENAME_MEMBER(Sculpt, radial_symm, radial_symm_legacy)
 DNA_STRUCT_RENAME_MEMBER(SpaceImage, pixel_snap_mode, pixel_round_mode)
 DNA_STRUCT_RENAME_MEMBER(SpaceNode, geometry_nodes_type, node_tree_sub_type)
-DNA_STRUCT_RENAME_MEMBER(SpaceNode, geometry_nodes_tool_tree, node_group_tree)
+DNA_STRUCT_RENAME_MEMBER(SpaceNode, geometry_nodes_tool_tree, selected_node_group)
 DNA_STRUCT_RENAME_MEMBER(SpaceSeq, overlay_type, overlay_frame_type)
 DNA_STRUCT_RENAME_MEMBER(SpeedControlVars, globalSpeed, globalSpeed_legacy)
 DNA_STRUCT_RENAME_MEMBER(Strip, endstill, endstill_legacy)
