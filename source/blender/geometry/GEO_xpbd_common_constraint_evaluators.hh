@@ -85,19 +85,23 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
 class PinnedPositionConstraintEvaluator
     : public TemplatedConstraintSetEvaluator<PinnedPositionConstraintEvaluator> {
  private:
-  Span<int> points_ref_indices_;
+  int points_ref_i_;
+
+  /* Indexed by constraint index. */
   Span<int> indices_;
   Span<float3> pin_positions_;
   Span<float> compliance_terms_;
+
+  /* Indexed by position index. */
   Span<float> inverse_masses_;
 
  public:
-  PinnedPositionConstraintEvaluator(const Span<int> points_ref_indices,
+  PinnedPositionConstraintEvaluator(const int points_ref_i,
                                     const Span<int> indices,
                                     const Span<float3> pin_positions,
                                     const Span<float> compliance_terms,
                                     const Span<float> inverse_masses)
-      : points_ref_indices_(points_ref_indices),
+      : points_ref_i_(points_ref_i),
         indices_(indices),
         pin_positions_(pin_positions),
         compliance_terms_(compliance_terms),
@@ -110,35 +114,38 @@ class PinnedPositionConstraintEvaluator
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
-    const int points_ref_i = points_ref_indices_[constraint_i];
-    const int i = indices_[constraint_i];
-    const float compliance_term = compliance_terms_[constraint_i];
-    const float3 &pin_position = pin_positions_[constraint_i];
-    const float3 &p = points_refs[points_ref_i].positions[i];
-    const float inv_m = inverse_masses_[i];
-
+    const int point_i = indices_[constraint_i];
     const DistanceConstraintResult result = evaluate_distance_constraint(
-        p, pin_position, inv_m, 0.0f, 0.0f, compliance_term);
-    updater.update_position(points_ref_i, i, result.offset0);
+        points_refs[points_ref_i_].positions[point_i],
+        pin_positions_[constraint_i],
+        inverse_masses_[point_i],
+        0.0f,
+        0.0f,
+        compliance_terms_[constraint_i]);
+    updater.update_position(points_ref_i_, point_i, result.offset0);
   }
 };
 
 class PinRotationConstraintEvaluator
     : public TemplatedConstraintSetEvaluator<PinRotationConstraintEvaluator> {
  private:
-  Span<int> points_ref_indices_;
+  int points_ref_i_;
+
+  /* Indexed by constraint index. */
   Span<int> indices_;
   Span<math::Quaternion> pin_rotations_;
   Span<float> compliance_terms_;
+
+  /* Indexed by position index. */
   Span<float3> inertias_;
 
  public:
-  PinRotationConstraintEvaluator(const Span<int> points_ref_indices,
+  PinRotationConstraintEvaluator(const int points_ref_i,
                                  const Span<int> indices,
                                  const Span<math::Quaternion> pin_rotations,
                                  const Span<float> compliance_terms,
                                  const Span<float3> inertias)
-      : points_ref_indices_(points_ref_indices),
+      : points_ref_i_(points_ref_i),
         indices_(indices),
         pin_rotations_(pin_rotations),
         compliance_terms_(compliance_terms),
@@ -151,43 +158,42 @@ class PinRotationConstraintEvaluator
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
-    const int points_ref_i = points_ref_indices_[constraint_i];
-    const int i = indices_[constraint_i];
-    const math::Quaternion &pin_rotation = pin_rotations_[constraint_i];
-    const float3 &inertia = inertias_[i];
-    const float compliance_term = compliance_terms_[constraint_i];
-
+    const int point_i = indices_[constraint_i];
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-        points_refs[points_ref_i].rotations[i],
-        pin_rotation,
-        inertia,
+        points_refs[points_ref_i_].rotations[point_i],
+        pin_rotations_[constraint_i],
+        inertias_[point_i],
         float3(std::numeric_limits<float>::infinity()),
         math::Quaternion::identity(),
-        compliance_term);
-    updater.update_rotation(points_ref_i, i, result.offset0);
+        compliance_terms_[constraint_i]);
+    updater.update_rotation(points_ref_i_, point_i, result.offset0);
   }
 };
 
 class DistanceConstraintEvaluator
     : public TemplatedConstraintSetEvaluator<DistanceConstraintEvaluator> {
  private:
-  Span<int2> points_ref_indices_;
-  Span<float> inverse_masses_;
+  int points_ref_i_;
+
+  /* Indexed by constraint index. */
   Span<int2> point_pairs_;
   Span<float> distances_;
   Span<float> compliance_terms_;
 
+  /* Indexed by point index. */
+  Span<float> inverse_masses_;
+
  public:
-  DistanceConstraintEvaluator(const Span<int2> points_ref_indices,
+  DistanceConstraintEvaluator(const int points_ref_i,
                               const Span<float> inverse_masses,
                               const Span<int2> point_pairs,
                               const Span<float> distances,
                               const Span<float> compliance_terms)
-      : points_ref_indices_(points_ref_indices),
-        inverse_masses_(inverse_masses),
+      : points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
         distances_(distances),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        inverse_masses_(inverse_masses)
   {
     BLI_assert(point_pairs.size() == distances.size());
   }
@@ -197,40 +203,38 @@ class DistanceConstraintEvaluator
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
-    const int2 &points_ref_pair = points_ref_indices_[constraint_i];
-    const int points_ref_i0 = points_ref_pair[0];
-    const int points_ref_i1 = points_ref_pair[1];
     const int2 &point_pair = point_pairs_[constraint_i];
-    const float target_distance = distances_[constraint_i];
     const int v0 = point_pair[0];
     const int v1 = point_pair[1];
-    const float3 &p0 = points_refs[points_ref_i0].positions[v0];
-    const float3 &p1 = points_refs[points_ref_i1].positions[v1];
-    const float inv_m0 = inverse_masses_[v0];
-    const float inv_m1 = inverse_masses_[v1];
-    const float compliance_term = compliance_terms_[constraint_i];
-
+    const Span<float3> positions = points_refs[points_ref_i_].positions;
     const DistanceConstraintResult result = evaluate_distance_constraint(
-        p0, p1, inv_m0, inv_m1, target_distance, compliance_term);
-    updater.update_position(points_ref_i0, v0, result.offset0);
-    updater.update_position(points_ref_i1, v1, result.offset1);
+        positions[v0],
+        positions[v1],
+        inverse_masses_[v0],
+        inverse_masses_[v1],
+        distances_[constraint_i],
+        compliance_terms_[constraint_i]);
+    updater.update_position(points_ref_i_, v0, result.offset0);
+    updater.update_position(points_ref_i_, v1, result.offset1);
   }
 };
 
 class CollisionPlaneConstraintEvaluator
     : public TemplatedConstraintSetEvaluator<CollisionPlaneConstraintEvaluator> {
  private:
-  Span<int> points_ref_indices_;
+  int points_ref_i_;
+
+  /* Indexed by constraint index. */
   Span<int> points_;
   Span<float3> plane_positions_;
   Span<float3> plane_normals_;
 
  public:
-  CollisionPlaneConstraintEvaluator(const Span<int> points_ref_indices,
+  CollisionPlaneConstraintEvaluator(const int points_ref_i,
                                     const Span<int> points,
                                     const Span<float3> plane_positions,
                                     const Span<float3> plane_normals)
-      : points_ref_indices_(points_ref_indices),
+      : points_ref_i_(points_ref_i),
         points_(points),
         plane_positions_(plane_positions),
         plane_normals_(plane_normals)
@@ -242,9 +246,8 @@ class CollisionPlaneConstraintEvaluator
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
-    const int points_ref_i = points_ref_indices_[constraint_i];
-    const int v = points_[constraint_i];
-    const float3 pos = points_refs[points_ref_i].positions[v];
+    const int point_i = points_[constraint_i];
+    const float3 pos = points_refs[points_ref_i_].positions[point_i];
     const float3 plane_pos = plane_positions_[constraint_i];
     const float3 plane_normal = plane_normals_[constraint_i];
     BLI_assert(math::is_unit(plane_normal));
@@ -255,30 +258,34 @@ class CollisionPlaneConstraintEvaluator
       return;
     }
     const float3 offset = plane_normal * -distance;
-    updater.update_position(points_ref_i, v, offset);
+    updater.update_position(points_ref_i_, point_i, offset);
   }
 };
 
 class MinimumDistanceConstraintEvaluator
     : public TemplatedConstraintSetEvaluator<MinimumDistanceConstraintEvaluator> {
  private:
-  Span<int2> points_ref_indices_;
+  int points_ref_i_;
+
+  /* Indexed by constraint index. */
   Span<int2> points_;
   Span<float> min_distances_;
-  Span<float> inverse_masses_;
   Span<float> compliance_terms_;
 
+  /* Indexed by point index. */
+  Span<float> inverse_masses_;
+
  public:
-  MinimumDistanceConstraintEvaluator(const Span<int2> points_ref_indices,
+  MinimumDistanceConstraintEvaluator(const int points_ref_i,
                                      const Span<int2> points,
                                      const Span<float> min_distances,
                                      const Span<float> inverse_masses,
                                      const Span<float> compliance_terms)
-      : points_ref_indices_(points_ref_indices),
+      : points_ref_i_(points_ref_i),
         points_(points),
         min_distances_(min_distances),
-        inverse_masses_(inverse_masses),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        inverse_masses_(inverse_masses)
   {
   }
 
@@ -287,14 +294,11 @@ class MinimumDistanceConstraintEvaluator
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
-    const int2 &points_ref_pair = points_ref_indices_[constraint_i];
-    const int points_ref_i0 = points_ref_pair[0];
-    const int points_ref_i1 = points_ref_pair[1];
     const int v0 = points_[constraint_i][0];
     const int v1 = points_[constraint_i][1];
     const float min_distance = min_distances_[constraint_i];
-    const float3 &p0 = points_refs[points_ref_i0].positions[v0];
-    const float3 &p1 = points_refs[points_ref_i1].positions[v1];
+    const float3 &p0 = points_refs[points_ref_i_].positions[v0];
+    const float3 &p1 = points_refs[points_ref_i_].positions[v1];
     const float3 diff = p1 - p0;
     float distance;
     const float3 normalized_dir = math::normalize_and_get_length(diff, distance);
@@ -311,8 +315,8 @@ class MinimumDistanceConstraintEvaluator
     const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
     const float3 offset0 = -lambda * inv_m0 * normalized_dir;
     const float3 offset1 = lambda * inv_m1 * normalized_dir;
-    updater.update_position(points_ref_i0, v0, offset0);
-    updater.update_position(points_ref_i1, v1, offset1);
+    updater.update_position(points_ref_i_, v0, offset0);
+    updater.update_position(points_ref_i_, v1, offset1);
   }
 };
 
@@ -345,8 +349,12 @@ class OverpressureConstraintEvaluator
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
                        const Span<PointsRef> points_refs,
-                       const int /*constraint_i*/) const
+                       const int constraint_i) const
   {
+    /* This is just a single global constraint. */
+    BLI_assert(constraint_i == 0);
+    UNUSED_VARS_NDEBUG(constraint_i);
+
     const Span<float3> positions = points_refs[points_ref_i_].positions;
     const float current_volume = compute_volume(tris_, corner_verts_, positions);
     const float volume_diff = current_volume - overpressure_ * initial_volume_;
@@ -422,26 +430,30 @@ class OverpressureConstraintEvaluator
 class RodStretchAndShearConstraintEvaluator
     : public TemplatedConstraintSetEvaluator<RodStretchAndShearConstraintEvaluator> {
  private:
-  Span<int2> points_ref_indices_;
+  int points_ref_i_;
+
+  /* Indexed by constraint index. */
   Span<int2> point_pairs_;
-  Span<float> inverse_masses_;
-  Span<float3> inertias_;
   Span<float> rest_lengths_;
   Span<float> compliance_terms_;
 
+  /* Indexed by point index. */
+  Span<float> inverse_masses_;
+  Span<float3> inertias_;
+
  public:
-  RodStretchAndShearConstraintEvaluator(const Span<int2> points_ref_indices,
+  RodStretchAndShearConstraintEvaluator(const int points_ref_i,
                                         const Span<int2> point_pairs,
                                         const Span<float> inverse_masses,
                                         const Span<float3> inertias,
                                         const Span<float> rest_lengths,
                                         const Span<float> compliance_terms)
-      : points_ref_indices_(points_ref_indices),
+      : points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
-        inverse_masses_(inverse_masses),
-        inertias_(inertias),
         rest_lengths_(rest_lengths),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        inverse_masses_(inverse_masses),
+        inertias_(inertias)
   {
   }
 
@@ -450,22 +462,15 @@ class RodStretchAndShearConstraintEvaluator
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
-    const int2 &points_ref_pair = points_ref_indices_[constraint_i];
     const int2 &point_pair = point_pairs_[constraint_i];
-    const int points_ref_i0 = points_ref_pair[0];
-    const int points_ref_i1 = points_ref_pair[1];
     const int v0 = point_pair[0];
     const int v1 = point_pair[1];
 
-    /* TODO: Check if it makes sense to use the rotation of the "following point" to better support
-     * trees of rods. */
-    const int rotation_point_index = 0;
-    const int rotation_points_ref_i = points_ref_pair[rotation_point_index];
-    const int rotation_v = point_pair[rotation_point_index];
+    const int rotation_i = v0;
 
-    const float3 &p0 = points_refs[points_ref_i0].positions[v0];
-    const float3 &p1 = points_refs[points_ref_i1].positions[v1];
-    const math::Quaternion &rot = points_refs[rotation_points_ref_i].rotations[rotation_v];
+    const float3 &p0 = points_refs[points_ref_i_].positions[v0];
+    const float3 &p1 = points_refs[points_ref_i_].positions[v1];
+    const math::Quaternion &rot = points_refs[points_ref_i_].rotations[rotation_i];
     const float inv_m0 = inverse_masses_[v0];
     const float inv_m1 = inverse_masses_[v1];
     const float3 &inertia = inertias_[constraint_i];
@@ -504,9 +509,9 @@ class RodStretchAndShearConstraintEvaluator
                                             0.0f, lambda * inv_lumped_inertia * rest_length) *
                                         rot * math::Quaternion(0, 0, 0, -1);
 
-    updater.update_position(points_ref_i0, v0, offset0);
-    updater.update_position(points_ref_i1, v1, offset1);
-    updater.update_rotation(rotation_points_ref_i, rotation_v, offset_rot);
+    updater.update_position(points_ref_i_, v0, offset0);
+    updater.update_position(points_ref_i_, v1, offset1);
+    updater.update_rotation(points_ref_i_, rotation_i, offset_rot);
   }
 };
 
@@ -514,23 +519,27 @@ class RodStretchAndShearConstraintEvaluator
 class RodBendAndTwistConstraintEvaluator
     : public TemplatedConstraintSetEvaluator<RodBendAndTwistConstraintEvaluator> {
  private:
-  Span<int2> points_ref_indices_;
+  int points_ref_i_;
+
+  /* Indexed by constraint index. */
   Span<int2> point_pairs_;
-  Span<float3> inertias_;
   Span<math::Quaternion> rest_rotations_;
   Span<float> compliance_terms_;
 
+  /* Indexed by point index. */
+  Span<float3> inertias_;
+
  public:
-  RodBendAndTwistConstraintEvaluator(const Span<int2> points_ref_indices,
+  RodBendAndTwistConstraintEvaluator(const int points_ref_i,
                                      const Span<int2> point_pairs,
                                      const Span<float3> inertias,
                                      const Span<math::Quaternion> rest_rotations,
                                      const Span<float> compliance_terms)
-      : points_ref_indices_(points_ref_indices),
+      : points_ref_i_(points_ref_i),
         point_pairs_(point_pairs),
-        inertias_(inertias),
         rest_rotations_(rest_rotations),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        inertias_(inertias)
   {
   }
 
@@ -539,14 +548,11 @@ class RodBendAndTwistConstraintEvaluator
                        const Span<PointsRef> points_refs,
                        const int constraint_i) const
   {
-    const int2 &points_ref_pair = points_ref_indices_[constraint_i];
     const int2 &point_pair = point_pairs_[constraint_i];
-    const int points_ref_i0 = points_ref_pair[0];
-    const int points_ref_i1 = points_ref_pair[1];
     const int v0 = point_pair[0];
     const int v1 = point_pair[1];
-    const math::Quaternion &r0 = points_refs[points_ref_i0].rotations[v0];
-    const math::Quaternion &r1 = points_refs[points_ref_i1].rotations[v1];
+    const math::Quaternion &r0 = points_refs[points_ref_i_].rotations[v0];
+    const math::Quaternion &r1 = points_refs[points_ref_i_].rotations[v1];
     const float3 &inertia0 = inertias_[v0];
     const float3 &inertia1 = inertias_[v1];
     const float compliance_term = compliance_terms_[constraint_i];
@@ -554,8 +560,8 @@ class RodBendAndTwistConstraintEvaluator
 
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
         r0, r1, inertia0, inertia1, rest_rot, compliance_term);
-    updater.update_rotation(points_ref_i0, v0, result.offset0);
-    updater.update_rotation(points_ref_i1, v1, result.offset1);
+    updater.update_rotation(points_ref_i_, v0, result.offset0);
+    updater.update_rotation(points_ref_i_, v1, result.offset1);
   }
 };
 

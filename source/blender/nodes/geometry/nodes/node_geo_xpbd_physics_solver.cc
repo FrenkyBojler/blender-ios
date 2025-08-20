@@ -950,12 +950,7 @@ static void gather_edge_length_constraints(
           {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
                key_i, constraint_edges),
            scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
-               scope.allocator().construct_array<int2>(constraint_edges.size(),
-                                                       int2(key_i, key_i)),
-               inverse_masses,
-               constraint_edges,
-               constraint_lengths,
-               compliance_terms)});
+               key_i, inverse_masses, constraint_edges, constraint_lengths, compliance_terms)});
     }
   }
 }
@@ -1028,8 +1023,7 @@ static void gather_curve_segment_constraints(
           {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
                key_i, constraint_segments),
            scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
-               scope.allocator().construct_array<int2>(constraint_segments.size(),
-                                                       int2(key_i, key_i)),
+               key_i,
                inverse_masses,
                constraint_segments,
                constraint_lengths,
@@ -1147,8 +1141,7 @@ static void gather_curves_rod_stretch_and_shear_constraints(
                key_i, constraint_segments),
            scope
                .construct<geometry::xpbd_constraint_solver::RodStretchAndShearConstraintEvaluator>(
-                   scope.allocator().construct_array<int2>(constraint_segments.size(),
-                                                           int2(key_i, key_i)),
+                   key_i,
                    constraint_segments,
                    props.inverse_masses,
                    props.inertias,
@@ -1219,8 +1212,7 @@ static void gather_curves_rod_bend_and_twist_constraints(
           {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
                key_i, constraint_segments),
            scope.construct<geometry::xpbd_constraint_solver::RodBendAndTwistConstraintEvaluator>(
-               scope.allocator().construct_array<int2>(constraint_segments.size(),
-                                                       int2(key_i, key_i)),
+               key_i,
                constraint_segments,
                props.inertias,
                rest_rotations,
@@ -1261,7 +1253,7 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
              key_i, pinned_positions.soft_indices),
          scope.construct<geometry::xpbd_constraint_solver::PinnedPositionConstraintEvaluator>(
-             scope.allocator().construct_array<int>(constraints_num, key_i),
+             key_i,
              pinned_positions.soft_indices,
              soft_pinned_positions,
              compliance_terms,
@@ -1303,7 +1295,7 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
              key_i, pinned_rotations.soft_indices),
          scope.construct<geometry::xpbd_constraint_solver::PinRotationConstraintEvaluator>(
-             scope.allocator().construct_array<int>(constraints_num, key_i),
+             key_i,
              pinned_rotations.soft_indices,
              soft_pinned_rotations,
              compliance_terms,
@@ -1492,7 +1484,7 @@ static void generate_collision_constraint_sets(
         {scope.construct<geometry::xpbd_constraint_solver::UnaryConstraintSetIndices>(
              key_i, plane_contacts.indices),
          scope.construct<geometry::xpbd_constraint_solver::CollisionPlaneConstraintEvaluator>(
-             scope.allocator().construct_array<int>(plane_contacts.indices.size(), key_i),
+             key_i,
              plane_contacts.indices,
              plane_contacts.plane_positions,
              plane_contacts.plane_normals)});
@@ -1505,8 +1497,7 @@ static void generate_collision_constraint_sets(
         {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
              key_i, sphere_contacts.indices),
          scope.construct<geometry::xpbd_constraint_solver::MinimumDistanceConstraintEvaluator>(
-             scope.allocator().construct_array<int2>(sphere_contacts.indices.size(),
-                                                     int2(key_i, key_i)),
+             key_i,
              sphere_contacts.indices,
              sphere_contacts.min_distance,
              sim_points_props.lookup(item.key).inverse_masses,
