@@ -685,8 +685,17 @@ static void finalize_viewer_link(const bContext &C,
   viewer_node.flag &= ~NODE_MUTED;
   viewer_node.flag |= NODE_DO_OUTPUT;
 
+  const NodeGeometryViewerItem *item =
+      nodes::socket_items::find_item_by_identifier<nodes::GeoViewerItemsAccessor>(
+          viewer_node, viewer_link.tosock->identifier);
+  BLI_assert(item);
+  std::optional<int> item_identifier;
+  if (item) {
+    item_identifier = item->identifier;
+  }
+
   if (snode.edittree->type == NTREE_GEOMETRY) {
-    viewer_path::activate_geometry_node(*bmain, snode, viewer_node);
+    viewer_path::activate_geometry_node(*bmain, snode, viewer_node, item_identifier);
   }
   else if (snode.edittree->type == NTREE_COMPOSIT) {
     for (bNode *node : snode.nodetree->all_nodes()) {

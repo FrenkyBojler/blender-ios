@@ -132,7 +132,10 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
   BLI_addtail(&r_dst.path, viewer_node_elem);
 }
 
-void activate_geometry_node(Main &bmain, SpaceNode &snode, bNode &node)
+void activate_geometry_node(Main &bmain,
+                            SpaceNode &snode,
+                            bNode &node,
+                            std::optional<int> item_identifier)
 {
   wmWindowManager *wm = (wmWindowManager *)bmain.wm.first;
   if (wm == nullptr) {
@@ -161,7 +164,7 @@ void activate_geometry_node(Main &bmain, SpaceNode &snode, bNode &node)
         if (!(sspreadsheet.flag & SPREADSHEET_FLAG_PINNED)) {
           SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
           table_id.object_eval_state = SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE;
-          table_id.viewer_item_identifier = 0;
+          table_id.viewer_item_identifier = item_identifier.value_or(0);
           MEM_SAFE_FREE(table_id.bundle_path);
           table_id.bundle_path_num = 0;
           table_id.closure_input_output = SPREADSHEET_CLOSURE_NONE;

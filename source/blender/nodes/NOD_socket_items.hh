@@ -67,6 +67,21 @@ inline bNode *find_node_by_item(bNodeTree &ntree, const typename Accessor::ItemT
   return nullptr;
 }
 
+/** Find the item with the given identifier. */
+template<typename Accessor>
+inline typename Accessor::ItemT *find_item_by_identifier(bNode &node, const StringRef identifier)
+{
+
+  SocketItemsRef array = Accessor::get_items_from_node(node);
+  for (const int i : IndexRange(*array.items_num)) {
+    typename Accessor::ItemT &item = (*array.items)[i];
+    if (Accessor::socket_identifier_for_item(item) == identifier) {
+      return &item;
+    }
+  }
+  return nullptr;
+}
+
 /**
  * Destruct all the items and the free the array itself.
  */
