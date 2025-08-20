@@ -523,14 +523,14 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
  * old and new sky texture. */
 static void do_version_remove_old_sky_textures(bNodeTree *node_tree, bNode *node)
 {
-  NodeTexSky *tex = (NodeTexSky *)node->storage;
-  if (tex->sky_model != 2) {
+  NodeTexSky &tex = *static_cast<NodeTexSky *>(node->storage);
+  if (tex.sky_model != 2) {
     /* old_sky_model == 2 was Nishita prior to the removal of the other sky textures. */
     /* Do some extra versioning to try and generally match the look of Nishita with
      * the old sky textures. */
 
     /* The old sky textures did not have sun discs */
-    tex->sun_disc = false;
+    tex.sun_disc = false;
 
     /* Nishita is brighter than the old sky texture, so reduce it's brightness. */
     bNodeSocket *color_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Color");
@@ -538,24 +538,26 @@ static void do_version_remove_old_sky_textures(bNodeTree *node_tree, bNode *node
       if (link->fromsock == color_output) {
         /* Add a HSV node with the value set to 0.05 to try and match Nishita's brightness to the
          * old sky textures. */
-        bNode *hsv = blender::bke::node_add_static_node(nullptr, *node_tree, SH_NODE_HUE_SAT);
-        hsv->parent = node->parent;
-        hsv->location[0] = node->location[0] + node->width + 20.0f;
-        hsv->location[1] = node->location[1];
+        bNode &hsv = version_node_add_empty(*node_tree, "ShaderNodeHueSaturation");
+        hsv.parent = node->parent;
+        hsv.location[0] = node->location[0] + node->width + 20.0f;
+        hsv.location[1] = node->location[1];
 
         /* Set value input to 0.05. */
-        bNodeSocket *hsv_v_in = blender::bke::node_find_socket(*hsv, SOCK_IN, "Value");
-        hsv_v_in->default_value_typed<bNodeSocketValueFloat>()->value = 0.05f;
+        bNodeSocket &hsv_v_in = version_node_add_socket(
+            *node_tree, hsv, SOCK_IN, "NodeSocketFloat", "Value");
+        static_cast<bNodeSocketValueFloat *>(hsv_v_in.default_value)->value = 0.05f;
 
         /* Connect sky texture to HSV node. */
-        bNodeSocket *hsv_color_in = blender::bke::node_find_socket(*hsv, SOCK_IN, "Color");
+        bNodeSocket &hsv_color_in = version_node_add_socket(
+            *node_tree, hsv, SOCK_IN, "NodeSocketColor", "Color");
         blender::bke::node_add_link(
-            *node_tree, *link->fromnode, *link->fromsock, *hsv, *hsv_color_in);
+            *node_tree, *link->fromnode, *link->fromsock, hsv, hsv_color_in);
 
         /* Connect HSV node to whatever the sky texture was connected to. */
-        bNodeSocket *hsv_color_out = blender::bke::node_find_socket(*hsv, SOCK_OUT, "Color");
-        blender::bke::node_add_link(
-            *node_tree, *hsv, *hsv_color_out, *link->tonode, *link->tosock);
+        bNodeSocket &hsv_color_out = version_node_add_socket(
+            *node_tree, hsv, SOCK_OUT, "NodeSocketColor", "Color");
+        blender::bke::node_add_link(*node_tree, hsv, hsv_color_out, *link->tonode, *link->tosock);
 
         /* Remove old link */
         blender::bke::node_remove_link(node_tree, *link);
@@ -566,8 +568,8 @@ static void do_version_remove_old_sky_textures(bNodeTree *node_tree, bNode *node
     }
   }
 
-  /* 0 is the new value for the Nishita sky model */
-  tex->sky_model = 0;
+  /* 0 is the new value for the Nishita sky model. */
+  tex.sky_model = 0;
 }
 
 static void do_version_transform_geometry_options_to_inputs(bNodeTree &ntree, bNode &node)
