@@ -473,7 +473,7 @@ class RodStretchAndShearConstraintEvaluator
     const math::Quaternion &rot = points_refs[points_ref_i_].rotations[rotation_i];
     const float inv_m0 = inverse_masses_[point_i0];
     const float inv_m1 = inverse_masses_[point_i1];
-    const float3 &inertia = inertias_[constraint_i];
+    const float3 &inertia = inertias_[point_i0];
     const float compliance_term = compliance_terms_[constraint_i];
     const float rest_length = rest_lengths_[constraint_i];
 
