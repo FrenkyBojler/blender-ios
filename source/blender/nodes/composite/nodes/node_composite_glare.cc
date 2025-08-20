@@ -1395,7 +1395,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_4fv_array(shader,
                                  "color_modulators",
                                  color_modulators.size(),
-                                 (const float(*)[4])color_modulators.data());
+                                 (const float (*)[4])color_modulators.data());
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
@@ -2300,6 +2300,8 @@ class GlareOperation : public NodeOperation {
     output.allocate_texture(highlights.domain());
 
     const int2 input_size = highlights.domain().size;
+    float jitter_factor = this->get_jitter_factor();
+    bool use_jitter = this->get_use_jitter();
     parallel_for(input_size, [&](const int2 texel) {
       /* The number of steps is the distance in pixels from the source to the current texel. With
        * at least a single step and at most the user specified maximum ray length, which is
@@ -2319,10 +2321,8 @@ class GlareOperation : public NodeOperation {
       float accumulated_weight = 0.0f;
       float4 accumulated_color = float4(0.0f);
 
-      int number_of_steps = (1.0f - this->get_jitter_factor()) * steps;
+      int number_of_steps = (1.0f - jitter_factor) * steps;
       float random_offset = noise::hash_to_float(texel.x, texel.y);
-      float jitter_factor = this->get_jitter_factor();
-      bool use_jitter = this->get_use_jitter();
 
       for (int i = 0; i <= number_of_steps; i++) {
         float position_index = this->get_sample_position(
@@ -2374,6 +2374,16 @@ class GlareOperation : public NodeOperation {
       return math::safe_divide(i + random_offset, 1.0f - jitter_factor);
     }
     return i;
+  }
+
+  bool get_use_jitter()
+  {
+    return this->get_jitter_factor() != 0.0f;
+  }
+
+  float get_jitter_factor()
+  {
+    return math::clamp(this->get_input("Jitter").get_single_value_default(0.0f), 0.0f, 1.0f);
   }
 
   /* ----------
@@ -2615,16 +2625,6 @@ class GlareOperation : public NodeOperation {
   int get_quality_factor()
   {
     return 1 << node_storage(bnode()).quality;
-  }
-
-  bool get_use_jitter()
-  {
-    return this->get_jitter_factor() != 0.0f;
-  }
-
-  float get_jitter_factor()
-  {
-    return math::clamp(this->get_input("Jitter").get_single_value_default(0.0f), 0.0f, 1.0f);
   }
 };
 
