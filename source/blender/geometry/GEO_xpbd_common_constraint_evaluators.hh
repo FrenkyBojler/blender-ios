@@ -161,7 +161,7 @@ class PinRotationConstraintEvaluator
         pin_rotation,
         inertia,
         float3(std::numeric_limits<float>::infinity()),
-        pin_rotation,
+        math::Quaternion::identity(),
         compliance_term);
     updater.update_rotation(points_ref_i, i, result.offset0);
   }

@@ -151,6 +151,24 @@ struct RelativeRotations {
   Map<int2, RotationItem> rotations;
 };
 
+struct PinPositions {
+  struct Item {
+    float3 position;
+    bool used = true;
+  };
+
+  Map<int, Item> positions;
+};
+
+struct PinRotations {
+  struct Item {
+    math::Quaternion rotation;
+    bool used = true;
+  };
+
+  Map<int, Item> rotations;
+};
+
 class XPBDState {
  public:
   /**
@@ -162,6 +180,8 @@ class XPBDState {
   Map<SimPointsKey, SimPoints> sim_points;
   Map<SimPointsKey, DistanceConstraintLengths> distance_constraint_lengths;
   Map<SimPointsKey, RelativeRotations> relative_rotations;
+  Map<SimPointsKey, PinPositions> pin_positions;
+  Map<SimPointsKey, PinRotations> pin_rotations;
   Map<SimPointsKey, float> initial_volumes;
 };
 
@@ -1534,7 +1554,7 @@ static void update_sim_points_from_world(XPBDState &state,
   state.sim_points = std::move(new_sim_points);
 }
 
-static void reset_distance_constraint_length_usages(XPBDState &state)
+static void reset_state_usages(XPBDState &state)
 {
   for (DistanceConstraintLengths &distance_constraint_lengths :
        state.distance_constraint_lengths.values())
@@ -1544,6 +1564,32 @@ static void reset_distance_constraint_length_usages(XPBDState &state)
     {
       length_item.used = false;
     }
+  }
+  for (PinPositions &pin_positions : state.pin_positions.values()) {
+    for (PinPositions::Item &item : pin_positions.positions.values()) {
+      item.used = false;
+    }
+  }
+  for (PinRotations &pin_rotations : state.pin_rotations.values()) {
+    for (PinRotations::Item &item : pin_rotations.rotations.values()) {
+      item.used = false;
+    }
+  }
+}
+
+static void remove_unused_states(XPBDState &state)
+{
+  for (DistanceConstraintLengths &distance_constraint_lengths :
+       state.distance_constraint_lengths.values())
+  {
+    distance_constraint_lengths.lengths.remove_if(
+        [](const auto &item) { return !item.value.used; });
+  }
+  for (PinPositions &pin_positions : state.pin_positions.values()) {
+    pin_positions.positions.remove_if([](const auto &item) { return !item.value.used; });
+  }
+  for (PinRotations &pin_rotations : state.pin_rotations.values()) {
+    pin_rotations.rotations.remove_if([](const auto &item) { return !item.value.used; });
   }
 }
 
@@ -1672,11 +1718,10 @@ static Vector<geometry::xpbd_constraint_solver::MutablePointsRef> prepare_points
 }
 
 static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_position_animations(
-    const XPBDState &state,
+    XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const bool is_initialization)
+    const VectorSet<SimPointsKey> &keys)
 {
   Map<SimPointsKey, Map<int, PinnedPositionAnimation>> result;
   for (const int key_i : keys.index_range()) {
@@ -1696,7 +1741,8 @@ static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_posit
     }
     const AttrDomain domain = get_simulation_domain(type);
     const int domain_size = component->attribute_domain_size(domain);
-    const SimPoints &sim_points = state.sim_points.lookup(key);
+
+    PinPositions &pinned_positions_state = state.pin_positions.lookup_or_add_default(key);
 
     bke::GeometryFieldContext field_context(*component, domain);
     Map<int, PinnedPositionAnimation> animations_map;
@@ -1713,11 +1759,13 @@ static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_posit
       const VArray<float3> pinned_positions_varray = field_evaluator.get_evaluated<float3>(0);
       const VArray<float> compliances_varray = field_evaluator.get_evaluated<float>(1);
       mask.foreach_index([&](const int point_i) {
-        const float3 &old_position = is_initialization ? pinned_positions_varray[point_i] :
-                                                         sim_points.positions[point_i];
+        PinPositions::Item &old_position_item = pinned_positions_state.positions.lookup_or_add(
+            point_i, {pinned_positions_varray[point_i]});
+        old_position_item.used = true;
         const float3 &new_position = pinned_positions_varray[point_i];
         const float compliance = std::max(0.0f, compliances_varray[point_i]);
-        animations_map.add(point_i, {compliance, old_position, new_position});
+        animations_map.add(point_i, {compliance, old_position_item.position, new_position});
+        old_position_item.position = new_position;
       });
     }
     if (!animations_map.is_empty()) {
@@ -1728,11 +1776,10 @@ static Map<SimPointsKey, Map<int, PinnedPositionAnimation>> compute_pinned_posit
 }
 
 static Map<SimPointsKey, Map<int, PinnedRotationAnimation>> computed_pinned_rotation_animations(
-    const XPBDState &state,
+    XPBDState &state,
     const WorldData &world,
     const Span<GeometrySet> applied_geometries,
-    const VectorSet<SimPointsKey> &keys,
-    const bool is_initialization)
+    const VectorSet<SimPointsKey> &keys)
 {
   Map<SimPointsKey, Map<int, PinnedRotationAnimation>> result;
   for (const int key_i : keys.index_range()) {
@@ -1754,6 +1801,8 @@ static Map<SimPointsKey, Map<int, PinnedRotationAnimation>> computed_pinned_rota
     const Vector constraint_bundles = filter_bundles_for_path<PinnedRotationXPBDConstraintBundle>(
         world.pinned_rotation_constraints, key.path);
 
+    PinRotations &pinned_rotations_state = state.pin_rotations.lookup_or_add_default(key);
+
     bke::GeometryFieldContext field_context(*component, domain);
     Map<int, PinnedRotationAnimation> animations_map;
     for (const PinnedRotationXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
@@ -1770,12 +1819,16 @@ static Map<SimPointsKey, Map<int, PinnedRotationAnimation>> computed_pinned_rota
           field_evaluator.get_evaluated<math::Quaternion>(0);
       const VArray<float> compliances_varray = field_evaluator.get_evaluated<float>(1);
       mask.foreach_index([&](const int point_i) {
-        const math::Quaternion &old_rotation = is_initialization ? rotations_varray[point_i] :
-                                                                   sim_points.rotations[point_i];
+        PinRotations::Item &old_rotation_item = pinned_rotations_state.rotations.lookup_or_add(
+            point_i, {rotations_varray[point_i]});
+        old_rotation_item.used = true;
         const math::Quaternion &new_rotation = rotations_varray[point_i];
         const float compliance = std::max(0.0f, compliances_varray[point_i]);
-        animations_map.add(
-            point_i, {compliance, math::normalize(old_rotation), math::normalize(new_rotation)});
+        animations_map.add(point_i,
+                           {compliance,
+                            math::normalize(old_rotation_item.rotation),
+                            math::normalize(new_rotation)});
+        old_rotation_item.rotation = new_rotation;
       });
     }
     if (!animations_map.is_empty()) {
@@ -1848,8 +1901,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                        const WorldData &world,
                                        const float total_delta_time,
                                        const SolverType solver_type,
-                                       const int substeps,
-                                       const bool is_initialization)
+                                       const int substeps)
 {
   ResourceScope scope;
   const Array<GeometrySet> applied_geometries = gather_applied_geometries(state, world);
@@ -1860,7 +1912,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     keys.add_new(key);
   }
 
-  reset_distance_constraint_length_usages(state);
+  reset_state_usages(state);
 
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
       compute_sim_point_world_properties(scope, world, keys, applied_geometries);
@@ -1869,11 +1921,9 @@ static void update_and_step_xpbd_state(XPBDState &state,
   const Map<SimPointsKey, Span<float3>> torques_map = compute_external_torques(
       scope, state, world, keys, applied_geometries);
   const Map<SimPointsKey, Map<int, PinnedPositionAnimation>> pinned_position_animations =
-      compute_pinned_position_animations(
-          state, world, applied_geometries, keys, is_initialization);
+      compute_pinned_position_animations(state, world, applied_geometries, keys);
   const Map<SimPointsKey, Map<int, PinnedRotationAnimation>> pinned_rotation_animations =
-      computed_pinned_rotation_animations(
-          state, world, applied_geometries, keys, is_initialization);
+      computed_pinned_rotation_animations(state, world, applied_geometries, keys);
 
   const float sub_delta_time = math::safe_divide<float>(total_delta_time, substeps);
 
@@ -1984,13 +2034,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     }
   }
 
-  /* Remove unused distance constraint lengths. */
-  for (DistanceConstraintLengths &distance_constraint_lengths :
-       state.distance_constraint_lengths.values())
-  {
-    distance_constraint_lengths.lengths.remove_if(
-        [](const auto &item) { return !item.value.used; });
-  }
+  remove_unused_states(state);
 }
 
 static void initialize_state(XPBDState & /*state*/)
@@ -2016,8 +2060,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     update_counter = old_state_bundle_ptr->lookup<int>("counter").value_or(0);
   }
 
-  bool is_initialization = false;
-
   XPBDStateOwnerPtr xpbd_state_owner;
   if (old_state_bundle_ptr) {
     xpbd_state_owner = old_state_bundle_ptr->lookup<XPBDStateOwnerPtr>("state").value_or(nullptr);
@@ -2026,7 +2068,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     xpbd_state_owner = XPBDStateOwnerPtr{MEM_new<XPBDStateOwner>(__func__)};
     XPBDState &state = xpbd_state_owner->state;
     initialize_state(state);
-    is_initialization = true;
   }
 
   if (!xpbd_state_owner->mutex.try_lock()) {
@@ -2043,7 +2084,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool is_resimulating = update_counter < state.update_counter;
   update_counter++;
   if (!is_resimulating) {
-    update_and_step_xpbd_state(state, world, delta_time, solver_type, substeps, is_initialization);
+    update_and_step_xpbd_state(state, world, delta_time, solver_type, substeps);
     state.update_counter = update_counter;
   }
 
