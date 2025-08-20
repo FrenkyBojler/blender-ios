@@ -53,14 +53,12 @@ struct DrawObjectKey {
         preview_instance_index(preview_instance_index),
         flags(flags)
   {
-    hash_value = BLI_ghashutil_ptrhash(object);
-    hash_value = BLI_ghashutil_combine_hash(hash_value, BLI_ghashutil_ptrhash(ob_data));
-    hash_value = BLI_ghashutil_combine_hash(hash_value,
-                                            BLI_ghashutil_ptrhash(preview_base_geometry));
-    hash_value = BLI_ghashutil_combine_hash(hash_value,
-                                            BLI_ghashutil_inthash(preview_instance_index));
+    hash_value = get_default_hash(object);
+    hash_value = get_default_hash(hash_value, ob_data);
+    hash_value = get_default_hash(hash_value, preview_base_geometry);
+    hash_value = get_default_hash(hash_value, preview_instance_index);
     /* TODO: Single hash for these ? */
-    hash_value = BLI_ghashutil_combine_hash(hash_value, BLI_ghashutil_uinthash(uint8_t(flags)));
+    hash_value = get_default_hash(hash_value, uint8_t(flags));
   }
 
   uint64_t hash() const
