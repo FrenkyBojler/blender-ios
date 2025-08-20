@@ -757,6 +757,11 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, const bke::CurvesGe
     return;
   }
 
+  if (curves.is_empty()) {
+    /* Can happen when called from `curves_pos_buffer_get()`. Caller have to deal with nullptr.  */
+    return;
+  }
+
   ensure_common(curves);
   if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     ensure_bezier(curves);
