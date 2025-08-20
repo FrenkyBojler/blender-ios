@@ -68,9 +68,6 @@ struct DRWViewData {
    * We free all texture lists if it changes. */
   blender::int2 texture_list_size = {0, 0};
 
-  /* The DEG_get_update_count the last time this viewport was synced. */
-  uint64_t depsgraph_last_update = 0;
-
   /** Engines running for this viewport. nullptr if not enabled. */
   blender::eevee::Engine eevee;
   blender::workbench::Engine workbench;

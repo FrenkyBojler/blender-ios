@@ -48,8 +48,6 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
   Object tmp_object;
   ObjectRuntimeHandle tmp_runtime;
 
-  const uint64_t last_update = draw_ctx.view_data_active->depsgraph_last_update;
-
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
   View3D *v3d = draw_ctx.v3d;
@@ -137,18 +135,6 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
       DrawObjectFlags flags = DrawObjectFlags(0);
       {
         SET_FLAG_FROM_TEST(flags, is_negative_m4(dupli.mat), DrawObjectFlags::IsNegativeScale);
-        SET_FLAG_FROM_TEST(flags,
-                           ob->runtime->last_update_transform > last_update ||
-                               dupli.ob->runtime->last_update_transform > last_update,
-                           DrawObjectFlags::RecalcTransform);
-        SET_FLAG_FROM_TEST(flags,
-                           ob->runtime->last_update_geometry > last_update ||
-                               dupli.ob->runtime->last_update_geometry > last_update,
-                           DrawObjectFlags::RecalcGeometry);
-        SET_FLAG_FROM_TEST(flags,
-                           ob->runtime->last_update_shading > last_update ||
-                               dupli.ob->runtime->last_update_shading > last_update,
-                           DrawObjectFlags::RecalcShading);
       }
       DrawObjectKey key(dupli.ob,
                         dupli.ob_data,

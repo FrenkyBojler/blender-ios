@@ -27,11 +27,8 @@ namespace blender::draw {
 
 enum class DrawObjectFlags : uint8_t {
   IsNegativeScale = 1 << 0,
-  RecalcTransform = 1 << 1,
-  RecalcGeometry = 1 << 2,
-  RecalcShading = 1 << 3,
 };
-ENUM_OPERATORS(DrawObjectFlags, DrawObjectFlags::RecalcShading);
+ENUM_OPERATORS(DrawObjectFlags, DrawObjectFlags::IsNegativeScale);
 
 struct DrawObjectKey {
   uint64_t hash_value;
@@ -57,7 +54,6 @@ struct DrawObjectKey {
     hash_value = get_default_hash(hash_value, ob_data);
     hash_value = get_default_hash(hash_value, preview_base_geometry);
     hash_value = get_default_hash(hash_value, preview_instance_index);
-    /* TODO: Single hash for these ? */
     hash_value = get_default_hash(hash_value, uint8_t(flags));
   }
 
