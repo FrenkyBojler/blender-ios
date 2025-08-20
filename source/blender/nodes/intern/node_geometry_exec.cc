@@ -12,15 +12,13 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "BKE_curves.hh"
-#include "BKE_library.hh"
-#include "BKE_main.hh"
 #include "BKE_node_runtime.hh"
 
-#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
+#include "NOD_common.hh"
 #include "NOD_geometry_exec.hh"
 
 #include "node_geometry_util.hh"
@@ -248,22 +246,9 @@ AttributeFilter::Result NodeAttributeFilter::filter(const StringRef attribute_na
 
 std::optional<std::string> GeoNodeExecParams::ensure_absolute_path(const StringRefNull path) const
 {
-  if (path.is_empty()) {
-    return std::nullopt;
-  }
-  if (!BLI_path_is_rel(path.c_str())) {
-    return path;
-  }
   const Main &bmain = *this->bmain();
   const bNodeTree &tree = node_.owner_tree();
-  const char *base_path = ID_BLEND_PATH(&bmain, &tree.id);
-  if (!base_path || base_path[0] == '\0') {
-    return std::nullopt;
-  }
-  char absolute_path[FILE_MAX];
-  STRNCPY(absolute_path, path.c_str());
-  BLI_path_abs(absolute_path, base_path);
-  return absolute_path;
+  return path_abs_via_id(path, bmain, tree.id);
 }
 
 }  // namespace blender::nodes

@@ -47,6 +47,15 @@ void GeometryNodesEvalDependencies::add_object(Object *object,
   deps.camera_parameters |= object_deps.camera_parameters;
 }
 
+void GeometryNodesEvalDependencies::add_filepath(const StringRef filepath, const ID *accessing_id)
+{
+  if (filepath.is_empty()) {
+    return;
+  }
+  ExternalFilePath file_path = {filepath, accessing_id};
+  this->filepaths.add(file_path);
+}
+
 void GeometryNodesEvalDependencies::merge(const GeometryNodesEvalDependencies &other)
 {
   for (ID *id : other.ids.values()) {
@@ -124,6 +133,34 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree,
       continue;
     }
     deps.add_generic_id(node->id);
+  }
+
+  /* TODO: move this into the node implementation itself, so that the node can
+   * declare its file dependencies? That should remove the assumption that the
+   * first input node is the file path. */
+  Vector<std::string> import_node_types = {
+      "GeometryNodeImportCSV",
+      "GeometryNodeImportOBJ",
+      "GeometryNodeImportPLY",
+      "GeometryNodeImportSTL",
+      "GeometryNodeImportText",
+      "GeometryNodeImportVDB",
+  };
+  for (const std::string &node_type : import_node_types) {
+    for (const bNode *node : tree.nodes_by_type(node_type)) {
+      if (node->is_muted()) {
+        continue;
+      }
+
+      const bNodeSocket *path_socket = node->input_by_identifier("Path");
+      if (!path_socket) {
+        continue;
+      }
+
+      const bNodeSocketValueString *path_value = static_cast<bNodeSocketValueString *>(
+          path_socket->default_value);
+      deps.add_filepath(path_value->value, &tree.id);
+    }
   }
 }
 

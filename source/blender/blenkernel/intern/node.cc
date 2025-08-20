@@ -434,6 +434,21 @@ static void node_foreach_path(ID *id, BPathForeachPathData *bpath_data)
       }
       break;
     }
+    case NTREE_GEOMETRY: {
+      const nodes::GeometryNodesEvalDependencies eval_deps =
+          nodes::gather_geometry_nodes_eval_dependencies_recursive(*ntree);
+
+      for (const nodes::ExternalFilePath &efp : eval_deps.filepaths) {
+        const std::optional<std::string> abspath = nodes::path_abs_via_id(
+            efp.path, *bpath_data->bmain, *efp.id);
+        BLI_assert_msg(abspath, "Empty paths should not have been added to eval_deps.filepaths");
+
+        char buffer[FILE_MAX];
+        STRNCPY_UTF8(buffer, abspath.value().c_str());
+        BKE_bpath_foreach_path_fixed_process(bpath_data, buffer, sizeof(buffer));
+      }
+      break;
+    }
     default:
       break;
   }

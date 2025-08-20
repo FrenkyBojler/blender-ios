@@ -10,8 +10,14 @@
 
 #include "BLI_string_ref.hh"
 
+#include <optional>
+#include <string>
+
 struct bNode;
 struct bNodeSocket;
+struct ID;
+struct Main;
+
 namespace blender::nodes {
 class NodeDeclarationBuilder;
 }  // namespace blender::nodes
@@ -25,5 +31,17 @@ bNodeSocket *node_group_output_find_socket(bNode *node, blender::StringRef ident
 namespace blender::nodes {
 
 void node_group_declare(NodeDeclarationBuilder &b);
+
+/**
+ * Make the path absolute, by resolving it relative to the blendfile containing the owner_id.
+ *
+ * Empty paths are returned as std::nullopt. Absolute paths are returned as-is.
+ *
+ * This would be nice to have in BLI_path_utils.hh, but the implementation requires DNA_ID.hh,
+ * which is not allowed to be included from BLI.
+ */
+std::optional<std::string> path_abs_via_id(const blender::StringRefNull path,
+                                           const Main &bmain,
+                                           const ID &owner_id);
 
 }  // namespace blender::nodes
