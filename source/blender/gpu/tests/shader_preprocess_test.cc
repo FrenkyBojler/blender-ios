@@ -968,6 +968,28 @@ uint my_func() {
 }
 GPU_TEST(preprocess_resource_guard);
 
+static void test_preprocess_empty_struct()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+class S {};
+struct T {};
+)";
+    string expect = R"(
+class S {int _pad;};
+struct T {int _pad;};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_empty_struct);
+
 static void test_preprocess_struct_methods()
 {
   using namespace shader;

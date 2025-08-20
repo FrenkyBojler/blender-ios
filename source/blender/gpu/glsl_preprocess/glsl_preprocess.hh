@@ -221,6 +221,7 @@ class Preprocessor {
       str = enum_macro_injection(str, language == CPP, report_error);
       if (language == BLENDER_GLSL) {
         str = struct_method_mutation(str, report_error);
+        str = empty_struct_mutation(str, report_error);
         str = method_call_mutation(str, report_error);
         str = stage_function_mutation(str);
         str = resource_guard_mutation(str, report_error);
@@ -441,6 +442,16 @@ class Preprocessor {
                          "Invalid template argument type");
           }
         });
+
+        Token fn_args_start = fn_name.next();
+
+        if (fn_args_start != '(') {
+          report_error(fn_args_start.line_number(),
+                       fn_args_start.char_number(),
+                       fn_args_start.line_str(),
+                       "Expected open parenthesis after template function name");
+          return;
+        }
 
         Token after_args = fn_name.next().scope().end().next();
         Scope fn_body = (after_args == Const) ? after_args.next().scope() : after_args.scope();
@@ -1325,6 +1336,24 @@ class Preprocessor {
 
         string line_directive = "#line " + std::to_string(struct_end.line_number() + 1) + '\n';
         parser.insert_after(struct_end.line_end() + 1, line_directive);
+      });
+    });
+
+    return parser.result_get();
+  }
+
+  /* Add padding member to empty structs.
+   * Empty structs are useful for templating. */
+  std::string empty_struct_mutation(const std::string &str, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    Parser parser(str, report_error);
+
+    parser.foreach_scope(ScopeType::Global, [&](Scope scope) {
+      scope.foreach_match("sw{};", [&](const std::vector<Token> &tokens) {
+        parser.insert_after(tokens[2], "int _pad;");
       });
     });
 

@@ -881,6 +881,10 @@ inline void ParserData::parse_scopes(report_callback &report_error)
       }
     }
 
+    if (scopes.top().type == ScopeType::Preprocessor) {
+      exit_scope(tok_id - 1);
+    }
+
     if (scopes.top().type != ScopeType::Global) {
       ScopeItem scope_item = scopes.top();
       Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
