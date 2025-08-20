@@ -690,6 +690,38 @@ Object *add_type(bContext *C,
   return add_type_with_obdata(C, type, name, loc, rot, enter_editmode, local_view_bits, nullptr);
 }
 
+
+static bool object_can_have_lattice_modifier(const Object *ob)
+{
+  return ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_CURVES,OB_GREASE_PENCIL);
+}
+
+static bool collect_targets_and_bounds(
+    bContext *C,
+    blender::Vector<Object *> &r_targets,
+    blender::float3 &r_min,
+    blender::float3 &r_max)
+{
+  using namespace blender;
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+
+  r_min = float3(FLT_MAX);
+  r_max = float3(-FLT_MAX);
+  bool any = false;
+
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+    if (BASE_SELECTED_EDITABLE(v3d, base) && object_can_have_lattice_modifier(base->object)) {
+      r_targets.append(base->object);
+
+      BKE_object_minmax(base->object, r_min, r_max);
+      any = true;
+    }
+  }
+  return any;
+}
+
+
 /* for object add operator */
 static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
 {
@@ -703,10 +735,63 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
   Object *ob = add_type(
       C, RNA_enum_get(op->ptr, "type"), nullptr, loc, rot, enter_editmode, local_view_bits);
 
+  blender::Vector<Object *> targets;
+  float3 sel_min, sel_max;
+  const bool had_bounds = collect_targets_and_bounds(C, targets, sel_min, sel_max);
   if (ob->type == OB_LATTICE) {
     /* lattice is a special case!
      * we never want to scale the obdata since that is the rest-state */
-    copy_v3_fl(ob->scale, radius);
+    const bool fit_to_selected = RNA_boolean_get(op->ptr, "fit_to_selected");
+    const float offset = RNA_float_get(op->ptr, "offset");
+    const bool add_modifiers = RNA_boolean_get(op->ptr, "add_modifiers");
+    const int res_u = RNA_int_get(op->ptr, "resolution_u");
+    const int res_v = RNA_int_get(op->ptr, "resolution_v");
+    const int res_w = RNA_int_get(op->ptr, "resolution_w");
+
+    Lattice *lt = (Lattice *)ob->data;
+    BKE_lattice_resize(lt,
+                   max_ii(1, res_u),
+                   max_ii(1, res_v),
+                   max_ii(1, res_w),
+                   nullptr);
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    if (fit_to_selected && had_bounds) {
+      float bb_min[3], bb_max[3];
+      copy_v3_v3(bb_min, sel_min);
+      copy_v3_v3(bb_max, sel_max);
+      for (int i = 0; i < 3; i++) {
+        bb_min[i] -= offset;
+        bb_max[i] += offset;
+      }
+      float center[3], size[3];
+      mid_v3_v3v3(center, bb_min, bb_max);
+      sub_v3_v3v3(size, bb_max, bb_min);
+
+      copy_v3_v3(ob->loc, center);
+      BKE_object_dimensions_set(ob, size, 0);
+    }
+    else {
+      copy_v3_fl(ob->scale, radius);
+    }
+
+if (add_modifiers) {
+  for (Object *tob : targets) {
+    if (tob == ob) {
+      continue;
+    }
+    if (!object_can_have_lattice_modifier(tob)) {
+      continue;
+    }
+
+    ModifierData *md = BKE_modifier_new(eModifierType_Lattice);
+    BLI_addtail(&tob->modifiers, md);
+    ((LatticeModifierData *)md)->object = ob;
+
+    DEG_id_tag_update(&tob->id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, tob);
+  }
+}
+
   }
   else {
     BKE_object_obdata_size_init(ob, radius);
@@ -735,6 +820,36 @@ void OBJECT_OT_add(wmOperatorType *ot)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
 
   add_generic_props(ot, true);
+  prop = RNA_def_boolean(ot->srna, "fit_to_selected", true, 
+                        "Fit to Selected", 
+                        "Resize lattice to fit selected deformable objects");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  
+  prop = RNA_def_float(ot->srna, "offset", 0.0f, -FLT_MAX, FLT_MAX,
+                      "Offset", 
+                      "Add offset to lattice dimensions", 
+                      -10.0f, 10.0f);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  
+  prop = RNA_def_boolean(ot->srna, "add_modifiers", true,
+                        "Add Modifiers",
+                        "Automatically add lattice modifiers to selected objects");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  
+  prop = RNA_def_int(ot->srna, "resolution_u", 2, 1, 64,
+                    "Resolution U", "Lattice resolution in U direction",
+                    1, 10);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  
+  prop = RNA_def_int(ot->srna, "resolution_v", 2, 1, 64,
+                    "Resolution V", "Lattice resolution in V direction", 
+                    1, 10);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  
+  prop = RNA_def_int(ot->srna, "resolution_w", 2, 1, 64,
+                    "Resolution W", "Lattice resolution in W direction",
+                    1, 10);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
