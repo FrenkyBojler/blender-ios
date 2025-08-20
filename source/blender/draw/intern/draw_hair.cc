@@ -8,11 +8,13 @@
  * \brief Contains procedural GPU hair drawing methods.
  */
 
-#include "DNA_scene_types.h"
-#include "DRW_render.hh"
+#include "BKE_customdata.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_scene_types.h"
+
+#include "DRW_render.hh"
 
 #include "GPU_batch.hh"
 #include "GPU_material.hh"
@@ -84,10 +86,14 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
 
   gpu::VertBufPtr &indirection_buf = cache.indirection_buf_get(module, source, face_per_segment);
 
-  const std::optional<StringRef> uv_name = std::nullopt;
-
-  curves_bind_resources(
-      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, uv_name);
+  {
+    ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)source.md;
+    Mesh &mesh = *psmd->mesh_final;
+    const StringRef active_uv = CustomData_get_active_layer_name(&mesh.corner_data,
+                                                                 CD_PROP_FLOAT2);
+    curves_bind_resources(
+        sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv);
+  }
 
   return cache.batch_get(
       source.evaluated_points_num(), source.curves_num(), face_per_segment, false);

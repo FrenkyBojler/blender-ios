@@ -286,7 +286,7 @@ void CurvesModule::evaluate_curve_length_intercept(const bool has_cyclic,
   dispatch(curve_count, pass);
 }
 
-static int attribute_index_in_material(GPUMaterial *gpu_material,
+static int attribute_index_in_material(const GPUMaterial *gpu_material,
                                        const StringRef name,
                                        bool is_curve_length = false,
                                        bool is_curve_intercept = false)
@@ -362,6 +362,24 @@ static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &
   return name;
 }
 
+/* Return true if attribute exists in shader. */
+static bool set_attribute_type(const GPUMaterial *gpu_material,
+                               const StringRef name,
+                               CurvesInfosBuf &curves_infos,
+                               const bool is_point_domain)
+{
+  /* Some attributes may not be used in the shader anymore and were not garbage collected yet, so
+   * we need to find the right index for this attribute as uniforms defining the scope of the
+   * attributes are based on attribute loading order, which is itself based on the material's
+   * attributes. */
+  const int index = attribute_index_in_material(gpu_material, name);
+  if (index == -1) {
+    return false;
+  }
+  curves_infos.is_point_attribute[index][0] = is_point_domain;
+  return true;
+}
+
 template<typename PassT>
 void curves_bind_resources_implementation(PassT &sub_ps,
                                           CurvesModule &module,
@@ -418,30 +436,27 @@ void curves_bind_resources_implementation(PassT &sub_ps,
       if (!cache.evaluated_attributes_buf[i]) {
         continue;
       }
-      sub_ps.bind_texture(sampler_name, cache.evaluated_attributes_buf[i]);
+      if (set_attribute_type(gpu_material, name, curves_infos, true)) {
+        sub_ps.bind_texture(sampler_name, cache.evaluated_attributes_buf[i]);
+      }
       if (name == uv_name) {
-        sub_ps.bind_texture("a", cache.evaluated_attributes_buf[i]);
+        if (set_attribute_type(gpu_material, "", curves_infos, true)) {
+          sub_ps.bind_texture("a", cache.evaluated_attributes_buf[i]);
+        }
       }
     }
     else {
       if (!cache.curve_attributes_buf[i]) {
         continue;
       }
-      sub_ps.bind_texture(sampler_name, cache.curve_attributes_buf[i]);
-      if (name == uv_name) {
-        /* TODO(fclem): At the moment, loading the 'a' attribute always use point indexing.
-         * Until we have a way to switch its domain in the shader we have to disable it. */
-        // sub_ps.bind_texture("a", cache.curve_attributes_buf[i]);
+      if (set_attribute_type(gpu_material, name, curves_infos, false)) {
+        sub_ps.bind_texture(sampler_name, cache.curve_attributes_buf[i]);
       }
-    }
-
-    /* Some attributes may not be used in the shader anymore and were not garbage collected yet, so
-     * we need to find the right index for this attribute as uniforms defining the scope of the
-     * attributes are based on attribute loading order, which is itself based on the material's
-     * attributes. */
-    const int index = attribute_index_in_material(gpu_material, name);
-    if (index != -1) {
-      curves_infos.is_point_attribute[index][0] = cache.attributes_point_domain[i];
+      if (name == uv_name) {
+        if (set_attribute_type(gpu_material, "", curves_infos, false)) {
+          sub_ps.bind_texture("a", cache.curve_attributes_buf[i]);
+        }
+      }
     }
   }
 
@@ -462,10 +477,10 @@ void curves_bind_resources(PassMain::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           const std::optional<StringRef> uv_name)
+                           const std::optional<StringRef> active_uv_name)
 {
   curves_bind_resources_implementation(
-      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, uv_name);
+      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv_name);
 }
 
 void curves_bind_resources(PassSimple::Sub &sub_ps,
@@ -474,10 +489,10 @@ void curves_bind_resources(PassSimple::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           const std::optional<StringRef> uv_name)
+                           const std::optional<StringRef> active_uv_name)
 {
   curves_bind_resources_implementation(
-      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, uv_name);
+      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv_name);
 }
 
 template<typename PassT>

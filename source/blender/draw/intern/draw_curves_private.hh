@@ -261,7 +261,7 @@ void curves_bind_resources(draw::PassMain::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           std::optional<StringRef> uv_name);
+                           std::optional<StringRef> active_uv_name);
 
 void curves_bind_resources(draw::PassSimple::Sub &sub_ps,
                            CurvesModule &module,
@@ -269,6 +269,6 @@ void curves_bind_resources(draw::PassSimple::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           std::optional<StringRef> uv_name);
+                           std::optional<StringRef> active_uv_name);
 
 }  // namespace blender::draw
