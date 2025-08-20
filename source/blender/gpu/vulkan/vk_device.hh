@@ -39,10 +39,6 @@ struct VKExtensions {
    * VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR::fragmentShaderBarycentric.
    */
   bool fragment_shader_barycentric = false;
-  /**
-   * Does the device support VK_KHR_dynamic_rendering enabled.
-   */
-  bool dynamic_rendering = false;
 
   /**
    * Does the device support VK_KHR_dynamic_rendering_local_read enabled.
@@ -59,6 +55,9 @@ struct VKExtensions {
    */
   bool external_memory = false;
 
+  /** VK_KHR_maintenance4 */
+  bool maintenance4 = false;
+
   /**
    * Does the device support VK_EXT_descriptor_buffer.
    */
@@ -68,6 +67,16 @@ struct VKExtensions {
    * Does the device support logic ops.
    */
   bool logic_ops = false;
+
+  /**
+   * Does the device support VK_EXT_memory_priority
+   */
+  bool memory_priority = false;
+
+  /**
+   * Does the device support VK_EXT_pageable_device_local_memory
+   */
+  bool pageable_device_local_memory = false;
 
   /** Log enabled features and extensions. */
   void log() const;
@@ -108,7 +117,7 @@ class VKThreadData : public NonCopyable, NonMovable {
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
   /**
-   * Index of the active resource pool. Is in sync with the active swap chain image or cycled when
+   * Index of the active resource pool. Is in sync with the active swap-chain image or cycled when
    * rendering.
    *
    * NOTE: Initialized to `UINT32_MAX` to detect first change.
@@ -127,7 +136,6 @@ class VKThreadData : public NonCopyable, NonMovable {
   int32_t rendering_depth = 0;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
-  void deinit(VKDevice &device);
 
   /**
    * Get the active resource pool.
