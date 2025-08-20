@@ -67,6 +67,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(PinnedRotationXPBDConstraintBundle::get_bundle_type());
   types.append(RodStretchAndShearXPBDConstraintBundle::get_bundle_type());
   types.append(RodBendAndTwistXPBDConstraintBundle::get_bundle_type());
+  types.append(AlignPositionsConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -225,6 +226,7 @@ struct WorldData {
   BundleVectorSet<PinnedRotationXPBDConstraintBundle> pinned_rotation_constraints;
   BundleVectorSet<RodStretchAndShearXPBDConstraintBundle> rod_stretch_and_shear_constraints;
   BundleVectorSet<RodBendAndTwistXPBDConstraintBundle> rod_bend_and_twist_constraints;
+  BundleVectorSet<AlignPositionsConstraintBundle> align_position_constraints;
 };
 
 template<typename T> struct StartStopPair {
@@ -295,6 +297,7 @@ static WorldData parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world.pinned_rotation_constraints);
     parse_bundle(params, errors, world.rod_stretch_and_shear_constraints);
     parse_bundle(params, errors, world.rod_bend_and_twist_constraints);
+    parse_bundle(params, errors, world.align_position_constraints);
   });
   return world;
 }
@@ -636,6 +639,20 @@ static Vector<const T *> filter_bundles_for_path(const Span<T> bundles, const St
     }
   }
   return used_forces;
+}
+
+static Vector<int> filter_sim_points_keys(const StringRef self_path,
+                                          const StringRef filter,
+                                          const Span<SimPointsKey> keys)
+{
+  Vector<int> filtered_keys;
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    if (nested_bundle_path_is_selected(self_path, filter, key.path)) {
+      filtered_keys.append(key_i);
+    }
+  }
+  return filtered_keys;
 }
 
 static Map<SimPointsKey, Span<float3>> compute_external_accelerations(
@@ -1304,6 +1321,97 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
   return result;
 }
 
+static void gather_align_positions_constraints(
+    ResourceScope &scope,
+    const WorldData &world,
+    const Span<GeometrySet> applied_geometries,
+    const VectorSet<SimPointsKey> &keys,
+    const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
+    const float delta_time,
+    Vector<geometry::xpbd_constraint_solver::ConstraintSet> &r_constraint_sets)
+{
+  const float compliance_factor = compute_compliance_factor(delta_time);
+
+  for (const AlignPositionsConstraintBundle &constraint_bundle : world.align_position_constraints)
+  {
+    Vector<int> filtered_keys = filter_sim_points_keys(
+        constraint_bundle.self_path, constraint_bundle.filter, keys);
+    if (filtered_keys.is_empty()) {
+      continue;
+    }
+    if (filtered_keys.size() >= 2) {
+      /* TODO: Support aligning positions across geometries. */
+      continue;
+    }
+    const int key_i = filtered_keys[0];
+    const SimPointsKey &key = keys[key_i];
+    const bke::GeometryComponent::Type type = key.type;
+    const bke::GeometryComponent *component = applied_geometries[key_i].get_component(type);
+    if (!component) {
+      continue;
+    }
+    const bke::AttrDomain domain = get_simulation_domain(type);
+    const int domain_size = component->attribute_domain_size(domain);
+    const Span<float> inverse_masses = sim_points_props.lookup(key).inverse_masses;
+
+    const bke::GeometryFieldContext field_context(*component, domain);
+    fn::FieldEvaluator field_evaluator(field_context, domain_size);
+    field_evaluator.set_selection(constraint_bundle.selection);
+    field_evaluator.add(constraint_bundle.group_id);
+    field_evaluator.add(constraint_bundle.compliance);
+    field_evaluator.evaluate();
+    const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+    const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
+    const VArray<float> compliances = field_evaluator.get_evaluated<float>(1);
+
+    MultiValueMap<int, int> points_by_group_id;
+    mask.foreach_index([&](const int point_i) {
+      const int group_id = group_ids[point_i];
+      points_by_group_id.add(group_id, point_i);
+    });
+
+    Vector<int2> &constraint_pairs = scope.construct<Vector<int2>>();
+    Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
+    Vector<float> &constraint_distances = scope.construct<Vector<float>>();
+
+    for (const Span<int> point_indices : points_by_group_id.values()) {
+      if (point_indices.size() <= 1) {
+        /* The constraint needs at least two points. */
+        continue;
+      }
+      /* Compliance of the constraint is the geometric mean of the compliances of each point. */
+      float compliances_log_sum = 0.0f;
+      for (const int point_i : point_indices) {
+        const float point_compliance = std::max(0.0f, compliances[point_i]);
+        if (point_compliance > 0.0f) {
+          compliances_log_sum += logf(point_compliance);
+        }
+      }
+      const float compliances_log_mean = compliances_log_sum / point_indices.size();
+      const float compliance = expf(compliances_log_mean);
+      const float compliance_term = compliance * compliance_factor;
+      /* TODO: Create a single constraint for all aligned points instead of pairing them.*/
+      for (const int i : point_indices.index_range()) {
+        for (const int j : point_indices.index_range().drop_front(i + 1)) {
+          constraint_pairs.append({point_indices[i], point_indices[j]});
+          constraint_compliance_terms.append(compliance_term);
+          constraint_distances.append(0.0f);
+        }
+      }
+    }
+
+    r_constraint_sets.append(
+        {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
+             key_i, constraint_pairs),
+         scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
+             key_i,
+             inverse_masses,
+             constraint_pairs,
+             constraint_distances,
+             constraint_compliance_terms)});
+  }
+}
+
 struct StaticPlaneContacts {
   Vector<int> indices;
   Vector<float3> plane_positions;
@@ -1966,6 +2074,13 @@ static void update_and_step_xpbd_state(XPBDState &state,
                                               pinned_rotations_map,
                                               sub_delta_time,
                                               static_constraint_sets);
+  gather_align_positions_constraints(scope,
+                                     world,
+                                     applied_geometries,
+                                     keys,
+                                     sim_points_props,
+                                     sub_delta_time,
+                                     static_constraint_sets);
 
   Array<Array<float3>> all_prev_positions(keys.size());
   Array<Array<math::Quaternion>> all_prev_rotations(keys.size());

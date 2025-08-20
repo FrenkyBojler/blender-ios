@@ -232,6 +232,20 @@ class RodBendAndTwistXPBDConstraintBundle : public NestedBundleCommon {
                                                                   BundleParseErrors &r_errors);
 };
 
+class AlignPositionsConstraintBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.AlignPositionsConstraint";
+
+  std::string filter;
+  fn::Field<bool> selection;
+  fn::Field<int> group_id;
+  fn::Field<float> compliance;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<AlignPositionsConstraintBundle> parse(const Bundle &bundle,
+                                                             BundleParseErrors &r_errors);
+};
+
 inline std::optional<RigidBodyCollisionShapeType> RigidBodyInstancesBundle::
     parse_collision_shape_type(const int type)
 {

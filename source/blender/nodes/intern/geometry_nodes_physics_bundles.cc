@@ -446,4 +446,33 @@ std::optional<RodBendAndTwistXPBDConstraintBundle> RodBendAndTwistXPBDConstraint
   return behavior;
 }
 
+const FlatBundleTypePtr &AlignPositionsConstraintBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(AlignPositionsConstraintBundle::name);
+    b.add<decl::String>("filter");
+    b.add<decl::Bool>("selection").default_value(true).supports_field();
+    b.add<decl::Int>("group_id").supports_field();
+    b.add<decl::Float>("compliance").min(0.0f).supports_field();
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<AlignPositionsConstraintBundle> AlignPositionsConstraintBundle::parse(
+    const Bundle &bundle, BundleParseErrors &r_errors)
+{
+  AlignPositionsConstraintBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
+  bundle_parse_member(bundle, "group_id", behavior.group_id, r_errors);
+  bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 }  // namespace blender::nodes::physics_bundles
