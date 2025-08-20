@@ -1,1 +1,2 @@
 Referenced by issue #137996, Error: Error reading tiles from file when baking to vertex color on high poly mesh
+Referenced by issue #144814, OSL call for "geom:name" stopped working in Blender 4.5 LTS
