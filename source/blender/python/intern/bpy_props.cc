@@ -1511,8 +1511,6 @@ static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, const std
       PyErr_SetString(PyExc_ValueError,
                       "the given string value cannot be converted into a python string");
       PyC_Err_PrintWithFunc(py_func);
-    }
-    else {
       py_value = Py_None;
       Py_INCREF(py_value);
     }
