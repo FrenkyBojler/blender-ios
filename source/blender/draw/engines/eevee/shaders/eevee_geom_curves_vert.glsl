@@ -35,8 +35,6 @@ void main()
   interp.N = pt.curve_N;
   curve_interp.binormal = pt.curve_B;
   curve_interp.tangent = pt.curve_T;
-  /* Unscaled radius is used to feed the thickness attribute. */
-  curve_interp.diameter_attribute = ls_pt.radius;
   /* Final radius is used for correct normal interpolation. */
   curve_interp.radius = ws_pt.radius;
   /* Scaled by radius for correct interpolation. */
