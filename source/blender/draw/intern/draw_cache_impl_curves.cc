@@ -631,7 +631,7 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
                                     this->evaluated_attributes_buf[index]);
   }
   else {
-    this->evaluated_attributes_buf[index] = std::move(attr_buf);
+    this->curve_attributes_buf[index] = std::move(attr_buf);
   }
 }
 
