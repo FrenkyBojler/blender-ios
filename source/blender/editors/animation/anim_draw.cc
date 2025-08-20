@@ -588,49 +588,49 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
 
   const PropertyUnit prop_unit = PropertyUnit(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)));
   double unit_scaler = 1.0;
-  if (scene) {
-    switch (prop_unit) {
-      const void *usys;
-      int len;
 
-      case PROP_UNIT_ROTATION:
-        if (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) {
-          if (flag & ANIM_UNITCONV_RESTORE) {
-            return DEG2RADF(1.0f);
-          }
-          return RAD2DEGF(1.0f);
+  switch (prop_unit) {
+    const void *usys;
+    int len;
+
+    case PROP_UNIT_ROTATION:
+      if (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) {
+        if (flag & ANIM_UNITCONV_RESTORE) {
+          return DEG2RADF(1.0f);
         }
-        break;
-      case PROP_UNIT_LENGTH:
-        BKE_unit_system_get(scene->unit.system, B_UNIT_LENGTH, &usys, &len);
-        if (usys)
-          unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.length_unit);
-        break;
+        return RAD2DEGF(1.0f);
+      }
+      break;
+    case PROP_UNIT_LENGTH:
+      BKE_unit_system_get(scene->unit.system, B_UNIT_LENGTH, &usys, &len);
+      if (usys)
+        unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.length_unit);
+      break;
 
-      case PROP_UNIT_MASS:
-        BKE_unit_system_get(scene->unit.system, B_UNIT_MASS, &usys, &len);
-        if (usys)
-          unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.mass_unit);
-        break;
+    case PROP_UNIT_MASS:
+      BKE_unit_system_get(scene->unit.system, B_UNIT_MASS, &usys, &len);
+      if (usys)
+        unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.mass_unit);
+      break;
 
-      case PROP_UNIT_TIME:
-        BKE_unit_system_get(scene->unit.system, B_UNIT_TIME, &usys, &len);
-        if (usys)
-          unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.time_unit);
-        break;
+    case PROP_UNIT_TIME:
+      BKE_unit_system_get(scene->unit.system, B_UNIT_TIME, &usys, &len);
+      if (usys)
+        unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.time_unit);
+      break;
 
-      case PROP_UNIT_TEMPERATURE:
-        BKE_unit_system_get(scene->unit.system, B_UNIT_TEMPERATURE, &usys, &len);
-        if (usys) {
-          unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.temperature_unit);
-        }
-        break;
+    case PROP_UNIT_TEMPERATURE:
+      BKE_unit_system_get(scene->unit.system, B_UNIT_TEMPERATURE, &usys, &len);
+      if (usys) {
+        unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.temperature_unit);
+      }
+      break;
 
-      default:
-        /* TODO: other rotation types here as necessary */
-        break;
-    }
+    default:
+      /* TODO: other rotation types here as necessary */
+      break;
   }
+
   if (flag & ANIM_UNITCONV_RESTORE) {
     return float(unit_scaler);
   }
