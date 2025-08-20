@@ -680,21 +680,40 @@ static void finalize_viewer_link(const bContext &C,
                                  bNodeLink &viewer_link)
 {
   Main *bmain = CTX_data_main(&C);
-  remove_links_to_unavailable_viewer_sockets(*snode.edittree, viewer_node);
+  bNodeTree &tree = *snode.edittree;
+  remove_links_to_unavailable_viewer_sockets(tree, viewer_node);
   viewer_link.flag &= ~NODE_LINK_MUTED;
   viewer_node.flag &= ~NODE_MUTED;
   viewer_node.flag |= NODE_DO_OUTPUT;
 
-  const NodeGeometryViewerItem *item =
-      nodes::socket_items::find_item_by_identifier<nodes::GeoViewerItemsAccessor>(
-          viewer_node, viewer_link.tosock->identifier);
-  BLI_assert(item);
-  std::optional<int> item_identifier;
-  if (item) {
-    item_identifier = item->identifier;
-  }
-
   if (snode.edittree->type == NTREE_GEOMETRY) {
+
+    /* Try to activate the previous geometry socket in the spreadsheet if possible, since that will
+     * contain the evaluated result of the viewer field. */
+    bNodeSocket *socket_to_activate = nullptr;
+    bNodeSocket &viewer_socket = *viewer_link.tosock;
+    if (viewer_socket.type != SOCK_GEOMETRY) {
+      for (bNodeSocket *prev_socket = viewer_socket.prev; prev_socket;
+           prev_socket = prev_socket->prev)
+      {
+        if (prev_socket->type == SOCK_GEOMETRY) {
+          socket_to_activate = prev_socket;
+          break;
+        }
+      }
+    }
+
+    std::optional<int> item_identifier;
+    if (socket_to_activate) {
+      const NodeGeometryViewerItem *item =
+          nodes::socket_items::find_item_by_identifier<nodes::GeoViewerItemsAccessor>(
+              viewer_node, socket_to_activate->identifier);
+      BLI_assert(item);
+      if (item) {
+        item_identifier = item->identifier;
+      }
+    }
+
     viewer_path::activate_geometry_node(*bmain, snode, viewer_node, item_identifier);
   }
   else if (snode.edittree->type == NTREE_COMPOSIT) {
