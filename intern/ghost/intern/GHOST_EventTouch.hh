@@ -12,7 +12,7 @@
 #include "GHOST_Event.hh"
 
 /**
- * Cursor event.
+ * Touch event.
  */
 class GHOST_EventTouch : public GHOST_Event {
  public:
