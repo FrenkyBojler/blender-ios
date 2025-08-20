@@ -50,4 +50,15 @@ class NAryConstraintSetIndices : public ConstraintSetIndices {
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override;
 };
 
+class MultiNAryConstraintSetIndices : public ConstraintSetIndices {
+ private:
+  GroupedSpan<int> affected_points_refs_;
+  GroupedSpan<int> affected_points_;
+
+ public:
+  MultiNAryConstraintSetIndices(GroupedSpan<int> affected_points_refs,
+                                GroupedSpan<int> affected_points);
+  Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override;
+};
+
 }  // namespace blender::geometry::xpbd_constraint_solver

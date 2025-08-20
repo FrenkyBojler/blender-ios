@@ -89,6 +89,35 @@ Vector<IndexMask> NAryConstraintSetIndices::generate_independent_masks(
       memory);
 }
 
+MultiNAryConstraintSetIndices::MultiNAryConstraintSetIndices(GroupedSpan<int> affected_points_refs,
+                                                             GroupedSpan<int> affected_points)
+    : ConstraintSetIndices(affected_points_refs.size(), {}),
+      affected_points_refs_(affected_points_refs),
+      affected_points_(affected_points)
+{
+  BLI_assert(affected_points_refs.size() == affected_points.size());
+  for (const int points_ref_i : affected_points_refs_.data) {
+    this->target_points_refs.append_non_duplicates(points_ref_i);
+  }
+}
+Vector<IndexMask> MultiNAryConstraintSetIndices::generate_independent_masks(
+    IndexMaskMemory &memory) const
+{
+  return detect_independent_constraints<std::pair<int, int>>(
+      [&](const int constraint_i) {
+        const Span<int> points_refs = affected_points_refs_[constraint_i];
+        const Span<int> points_indices = affected_points_[constraint_i];
+        Vector<std::pair<int, int>> affected_points;
+        affected_points.reserve(points_indices.size());
+        for (const int i : points_indices.index_range()) {
+          affected_points.append({points_refs[i], points_indices[i]});
+        }
+        return affected_points;
+      },
+      affected_points_.size(),
+      memory);
+}
+
 ConstraintSet::ConstraintSet(ConstraintSetIndices &indices, ConstraintSetEvaluator &evaluator)
     : indices(&indices), evaluator(&evaluator)
 {

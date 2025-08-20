@@ -1342,36 +1342,43 @@ static void gather_align_positions_constraints(
     if (filtered_keys.is_empty()) {
       continue;
     }
-    if (filtered_keys.size() >= 2) {
-      /* TODO: Support aligning positions across geometries. */
-      continue;
-    }
-    const int key_i = filtered_keys[0];
-    const SimPointsKey &key = keys[key_i];
-    const bke::GeometryComponent::Type type = key.type;
-    const bke::GeometryComponent *component = applied_geometries[key_i].get_component(type);
-    if (!component) {
-      continue;
-    }
-    const bke::AttrDomain domain = get_simulation_domain(type);
-    const int domain_size = component->attribute_domain_size(domain);
-    const Span<float> inverse_masses = sim_points_props.lookup(key).inverse_masses;
 
-    const bke::GeometryFieldContext field_context(*component, domain);
-    fn::FieldEvaluator field_evaluator(field_context, domain_size);
-    field_evaluator.set_selection(constraint_bundle.selection);
-    field_evaluator.add(constraint_bundle.group_id);
-    field_evaluator.add(constraint_bundle.compliance);
-    field_evaluator.evaluate();
-    const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
-    const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
-    const VArray<float> compliances = field_evaluator.get_evaluated<float>(1);
+    struct PointInfo {
+      int key_i;
+      int point_i;
+      float compliance;
+    };
 
-    MultiValueMap<int, int> points_by_group_id;
-    mask.foreach_index([&](const int point_i) {
-      const int group_id = group_ids[point_i];
-      points_by_group_id.add(group_id, point_i);
-    });
+    MultiValueMap<int, PointInfo> infos_by_group_id;
+    for (const int key_i : filtered_keys) {
+      const SimPointsKey &key = keys[key_i];
+      const bke::GeometryComponent::Type type = key.type;
+      const int geometry_bundle_i = world.geometries.index_of_as(key.path);
+      const bke::GeometryComponent *component =
+          applied_geometries[geometry_bundle_i].get_component(type);
+      if (!component) {
+        continue;
+      }
+      const bke::AttrDomain domain = get_simulation_domain(type);
+      const int domain_size = component->attribute_domain_size(domain);
+      const bke::GeometryFieldContext field_context(*component, domain);
+      fn::FieldEvaluator field_evaluator{field_context, domain_size};
+      field_evaluator.set_selection(constraint_bundle.selection);
+      field_evaluator.add(constraint_bundle.group_id);
+      field_evaluator.add(constraint_bundle.compliance);
+      field_evaluator.evaluate();
+      const IndexMask mask = field_evaluator.get_evaluated_selection_as_mask();
+      if (mask.is_empty()) {
+        continue;
+      }
+      const VArray<int> group_ids = field_evaluator.get_evaluated<int>(0);
+      const VArray<float> compliances = field_evaluator.get_evaluated<float>(1);
+      mask.foreach_index([&](const int point_i) {
+        const int group_id = group_ids[point_i];
+        const float compliance = compliances[point_i];
+        infos_by_group_id.add(group_id, {key_i, point_i, compliance});
+      });
+    }
 
     Vector<int> &offsets = scope.construct<Vector<int>>();
     Vector<int> &constraint_points_ref_indices = scope.construct<Vector<int>>();
@@ -1381,30 +1388,29 @@ static void gather_align_positions_constraints(
 
     offsets.append(0);
 
-    for (const Span<int> point_indices : points_by_group_id.values()) {
-      if (point_indices.size() <= 1) {
+    for (const Span<PointInfo> point_infos : infos_by_group_id.values()) {
+      if (point_infos.size() <= 1) {
         /* The constraint needs at least two points. */
         continue;
       }
-      /* Compliance of the constraint is the geometric mean of the compliances of each point. */
+
       float compliances_log_sum = 0.0f;
-      for (const int point_i : point_indices) {
-        const float point_compliance = std::max(0.0f, compliances[point_i]);
+      for (const PointInfo &point_info : point_infos) {
+        const float point_compliance = std::max(0.0f, point_info.compliance);
         if (point_compliance > 0.0f) {
           compliances_log_sum += logf(point_compliance);
         }
       }
-      const float compliances_log_mean = compliances_log_sum / point_indices.size();
+      const float compliances_log_mean = compliances_log_sum / point_infos.size();
       const float compliance = expf(compliances_log_mean);
       const float compliance_term = compliance * compliance_factor;
 
-      for (const int i : point_indices.index_range()) {
-        const int point_i = point_indices[i];
-        constraint_points_ref_indices.append(key_i);
-        constraint_point_indices.append(point_i);
-        constraint_inverse_masses.append(inverse_masses[point_i]);
+      for (const PointInfo &point_info : point_infos) {
+        constraint_points_ref_indices.append(point_info.key_i);
+        constraint_point_indices.append(point_info.point_i);
+        constraint_inverse_masses.append(
+            sim_points_props.lookup(keys[point_info.key_i]).inverse_masses[point_info.point_i]);
       }
-
       constraint_compliance_terms.append(compliance_term);
       offsets.append(constraint_point_indices.size());
     }
@@ -1415,8 +1421,9 @@ static void gather_align_positions_constraints(
     }
 
     r_constraint_sets.append(
-        {scope.construct<geometry::xpbd_constraint_solver::NAryConstraintSetIndices>(
-             key_i, GroupedSpan<int>(offset_indices, constraint_point_indices)),
+        {scope.construct<geometry::xpbd_constraint_solver::MultiNAryConstraintSetIndices>(
+             GroupedSpan<int>(offset_indices, constraint_points_ref_indices),
+             GroupedSpan<int>(offset_indices, constraint_point_indices)),
          scope.construct<geometry::xpbd_constraint_solver::AlignPositionsConstraintEvaluator>(
              offset_indices,
              constraint_compliance_terms,
