@@ -873,7 +873,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   const char *domain_type = "";
   switch (geometry_type) {
     case MAT_GEOM_MESH:
-      domain_type = "MeshVertex";
+      domain_type = (pipeline_type == MAT_PIPE_VOLUME_MATERIAL) ? "VolumePoint" : "MeshVertex";
       break;
     case MAT_GEOM_POINTCLOUD:
       domain_type = "PointCloudPoint";
@@ -882,7 +882,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       domain_type = "CurvesPoint";
       break;
     case MAT_GEOM_WORLD:
-      domain_type = "WorldPoint";
+      domain_type = (pipeline_type == MAT_PIPE_VOLUME_MATERIAL) ? "VolumePoint" : "WorldPoint";
       break;
     case MAT_GEOM_GPENCIL:
       domain_type = "GPencilPoint";
