@@ -1731,16 +1731,16 @@ namespace set_handle_type {
 
 static wmOperatorStatus exec(bContext *C, wmOperator *op)
 {
-  const int dst_handle_type = RNA_enum_get(op->ptr, "type");
+  const int dst = RNA_enum_get(op->ptr, "type");
 
   auto new_handle_type = [&](const int8_t handle_type) {
-    if (dst_handle_type == BEZIER_HANDLE_TOGGLE) {
+    if (dst == BEZIER_HANDLE_TOGGLE) {
       if (handle_type == BEZIER_HANDLE_FREE) {
         return int8_t(BEZIER_HANDLE_ALIGN);
       }
       return int8_t(BEZIER_HANDLE_FREE);
     }
-    return int8_t(dst_handle_type);
+    return int8_t(dst);
   };
 
   for (Curves *curves_id : get_unique_editable_curves(*C)) {

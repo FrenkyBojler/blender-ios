@@ -3950,16 +3950,16 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
-  const int dst_handle_type = RNA_enum_get(op->ptr, "type");
+  const int dst = RNA_enum_get(op->ptr, "type");
 
   auto new_handle_type = [&](const int8_t handle_type) {
-    if (dst_handle_type == ed::curves::BEZIER_HANDLE_TOGGLE) {
+    if (dst == ed::curves::BEZIER_HANDLE_TOGGLE) {
       if (handle_type == BEZIER_HANDLE_FREE) {
         return int8_t(BEZIER_HANDLE_ALIGN);
       }
       return int8_t(BEZIER_HANDLE_FREE);
     }
-    return int8_t(dst_handle_type);
+    return int8_t(dst);
   };
 
   bool changed = false;
