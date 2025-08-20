@@ -48,48 +48,37 @@
  * expected to define the TYPE macro to be a float or a vec4, depending on the type of data being
  * reduced. */
 
+#include "compositor_parallel_reduction_info.hh"
+
+COMPUTE_SHADER_CREATE_INFO(compositor_parallel_reduction_shared)
+
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 #define reduction_size (gl_WorkGroupSize.x * gl_WorkGroupSize.y)
-shared TYPE reduction_data[reduction_size];
-
-#define TYPE(name) \
-  struct name { \
-    int pad_; \
-  };
 
 /* Operation */
-TYPE(Min)
-TYPE(Max)
-TYPE(Sum)
-TYPE(MaxVelocity)
-TYPE(MaxInRange)
-TYPE(MinInRange)
-TYPE(SumSquareDifference)
+struct Min {};
+struct Max {};
+struct Sum {};
+struct MaxVelocity {};
+struct MaxInRange {};
+struct MinInRange {};
+struct SumSquareDifference {};
 
 /* Initialize. */
 
 float upper_bound_get()
 {
-  float up_bound = 0.0f;
-  {
-    up_bound = push_constant_get(compositor_sum_squared_difference_float_shared, upper_bound);
-  }
-  return up_bound;
+  return push_constant_get(compositor_sum_squared_difference_float_shared, upper_bound);
 }
-
 float lower_bound_get()
 {
-  float up_bound = 0.0f;
-  {
-    up_bound = push_constant_get(compositor_sum_squared_difference_float_shared, lower_bound);
-  }
-  return up_bound;
+  return push_constant_get(compositor_sum_squared_difference_float_shared, lower_bound);
 }
 
-template<typename T, typename Operation> T initialize<T, Operation>(T value)
+template<typename T, typename Operation> T initialize(T value)
 {
   return value;
 }
@@ -145,16 +134,16 @@ template<> float4 reduce<float4, MaxVelocity>(float4 a, float4 b)
 }
 
 /* ChannelMix */
-TYPE(ChannelR)
-TYPE(ChannelG)
-TYPE(ChannelB)
-TYPE(ChannelRG)
-TYPE(ChannelRGBA)
-TYPE(ChannelLuma)
-TYPE(ChannelLogLuma)
-TYPE(ChannelMax)
+struct ChannelR {};
+struct ChannelG {};
+struct ChannelB {};
+struct ChannelRG {};
+struct ChannelRGBA {};
+struct ChannelLuma {};
+struct ChannelLogLuma {};
+struct ChannelMax {};
 
-template<typename T, typename ChannelMix> T channel_mix<T, ChannelMix>(float4 value)
+template<typename T, typename ChannelMix> T channel_mix(float4 value)
 {
   return value;
 }
@@ -178,7 +167,7 @@ float4 to_float4(float2 value) { return value.xyyy; }
 float4 to_float4(float4 value) { return value; }
 /* clang-format on */
 
-template<typename T, typename Operation, typename Initialization> void reduction()
+template<typename T, typename Operation, typename ChannelMix> void reduction()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
@@ -236,4 +225,113 @@ template<typename T, typename Operation, typename Initialization> void reduction
   if (gl_LocalInvocationIndex == 0) {
     imageStore(output_img, int2(gl_WorkGroupID.xy), to_float4(reduction_data[0]));
   }
+}
+
+template void reduction<float, Sum, ChannelR>();
+template void reduction<float, Sum, ChannelG>();
+template void reduction<float, Sum, ChannelB>();
+template void reduction<float, Sum, ChannelLuma>();
+template void reduction<float, Sum, ChannelLogLuma>();
+template void reduction<float4, Sum, ChannelRGBA>();
+
+void compositor_sum_red()
+{
+  reduction<float, Sum, ChannelR>();
+}
+void compositor_sum_green()
+{
+  reduction<float, Sum, ChannelG>();
+}
+void compositor_sum_blue()
+{
+  reduction<float, Sum, ChannelB>();
+}
+void compositor_sum_luminance()
+{
+  reduction<float, Sum, ChannelLuma>();
+}
+void compositor_sum_log_luminance()
+{
+  reduction<float, Sum, ChannelLogLuma>();
+}
+void compositor_sum_color()
+{
+  reduction<float4, Sum, ChannelRGBA>();
+}
+
+template void reduction<float, SumSquareDifference, ChannelR>();
+template void reduction<float, SumSquareDifference, ChannelG>();
+template void reduction<float, SumSquareDifference, ChannelB>();
+template void reduction<float, SumSquareDifference, ChannelLuma>();
+
+void compositor_sum_red_squared_difference()
+{
+  reduction<float, SumSquareDifference, ChannelR>();
+}
+void compositor_sum_green_squared_difference()
+{
+  reduction<float, SumSquareDifference, ChannelG>();
+}
+void compositor_sum_blue_squared_difference()
+{
+  reduction<float, SumSquareDifference, ChannelB>();
+}
+void compositor_sum_luminance_squared_difference()
+{
+  reduction<float, SumSquareDifference, ChannelLuma>();
+}
+
+template void reduction<float, Max, ChannelLuma>();
+template void reduction<float, Max, ChannelMax>();
+template void reduction<float, Max, ChannelR>();
+template void reduction<float, Max, ChannelRG>();
+
+void compositor_maximum_luminance()
+{
+  reduction<float, Max, ChannelLuma>();
+}
+void compositor_maximum_brightness()
+{
+  reduction<float, Max, ChannelMax>();
+}
+void compositor_maximum_float()
+{
+  reduction<float, Max, ChannelR>();
+}
+void compositor_maximum_float2()
+{
+  reduction<float2, Max, ChannelRG>();
+}
+
+template void reduction<float, MaxInRange, ChannelR>();
+
+void compositor_maximum_float_in_range()
+{
+  reduction<float, MaxInRange, ChannelR>();
+}
+
+template void reduction<float, Min, ChannelLuma>();
+template void reduction<float, Min, ChannelR>();
+
+void compositor_minimum_luminance()
+{
+  reduction<float, Min, ChannelLuma>();
+}
+void compositor_minimum_float()
+{
+  reduction<float, Min, ChannelR>();
+}
+
+template void reduction<float, MinInRange, ChannelR>();
+
+void compositor_minimum_float_in_range()
+{
+  reduction<float, MinInRange, ChannelR>();
+}
+
+template void reduction<float4, MaxVelocity, ChannelRGBA>();
+
+void compositor_max_velocity()
+{
+  reduction<float4, MaxVelocity, ChannelRGBA>();
 }
