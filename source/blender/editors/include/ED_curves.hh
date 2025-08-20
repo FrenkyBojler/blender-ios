@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "RNA_enum_types.hh"
+
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 
@@ -465,6 +467,36 @@ void resize_curves(bke::CurvesGeometry &curves,
 void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_map);
 
 wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
+
+constexpr int BEZIER_HANDLE_TOGGLE = 4;
+const EnumPropertyItem curves_handle_type_items[] = {
+    {BEZIER_HANDLE_AUTO,
+     "AUTO",
+     0,
+     "Auto",
+     "The location is automatically calculated to be smooth"},
+    {BEZIER_HANDLE_VECTOR,
+     "VECTOR",
+     0,
+     "Vector",
+     "The location is calculated to point to the next/previous control point"},
+    {BEZIER_HANDLE_ALIGN,
+     "ALIGN",
+     0,
+     "Align",
+     "The location is constrained to point in the opposite direction as the other handle"},
+    {BEZIER_HANDLE_FREE,
+     "FREE_ALIGN",
+     0,
+     "Free",
+     "The handle can be moved anywhere, and does not influence the point's other handle"},
+    {BEZIER_HANDLE_TOGGLE,
+     "TOGGLE_FREE_ALIGN",
+     0,
+     "Toggle Free/Align",
+     "Replace Free handles with Align, and all Align with Free handles"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 /** \} */
 

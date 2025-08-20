@@ -1731,7 +1731,17 @@ namespace set_handle_type {
 
 static wmOperatorStatus exec(bContext *C, wmOperator *op)
 {
-  const HandleType dst_handle_type = HandleType(RNA_enum_get(op->ptr, "type"));
+  const int dst_handle_type = RNA_enum_get(op->ptr, "type");
+
+  auto new_handle_type = [&](const int8_t handle_type) {
+    if (dst_handle_type == BEZIER_HANDLE_TOGGLE) {
+      if (handle_type == BEZIER_HANDLE_FREE) {
+        return int8_t(BEZIER_HANDLE_ALIGN);
+      }
+      return int8_t(BEZIER_HANDLE_FREE);
+    }
+    return int8_t(dst_handle_type);
+  };
 
   for (Curves *curves_id : get_unique_editable_curves(*C)) {
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
@@ -1750,10 +1760,10 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
     threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange range) {
       for (const int point_i : range) {
         if (selection_left[point_i] || selection[point_i]) {
-          handle_types_left[point_i] = int8_t(dst_handle_type);
+          handle_types_left[point_i] = new_handle_type(handle_types_left[point_i]);
         }
         if (selection_right[point_i] || selection[point_i]) {
-          handle_types_right[point_i] = int8_t(dst_handle_type);
+          handle_types_right[point_i] = new_handle_type(handle_types_right[point_i]);
         }
       }
     });
@@ -1782,7 +1792,7 @@ static void CURVES_OT_handle_type_set(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   ot->prop = RNA_def_enum(
-      ot->srna, "type", rna_enum_curves_handle_type_items, CURVE_TYPE_POLY, "Type", nullptr);
+      ot->srna, "type", curves_handle_type_items, CURVE_TYPE_POLY, "Type", nullptr);
 }
 
 void operatortypes_curves()
