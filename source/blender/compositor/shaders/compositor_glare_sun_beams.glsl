@@ -17,7 +17,7 @@
 float get_sample_position(int i, float random_offset)
 {
 #if defined(JITTER)
-  return safe_divide((i + random_offset), (1.0f - jitter_factor));
+  return safe_divide(i + random_offset, 1.0f - jitter_factor);
 #else
   return i;
 #endif

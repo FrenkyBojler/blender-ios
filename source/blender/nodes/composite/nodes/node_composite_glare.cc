@@ -178,9 +178,8 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .max(1.0)
       .subtype(PROP_FACTOR)
       .description(
-          "Defines the inverted ratio of steps relative to the original number of steps used to "
-          "generate the jitter effect. When set to 0, jitter is fully disabled; when greater than "
-          "0, jitter is applied proportionally");
+          "The amount of jitter to introduce while computing rays, higher jitter can be faster "
+          "but can produce grainy or noisy results");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -2322,9 +2321,12 @@ class GlareOperation : public NodeOperation {
 
       int number_of_steps = (1.0f - this->get_jitter_factor()) * steps;
       float random_offset = noise::hash_to_float(texel.x, texel.y);
+      float jitter_factor = this->get_jitter_factor();
+      bool use_jitter = this->get_use_jitter();
 
       for (int i = 0; i <= number_of_steps; i++) {
-        float position_index = this->get_sample_position(i, this->get_use_jitter(), random_offset);
+        float position_index = this->get_sample_position(
+            i, use_jitter, jitter_factor, random_offset);
         float2 position = coordinates + position_index * step_vector;
 
         /* We are already past the image boundaries, and any future steps are also past the image
@@ -2363,10 +2365,13 @@ class GlareOperation : public NodeOperation {
    * directly.
    */
 
-  float get_sample_position(const int i, const bool use_jitter, const float random_offset)
+  float get_sample_position(const int i,
+                            const bool use_jitter,
+                            float jitter_factor,
+                            const float random_offset)
   {
     if (use_jitter) {
-      return math::safe_divide((i + random_offset), (1.0f - this->get_jitter_factor()));
+      return math::safe_divide(i + random_offset, 1.0f - jitter_factor);
     }
     return i;
   }
