@@ -400,7 +400,6 @@ wmOperatorStatus sequencer_clipboard_paste_invoke(bContext *C,
 {
   RNA_int_set(op->ptr, "x", event->mval[0]);
   RNA_int_set(op->ptr, "y", event->mval[1]);
-  const int test_mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
   return sequencer_clipboard_paste_exec(C, op);
 }
 
