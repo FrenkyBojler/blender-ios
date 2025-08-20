@@ -2335,8 +2335,9 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         docked_area = ED_screen_area_add_empty(screen, area_rect);
         docked_area->flag |= AREA_FLAG_DOCKED;
 
-        blender::ed::editor_dock::add_docked_space(docked_area, SPACE_OUTLINER);
-        blender::ed::editor_dock::add_docked_space(docked_area, SPACE_PROPERTIES);
+        /* TODO null for scene - is this a good idea? */
+        blender::ed::editor_dock::add_docked_space(docked_area, SPACE_OUTLINER, nullptr);
+        blender::ed::editor_dock::add_docked_space(docked_area, SPACE_PROPERTIES, nullptr);
       }
     }
   }

@@ -18,7 +18,7 @@
 namespace blender::ed::editor_dock {
 
 /* TODO this isn't editor dock specific. Move somewhere else? */
-void add_docked_space(ScrArea *area, eSpace_Type type)
+void add_docked_space(ScrArea *area, const eSpace_Type type, const Scene *scene)
 {
   SpaceType *st = BKE_spacetype_from_id(type);
   if (!st) {
@@ -30,8 +30,6 @@ void add_docked_space(ScrArea *area, eSpace_Type type)
   area->spacetype = type;
   area->type = st;
 
-  /* TODO null for scene - is this a good idea? */
-  Scene *scene = nullptr;
   SpaceLink *sl = st->create(area, scene);
   BLI_addhead(&area->spacedata, sl);
 

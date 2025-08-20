@@ -61,8 +61,6 @@ static SpaceLink *editor_dock_duplicate(SpaceLink *sl)
   return (SpaceLink *)space_editor_dock;
 }
 
-static void editor_dock_operatortypes() {}
-
 static void editor_dock_keymap(wmKeyConfig * /*keyconf*/) {}
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -112,7 +110,7 @@ void ED_spacetype_editor_dock()
   st->free = editor_dock_free;
   st->init = editor_dock_init;
   st->duplicate = editor_dock_duplicate;
-  st->operatortypes = editor_dock_operatortypes;
+  st->operatortypes = blender::ed::editor_dock::register_operatortypes;
   st->keymap = editor_dock_keymap;
   st->blend_write = editor_dock_space_blend_write;
 

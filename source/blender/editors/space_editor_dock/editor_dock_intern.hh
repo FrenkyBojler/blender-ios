@@ -10,4 +10,6 @@ namespace blender::ed::editor_dock {
 
 void main_region_panels_register(ARegionType *art);
 
-}
+void register_operatortypes();
+
+}  // namespace blender::ed::editor_dock
