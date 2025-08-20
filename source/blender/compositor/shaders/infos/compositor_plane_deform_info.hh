@@ -6,7 +6,7 @@
 
 GPU_SHADER_CREATE_INFO(compositor_plane_deform)
 LOCAL_GROUP_SIZE(16, 16)
-PUSH_CONSTANT(float4x4, homography_matrix)
+PUSH_CONSTANT(float4x4, imat)
 SAMPLER(0, sampler2D, input_tx)
 IMAGE(0, SFLOAT_16_16_16_16, write, image2D, output_img)
 GPU_SHADER_CREATE_END()

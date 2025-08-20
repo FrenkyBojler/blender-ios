@@ -7,7 +7,7 @@
  */
 
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix_types.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "DNA_node_types.h"
@@ -151,10 +151,17 @@ class CornerPinOperation : public NodeOperation {
 
   void compute_plane_gpu(const float3x3 &homography_matrix)
   {
+    // convert the matrix to translate pixel centers to pixel centers
+    // todo: this calculation should be done by caller
+    const Domain domain = compute_domain();
+    float3x3 to_bounds = math::translate(math::from_scale<float3x3>(1.0f/float2(domain.size)), float2(0.5f));
+    float3x3 from_bounds = math::scale(math::from_location<float3x3>(float2(-0.5f)), float2(domain.size));
+    float3x3 imat = from_bounds * homography_matrix * to_bounds;
+
     gpu::Shader *shader = this->context().get_shader(this->get_shader_name());
     GPU_shader_bind(shader);
 
-    GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
+    GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
 
     Result &input_image = get_input("Image");
     const Interpolation interpolation = this->get_interpolation();
@@ -177,7 +184,6 @@ class CornerPinOperation : public NodeOperation {
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
 
-    const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
