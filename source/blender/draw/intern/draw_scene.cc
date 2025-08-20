@@ -39,8 +39,8 @@ static bool supports_handle_ranges(Object *ob)
 }
 
 void foreach_obref_in_scene(DRWContext &draw_ctx,
-                            std::function<bool(Object &)> should_draw_object_cb,
-                            std::function<void(ObjectRef &)> draw_object_cb)
+                            FunctionRef<bool(Object &)> should_draw_object_cb,
+                            FunctionRef<void(ObjectRef &)> draw_object_cb)
 {
   DupliList duplilist;
   Map<DrawObjectKey, VectorList<DupliObject *>> dupli_map;

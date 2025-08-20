@@ -10,7 +10,7 @@
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 
-#include <functional>
+#include "BLI_function_ref.hh"
 
 struct Object;
 struct ID;
@@ -114,7 +114,7 @@ struct DrawObjectKey {
 };
 
 void foreach_obref_in_scene(DRWContext &draw_ctx,
-                            std::function<bool(Object &)> should_draw_object_cb,
-                            std::function<void(ObjectRef &)> draw_object_cb);
+                            FunctionRef<bool(Object &)> should_draw_object_cb,
+                            FunctionRef<void(ObjectRef &)> draw_object_cb);
 
 }  // namespace blender::draw
