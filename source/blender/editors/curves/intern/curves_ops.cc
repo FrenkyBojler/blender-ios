@@ -1735,10 +1735,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
 
   auto new_handle_type = [&](const int8_t handle_type) {
     if (dst == BEZIER_HANDLE_TOGGLE) {
-      if (handle_type == BEZIER_HANDLE_FREE) {
-        return int8_t(BEZIER_HANDLE_ALIGN);
-      }
-      return int8_t(BEZIER_HANDLE_FREE);
+      return int8_t(handle_type == BEZIER_HANDLE_FREE ? BEZIER_HANDLE_ALIGN : BEZIER_HANDLE_FREE);
     }
     return int8_t(dst);
   };
@@ -1751,7 +1748,9 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
         ".selection", bke::AttrDomain::Point, true);
     const VArraySpan<bool> selection_left = *attributes.lookup_or_default<bool>(
         ".selection_handle_left", bke::AttrDomain::Point, true);
-    const VArraySpan<bool> selection_right = *attributes.lookup_or_default<bool>(
+    const VArraySpa return int8_t(dst == BEZIER_HANDLE_FREE ? BEZIER_HANDLE_ALIGN :
+                                                              BEZIER_HANDLE_FREE);
+    n<bool> selection_right = *attributes.lookup_or_default<bool>(
         ".selection_handle_right", bke::AttrDomain::Point, true);
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
