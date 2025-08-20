@@ -167,9 +167,9 @@ static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
     if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
         (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))
     {
-      UI_icon_draw_ex(az->x1 + (2 * UI_SCALE_FAC),
-                      az->y1 + (5 * UI_SCALE_FAC),
-                      ICON_DOT,
+      UI_icon_draw_ex(float(az->x1) + (0.8f * UI_SCALE_FAC),
+                      float(az->y1) + (6.0f * UI_SCALE_FAC),
+                      ICON_GRIP_V,
                       1.0 / UI_SCALE_FAC,
                       0.3f,
                       0.0f,
