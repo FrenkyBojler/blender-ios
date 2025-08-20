@@ -1,3 +1,4 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by commit 248a9653f63ac38ad2e9ebb945492800fce36d24, Fix: exception types in last commit
 Referenced by pull request #144401, Add buffer protocol support for mathutils types
+Referenced by pull request #144855, [4.5 LTS] Fix: frozen mathutils Vector & Matrix types could be resized
