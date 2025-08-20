@@ -982,9 +982,13 @@ struct Parser {
         /* Function Prototype. */
         return;
       }
-      const bool is_static = args.start().prev().prev().prev() == Static;
-      Token type = args.start().prev().prev();
       Token name = args.start().prev();
+      if (name == '>') {
+        /* Template specialization. */
+        name = name.scope().start().prev();
+      }
+      const bool is_static = name.prev().prev() == Static;
+      Token type = name.prev();
       Scope body = next.scope();
       callback(is_static, type, name, args, is_const, body);
     });
