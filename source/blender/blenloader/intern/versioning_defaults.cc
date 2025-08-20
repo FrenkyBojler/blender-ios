@@ -382,7 +382,7 @@ static void blo_update_defaults_paint(Paint *paint)
 
 static void blo_update_defaults_windowmanager(wmWindowManager* wm)
 {
-  wm->xr.session_settings.vignette_intensity = 100.0f;
+  wm->xr.session_settings.fly_speed = 3.0f;
 }
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)

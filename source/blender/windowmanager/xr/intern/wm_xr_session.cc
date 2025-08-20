@@ -385,7 +385,8 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
   /* Assume this was already done through wm_xr_session_draw_data_update(). */
   state->force_reset_to_base_pose = false;
   
-  float min_aperture = interpf(0.08f, 0.3f, settings->vignette_intensity * 0.01f);
+  float vignette_intensity = U.xr_navigation.vignette_intensity;
+  float min_aperture = interpf(0.08f, 0.3f, vignette_intensity * 0.01f);
   state->vignette_aperture_velocity = min_ff(0.002f, state->vignette_aperture_velocity + 0.01f);
   
   if (state->vignette_aperture == min_aperture) {

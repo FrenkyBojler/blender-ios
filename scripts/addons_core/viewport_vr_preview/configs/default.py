@@ -144,12 +144,7 @@ actionconfig_data = \
              },
             ),
            ("fly_up", {"type": 'FLOAT', "user_paths": ['/user/hand/right'], "op": 'wm.xr_navigation_fly', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-            {"op_properties":
-            [("mode", 'UP'),
-             ("speed_min", 0.014),
-                ("speed_max", 0.042),
-             ],
-             },
+            {"op_properties": [("mode", 'UP')]},
             {"bindings":
             [("huawei", {"profile": '/interaction_profiles/huawei/controller', "component_paths": ['/input/trackpad/y'], "threshold": '0.30000001192092896', "axis_region": 'POSITIVE'}),
              ("index", {"profile": '/interaction_profiles/valve/index_controller', "component_paths": ['/input/thumbstick/y'], "threshold": '0.30000001192092896', "axis_region": 'POSITIVE'}),
@@ -163,12 +158,7 @@ actionconfig_data = \
              },
             ),
            ("fly_down", {"type": 'FLOAT', "user_paths": ['/user/hand/right'], "op": 'wm.xr_navigation_fly', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-            {"op_properties":
-            [("mode", 'DOWN'),
-             ("speed_min", 0.014),
-                ("speed_max", 0.042),
-             ],
-             },
+            {"op_properties": [("mode", 'DOWN')]},
             {"bindings":
             [("huawei", {"profile": '/interaction_profiles/huawei/controller', "component_paths": ['/input/trackpad/y'], "threshold": '0.30000001192092896', "axis_region": 'NEGATIVE'}),
              ("index", {"profile": '/interaction_profiles/valve/index_controller', "component_paths": ['/input/thumbstick/y'], "threshold": '0.30000001192092896', "axis_region": 'NEGATIVE'}),
@@ -182,12 +172,7 @@ actionconfig_data = \
              },
             ),
            ("fly_turnleft", {"type": 'FLOAT', "user_paths": ['/user/hand/right'], "op": 'wm.xr_navigation_fly', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-            {"op_properties":
-            [("mode", 'TURNLEFT'),
-             ("speed_min", 0.01),
-                ("speed_max", 0.03),
-             ],
-             },
+            {"op_properties": [("mode", 'TURNLEFT')] },
             {"bindings":
             [("huawei", {"profile": '/interaction_profiles/huawei/controller', "component_paths": ['/input/trackpad/x'], "threshold": '0.30000001192092896', "axis_region": 'NEGATIVE'}),
              ("index", {"profile": '/interaction_profiles/valve/index_controller', "component_paths": ['/input/thumbstick/x'], "threshold": '0.30000001192092896', "axis_region": 'NEGATIVE'}),
@@ -201,12 +186,7 @@ actionconfig_data = \
              },
             ),
            ("fly_turnright", {"type": 'FLOAT', "user_paths": ['/user/hand/right'], "op": 'wm.xr_navigation_fly', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-            {"op_properties":
-            [("mode", 'TURNRIGHT'),
-             ("speed_min", 0.01),
-                ("speed_max", 0.03),
-             ],
-             },
+            {"op_properties": [("mode", 'TURNRIGHT')] },
             {"bindings":
             [("huawei", {"profile": '/interaction_profiles/huawei/controller', "component_paths": ['/input/trackpad/x'], "threshold": '0.30000001192092896', "axis_region": 'POSITIVE'}),
              ("index", {"profile": '/interaction_profiles/valve/index_controller', "component_paths": ['/input/thumbstick/x'], "threshold": '0.30000001192092896', "axis_region": 'POSITIVE'}),
@@ -320,48 +300,28 @@ actionconfig_data = \
                 },
                ),
               ("fly_up", {"type": 'FLOAT', "user_paths": ['/user/gamepad'], "op": 'wm.xr_navigation_fly', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-               {"op_properties":
-               [("mode", 'UP'),
-                ("speed_min", 0.014),
-                ("speed_max", 0.042),
-                ],
-                },
+               {"op_properties": [("mode", 'UP')]},
                {"bindings":
                [("gamepad", {"profile": '/interaction_profiles/microsoft/xbox_controller', "component_paths": ['/input/thumbstick_right/y'], "threshold": '0.30000001192092896', "axis_region": 'POSITIVE'}),
                 ],
                 },
                ),
               ("fly_down", {"type": 'FLOAT', "user_paths": ['/user/gamepad'], "op": 'wm.xr_navigation_fly', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-               {"op_properties":
-               [("mode", 'DOWN'),
-                ("speed_min", 0.014),
-                ("speed_max", 0.042),
-                ],
-                },
+               {"op_properties": [("mode", 'DOWN')]},
                {"bindings":
                [("gamepad", {"profile": '/interaction_profiles/microsoft/xbox_controller', "component_paths": ['/input/thumbstick_right/y'], "threshold": '0.30000001192092896', "axis_region": 'NEGATIVE'}),
                 ],
                 },
                ),
               ("fly_turnleft", {"type": 'FLOAT', "user_paths": ['/user/gamepad'], "op": 'wm.xr_navigation_fly', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-               {"op_properties":
-               [("mode", 'TURNLEFT'),
-                ("speed_min", 0.01),
-                ("speed_max", 0.03),
-                ],
-                },
+               {"op_properties": [("mode", 'TURNLEFT')]},
                {"bindings":
                [("gamepad", {"profile": '/interaction_profiles/microsoft/xbox_controller', "component_paths": ['/input/thumbstick_right/x'], "threshold": '0.30000001192092896', "axis_region": 'NEGATIVE'}),
                 ],
                 },
                ),
               ("fly_turnright", {"type": 'FLOAT', "user_paths": ['/user/gamepad'], "op": 'wm.xr_navigation_fly', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-               {"op_properties":
-               [("mode", 'TURNRIGHT'),
-                ("speed_min", 0.01),
-                ("speed_max", 0.03),
-                ],
-                },
+               {"op_properties": [("mode", 'TURNRIGHT')]},
                {"bindings":
                [("gamepad", {"profile": '/interaction_profiles/microsoft/xbox_controller', "component_paths": ['/input/thumbstick_right/x'], "threshold": '0.30000001192092896', "axis_region": 'POSITIVE'}),
                 ],

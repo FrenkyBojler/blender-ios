@@ -38,13 +38,20 @@ class USERPREF_PT_vr_navigation(Panel):
 
     def draw_centered(self, context, layout):
         prefs = context.preferences
-        inputs = prefs.inputs
+        nav = prefs.inputs.xr_navigation
 
         col = layout.column()
 
-        col.row().prop(inputs, "xr_snap_turn", text="Snap Turn")
-        col.row().prop(inputs, "xr_invert_rotation", text="Invert Rotation")
-        col.row().prop(inputs, "xr_single_controller", text="Single Controller Mode")
+        col.row().prop(nav, "vignette_intensity", text="Vignette Intensity")
+        
+        if nav.snap_turn:
+          col.row().prop(nav, "turn_amount", text="Turn Amount")
+        else:
+          col.row().prop(nav, "turn_speed", text="Turn Speed")
+
+        col.row().prop(nav, "snap_turn", text="Snap Turn")
+        col.row().prop(nav, "invert_rotation", text="Invert Rotation")
+        col.row().prop(nav, "single_controller", text="Single Controller Mode")
 
 classes = (
     USERPREF_PT_vr_navigation,

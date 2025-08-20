@@ -810,10 +810,12 @@ static void wm_xr_raycast_update(wmOperator *op,
                                  const wmXrActionData *actiondata)
 {
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
-  float axis[3];
+  float axis[3], nav_scale;
+
+  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
   data->from_viewer = RNA_boolean_get(op->ptr, "from_viewer");
-  data->width = RNA_float_get(op->ptr, "width");
+  data->width = RNA_float_get(op->ptr, "width") * nav_scale;
   data->samples_per_segment = RNA_int_get(op->ptr, "samples_per_segment");
   RNA_float_get_array(op->ptr, "axis", axis);
   RNA_float_get_array(op->ptr, "color", data->color);
@@ -875,9 +877,6 @@ static void wm_xr_raycast(Scene *scene,
  * Navigates the scene by moving/turning relative to navigation space or the XR viewer or
  * controller.
  * \{ */
-
-#define XR_DEFAULT_FLY_SPEED_MOVE 0.054f
-#define XR_DEFAULT_TURN_SPEED 30.0f
 
 enum eXrFlyMode {
   XR_FLY_FORWARD = 0,
@@ -1069,28 +1068,28 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   mode = (eXrFlyMode)RNA_enum_get(op->ptr, "mode");
   turn = ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT);
 
-  snap_turn = U.xr_navigation_flag & USER_XR_NAV_SNAP_TURN;
-  invert_rotation = U.xr_navigation_flag & USER_XR_NAV_INVERT_ROTATION;
+  snap_turn = U.xr_navigation.flag & USER_XR_NAV_SNAP_TURN;
+  invert_rotation = U.xr_navigation.flag & USER_XR_NAV_INVERT_ROTATION;
 
   locz_lock = RNA_boolean_get(op->ptr, "lock_location_z");
   dir_lock = RNA_boolean_get(op->ptr, "lock_direction");
 
-  if (turn)
-  {
+  if (turn) {
     speed_frame_based = false;
-    speed = RNA_float_get(op->ptr, "turn_speed_min");
-    speed_max = RNA_float_get(op->ptr, "turn_speed_max");
 
-    if (snap_turn)
-    {
-      speed = speed_max;
+    if (snap_turn) {
+      speed_max = speed;
+      speed = U.xr_navigation.turn_amount;
+    }
+    else {
+      speed_max = U.xr_navigation.turn_speed;
+      speed = speed_max * RNA_boolean_get(op->ptr, "turn_speed_factor");
     }
   }
-  else
-  {
+  else {
     speed_frame_based = RNA_boolean_get(op->ptr, "speed_frame_based");
-    speed = RNA_float_get(op->ptr, "speed_min");
-    speed_max = RNA_float_get(op->ptr, "speed_max");
+    speed_max = xr->session_settings.fly_speed;
+    speed = speed_max * RNA_float_get(op->ptr, "fly_speed_factor");
   }
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "speed_interpolation0");
@@ -1178,7 +1177,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
       wm_xr_pose_to_mat(&viewer_pose, viewer_mat);
       wm_xr_pose_to_imat(&nav_pose, nav_inv);
 
-      wm_xr_fly_compute_turn(mode, DEG2RAD(speed), viewer_mat, nav_mat, nav_inv, delta);
+      wm_xr_fly_compute_turn(mode, speed, viewer_mat, nav_mat, nav_inv, delta);
     }
   }
   else {
@@ -1313,43 +1312,25 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
                   "Limit movement to viewer's initial direction");
   RNA_def_boolean(ot->srna,
                   "speed_frame_based",
-                  true,
+                  false,
                   "Frame Based Speed",
                   "Apply fixed movement deltas every update");
   RNA_def_float(ot->srna,
-                "turn_speed_min",
-                XR_DEFAULT_TURN_SPEED / 3.0f,
+                "turn_speed_factor",
+                1.0 / 3.0f,
                 0.0f,
-                360.0f,
-                "Minimum Speed",
-                "Minimum turn speed in degrees per second or snap",
-                0.0f,
-                360.0f);
-  RNA_def_float(ot->srna,
-                "turn_speed_max",
-                XR_DEFAULT_TURN_SPEED,
-                0.0f,
-                360.0f,
-                "Maximum Speed",
-                "Maximum move turn speed in degrees per second or snap",
+                1.0f,
+                "Turn Speed Factor",
+                "Ratio between the min and max turn speed",
                 0.0f,
                 360.0f);
   RNA_def_float(ot->srna,
-                "speed_min",
-                XR_DEFAULT_FLY_SPEED_MOVE / 3.0f,
+                "fly_speed_factor",
+                1.0 / 3.0f,
                 0.0f,
-                1000.0f,
-                "Minimum Speed",
-                "Minimum move speed in meters per second or frame",
-                0.0f,
-                1000.0f);
-  RNA_def_float(ot->srna,
-                "speed_max",
-                XR_DEFAULT_FLY_SPEED_MOVE,
-                0.0f,
-                1000.0f,
-                "Maximum Speed",
-                "Maximum move speed in meters per second or frame",
+                1.0f,
+                "Fly Speed Factor",
+                "Ratio between the min and max fly speed",
                 0.0f,
                 1000.0f);
   RNA_def_float_vector(ot->srna,

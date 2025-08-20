@@ -39,8 +39,8 @@ typedef struct XrSessionSettings {
   int object_type_exclude_viewport;
   int object_type_exclude_select;
 
-  /** Itensity of vignette that appears when moving. */
-  float vignette_intensity;
+  /** Fly speed. */
+  float fly_speed;
   float padding;
 } XrSessionSettings;
 
