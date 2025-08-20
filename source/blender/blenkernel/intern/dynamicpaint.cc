@@ -2067,9 +2067,8 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
   /* make a copy of mesh to use as brush data */
   else if (pmd->brush && pmd->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
     DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_ensure(pmd);
-
-    std::lock_guard lock{runtime_data->brush_mutex};
     BLI_assert(runtime_data != nullptr);
+    std::lock_guard lock{runtime_data->brush_mutex};
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
