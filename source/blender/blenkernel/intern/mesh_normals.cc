@@ -1352,9 +1352,9 @@ void normals_calc_corners(const Span<float3> vert_positions,
     r_fan_spaces->corners_by_space.reinitialize(space_offsets.total_size());
   }
 
-  const int64_t mean_size = space_offsets.total_size() / space_offsets.size();
-  const int64_t grain_size = math::clamp<int64_t>(
-      math::safe_divide<int64_t>(1024 * 512, mean_size), 256, 1024 * 16);
+  const int64_t mean_size = std::max<int64_t>(1,
+                                              space_offsets.total_size() / space_offsets.size());
+  const int64_t grain_size = std::max<int64_t>(1, 1024 * 16 / mean_size);
   threading::parallel_for(all_space_groups.index_range(), grain_size, [&](const IndexRange range) {
     for (const int thread_i : range) {
       Vector<CornerSpaceGroup, 0> &local_space_groups = all_space_groups[thread_i];
