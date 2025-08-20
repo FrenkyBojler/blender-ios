@@ -584,14 +584,8 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
   }
 
   DupliKey duplikey;
-  if (ob_ref.draw_object_key_) {
-    duplikey.ob = ob_ref.draw_object_key_->object;
-    duplikey.ob_data = ob_ref.draw_object_key_->ob_data;
-  }
-  else {
-    duplikey.ob = ob_ref.dupli_object_->ob;
-    duplikey.ob_data = ob_ref.dupli_object_->ob_data;
-  }
+  duplikey.ob = ob_ref.dupli_object_->ob;
+  duplikey.ob_data = ob_ref.dupli_object_->ob_data;
 
   if (last_key_ == duplikey) {
     /* Same data as previous iteration. No need to perform the check again. */
@@ -665,28 +659,13 @@ void DupliCacheManager::extract_all(ExtractionGraph &extraction)
 
 namespace blender::draw {
 
-ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
-    : dupli_object_(iter_data.dupli_object_current),
-      dupli_parent_(dupli_object_ ? iter_data.dupli_parent : nullptr),
-      object(ob)
-{
-}
-
 ObjectRef::ObjectRef(Object *ob, Object *dupli_parent, DupliObject *dupli_object)
-    : dupli_object_(dupli_object),
-      dupli_parent_(dupli_object_ ? dupli_parent : nullptr),
-      object(ob)
+    : dupli_object_(dupli_object), dupli_parent_(dupli_parent), object(ob)
 {
 }
 
-ObjectRef::ObjectRef(Object &ob,
-                     Object *dupli_parent,
-                     const DrawObjectKey &draw_object_key,
-                     const VectorList<DupliObject *> &duplis)
-    : dupli_parent_(dupli_parent),
-      draw_object_key_(&draw_object_key),
-      duplis_(&duplis),
-      object(&ob)
+ObjectRef::ObjectRef(Object &ob, Object *dupli_parent, const VectorList<DupliObject *> &duplis)
+    : dupli_object_(duplis[0]), dupli_parent_(dupli_parent), duplis_(&duplis), object(&ob)
 {
 }
 

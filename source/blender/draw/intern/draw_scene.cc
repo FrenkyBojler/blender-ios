@@ -76,7 +76,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
     if (ob_visible && should_draw_object_cb(*ob)) {
-      ObjectRef ob_ref(data_, ob);
+      ObjectRef ob_ref(ob);
       draw_object_cb(ob_ref);
     }
 
@@ -176,7 +176,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
       tmp_object.runtime->object_to_world = float4x4();
       tmp_object.runtime->world_to_object = float4x4();
 
-      blender::draw::ObjectRef ob_ref(tmp_object, ob, key, instances);
+      blender::draw::ObjectRef ob_ref(tmp_object, ob, instances);
       draw_object_cb(ob_ref);
 
       evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);

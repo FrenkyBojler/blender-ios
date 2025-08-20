@@ -41,8 +41,6 @@
 /* ObjectKey */
 #include "DEG_depsgraph_query.hh"
 
-#include "draw_scene.hh"
-
 struct DupliCacheManager;
 
 namespace blender::draw {
@@ -217,24 +215,20 @@ class ObjectRef {
   /** Object that created the dupli-list the current object is part of. */
   Object *const dupli_parent_ = nullptr;
 
+  /** List of (render-compatible) duplis when rendering a ranges. */
+  const VectorList<DupliObject *> *duplis_ = nullptr;
+
   /** Unique handle per object ref. */
   ResourceHandleRange handle_ = {};
   ResourceHandleRange sculpt_handle_ = {};
 
-  const DrawObjectKey *draw_object_key_ = nullptr;
-  const VectorList<DupliObject *> *duplis_ = nullptr;
-
  public:
   Object *const object;
 
-  ObjectRef(DEGObjectIterData &iter_data, Object *ob);
   explicit ObjectRef(Object *ob,
                      Object *dupli_parent = nullptr,
                      DupliObject *dupli_object = nullptr);
-  explicit ObjectRef(Object &ob,
-                     Object *dupli_parent,
-                     const DrawObjectKey &draw_object_key,
-                     const VectorList<DupliObject *> &duplis);
+  explicit ObjectRef(Object &ob, Object *dupli_parent, const VectorList<DupliObject *> &duplis);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
@@ -249,8 +243,11 @@ class ObjectRef {
 
   float random() const
   {
-    if (draw_object_key_) {
-      /* TODO: This should return a Span. */
+    if (duplis_) {
+      /* NOTE: This code is currently reachable, since ObjectInfos always call it,
+         but the value is only used in EEVEE. */
+      // BLI_assert_unreachable();
+      /* TODO: This should fill a span instead. */
       return 0.0;
     }
 
@@ -264,8 +261,9 @@ class ObjectRef {
 
   bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
   {
-    if (draw_object_key_) {
-      /* TODO */
+    if (duplis_) {
+      BLI_assert_unreachable();
+      /* TODO: r_value should be a Span. */
       return false;
     }
 
@@ -279,12 +277,6 @@ class ObjectRef {
 
   LightLinking *light_linking() const
   {
-    /* TODO: Remove. */
-    if (draw_object_key_) {
-      return object->light_linking;
-    }
-
-    /* TODO: Could this be handled directly by deg_iterator_duplis_step?  */
     return dupli_parent_ ? dupli_parent_->light_linking : object->light_linking;
   }
 
@@ -311,8 +303,10 @@ class ObjectRef {
    * systems need to be offset appropriately. */
   float4x4 particles_matrix() const
   {
-    if (draw_object_key_) {
-      /* TODO: return Span of matrices. */
+    if (duplis_) {
+      BLI_assert_unreachable();
+      /* TODO: This should fill a span instead. */
+      return float4x4::identity();
     }
 
     /* TODO: Pass particle systems as a separate ObRef? */
@@ -334,10 +328,6 @@ class ObjectRef {
 
   int preview_instance_index() const
   {
-    if (draw_object_key_) {
-      return draw_object_key_->preview_instance_index;
-    }
-
     if (dupli_object_) {
       return dupli_object_->preview_instance_index;
     }
@@ -346,10 +336,6 @@ class ObjectRef {
 
   const blender::bke::GeometrySet *preview_base_geometry() const
   {
-    if (draw_object_key_) {
-      return draw_object_key_->preview_base_geometry;
-    }
-
     if (dupli_object_) {
       return dupli_object_->preview_base_geometry;
     }
