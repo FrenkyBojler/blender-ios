@@ -5122,7 +5122,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_mouse_neighbor_open", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_MENU_NEIGHBOR_OPEN);
   RNA_def_property_ui_text(
-      prop, "Open neighboring menus", "Open neighboring menus when the mouse hovers them.");
+      prop, "Open Neighboring Menus", "Open nearby menus when the mouse hovers them.");
 
   prop = RNA_def_property(srna, "open_toplevel_delay", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "menuthreshold1");
