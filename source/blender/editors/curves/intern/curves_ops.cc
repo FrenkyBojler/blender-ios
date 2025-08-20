@@ -1748,9 +1748,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
         ".selection", bke::AttrDomain::Point, true);
     const VArraySpan<bool> selection_left = *attributes.lookup_or_default<bool>(
         ".selection_handle_left", bke::AttrDomain::Point, true);
-    const VArraySpa return int8_t(dst == BEZIER_HANDLE_FREE ? BEZIER_HANDLE_ALIGN :
-                                                              BEZIER_HANDLE_FREE);
-    n<bool> selection_right = *attributes.lookup_or_default<bool>(
+    const VArraySpan<bool> selection_right = *attributes.lookup_or_default<bool>(
         ".selection_handle_right", bke::AttrDomain::Point, true);
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
@@ -1791,7 +1789,7 @@ static void CURVES_OT_handle_type_set(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   ot->prop = RNA_def_enum(
-      ot->srna, "type", curves_handle_type_items, CURVE_TYPE_POLY, "Type", nullptr);
+      ot->srna, "type", rna_enum_set_handle_type_items, CURVE_TYPE_POLY, "Type", nullptr);
 }
 
 void operatortypes_curves()
