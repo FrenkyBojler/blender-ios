@@ -1015,8 +1015,8 @@ struct Ellipse {
  *   C = (du/dx)^2 + (du/dy)^2 + 1
  * then normalize so "inside" is r^2 < 1. */
 BLI_INLINE Ellipse build_ellipse(const float2 &coordinates,
-                                 float2 &x_gradient,
-                                 float2 &y_gradient,
+                                 const float2 &x_gradient,
+                                 const float2 &y_gradient,
                                  const float &max_ratio_between_axes = 8.0f)
 {
   float2 x_grad = x_gradient;
@@ -1116,8 +1116,12 @@ void BLI_ewa_single_level(const int2 &dimensions,
   /* Scale the coordinates and the Jacobian into texel space. */
   float2 size = static_cast<float2>(dimensions);
   float2 coords = uv_center * size;
-  float2 x_grad = x_gradient * size;
-  float2 y_grad = y_gradient * size;
+
+  /* Clamp gradient to the max dimension of the output dimension. */
+  const float max_gradient_scale = 1.0f;
+  const float max_grad = float(max(size.x, size.y)) * max_gradient_scale;
+  float2 x_grad = normalize(x_gradient) * min(length(x_gradient), max_grad);
+  float2 y_grad = normalize(y_gradient) * min(length(y_gradient), max_grad);
 
   /* Build ellipsoid. */
   const Ellipse ellipse = build_ellipse(coords, x_grad, y_grad, max_ratio_between_axes);
