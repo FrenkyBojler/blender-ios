@@ -288,43 +288,37 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
  */
 
 #define R_IMF_ENUM_BMP \
-  {R_IMF_IMTYPE_BMP, "BMP", ICON_FILE_IMAGE, "BMP", "Output image in bitmap format"},
+  {R_IMF_IMTYPE_BMP, "BMP", 0, "Bitmap (.bmp)", "Output image in bitmap format"},
 #define R_IMF_ENUM_IRIS \
-  {R_IMF_IMTYPE_IRIS, "IRIS", ICON_FILE_IMAGE, "Iris", "Output image in SGI IRIS format"},
-#define R_IMF_ENUM_PNG \
-  {R_IMF_IMTYPE_PNG, "PNG", ICON_FILE_IMAGE, "PNG", "Output image in PNG format"},
+  {R_IMF_IMTYPE_IRIS, "IRIS", 0, "Iris (.rgb)", "Output image in SGI IRIS format"},
+#define R_IMF_ENUM_PNG {R_IMF_IMTYPE_PNG, "PNG", 0, "PNG (.png)", "Output image in PNG format"},
 #define R_IMF_ENUM_JPEG \
-  {R_IMF_IMTYPE_JPEG90, "JPEG", ICON_FILE_IMAGE, "JPEG", "Output image in JPEG format"},
+  {R_IMF_IMTYPE_JPEG90, "JPEG", 0, "JPEG (.jpg)", "Output image in JPEG format"},
 #define R_IMF_ENUM_TAGA \
-  {R_IMF_IMTYPE_TARGA, "TARGA", ICON_FILE_IMAGE, "Targa", "Output image in Targa format"},
+  {R_IMF_IMTYPE_TARGA, "TARGA", 0, "Targa (.tga)", "Output image in Targa format"},
 #define R_IMF_ENUM_TAGA_RAW \
   {R_IMF_IMTYPE_RAWTGA, \
    "TARGA_RAW", \
-   ICON_FILE_IMAGE, \
-   "Targa Raw", \
+   0, \
+   "Targa Raw (.tga)", \
    "Output image in uncompressed Targa format"},
 
 #if 0 /* UNUSED (so far) */
 #  define R_IMF_ENUM_DDS \
-    {R_IMF_IMTYPE_DDS, "DDS", ICON_FILE_IMAGE, "DDS", "Output image in DDS format"},
+    {R_IMF_IMTYPE_DDS, "DDS", 0, "DirectDraw Surface (.dds)", "Output image in DDS format"},
 #endif
 
 #ifdef WITH_IMAGE_OPENJPEG
 #  define R_IMF_ENUM_JPEG2K \
-    {R_IMF_IMTYPE_JP2, \
-     "JPEG2000", \
-     ICON_FILE_IMAGE, \
-     "JPEG 2000", \
-     "Output image in JPEG 2000 format"},
+    {R_IMF_IMTYPE_JP2, "JPEG2000", 0, "JPEG 2000 (.jp2)", "Output image in JPEG 2000 format"},
 #else
 #  define R_IMF_ENUM_JPEG2K
 #endif
 
 #ifdef WITH_IMAGE_CINEON
 #  define R_IMF_ENUM_CINEON \
-    {R_IMF_IMTYPE_CINEON, "CINEON", ICON_FILE_IMAGE, "Cineon", "Output image in Cineon format"},
-#  define R_IMF_ENUM_DPX \
-    {R_IMF_IMTYPE_DPX, "DPX", ICON_FILE_IMAGE, "DPX", "Output image in DPX format"},
+    {R_IMF_IMTYPE_CINEON, "CINEON", 0, "Cineon (.cin)", "Output image in Cineon format"},
+#  define R_IMF_ENUM_DPX {R_IMF_IMTYPE_DPX, "DPX", 0, "DPX (.dpx)", "Output image in DPX format"},
 #else
 #  define R_IMF_ENUM_CINEON
 #  define R_IMF_ENUM_DPX
@@ -334,33 +328,25 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 #  define R_IMF_ENUM_EXR_MULTILAYER \
     {R_IMF_IMTYPE_MULTILAYER, \
      "OPEN_EXR_MULTILAYER", \
-     ICON_FILE_IMAGE, \
-     "OpenEXR MultiLayer", \
+     0, \
+     "OpenEXR MultiLayer (.exr)", \
      "Output image in multilayer OpenEXR format"},
 #  define R_IMF_ENUM_EXR \
-    {R_IMF_IMTYPE_OPENEXR, \
-     "OPEN_EXR", \
-     ICON_FILE_IMAGE, \
-     "OpenEXR", \
-     "Output image in OpenEXR format"},
+    {R_IMF_IMTYPE_OPENEXR, "OPEN_EXR", 0, "OpenEXR (.exr)", "Output image in OpenEXR format"},
 #else
 #  define R_IMF_ENUM_EXR_MULTILAYER
 #  define R_IMF_ENUM_EXR
 #endif
 
 #define R_IMF_ENUM_HDR \
-  {R_IMF_IMTYPE_RADHDR, \
-   "HDR", \
-   ICON_FILE_IMAGE, \
-   "Radiance HDR", \
-   "Output image in Radiance HDR format"},
+  {R_IMF_IMTYPE_RADHDR, "HDR", 0, "Radiance HDR (.hdr)", "Output image in Radiance HDR format"},
 
 #define R_IMF_ENUM_TIFF \
-  {R_IMF_IMTYPE_TIFF, "TIFF", ICON_FILE_IMAGE, "TIFF", "Output image in TIFF format"},
+  {R_IMF_IMTYPE_TIFF, "TIFF", 0, "TIFF (.tif)", "Output image in TIFF format"},
 
 #ifdef WITH_IMAGE_WEBP
 #  define R_IMF_ENUM_WEBP \
-    {R_IMF_IMTYPE_WEBP, "WEBP", ICON_FILE_IMAGE, "WebP", "Output image in WebP format"},
+    {R_IMF_IMTYPE_WEBP, "WEBP", 0, "WebP (.webp)", "Output image in WebP format"},
 #else
 #  define R_IMF_ENUM_WEBP
 #endif
@@ -372,16 +358,14 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 #endif
 
 #define IMAGE_TYPE_ITEMS_IMAGE \
-  R_IMF_ENUM_BMP \
   /* DDS save not supported yet R_IMF_ENUM_DDS */ \
-  R_IMF_ENUM_IRIS \
-  R_IMF_ENUM_PNG \
   R_IMF_ENUM_JPEG \
-  R_IMF_ENUM_JPEG2K \
-  R_IMF_ENUM_TAGA \
-  R_IMF_ENUM_TAGA_RAW \
-  RNA_ENUM_ITEM_SEPR_COLUMN, R_IMF_ENUM_CINEON R_IMF_ENUM_DPX R_IMF_ENUM_EXR R_IMF_ENUM_HDR \
-                                 R_IMF_ENUM_TIFF R_IMF_ENUM_WEBP
+  R_IMF_ENUM_EXR \
+  R_IMF_ENUM_PNG \
+  R_IMF_ENUM_WEBP \
+  RNA_ENUM_ITEM_SEPR, \
+      R_IMF_ENUM_BMP R_IMF_ENUM_CINEON R_IMF_ENUM_DPX R_IMF_ENUM_IRIS R_IMF_ENUM_JPEG2K \
+          R_IMF_ENUM_HDR R_IMF_ENUM_TAGA R_IMF_ENUM_TAGA_RAW R_IMF_ENUM_TIFF
 
 #define IMAGE_TYPE_ITEMS_MULTI_LAYER_IMAGE R_IMF_ENUM_EXR_MULTILAYER
 
@@ -733,6 +717,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "BLI_index_range.hh"
 #  include "BLI_string_utils.hh"
 
 #  include "DNA_anim_types.h"
@@ -780,6 +765,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "BKE_unit.hh"
 
 #  include "NOD_composite.hh"
+#  include "NOD_compositor_file_output.hh"
 
 #  include "ED_grease_pencil.hh"
 #  include "ED_image.hh"
@@ -813,6 +799,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "ANIM_keyingsets.hh"
 
 using blender::Vector;
+using blender::nodes::FileOutputItemsAccessor;
 
 static int rna_ToolSettings_snap_mode_get(PointerRNA *ptr)
 {
@@ -1258,7 +1245,11 @@ static void rna_Scene_compositing_node_group_set(PointerRNA *ptr,
         reports, RPT_ERROR, "Node tree '%s' is not a compositing node group.", ntree->id.name + 2);
     return;
   }
+  if (scene->compositing_node_group) {
+    id_us_min(&scene->compositing_node_group->id);
+  }
   scene->compositing_node_group = ntree;
+  id_us_plus(&scene->compositing_node_group->id);
 }
 
 static std::optional<std::string> rna_SceneEEVEE_path(const PointerRNA * /*ptr*/)
@@ -1331,24 +1322,26 @@ static std::optional<std::string> rna_ImageFormatSettings_path(
 
       for (bNode *node : ntree->all_nodes()) {
         if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
-          if (match(&((NodeImageMultiFile *)node->storage)->format)) {
+          NodeCompositorFileOutput &storage = *static_cast<NodeCompositorFileOutput *>(
+              node->storage);
+          if (match(&storage.format)) {
             char node_name_esc[sizeof(node->name) * 2];
             BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
             return fmt::format("nodes[\"{}\"].format", node_name_esc);
           }
           else {
-            LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
-              NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
-                  socket->storage);
-              if (match(&sockdata->format)) {
+            for (const int i : blender::IndexRange(storage.items_count)) {
+              NodeCompositorFileOutputItem &item = storage.items[i];
+              if (match(&item.format)) {
                 char node_name_esc[sizeof(node->name) * 2];
                 BLI_str_escape(node_name_esc, node->name, sizeof(node_name_esc));
 
-                char socketdata_path_esc[sizeof(sockdata->path) * 2];
-                BLI_str_escape(socketdata_path_esc, sockdata->path, sizeof(socketdata_path_esc));
-
-                return fmt::format(
-                    "nodes[\"{}\"].file_slots[\"{}\"].format", node_name_esc, socketdata_path_esc);
+                const std::string identifier = FileOutputItemsAccessor::socket_identifier_for_item(
+                    item);
+                const std::string escaped_identifier = BLI_str_escape(identifier.c_str());
+                return fmt::format("nodes[\"{}\"].file_output_items[\"{}\"].format",
+                                   node_name_esc,
+                                   escaped_identifier.c_str());
               }
             }
           }
@@ -2068,29 +2061,6 @@ static std::optional<std::string> rna_SceneRenderView_path(const PointerRNA *ptr
   char srv_name_esc[sizeof(srv->name) * 2];
   BLI_str_escape(srv_name_esc, srv->name, sizeof(srv_name_esc));
   return fmt::format("render.views[\"{}\"]", srv_name_esc);
-}
-
-static bool rna_Scene_use_nodes_get(PointerRNA *ptr)
-{
-  Scene *scene = reinterpret_cast<Scene *>(ptr->data);
-  return scene->r.scemode & R_DOCOMP;
-}
-
-static void rna_Scene_use_nodes_set(PointerRNA *ptr, const bool use_nodes)
-{
-  Scene *scene = reinterpret_cast<Scene *>(ptr->data);
-  SET_FLAG_FROM_TEST(scene->r.scemode, use_nodes, R_DOCOMP);
-}
-
-/* Todo(#140111): Remove in 6.0. In Python API, this function is used to create a compositing node
- * tree if none exists. scene.use_nodes will be replaced by the existing scene.use_compositing. */
-static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
-{
-  Scene *scene = (Scene *)ptr->data;
-  if (scene->r.scemode & R_DOCOMP && scene->compositing_node_group == nullptr) {
-    ED_node_composit_default(C, scene);
-  }
-  DEG_relations_tag_update(CTX_data_main(C));
 }
 
 static void rna_Physics_relations_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
@@ -3189,7 +3159,7 @@ static void rna_def_view3d_cursor(BlenderRNA *brna)
       prop,
       "Rotation Mode",
       /* This description is shared by other "rotation_mode" properties. */
-      "The kind of rotation to apply, values from other rotation modes aren't used");
+      "The kind of rotation to apply, values from other rotation modes are not used");
   RNA_def_property_update(prop, NC_WINDOW, nullptr);
 
   /* Matrix access to avoid having to check current rotation mode. */
@@ -3690,32 +3660,29 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "snap_elements", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_mode");
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
   RNA_def_property_enum_funcs(
       prop, "rna_ToolSettings_snap_mode_get", "rna_ToolSettings_snap_mode_set", nullptr);
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Snap Element", "Type of element to snap to");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_elements_base", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_mode");
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_base_items);
   RNA_def_property_enum_funcs(
       prop, "rna_ToolSettings_snap_mode_get", "rna_ToolSettings_snap_mode_set", nullptr);
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_ui_text(
       prop, "Snap Element", "Type of element for the \"Snap Base\" to snap to");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_elements_individual", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_mode");
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_individual_items);
   RNA_def_property_enum_funcs(
       prop, "rna_ToolSettings_snap_mode_get", "rna_ToolSettings_snap_mode_set", nullptr);
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_ui_text(
       prop, "Project Mode", "Type of element for individual transformed elements to snap to");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
@@ -3775,6 +3742,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_snap_playhead", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag_playhead", SCE_SNAP);
+  RNA_def_property_ui_icon(prop, ICON_PLAYHEAD_SNAP_OFF, 1);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(prop, "Use Snapping", "Snap playhead when scrubbing");
   RNA_def_property_boolean_default(prop, false);
@@ -4300,18 +4268,6 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem scale_fit_methods[] = {
-      {SEQ_SCALE_TO_FIT, "FIT", 0, "Scale to Fit", "Scale image to fit within the canvas"},
-      {SEQ_SCALE_TO_FILL, "FILL", 0, "Scale to Fill", "Scale image to completely fill the canvas"},
-      {SEQ_STRETCH_TO_FILL, "STRETCH", 0, "Stretch to Fill", "Stretch image to fill the canvas"},
-      {SEQ_USE_ORIGINAL_SIZE,
-       "ORIGINAL",
-       0,
-       "Use Original Size",
-       "Keep image at its original size"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem scale_overlap_modes[] = {
       {SEQ_OVERLAP_EXPAND, "EXPAND", 0, "Expand", "Move strips so transformed strips fit"},
       {SEQ_OVERLAP_OVERWRITE,
@@ -4346,7 +4302,7 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
 
   /* Add strip settings. */
   prop = RNA_def_property(srna, "fit_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, scale_fit_methods);
+  RNA_def_property_enum_items(prop, rna_enum_strip_scale_method_items);
   RNA_def_property_ui_text(prop, "Fit Method", "Scale fit method");
 
   /* Transform snapping. */
@@ -6053,8 +6009,8 @@ static void rna_def_bake_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "pass_filter", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "pass_filter");
-  RNA_def_property_enum_items(prop, rna_enum_bake_pass_filter_type_items);
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+  RNA_def_property_enum_items(prop, rna_enum_bake_pass_filter_type_items);
   RNA_def_property_ui_text(prop, "Pass Filter", "Passes to include in the active baking pass");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
@@ -7350,18 +7306,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       prop, "Samples", "Number of samples used for ambient occlusion baking from multires");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "use_bake_user_scale", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "bake_flag", R_BAKE_USERSCALE);
-  RNA_def_property_ui_text(prop, "User Scale", "Use a user scale for the derivative map");
-
-  prop = RNA_def_property(srna, "bake_user_scale", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "bake_user_scale");
-  RNA_def_property_range(prop, 0.0, 1000.0);
-  RNA_def_property_ui_text(prop,
-                           "Scale",
-                           "Instead of automatically normalizing to the range 0 to 1, "
-                           "apply a user scale to the derivative map");
-
   /* stamp */
 
   prop = RNA_def_property(srna, "use_stamp_time", PROP_BOOLEAN, PROP_NONE);
@@ -7809,8 +7753,9 @@ static void rna_def_scene_keying_sets(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_ui_description(func, "Add a new Keying Set to Scene");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   /* name */
-  RNA_def_string(func, "idname", "KeyingSet", 64, "IDName", "Internal identifier of Keying Set");
-  RNA_def_string(func, "name", "KeyingSet", 64, "Name", "User visible name of Keying Set");
+  RNA_def_string(
+      func, "idname", "KeyingSet", MAX_NAME, "IDName", "Internal identifier of Keying Set");
+  RNA_def_string(func, "name", "KeyingSet", MAX_NAME, "Name", "User visible name of Keying Set");
   /* returns the new KeyingSet */
   parm = RNA_def_pointer(func, "keyingset", "KeyingSet", "", "Newly created Keying Set");
   RNA_def_function_return(func, parm);
@@ -8916,14 +8861,6 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE, nullptr);
 
   /* Nodes (Compositing) */
-  prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "compositing_node_group");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_PTR_NO_OWNERSHIP);
-  RNA_def_property_struct_type(prop, "NodeTree");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
-  RNA_def_property_ui_text(
-      prop, "Node Tree", "Compositor Nodes. (Deprecated: Use compositing_node_group)");
-
   prop = RNA_def_property(srna, "compositing_node_group", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "compositing_node_group");
   RNA_def_property_struct_type(prop, "NodeTree");
@@ -8936,14 +8873,6 @@ void RNA_def_scene(BlenderRNA *brna)
                                  "rna_Scene_compositing_node_group_set",
                                  nullptr,
                                  "rna_Scene_compositing_node_group_poll");
-
-  prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_ui_text(
-      prop, "Use Nodes", "Enable the compositing node group. (Deprecated: use use_compositing)");
-  RNA_def_property_boolean_funcs(prop, "rna_Scene_use_nodes_get", "rna_Scene_use_nodes_set");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_use_nodes_update");
 
   /* Sequencer */
   prop = RNA_def_property(srna, "sequence_editor", PROP_POINTER, PROP_NONE);

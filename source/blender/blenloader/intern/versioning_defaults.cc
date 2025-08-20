@@ -61,6 +61,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
@@ -806,6 +807,16 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           }
         }
       }
+    }
+  }
+
+  /* Grease Pencil Anti-Aliasing. */
+  {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->grease_pencil_settings.smaa_threshold = 1.0f;
+      scene->grease_pencil_settings.smaa_threshold_render = 0.25f;
+      scene->grease_pencil_settings.aa_samples = 8;
+      scene->grease_pencil_settings.motion_blur_steps = 8;
     }
   }
 }
