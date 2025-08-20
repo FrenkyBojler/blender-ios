@@ -1003,7 +1003,7 @@ static void fcm_smooth_new_data(void *mdata)
 {
   FMod_Smooth *data = (FMod_Smooth *)mdata;
 
-  data->sigma = 1.0f;
+  data->sigma = 0.33f;
   data->filter_width = 6;
 }
 
@@ -1039,7 +1039,10 @@ static void fcm_smooth_frame(const FCurve *fcu,
     const float sample_time = (float)i;
     const float sample_distance = sample_time - evaltime;
 
-    const float weight = expf(-(sample_distance * sample_distance) / two_sigma_sq);
+    /* Normalize sigma to kernel window.
+     * This makes it consistent with the behavior in the destructive operator. */
+    const float sample_dis_norm = sample_distance / kernel_size;
+    const float weight = expf(-(sample_dis_norm * sample_dis_norm) / two_sigma_sq);
 
     const float value_at_time = evaluate_fcurve_unmodified(fcu, sample_time);
 
