@@ -26,6 +26,10 @@ namespace blender::nodes::node_composite_transform_cc {
 
 static void cmp_node_transform_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
       .compositor_realization_mode(CompositorInputRealizationMode::None)
@@ -35,20 +39,20 @@ static void cmp_node_transform_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Angle").default_value(0.0f).min(-10000.0f).max(10000.0f).subtype(
       PROP_ANGLE);
   b.add_input<decl::Float>("Scale").default_value(1.0f).min(0.0001f).max(CMP_SCALE_MAX);
-  b.add_input<decl::Menu>("Interpolation")
-      .default_value(CMP_NODE_INTERPOLATION_NEAREST)
+
+  PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling").default_closed(true);
+  sampling_panel.add_input<decl::Menu>("Interpolation")
+      .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
       .description("Interpolation method");
-  b.add_input<decl::Menu>("Extension X")
+  sampling_panel.add_input<decl::Menu>("Extension X")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
       .description("The extension mode applied to the X axis");
-  b.add_input<decl::Menu>("Extension Y")
+  sampling_panel.add_input<decl::Menu>("Extension Y")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
       .description("The extension mode applied to the Y axis");
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void cmp_node_init_transform(bNodeTree * /*ntree*/, bNode *node)
@@ -84,9 +88,10 @@ class TransformOperation : public NodeOperation {
 
   Interpolation get_interpolation()
   {
-    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(
-        this->get_input("Interpolation")
-            .get_single_value_default(int(CMP_NODE_INTERPOLATION_NEAREST)));
+    const Result &input = this->get_input("Interpolation");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_INTERPOLATION_BILINEAR);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(menu_value.value);
     switch (interpolation) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
@@ -103,9 +108,10 @@ class TransformOperation : public NodeOperation {
 
   ExtensionMode get_extension_mode_x()
   {
-    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(
-        this->get_input("Extension X")
-            .get_single_value_default(int(CMP_NODE_EXTENSION_MODE_CLIP)));
+    const Result &input = this->get_input("Extension X");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
     switch (extension_x) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return ExtensionMode::Clip;
@@ -121,9 +127,10 @@ class TransformOperation : public NodeOperation {
 
   ExtensionMode get_extension_mode_y()
   {
-    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(
-        this->get_input("Extension Y")
-            .get_single_value_default(int(CMP_NODE_EXTENSION_MODE_CLIP)));
+    const Result &input = this->get_input("Extension Y");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
     switch (extension_y) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return ExtensionMode::Clip;

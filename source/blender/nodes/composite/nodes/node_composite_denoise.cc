@@ -372,15 +372,18 @@ class DenoiseOperation : public NodeOperation {
 
   CMPNodeDenoisePrefilter get_prefilter_mode()
   {
-    return static_cast<CMPNodeDenoisePrefilter>(
-        this->get_input("Prefilter")
-            .get_single_value_default(int(CMP_NODE_DENOISE_PREFILTER_ACCURATE)));
+    const Result &input = this->get_input("Prefilter");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_DENOISE_PREFILTER_ACCURATE);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeDenoisePrefilter>(menu_value.value);
   }
 
   CMPNodeDenoiseQuality get_quality_mode()
   {
-    return static_cast<CMPNodeDenoiseQuality>(
-        this->get_input("Quality").get_single_value_default(int(CMP_NODE_DENOISE_QUALITY_SCENE)));
+    const Result &input = this->get_input("Quality");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_DENOISE_QUALITY_SCENE);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeDenoiseQuality>(menu_value.value);
   }
 };
 

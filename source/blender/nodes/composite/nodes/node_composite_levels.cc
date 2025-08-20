@@ -181,8 +181,10 @@ class LevelsOperation : public NodeOperation {
 
   CMPNodeLevelsChannel get_channel()
   {
-    return static_cast<CMPNodeLevelsChannel>(
-        this->get_input("Channel").get_single_value_default(int(CMP_NODE_LEVLES_LUMINANCE)));
+    const Result &input = this->get_input("Channel");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_LEVLES_LUMINANCE);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeLevelsChannel>(menu_value.value);
   }
 };
 

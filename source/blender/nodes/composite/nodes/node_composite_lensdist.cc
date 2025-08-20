@@ -483,8 +483,10 @@ class LensDistortionOperation : public NodeOperation {
 
   CMPNodeLensDistortionType get_type()
   {
-    return CMPNodeLensDistortionType(
-        this->get_input("Type").get_single_value_default(int(CMP_NODE_LENS_DISTORTION_RADIAL)));
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_LENS_DISTORTION_RADIAL);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return CMPNodeLensDistortionType(menu_value.value);
   }
 
   bool get_use_jitter()

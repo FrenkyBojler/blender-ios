@@ -84,7 +84,7 @@ class DilateErodeOperation : public NodeOperation {
       return;
     }
 
-    switch (get_method()) {
+    switch (this->get_type()) {
       case CMP_NODE_DILATE_ERODE_STEP:
         execute_step();
         return;
@@ -493,11 +493,7 @@ class DilateErodeOperation : public NodeOperation {
   void execute_distance_feather()
   {
     morphological_distance_feather(
-        context(),
-        get_input("Mask"),
-        get_result("Mask"),
-        this->get_size(),
-        this->get_input("Type").get_single_value_default(int(PROP_SMOOTH)));
+        context(), get_input("Mask"), get_result("Mask"), this->get_size(), this->get_falloff());
   }
 
   /* ---------------
@@ -511,7 +507,7 @@ class DilateErodeOperation : public NodeOperation {
       return true;
     }
 
-    if (get_method() == CMP_NODE_DILATE_ERODE_DISTANCE_THRESHOLD &&
+    if (this->get_type() == CMP_NODE_DILATE_ERODE_DISTANCE_THRESHOLD &&
         this->get_falloff_size() != 0.0f)
     {
       return false;
@@ -549,10 +545,20 @@ class DilateErodeOperation : public NodeOperation {
     return math::max(0.0f, this->get_input("Falloff Size").get_single_value_default(0.0f));
   }
 
-  CMPNodeDilateErodeMethod get_method()
+  CMPNodeDilateErodeMethod get_type()
   {
-    return static_cast<CMPNodeDilateErodeMethod>(
-        this->get_input("Type").get_single_value_default(int(CMP_NODE_DILATE_ERODE_STEP)));
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_DILATE_ERODE_STEP);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeDilateErodeMethod>(menu_value.value);
+  }
+
+  int get_falloff()
+  {
+    const Result &input = this->get_input("Falloff");
+    const MenuValue default_menu_value = MenuValue(PROP_SMOOTH);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return menu_value.value;
   }
 };
 

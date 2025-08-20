@@ -813,8 +813,10 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
   CMPNodeKuwahara get_type()
   {
-    return static_cast<CMPNodeKuwahara>(
-        this->get_input("Type").get_single_value_default(int(CMP_NODE_KUWAHARA_ANISOTROPIC)));
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_KUWAHARA_ANISOTROPIC);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeKuwahara>(menu_value.value);
   }
 };
 

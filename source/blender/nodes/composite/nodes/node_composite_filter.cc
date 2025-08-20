@@ -19,7 +19,7 @@
 
 namespace blender::nodes::node_composite_filter_cc {
 
-static const EnumPropertyItem filter_type_items[] = {
+static const EnumPropertyItem type_items[] = {
     {CMP_NODE_FILTER_SOFT, "SOFTEN", 0, "Soften", ""},
     {CMP_NODE_FILTER_SHARP_BOX, "SHARPEN", 0, "Box Sharpen", "An aggressive sharpening filter"},
     {CMP_NODE_FILTER_SHARP_DIAMOND,
@@ -48,9 +48,7 @@ static void cmp_node_filter_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0)
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Menu>("Filter Type")
-      .default_value(CMP_NODE_FILTER_SOFT)
-      .static_items(filter_type_items);
+  b.add_input<decl::Menu>("Type").default_value(CMP_NODE_FILTER_SOFT).static_items(type_items);
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
@@ -204,7 +202,7 @@ class FilterOperation : public NodeOperation {
 
   bool is_edge_filter()
   {
-    switch (this->get_filter_method()) {
+    switch (this->get_type()) {
       case CMP_NODE_FILTER_LAPLACE:
       case CMP_NODE_FILTER_SOBEL:
       case CMP_NODE_FILTER_PREWITT:
@@ -224,7 +222,7 @@ class FilterOperation : public NodeOperation {
     /* Initialize the kernels as arrays of rows with the top row first. Edge detection kernels
      * return the kernel in the X direction, while the kernel in the Y direction will be computed
      * inside the shader by transposing the kernel in the X direction. */
-    switch (get_filter_method()) {
+    switch (this->get_type()) {
       case CMP_NODE_FILTER_SOFT: {
         const float kernel[3][3] = {{1.0f / 16.0f, 2.0f / 16.0f, 1.0f / 16.0f},
                                     {2.0f / 16.0f, 4.0f / 16.0f, 2.0f / 16.0f},
@@ -271,10 +269,12 @@ class FilterOperation : public NodeOperation {
     }
   }
 
-  CMPNodeFilterMethod get_filter_method()
+  CMPNodeFilterMethod get_type()
   {
-    return static_cast<CMPNodeFilterMethod>(
-        this->get_input("Filter Type").get_single_value_default(int(CMP_NODE_FILTER_SOFT)));
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_FILTER_SOFT);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeFilterMethod>(menu_value.value);
   }
 };
 

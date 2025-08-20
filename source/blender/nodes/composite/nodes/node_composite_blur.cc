@@ -29,7 +29,7 @@
 
 namespace blender::nodes::node_composite_blur_cc {
 
-static const EnumPropertyItem filter_type_items[] = {
+static const EnumPropertyItem type_items[] = {
     {R_FILTER_BOX, "FLAT", 0, "Flat", ""},
     {R_FILTER_TENT, "TENT", 0, "Tent", ""},
     {R_FILTER_QUAD, "QUAD", 0, "Quadratic", ""},
@@ -51,9 +51,7 @@ static void cmp_node_blur_declare(NodeDeclarationBuilder &b)
       .default_value({0.0f, 0.0f})
       .min(0.0f)
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Menu>("Filter Type")
-      .default_value(R_FILTER_GAUSS)
-      .static_items(filter_type_items);
+  b.add_input<decl::Menu>("Filter Type").default_value(R_FILTER_GAUSS).static_items(type_items);
   b.add_input<decl::Bool>("Extend Bounds").default_value(false);
   b.add_input<decl::Bool>("Separable")
       .default_value(true)
@@ -126,12 +124,12 @@ class BlurOperation : public NodeOperation {
     if (!size.is_single_value()) {
       this->execute_variable_size(input, size, output);
     }
-    else if (this->get_filter_type() == R_FILTER_FAST_GAUSS) {
+    else if (this->get_type() == R_FILTER_FAST_GAUSS) {
       recursive_gaussian_blur(this->context(), input, output, this->get_blur_size());
     }
     else if (use_separable_filter()) {
       symmetric_separable_blur(
-          this->context(), input, output, this->get_blur_size(), this->get_filter_type());
+          this->context(), input, output, this->get_blur_size(), this->get_type());
     }
     else {
       this->execute_constant_size(input, output);
@@ -158,7 +156,7 @@ class BlurOperation : public NodeOperation {
     const float2 blur_radius = this->get_blur_size();
 
     const Result &weights = context().cache_manager().symmetric_blur_weights.get(
-        context(), this->get_filter_type(), blur_radius);
+        context(), this->get_type(), blur_radius);
     weights.bind_as_texture(shader, "weights_tx");
 
     const Domain domain = input.domain();
@@ -177,7 +175,7 @@ class BlurOperation : public NodeOperation {
   {
     const float2 blur_radius = this->get_blur_size();
     const Result &weights = this->context().cache_manager().symmetric_blur_weights.get(
-        this->context(), this->get_filter_type(), blur_radius);
+        this->context(), this->get_type(), blur_radius);
 
     const Domain domain = input.domain();
     output.allocate_texture(domain);
@@ -243,7 +241,7 @@ class BlurOperation : public NodeOperation {
   {
     const float2 blur_radius = this->compute_maximum_blur_size();
     const Result &weights = context().cache_manager().symmetric_blur_weights.get(
-        context(), this->get_filter_type(), blur_radius);
+        context(), this->get_type(), blur_radius);
 
     gpu::Shader *shader = context().get_shader("compositor_symmetric_blur_variable_size");
     GPU_shader_bind(shader);
@@ -269,7 +267,7 @@ class BlurOperation : public NodeOperation {
   {
     const float2 blur_radius = this->compute_maximum_blur_size();
     const Result &weights = this->context().cache_manager().symmetric_blur_weights.get(
-        this->context(), this->get_filter_type(), blur_radius);
+        this->context(), this->get_type(), blur_radius);
 
     const Domain domain = input.domain();
     output.allocate_texture(domain);
@@ -371,7 +369,7 @@ class BlurOperation : public NodeOperation {
     }
 
     /* Only Gaussian filters are separable. The rest is not. */
-    switch (this->get_filter_type()) {
+    switch (this->get_type()) {
       case R_FILTER_GAUSS:
       case R_FILTER_FAST_GAUSS:
         return true;
@@ -396,9 +394,12 @@ class BlurOperation : public NodeOperation {
     return this->get_input("Extend Bounds").get_single_value_default(false);
   }
 
-  int get_filter_type()
+  int get_type()
   {
-    return this->get_input("Filter Type").get_single_value_default(int(R_FILTER_GAUSS));
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(R_FILTER_GAUSS);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return menu_value.value;
   }
 };
 
