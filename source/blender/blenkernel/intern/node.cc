@@ -4771,7 +4771,7 @@ StringRefNull node_socket_label(const bNodeSocket &sock)
 NodeColorTag node_color_tag(const bNode &node)
 {
   const int nclass = node.typeinfo->ui_class == nullptr ? node.typeinfo->nclass :
-                                                           node.typeinfo->ui_class(&node);
+                                                          node.typeinfo->ui_class(&node);
   switch (nclass) {
     case NODE_CLASS_INPUT:
       return NodeColorTag::Input;
