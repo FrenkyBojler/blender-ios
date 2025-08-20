@@ -21,10 +21,12 @@
 #include "BLI_assert.h"
 #include "BLI_fftw.hh"
 #include "BLI_index_range.hh"
+#include "BLI_math_angle_types.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_noise.hh"
 #include "BLI_task.hh"
 
 #include "DNA_scene_types.h"
@@ -170,6 +172,14 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
+  glare_panel.add_input<decl::Float>("Jitter")
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(1.0)
+      .subtype(PROP_FACTOR)
+      .description(
+          "The amount of jitter to introduce while computing rays, higher jitter can be faster "
+          "but can produce grainy or noisy results");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -221,6 +231,10 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Sun Position");
   blender::bke::node_set_socket_availability(
       *ntree, *source_input, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
+
+  bNodeSocket *jitter_steps = bke::node_find_socket(*node, SOCK_IN, "Jitter");
+  blender::bke::node_set_socket_availability(
+      *ntree, *jitter_steps, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 }
 
 class SocketSearchOp {
@@ -314,7 +328,7 @@ class GlareOperation : public NodeOperation {
 
   Result execute_highlights_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_glare_highlights");
+    gpu::Shader *shader = context().get_shader("compositor_glare_highlights");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "threshold", this->get_threshold());
@@ -541,7 +555,7 @@ class GlareOperation : public NodeOperation {
 
   void write_highlights_output_gpu(const Result &highlights)
   {
-    GPUShader *shader = this->context().get_shader("compositor_glare_write_highlights_output");
+    gpu::Shader *shader = this->context().get_shader("compositor_glare_write_highlights_output");
     GPU_shader_bind(shader);
 
     GPU_texture_filter_mode(highlights, true);
@@ -651,7 +665,7 @@ class GlareOperation : public NodeOperation {
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     GPU_texture_copy(vertical_pass_result, highlights);
 
-    GPUShader *shader = context().get_shader("compositor_glare_simple_star_vertical_pass");
+    gpu::Shader *shader = context().get_shader("compositor_glare_simple_star_vertical_pass");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "iterations", get_number_of_iterations());
@@ -761,7 +775,7 @@ class GlareOperation : public NodeOperation {
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     GPU_texture_copy(horizontal_pass_result, highlights);
 
-    GPUShader *shader = context().get_shader("compositor_glare_simple_star_horizontal_pass");
+    gpu::Shader *shader = context().get_shader("compositor_glare_simple_star_horizontal_pass");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "iterations", get_number_of_iterations());
@@ -867,7 +881,7 @@ class GlareOperation : public NodeOperation {
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     GPU_texture_copy(anti_diagonal_pass_result, highlights);
 
-    GPUShader *shader = context().get_shader("compositor_glare_simple_star_anti_diagonal_pass");
+    gpu::Shader *shader = context().get_shader("compositor_glare_simple_star_anti_diagonal_pass");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "iterations", get_number_of_iterations());
@@ -979,7 +993,7 @@ class GlareOperation : public NodeOperation {
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     GPU_texture_copy(diagonal_pass_result, highlights);
 
-    GPUShader *shader = context().get_shader("compositor_glare_simple_star_diagonal_pass");
+    gpu::Shader *shader = context().get_shader("compositor_glare_simple_star_diagonal_pass");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "iterations", get_number_of_iterations());
@@ -1110,7 +1124,7 @@ class GlareOperation : public NodeOperation {
 
   Result apply_streak_filter_gpu(const Result &highlights, const float2 &streak_direction)
   {
-    GPUShader *shader = context().get_shader("compositor_glare_streaks_filter");
+    gpu::Shader *shader = context().get_shader("compositor_glare_streaks_filter");
     GPU_shader_bind(shader);
 
     /* Copy the highlights result into a new result because the output will be copied to the input
@@ -1248,7 +1262,7 @@ class GlareOperation : public NodeOperation {
 
   void accumulate_streak_gpu(const Result &streak_result, Result &accumulated_streaks_result)
   {
-    GPUShader *shader = this->context().get_shader("compositor_glare_streaks_accumulate");
+    gpu::Shader *shader = this->context().get_shader("compositor_glare_streaks_accumulate");
     GPU_shader_bind(shader);
 
     const float attenuation_factor = this->compute_streak_attenuation_factor();
@@ -1373,7 +1387,7 @@ class GlareOperation : public NodeOperation {
 
   void accumulate_ghosts_gpu(const Result &base_ghost_result, Result &accumulated_ghosts_result)
   {
-    GPUShader *shader = context().get_shader("compositor_glare_ghost_accumulate");
+    gpu::Shader *shader = context().get_shader("compositor_glare_ghost_accumulate");
     GPU_shader_bind(shader);
 
     /* Color modulators are constant across iterations. */
@@ -1533,7 +1547,7 @@ class GlareOperation : public NodeOperation {
                               const Result &big_ghost_result,
                               Result &base_ghost_result)
   {
-    GPUShader *shader = context().get_shader("compositor_glare_ghost_base");
+    gpu::Shader *shader = context().get_shader("compositor_glare_ghost_base");
     GPU_shader_bind(shader);
 
     GPU_texture_filter_mode(small_ghost_result, true);
@@ -1750,7 +1764,7 @@ class GlareOperation : public NodeOperation {
 
   void compute_bloom_upsample_gpu(const Result &input, Result &output)
   {
-    GPUShader *shader = context().get_shader("compositor_glare_bloom_upsample");
+    gpu::Shader *shader = context().get_shader("compositor_glare_bloom_upsample");
     GPU_shader_bind(shader);
 
     GPU_texture_filter_mode(input, true);
@@ -1868,7 +1882,7 @@ class GlareOperation : public NodeOperation {
                                     Result &output,
                                     const bool use_karis_average)
   {
-    GPUShader *shader = context().get_shader(
+    gpu::Shader *shader = context().get_shader(
         use_karis_average ? "compositor_glare_bloom_downsample_karis_average" :
                             "compositor_glare_bloom_downsample_simple_average");
     GPU_shader_bind(shader);
@@ -2031,14 +2045,14 @@ class GlareOperation : public NodeOperation {
   {
 #if defined(WITH_FFTW3)
 
-    const int kernel_size = compute_fog_glow_kernel_size(highlights);
+    const int kernel_size = int(math::reduce_max(highlights.domain().size));
 
-    /* Since we will be doing a circular convolution, we need to zero pad our input image by half
+    /* Since we will be doing a circular convolution, we need to zero pad our input image by
      * the kernel size to avoid the kernel affecting the pixels at the other side of image.
      * Therefore, zero boundary is assumed. */
-    const int needed_padding_amount = kernel_size / 2;
+    const int needed_padding_amount = kernel_size;
     const int2 image_size = highlights.domain().size;
-    const int2 needed_spatial_size = image_size + needed_padding_amount;
+    const int2 needed_spatial_size = image_size + needed_padding_amount - 1;
     const int2 spatial_size = fftw::optimal_size_for_real_transform(needed_spatial_size);
 
     /* The FFTW real to complex transforms utilizes the hermitian symmetry of real transforms and
@@ -2108,7 +2122,7 @@ class GlareOperation : public NodeOperation {
     });
 
     const FogGlowKernel &fog_glow_kernel = context().cache_manager().fog_glow_kernels.get(
-        kernel_size, spatial_size);
+        kernel_size, spatial_size, this->compute_fog_glow_field_of_view());
 
     /* Multiply the kernel and the image in the frequency domain to perform the convolution. The
      * FFT is not normalized, meaning the result of the FFT followed by an inverse FFT will result
@@ -2197,23 +2211,21 @@ class GlareOperation : public NodeOperation {
     return fog_glow_result;
   }
 
-  /* Computes the size of the fog glow kernel that will be convolved with the image, which is
-   * essentially the extent of the glare in pixels. */
-  int compute_fog_glow_kernel_size(const Result &highlights)
+  /* Computes the field of view of the glare based on the give size as per:
+   *
+   *   Spencer, Greg, et al. "Physically-Based Glare Effects for Digital Images."
+   *   Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques,
+   *   1995.
+   *
+   * We choose a minimum field of view of 10 degrees using visual judgement on typical setups,
+   * otherwise, a too small field of view would make the evaluation domain of the glare lie almost
+   * entirely in the central Gaussian of the function, losing the exponential characteristic of the
+   * function. Additionally, we take the power of the size with 1/3 to adjust the rate of change of
+   * the size to make the apparent size of the glare more linear with respect to the size input. */
+  math::AngleRadian compute_fog_glow_field_of_view()
   {
-    /* The input size is relative to the larger dimension of the image. */
-    const int size = int(math::reduce_max(highlights.domain().size) * this->get_size());
-
-    /* Make sure size is at least 3 pixels for implicitly since code deals with half kernel sizes
-     * which will be zero if less than 3, causing zero division. */
-    const int safe_size = math::max(3, size);
-
-    /* Make sure the kernel size is odd since an even one will typically introduce a tiny offset as
-     * it has no exact center value. */
-    const bool is_even = safe_size % 2 == 0;
-    const int odd_size = safe_size + (is_even ? 1 : 0);
-
-    return odd_size;
+    return math::AngleRadian::from_degree(
+        math::interpolate(180.0f, 10.0f, math::pow(this->get_size(), 1.0f / 3.0f)));
   }
 
   /* ----------
@@ -2248,10 +2260,11 @@ class GlareOperation : public NodeOperation {
 
   Result execute_sun_beams_gpu(Result &highlights, const int max_steps)
   {
-    GPUShader *shader = context().get_shader("compositor_sun_beams");
+    gpu::Shader *shader = context().get_shader(this->get_compositor_sun_beams_shader());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2fv(shader, "source", this->get_sun_position());
+    GPU_shader_uniform_1f(shader, "jitter_factor", this->get_jitter_factor());
     GPU_shader_uniform_1i(shader, "max_steps", max_steps);
 
     GPU_texture_filter_mode(highlights, true);
@@ -2271,6 +2284,14 @@ class GlareOperation : public NodeOperation {
     return output_image;
   }
 
+  const char *get_compositor_sun_beams_shader()
+  {
+    if (this->get_use_jitter()) {
+      return "compositor_glare_sun_beams_jitter";
+    }
+    return "compositor_glare_sun_beams";
+  }
+
   Result execute_sun_beams_cpu(Result &highlights, const int max_steps)
   {
     const float2 source = this->get_sun_position();
@@ -2279,6 +2300,8 @@ class GlareOperation : public NodeOperation {
     output.allocate_texture(highlights.domain());
 
     const int2 input_size = highlights.domain().size;
+    float jitter_factor = this->get_jitter_factor();
+    bool use_jitter = this->get_use_jitter();
     parallel_for(input_size, [&](const int2 texel) {
       /* The number of steps is the distance in pixels from the source to the current texel. With
        * at least a single step and at most the user specified maximum ray length, which is
@@ -2297,8 +2320,14 @@ class GlareOperation : public NodeOperation {
 
       float accumulated_weight = 0.0f;
       float4 accumulated_color = float4(0.0f);
-      for (int i = 0; i <= steps; i++) {
-        float2 position = coordinates + i * step_vector;
+
+      int number_of_steps = (1.0f - jitter_factor) * steps;
+      float random_offset = noise::hash_to_float(texel.x, texel.y);
+
+      for (int i = 0; i <= number_of_steps; i++) {
+        float position_index = this->get_sample_position(
+            i, use_jitter, jitter_factor, random_offset);
+        float2 position = coordinates + position_index * step_vector;
 
         /* We are already past the image boundaries, and any future steps are also past the image
          * boundaries, so break. */
@@ -2310,16 +2339,51 @@ class GlareOperation : public NodeOperation {
 
         /* Attenuate the contributions of pixels that are further away from the source using a
          * quadratic falloff. */
-        float weight = math::square(1.0f - i / float(steps));
+        float weight = math::square(1.0f - position_index / float(steps));
 
         accumulated_weight += weight;
         accumulated_color += sample_color * weight;
       }
 
-      accumulated_color /= accumulated_weight != 0.0f ? accumulated_weight : 1.0f;
+      if (accumulated_weight != 0.0f) {
+        accumulated_color /= accumulated_weight;
+      }
+      else {
+        accumulated_color = highlights.sample_bilinear_zero(coordinates);
+      }
       output.store_pixel(texel, accumulated_color);
     });
     return output;
+  }
+
+  /* Returns an index for a position along the path between the texel and the source.
+   *
+   * When jitter is enabled, the position index is computed using the Global Shift
+   * sampling technique: a hash-based global shift is applied to the indices which is then
+   * factored to cover the range [0, steps].
+   * Without jitter, the integer index `i` is returned
+   * directly.
+   */
+
+  float get_sample_position(const int i,
+                            const bool use_jitter,
+                            float jitter_factor,
+                            const float random_offset)
+  {
+    if (use_jitter) {
+      return math::safe_divide(i + random_offset, 1.0f - jitter_factor);
+    }
+    return i;
+  }
+
+  bool get_use_jitter()
+  {
+    return this->get_jitter_factor() != 0.0f;
+  }
+
+  float get_jitter_factor()
+  {
+    return math::clamp(this->get_input("Jitter").get_single_value_default(0.0f), 0.0f, 1.0f);
   }
 
   /* ----------
@@ -2343,7 +2407,7 @@ class GlareOperation : public NodeOperation {
 
   void execute_mix_gpu(const Result &glare_result)
   {
-    GPUShader *shader = context().get_shader("compositor_glare_mix");
+    gpu::Shader *shader = context().get_shader("compositor_glare_mix");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "saturation", this->get_saturation());
@@ -2415,7 +2479,7 @@ class GlareOperation : public NodeOperation {
 
   void write_glare_output_gpu(const Result &glare)
   {
-    GPUShader *shader = this->context().get_shader("compositor_glare_write_glare_output");
+    gpu::Shader *shader = this->context().get_shader("compositor_glare_write_glare_output");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "saturation", this->get_saturation());

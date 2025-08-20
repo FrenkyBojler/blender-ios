@@ -11,7 +11,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_key_types.h"
 #include "ED_curves.hh"
@@ -240,7 +240,7 @@ static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
     const Span<float3> key_data(static_cast<float3 *>(kb->data), kb->totelem);
     attributes.add<float3>(shape_key_attribute_name(*kb),
                            bke::AttrDomain::Point,
-                           bke::AttributeInitVArray(VArray<float3>::ForSpan(key_data)));
+                           bke::AttributeInitVArray(VArray<float3>::from_span(key_data)));
   }
 }
 
@@ -892,9 +892,12 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
 
   bke::OperatorComputeContext compute_context;
   GeoOperatorLog &eval_log = get_static_eval_log();
-  geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
+
+  geo_log::GeoTreeLog *tree_log = eval_log.log ?
+                                      &eval_log.log->get_tree_log(compute_context.hash()) :
+                                      nullptr;
   nodes::draw_geometry_nodes_operator_redo_ui(
-      *C, *op, const_cast<bNodeTree &>(*node_tree), &tree_log);
+      *C, *op, const_cast<bNodeTree &>(*node_tree), tree_log);
 }
 
 static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
@@ -988,44 +991,44 @@ void GEOMETRY_OT_execute_node_group(wmOperatorType *ot)
                              "cursor_position",
                              3,
                              nullptr,
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX,
                              "3D Cursor Position",
                              "",
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_float_array(ot->srna,
                              "cursor_rotation",
                              4,
                              nullptr,
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX,
                              "3D Cursor Rotation",
                              "",
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_float_array(ot->srna,
                              "viewport_projection_matrix",
                              16,
                              nullptr,
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX,
                              "Viewport Projection Transform",
                              "",
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_float_array(ot->srna,
                              "viewport_view_matrix",
                              16,
                              nullptr,
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX,
                              "Viewport View Transform",
                              "",
-                             FLT_MIN,
+                             -FLT_MAX,
                              FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_boolean(
@@ -1399,7 +1402,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
 MenuType node_group_operator_assets_menu()
 {
   MenuType type{};
-  STRNCPY(type.idname, "GEO_MT_node_operator_catalog_assets");
+  STRNCPY_UTF8(type.idname, "GEO_MT_node_operator_catalog_assets");
   type.poll = asset_menu_poll;
   type.draw = catalog_assets_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
@@ -1487,8 +1490,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 MenuType node_group_operator_assets_menu_unassigned()
 {
   MenuType type{};
-  STRNCPY(type.label, "Unassigned Node Tools");
-  STRNCPY(type.idname, "GEO_MT_node_operator_unassigned");
+  STRNCPY_UTF8(type.label, "Unassigned Node Tools");
+  STRNCPY_UTF8(type.idname, "GEO_MT_node_operator_unassigned");
   type.poll = asset_menu_poll;
   type.draw = catalog_assets_draw_unassigned;
   type.listener = asset::list::asset_reading_region_listen_fn;

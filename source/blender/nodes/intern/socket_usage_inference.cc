@@ -5,6 +5,7 @@
 #include <regex>
 
 #include "NOD_geometry_nodes_execute.hh"
+#include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_in_compute_context.hh"
@@ -252,7 +253,6 @@ struct SocketUsageInferencer {
       case SH_NODE_OUTPUT_LINESTYLE:
       case SH_NODE_OUTPUT_MATERIAL:
       case CMP_NODE_OUTPUT_FILE:
-      case CMP_NODE_COMPOSITE:
       case TEX_NODE_OUTPUT: {
         this->usage_task__input__output_node(socket);
         break;
@@ -420,7 +420,7 @@ struct SocketUsageInferencer {
   {
     const NodeInContext node = socket.owner_node();
     this->usage_task__with_dependent_sockets(
-        socket, {&node->output_by_identifier(socket->identifier)}, {}, socket.context);
+        socket, {node->output_by_identifier(socket->identifier)}, {}, socket.context);
   }
 
   void usage_task__input__capture_attribute_node(const SocketInContext &socket)
@@ -438,7 +438,8 @@ struct SocketUsageInferencer {
       return;
     }
     if (!socket_decl->usage_inference_fn) {
-      all_socket_usages_.add_new(socket, true);
+      this->usage_task__with_dependent_sockets(
+          socket, socket->owner_node().output_sockets(), {}, socket.context);
       return;
     }
     InputSocketUsageParams params{
@@ -465,7 +466,7 @@ struct SocketUsageInferencer {
     }
     Vector<const bNodeSocket *, 16> dependent_sockets;
     if (StringRef(socket->identifier).startswith("Input_")) {
-      dependent_sockets.append(&node->output_by_identifier(socket->identifier));
+      dependent_sockets.append(node->output_by_identifier(socket->identifier));
     }
     else {
       /* The geometry and selection inputs are used whenever any of the zone outputs is used. */
@@ -1383,7 +1384,7 @@ Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree)
       continue;
     }
     const SocketInContext socket{nullptr, all_input_sockets[i]};
-    if (inferencer_only_controllers.is_socket_used((socket))) {
+    if (inferencer_only_controllers.is_socket_used(socket)) {
       /* The input should be visible if it's used if only visibility-controlling inputs are
        * considered. */
       continue;
@@ -1527,21 +1528,20 @@ InputSocketUsageParams::InputSocketUsageParams(SocketUsageInferencer &inferencer
 
 InferenceValue InputSocketUsageParams::get_input(const StringRef identifier) const
 {
-  const SocketInContext input_socket{compute_context_,
-                                     &this->node.input_by_identifier(identifier)};
+  const SocketInContext input_socket{compute_context_, this->node.input_by_identifier(identifier)};
   return inferencer_.get_socket_value(input_socket);
 }
 
 bool InputSocketUsageParams::menu_input_may_be(const StringRef identifier,
                                                const int enum_value) const
 {
-  BLI_assert(this->node.input_by_identifier(identifier).type == SOCK_MENU);
+  BLI_assert(this->node.input_by_identifier(identifier)->type == SOCK_MENU);
   const InferenceValue value = this->get_input(identifier);
   if (value.is_unknown()) {
     /* The value is unknown, so it may be the requested enum value. */
     return true;
   }
-  return value.get_known<int>() == enum_value;
+  return value.get_known<MenuValue>().value == enum_value;
 }
 
 }  // namespace blender::nodes::socket_usage_inference

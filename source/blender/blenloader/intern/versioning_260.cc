@@ -56,6 +56,7 @@
 #include "BKE_anim_visualization.h"
 #include "BKE_customdata.hh"
 #include "BKE_image.hh"
+#include "BKE_image_format.hh"
 #include "BKE_main.hh" /* for Main */
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
@@ -248,13 +249,125 @@ static void do_versions_nodetree_socket_use_flags_2_62(bNodeTree *ntree)
   }
 }
 
+/* find unique path */
+static bool unique_path_unique_check(ListBase *lb,
+                                     bNodeSocket *sock,
+                                     const blender::StringRef name)
+{
+  LISTBASE_FOREACH (bNodeSocket *, sock_iter, lb) {
+    if (sock_iter != sock) {
+      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock_iter->storage;
+      if (sockdata->path == name) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static void ntreeCompositOutputFileUniquePath(ListBase *list,
+                                              bNodeSocket *sock,
+                                              const char defname[],
+                                              char delim)
+{
+  /* See if we are given an empty string */
+  if (ELEM(nullptr, sock, defname)) {
+    return;
+  }
+  NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
+  BLI_uniquename_cb(
+      [&](const blender::StringRef check_name) {
+        return unique_path_unique_check(list, sock, check_name);
+      },
+      defname,
+      delim,
+      sockdata->path,
+      sizeof(sockdata->path));
+}
+
+/* find unique EXR layer */
+static bool unique_layer_unique_check(ListBase *lb,
+                                      bNodeSocket *sock,
+                                      const blender::StringRef name)
+{
+  LISTBASE_FOREACH (bNodeSocket *, sock_iter, lb) {
+    if (sock_iter != sock) {
+      NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock_iter->storage;
+      if (sockdata->layer == name) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static void ntreeCompositOutputFileUniqueLayer(ListBase *list,
+                                               bNodeSocket *sock,
+                                               const char defname[],
+                                               char delim)
+{
+  /* See if we are given an empty string */
+  if (ELEM(nullptr, sock, defname)) {
+    return;
+  }
+  NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)sock->storage;
+  BLI_uniquename_cb(
+      [&](const blender::StringRef check_name) {
+        return unique_layer_unique_check(list, sock, check_name);
+      },
+      defname,
+      delim,
+      sockdata->layer,
+      sizeof(sockdata->layer));
+}
+
+static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
+                                                     bNode *node,
+                                                     const char *name,
+                                                     const ImageFormatData *im_format)
+{
+  NodeCompositorFileOutput *nimf = (NodeCompositorFileOutput *)node->storage;
+  bNodeSocket *sock = blender::bke::node_add_static_socket(
+      *ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
+
+  /* create format data for the input socket */
+  NodeImageMultiFileSocket *sockdata = MEM_callocN<NodeImageMultiFileSocket>(__func__);
+  sock->storage = sockdata;
+
+  STRNCPY_UTF8(sockdata->path, name);
+  ntreeCompositOutputFileUniquePath(&node->inputs, sock, name, '_');
+  STRNCPY_UTF8(sockdata->layer, name);
+  ntreeCompositOutputFileUniqueLayer(&node->inputs, sock, name, '_');
+
+  if (im_format) {
+    BKE_image_format_copy(&sockdata->format, im_format);
+    sockdata->format.color_management = R_IMF_COLOR_MANAGEMENT_FOLLOW_SCENE;
+    if (BKE_imtype_is_movie(sockdata->format.imtype)) {
+      sockdata->format.imtype = R_IMF_IMTYPE_OPENEXR;
+    }
+  }
+  else {
+    BKE_image_format_init(&sockdata->format, false);
+  }
+  BKE_image_format_update_color_space_for_type(&sockdata->format);
+
+  /* use node data format by default */
+  sockdata->use_node_format = true;
+  sockdata->save_as_render = true;
+
+  nimf->active_item_index = BLI_findindex(&node->inputs, sock);
+
+  return sock;
+}
+
 static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
       /* previous CMP_NODE_OUTPUT_FILE nodes get converted to multi-file outputs */
       NodeImageFile *old_data = static_cast<NodeImageFile *>(node->storage);
-      NodeImageMultiFile *nimf = MEM_callocN<NodeImageMultiFile>("node image multi file");
+      NodeCompositorFileOutput *nimf = MEM_callocN<NodeCompositorFileOutput>(
+          "node image multi file");
       bNodeSocket *old_image = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 0));
       bNodeSocket *old_z = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 1));
 
@@ -276,7 +389,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
         BLI_path_split_dir_file(
             old_data->name, basepath, sizeof(basepath), filename, sizeof(filename));
 
-        STRNCPY(nimf->base_path, basepath);
+        STRNCPY(nimf->directory, basepath);
         nimf->format = old_data->im_format;
       }
       else {
@@ -291,19 +404,19 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 
         nimf->format.imtype = R_IMF_IMTYPE_MULTILAYER;
 
-        SNPRINTF(sockpath, "%s_Image", filename);
+        SNPRINTF_UTF8(sockpath, "%s_Image", filename);
         bNodeSocket *sock = ntreeCompositOutputFileAddSocket(ntree, node, sockpath, &nimf->format);
         /* XXX later do_versions copies path from socket name, need to set this explicitly */
-        STRNCPY(sock->name, sockpath);
+        STRNCPY_UTF8(sock->name, sockpath);
         if (old_image->link) {
           old_image->link->tosock = sock;
           sock->link = old_image->link;
         }
 
-        SNPRINTF(sockpath, "%s_Z", filename);
+        SNPRINTF_UTF8(sockpath, "%s_Z", filename);
         sock = ntreeCompositOutputFileAddSocket(ntree, node, sockpath, &nimf->format);
         /* XXX later do_versions copies path from socket name, need to set this explicitly */
-        STRNCPY(sock->name, sockpath);
+        STRNCPY_UTF8(sock->name, sockpath);
         if (old_z->link) {
           old_z->link->tosock = sock;
           sock->link = old_z->link;
@@ -312,7 +425,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
       else {
         bNodeSocket *sock = ntreeCompositOutputFileAddSocket(ntree, node, filename, &nimf->format);
         /* XXX later do_versions copies path from socket name, need to set this explicitly */
-        STRNCPY(sock->name, filename);
+        STRNCPY_UTF8(sock->name, filename);
         if (old_image->link) {
           old_image->link->tosock = sock;
           sock->link = old_image->link;
@@ -326,7 +439,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
       }
     }
     else if (node->type_legacy == CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
-      NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
+      NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node->storage);
 
       /* CMP_NODE_OUTPUT_MULTI_FILE has been re-declared as CMP_NODE_OUTPUT_FILE */
       node->type_legacy = CMP_NODE_OUTPUT_FILE;
@@ -370,7 +483,7 @@ static void do_versions_nodetree_multi_file_output_path_2_63_1(bNodeTree *ntree)
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
         NodeImageMultiFileSocket *input = static_cast<NodeImageMultiFileSocket *>(sock->storage);
         /* input file path is stored in dedicated struct now instead socket name */
-        STRNCPY(input->path, sock->name);
+        STRNCPY_UTF8(input->path, sock->name);
       }
     }
   }
@@ -669,7 +782,7 @@ static const char *node_get_static_idname(int type, int treetype)
         return "CompositorNodeImage";
       case CMP_NODE_R_LAYERS:
         return "CompositorNodeRLayers";
-      case CMP_NODE_COMPOSITE:
+      case CMP_NODE_COMPOSITE_DEPRECATED:
         return "CompositorNodeComposite";
       case CMP_NODE_OUTPUT_FILE:
         return "CompositorNodeOutputFile";
@@ -729,7 +842,7 @@ static const char *node_get_static_idname(int type, int treetype)
         return "CompositorNodeLumaMatte";
       case CMP_NODE_BRIGHTCONTRAST:
         return "CompositorNodeBrightContrast";
-      case CMP_NODE_GAMMA:
+      case CMP_NODE_GAMMA_DEPRECATED:
         return "CompositorNodeGamma";
       case CMP_NODE_INVERT:
         return "CompositorNodeInvert";
@@ -913,27 +1026,25 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
 
     /* node type idname */
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      BLI_strncpy(node->idname,
-                  node_get_static_idname(node->type_legacy, ntree->type),
-                  sizeof(node->idname));
+      STRNCPY_UTF8(node->idname, node_get_static_idname(node->type_legacy, ntree->type));
 
       /* existing old nodes have been initialized already */
       node->flag |= NODE_INIT;
 
       /* sockets idname */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-        STRNCPY(sock->idname, node_socket_get_static_idname(sock).c_str());
+        STRNCPY_UTF8(sock->idname, node_socket_get_static_idname(sock).c_str());
       }
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        STRNCPY(sock->idname, node_socket_get_static_idname(sock).c_str());
+        STRNCPY_UTF8(sock->idname, node_socket_get_static_idname(sock).c_str());
       }
     }
     /* tree sockets idname */
     LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->inputs_legacy) {
-      STRNCPY(sock->idname, node_socket_get_static_idname(sock).c_str());
+      STRNCPY_UTF8(sock->idname, node_socket_get_static_idname(sock).c_str());
     }
     LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->outputs_legacy) {
-      STRNCPY(sock->idname, node_socket_get_static_idname(sock).c_str());
+      STRNCPY_UTF8(sock->idname, node_socket_get_static_idname(sock).c_str());
     }
   }
 
@@ -960,7 +1071,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
   {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-        STRNCPY(sock->identifier, sock->name);
+        STRNCPY_UTF8(sock->identifier, sock->name);
         BLI_uniquename(&node->inputs,
                        sock,
                        "socket",
@@ -969,7 +1080,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
                        sizeof(sock->identifier));
       }
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        STRNCPY(sock->identifier, sock->name);
+        STRNCPY_UTF8(sock->identifier, sock->name);
         BLI_uniquename(&node->outputs,
                        sock,
                        "socket",
@@ -979,7 +1090,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
       }
     }
     LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->inputs_legacy) {
-      STRNCPY(sock->identifier, sock->name);
+      STRNCPY_UTF8(sock->identifier, sock->name);
       BLI_uniquename(&ntree->inputs_legacy,
                      sock,
                      "socket",
@@ -988,7 +1099,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
                      sizeof(sock->identifier));
     }
     LISTBASE_FOREACH (bNodeSocket *, sock, &ntree->outputs_legacy) {
-      STRNCPY(sock->identifier, sock->name);
+      STRNCPY_UTF8(sock->identifier, sock->name);
       BLI_uniquename(&ntree->outputs_legacy,
                      sock,
                      "socket",
@@ -1030,12 +1141,12 @@ static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
 {
   StripData *data = strip->data;
 
-  if (data && data->color_balance) {
+  if (data && data->color_balance_legacy) {
     StripModifierData *smd = blender::seq::modifier_new(
         strip, nullptr, seqModifierType_ColorBalance);
     ColorBalanceModifierData *cbmd = (ColorBalanceModifierData *)smd;
 
-    cbmd->color_balance = *data->color_balance;
+    cbmd->color_balance = *data->color_balance_legacy;
 
     /* multiplication with color balance used is handled differently,
      * so we need to move multiplication to modifier so files would be
@@ -1044,8 +1155,8 @@ static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
     cbmd->color_multiply = strip->mul;
     strip->mul = 1.0f;
 
-    MEM_freeN(data->color_balance);
-    data->color_balance = nullptr;
+    MEM_freeN(data->color_balance_legacy);
+    data->color_balance_legacy = nullptr;
   }
   return true;
 }
@@ -1082,14 +1193,14 @@ static bNodeSocket *version_make_socket_stub(const char *idname,
 {
   bNodeSocket *socket = MEM_callocN<bNodeSocket>(__func__);
   socket->runtime = MEM_new<blender::bke::bNodeSocketRuntime>(__func__);
-  STRNCPY(socket->idname, idname);
+  STRNCPY_UTF8(socket->idname, idname);
   socket->type = int(type);
   socket->in_out = int(in_out);
 
   socket->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
-  STRNCPY(socket->identifier, identifier);
-  STRNCPY(socket->name, name);
+  STRNCPY_UTF8(socket->identifier, identifier);
+  STRNCPY_UTF8(socket->name, name);
   socket->storage = nullptr;
   socket->flag |= SOCK_COLLAPSED;
 
@@ -1112,14 +1223,14 @@ static bNode *version_add_group_in_out_node(bNodeTree *ntree, const int type)
   bNode *node = MEM_callocN<bNode>("new node");
   switch (type) {
     case NODE_GROUP_INPUT:
-      STRNCPY(node->idname, "NodeGroupInput");
+      STRNCPY_UTF8(node->idname, "NodeGroupInput");
       ntree_socket_list = &ntree->inputs_legacy;
       /* Group input has only outputs. */
       node_socket_list = &node->outputs;
       socket_in_out = SOCK_OUT;
       break;
     case NODE_GROUP_OUTPUT:
-      STRNCPY(node->idname, "NodeGroupOutput");
+      STRNCPY_UTF8(node->idname, "NodeGroupOutput");
       ntree_socket_list = &ntree->outputs_legacy;
       /* Group output has only inputs. */
       node_socket_list = &node->inputs;
@@ -1556,7 +1667,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       LISTBASE_FOREACH (KeyingSet *, ks, &scene->keyingsets) {
         if (!ks->idname[0]) {
-          STRNCPY(ks->idname, ks->name);
+          STRNCPY_UTF8(ks->idname, ks->name);
         }
       }
     }
@@ -1915,7 +2026,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
          * crazy anyway and think it's fair enough to break compatibility in that cases.
          */
 
-        STRNCPY(ima->colorspace_settings.name, "Raw");
+        STRNCPY_UTF8(ima->colorspace_settings.name, "Raw");
       }
     }
   }
@@ -1990,7 +2101,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
                 fmd->domain->flame_vorticity = 0.5f;
                 fmd->domain->flame_ignition = 1.25f;
                 fmd->domain->flame_max_temp = 1.75f;
-                fmd->domain->adapt_threshold = 0.02f;
+                fmd->domain->adapt_threshold = 0.002f;
                 fmd->domain->adapt_margin = 4;
                 fmd->domain->flame_smoke_color[0] = 0.7f;
                 fmd->domain->flame_smoke_color[1] = 0.7f;
@@ -2238,13 +2349,13 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
             /* convert deprecated treetype setting to tree_idname */
             switch (snode->treetype) {
               case NTREE_COMPOSIT:
-                STRNCPY(snode->tree_idname, "CompositorNodeTree");
+                STRNCPY_UTF8(snode->tree_idname, "CompositorNodeTree");
                 break;
               case NTREE_SHADER:
-                STRNCPY(snode->tree_idname, "ShaderNodeTree");
+                STRNCPY_UTF8(snode->tree_idname, "ShaderNodeTree");
                 break;
               case NTREE_TEXTURE:
-                STRNCPY(snode->tree_idname, "TextureNodeTree");
+                STRNCPY_UTF8(snode->tree_idname, "TextureNodeTree");
                 break;
             }
           }

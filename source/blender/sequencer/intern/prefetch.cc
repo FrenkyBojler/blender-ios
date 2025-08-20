@@ -372,10 +372,10 @@ static void seq_prefetch_update_active_seqbase(PrefetchJob *pfjob)
 
   if (ms_orig != nullptr) {
     Strip *meta_eval = original_strip_get(ms_orig->parent_strip, pfjob->scene_eval);
-    active_seqbase_set(ed_eval, &meta_eval->seqbase);
+    ed_eval->current_meta_strip = meta_eval;
   }
   else {
-    active_seqbase_set(ed_eval, &ed_eval->seqbase);
+    ed_eval->current_meta_strip = nullptr;
   }
 }
 
@@ -585,7 +585,7 @@ static PrefetchJob *seq_prefetch_start_ex(const RenderData *context, float cfra)
 
     pfjob->bmain_eval = BKE_main_new();
     pfjob->scene = context->scene;
-    pfjob->seqbasep = context->scene->ed->seqbasep;
+    pfjob->seqbasep = context->scene->ed->current_strips();
     seq_prefetch_init_depsgraph(pfjob);
   }
   pfjob->bmain = context->bmain;
@@ -616,7 +616,7 @@ void seq_prefetch_start(const RenderData *context, float timeline_frame)
 {
   Scene *scene = context->scene;
   Editing *ed = scene->ed;
-  bool has_strips = bool(ed->seqbasep->first);
+  bool has_strips = bool(ed->current_strips()->first);
 
   if (!context->is_prefetch_render && !context->is_proxy_render) {
     bool playing = context->is_playing;

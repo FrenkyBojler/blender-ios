@@ -17,6 +17,7 @@
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_selection.hh"
 #include "GEO_randomize.hh"
 
@@ -117,7 +118,6 @@ static void remove_unsupported_vert_data(Mesh &mesh)
 static void remove_unsupported_corner_data(Mesh &mesh)
 {
   CustomData_free_layers(&mesh.corner_data, CD_MDISPS);
-  CustomData_free_layers(&mesh.corner_data, CD_TANGENT);
   CustomData_free_layers(&mesh.corner_data, CD_MLOOPTANGENT);
   CustomData_free_layers(&mesh.corner_data, CD_GRID_PAINT_MASK);
 }
@@ -1466,7 +1466,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       [](const float3 &offset, const float scale) { return offset * scale; },
       mf::build::exec_presets::AllSpanOrSingle());
   const Field<float3> final_offset{
-      FieldOperation::Create(multiply_fn, {std::move(offset_field), std::move(scale_field)})};
+      FieldOperation::from(multiply_fn, {std::move(offset_field), std::move(scale_field)})};
 
   AttributeOutputs attribute_outputs;
   attribute_outputs.top_id = params.get_output_anonymous_attribute_id_if_needed("Top");
@@ -1477,7 +1477,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
 
       switch (mode) {

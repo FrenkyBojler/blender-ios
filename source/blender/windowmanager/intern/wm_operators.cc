@@ -1149,7 +1149,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
   search[0] = '\0';
 #if 0 /* Ok, this isn't so easy. */
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            WM_operatortype_name(op->type, op->ptr),
            0,
@@ -1175,7 +1175,7 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
                                    "");
 
   /* Fake button, it holds space for search items. */
-  uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block, ButType::Label, 0, "", 0, -height, width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, blender::int2{0, -UI_UNIT_Y});
@@ -1292,7 +1292,7 @@ wmOperator *WM_operator_last_redo(const bContext *C)
   wmWindowManager *wm = CTX_wm_manager(C);
 
   /* Only for operators that are registered and did an undo push. */
-  LISTBASE_FOREACH_BACKWARD (wmOperator *, op, &wm->operators) {
+  LISTBASE_FOREACH_BACKWARD (wmOperator *, op, &wm->runtime->operators) {
     if ((op->type->flag & OPTYPE_REGISTER) && (op->type->flag & OPTYPE_UNDO)) {
       return op;
     }
@@ -1631,7 +1631,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
 
     if (windows_layout) {
       confirm_but = uiDefBut(col_block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
                              0,
                              data->confirm_text.c_str(),
                              0,
@@ -1646,12 +1646,12 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
     }
 
     cancel_but = uiDefBut(
-        col_block, UI_BTYPE_BUT, 0, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+        col_block, ButType::But, 0, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
 
     if (!windows_layout) {
       col->column(false);
       confirm_but = uiDefBut(col_block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
                              0,
                              data->confirm_text.c_str(),
                              0,
@@ -2046,7 +2046,7 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
   /* Fake button, it holds space for search items. */
   const int height = init_data->size[1] - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            "",
            0,
@@ -2489,7 +2489,7 @@ wmPaintCursor *WM_paint_cursor_activate(short space_type,
 
   wmPaintCursor *pc = MEM_callocN<wmPaintCursor>("paint cursor");
 
-  BLI_addtail(&wm->paintcursors, pc);
+  BLI_addtail(&wm->runtime->paintcursors, pc);
 
   pc->customdata = customdata;
   pc->poll = poll;
@@ -2504,9 +2504,9 @@ wmPaintCursor *WM_paint_cursor_activate(short space_type,
 bool WM_paint_cursor_end(wmPaintCursor *handle)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-  LISTBASE_FOREACH (wmPaintCursor *, pc, &wm->paintcursors) {
+  LISTBASE_FOREACH (wmPaintCursor *, pc, &wm->runtime->paintcursors) {
     if (pc == handle) {
-      BLI_remlink(&wm->paintcursors, pc);
+      BLI_remlink(&wm->runtime->paintcursors, pc);
       MEM_freeN(pc);
       return true;
     }
@@ -2516,12 +2516,12 @@ bool WM_paint_cursor_end(wmPaintCursor *handle)
 
 void WM_paint_cursor_remove_by_type(wmWindowManager *wm, void *draw_fn, void (*free)(void *))
 {
-  LISTBASE_FOREACH_MUTABLE (wmPaintCursor *, pc, &wm->paintcursors) {
+  LISTBASE_FOREACH_MUTABLE (wmPaintCursor *, pc, &wm->runtime->paintcursors) {
     if (pc->draw == draw_fn) {
       if (free) {
         free(pc->customdata);
       }
-      BLI_remlink(&wm->paintcursors, pc);
+      BLI_remlink(&wm->runtime->paintcursors, pc);
       MEM_freeN(pc);
     }
   }
@@ -2556,12 +2556,14 @@ struct RadialControl {
   float current_value = 0.0f;
   float min_value = 0.0f;
   float max_value = 0.0f;
-  int initial_mouse[2] = {};
+  /* Original screen space coordinates that the operator started on. */
   int initial_co[2] = {};
+  /* Modified value of #initial_co to simplify calculating new values. */
+  int initial_radial_center[2] = {};
   int slow_mouse[2] = {};
   bool slow_mode = false;
   Dial *dial = nullptr;
-  GPUTexture *texture = nullptr;
+  blender::gpu::Texture *texture = nullptr;
   ListBase orig_paintcursors = {};
   bool use_secondary_tex = false;
   void *cursor = nullptr;
@@ -2601,7 +2603,7 @@ static void radial_control_update_header(wmOperator *op, bContext *C)
         SNPRINTF(msg, "%s: %3.2f", ui_name, RAD2DEGF(rc->current_value));
         break;
       default:
-        SNPRINTF(msg, "%s", ui_name); /* XXX: No value? */
+        STRNCPY(msg, ui_name); /* XXX: No value? */
         break;
     }
   }
@@ -2614,7 +2616,7 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
   float d[2] = {0, 0};
   float zoom[2] = {1, 1};
 
-  copy_v2_v2_int(rc->initial_mouse, event->xy);
+  copy_v2_v2_int(rc->initial_radial_center, event->xy);
   copy_v2_v2_int(rc->initial_co, event->xy);
 
   switch (rc->subtype) {
@@ -2645,8 +2647,8 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
     d[1] *= zoom[1];
   }
 
-  rc->initial_mouse[0] -= d[0];
-  rc->initial_mouse[1] -= d[1];
+  rc->initial_radial_center[0] -= d[0];
+  rc->initial_radial_center[1] -= d[1];
 }
 
 static void radial_control_set_tex(RadialControl *rc)
@@ -2665,7 +2667,7 @@ static void radial_control_set_tex(RadialControl *rc)
                                             ibuf->x,
                                             ibuf->y,
                                             1,
-                                            GPU_R8,
+                                            blender::gpu::TextureFormat::UNORM_8,
                                             GPU_TEXTURE_USAGE_SHADER_READ,
                                             ibuf->float_buffer.data);
 
@@ -2835,8 +2837,8 @@ static void radial_control_paint_cursor(bContext * /*C*/,
   if (rc->subtype == PROP_ANGLE) {
     /* Use the initial mouse position to draw the rotation preview. This avoids starting the
      * rotation in a random direction. */
-    x = rc->initial_mouse[0];
-    y = rc->initial_mouse[1];
+    x = rc->initial_radial_center[0];
+    y = rc->initial_radial_center[1];
   }
   else {
     /* Keep cursor in the original place. */
@@ -3193,8 +3195,8 @@ static wmOperatorStatus radial_control_invoke(bContext *C, wmOperator *op, const
 
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
-  rc->orig_paintcursors = wm->paintcursors;
-  BLI_listbase_clear(&wm->paintcursors);
+  rc->orig_paintcursors = wm->runtime->paintcursors;
+  BLI_listbase_clear(&wm->runtime->paintcursors);
 
   /* Add radial control paint cursor. */
   rc->cursor = WM_paint_cursor_activate(
@@ -3235,7 +3237,7 @@ static void radial_control_cancel(bContext *C, wmOperator *op)
   WM_paint_cursor_end(static_cast<wmPaintCursor *>(rc->cursor));
 
   /* Restore original paint cursors. */
-  wm->paintcursors = rc->orig_paintcursors;
+  wm->runtime->paintcursors = rc->orig_paintcursors;
 
   /* Not sure if this is a good notifier to use;
    * intended purpose is to update the UI so that the
@@ -3310,8 +3312,8 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
         if (rc->slow_mode) {
           if (rc->subtype == PROP_ANGLE) {
             /* Calculate the initial angle here first. */
-            delta[0] = rc->initial_mouse[0] - rc->slow_mouse[0];
-            delta[1] = rc->initial_mouse[1] - rc->slow_mouse[1];
+            delta[0] = rc->initial_radial_center[0] - rc->slow_mouse[0];
+            delta[1] = rc->initial_radial_center[1] - rc->slow_mouse[1];
 
             /* Precision angle gets calculated from dial and gets added later. */
             angle_precision = -0.1f * BLI_dial_angle(rc->dial,
@@ -3319,7 +3321,7 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
                                                                      float(event->xy[1])});
           }
           else {
-            delta[0] = rc->initial_mouse[0] - rc->slow_mouse[0];
+            delta[0] = rc->initial_radial_center[0] - rc->slow_mouse[0];
             delta[1] = 0.0f;
 
             if (rc->zoom_prop) {
@@ -3339,8 +3341,8 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
           }
         }
         else {
-          delta[0] = float(rc->initial_mouse[0] - event->xy[0]);
-          delta[1] = float(rc->initial_mouse[1] - event->xy[1]);
+          delta[0] = float(rc->initial_radial_center[0] - event->xy[0]);
+          delta[1] = float(rc->initial_radial_center[1] - event->xy[1]);
           if (rc->zoom_prop) {
             RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
             delta[0] /= zoom[0];
@@ -3411,8 +3413,8 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
         rc->slow_mouse[1] = event->xy[1];
         rc->slow_mode = true;
         if (rc->subtype == PROP_ANGLE) {
-          const float initial_position[2] = {float(rc->initial_mouse[0]),
-                                             float(rc->initial_mouse[1])};
+          const float initial_position[2] = {float(rc->initial_radial_center[0]),
+                                             float(rc->initial_radial_center[1])};
           const float current_position[2] = {float(rc->slow_mouse[0]), float(rc->slow_mouse[1])};
           rc->dial = BLI_dial_init(initial_position, 0.0f);
           /* Immediately set the position to get a an initial direction. */
