@@ -696,19 +696,26 @@ class AttachUVSurfaceConstraintEvaluator
     const float mesh_inv_mass1 = mesh_inv_masses_[mesh_i1];
     const float mesh_inv_mass2 = mesh_inv_masses_[mesh_i2];
 
+    const float effective_weight = inv_mass + pow2f(bary_weights[0]) * mesh_inv_mass0 +
+                                   pow2f(bary_weights[1]) * mesh_inv_mass1 +
+                                   pow2f(bary_weights[2]) * mesh_inv_mass2;
+    if (effective_weight <= 0.0f) {
+      /* All points are pinned. */
+      return;
+    }
     const float3 pin_point = bary_weights[0] * mesh_p0 + bary_weights[1] * mesh_p1 +
                              bary_weights[2] * mesh_p2;
+    const float3 diff = p - pin_point;
 
-    const float triangle_mass = math::safe_rcp(mesh_inv_mass0) + math::safe_rcp(mesh_inv_mass1) +
-                                math::safe_rcp(mesh_inv_mass2);
-    const float triangle_inv_mass = math::safe_rcp(triangle_mass);
+    const float3 lambda = -diff / (effective_weight + compliance_term);
 
-    const DistanceConstraintResult result = evaluate_distance_constraint(
-        p, pin_point, inv_mass, triangle_inv_mass, 0.0f, compliance_term);
-    updater.update_position(points_ref_i_, point_i, result.offset0);
-    updater.update_position(mesh_points_ref_i_, mesh_i0, result.offset1);
-    updater.update_position(mesh_points_ref_i_, mesh_i1, result.offset1);
-    updater.update_position(mesh_points_ref_i_, mesh_i2, result.offset1);
+    updater.update_position(points_ref_i_, point_i, inv_mass * lambda);
+    updater.update_position(
+        mesh_points_ref_i_, mesh_i0, -bary_weights[0] * mesh_inv_mass0 * lambda);
+    updater.update_position(
+        mesh_points_ref_i_, mesh_i1, -bary_weights[1] * mesh_inv_mass1 * lambda);
+    updater.update_position(
+        mesh_points_ref_i_, mesh_i2, -bary_weights[2] * mesh_inv_mass2 * lambda);
   }
 };
 
