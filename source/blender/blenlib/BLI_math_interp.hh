@@ -376,11 +376,13 @@ void BLI_ewa_filter(int width,
 
 namespace blender::math {
 void BLI_ewa_single_level(const int2 &dimensions,
-                          const float2 &uv_center_norm,
-                          const float2 &uv_dx_norm,
-                          const float2 &uv_dy_norm,
+                          const float2 &uv_center,
+                          const float2 &x_gradient,
+                          const float2 &y_gradient,
                           const float *buffer,
                           float4 &result,
+                          const InterpWrapMode &wrap_u = InterpWrapMode::Border,
+                          const InterpWrapMode &wrap_v = InterpWrapMode::Border,
                           const float &max_ratio_between_axes = 8.0f,
-                          const float &alpha = 2.0f);
+                          const float &smoothness = 2.0f);
 }

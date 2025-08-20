@@ -105,11 +105,10 @@ Ellipse build_ellipse(float2 coordinates,
   b *= inv;
   c *= inv;
 
-
   float conic_discriminant = -b * b + 4.0f * a * c;
   float inv_conic_discriminant = 1.0f / conic_discriminant;
   float2 extent = 2.0f * inv_conic_discriminant *
-                     sqrt(float2(conic_discriminant * c, conic_discriminant * a));
+                  sqrt(float2(conic_discriminant * c, conic_discriminant * a));
 
   float2 center = coordinates - 0.5f;
   int2 lower_bound = int2(ceil(center - extent));
@@ -135,17 +134,14 @@ float4 texture_ewa(sampler2D input_tx, float2 uv_coordinates, float2 x_gradient,
   constexpr float smoothness = 2.0f;
   constexpr float max_ratio_between_axes = 8.0f;
 
-  /* Bring derivatives to texel space. */
+  /* Scale the coordinates and the Jacobian into texel space. */
   float2 size = float2(textureSize(input_tx, 0));
-
-  /* Scale the gradients back into texel space. */
   float2 coordinates = uv_coordinates * size;
   x_gradient *= size;
   y_gradient *= size;
 
   /* Build ellipsoid. */
-  Ellipse ellipse = build_ellipse(
-      coordinates, x_gradient, y_gradient, max_ratio_between_axes);
+  Ellipse ellipse = build_ellipse(coordinates, x_gradient, y_gradient, max_ratio_between_axes);
 
   /* Check whether ellipse is degenerative or numerically unstable. */
   if (!ellipse.valid) {

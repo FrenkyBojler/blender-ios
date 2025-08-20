@@ -966,146 +966,132 @@ namespace blender::math {
 /* Clamp anisotropy of the footprint: ensure the short axis is not more
  * than the `max_ratio_between_axes` times shorter than the long axis. Inputs are the
  * two derivative vectors in texel space (du/dx, dv/dx) and (du/dy, dv/dy). */
-BLI_INLINE void clamp_anisotropy(float &du_dx_texels,
-                                 float &dv_dx_texels,
-                                 float &du_dy_texels,
-                                 float &dv_dy_texels,
-                                 float max_ratio_between_axes)
+BLI_INLINE void clamp_anisotropy(float2 &x_gradient,
+                                 float2 &y_gradient,
+                                 const float max_ratio_between_axes)
 {
-  auto length_sq = [](float x, float y) { return x * x + y * y; };
-
   /* Make (du/dx, dv/dx) the longer axis, so we clamp the other one if needed. */
-  if (length_sq(du_dx_texels, dv_dx_texels) < length_sq(du_dy_texels, dv_dy_texels)) {
-    std::swap(du_dx_texels, du_dy_texels);
-    std::swap(dv_dx_texels, dv_dy_texels);
+  float len_squared_dx = dot(x_gradient, x_gradient);
+  float len_squared_dy = dot(y_gradient, y_gradient);
+  if (len_squared_dx < len_squared_dy) {
+    /* Swap axes. */
+    std::swap(x_gradient, y_gradient);
+    std::swap(len_squared_dx, len_squared_dy);
   }
 
-  const float long_len = std::sqrt(length_sq(du_dx_texels, dv_dx_texels));
-  const float short_len = std::sqrt(length_sq(du_dy_texels, dv_dy_texels));
+  float long_len = sqrt(len_squared_dx);
+  float short_len = sqrt(len_squared_dy);
 
-  if (short_len > 0.0f && long_len > max_ratio_between_axes * short_len) {
-    const float scale = long_len / (max_ratio_between_axes * short_len);
-    du_dy_texels *= scale;
-    dv_dy_texels *= scale;
+  if (max_ratio_between_axes > 1.0f && short_len > 0.0f &&
+      long_len > max_ratio_between_axes * short_len)
+  {
+    float scale = long_len / (max_ratio_between_axes * short_len);
+    y_gradient *= scale;
   }
 }
 
-/* Normalized ellipse describing the footprint in texel space:
- * r^2(Δu,Δv) = A * Δu^2 + B * ΔuΔv + C * Δv^2   (inside if r^2 < 1)
- * s0..s1, t0..t1: integer bounding box to scan (inclusive)
- * texel_center_x, texel_center_y: center of the footprint in texel coordinates */
+/* Ellipsoid describing the footprint in texel space:
+ * r^2(dx,dy) = A * dx^2 + B * dxdy + C * dy^2   (inside if r^2 < 1)
+ * lower_bound..upper_bound bounding box to scan (inclusive)
+ * center: center of the footprint in texel coordinates */
 struct Ellipse {
-  const float A, B, C;
-  const int s0, s1;
-  const int t0, t1;
-  const float texel_center_x, texel_center_y;
+  const float a, b, c;
+  const int2 lower_bound;
+  const int2 upper_bound;
+  const float2 center;
   bool valid = false;
 };
 
-/* Build the normalized ellipse and its integer bounding box from:
- *   - image_dimensions:        (width, height) in texels
- *   - coordinates:             uv center in [0,1]^2
- *   - du, dv:                  partials d(uv)/dx and d(uv)/dy (normalized)
- *   - max_ratio_between_axes: clamp for very skinny footprints
- *
- * We follow the standard PBRT formulation:
+/* Build the ellipsoid and its integer bounding box:
+ * Follows the PBRT formulation:
  *   A = (dv/dx)^2 + (dv/dy)^2 + 1
  *   B = -2 * [(du/dx)(dv/dx) + (du/dy)(dv/dy)]
  *   C = (du/dx)^2 + (du/dy)^2 + 1
  * then normalize so "inside" is r^2 < 1. */
-BLI_INLINE Ellipse build_ellipse(const int2 &image_dimensions,
-                                 const float2 &uv_center_norm,
-                                 const float2 &uv_dx_norm,
-                                 const float2 &uv_dy_norm,
+BLI_INLINE Ellipse build_ellipse(const float2 &coordinates,
+                                 float2 &x_gradient,
+                                 float2 &y_gradient,
                                  const float &max_ratio_between_axes = 8.0f)
 {
-  /* Derivatives in texel units. */
-  float du_dx_texels = uv_dx_norm.x * image_dimensions.x;
-  float dv_dx_texels = uv_dx_norm.y * image_dimensions.y;
-  float du_dy_texels = uv_dy_norm.x * image_dimensions.x;
-  float dv_dy_texels = uv_dy_norm.y * image_dimensions.y;
-
+  /* Clamps the ellipsoid based on the ratio between the axes.
+   * This leads to better performance, because thin ellipsoids will be adjusted,
+   * but also leads to neglectable blurring. */
   if (max_ratio_between_axes > 1.0f) {
-    clamp_anisotropy(
-        du_dx_texels, dv_dx_texels, du_dy_texels, dv_dy_texels, max_ratio_between_axes);
+    clamp_anisotropy(x_gradient, y_gradient, max_ratio_between_axes);
   }
 
-  /* We add one to the A/C coefficients, because we sum over a discrete grid (one sample per texel
-   * center). A texel can still contribute even if its center lies just outside the true ellipse,
-   * as long as its 1x1 area overlaps the ellipse. If we only test the true ellipse we will miss
-   * those border texels, causing artefacts. */
-  float A = dv_dx_texels * dv_dx_texels + dv_dy_texels * dv_dy_texels + 1.0f;
-  float B = -2.0f * (du_dx_texels * dv_dx_texels + du_dy_texels * dv_dy_texels);
-  float C = du_dx_texels * du_dx_texels + du_dy_texels * du_dy_texels + 1.0f;
+  const float dv_dx = x_gradient.y;
+  const float dv_dy = y_gradient.y;
+  const float du_dx = x_gradient.x;
+  const float du_dy = y_gradient.x;
 
-  /* Normalize so that "inside" is r^2 < 1. */
-  const float inv = 1.0f / (A * C - 0.25f * B * B);
+  /* We add one to the A/C coefficients, because we sum over a discrete grid
+   * (one sample per texel center). A texel can still contribute even if its
+   * center lies just outside the true ellipse, as long as its 1x1 area
+   * overlaps the ellipse. If we only test the true ellipse we will miss those border
+   * texels, causing artefacts. */
+  float a = square(dv_dx) + square(dv_dy) + 1.0f;
+  float b = -2.0f * (du_dx * dv_dx + du_dy * dv_dy);
+  float c = square(du_dx) + square(du_dy) + 1.0f;
 
-  /* Degenerative case. */
-  if (!(inv > 0.0f)) {
+  /* Computes det(M) = AC - B^2 * 0.25. We require that the determinant is
+   * positive define so r^2 =1 is a bounded ellipse.
+   * If the determinant is <= 0, the footprint of the ellipsoid is invalid
+   * (singluar Jacobian/extreme anisotropy).
+   * https://en.wikipedia.org/wiki/Matrix_representation_of_conic_sections#Classification */
+  float determinant = a * c - 0.25f * b * b;
+  if (determinant <= 0.0f) {
     return Ellipse{};
   }
 
-  A *= inv;
-  B *= inv;
-  C *= inv;
+  float inv = 1.0f / determinant;
+  a *= inv;
+  b *= inv;
+  c *= inv;
 
-  /* Footprint center in texel coordinates (texel centers at integer + 0.5). */
-  const float texel_center_u = uv_center_norm.x * image_dimensions.x - 0.5f;
-  const float texel_center_v = uv_center_norm.y * image_dimensions.y - 0.5f;
+  float conic_discriminant = -b * b + 4.0f * a * c;
+  float inv_conic_discriminant = 1.0f / conic_discriminant;
+  float2 extent = 2.0f * inv_conic_discriminant *
+                  sqrt(float2(conic_discriminant * c, conic_discriminant * a));
 
-  /* Build tight integer bounding box derived from the quadratic form.
-   * For a conic AΔ u^2 + BΔ u Δv + CΔ v^2 = 1,
+  float2 center = coordinates - 0.5f;
+  int2 lower_bound = int2(ceil(center - extent));
+  int2 upper_bound = int2(floor(center + extent));
+  bool is_valid = (lower_bound.x <= upper_bound.x) && (lower_bound.y <= upper_bound.y);
 
-   * if B^2 - 4AC < 0 (i.e., conic_discriminant > 0), it is an ellipse,
-   * if B^2 - 4AC = 0, it is parabolic / degenerate,
-   * if B^2 - 4AC > 0, it is hyperbolic (not a valid footprint).
-
-   * Checks conic_discriminant > 0 to ensure we really have an ellipse. */
-  const float conic_discriminant = -B * B + 4.0f * A * C;
-  if (conic_discriminant < 0.0f) {
-    return Ellipse{};
-  }
-
-  const float inv_disc = 1.0f / conic_discriminant;
-  const float u_extent = 2.0f * inv_disc * std::sqrt(conic_discriminant * C);
-  const float v_extent = 2.0f * inv_disc * std::sqrt(A * conic_discriminant);
-
-  const int u_min = static_cast<int>(std::ceil(texel_center_u - u_extent));
-  const int u_max = static_cast<int>(std::floor(texel_center_u + u_extent));
-  const int v_min = static_cast<int>(std::ceil(texel_center_v - v_extent));
-  const int v_max = static_cast<int>(std::floor(texel_center_v + v_extent));
-
-  return {A, B, C, u_min, u_max, v_min, v_max, texel_center_u, texel_center_v, true};
+  return {a, b, c, lower_bound, upper_bound, center, is_valid};
 }
 
-/* Implementation based on PBRT:
- * https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/util/mipmap.cpp#L301
- * Book excerpt:
- * https://pbr-book.org/4ed/Textures_and_Materials/Image_Texture#fragment-ComputeEWAellipseaxes-0
- */
+/* Computes the elliptical weighted average for a given buffer with their
+ * normalized uv coordinates and the normalized Jacobian (x_gradient, y_gradient). */
 void BLI_ewa_single_level(const int2 &dimensions,
-                          const float2 &uv_center_norm,
-                          const float2 &uv_dx_norm,
-                          const float2 &uv_dy_norm,
+                          const float2 &uv_center,
+                          const float2 &x_gradient,
+                          const float2 &y_gradient,
                           const float *buffer,
                           float4 &result,
+                          const InterpWrapMode &wrap_u,
+                          const InterpWrapMode &wrap_v,
                           const float &max_ratio_between_axes,
-                          const float &alpha)
+                          const float &smoothness)
 {
-  const Ellipse ellipse = build_ellipse(
-      dimensions, uv_center_norm, uv_dx_norm, uv_dy_norm, max_ratio_between_axes);
-  if (!ellipse.valid) {
-    result = {0.0f, 0.0f, 0.0f, 0.0f};
-    return;
-  }
+  /* Implementation based on PBRT:
+   * https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/util/mipmap.cpp#L301
+   * Book excerpt:
+   * https://pbr-book.org/4ed/Textures_and_Materials/Image_Texture#fragment-ComputeEWAellipseaxes-0
+   */
 
-  /* Clip the bbox to image bounds */
-  int u_min = std::max(ellipse.s0, 0);
-  int u_max = std::min(ellipse.s1, dimensions.x - 1);
-  int v_min = std::max(ellipse.t0, 0);
-  int v_max = std::min(ellipse.t1, dimensions.y - 1);
-  if (u_min > u_max || v_min > v_max) {
+  /* Scale the coordinates and the Jacobian into texel space. */
+  float2 size = static_cast<float2>(dimensions);
+  float2 coords = uv_center * size;
+  float2 x_grad = x_gradient * size;
+  float2 y_grad = y_gradient * size;
+
+  /* Build ellipsoid. */
+  const Ellipse ellipse = build_ellipse(coords, x_grad, y_grad, max_ratio_between_axes);
+
+  /* Check whether ellipse is degenerative or numerically unstable. */
+  if (!ellipse.valid) {
     result = {0.0f, 0.0f, 0.0f, 0.0f};
     return;
   }
@@ -1113,23 +1099,32 @@ void BLI_ewa_single_level(const int2 &dimensions,
   float4 accum_rgba = {0.0f, 0.0f, 0.0f, 0.0f};
   float accum_weight = 0.0f;
 
-  /* Buffer layout is RGBA, 4 floats per texel. */
-  const int n_channels = 4;
+  for (int y = ellipse.lower_bound.y; y <= ellipse.upper_bound.y; ++y) {
+    const float dy = float(y) - ellipse.center.y;
+    const float c_dy = ellipse.c * square(dy);
+    const float b_dy = ellipse.b * dy;
 
-  /* Scanline evaluation with incremental r^2 updates. */
-  for (int v = v_min; v <= v_max; ++v) {
-    const float delta_v = float(v) - ellipse.texel_center_y;
-    const float C_delta_v = ellipse.C * delta_v * delta_v;
-    const float B_delta_v = ellipse.B * delta_v;
-
-    for (int u = u_min; u <= u_max; ++u) {
-      float delta_u = float(u) - ellipse.texel_center_x;
-      float r2 = fma(ellipse.A, delta_u * delta_u, fma(B_delta_v, delta_u, C_delta_v));
+    for (int x = ellipse.lower_bound.x; x <= ellipse.upper_bound.x; ++x) {
+      const float dx = float(x) - ellipse.center.x;
+      /* Based on the matrix representation of conic sections:
+       * https://en.wikipedia.org/wiki/Matrix_representation_of_conic_sections
+       * Evaluates r^2 = A*dx^2 + B*dx*dy + C*dy^2 */
+      const float r2 = ellipse.a * square(dx) + b_dy * dx + c_dy;
 
       if (r2 < 1.0f) {
-        const float weight = std::exp(-alpha * r2);
+        const float weight = std::exp(-smoothness * r2);
         if (weight > 0.0f) {
-          const int texel_index = (dimensions.x * v + u) * n_channels;
+          const int xx = wrap_coord(float(x), dimensions.x, wrap_u);
+          const int yy = wrap_coord(float(y), dimensions.y, wrap_v);
+
+          if ((wrap_u == InterpWrapMode::Border && xx < 0) ||
+              (wrap_v == InterpWrapMode::Border && yy < 0))
+          {
+            /* Border mode outside -> skip. */
+            continue;
+          }
+
+          const int texel_index = (dimensions.x * yy + xx) * 4;
           const float4 rgba = buffer + texel_index;
 
           accum_rgba += weight * rgba;
