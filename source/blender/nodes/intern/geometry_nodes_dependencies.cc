@@ -137,8 +137,8 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree,
 
   /* TODO: move this into the node implementation itself, so that the node can
    * declare its file dependencies? That should remove the assumption that the
-   * first input node is the file path. */
-  Vector<std::string> import_node_types = {
+   * "Path" input socket has the file path. */
+  static Vector<StringRefNull> import_node_types = {
       "GeometryNodeImportCSV",
       "GeometryNodeImportOBJ",
       "GeometryNodeImportPLY",
@@ -146,7 +146,7 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree,
       "GeometryNodeImportText",
       "GeometryNodeImportVDB",
   };
-  for (const std::string &node_type : import_node_types) {
+  for (StringRefNull node_type : import_node_types) {
     for (const bNode *node : tree.nodes_by_type(node_type)) {
       if (node->is_muted()) {
         continue;
