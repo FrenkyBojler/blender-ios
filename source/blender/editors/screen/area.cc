@@ -159,6 +159,10 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
  */
 static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
 {
+  if (!(U.uiflag & USER_VISIBLE_AREA_CORNER_ICON)) {
+    return;
+  }
+
   if (region->regiontype != RGN_TYPE_HEADER) {
     return;
   }
@@ -167,11 +171,11 @@ static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
     if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
         (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))
     {
-      UI_icon_draw_ex(float(az->x1) + (0.8f * UI_SCALE_FAC),
+      UI_icon_draw_ex(float(az->x1) + UI_SCALE_FAC,
                       float(az->y1) + (6.0f * UI_SCALE_FAC),
                       ICON_GRIP_V,
                       1.0 / UI_SCALE_FAC,
-                      0.3f,
+                      0.4f,
                       0.0f,
                       nullptr,
                       false,
@@ -3714,13 +3718,16 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
 {
   const uiStyle *style = UI_style_get_dpi();
   bool region_layout_based = region->flag & RGN_FLAG_DYNAMIC_SIZE;
+  ScrArea *area = CTX_wm_area(C);
+  const int offset = ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR) ? 4.0f * UI_SCALE_FAC :
+                                                                            int(UI_HEADER_OFFSET);
 
   /* Height of buttons and scaling needed to achieve it. */
   const int buttony = min_ii(UI_UNIT_Y, region->winy - 2 * UI_SCALE_FAC);
   const float buttony_scale = buttony / float(UI_UNIT_Y);
 
   /* Vertically center buttons. */
-  blender::int2 co = {int(UI_HEADER_OFFSET), buttony + (region->winy - buttony) / 2};
+  blender::int2 co = {offset, buttony + (region->winy - buttony) / 2};
   int maxco = co.x;
 
   /* set view2d view matrix for scrolling (without scrollers) */
@@ -3766,7 +3773,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
     /* for view2d */
     maxco = std::max(co.x, maxco);
 
-    int new_sizex = (maxco + UI_HEADER_OFFSET) / UI_SCALE_FAC;
+    int new_sizex = (maxco + offset) / UI_SCALE_FAC;
 
     if (region_layout_based && (region->sizex != new_sizex)) {
       /* region size is layout based and needs to be updated */
@@ -3784,7 +3791,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   }
 
   if (!region_layout_based) {
-    maxco += UI_HEADER_OFFSET;
+    maxco += offset;
   }
 
   /* Always as last. */
