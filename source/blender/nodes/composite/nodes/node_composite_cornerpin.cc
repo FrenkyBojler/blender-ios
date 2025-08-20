@@ -5,6 +5,7 @@
 /** \file
  * \ingroup cmpnodes
  */
+#include <iostream>
 
 #include "BLI_assert.h"
 #include "BLI_math_geom.h"
@@ -85,11 +86,9 @@ static void node_composit_buts_cornerpin(uiLayout *layout, bContext * /*C*/, Poi
 {
   uiLayout &column = layout->column(true);
   column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  if (RNA_enum_get(ptr, "interpolation") != CMP_NODE_INTERPOLATION_ANISOTROPIC) {
-    uiLayout &row = column.row(true);
-    row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-    row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  }
+  uiLayout &row = column.row(true);
+  row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -231,7 +230,8 @@ class CornerPinOperation : public NodeOperation {
          * output size since sample_ewa assumes derivatives with respect to texel coordinates. */
         float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
         float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
-        sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
+        sampled_color = input.sample_ewa_extended(
+            projected_coordinates, x_gradient, y_gradient, extension_mode_x, extension_mode_y);
       }
 
       float4 plane_color = plane_mask ? sampled_color * plane_mask->load_pixel<float>(texel) :
@@ -319,6 +319,7 @@ class CornerPinOperation : public NodeOperation {
     /* The inputs are invalid because the plane is not convex, fall back to an identity operation
      * in that case. */
     if (!is_quad_convex_v2(lower_left, lower_right, upper_right, upper_left)) {
+      std::cout << "Not convex" << std::endl;
       return float3x3::identity();
     }
 
@@ -353,9 +354,6 @@ class CornerPinOperation : public NodeOperation {
 
   ExtensionMode get_extension_mode_x() const
   {
-    if (this->get_interpolation() == Interpolation::Anisotropic) {
-      return ExtensionMode::Clip;
-    }
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return ExtensionMode::Clip;
@@ -371,9 +369,6 @@ class CornerPinOperation : public NodeOperation {
 
   ExtensionMode get_extension_mode_y() const
   {
-    if (this->get_interpolation() == Interpolation::Anisotropic) {
-      return ExtensionMode::Clip;
-    }
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
         return ExtensionMode::Clip;
@@ -421,9 +416,8 @@ class CornerPinOperation : public NodeOperation {
     const bool is_clipped_x = this->get_extension_mode_x() == ExtensionMode::Clip;
     const bool is_clipped_y = this->get_extension_mode_y() == ExtensionMode::Clip;
     const bool output_needed = output_mask.should_compute();
-    const bool use_anisotropic = this->get_interpolation() == Interpolation::Anisotropic;
 
-    return is_clipped_x || is_clipped_y || output_needed || use_anisotropic;
+    return is_clipped_x || is_clipped_y || output_needed;
   }
 
   Domain compute_domain() override

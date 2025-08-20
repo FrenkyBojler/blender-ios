@@ -441,7 +441,9 @@ class Result {
    * have half-pixels offsets. Only supports ResultType::Color. */
   float4 sample_ewa_extended(const float2 &coordinates,
                              const float2 &x_gradient,
-                             const float2 &y_gradient) const;
+                             const float2 &y_gradient,
+                             const ExtensionMode &modex,
+                             const ExtensionMode &modey) const;
 
   /* Identical to sample_ewa_extended but with zero boundary condition. */
   float4 sample_ewa_zero(const float2 &coordinates,
@@ -892,9 +894,12 @@ BLI_INLINE_METHOD float4 Result::sample_cubic_extended(const float2 &coordinates
 //   copy_v4_v4(result, sampled_result);
 // }
 
-BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
-                                                     const float2 &x_gradient,
-                                                     const float2 &y_gradient) const
+BLI_INLINE_METHOD float4
+Result::sample_ewa_extended(const float2 &coordinates,
+                            const float2 &x_gradient,
+                            const float2 &y_gradient,
+                            const ExtensionMode &modex = ExtensionMode::Clip,
+                            const ExtensionMode &modey = ExtensionMode::Clip) const
 {
   BLI_assert(type_ == ResultType::Color);
 
@@ -906,7 +911,16 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
 
   const int2 size = domain_.size;
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::BLI_ewa_single_level(size, coordinates, x_gradient, y_gradient, buffer, pixel_value);
+  const math::InterpWrapMode extension_mode_x = map_extension_mode_to_wrap_mode(modex);
+  const math::InterpWrapMode extension_mode_y = map_extension_mode_to_wrap_mode(modey);
+  math::BLI_ewa_single_level(size,
+                             coordinates,
+                             x_gradient,
+                             y_gradient,
+                             buffer,
+                             pixel_value,
+                             extension_mode_x,
+                             extension_mode_y);
   return pixel_value;
 }
 
