@@ -14,10 +14,10 @@
  * Without jitter, the integer index `i` is returned
  * directly.
  */
-float get_sample_position(int i, float seed)
+float get_sample_position(int i, float random_offset)
 {
 #if defined(JITTER)
-  return jitter_factor != 1.0 ? (i + seed) / (1.0f - jitter_factor) : 0.0f;
+  return safe_divide((i + random_offset), (1.0f - jitter_factor));
 #else
   return i;
 #endif
@@ -50,10 +50,10 @@ void main()
 #else
   int number_of_steps = steps;
 #endif
-  float seed = hash_uint2_to_float(uint(texel.x), uint(texel.y));
+  float random_offset = hash_uint2_to_float(uint(texel.x), uint(texel.y));
 
   for (int i = 0; i <= number_of_steps; i++) {
-    float position_index = get_sample_position(i, seed);
+    float position_index = get_sample_position(i, random_offset);
     float2 position = coordinates + position_index * step_vector;
 
     /* We are already past the image boundaries, and any future steps are also past the image

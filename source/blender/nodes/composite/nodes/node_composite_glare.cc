@@ -1396,7 +1396,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_4fv_array(shader,
                                  "color_modulators",
                                  color_modulators.size(),
-                                 (const float(*)[4])color_modulators.data());
+                                 (const float (*)[4])color_modulators.data());
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
@@ -2321,10 +2321,10 @@ class GlareOperation : public NodeOperation {
       float4 accumulated_color = float4(0.0f);
 
       int number_of_steps = (1.0f - this->get_jitter_factor()) * steps;
-      float seed = noise::hash_to_float(texel.x, texel.y);
+      float random_offset = noise::hash_to_float(texel.x, texel.y);
 
       for (int i = 0; i <= number_of_steps; i++) {
-        float position_index = this->get_sample_position(i, this->get_use_jitter(), seed);
+        float position_index = this->get_sample_position(i, this->get_use_jitter(), random_offset);
         float2 position = coordinates + position_index * step_vector;
 
         /* We are already past the image boundaries, and any future steps are also past the image
@@ -2363,11 +2363,10 @@ class GlareOperation : public NodeOperation {
    * directly.
    */
 
-  float get_sample_position(const int i, const bool use_jitter, const float seed)
+  float get_sample_position(const int i, const bool use_jitter, const float random_offset)
   {
     if (use_jitter) {
-      return this->get_jitter_factor() != 1.0f ? (i + seed) / (1.0f - this->get_jitter_factor()) :
-                                                 0.0f;
+      return math::safe_divide((i + random_offset), (1.0f - this->get_jitter_factor()));
     }
     return i;
   }
