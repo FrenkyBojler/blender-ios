@@ -212,6 +212,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf);
 int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco);
 
 /* areas */
+ScrArea *ED_screen_area_add_empty(bScreen *screen, const rcti &rect);
 /**
  * Ensure #ScrArea.type and #ARegion.type are set and valid.
  */

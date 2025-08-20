@@ -569,7 +569,7 @@ enum {
   AREA_FLAG_ACTIVE_TOOL_UPDATE = (1 << 4),
   // AREA_FLAG_UNUSED_5 = (1 << 5),
 
-  AREA_FLAG_UNUSED_6 = (1 << 6), /* cleared */
+  AREA_FLAG_DOCKED = (1 << 6),
 
   /**
    * For temporary full-screens (file browser, image editor render)

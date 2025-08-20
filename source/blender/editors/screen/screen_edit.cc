@@ -215,6 +215,22 @@ bScreen *screen_add(Main *bmain, const char *name, const rcti *rect)
   return screen;
 }
 
+ScrArea *ED_screen_area_add_empty(bScreen *screen, const rcti &rect)
+{
+  ScrVert *sv1 = screen_geom_vertex_add(screen, rect.xmin, rect.ymin);
+  ScrVert *sv2 = screen_geom_vertex_add(screen, rect.xmin, rect.ymax - 1);
+  ScrVert *sv3 = screen_geom_vertex_add(screen, rect.xmax - 1, rect.ymax - 1);
+  ScrVert *sv4 = screen_geom_vertex_add(screen, rect.xmax - 1, rect.ymin);
+
+  screen_geom_edge_add(screen, sv1, sv2);
+  screen_geom_edge_add(screen, sv2, sv3);
+  screen_geom_edge_add(screen, sv3, sv4);
+  screen_geom_edge_add(screen, sv4, sv1);
+
+  /* dummy type, no spacedata */
+  return screen_addarea(screen, sv1, sv2, sv3, sv4, SPACE_EMPTY);
+}
+
 void screen_data_copy(bScreen *to, bScreen *from)
 {
   /* Free contents of 'to', is from blenkernel `screen.cc`. */

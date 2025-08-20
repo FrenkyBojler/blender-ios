@@ -1,5 +1,4 @@
-
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -67,17 +66,20 @@ static void editor_dock_keymap(wmKeyConfig * /*keyconf*/) {}
 /* add handlers, stuff you only do once or on area/region changes */
 static void editor_dock_main_region_init(wmWindowManager *wm, ARegion *region)
 {
-  wmKeyMap *keymap;
+  ED_region_panels_init(wm, region);
+  region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
+}
 
-  /* force delayed UI_view2d_region_reinit call */
-  if (ELEM(RGN_ALIGN_ENUM_FROM_MASK(region->alignment), RGN_ALIGN_RIGHT)) {
-    region->flag |= RGN_FLAG_DYNAMIC_SIZE;
+static void editor_dock_main_region_draw(const bContext *C, ARegion *region)
+{
+  LISTBASE_FOREACH (PanelType *, pt, &region->runtime->type->paneltypes) {
+    pt->flag |= PANEL_TYPE_LAYOUT_VERT_BAR;
   }
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_HEADER, region->winx, region->winy);
 
-  keymap = WM_keymap_ensure(
-      wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
+  ED_region_panels_layout(C, region);
+  /* #ED_region_panels_layout adds vertical scroll-bars, we don't want them. */
+  region->v2d.scroll &= ~V2D_SCROLL_VERTICAL;
+  ED_region_panels_draw(C, region);
 }
 
 static void editor_dock_main_region_listener(const wmRegionListenerParams *params)
@@ -116,9 +118,7 @@ void ED_spacetype_editor_dock()
   art = MEM_callocN<ARegionType>("spacetype editor dock main region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = editor_dock_main_region_init;
-  /* TODO custom drawing. */
-  art->layout = ED_region_header_layout;
-  art->draw = ED_region_header_draw;
+  art->draw = editor_dock_main_region_draw;
   art->listener = editor_dock_main_region_listener;
   art->prefsizex = UI_UNIT_X * 5; /* Mainly to avoid glitches */
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
