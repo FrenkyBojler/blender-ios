@@ -5141,6 +5141,11 @@ void CustomData_blend_write_prepare(CustomData &data,
   }
   data.totlayer = layers_to_write.size();
   data.maxlayer = data.totlayer;
+  std::fill_n(data.typemap, CD_NUMTYPES, 0);
+  data.totsize = 0;
+  if (layers_to_write.is_empty()) {
+    data.layers = nullptr;
+  }
 
   /* NOTE: `data->layers` may be null, this happens when adding
    * a legacy #MPoly struct to a mesh with no other face attributes.
@@ -5362,6 +5367,13 @@ void CustomData_blend_read(BlendDataReader *reader, CustomData *data, const int 
   /* Annoying workaround for bug #31079 loading legacy files with
    * no polygons _but_ have stale custom-data. */
   if (UNLIKELY(count == 0 && data->layers == nullptr && data->totlayer != 0)) {
+    CustomData_reset(data);
+    return;
+  }
+  /* There was a short time (Blender 500 sub 33) where the custom data struct was saved in an
+   * invalid state (see @11d2f48882). This check is unfortunate, but avoids crashing when trying to
+   * load the invalid data (see e.g. #143720). */
+  if (UNLIKELY(data->layers == nullptr && data->totlayer != 0)) {
     CustomData_reset(data);
     return;
   }
