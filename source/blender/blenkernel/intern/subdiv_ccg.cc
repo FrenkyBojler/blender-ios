@@ -216,7 +216,7 @@ static bool subdiv_ccg_evaluate_grids(SubdivCCG &subdiv_ccg,
   const blender::opensubdiv::TopologyRefinerImpl *topology_refiner = subdiv.topology_refiner;
   const int num_faces = topology_refiner->base_level().GetNumFaces();
   const Span<int> face_ptex_offset = face_ptex_offset_get(&subdiv);
-  BLI_assert(face_ptex_offset.size() == subdiv_ccg.faces.size());
+  BLI_assert(face_ptex_offset.size() == subdiv_ccg.faces.size() + 1);
   threading::parallel_for(IndexRange(num_faces), 1024, [&](const IndexRange range) {
     for (const int face_index : range) {
       if (subdiv_ccg.faces[face_index].size() == 4) {
