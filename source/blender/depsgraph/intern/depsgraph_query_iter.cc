@@ -114,7 +114,7 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
       data->dupli_object_next_index = -1;
     }
 
-    if (DEG_iterator_dupli_is_visible(dob, data->eval_mode)) {
+    if (!DEG_iterator_dupli_is_visible(dob, data->eval_mode)) {
       continue;
     }
 
@@ -464,16 +464,16 @@ bool DEG_iterator_object_is_visible(eEvaluationMode eval_mode, const Object *ob)
 bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eval_mode)
 {
   if (dupli->no_draw) {
-    return true;
+    return false;
   }
   if (dupli->ob_data && GS(dupli->ob_data->name) == ID_MB) {
-    return true;
+    return false;
   }
   if (dupli->ob->type != OB_MBALL && deg_object_hide_original(eval_mode, dupli->ob, dupli)) {
-    return true;
+    return false;
   }
 
-  return false;
+  return true;
 }
 
 bool evil::DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
