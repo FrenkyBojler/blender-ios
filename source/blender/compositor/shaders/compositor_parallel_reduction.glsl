@@ -116,16 +116,16 @@ template float identity<float, SumSquareDifference>();
 
 /* Reduce. */
 
-template<typename T, typename Operation> T reduce(T a, T b)
+template<typename T, typename Operation> T reduce(T lhs, T rhs)
 {
-  return a + b;
+  return lhs + rhs;
 }
 template float reduce<float, Sum>(float, float);
 template float4 reduce<float4, Sum>(float4, float4);
 template float reduce<float, SumSquareDifference>(float, float);
 /* clang-format off */
-template<> float reduce<float, Min>(float a, float b) { return min(a, b); }
-template<> float reduce<float, Max>(float a, float b) { return max(a, b); }
+template<> float reduce<float, Min>(float lhs, float rhs) { return min(lhs, rhs); }
+template<> float reduce<float, Max>(float lhs, float rhs) { return max(lhs, rhs); }
 /* clang-format on */
 template<> float reduce<float, MaxInRange>(float lhs, float rhs)
 {
