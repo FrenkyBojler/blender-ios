@@ -43,11 +43,10 @@ class BinaryConstraintSetIndices : public ConstraintSetIndices {
 class NAryConstraintSetIndices : public ConstraintSetIndices {
  private:
   int affected_points_ref_i_;
-  Span<Vector<int>> affected_points_;
+  GroupedSpan<int> affected_points_;
 
  public:
-  NAryConstraintSetIndices(const int affected_points_ref_i,
-                           const Span<Vector<int>> affected_points);
+  NAryConstraintSetIndices(int affected_points_ref_i, GroupedSpan<int> affected_points);
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override;
 };
 

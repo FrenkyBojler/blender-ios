@@ -559,4 +559,78 @@ class RodBendAndTwistConstraintEvaluator
   }
 };
 
+class AlignPositionsConstraintEvaluator
+    : public TemplatedConstraintSetEvaluator<AlignPositionsConstraintEvaluator> {
+ private:
+  /* Indexed by constraint index. */
+  OffsetIndices<int> offsets_;
+  Span<float> compliance_terms_;
+
+  /* Indexed by offset indices. */
+  Span<int> points_ref_indices_;
+  Span<int> point_indices_;
+  Span<float> inverse_masses_;
+
+ public:
+  AlignPositionsConstraintEvaluator(OffsetIndices<int> offsets,
+                                    Span<float> compliance_terms,
+                                    Span<int> points_ref_indices,
+                                    Span<int> point_indices,
+                                    Span<float> inverse_masses)
+      : offsets_(offsets),
+        compliance_terms_(compliance_terms),
+        points_ref_indices_(points_ref_indices),
+        point_indices_(point_indices),
+        inverse_masses_(inverse_masses)
+  {
+  }
+
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const Span<PointsRef> points_refs,
+                       const int constraint_i) const
+  {
+    const IndexRange range = offsets_[constraint_i];
+    BLI_assert(!range.is_empty());
+    const float3 center = this->compute_center(range, points_refs);
+
+    const float compliance_term = compliance_terms_[constraint_i];
+    for (const int i : range) {
+      const float inv_m = inverse_masses_[i];
+      if (inv_m <= 0.0f) {
+        /* Ignored pinned position. */
+        continue;
+      }
+      const int point_i = point_indices_[i];
+      const int points_ref_i = points_ref_indices_[i];
+      const float3 &pos = points_refs[points_ref_i].positions[point_i];
+      const DistanceConstraintResult result = evaluate_distance_constraint(
+          pos, center, inv_m, 0.0f, 0.0f, compliance_term);
+      updater.update_position(points_ref_i, point_i, result.offset0);
+    }
+  }
+
+  float3 compute_center(const IndexRange range, const Span<PointsRef> points_refs) const
+  {
+    float3 center_sum = float3(0.0f);
+    float mass_sum = 0.0f;
+    /* Computed mass weighted center. */
+    for (const int i : range) {
+      const int point_i = point_indices_[i];
+      const int points_ref_i = points_ref_indices_[i];
+      const float3 &pos = points_refs[points_ref_i].positions[point_i];
+      const float inv_m = inverse_masses_[i];
+      if (inv_m <= 0.0f) {
+        /* This position is pinned, so it becomes the center. */
+        return pos;
+      }
+      const float mass = math::rcp(inv_m);
+      center_sum += pos * mass;
+      mass_sum += mass;
+    }
+    const float3 center = center_sum / mass_sum;
+    return center;
+  }
+};
+
 }  // namespace blender::geometry::xpbd_constraint_solver

@@ -1081,14 +1081,17 @@ static void gather_overpressure_constraints(
         return geometry::xpbd_constraint_solver::OverpressureConstraintEvaluator::compute_volume(
             tris, corner_verts, positions);
       });
-      Vector<Vector<int>> &affected_points = scope.construct<Vector<Vector<int>>>();
-      affected_points.append({});
-      for (const int i : positions.index_range()) {
-        affected_points[0].append(i);
+      if (initial_volume <= 0.0f) {
+        continue;
       }
+      Vector<int> &affected_points = scope.construct<Vector<int>>(positions.size());
+      std::array<int, 2> &offsets = scope.construct<std::array<int, 2>>();
+      offsets[0] = 0;
+      offsets[1] = affected_points.size();
+      array_utils::fill_index_range<int>(affected_points);
       r_constraint_sets.append(
           {scope.construct<geometry::xpbd_constraint_solver::NAryConstraintSetIndices>(
-               key_i, affected_points),
+               key_i, GroupedSpan<int>(OffsetIndices<int>(offsets), affected_points)),
            scope.construct<geometry::xpbd_constraint_solver::OverpressureConstraintEvaluator>(
                key_i, tris, corner_verts, inverse_masses, overpressure, initial_volume)});
     }
@@ -1370,9 +1373,13 @@ static void gather_align_positions_constraints(
       points_by_group_id.add(group_id, point_i);
     });
 
-    Vector<int2> &constraint_pairs = scope.construct<Vector<int2>>();
+    Vector<int> &offsets = scope.construct<Vector<int>>();
+    Vector<int> &constraint_points_ref_indices = scope.construct<Vector<int>>();
+    Vector<int> &constraint_point_indices = scope.construct<Vector<int>>();
     Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
-    Vector<float> &constraint_distances = scope.construct<Vector<float>>();
+    Vector<float> &constraint_inverse_masses = scope.construct<Vector<float>>();
+
+    offsets.append(0);
 
     for (const Span<int> point_indices : points_by_group_id.values()) {
       if (point_indices.size() <= 1) {
@@ -1390,25 +1397,32 @@ static void gather_align_positions_constraints(
       const float compliances_log_mean = compliances_log_sum / point_indices.size();
       const float compliance = expf(compliances_log_mean);
       const float compliance_term = compliance * compliance_factor;
-      /* TODO: Create a single constraint for all aligned points instead of pairing them.*/
+
       for (const int i : point_indices.index_range()) {
-        for (const int j : point_indices.index_range().drop_front(i + 1)) {
-          constraint_pairs.append({point_indices[i], point_indices[j]});
-          constraint_compliance_terms.append(compliance_term);
-          constraint_distances.append(0.0f);
-        }
+        const int point_i = point_indices[i];
+        constraint_points_ref_indices.append(key_i);
+        constraint_point_indices.append(point_i);
+        constraint_inverse_masses.append(inverse_masses[point_i]);
       }
+
+      constraint_compliance_terms.append(compliance_term);
+      offsets.append(constraint_point_indices.size());
+    }
+
+    OffsetIndices<int> offset_indices(offsets);
+    if (offset_indices.is_empty()) {
+      continue;
     }
 
     r_constraint_sets.append(
-        {scope.construct<geometry::xpbd_constraint_solver::BinaryConstraintSetIndices>(
-             key_i, constraint_pairs),
-         scope.construct<geometry::xpbd_constraint_solver::DistanceConstraintEvaluator>(
-             key_i,
-             inverse_masses,
-             constraint_pairs,
-             constraint_distances,
-             constraint_compliance_terms)});
+        {scope.construct<geometry::xpbd_constraint_solver::NAryConstraintSetIndices>(
+             key_i, GroupedSpan<int>(offset_indices, constraint_point_indices)),
+         scope.construct<geometry::xpbd_constraint_solver::AlignPositionsConstraintEvaluator>(
+             offset_indices,
+             constraint_compliance_terms,
+             constraint_points_ref_indices,
+             constraint_point_indices,
+             constraint_inverse_masses)});
   }
 }
 
