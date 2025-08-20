@@ -394,7 +394,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->common.curves.handle_vertex_size = U_theme_default.common.curves.handle_vertex_size;
   }
 
-  if (!USER_VERSION_ATLEAST(405, 61)) {
+  if (!USER_VERSION_ATLEAST(405, 62)) {
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_bezier);
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_constant);
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_linear);
