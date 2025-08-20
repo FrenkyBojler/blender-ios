@@ -2873,7 +2873,6 @@ static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
   ARegion &region = *CTX_wm_region(C);
   AbstractView *view = get_view_focused(C);
   AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
-  const ScrollPage scroll_direction = ScrollPage(RNA_enum_get(op->ptr, "scroll_direction"));
 
   if (!tree_view || tree_view->is_fully_visible()) {
     return OPERATOR_CANCELLED;
@@ -2882,6 +2881,7 @@ static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
   int scroll_value = 0;
   ViewScrollDirection direction;
   const int visible_rows = tree_view->tot_visible_row_count().value_or(0);
+  const ScrollPage scroll_direction = ScrollPage(RNA_enum_get(op->ptr, "scroll_direction"));
   switch (scroll_direction) {
     case ScrollPage::Top:
       direction = ViewScrollDirection::UP;
@@ -2898,6 +2898,7 @@ static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
     case ScrollPage::Bottom:
       direction = ViewScrollDirection::DOWN;
       scroll_value = tree_view->tot_row_count() - (visible_rows + tree_view->scroll_value());
+      break;
   }
 
   while (scroll_value != 0) {
