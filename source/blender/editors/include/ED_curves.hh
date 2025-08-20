@@ -469,7 +469,7 @@ void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_ma
 wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
 
 constexpr int BEZIER_HANDLE_TOGGLE = 4;
-const EnumPropertyItem curves_handle_type_items[] = {
+const EnumPropertyItem rna_enum_set_handle_type_items[] = {
     {BEZIER_HANDLE_AUTO,
      "AUTO",
      0,
