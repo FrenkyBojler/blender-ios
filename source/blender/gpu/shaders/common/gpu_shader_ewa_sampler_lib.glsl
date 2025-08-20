@@ -36,7 +36,7 @@ void clamp_anisotropy(inout float2 x_gradient,
   float long_len = sqrt(len_squared_dx);
   float short_len = sqrt(len_squared_dy);
 
-  if (max_ratio_between_axes > 1.0 && short_len > 0.0 &&
+  if (max_ratio_between_axes > 1.0f && short_len > 0.0f &&
       long_len > max_ratio_between_axes * short_len)
   {
     float scale = long_len / (max_ratio_between_axes * short_len);
@@ -70,7 +70,7 @@ Ellipse build_ellipse(float2 coordinates,
   /* Clamps the ellipsoid based on the ratio between the axes.
    * This leads to better performance, because thin ellipsoids will be adjusted,
    * but also leads to neglectable blurring. */
-  if (max_ratio_between_axes > 1.0) {
+  if (max_ratio_between_axes > 1.0f) {
     clamp_anisotropy(x_gradient, y_gradient, max_ratio_between_axes);
   }
 
@@ -84,30 +84,30 @@ Ellipse build_ellipse(float2 coordinates,
    * center lies just outside the true ellipse, as long as its 1x1 area
    * overlaps the ellipse. If we only test the true ellipse we will miss those border
    * texels, causing artefacts. */
-  float a = square(dv_dx) + square(dv_dy) + 1.0;
-  float b = -2.0 * (du_dx * dv_dx + du_dy * dv_dy);
-  float c = square(du_dx) + square(du_dy) + 1.0;
+  float a = square(dv_dx) + square(dv_dy) + 1.0f;
+  float b = -2.0f * (du_dx * dv_dx + du_dy * dv_dy);
+  float c = square(du_dx) + square(du_dy) + 1.0f;
 
   /* Computes det(M) = AC - B^2 * 0.25. We require that the determinant is
    * positive define so r^2 =1 is a bounded ellipse.
    * If the determinant is <= 0, the footprint of the ellipsoid is invalid
    * (singluar Jacobian/extreme anisotropy).
    * https://en.wikipedia.org/wiki/Matrix_representation_of_conic_sections#Classification */
-  float determinant = a * c - 0.25 * b * b;
-  if (determinant <= 0.0) {
+  float determinant = a * c - 0.25f * b * b;
+  if (determinant <= 0.0f) {
     Ellipse e;
     e.valid = false;
     return e;
   }
 
-  float inv = 1.0 / determinant;
+  float inv = 1.0f / determinant;
   a *= inv;
   b *= inv;
   c *= inv;
 
 
-  float conic_discriminant = -b * b + 4.0 * a * c;
-  float inv_conic_discriminant = 1.0 / conic_discriminant;
+  float conic_discriminant = -b * b + 4.0f * a * c;
+  float inv_conic_discriminant = 1.0f / conic_discriminant;
   float2 extent = 2.0f * inv_conic_discriminant *
                      sqrt(float2(conic_discriminant * c, conic_discriminant * a));
 
