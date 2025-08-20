@@ -1759,6 +1759,13 @@ static void do_version_scale_menus_to_inputs(bNodeTree &ntree, bNode &node)
     return;
   }
 
+  bNodeSocket &type_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
+  type_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+  bNodeSocket &frame_type_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Frame Type");
+  frame_type_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2;
+
   const auto &storage = *static_cast<NodeScaleData *>(node.storage);
   bNodeSocket &interpolation_socket = version_node_add_socket(
       ntree, node, SOCK_IN, "NodeSocketMenu", "Interpolation");

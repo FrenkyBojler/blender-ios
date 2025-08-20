@@ -6541,40 +6541,6 @@ static void def_cmp_file_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
 }
 
-static void def_cmp_scale(BlenderRNA * /*brna*/, StructRNA *srna)
-{
-  PropertyRNA *prop;
-
-  static const EnumPropertyItem space_items[] = {
-      {CMP_NODE_SCALE_RELATIVE, "RELATIVE", 0, "Relative", ""},
-      {CMP_NODE_SCALE_ABSOLUTE, "ABSOLUTE", 0, "Absolute", ""},
-      {CMP_NODE_SCALE_RENDER_PERCENT, "SCENE_SIZE", 0, "Scene Size", ""},
-      {CMP_NODE_SCALE_RENDER_SIZE, "RENDER_SIZE", 0, "Render Size", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  /* matching bgpic_camera_frame_items[] */
-  static const EnumPropertyItem space_frame_items[] = {
-      {CMP_NODE_SCALE_RENDER_SIZE_STRETCH, "STRETCH", 0, "Stretch", ""},
-      {CMP_NODE_SCALE_RENDER_SIZE_FIT, "FIT", 0, "Fit", ""},
-      {CMP_NODE_SCALE_RENDER_SIZE_CROP, "CROP", 0, "Crop", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, space_items);
-  RNA_def_property_ui_text(prop, "Space", "Coordinate space to scale relative to");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_CompositorNodeScale_update");
-
-  /* expose 2 flags as a enum of 3 items */
-  prop = RNA_def_property(srna, "frame_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
-  RNA_def_property_enum_items(prop, space_frame_items);
-  RNA_def_property_ui_text(prop, "Frame Method", "How the image fits in the camera frame");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-}
-
 static void def_cmp_distance_matte(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem color_space_items[] = {
@@ -10183,7 +10149,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeRGBToBW");
   define("CompositorNode", "CompositorNodeRLayers", def_cmp_render_layers);
   define("CompositorNode", "CompositorNodeRotate");
-  define("CompositorNode", "CompositorNodeScale", def_cmp_scale);
+  define("CompositorNode", "CompositorNodeScale");
   define("CompositorNode", "CompositorNodeSceneTime");
   define("CompositorNode", "CompositorNodeSeparateColor", def_cmp_combsep_color);
   define("CompositorNode", "CompositorNodeSepHSVA");

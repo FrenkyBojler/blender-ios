@@ -35,6 +35,22 @@
 
 namespace blender::nodes::node_composite_scale_cc {
 
+static const EnumPropertyItem type_items[] = {
+    {CMP_NODE_SCALE_RELATIVE, "RELATIVE", 0, "Relative", ""},
+    {CMP_NODE_SCALE_ABSOLUTE, "ABSOLUTE", 0, "Absolute", ""},
+    {CMP_NODE_SCALE_RENDER_PERCENT, "SCENE_SIZE", 0, "Scene Size", ""},
+    {CMP_NODE_SCALE_RENDER_SIZE, "RENDER_SIZE", 0, "Render Size", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+/* Matches bgpic_camera_frame_items[]. */
+static const EnumPropertyItem frame_type_items[] = {
+    {CMP_NODE_SCALE_RENDER_SIZE_STRETCH, "STRETCH", 0, "Stretch", ""},
+    {CMP_NODE_SCALE_RENDER_SIZE_FIT, "FIT", 0, "Fit", ""},
+    {CMP_NODE_SCALE_RENDER_SIZE_CROP, "CROP", 0, "Crop", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void cmp_node_scale_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -45,16 +61,23 @@ static void cmp_node_scale_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_realization_mode(CompositorInputRealizationMode::None)
       .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Menu>("Type").default_value(CMP_NODE_SCALE_RELATIVE).static_items(type_items);
   b.add_input<decl::Float>("X")
       .default_value(1.0f)
       .min(0.0001f)
       .max(CMP_SCALE_MAX)
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .usage_by_menu("Type", {CMP_NODE_SCALE_RELATIVE, CMP_NODE_SCALE_ABSOLUTE});
   b.add_input<decl::Float>("Y")
       .default_value(1.0f)
       .min(0.0001f)
       .max(CMP_SCALE_MAX)
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .usage_by_menu("Type", {CMP_NODE_SCALE_RELATIVE, CMP_NODE_SCALE_ABSOLUTE});
+  b.add_input<decl::Menu>("Frame Type")
+      .default_value(CMP_NODE_SCALE_RENDER_SIZE_STRETCH)
+      .static_items(frame_type_items)
+      .description("How the image fits in the camera frame");
 
   PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling").default_closed(true);
   sampling_panel.add_input<decl::Menu>("Interpolation")
@@ -282,7 +305,7 @@ class ScaleOperation : public NodeOperation {
 
   float2 get_scale()
   {
-    switch (get_scale_method()) {
+    switch (get_type()) {
       case CMP_NODE_SCALE_RELATIVE:
         return get_scale_relative();
       case CMP_NODE_SCALE_ABSOLUTE:
@@ -325,7 +348,7 @@ class ScaleOperation : public NodeOperation {
       return float2(1.0f);
     }
 
-    switch (get_scale_render_size_method()) {
+    switch (get_frame_type()) {
       case CMP_NODE_SCALE_RENDER_SIZE_STRETCH:
         return get_scale_render_size_stretch();
       case CMP_NODE_SCALE_RENDER_SIZE_FIT:
@@ -374,21 +397,27 @@ class ScaleOperation : public NodeOperation {
   bool is_variable_size()
   {
     /* Only relative scaling can be variable. */
-    if (get_scale_method() != CMP_NODE_SCALE_RELATIVE) {
+    if (get_type() != CMP_NODE_SCALE_RELATIVE) {
       return false;
     }
 
     return !get_input("X").is_single_value() || !get_input("Y").is_single_value();
   }
 
-  CMPNodeScaleMethod get_scale_method()
+  CMPNodeScaleMethod get_type()
   {
-    return static_cast<CMPNodeScaleMethod>(bnode().custom1);
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_SCALE_RELATIVE);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeScaleMethod>(menu_value.value);
   }
 
-  CMPNodeScaleRenderSizeMethod get_scale_render_size_method()
+  CMPNodeScaleRenderSizeMethod get_frame_type()
   {
-    return static_cast<CMPNodeScaleRenderSizeMethod>(bnode().custom2);
+    const Result &input = this->get_input("Frame Type");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_SCALE_RENDER_SIZE_STRETCH);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeScaleRenderSizeMethod>(menu_value.value);
   }
 };
 
