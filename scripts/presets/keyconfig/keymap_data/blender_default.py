@@ -1054,6 +1054,10 @@ def km_user_interface(_params):
          {"properties": [("scroll_direction", 'UP')]}),
         ("ui.view_item_page_scroll", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True},
          {"properties": [("scroll_direction", 'DOWN')]}),
+        ("ui.view_item_page_scroll", {"type": 'HOME', "value": 'PRESS'},
+         {"properties": [("scroll_direction", 'TOP')]}),
+        ("ui.view_item_page_scroll", {"type": 'END', "value": 'PRESS'},
+         {"properties": [("scroll_direction", 'BOTTOM')]}),
     ])
 
     return keymap

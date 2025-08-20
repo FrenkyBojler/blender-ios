@@ -146,7 +146,9 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
+  int scroll_value() const;
   std::optional<int> tot_visible_row_count() const;
+  int tot_row_count() const;
   /**
    * \param xy: The mouse coordinates in window space.
    */

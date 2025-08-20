@@ -2859,6 +2859,13 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
+enum class ScrollPage {
+  Top,
+  Up,
+  Down,
+  Bottom,
+};
+
 static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent * /*event*/)
@@ -2866,16 +2873,35 @@ static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
   ARegion &region = *CTX_wm_region(C);
   AbstractView *view = get_view_focused(C);
   AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
-  const ViewScrollDirection scroll_direction = ViewScrollDirection(
-      RNA_enum_get(op->ptr, "scroll_direction"));
+  const ScrollPage scroll_direction = ScrollPage(RNA_enum_get(op->ptr, "scroll_direction"));
 
   if (!tree_view || tree_view->is_fully_visible()) {
     return OPERATOR_CANCELLED;
   }
 
-  int scroll_value = tree_view->tot_visible_row_count().value_or(0);
+  int scroll_value = 0;
+  ViewScrollDirection direction;
+  const int visible_rows = tree_view->tot_visible_row_count().value_or(0);
+  switch (scroll_direction) {
+    case ScrollPage::Top:
+      direction = ViewScrollDirection::UP;
+      scroll_value = tree_view->scroll_value();
+      break;
+    case ScrollPage::Up:
+      direction = ViewScrollDirection::UP;
+      scroll_value = visible_rows;
+      break;
+    case ScrollPage::Down:
+      direction = ViewScrollDirection::DOWN;
+      scroll_value = visible_rows;
+      break;
+    case ScrollPage::Bottom:
+      direction = ViewScrollDirection::DOWN;
+      scroll_value = tree_view->tot_row_count() - (visible_rows + tree_view->scroll_value());
+  }
+
   while (scroll_value != 0) {
-    tree_view->scroll(scroll_direction);
+    tree_view->scroll(direction);
     scroll_value--;
   }
 
@@ -2895,8 +2921,10 @@ static void UI_OT_view_item_page_scroll(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 
   static const EnumPropertyItem direction_enum_items[] = {
-      {int(ViewScrollDirection::UP), "UP", 0, "Up", "Scroll above to previous page"},
-      {int(ViewScrollDirection::DOWN), "DOWN", 0, "Down", "Scroll below to next page"},
+      {int(ScrollPage::Top), "TOP", 0, "Top", "Scroll to First Page"},
+      {int(ScrollPage::Up), "UP", 0, "Up", "Scroll above to previous page"},
+      {int(ScrollPage::Down), "DOWN", 0, "Down", "Scroll below to next page"},
+      {int(ScrollPage::Bottom), "BOTTOM", 0, "Bottom", "Scroll to Last Page"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

@@ -374,6 +374,11 @@ std::optional<int> AbstractTreeView::tot_visible_row_count() const
   return math::max(MIN_ROWS, calculate_rows);
 }
 
+int AbstractTreeView::tot_row_count() const
+{
+  return last_tot_items_;
+}
+
 bool AbstractTreeView::supports_scrolling() const
 {
   return custom_height_ && scroll_value_;
@@ -391,6 +396,11 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   }
   /* Scroll value will be sanitized/clamped when drawing. */
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
+}
+
+int AbstractTreeView::scroll_value() const
+{
+  return scroll_value_ ? *scroll_value_ : 0;
 }
 
 /* ---------------------------------------------------------------------- */
