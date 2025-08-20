@@ -765,7 +765,7 @@ static void sequencer_draw_scopes(Scene *scene,
       float3 coeffs;
       IMB_colormanagement_get_luminance_coefficients(coeffs);
       GPU_batch_uniform_3f(batch, "luma_coeffs", coeffs.x, coeffs.y, coeffs.z);
-      GPU_batch_uniform_1f(batch, "point_size", point_size);
+      GPU_batch_uniform_1f(batch, "scope_point_size", point_size);
       GPU_batch_uniform_1b(batch, "img_premultiplied", premultiplied);
       GPU_batch_uniform_1i(batch, "image_width", image_width);
       GPU_batch_uniform_1i(batch, "image_height", image_height);

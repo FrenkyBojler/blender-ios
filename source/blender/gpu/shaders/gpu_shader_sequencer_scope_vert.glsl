@@ -79,7 +79,7 @@ void main()
   finalColor.rgb = color.rgb;
   finalColor.a = 0.2;
 
-  float size = point_size * 4.0;
+  float size = scope_point_size * 4.0;
   if (size < 2.0) {
     /* If point size becomes very small, keep it at minimum size and instead
      * fade points out. */
