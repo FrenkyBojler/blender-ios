@@ -304,8 +304,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       const auto *item = socket_items::add_item_with_socket_type_and_name<GeoViewerItemsAccessor>(
           params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
       params.update_and_connect_available_socket(node, item->name);
-      const bContext &C = params.C;
-      ed::viewer_path::activate_geometry_node(*CTX_data_main(&C), *CTX_wm_space_node(&C), node);
+      SpaceNode *snode = CTX_wm_space_node(&params.C);
+      Main *bmain = CTX_data_main(&params.C);
+      ed::viewer_path::activate_geometry_node(*bmain, *snode, node);
     });
     return;
   }
