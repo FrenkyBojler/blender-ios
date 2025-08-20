@@ -18,5 +18,7 @@ void main()
   result_indices_buf[gl_VertexID].y = pt.curve_id;
   result_indices_buf[gl_VertexID].z = pt.curve_segment;
   result_indices_buf[gl_VertexID].w = int(pt.azimuthal_offset);
+
+  gl_Position = float4(0);
 #endif
 }
