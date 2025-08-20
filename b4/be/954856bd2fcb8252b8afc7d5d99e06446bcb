@@ -1,1 +1,2 @@
 Referenced by issue #144713, Cycles Metal: Barbershop scene renders with artifacts
+Referenced by pull request #144880, Revert "Cycles: Simplify Metal backend with direct bindless resource encoding"
