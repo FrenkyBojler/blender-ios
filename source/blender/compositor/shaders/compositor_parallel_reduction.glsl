@@ -76,6 +76,7 @@ template<typename T, typename Operation> T initialize(T value)
 }
 template float initialize<float, Min>(float);
 template float initialize<float, Max>(float);
+template float2 initialize<float2, Max>(float2);
 template float initialize<float, Sum>(float);
 template float4 initialize<float4, MaxVelocity>(float4);
 
@@ -104,7 +105,14 @@ template<typename T, typename Operation> T identity()
 {
   return T(0);
 }
-template float identity<float, Min>();
+template float identity<float, Min>(); /* TODO */
+template float identity<float, Max>();
+template float2 identity<float2, Max>();
+template float identity<float, Sum>();
+template float4 identity<float4, MaxVelocity>(); /* TODO */
+template float identity<float, MaxInRange>();    /* TODO */
+template float identity<float, MinInRange>();    /* TODO */
+template float identity<float, SumSquareDifference>();
 
 /* Reduce. */
 
