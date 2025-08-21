@@ -61,36 +61,27 @@ static float select_major_distance(const float *possible_distances,
 
 static int get_divisor(const int distance)
 {
-  if (distance == 2) {
-    /* Because (2/2) % 2 would be 1. */
-    return 2;
+  const int divisors[3] = {2, 3, 5};
+  int division_results[3];
+
+  for (int i = 0; i < 3; i++) {
+    const int divisor = divisors[i];
+    const int result = distance / divisor;
+    /* If the division was without loss due to integer cast and the result is a power of two return
+     * that. We prefer any opportunity to get onto the power of two ladder since halfing the range
+     * every time is the most intuitive way for artists. */
+    if (result * divisor == distance && (result & (result - 1)) == 0) {
+      return divisor;
+    }
+    division_results[i] = result;
   }
 
-  /* First try dividing such that the result is an even number. */
-  const bool divisible_by_2 = distance % 2 == 0;
-  if (divisible_by_2 && (distance / 2) % 2 == 0) {
-    return 2;
-  }
-
-  const bool divisible_by_3 = distance % 3 == 0;
-  if (divisible_by_3 && (distance / 3) % 2 == 0) {
-    return 3;
-  }
-
-  const bool divisible_by_5 = distance % 5 == 0;
-  if (divisible_by_5 && (distance / 5) % 2 == 0) {
-    return 5;
-  }
-
-  /* Then try diving such that the result is a whole number. */
-  if (divisible_by_2) {
-    return 2;
-  }
-  if (divisible_by_3) {
-    return 3;
-  }
-  if (divisible_by_5) {
-    return 5;
+  /* If no division lands on a power of two, take the first to divide cleanly. */
+  for (int i = 0; i < 3; i++) {
+    const int divisor = divisors[i];
+    if (division_results[i] * divisor == distance) {
+      return divisor;
+    }
   }
 
   /* In case none of the above if is true, the divisor will be 2. This can cause major lines to be
