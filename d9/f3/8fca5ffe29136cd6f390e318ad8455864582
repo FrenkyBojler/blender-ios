@@ -4,4 +4,4 @@ Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by pull request #123800, _PyLong_AsInt became PyLong_AsInt in Python 3.13
 Referenced by pull request #139023, 4.2LTS: PyAPI: support Python 3.13
 Referenced by issue #144758, Constructing bpy.types.GPUFrameBuffer with GPUTexture as value in dict produces type error.
-Referenced by pull request #144908, Fix #144758: Python: Incorrect unicode comparison
+Referenced by pull request #144908, Fix #144758: Python: Incorrect unicode comparison in GPUFramebuffer
