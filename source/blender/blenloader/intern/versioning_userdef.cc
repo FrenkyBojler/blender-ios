@@ -1660,7 +1660,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(500, 100)) {
-    userdef->flag |= USER_VISIBLE_AREA_HANDLE;
+    userdef->uiflag |= USER_VISIBLE_AREA_HANDLE;
   }
 
   /**
