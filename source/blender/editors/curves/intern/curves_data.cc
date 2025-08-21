@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 
 #include "DNA_object_types.h"
 
@@ -50,11 +51,14 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
     selection[0] = ed::curves::retrieve_selected_points(curves, memory);
   }
   else {
-    const IndexMask bezier_points = IndexMask::from_predicate(
-        curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
-          const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
-          return is_bezier;
-        });
+    const IndexMask bezier_points = bke::curves::curve_to_point_selection(
+        curves.points_by_curve(),
+        bke::curves::indices_for_type(curves.curve_types(),
+                                      curves.curve_type_counts(),
+                                      CURVE_TYPE_BEZIER,
+                                      curves.curves_range(),
+                                      memory),
+        memory);
 
     for (const int i : selection_names.index_range()) {
       if (selection_names[i] == ".selection") {
