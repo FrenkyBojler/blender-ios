@@ -100,11 +100,10 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
       back_left->bind(false);
 
       swap_chain_format_ = swap_chain_data.surface_format;
-      GCaps.hdr_viewport_support = ELEM(swap_chain_format_.format,
-                                        VK_FORMAT_R16G16B16A16_SFLOAT) &&
+      GCaps.hdr_viewport_support = (swap_chain_format_.format == VK_FORMAT_R16G16B16A16_SFLOAT) &&
                                    ELEM(swap_chain_format_.colorSpace,
-                                        VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-                                        VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT);
+                                        VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
+                                        VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     }
   }
 }
