@@ -1588,6 +1588,33 @@ static void do_version_world_remove_use_nodes(Main *bmain, World *world)
   new_output.parent = frame;
 }
 
+static void version_dynamic_viewer_node_items(bNodeTree &ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+    if (node->type_legacy != GEO_NODE_VIEWER) {
+      continue;
+    }
+    NodeGeometryViewer *storage = static_cast<NodeGeometryViewer *>(node->storage);
+    const int input_sockets_num = BLI_listbase_count(&node->inputs);
+    if (input_sockets_num == storage->items_num + 1) {
+      /* Make versioning idempotent. */
+      continue;
+    }
+    storage->items_num = 2;
+    storage->items = MEM_calloc_arrayN<NodeGeometryViewerItem>(2, __func__);
+    NodeGeometryViewerItem &geometry_item = storage->items[0];
+    geometry_item.name = BLI_strdup("Geometry");
+    geometry_item.socket_type = SOCK_GEOMETRY;
+    geometry_item.identifier = 0;
+    NodeGeometryViewerItem &value_item = storage->items[1];
+    value_item.name = BLI_strdup("Value");
+    value_item.socket_type = blender::bke::custom_data_type_to_socket_type(
+                                 eCustomDataType(storage->data_type_legacy))
+                                 .value_or(SOCK_FLOAT);
+    value_item.identifier = 1;
+  }
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -2297,6 +2324,16 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           STRNCPY_UTF8(node->idname, "ShaderNodeGamma");
         }
       }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 62)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_GEOMETRY) {
+        continue;
+      }
+      version_dynamic_viewer_node_items(*ntree);
     }
     FOREACH_NODETREE_END;
   }
