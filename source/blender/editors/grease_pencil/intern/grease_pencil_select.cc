@@ -597,6 +597,13 @@ void insert_selected_values(const bke::CurvesGeometry &curves,
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArraySpan<bool> selection = *attributes.lookup_or_default<bool>(
       ".selection", domain, true);
+  const VArraySpan<bool> selection_left = *attributes.lookup_or_default<bool>(
+      ".selection_handle_left", domain, true);
+  const VArraySpan<bool> selection_right = *attributes.lookup_or_default<bool>(
+      ".selection_handle_right", domain, true);
+  const VArray<int8_t> curve_types = curves.curve_types();
+  const Array<int> point_to_curve_map = curves.point_to_curve_map();
+
   const VArraySpan<T> values = *attributes.lookup_or_default<T>(
       attribute_id, domain, default_value);
 
@@ -607,6 +614,13 @@ void insert_selected_values(const bke::CurvesGeometry &curves,
         for (const int i : range) {
           if (selection[i]) {
             local_value_set.add(values[i]);
+          }
+          if (domain == bke::AttrDomain::Point &&
+              curve_types[point_to_curve_map[i]] == CURVE_TYPE_BEZIER)
+          {
+            if (selection_left[i] || selection_right[i]) {
+              local_value_set.add(values[i]);
+            }
           }
         }
       });
@@ -643,29 +657,33 @@ static void select_similar_by_value(Scene *scene,
   }
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
-        curves, selection_domain, bke::AttrType::Bool);
-    MutableSpan<bool> selection = selection_writer.span.typed<bool>();
-    const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
-        attribute_id, selection_domain, default_value);
-
     IndexMaskMemory memory;
     const IndexMask mask = ed::greasepencil::retrieve_editable_points(
         *object, info.drawing, info.layer_index, memory);
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
+        attribute_id, selection_domain, default_value);
 
-    mask.foreach_index(GrainSize(1024), [&](const int index) {
-      if (selection[index]) {
-        return;
-      }
-      for (const T &test_value : selected_values) {
-        if (distance_fn(values[index], test_value) <= threshold) {
-          selection[index] = true;
+    Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
+        curves);
+    for (const int i : selection_attribute_names.index_range()) {
+      bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+          curves, selection_domain, bke::AttrType::Bool, selection_attribute_names[i]);
+      MutableSpan<bool> selection = selection_writer.span.typed<bool>();
+
+      mask.foreach_index(GrainSize(1024), [&](const int index) {
+        if (selection[index]) {
+          return;
         }
-      }
-    });
+        for (const T &test_value : selected_values) {
+          if (distance_fn(values[index], test_value) <= threshold) {
+            selection[index] = true;
+          }
+        }
+      });
 
-    selection_writer.finish();
+      selection_writer.finish();
+    }
   });
 }
 
