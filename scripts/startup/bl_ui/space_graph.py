@@ -11,7 +11,6 @@ from bl_ui.space_dopesheet import (
 from bl_ui.space_time import playback_controls
 
 
-
 def drivers_editor_footer(layout, context):
     act_fcurve = context.active_editable_fcurve
     if not act_fcurve:

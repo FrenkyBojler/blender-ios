@@ -83,8 +83,8 @@ def playback_controls(layout, context):
 
     row.operator("screen.keyframe_jump", text="", icon='NEXT_KEYFRAME').next = True
     row.operator("screen.frame_jump", text="", icon='FF').end = True
-    row = layout.row(align=True)
 
+    row = layout.row(align=True)
     row.prop(tool_settings, "use_snap_playhead", text="")
     sub = row.row(align=True)
     sub.popover(panel="TIME_PT_playhead_snapping", text="")
