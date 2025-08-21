@@ -83,8 +83,9 @@ template<typename T> T output_load(int evaluated_point_index)
 }
 template<> InterpPosition output_load<InterpPosition>(int evaluated_point_index)
 {
-  InterpPosition data = buffer_get(draw_curves_interpolate_position,
-                                   evaluated_positions_radii_buf)[evaluated_point_index];
+  InterpPosition data;
+  data.data = buffer_get(draw_curves_interpolate_position,
+                         evaluated_positions_radii_buf)[evaluated_point_index];
   return data;
 }
 template<> float4 output_load<float4>(int evaluated_point_index)
