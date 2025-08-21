@@ -115,16 +115,17 @@ static void add_collision_relations_with_parents(
 {
   auto update_fn = [&handle, &name, &object_component_map](Object *ob, const bool update_mesh) {
     CollisionComponentFlag &update_flag = object_component_map.lookup_or_add_default(ob);
-    CollisionComponentFlag test_flag;
 
-    test_flag = CollisionComponentFlag::Transform;
-    if ((update_flag & test_flag) == CollisionComponentFlag::None) {
-      update_flag |= test_flag;
-      DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_TRANSFORM, name);
+    {
+      constexpr CollisionComponentFlag test_flag = CollisionComponentFlag::Transform;
+      if ((update_flag & test_flag) == CollisionComponentFlag::None) {
+        update_flag |= test_flag;
+        DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_TRANSFORM, name);
+      }
     }
 
     if (update_mesh) {
-      test_flag = CollisionComponentFlag::Geometry;
+      constexpr CollisionComponentFlag test_flag = CollisionComponentFlag::Geometry;
       if ((update_flag & test_flag) == CollisionComponentFlag::None) {
         update_flag |= test_flag;
         DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_GEOMETRY, name);
@@ -132,7 +133,7 @@ static void add_collision_relations_with_parents(
     }
 
     if (ob->type == OB_ARMATURE) {
-      test_flag = CollisionComponentFlag::EvalPose;
+      constexpr CollisionComponentFlag test_flag = CollisionComponentFlag::EvalPose;
       if ((update_flag & test_flag) == CollisionComponentFlag::None) {
         update_flag |= test_flag;
         DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_EVAL_POSE, name);
@@ -162,7 +163,6 @@ void DEG_add_collision_relations(DepsNodeHandle *handle,
   const bool use_recursive_parents = (modifier_type == eModifierType_DynamicPaint);
 
   blender::Map<Object *, CollisionComponentFlag> *object_component_map = nullptr;
-  const int parent_recursion = OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT;
   if (use_recursive_parents) {
     object_component_map = MEM_new<blender::Map<Object *, CollisionComponentFlag>>(__func__);
   }
@@ -179,8 +179,12 @@ void DEG_add_collision_relations(DepsNodeHandle *handle,
     }
 
     if (use_recursive_parents) {
-      add_collision_relations_with_parents(
-          handle, ob1, name, parent_recursion, modifier_type, *object_component_map);
+      add_collision_relations_with_parents(handle,
+                                           ob1,
+                                           name,
+                                           OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT,
+                                           modifier_type,
+                                           *object_component_map);
       continue;
     }
 
