@@ -27,7 +27,7 @@ class TestFileImportNodes(unittest.TestCase):
         file_path_map: dict[bpy.types.ID, set[str]] = bpy.data.file_path_map()
 
         # Go through Path(...) to ensure platform-native slashes.
-        relative_path = f"//{Path('../obj/all_tris.obj'):s}"
+        relative_path = f"//{Path('../obj/all_tris.obj')!s}"
 
         self.assertIn(node_tree, list(file_path_map.keys()))
         self.assertEqual({relative_path}, file_path_map[node_tree],
