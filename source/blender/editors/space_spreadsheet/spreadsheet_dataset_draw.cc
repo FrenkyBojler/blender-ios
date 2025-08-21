@@ -1001,13 +1001,13 @@ std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
   return false;
 }
 
-class ViewerDataTeeItem : public ui::AbstractTreeViewItem {
+class ViewerDataTreeItem : public ui::AbstractTreeViewItem {
  public:
-  Vector<const ViewerDataTeeItem *> items_path() const
+  Vector<const ViewerDataTreeItem *> items_path() const
   {
-    Vector<const ViewerDataTeeItem *> items;
+    Vector<const ViewerDataTreeItem *> items;
     this->foreach_parent([&](const ui::AbstractTreeViewItem &parent) {
-      items.append(dynamic_cast<const ViewerDataTeeItem *>(&parent));
+      items.append(dynamic_cast<const ViewerDataTreeItem *>(&parent));
     });
     items.as_mutable_span().reverse();
     items.append(this);
@@ -1034,7 +1034,7 @@ struct ViewerDataPath {
     this->closure_input_output = SpreadsheetClosureInputOutput(table_id.closure_input_output);
   }
 
-  explicit ViewerDataPath(const Span<const ViewerDataTeeItem *> tree_items);
+  explicit ViewerDataPath(const Span<const ViewerDataTreeItem *> tree_items);
 
   void store(SpreadsheetTableIDGeometry &table_id)
   {
@@ -1056,7 +1056,7 @@ struct ViewerDataPath {
   }
 };
 
-class ViewerNodeItem : public ViewerDataTeeItem {
+class ViewerNodeItem : public ViewerDataTreeItem {
  private:
   const nodes::geo_eval_log::ViewerNodeLog::Item &item_;
 
@@ -1071,7 +1071,7 @@ class ViewerNodeItem : public ViewerDataTeeItem {
   }
 };
 
-class BundleItem : public ViewerDataTeeItem {
+class BundleItem : public ViewerDataTreeItem {
  private:
   std::string key_;
 
@@ -1086,7 +1086,7 @@ class BundleItem : public ViewerDataTeeItem {
   }
 };
 
-class ClosureInputOutputItem : public ViewerDataTeeItem {
+class ClosureInputOutputItem : public ViewerDataTreeItem {
  private:
   SpreadsheetClosureInputOutput in_out_;
 
@@ -1102,9 +1102,9 @@ class ClosureInputOutputItem : public ViewerDataTeeItem {
   }
 };
 
-ViewerDataPath::ViewerDataPath(const Span<const ViewerDataTeeItem *> tree_items)
+ViewerDataPath::ViewerDataPath(const Span<const ViewerDataTreeItem *> tree_items)
 {
-  for (const ViewerDataTeeItem *item : tree_items) {
+  for (const ViewerDataTreeItem *item : tree_items) {
     if (const auto *viewer_node_item = dynamic_cast<const ViewerNodeItem *>(item)) {
       this->viewer_item = viewer_node_item->item_.identifier;
     }
@@ -1121,7 +1121,7 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
  private:
   SpaceSpreadsheet &sspreadsheet_;
 
-  friend ViewerDataTeeItem;
+  friend ViewerDataTreeItem;
 
  public:
   ViewerDataTreeView(const bContext &C) : sspreadsheet_(*CTX_wm_space_spreadsheet(&C)) {}
@@ -1181,7 +1181,7 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
   }
 };
 
-void ViewerDataTeeItem::on_activate(bContext & /*C*/)
+void ViewerDataTreeItem::on_activate(bContext & /*C*/)
 {
   const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
   SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
@@ -1190,7 +1190,7 @@ void ViewerDataTeeItem::on_activate(bContext & /*C*/)
   WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 }
 
-std::optional<bool> ViewerDataTeeItem::should_be_active() const
+std::optional<bool> ViewerDataTreeItem::should_be_active() const
 {
   const auto &tree = static_cast<const ViewerDataTreeView &>(this->get_tree_view());
   const SpaceSpreadsheet &sspreadsheet = tree.sspreadsheet_;
