@@ -220,7 +220,6 @@ struct uiLayoutItemGridFlow : public uiLayout {
 
 struct uiLayoutItemBx : public uiLayout {
   uiBut *roundbox = nullptr;
-  bool no_pad = false;
   uiLayoutItemBx() : uiLayout(uiItemType::LayoutBox) {}
 };
 
@@ -2709,6 +2708,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   textbox->line_scroll_set(textbox->line_scroll());
 
   uiLayout &sub = overlap.column(true);
+  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0, 0.1f * UI_UNIT_Y, nullptr, 0.0, 0.0, "");
 
   sub.row(true).alignment_set(blender::ui::LayoutAlign::Right);
   but = uiDefButI(
@@ -2718,14 +2718,15 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
       "",
       0,
       0,
-      (UI_TEXT_MARGIN_X + 0.05f) * U.widget_unit,
-      line_heigth * (float(textbox_status.visible_lines_get()) - 0.75f),
+      UI_TEXT_MARGIN_X * U.widget_unit,
+      line_heigth * (float(textbox_status.visible_lines_get()) - 0.85f),
       &textbox_status.line_scroll,
       0,
       std::max<int>(textbox_status.last_total_lines - textbox_status.visible_lines_get(), 0),
       "");
   uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
   but_scroll->visual_height = textbox_status.visible_lines_get();
+  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0.1f * UI_UNIT_X, 0, nullptr, 0.0, 0.0, "");
 
   blender::ui::block_layout_set_current(block, &sub);
   uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0, 0.05f * UI_UNIT_Y, nullptr, 0.0, 0.0, "");
@@ -4068,7 +4069,7 @@ static void ui_litem_estimate_box(uiLayout *litem)
   ui_litem_estimate_column(litem, true);
 
   int boxspace = style->boxspace;
-  if (box->no_pad || litem->root_->type == blender::ui::LayoutType::Header) {
+  if (litem->root_->type == blender::ui::LayoutType::Header) {
     boxspace = 0;
   }
   litem->w_ += 2 * boxspace;
@@ -4081,7 +4082,7 @@ static void ui_litem_layout_box(uiLayout *litem)
   const uiStyle *style = litem->root_->style;
 
   int boxspace = style->boxspace;
-  if (box->no_pad || litem->root_->type == blender::ui::LayoutType::Header) {
+  if (litem->root_->type == blender::ui::LayoutType::Header) {
     boxspace = 0;
   }
 
