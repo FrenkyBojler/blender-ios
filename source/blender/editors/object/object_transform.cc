@@ -37,7 +37,6 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
@@ -753,7 +752,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
         BKE_reportf(
             reports,
             RPT_ERROR,
-            R"(Rotation/Location can't apply to a 2D curve: Object "%s", %s "%s", aborting)",
+            R"(Rotation/Location cannot apply to a 2D curve: Object "%s", %s "%s", aborting)",
             ob->id.name + 2,
             BKE_idtype_idcode_to_name(GS(obdata->name)),
             obdata->name + 2);

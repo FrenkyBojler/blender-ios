@@ -157,7 +157,7 @@ ShadowTileMapPool::ShadowTileMapPool()
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                            GPU_TEXTURE_USAGE_ATTACHMENT;
-  tilemap_tx.ensure_2d(GPU_R32UI, extent, usage);
+  tilemap_tx.ensure_2d(gpu::TextureFormat::UINT_32, extent, usage);
   tilemap_tx.clear(uint4(0));
 }
 
@@ -418,7 +418,7 @@ IndexRange ShadowDirectional::clipmap_level_range(const Camera &cam)
   max_level = max(min_level, max_level) + 1;
   IndexRange range(min_level, max_level - min_level + 1);
   /* 32 to be able to pack offset into a single int2.
-   * The maximum level count is bounded by the mantissa of a 32bit float.  */
+   * The maximum level count is bounded by the mantissa of a 32bit float. */
   const int max_tilemap_per_shadows = 24;
   /* Take top-most level to still cover the whole view. */
   range = range.take_back(max_tilemap_per_shadows);
@@ -1250,7 +1250,7 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
   GPU_storagebuf_clear(visibility_buf_, data);
 
   if (do_visibility_) {
-    GPUShader *shader = inst_.shaders.static_shader_get(SHADOW_VIEW_VISIBILITY);
+    gpu::Shader *shader = inst_.shaders.static_shader_get(SHADOW_VIEW_VISIBILITY);
     GPU_shader_bind(shader);
     GPU_shader_uniform_1i(shader, "resource_len", resource_len);
     GPU_shader_uniform_1i(shader, "view_len", view_len_);
@@ -1301,8 +1301,10 @@ void ShadowModule::set_view(View &view, int2 extent)
   }
   else if (shadow_technique == ShadowTechnique::TILE_COPY) {
     /* Create memoryless depth attachment for on-tile surface depth accumulation. */
-    shadow_depth_fb_tx_.ensure_2d_array(GPU_DEPTH_COMPONENT32F, fb_size, fb_layers, usage);
-    shadow_depth_accum_tx_.ensure_2d_array(GPU_R32F, fb_size, fb_layers, usage);
+    shadow_depth_fb_tx_.ensure_2d_array(
+        gpu::TextureFormat::SFLOAT_32_DEPTH, fb_size, fb_layers, usage);
+    shadow_depth_accum_tx_.ensure_2d_array(
+        gpu::TextureFormat::SFLOAT_32, fb_size, fb_layers, usage);
     render_fb_.ensure(GPU_ATTACHMENT_TEXTURE(shadow_depth_fb_tx_),
                       GPU_ATTACHMENT_TEXTURE(shadow_depth_accum_tx_));
   }

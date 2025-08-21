@@ -19,6 +19,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -81,7 +82,7 @@ using blender::int3;
 // #  pragma GCC diagnostic ignored "-Wdouble-promotion"
 #endif
 
-static CLG_LogRef LOG = {"bke.dynamicpaint"};
+static CLG_LogRef LOG = {"object.dynamicpaint"};
 
 /* precalculated gaussian factors for 5x super sampling */
 static const float gaussianFactors[5] = {
@@ -102,7 +103,7 @@ static int neighStraightX[8] = {1, 0, -1, 0, 1, -1, -1, 1};
 static int neighStraightY[8] = {0, 1, 0, -1, 1, 1, -1, -1};
 
 /* subframe_updateObject() flags */
-#define SUBFRAME_RECURSION 5
+#define SUBFRAME_RECURSION OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT
 /* #surface_getBrushFlags() return values. */
 #define BRUSH_USES_VELOCITY (1 << 0)
 /* Brush mesh ray-cast status. */
@@ -120,6 +121,17 @@ static int neighStraightY[8] = {0, 1, 0, -1, 1, 1, -1, -1};
 /* drying limits */
 #define MIN_WETNESS 0.001f
 #define MAX_WETNESS 5.0f
+
+/** Stored in ModifierData.runtime. */
+struct DynamicPaintRuntime {
+  Mesh *canvas_mesh = nullptr;
+  Mesh *brush_mesh = nullptr;
+  /**
+   * Multiple threads may access `brush_mesh` so locking is needed
+   * to ensure access is thread safe, see: #143958.
+   */
+  blender::Mutex brush_mutex;
+};
 
 /* dissolve inline function */
 BLI_INLINE void value_dissolve(float *r_value,
@@ -265,16 +277,19 @@ void dynamicPaint_Modifier_free_runtime(DynamicPaintRuntime *runtime_data)
   if (runtime_data->canvas_mesh) {
     BKE_id_free(nullptr, runtime_data->canvas_mesh);
   }
-  if (runtime_data->brush_mesh) {
-    BKE_id_free(nullptr, runtime_data->brush_mesh);
+  {
+    std::lock_guard lock(runtime_data->brush_mutex);
+    if (runtime_data->brush_mesh) {
+      BKE_id_free(nullptr, runtime_data->brush_mesh);
+    }
   }
-  MEM_freeN(runtime_data);
+  MEM_delete(runtime_data);
 }
 
 static DynamicPaintRuntime *dynamicPaint_Modifier_runtime_ensure(DynamicPaintModifierData *pmd)
 {
   if (pmd->modifier.runtime == nullptr) {
-    pmd->modifier.runtime = MEM_callocN<DynamicPaintRuntime>("dynamic paint runtime");
+    pmd->modifier.runtime = MEM_new<DynamicPaintRuntime>("dynamic paint runtime");
   }
   return (DynamicPaintRuntime *)pmd->modifier.runtime;
 }
@@ -286,15 +301,6 @@ static Mesh *dynamicPaint_canvas_mesh_get(DynamicPaintCanvasSettings *canvas)
   }
   DynamicPaintRuntime *runtime_data = (DynamicPaintRuntime *)canvas->pmd->modifier.runtime;
   return runtime_data->canvas_mesh;
-}
-
-static Mesh *dynamicPaint_brush_mesh_get(DynamicPaintBrushSettings *brush)
-{
-  if (brush->pmd->modifier.runtime == nullptr) {
-    return nullptr;
-  }
-  DynamicPaintRuntime *runtime_data = (DynamicPaintRuntime *)brush->pmd->modifier.runtime;
-  return runtime_data->brush_mesh;
 }
 
 /***************************** General Utils ******************************/
@@ -329,6 +335,8 @@ DynamicPaintSurface *get_activeSurface(DynamicPaintCanvasSettings *canvas)
 
 bool dynamicPaint_outputLayerExists(DynamicPaintSurface *surface, Object *ob, int output)
 {
+  using namespace blender;
+  using namespace blender::bke;
   const char *name;
 
   if (output == 0) {
@@ -344,8 +352,9 @@ bool dynamicPaint_outputLayerExists(DynamicPaintSurface *surface, Object *ob, in
   if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
     if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
-      return (CustomData_get_named_layer_index(&mesh->corner_data, CD_PROP_BYTE_COLOR, name) !=
-              -1);
+      const AttributeAccessor attributes = mesh->attributes();
+      const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
+      return meta_data == AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte};
     }
     if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
       return (BKE_object_defgroup_name_index(ob, name) != -1);
@@ -1312,7 +1321,7 @@ void dynamicPaint_Modifier_copy(const DynamicPaintModifierData *pmd,
     t_brush->paint_distance = brush->paint_distance;
 
     /* NOTE: This is dangerous, as it will generate invalid data in case we are copying between
-     * different objects. Extra external code has to be called then to ensure proper remapping of
+     * different objects. Extra external code has to be called to ensure proper remapping of
      * that pointer. See e.g. `BKE_object_copy_particlesystems` or `BKE_object_copy_modifier`. */
     t_brush->psys = brush->psys;
 
@@ -1801,8 +1810,8 @@ struct DynamicPaintModifierApplyData {
   blender::Span<int> corner_verts;
 
   float (*fcolor)[4];
-  MLoopCol *mloopcol;
-  MLoopCol *mloopcol_wet;
+  blender::MutableSpan<blender::ColorGeometry4b> mloopcol;
+  blender::MutableSpan<blender::ColorGeometry4b> mloopcol_wet;
 };
 
 static void dynamic_paint_apply_surface_displace_cb(void *__restrict userdata,
@@ -1872,19 +1881,19 @@ static void dynamic_paint_apply_surface_vpaint_cb(void *__restrict userdata,
   PaintPoint *pPoint = (PaintPoint *)surface->data->type_data;
   float(*fcolor)[4] = data->fcolor;
 
-  MLoopCol *mloopcol = data->mloopcol;
-  MLoopCol *mloopcol_wet = data->mloopcol_wet;
+  blender::MutableSpan<blender::ColorGeometry4b> mloopcol = data->mloopcol;
+  blender::MutableSpan<blender::ColorGeometry4b> mloopcol_wet = data->mloopcol_wet;
 
   for (const int l_index : data->faces[p_index]) {
     const int v_index = corner_verts[l_index];
 
     /* save layer data to output layer */
     /* apply color */
-    if (mloopcol) {
-      rgba_float_to_uchar((uchar *)&mloopcol[l_index].r, fcolor[v_index]);
+    if (!mloopcol.is_empty()) {
+      rgba_float_to_uchar(mloopcol[l_index], fcolor[v_index]);
     }
     /* apply wetness */
-    if (mloopcol_wet) {
+    if (!mloopcol_wet.is_empty()) {
       const char c = unit_float_to_uchar_clamp(pPoint[v_index].wetness);
       mloopcol_wet[l_index].r = c;
       mloopcol_wet[l_index].g = c;
@@ -1911,6 +1920,8 @@ static void dynamic_paint_apply_surface_wave_cb(void *__restrict userdata,
  */
 static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *ob, Mesh *mesh)
 {
+  using namespace blender;
+  using namespace blender::bke;
   Mesh *result = BKE_mesh_copy_for_eval(*mesh);
 
   if (pmd->canvas && !(pmd->canvas->flags & MOD_DPAINT_BAKING) &&
@@ -1957,42 +1968,39 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
                                       &settings);
             }
 
+            MutableAttributeAccessor attributes = result->attributes_for_write();
+
             /* paint layer */
-            MLoopCol *mloopcol = static_cast<MLoopCol *>(
-                CustomData_get_layer_named_for_write(&result->corner_data,
-                                                     CD_PROP_BYTE_COLOR,
-                                                     surface->output_name,
-                                                     result->corners_num));
+            SpanAttributeWriter<ColorGeometry4b> mloopcol;
+            if (attributes.lookup_meta_data(surface->output_name) ==
+                AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte})
+            {
+              mloopcol = attributes.lookup_for_write_span<ColorGeometry4b>(surface->output_name);
+            }
             /* if output layer is lost from a constructive modifier, re-add it */
             if (!mloopcol && dynamicPaint_outputLayerExists(surface, ob, 0)) {
-              mloopcol = static_cast<MLoopCol *>(CustomData_add_layer_named(&result->corner_data,
-                                                                            CD_PROP_BYTE_COLOR,
-                                                                            CD_SET_DEFAULT,
-                                                                            corner_verts.size(),
-                                                                            surface->output_name));
+              mloopcol = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
+                  surface->output_name, AttrDomain::Corner);
             }
 
-            /* wet layer */
-            MLoopCol *mloopcol_wet = static_cast<MLoopCol *>(
-                CustomData_get_layer_named_for_write(&result->corner_data,
-                                                     CD_PROP_BYTE_COLOR,
-                                                     surface->output_name2,
-                                                     result->corners_num));
+            SpanAttributeWriter<ColorGeometry4b> mloopcol_wet;
+            if (attributes.lookup_meta_data(surface->output_name2) ==
+                AttributeMetaData{AttrDomain::Corner, AttrType::ColorByte})
+            {
+              mloopcol_wet = attributes.lookup_for_write_span<ColorGeometry4b>(
+                  surface->output_name2);
+            }
             /* if output layer is lost from a constructive modifier, re-add it */
             if (!mloopcol_wet && dynamicPaint_outputLayerExists(surface, ob, 1)) {
-              mloopcol_wet = static_cast<MLoopCol *>(
-                  CustomData_add_layer_named(&result->corner_data,
-                                             CD_PROP_BYTE_COLOR,
-                                             CD_SET_DEFAULT,
-                                             corner_verts.size(),
-                                             surface->output_name2));
+              mloopcol_wet = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
+                  surface->output_name2, AttrDomain::Corner);
             }
 
             data.ob = ob;
             data.corner_verts = corner_verts;
             data.faces = faces;
-            data.mloopcol = mloopcol;
-            data.mloopcol_wet = mloopcol_wet;
+            data.mloopcol = mloopcol.span;
+            data.mloopcol_wet = mloopcol_wet.span;
 
             {
               TaskParallelSettings settings;
@@ -2002,23 +2010,21 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
                   0, faces.size(), &data, dynamic_paint_apply_surface_vpaint_cb, &settings);
             }
 
+            mloopcol.finish();
+            mloopcol_wet.finish();
+
             MEM_freeN(fcolor);
           }
           /* vertex group paint */
           else if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
             int defgrp_index = BKE_object_defgroup_name_index(ob, surface->output_name);
-            MDeformVert *dvert = static_cast<MDeformVert *>(CustomData_get_layer_for_write(
-                &result->vert_data, CD_MDEFORMVERT, result->verts_num));
             float *weight = (float *)sData->type_data;
 
             /* apply weights into a vertex group, if doesn't exists add a new layer */
-            if (defgrp_index != -1 && !dvert && (surface->output_name[0] != '\0')) {
-              dvert = static_cast<MDeformVert *>(CustomData_add_layer(
-                  &result->vert_data, CD_MDEFORMVERT, CD_SET_DEFAULT, sData->total_points));
-            }
-            if (defgrp_index != -1 && dvert) {
+            blender::MutableSpan<MDeformVert> dverts = result->deform_verts_for_write();
+            if (defgrp_index != -1) {
               for (int i = 0; i < sData->total_points; i++) {
-                MDeformVert *dv = &dvert[i];
+                MDeformVert *dv = &dverts[i];
                 MDeformWeight *def_weight = BKE_defvert_find_index(dv, defgrp_index);
 
                 /* skip if weight value is 0 and no existing weight is found */
@@ -2061,6 +2067,8 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
   /* make a copy of mesh to use as brush data */
   else if (pmd->brush && pmd->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
     DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_ensure(pmd);
+    BLI_assert(runtime_data != nullptr);
+    std::lock_guard lock(runtime_data->brush_mutex);
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
     }
@@ -2866,8 +2874,8 @@ int dynamicPaint_createUVSurface(Scene *scene,
   /*
    * Start generating the surface
    */
-  CLOG_INFO(
-      &LOG, 1, "Preparing UV surface of %ix%i pixels and %i tris.", w, h, int(corner_tris.size()));
+  CLOG_DEBUG(
+      &LOG, "Preparing UV surface of %ix%i pixels and %i tris.", w, h, int(corner_tris.size()));
 
   /* Init data struct */
   if (surface->data) {
@@ -3812,7 +3820,15 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
                                       SUBFRAME_RECURSION,
                                       BKE_scene_ctime_get(scene),
                                       eModifierType_DynamicPaint);
-  mesh_p = BKE_mesh_copy_for_eval(*dynamicPaint_brush_mesh_get(brush));
+
+  {
+    auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
+    if (!runtime_data) {
+      return;
+    }
+    std::lock_guard lock(runtime_data->brush_mutex);
+    mesh_p = BKE_mesh_copy_for_eval(*runtime_data->brush_mesh);
+  }
   numOfVerts_p = mesh_p->verts_num;
 
   float(*positions_p)[3] = reinterpret_cast<float(*)[3]>(
@@ -3830,7 +3846,13 @@ static void dynamicPaint_brushMeshCalculateVelocity(Depsgraph *depsgraph,
                                       SUBFRAME_RECURSION,
                                       BKE_scene_ctime_get(scene),
                                       eModifierType_DynamicPaint);
-  mesh_c = dynamicPaint_brush_mesh_get(brush);
+  auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
+  if (!runtime_data) {
+    return;
+  }
+  std::lock_guard lock(runtime_data->brush_mutex);
+  mesh_c = runtime_data->brush_mesh;
+
   numOfVerts_c = mesh_c->verts_num;
   float(*positions_c)[3] = reinterpret_cast<float(*)[3]>(
       mesh_c->vert_positions_for_write().data());
@@ -4291,7 +4313,12 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
         depsgraph, scene, brushOb, brush, &brushVelocity, timescale);
   }
 
-  Mesh *brush_mesh = dynamicPaint_brush_mesh_get(brush);
+  auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
+  if (!runtime_data) {
+    return false;
+  }
+  std::lock_guard lock(runtime_data->brush_mutex);
+  const Mesh *brush_mesh = runtime_data->brush_mesh;
   if (brush_mesh == nullptr) {
     return false;
   }
@@ -4799,7 +4826,9 @@ static bool dynamicPaint_paintSinglePoint(
     dynamicPaint_brushObjectCalculateVelocity(depsgraph, scene, brushOb, &brushVel, timescale);
   }
 
-  const Mesh *brush_mesh = dynamicPaint_brush_mesh_get(brush);
+  auto *runtime_data = static_cast<DynamicPaintRuntime *>(brush->pmd->modifier.runtime);
+  std::lock_guard lock(runtime_data->brush_mutex);
+  const Mesh *brush_mesh = runtime_data->brush_mesh;
 
   /*
    * Loop through every surface point

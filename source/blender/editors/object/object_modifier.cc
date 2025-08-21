@@ -105,7 +105,7 @@
 
 namespace blender::ed::object {
 
-static CLG_LogRef LOG = {"ed.object"};
+static CLG_LogRef LOG = {"object"};
 
 static void modifier_skin_customdata_delete(Object *ob);
 
@@ -1373,7 +1373,7 @@ bool modifier_copy(
   ModifierData *nmd = BKE_modifier_new(md->type);
   BKE_modifier_copydata(md, nmd);
   BLI_insertlinkafter(&ob->modifiers, md, nmd);
-  STRNCPY(nmd->name, md->name);
+  STRNCPY_UTF8(nmd->name, md->name);
   BKE_modifier_unique_name(&ob->modifiers, nmd);
   BKE_modifiers_persistent_uid_init(*ob, *nmd);
   BKE_object_modifier_set_active(ob, nmd);
@@ -2769,7 +2769,7 @@ static void skin_armature_bone_create(Object *skin_ob,
     copy_v3_v3(bone->head, positions[parent_v]);
     copy_v3_v3(bone->tail, positions[v]);
     bone->rad_head = bone->rad_tail = 0.25;
-    SNPRINTF(bone->name, "Bone.%.2d", endx);
+    SNPRINTF_UTF8(bone->name, "Bone.%.2d", endx);
 
     /* add bDeformGroup */
     bDeformGroup *dg = BKE_object_defgroup_add_name(skin_ob, bone->name);
@@ -2796,7 +2796,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
   const Span<float3> positions_eval = me_eval_deform->vert_positions();
 
   /* add vertex weights to original mesh */
-  CustomData_add_layer(&mesh->vert_data, CD_MDEFORMVERT, CD_SET_DEFAULT, mesh->verts_num);
+  mesh->deform_verts_for_write();
 
   Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
@@ -3283,7 +3283,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               scene,
-                              "Ocean Simulation",
+                              "Simulating ocean...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_OCEAN);
   OceanBakeJob *oj = MEM_callocN<OceanBakeJob>("ocean bake job");

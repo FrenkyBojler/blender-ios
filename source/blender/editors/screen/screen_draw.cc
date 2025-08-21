@@ -108,8 +108,20 @@ static void drawscredge_area(const ScrArea &area, float edge_thickness)
   GPU_batch_draw(batch);
 }
 
-static void screen_draw_editor_outlines(bScreen *screen, wmWindow *win)
+void ED_screen_draw_edges(wmWindow *win)
 {
+  bScreen *screen = WM_window_get_active_screen(win);
+  screen->do_draw = false;
+
+  if (screen->state != SCREENNORMAL) {
+    return;
+  }
+
+  if (BLI_listbase_is_single(&screen->areabase) && win->global_areas.areabase.first == nullptr) {
+    /* Do not show edges on windows without global areas and with only one editor. */
+    return;
+  }
+
   ARegion *region = screen->active_region;
   ScrArea *active_area = nullptr;
 
@@ -137,60 +149,6 @@ static void screen_draw_editor_outlines(bScreen *screen, wmWindow *win)
     if (active_area && !BLI_listbase_is_empty(&win->drawcalls)) {
       active_area = nullptr;
     }
-  }
-
-  static ScrArea *current_active_area = nullptr;
-  static ScrArea *last_active_area = nullptr;
-  double now = BLI_time_now_seconds();
-  static double start_time = now;
-  double end_time = start_time + AREA_ACTIVE_FADEIN;
-
-  if (active_area != current_active_area) {
-    if (now > start_time + AREA_ACTIVE_FADEIN) {
-      start_time = now;
-      end_time = start_time + AREA_ACTIVE_FADEIN;
-    }
-    last_active_area = current_active_area;
-    current_active_area = active_area;
-  }
-
-  float col_inactive[4];
-  float col_active[4];
-  float col_active_last[4];
-  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, col_active);
-  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, col_inactive);
-  copy_v4_v4(col_active_last, col_inactive);
-
-  if (now < end_time) {
-    const float factor = pow((now - start_time) / (end_time - start_time), 2);
-    UI_GetThemeColorBlend4f(TH_EDITOR_OUTLINE, TH_EDITOR_OUTLINE_ACTIVE, factor, col_active);
-    UI_GetThemeColorBlend4f(TH_EDITOR_OUTLINE_ACTIVE, TH_EDITOR_OUTLINE, factor, col_active_last);
-    screen->do_refresh = true;
-  }
-
-  rctf bounds;
-  UI_draw_roundbox_corner_set(UI_CNR_ALL);
-  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-    BLI_rctf_rcti_copy(&bounds, &area->totrct);
-    float *color = (area == active_area)      ? col_active :
-                   (area == last_active_area) ? col_active_last :
-                                                col_inactive;
-    UI_draw_roundbox_4fv_ex(&bounds, nullptr, nullptr, 1.0f, color, U.pixelsize, EDITORRADIUS);
-  }
-}
-
-void ED_screen_draw_edges(wmWindow *win)
-{
-  bScreen *screen = WM_window_get_active_screen(win);
-  screen->do_draw = false;
-
-  if (screen->state != SCREENNORMAL) {
-    return;
-  }
-
-  if (BLI_listbase_is_single(&screen->areabase) && win->global_areas.areabase.first == nullptr) {
-    /* Do not show edges on windows without global areas and with only one editor. */
-    return;
   }
 
   rcti scissor_rect;
@@ -238,10 +196,28 @@ void ED_screen_draw_edges(wmWindow *win)
     drawscredge_area(*area, edge_thickness);
   }
 
+  float outline1[4];
+  float outline2[4];
+  rctf bounds;
+  /* Outset by 1/2 pixel, regardless of UI scale or pixel size. #141550. */
+  const float padding = 0.5f;
+  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, outline1);
+  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, outline2);
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    BLI_rctf_rcti_copy(&bounds, &area->totrct);
+    BLI_rctf_pad(&bounds, padding, padding);
+    UI_draw_roundbox_4fv_ex(&bounds,
+                            nullptr,
+                            nullptr,
+                            1.0f,
+                            (area == active_area) ? outline2 : outline1,
+                            U.pixelsize,
+                            EDITORRADIUS);
+  }
+
   GPU_blend(GPU_BLEND_NONE);
   GPU_scissor_test(false);
-
-  screen_draw_editor_outlines(screen, win);
 }
 
 void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxis dir_axis)
@@ -404,21 +380,23 @@ static void screen_draw_area_drag_tip(
   BLF_draw(fstyle->uifont_id, area_name, BLF_DRAW_STR_DUMMY_MAX);
 }
 
-static void screen_draw_area_closed(int xmin, int xmax, int ymin, int ymax)
+static void screen_draw_area_closed(int xmin, int xmax, int ymin, int ymax, float anim_factor)
 {
   /* Darken the area. */
   rctf rect = {float(xmin), float(xmax), float(ymin), float(ymax)};
-  float darken[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+  float darken[4] = {0.0f, 0.0f, 0.0f, 0.7f * anim_factor};
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   UI_draw_roundbox_4fv_ex(&rect, darken, nullptr, 1.0f, nullptr, U.pixelsize, EDITORRADIUS);
 }
 
-void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir)
+void screen_draw_join_highlight(
+    const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir, float anim_factor)
 {
   if (dir == SCREEN_DIR_NONE || !sa2) {
-    /* Darken source if docking. Done here because it might be a different window. */
+    /* Darken source if docking. Done here because it might be a different window.
+     * Do not animate this as we don't want to reset every time we change areas. */
     screen_draw_area_closed(
-        sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax);
+        sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax, 1.0f);
     return;
   }
 
@@ -442,45 +420,45 @@ void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2,
     if (vertical) {
       if (sa1->totrct.xmin < combined.xmin) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, combined.xmin, sa1->totrct.ymin, sa1->totrct.ymax);
+            sa1->totrct.xmin, combined.xmin, sa1->totrct.ymin, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.xmin < combined.xmin) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, combined.xmin, sa2->totrct.ymin, sa2->totrct.ymax);
+            sa2->totrct.xmin, combined.xmin, sa2->totrct.ymin, sa2->totrct.ymax, anim_factor);
       }
       if (sa1->totrct.xmax > combined.xmax) {
         screen_draw_area_closed(
-            combined.xmax, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax);
+            combined.xmax, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.xmax > combined.xmax) {
         screen_draw_area_closed(
-            combined.xmax, sa2->totrct.xmax, sa2->totrct.ymin, sa2->totrct.ymax);
+            combined.xmax, sa2->totrct.xmax, sa2->totrct.ymin, sa2->totrct.ymax, anim_factor);
       }
     }
     else {
       if (sa1->totrct.ymin < combined.ymin) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, combined.ymin);
+            sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, combined.ymin, anim_factor);
       }
       if (sa2->totrct.ymin < combined.ymin) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, sa2->totrct.xmax, sa2->totrct.ymin, combined.ymin);
+            sa2->totrct.xmin, sa2->totrct.xmax, sa2->totrct.ymin, combined.ymin, anim_factor);
       }
       if (sa1->totrct.ymax > combined.ymax) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, sa1->totrct.xmax, combined.ymax, sa1->totrct.ymax);
+            sa1->totrct.xmin, sa1->totrct.xmax, combined.ymax, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.ymax > combined.ymax) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, sa2->totrct.xmax, combined.ymax, sa2->totrct.ymax);
+            sa2->totrct.xmin, sa2->totrct.xmax, combined.ymax, sa2->totrct.ymax, anim_factor);
       }
     }
   }
 
   /* Outline the combined area. */
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
-  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f * anim_factor};
   UI_draw_roundbox_4fv_ex(&combined, inner, nullptr, 1.0f, outline, U.pixelsize, EDITORRADIUS);
 
   screen_draw_area_drag_tip(
@@ -561,16 +539,18 @@ void screen_draw_dock_preview(const wmWindow *win,
                               AreaDockTarget dock_target,
                               float factor,
                               int x,
-                              int y)
+                              int y,
+                              float anim_factor)
 {
   if (dock_target == AreaDockTarget::None) {
     return;
   }
 
-  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f * anim_factor};
   float border[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, border);
+  border[3] *= anim_factor;
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   float half_line_width = float(U.border_width) * UI_SCALE_FAC;
 

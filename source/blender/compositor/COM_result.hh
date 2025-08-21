@@ -5,8 +5,8 @@
 #pragma once
 
 #include <cstdint>
-#include <type_traits>
-#include <utility>
+#include <optional>
+#include <string>
 #include <variant>
 
 #include "BLI_assert.h"
@@ -22,6 +22,8 @@
 
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
+
+#include "NOD_menu_value.hh"
 
 #include "COM_domain.hh"
 #include "COM_meta_data.hh"
@@ -41,6 +43,10 @@ enum class ResultType : uint8_t {
   Int2,
   Color,
   Bool,
+  Menu,
+
+  /* Single value only types. See Result::is_single_value_only_type. */
+  String,
 };
 
 /* The precision of the data. CPU data is always stored using full precision at the moment. */
@@ -51,7 +57,7 @@ enum class ResultPrecision : uint8_t {
 
 /* The type of storage used to hold the result data. */
 enum class ResultStorageType : uint8_t {
-  /* Stored as a GPUTexture on the GPU. */
+  /* Stored as a blender::gpu::Texture on the GPU. */
   GPU,
   /* Stored as a buffer on the CPU and wrapped in a GMutableSpan. */
   CPU,
@@ -110,7 +116,7 @@ class Result {
    * value of which will be identical to that of the value member. See class description for more
    * information. */
   union {
-    GPUTexture *gpu_texture_ = nullptr;
+    blender::gpu::Texture *gpu_texture_ = nullptr;
     GMutableSpan cpu_data_;
   };
   /* The number of users that currently needs this result. Operations initializes this by calling
@@ -129,7 +135,8 @@ class Result {
    * which will be identical to that stored in the data_ member. The active variant member depends
    * on the type of the result. This member is uninitialized and should not be used if the result
    * is not a single value. */
-  std::variant<float, float2, float3, float4, int32_t, int2, bool> single_value_ = 0.0f;
+  std::variant<float, float2, float3, float4, int32_t, int2, bool, std::string, nodes::MenuValue>
+      single_value_ = 0.0f;
   /* The domain of the result. This only matters if the result was not a single value. See the
    * discussion in COM_domain.hh for more information. */
   Domain domain_ = Domain::identity();
@@ -158,23 +165,32 @@ class Result {
 
   /* Construct a result of an appropriate type and precision based on the given GPU texture format
    * within the given context. */
-  Result(Context &context, eGPUTextureFormat format);
+  Result(Context &context, blender::gpu::TextureFormat format);
+
+  /* Returns true if the given type can only be used with single value results. Consequently, it is
+   * always allocated on the CPU and GPU code paths needn't support the type. */
+  static bool is_single_value_only_type(ResultType type);
 
   /* Returns the appropriate GPU texture format based on the given result type and precision. A
    * special case is given to ResultType::Float3, because 3-component textures can't be used as
    * write targets in shaders, so we need to allocate 4-component textures for them, and ignore the
    * fourth channel during processing. */
-  static eGPUTextureFormat gpu_texture_format(ResultType type, ResultPrecision precision);
+  static blender::gpu::TextureFormat gpu_texture_format(ResultType type,
+                                                        ResultPrecision precision);
+
+  /* Returns the GPU data format that corresponds to the give result type. */
+  static eGPUDataFormat gpu_data_format(const ResultType type);
 
   /* Returns the GPU texture format that corresponds to the give one, but whose precision is the
    * given precision. */
-  static eGPUTextureFormat gpu_texture_format(eGPUTextureFormat format, ResultPrecision precision);
+  static blender::gpu::TextureFormat gpu_texture_format(blender::gpu::TextureFormat format,
+                                                        ResultPrecision precision);
 
   /* Returns the precision of the given GPU texture format. */
-  static ResultPrecision precision(eGPUTextureFormat format);
+  static ResultPrecision precision(blender::gpu::TextureFormat format);
 
   /* Returns the type of the given GPU texture format. */
-  static ResultType type(eGPUTextureFormat format);
+  static ResultType type(blender::gpu::TextureFormat format);
 
   /* Returns the float type of the result given the channels count. */
   static ResultType float_type(const int channels_count);
@@ -186,7 +202,7 @@ class Result {
   static const char *type_name(const ResultType type);
 
   /* Implicit conversion to the internal GPU texture. */
-  operator GPUTexture *() const;
+  operator blender::gpu::Texture *() const;
 
   /* Returns the CPP type of the result. */
   const CPPType &get_cpp_type() const;
@@ -196,20 +212,19 @@ class Result {
    * texture, with one exception. Results of type ResultType::Float3 that wrap external textures
    * might hold a 3-component texture as opposed to a 4-component one, which would have been
    * created by uploading data from CPU. */
-  eGPUTextureFormat get_gpu_texture_format() const;
+  blender::gpu::TextureFormat get_gpu_texture_format() const;
+
+  /* Identical to gpu_data_format but assumes the result's type. */
+  eGPUDataFormat get_gpu_data_format() const;
 
   /* Declare the result to be a texture result, allocate a texture of an appropriate type with
    * the size of the given domain, and set the domain of the result to the given domain.
    *
-   * If from_pool is true, the texture will be allocated from the texture pool of the context,
-   * otherwise, a new texture will be allocated. Pooling should not be used for persistent
-   * results that might span more than one evaluation, like cached resources. While pooling should
-   * be used for most other cases where the result will be allocated then later released in the
-   * same evaluation.
-   *
-   * If the context of the result uses GPU, then GPU allocation will be done, otherwise, CPU
-   * allocation will be done. */
-  void allocate_texture(Domain domain, bool from_pool = true);
+   * See the allocate_data method for more information on the from_pool and storage_type
+   * parameters. */
+  void allocate_texture(const Domain domain,
+                        const bool from_pool = true,
+                        const std::optional<ResultStorageType> storage_type = std::nullopt);
 
   /* Declare the result to be a single value result, allocate a texture of an appropriate type with
    * size 1x1 from the texture pool, and set the domain to be an identity domain. The value is zero
@@ -220,15 +235,20 @@ class Result {
    * can't be computed and are considered invalid. */
   void allocate_invalid();
 
+  /* Creates and allocates a new result that matches the type and precision of this result and
+   * uploads the CPU data that exist in this result. The result is assumed to be allocated on the
+   * CPU. See the allocate_data method for more information on the from_pool parameters. */
+  Result upload_to_gpu(const bool from_pool);
+
   /* Bind the GPU texture of the result to the texture image unit with the given name in the
    * currently bound given shader. This also inserts a memory barrier for texture fetches to ensure
    * any prior writes to the texture are reflected before reading from it. */
-  void bind_as_texture(GPUShader *shader, const char *texture_name) const;
+  void bind_as_texture(gpu::Shader *shader, const char *texture_name) const;
 
   /* Bind the GPU texture of the result to the image unit with the given name in the currently
    * bound given shader. If read is true, a memory barrier will be inserted for image reads to
    * ensure any prior writes to the images are reflected before reading from it. */
-  void bind_as_image(GPUShader *shader, const char *image_name, bool read = false) const;
+  void bind_as_image(gpu::Shader *shader, const char *image_name, bool read = false) const;
 
   /* Unbind the GPU texture which was previously bound using bind_as_texture. */
   void unbind_as_texture() const;
@@ -258,7 +278,7 @@ class Result {
    * size as the texture, and the texture will be set to the given texture. See the is_external_
    * member for more information. The given texture should have the same format as the result and
    * is assumed to have a lifetime that covers the evaluation of the compositor. */
-  void wrap_external(GPUTexture *texture);
+  void wrap_external(blender::gpu::Texture *texture);
 
   /* Identical to GPU variant of wrap_external but wraps a CPU buffer instead. */
   void wrap_external(void *data, int2 size);
@@ -331,7 +351,7 @@ class Result {
   /* Computes the number of channels of the result based on its type. */
   int64_t channels_count() const;
 
-  GPUTexture *gpu_texture() const;
+  blender::gpu::Texture *gpu_texture() const;
 
   GSpan cpu_data() const;
   GMutableSpan cpu_data();
@@ -380,7 +400,7 @@ class Result {
   /* Similar to load_pixel, but can load a result whose type is not known at compile time. If the
    * number of channels in the result are less than 4, then the rest of the returned float4 will
    * have its vales initialized as follows: float4(0, 0, 0, 1). This is similar to how the
-   * texelFetch function in GLSL works.  */
+   * texelFetch function in GLSL works. */
   float4 load_pixel_generic_type(const int2 &texel) const;
 
   /* Stores the given pixel value in the pixel at the given texel coordinates. Assumes the result
@@ -434,9 +454,20 @@ class Result {
                          const float2 &y_gradient) const;
 
  private:
-  /* Allocates the image data for the given size, either on the GPU or CPU based on the result's
-   * context. See the allocate_texture method for information about the from_pool argument. */
-  void allocate_data(int2 size, bool from_pool);
+  /* Allocates the image data for the given size.
+   *
+   * The data is allocated on the CPU or GPU depending on the given storage_type. A nullopt may be
+   * passed to storage_type, in which case, the data will be allocated on the device of the
+   * result's context as specified by context.use_gpu().
+   *
+   * If from_pool is true, GPU textures will be allocated from the texture pool of the context,
+   * otherwise, a new texture will be allocated. Pooling should not be used for persistent results
+   * that might span more than one evaluation, like cached resources. While pooling should be used
+   * for most other cases where the result will be allocated then later released in the same
+   * evaluation. */
+  void allocate_data(const int2 size,
+                     const bool from_pool = true,
+                     const std::optional<ResultStorageType> storage_type = std::nullopt);
 
   /* Same as get_pixel_index but can be used when the type of the result is not known at compile
    * time. */
@@ -458,6 +489,7 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
     case ResultType::Float:
     case ResultType::Int:
     case ResultType::Bool:
+    case ResultType::Menu:
       return 1;
     case ResultType::Float2:
     case ResultType::Int2:
@@ -467,11 +499,18 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
     case ResultType::Color:
     case ResultType::Float4:
       return 4;
+    case ResultType::String:
+      /* Single only types do not have channels. */
+      BLI_assert(Result::is_single_value_only_type(type_));
+      BLI_assert_unreachable();
+      break;
   }
+
+  BLI_assert_unreachable();
   return 4;
 }
 
-BLI_INLINE_METHOD GPUTexture *Result::gpu_texture() const
+BLI_INLINE_METHOD blender::gpu::Texture *Result::gpu_texture() const
 {
   BLI_assert(storage_type_ == ResultStorageType::GPU);
   return gpu_texture_;

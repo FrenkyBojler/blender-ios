@@ -6,7 +6,6 @@
 
 #include "DNA_object_types.h"
 
-#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_curves.hh"
 #include "BKE_deform.hh"
@@ -96,7 +95,7 @@ static GAttributeReader reader_for_vertex_group_index(const CurvesGeometry &curv
 {
   BLI_assert(vertex_group_index >= 0);
   if (dverts.is_empty()) {
-    return {VArray<float>::ForSingle(0.0f, curves.points_num()), AttrDomain::Point};
+    return {VArray<float>::from_single(0.0f, curves.points_num()), AttrDomain::Point};
   }
   return {varray_for_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
 }
@@ -160,14 +159,16 @@ static bool foreach_vertex_group(const void *owner, FunctionRef<void(const Attri
   if (curves == nullptr) {
     return true;
   }
+  const AttributeAccessor accessor = curves->attributes();
   const Span<MDeformVert> dverts = curves->deform_verts();
-
   int group_index = 0;
   LISTBASE_FOREACH_INDEX (const bDeformGroup *, group, &curves->vertex_group_names, group_index) {
     const auto get_fn = [&]() {
       return reader_for_vertex_group_index(*curves, dverts, group_index);
     };
     AttributeIter iter{group->name, AttrDomain::Point, bke::AttrType::Float, get_fn};
+    iter.is_builtin = false;
+    iter.accessor = &accessor;
     fn(iter);
     if (iter.is_stopped()) {
       return false;
@@ -421,8 +422,12 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     if (storage.lookup(name)) {
       return false;
     }
-    Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer);
-    storage.add(name, domain, type, std::move(data));
+    storage.add(name, domain, type, attribute_init_to_data(type, domain_size, initializer));
+    if (initializer.type != AttributeInit::Type::Construct) {
+      if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
+        (*fn)(owner);
+      }
+    }
     return true;
   };
 

@@ -47,6 +47,10 @@ struct ScrArea;
 struct Editing;
 struct ListBase;
 
+namespace blender::ed::asset {
+struct AssetItemTree;
+}
+
 namespace blender::ed::vse {
 
 class SeqQuadsBatch;
@@ -59,6 +63,8 @@ struct SpaceSeq_Runtime : public NonCopyable {
   float timeline_clamp_custom_range = 0;
 
   SeqScopes scopes;
+
+  std::shared_ptr<asset::AssetItemTree> assets_for_menu;
 
   SpaceSeq_Runtime() = default;
   ~SpaceSeq_Runtime();
@@ -125,7 +131,7 @@ struct TimelineDrawContext {
 
 /* `sequencer_timeline_draw.cc` */
 
-/** Get handle width in frames (in view-space). */
+/* Returns value in frames (view-space), 5px for large strips, 1/4 of the strip for smaller. */
 float strip_handle_draw_size_get(const Scene *scene, Strip *strip, float pixelx);
 void draw_timeline_seq(const bContext *C, ARegion *region);
 void draw_timeline_seq_display(const bContext *C, ARegion *region);
@@ -255,7 +261,7 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 /* `sequencer_select.cc` */
 
 void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
-Strip *find_neighboring_strip(Scene *scene, Strip *test, int lr, int sel);
+Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel);
 void recurs_sel_strip(Strip *strip_meta);
 
 void SEQUENCER_OT_select_all(wmOperatorType *ot);
@@ -286,6 +292,7 @@ void SEQUENCER_OT_mask_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_sound_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_image_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot);
+void SEQUENCER_OT_add_scene_strip_from_scene_asset(wmOperatorType *ot);
 
 /* `sequencer_drag_drop.cc` */
 
@@ -331,11 +338,11 @@ void sequencer_preview_add_sound(const bContext *C, const Strip *strip);
 
 /* `sequencer_add.cc` */
 
-int sequencer_image_seq_get_minmax_frame(wmOperator *op,
-                                         int sfra,
-                                         int *r_minframe,
-                                         int *r_numdigits);
-void sequencer_image_seq_reserve_frames(
+int sequencer_image_strip_get_minmax_frame(wmOperator *op,
+                                           int sfra,
+                                           int *r_minframe,
+                                           int *r_numdigits);
+void sequencer_image_strip_reserve_frames(
     wmOperator *op, StripElem *se, int len, int minframe, int numdigits);
 
 /* `sequencer_retiming.cc` */
@@ -397,5 +404,10 @@ blender::Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const 
 /* `sequencer_clipboard.cc` */
 wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
 wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op);
+
+/* `sequencer_add_menu_scene_assets.cc` */
+MenuType add_catalog_assets_menu_type();
+MenuType add_unassigned_assets_menu_type();
+MenuType add_root_catalogs_menu_type();
 
 }  // namespace blender::ed::vse
