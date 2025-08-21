@@ -1298,12 +1298,7 @@ static float area_normal_and_center_get_position_radius(const SculptSession &ss,
     if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE && brush.area_radius_factor > 0.0f) {
       test_radius *= brush.area_radius_factor;
       if (ss.cache && brush.flag2 & BRUSH_AREA_RADIUS_PRESSURE) {
-        float pressure_eval = ss.cache->pressure;
-        if (brush.curve_paint_size) {
-          BKE_curvemapping_init(brush.curve_paint_size);
-          pressure_eval = BKE_curvemapping_evaluateF(brush.curve_paint_size, 0, pressure_eval);
-        }
-        test_radius *= pressure_eval;
+        test_radius *= BKE_curvemapping_evaluateF(brush.curve_size, 0, ss.cache->pressure);;
       }
     }
     else {
@@ -2173,9 +2168,8 @@ static float brush_strength(const Sculpt &sd,
   const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   const float alpha = root_alpha * root_alpha;
   float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
-  if (BKE_brush_use_alpha_pressure(&brush) && brush.curve_paint_strength) {
-    BKE_curvemapping_init(brush.curve_paint_strength);
-    pressure = BKE_curvemapping_evaluateF(brush.curve_paint_strength, 0, pressure);
+  if (BKE_brush_use_alpha_pressure(&brush)) {
+    pressure = BKE_curvemapping_evaluateF(brush.curve_strength, 0, pressure);
   }
   float overlap = paint_runtime.overlap_factor;
   /* Spacing is integer percentage of radius, divide by 50 to get
@@ -4073,12 +4067,8 @@ static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
                                     float initial_size)
 {
-  /* Evaluate size pressure via mapping curve if available. */
   float pressure_eval = cache.pressure;
-  if (brush.curve_paint_size) {
-    BKE_curvemapping_init(brush.curve_paint_size);
-    pressure_eval = BKE_curvemapping_evaluateF(brush.curve_paint_size, 0, pressure_eval);
-  }
+  pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, pressure_eval);
 
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_CLAY:
@@ -5511,6 +5501,9 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
 
     CursorGeometryInfo cgi;
     cursor_geometry_info_update(C, &cgi, mval, false);
+
+  BKE_curvemapping_init(brush->curve_size);
+  BKE_curvemapping_init(brush->curve_strength);
 
     stroke_undo_begin(C, op);
 

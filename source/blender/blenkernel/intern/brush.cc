@@ -87,9 +87,9 @@ static void brush_copy_data(Main * /*bmain*/,
   brush_dst->curve_rand_saturation = BKE_curvemapping_copy(brush_src->curve_rand_saturation);
   brush_dst->curve_rand_value = BKE_curvemapping_copy(brush_src->curve_rand_value);
 
-  brush_dst->curve_paint_size = BKE_curvemapping_copy(brush_src->curve_paint_size);
-  brush_dst->curve_paint_strength = BKE_curvemapping_copy(brush_src->curve_paint_strength);
-  brush_dst->curve_paint_jitter = BKE_curvemapping_copy(brush_src->curve_paint_jitter);
+  brush_dst->curve_size = BKE_curvemapping_copy(brush_src->curve_size);
+  brush_dst->curve_strength = BKE_curvemapping_copy(brush_src->curve_strength);
+  brush_dst->curve_jitter = BKE_curvemapping_copy(brush_src->curve_jitter);
 
   if (brush_src->gpencil_settings != nullptr) {
     brush_dst->gpencil_settings = MEM_dupallocN<BrushGpencilSettings>(
@@ -135,9 +135,9 @@ static void brush_free_data(ID *id)
   BKE_curvemapping_free(brush->curve_rand_saturation);
   BKE_curvemapping_free(brush->curve_rand_value);
 
-  BKE_curvemapping_free(brush->curve_paint_size);
-  BKE_curvemapping_free(brush->curve_paint_strength);
-  BKE_curvemapping_free(brush->curve_paint_jitter);
+  BKE_curvemapping_free(brush->curve_size);
+  BKE_curvemapping_free(brush->curve_strength);
+  BKE_curvemapping_free(brush->curve_jitter);
 
   if (brush->gpencil_settings != nullptr) {
     BKE_curvemapping_free(brush->gpencil_settings->curve_sensitivity);
@@ -248,14 +248,14 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   /* Texture/Image Paint pressure mapping curves. */
-  if (brush->curve_paint_size) {
-    BKE_curvemapping_blend_write(writer, brush->curve_paint_size);
+  if (brush->curve_size) {
+    BKE_curvemapping_blend_write(writer, brush->curve_size);
   }
-  if (brush->curve_paint_strength) {
-    BKE_curvemapping_blend_write(writer, brush->curve_paint_strength);
+  if (brush->curve_strength) {
+    BKE_curvemapping_blend_write(writer, brush->curve_strength);
   }
-  if (brush->curve_paint_jitter) {
-    BKE_curvemapping_blend_write(writer, brush->curve_paint_jitter);
+  if (brush->curve_jitter) {
+    BKE_curvemapping_blend_write(writer, brush->curve_jitter);
   }
 
   if (brush->gpencil_settings) {
@@ -349,28 +349,28 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   /* Texture/Image Paint pressure mapping curves. */
-  BLO_read_struct(reader, CurveMapping, &brush->curve_paint_size);
-  if (brush->curve_paint_size) {
-    BKE_curvemapping_blend_read(reader, brush->curve_paint_size);
+  BLO_read_struct(reader, CurveMapping, &brush->curve_size);
+  if (brush->curve_size) {
+    BKE_curvemapping_blend_read(reader, brush->curve_size);
   }
   else {
-    brush->curve_paint_size = BKE_paint_default_curve();
+    brush->curve_size = BKE_paint_default_curve();
   }
 
-  BLO_read_struct(reader, CurveMapping, &brush->curve_paint_strength);
-  if (brush->curve_paint_strength) {
-    BKE_curvemapping_blend_read(reader, brush->curve_paint_strength);
+  BLO_read_struct(reader, CurveMapping, &brush->curve_strength);
+  if (brush->curve_strength) {
+    BKE_curvemapping_blend_read(reader, brush->curve_strength);
   }
   else {
-    brush->curve_paint_strength = BKE_paint_default_curve();
+    brush->curve_strength = BKE_paint_default_curve();
   }
 
-  BLO_read_struct(reader, CurveMapping, &brush->curve_paint_jitter);
-  if (brush->curve_paint_jitter) {
-    BKE_curvemapping_blend_read(reader, brush->curve_paint_jitter);
+  BLO_read_struct(reader, CurveMapping, &brush->curve_jitter);
+  if (brush->curve_jitter) {
+    BKE_curvemapping_blend_read(reader, brush->curve_jitter);
   }
   else {
-    brush->curve_paint_jitter = BKE_paint_default_curve();
+    brush->curve_jitter = BKE_paint_default_curve();
   }
 
   /* grease pencil */

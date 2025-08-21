@@ -295,6 +295,8 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
   copy_v2_v2(pop->prevmouse, mouse);
   copy_v2_v2(pop->startmouse, mouse);
 
+  BKE_curvemapping_init(brush->curve_strength);
+
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
@@ -364,12 +366,8 @@ static void paint_stroke_update_step(bContext *C,
   }
 
   if (BKE_brush_use_alpha_pressure(brush)) {
-    float pressure_eval = pressure;
-    if (brush->curve_paint_strength) {
-      BKE_curvemapping_init(brush->curve_paint_strength);
-      pressure_eval = BKE_curvemapping_evaluateF(brush->curve_paint_strength, 0, pressure);
-    }
-    BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * pressure_eval * alphafac));
+    pressure = BKE_curvemapping_evaluateF(brush->curve_strength, 0, pressure);
+    BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * pressure * alphafac));
   }
   else {
     BKE_brush_alpha_set(paint, brush, max_ff(0.0f, startalpha * alphafac));

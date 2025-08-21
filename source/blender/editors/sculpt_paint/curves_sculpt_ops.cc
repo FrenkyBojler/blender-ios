@@ -91,12 +91,7 @@ bool curves_sculpt_poll_view3d(bContext *C)
 float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_extension)
 {
   if (BKE_brush_use_size_pressure(&brush)) {
-    float pressure = stroke_extension.pressure;
-    if (brush.curve_paint_size) {
-      BKE_curvemapping_init(brush.curve_paint_size);
-      pressure = BKE_curvemapping_evaluateF(brush.curve_paint_size, 0, pressure);
-    }
-    return pressure;
+    return BKE_curvemapping_evaluateF(brush.curve_size, 0, stroke_extension.pressure);
   }
   return 1.0f;
 }
@@ -111,12 +106,7 @@ float brush_radius_get(const Paint &paint,
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension)
 {
   if (BKE_brush_use_alpha_pressure(&brush)) {
-    float pressure = stroke_extension.pressure;
-    if (brush.curve_paint_strength) {
-      BKE_curvemapping_init(brush.curve_paint_strength);
-      pressure = BKE_curvemapping_evaluateF(brush.curve_paint_strength, 0, pressure);
-    }
-    return pressure;
+    return BKE_curvemapping_evaluateF(brush.curve_strength, 0, stroke_extension.pressure);
   }
   return 1.0f;
 }
@@ -136,6 +126,10 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
   const Scene &scene = *CTX_data_scene(&C);
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
+
+  BKE_curvemapping_init(brush.curve_size);
+  BKE_curvemapping_init(brush.curve_strength);
+
   switch (brush.curves_sculpt_brush_type) {
     case CURVES_SCULPT_BRUSH_TYPE_COMB:
       return new_comb_operation();

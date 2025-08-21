@@ -556,8 +556,8 @@ class StrokePanel(BrushPanel):
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
             col.row().prop(brush, "jitter_unit", expand=True)
             # Pen pressure mapping curve for Jitter.
-            if getattr(brush, "use_pressure_jitter", False) and hasattr(brush, "curve_paint_jitter") and brush.curve_paint_jitter:
-                col.template_curve_mapping(brush, "curve_paint_jitter", brush=True, use_negative_slope=True)
+            if brush.use_pressure_jitter:
+                col.template_curve_mapping(brush, "curve_jitter", brush=True, use_negative_slope=True)
 
         col.separator()
         UnifiedPaintPanel.prop_unified(
@@ -1153,8 +1153,8 @@ def brush_shared_settings(layout, context, brush, popover=False):
                 slider=True,
             )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
-            if getattr(brush, "use_pressure_size", False) and hasattr(brush, "curve_paint_size") and brush.curve_paint_size:
-                layout.template_curve_mapping(brush, "curve_paint_size", brush=True, use_negative_slope=True)
+            if brush.use_pressure_size:
+                layout.template_curve_mapping(brush, "curve_size", brush=True, use_negative_slope=True)
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
             layout.separator()
@@ -1171,8 +1171,8 @@ def brush_shared_settings(layout, context, brush, popover=False):
             slider=True,
         )
         if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
-            if getattr(brush, "use_pressure_strength", False) and hasattr(brush, "curve_paint_strength") and brush.curve_paint_strength:
-                layout.template_curve_mapping(brush, "curve_paint_strength", brush=True, use_negative_slope=True)
+            if brush.use_pressure_strength:
+                layout.template_curve_mapping(brush, "curve_strength", brush=True, use_negative_slope=True)
         layout.separator()
 
     if direction:

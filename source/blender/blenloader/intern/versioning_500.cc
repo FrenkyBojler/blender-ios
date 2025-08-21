@@ -2287,14 +2287,14 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 61)) {
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if (brush->curve_paint_size == nullptr) {
-        brush->curve_paint_size = BKE_paint_default_curve();
+      if (brush->curve_size == nullptr) {
+        brush->curve_size = BKE_paint_default_curve();
       }
-      if (brush->curve_paint_strength == nullptr) {
-        brush->curve_paint_strength = BKE_paint_default_curve();
+      if (brush->curve_strength == nullptr) {
+        brush->curve_strength = BKE_paint_default_curve();
       }
-      if (brush->curve_paint_jitter == nullptr) {
-        brush->curve_paint_jitter = BKE_paint_default_curve();
+      if (brush->curve_jitter == nullptr) {
+        brush->curve_jitter = BKE_paint_default_curve();
       }
     }
   }

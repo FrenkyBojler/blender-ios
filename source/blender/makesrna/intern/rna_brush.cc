@@ -2805,25 +2805,24 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  /* Texture/Image Paint pressure mapping curves. */
-  prop = RNA_def_property(srna, "curve_paint_size", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "curve_paint_size");
+  prop = RNA_def_property(srna, "curve_size", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "curve_size");
   RNA_def_property_struct_type(prop, "CurveMapping");
   RNA_def_property_ui_text(
       prop, "Pressure Size Mapping", "Curve used to map pressure to brush size");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "curve_paint_strength", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "curve_paint_strength");
+  prop = RNA_def_property(srna, "curve_strength", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "curve_strength");
   RNA_def_property_struct_type(prop, "CurveMapping");
   RNA_def_property_ui_text(
       prop, "Pressure Strength Mapping", "Curve used to map pressure to brush strength");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "curve_paint_jitter", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "curve_paint_jitter");
+  prop = RNA_def_property(srna, "curve_jitter", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "curve_jitter");
   RNA_def_property_struct_type(prop, "CurveMapping");
   RNA_def_property_ui_text(
       prop, "Pressure Jitter Mapping", "Curve used to map pressure to brush jitter");

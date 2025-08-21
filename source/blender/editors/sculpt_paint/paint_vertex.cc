@@ -538,10 +538,7 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, paint_mode)) {
     float pressure_eval = cache->pressure;
-    if (brush.curve_paint_size) {
-      BKE_curvemapping_init(brush.curve_paint_size);
-      pressure_eval = BKE_curvemapping_evaluateF(brush.curve_paint_size, 0, cache->pressure);
-    }
+    pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache->pressure);
     cache->radius = cache->initial_radius * pressure_eval;
   }
   else {
@@ -564,27 +561,17 @@ void get_brush_alpha_data(const SculptSession &ss,
 {
   const float pressure_raw = ss.cache->pressure;
 
-  /* Size: apply pressure if enabled, with optional curve remap. */
   float size_pressure = 1.0f;
   if (BKE_brush_use_size_pressure(&brush)) {
-    size_pressure = pressure_raw;
-    if (brush.curve_paint_size) {
-      BKE_curvemapping_init(brush.curve_paint_size);
-      size_pressure = BKE_curvemapping_evaluateF(brush.curve_paint_size, 0, pressure_raw);
-    }
+    size_pressure = BKE_curvemapping_evaluateF(brush.curve_size, 0, pressure_raw);
   }
   *r_brush_size_pressure = BKE_brush_size_get(&paint, &brush) * size_pressure;
 
-  /* Strength: base alpha and pressure multiplier (optionally curve-mapped). */
   *r_brush_alpha_value = BKE_brush_alpha_get(&paint, &brush);
 
   float alpha_pressure = 1.0f;
   if (BKE_brush_use_alpha_pressure(&brush)) {
-    alpha_pressure = pressure_raw;
-    if (brush.curve_paint_strength) {
-      BKE_curvemapping_init(brush.curve_paint_strength);
-      alpha_pressure = BKE_curvemapping_evaluateF(brush.curve_paint_strength, 0, pressure_raw);
-    }
+    alpha_pressure = BKE_curvemapping_evaluateF(brush.curve_strength, 0, pressure_raw);
   }
   *r_brush_alpha_pressure = alpha_pressure;
 }
@@ -1092,6 +1079,9 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
   if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
     return false;
   }
+
+  BKE_curvemapping_init(brush.curve_size);
+  BKE_curvemapping_init(brush.curve_strength);
 
   std::unique_ptr<VPaintData> vpd = vpaint_init_vpaint(
       C, op, scene, depsgraph, vp, ob, *mesh, meta_data->domain, meta_data->data_type, brush);
