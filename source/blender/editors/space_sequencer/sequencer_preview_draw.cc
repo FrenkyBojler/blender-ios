@@ -37,11 +37,14 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
+#include "GPU_compute.hh"
+#include "GPU_debug.hh"
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
 #include "GPU_primitive.hh"
+#include "GPU_shader_shared.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
 
@@ -673,6 +676,24 @@ static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, co
   UI_view2d_text_cache_draw(region);
 }
 
+static const char *get_scope_debug_name(eSpaceSeq_RegionType type)
+{
+  switch (type) {
+    case SEQ_DRAW_IMG_VECTORSCOPE:
+      return "VSE Vectorscope";
+    case SEQ_DRAW_IMG_WAVEFORM:
+      return "VSE Waveform";
+    case SEQ_DRAW_IMG_RGBPARADE:
+      return "VSE Parade";
+    case SEQ_DRAW_IMG_HISTOGRAM:
+      return "VSE Histogram";
+    case SEQ_DRAW_IMG_IMBUF:
+      return "VSE Overexposed";
+    default:
+      return "VSE Scope";
+  }
+}
+
 static void sequencer_draw_scopes(Scene *scene,
                                   const SpaceSeq &space_sequencer,
                                   ARegion &region,
@@ -681,28 +702,11 @@ static void sequencer_draw_scopes(Scene *scene,
                                   int image_height,
                                   bool premultiplied)
 {
+  GPU_debug_group_begin(get_scope_debug_name(eSpaceSeq_RegionType(space_sequencer.mainb)));
+
   gpu::Texture *input_texture = seq::preview_cache_get_gpu_display_texture(scene, timeline_frame);
   if (input_texture == nullptr) {
     input_texture = seq::preview_cache_get_gpu_texture(scene, timeline_frame);
-  }
-
-  /* Figure out draw coordinates. */
-  const rctf preview = preview_get_full_position(region);
-
-  rctf uv;
-  BLI_rctf_init(&uv, 0.0f, 1.0f, 0.0f, 1.0f);
-  const bool keep_aspect = space_sequencer.mainb == SEQ_DRAW_IMG_VECTORSCOPE;
-  float vecscope_aspect = 1.0f;
-  if (keep_aspect) {
-    float width = std::max(BLI_rctf_size_x(&preview), 0.1f);
-    float height = std::max(BLI_rctf_size_y(&preview), 0.1f);
-    vecscope_aspect = width / height;
-    if (vecscope_aspect >= 1.0f) {
-      BLI_rctf_resize_x(&uv, vecscope_aspect);
-    }
-    else {
-      BLI_rctf_resize_y(&uv, 1.0f / vecscope_aspect);
-    }
   }
 
   SeqQuadsBatch quads;
@@ -711,6 +715,8 @@ static void sequencer_draw_scopes(Scene *scene,
   bool use_blend = (space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF &&
                     space_sequencer.flag & SEQ_USE_ALPHA) ||
                    (space_sequencer.mainb != SEQ_DRAW_IMG_IMBUF);
+
+  const rctf preview = preview_get_full_position(region);
 
   /* Draw black rectangle over scopes area. */
   if (space_sequencer.mainb != SEQ_DRAW_IMG_IMBUF) {
@@ -730,6 +736,7 @@ static void sequencer_draw_scopes(Scene *scene,
 
   if (input_texture) {
     if (space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF) {
+      /* Draw overexposed overlay. */
       GPU_blend(GPU_BLEND_NONE);
       GPUVertFormat *imm_format = immVertexFormat();
       const uint pos = GPU_vertformat_attr_add(
@@ -743,40 +750,99 @@ static void sequencer_draw_scopes(Scene *scene,
       immUniformColor3f(1.0f, 1.0f, 1.0f);
 
       GPU_texture_bind(input_texture, 0);
+      rctf uv;
+      BLI_rctf_init(&uv, 0.0f, 1.0f, 0.0f, 1.0f);
       immRectf_with_texco(pos, tex_coord, preview, uv);
       GPU_texture_unbind(input_texture);
       immUnbindProgram();
     }
     else if (space_sequencer.mainb != SEQ_DRAW_IMG_HISTOGRAM) {
-      if (use_blend) {
-        GPU_blend(GPU_BLEND_ALPHA);
-      }
+      /* Draw point-based scopes using a compute shader based rasterizer (using
+       * regular GPU pipeline to draw many points, where thousands of them can
+       * hit the same pixels, is very inefficient, especially on tile-based GPUs).
+       *
+       * Compute shader rasterizer does atomic adds of fixed point colors into
+       * a screen size buffer, then a fragment shader resolve pass outputs the
+       * final colors. */
       const float point_size = (BLI_rcti_size_x(&region.v2d.mask) + 1) /
                                BLI_rctf_size_x(&region.v2d.cur);
-      GPU_program_point_size(true);
-      gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_SCOPE);
-      const int shader_image_bind = GPU_shader_get_sampler_binding(shader, "image");
-      blender::gpu::Batch *batch = GPU_batch_create_procedural(GPU_PRIM_POINTS,
-                                                               image_width * image_height);
-      GPU_texture_bind(input_texture, shader_image_bind);
-
-      GPU_batch_set_shader(batch, shader);
-
       float3 coeffs;
       IMB_colormanagement_get_luminance_coefficients(coeffs);
-      GPU_batch_uniform_3f(batch, "luma_coeffs", coeffs.x, coeffs.y, coeffs.z);
-      GPU_batch_uniform_1f(batch, "scope_point_size", point_size);
-      GPU_batch_uniform_1b(batch, "img_premultiplied", premultiplied);
-      GPU_batch_uniform_1i(batch, "image_width", image_width);
-      GPU_batch_uniform_1i(batch, "image_height", image_height);
-      GPU_batch_uniform_1i(batch, "scope_mode", space_sequencer.mainb);
-      GPU_batch_draw(batch);
 
-      GPU_batch_discard(batch);
-      GPU_program_point_size(false);
+      int viewport_size_i[4];
+      GPU_viewport_size_get_i(viewport_size_i);
+      const int2 viewport_size = int2(viewport_size_i[2], viewport_size_i[3]);
+      const int2 image_size = int2(image_width, image_height);
+      gpu::StorageBuf *raster_ssbo = GPU_storagebuf_create_ex(viewport_size.x * viewport_size.y *
+                                                                  sizeof(SeqScopeRasterData),
+                                                              nullptr,
+                                                              GPU_USAGE_DEVICE_ONLY,
+                                                              "Scopes Raster");
+      GPU_storagebuf_clear_to_zero(raster_ssbo);
+      /* Compute shader rasterization. */
+      {
+        gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_SCOPE_RASTER);
+        BLI_assert(shader);
+        GPU_shader_bind(shader);
+
+        const int raster_ssbo_location = GPU_shader_get_ssbo_binding(shader, "raster_buf");
+        GPU_storagebuf_bind(raster_ssbo, raster_ssbo_location);
+        const int image_location = GPU_shader_get_sampler_binding(shader, "image");
+        GPU_texture_bind(input_texture, image_location);
+
+        GPU_shader_uniform_1i(shader, "view_width", viewport_size.x);
+        GPU_shader_uniform_1i(shader, "view_height", viewport_size.y);
+        GPU_shader_uniform_3fv(shader, "luma_coeffs", coeffs);
+        GPU_shader_uniform_1f(shader, "scope_point_size", point_size);
+        GPU_shader_uniform_1b(shader, "img_premultiplied", premultiplied);
+        GPU_shader_uniform_1i(shader, "image_width", image_width);
+        GPU_shader_uniform_1i(shader, "image_height", image_height);
+        GPU_shader_uniform_1i(shader, "scope_mode", space_sequencer.mainb);
+
+        const int2 groups_to_dispatch = math::divide_ceil(image_size, int2(16));
+        GPU_compute_dispatch(shader, groups_to_dispatch.x, groups_to_dispatch.y, 1);
+
+        GPU_shader_unbind();
+        GPU_storagebuf_unbind(raster_ssbo);
+      }
+
+      /* Resolve pass. */
+      {
+        if (use_blend) {
+          GPU_blend(GPU_BLEND_ALPHA);
+        }
+
+        /* Depending on resolution of the image, different amounts of pixels are expected
+         * to hit the same locations of the scope. Adjust the scope transparency mapping
+         * exponent so that the scope has decent visibility without saturating or being too dark:
+         * 0.05 at height=2160 (4K) and up, 0.3 at height=360 and below, and interpolating between
+         * those. */
+        float alpha = math::clamp(ratiof(360.0f, 2160.0f, image_height), 0.0f, 1.0f);
+        float exponent = math::interpolate(0.3f, 0.05f, alpha);
+
+        gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEQUENCER_SCOPE_RESOLVE);
+        BLI_assert(shader);
+
+        const int raster_ssbo_location = GPU_shader_get_ssbo_binding(shader, "raster_buf");
+        GPU_storagebuf_bind(raster_ssbo, raster_ssbo_location);
+
+        blender::gpu::Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, 3);
+
+        GPU_batch_set_shader(batch, shader);
+        GPU_batch_uniform_1i(batch, "view_width", viewport_size.x);
+        GPU_batch_uniform_1i(batch, "view_height", viewport_size.y);
+        GPU_batch_uniform_1f(batch, "alpha_exponent", exponent);
+        GPU_batch_draw(batch);
+
+        GPU_batch_discard(batch);
+        GPU_storagebuf_unbind(raster_ssbo);
+      }
+
+      GPU_storagebuf_free(raster_ssbo);
     }
   }
 
+  /* Draw scope graticules. */
   if (use_blend) {
     GPU_blend(GPU_BLEND_ALPHA);
   }
@@ -798,6 +864,7 @@ static void sequencer_draw_scopes(Scene *scene,
   if (use_blend) {
     GPU_blend(GPU_BLEND_NONE);
   }
+  GPU_debug_group_end();
 }
 
 static void update_gpu_scopes(const ImBuf *input_ibuf,
@@ -1564,7 +1631,8 @@ static void sequencer_preview_draw_overlays(const bContext *C,
                                    SEQ_DRAW_IMG_VECTORSCOPE));
 
   /* Update scopes before starting regular draw (GPU scopes update changes framebuffer, etc.). */
-  space_sequencer.runtime->scopes.last_ibuf_float = input_ibuf->float_buffer.data != nullptr;
+  space_sequencer.runtime->scopes.last_ibuf_float = input_ibuf &&
+                                                    input_ibuf->float_buffer.data != nullptr;
   if (has_cpu_scope) {
     update_cpu_scopes(
         space_sequencer, view_settings, display_settings, *input_ibuf, timeline_frame);

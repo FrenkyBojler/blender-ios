@@ -2,12 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* Point/AA bits similar to #gpu_shader_2D_point_uniform_size_aa_vert */
-
 #include "gpu_shader_common_color_utils.glsl"
 #include "infos/gpu_shader_sequencer_info.hh"
 
-VERTEX_SHADER_CREATE_INFO(gpu_shader_sequencer_scope)
+COMPUTE_SHADER_CREATE_INFO(gpu_shader_sequencer_scope_raster)
 
 /* Match eSpaceSeq_RegionType */
 #define SEQ_DRAW_IMG_WAVEFORM 2
@@ -15,15 +13,40 @@ VERTEX_SHADER_CREATE_INFO(gpu_shader_sequencer_scope)
 #define SEQ_DRAW_IMG_HISTOGRAM 4
 #define SEQ_DRAW_IMG_RGBPARADE 5
 
+/* Compute shader that rasterizes scope points into screen-sized
+ * raster buffer, with accumulated R,G,B,A values in fixed point.
+ *
+ * For pixels covered by each point, just do atomic adds into
+ * the buffer. Even if this has potential to be highly contented
+ * on the same memory locations, it is still way faster than rasterizing
+ * points using regular GPU pipeline. */
+
+void put_pixel(int x, int y, float4 col)
+{
+  int index = y * view_width + x;
+
+  /* Use 24.8 fixed point; this allows 16M points to hit the same
+   * location without overflowing the values. */
+  uint4 col_fx = uint4(col * 255.0 + 0.5);
+  atomicAdd(raster_buf[index].col_r, col_fx.r);
+  atomicAdd(raster_buf[index].col_g, col_fx.g);
+  atomicAdd(raster_buf[index].col_b, col_fx.b);
+  atomicAdd(raster_buf[index].col_a, col_fx.a);
+}
+
 void main()
 {
   /* Fetch pixel from the input image, corresponding to current point. */
-  int2 texel = int2(gl_VertexID % image_width, gl_VertexID / image_width);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
+  if (any(greaterThanEqual(texel, int2(image_width, image_height)))) {
+    return;
+  }
   float4 color = texelFetch(image, texel, 0);
   if (img_premultiplied) {
     color_alpha_unpremultiply(color, color);
   }
 
+  /* Calculate point position based on scope mode; possibly adjust color too. */
   float2 pos = float2(0.0);
   if (scope_mode == SEQ_DRAW_IMG_WAVEFORM) {
     /* Waveform: pixel height based on luminance. */
@@ -76,28 +99,46 @@ void main()
   hsv.z = 1.0;
   hsv_to_rgb(hsv, color);
 
-  finalColor.rgb = color.rgb;
-  finalColor.a = 0.2;
-
-  float size = scope_point_size * 4.0;
-  if (size < 2.0) {
-    /* If point size becomes very small, keep it at minimum size and instead
-     * fade points out. */
-    finalColor.a *= size / 2.0;
-    finalColor.a = max(1.0 / 255.0, finalColor.a);
-    size = 2.0;
+  /* Calculate final point position in integer pixels. */
+  float4 clip_pos = ModelViewProjectionMatrix * float4(pos, 0.0f, 1.0f);
+  int2 view_pos = int2((clip_pos.xy * 0.5 + float2(0.5)) * float2(view_width, view_height));
+  if (any(lessThan(view_pos, int2(0))) ||
+      any(greaterThanEqual(view_pos, int2(view_width, view_height))))
+  {
+    /* Outside of view. */
+    return;
   }
 
-  gl_Position = ModelViewProjectionMatrix * float4(pos, 0.0f, 1.0f);
-  gl_PointSize = size;
+  /* Optimization for highly contended raster regions (e.g. vectorscope center):
+   * if there's 50+ points rendered into this location already, stop adding more. */
+  int index = view_pos.y * view_width + view_pos.x;
+  if (raster_buf[index].col_a > 50 * 255) {
+    return;
+  }
 
-  /* calculate concentric radii in pixels */
-  float radius = 0.5f * size;
+  float raster_size = scope_point_size;
 
-  /* start at the outside and progress toward the center */
-  radii[0] = radius;
-  radii[1] = radius - 1.0f;
-
-  /* convert to PointCoord units */
-  radii /= size;
+  int px_size = max(int(ceil(raster_size)), 1);
+  float factor = max(raster_size / px_size, 1.0 / 255.0);
+  color.rgb *= factor;
+  color.a = factor;
+  if (px_size <= 1) {
+    put_pixel(view_pos.x, view_pos.y, color);
+  }
+  else {
+    px_size = min(px_size, 16);
+    int x_min = view_pos.x - px_size / 2;
+    int x_max = x_min + px_size;
+    int y_min = view_pos.y - px_size / 2;
+    int y_max = y_min + px_size;
+    x_min = clamp(x_min, 0, view_width);
+    x_max = clamp(x_max, 0, view_width);
+    y_min = clamp(y_min, 0, view_height);
+    y_max = clamp(y_max, 0, view_height);
+    for (int y = y_min; y < y_max; y++) {
+      for (int x = x_min; x < x_max; x++) {
+        put_pixel(x, y, color);
+      }
+    }
+  }
 }

@@ -504,7 +504,7 @@ set(GLSL_SRC
   shaders/gpu_shader_keyframe_shape_vert.glsl
   shaders/gpu_shader_keyframe_shape_frag.glsl
 
-  shaders/gpu_shader_sequencer_scope_vert.glsl
+  shaders/gpu_shader_sequencer_scope_comp.glsl
   shaders/gpu_shader_sequencer_scope_frag.glsl
   shaders/gpu_shader_sequencer_strips_vert.glsl
   shaders/gpu_shader_sequencer_strips_frag.glsl
