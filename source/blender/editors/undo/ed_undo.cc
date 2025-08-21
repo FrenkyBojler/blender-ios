@@ -47,6 +47,8 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "../sculpt_paint/sculpt_undo.hh"
+
 using blender::Set;
 using blender::Vector;
 
@@ -918,7 +920,10 @@ size_t ED_get_total_undo_memory()
   size_t total_memory = 0;
 
   for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.first); us != nullptr; us = us->next) {
-    if (us->data_size > 0) {
+    if (us->type == BKE_UNDOSYS_TYPE_SCULPT) {
+      total_memory += blender::ed::sculpt_paint::undo::get_step_memory_size(us);
+    }
+    else if (us->data_size > 0) {
       total_memory += us->data_size;
     }
   }

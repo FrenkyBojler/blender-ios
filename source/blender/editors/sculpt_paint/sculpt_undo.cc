@@ -321,9 +321,11 @@ struct PositionUndoStorage : NonMovable {
   TaskPool *compression_task_pool;
   std::atomic<bool> compression_ready = false;
   std::atomic<bool> compression_started = false;
+  StepData *owner_step_data = nullptr;
 
   PositionUndoStorage() = default;
   PositionUndoStorage(const StepData &step_data, const Span<std::unique_ptr<Node>> nodes)
+      : owner_step_data(const_cast<StepData *>(&step_data))
   {
     Array<bool> selected_verts(step_data.mesh.verts_num, false);
     threading::memory_bandwidth_bound_task(selected_verts.as_span().size_in_bytes(), [&]() {
@@ -388,6 +390,10 @@ struct PositionUndoStorage : NonMovable {
     CompressionData *data = static_cast<CompressionData *>(task_data);
     Array<std::byte> result = zstd_compressor::compress_data(data->positions.as_span());
     data->storage->compressed_data = std::move(result);
+    if (data->storage->owner_step_data) {
+      size_t compressed_size = data->storage->compressed_data.size();
+      data->storage->owner_step_data->undo_size += compressed_size;
+    }
     data->storage->compression_ready.store(true, std::memory_order_release);
   }
   static void compression_task_free(TaskPool * /*pool*/, void *task_data)
@@ -407,6 +413,21 @@ struct SculptUndoStep {
   /* Active color attribute at the end of this undo step. */
   SculptAttrRef active_color_end;
 };
+
+size_t get_step_memory_size(UndoStep *step)
+{
+  if (step->type != BKE_UNDOSYS_TYPE_SCULPT) {
+    return 0;
+  }
+
+  SculptUndoStep *sculpt_step = reinterpret_cast<SculptUndoStep *>(step);
+
+  if (sculpt_step->data.position_step_storage) {
+    sculpt_step->data.position_step_storage->ensure_compression_complete();
+  }
+
+  return sculpt_step->data.undo_size;
+}
 
 static SculptUndoStep *get_active_step()
 {
@@ -1948,8 +1969,6 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
   if (step_data->type == Type::Position) {
     step_data->position_step_storage = std::make_unique<PositionUndoStorage>(*step_data,
                                                                              step_data->nodes);
-    step_data->position_step_storage->ensure_compression_complete();
-    step_data->undo_size = step_data->position_step_storage->compressed_data.size();
     step_data->nodes.clear_and_shrink();
   }
   else {
