@@ -1402,8 +1402,10 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
         if (!hide_vert.is_empty() && hide_vert[vert]) {
           continue;
         }
-        const bool needs_normal = bool(flag & AverageDataFlags::Normal) && distances_sq[i] <= normal_radius_sq;
-        const bool needs_center = bool(flag & AverageDataFlags::Position) && distances_sq[i] <= position_radius_sq;
+        const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                                  distances_sq[i] <= normal_radius_sq;
+        const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                                  distances_sq[i] <= position_radius_sq;
         if (!needs_normal && !needs_center) {
           continue;
         }
@@ -1496,8 +1498,10 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
           }
           const int node_vert = grid_range_node[offset];
 
-          const bool needs_normal = bool(flag & AverageDataFlags::Normal) && distances_sq[node_vert] <= normal_radius_sq;
-          const bool needs_center = bool(flag & AverageDataFlags::Position) && distances_sq[node_vert] <= position_radius_sq;
+          const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                                    distances_sq[node_vert] <= normal_radius_sq;
+          const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                                    distances_sq[node_vert] <= position_radius_sq;
           if (!needs_normal && !needs_center) {
             continue;
           }
@@ -1649,8 +1653,10 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
         i++;
         continue;
       }
-      const bool needs_normal = bool(flag & AverageDataFlags::Normal) && distances_sq[i] <= normal_radius_sq;
-      const bool needs_center = bool(flag & AverageDataFlags::Position) && distances_sq[i] <= position_radius_sq;
+      const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                                distances_sq[i] <= normal_radius_sq;
+      const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                                distances_sq[i] <= position_radius_sq;
       if (!needs_normal && !needs_center) {
         i++;
         continue;
