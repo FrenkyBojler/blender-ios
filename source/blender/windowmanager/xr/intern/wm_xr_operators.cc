@@ -618,7 +618,8 @@ static void WM_OT_xr_navigation_grab(wmOperatorType *ot)
 #define XR_MAX_RAYCASTS 8
 
 static const float g_xr_default_raycast_axis[3] = {0.0f, 0.0f, -1.0f};
-static const float g_xr_default_raycast_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
+static const float g_xr_default_raycast_hit_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
+static const float g_xr_default_raycast_miss_color[4] = {1.0f, 0.35f, 0.35f, 1.0f};
 
 struct XrRaycastData {
   /** Raycast info */
@@ -818,7 +819,6 @@ static void wm_xr_raycast_update(wmOperator *op,
   data->width = RNA_float_get(op->ptr, "width") * nav_scale;
   data->samples_per_segment = RNA_int_get(op->ptr, "samples_per_segment");
   RNA_float_get_array(op->ptr, "axis", axis);
-  RNA_float_get_array(op->ptr, "color", data->color);
 
   if (data->from_viewer) {
     float viewer_rot[4];
@@ -1527,6 +1527,13 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
                             teleport_ofs,
                             gravity);
   
+  if (data->success) {
+    RNA_float_get_array(op->ptr, "hit_color", data->color);
+  }
+  else {
+    RNA_float_get_array(op->ptr, "miss_color", data->color);
+  }
+
   switch (event->val) {
     case KM_PRESS:
       return OPERATOR_RUNNING_MODAL;
@@ -1641,13 +1648,23 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                        -1.0f,
                        1.0f);
   RNA_def_float_color(ot->srna,
-                      "color",
+                      "hit_color",
                       4,
-                      g_xr_default_raycast_color,
+                      g_xr_default_raycast_hit_color,
                       0.0f,
                       1.0f,
-                      "Color",
-                      "Raycast color",
+                      "Hit Color",
+                      "Color of raycast when it succeeds",
+                      0.0f,
+                      1.0f);
+  RNA_def_float_color(ot->srna,
+                      "miss_color",
+                      4,
+                      g_xr_default_raycast_miss_color,
+                      0.0f,
+                      1.0f,
+                      "Miss Color",
+                      "Color of raycast when it misses",
                       0.0f,
                       1.0f);
 }

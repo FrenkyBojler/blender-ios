@@ -37,7 +37,8 @@ actionconfig_data = \
            ("teleport", {"type": 'FLOAT', "user_paths": ['/user/hand/left', '/user/hand/right'], "op": 'wm.xr_navigation_teleport', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
             {"op_properties":
             [("interpolation", 0.9),
-             ("color", (0.0, 1.0, 1.0, 1.0)),
+             ("hit_color", (0.0, 1.0, 1.0, 1.0)),
+             ("miss_color", (1.0, 0.0, 0.0, 1.0)),
              ],
              },
             {"bindings":
@@ -241,7 +242,8 @@ actionconfig_data = \
            {"op_properties":
             [("interpolation", 0.9),
              ("from_viewer", True),
-             ("color", (0.0, 1.0, 1.0, 1.0)),
+             ("hit_color", (0.0, 1.0, 1.0, 1.0)),
+             ("miss_color", (1.0, 0.0, 0.0, 1.0)),
              ],
             },
               {"bindings":
