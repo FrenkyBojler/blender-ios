@@ -33,7 +33,8 @@
 
 #if PY_VERSION_HEX < 0x030d0000 /* <3.13 */
 #  define PyLong_AsInt _PyLong_AsInt
-#  define PyUnicode_CompareWithASCIIString _PyUnicode_EqualToASCIIString
+#  define PyUnicode_CompareWithASCIIString(left, right) \
+    (_PyUnicode_EqualToASCIIString(left, right) ? 0 : -1)
 #endif
 
 /* -------------------------------------------------------------------- */
