@@ -956,6 +956,10 @@ gpu::VertBufPtr &DRW_curves_texture_for_evaluated_attribute(Curves *curves,
 
   request_attribute(*curves, name);
 
+  /* TODO(fclem): Remove Global access. */
+  CurvesModule &module = *drw_get().data->curves_module;
+  cache.ensure_attributes(module, curves->geometry.wrap(), nullptr);
+
   for (const int i : cache.attr_used.index_range()) {
     if (cache.attr_used[i] == name) {
       r_valid_attribute = true;
