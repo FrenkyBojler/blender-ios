@@ -1075,17 +1075,17 @@ class ViewerNodeItem : public ViewerDataTreeItem {
 };
 
 class BundleItem : public ViewerDataTreeItem {
- private:
-  std::string key_;
-
   friend ViewerDataPath;
 
  public:
-  BundleItem(const StringRef key) : key_(key) {}
+  BundleItem(const StringRef key)
+  {
+    label_ = key;
+  }
 
   void build_row(uiLayout &row) override
   {
-    row.label(key_, ICON_NONE);
+    row.label(label_, ICON_NONE);
   }
 };
 
@@ -1096,12 +1096,14 @@ class ClosureInputOutputItem : public ViewerDataTreeItem {
   friend ViewerDataPath;
 
  public:
-  ClosureInputOutputItem(const SpreadsheetClosureInputOutput in_out) : in_out_(in_out) {}
+  ClosureInputOutputItem(const SpreadsheetClosureInputOutput in_out) : in_out_(in_out)
+  {
+    label_ = in_out_ == SPREADSHEET_CLOSURE_INPUT ? IFACE_("Inputs") : IFACE_("Outputs");
+  }
 
   void build_row(uiLayout &row) override
   {
-    row.label(in_out_ == SPREADSHEET_CLOSURE_INPUT ? IFACE_("Inputs") : IFACE_("Outputs"),
-              ICON_NONE);
+    row.label(label_, ICON_NONE);
   }
 };
 
@@ -1112,7 +1114,7 @@ ViewerDataPath::ViewerDataPath(const Span<const ViewerDataTreeItem *> tree_items
       this->viewer_item = viewer_node_item->item_.identifier;
     }
     else if (const auto *bundle_item = dynamic_cast<const BundleItem *>(item)) {
-      this->bundles.append(bundle_item->key_);
+      this->bundles.append(bundle_item->label_);
     }
     else if (const auto *bundle_item = dynamic_cast<const ClosureInputOutputItem *>(item)) {
       this->closure_input_output = bundle_item->in_out_;
