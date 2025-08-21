@@ -647,7 +647,10 @@ int ListDataSource::tot_rows() const
   return list_->size();
 }
 
-BundleDataSource::BundleDataSource(nodes::BundlePtr bundle) : bundle_(std::move(bundle)) {}
+BundleDataSource::BundleDataSource(nodes::BundlePtr bundle) : bundle_(std::move(bundle))
+{
+  this->collect_flat_items(*bundle_, "");
+}
 
 void BundleDataSource::foreach_default_column_ids(
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
@@ -656,7 +659,7 @@ void BundleDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name : {"Identifier", "Type"}) {
+  for (const char *name : {"Identifier", "Type", "Value"}) {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
   }
@@ -665,26 +668,36 @@ void BundleDataSource::foreach_default_column_ids(
 std::unique_ptr<ColumnValues> BundleDataSource::get_column_values(
     const SpreadsheetColumnID &column_id) const
 {
-  const Span<nodes::Bundle::StoredItem> items = bundle_->items();
   if (STREQ(column_id.name, "Identifier")) {
-    return std::make_unique<ColumnValues>(
-        IFACE_("Identifier"), VArray<std::string>::from_func(items.size(), [items](int64_t index) {
-          return items[index].key;
-        }));
+    return std::make_unique<ColumnValues>(IFACE_("Identifier"),
+                                          VArray<std::string>::from_span(flat_item_keys_));
   }
   if (STREQ(column_id.name, "Type")) {
     return std::make_unique<ColumnValues>(
         IFACE_("Type"),
-        VArray<std::string>::from_func(items.size(), [items](int64_t index) -> std::string {
-          const nodes::BundleItemValue &value = items[index].value;
-          if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&value.value)) {
-            return socket_value->type->label;
+        VArray<std::string>::from_func(
+            flat_items_.size(), [items = flat_items_](int64_t index) -> std::string {
+              const nodes::BundleItemValue &value = *items[index];
+              if (const auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(
+                      &value.value)) {
+                return socket_value->type->label;
+              }
+              if (const auto *internal_value = std::get_if<nodes::BundleItemInternalValue>(
+                      &value.value)) {
+                return internal_value->value->type_name();
+              }
+              return "";
+            }));
+  }
+  if (STREQ(column_id.name, "Value")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Value"),
+        VArray<std::string>::from_func(flat_items_.size(), [items = flat_items_](int64_t index) {
+          if (const auto *value = std::get_if<nodes::BundleItemSocketValue>(&items[index]->value))
+          {
+            return value->type->label;
           }
-          if (const auto *internal_value = std::get_if<nodes::BundleItemInternalValue>(
-                  &value.value)) {
-            return internal_value->value->type_name();
-          }
-          return "";
+          return std::string("");
         }));
   }
   return {};
@@ -692,7 +705,27 @@ std::unique_ptr<ColumnValues> BundleDataSource::get_column_values(
 
 int BundleDataSource::tot_rows() const
 {
-  return bundle_->size();
+  return flat_item_keys_.size();
+}
+
+void BundleDataSource::collect_flat_items(const nodes::Bundle &bundle, const StringRef parent_path)
+{
+  const Span<nodes::Bundle::StoredItem> items = bundle.items();
+  for (const nodes::Bundle::StoredItem &item : items) {
+    const std::string path = parent_path.is_empty() ?
+                                 item.key :
+                                 nodes::Bundle::combine_path({parent_path, item.key});
+    flat_item_keys_.append(path);
+    flat_items_.append(&item.value);
+    if (const auto *value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
+      if (value->value.is_single()) {
+        const GPointer ptr = value->value.get_single_ptr();
+        if (ptr.is_type<nodes::BundlePtr>()) {
+          this->collect_flat_items(**ptr.get<nodes::BundlePtr>(), path);
+        }
+      }
+    }
+  }
 }
 
 ClosureSignatureDataSource::ClosureSignatureDataSource(nodes::ClosurePtr closure,
@@ -812,8 +845,8 @@ bke::SocketValueVariant geometry_display_data_get(const SpaceSpreadsheet *ssprea
       if (object_orig->mode == OB_MODE_EDIT) {
         if (const BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
           Mesh *new_mesh = BKE_id_new_nomain<Mesh>(nullptr);
-          /* This is a potentially heavy operation to do on every redraw. The best solution here is
-           * to display the data directly from the bmesh without a conversion, which can be
+          /* This is a potentially heavy operation to do on every redraw. The best solution here
+           * is to display the data directly from the bmesh without a conversion, which can be
            * implemented a bit later. */
           BM_mesh_bm_to_me_for_eval(*em->bm, *new_mesh, nullptr);
           return bke::SocketValueVariant::From(bke::GeometrySet::from_mesh(new_mesh));

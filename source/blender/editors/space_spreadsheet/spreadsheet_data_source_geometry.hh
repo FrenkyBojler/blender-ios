@@ -110,6 +110,8 @@ class ListDataSource : public DataSource {
 
 class BundleDataSource : public DataSource {
   nodes::BundlePtr bundle_;
+  Vector<std::string> flat_item_keys_;
+  Vector<const nodes::BundleItemValue *> flat_items_;
 
  public:
   BundleDataSource(nodes::BundlePtr bundle);
@@ -121,6 +123,9 @@ class BundleDataSource : public DataSource {
       const SpreadsheetColumnID &column_id) const override;
 
   int tot_rows() const override;
+
+ private:
+  void collect_flat_items(const nodes::Bundle &bundle, StringRef parent_path);
 };
 
 class ClosureSignatureDataSource : public DataSource {
