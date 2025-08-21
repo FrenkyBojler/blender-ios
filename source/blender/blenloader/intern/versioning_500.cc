@@ -1357,19 +1357,21 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
   bNodeSocket *old_image_output = blender::bke::node_find_socket(node, SOCK_OUT, "Image");
 
   bNode *glare_node = blender::bke::node_add_node(nullptr, node_tree, "CompositorNodeGlare");
-  static_cast<NodeGlare *>(glare_node->storage)->type = CMP_NODE_GLARE_SUN_BEAMS;
-  static_cast<NodeGlare *>(glare_node->storage)->quality = 0;
   glare_node->parent = node.parent;
   glare_node->location[0] = node.location[0];
   glare_node->location[1] = node.location[1];
 
   bNodeSocket *image_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Image");
+  bNodeSocket *type_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Type");
+  bNodeSocket *quality_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Quality");
   bNodeSocket *threshold_input = blender::bke::node_find_socket(
       *glare_node, SOCK_IN, "Highlights Threshold");
   bNodeSocket *size_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Size");
   bNodeSocket *source_input = blender::bke::node_find_socket(*glare_node, SOCK_IN, "Sun Position");
   bNodeSocket *glare_output = blender::bke::node_find_socket(*glare_node, SOCK_OUT, "Glare");
 
+  type_input->default_value_typed<bNodeSocketValueMenu>()->value = CMP_NODE_GLARE_SUN_BEAMS;
+  quality_input->default_value_typed<bNodeSocketValueMenu>()->value = CMP_NODE_GLARE_QUALITY_HIGH;
   copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
              old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
   threshold_input->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
