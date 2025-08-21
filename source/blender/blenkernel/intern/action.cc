@@ -1430,17 +1430,6 @@ static bool gizmo_follows_custom_tx(const bArmature *arm, const bPoseChannel *pc
   return pchan->flag & POSE_GIZMO_AT_CUSTOM_TX;
 }
 
-/**
- * Get the pose_bone's rest pose transform matrix in armature space relative to its custom_tx.
- */
-static void pose_channel_rest_pose_custom_tx_from_pchan(const bPoseChannel *pose_bone,
-                                                        float r_custom_tx_from_pose_bone[3][3])
-{
-  copy_m3_m4(r_custom_tx_from_pose_bone, pose_bone->custom_tx->bone->arm_mat);
-  invert_m3(r_custom_tx_from_pose_bone);
-  mul_m3_m3m4(r_custom_tx_from_pose_bone, r_custom_tx_from_pose_bone, pose_bone->bone->arm_mat);
-}
-
 void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
                                         const bPoseChannel *pose_bone,
                                         float r_pose_orientation[3][3])
@@ -1482,7 +1471,9 @@ void BKE_pose_channel_gizmo_parent_transform(const bArmature *arm,
   /* Transforms the spaces in such a way that dragging along the axis handle actually moves the
    * bone in the direction of that handle in world space instead of modifying it in local space. */
   float custom_tx_from_pchan[3][3];
-  pose_channel_rest_pose_custom_tx_from_pchan(pose_bone, custom_tx_from_pchan);
+  copy_m3_m4(custom_tx_from_pchan, pose_bone->custom_tx->bone->arm_mat);
+  invert_m3(custom_tx_from_pchan);
+  mul_m3_m3m4(custom_tx_from_pchan, custom_tx_from_pchan, pose_bone->bone->arm_mat);
 
   mul_m4_m4m3(r_bpt->loc_mat, r_bpt->loc_mat, custom_tx_from_pchan);
   mul_m4_m4m3(r_bpt->rotscale_mat, r_bpt->rotscale_mat, custom_tx_from_pchan);
