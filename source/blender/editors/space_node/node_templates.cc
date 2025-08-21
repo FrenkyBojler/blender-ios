@@ -716,7 +716,7 @@ void uiTemplateNodeLink(
   }
 
   if (!ID_IS_EDITABLE(ntree)) {
-    UI_but_disable(but, "Cannot edit node links in a linked node tree");
+    UI_but_disable(but, "Cannot edit linked node tree");
   }
 }
 
