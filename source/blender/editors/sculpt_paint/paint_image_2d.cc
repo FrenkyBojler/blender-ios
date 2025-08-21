@@ -433,7 +433,6 @@ static ImBuf *brush_painter_imbuf_new(
         brush_imbuf_tex_co(&tex_mapping, x, y, texco);
         const MTex *mtex = &brush->mtex;
         BKE_brush_sample_tex_3d(painter->paint, brush, mtex, texco, rgba, thread, pool);
-
         if (cache->is_srgb) {
           IMB_colormanagement_scene_linear_to_srgb_v3(rgba, rgba);
         }
@@ -524,7 +523,6 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
         if (is_texbrush) {
           brush_imbuf_tex_co(&tex_mapping, x, y, texco);
           BKE_brush_sample_tex_3d(painter->paint, brush, mtex, texco, rgba, thread, pool);
-
           if (cache->is_srgb) {
             IMB_colormanagement_scene_linear_to_srgb_v3(rgba, rgba);
           }
