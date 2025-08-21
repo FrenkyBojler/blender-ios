@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "BLI_math_vector_types.hh"
 #include "BLO_readfile.hh"
 #include "BLO_writefile.hh"
 #include "MEM_guardedalloc.h"
@@ -455,7 +456,8 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   int ofs;
 
   deselect_all_strips(scene_dst);
-  if (RNA_boolean_get(op->ptr, "keep_offset")) {
+  // always keep offsetof in preview for now, change later
+  if (RNA_boolean_get(op->ptr, "keep_offset") || (region->regiontype == RGN_TYPE_PREVIEW)) {
     ofs = scene_dst->r.cfra - scene_src->r.cfra;
   }
   else {
@@ -519,6 +521,14 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     seq::ensure_unique_name(istrip, scene_dst);
   }
 
+  int strip_mean_pos[2] = {0, 0};
+  LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
+    const float2 mirror = seq::image_transform_mirror_factor_get(istrip);
+    strip_mean_pos[0] += istrip->data->transform->xofs * mirror[0];
+    strip_mean_pos[1] += istrip->data->transform->yofs * mirror[1];
+  }
+  strip_mean_pos[0] /= BLI_listbase_count(&nseqbase);
+  strip_mean_pos[1] /= BLI_listbase_count(&nseqbase);
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     /* Translate after name has been changed, otherwise this will affect animdata of original
      * strip. */
@@ -529,8 +539,8 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     }
     if (region->regiontype == RGN_TYPE_PREVIEW) {
       StripTransform *transform = istrip->data->transform;
-      transform->xofs = view_mval[0];
-      transform->yofs = view_mval[1];
+      transform->xofs = view_mval[0] - (strip_mean_pos[0] - transform->xofs);
+      transform->yofs = view_mval[1] - (strip_mean_pos[1] - transform->yofs);
       seq::relations_invalidate_cache(scene, istrip);
     }
   }
