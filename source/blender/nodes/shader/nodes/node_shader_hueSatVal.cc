@@ -8,10 +8,20 @@
 
 #include "node_shader_util.hh"
 
+#include "BLI_math_base.hh"
+#include "BLI_math_color.h"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
+
+#include "FN_multi_function_builder.hh"
+
+#include "NOD_multi_function.hh"
+
 namespace blender::nodes::node_shader_hueSatVal_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Float>("Hue").default_value(0.5f).min(0.0f).max(1.0f).description(
       "Hue rotation offset, from 0 (-180°) to 1 (+180°). Note that 0 and 1 have the same result");
   b.add_input<decl::Float>("Saturation")
@@ -48,6 +58,34 @@ static int gpu_shader_hue_sat(GPUMaterial *mat,
                               GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "hue_sat", in, out);
+}
+
+using namespace blender::math;
+
+static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+{
+  static auto function = mf::build::SI5_SO<float4, float, float, float, float, float4>(
+      "Hue Saturation Value",
+      [](const float4 &color,
+         const float hue,
+         const float saturation,
+         const float value,
+         const float factor) -> float4 {
+        float3 hsv;
+        rgb_to_hsv_v(color, hsv);
+
+        hsv.x = math::fract(hsv.x + hue + 0.5f);
+        hsv.y = hsv.y * saturation;
+        hsv.z = hsv.z * value;
+
+        float3 rgb_result;
+        hsv_to_rgb_v(hsv, rgb_result);
+        rgb_result = math::max(rgb_result, float3(0.0f));
+
+        return float4(math::interpolate(color.xyz(), rgb_result, factor), color.w);
+      },
+      mf::build::exec_presets::SomeSpanOrSingle<0>());
+  builder.set_matching_fn(function);
 }
 
 NODE_SHADER_MATERIALX_BEGIN
