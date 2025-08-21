@@ -65,6 +65,7 @@ void TreeElementIDAction::expand(SpaceOutliner &space_outliner) const
                   TSE_ACTION_SLOT,
                   0);
     }
+    return;
   }
 
   /* Only show a single slot. */
