@@ -31,6 +31,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
@@ -51,6 +52,8 @@
 #include "sculpt_intern.hh"
 
 // #define DEBUG_TIME
+
+#define PAINT_DEBUG_PEN_PRESSURE_TEXT (G.debug_value == 887)
 
 #ifdef DEBUG_TIME
 #  include "BLI_time_utildefines.h"
@@ -1011,8 +1014,8 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
 
 static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
-  if (U.flag & USER_DEVELOPER_UI) {
-    ED_area_status_text(CTX_wm_area(C), nullptr);
+  if (PAINT_DEBUG_PEN_PRESSURE_TEXT) {
+    ED_workspace_status_text(C, nullptr);
   }
   bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
 
@@ -1484,10 +1487,9 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   float pressure = ((br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0f :
                                                                                   tablet_pressure);
 
-  if (U.flag & USER_DEVELOPER_UI && WM_event_is_tablet(event)) {
-    ScrArea *area = CTX_wm_area(C);
+  if (PAINT_DEBUG_PEN_PRESSURE_TEXT && WM_event_is_tablet(event)) {
     std::string msg = fmt::format("Tablet Pressure: {:.4f}", pressure);
-    ED_area_status_text(area, msg.c_str());
+    ED_workspace_status_text(C, msg.c_str());
   }
 
   /* When processing a timer event the pressure from the event is 0, so use the last valid
