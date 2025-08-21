@@ -1612,6 +1612,7 @@ static void version_dynamic_viewer_node_items(bNodeTree &ntree)
                                  eCustomDataType(storage->data_type_legacy))
                                  .value_or(SOCK_FLOAT);
     value_item.identifier = 1;
+    storage->next_identifier = 2;
   }
 }
 
