@@ -330,10 +330,10 @@ inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float 
   if (ref.duplis_) {
     uint start = resource_len_;
 
-    ObjectBounds &proto_bounds = bounds_buf.current().get_or_resize(resource_len_);
+    ObjectBounds proto_bounds;
     proto_bounds.sync(*ref.object, inflate_bounds);
 
-    ObjectInfos &proto_info = infos_buf.current().get_or_resize(resource_len_);
+    ObjectInfos proto_info;
     proto_info.sync(ref, is_active_object, is_edit_mode);
 
     for (const DupliObject *dupli : *ref.duplis_) {
