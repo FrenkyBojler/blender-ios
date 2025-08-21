@@ -20,3 +20,4 @@ Referenced by issue #136543, Report message from previous run persists in succes
 Referenced by issue #136787, Default EEVEE renderer crashes-to-desktop when opening Material or Shading tabs
 Referenced by issue #138088, Vulkan: Missing Anti-Aliasing on the RGB Wheel
 Referenced by issue #140501, crashes when importing image mac
+Referenced by issue #144916, Blender crashes when snapping after aligning in edit mode
