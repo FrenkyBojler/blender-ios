@@ -7,7 +7,7 @@ if(NOT HIP_FOUND)
   return()
 endif()
 
-if(NOT HIP_VERSION MATCHES "${RELEASE_HIP_VERSION}.*")
+if(HIP_VERSION LESS "${RELEASE_HIP_VERSION}.*")
   message(STATUS "Wrong HIP compiler version (expected ${RELEASE_HIP_VERSION}), skipping HIPRT build")
   return()
 endif()
@@ -50,6 +50,7 @@ ExternalProject_Add(external_hiprt
 add_dependencies(
   external_hiprt
   external_python
+  #external_zstd
 )
 
 if(WIN32)
