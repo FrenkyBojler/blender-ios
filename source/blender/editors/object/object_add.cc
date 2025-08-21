@@ -732,12 +732,15 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
   add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
   radius = RNA_float_get(op->ptr, "radius");
-  Object *ob = add_type(
-      C, RNA_enum_get(op->ptr, "type"), nullptr, loc, rot, enter_editmode, local_view_bits);
+  const int object_type = RNA_enum_get(op->ptr, "type");
 
   blender::Vector<Object *> targets;
   float3 sel_min, sel_max;
   const bool had_bounds = collect_targets_and_bounds(C, targets, sel_min, sel_max);
+
+
+  Object *ob = add_type(C, object_type, nullptr, loc, rot, enter_editmode, local_view_bits);
+
   if (ob->type == OB_LATTICE) {
     /* lattice is a special case!
      * we never want to scale the obdata since that is the rest-state */
