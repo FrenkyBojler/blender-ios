@@ -178,7 +178,7 @@ static void ntree_version_242(bNodeTree *ntree)
 {
   if (ntree->type == NTREE_COMPOSIT) {
     LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-      if (node->type_legacy == CMP_NODE_HUE_SAT) {
+      if (node->type_legacy == CMP_NODE_HUE_SAT_DEPRECATED) {
         if (node->storage) {
           NodeHueSat *nhs = static_cast<NodeHueSat *>(node->storage);
           if (nhs->val == 0.0f) {

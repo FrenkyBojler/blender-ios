@@ -776,7 +776,7 @@ static const char *node_get_static_idname(int type, int treetype)
         return "CompositorNodeSepHSVA";
       case CMP_NODE_SETALPHA:
         return "CompositorNodeSetAlpha";
-      case CMP_NODE_HUE_SAT:
+      case CMP_NODE_HUE_SAT_DEPRECATED:
         return "CompositorNodeHueSat";
       case CMP_NODE_IMAGE:
         return "CompositorNodeImage";

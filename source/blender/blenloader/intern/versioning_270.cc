@@ -1604,7 +1604,7 @@ void do_versions_after_linking_270(Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         blender::bke::node_tree_set_type(*ntree);
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy == CMP_NODE_HUE_SAT) {
+          if (node->type_legacy == CMP_NODE_HUE_SAT_DEPRECATED) {
             do_version_hue_sat_node(ntree, node);
           }
         }
