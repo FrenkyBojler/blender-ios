@@ -78,6 +78,7 @@ template float initialize<float, Min>(float);
 template float initialize<float, Max>(float);
 template float2 initialize<float2, Max>(float2);
 template float initialize<float, Sum>(float);
+template float4 initialize<float4, Sum>(float4);
 template float4 initialize<float4, MaxVelocity>(float4);
 
 template<> float initialize<float, MaxInRange>(float value)
@@ -109,6 +110,7 @@ template float identity<float, Min>(); /* TODO */
 template float identity<float, Max>();
 template float2 identity<float2, Max>();
 template float identity<float, Sum>();
+template float4 identity<float4, Sum>();
 template float4 identity<float4, MaxVelocity>(); /* TODO */
 template float identity<float, MaxInRange>();    /* TODO */
 template float identity<float, MinInRange>();    /* TODO */
@@ -125,12 +127,19 @@ template float4 reduce<float4, Sum>(float4, float4);
 template float reduce<float, SumSquareDifference>(float, float);
 /* clang-format off */
 template<> float reduce<float, Min>(float lhs, float rhs) { return min(lhs, rhs); }
+template<> float2 reduce<float2, Min>(float2 lhs, float2 rhs) { return min(lhs, rhs); }
 template<> float reduce<float, Max>(float lhs, float rhs) { return max(lhs, rhs); }
+template<> float2 reduce<float2, Max>(float2 lhs, float2 rhs) { return max(lhs, rhs); }
 /* clang-format on */
 template<> float reduce<float, MaxInRange>(float lhs, float rhs)
 {
   float max = push_constant_get(compositor_maximum_float_in_range, upper_bound);
   return ((rhs > lhs) && (rhs <= max)) ? rhs : lhs;
+}
+template<> float reduce<float, MinInRange>(float lhs, float rhs)
+{
+  float min = push_constant_get(compositor_minimum_float_in_range, lower_bound);
+  return ((rhs < lhs) && (rhs >= min)) ? rhs : lhs;
 }
 template<> float4 reduce<float4, MaxVelocity>(float4 lhs, float4 rhs)
 {
