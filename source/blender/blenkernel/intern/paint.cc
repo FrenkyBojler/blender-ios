@@ -643,7 +643,7 @@ const Brush *BKE_paint_brush_for_read(const Paint *paint)
   return paint ? paint->brush : nullptr;
 }
 
-bool BKE_paint_brush_poll(const Paint *paint, const Brush *brush)
+bool BKE_paint_can_use_brush(const Paint *paint, const Brush *brush)
 {
   if (paint == nullptr) {
     return false;
@@ -664,7 +664,7 @@ static AssetWeakReference *asset_reference_create_from_brush(Brush *brush)
 
 bool BKE_paint_brush_set(Main *bmain,
                          Paint *paint,
-                         const AssetWeakReference *brush_asset_reference)
+                         const AssetWeakReference &brush_asset_reference)
 {
   /* Don't resolve this during file read, it will be done after. */
   if (bmain->is_locked_for_linking) {
@@ -672,13 +672,13 @@ bool BKE_paint_brush_set(Main *bmain,
   }
 
   Brush *brush = reinterpret_cast<Brush *>(
-      blender::bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *brush_asset_reference));
+      blender::bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
   BLI_assert(brush == nullptr || !ID_IS_LINKED(brush) ||
              blender::bke::asset_edit_id_is_editable(brush->id));
 
   /* Ensure we have a brush with appropriate mode to assign.
    * Could happen if contents of asset blend were manually changed. */
-  if (brush == nullptr || !BKE_paint_brush_poll(paint, brush)) {
+  if (brush == nullptr || !BKE_paint_can_use_brush(paint, brush)) {
     return false;
   }
 
@@ -690,8 +690,8 @@ bool BKE_paint_brush_set(Main *bmain,
     paint->brush_asset_reference = nullptr;
     if (brush != nullptr) {
       BLI_assert(blender::bke::asset_edit_weak_reference_from_id(brush->id) ==
-                 *brush_asset_reference);
-      paint->brush_asset_reference = MEM_new<AssetWeakReference>(__func__, *brush_asset_reference);
+                 brush_asset_reference);
+      paint->brush_asset_reference = MEM_new<AssetWeakReference>(__func__, brush_asset_reference);
     }
   }
 
@@ -700,7 +700,7 @@ bool BKE_paint_brush_set(Main *bmain,
 
 bool BKE_paint_brush_set(Paint *paint, Brush *brush)
 {
-  if (!BKE_paint_brush_poll(paint, brush)) {
+  if (!BKE_paint_can_use_brush(paint, brush)) {
     return false;
   }
 

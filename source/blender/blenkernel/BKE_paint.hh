@@ -192,7 +192,7 @@ Brush *BKE_paint_brush_from_essentials(Main *bmain, PaintMode paint_mode, const 
  * Check if brush \a brush may be set/activated for \a paint. Passing null for \a brush will return
  * true.
  */
-bool BKE_paint_brush_poll(const Paint *paint, const Brush *brush);
+bool BKE_paint_can_use_brush(const Paint *paint, const Brush *brush);
 
 /**
  * Activates \a brush for painting, and updates #Paint.brush_asset_reference so the brush can be
@@ -216,7 +216,7 @@ bool BKE_paint_brush_set(Paint *paint, Brush *brush);
  */
 bool BKE_paint_brush_set(Main *bmain,
                          Paint *paint,
-                         const AssetWeakReference *brush_asset_reference);
+                         const AssetWeakReference &brush_asset_reference);
 bool BKE_paint_brush_set_default(Main *bmain, Paint *paint);
 bool BKE_paint_brush_set_essentials(Main *bmain, Paint *paint, const char *name);
 void BKE_paint_previous_asset_reference_set(Paint *paint,
