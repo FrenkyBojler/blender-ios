@@ -70,7 +70,7 @@ static void context_path_add_top_level_shader_node_tree(const SpaceNode &snode,
                                                         void *ptr)
 {
   if (snode.nodetree != snode.edittree) {
-    ui::context_path_add_generic(path, rna_type, ptr, 0, handle_func(0));
+    ui::context_path_add_generic(path, rna_type, ptr, ICON_NONE, handle_func(0));
   }
   else {
     ui::context_path_add_generic(path, rna_type, ptr);
