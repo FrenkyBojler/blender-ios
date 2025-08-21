@@ -5222,15 +5222,15 @@ struct ObjectModifierUpdateContext {
 
 static bool object_modifier_update_subframe_impl(const ObjectModifierUpdateContext &ctx,
                                                  Object *ob,
-                                                 bool update_mesh,
-                                                 int parent_recursion)
+                                                 const bool update_mesh,
+                                                 const int parent_recursion_limit)
 {
   /* NOTE: this function should not actually update the object
    * since this is used for setting up the depsgraph.
    * The actual updates must be done by the #ObjectModifierUpdateContext::update_or_tag_fn. */
 
-  /* NOTE(@ideasman42): `parent_recursion` is used to prevent this function attempting to scan
-   * object hierarchies infinitely, needed since constraint targets are also included.
+  /* NOTE(@ideasman42): `parent_recursion_limit` is used to prevent this function attempting to
+   * scan object hierarchies infinitely, needed since constraint targets are also included.
    * A more elegant alternative may be to track which objects have been handled.
    * Since #BKE_object_modifier_update_subframe is documented not to be used
    * for new code (if possible), leave as-is. */
@@ -5254,8 +5254,8 @@ static bool object_modifier_update_subframe_impl(const ObjectModifierUpdateConte
   }
 
   /* if object has parents, update them too */
-  if (parent_recursion) {
-    int recursion = parent_recursion - 1;
+  if (parent_recursion_limit) {
+    const int recursion = parent_recursion_limit - 1;
     bool no_update = false;
     if (ob->parent) {
       no_update |= object_modifier_update_subframe_impl(ctx, ob->parent, false, recursion);
@@ -5292,25 +5292,25 @@ static bool object_modifier_update_subframe_impl(const ObjectModifierUpdateConte
 
 void BKE_object_modifier_update_subframe_only_callback(
     Object *ob,
-    bool update_mesh,
-    int parent_recursion,
-    int type,
+    const bool update_mesh,
+    const int parent_recursion_limit,
+    const /*ModifierType*/ int modifier_type,
     blender::FunctionRef<void(Object *object, bool update_mesh)> update_or_tag_fn)
 {
   ObjectModifierUpdateContext ctx = {
-      /*modifier_type*/ ModifierType(type),
-      /*update_or_tag_fn*/ update_or_tag_fn,
+      ModifierType(modifier_type),
+      update_or_tag_fn,
   };
-  object_modifier_update_subframe_impl(ctx, ob, update_mesh, parent_recursion);
+  object_modifier_update_subframe_impl(ctx, ob, update_mesh, parent_recursion_limit);
 }
 
 void BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
                                          Scene *scene,
                                          Object *ob,
-                                         bool update_mesh,
-                                         int parent_recursion,
-                                         float frame,
-                                         int type)
+                                         const bool update_mesh,
+                                         const int parent_recursion_limit,
+                                         const float frame,
+                                         const /*ModifierType*/ int modifier_type)
 {
   const bool flush_to_original = DEG_is_active(depsgraph);
 
@@ -5353,7 +5353,7 @@ void BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
   };
 
   BKE_object_modifier_update_subframe_only_callback(
-      ob, update_mesh, parent_recursion, type, update_or_tag_fn);
+      ob, update_mesh, parent_recursion_limit, modifier_type, update_or_tag_fn);
 }
 
 void BKE_object_update_select_id(Main *bmain)

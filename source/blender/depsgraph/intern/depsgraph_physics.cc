@@ -88,6 +88,13 @@ ListBase *DEG_get_collision_relations(const Depsgraph *graph,
 
 /********************** Depsgraph Building API ************************/
 
+/**
+ * Flags to store point-cache relations which have been calculated.
+ * This avoid adding relations multiple times.
+ *
+ * \note This could be replaced by bit-shifting #eDepsObjectComponentType values,
+ * although this would limit them to integer size.
+ */
 enum class CollisionComponentFlag : uint8_t {
   None = 0,
   /** #DEG_OB_COMP_TRANSFORM is set. */
@@ -103,14 +110,14 @@ ENUM_OPERATORS(CollisionComponentFlag, CollisionComponentFlag::EvalPose);
  * When #BKE_object_modifier_update_subframe is used by a modifier,
  * it's important the depsgraph tags objects this modifier uses.
  *
- * Without this access to objects may not be thread-safe, see: #142137.
+ * Without this access to objects is not thread-safe, see: #142137.
  */
 static void add_collision_relations_with_parents(
     DepsNodeHandle *handle,
     Object *ob1,
     const char *name,
     const int parent_recursion,
-    uint modifier_type,
+    const uint modifier_type,
     blender::Map<Object *, CollisionComponentFlag> &object_component_map)
 {
   auto update_fn = [&handle, &name, &object_component_map](Object *ob, const bool update_mesh) {

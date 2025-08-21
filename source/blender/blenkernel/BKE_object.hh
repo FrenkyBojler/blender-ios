@@ -668,9 +668,9 @@ void BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
                                          Scene *scene,
                                          Object *ob,
                                          bool update_mesh,
-                                         int parent_recursion,
+                                         int parent_recursion_limit,
                                          float frame,
-                                         int type);
+                                         int /*ModifierType*/ modifier_type);
 
 /**
  * Call `update_or_tag_fn` on all objects which #BKE_object_modifier_update_subframe would update.
@@ -679,8 +679,8 @@ void BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
 void BKE_object_modifier_update_subframe_only_callback(
     Object *ob,
     bool update_mesh,
-    int parent_recursion,
-    int type,
+    int parent_recursion_limit,
+    int /*ModifierType*/ modifier_type,
     blender::FunctionRef<void(Object *object, bool update_mesh)> update_or_tag_fn);
 
 bool BKE_object_empty_image_frame_is_visible_in_view3d(const Object *ob, const RegionView3D *rv3d);
