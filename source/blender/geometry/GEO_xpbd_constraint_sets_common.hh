@@ -474,22 +474,32 @@ class RodStretchAndShearConstraintSet
       return;
     }
 
+    /* TODO The positional and rotational parts use different residuals to avoid errors when the
+     * current segment length deviates too much from the rest length. The rotational offset uses
+     * the residual as the angle of rotation which becomes larger with stretching. To avoid
+     * instabilities the rotation residual is computed relative to the current length.
+     * This should be cleaned up and optimized if possible. */
+
     /* Current non-normalized tangent of the rod. */
     const float3 p_diff = p1 - p0;
+    const float p_len = math::length(p_diff);
     /* Expected non-normalized tangent of the rod based on the rotation. */
-    const float3 forward = math::transform_point(rot, float3(0.0f, 0.0f, rest_length));
+    const float3 forward_rest = math::transform_point(rot, float3(0.0f, 0.0f, rest_length));
+    const float3 forward = math::transform_point(rot, float3(0.0f, 0.0f, p_len));
     /* How much the rod is stretched and sheared. */
-    const float3 residual = p_diff - forward;
+    const float3 residual_pos = p_diff - forward_rest;
+    const float3 residual_rot = p_diff - forward;
 
     /* Based on "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schömer, 2016). */
-    const float3 lambda = residual /
-                          (inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(rest_length) +
-                           compliance_term);
+    const float weight_sum = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(rest_length);
+    const float weight_sum_rot = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(p_len);
+    const float3 lambda_pos = residual_pos / (weight_sum + compliance_term);
+    const float3 lambda_rot = residual_rot / (weight_sum_rot + compliance_term);
 
-    const float3 offset0 = lambda * inv_m0;
-    const float3 offset1 = -lambda * inv_m1;
-    const math::Quaternion offset_rot = math::Quaternion(
-                                            0.0f, lambda * inv_lumped_inertia * rest_length) *
+    const float3 offset0 = lambda_pos * inv_m0;
+    const float3 offset1 = -lambda_pos * inv_m1;
+    const math::Quaternion offset_rot = math::Quaternion(0.0f,
+                                                         lambda_rot * inv_lumped_inertia * p_len) *
                                         rot * math::Quaternion(0, 0, 0, -1);
 
     updater.update_position(geo_i_, point_i0, offset0);
