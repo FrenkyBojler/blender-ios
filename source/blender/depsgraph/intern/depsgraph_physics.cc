@@ -116,7 +116,7 @@ static void add_collision_relations_with_parents(
     DepsNodeHandle *handle,
     Object *ob1,
     const char *name,
-    const int parent_recursion,
+    const int parent_recursion_limit,
     const uint modifier_type,
     blender::Map<Object *, CollisionComponentFlag> &object_component_map)
 {
@@ -149,7 +149,7 @@ static void add_collision_relations_with_parents(
   };
 
   BKE_object_modifier_update_subframe_only_callback(
-      ob1, true, parent_recursion, modifier_type, update_fn);
+      ob1, true, parent_recursion_limit, modifier_type, update_fn);
 }
 
 void DEG_add_collision_relations(DepsNodeHandle *handle,
