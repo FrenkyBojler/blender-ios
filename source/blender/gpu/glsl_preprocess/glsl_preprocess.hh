@@ -1516,10 +1516,27 @@ class Preprocessor {
     string guard_start = "#if defined(CREATE_INFO_" + info + ")\n";
     string guard_else;
     if (fn_type.is_valid() && fn_type.str() != "void") {
+      string type = fn_type.str();
+      bool is_trivial = false;
+      if (type == "float" || type == "float2" || type == "float3" || type == "float4" ||
+          /**/
+          type == "int" || type == "int2" || type == "int3" || type == "int4" ||
+          /**/
+          type == "uint" || type == "uint2" || type == "uint3" || type == "uint4" ||
+          /**/
+          type == "float2x2" || type == "float2x3" || type == "float2x4" ||
+          /**/
+          type == "float3x2" || type == "float3x3" || type == "float3x4" ||
+          /**/
+          type == "float4x2" || type == "float4x3" || type == "float4x4")
+      {
+        is_trivial = true;
+      }
       guard_else += "#else\n";
       guard_else += line_start;
+
       guard_else += "  " + fn_type.str() + " result;\n";
-      guard_else += "  return result;\n";
+      guard_else += "  return " + type + (is_trivial ? "(0)" : "::zero()") + ";\n";
     }
     string guard_end = "#endif\n";
 
