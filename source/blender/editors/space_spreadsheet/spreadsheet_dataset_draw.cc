@@ -1063,7 +1063,10 @@ class ViewerNodeItem : public ViewerDataTreeItem {
   friend ViewerDataPath;
 
  public:
-  ViewerNodeItem(const nodes::geo_eval_log::ViewerNodeLog::Item &item) : item_(item) {}
+  ViewerNodeItem(const nodes::geo_eval_log::ViewerNodeLog::Item &item) : item_(item)
+  {
+    label_ = std::to_string(item.identifier);
+  }
 
   void build_row(uiLayout &row) override
   {
