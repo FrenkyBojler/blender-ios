@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_string_ref.hh"
+
 struct ARegion;
 struct DRWData;
 struct DRWInstanceDataList;
@@ -28,6 +30,10 @@ struct View3D;
 struct ViewLayer;
 struct bContext;
 struct rcti;
+
+namespace blender::bke {
+enum class AttrType : int16_t;
+}
 
 void DRW_engines_register();
 void DRW_engines_free();
@@ -106,12 +112,17 @@ bool DRW_draw_in_progress();
  * Helper to check if exit object type to render.
  */
 bool DRW_render_check_grease_pencil(Depsgraph *depsgraph);
+
 /**
- * Helper to check if exit object type to render.
- * Faster and more conservative than DRW_render_check_grease_pencil().
- * Used for viewport.
+ * This function only does following things to make quick checks for whether Grease Pencil drawing
+ * is needed:
+ * - Whether Grease Pencil objects are excluded in the viewport.
+ * - If any Grease Pencil typed ID exists inside the depsgraph.
+ * Note: it does not to full check for cases where Grease Pencil strokes are generated within a
+ * non-grease-pencil object, to do complete check, use `DRW_render_check_grease_pencil`.
  */
-bool DRW_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d);
+bool DRW_gpencil_engine_needed_viewport(Depsgraph *depsgraph, View3D *v3d);
+
 /**
  * Render grease pencil on top of other render engine output.
  * This function creates a DRWContext.
@@ -121,12 +132,20 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 void DRW_render_context_enable(Render *render);
 void DRW_render_context_disable(Render *render);
 
-/* Critical section for GPUShader usage. Can be removed when we have threadsafe GPUShader class. */
+void DRW_mutexes_init();
+void DRW_mutexes_exit();
+
+/* Mutex to lock the drw manager and avoid concurrent context usage.
+ * Equivalent to the old DST lock.
+ * Brought back to 4.5 due to unforeseen issues causing data races and race conditions with Images
+ * and GPUTextures. (See #141253) */
+void DRW_lock_start();
+void DRW_lock_end();
+
+/* Critical section for gpu::Shader usage. Can be removed when we have threadsafe gpu::Shader
+ * class. */
 void DRW_submission_start();
 void DRW_submission_end();
-
-void DRW_submission_mutex_init();
-void DRW_submission_mutex_exit();
 
 void DRW_gpu_context_create();
 void DRW_gpu_context_destroy();
@@ -150,30 +169,28 @@ void DRW_xr_drawing_begin();
 void DRW_xr_drawing_end();
 #endif
 
-/* For garbage collection */
+/** For garbage collection. */
 void DRW_cache_free_old_batches(Main *bmain);
 
 namespace blender::draw {
 
-/* Free garbage collected subdivision data. */
+/** Free garbage collected subdivision data. */
 void DRW_cache_free_old_subdiv();
 
 }  // namespace blender::draw
 
-/* Never use this. Only for closing blender. */
+/** Never use this. Only for closing blender. */
 void DRW_gpu_context_enable_ex(bool restore);
 void DRW_gpu_context_disable_ex(bool restore);
 
 /* Render pipeline GPU context control.
  * Enable system context first, then enable blender context,
  * then disable blender context, then disable system context. */
+
 void DRW_system_gpu_render_context_enable(void *re_system_gpu_context);
 void DRW_system_gpu_render_context_disable(void *re_system_gpu_context);
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
 void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
-
-void DRW_deferred_shader_remove(GPUMaterial *mat);
-void DRW_deferred_shader_optimize_remove(GPUMaterial *mat);
 
 DRWData *DRW_viewport_data_create();
 void DRW_viewport_data_free(DRWData *drw_data);
@@ -181,9 +198,13 @@ void DRW_viewport_data_free(DRWData *drw_data);
 bool DRW_gpu_context_release();
 void DRW_gpu_context_activate(bool drw_state);
 
+namespace blender::draw {
+
 void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
-                                  int data_type,
-                                  const char *layer_name,
+                                  bke::AttrType data_type,
+                                  blender::StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer);
+
+}

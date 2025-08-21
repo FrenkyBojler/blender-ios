@@ -8,8 +8,6 @@
  * Contains everything about light baking.
  */
 
-#include <mutex>
-
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
@@ -18,6 +16,7 @@
 
 #include "DNA_lightprobe_types.h"
 
+#include "BLI_mutex.hh"
 #include "BLI_threads.h"
 #include "BLI_time.h"
 
@@ -74,7 +73,7 @@ class LightBake {
   Vector<Object *> original_probes_;
   /** Frame to copy to original objects during update. This is needed to avoid race conditions. */
   Vector<LightProbeGridCacheFrame *> bake_result_;
-  std::mutex result_mutex_;
+  Mutex result_mutex_;
 
  public:
   LightBake(Main *bmain,
@@ -315,7 +314,7 @@ wmJob *EEVEE_lightbake_job_create(wmWindowManager *wm,
   wmJob *wm_job = WM_jobs_get(wm,
                               win,
                               scene,
-                              "Bake Lighting",
+                              "Baking lighting...",
                               WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
                               WM_JOB_TYPE_LIGHT_BAKE);
 

@@ -38,7 +38,7 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_view_selected);
 
   WM_operatortype_append(NODE_OT_mute_toggle);
-  WM_operatortype_append(NODE_OT_hide_toggle);
+  WM_operatortype_append(NODE_OT_collapse_toggle);
   WM_operatortype_append(NODE_OT_preview_toggle);
   WM_operatortype_append(NODE_OT_options_toggle);
   WM_operatortype_append(NODE_OT_hide_socket_toggle);
@@ -87,12 +87,10 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_add_material);
   WM_operatortype_append(NODE_OT_add_color);
   WM_operatortype_append(NODE_OT_add_import_node);
+  WM_operatortype_append(NODE_OT_add_group_input_node);
 
   WM_operatortype_append(NODE_OT_new_node_tree);
-
-  WM_operatortype_append(NODE_OT_output_file_add_socket);
-  WM_operatortype_append(NODE_OT_output_file_remove_active_socket);
-  WM_operatortype_append(NODE_OT_output_file_move_active_socket);
+  WM_operatortype_append(NODE_OT_new_compositing_node_group);
 
   WM_operatortype_append(NODE_OT_parent_set);
   WM_operatortype_append(NODE_OT_join);
@@ -109,6 +107,8 @@ void node_operatortypes()
 
   WM_operatortype_append(NODE_OT_cryptomatte_layer_add);
   WM_operatortype_append(NODE_OT_cryptomatte_layer_remove);
+
+  WM_operatortype_append(NODE_OT_sockets_sync);
 
   for (bke::bNodeType *ntype : bke::node_types_get()) {
     if (ntype->register_operators) {
@@ -145,6 +145,16 @@ void ED_operatormacros_node()
   RNA_boolean_set(mot->ptr, "socket_select", true);
   RNA_boolean_set(mot->ptr, "clear_viewer", true);
   WM_operatortype_macro_define(ot, "NODE_OT_link_viewer");
+
+  ot = WM_operatortype_append_macro(
+      "NODE_OT_join_named",
+      "Join in Named Frame",
+      "Create a new frame node around the selected nodes and name it immediately",
+      OPTYPE_UNDO);
+  WM_operatortype_macro_define(ot, "NODE_OT_join");
+  mot = WM_operatortype_macro_define(ot, "WM_OT_call_panel");
+  RNA_string_set(mot->ptr, "name", "TOPBAR_PT_name");
+  RNA_boolean_set(mot->ptr, "keep_open", false);
 
   ot = WM_operatortype_append_macro("NODE_OT_translate_attach",
                                     "Move and Attach",

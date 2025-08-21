@@ -15,7 +15,7 @@ void main()
   float4 inner_color = float4(float3(0.0f), 1.0f);
   float4 outer_color = float4(0.0f);
 
-  float2 dd = fwidth(stipple_pos);
+  float2 dd = gpu_fwidth(stipple_pos);
   float line_distance = distance(stipple_pos, stipple_start) / max(dd.x, dd.y);
 
   if (OVERLAY_UVLineStyle(line_style) == OVERLAY_UV_LINE_STYLE_OUTLINE) {
@@ -66,7 +66,7 @@ void main()
   final_color.a *= 1.0f - (outer_color.a > 0.0f ? mix_w_outer : mix_w);
 
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
-  bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
+  bool is_active = flag_test(ob_flag, OBJECT_ACTIVE_EDIT_MODE);
   final_color.a *= is_active ? alpha : (alpha * 0.25f);
 
   frag_color = final_color;

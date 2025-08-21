@@ -18,6 +18,7 @@
 #include "eevee_bxdf_diffuse_lib.glsl"
 #include "eevee_bxdf_microfacet_lib.glsl"
 #include "eevee_ray_types_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_thickness_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
@@ -56,7 +57,7 @@ struct ScreenTraceHitData {
  *                     artifact when steps are too large.
  * \param roughness: Determine how lower depth mipmaps are used to make the tracing faster. Lower
  *                   roughness will use lower mipmaps.
- * \param discard_backface: If true, ray-trace will return false  if we hit a surface from behind.
+ * \param discard_backface: If true, ray-trace will return false if we hit a surface from behind.
  * \param allow_self_intersection: If false, ray-trace will return false if the ray is not covering
  *                                 at least one pixel.
  * \param ray: View-space ray. Direction pre-multiplied by maximum length.
@@ -181,12 +182,12 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
   float2 inv_texture_size = 1.0f / float2(textureSize(planar_depth_tx, 0).xy);
   /* NOTE: The 2.0 factor here is because we are applying it in NDC space. */
-  /* TODO(@fclem): This uses the main view's projection matrix, not the planar's one.
-   * This works fine for reflection, but this prevent the use of any other projection capture. */
-  ScreenSpaceRay ssray = raytrace_screenspace_ray_create(ray, 2.0f * inv_texture_size);
+  ScreenSpaceRay ssray = raytrace_screenspace_ray_create(
+      ray, planar.winmat, 2.0f * inv_texture_size);
 
   float prev_delta = 0.0f, prev_time = 0.0f;
-  float depth_sample = texture(planar_depth_tx, float3(ssray.origin.xy, planar.layer_id)).r;
+  float depth_sample = reverse_z::read(
+      texture(planar_depth_tx, float3(ssray.origin.xy, planar.layer_id)).r);
   float delta = depth_sample - ssray.origin.z;
 
   float t = 0.0f, time = 0.0f;
@@ -203,7 +204,7 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
     float4 ss_ray = ssray.origin + ssray.direction * time;
 
-    depth_sample = texture(planar_depth_tx, float3(ss_ray.xy, planar.layer_id)).r;
+    depth_sample = reverse_z::read(texture(planar_depth_tx, float3(ss_ray.xy, planar.layer_id)).r);
 
     delta = depth_sample - ss_ray.z;
     /* Check if the ray is below the surface. */
@@ -218,9 +219,9 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
   ScreenTraceHitData result;
   result.valid = hit;
   result.ss_hit_P = ssray.origin.xyz + ssray.direction.xyz * time;
-  /* TODO(@fclem): This uses the main view's projection matrix, not the planar's one.
-   * This works fine for reflection, but this prevent the use of any other projection capture. */
-  result.v_hit_P = drw_point_screen_to_view(result.ss_hit_P);
+
+  /* NOTE: v_hit_P is in planar reflected view space. */
+  result.v_hit_P = project_point(planar.wininv, drw_screen_to_ndc(result.ss_hit_P));
   /* Convert to world space ray time. */
   result.time = length(result.v_hit_P - ray.origin) / length(ray.direction);
   return result;
@@ -237,6 +238,11 @@ Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, floa
       return bxdf_ggx_ray_amend_transmission(cl, V, ray, thickness);
     case CLOSURE_BSDF_TRANSLUCENT_ID:
       return bxdf_translucent_ray_amend(cl, V, ray, thickness);
+    case CLOSURE_NONE_ID:
+    case CLOSURE_BSDF_DIFFUSE_ID:
+    case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+    case CLOSURE_BSSRDF_BURLEY_ID:
+      break;
   }
   return ray;
 }

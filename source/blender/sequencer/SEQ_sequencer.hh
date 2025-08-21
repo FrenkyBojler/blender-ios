@@ -36,8 +36,17 @@ enum {
 };
 
 /* strip_duplicate' flags */
-#define STRIP_DUPE_UNIQUE_NAME (1 << 0)
-#define STRIP_DUPE_ALL (1 << 3) /* otherwise only selected are copied */
+enum class StripDuplicate : uint8_t {
+  /* Note: Technically, the selected strips are duplicated when `All` is not set. */
+  Selected = 0,
+  /* Ensure strips have a unique name. */
+  UniqueName = (1 << 0),
+  /* Duplicate strips and the IDs they reference. */
+  Data = (1 << 1),
+  /* If this is set, duplicate all strips. If not set, duplicate selected strips. */
+  All = (1 << 3),
+};
+ENUM_OPERATORS(StripDuplicate, StripDuplicate::All);
 
 SequencerToolSettings *tool_settings_init();
 SequencerToolSettings *tool_settings_ensure(Scene *scene);
@@ -67,7 +76,7 @@ ListBase *active_seqbase_get(const Editing *ed);
  * \param seqbase: ListBase with strips
  */
 void active_seqbase_set(Editing *ed, ListBase *seqbase);
-Strip *strip_alloc(ListBase *lb, int timeline_frame, int machine, int type);
+Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type);
 void strip_free(Scene *scene, Strip *strip);
 /**
  * Get #MetaStack that corresponds to current level that is being viewed
@@ -88,13 +97,18 @@ void meta_stack_set(const Scene *scene, Strip *dst);
  * \param ed: sequence editor data
  */
 Strip *meta_stack_pop(Editing *ed);
-Strip *strip_duplicate_recursive(
-    const Scene *scene_src, Scene *scene_dst, ListBase *new_seq_list, Strip *strip, int dupe_flag);
-void seqbase_duplicate_recursive(const Scene *scene_src,
+Strip *strip_duplicate_recursive(Main *bmain,
+                                 const Scene *scene_src,
+                                 Scene *scene_dst,
+                                 ListBase *new_seq_list,
+                                 Strip *strip,
+                                 StripDuplicate dupe_flag);
+void seqbase_duplicate_recursive(Main *bmain,
+                                 const Scene *scene_src,
                                  Scene *scene_dst,
                                  ListBase *nseqbase,
                                  const ListBase *seqbase,
-                                 int dupe_flag,
+                                 StripDuplicate dupe_flag,
                                  int flag);
 bool is_valid_strip_channel(const Strip *strip);
 
@@ -126,6 +140,16 @@ void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase);
  * \return pointer to Strip
  */
 Strip *lookup_strip_by_name(Editing *ed, const char *key);
+
+/**
+ * Find a strips using provided scene as input
+ *
+ * \param ed: Editing that owns lookup hash
+ * \param key: Input Scene pointer
+ *
+ * \return Span of strips
+ */
+Span<Strip *> lookup_strips_by_scene(Editing *ed, const Scene *key);
 
 /**
  * Find which meta strip the given timeline channel belongs to. Returns nullptr if it is a global

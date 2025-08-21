@@ -12,7 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -278,7 +278,11 @@ static void file_refresh(const bContext *C, ScrArea *area)
   }
 
   filelist_sort(sfile->files);
-  filelist_filter(sfile->files);
+
+  if (filelist_needs_filtering(sfile->files)) {
+    filelist_filter(sfile->files);
+    params->active_file = -1;
+  }
 
   if (params->display == FILE_IMGDISPLAY) {
     filelist_cache_previews_set(sfile->files, true);
@@ -433,15 +437,18 @@ static void file_main_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* Truncate, otherwise these can be on ".5" and give fuzzy text. #77696. */
   region->v2d.cur.ymin = trunc(region->v2d.cur.ymin);
   region->v2d.cur.ymax = trunc(region->v2d.cur.ymax);
 
   /* own keymaps */
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser Main", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "File Browser Main", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -596,6 +603,8 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
   rcti view_rect;
   ED_fileselect_layout_maskrect(sfile->layout, v2d, &view_rect);
   UI_view2d_scrollers_draw(v2d, &view_rect);
+
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &view_rect);
 }
 
 static void file_operatortypes()
@@ -672,7 +681,7 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   /* own keymaps */
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -722,7 +731,7 @@ static void file_header_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_header_init(region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -740,10 +749,11 @@ static void file_ui_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser Buttons", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "File Browser Buttons", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -760,7 +770,7 @@ static void file_execution_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -897,6 +907,18 @@ static void file_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   }
   if (sfile->asset_params) {
     sfile->asset_params->base_params.rename_id = nullptr;
+    /* Code (file-browser etc.) asserts that this setting is one of the currently known values.
+     * So fall back to #FILE_ASSET_IMPORT_FOLLOW_PREFS if it is not
+     * (e.g. because of forward-compatibility while reading a blend-file from the future). */
+    switch (eFileAssetImportMethod(sfile->asset_params->import_method)) {
+      case FILE_ASSET_IMPORT_LINK:
+      case FILE_ASSET_IMPORT_APPEND:
+      case FILE_ASSET_IMPORT_APPEND_REUSE:
+      case FILE_ASSET_IMPORT_FOLLOW_PREFS:
+        break;
+      default:
+        sfile->asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
+    }
   }
 }
 
@@ -928,7 +950,7 @@ void ED_spacetype_file()
   ARegionType *art;
 
   st->spaceid = SPACE_FILE;
-  STRNCPY(st->name, "File");
+  STRNCPY_UTF8(st->name, "File");
 
   st->create = file_create;
   st->free = file_free;

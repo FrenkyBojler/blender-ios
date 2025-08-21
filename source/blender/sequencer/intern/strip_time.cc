@@ -174,9 +174,7 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
   }
 
   strip_meta->start = min + strip_meta->anim_startofs;
-  strip_meta->len = max - min;
-  strip_meta->len -= strip_meta->anim_startofs;
-  strip_meta->len -= strip_meta->anim_endofs;
+  strip_meta->len = max - strip_meta->anim_endofs - strip_meta->start;
 
   /* Functions `SEQ_time_*_handle_frame_set()` can not be used here, because they are clamped, so
    * change must be done at once. */
@@ -193,23 +191,23 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
 
 void strip_time_effect_range_set(const Scene *scene, Strip *strip)
 {
-  if (strip->seq1 == nullptr && strip->seq2 == nullptr) {
+  if (strip->input1 == nullptr && strip->input2 == nullptr) {
     return;
   }
 
-  if (strip->seq1 && strip->seq2) { /* 2 - input effect. */
-    strip->startdisp = max_ii(time_left_handle_frame_get(scene, strip->seq1),
-                              time_left_handle_frame_get(scene, strip->seq2));
-    strip->enddisp = min_ii(time_right_handle_frame_get(scene, strip->seq1),
-                            time_right_handle_frame_get(scene, strip->seq2));
+  if (strip->input1 && strip->input2) { /* 2 - input effect. */
+    strip->startdisp = max_ii(time_left_handle_frame_get(scene, strip->input1),
+                              time_left_handle_frame_get(scene, strip->input2));
+    strip->enddisp = min_ii(time_right_handle_frame_get(scene, strip->input1),
+                            time_right_handle_frame_get(scene, strip->input2));
   }
-  else if (strip->seq1) { /* Single input effect. */
-    strip->startdisp = time_right_handle_frame_get(scene, strip->seq1);
-    strip->enddisp = time_left_handle_frame_get(scene, strip->seq1);
+  else if (strip->input1) { /* Single input effect. */
+    strip->startdisp = time_right_handle_frame_get(scene, strip->input1);
+    strip->enddisp = time_left_handle_frame_get(scene, strip->input1);
   }
-  else if (strip->seq2) { /* Strip may be missing one of inputs. */
-    strip->startdisp = time_right_handle_frame_get(scene, strip->seq2);
-    strip->enddisp = time_left_handle_frame_get(scene, strip->seq2);
+  else if (strip->input2) { /* Strip may be missing one of inputs. */
+    strip->startdisp = time_right_handle_frame_get(scene, strip->input2);
+    strip->enddisp = time_left_handle_frame_get(scene, strip->input2);
   }
 
   if (strip->startdisp > strip->enddisp) {
@@ -260,7 +258,7 @@ int time_find_next_prev_edit(Scene *scene,
     return timeline_frame;
   }
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     int i;
 
     if (do_skip_mute && render_is_muted(channels, strip)) {
@@ -361,7 +359,7 @@ void timeline_expand_boundbox(const Scene *scene, const ListBase *seqbase, rctf 
     rect->xmin = std::min<float>(rect->xmin, time_left_handle_frame_get(scene, strip) - 1);
     rect->xmax = std::max<float>(rect->xmax, time_right_handle_frame_get(scene, strip) + 1);
     /* We do +1 here to account for the channel thickness. Channel n has range of <n, n+1>. */
-    rect->ymax = std::max(rect->ymax, strip->machine + 1.0f);
+    rect->ymax = std::max(rect->ymax, strip->channel + 1.0f);
   }
 }
 
@@ -483,7 +481,7 @@ float time_content_end_frame_get(const Scene *scene, const Strip *strip)
 
 int time_left_handle_frame_get(const Scene * /*scene*/, const Strip *strip)
 {
-  if (strip->seq1 || strip->seq2) {
+  if (strip->input1 || strip->input2) {
     return strip->startdisp;
   }
 
@@ -492,7 +490,7 @@ int time_left_handle_frame_get(const Scene * /*scene*/, const Strip *strip)
 
 int time_right_handle_frame_get(const Scene *scene, const Strip *strip)
 {
-  if (strip->seq1 || strip->seq2) {
+  if (strip->input1 || strip->input2) {
     return strip->enddisp;
   }
 
@@ -510,8 +508,8 @@ void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_f
   float offset = timeline_frame - time_start_frame_get(strip);
 
   if (transform_single_image_check(strip)) {
-    /* This strip has only 1 frame of content, that is always stretched to whole strip length.
-     * Therefore, strip start should be moved instead of adjusting offset. */
+    /* This strip has only 1 frame of content that is always stretched to the whole strip length.
+     * Move strip start left and adjust end offset to be negative (rightwards past the 1 frame). */
     time_start_frame_set(scene, strip, timeline_frame);
     strip->endofs += offset;
   }
@@ -562,7 +560,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
                                      bool recursed)
 {
   if (strip->type == STRIP_TYPE_SOUND_RAM && subframe_delta != 0.0f) {
-    strip->sound_offset += subframe_delta / FPS;
+    strip->sound_offset += subframe_delta / scene->frames_per_second();
   }
 
   if (delta == 0 && (!slip_keyframes || subframe_delta == 0.0f)) {
@@ -571,7 +569,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
 
   /* Skip effect strips where the length is dependent on another strip,
    * as they are calculated with #strip_time_update_effects_strip_range. */
-  if (strip->seq1 != nullptr || strip->seq2 != nullptr) {
+  if (strip->input1 != nullptr || strip->input2 != nullptr) {
     return;
   }
 

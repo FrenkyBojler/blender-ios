@@ -12,7 +12,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -28,36 +28,38 @@ namespace blender::nodes::node_composite_ellipsemask_cc {
 
 static void cmp_node_ellipsemask_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Mask").subtype(PROP_FACTOR).default_value(0.0f).min(0.0f).max(1.0f);
-  b.add_input<decl::Float>("Value").subtype(PROP_FACTOR).default_value(1.0f).min(0.0f).max(1.0f);
-  b.add_input<decl::Vector>("Position")
+  b.add_input<decl::Float>("Mask")
       .subtype(PROP_FACTOR)
-      .default_value({0.5f, 0.5f, 0.0f})
-      .min(-0.5f)
-      .max(1.5f)
-      .compositor_expects_single_value();
-  b.add_input<decl::Vector>("Size")
-      .subtype(PROP_FACTOR)
-      .default_value({0.2f, 0.1f, 0.0f})
+      .default_value(0.0f)
       .min(0.0f)
       .max(1.0f)
-      .compositor_expects_single_value();
-  b.add_input<decl::Float>("Rotation").subtype(PROP_ANGLE).compositor_expects_single_value();
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Float>("Value")
+      .subtype(PROP_FACTOR)
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Vector>("Position")
+      .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({0.5f, 0.5f})
+      .min(-0.5f)
+      .max(1.5f);
+  b.add_input<decl::Vector>("Size")
+      .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({0.2f, 0.1f})
+      .min(0.0f)
+      .max(1.0f);
+  b.add_input<decl::Float>("Rotation").subtype(PROP_ANGLE);
 
-  b.add_output<decl::Float>("Mask");
-}
-
-static void node_composit_init_ellipsemask(bNodeTree * /*ntree*/, bNode *node)
-{
-  /* All members are deprecated and needn't be set, but the data is still allocated for forward
-   * compatibility. */
-  NodeEllipseMask *data = MEM_callocN<NodeEllipseMask>(__func__);
-  node->storage = data;
+  b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_buts_ellipsemask(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -130,7 +132,7 @@ class EllipseMaskOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    GPUShader *shader = context().get_shader(get_shader_name());
+    gpu::Shader *shader = context().get_shader(get_shader_name());
     GPU_shader_bind(shader);
 
     const Domain domain = compute_domain();
@@ -261,18 +263,13 @@ class EllipseMaskOperation : public NodeOperation {
 
   float2 get_location()
   {
-    return math::clamp(
-        this->get_input("Position").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy(),
-        float2(-0.5f),
-        float2(1.5f));
+    return this->get_input("Position").get_single_value_default(float2(0.5f));
   }
 
   float2 get_size()
   {
-    return math::clamp(
-        this->get_input("Size").get_single_value_default(float3(0.2f, 0.1f, 0.0f)).xy(),
-        float2(0.0f),
-        float2(1.0f));
+    return math::max(float2(0.0f),
+                     this->get_input("Size").get_single_value_default(float2(0.2f, 0.1f)));
   }
 
   float get_angle()
@@ -288,7 +285,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_ellipsemask_cc
 
-void register_node_type_cmp_ellipsemask()
+static void register_node_type_cmp_ellipsemask()
 {
   namespace file_ns = blender::nodes::node_composite_ellipsemask_cc;
 
@@ -302,10 +299,8 @@ void register_node_type_cmp_ellipsemask()
   ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_ellipsemask_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_ellipsemask;
-  ntype.initfunc = file_ns::node_composit_init_ellipsemask;
-  blender::bke::node_type_storage(
-      ntype, "NodeEllipseMask", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_ellipsemask)

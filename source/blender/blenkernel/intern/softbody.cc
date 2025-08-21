@@ -67,7 +67,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-static CLG_LogRef LOG = {"bke.softbody"};
+static CLG_LogRef LOG = {"physics.softbody"};
 
 /* callbacks for errors and interrupts and some goo */
 static int (*SB_localInterruptCallBack)() = nullptr;
@@ -252,7 +252,7 @@ static float _final_mass(Object *ob, BodyPoint *bp)
  */
 static const int CCD_SAFETY = 190561;
 
-struct ccdf_minmax {
+struct CCDF_MinMax {
   float minx, miny, minz, maxx, maxy, maxz;
 };
 
@@ -262,7 +262,7 @@ struct ccd_Mesh {
   const float (*vert_positions_prev)[3];
   const blender::int3 *vert_tris;
   int safety;
-  ccdf_minmax *mima;
+  CCDF_MinMax *mima;
   /* Axis Aligned Bounding Box AABB */
   float bbmin[3];
   float bbmax[3];
@@ -272,7 +272,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
 {
   CollisionModifierData *cmd;
   ccd_Mesh *pccd_M = nullptr;
-  ccdf_minmax *mima;
+  CCDF_MinMax *mima;
   float hull;
   int i;
 
@@ -318,7 +318,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
   pccd_M->vert_tris = static_cast<const blender::int3 *>(MEM_dupallocN(cmd->vert_tris));
 
   /* OBBs for idea1 */
-  pccd_M->mima = MEM_malloc_arrayN<ccdf_minmax>(size_t(pccd_M->tri_num), "ccd_Mesh_Faces_mima");
+  pccd_M->mima = MEM_malloc_arrayN<CCDF_MinMax>(size_t(pccd_M->tri_num), "ccd_Mesh_Faces_mima");
 
   /* Anyhow we need to walk the list of faces and find OBB they live in. */
   for (i = 0, mima = pccd_M->mima; i < pccd_M->tri_num; i++, mima++) {
@@ -357,7 +357,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
 static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
 {
   CollisionModifierData *cmd;
-  ccdf_minmax *mima;
+  CCDF_MinMax *mima;
   float hull;
   int i;
 
@@ -628,7 +628,7 @@ static void add_2nd_order_roller(Object *ob, float /*stiffness*/, int *counter, 
   if (!sb->bspring) {
     return;
   } /* we are 2nd order here so 1rst should have been build :) */
-  /* first run counting  second run adding */
+  /* First run counting second run adding. */
   *counter = 0;
   if (addsprings) {
     bs3 = ob->soft->bspring + ob->soft->totspring;
@@ -1160,7 +1160,7 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
         const float(*vert_positions)[3] = nullptr;
         const float(*vert_positions_prev)[3] = nullptr;
         const blender::int3 *vt = nullptr;
-        const ccdf_minmax *mima = nullptr;
+        const CCDF_MinMax *mima = nullptr;
 
         if (ccdm) {
           vert_positions = ccdm->vert_positions;
@@ -1341,7 +1341,7 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
         const float(*vert_positions)[3] = nullptr;
         const float(*vert_positions_prev)[3] = nullptr;
         const blender::int3 *vt = nullptr;
-        const ccdf_minmax *mima = nullptr;
+        const CCDF_MinMax *mima = nullptr;
 
         if (ccdm) {
           vert_positions = ccdm->vert_positions;
@@ -1643,7 +1643,7 @@ static int sb_detect_vertex_collisionCached(float opco[3],
         const float(*vert_positions)[3] = nullptr;
         const float(*vert_positions_prev)[3] = nullptr;
         const blender::int3 *vt = nullptr;
-        const ccdf_minmax *mima = nullptr;
+        const CCDF_MinMax *mima = nullptr;
 
         if (ccdm) {
           vert_positions = ccdm->vert_positions;
@@ -1988,7 +1988,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene,
 
   bp = &sb->bpoint[ifirst];
   for (bb = number_of_points_here; bb > 0; bb--, bp++) {
-    /* clear forces  accumulator */
+    /* Clear forces accumulator. */
     bp->force[0] = bp->force[1] = bp->force[2] = 0.0;
     /* naive ball self collision */
     /* needs to be done if goal snaps or not */
@@ -2672,10 +2672,8 @@ static void mesh_to_softbody(Object *ob)
 {
   SoftBody *sb;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  const blender::int2 *edge = static_cast<const blender::int2 *>(
-      CustomData_get_layer_named(&mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts"));
+  const blender::Span<blender::int2> edges = mesh->edges();
   BodyPoint *bp;
-  BodySpring *bs;
   int a, totedge;
   int defgroup_index, defgroup_index_mass, defgroup_index_spring;
 
@@ -2728,12 +2726,11 @@ static void mesh_to_softbody(Object *ob)
 
   /* but we only optionally add body edge springs */
   if (ob->softflag & OB_SB_EDGES) {
-    if (edge) {
-      bs = sb->bspring;
-      for (a = mesh->edges_num; a > 0; a--, edge++, bs++) {
-        bs->v1 = edge->x;
-        bs->v2 = edge->y;
-        bs->springtype = SB_EDGE;
+    if (!edges.is_empty()) {
+      for (const int i : edges.index_range()) {
+        sb->bspring[i].v1 = edges[i][0];
+        sb->bspring[i].v2 = edges[i][1];
+        sb->bspring[i].springtype = SB_EDGE;
       }
 
       /* insert *diagonal* springs in quads if desired */
@@ -3140,6 +3137,7 @@ SoftBody *sbNew()
   sb->maxloops = 300;
 
   sb->choke = 3;
+  sb->fuzzyness = 1;
   sb_new_scratch(sb);
   /* TODO: backward file compatibility should set `sb->shearstiff = 1.0f` while reading old files.
    */
@@ -3293,16 +3291,16 @@ static void softbody_reset(Object *ob, SoftBody *sb, float (*vertexCos)[3], int 
     copy_v3_v3(bp->origT, bp->pos);
     bp->vec[0] = bp->vec[1] = bp->vec[2] = 0.0f;
 
-    /* the bp->prev*'s are for rolling back from a canceled try to propagate in time
+    /* The `bp->prev*` 's are for rolling back from a canceled try to propagate in time
      * adaptive step size algorithm in a nutshell:
-     * 1.  set scheduled time step to new dtime
-     * 2.  try to advance the scheduled time step, being optimistic execute it
-     * 3.  check for success
-     * 3.a we 're fine continue, may be we can increase scheduled time again ?? if so, do so!
-     * 3.b we did exceed error limit --> roll back, shorten the scheduled time and try again at 2.
-     * 4.  check if we did reach dtime
-     * 4.a nope we need to do some more at 2.
-     * 4.b yup we're done
+     * 1)  set scheduled time step to new dtime
+     * 2)  try to advance the scheduled time step, being optimistic execute it
+     * 3)  check for success
+     * 3a) we 're fine continue, may be we can increase scheduled time again ?? if so, do so!
+     * 3b) we did exceed error limit --> roll back, shorten the scheduled time and try again at 2.
+     * 4)  check if we did reach dtime
+     * 4a) nope we need to do some more at 2.
+     * 4b) yup we're done
      */
 
     copy_v3_v3(bp->prevpos, bp->pos);

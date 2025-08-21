@@ -211,17 +211,17 @@ static Nurb *curve_nurb_from_point(Curve *cu, const void *point, int *nu_index, 
 
 static StructRNA *rna_Curve_refine(PointerRNA *ptr)
 {
-  Curve *cu = static_cast<Curve *>(ptr->data);
-  short obtype = BKE_curve_type_get(cu);
-
-  if (obtype == OB_FONT) {
-    return &RNA_TextCurve;
-  }
-  else if (obtype == OB_SURF) {
-    return &RNA_SurfaceCurve;
-  }
-  else {
-    return &RNA_Curve;
+  const Curve *cu = static_cast<Curve *>(ptr->data);
+  switch (cu->ob_type) {
+    case OB_FONT: {
+      return &RNA_TextCurve;
+    }
+    case OB_SURF: {
+      return &RNA_SurfaceCurve;
+    }
+    default: {
+      return &RNA_Curve;
+    }
   }
 }
 
@@ -823,9 +823,8 @@ static void rna_Curve_splines_begin(CollectionPropertyIterator *iter, PointerRNA
 
 static bool rna_Curve_is_editmode_get(PointerRNA *ptr)
 {
-  Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
-  const short type = BKE_curve_type_get(cu);
-  if (type == OB_FONT) {
+  const Curve *cu = reinterpret_cast<const Curve *>(ptr->owner_id);
+  if (cu->ob_type == OB_FONT) {
     return (cu->editfont != nullptr);
   }
   else {
@@ -1057,7 +1056,7 @@ static void rna_def_path(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(
       prop,
       "Clamp",
-      "Clamp the curve path children so they can't travel past the start/end point of the curve");
+      "Clamp the curve path children so they cannot travel past the start/end point of the curve");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "use_stretch", PROP_BOOLEAN, PROP_NONE);
@@ -1165,7 +1164,7 @@ static void rna_def_font(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_items(prop, prop_overflow_items);
   RNA_def_property_enum_default(prop, CU_OVERFLOW_NONE);
   RNA_def_property_ui_text(
-      prop, "Textbox Overflow", "Handle the text behavior when it doesn't fit in the text boxes");
+      prop, "Textbox Overflow", "Handle the text behavior when it does not fit in the text boxes");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   /* number values */

@@ -58,7 +58,7 @@ static void test_eevee_shadow_shift_clear()
     tiles_data.push_update();
   }
 
-  GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_init");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_init");
 
   PassSimple pass("Test");
   pass.shader_set(sh);
@@ -82,6 +82,8 @@ static void test_eevee_shadow_shift_clear()
   EXPECT_EQ(shadow_tile_unpack(tiles_data[tile_lod1]).page, uint3(3, 2, 4));
   EXPECT_EQ(shadow_tile_unpack(tiles_data[tile_lod1]).is_used, false);
   EXPECT_EQ(shadow_tile_unpack(tiles_data[tile_lod1]).do_update, true);
+
+  GPU_shader_unbind();
 
   GPU_shader_free(sh);
   DRW_shaders_free();
@@ -142,7 +144,7 @@ static void test_eevee_shadow_shift()
     tiles_data.push_update();
   }
 
-  GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_init");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_init");
 
   PassSimple pass("Test");
   pass.shader_set(sh);
@@ -179,6 +181,8 @@ static void test_eevee_shadow_shift()
   EXPECT_EQ(shadow_tile_unpack(tiles_data[1 + SHADOW_TILEMAP_RES * 2]).do_update, false);
   EXPECT_EQ(shadow_tile_unpack(tiles_data[1 + SHADOW_TILEMAP_RES * 2]).is_rendered, false);
   EXPECT_EQ(shadow_tile_unpack(tiles_data[1 + SHADOW_TILEMAP_RES * 2]).is_allocated, true);
+
+  GPU_shader_unbind();
 
   GPU_shader_free(sh);
   DRW_shaders_free();
@@ -236,7 +240,7 @@ static void test_eevee_shadow_tag_update()
 
   tilemaps_data.push_update();
 
-  GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_tag_update");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_tag_update");
 
   PassSimple pass("Test");
   pass.shader_set(sh);
@@ -350,6 +354,8 @@ static void test_eevee_shadow_tag_update()
   EXPECT_EQ(stringify_result(lod0_len + lod1_len + lod2_len + lod3_len + lod4_len, lod5_len),
             expected_lod5);
 
+  GPU_shader_unbind();
+
   GPU_shader_free(sh);
   DRW_shaders_free();
   GPU_render_end();
@@ -449,7 +455,7 @@ static void test_eevee_shadow_free()
     tilemaps_data.push_update();
   }
 
-  GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_page_free");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_page_free");
 
   PassSimple pass("Test");
   pass.shader_set(sh);
@@ -485,6 +491,8 @@ static void test_eevee_shadow_free()
   EXPECT_EQ(pages_infos_data.page_free_count, page_free_count + 2);
   EXPECT_EQ(pages_infos_data.page_cached_next, 3);
   EXPECT_EQ(pages_infos_data.page_cached_end, 2);
+
+  GPU_shader_unbind();
 
   GPU_shader_free(sh);
   DRW_shaders_free();
@@ -561,7 +569,7 @@ class TestDefrag {
     pages_free_data.push_update();
     pages_cached_data.push_update();
 
-    GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_page_defrag");
+    gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_page_defrag");
 
     PassSimple pass("Test");
     pass.shader_set(sh);
@@ -610,6 +618,8 @@ class TestDefrag {
     EXPECT_EQ(expected_start, pages_infos_data.page_cached_start);
     EXPECT_EQ(expect_cached_len, result_cached_len);
     EXPECT_EQ(pages_infos_data.page_cached_end, pages_infos_data.page_cached_next);
+
+    GPU_shader_unbind();
 
     GPU_shader_free(sh);
     DRW_shaders_free();
@@ -691,7 +701,7 @@ class TestAlloc {
       tilemaps_data.push_update();
     }
 
-    GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_page_allocate");
+    gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_page_allocate");
 
     PassSimple pass("Test");
     pass.shader_set(sh);
@@ -717,6 +727,8 @@ class TestAlloc {
     EXPECT_EQ(shadow_tile_unpack(tiles_data[tile_allocated]).do_update, false);
     EXPECT_EQ(shadow_tile_unpack(tiles_data[tile_allocated]).is_allocated, true);
     EXPECT_EQ(pages_infos_data.page_free_count, page_free_count - 1);
+
+    GPU_shader_unbind();
 
     GPU_shader_free(sh);
     DRW_shaders_free();
@@ -839,7 +851,7 @@ static void test_eevee_shadow_finalize()
   }
 
   Texture tilemap_tx = {"tilemap_tx"};
-  tilemap_tx.ensure_2d(GPU_R32UI,
+  tilemap_tx.ensure_2d(blender::gpu::TextureFormat::UINT_32,
                        int2(SHADOW_TILEMAP_RES),
                        GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
                            GPU_TEXTURE_USAGE_SHADER_WRITE);
@@ -855,7 +867,7 @@ static void test_eevee_shadow_finalize()
 
   render_map_buf.clear_to_zero();
 
-  GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_finalize");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_finalize");
   PassSimple pass("Test");
   pass.shader_set(sh);
   pass.bind_ssbo("tilemaps_buf", tilemaps_data);
@@ -869,7 +881,7 @@ static void test_eevee_shadow_finalize()
   pass.dispatch(int3(1, 1, tilemaps_data.size()));
   pass.barrier(GPU_BARRIER_SHADER_STORAGE);
 
-  GPUShader *sh2 = GPU_shader_create_from_info_name("eevee_shadow_tilemap_rendermap");
+  gpu::Shader *sh2 = GPU_shader_create_from_info_name("eevee_shadow_tilemap_rendermap");
   pass.shader_set(sh2);
   pass.bind_ssbo("statistics_buf", statistics_buf);
   pass.bind_ssbo("render_view_buf", render_views_buf);
@@ -1162,6 +1174,8 @@ static void test_eevee_shadow_finalize()
   statistics_buf.read();
   EXPECT_EQ(statistics_buf.view_needed_count, 5);
 
+  GPU_shader_unbind();
+
   GPU_shader_free(sh);
   GPU_shader_free(sh2);
   DRW_shaders_free();
@@ -1234,7 +1248,7 @@ static void test_eevee_shadow_tilemap_amend()
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
                            GPU_TEXTURE_USAGE_SHADER_WRITE;
   int2 tilemap_res(SHADOW_TILEMAP_RES * SHADOW_TILEMAP_PER_ROW, SHADOW_TILEMAP_RES);
-  tilemap_tx.ensure_2d(GPU_R32UI, tilemap_res, usage);
+  tilemap_tx.ensure_2d(blender::gpu::TextureFormat::UINT_32, tilemap_res, usage);
   GPU_texture_update_sub(
       tilemap_tx, GPU_DATA_UINT, tilemap_data.data(), 0, 0, 0, tilemap_res.x, tilemap_res.y, 0);
 
@@ -1264,7 +1278,7 @@ static void test_eevee_shadow_tilemap_amend()
   LightCullingTileBuf culling_tile_buf = {"LightCull_tile"};
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
 
-  GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_amend");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_amend");
 
   PassSimple pass("Test");
   pass.shader_set(sh);
@@ -1538,6 +1552,8 @@ static void test_eevee_shadow_tilemap_amend()
     MEM_SAFE_FREE(pixels);
   }
 
+  GPU_shader_unbind();
+
   GPU_shader_free(sh);
   DRW_shaders_free();
   GPU_render_end();
@@ -1627,7 +1643,7 @@ static void test_eevee_shadow_page_mask_ex(int max_view_per_tilemap)
 
   tilemaps_data.push_update();
 
-  GPUShader *sh = GPU_shader_create_from_info_name("eevee_shadow_page_mask");
+  gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_page_mask");
 
   PassSimple pass("Test");
   pass.shader_set(sh);
@@ -1784,6 +1800,8 @@ static void test_eevee_shadow_page_mask_ex(int max_view_per_tilemap)
   EXPECT_EQ(stringify_result(lod4_ofs, lod4_len), expected_lod4);
   EXPECT_EQ(stringify_result(lod5_ofs, lod5_len), expected_lod5);
 
+  GPU_shader_unbind();
+
   GPU_shader_free(sh);
   DRW_shaders_free();
   GPU_render_end();
@@ -1859,8 +1877,8 @@ static void test_eevee_surfel_list()
   View view = {"RayProjectionView"};
   view.sync(float4x4::identity(), math::projection::orthographic<float>(0, 2, 0, 2, 0, 1));
 
-  GPUShader *sh_build = GPU_shader_create_from_info_name("eevee_surfel_list_build");
-  GPUShader *sh_sort = GPU_shader_create_from_info_name("eevee_surfel_list_sort");
+  gpu::Shader *sh_build = GPU_shader_create_from_info_name("eevee_surfel_list_build");
+  gpu::Shader *sh_sort = GPU_shader_create_from_info_name("eevee_surfel_list_sort");
 
   PassSimple pass("Build_and_Sort");
   pass.shader_set(sh_build);
@@ -1902,10 +1920,12 @@ static void test_eevee_surfel_list()
   // Span<int>(list_start_buf.data(), expect_list_start.size()).print_as_lines("list_start");
   // link_next.as_span().print_as_lines("link_next");
   // link_prev.as_span().print_as_lines("link_prev");
-  EXPECT_EQ_ARRAY(expect_list_start.data(), list_start_buf.data(), expect_list_start.size());
+  EXPECT_EQ_SPAN(expect_list_start, list_start_buf);
 #endif
-  EXPECT_EQ_ARRAY(expect_link_next.data(), link_next.data(), expect_link_next.size());
-  EXPECT_EQ_ARRAY(expect_link_prev.data(), link_prev.data(), expect_link_prev.size());
+  EXPECT_EQ_SPAN<int>(expect_link_next, link_next);
+  EXPECT_EQ_SPAN<int>(expect_link_prev, link_prev);
+
+  GPU_shader_unbind();
 
   GPU_shader_free(sh_build);
   GPU_shader_free(sh_sort);

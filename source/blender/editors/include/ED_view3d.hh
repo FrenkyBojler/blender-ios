@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_bounds_types.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
@@ -235,10 +236,10 @@ bool ED_view3d_has_depth_buffer_updated(const Depsgraph *depsgraph, const View3D
 
 /**
  * Utilities to perform navigation.
- * Call `ED_view3d_navigation_init` to create a context and `ED_view3d_navigation_do` to perform
+ * Call #ED_view3d_navigation_init to create a context and #ED_view3d_navigation_do to perform
  * navigation in modal operators.
  *
- * \note modal map events can also be used in `ED_view3d_navigation_do`.
+ * \note modal map events can also be used in #ED_view3d_navigation_do.
  */
 ViewOpsData *ED_view3d_navigation_init(bContext *C, const wmKeyMapItem *kmi_merge);
 bool ED_view3d_navigation_do(bContext *C,
@@ -705,11 +706,13 @@ bool ED_view3d_win_to_3d_on_plane_int(
  * \param zfac: The depth result typically calculated by #ED_view3d_calc_zfac
  * (see its doc-string for details).
  * \param r_out: The resulting world-space delta.
+ * \param precise: Use a more precise calculation but increases the cost of this function.
  */
 void ED_view3d_win_to_delta(const ARegion *region,
                             const float xy_delta[2],
                             float zfac,
-                            float r_out[3]);
+                            float r_out[3],
+                            bool precise = false);
 /**
  * Calculate a 3D origin from 2D window coordinates.
  * \note Orthographic views have a less obvious origin,
@@ -771,7 +774,38 @@ bool ED_view3d_unproject_v3(
 
 /* end */
 
-void ED_view3d_dist_range_get(const View3D *v3d, float r_dist_range[2]);
+/**
+ * Calculate a "soft" working range for #RegionView3D::dist.
+ *
+ * This is an approximate range to avoid extreme values being set where nothing is visible.
+ *
+ * - A small `dist` may be below near-clipping plane causing nothing to be visible.
+ *   It can also take a while to zoom out.
+ * - A large `dist` may be so big that the viewports contents is beyond the far-clipping plane
+ *   also causing nothing to be visible.
+ *
+ * The range is calculated based on values the user may change so the range
+ * should be used as guidance for operators to follow.
+ *
+ * \param use_persp_range: Use an alternative range for perspective views.
+ * It's not a requirement that perspective views use this, however in practice
+ * it's often preferable for perspective views to calculate the minimum based on near-clipping,
+ * unlike orthographic views.
+ */
+blender::Bounds<float> ED_view3d_dist_soft_range_get(const View3D *v3d, bool use_persp_range);
+
+/**
+ * A version of #ED_view3d_dist_soft_range_get that only returns the minimum.
+ *
+ * For perspective-views where setting `dist` near or below the near clip-plane
+ * is likely to cause the viewport content to be clipped out of the view.
+ *
+ * \note While clamping by the far clip-plane is done in some cases
+ * the exact value to use is more arbitrary, in practice users are less
+ * likely to encounter problems from being zoomed out too far.
+ */
+float ED_view3d_dist_soft_min_get(const View3D *v3d, bool use_persp_range);
+
 /**
  * \note copies logic of #ED_view3d_viewplane_get(), keep in sync.
  */
@@ -929,7 +963,7 @@ bool ED_view3d_depth_read_cached_seg(const ViewDepths *vd,
  * Returns viewport color in linear space, matching #ED_space_node_color_sample().
  */
 class ViewportColorSampleSession {
-  GPUTexture *tex = nullptr;
+  blender::gpu::Texture *tex = nullptr;
   blender::ushort4 *data = nullptr;
   int tex_w, tex_h;
   rcti valid_rect;
@@ -1008,7 +1042,7 @@ ViewContext ED_view3d_viewcontext_init(bContext *C, Depsgraph *depsgraph);
  * When iterating over objects in object-mode it doesn't make sense to perform
  * an edit-mode action on an object that happens to contain edit-mode data.
  * In some cases these values are cleared allowing the owner of `vc` to explicitly
- * disable edit-mode operation (to force object selection in edit-mode for e.g.).
+ * disable edit-mode operation (to force object selection in edit-mode for example).
  * So object-mode specific values should remain cleared when initialized with another object.
  */
 void ED_view3d_viewcontext_init_object(ViewContext *vc, Object *obact);

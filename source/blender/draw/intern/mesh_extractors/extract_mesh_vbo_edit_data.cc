@@ -72,9 +72,7 @@ static void mesh_render_data_edge_flag(const MeshRenderData &mr,
   }
 #ifdef WITH_FREESTYLE
   if (mr.freestyle_edge_ofs != -1) {
-    const FreestyleEdge *fed = (const FreestyleEdge *)BM_ELEM_CD_GET_VOID_P(eed,
-                                                                            mr.freestyle_edge_ofs);
-    if (fed->flag & FREESTYLE_EDGE_MARK) {
+    if (BM_ELEM_CD_GET_BOOL(eed, mr.freestyle_edge_ofs)) {
       eattr.e_flag |= VFLAG_EDGE_FREESTYLE;
     }
   }
@@ -105,7 +103,7 @@ static const GPUVertFormat &get_edit_data_format()
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
     /* WARNING: Adjust #EditLoopData struct accordingly. */
-    GPU_vertformat_attr_add(&format, "data", GPU_COMP_U8, 4, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "data", gpu::VertAttrType::UINT_8_8_8_8);
     GPU_vertformat_alias_add(&format, "flag");
     return format;
   }();

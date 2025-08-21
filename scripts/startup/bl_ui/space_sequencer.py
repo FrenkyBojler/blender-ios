@@ -9,7 +9,9 @@ from bpy.types import (
     Panel,
 )
 from bpy.app.translations import (
+    pgettext_iface as iface_,
     contexts as i18n_contexts,
+    pgettext_iface as iface_,
     pgettext_rpt as rpt_,
 )
 from bl_ui.properties_grease_pencil_common import (
@@ -19,7 +21,12 @@ from bl_ui.properties_grease_pencil_common import (
 from bl_ui.space_toolsystem_common import (
     ToolActivePanelHelper,
 )
+from bl_ui.utils import (
+    PlayheadSnappingPanel,
+)
+
 from rna_prop_ui import PropertyPanel
+from bl_ui.space_time import playback_controls
 
 
 def _space_view_types(st):
@@ -185,6 +192,11 @@ class SEQUENCER_HT_header(Header):
         row.prop(tool_settings, "use_snap_sequencer", text="")
         sub = row.row(align=True)
         sub.popover(panel="SEQUENCER_PT_snapping")
+        if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
+            row = layout.row(align=True)
+            row.prop(tool_settings, "use_snap_playhead", text="")
+            sub = row.row(align=True)
+            sub.popover(panel="SEQUENCER_PT_playhead_snapping", text="")
         layout.separator_spacer()
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
@@ -207,6 +219,16 @@ class SEQUENCER_HT_header(Header):
         sub = row.row(align=True)
         sub.popover(panel="SEQUENCER_PT_overlay", text="")
         sub.active = st.show_overlays
+
+
+class SEQUENCER_HT_playback_controls(Header):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+
+        playback_controls(layout, context)
 
 
 class SEQUENCER_MT_editor_menus(Menu):
@@ -462,11 +484,10 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
+        layout.prop(st, "show_region_footer")
         layout.separator()
 
-        if is_sequencer_only:
-            layout.prop(st, "show_backdrop", text="Preview as Backdrop")
-        if is_preview or st.show_backdrop:
+        if is_preview:
             layout.prop(st, "show_transform_preview", text="Preview During Transform")
         layout.separator()
 
@@ -656,8 +677,14 @@ class SEQUENCER_MT_change(Menu):
             del bpy_data_scenes_len
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.operator("sequencer.change_effect_input")
-        layout.operator_menu_enum("sequencer.change_effect_type", "type")
+        if strip and strip.type in {
+            'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
+            'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
+            'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+            'GAUSSIAN_BLUR',
+        }:
+            layout.menu("SEQUENCER_MT_strip_effect_change")
+            layout.operator("sequencer.swap_inputs")
         props = layout.operator("sequencer.change_path", text="Path/Files")
 
         if strip:
@@ -773,22 +800,24 @@ class SEQUENCER_MT_add_scene(Menu):
 
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator("sequencer.scene_strip_add_new", text="New Scene", icon='ADD').type = 'NEW'
+        layout.operator("sequencer.scene_strip_add_new", text="Empty Scene", icon='ADD').type = 'EMPTY'
+
+        layout.menu_contents("SEQUENCER_MT_scene_add_root_catalogs")
 
         bpy_data_scenes_len = len(bpy.data.scenes)
         if bpy_data_scenes_len > 10:
-            layout.separator()
+            layout.label(text="Scenes", icon='NONE')
             layout.operator_context = 'INVOKE_DEFAULT'
             layout.operator("sequencer.scene_strip_add", text="Scene...", icon='SCENE_DATA')
         elif bpy_data_scenes_len > 1:
-            layout.separator()
+            layout.label(text="Scenes", icon='NONE')
             scene = context.scene
             for sc_item in bpy.data.scenes:
                 if sc_item == scene:
                     continue
 
                 layout.operator_context = 'INVOKE_REGION_WIN'
-                layout.operator("sequencer.scene_strip_add", text=sc_item.name).scene = sc_item.name
+                layout.operator("sequencer.scene_strip_add", text=sc_item.name, translate=False).scene = sc_item.name
 
         del bpy_data_scenes_len
 
@@ -817,8 +846,8 @@ class SEQUENCER_MT_add_transitions(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.effect_strip_add", text="Cross").type = 'CROSS'
-        col.operator("sequencer.effect_strip_add", text="Gamma Cross").type = 'GAMMA_CROSS'
+        col.operator("sequencer.effect_strip_add", text="Crossfade").type = 'CROSS'
+        col.operator("sequencer.effect_strip_add", text="Gamma Crossfade").type = 'GAMMA_CROSS'
 
         col.separator()
 
@@ -842,9 +871,6 @@ class SEQUENCER_MT_add_effect(Menu):
         col = layout.column()
         col.operator("sequencer.effect_strip_add", text="Transform").type = 'TRANSFORM'
         col.operator("sequencer.effect_strip_add", text="Speed Control").type = 'SPEED'
-
-        col.separator()
-
         col.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
         col.operator("sequencer.effect_strip_add", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
         col.enabled = nonsound == 1
@@ -956,6 +982,44 @@ class SEQUENCER_MT_strip_show_hide(Menu):
         layout.operator("sequencer.mute", text="Hide Unselected").unselected = True
 
 
+class SEQUENCER_MT_strip_animation(Menu):
+    bl_label = "Animation"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("anim.keyframe_insert", text="Insert Keyframe")
+        layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set").always_prompt = True
+        layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
+        layout.operator("anim.keyframe_delete_vse", text="Delete Keyframes...")
+        layout.operator("anim.keyframe_clear_vse", text="Clear Keyframes...")
+
+
+class SEQUENCER_MT_strip_mirror(Menu):
+    bl_label = "Mirror"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_PREVIEW'
+
+        layout.operator("transform.mirror", text="Interactive Mirror")
+
+        layout.separator()
+
+        for (space_name, space_id) in (("Global", 'GLOBAL'), ("Local", 'LOCAL')):
+            for axis_index, axis_name in enumerate("XY"):
+                props = layout.operator(
+                    "transform.mirror",
+                    text="{:s} {:s}".format(axis_name, iface_(space_name)),
+                    translate=False,
+                )
+                props.constraint_axis[axis_index] = True
+                props.orient_type = space_id
+
+            if space_id == 'GLOBAL':
+                layout.separator()
+
+
 class SEQUENCER_MT_strip_input(Menu):
     bl_label = "Inputs"
 
@@ -1002,10 +1066,46 @@ class SEQUENCER_MT_strip_effect(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("sequencer.change_effect_input")
-        layout.operator_menu_enum("sequencer.change_effect_type", "type")
+        layout.menu("SEQUENCER_MT_strip_effect_change")
         layout.operator("sequencer.reassign_inputs")
         layout.operator("sequencer.swap_inputs")
+
+
+class SEQUENCER_MT_strip_effect_change(Menu):
+    bl_label = "Change Effect Type"
+
+    def draw(self, context):
+        layout = self.layout
+
+        strip = context.active_strip
+
+        col = layout.column()
+        col.operator("sequencer.change_effect_type", text="Adjustment Layer").type = 'ADJUSTMENT'
+        col.operator("sequencer.change_effect_type", text="Multicam Selector").type = 'MULTICAM'
+        col.enabled = strip.input_count == 0
+
+        layout.separator()
+
+        col = layout.column()
+        col.operator("sequencer.change_effect_type", text="Transform").type = 'TRANSFORM'
+        col.operator("sequencer.change_effect_type", text="Speed Control").type = 'SPEED'
+        col.operator("sequencer.change_effect_type", text="Glow").type = 'GLOW'
+        col.operator("sequencer.change_effect_type", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
+        col.enabled = strip.input_count == 1
+
+        layout.separator()
+
+        col = layout.column()
+        col.operator("sequencer.change_effect_type", text="Add").type = 'ADD'
+        col.operator("sequencer.change_effect_type", text="Subtract").type = 'SUBTRACT'
+        col.operator("sequencer.change_effect_type", text="Multiply").type = 'MULTIPLY'
+        col.operator("sequencer.change_effect_type", text="Alpha Over").type = 'ALPHA_OVER'
+        col.operator("sequencer.change_effect_type", text="Alpha Under").type = 'ALPHA_UNDER'
+        col.operator("sequencer.change_effect_type", text="Color Mix").type = 'COLORMIX'
+        col.operator("sequencer.change_effect_type", text="Crossfade").type = 'CROSS'
+        col.operator("sequencer.change_effect_type", text="Gamma Crossfade").type = 'GAMMA_CROSS'
+        col.operator("sequencer.change_effect_type", text="Wipe").type = 'WIPE'
+        col.enabled = strip.input_count == 2
 
 
 class SEQUENCER_MT_strip_movie(Menu):
@@ -1073,8 +1173,13 @@ class SEQUENCER_MT_strip(Menu):
         strip = context.active_strip
 
         if has_preview:
+            layout.menu("SEQUENCER_MT_strip_mirror")
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.operator("sequencer.copy", text="Copy")
+            layout.operator("sequencer.paste", text="Paste")
+            layout.separator()
+            layout.menu("SEQUENCER_MT_strip_animation")
             layout.separator()
             layout.menu("SEQUENCER_MT_strip_show_hide")
             layout.separator()
@@ -1097,6 +1202,7 @@ class SEQUENCER_MT_strip(Menu):
             layout.operator("sequencer.copy", text="Copy")
             layout.operator("sequencer.paste", text="Paste")
             layout.operator("sequencer.duplicate_move", text="Duplicate")
+            layout.operator("sequencer.duplicate_move_linked", text="Duplicate Linked")
 
         layout.separator()
         layout.operator("sequencer.delete", text="Delete")
@@ -1115,7 +1221,7 @@ class SEQUENCER_MT_strip(Menu):
                 if strip_type in {
                         'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                         'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-                        'TRANSFORM', 'COLOR', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+                        'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
                         'GAUSSIAN_BLUR',
                 }:
                     layout.separator()
@@ -1127,9 +1233,6 @@ class SEQUENCER_MT_strip(Menu):
                     layout.separator()
                     layout.operator("sequencer.rendersize")
                     layout.operator("sequencer.images_separate")
-                elif strip_type == 'TEXT':
-                    layout.separator()
-                    layout.menu("SEQUENCER_MT_strip_effect")
                 elif strip_type == 'META':
                     layout.separator()
                     layout.operator("sequencer.meta_make")
@@ -1180,6 +1283,8 @@ class SEQUENCER_MT_image_transform(Menu):
         layout.operator("transform.translate")
         layout.operator("transform.rotate")
         layout.operator("transform.resize", text="Scale")
+        layout.separator()
+        layout.operator("transform.translate", text="Move Origin").translate_origin = True
 
 
 class SEQUENCER_MT_image_clear(Menu):
@@ -1299,7 +1404,7 @@ class SEQUENCER_MT_context_menu(Menu):
             if strip_type in {
                     'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                     'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-                    'TRANSFORM', 'COLOR', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+                    'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
                     'GAUSSIAN_BLUR',
             }:
                 layout.separator()
@@ -1311,9 +1416,6 @@ class SEQUENCER_MT_context_menu(Menu):
                 layout.separator()
                 layout.operator("sequencer.rendersize")
                 layout.operator("sequencer.images_separate")
-            elif strip_type == 'TEXT':
-                layout.separator()
-                layout.menu("SEQUENCER_MT_strip_effect")
             elif strip_type == 'META':
                 layout.separator()
                 layout.operator("sequencer.meta_make")
@@ -1438,7 +1540,7 @@ class SequencerButtonsPanel_Output:
     @staticmethod
     def has_preview(context):
         st = context.space_data
-        return (st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}) or st.show_backdrop
+        return (st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'})
 
     @classmethod
     def poll(cls, context):
@@ -2444,7 +2546,7 @@ class SEQUENCER_PT_adjust_transform(SequencerButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(strip.transform, "origin")
 
-        col = layout.column(heading="Mirror", align=True)
+        col = layout.column(heading="Mirror", align=True, heading_ctxt=i18n_contexts.id_image)
         col.prop(strip, "use_flip_x", text="X", toggle=True)
         col.prop(strip, "use_flip_y", text="Y", toggle=True)
 
@@ -2538,11 +2640,13 @@ class SEQUENCER_PT_cache_settings(SequencerButtonsPanel, Panel):
 
         ed = context.scene.sequence_editor
 
+        col = layout.column()
+        if ed:
+            col.prop(ed, "use_prefetch")
+
         col = layout.column(heading="Cache", align=True)
 
         col.prop(ed, "use_cache_raw", text="Raw")
-        col.prop(ed, "use_cache_preprocessed", text="Preprocessed")
-        col.prop(ed, "use_cache_composite", text="Composite")
         col.prop(ed, "use_cache_final", text="Final")
 
 
@@ -2566,6 +2670,7 @@ class SEQUENCER_PT_cache_view_settings(SequencerButtonsPanel, Panel):
         layout.use_property_decorate = False
 
         cache_settings = context.space_data.cache_overlay
+        ed = context.scene.sequence_editor
         layout.active = cache_settings.show_cache
 
         col = layout.column(heading="Cache", align=True)
@@ -2573,9 +2678,33 @@ class SEQUENCER_PT_cache_view_settings(SequencerButtonsPanel, Panel):
         show_developer_ui = context.preferences.view.show_developer_ui
         if show_developer_ui:
             col.prop(cache_settings, "show_cache_raw", text="Raw")
-            col.prop(cache_settings, "show_cache_preprocessed", text="Preprocessed")
-            col.prop(cache_settings, "show_cache_composite", text="Composite")
         col.prop(cache_settings, "show_cache_final_out", text="Final")
+
+        show_cache_size = show_developer_ui and (ed.use_cache_raw or ed.use_cache_final)
+        if show_cache_size:
+            cache_raw_size = ed.cache_raw_size
+            cache_final_size = ed.cache_final_size
+
+            col = layout.box()
+            col = col.column(align=True)
+
+            split = col.split(factor=0.4, align=True)
+            split.alignment = 'RIGHT'
+            split.label(text="Current Cache Size")
+            split.alignment = 'LEFT'
+            split.label(text=iface_("{:d} MB").format(cache_raw_size + cache_final_size), translate=False)
+
+            split = col.split(factor=0.4, align=True)
+            split.alignment = 'RIGHT'
+            split.label(text="Raw")
+            split.alignment = 'LEFT'
+            split.label(text=iface_("{:d} MB").format(cache_raw_size), translate=False)
+
+            split = col.split(factor=0.4, align=True)
+            split.alignment = 'RIGHT'
+            split.label(text="Final")
+            split.alignment = 'LEFT'
+            split.label(text=iface_("{:d} MB").format(cache_final_size), translate=False)
 
 
 class SEQUENCER_PT_proxy_settings(SequencerButtonsPanel, Panel):
@@ -2664,38 +2793,6 @@ class SEQUENCER_PT_strip_proxy(SequencerButtonsPanel, Panel):
                 col.prop(proxy, "timecode", text="Timecode Index")
 
 
-class SEQUENCER_PT_strip_cache(SequencerButtonsPanel, Panel):
-    bl_label = "Strip Cache"
-    bl_category = "Cache"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(cls, context):
-        show_developer_ui = context.preferences.view.show_developer_ui
-        if not cls.has_sequencer(context):
-            return False
-        if context.active_strip is not None and show_developer_ui:
-            return True
-        return False
-
-    def draw_header(self, context):
-        strip = context.active_strip
-        self.layout.prop(strip, "override_cache_settings", text="")
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        strip = context.active_strip
-        layout.active = strip.override_cache_settings
-
-        col = layout.column(heading="Cache")
-        col.prop(strip, "use_cache_raw", text="Raw")
-        col.prop(strip, "use_cache_preprocessed", text="Preprocessed")
-        col.prop(strip, "use_cache_composite", text="Composite")
-
-
 class SEQUENCER_PT_preview(SequencerButtonsPanel_Output, Panel):
     bl_label = "Scene Strip Display"
     bl_space_type = 'SEQUENCE_EDITOR'
@@ -2736,10 +2833,6 @@ class SEQUENCER_PT_view(SequencerButtonsPanel_Output, Panel):
         col.prop(st, "use_proxies")
         if st.proxy_render_size in {'NONE', 'SCENE'}:
             col.enabled = False
-
-        col = layout.column()
-        if ed:
-            col.prop(ed, "use_prefetch")
 
         col.prop(st, "display_channel", text="Channel")
 
@@ -3037,6 +3130,10 @@ class SEQUENCER_PT_custom_props(SequencerButtonsPanel, PropertyPanel, Panel):
     bl_category = "Strip"
 
 
+class SEQUENCER_PT_playhead_snapping(PlayheadSnappingPanel, Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+
+
 class SEQUENCER_PT_snapping(Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'HEADER'
@@ -3102,14 +3199,12 @@ class SEQUENCER_PT_sequencer_snapping(Panel):
         col.prop(sequencer_tool_settings, "snap_ignore_muted", text="Muted Strips")
         col.prop(sequencer_tool_settings, "snap_ignore_sound", text="Sound Strips")
 
-        col = layout.column(heading="Current Frame", align=True)
-        col.prop(sequencer_tool_settings, "use_snap_current_frame_to_strips", text="Snap to Strips")
-
 
 classes = (
     SEQUENCER_MT_change,
     SEQUENCER_HT_tool_header,
     SEQUENCER_HT_header,
+    SEQUENCER_HT_playback_controls,
     SEQUENCER_MT_editor_menus,
     SEQUENCER_MT_range,
     SEQUENCER_MT_view,
@@ -3126,12 +3221,15 @@ classes = (
     SEQUENCER_MT_add_transitions,
     SEQUENCER_MT_add_empty,
     SEQUENCER_MT_strip_effect,
+    SEQUENCER_MT_strip_effect_change,
     SEQUENCER_MT_strip_movie,
     SEQUENCER_MT_strip,
     SEQUENCER_MT_strip_transform,
     SEQUENCER_MT_strip_retiming,
     SEQUENCER_MT_strip_text,
     SEQUENCER_MT_strip_show_hide,
+    SEQUENCER_MT_strip_animation,
+    SEQUENCER_MT_strip_mirror,
     SEQUENCER_MT_strip_input,
     SEQUENCER_MT_strip_lock_mute,
     SEQUENCER_MT_image,
@@ -3183,7 +3281,6 @@ classes = (
 
     SEQUENCER_PT_cache_settings,
     SEQUENCER_PT_cache_view_settings,
-    SEQUENCER_PT_strip_cache,
     SEQUENCER_PT_proxy_settings,
     SEQUENCER_PT_strip_proxy,
 
@@ -3202,6 +3299,7 @@ classes = (
     SEQUENCER_PT_snapping,
     SEQUENCER_PT_preview_snapping,
     SEQUENCER_PT_sequencer_snapping,
+    SEQUENCER_PT_playhead_snapping,
 )
 
 if __name__ == "__main__":  # only for live edit.

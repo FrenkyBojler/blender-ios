@@ -29,6 +29,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 
 #include "ED_image.hh"
@@ -36,7 +37,6 @@
 #include "ED_screen.hh"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
@@ -50,7 +50,6 @@
 
 static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
   float scalar = RNA_float_get(op->ptr, "scalar");
@@ -62,7 +61,7 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
   if (brush) {
     /* Pixel radius. */
     {
-      const int old_size = (use_unified_size) ? BKE_brush_size_get(scene, brush) : brush->size;
+      const int old_size = (use_unified_size) ? BKE_brush_size_get(paint, brush) : brush->size;
       int size = int(scalar * old_size);
 
       if (abs(old_size - size) < U.pixelsize) {
@@ -75,7 +74,7 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
       }
 
       if (use_unified_size) {
-        BKE_brush_size_set(scene, brush, size);
+        BKE_brush_size_set(paint, brush, size);
       }
       else {
         brush->size = max_ii(size, 1);
@@ -86,13 +85,13 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
     /* Unprojected radius. */
     {
       float unprojected_radius = scalar * (use_unified_size ?
-                                               BKE_brush_unprojected_radius_get(scene, brush) :
+                                               BKE_brush_unprojected_radius_get(paint, brush) :
                                                brush->unprojected_radius);
 
       unprojected_radius = std::max(unprojected_radius, 0.001f);
 
       if (use_unified_size) {
-        BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius);
+        BKE_brush_unprojected_radius_set(paint, brush, unprojected_radius);
       }
       else {
         brush->unprojected_radius = unprojected_radius;
@@ -113,7 +112,7 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
   ot->description = "Change brush size by a scalar";
   ot->idname = "BRUSH_OT_scale_size";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = brush_scale_size_exec;
 
   /* flags */
@@ -144,7 +143,7 @@ static void PALETTE_OT_new(wmOperatorType *ot)
   ot->description = "Add new palette";
   ot->idname = "PALETTE_OT_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_new_exec;
 
   /* flags */
@@ -166,7 +165,6 @@ static bool palette_poll(bContext *C)
 
 static wmOperatorStatus palette_color_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
   Palette *palette = paint->palette;
@@ -185,7 +183,7 @@ static wmOperatorStatus palette_color_add_exec(bContext *C, wmOperator * /*op*/)
              PaintMode::GPencil,
              PaintMode::VertexGPencil))
     {
-      copy_v3_v3(color->rgb, BKE_brush_color_get(scene, paint, brush));
+      copy_v3_v3(color->rgb, BKE_brush_color_get(paint, brush));
       color->value = 0.0;
     }
     else if (mode == PaintMode::Weight) {
@@ -204,7 +202,7 @@ static void PALETTE_OT_color_add(wmOperatorType *ot)
   ot->description = "Add new color to active palette";
   ot->idname = "PALETTE_OT_color_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_add_exec;
   ot->poll = palette_poll;
   /* flags */
@@ -232,7 +230,7 @@ static void PALETTE_OT_color_delete(wmOperatorType *ot)
   ot->description = "Remove active color from palette";
   ot->idname = "PALETTE_OT_color_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_delete_exec;
   ot->poll = palette_poll;
   /* flags */
@@ -310,7 +308,7 @@ static void PALETTE_OT_extract_from_image(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_extract_from_image";
   ot->description = "Extract all colors used in Image and create a Palette";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_extract_img_exec;
   ot->poll = palette_extract_img_poll;
 
@@ -408,7 +406,7 @@ static void PALETTE_OT_sort(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_sort";
   ot->description = "Sort Palette Colors";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_sort_exec;
   ot->poll = palette_poll;
 
@@ -454,7 +452,7 @@ static void PALETTE_OT_color_move(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_color_move";
   ot->description = "Move the active Color up/down in the list";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_move_exec;
   ot->poll = palette_poll;
 
@@ -518,7 +516,7 @@ static void PALETTE_OT_join(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_join";
   ot->description = "Join Palette Swatches";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_join_exec;
   ot->poll = palette_poll;
 
@@ -798,7 +796,7 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
   ot->description = "Control the stencil brush";
   ot->idname = "BRUSH_OT_stencil_control";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = stencil_control_invoke;
   ot->modal = stencil_control_modal;
   ot->cancel = stencil_control_cancel;
@@ -879,7 +877,7 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
       "When using an image texture, adjust the stencil size to fit the image aspect ratio";
   ot->idname = "BRUSH_OT_stencil_fit_image_aspect";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = stencil_fit_image_aspect_exec;
   ot->poll = stencil_control_poll;
 
@@ -934,7 +932,7 @@ static void BRUSH_OT_stencil_reset_transform(wmOperatorType *ot)
   ot->description = "Reset the stencil transformation to the default";
   ot->idname = "BRUSH_OT_stencil_reset_transform";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = stencil_reset_transform_exec;
   ot->poll = stencil_control_poll;
 

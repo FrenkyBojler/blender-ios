@@ -28,7 +28,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_uvproject.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -303,10 +303,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiItemPointerR(
-      layout, ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
+  layout->prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
   /* Aspect and Scale are only used for camera projectors. */
   bool has_camera = false;
@@ -320,22 +319,22 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   RNA_END;
 
   sub = &layout->column(true);
-  uiLayoutSetActive(sub, has_camera);
-  uiItemR(sub, ptr, "aspect_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(sub, ptr, "aspect_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
+  sub->active_set(has_camera);
+  sub->prop(ptr, "aspect_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "aspect_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
   sub = &layout->column(true);
-  uiLayoutSetActive(sub, has_camera);
-  uiItemR(sub, ptr, "scale_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(sub, ptr, "scale_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
+  sub->active_set(has_camera);
+  sub->prop(ptr, "scale_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "scale_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
-  uiItemR(layout, ptr, "projector_count", UI_ITEM_NONE, IFACE_("Projectors"), ICON_NONE);
+  layout->prop(ptr, "projector_count", UI_ITEM_NONE, IFACE_("Projectors"), ICON_NONE);
   RNA_BEGIN (ptr, projector_ptr, "projectors") {
-    uiItemR(layout, &projector_ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(&projector_ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   RNA_END;
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

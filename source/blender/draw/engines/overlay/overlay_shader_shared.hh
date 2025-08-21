@@ -73,7 +73,7 @@ enum VertexClass : uint32_t {
 ENUM_OPERATORS(VertexClass, VCLASS_EMPTY_SIZE)
 #endif
 
-enum StickBoneFlag {
+enum StickBoneFlag : uint32_t {
   COL_WIRE = (1u << 0u),
   COL_HEAD = (1u << 1u),
   COL_TAIL = (1u << 2u),
@@ -174,7 +174,7 @@ struct ThemeColors {
   float4 wire;
   float4 wire_edit;
   float4 active_object; /* "active" is reserved keyword in GLSL. */
-  float4 select;
+  float4 object_select; /* "select" is defined as a macro for GLSL. */
   float4 library_select;
   float4 library;
   float4 transform;

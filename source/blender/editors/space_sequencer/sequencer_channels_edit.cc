@@ -32,7 +32,7 @@ static wmOperatorStatus sequencer_rename_channel_invoke(bContext *C,
   float mouse_y = UI_view2d_region_to_view_y(context.timeline_region_v2d, event->mval[1]);
 
   sseq->runtime->rename_channel_index = mouse_y;
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_scene(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_FINISHED;
 }
 
@@ -42,7 +42,7 @@ void SEQUENCER_OT_rename_channel(wmOperatorType *ot)
   ot->name = "Rename Channel";
   ot->idname = "SEQUENCER_OT_rename_channel";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_rename_channel_invoke;
   ot->poll = sequencer_edit_with_channel_region_poll;
 

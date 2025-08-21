@@ -34,6 +34,7 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_rna.hh"
@@ -388,7 +389,8 @@ static void pose_mirror_info_init(PoseInitData_Mirror *pid,
 /** \name Convert Armature
  * \{ */
 
-static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, TransData *td)
+static void add_pose_transdata(
+    TransInfo *t, bPoseChannel *pchan, Object *ob, TransData *td, TransDataExtension *td_ext)
 {
   Bone *bone = pchan->bone;
   float pmat[3][3], omat[3][3];
@@ -414,35 +416,35 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
   td->loc = pchan->loc;
   copy_v3_v3(td->iloc, pchan->loc);
 
-  td->ext->scale = pchan->scale;
-  copy_v3_v3(td->ext->iscale, pchan->scale);
+  td_ext->scale = pchan->scale;
+  copy_v3_v3(td_ext->iscale, pchan->scale);
 
   if (pchan->rotmode > 0) {
-    td->ext->rot = pchan->eul;
-    td->ext->rotAxis = nullptr;
-    td->ext->rotAngle = nullptr;
-    td->ext->quat = nullptr;
+    td_ext->rot = pchan->eul;
+    td_ext->rotAxis = nullptr;
+    td_ext->rotAngle = nullptr;
+    td_ext->quat = nullptr;
 
-    copy_v3_v3(td->ext->irot, pchan->eul);
+    copy_v3_v3(td_ext->irot, pchan->eul);
   }
   else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
-    td->ext->rot = nullptr;
-    td->ext->rotAxis = pchan->rotAxis;
-    td->ext->rotAngle = &pchan->rotAngle;
-    td->ext->quat = nullptr;
+    td_ext->rot = nullptr;
+    td_ext->rotAxis = pchan->rotAxis;
+    td_ext->rotAngle = &pchan->rotAngle;
+    td_ext->quat = nullptr;
 
-    td->ext->irotAngle = pchan->rotAngle;
-    copy_v3_v3(td->ext->irotAxis, pchan->rotAxis);
+    td_ext->irotAngle = pchan->rotAngle;
+    copy_v3_v3(td_ext->irotAxis, pchan->rotAxis);
   }
   else {
-    td->ext->rot = nullptr;
-    td->ext->rotAxis = nullptr;
-    td->ext->rotAngle = nullptr;
-    td->ext->quat = pchan->quat;
+    td_ext->rot = nullptr;
+    td_ext->rotAxis = nullptr;
+    td_ext->rotAngle = nullptr;
+    td_ext->quat = pchan->quat;
 
-    copy_qt_qt(td->ext->iquat, pchan->quat);
+    copy_qt_qt(td_ext->iquat, pchan->quat);
   }
-  td->ext->rotOrder = pchan->rotmode;
+  td_ext->rotOrder = pchan->rotmode;
 
   /* Proper way to get parent transform + our own transform + constraints transform. */
   copy_m3_m4(omat, ob->object_to_world().ptr());
@@ -470,13 +472,13 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
       copy_m3_m4(tmat, pchan->constinv);
       invert_m3_m3(cmat, tmat);
       mul_m3_series(td->mtx, cmat, omat, pmat);
-      mul_m3_series(td->ext->r_mtx, cmat, omat, rpmat);
+      mul_m3_series(td_ext->r_mtx, cmat, omat, rpmat);
     }
     else {
       mul_m3_series(td->mtx, omat, pmat);
-      mul_m3_series(td->ext->r_mtx, omat, rpmat);
+      mul_m3_series(td_ext->r_mtx, omat, rpmat);
     }
-    invert_m3_m3(td->ext->r_smtx, td->ext->r_mtx);
+    invert_m3_m3(td_ext->r_smtx, td_ext->r_mtx);
   }
 
   pseudoinverse_m3_m3(td->smtx, td->mtx, PSEUDOINVERSE_EPSILON);
@@ -488,7 +490,7 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
     if (pchan->parent) {
       /* Same as `td->smtx` but without `pchan->bone->bone_mat`. */
       td->flag |= TD_PBONE_LOCAL_MTX_C;
-      mul_m3_m3m3(td->ext->l_smtx, pchan->bone->bone_mat, td->smtx);
+      mul_m3_m3m3(td_ext->l_smtx, pchan->bone->bone_mat, td->smtx);
     }
     else {
       td->flag |= TD_PBONE_LOCAL_MTX_P;
@@ -501,8 +503,8 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
   normalize_m3(td->axismtx);
 
   if (t->orient_type_mask & (1 << V3D_ORIENT_GIMBAL)) {
-    if (!gimbal_axis_pose(ob, pchan, td->ext->axismtx_gimbal)) {
-      copy_m3_m3(td->ext->axismtx_gimbal, td->axismtx);
+    if (!gimbal_axis_pose(ob, pchan, td_ext->axismtx_gimbal)) {
+      copy_m3_m3(td_ext->axismtx_gimbal, td->axismtx);
     }
   }
 
@@ -658,7 +660,6 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     Object *ob = tc->poseobj;
     TransData *td;
     TransDataExtension *tdx;
-    int i;
 
     PoseInitData_Mirror *pid = static_cast<PoseInitData_Mirror *>(tc->custom.type.data);
     int pid_index = 0;
@@ -677,10 +678,6 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     /* Initialize trans data. */
     td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransPoseBone");
     tdx = tc->data_ext = MEM_calloc_arrayN<TransDataExtension>(tc->data_len, "TransPoseBoneExt");
-    for (i = 0; i < tc->data_len; i++, td++, tdx++) {
-      td->ext = tdx;
-      td->val = nullptr;
-    }
 
     if (mirror) {
       LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
@@ -705,10 +702,10 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
 
     /* Use pose channels to fill trans data. */
     td = tc->data;
+    tdx = tc->data_ext;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       if (pchan->bone->flag & BONE_TRANSFORM) {
-        add_pose_transdata(t, pchan, ob, td);
-        td++;
+        add_pose_transdata(t, pchan, ob, td++, tdx++);
       }
     }
 
@@ -747,7 +744,7 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
     LISTBASE_FOREACH (EditBone *, ebo, edbo) {
       const int data_len_prev = tc->data_len;
 
-      if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
+      if (blender::animrig::bone_is_visible(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
         if (ELEM(t->mode, TFM_BONESIZE, TFM_BONE_ENVELOPE_DIST)) {
           if (ebo->flag & BONE_SELECTED) {
             tc->data_len++;
@@ -818,7 +815,7 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
       /* (length == 0.0) on extrude, used for scaling radius of bone points. */
       ebo->oldlength = ebo->length;
 
-      if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
+      if (blender::animrig::bone_is_visible(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
         if (t->mode == TFM_BONE_ENVELOPE) {
           if (ebo->flag & BONE_ROOTSEL) {
             td->val = &ebo->rad_head;
@@ -831,7 +828,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
             copy_m3_m3(td->mtx, mtx);
 
             td->loc = nullptr;
-            td->ext = nullptr;
 
             td++;
           }
@@ -845,7 +841,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
             copy_m3_m3(td->mtx, mtx);
 
             td->loc = nullptr;
-            td->ext = nullptr;
 
             td++;
           }
@@ -874,8 +869,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
             copy_m3_m3(td->axismtx, td->mtx);
             normalize_m3(td->axismtx);
 
-            td->ext = nullptr;
-
             td++;
           }
         }
@@ -887,8 +880,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
 
             copy_v3_v3(td->center, ebo->head);
             td->flag = TD_SELECTED;
-
-            td->ext = nullptr;
 
             td++;
           }
@@ -926,7 +917,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
               td->ival = ebo->roll;
             }
 
-            td->ext = nullptr;
             td->val = nullptr;
 
             td++;
@@ -948,7 +938,6 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
             td->extra = ebo; /* To fix roll. */
             td->ival = ebo->roll;
 
-            td->ext = nullptr;
             td->val = nullptr;
 
             td++;
@@ -1053,7 +1042,8 @@ static void recalcData_edit_armature(TransInfo *t)
 
       if (ebo_parent) {
         /* If this bone has a parent tip that has been moved. */
-        if (EBONE_VISIBLE(arm, ebo_parent) && (ebo_parent->flag & BONE_TIPSEL)) {
+        if (blender::animrig::bone_is_visible(arm, ebo_parent) && (ebo_parent->flag & BONE_TIPSEL))
+        {
           copy_v3_v3(ebo->head, ebo_parent->tail);
           if (t->mode == TFM_BONE_ENVELOPE) {
             ebo->rad_head = ebo_parent->rad_tail;
@@ -1485,7 +1475,7 @@ void transform_convert_pose_transflags_update(Object *ob, const int mode, const 
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     bone = pchan->bone;
-    if (PBONE_VISIBLE(arm, bone)) {
+    if (blender::animrig::bone_is_visible(arm, pchan)) {
       if (bone->flag & BONE_SELECTED) {
         bone->flag |= BONE_TRANSFORM;
       }

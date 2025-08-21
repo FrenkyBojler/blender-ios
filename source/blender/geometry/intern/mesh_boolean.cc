@@ -78,6 +78,21 @@ static float4x4 clean_transform(const float4x4 &mat)
   return cleaned;
 }
 
+static float3 clean_float3(const float3 &co)
+{
+  float3 cleaned = co;
+  if (UNLIKELY(!isfinite(co[0]))) {
+    cleaned[0] = 0.0f;
+  }
+  if (UNLIKELY(!isfinite(co[1]))) {
+    cleaned[1] = 0.0f;
+  }
+  if (UNLIKELY(!isfinite(co[2]))) {
+    cleaned[2] = 0.0f;
+  }
+  return cleaned;
+}
+
 /* `MeshesToIMeshInfo` keeps track of information used when combining a number
  * of `Mesh`es into a single `IMesh` for doing boolean on.
  * Mostly this means keeping track of the index offsets for various mesh elements. */
@@ -329,7 +344,7 @@ static meshintersect::IMesh meshes_to_imesh(Span<const Mesh *> meshes,
     if (transforms.is_empty() || r_info->to_target_transform[mi] == float4x4::identity()) {
       threading::parallel_for(vert_positions.index_range(), 2048, [&](IndexRange range) {
         for (int i : range) {
-          float3 co = vert_positions[i];
+          float3 co = clean_float3(vert_positions[i]);
           mpq3 mco = mpq3(co.x, co.y, co.z);
           double3 dco(mco[0].get_d(), mco[1].get_d(), mco[2].get_d());
           verts[i] = new meshintersect::Vert(mco, dco, meshintersect::NO_INDEX, i);
@@ -339,7 +354,8 @@ static meshintersect::IMesh meshes_to_imesh(Span<const Mesh *> meshes,
     else {
       threading::parallel_for(vert_positions.index_range(), 2048, [&](IndexRange range) {
         for (int i : range) {
-          float3 co = math::transform_point(r_info->to_target_transform[mi], vert_positions[i]);
+          float3 co = math::transform_point(r_info->to_target_transform[mi],
+                                            clean_float3(vert_positions[i]));
           mpq3 mco = mpq3(co.x, co.y, co.z);
           double3 dco(mco[0].get_d(), mco[1].get_d(), mco[2].get_d());
           verts[i] = new meshintersect::Vert(mco, dco, meshintersect::NO_INDEX, i);
@@ -610,7 +626,7 @@ static void copy_or_interp_loop_attributes(Mesh *dest_mesh,
     const CustomData *source_cd = &orig_me->corner_data;
     if (orig_loop_index == -1) {
       /* Will need interpolation weights for this loop's vertex's coordinates.
-       * The coordinate needs to be projected into 2d,  just like the interpolating face's
+       * The coordinate needs to be projected into 2d, just like the interpolating face's
        * coordinates were. The `dest_mesh` coordinates are already in object 0 local space. */
       float co[2];
       mul_v2_m3v3(co, axis_mat, dst_positions[dst_corner_verts[loop_index]]);
@@ -894,8 +910,8 @@ static Mesh *mesh_boolean_mesh_arr(Span<const Mesh *> meshes,
 #define BM_FACE_TAG BM_ELEM_DRAW
 
 /**
- *  Function use to say what operand a face is part of, based on the `BM_FACE_TAG`,`
- *  which is set in `bm_mesh_create`.
+ * Function use to say what operand a face is part of, based on the `BM_FACE_TAG`
+ * which is set in `bm_mesh_create`.
  */
 static int face_boolean_operand(BMFace *f, void * /*user_data*/)
 {

@@ -39,8 +39,8 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     render_graph::VKDrawIndexedNode::CreateInfo draw_indexed(resource_access_info);
     draw_indexed.node_data.index_count = vertex_count;
     draw_indexed.node_data.instance_count = instance_count;
-    draw_indexed.node_data.first_index = vertex_first;
-    draw_indexed.node_data.vertex_offset = index_buffer->index_start_get();
+    draw_indexed.node_data.first_index = index_buffer->index_start_get() + vertex_first;
+    draw_indexed.node_data.vertex_offset = index_buffer->index_base_get();
     draw_indexed.node_data.first_instance = instance_first;
 
     context.active_framebuffer_get()->vk_viewports_append(
@@ -72,12 +72,12 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
   }
 }
 
-void VKBatch::draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset)
+void VKBatch::draw_indirect(StorageBuf *indirect_buf, intptr_t offset)
 {
   multi_draw_indirect(indirect_buf, 1, offset, 0);
 }
 
-void VKBatch::multi_draw_indirect(GPUStorageBuf *indirect_buf,
+void VKBatch::multi_draw_indirect(StorageBuf *indirect_buf,
                                   const int count,
                                   const intptr_t offset,
                                   const intptr_t stride)
@@ -140,21 +140,6 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
 
     context.render_graph().add_node(draw);
   }
-}
-
-VKVertexBuffer *VKBatch::vertex_buffer_get(int index)
-{
-  return unwrap(verts_(index));
-}
-
-VKVertexBuffer *VKBatch::instance_buffer_get(int index)
-{
-  return unwrap(inst_(index));
-}
-
-VKIndexBuffer *VKBatch::index_buffer_get()
-{
-  return unwrap(unwrap(elem));
 }
 
 }  // namespace blender::gpu

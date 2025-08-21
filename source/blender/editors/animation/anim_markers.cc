@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -89,6 +90,11 @@ ListBase *ED_scene_markers_get(Scene *scene, ScrArea *area)
 ListBase *ED_context_get_markers(const bContext *C)
 {
   return ED_scene_markers_get(CTX_data_scene(C), CTX_wm_area(C));
+}
+
+ListBase *ED_sequencer_context_get_markers(const bContext *C)
+{
+  return ED_scene_markers_get(CTX_data_sequencer_scene(C), CTX_wm_area(C));
 }
 
 ListBase *ED_animcontext_get_markers(const bAnimContext *ac)
@@ -436,7 +442,7 @@ static void draw_marker_name(const uchar *text_color,
 static void draw_marker_line(const uchar *color, int xpos, int ymin, int ymax)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
@@ -514,13 +520,15 @@ static void draw_marker(const uiFontStyle *fstyle,
   draw_marker_name(text_color, fstyle, marker, xpos, xmax, name_y);
 }
 
-static void draw_markers_background(const rctf *rect)
+static void draw_markers_background(const rctf *rect, const float alpha)
 {
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   uchar shade[4];
   UI_GetThemeColor4ubv(TH_TIME_SCRUB_BACKGROUND, shade);
+  shade[3] *= alpha;
 
   immUniformColor4ubv(shade);
 
@@ -583,7 +591,10 @@ void ED_markers_draw(const bContext *C, int flag)
   rctf markers_region_rect;
   get_marker_region_rect(v2d, &markers_region_rect);
 
-  draw_markers_background(&markers_region_rect);
+  const float fade = BLI_rctf_size_y(&markers_region_rect) + UI_ANIM_MINY;
+  const float dist = std::min(region->winy - fade, fade);
+  const float alpha = std::min(dist / fade, 1.0f);
+  draw_markers_background(&markers_region_rect, alpha);
 
   /* no time correction for framelen! space is drawn with old values */
   float xscale, dummy;
@@ -778,7 +789,7 @@ static wmOperatorStatus ed_marker_add_exec(bContext *C, wmOperator * /*op*/)
   marker = MEM_callocN<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = frame;
-  SNPRINTF(marker->name, "F_%02d", frame);
+  SNPRINTF_UTF8(marker->name, "F_%02d", frame);
   BLI_addtail(markers, marker);
 
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
@@ -794,7 +805,7 @@ static void MARKER_OT_add(wmOperatorType *ot)
   ot->description = "Add a new time marker";
   ot->idname = "MARKER_OT_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_marker_add_exec;
   ot->poll = operator_markers_region_active;
 
@@ -879,23 +890,23 @@ static void ed_marker_move_update_header(bContext *C, wmOperator *op)
     outputNumInput(&mm->num, str_ofs, scene->unit);
   }
   else if (use_time) {
-    SNPRINTF(str_ofs, "%.2f", FRA2TIME(ofs));
+    SNPRINTF_UTF8(str_ofs, "%.2f", FRA2TIME(ofs));
   }
   else {
-    SNPRINTF(str_ofs, "%d", ofs);
+    SNPRINTF_UTF8(str_ofs, "%d", ofs);
   }
 
   if (totmark == 1 && selmarker) {
     /* we print current marker value */
     if (use_time) {
-      SNPRINTF(str, IFACE_("Marker %.2f offset %s"), FRA2TIME(selmarker->frame), str_ofs);
+      SNPRINTF_UTF8(str, IFACE_("Marker %.2f offset %s"), FRA2TIME(selmarker->frame), str_ofs);
     }
     else {
-      SNPRINTF(str, IFACE_("Marker %d offset %s"), selmarker->frame, str_ofs);
+      SNPRINTF_UTF8(str, IFACE_("Marker %d offset %s"), selmarker->frame, str_ofs);
     }
   }
   else {
-    SNPRINTF(str, IFACE_("Marker offset %s"), str_ofs);
+    SNPRINTF_UTF8(str, IFACE_("Marker offset %s"), str_ofs);
   }
 
   ED_area_status_text(CTX_wm_area(C), str);
@@ -1102,8 +1113,8 @@ static wmOperatorStatus ed_marker_move_modal(bContext *C, wmOperator *op, const 
                             (event->modifier & KM_CTRL) != 0,
                             &fac,
                             0.0,
-                            FPS,
-                            0.1 * FPS,
+                            scene->frames_per_second(),
+                            0.1 * scene->frames_per_second(),
                             0);
 
             RNA_int_set(op->ptr, "frames", int(fac));
@@ -1151,7 +1162,7 @@ static void MARKER_OT_move(wmOperatorType *ot)
   ot->description = "Move selected time marker(s)";
   ot->idname = "MARKER_OT_move";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_marker_move_exec;
   ot->invoke = ed_marker_move_invoke;
   ot->modal = ed_marker_move_modal;
@@ -1210,7 +1221,7 @@ static void ed_marker_duplicate_apply(bContext *C)
       TimeMarker *newmarker = MEM_callocN<TimeMarker>("TimeMarker");
       newmarker->flag = SELECT;
       newmarker->frame = marker->frame;
-      STRNCPY(newmarker->name, marker->name);
+      STRNCPY_UTF8(newmarker->name, marker->name);
       newmarker->camera = marker->camera;
 
       if (marker->prop != nullptr) {
@@ -1247,7 +1258,7 @@ static void MARKER_OT_duplicate(wmOperatorType *ot)
   ot->description = "Duplicate selected time marker(s)";
   ot->idname = "MARKER_OT_duplicate";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_marker_duplicate_exec;
   ot->invoke = ed_marker_duplicate_invoke;
   ot->modal = ed_marker_move_modal;
@@ -1437,7 +1448,7 @@ static void MARKER_OT_select(wmOperatorType *ot)
   ot->description = "Select time marker(s)";
   ot->idname = "MARKER_OT_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ed_markers_poll_markers_exist_visible;
   ot->exec = ed_marker_select_exec;
   ot->invoke = WM_generic_select_invoke;
@@ -1535,7 +1546,7 @@ static void MARKER_OT_select_box(wmOperatorType *ot)
   ot->description = "Select all time markers using box selection";
   ot->idname = "MARKER_OT_select_box";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_marker_box_select_exec;
   ot->invoke = ed_marker_box_select_invoke;
   ot->modal = WM_gesture_box_modal;
@@ -1584,7 +1595,7 @@ static void MARKER_OT_select_all(wmOperatorType *ot)
   ot->description = "Change selection of all time markers";
   ot->idname = "MARKER_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_marker_select_all_exec;
   ot->poll = ed_markers_poll_markers_exist;
 
@@ -1661,7 +1672,7 @@ static void MARKER_OT_select_leftright(wmOperatorType *ot)
   ot->description = "Select markers on and left/right of the current frame";
   ot->idname = "MARKER_OT_select_leftright";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_marker_select_leftright_exec;
   ot->poll = ed_markers_poll_markers_exist;
 
@@ -1736,7 +1747,7 @@ static void MARKER_OT_delete(wmOperatorType *ot)
   ot->description = "Delete selected time marker(s)";
   ot->idname = "MARKER_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = ed_marker_delete_invoke;
   ot->exec = ed_marker_delete_exec;
   ot->poll = ed_markers_poll_selected_no_locked_markers;
@@ -1789,7 +1800,7 @@ static void MARKER_OT_rename(wmOperatorType *ot)
   ot->description = "Rename first selected time marker";
   ot->idname = "MARKER_OT_rename";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = ed_marker_rename_invoke;
   ot->exec = ed_marker_rename_exec;
   ot->poll = ed_markers_poll_selected_no_locked_markers;
@@ -1860,7 +1871,7 @@ static void MARKER_OT_make_links_scene(wmOperatorType *ot)
   ot->description = "Copy selected markers to another scene";
   ot->idname = "MARKER_OT_make_links_scene";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_marker_make_links_scene_exec;
   ot->invoke = WM_menu_invoke;
   ot->poll = ed_markers_poll_selected_markers;
@@ -1905,7 +1916,7 @@ static wmOperatorStatus ed_marker_camera_bind_exec(bContext *C, wmOperator *op)
     marker = MEM_callocN<TimeMarker>("Camera TimeMarker");
     /* This marker's name is only displayed in the viewport statistics, animation editors use the
      * camera's name when bound to a marker. */
-    SNPRINTF(marker->name, "F_%02d", scene->r.cfra);
+    SNPRINTF_UTF8(marker->name, "F_%02d", scene->r.cfra);
     marker->flag = SELECT;
     marker->frame = scene->r.cfra;
     BLI_addtail(markers, marker);
@@ -1940,7 +1951,7 @@ static void MARKER_OT_camera_bind(wmOperatorType *ot)
   ot->description = "Bind the selected camera to a marker on the current frame";
   ot->idname = "MARKER_OT_camera_bind";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_marker_camera_bind_exec;
   ot->poll = operator_markers_region_active;
 

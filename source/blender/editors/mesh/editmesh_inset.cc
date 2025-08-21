@@ -12,7 +12,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -98,7 +98,7 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
                                sce->unit,
                                true);
     }
-    SNPRINTF(msg, IFACE_("Thickness: %s, Depth: %s"), flts_str, flts_str + NUM_STR_REP_LEN);
+    SNPRINTF_UTF8(msg, IFACE_("Thickness: %s, Depth: %s"), flts_str, flts_str + NUM_STR_REP_LEN);
     ED_area_status_text(area, msg);
   }
 
@@ -578,7 +578,7 @@ void MESH_OT_inset(wmOperatorType *ot)
   ot->idname = "MESH_OT_inset";
   ot->description = "Inset new faces into selected faces";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_inset_invoke;
   ot->modal = edbm_inset_modal;
   ot->exec = edbm_inset_exec;

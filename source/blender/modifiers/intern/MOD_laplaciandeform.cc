@@ -25,7 +25,7 @@
 #include "BKE_deform.hh"
 #include "BKE_mesh_mapping.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLO_read_write.hh"
@@ -60,7 +60,7 @@ struct LaplacianSystem {
   int anchors_num;
   int repeat;
   /** Vertex Group name */
-  char anchor_grp_name[64];
+  char anchor_grp_name[/*MAX_VGROUP_NAME*/ 64];
   /** Original vertex coordinates. */
   float (*co)[3];
   /** Original vertex normal. */
@@ -792,22 +792,20 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   bool is_bind = RNA_boolean_get(ptr, "is_bind");
   bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  uiItemS(layout);
+  layout->separator();
 
   row = &layout->row(true);
-  uiLayoutSetEnabled(row, has_vertex_group);
-  uiItemO(row,
-          is_bind ? IFACE_("Unbind") : IFACE_("Bind"),
-          ICON_NONE,
-          "OBJECT_OT_laplaciandeform_bind");
+  row->enabled_set(has_vertex_group);
+  row->op(
+      "OBJECT_OT_laplaciandeform_bind", is_bind ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

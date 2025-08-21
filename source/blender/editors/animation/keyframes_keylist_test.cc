@@ -25,7 +25,7 @@
 #include "BKE_object.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "CLG_log.h"
 #include "testing/testing.h"
@@ -154,6 +154,40 @@ TEST(keylist, find_exact)
   ED_keylist_free(keylist);
 }
 
+TEST(keylist, find_closest)
+{
+  AnimKeylist *keylist = create_test_keylist();
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, -1);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 10);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 14.999);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+  {
+    /* When the distance between key columns is equal, the previous column is chosen */
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 15);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 15.001);
+    EXPECT_EQ(closest->cfra, 20.0);
+  }
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 30.001);
+    EXPECT_EQ(closest->cfra, 30.0);
+  }
+  ED_keylist_free(keylist);
+}
+
 class KeylistSummaryTest : public testing::Test {
  public:
   Main *bmain;
@@ -186,14 +220,14 @@ class KeylistSummaryTest : public testing::Test {
     bmain = BKE_main_new();
     G_MAIN = bmain; /* For BKE_animdata_free(). */
 
-    action = &static_cast<bAction *>(BKE_id_new(bmain, ID_AC, "ACÄnimåtië"))->wrap();
+    action = &BKE_id_new<bAction>(bmain, "ACÄnimåtië")->wrap();
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
     armature_data = BKE_armature_add(bmain, "ARArmature");
     bone1 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
     bone2 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
-    STRNCPY(bone1->name, "Bone.001");
-    STRNCPY(bone2->name, "Bone.002");
+    STRNCPY_UTF8(bone1->name, "Bone.001");
+    STRNCPY_UTF8(bone2->name, "Bone.002");
     BLI_addtail(&armature_data->bonebase, bone1);
     BLI_addtail(&armature_data->bonebase, bone2);
     BKE_armature_bone_hash_make(armature_data);

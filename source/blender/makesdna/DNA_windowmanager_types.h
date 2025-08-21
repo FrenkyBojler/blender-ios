@@ -16,13 +16,6 @@
 
 #include "DNA_ID.h"
 
-#ifdef __cplusplus
-#  include <mutex>
-using std_mutex_type = std::mutex;
-#else
-#  define std_mutex_type void
-#endif
-
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
 namespace blender::bke {
@@ -68,68 +61,6 @@ struct wmTimer;
 #define OP_MAX_TYPENAME 64
 #define KMAP_MAX_NAME 64
 
-/** Keep in sync with 'rna_enum_wm_report_items' in `wm_rna.c`. */
-typedef enum eReportType {
-  RPT_DEBUG = (1 << 0),
-  RPT_INFO = (1 << 1),
-  RPT_OPERATOR = (1 << 2),
-  RPT_PROPERTY = (1 << 3),
-  RPT_WARNING = (1 << 4),
-  RPT_ERROR = (1 << 5),
-  RPT_ERROR_INVALID_INPUT = (1 << 6),
-  RPT_ERROR_INVALID_CONTEXT = (1 << 7),
-  RPT_ERROR_OUT_OF_MEMORY = (1 << 8),
-} eReportType;
-ENUM_OPERATORS(eReportType, RPT_ERROR_OUT_OF_MEMORY)
-
-#define RPT_DEBUG_ALL (RPT_DEBUG)
-#define RPT_INFO_ALL (RPT_INFO)
-#define RPT_OPERATOR_ALL (RPT_OPERATOR)
-#define RPT_PROPERTY_ALL (RPT_PROPERTY)
-#define RPT_WARNING_ALL (RPT_WARNING)
-#define RPT_ERROR_ALL \
-  (RPT_ERROR | RPT_ERROR_INVALID_INPUT | RPT_ERROR_INVALID_CONTEXT | RPT_ERROR_OUT_OF_MEMORY)
-
-enum ReportListFlags {
-  RPT_PRINT = (1 << 0),
-  RPT_STORE = (1 << 1),
-  RPT_FREE = (1 << 2),
-  RPT_OP_HOLD = (1 << 3), /* don't move them into the operator global list (caller will use) */
-  /** Don't print (the owner of the #ReportList will handle printing to the `stdout`). */
-  RPT_PRINT_HANDLED_BY_OWNER = (1 << 4),
-};
-
-/* These two lines with # tell `makesdna` this struct can be excluded. */
-#
-#
-typedef struct Report {
-  struct Report *next, *prev;
-  /** eReportType. */
-  short type;
-  short flag;
-  /** `strlen(message)`, saves some time calculating the word wrap. */
-  int len;
-  const char *typestr;
-  const char *message;
-} Report;
-
-/**
- * \note Saved in the #wmWindowManager, don't remove.
- */
-typedef struct ReportList {
-  ListBase list;
-  /** #eReportType. */
-  int printlevel;
-  /** #eReportType. */
-  int storelevel;
-  int flag;
-  char _pad[4];
-  struct wmTimer *reporttimer;
-
-  /** Mutex for thread-safety, runtime only. */
-  std_mutex_type *lock;
-} ReportList;
-
 /* Timer custom-data to control reports display. */
 /* These two lines with # tell `makesdna` this struct can be excluded. */
 #
@@ -153,17 +84,13 @@ typedef struct wmXrData {
 
 /** Window-manager is saved, tag WMAN. */
 typedef struct wmWindowManager {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_WM;
+#endif
+
   ID id;
 
-  /** Separate active from drawable. */
-  struct wmWindow *windrawable;
-  /**
-   * \note `CTX_wm_window(C)` is usually preferred.
-   * Avoid relying on this where possible as this may become NULL during when handling
-   * events that close or replace windows (opening a file for e.g.).
-   * While this happens rarely in practice, it can cause difficult to reproduce bugs.
-   */
-  struct wmWindow *winactive;
   ListBase windows;
 
   /** Set on file read. */
@@ -177,48 +104,16 @@ typedef struct wmWindowManager {
   /** Set after selection to notify outliner to sync. Stores type of selection */
   short outliner_sync_select_dirty;
 
-  /** Operator registry. */
-  ListBase operators;
-
   /** Available/pending extensions updates. */
   int extensions_updates;
   /** Number of blocked & installed extensions. */
   int extensions_blocked;
 
-  /** Threaded jobs manager. */
-  ListBase jobs;
-
-  /** Extra overlay cursors to draw, like circles. */
-  ListBase paintcursors;
-
-  /** Active dragged items. */
-  ListBase drags;
-
-  /**
-   * Known key configurations.
-   * This includes all the #wmKeyConfig members (`defaultconf`, `addonconf`, etc).
-   */
-  ListBase keyconfigs;
-
-  /** Default configuration. */
-  struct wmKeyConfig *defaultconf;
-  /** Addon configuration. */
-  struct wmKeyConfig *addonconf;
-  /** User configuration. */
-  struct wmKeyConfig *userconf;
-
-  /** Active timers. */
-  ListBase timers;
   /** Timer for auto save. */
   struct wmTimer *autosavetimer;
   /** Auto-save timer was up, but it wasn't possible to auto-save in the current mode. */
   char autosave_scheduled;
   char _pad2[7];
-
-  /** All undo history (runtime only). */
-  struct UndoStack *undo_stack;
-
-  struct wmMsgBus *message_bus;
 
   // #ifdef WITH_XR_OPENXR
   wmXrData xr;
@@ -227,7 +122,8 @@ typedef struct wmWindowManager {
   WindowManagerRuntimeHandle *runtime;
 } wmWindowManager;
 
-#define WM_KEYCONFIG_ARRAY_P(wm) &(wm)->defaultconf, &(wm)->addonconf, &(wm)->userconf
+#define WM_KEYCONFIG_ARRAY_P(wm) \
+  &(wm)->runtime->defaultconf, &(wm)->runtime->addonconf, &(wm)->runtime->userconf
 
 /** #wmWindowManager.extensions_updates */
 enum {
@@ -281,7 +177,7 @@ typedef struct wmWindow {
   /** Temporary when switching. */
   struct Scene *new_scene;
   /** Active view layer displayed in this window. */
-  char view_layer_name[64];
+  char view_layer_name[/*MAX_NAME*/ 64];
   /** The workspace may temporarily override the window's scene with scene pinning. This is the
    * "overridden" or "default" scene to restore when entering a workspace with no scene pinned. */
   struct Scene *unpinned_scene;
@@ -307,6 +203,10 @@ typedef struct wmWindow {
    * it causes the window size to be initialized to `wm_init_state.size`.
    * These default to the main screen size but can be overridden by the `--window-geometry`
    * command line argument.
+   *
+   * \warning Using these values directly can result in errors on macOS due to HiDPI displays
+   * influencing the window native pixel size. See #WM_window_native_pixel_size for a general use
+   * alternative.
    */
   short sizex, sizey;
   /** Normal, maximized, full-screen, #GHOST_TWindowState. */
@@ -381,18 +281,11 @@ typedef struct wmWindow {
   struct wmEvent *event_last_handled;
 
   /**
-   * Input Method Editor data - complex character input (especially for Asian character input)
-   * Only used when `WITH_INPUT_IME` is defined, runtime-only data.
-   */
-  const struct wmIMEData *ime_data;
-  char ime_data_is_composing;
-  char _pad1[6];
-
-  /**
    * Internal: tag this for extra mouse-move event,
    * makes cursors/buttons active on UI switching.
    */
   char addmousemove;
+  char _pad1[7];
 
   /** Window+screen handlers, handled last. */
   ListBase handlers;
@@ -415,10 +308,11 @@ typedef struct wmWindow {
    * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
    * Used to detect double-click events.
    */
+  void *_pad2;
   uint64_t eventstate_prev_press_time_ms;
 
-  void *_pad2;
   WindowRuntimeHandle *runtime;
+  void *_pad3;
 } wmWindow;
 
 #ifdef ime_data
@@ -434,7 +328,7 @@ typedef struct wmOperatorTypeMacro {
   struct wmOperatorTypeMacro *next, *prev;
 
   /* operator id */
-  char idname[64]; /* OP_MAX_TYPENAME */
+  char idname[/*OP_MAX_TYPENAME*/ 64];
   /* rna pointer to access properties, like keymap */
   /** Operator properties, assigned to ptr->data and can be written to a file. */
   struct IDProperty *properties;
@@ -462,10 +356,10 @@ typedef struct wmKeyMapItem {
   /* event */
   /** Event code itself (#EVT_LEFTCTRLKEY, #LEFTMOUSE etc). */
   short type;
-  /** Button state (#KM_ANY, #KM_PRESS, #KM_DBL_CLICK, #KM_CLICK_DRAG, #KM_NOTHING etc). */
+  /** Button state (#KM_ANY, #KM_PRESS, #KM_DBL_CLICK, #KM_PRESS_DRAG, #KM_NOTHING etc). */
   int8_t val;
   /**
-   * The 2D direction of the event to use when `val == KM_CLICK_DRAG`.
+   * The 2D direction of the event to use when `val == KM_PRESS_DRAG`.
    * Set to #KM_DIRECTION_N, #KM_DIRECTION_S & related values, #KM_NOTHING for any direction.
    */
   int8_t direction;
@@ -639,7 +533,7 @@ typedef struct wmOperator {
 
   /* saved */
   /** Used to retrieve type pointer. */
-  char idname[64]; /* OP_MAX_TYPENAME */
+  char idname[/*OP_MAX_TYPENAME*/ 64];
   /** Saved, user-settable properties. */
   IDProperty *properties;
 

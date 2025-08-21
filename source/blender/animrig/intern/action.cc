@@ -46,10 +46,14 @@
 #include "ANIM_animdata.hh"
 #include "ANIM_fcurve.hh"
 
+#include "CLG_log.h"
+
 #include "action_runtime.hh"
 
 #include <cstdio>
 #include <cstring>
+
+static CLG_LogRef LOG = {"anim.action"};
 
 namespace blender::animrig {
 
@@ -577,9 +581,9 @@ bool Action::slot_remove(Slot &slot_to_remove)
     return false;
   }
 
-  /* Remove the slot's data from each layer. */
-  for (Layer *layer : this->layers()) {
-    layer->slot_data_remove(*this, slot_to_remove.handle);
+  /* Remove the slot's data from each keyframe strip. */
+  for (StripKeyframeData *strip_data : this->strip_keyframe_data()) {
+    strip_data->slot_data_remove(slot_to_remove.handle);
   }
 
   /* Don't bother un-assigning this slot from its users. The slot handle will
@@ -1006,18 +1010,12 @@ int64_t Layer::find_strip_index(const Strip &strip) const
   return -1;
 }
 
-void Layer::slot_data_remove(Action &owning_action, const slot_handle_t slot_handle)
-{
-  for (Strip *strip : this->strips()) {
-    strip->slot_data_remove(owning_action, slot_handle);
-  }
-}
-
 /* ----- ActionSlot implementation ----------- */
 
 Slot::Slot()
 {
-  memset(this, 0, sizeof(*this));
+  /* Zero-initialize the DNA struct. 'this' is a C++ class, and shouldn't be memset like this. */
+  memset(static_cast<ActionSlot *>(this), 0, sizeof(ActionSlot));
   this->runtime = MEM_new<SlotRuntime>(__func__);
 }
 
@@ -1387,7 +1385,7 @@ Slot *generic_slot_for_autoassign(const ID &animated_id,
      * the `OBSlot` should be chosen. This means that `XXSlot` NOT being auto-assigned if there is
      * an alternative. Since untyped slots are bound on assignment, this design keeps the Action
      * as-is, which means that the `XXSlot` remains untyped and thus the user is free to assign
-     * this to another ID type if desired.  */
+     * this to another ID type if desired. */
 
     const bool last_used_identifier_is_typed = last_slot_identifier.substr(0, 2) !=
                                                slot_untyped_prefix;
@@ -1693,14 +1691,6 @@ template<> StripKeyframeData &Strip::data<StripKeyframeData>(Action &owning_acti
   BLI_assert(this->type() == StripKeyframeData::TYPE);
 
   return *owning_action.strip_keyframe_data()[this->data_index];
-}
-
-void Strip::slot_data_remove(Action &owning_action, const slot_handle_t slot_handle)
-{
-  switch (this->type()) {
-    case Type::Keyframe:
-      this->data<StripKeyframeData>(owning_action).slot_data_remove(slot_handle);
-  }
 }
 
 /* ----- ActionStripKeyframeData implementation ----------- */
@@ -2191,22 +2181,22 @@ SingleKeyingResult StripKeyframeData::keyframe_insert(Main *bmain,
   }
 
   if (!fcurve) {
-    std::fprintf(stderr,
-                 "FCurve %s[%d] for slot %s was not created due to either the Only Insert "
-                 "Available setting or Replace keyframing mode.\n",
-                 fcurve_descriptor.rna_path.c_str(),
-                 fcurve_descriptor.array_index,
-                 slot.identifier);
+    CLOG_WARN(&LOG,
+              "FCurve %s[%d] for slot %s was not created due to either the Only Insert "
+              "Available setting or Replace keyframing mode.\n",
+              fcurve_descriptor.rna_path.c_str(),
+              fcurve_descriptor.array_index,
+              slot.identifier);
     return SingleKeyingResult::CANNOT_CREATE_FCURVE;
   }
 
   if (!BKE_fcurve_is_keyframable(fcurve)) {
     /* TODO: handle this properly, in a way that can be communicated to the user. */
-    std::fprintf(stderr,
-                 "FCurve %s[%d] for slot %s doesn't allow inserting keys.\n",
-                 fcurve_descriptor.rna_path.c_str(),
-                 fcurve_descriptor.array_index,
-                 slot.identifier);
+    CLOG_WARN(&LOG,
+              "FCurve %s[%d] for slot %s doesn't allow inserting keys.\n",
+              fcurve_descriptor.rna_path.c_str(),
+              fcurve_descriptor.array_index,
+              slot.identifier);
     return SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE;
   }
 
@@ -2229,11 +2219,11 @@ SingleKeyingResult StripKeyframeData::keyframe_insert(Main *bmain,
       fcurve, time_value, settings, insert_key_flags);
 
   if (insert_vert_result != SingleKeyingResult::SUCCESS) {
-    std::fprintf(stderr,
-                 "Could not insert key into FCurve %s[%d] for slot %s.\n",
-                 fcurve_descriptor.rna_path.c_str(),
-                 fcurve_descriptor.array_index,
-                 slot.identifier);
+    CLOG_WARN(&LOG,
+              "Could not insert key into FCurve %s[%d] for slot %s.\n",
+              fcurve_descriptor.rna_path.c_str(),
+              fcurve_descriptor.array_index,
+              slot.identifier);
     return insert_vert_result;
   }
 

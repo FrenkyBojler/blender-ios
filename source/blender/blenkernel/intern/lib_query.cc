@@ -26,7 +26,7 @@
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 
-static CLG_LogRef LOG = {"bke.lib_query"};
+static CLG_LogRef LOG = {"lib.query"};
 
 /* status */
 enum {
@@ -386,6 +386,14 @@ static bool library_foreach_ID_link(Main *bmain,
     }
 
     IDP_foreach_property(id->properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+      BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
+    });
+    if (BKE_lib_query_foreachid_iter_stop(&data)) {
+      library_foreach_ID_data_cleanup(&data);
+      return false;
+    }
+
+    IDP_foreach_property(id->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
       BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
     });
     if (BKE_lib_query_foreachid_iter_stop(&data)) {

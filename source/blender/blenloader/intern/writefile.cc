@@ -12,16 +12,17 @@
  *
  * IFF-style structure (but not IFF compatible!)
  *
- * Start file:
- * <pre>
- * `BLENDER_V100`  `12` bytes  (version 1.00 is just an example).
- *                 `V` = big endian, `v` = little endian.
- *                 `_` = 4 byte pointer, `-` = 8 byte pointer.
- * </pre>
+ * Start of the file:
+ *
+ * Historic Blend-files (pre-Blender 5.0):
+ * `BLENDER_V100`  : Fixed 12 bytes length. See #BLEND_FILE_FORMAT_VERSION_0 for details.
+ *
+ * Current Blend-files (Blender 5.0 and later):
+ * `BLENDER17-01v0500`: Variable bytes length. See #BLEND_FILE_FORMAT_VERSION_1 for details.
  *
  * data-blocks: (also see struct #BHead).
  * <pre>
- * `bh.code`       `char[4]` see `BLO_blend_defs.hh` for a list of known types.
+ * `bh.code`       `char[4]` see `BLO_core_bhead.hh` for a list of known types.
  * `bh.len`        `int32` length data after #BHead in bytes.
  * `bh.old`        `void *` old pointer (the address at the time of writing the file).
  * `bh.SDNAnr`     `int32` struct index of structs stored in #DNA1 data.
@@ -90,9 +91,9 @@
 #include "DNA_print.hh"
 #include "DNA_sdna_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_endian_defines.h"
-#include "BLI_endian_switch.h"
 #include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_math_base.h"
@@ -125,7 +126,6 @@
 
 #include "DRW_engine.hh"
 
-#include "BLO_blend_defs.hh"
 #include "BLO_blend_validate.hh"
 #include "BLO_read_write.hh"
 #include "BLO_readfile.hh"
@@ -157,7 +157,7 @@
 
 #define ZSTD_COMPRESSION_LEVEL 3
 
-static CLG_LogRef LOG = {"blo.writefile"};
+static CLG_LogRef LOG = {"blend.writefile"};
 
 /** Use if we want to store how many bytes have been written to the file. */
 // #define USE_WRITE_DATA_LEN
@@ -313,9 +313,9 @@ bool ZstdWriteWrap::open(const char *filepath)
 
 void ZstdWriteWrap::write_u32_le(uint32_t val)
 {
-  if (ENDIAN_ORDER == B_ENDIAN) {
-    BLI_endian_switch_uint32(&val);
-  }
+  /* NOTE: this is endianness-sensitive.
+   * This value must always be written as little-endian. */
+  BLI_assert(ENDIAN_ORDER == L_ENDIAN);
   base_wrap.write(&val, sizeof(uint32_t));
 }
 
@@ -743,7 +743,7 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
     return;
   }
   /* Write new #LargeBHead8 headers if enabled. Older Blender versions can't read those. */
-  if (USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) {
+  if (!USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format)) {
     if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1) {
       static_assert(sizeof(BHead) == sizeof(LargeBHead8));
       mywrite(wd, &bhead, sizeof(bhead));
@@ -773,7 +773,7 @@ static void writestruct_at_address_nr(WriteData *wd,
                                       const void *adr,
                                       const void *data)
 {
-  BLI_assert(struct_nr > 0 && struct_nr < SDNA_TYPE_MAX);
+  BLI_assert(struct_nr > 0 && struct_nr <= blender::dna::sdna_struct_id_get_max());
 
   if (adr == nullptr || data == nullptr || nr == 0) {
     return;
@@ -785,7 +785,7 @@ static void writestruct_at_address_nr(WriteData *wd,
 
   const int64_t len_in_bytes = nr * DNA_struct_size(wd->sdna, struct_nr);
   if (!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
-      !USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks))
+      USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format))
   {
     if (len_in_bytes > INT32_MAX) {
       CLOG_ERROR(&LOG, "Cannot write chunks bigger than INT_MAX.");
@@ -858,7 +858,7 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
   }
 
   if ((!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
-       !USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks)) &&
+       USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format)) &&
       len > INT_MAX)
   {
     BLI_assert_msg(0, "Cannot write chunks bigger than INT_MAX.");
@@ -905,7 +905,7 @@ static void writelist_id(WriteData *wd, const int filecode, const char *structna
 
     const int struct_nr = DNA_struct_find_with_alias(wd->sdna, structname);
     if (struct_nr == -1) {
-      printf("error: can't find SDNA code <%s>\n", structname);
+      printf("error: cannot find SDNA code <%s>\n", structname);
       return;
     }
 
@@ -918,10 +918,11 @@ static void writelist_id(WriteData *wd, const int filecode, const char *structna
 #endif
 
 #define writestruct_at_address(wd, filecode, struct_id, nr, adr, data) \
-  writestruct_at_address_nr(wd, filecode, SDNA_TYPE_FROM_STRUCT(struct_id), nr, adr, data)
+  writestruct_at_address_nr( \
+      wd, filecode, blender::dna::sdna_struct_id_get<struct_id>(), nr, adr, data)
 
 #define writestruct(wd, filecode, struct_id, nr, adr) \
-  writestruct_nr(wd, filecode, SDNA_TYPE_FROM_STRUCT(struct_id), nr, adr)
+  writestruct_nr(wd, filecode, blender::dna::sdna_struct_id_get<struct_id>(), nr, adr)
 
 /** \} */
 
@@ -1117,9 +1118,21 @@ static void write_id(WriteData *wd, ID *id)
   mywrite_id_begin(wd, id);
   if (id_type->blend_write != nullptr) {
     BlendWriter writer = {wd};
-    BLO_Write_IDBuffer id_buffer{*id, &writer};
+    BLO_Write_IDBuffer id_buffer{*id, wd->use_memfile, false};
     id_type->blend_write(&writer, id_buffer.get(), id);
   }
+  mywrite_id_end(wd, id);
+}
+
+static void write_id_placeholder(WriteData *wd, ID *id)
+{
+  mywrite_id_begin(wd, id);
+
+  /* Only copy required data for the placeholder ID. */
+  BLO_Write_IDBuffer id_buffer{*id, wd->use_memfile, true};
+
+  writestruct_at_address(wd, ID_LINK_PLACEHOLDER, ID, 1, id, &id_buffer);
+
   mywrite_id_end(wd, id);
 }
 
@@ -1181,7 +1194,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
     write_id(wd, &library.id);
 
     /* Write placeholders for linked data-blocks that are used. */
-    for (const ID *id : ids_used_from_library) {
+    for (ID *id : ids_used_from_library) {
       if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
         CLOG_ERROR(&LOG,
                    "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
@@ -1189,7 +1202,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
                    id->name,
                    library.runtime->filepath_abs);
       }
-      writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
+      write_id_placeholder(wd, id);
     }
   }
 
@@ -1274,8 +1287,9 @@ static void write_thumb(WriteData *wd, const BlendThumbnail *thumb)
 /** \name File Writing (Private)
  * \{ */
 
-BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
-    : buffer_(BKE_idtype_get_info_from_id(&id)->struct_size, alignof(ID))
+BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo, const bool is_placeholder)
+    : buffer_(is_placeholder ? sizeof(ID) : BKE_idtype_get_info_from_id(&id)->struct_size,
+              alignof(ID))
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(&id);
   ID *temp_id = static_cast<ID *>(buffer_.buffer());
@@ -1289,6 +1303,24 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
   }
 
   /* Copy ID data itself into buffer, to be able to freely modify it. */
+
+  if (is_placeholder) {
+    /* For placeholders (references to linked data), zero-initialize, and only explicitely copy the
+     * very small subset of required data. */
+    *temp_id = ID{};
+    temp_id->lib = id.lib;
+    STRNCPY(temp_id->name, id.name);
+    temp_id->flag = id.flag;
+    temp_id->session_uid = id.session_uid;
+    if (is_undo) {
+      temp_id->recalc_up_to_undo_push = id.recalc_up_to_undo_push;
+      temp_id->tag = id.tag & ID_TAG_KEEP_ON_UNDO;
+    }
+    return;
+  }
+
+  /* Regular 'full' ID writing, copy everything, then clear some runtime data irrelevant in the
+   * blendfile. */
   memcpy(temp_id, &id, id_type->struct_size);
 
   /* Clear runtime data to reduce false detection of changed data in undo/redo context. */
@@ -1318,7 +1350,7 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, const bool is_undo)
 }
 
 BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, BlendWriter *writer)
-    : BLO_Write_IDBuffer(id, BLO_write_is_undo(writer))
+    : BLO_Write_IDBuffer(id, BLO_write_is_undo(writer), false)
 {
 }
 
@@ -1361,7 +1393,7 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
 static std::string get_blend_file_header()
 {
   if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 &&
-      USER_EXPERIMENTAL_TEST(&U, write_large_blend_file_blocks))
+      !USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format))
   {
     const int header_size_in_bytes = SIZEOFBLENDERHEADER_VERSION_1;
 
@@ -1380,7 +1412,7 @@ static std::string get_blend_file_header()
   }
 
   const char pointer_size_char = sizeof(void *) == 8 ? '-' : '_';
-  const char endian_char = ENDIAN_ORDER == B_ENDIAN ? 'V' : 'v';
+  const char endian_char = 'v';
 
   /* Legacy blend file header format. */
   std::stringstream ss;

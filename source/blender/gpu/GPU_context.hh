@@ -20,6 +20,7 @@ bool GPU_backend_supported();
 void GPU_backend_type_selection_set(const eGPUBackendType backend);
 eGPUBackendType GPU_backend_type_selection_get();
 eGPUBackendType GPU_backend_get_type();
+const char *GPU_backend_get_name();
 
 /**
  * Detect the most suited eGPUBackendType.
@@ -27,7 +28,7 @@ eGPUBackendType GPU_backend_get_type();
  * - The detected backend will be set in `GPU_backend_type_selection_set`.
  * - When GPU_backend_type_selection_is_overridden it checks the overridden backend.
  *   When not overridden it checks a default list.
- * - OpenGL backend will be checked as fallback for Metal.
+ * - OpenGL backend will be checked as a fallback for Metal.
  *
  * Returns true when detection found a supported backend, otherwise returns false.
  * When no supported backend is found GPU_backend_type_selection_set is called with
@@ -44,6 +45,18 @@ void GPU_backend_type_selection_set_override(eGPUBackendType backend_type);
  * Check if the GPU_backend_type_selection_detect is overridden to only test a specific backend.
  */
 bool GPU_backend_type_selection_is_overridden();
+
+/**
+ * Get the VSync value (when set).
+ */
+int GPU_backend_vsync_get();
+/**
+ * Override the default VSync.
+ *
+ * \param vsync: See #GHOST_TVSyncModes for details.
+ */
+void GPU_backend_vsync_set_override(int vsync);
+bool GPU_backend_vsync_is_overridden();
 
 /** Opaque type hiding blender::gpu::Context. */
 struct GPUContext;

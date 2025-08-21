@@ -38,14 +38,15 @@ struct EditBone {
   EditBone *next, *prev;
   /** User-Defined Properties on this Bone */
   IDProperty *prop;
+  /** System-Defined Properties storage. */
+  IDProperty *system_properties;
   /**
    * Edit-bones have a one-way link  (i.e. children refer
    * to parents.  This is converted to a two-way link for
    * normal bones when leaving edit-mode.
    */
   EditBone *parent;
-  /** (64 == MAXBONENAME) */
-  char name[64];
+  char name[/*MAXBONENAME*/ 64];
   /**
    * Roll along axis.  We'll ultimately use the axis/angle method
    * for determining the transformation matrix of the bone.  The axis
@@ -64,6 +65,7 @@ struct EditBone {
    */
   int flag;
   int layer;
+  int drawtype; /* eArmature_Drawtype */
   char inherit_scale_mode;
 
   /* Envelope distance & weight */
@@ -101,8 +103,8 @@ struct EditBone {
   float disp_mat[4][4];
   /** in Armature space, rest pos matrix */
   float disp_tail_mat[4][4];
-  /** in Armature space, rest pos matrix (32 == MAX_BBONE_SUBDIV) */
-  float disp_bbone_mat[32][4][4];
+  /** in Armature space, rest pos matrix. */
+  float disp_bbone_mat[/*MAX_BBONE_SUBDIV*/ 32][4][4];
 
   /** connected child temporary during drawing */
   EditBone *bbone_child;
@@ -217,10 +219,14 @@ void BKE_armature_bone_hash_free(bArmature *arm);
 bool BKE_armature_bone_flag_test_recursive(const Bone *bone, int flag);
 
 /**
- * Using `vec` with dist to bone `b1 - b2`.
+ * Bone influence factor from envelope distance.
  */
-float distfactor_to_bone(
-    const float vec[3], const float b1[3], const float b2[3], float rad1, float rad2, float rdist);
+float distfactor_to_bone(const blender::float3 &position,
+                         const blender::float3 &head,
+                         const blender::float3 &tail,
+                         float radius_head,
+                         float radius_tail,
+                         float falloff_distance);
 
 /**
  * Updates vectors and matrices on rest-position level, only needed
@@ -313,7 +319,7 @@ void BKE_armature_loc_world_to_pose(Object *ob, const float inloc[3], float outl
  * \note this cannot be used to convert to pose-space transforms of the supplied
  * pose-channel into its local space (i.e. *visual*-keyframing).
  */
-void BKE_armature_mat_pose_to_bone(bPoseChannel *pchan,
+void BKE_armature_mat_pose_to_bone(const bPoseChannel *pchan,
                                    const float inmat[4][4],
                                    float outmat[4][4]);
 /**
@@ -321,11 +327,13 @@ void BKE_armature_mat_pose_to_bone(bPoseChannel *pchan,
  * \note this cannot be used to convert to pose-space location of the supplied
  * pose-channel into its local space (i.e. *visual*-keyframing).
  */
-void BKE_armature_loc_pose_to_bone(bPoseChannel *pchan, const float inloc[3], float outloc[3]);
+void BKE_armature_loc_pose_to_bone(const bPoseChannel *pchan,
+                                   const float inloc[3],
+                                   float outloc[3]);
 /**
  * Convert Bone-Space Matrix to Pose-Space Matrix.
  */
-void BKE_armature_mat_bone_to_pose(bPoseChannel *pchan,
+void BKE_armature_mat_bone_to_pose(const bPoseChannel *pchan,
                                    const float inmat[4][4],
                                    float outmat[4][4]);
 /**
@@ -339,7 +347,7 @@ void BKE_armature_mat_pose_to_delta(float delta_mat[4][4],
 
 void BKE_armature_mat_pose_to_bone_ex(Depsgraph *depsgraph,
                                       Object *ob,
-                                      bPoseChannel *pchan,
+                                      const bPoseChannel *pchan,
                                       const float inmat[4][4],
                                       float outmat[4][4]);
 
@@ -560,20 +568,15 @@ void BKE_pchan_bbone_deform_segment_index(const bPoseChannel *pchan,
                                           int *r_index,
                                           float *r_blend_next);
 
-/* like EBONE_VISIBLE,  be sure to #include "ANIM_bone_collections.hh". */
-#define PBONE_VISIBLE(arm, bone) ANIM_bone_is_visible(arm, bone)
-
 #define PBONE_SELECTABLE(arm, bone) \
-  (PBONE_VISIBLE(arm, bone) && !((bone)->flag & BONE_UNSELECTABLE))
-
-#define PBONE_SELECTED(arm, bone) (((bone)->flag & BONE_SELECTED) & PBONE_VISIBLE(arm, bone))
+  (blender::animrig::bone_is_visible(arm, bone) && !((bone)->flag & BONE_UNSELECTABLE))
 
 /* context.selected_pose_bones */
 #define FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN(_ob, _pchan) \
   for (bPoseChannel *_pchan = (bPoseChannel *)(_ob)->pose->chanbase.first; _pchan; \
        _pchan = _pchan->next) \
   { \
-    if (PBONE_VISIBLE(((bArmature *)(_ob)->data), (_pchan)->bone) && \
+    if (blender::animrig::bone_is_visible(((bArmature *)(_ob)->data), _pchan) && \
         ((_pchan)->bone->flag & BONE_SELECTED)) \
     {
 #define FOREACH_PCHAN_SELECTED_IN_OBJECT_END \
@@ -585,7 +588,7 @@ void BKE_pchan_bbone_deform_segment_index(const bPoseChannel *pchan,
   for (bPoseChannel *_pchan = (bPoseChannel *)(_ob)->pose->chanbase.first; _pchan; \
        _pchan = _pchan->next) \
   { \
-    if (PBONE_VISIBLE(((bArmature *)(_ob)->data), (_pchan)->bone)) {
+    if (blender::animrig::bone_is_visible(((bArmature *)(_ob)->data), _pchan)) {
 #define FOREACH_PCHAN_VISIBLE_IN_OBJECT_END \
   } \
   } \
@@ -653,25 +656,25 @@ void BKE_armature_deform_coords_with_curves(
     int deformflag,
     blender::StringRefNull defgrp_name);
 
-void BKE_armature_deform_coords_with_mesh(const Object *ob_arm,
-                                          const Object *ob_target,
-                                          float (*vert_coords)[3],
-                                          float (*vert_deform_mats)[3][3],
-                                          int vert_coords_len,
-                                          int deformflag,
-                                          float (*vert_coords_prev)[3],
-                                          const char *defgrp_name,
-                                          const Mesh *me_target);
+void BKE_armature_deform_coords_with_mesh(
+    const Object &ob_arm,
+    const Object &ob_target,
+    blender::MutableSpan<blender::float3> vert_coords,
+    std::optional<blender::Span<blender::float3>> vert_coords_prev,
+    std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
+    int deformflag,
+    blender::StringRefNull defgrp_name,
+    const Mesh *me_target);
 
-void BKE_armature_deform_coords_with_editmesh(const Object *ob_arm,
-                                              const Object *ob_target,
-                                              float (*vert_coords)[3],
-                                              float (*vert_deform_mats)[3][3],
-                                              int vert_coords_len,
-                                              int deformflag,
-                                              float (*vert_coords_prev)[3],
-                                              const char *defgrp_name,
-                                              const BMEditMesh *em_target);
+void BKE_armature_deform_coords_with_editmesh(
+    const Object &ob_arm,
+    const Object &ob_target,
+    blender::MutableSpan<blender::float3> vert_coords,
+    std::optional<blender::Span<blender::float3>> vert_coords_prev,
+    std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
+    int deformflag,
+    blender::StringRefNull defgrp_name,
+    const BMEditMesh &em_target);
 
 /** \} */
 

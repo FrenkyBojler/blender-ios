@@ -23,7 +23,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -334,12 +334,6 @@ static bool write_internal_bake_pixels(Image *image,
     ibuf->userflags |= IB_RECT_INVALID;
   }
 
-  /* force mipmap recalc */
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-    IMB_free_mipmaps(ibuf);
-  }
-
   BKE_image_release_ibuf(image, ibuf, nullptr);
 
   if (mask_buffer) {
@@ -460,7 +454,7 @@ static bool write_external_bake_pixels(const char *filepath,
 static bool is_noncolor_pass(eScenePassType pass_type)
 {
   return ELEM(pass_type,
-              SCE_PASS_Z,
+              SCE_PASS_DEPTH,
               SCE_PASS_POSITION,
               SCE_PASS_NORMAL,
               SCE_PASS_VECTOR,
@@ -674,7 +668,7 @@ static bool bake_objects_check(Main *bmain,
       if (ELEM(ob_iter->type, OB_MESH, OB_FONT, OB_CURVES_LEGACY, OB_SURF, OB_MBALL) == false) {
         BKE_reportf(reports,
                     RPT_ERROR,
-                    "Object \"%s\" is not a mesh or can't be converted to a mesh (Curve, Text, "
+                    "Object \"%s\" is not a mesh or cannot be converted to a mesh (Curve, Text, "
                     "Surface or Metaball)",
                     ob_iter->id.name + 2);
         return false;
@@ -924,14 +918,19 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
     BakeData *bake = &bkr->scene->r.bake;
     char filepath[FILE_MAX];
 
-    BKE_image_path_from_imtype(filepath,
-                               bkr->filepath,
-                               BKE_main_blendfile_path(bkr->main),
-                               0,
-                               bake->im_format.imtype,
-                               true,
-                               false,
-                               nullptr);
+    const blender::Vector<bke::path_templates::Error> errors = BKE_image_path_from_imtype(
+        filepath,
+        bkr->filepath,
+        BKE_main_blendfile_path(bkr->main),
+        nullptr,
+        0,
+        bake->im_format.imtype,
+        true,
+        false,
+        nullptr);
+    BLI_assert_msg(errors.is_empty(),
+                   "Path parsing errors should only occur when a variable map is provided.");
+    UNUSED_VARS_NDEBUG(errors);
 
     if (bkr->is_automatic_name) {
       BLI_path_suffix(filepath, FILE_MAX, ob->id.name + 2, "_");
@@ -948,14 +947,14 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
       else {
         /* if everything else fails, use the material index */
         char tmp[5];
-        SNPRINTF(tmp, "%d", i % 1000);
+        SNPRINTF_UTF8(tmp, "%d", i % 1000);
         BLI_path_suffix(filepath, FILE_MAX, tmp, "_");
       }
     }
 
     if (bk_image->tile_number) {
       char tmp[12];
-      SNPRINTF(tmp, "%d", bk_image->tile_number);
+      SNPRINTF_UTF8(tmp, "%d", bk_image->tile_number);
       BLI_path_suffix(filepath, FILE_MAX, tmp, "_");
     }
 
@@ -1432,6 +1431,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
   BakeTargets targets = {nullptr};
 
   const bool preserve_origindex = (bkr->target == R_BAKE_TARGET_VERTEX_COLORS);
+  const bool check_valid_uv_map = (bkr->target == R_BAKE_TARGET_IMAGE_TEXTURES);
 
   RE_bake_engine_set_engine_parameters(re, bmain, scene);
 
@@ -1516,7 +1516,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
    * it is populated later with the cage mesh (smoothed version of the mesh). */
   pixel_array_low = MEM_malloc_arrayN<BakePixel>(targets.pixels_num, "bake pixels low poly");
   if ((bkr->is_selected_to_active && (ob_cage == nullptr) && bkr->is_cage) == false) {
-    if (!CustomData_has_layer(&me_low_eval->corner_data, CD_PROP_FLOAT2)) {
+    if (check_valid_uv_map && !CustomData_has_layer(&me_low_eval->corner_data, CD_PROP_FLOAT2)) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "No UV map found in the evaluated object \"%s\"",
@@ -1576,7 +1576,8 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
 
       me_cage_eval = BKE_mesh_new_from_object(
           nullptr, ob_low_eval, false, preserve_origindex, true);
-      if (!CustomData_has_layer(&me_cage_eval->corner_data, CD_PROP_FLOAT2)) {
+      if (check_valid_uv_map && !CustomData_has_layer(&me_cage_eval->corner_data, CD_PROP_FLOAT2))
+      {
         BKE_reportf(reports,
                     RPT_ERROR,
                     "No UV map found in the evaluated object \"%s\"",
@@ -1763,7 +1764,9 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
 
             /* Evaluate modifiers again. */
             me_nores = BKE_mesh_new_from_object(nullptr, ob_low_eval, false, false, true);
-            if (!CustomData_has_layer(&me_nores->corner_data, CD_PROP_FLOAT2)) {
+            if (check_valid_uv_map &&
+                !CustomData_has_layer(&me_nores->corner_data, CD_PROP_FLOAT2))
+            {
               BKE_reportf(reports,
                           RPT_ERROR,
                           "No UV map found in the evaluated object \"%s\"",
@@ -2187,7 +2190,7 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        scene,
-                       "Texture Bake",
+                       "Baking texture...",
                        WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
                        WM_JOB_TYPE_OBJECT_BAKE);
   WM_jobs_customdata_set(wm_job, bkr, bake_freejob);
@@ -2220,7 +2223,7 @@ void OBJECT_OT_bake(wmOperatorType *ot)
   ot->description = "Bake image textures of selected objects";
   ot->idname = "OBJECT_OT_bake";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bake_exec;
   ot->modal = bake_modal;
   ot->invoke = bake_invoke;
@@ -2233,13 +2236,12 @@ void OBJECT_OT_bake(wmOperatorType *ot)
       SCE_PASS_COMBINED,
       "Type",
       "Type of pass to bake, some of them may not be supported by the current render engine");
-  prop = RNA_def_enum(ot->srna,
-                      "pass_filter",
-                      rna_enum_bake_pass_filter_type_items,
-                      R_BAKE_PASS_FILTER_NONE,
-                      "Pass Filter",
-                      "Filter to combined, diffuse, glossy, transmission and subsurface passes");
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+  RNA_def_enum_flag(ot->srna,
+                    "pass_filter",
+                    rna_enum_bake_pass_filter_type_items,
+                    R_BAKE_PASS_FILTER_NONE,
+                    "Pass Filter",
+                    "Filter to combined, diffuse, glossy, transmission and subsurface passes");
   RNA_def_string_file_path(ot->srna,
                            "filepath",
                            nullptr,

@@ -3,13 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
-#include <optional>
-#include <variant>
-
 #include "DNA_listBase.h"
-#include "DNA_sdna_types.h"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 #include "BLI_utility_mixins.hh"
@@ -71,7 +68,7 @@ struct BlendFileData : blender::NonCopyable, blender::NonMovable {
    * generated the auto-saved one being recovered.
    *
    * NOTE: Currently expected to be the same path as #BlendFileData.filepath. */
-  char filepath[1024] = {}; /* 1024 = FILE_MAX */
+  char filepath[/*FILE_MAX*/ 1024] = {};
 
   /** TODO: think this isn't needed anymore? */
   bScreen *curscreen = nullptr;
@@ -231,7 +228,7 @@ void BLO_read_do_version_after_setup(Main *new_bmain,
  * \{ */
 
 struct BLODataBlockInfo {
-  char name[64]; /* MAX_NAME */
+  char name[/*MAX_ID_NAME-2*/ 256];
   AssetMetaData *asset_data;
   /** Ownership over #asset_data above can be "stolen out" of this struct, for more permanent
    * storage. In that case, set this to false to avoid double freeing of the stolen data. */
@@ -272,6 +269,9 @@ BlendHandle *BLO_blendhandle_from_file(const char *filepath, BlendFileReadReport
 BlendHandle *BLO_blendhandle_from_memory(const void *mem,
                                          int memsize,
                                          BlendFileReadReport *reports);
+
+/** Returns the major and minor version number of Blender used to create the file. */
+blender::int3 BLO_blendhandle_get_version(const BlendHandle *bh);
 
 /**
  * Gets the names of all the data-blocks in a file of a certain type
@@ -375,6 +375,11 @@ enum eBLOLibLinkFlags {
   BLO_LIBLINK_USE_PLACEHOLDERS = 1 << 16,
   /** Force loaded ID to be tagged as #ID_TAG_INDIRECT (used in reload context only). */
   BLO_LIBLINK_FORCE_INDIRECT = 1 << 17,
+  /**
+   * Set the object active when #OB_FLAG_ACTIVE_CLIPBOARD is set.
+   * Used for copy & paste so the active object is preserved.
+   */
+  BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD = 1 << 18,
   /** Set fake user on appended IDs. */
   BLO_LIBLINK_APPEND_SET_FAKEUSER = 1 << 19,
   /**
@@ -470,7 +475,10 @@ ID *BLO_library_link_named_part(Main *mainl,
  * \param bh: The blender file handle (WARNING! may be freed by this function!).
  * \param params: Settings for linking that don't change from beginning to end of linking.
  */
-void BLO_library_link_end(Main *mainl, BlendHandle **bh, const LibraryLink_Params *params);
+void BLO_library_link_end(Main *mainl,
+                          BlendHandle **bh,
+                          const LibraryLink_Params *params,
+                          ReportList *reports);
 
 /**
  * Struct for temporarily loading datablocks from a blend file.
@@ -494,19 +502,6 @@ void BLO_library_temp_free(TempLibraryContext *temp_lib_ctx);
 /** \} */
 
 void *BLO_library_read_struct(FileData *fd, BHead *bh, const char *blockname);
-
-using BLOExpandDoitCallback = void (*)(void *fdhandle, Main *mainvar, void *idv);
-
-/**
- * Loop over all ID data in Main to mark relations.
- * Set #ID_Readfile_Data::Tags.needs_expanding to mark expanding. Flags get
- * cleared after expanding.
- *
- * \param fdhandle: usually file-data, or own handle. May be nullptr.
- * \param mainvar: the Main database to expand.
- * \param calback: Called for each ID block it finds.
- */
-void BLO_expand_main(void *fdhandle, Main *mainvar, BLOExpandDoitCallback callback);
 
 /**
  * Update defaults in startup.blend, without having to save and embed it.
@@ -564,7 +559,7 @@ struct ID_Readfile_Data {
      */
     bool is_link_placeholder : 1;
     /**
-     * Mark IDs needing to be expanded (only done once). See #BLO_expand_main.
+     * Mark IDs needing to be expanded (only done once). See #expand_main.
      */
     bool needs_expanding : 1;
     /**
@@ -611,32 +606,4 @@ void BLO_readfile_id_runtime_data_free_all(Main &bmain);
  */
 void BLO_readfile_id_runtime_data_free(ID &id);
 
-/** A header that has been parsed successfully. */
-struct BlenderHeader {
-  /** 4 or 8. */
-  int pointer_size;
-  /** L_ENDIAN or B_ENDIAN. */
-  int endian;
-  /** #BLENDER_FILE_VERSION. */
-  int file_version;
-  /** #BLEND_FILE_FORMAT_VERSION. */
-  int file_format_version;
-
-  BHeadType bhead_type() const;
-};
-
-/** The file is detected to be a Blender file, but it could not be decoded successfully. */
-struct BlenderHeaderUnknown {};
-
-/** The file is not a Blender file. */
-struct BlenderHeaderInvalid {};
-
-using BlenderHeaderVariant =
-    std::variant<BlenderHeaderInvalid, BlenderHeaderUnknown, BlenderHeader>;
-
-BlenderHeaderVariant BLO_readfile_blender_header_decode(FileReader *file);
-
-/** Returns #std::nullopt if the file is exhausted. */
-std::optional<BHead> BLO_readfile_read_bhead(FileReader *file,
-                                             BHeadType type,
-                                             bool do_endian_swap);
+#define BLEN_THUMB_MEMSIZE_FILE(_x, _y) (sizeof(int) * (2 + (size_t)(_x) * (size_t)(_y)))

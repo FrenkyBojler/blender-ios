@@ -53,12 +53,11 @@ GLStateManager::GLStateManager()
 
 void GLStateManager::apply_state()
 {
-  if (!this->use_bgl) {
-    this->set_state(this->state);
-    this->set_mutable_state(this->mutable_state);
-    this->texture_bind_apply();
-    this->image_bind_apply();
-  }
+  this->set_state(this->state);
+  this->set_mutable_state(this->mutable_state);
+  this->texture_bind_apply();
+  this->image_bind_apply();
+
   /* This is needed by gpu_py_offscreen. */
   active_fb->apply_state();
 };
@@ -108,6 +107,9 @@ void GLStateManager::set_state(const GPUState &state)
   }
   if (changed.shadow_bias != 0) {
     set_shadow_bias(state.shadow_bias);
+  }
+  if (changed.clip_control != 0) {
+    set_clip_control(state.clip_control);
   }
 
   /* TODO: remove. */
@@ -327,6 +329,17 @@ void GLStateManager::set_shadow_bias(const bool enable)
   else {
     glDisable(GL_POLYGON_OFFSET_FILL);
     glDisable(GL_POLYGON_OFFSET_LINE);
+  }
+}
+
+void GLStateManager::set_clip_control(const bool enable)
+{
+  if (enable) {
+    /* Match Vulkan and Metal by default. */
+    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+  }
+  else {
+    glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
   }
 }
 

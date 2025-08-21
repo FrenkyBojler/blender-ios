@@ -27,7 +27,7 @@
 /* Deprecated, only provided for API compatibility. */
 const EnumPropertyItem rna_enum_render_pass_type_items[] = {
     {SCE_PASS_COMBINED, "COMBINED", 0, "Combined", ""},
-    {SCE_PASS_Z, "Z", 0, "Z", ""},
+    {SCE_PASS_DEPTH, "Z", 0, "Z", ""},
     {SCE_PASS_SHADOW, "SHADOW", 0, "Shadow", ""},
     {SCE_PASS_AO, "AO", 0, "Ambient Occlusion", ""},
     {SCE_PASS_POSITION, "POSITION", 0, "Position", ""},
@@ -103,9 +103,9 @@ static void engine_tag_update(RenderEngine *engine)
   engine->flag |= RE_ENGINE_DO_UPDATE;
 }
 
-static bool engine_support_display_space_shader(RenderEngine * /*engine*/, Scene *scene)
+static bool engine_support_display_space_shader(RenderEngine * /*engine*/, Scene * /*scene*/)
 {
-  return IMB_colormanagement_support_glsl_draw(&scene->view_settings);
+  return true;
 }
 
 static int engine_get_preview_pixel_size(RenderEngine * /*engine*/, Scene *scene)
@@ -115,7 +115,7 @@ static int engine_get_preview_pixel_size(RenderEngine * /*engine*/, Scene *scene
 
 static void engine_bind_display_space_shader(RenderEngine * /*engine*/, Scene * /*scene*/)
 {
-  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE);
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE);
   GPU_shader_bind(shader);
   /** \note "image" binding slot is 0. */
 }

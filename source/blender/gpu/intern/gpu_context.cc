@@ -27,6 +27,7 @@
 #include "GPU_context.hh"
 
 #include "GPU_batch.hh"
+#include "GPU_pass.hh"
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
 #include "gpu_matrix_private.hh"
@@ -53,7 +54,7 @@ using namespace blender::gpu;
 
 static thread_local Context *active_ctx = nullptr;
 
-static std::mutex backend_users_mutex;
+static blender::Mutex backend_users_mutex;
 static int num_backend_users = 0;
 
 static void gpu_backend_create();
@@ -129,7 +130,7 @@ VertBuf *Context::dummy_vbo_get()
 
   /* TODO(fclem): get rid of this dummy VBO. */
   GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32);
   this->dummy_vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*this->dummy_vbo, 1);
   return this->dummy_vbo;
@@ -234,6 +235,7 @@ void GPU_context_active_set(GPUContext *ctx_)
   Context *ctx = unwrap(ctx_);
 
   if (active_ctx) {
+    GPU_shader_unbind();
     active_ctx->deactivate();
   }
 
@@ -241,6 +243,13 @@ void GPU_context_active_set(GPUContext *ctx_)
 
   if (ctx) {
     ctx->activate();
+    /* It can happen that the previous context drew with a different color-space.
+     * In the case where the new context is drawing with the same shader that was previously bound
+     * (shader binding optimization), the uniform would not be set again because the dirty flag
+     * would not have been set (since the color space of this new context never changed). The
+     * shader would reuse the same color-space as the previous context frame-buffer (see #137855).
+     */
+    ctx->shader_builtin_srgb_is_dirty = true;
   }
 }
 
@@ -271,7 +280,7 @@ void GPU_context_end_frame(GPUContext *ctx)
  * Used to avoid crash on some old drivers.
  * \{ */
 
-static std::mutex main_context_mutex;
+static blender::Mutex main_context_mutex;
 
 void GPU_context_main_lock()
 {
@@ -321,6 +330,8 @@ void GPU_render_step(bool force_resource_release)
     backend->render_step(force_resource_release);
     printf_begin(active_ctx);
   }
+
+  GPU_pass_cache_update();
 }
 
 /** \} */
@@ -332,6 +343,7 @@ void GPU_render_step(bool force_resource_release)
 static eGPUBackendType g_backend_type = GPU_BACKEND_OPENGL;
 static std::optional<eGPUBackendType> g_backend_type_override = std::nullopt;
 static std::optional<bool> g_backend_type_supported = std::nullopt;
+static std::optional<int> g_vsync_override = std::nullopt;
 static GPUBackend *g_backend = nullptr;
 static GHOST_SystemHandle g_ghost_system = nullptr;
 
@@ -349,6 +361,21 @@ void GPU_backend_type_selection_set(const eGPUBackendType backend)
 {
   g_backend_type = backend;
   g_backend_type_supported = std::nullopt;
+}
+
+int GPU_backend_vsync_get()
+{
+  return g_vsync_override.value();
+}
+
+void GPU_backend_vsync_set_override(const int vsync)
+{
+  g_vsync_override = vsync;
+}
+
+bool GPU_backend_vsync_is_overridden()
+{
+  return g_vsync_override.has_value();
 }
 
 eGPUBackendType GPU_backend_type_selection_get()
@@ -504,6 +531,24 @@ eGPUBackendType GPU_backend_get_type()
   return GPU_BACKEND_NONE;
 }
 
+const char *GPU_backend_get_name()
+{
+  switch (GPU_backend_get_type()) {
+    case GPU_BACKEND_OPENGL:
+      return "OpenGL";
+    case GPU_BACKEND_VULKAN:
+      return "Vulkan";
+    case GPU_BACKEND_METAL:
+      return "Metal";
+    case GPU_BACKEND_NONE:
+      return "None";
+    case GPU_BACKEND_ANY:
+      break;
+  }
+
+  return "Unknown";
+}
+
 GPUBackend *GPUBackend::get()
 {
   return g_backend;
@@ -562,6 +607,9 @@ GPUSecondaryContext::GPUSecondaryContext()
   /* Create a Ghost GPU Context using the system handle. */
   ghost_context_ = GHOST_CreateGPUContext(ghost_system, gpu_settings);
   BLI_assert(ghost_context_);
+
+  /* Activate it so GPU_context_create has a valid device for info queries. */
+  GHOST_ActivateGPUContext(reinterpret_cast<GHOST_ContextHandle>(ghost_context_));
 
   /* Create a GPU context for the secondary thread to use. */
   gpu_context_ = GPU_context_create(nullptr, ghost_context_);

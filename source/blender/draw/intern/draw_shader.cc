@@ -34,9 +34,6 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
       return "subdiv_tris_multiple_materials";
 
     case SubdivShaderType::BUFFER_EDGE_FAC:
-      if (GPU_crappy_amd_driver()) {
-        return "subdiv_edge_fac_amd_legacy";
-      }
       return "subdiv_edge_fac";
 
     case SubdivShaderType::BUFFER_SCULPT_DATA:
@@ -66,11 +63,8 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
     case SubdivShaderType::BUFFER_NORMALS_ACCUMULATE:
       return "subdiv_normals_accumulate";
 
-    case SubdivShaderType::BUFFER_NORMALS_FINALIZE:
-      return "subdiv_normals_finalize";
-
-    case SubdivShaderType::BUFFER_CUSTOM_NORMALS_FINALIZE:
-      return "subdiv_custom_normals_finalize";
+    case SubdivShaderType::BUFFER_PAINT_OVERLAY_FLAG:
+      return "subdiv_paint_overlay_flag";
 
     case SubdivShaderType::BUFFER_LNOR:
       return "subdiv_loop_normals";
@@ -113,6 +107,8 @@ class ShaderCache {
 
   gpu::StaticShader subdiv_sh[SUBDIVISION_MAX_SHADERS];
   gpu::StaticShader subdiv_custom_data_sh[SHADER_CUSTOM_DATA_INTERP_MAX_DIMENSIONS][GPU_COMP_MAX];
+  gpu::StaticShader subdiv_interp_corner_normals_sh = {
+      "subdiv_custom_data_interp_3d_f32_normalize"};
 
   ShaderCache()
   {
@@ -153,49 +149,49 @@ class ShaderCache {
 
 using namespace blender::draw::Shader;
 
-GPUShader *DRW_shader_hair_refine_get(ParticleRefineShader /*refinement*/)
+blender::gpu::Shader *DRW_shader_hair_refine_get(ParticleRefineShader /*refinement*/)
 {
   return ShaderCache::get().hair_refine.get();
 }
 
-GPUShader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader /*type*/)
+blender::gpu::Shader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader /*type*/)
 {
   /* TODO: Implement curves evaluation types (Bezier and Catmull Rom). */
   return ShaderCache::get().hair_refine.get();
 }
 
-GPUShader *DRW_shader_debug_draw_display_get()
+blender::gpu::Shader *DRW_shader_debug_draw_display_get()
 {
   return ShaderCache::get().debug_draw_display.get();
 }
 
-GPUShader *DRW_shader_draw_visibility_compute_get()
+blender::gpu::Shader *DRW_shader_draw_visibility_compute_get()
 {
   return ShaderCache::get().draw_visibility_compute.get();
 }
 
-GPUShader *DRW_shader_draw_view_finalize_get()
+blender::gpu::Shader *DRW_shader_draw_view_finalize_get()
 {
   return ShaderCache::get().draw_view_finalize.get();
 }
 
-GPUShader *DRW_shader_draw_resource_finalize_get()
+blender::gpu::Shader *DRW_shader_draw_resource_finalize_get()
 {
   return ShaderCache::get().draw_resource_finalize.get();
 }
 
-GPUShader *DRW_shader_draw_command_generate_get()
+blender::gpu::Shader *DRW_shader_draw_command_generate_get()
 {
   return ShaderCache::get().draw_command_generate.get();
 }
 
-GPUShader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
+blender::gpu::Shader *DRW_shader_subdiv_get(SubdivShaderType shader_type)
 {
   BLI_assert(!ELEM(shader_type, SubdivShaderType::COMP_CUSTOM_DATA_INTERP));
   return ShaderCache::get().subdiv_sh[uint(shader_type)].get();
 }
 
-GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dimensions)
+blender::gpu::Shader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dimensions)
 {
   BLI_assert(dimensions >= 1 && dimensions <= SHADER_CUSTOM_DATA_INTERP_MAX_DIMENSIONS);
   if (comp_type == GPU_COMP_U16) {
@@ -206,7 +202,13 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
   return ShaderCache::get().subdiv_custom_data_sh[dimensions - 1][comp_type].get();
 }
 
+blender::gpu::Shader *DRW_shader_subdiv_interp_corner_normals_get()
+{
+  return ShaderCache::get().subdiv_interp_corner_normals_sh.get();
+}
+
 void DRW_shaders_free()
 {
+  GPU_shader_unbind();
   ShaderCache::release();
 }

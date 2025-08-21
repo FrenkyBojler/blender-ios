@@ -8,7 +8,12 @@ set(INC
   include
   ../intern
   ../../editors/include
+  ../../compositor
   ../../makesrna
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/derived_resources
+  ../../compositor/utilities
   ../../modifiers
   ../../io/common
   ../../io/csv
@@ -89,6 +94,7 @@ set(SRC
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
+  nodes/node_geo_grid_info.cc
   nodes/node_geo_grid_to_mesh.cc
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
@@ -98,6 +104,7 @@ set(SRC
   nodes/node_geo_import_ply.cc
   nodes/node_geo_import_stl.cc
   nodes/node_geo_import_text.cc
+  nodes/node_geo_import_vdb.cc
   nodes/node_geo_index_of_nearest.cc
   nodes/node_geo_index_switch.cc
   nodes/node_geo_input_active_camera.cc
@@ -139,6 +146,9 @@ set(SRC
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_geometry.cc
+  nodes/node_geo_list.cc
+  nodes/node_geo_list_get_item.cc
+  nodes/node_geo_list_length.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
@@ -201,6 +211,7 @@ set(SRC
   nodes/node_geo_set_geometry_name.cc
   nodes/node_geo_set_grease_pencil_color.cc
   nodes/node_geo_set_grease_pencil_depth_mode.cc
+  nodes/node_geo_set_grease_pencil_softness.cc
   nodes/node_geo_set_id.cc
   nodes/node_geo_set_instance_transform.cc
   nodes/node_geo_set_material.cc
@@ -238,7 +249,9 @@ set(SRC
   nodes/node_geo_warning.cc
 
   include/NOD_geo_bake.hh
+  include/NOD_geo_bundle.hh
   include/NOD_geo_capture_attribute.hh
+  include/NOD_geo_closure.hh
   include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh
@@ -266,20 +279,15 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
+  bf_compositor
+  bf_io_common
+  bf_io_csv
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
-
-if(WITH_IO_CSV)
-  list(APPEND LIB
-    PRIVATE bf_io_common
-    PRIVATE bf_io_csv
-  )
-  add_definitions(-DWITH_IO_CSV)
-endif()
 
 if(WITH_IO_STL)
   list(APPEND LIB
@@ -342,16 +350,6 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 add_node_discovery(

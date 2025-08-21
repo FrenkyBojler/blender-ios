@@ -15,7 +15,7 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -30,6 +30,7 @@ NODE_STORAGE_FUNCS(NodeChroma)
 
 static void cmp_node_distance_matte_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Color>("Key Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Tolerance")
@@ -62,10 +63,10 @@ static void node_composit_init_distance_matte(bNodeTree * /*ntree*/, bNode *node
 
 static void node_composit_buts_distance_matte(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemL(layout, IFACE_("Color Space:"), ICON_NONE);
+  layout->label(IFACE_("Color Space:"), ICON_NONE);
   uiLayout *row = &layout->row(false);
-  uiItemR(
-      row, ptr, "channel", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row->prop(
+      ptr, "channel", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -167,7 +168,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_distance_matte_cc
 
-void register_node_type_cmp_distance_matte()
+static void register_node_type_cmp_distance_matte()
 {
   namespace file_ns = blender::nodes::node_composite_distance_matte_cc;
 
@@ -186,6 +187,8 @@ void register_node_type_cmp_distance_matte()
       ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
+  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_distance_matte)

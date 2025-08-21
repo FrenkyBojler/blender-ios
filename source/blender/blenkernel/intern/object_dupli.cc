@@ -20,14 +20,16 @@
 #include "BLI_string_utf8.h"
 
 #include "BLI_array.hh"
+#include "BLI_hash.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
 #include "BLI_rand.h"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_vector.hh"
+#include "BLI_vector_list.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
@@ -37,6 +39,7 @@
 #include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_volume_types.h"
+#include "DNA_world_types.h"
 
 #include "BKE_collection.hh"
 #include "BKE_duplilist.hh"
@@ -57,10 +60,8 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "BLI_hash.h"
-#include "DNA_world_types.h"
-
 #include "NOD_geometry_nodes_log.hh"
+
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
@@ -71,8 +72,10 @@ using blender::Array;
 using blender::float2;
 using blender::float3;
 using blender::float4x4;
+using blender::Set;
 using blender::Span;
 using blender::Vector;
+using blender::VectorList;
 using blender::bke::GeometrySet;
 using blender::bke::InstanceReference;
 using blender::bke::Instances;
@@ -122,6 +125,11 @@ struct DupliContext {
    */
   Vector<short> *dupli_gen_type_stack;
 
+  /**
+   * If not null, then only instance objects that are in this set.
+   */
+  Set<const Object *> *include_objects;
+
   int persistent_id[MAX_DUPLI_RECUR];
   int64_t instance_idx[MAX_DUPLI_RECUR];
   const GeometrySet *instance_data[MAX_DUPLI_RECUR];
@@ -130,7 +138,7 @@ struct DupliContext {
   const struct DupliGenerator *gen;
 
   /** Result containers. */
-  ListBase *duplilist; /* Legacy doubly-linked list. */
+  DupliList *duplilist;
 };
 
 struct DupliGenerator {
@@ -149,8 +157,10 @@ static void init_context(DupliContext *r_ctx,
                          Scene *scene,
                          Object *ob,
                          const float space_mat[4][4],
+                         blender::Set<const Object *> *include_objects,
                          Vector<Object *> &instance_stack,
-                         Vector<short> &dupli_gen_type_stack)
+                         Vector<short> &dupli_gen_type_stack,
+                         DupliList &duplilist)
 {
   r_ctx->depsgraph = depsgraph;
   r_ctx->scene = scene;
@@ -161,6 +171,7 @@ static void init_context(DupliContext *r_ctx,
   r_ctx->obedit = OBEDIT_FROM_OBACT(ob);
   r_ctx->instance_stack = &instance_stack;
   r_ctx->dupli_gen_type_stack = &dupli_gen_type_stack;
+  r_ctx->duplilist = &duplilist;
   if (space_mat) {
     copy_m4_m4(r_ctx->space_mat, space_mat);
   }
@@ -174,9 +185,10 @@ static void init_context(DupliContext *r_ctx,
     r_ctx->dupli_gen_type_stack->append(r_ctx->gen->type);
   }
 
-  r_ctx->duplilist = nullptr;
   r_ctx->preview_instance_index = -1;
   r_ctx->preview_base_geometry = nullptr;
+
+  r_ctx->include_objects = include_objects;
 }
 
 /**
@@ -258,8 +270,8 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 
   /* Add a #DupliObject instance to the result container. */
   if (ctx->duplilist) {
-    dob = MEM_callocN<DupliObject>("dupli object");
-    BLI_addtail(ctx->duplilist, dob);
+    ctx->duplilist->append({});
+    dob = &ctx->duplilist->last();
   }
   else {
     return nullptr;
@@ -535,17 +547,27 @@ static void make_duplis_collection(const DupliContext *ctx)
 
   eEvaluationMode mode = DEG_get_mode(ctx->depsgraph);
   FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (collection, cob, mode) {
-    if (cob != ob) {
-      float mat[4][4];
-
-      /* Collection dupli-offset, should apply after everything else. */
-      mul_m4_m4m4(mat, collection_mat, cob->object_to_world().ptr());
-
-      make_dupli(ctx, cob, mat, _base_id);
-
-      /* Recursion. */
-      make_recursive_duplis(ctx, cob, collection_mat, _base_id);
+    if (cob == ob) {
+      continue;
     }
+
+    if (ctx->include_objects) {
+      Object *original_object = cob->id.orig_id ? reinterpret_cast<Object *>(cob->id.orig_id) :
+                                                  cob;
+      if (!ctx->include_objects->contains(original_object)) {
+        continue;
+      }
+    }
+
+    float mat[4][4];
+
+    /* Collection dupli-offset, should apply after everything else. */
+    mul_m4_m4m4(mat, collection_mat, cob->object_to_world().ptr());
+
+    make_dupli(ctx, cob, mat, _base_id);
+
+    /* Recursion. */
+    make_recursive_duplis(ctx, cob, collection_mat, _base_id);
   }
   FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_END;
 }
@@ -964,12 +986,12 @@ static void make_duplis_geometry_set_impl(const DupliContext *ctx,
 
   Span<float4x4> instance_offset_matrices = instances->transforms();
   Span<int> reference_handles = instances->reference_handles();
-  Span<int> almost_unique_ids = instances->almost_unique_ids();
+  Span<int> unique_ids = instances->unique_ids();
   Span<InstanceReference> references = instances->references();
 
   for (int64_t i : instance_offset_matrices.index_range()) {
     const InstanceReference &reference = references[reference_handles[i]];
-    const int id = almost_unique_ids[i];
+    const int id = unique_ids[i];
 
     const DupliContext *ctx_for_instance = instances_ctx;
     /* Set the #preview_instance_index when necessary. */
@@ -1784,34 +1806,49 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 /** \name Dupli-Container Implementation
  * \{ */
 
-ListBase *object_duplilist(Depsgraph *depsgraph, Scene *sce, Object *ob)
+void object_duplilist(Depsgraph *depsgraph,
+                      Scene *sce,
+                      Object *ob,
+                      Set<const Object *> *include_objects,
+                      DupliList &r_duplilist)
 {
-  ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
   Vector<Object *> instance_stack;
   Vector<short> dupli_gen_type_stack({0});
   instance_stack.append(ob);
-  init_context(&ctx, depsgraph, sce, ob, nullptr, instance_stack, dupli_gen_type_stack);
+  init_context(&ctx,
+               depsgraph,
+               sce,
+               ob,
+               nullptr,
+               include_objects,
+               instance_stack,
+               dupli_gen_type_stack,
+               r_duplilist);
   if (ctx.gen) {
-    ctx.duplilist = duplilist;
     ctx.gen->make_duplis(&ctx);
   }
-
-  return duplilist;
 }
 
-ListBase *object_duplilist_preview(Depsgraph *depsgraph,
-                                   Scene *sce,
-                                   Object *ob_eval,
-                                   const ViewerPath *viewer_path)
+void object_duplilist_preview(Depsgraph *depsgraph,
+                              Scene *sce,
+                              Object *ob_eval,
+                              const ViewerPath *viewer_path,
+                              DupliList &r_duplilist)
 {
-  ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
   Vector<Object *> instance_stack;
   Vector<short> dupli_gen_type_stack({0});
   instance_stack.append(ob_eval);
-  init_context(&ctx, depsgraph, sce, ob_eval, nullptr, instance_stack, dupli_gen_type_stack);
-  ctx.duplilist = duplilist;
+  init_context(&ctx,
+               depsgraph,
+               sce,
+               ob_eval,
+               nullptr,
+               nullptr,
+               instance_stack,
+               dupli_gen_type_stack,
+               r_duplilist);
 
   Object *ob_orig = DEG_get_original(ob_eval);
 
@@ -1824,7 +1861,7 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
       continue;
     }
     if (const geo_log::ViewerNodeLog *viewer_log =
-            geo_log::GeoModifierLog::find_viewer_node_log_for_path(*viewer_path))
+            geo_log::GeoNodesLog::find_viewer_node_log_for_path(*viewer_path))
     {
       ctx.preview_base_geometry = &viewer_log->geometry;
       make_duplis_geometry_set_impl(&ctx,
@@ -1834,7 +1871,6 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
                                     ob_eval->type == OB_CURVES);
     }
   }
-  return duplilist;
 }
 
 blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
@@ -1843,18 +1879,25 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
 {
   using namespace blender;
 
-  ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
+  DupliList duplilist;
   Vector<Object *> instance_stack({&ob});
   Vector<short> dupli_gen_type_stack({0});
 
-  init_context(&ctx, &depsgraph, &scene, &ob, nullptr, instance_stack, dupli_gen_type_stack);
+  init_context(&ctx,
+               &depsgraph,
+               &scene,
+               &ob,
+               nullptr,
+               nullptr,
+               instance_stack,
+               dupli_gen_type_stack,
+               duplilist);
   if (ctx.gen == &gen_dupli_geometry_set) {
     /* These are not legacy instances. */
     return {};
   }
   if (ctx.gen) {
-    ctx.duplilist = duplilist;
     ctx.gen->make_duplis(&ctx);
   }
   const bool is_particle_duplis = ctx.gen == &gen_dupli_particles;
@@ -1863,12 +1906,12 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
   const int level_to_use = is_particle_duplis ? 1 : 0;
 
   Vector<DupliObject *> top_level_duplis;
-  LISTBASE_FOREACH (DupliObject *, dob, duplilist) {
-    BLI_assert(dob->ob != &ob);
+  for (DupliObject &dob : duplilist) {
+    BLI_assert(dob.ob != &ob);
     /* We only need the top level instances in the end, because when #Instances references an
      * object, it implicitly also references all instances of that object. */
-    if (dob->level == level_to_use) {
-      top_level_duplis.append(dob);
+    if (dob.level == level_to_use) {
+      top_level_duplis.append(&dob);
     }
   }
 
@@ -1907,14 +1950,7 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
   }
   instances_ids.finish();
 
-  free_object_duplilist(duplilist);
   return top_level_instances;
-}
-
-void free_object_duplilist(ListBase *lb)
-{
-  BLI_freelistN(lb);
-  MEM_freeN(lb);
 }
 
 /** \} */
@@ -1959,8 +1995,8 @@ static bool find_geonode_attribute_rgba(const DupliObject *dupli,
   return false;
 }
 
-/** Lookup an arbitrary RNA property and convert it to RGBA if possible. */
-static bool find_rna_property_rgba(PointerRNA *id_ptr, const char *name, float r_data[4])
+/** Lookup an arbitrary Custom or RNA property and convert it to RGBA if possible. */
+static bool find_property_rgba(PointerRNA *id_ptr, const char *name, float r_data[4])
 {
   if (id_ptr->data == nullptr) {
     return false;
@@ -2030,10 +2066,10 @@ static bool find_rna_property_rgba(PointerRNA *id_ptr, const char *name, float r
   return false;
 }
 
-static bool find_rna_property_rgba(const ID *id, const char *name, float r_data[4])
+static bool find_property_rgba(const ID *id, const char *name, float r_data[4])
 {
   PointerRNA ptr = RNA_id_pointer_create(const_cast<ID *>(id));
-  return find_rna_property_rgba(&ptr, name, r_data);
+  return find_property_rgba(&ptr, name, r_data);
 }
 
 bool BKE_object_dupli_find_rgba_attribute(const Object *ob,
@@ -2046,7 +2082,7 @@ bool BKE_object_dupli_find_rgba_attribute(const Object *ob,
   if (dupli && dupli->particle_system) {
     const ParticleSettings *settings = dupli->particle_system->part;
 
-    if (find_rna_property_rgba(&settings->id, name, r_value)) {
+    if (find_property_rgba(&settings->id, name, r_value)) {
       return true;
     }
   }
@@ -2057,18 +2093,18 @@ bool BKE_object_dupli_find_rgba_attribute(const Object *ob,
   }
 
   /* Check the dupli parent object. */
-  if (dupli_parent && find_rna_property_rgba(&dupli_parent->id, name, r_value)) {
+  if (dupli_parent && find_property_rgba(&dupli_parent->id, name, r_value)) {
     return true;
   }
 
   /* Check the main object. */
   if (ob) {
-    if (find_rna_property_rgba(&ob->id, name, r_value)) {
+    if (find_property_rgba(&ob->id, name, r_value)) {
       return true;
     }
 
     /* Check the main object data (e.g. mesh). */
-    if (ob->data && find_rna_property_rgba((const ID *)ob->data, name, r_value)) {
+    if (ob->data && find_property_rgba((const ID *)ob->data, name, r_value)) {
       return true;
     }
   }
@@ -2086,16 +2122,16 @@ bool BKE_view_layer_find_rgba_attribute(const Scene *scene,
     PointerRNA layer_ptr = RNA_pointer_create_discrete(
         &const_cast<ID &>(scene->id), &RNA_ViewLayer, const_cast<ViewLayer *>(layer));
 
-    if (find_rna_property_rgba(&layer_ptr, name, r_value)) {
+    if (find_property_rgba(&layer_ptr, name, r_value)) {
       return true;
     }
   }
 
-  if (find_rna_property_rgba(&scene->id, name, r_value)) {
+  if (find_property_rgba(&scene->id, name, r_value)) {
     return true;
   }
 
-  if (scene->world && find_rna_property_rgba(&scene->world->id, name, r_value)) {
+  if (scene->world && find_property_rgba(&scene->world->id, name, r_value)) {
     return true;
   }
 

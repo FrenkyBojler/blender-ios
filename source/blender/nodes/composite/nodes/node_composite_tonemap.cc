@@ -15,7 +15,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "IMB_colormanagement.hh"
@@ -34,41 +34,28 @@ static void cmp_node_tonemap_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .structure_type(StructureType::Dynamic);
 
-  b.add_input<decl::Float>("Key")
-      .default_value(0.18f)
-      .min(0.0f)
-      .description(
-          "The luminance that will be mapped to the log average luminance, typically set to the "
-          "middle gray value")
-      .compositor_expects_single_value();
-  b.add_input<decl::Float>("Balance")
-      .default_value(1.0f)
-      .min(0.0f)
-      .description(
-          "Balances low and high luminance areas. Lower values emphasize details in shadows, "
-          "while higher values compress highlights more smoothly")
-      .compositor_expects_single_value();
-  b.add_input<decl::Float>("Gamma")
-      .default_value(1.0f)
-      .min(0.0f)
-      .description("Gamma correction factor applied after tone mapping")
-      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Key").default_value(0.18f).min(0.0f).description(
+      "The luminance that will be mapped to the log average luminance, typically set to the "
+      "middle gray value");
+  b.add_input<decl::Float>("Balance").default_value(1.0f).min(0.0f).description(
+      "Balances low and high luminance areas. Lower values emphasize details in shadows, "
+      "while higher values compress highlights more smoothly");
+  b.add_input<decl::Float>("Gamma").default_value(1.0f).min(0.0f).description(
+      "Gamma correction factor applied after tone mapping");
 
   b.add_input<decl::Float>("Intensity")
       .default_value(0.0f)
       .description(
           "Controls the intensity of the image, lower values makes it darker while higher values "
-          "makes it lighter")
-      .compositor_expects_single_value();
+          "makes it lighter");
   b.add_input<decl::Float>("Contrast")
       .default_value(0.0f)
       .min(0.0f)
       .description(
           "Controls the contrast of the image. Zero automatically sets the contrast based on its "
-          "global range for better luminance distribution")
-      .compositor_expects_single_value();
+          "global range for better luminance distribution");
   b.add_input<decl::Float>("Light Adaptation")
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
@@ -76,8 +63,7 @@ static void cmp_node_tonemap_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .description(
           "Specifies if tone mapping operates on the entire image or per pixel, 0 means the "
-          "entire image, 1 means it is per pixel, and values in between blends between both")
-      .compositor_expects_single_value();
+          "entire image, 1 means it is per pixel, and values in between blends between both");
   b.add_input<decl::Float>("Chromatic Adaptation")
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
@@ -86,10 +72,9 @@ static void cmp_node_tonemap_declare(NodeDeclarationBuilder &b)
       .description(
           "Specifies if tone mapping operates on the luminance or on each channel independently, "
           "0 means it uses luminance, 1 means it is per channel, and values in between blends "
-          "between both")
-      .compositor_expects_single_value();
+          "between both");
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_tonemap(bNodeTree * /*ntree*/, bNode *node)
@@ -101,7 +86,7 @@ static void node_composit_init_tonemap(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_tonemap(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "tonemap_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "tonemap_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
@@ -176,7 +161,7 @@ class ToneMapOperation : public NodeOperation {
     const float gamma = this->get_gamma();
     const float inverse_gamma = gamma != 0.0f ? 1.0f / gamma : 0.0f;
 
-    GPUShader *shader = context().get_shader("compositor_tone_map_simple");
+    gpu::Shader *shader = context().get_shader("compositor_tone_map_simple");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "luminance_scale", luminance_scale);
@@ -289,7 +274,7 @@ class ToneMapOperation : public NodeOperation {
     const float chromatic_adaptation = get_chromatic_adaptation();
     const float light_adaptation = get_light_adaptation();
 
-    GPUShader *shader = context().get_shader("compositor_tone_map_photoreceptor");
+    gpu::Shader *shader = context().get_shader("compositor_tone_map_photoreceptor");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_4fv(shader, "global_adaptation_level", global_adaptation_level);
@@ -483,7 +468,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_tonemap_cc
 
-void register_node_type_cmp_tonemap()
+static void register_node_type_cmp_tonemap()
 {
   namespace file_ns = blender::nodes::node_composite_tonemap_cc;
 
@@ -506,3 +491,4 @@ void register_node_type_cmp_tonemap()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_tonemap)

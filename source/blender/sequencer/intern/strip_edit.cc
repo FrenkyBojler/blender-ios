@@ -87,7 +87,7 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
   std::swap(strip_a->start, strip_b->start);
   std::swap(strip_a->startofs, strip_b->startofs);
   std::swap(strip_a->endofs, strip_b->endofs);
-  std::swap(strip_a->machine, strip_b->machine);
+  std::swap(strip_a->channel, strip_b->channel);
   strip_time_effect_range_set(scene, strip_a);
   strip_time_effect_range_set(scene, strip_b);
 
@@ -151,9 +151,9 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, St
       }
     }
 
-    /* Remove effects, that use strip. */
+    /* Mark effects for removal that use the strip. */
     if (relation_is_effect_of_strip(user_strip, strip)) {
-      user_strip->flag |= SEQ_FLAG_DELETE;
+      user_strip->runtime.flag |= STRIP_MARK_FOR_DELETE;
       /* Strips can be used as mask even if not in same seqbase. */
       sequencer_flag_users_for_removal(scene, &scene->ed->seqbase, user_strip);
     }
@@ -162,7 +162,7 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, St
 
 void edit_flag_for_removal(Scene *scene, ListBase *seqbase, Strip *strip)
 {
-  if (strip == nullptr || (strip->flag & SEQ_FLAG_DELETE) != 0) {
+  if (strip == nullptr || (strip->runtime.flag & STRIP_MARK_FOR_DELETE) != 0) {
     return;
   }
 
@@ -173,14 +173,14 @@ void edit_flag_for_removal(Scene *scene, ListBase *seqbase, Strip *strip)
     }
   }
 
-  strip->flag |= SEQ_FLAG_DELETE;
+  strip->runtime.flag |= STRIP_MARK_FOR_DELETE;
   sequencer_flag_users_for_removal(scene, seqbase, strip);
 }
 
 void edit_remove_flagged_strips(Scene *scene, ListBase *seqbase)
 {
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, seqbase) {
-    if (strip->flag & SEQ_FLAG_DELETE) {
+    if (strip->runtime.flag & STRIP_MARK_FOR_DELETE) {
       if (strip->type == STRIP_TYPE_META) {
         edit_remove_flagged_strips(scene, &strip->seqbase);
       }
@@ -200,7 +200,7 @@ bool edit_move_strip_to_seqbase(Scene *scene,
   /* Move to meta. */
   BLI_remlink(seqbase, strip);
   BLI_addtail(dst_seqbase, strip);
-  relations_invalidate_cache_preprocessed(scene, strip);
+  relations_invalidate_cache(scene, strip);
 
   /* Update meta. */
   if (transform_test_overlap(scene, dst_seqbase, strip)) {
@@ -354,18 +354,18 @@ static bool seq_edit_split_effect_inputs_intersect(const Scene *scene,
                                                    const int timeline_frame)
 {
   bool input_does_intersect = false;
-  if (strip->seq1) {
-    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->seq1, timeline_frame);
-    if ((strip->seq1->type & STRIP_TYPE_EFFECT) != 0) {
+  if (strip->input1) {
+    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input1, timeline_frame);
+    if ((strip->input1->type & STRIP_TYPE_EFFECT) != 0) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
-          scene, strip->seq1, timeline_frame);
+          scene, strip->input1, timeline_frame);
     }
   }
-  if (strip->seq2) {
-    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->seq2, timeline_frame);
-    if ((strip->seq1->type & STRIP_TYPE_EFFECT) != 0) {
+  if (strip->input2) {
+    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input2, timeline_frame);
+    if ((strip->input1->type & STRIP_TYPE_EFFECT) != 0) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
-          scene, strip->seq2, timeline_frame);
+          scene, strip->input2, timeline_frame);
     }
   }
   return input_does_intersect;
@@ -454,7 +454,8 @@ Strip *edit_strip_split(Main *bmain,
 
   /* Duplicate ListBase. */
   ListBase right_strips = {nullptr, nullptr};
-  seqbase_duplicate_recursive(scene, scene, &right_strips, &left_strips, STRIP_DUPE_ALL, 0);
+  seqbase_duplicate_recursive(
+      bmain, scene, scene, &right_strips, &left_strips, StripDuplicate::All, 0);
 
   Strip *left_strip = static_cast<Strip *>(left_strips.first);
   Strip *right_strip = static_cast<Strip *>(right_strips.first);

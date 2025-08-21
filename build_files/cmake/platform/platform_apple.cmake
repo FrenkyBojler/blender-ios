@@ -25,7 +25,7 @@ endfunction()
 # ------------------------------------------------------------------------
 # Find system provided libraries.
 
-# Find system ZLIB, not the pre-compiled one supplied with OpenCollada.
+# Find system ZLIB
 set(ZLIB_ROOT /usr)
 find_package(ZLIB REQUIRED)
 find_package(BZip2 REQUIRED)
@@ -107,12 +107,6 @@ if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 endif()
 add_bundled_libraries(opensubdiv/lib)
-
-if(WITH_VULKAN_BACKEND)
-  find_package(MoltenVK REQUIRED)
-  find_package(ShaderC REQUIRED)
-  find_package(Vulkan REQUIRED)
-endif()
 
 if(WITH_CODEC_SNDFILE)
   find_package(SndFile)
@@ -212,12 +206,6 @@ endif()
 
 if(WITH_JACK)
   string(APPEND PLATFORM_LINKFLAGS " -F/Library/Frameworks -weak_framework jackmp")
-endif()
-
-if(WITH_OPENCOLLADA)
-  find_package(OpenCOLLADA)
-  find_library(XML2_LIBRARIES NAMES xml2 HINTS ${LIBDIR}/opencollada/lib)
-  print_found_status("XML2" "${XML2_LIBRARIES}")
 endif()
 
 if(WITH_SDL)
@@ -350,7 +338,7 @@ if(WITH_OPENIMAGEDENOISE)
 endif()
 
 if(WITH_TBB)
-  find_package(TBB REQUIRED)
+  find_package(TBB 2021.13.0 REQUIRED)
   if(TBB_FOUND)
     get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
     get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
