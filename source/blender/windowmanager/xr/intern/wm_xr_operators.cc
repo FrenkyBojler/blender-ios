@@ -1078,8 +1078,8 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
     speed_frame_based = false;
 
     if (snap_turn) {
-      speed_max = speed;
-      speed = U.xr_navigation.turn_amount;
+      speed_max = U.xr_navigation.turn_amount;
+      speed = speed;
     }
     else {
       speed_max = U.xr_navigation.turn_speed;
