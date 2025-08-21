@@ -1379,13 +1379,12 @@ static bool wm_xr_navigation_teleport(bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  float normal[3], segment_direction[3], nav_scale;
+  float normal[3], segment_direction[3];
   int index;
   const Object *ob = nullptr;
   float obmat[4][4];
   bool result;
 
-  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
   copy_v3_v3(segment_direction, direction);
 
   /* When ray_dist == 0 or -1, the raycast is a line of infinite length. */
@@ -1393,7 +1392,7 @@ static bool wm_xr_navigation_teleport(bContext *C,
     *num_points = 2;
   }
 
-  const float segment_length = *ray_dist * nav_scale / (*num_points - 1);
+  const float segment_length = *ray_dist / (*num_points - 1);
   float segment_ray_dist = 0.0f;
   *ray_dist = 0.0f;
 
@@ -1532,13 +1531,15 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
   bool selectable_only, teleport_axes[3];
-  float teleport_t, teleport_ofs, ray_dist, gravity;
+  float teleport_t, teleport_ofs, ray_dist, gravity, nav_scale;
+
+  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
   RNA_boolean_get_array(op->ptr, "teleport_axes", teleport_axes);
   teleport_t = RNA_float_get(op->ptr, "interpolation");
-  teleport_ofs = RNA_float_get(op->ptr, "offset");
+  teleport_ofs = RNA_float_get(op->ptr, "offset") * nav_scale;
   selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
-  ray_dist = RNA_float_get(op->ptr, "distance");
+  ray_dist = RNA_float_get(op->ptr, "distance") * nav_scale;
   gravity = RNA_float_get(op->ptr, "gravity");
 
   float nav_destination[3];
@@ -1617,7 +1618,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 1.0f);
   RNA_def_float(ot->srna,
                 "offset",
-                0.0f,
+                0.25f,
                 0.0f,
                 FLT_MAX,
                 "Offset",
