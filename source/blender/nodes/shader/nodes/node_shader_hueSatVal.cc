@@ -71,18 +71,19 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
          const float saturation,
          const float value,
          const float factor) -> ColorGeometry4f {
-        float3 hsv;
-        rgb_to_hsv_v(color, hsv);
+         float3 hsv;
+        rgb_to_hsv_v(float3(color.r, color.g, color.b), hsv);
 
         hsv.x = math::fract(hsv.x + hue + 0.5f);
         hsv.y = hsv.y * saturation;
         hsv.z = hsv.z * value;
 
-        float3 rgb_result;
+       float3 rgb_result = float3(color.r, color.g, color.b);
         hsv_to_rgb_v(hsv, rgb_result);
         rgb_result = math::max(rgb_result, float3(0.0f));
 
-        return ColorGeometry4f(math::interpolate(color.xyz(), rgb_result, factor), color.w);
+        float3 interp = math::interpolate(float3(color.r, color.g, color.b), rgb_result, factor);
+        return ColorGeometry4f(interp.x, interp.y, interp.z, color.a);
       },
       mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(function);
