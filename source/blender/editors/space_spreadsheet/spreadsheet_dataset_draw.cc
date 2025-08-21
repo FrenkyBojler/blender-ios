@@ -1148,11 +1148,15 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
     const GPointer single_value = value.get_single_ptr();
     if (single_value.is_type<nodes::BundlePtr>()) {
       const nodes::BundlePtr &bundle_ptr = *single_value.get<nodes::BundlePtr>();
-      this->build_bundle_children(parent, *bundle_ptr);
+      if (bundle_ptr) {
+        this->build_bundle_children(parent, *bundle_ptr);
+      }
     }
     if (single_value.is_type<nodes::ClosurePtr>()) {
       const nodes::ClosurePtr &closure_ptr = *single_value.get<nodes::ClosurePtr>();
-      this->build_closure_children(parent, closure_ptr);
+      if (closure_ptr) {
+        this->build_closure_children(parent, closure_ptr);
+      }
     }
   }
 
