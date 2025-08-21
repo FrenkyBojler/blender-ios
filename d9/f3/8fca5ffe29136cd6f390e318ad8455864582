@@ -3,3 +3,4 @@ Referenced by commit 6960d05df8aaa84f92f5ca476802c487058f7384, Fix: exception sh
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by pull request #123800, _PyLong_AsInt became PyLong_AsInt in Python 3.13
 Referenced by pull request #139023, 4.2LTS: PyAPI: support Python 3.13
+Referenced by issue #144758, Constructing bpy.types.GPUFrameBuffer with GPUTexture as value in dict produces type error.
