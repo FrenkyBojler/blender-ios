@@ -138,7 +138,7 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree,
   /* TODO: move this into the node implementation itself, so that the node can
    * declare its file dependencies? That should remove the assumption that the
    * "Path" input socket has the file path. */
-  static Vector<StringRefNull> import_node_types = {
+  static Array<StringRefNull> import_node_types = {
       "GeometryNodeImportCSV",
       "GeometryNodeImportOBJ",
       "GeometryNodeImportPLY",
@@ -153,12 +153,22 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree,
       }
 
       const bNodeSocket *path_socket = node->input_by_identifier("Path");
+      BLI_assert_msg(path_socket,
+                     "Expecting each GeometryNodeImportXXX node to have a 'Path' input socket");
       if (!path_socket) {
+        continue;
+      }
+
+      BLI_assert_msg(
+          path_socket->type == SOCK_STRING,
+          "Expecting GeometryNodeImportXXX nodes to have a 'Path' input socket of type STRING");
+      if (path_socket->type != SOCK_STRING) {
         continue;
       }
 
       const bNodeSocketValueString *path_value = static_cast<bNodeSocketValueString *>(
           path_socket->default_value);
+
       deps.add_filepath(path_value->value, &tree.id);
     }
   }
