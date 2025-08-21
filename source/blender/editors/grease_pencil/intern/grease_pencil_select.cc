@@ -586,44 +586,40 @@ static const EnumPropertyItem select_similar_mode_items[] = {
 };
 
 template<typename T>
-void insert_selected_values(const bke::CurvesGeometry &curves,
+void insert_selected_values(Object *object,
+                            const MutableDrawingInfo &info,
                             const bke::AttrDomain domain,
                             const StringRef attribute_id,
+                            const int handle_display,
                             blender::Set<T> &r_value_set)
 {
   T default_value;
   CPPType::get<T>().default_construct(&default_value);
 
+  const bke::CurvesGeometry &curves = info.drawing.strokes();
   const bke::AttributeAccessor attributes = curves.attributes();
-  const VArraySpan<bool> selection = *attributes.lookup_or_default<bool>(
-      ".selection", domain, true);
-  const VArraySpan<bool> selection_left = *attributes.lookup_or_default<bool>(
-      ".selection_handle_left", domain, true);
-  const VArraySpan<bool> selection_right = *attributes.lookup_or_default<bool>(
-      ".selection_handle_right", domain, true);
-  const VArray<int8_t> curve_types = curves.curve_types();
-  const Array<int> point_to_curve_map = curves.point_to_curve_map();
-
   const VArraySpan<T> values = *attributes.lookup_or_default<T>(
       attribute_id, domain, default_value);
 
   threading::EnumerableThreadSpecific<Set<T>> value_set_by_thread;
-  threading::parallel_for(
-      IndexRange(attributes.domain_size(domain)), 1024, [&](const IndexRange range) {
-        Set<T> &local_value_set = value_set_by_thread.local();
-        for (const int i : range) {
-          if (selection[i]) {
-            local_value_set.add(values[i]);
-          }
-          if (domain == bke::AttrDomain::Point &&
-              curve_types[point_to_curve_map[i]] == CURVE_TYPE_BEZIER)
-          {
-            if (selection_left[i] || selection_right[i]) {
-              local_value_set.add(values[i]);
-            }
-          }
-        }
-      });
+  IndexMaskMemory memory;
+  if (domain == bke::AttrDomain::Point) {
+    const IndexMask points = ed::greasepencil::retrieve_editable_and_all_selected_points(
+        *object, info.drawing, info.layer_index, handle_display, memory);
+    points.foreach_index(GrainSize(1024), [&](const int index) {
+      Set<T> &local_value_set = value_set_by_thread.local();
+      local_value_set.add(values[index]);
+    });
+  }
+  else {
+    BLI_assert(domain == bke::AttrDomain::Curve);
+    const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    strokes.foreach_index(GrainSize(1024), [&](const int index) {
+      Set<T> &local_value_set = value_set_by_thread.local();
+      local_value_set.add(values[index]);
+    });
+  }
 
   for (const Set<T> &local_value_set : value_set_by_thread) {
     /* TODO is there a union function that can do this more efficiently? */
@@ -639,6 +635,7 @@ static void select_similar_by_value(Scene *scene,
                                     GreasePencil &grease_pencil,
                                     const bke::AttrDomain selection_domain,
                                     const StringRef attribute_id,
+                                    const int handle_display,
                                     float threshold,
                                     DistanceFn distance_fn)
 {
@@ -653,7 +650,7 @@ static void select_similar_by_value(Scene *scene,
   blender::Set<T> selected_values;
   for (const MutableDrawingInfo &info : drawings) {
     insert_selected_values(
-        info.drawing.strokes(), selection_domain, attribute_id, selected_values);
+        object, info, selection_domain, attribute_id, handle_display, selected_values);
   }
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
@@ -728,10 +725,12 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
   const SelectSimilarMode mode = SelectSimilarMode(RNA_enum_get(op->ptr, "mode"));
   const float threshold = RNA_float_get(op->ptr, "threshold");
   Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C);
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(scene->toolsettings,
                                                                            object);
+  const int handle_display = v3d->overlay.handle_display;
 
   switch (mode) {
     case SelectSimilarMode::LAYER:
@@ -744,6 +743,7 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
           grease_pencil,
           selection_domain,
           "material_index",
+          handle_display,
           threshold,
           [](const int a, const int b) -> float { return float(math::distance(a, b)); });
       break;
@@ -754,6 +754,7 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
           grease_pencil,
           selection_domain,
           "vertex_color",
+          handle_display,
           threshold,
           [](const ColorGeometry4f &a, const ColorGeometry4f &b) -> float {
             return math::distance(float4(a), float4(b));
@@ -766,6 +767,7 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
           grease_pencil,
           selection_domain,
           "radius",
+          handle_display,
           threshold,
           [](const float a, const float b) -> float { return math::distance(a, b); });
       break;
@@ -776,6 +778,7 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
           grease_pencil,
           selection_domain,
           "opacity",
+          handle_display,
           threshold,
           [](const float a, const float b) -> float { return math::distance(a, b); });
       break;
