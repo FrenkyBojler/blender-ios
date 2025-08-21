@@ -1051,7 +1051,6 @@ typedef struct UserInputEvent {
   toolbar_text_field.autocapitalizationType = UITextAutocapitalizationTypeNone;
   toolbar_text_field.spellCheckingType = UITextSpellCheckingTypeNo;
 
-  /* important: size so it’s tappable */
   CGRect frame = CGRectMake(0, 0, 200, 32);
   toolbar_text_field.frame = frame;
 
@@ -1072,7 +1071,7 @@ typedef struct UserInputEvent {
                forControlEvents:UIControlEventEditingDidEnd];
 
   toolbar_live_text_item = [[UIBarButtonItem alloc] initWithCustomView:toolbar_text_field];
-    
+
   toolbar_text_field.inputAccessoryView = toolbar;
 
   toolbar_done_editing_item = [[UIBarButtonItem alloc]
@@ -1184,7 +1183,6 @@ typedef struct UserInputEvent {
     [self generateKeyboardReturnEvent];
   }
 }
-
 
 - (void)handleDoneButton
 {
@@ -1305,9 +1303,7 @@ typedef struct UserInputEvent {
   /* Initial highlighting and text-cursor position. */
   switch (keyboard_properties.inital_text_state) {
     case GHOST_KeyboardProperties::select_all_text: {
-        [toolbar_text_field performSelector:@selector(selectAll:)
-                      withObject:nil
-                      afterDelay:0.1];
+      [toolbar_text_field performSelector:@selector(selectAll:) withObject:nil afterDelay:0.1];
       break;
     }
     case GHOST_KeyboardProperties::select_text_range: {
@@ -1350,7 +1346,7 @@ typedef struct UserInputEvent {
 
 - (void)externalKeyboardChange:(NSNotification *)notification
 {
-  external_keyboard = notification.object;
+  external_keyboard = GCKeyboard.coalescedKeyboard;
   IOS_INPUT_LOG(@"External Keyboard %s", external_keyboard != nil ? "Connected" : "Disconnected");
 
   if (external_keyboard) {
@@ -1414,9 +1410,6 @@ typedef struct UserInputEvent {
 
     /* If external keyboard is connected, do not show toolbar. */
     if (external_keyboard) {
-      if (toolbar) {
-        toolbar.hidden = YES;
-      }
       return GHOST_kSuccess;
     }
 
