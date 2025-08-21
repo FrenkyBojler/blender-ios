@@ -64,13 +64,13 @@ using namespace blender::math;
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::SI5_SO<float4, float, float, float, float, float4>(
+  static auto function = mf::build::SI5_SO<ColorGeometry4f, float, float, float, float, ColorGeometry4f>(
       "Hue Saturation Value",
-      [](const float4 &color,
+      [](const ColorGeometry4f &color,
          const float hue,
          const float saturation,
          const float value,
-         const float factor) -> float4 {
+         const float factor) -> ColorGeometry4f {
         float3 hsv;
         rgb_to_hsv_v(color, hsv);
 
@@ -82,7 +82,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
         hsv_to_rgb_v(hsv, rgb_result);
         rgb_result = math::max(rgb_result, float3(0.0f));
 
-        return float4(math::interpolate(color.xyz(), rgb_result, factor), color.w);
+        return ColorGeometry4f(math::interpolate(color.xyz(), rgb_result, factor), color.w);
       },
       mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(function);
@@ -119,7 +119,7 @@ void register_node_type_sh_hue_sat()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, "ShaderNodeHueSaturation", SH_NODE_HUE_SAT);
+  common_node_type_base(&ntype, "ShaderNodeHueSaturation", SH_NODE_HUE_SAT);
   ntype.ui_name = "Hue/Saturation/Value";
   ntype.ui_description = "Apply a color transformation in the HSV color model";
   ntype.enum_name_legacy = "HUE_SAT";
@@ -127,6 +127,7 @@ void register_node_type_sh_hue_sat()
   ntype.declare = file_ns::node_declare;
   blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.gpu_fn = file_ns::gpu_shader_hue_sat;
+  ntype.build_multi_function = file_ns::node_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
   blender::bke::node_register_type(ntype);

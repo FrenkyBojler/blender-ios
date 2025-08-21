@@ -107,7 +107,7 @@ class NODE_MT_category_compositor_color_adjust(Menu):
         node_add_menu.add_node_type(layout, "CompositorNodeExposure")
         node_add_menu.add_node_type(layout, "ShaderNodeGamma")
         node_add_menu.add_node_type(layout, "CompositorNodeHueCorrect")
-        node_add_menu.add_node_type(layout, "CompositorNodeHueSat")
+        node_add_menu.add_node_type(layout, "ShaderNodeHueSaturation")
         node_add_menu.add_node_type(layout, "CompositorNodeCurveRGB")
         node_add_menu.add_node_type(layout, "CompositorNodeTonemap")
 

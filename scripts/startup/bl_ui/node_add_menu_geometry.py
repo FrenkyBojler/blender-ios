@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from platform import node
 import bpy
 from bpy.types import Menu
 from bl_ui import node_add_menu
@@ -34,6 +35,7 @@ class NODE_MT_geometry_node_GEO_COLOR(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "ShaderNodeBlackbody")
         node_add_menu.add_node_type(layout, "ShaderNodeGamma")
+        node_add_menu.add_node_type(layout, "ShaderNodeHueSaturation")
         node_add_menu.add_node_type(layout, "ShaderNodeValToRGB")
         node_add_menu.add_node_type(layout, "ShaderNodeRGBCurve")
         layout.separator()
