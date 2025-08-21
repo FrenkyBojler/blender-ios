@@ -1383,6 +1383,7 @@ static bool wm_xr_navigation_teleport(bContext *C,
   int index;
   const Object *ob = nullptr;
   float obmat[4][4];
+  bool result;
 
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
   copy_v3_v3(segment_direction, direction);
@@ -1424,9 +1425,38 @@ static bool wm_xr_navigation_teleport(bContext *C,
     normalize_v3(segment_direction);
   }
 
+  result = ob != nullptr;
+
+  /** Fall back to whether the raycast intersected with the ground plane. */
+  if (!result) {
+    constexpr uint z = 2;
+    for (int i = 1; i < *num_points; ++i) {
+      float *startpoint = points[i - 1], *endpoint = points[i];
+
+      if (startpoint[z] < 0 == endpoint[z] < 0) {
+        continue;
+      }
+
+      if (startpoint[z] == endpoint[z]) {
+        break;
+      }
+
+      float alpha = startpoint[z] / (startpoint[z] - endpoint[z]);
+      interp_v3_v3v3(endpoint, startpoint, endpoint, alpha);
+      
+      *ray_dist = segment_ray_dist * (i - 1) +
+                  len_v3v3(startpoint, endpoint);
+
+      copy_v3_fl3(normal, 0, 0, startpoint[z] < 0 ? -1 : 1);
+
+      *num_points = i + 1;
+      result = true;
+      break;
+    }
+  }
+
   /* Calculate teleportation destination in navigation space */
-  if (ob)
-  {
+  if (result) {
     float nav_location[3], nav_rotation[4], viewer_location[3];
     float nav_axes[3][3], projected[3], v0[3], v1[3];
     copy_v3_fl(nav_destination, 0.0f);
@@ -1458,7 +1488,7 @@ static bool wm_xr_navigation_teleport(bContext *C,
     *destination_dist = len_v3v3(viewer_location, points[*num_points - 1]);
   }
 
-  return ob != nullptr;
+  return result;
 }
 
 static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
