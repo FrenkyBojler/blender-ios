@@ -659,7 +659,7 @@ void BundleDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name : {"Identifier", "Type", "Value"}) {
+  for (const char *name : {"Identifier", "Type"}) {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
   }
@@ -688,17 +688,6 @@ std::unique_ptr<ColumnValues> BundleDataSource::get_column_values(
               }
               return "";
             }));
-  }
-  if (STREQ(column_id.name, "Value")) {
-    return std::make_unique<ColumnValues>(
-        IFACE_("Value"),
-        VArray<std::string>::from_func(flat_items_.size(), [items = flat_items_](int64_t index) {
-          if (const auto *value = std::get_if<nodes::BundleItemSocketValue>(&items[index]->value))
-          {
-            return value->type->label;
-          }
-          return std::string("");
-        }));
   }
   return {};
 }
