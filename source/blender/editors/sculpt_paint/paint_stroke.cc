@@ -10,6 +10,8 @@
 #include <cfloat>
 #include <cmath>
 
+#include "fmt/format.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.h"
@@ -1009,6 +1011,9 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
 
 static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
+  if (U.flag & USER_DEVELOPER_UI) {
+    ED_area_status_text(CTX_wm_area(C), nullptr);
+  }
   bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
 
   /* reset rotation here to avoid doing so in cursor display */
@@ -1478,6 +1483,12 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   const float tablet_pressure = WM_event_tablet_data(event, &stroke->pen_flip, nullptr);
   float pressure = ((br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0f :
                                                                                   tablet_pressure);
+
+  if (U.flag & USER_DEVELOPER_UI && WM_event_is_tablet(event)) {
+    ScrArea *area = CTX_wm_area(C);
+    std::string msg = fmt::format("Tablet Pressure: {:.4f}", pressure);
+    ED_area_status_text(area, msg.c_str());
+  }
 
   /* When processing a timer event the pressure from the event is 0, so use the last valid
    * pressure. */
