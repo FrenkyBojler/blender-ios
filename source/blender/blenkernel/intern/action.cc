@@ -1417,37 +1417,17 @@ bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
   return pose_channel_in_IK_chain(ob, pchan, 0);
 }
 
-static bool pose_channel_gizmo_use_effect(const bArmature *arm, const bPoseChannel *pchan)
+static bool gizmo_follows_custom_tx(const bArmature *arm, const bPoseChannel *pchan)
 {
   if (arm->flag & ARM_NO_CUSTOM) {
     return false;
   }
 
-  return pchan->custom && pchan->custom_tx;
-}
-
-static bool pose_channel_gizmo_use_custom_pivot(const bArmature *arm, const bPoseChannel *pchan)
-{
-  if (!pose_channel_gizmo_use_effect(arm, pchan)) {
+  if (!pchan->custom || !pchan->custom_tx) {
     return false;
   }
 
-  /* Either of these flags should activate the custom pivot behaviour. */
-  return pchan->gizmo_mode > PCHAN_GIZMO_MODE_NORMAL;
-}
-
-/**
- * Whether PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM affects the gizmos pose orientation and
- * location.
- */
-static bool pose_channel_gizmo_use_localized_transform(const bArmature *arm,
-                                                       const bPoseChannel *pose_bone)
-{
-  if (!pose_channel_gizmo_use_effect(arm, pose_bone)) {
-    return false;
-  }
-
-  return pose_bone->gizmo_mode == PCHAN_GIZMO_MODE_LOCAL_SPACE;
+  return pchan->flag & POSE_GIZMO_AT_CUSTOM_TX;
 }
 
 /**
@@ -1465,7 +1445,7 @@ void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
                                         const bPoseChannel *pose_bone,
                                         float r_pose_orientation[3][3])
 {
-  if (!pose_channel_gizmo_use_localized_transform(arm, pose_bone)) {
+  if (!gizmo_follows_custom_tx(arm, pose_bone)) {
     copy_m3_m4(r_pose_orientation, pose_bone->pose_mat);
     return;
   }
@@ -1480,7 +1460,7 @@ void BKE_pose_channel_gizmo_location(const bArmature *arm,
                                      const bPoseChannel *pose_bone,
                                      float r_pose_space_pivot[3])
 {
-  if (!pose_channel_gizmo_use_custom_pivot(arm, pose_bone)) {
+  if (!gizmo_follows_custom_tx(arm, pose_bone)) {
     copy_v3_v3(r_pose_space_pivot, pose_bone->pose_mat[3]);
     return;
   }
@@ -1492,7 +1472,7 @@ void BKE_pose_channel_gizmo_parent_transform(const bArmature *arm,
                                              const bPoseChannel *pose_bone,
                                              BoneParentTransform *r_bpt)
 {
-  if (!pose_channel_gizmo_use_localized_transform(arm, pose_bone)) {
+  if (!gizmo_follows_custom_tx(arm, pose_bone)) {
     BKE_bone_parent_transform_calc_from_pchan(pose_bone, r_bpt);
     return;
   }

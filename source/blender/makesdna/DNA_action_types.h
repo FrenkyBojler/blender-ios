@@ -303,7 +303,7 @@ typedef struct bPoseChannel {
   ListBase constraints;
   char name[/*MAXBONENAME*/ 64];
 
-  /** Dynamic, for detecting transform changes. */
+  /** Dynamic, for detecting transform changes (ePchan_Flag). */
   short flag;
   /** Settings for IK bones. */
   short ikflag;
@@ -369,8 +369,7 @@ typedef struct bPoseChannel {
   float rotAxis[3], rotAngle;
   /** #eRotationModes - rotation representation to use. */
   short rotmode;
-  char gizmo_mode;
-  char _pad[5];
+  char _pad[6];
 
   /**
    * Matrix result of location/rotation/scale components, and evaluation of
@@ -455,6 +454,9 @@ typedef enum ePchan_Flag {
 
   /* has BBone deforms */
   POSE_BBONE_SHAPE = (1 << 3),
+  /* When set and bPoseChan.custom_tx is not a nullptr, the gizmo will be drawn at the location and
+     orientation of the custom_tx instead of this bone. */
+  POSE_GIZMO_AT_CUSTOM_TX = (1 << 4),
 
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),
@@ -507,20 +509,6 @@ typedef enum ePchan_DrawFlag {
   PCHAN_DRAW_NO_CUSTOM_BONE_SIZE = (1 << 0),
   PCHAN_DRAW_HIDDEN = (1 << 1),
 } ePchan_DrawFlag;
-
-typedef enum ePchanGizmoMode {
-  PCHAN_GIZMO_MODE_NORMAL = 1,
-  /**
-   * Places the gizmo at the Custom Transform location, and uses that as
-   * the origin for manipulating rotation and scale. This decouples the
-   * location of the gizmo from the actual location of the bone.
-   */
-  PCHAN_GIZMO_MODE_CUSTOM_LOCATION,
-  /**
-   * Places the gizmo at the location and orientation of the evaluated Custom Transform.
-   */
-  PCHAN_GIZMO_MODE_LOCAL_SPACE,
-} ePchanGizmoMode;
 
 /* NOTE: It doesn't take custom_scale_xyz into account. */
 #define PCHAN_CUSTOM_BONE_LENGTH(pchan) \

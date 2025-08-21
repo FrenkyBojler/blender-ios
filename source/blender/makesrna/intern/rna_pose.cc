@@ -725,21 +725,6 @@ static const EnumPropertyItem prop_solver_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem pose_bone_gizmo_mode[] = {
-    {0, "OFF", 0, "Off", "The Gizmo will stay with the bone"},
-    {PCHAN_GIZMO_MODE_CUSTOM_LOCATION,
-     "LOCATION",
-     0,
-     "Location",
-     "The Gizmo will follow the location of the Override Transform"},
-    {PCHAN_GIZMO_MODE_LOCAL_SPACE,
-     "LOCROT",
-     0,
-     "Location and Rotation",
-     "The Gizmo will be placed into local space of the Override Transform bone"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 static void rna_def_pose_channel_constraints(BlenderRNA *brna, PropertyRNA *cprop)
 {
   StructRNA *srna;
@@ -1185,10 +1170,12 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
-  prop = RNA_def_property(srna, "gizmo_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "gizmo_mode");
-  RNA_def_property_enum_items(prop, pose_bone_gizmo_mode);
-  RNA_def_property_ui_text(prop, "Gizmo Mode", nullptr);
+  prop = RNA_def_property(srna, "custom_shape_transform_affects_gizmo", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_GIZMO_AT_CUSTOM_TX);
+  RNA_def_property_ui_text(prop,
+                           "Affect Gizmo",
+                           "When enabled, the transform gizmo will be placed at the location and "
+                           "orientation of the Custom Shape Transform bone");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "use_custom_shape_bone_size", PROP_BOOLEAN, PROP_NONE);
