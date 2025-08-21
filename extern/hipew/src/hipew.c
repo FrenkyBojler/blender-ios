@@ -237,7 +237,7 @@ static int hipewHipInit(void) {
   /* Library paths. */
 #ifdef _WIN32
   /* Expected in C:/Windows/System32 or similar, no path needed. */
-  const char *hip_paths[] = {WIN_DRIVER, NULL};
+  const char *hip_paths[] = { "amdhip64_7", "amdhip64_6.dll", NULL};
 #elif defined(__APPLE__)
   /* Default installation path. */
   const char *hip_paths[] = {"", NULL};
@@ -250,13 +250,30 @@ static int hipewHipInit(void) {
                                "/opt/rocm/hip/lib/libamdhip64.so.5",
                                 NULL};
   #else
-  const char *hip_paths[] = {"libamdhip64.so",
-                              "/opt/rocm/lib/libamdhip64.so",
-                              "/opt/rocm/hip/lib/libamdhip64.so",
-							  "libamdhip64.so.6",
-                              "/opt/rocm/lib/libamdhip64.so.6",
-                              "/opt/rocm/hip/lib/libamdhip64.so.6",
-                               NULL};
+  const char* hip_versions[] = { "", ".7", ".6", NULL };
+  const char* hip_path[] = {
+      "",
+      "/opt/rocm/lib/",
+      "/opt/rocm/hip/lib/",
+      NULL
+  };
+
+  const char* hip_paths[32]; // adjust size if more needed
+
+  void init_hip_paths() {
+    int idx = 0;
+    for (int v = 0; hip_versions[v]; v++) {
+      for (int p = 0; hip_path[p]; p++) {
+        static char buf[32][128]; // keep storage for strings
+        snprintf(buf[idx], sizeof(buf[idx]), "%slibamdhip64.so%s",
+          hip_path[p], hip_versions[v]);
+        hip_paths[idx++] = buf[idx - 1];
+      }
+    }
+    hip_paths[idx] = NULL;
+  }
+
+
 
   #endif
 #endif
