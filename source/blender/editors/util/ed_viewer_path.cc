@@ -164,7 +164,9 @@ void activate_geometry_node(Main &bmain,
         if (!(sspreadsheet.flag & SPREADSHEET_FLAG_PINNED)) {
           SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
           table_id.object_eval_state = SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE;
-          table_id.viewer_item_identifier = item_identifier.value_or(0);
+          if (item_identifier) {
+            table_id.viewer_item_identifier = *item_identifier;
+          }
           MEM_SAFE_FREE(table_id.bundle_path);
           table_id.bundle_path_num = 0;
           table_id.closure_input_output = SPREADSHEET_CLOSURE_NONE;
