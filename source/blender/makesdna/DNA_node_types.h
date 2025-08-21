@@ -794,7 +794,7 @@ typedef struct bNodeTree {
   /** Precision used by the GPU execution of the compositor tree. */
   int precision DNA_DEPRECATED;
 
-  /** #blender::bke::NodeGroupColorTag. */
+  /** #blender::bke::NodeColorTag. */
   int color_tag;
 
   /**
@@ -1234,32 +1234,61 @@ typedef struct NodeImageFile {
   int sfra, efra;
 } NodeImageFile;
 
-/**
- * XXX: first struct fields should match #NodeImageFile to ensure forward compatibility.
- */
-typedef struct NodeImageMultiFile {
-  char base_path[/*FILE_MAX*/ 1024];
-  ImageFormatData format;
-  /** XXX old frame rand values from NodeImageFile for forward compatibility. */
-  int sfra DNA_DEPRECATED, efra DNA_DEPRECATED;
-  /** Selected input in details view list. */
-  int active_input;
+typedef struct NodeCompositorFileOutputItem {
+  /* The unique identifier of the item used to construct the socket identifier. */
+  int identifier;
+  /* The type of socket for the item, which is limited to the types listed in the
+   * FileOutputItemsAccessor::supports_socket_type. */
+  int16_t socket_type;
+  /* The number of dimensions in the vector socket if the socket type is vector, otherwise, it is
+   * unused, */
+  char vector_socket_dimensions;
+  /* If true and the node is saving individual files, the format an save_as_render members of this
+   * struct will be used, otherwise, the members of the NodeCompositorFileOutput struct will be
+   * used for all items. */
+  char override_node_format;
+  /* Apply the render part of the display transform when saving non-linear images. Unused if
+   * override_node_format is false or the node is saving multi-layer images. */
   char save_as_render;
-  char _pad[3];
-} NodeImageMultiFile;
+  char _pad[7];
+  /* The unique name of the item. It is used as the file name when saving individual files and used
+   * as the layer name when saving multi-layer images. */
+  char *name;
+  /* The image format to use when saving individual images and override_node_format is true. */
+  ImageFormatData format;
+} NodeCompositorFileOutputItem;
+
+typedef struct NodeCompositorFileOutput {
+  char directory[/*FILE_MAX*/ 1024];
+  /* The base name of the file. Can be nullptr. */
+  char *file_name;
+  /* The image format to use when saving the images. */
+  ImageFormatData format;
+  /* The file output images. They can represent individual images or layers depending on whether
+   * multi-layer images are being saved. */
+  NodeCompositorFileOutputItem *items;
+  /* The number of file output items. */
+  int items_count;
+  /* The currently active file output item. */
+  int active_item_index;
+  /* Apply the render part of the display transform when saving non-linear images. */
+  char save_as_render;
+  char _pad[7];
+} NodeCompositorFileOutput;
+
 typedef struct NodeImageMultiFileSocket {
   /* single layer file output */
   short use_render_format DNA_DEPRECATED;
   /** Use overall node image format. */
-  short use_node_format;
-  char save_as_render;
+  short use_node_format DNA_DEPRECATED;
+  char save_as_render DNA_DEPRECATED;
   char _pad1[3];
-  char path[/*FILE_MAX*/ 1024];
-  ImageFormatData format;
+  char path[/*FILE_MAX*/ 1024] DNA_DEPRECATED;
+  ImageFormatData format DNA_DEPRECATED;
 
   /* Multi-layer output. */
   /** Subtract 2 because '.' and channel char are appended. */
-  char layer[/*EXR_TOT_MAXNAME - 2*/ 62];
+  char layer[/*EXR_TOT_MAXNAME - 2*/ 62] DNA_DEPRECATED;
   char _pad2[2];
 } NodeImageMultiFileSocket;
 
@@ -1592,6 +1621,12 @@ typedef struct NodeScaleData {
   char extension_x;
   char extension_y;
 } NodeScaleData;
+
+typedef struct NodeCornerPinData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeCornerPinData;
 
 typedef struct NodeDisplaceData {
   short interpolation;
@@ -2200,12 +2235,12 @@ typedef struct NodeGeometryForeachGeometryElementOutput {
   char _pad[3];
 } NodeGeometryForeachGeometryElementOutput;
 
-typedef struct NodeGeometryClosureInput {
+typedef struct NodeClosureInput {
   /** bNode.identifier of the corresponding output node. */
   int32_t output_node_id;
-} NodeGeometryClosureInput;
+} NodeClosureInput;
 
-typedef struct NodeGeometryClosureInputItem {
+typedef struct NodeClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
@@ -2213,38 +2248,38 @@ typedef struct NodeGeometryClosureInputItem {
   int8_t structure_type;
   char _pad[1];
   int identifier;
-} NodeGeometryClosureInputItem;
+} NodeClosureInputItem;
 
-typedef struct NodeGeometryClosureOutputItem {
+typedef struct NodeClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
   char _pad[2];
   int identifier;
-} NodeGeometryClosureOutputItem;
+} NodeClosureOutputItem;
 
-typedef struct NodeGeometryClosureInputItems {
-  NodeGeometryClosureInputItem *items;
+typedef struct NodeClosureInputItems {
+  NodeClosureInputItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeGeometryClosureInputItems;
+} NodeClosureInputItems;
 
-typedef struct NodeGeometryClosureOutputItems {
-  NodeGeometryClosureOutputItem *items;
+typedef struct NodeClosureOutputItems {
+  NodeClosureOutputItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeGeometryClosureOutputItems;
+} NodeClosureOutputItems;
 
-typedef struct NodeGeometryClosureOutput {
-  NodeGeometryClosureInputItems input_items;
-  NodeGeometryClosureOutputItems output_items;
-} NodeGeometryClosureOutput;
+typedef struct NodeClosureOutput {
+  NodeClosureInputItems input_items;
+  NodeClosureOutputItems output_items;
+} NodeClosureOutput;
 
-typedef struct NodeGeometryEvaluateClosureInputItem {
+typedef struct NodeEvaluateClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
@@ -2252,9 +2287,9 @@ typedef struct NodeGeometryEvaluateClosureInputItem {
   int8_t structure_type;
   char _pad[1];
   int identifier;
-} NodeGeometryEvaluateClosureInputItem;
+} NodeEvaluateClosureInputItem;
 
-typedef struct NodeGeometryEvaluateClosureOutputItem {
+typedef struct NodeEvaluateClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
@@ -2262,28 +2297,28 @@ typedef struct NodeGeometryEvaluateClosureOutputItem {
   int8_t structure_type;
   char _pad[1];
   int identifier;
-} NodeGeometryEvaluateClosureOutputItem;
+} NodeEvaluateClosureOutputItem;
 
-typedef struct NodeGeometryEvaluateClosureInputItems {
-  NodeGeometryEvaluateClosureInputItem *items;
+typedef struct NodeEvaluateClosureInputItems {
+  NodeEvaluateClosureInputItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeGeometryEvaluateClosureInputItems;
+} NodeEvaluateClosureInputItems;
 
-typedef struct NodeGeometryEvaluateClosureOutputItems {
-  NodeGeometryEvaluateClosureOutputItem *items;
+typedef struct NodeEvaluateClosureOutputItems {
+  NodeEvaluateClosureOutputItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeGeometryEvaluateClosureOutputItems;
+} NodeEvaluateClosureOutputItems;
 
-typedef struct NodeGeometryEvaluateClosure {
-  NodeGeometryEvaluateClosureInputItems input_items;
-  NodeGeometryEvaluateClosureOutputItems output_items;
-} NodeGeometryEvaluateClosure;
+typedef struct NodeEvaluateClosure {
+  NodeEvaluateClosureInputItems input_items;
+  NodeEvaluateClosureOutputItems output_items;
+} NodeEvaluateClosure;
 
 typedef struct IndexSwitchItem {
   /** Generated unique identifier which stays the same even when the item order or names change. */
@@ -2399,35 +2434,35 @@ typedef struct NodeGeometryBake {
   char _pad[4];
 } NodeGeometryBake;
 
-typedef struct NodeGeometryCombineBundleItem {
+typedef struct NodeCombineBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
   char _pad[2];
-} NodeGeometryCombineBundleItem;
+} NodeCombineBundleItem;
 
-typedef struct NodeGeometryCombineBundle {
-  NodeGeometryCombineBundleItem *items;
+typedef struct NodeCombineBundle {
+  NodeCombineBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
   char _pad[4];
-} NodeGeometryCombineBundle;
+} NodeCombineBundle;
 
-typedef struct NodeGeometrySeparateBundleItem {
+typedef struct NodeSeparateBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
   char _pad[2];
-} NodeGeometrySeparateBundleItem;
+} NodeSeparateBundleItem;
 
-typedef struct NodeGeometrySeparateBundle {
-  NodeGeometrySeparateBundleItem *items;
+typedef struct NodeSeparateBundle {
+  NodeSeparateBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
   char _pad[4];
-} NodeGeometrySeparateBundle;
+} NodeSeparateBundle;
 
 typedef struct NodeFunctionFormatStringItem {
   char *name;
