@@ -970,14 +970,21 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
                                                 layer_index);
   }
   if (ptr.is_type<nodes::BundlePtr>()) {
-    return std::make_unique<BundleDataSource>(display_data.extract<nodes::BundlePtr>());
+    const nodes::BundlePtr bundle_ptr = display_data.extract<nodes::BundlePtr>();
+    if (bundle_ptr) {
+      return std::make_unique<BundleDataSource>(bundle_ptr);
+    }
+    return {};
   }
   if (ptr.is_type<nodes::ClosurePtr>()) {
     const auto in_out = SpreadsheetClosureInputOutput(
         sspreadsheet->geometry_id.closure_input_output);
     if (in_out != SPREADSHEET_CLOSURE_NONE) {
-      return std::make_unique<ClosureSignatureDataSource>(
-          display_data.extract<nodes::ClosurePtr>(), in_out);
+      const nodes::ClosurePtr closure_ptr = display_data.extract<nodes::ClosurePtr>();
+      if (closure_ptr) {
+        return std::make_unique<ClosureSignatureDataSource>(closure_ptr, in_out);
+      }
+      return {};
     }
   }
   const eSpreadsheetColumnValueType column_type = cpp_type_to_column_type(*ptr.type());
