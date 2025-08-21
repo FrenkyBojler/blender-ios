@@ -131,8 +131,8 @@ static int calculate_major_frame_distance(const int fps, float pixel_width, floa
   return distance;
 }
 
-static const float continuous_value_scales[] = {0.01, 0.02, 0.05,  0.1,   0.2,   0.5,   1,   2,
-                                                5,    10,   20,    50,    100,   200,   500, 1000,
+static const float continuous_value_scales[] = {0.01, 0.02, 0.04,  0.1,   0.2,   0.4,   1,   2,
+                                                4,    10,   20,    50,    100,   200,   500, 1000,
                                                 2000, 5000, 10000, 20000, 50000, 100000};
 
 static float view2d_major_step_x__continuous(const View2D *v2d)
