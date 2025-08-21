@@ -67,10 +67,10 @@ static int get_divisor(const int distance)
   for (int i = 0; i < 3; i++) {
     const int divisor = divisors[i];
     const int result = distance / divisor;
-    /* If the division was without loss due to integer cast and the result is a power of two return
-     * that. We prefer any opportunity to get onto the power of two ladder since halfing the range
-     * every time is the most intuitive way for artists. */
-    if (result * divisor == distance && ELEM(result, 2, 4)) {
+    /* If the division was without loss due to integer cast and the result is 2, return
+     * that. Animating on 2s is a very useful thing for animators so the lines should be shown with
+     * that distance. */
+    if (result * divisor == distance && result == 2) {
       return divisor;
     }
     division_results[i] = result;
