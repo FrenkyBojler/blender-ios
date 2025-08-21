@@ -446,6 +446,12 @@ static void node_foreach_path(ID *id, BPathForeachPathData *bpath_data)
         char buffer[FILE_MAX];
         STRNCPY_UTF8(buffer, abspath.value().c_str());
         BKE_bpath_foreach_path_fixed_process(bpath_data, buffer, sizeof(buffer));
+
+        /* TODO: handle any changes to `buffer` that the above function made, by propagating them
+         * back to the nodes. This is necessary for path remapping, which is used when saving the
+         * blend file to another path (to ensure a relative path is still correct) as well as when
+         * loading from a library file (to ensure all relative paths resolve against the main blend
+         * file). */
       }
       break;
     }
