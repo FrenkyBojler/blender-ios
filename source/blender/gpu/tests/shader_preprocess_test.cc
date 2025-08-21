@@ -303,6 +303,62 @@ template void func(float a);
 }
 GPU_TEST(preprocess_template);
 
+static void test_preprocess_template_struct()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+template<typename T>
+struct A { T a; };
+template struct A<float>;
+)";
+    string expect = R"(
+
+
+#line 3
+struct A_float_{ float a; };
+#line 4
+#line 5
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+template<> struct A<float>{
+    float a;
+};
+)";
+    string expect = R"(
+ struct A_float_{
+    float a;
+};
+#line 5
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+void func(A<float> a) {}
+)";
+    string expect = R"(
+void func(A_float_ a) {}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_template_struct);
+
 static void test_preprocess_reference()
 {
   using namespace shader;
