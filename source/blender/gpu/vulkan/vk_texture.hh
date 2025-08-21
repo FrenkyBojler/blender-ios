@@ -63,6 +63,12 @@ class VKTexture : public Texture {
 
   int layer_offset_ = 0;
   bool use_stencil_ = false;
+  /**
+   * When initially creating an image the content on the GPU will be undefined. Uploading the
+   * initial data can be done outside the rendergraph. This improved performance as it will reduce
+   * the overhead of the render graph.
+   */
+  bool gpu_data_undefined_ = false;
 
   char swizzle_[4] = {'r', 'g', 'b', 'a'};
   VKImageViewInfo image_view_info_ = {eImageViewUsage::ShaderBinding,

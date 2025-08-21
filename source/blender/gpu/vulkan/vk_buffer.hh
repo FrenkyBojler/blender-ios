@@ -16,6 +16,7 @@
 namespace blender::gpu {
 class VKContext;
 class VKDevice;
+class VKDiscardPool;
 
 /**
  * Class for handing vulkan buffers (allocation/updating/binding).
@@ -82,12 +83,17 @@ class VKBuffer : public NonCopyable {
   void read_async(VKContext &context, void *data);
 
   /**
-   * Free the buffer.
-   *
-   * Discards the buffer so it can be destroyed safely later. Buffers can still be used when
-   * rendering so we can only destroy them after the rendering is completed.
+   * Discard the buffer using the default discard pool.
    */
-  bool free();
+  bool discard();
+
+  /**
+   * Discard the buffer using the given discard_pool
+   *
+   * Returns true when the buffer has been added to the discard pool or false when the buffer
+   * wasn't allocated.
+   */
+  bool discard(VKDiscardPool &discard_pool);
 
   /**
    * Destroy the buffer immediately.

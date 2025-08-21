@@ -27,7 +27,7 @@ void VKPixelBuffer::create(bool memory_export)
   }
 
   if (buffer_.is_allocated()) {
-    buffer_.free();
+    buffer_.discard();
   }
 
   buffer_.create(size_,

@@ -73,7 +73,7 @@ void VKDevice::deinit()
 
   deinit_submission_pool();
 
-  dummy_buffer.free();
+  dummy_buffer.discard();
   samplers_.free();
   GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_sh_);
 

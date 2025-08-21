@@ -64,7 +64,7 @@ void VKStagingBuffer::copy_from_device(VKContext &context)
 
 void VKStagingBuffer::free()
 {
-  host_buffer_.free();
+  host_buffer_.discard();
 }
 
 }  // namespace blender::gpu

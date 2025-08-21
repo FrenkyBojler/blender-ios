@@ -16,7 +16,7 @@ namespace blender::gpu {
 VKBuffer::~VKBuffer()
 {
   if (is_allocated()) {
-    free();
+    discard();
   }
 }
 
@@ -216,17 +216,24 @@ VkDeviceMemory VKBuffer::export_memory_get(size_t &memory_size)
   return info.deviceMemory;
 }
 
-bool VKBuffer::free()
+bool VKBuffer::discard()
 {
+  return discard(VKDiscardPool::discard_pool_get());
+}
+
+bool VKBuffer::discard(VKDiscardPool &discard_pool)
+{
+  if (!is_allocated()) {
+    return false;
+  }
   if (is_mapped()) {
     unmap();
   }
 
-  VKDiscardPool::discard_pool_get().discard_buffer(vk_buffer_, allocation_);
+  discard_pool.discard_buffer(vk_buffer_, allocation_);
 
   allocation_ = VK_NULL_HANDLE;
   vk_buffer_ = VK_NULL_HANDLE;
-
   return true;
 }
 

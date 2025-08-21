@@ -97,6 +97,7 @@ void VKTexture::copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspe
 
   VKContext &context = *VKContext::get();
   context.render_graph().add_node(copy_image);
+  gpu_data_undefined_ = false;
 }
 
 void VKTexture::copy_to(Texture *tex)
@@ -142,6 +143,7 @@ void VKTexture::clear(eGPUDataFormat format, const void *data)
   VKContext &context = *VKContext::get();
 
   context.render_graph().add_node(clear_color_image);
+  gpu_data_undefined_ = false;
 }
 
 void VKTexture::clear_depth_stencil(const eGPUFrameBufferBits buffers,
@@ -176,6 +178,7 @@ void VKTexture::clear_depth_stencil(const eGPUFrameBufferBits buffers,
 
   VKContext &context = *VKContext::get();
   context.render_graph().add_node(clear_depth_stencil_image);
+  gpu_data_undefined_ = false;
 }
 
 void VKTexture::swizzle_set(const char swizzle_mask[4])
@@ -320,6 +323,18 @@ void VKTexture::update_sub(int mip,
     sample_len = device_memory_size / to_bytesize(device_format_);
   }
 
+  VKDevice &device = VKBackend::get().device;
+  render_graph::VKRenderGraph *render_graph_transfer = nullptr;
+  render_graph::VKRenderGraph *render_graph = &context.render_graph();
+  VKDiscardPool discard_pool_transfer;
+  /* When data is undefined we create a local render graph. This allows to start uploading the data
+   * during building of the regular rendergraph and free resources when the data transfer has been
+   * completed.*/
+  if (gpu_data_undefined_) {
+    render_graph_transfer = device.render_graph_new();
+    render_graph = render_graph_transfer;
+  }
+
   VKBuffer staging_buffer;
   VkBuffer vk_buffer = VK_NULL_HANDLE;
   if (data) {
@@ -377,7 +392,21 @@ void VKTexture::update_sub(int mip,
   node_data.region.imageSubresource.baseArrayLayer = start_layer;
   node_data.region.imageSubresource.layerCount = layers;
 
-  context.render_graph().add_node(copy_buffer_to_image);
+  render_graph->add_node(copy_buffer_to_image);
+
+  if (gpu_data_undefined_) {
+    staging_buffer.discard(discard_pool_transfer);
+    device.render_graph_submit(render_graph_transfer,
+                               discard_pool_transfer,
+                               true,
+                               false,
+                               VK_PIPELINE_STAGE_NONE,
+                               VK_NULL_HANDLE,
+                               VK_NULL_HANDLE,
+                               VK_NULL_HANDLE);
+  }
+
+  gpu_data_undefined_ = false;
 }
 
 void VKTexture::update_sub(
@@ -653,6 +682,7 @@ bool VKTexture::allocate()
   debug::object_label(vk_image_, name_);
 
   device.resources.add_image(vk_image_, image_info.arrayLayers, name_);
+  gpu_data_undefined_ = true;
 
   return result == VK_SUCCESS;
 }
