@@ -25,11 +25,11 @@ void VKRenderGraph::reset()
 #endif
   submission_id.next();
 
-  links_.clear_and_shrink();
+  links_.clear();
   for (VKRenderGraphNode &node : nodes_) {
     node.free_data(storage_);
   }
-  nodes_.clear_and_shrink();
+  nodes_.clear();
   storage_.reset();
 
   debug_.node_group_map.clear();
