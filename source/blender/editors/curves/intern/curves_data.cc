@@ -45,20 +45,25 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
   const VArray<int8_t> types = curves.curve_types();
 
   IndexMaskMemory memory;
-  const IndexMask bezier_points = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
-        const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
-        return is_bezier;
-      });
-
   std::array<IndexMask, 3> selection;
-  for (const int i : selection_names.index_range()) {
-    if (selection_names[i] == ".selection") {
-      selection[i] = ed::curves::retrieve_selected_points(curves, memory);
-    }
-    else {
-      selection[i] = ed::curves::retrieve_selected_points(
-          curves, selection_names[i], bezier_points, memory);
+  if (selection_names.size() == 1) {
+    selection[0] = ed::curves::retrieve_selected_points(curves, memory);
+  }
+  else {
+    const IndexMask bezier_points = IndexMask::from_predicate(
+        curves.points_range(), GrainSize(4096), memory, [&](const int64_t point_i) {
+          const bool is_bezier = types[point_to_curve_map[point_i]] == CURVE_TYPE_BEZIER;
+          return is_bezier;
+        });
+
+    for (const int i : selection_names.index_range()) {
+      if (selection_names[i] == ".selection") {
+        selection[i] = ed::curves::retrieve_selected_points(curves, memory);
+      }
+      else {
+        selection[i] = ed::curves::retrieve_selected_points(
+            curves, selection_names[i], bezier_points, memory);
+      }
     }
   }
 
