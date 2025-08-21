@@ -2760,7 +2760,7 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
                 0.0f,
                 0.0f,
                 "");
-  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0.05f * UI_UNIT_X, 0, nullptr, 0.0, 0.0, "");
+  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0.1f * UI_UNIT_X, 0, nullptr, 0.0, 0.0, "");
 }
 
 void uiLayout::prop_search(PointerRNA *ptr,

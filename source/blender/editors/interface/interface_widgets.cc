@@ -2035,10 +2035,9 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   uiButTextBox *textbox_but = static_cast<uiButTextBox *>(but);
   const int visible_lines = textbox_but->visible_lines();
-  const int text_padding = std::floor((UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect);
   const char *drawstr = but->drawstr.c_str();
   const blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
-      textbox_but, BLI_rcti_size_x(rect) - text_padding);
+      textbox_but, BLI_rcti_size_x(rect));
 
   const int line_height = BLI_rcti_size_y(rect) / (visible_lines);
 
