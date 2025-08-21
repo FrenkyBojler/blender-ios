@@ -51,7 +51,7 @@ static void context_path_add_object_data(Vector<ui::ContextPathItem> &path, Obje
   }
 }
 
-static std::function<void(bContext &)> handle_func(int i)
+static std::function<void(bContext &)> tree_path_handle_func(int i)
 {
   return [i](bContext &C) {
     PointerRNA op_props;
@@ -70,7 +70,7 @@ static void context_path_add_top_level_shader_node_tree(const SpaceNode &snode,
                                                         void *ptr)
 {
   if (snode.nodetree != snode.edittree) {
-    ui::context_path_add_generic(path, rna_type, ptr, ICON_NONE, handle_func(0));
+    ui::context_path_add_generic(path, rna_type, ptr, ICON_NONE, tree_path_handle_func(0));
   }
   else {
     ui::context_path_add_generic(path, rna_type, ptr);
@@ -89,7 +89,7 @@ static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
     if (path_item != snode.treepath.last) {
       // We don't need to add handle function to last nodetree
       ui::context_path_add_generic(
-          path, RNA_NodeTree, path_item->nodetree, ICON_NODETREE, handle_func(i));
+          path, RNA_NodeTree, path_item->nodetree, ICON_NODETREE, tree_path_handle_func(i));
     }
     else {
       ui::context_path_add_generic(path, RNA_NodeTree, path_item->nodetree, ICON_NODETREE);
