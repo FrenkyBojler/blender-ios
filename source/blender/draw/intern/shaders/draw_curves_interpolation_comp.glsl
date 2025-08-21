@@ -83,28 +83,33 @@ template<typename T> T output_load(int evaluated_point_index)
 }
 template<> InterpPosition output_load<InterpPosition>(int evaluated_point_index)
 {
-  return InterpPosition(buffer_get(draw_curves_interpolate_position,
-                                   evaluated_positions_radii_buf)[evaluated_point_index]);
+  InterpPosition data = buffer_get(draw_curves_interpolate_position,
+                                   evaluated_positions_radii_buf)[evaluated_point_index];
+  return data;
 }
 template<> float4 output_load<float4>(int evaluated_point_index)
 {
-  return load_data(buffer_get(draw_curves_interpolate_float4_attribute,
-                              evaluated_float4_buf)[evaluated_point_index]);
+  StoredFloat4 data = buffer_get(draw_curves_interpolate_float4_attribute,
+                                 evaluated_float4_buf)[evaluated_point_index];
+  return load_data(data);
 }
 template<> float3 output_load<float3>(int evaluated_point_index)
 {
-  return load_data(buffer_get(draw_curves_interpolate_float3_attribute,
-                              evaluated_float3_buf)[evaluated_point_index]);
+  StoredFloat3 data = buffer_get(draw_curves_interpolate_float3_attribute,
+                                 evaluated_float3_buf)[evaluated_point_index];
+  return load_data(data);
 }
 template<> float2 output_load<float2>(int evaluated_point_index)
 {
-  return load_data(buffer_get(draw_curves_interpolate_float2_attribute,
-                              evaluated_float2_buf)[evaluated_point_index]);
+  StoredFloat2 data = buffer_get(draw_curves_interpolate_float2_attribute,
+                                 evaluated_float2_buf)[evaluated_point_index];
+  return load_data(data);
 }
 template<> float output_load<float>(int evaluated_point_index)
 {
-  return load_data(buffer_get(draw_curves_interpolate_float_attribute,
-                              evaluated_float_buf)[evaluated_point_index]);
+  StoredFloat data = buffer_get(draw_curves_interpolate_float_attribute,
+                                evaluated_float_buf)[evaluated_point_index];
+  return load_data(data);
 }
 
 /** Output Write. */
