@@ -233,28 +233,31 @@ enum eWM_CursorWrapAxis {
  * Context to call operator in for #WM_operator_name_call.
  * rna_ui.cc contains EnumPropertyItem's of these, keep in sync.
  */
-enum wmOperatorCallContext {
+namespace blender::wm {
+enum class OpCallContext : int8_t {
   /* If there's invoke, call it, otherwise exec. */
-  WM_OP_INVOKE_DEFAULT,
-  WM_OP_INVOKE_REGION_WIN,
-  WM_OP_INVOKE_REGION_CHANNELS,
-  WM_OP_INVOKE_REGION_PREVIEW,
-  WM_OP_INVOKE_AREA,
-  WM_OP_INVOKE_SCREEN,
+  InvokeDefault,
+  InvokeRegionWin,
+  InvokeRegionChannels,
+  InvokeRegionPreview,
+  InvokeArea,
+  InvokeScreen,
   /* Only call exec. */
-  WM_OP_EXEC_DEFAULT,
-  WM_OP_EXEC_REGION_WIN,
-  WM_OP_EXEC_REGION_CHANNELS,
-  WM_OP_EXEC_REGION_PREVIEW,
-  WM_OP_EXEC_AREA,
-  WM_OP_EXEC_SCREEN,
+  ExecDefault,
+  ExecRegionWin,
+  ExecRegionChannels,
+  ExecRegionPreview,
+  ExecArea,
+  ExecScreen,
 };
+}
 
 #define WM_OP_CONTEXT_HAS_AREA(type) \
-  (CHECK_TYPE_INLINE(type, wmOperatorCallContext), \
-   !ELEM(type, WM_OP_INVOKE_SCREEN, WM_OP_EXEC_SCREEN))
+  (CHECK_TYPE_INLINE(type, blender::wm::OpCallContext), \
+   !ELEM(type, blender::wm::OpCallContext::InvokeScreen, blender::wm::OpCallContext::ExecScreen))
 #define WM_OP_CONTEXT_HAS_REGION(type) \
-  (WM_OP_CONTEXT_HAS_AREA(type) && !ELEM(type, WM_OP_INVOKE_AREA, WM_OP_EXEC_AREA))
+  (WM_OP_CONTEXT_HAS_AREA(type) && \
+   !ELEM(type, blender::wm::OpCallContext::InvokeArea, blender::wm::OpCallContext::ExecArea))
 
 /** Property tags for #RNA_OperatorProperties. */
 enum eOperatorPropTags {
@@ -313,7 +316,7 @@ enum {
    * \note The cursor location at the point dragging starts is set to #wmEvent.prev_press_xy
    * some operators such as box selection should use this location instead of #wmEvent.xy.
    */
-  KM_CLICK_DRAG = 5,
+  KM_PRESS_DRAG = 5,
 };
 /**
  * Alternate define for #wmKeyMapItem::shift and other modifiers.
@@ -325,7 +328,7 @@ enum {
 /**
  * #wmKeyMapItem.direction
  *
- * Direction set for #KM_CLICK_DRAG key-map items. #KM_ANY (-1) to ignore direction.
+ * Direction set for #KM_PRESS_DRAG key-map items. #KM_ANY (-1) to ignore direction.
  */
 enum {
   KM_DIRECTION_N = 1,
@@ -733,7 +736,7 @@ struct wmTabletData {
  * ============================
  *
  * Events hold information about the state when the last #KM_PRESS event was added.
- * This is used for generating #KM_CLICK, #KM_DBL_CLICK & #KM_CLICK_DRAG events.
+ * This is used for generating #KM_CLICK, #KM_DBL_CLICK & #KM_PRESS_DRAG events.
  * See #wm_handlers_do for the implementation.
  *
  * - Previous values are only set when a #KM_PRESS event is detected.
@@ -770,7 +773,7 @@ struct wmEvent {
   /** Modifier states: #KM_SHIFT, #KM_CTRL, #KM_ALT, #KM_OSKEY & #KM_HYPER. */
   wmEventModifierFlag modifier;
 
-  /** The direction (for #KM_CLICK_DRAG events only). */
+  /** The direction (for #KM_PRESS_DRAG events only). */
   int8_t direction;
 
   /**
@@ -990,8 +993,8 @@ enum wmPopupPosition {
  * Communication/status data owned by the wmJob, and passed to the worker code when calling
  * `startjob` callback.
  *
- * 'OUTPUT' members mean that they are defined by the worker thread, and read/used by the wmJob
- * management code from the main thread. And vice-versa for `INPUT' members.
+ * `OUTPUT` members mean that they are defined by the worker thread, and read/used by the wmJob
+ * management code from the main thread. And vice-versa for `INPUT` members.
  *
  * \warning There is currently no thread-safety or synchronization when accessing these values.
  * This is fine as long as:
@@ -1161,7 +1164,7 @@ struct wmOperatorType {
 struct wmOperatorCallParams {
   wmOperatorType *optype;
   PointerRNA *opptr;
-  wmOperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
 };
 
 #ifdef WITH_INPUT_IME
@@ -1194,7 +1197,7 @@ using wmPaintCursorDraw = void (*)(bContext *C,
 
 /* *************** Drag and drop *************** */
 
-enum eWM_DragDataType {
+enum eWM_DragDataType : int8_t {
   WM_DRAG_ID,
   WM_DRAG_ASSET,
   /** The user is dragging multiple assets. This is only supported in few specific cases, proper
@@ -1348,9 +1351,10 @@ struct wmDrag {
  * Drop-boxes are like key-maps, part of the screen/area/region definition.
  * Allocation and free is on startup and exit.
  *
- * The operator is polled and invoked with the current context (#WM_OP_INVOKE_DEFAULT), there is no
- * way to override that (by design, since drop-boxes should act on the exact mouse position).
- * So the drop-boxes are supposed to check the required area and region context in their poll.
+ * The operator is polled and invoked with the current context
+ * (#blender::wm::OpCallContext::InvokeDefault), there is no way to override that (by design, since
+ * drop-boxes should act on the exact mouse position). So the drop-boxes are supposed to check the
+ * required area and region context in their poll.
  */
 struct wmDropBox {
   wmDropBox *next, *prev;
@@ -1452,9 +1456,7 @@ struct CLG_LogRef;
 /* `wm_init_exit.cc`. */
 
 extern CLG_LogRef *WM_LOG_OPERATORS;
-extern CLG_LogRef *WM_LOG_HANDLERS;
 extern CLG_LogRef *WM_LOG_EVENTS;
-extern CLG_LogRef *WM_LOG_KEYMAPS;
-extern CLG_LogRef *WM_LOG_TOOLS;
+extern CLG_LogRef *WM_LOG_TOOL_GIZMO;
 extern CLG_LogRef *WM_LOG_MSGBUS_PUB;
 extern CLG_LogRef *WM_LOG_MSGBUS_SUB;

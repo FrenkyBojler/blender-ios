@@ -81,8 +81,13 @@ GPUOffScreen *image_render_begin(const int2 &win_size)
   }
 
   char err_out[256] = "unknown";
-  GPUOffScreen *offscreen = GPU_offscreen_create(
-      win_size.x, win_size.y, true, GPU_RGBA8, GPU_TEXTURE_USAGE_HOST_READ, false, err_out);
+  GPUOffScreen *offscreen = GPU_offscreen_create(win_size.x,
+                                                 win_size.y,
+                                                 true,
+                                                 blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                                                 GPU_TEXTURE_USAGE_HOST_READ,
+                                                 false,
+                                                 err_out);
   if (offscreen == nullptr) {
     return nullptr;
   }
@@ -272,12 +277,12 @@ void draw_polyline(const float4x4 &transform,
   immUnbindProgram();
 }
 
-static GPUUniformBuf *create_shader_ubo(const RegionView3D &rv3d,
-                                        const int2 &win_size,
-                                        const Object &object,
-                                        const eGPDstroke_Caps cap_start,
-                                        const eGPDstroke_Caps cap_end,
-                                        const bool is_fill_stroke)
+static gpu::UniformBuf *create_shader_ubo(const RegionView3D &rv3d,
+                                          const int2 &win_size,
+                                          const Object &object,
+                                          const eGPDstroke_Caps cap_start,
+                                          const eGPDstroke_Caps cap_end,
+                                          const bool is_fill_stroke)
 {
   GPencilStrokeData data;
   copy_v2_v2(data.viewport, float2(win_size));
@@ -326,7 +331,8 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
       format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_GPENCIL_STROKE);
-  GPUUniformBuf *ubo = create_shader_ubo(rv3d, win_size, object, cap_start, cap_end, fill_stroke);
+  gpu::UniformBuf *ubo = create_shader_ubo(
+      rv3d, win_size, object, cap_start, cap_end, fill_stroke);
   immBindUniformBuf("gpencil_stroke_data", ubo);
 
   /* If cyclic the curve needs one more vertex. */

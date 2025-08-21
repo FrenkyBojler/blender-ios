@@ -22,8 +22,10 @@ struct GPUMaterial;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUPass;
-struct GPUTexture;
-struct GPUUniformBuf;
+namespace blender::gpu {
+class Texture;
+class UniformBuf;
+}  // namespace blender::gpu
 struct Image;
 struct ImageUser;
 struct ListBase;
@@ -124,7 +126,7 @@ void GPU_materials_free(Main *bmain);
 
 GPUPass *GPU_material_get_pass(GPUMaterial *material);
 /** Return the most optimal shader configuration for the given material. */
-GPUShader *GPU_material_get_shader(GPUMaterial *material);
+blender::gpu::Shader *GPU_material_get_shader(GPUMaterial *material);
 
 const char *GPU_material_get_name(GPUMaterial *material);
 
@@ -144,7 +146,7 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
 
 uint64_t GPU_material_compilation_timestamp(GPUMaterial *mat);
 
-GPUUniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
+blender::gpu::UniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
 /**
  * Create dynamic UBO from parameters
  *
@@ -232,8 +234,8 @@ struct GPUMaterialTexture {
   Image *ima;
   ImageUser iuser;
   bool iuser_available;
-  GPUTexture **colorband;
-  GPUTexture **sky;
+  blender::gpu::Texture **colorband;
+  blender::gpu::Texture **sky;
   char sampler_name[32];       /* Name of sampler in GLSL. */
   char tiled_mapping_name[32]; /* Name of tile mapping sampler in GLSL. */
   int users;

@@ -8,7 +8,12 @@ set(INC
   include
   ../intern
   ../../editors/include
+  ../../compositor
   ../../makesrna
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/derived_resources
+  ../../compositor/utilities
   ../../modifiers
   ../../io/common
   ../../io/csv
@@ -141,6 +146,9 @@ set(SRC
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_geometry.cc
+  nodes/node_geo_list.cc
+  nodes/node_geo_list_get_item.cc
+  nodes/node_geo_list_length.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
@@ -241,7 +249,9 @@ set(SRC
   nodes/node_geo_warning.cc
 
   include/NOD_geo_bake.hh
+  include/NOD_geo_bundle.hh
   include/NOD_geo_capture_attribute.hh
+  include/NOD_geo_closure.hh
   include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh
@@ -269,6 +279,7 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
+  bf_compositor
   bf_io_common
   bf_io_csv
   PRIVATE bf::intern::atomic
@@ -339,16 +350,6 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 add_node_discovery(

@@ -28,7 +28,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -110,6 +110,13 @@ union TransformMedian {
   TransformMedian_Curves curves;
 };
 
+struct CurvesDataPanelState {
+  KnotsMode nurbs_knot_mode;
+  int order;
+  int resolution;
+  char cyclic;
+};
+
 /* temporary struct for storing transform properties */
 
 struct TransformProperties {
@@ -118,6 +125,9 @@ struct TransformProperties {
   float ob_scale_orig[3];
   float ob_dims[3];
   blender::Vector<float> vertex_weights;
+
+  CurvesDataPanelState modified, current;
+
   /* Floats only (treated as an array). */
   TransformMedian ve_median, median;
   bool tag_for_update;
@@ -302,15 +312,16 @@ static TransformProperties *v3d_transform_props_ensure(View3D *v3d)
   return static_cast<TransformProperties *>(v3d->runtime.properties_storage);
 }
 
-struct CurvesSelectionStatus {
+struct CurvesPointSelectionStatus {
   TransformMedian_Curves median = {};
   int total = 0;
   int total_curve_points = 0;
   int total_nurbs_weights = 0;
 
-  static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
+  static CurvesPointSelectionStatus sum(const CurvesPointSelectionStatus &a,
+                                        const CurvesPointSelectionStatus &b)
   {
-    CurvesSelectionStatus result;
+    CurvesPointSelectionStatus result;
     add_v3_v3v3(result.median.location, a.median.location, b.median.location);
     result.median.nurbs_weight = a.median.nurbs_weight + b.median.nurbs_weight;
     result.median.radius = a.median.radius + b.median.radius;
@@ -322,18 +333,18 @@ struct CurvesSelectionStatus {
   }
 };
 
-static CurvesSelectionStatus init_curves_selection_status(
+static CurvesPointSelectionStatus init_curves_point_selection_status(
     const blender::bke::CurvesGeometry &curves)
 {
   using namespace blender;
   using namespace ed::curves;
 
   if (curves.is_empty()) {
-    return CurvesSelectionStatus();
+    return CurvesPointSelectionStatus();
   }
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
-  const Span<float> nurbs_weights = curves.nurbs_weights();
+  const std::optional<Span<float>> nurbs_weights = curves.nurbs_weights();
   const VArray<float> radius = curves.radius();
   const VArray<float> tilt = curves.tilt();
   const Span<float3> positions = curves.positions();
@@ -341,12 +352,12 @@ static CurvesSelectionStatus init_curves_selection_status(
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_points(curves, ".selection", memory);
 
-  CurvesSelectionStatus status = threading::parallel_reduce(
+  CurvesPointSelectionStatus status = threading::parallel_reduce(
       curves.curves_range(),
       512,
-      CurvesSelectionStatus(),
-      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-        CurvesSelectionStatus value = acc;
+      CurvesPointSelectionStatus(),
+      [&](const IndexRange range, const CurvesPointSelectionStatus &acc) {
+        CurvesPointSelectionStatus value = acc;
 
         for (const int curve : range) {
           const IndexRange points = points_by_curve[curve];
@@ -361,8 +372,7 @@ static CurvesSelectionStatus init_curves_selection_status(
             add_v3_v3(value.median.location, positions[point]);
             value.total_nurbs_weights += is_nurbs;
             value.median.nurbs_weight += is_nurbs ?
-                                             (nurbs_weights.is_empty() ? 1.0f :
-                                                                         nurbs_weights[point]) :
+                                             (nurbs_weights ? (*nurbs_weights)[point] : 1.0f) :
                                              0;
             value.median.radius += radius[point];
             value.median.tilt += tilt[point];
@@ -370,15 +380,17 @@ static CurvesSelectionStatus init_curves_selection_status(
         }
         return value;
       },
-      CurvesSelectionStatus::sum);
+      CurvesPointSelectionStatus::sum);
 
   if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return status;
   }
 
-  auto add_handles = [&](StringRef selection_attribute, Span<float3> positions) {
+  auto add_handles = [&](StringRef selection_attribute, std::optional<Span<float3>> positions) {
+    if (!positions) {
+      return;
+    }
     const IndexMask selection = retrieve_selected_points(curves, selection_attribute, memory);
-
     if (selection.is_empty()) {
       return;
     }
@@ -386,7 +398,7 @@ static CurvesSelectionStatus init_curves_selection_status(
     status.total += selection.size();
 
     selection.foreach_index(
-        [&](const int point) { add_v3_v3(status.median.location, positions[point]); });
+        [&](const int point) { add_v3_v3(status.median.location, (*positions)[point]); });
   };
 
   add_handles(".selection_handle_left", curves.handle_positions_left());
@@ -394,10 +406,10 @@ static CurvesSelectionStatus init_curves_selection_status(
   return status;
 }
 
-static bool apply_to_curves_selection(const int tot,
-                                      const TransformMedian_Curves &median,
-                                      const TransformMedian_Curves &ve_median,
-                                      blender::bke::CurvesGeometry &curves)
+static bool apply_to_curves_point_selection(const int tot,
+                                            const TransformMedian_Curves &median,
+                                            const TransformMedian_Curves &ve_median,
+                                            blender::bke::CurvesGeometry &curves)
 {
   using namespace blender;
   using namespace ed::curves;
@@ -480,6 +492,91 @@ static bool apply_to_curves_selection(const int tot,
   }
 
   return changed;
+}
+
+struct CurvesSelectionStatus {
+  int curve_count = 0;
+  int nurbs_count = 0;
+  int bezier_count = 0;
+  int poly_count = 0;
+
+  int cyclic_count = 0;
+  int nurbs_knot_mode_sum = 0;
+  int nurbs_knot_mode_max = 0;
+  int order_sum = 0;
+  int order_max = 0;
+  int resolution_sum = 0;
+  int resolution_max = 0;
+
+  static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
+  {
+    return {a.curve_count + b.curve_count,
+            a.nurbs_count + b.nurbs_count,
+            a.bezier_count + b.bezier_count,
+            a.poly_count + b.poly_count,
+            a.cyclic_count + b.cyclic_count,
+            a.nurbs_knot_mode_sum + b.nurbs_knot_mode_sum,
+            std::max(a.nurbs_knot_mode_max, b.nurbs_knot_mode_max),
+            a.order_sum + b.order_sum,
+            std::max(a.order_max, b.order_max),
+            a.resolution_sum + b.resolution_sum,
+            std::max(a.resolution_max, b.resolution_max)};
+  }
+};
+
+static CurvesSelectionStatus init_curves_selection_status(
+    const blender::bke::CurvesGeometry &curves)
+{
+  using namespace blender;
+  using namespace ed::curves;
+
+  if (curves.is_empty()) {
+    return CurvesSelectionStatus();
+  }
+  const VArray<int8_t> curve_types = curves.curve_types();
+  const VArray<bool> cyclic = curves.cyclic();
+  const VArray<int8_t> nurbs_knot_modes = curves.nurbs_knots_modes();
+  const VArray<int8_t> orders = curves.nurbs_orders();
+  const VArray<int> resolution = curves.resolution();
+
+  IndexMaskMemory memory;
+  const IndexMask selection = retrieve_selected_curves(curves, memory);
+
+  return threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      CurvesSelectionStatus(),
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        selection.slice_content(range).foreach_index([&](const int curve) {
+          const CurveType curve_type = CurveType(curve_types[curve]);
+          const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
+          const bool is_bezier = curve_type == CURVE_TYPE_BEZIER;
+          const bool is_poly = curve_type == CURVE_TYPE_POLY;
+
+          value.curve_count++;
+          value.nurbs_count += is_nurbs;
+          value.bezier_count += is_bezier;
+          value.poly_count += is_poly;
+
+          value.cyclic_count += cyclic[curve];
+
+          const int order = is_nurbs ? orders[curve] : 0;
+          value.order_sum += order;
+          value.order_max = std::max(value.order_max, order);
+
+          const int nurbs_knot_mode = is_nurbs ? nurbs_knot_modes[curve] : 0;
+          value.nurbs_knot_mode_sum += nurbs_knot_mode;
+          value.nurbs_knot_mode_max = std::max(value.nurbs_knot_mode_max, nurbs_knot_mode);
+
+          const int res = resolution[curve];
+          value.resolution_sum += res;
+          value.resolution_max = std::max(value.resolution_max, res);
+        });
+        return value;
+      },
+      CurvesSelectionStatus::sum);
 }
 
 /* is used for both read and write... */
@@ -662,34 +759,33 @@ static void v3d_editvertex_buts(
     }
   }
   else if (ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES)) {
-    CurvesSelectionStatus status;
+    CurvesPointSelectionStatus status;
 
     if (ob->type == OB_GREASE_PENCIL) {
-      using namespace blender::ed::greasepencil;
+      using namespace ed::greasepencil;
       using namespace ed::curves;
       Scene &scene = *CTX_data_scene(C);
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
-      blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
-                                                                                grease_pencil);
+      Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
       status = threading::parallel_reduce(
           drawings.index_range(),
           1L,
-          CurvesSelectionStatus(),
-          [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-            CurvesSelectionStatus value = acc;
+          CurvesPointSelectionStatus(),
+          [&](const IndexRange range, const CurvesPointSelectionStatus &acc) {
+            CurvesPointSelectionStatus value = acc;
             for (const int drawing : range) {
-              value = CurvesSelectionStatus::sum(
-                  value, init_curves_selection_status(drawings[drawing].drawing.strokes()));
+              value = CurvesPointSelectionStatus::sum(
+                  value, init_curves_point_selection_status(drawings[drawing].drawing.strokes()));
             }
             return value;
           },
-          CurvesSelectionStatus::sum);
+          CurvesPointSelectionStatus::sum);
     }
     else {
       using namespace ed::curves;
       const Curves &curves_id = *static_cast<Curves *>(ob->data);
-      status = init_curves_selection_status(curves_id.geometry.wrap());
+      status = init_curves_point_selection_status(curves_id.geometry.wrap());
     }
 
     TransformMedian_Curves &median = median_basis.curves;
@@ -701,7 +797,7 @@ static void v3d_editvertex_buts(
 
   if (tot == 0) {
     uiDefBut(
-        block, UI_BTYPE_LABEL, 0, IFACE_("Nothing selected"), 0, 130, 200, 20, nullptr, 0, 0, "");
+        block, ButType::Label, 0, IFACE_("Nothing selected"), 0, 130, 200, 20, nullptr, 0, 0, "");
     return;
   }
 
@@ -776,13 +872,13 @@ static void v3d_editvertex_buts(
     else {
       c = IFACE_("Median:");
     }
-    uiDefBut(block, UI_BTYPE_LABEL, 0, c, 0, yi -= buth, butw, buth, nullptr, 0, 0, "");
+    uiDefBut(block, ButType::Label, 0, c, 0, yi -= buth, butw, buth, nullptr, 0, 0, "");
 
     UI_block_align_begin(block);
 
     /* Should be no need to translate these. */
     but = uiDefButF(block,
-                    UI_BTYPE_NUM,
+                    ButType::Num,
                     B_TRANSFORM_PANEL_MEDIAN,
                     IFACE_("X:"),
                     0,
@@ -797,7 +893,7 @@ static void v3d_editvertex_buts(
     UI_but_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
     UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
     but = uiDefButF(block,
-                    UI_BTYPE_NUM,
+                    ButType::Num,
                     B_TRANSFORM_PANEL_MEDIAN,
                     IFACE_("Y:"),
                     0,
@@ -812,7 +908,7 @@ static void v3d_editvertex_buts(
     UI_but_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
     UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
     but = uiDefButF(block,
-                    UI_BTYPE_NUM,
+                    ButType::Num,
                     B_TRANSFORM_PANEL_MEDIAN,
                     IFACE_("Z:"),
                     0,
@@ -832,7 +928,7 @@ static void v3d_editvertex_buts(
                           tfp->ve_median.curves.nurbs_weight :
                           tfp->ve_median.curve.b_weight;
       but = uiDefButF(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_TRANSFORM_PANEL_MEDIAN,
                       IFACE_("W:"),
                       0,
@@ -849,7 +945,7 @@ static void v3d_editvertex_buts(
 
     UI_block_align_begin(block);
     uiDefButBitS(block,
-                 UI_BTYPE_TOGGLE,
+                 ButType::Toggle,
                  V3D_GLOBAL_STATS,
                  B_REDR,
                  IFACE_("Global"),
@@ -862,7 +958,7 @@ static void v3d_editvertex_buts(
                  0,
                  TIP_("Displays global values"));
     uiDefButBitS(block,
-                 UI_BTYPE_TOGGLE_N,
+                 ButType::ToggleN,
                  V3D_GLOBAL_STATS,
                  B_REDR,
                  IFACE_("Local"),
@@ -881,7 +977,7 @@ static void v3d_editvertex_buts(
       TransformMedian_Mesh *ve_median = &tfp->ve_median.mesh;
       if (tot) {
         uiDefBut(block,
-                 UI_BTYPE_LABEL,
+                 ButType::Label,
                  0,
                  tot == 1 ? IFACE_("Vertex Data:") : IFACE_("Vertices Data:"),
                  0,
@@ -894,7 +990,7 @@ static void v3d_editvertex_buts(
                  "");
         /* customdata layer added on demand */
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         tot == 1 ? IFACE_("Bevel Weight:") : IFACE_("Mean Bevel Weight:"),
                         0,
@@ -909,7 +1005,7 @@ static void v3d_editvertex_buts(
         UI_but_number_precision_set(but, 2);
         /* customdata layer added on demand */
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         tot == 1 ? IFACE_("Vertex Crease:") : IFACE_("Mean Vertex Crease:"),
                         0,
@@ -926,7 +1022,7 @@ static void v3d_editvertex_buts(
       if (has_skinradius) {
         UI_block_align_begin(block);
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         tot == 1 ? IFACE_("Radius X:") : IFACE_("Mean Radius X:"),
                         0,
@@ -940,7 +1036,7 @@ static void v3d_editvertex_buts(
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         tot == 1 ? IFACE_("Radius Y:") : IFACE_("Mean Radius Y:"),
                         0,
@@ -957,7 +1053,7 @@ static void v3d_editvertex_buts(
       }
       if (totedgedata) {
         uiDefBut(block,
-                 UI_BTYPE_LABEL,
+                 ButType::Label,
                  0,
                  totedgedata == 1 ? IFACE_("Edge Data:") : IFACE_("Edges Data:"),
                  0,
@@ -970,7 +1066,7 @@ static void v3d_editvertex_buts(
                  "");
         /* customdata layer added on demand */
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         totedgedata == 1 ? IFACE_("Bevel Weight:") : IFACE_("Mean Bevel Weight:"),
                         0,
@@ -985,7 +1081,7 @@ static void v3d_editvertex_buts(
         UI_but_number_precision_set(but, 2);
         /* customdata layer added on demand */
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         totedgedata == 1 ? IFACE_("Crease:") : IFACE_("Mean Crease:"),
                         0,
@@ -1006,7 +1102,7 @@ static void v3d_editvertex_buts(
       TransformMedian_Curves *ve_median = &tfp->ve_median.curves;
 
       but = uiDefButF(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_TRANSFORM_PANEL_MEDIAN,
                       is_single ? IFACE_("Radius:") : IFACE_("Mean Radius:"),
                       0,
@@ -1022,7 +1118,7 @@ static void v3d_editvertex_buts(
       UI_but_number_step_size_set(but, 1);
       UI_but_number_precision_set(but, 3);
       but = uiDefButF(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_TRANSFORM_PANEL_MEDIAN,
                       is_single ? IFACE_("Tilt:") : IFACE_("Mean Tilt:"),
                       0,
@@ -1043,7 +1139,7 @@ static void v3d_editvertex_buts(
       TransformMedian_Curve *ve_median = &tfp->ve_median.curve;
       if (totcurvedata == 1) {
         but = uiDefButR(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         0,
                         IFACE_("Weight:"),
                         0,
@@ -1059,7 +1155,7 @@ static void v3d_editvertex_buts(
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
         but = uiDefButR(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         0,
                         IFACE_("Radius:"),
                         0,
@@ -1075,7 +1171,7 @@ static void v3d_editvertex_buts(
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
         but = uiDefButR(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         0,
                         IFACE_("Tilt:"),
                         0,
@@ -1093,7 +1189,7 @@ static void v3d_editvertex_buts(
       }
       else if (totcurvedata > 1) {
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         IFACE_("Mean Weight:"),
                         0,
@@ -1107,7 +1203,7 @@ static void v3d_editvertex_buts(
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         IFACE_("Mean Radius:"),
                         0,
@@ -1121,7 +1217,7 @@ static void v3d_editvertex_buts(
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 3);
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         IFACE_("Mean Tilt:"),
                         0,
@@ -1142,7 +1238,7 @@ static void v3d_editvertex_buts(
       TransformMedian_Lattice *ve_median = &tfp->ve_median.lattice;
       if (totlattdata == 1) {
         but = uiDefButR(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         0,
                         IFACE_("Weight:"),
                         0,
@@ -1160,7 +1256,7 @@ static void v3d_editvertex_buts(
       }
       else if (totlattdata > 1) {
         but = uiDefButF(block,
-                        UI_BTYPE_NUM,
+                        ButType::Num,
                         B_TRANSFORM_PANEL_MEDIAN,
                         IFACE_("Mean Weight:"),
                         0,
@@ -1454,16 +1550,17 @@ static void v3d_editvertex_buts(
              (apply_vcos || median_basis.curves.nurbs_weight || median_basis.curves.radius ||
               median_basis.curves.tilt))
     {
-      using namespace blender::ed::greasepencil;
+      using namespace ed::greasepencil;
       using namespace ed::curves;
       Scene &scene = *CTX_data_scene(C);
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
-      blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
-                                                                                grease_pencil);
+      Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
       threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
         bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-        if (apply_to_curves_selection(tot, median_basis.curves, ve_median_basis.curves, curves)) {
+        if (apply_to_curves_point_selection(
+                tot, median_basis.curves, ve_median_basis.curves, curves))
+        {
           info.drawing.tag_positions_changed();
         }
       });
@@ -1474,7 +1571,9 @@ static void v3d_editvertex_buts(
       using namespace ed::curves;
       Curves &curves_id = *static_cast<Curves *>(ob->data);
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-      if (apply_to_curves_selection(tot, median_basis.curves, ve_median_basis.curves, curves)) {
+      if (apply_to_curves_point_selection(
+              tot, median_basis.curves, ve_median_basis.curves, curves))
+      {
         curves.tag_positions_changed();
       }
     }
@@ -1503,7 +1602,7 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
     copy_m4_m4(tfp->ob_obmat_orig, ob->object_to_world().ptr());
 
     uiDefBut(block,
-             UI_BTYPE_LABEL,
+             ButType::Label,
              0,
              IFACE_("Dimensions:"),
              0,
@@ -1520,7 +1619,7 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
       uiBut *but;
       const char text[3] = {char('X' + i), ':', '\0'};
       but = uiDefButF(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_TRANSFORM_PANEL_DIMS,
                       text,
                       0,
@@ -1535,7 +1634,7 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
       UI_but_number_precision_set(but, 3);
       UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
       if (!is_editable) {
-        UI_but_disable(but, "Can't edit this property from a linked data-block");
+        UI_but_disable(but, "Cannot edit this property from a linked data-block");
       }
     }
     UI_block_align_end(block);
@@ -1664,9 +1763,9 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 
           ot = WM_operatortype_find("OBJECT_OT_vertex_weight_set_active", true);
           but = uiDefButO_ptr(block,
-                              UI_BTYPE_BUT,
+                              ButType::But,
                               ot,
-                              WM_OP_EXEC_DEFAULT,
+                              blender::wm::OpCallContext::ExecDefault,
                               dg->name,
                               xco,
                               yco,
@@ -1689,7 +1788,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           float &vertex_weight = tfp->vertex_weights[i];
           vertex_weight = dw->weight;
           but = uiDefButF(block,
-                          UI_BTYPE_NUM,
+                          ButType::Num,
                           B_VGRP_PNL_EDIT_SINGLE + i,
                           "",
                           xco,
@@ -1711,14 +1810,20 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 
           /* The weight group paste function */
           icon = (locked) ? ICON_BLANK1 : ICON_PASTEDOWN;
-          op_ptr = row->op(
-              "OBJECT_OT_vertex_weight_paste", "", icon, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+          op_ptr = row->op("OBJECT_OT_vertex_weight_paste",
+                           "",
+                           icon,
+                           blender::wm::OpCallContext::InvokeDefault,
+                           UI_ITEM_NONE);
           RNA_int_set(&op_ptr, "weight_group", i);
 
           /* The weight entry delete function */
           icon = (locked) ? ICON_LOCKED : ICON_X;
-          op_ptr = row->op(
-              "OBJECT_OT_vertex_weight_delete", "", icon, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+          op_ptr = row->op("OBJECT_OT_vertex_weight_delete",
+                           "",
+                           icon,
+                           blender::wm::OpCallContext::InvokeDefault,
+                           UI_ITEM_NONE);
           RNA_int_set(&op_ptr, "weight_group", i);
 
           yco -= UI_UNIT_Y;
@@ -1735,9 +1840,9 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
     ot = WM_operatortype_find("OBJECT_OT_vertex_weight_normalize_active_vertex", true);
     but = uiDefButO_ptr(
         block,
-        UI_BTYPE_BUT,
+        ButType::But,
         ot,
-        WM_OP_EXEC_DEFAULT,
+        blender::wm::OpCallContext::ExecDefault,
         IFACE_("Normalize"),
         0,
         yco,
@@ -1748,9 +1853,9 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
     ot = WM_operatortype_find("OBJECT_OT_vertex_weight_copy", true);
     but = uiDefButO_ptr(
         block,
-        UI_BTYPE_BUT,
+        ButType::But,
         ot,
-        WM_OP_EXEC_DEFAULT,
+        blender::wm::OpCallContext::ExecDefault,
         IFACE_("Copy"),
         UI_UNIT_X * 5,
         yco,
@@ -2042,26 +2147,409 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
   }
 }
 
+static bool view3d_panel_curve_data_poll(const bContext *C, PanelType * /*pt*/)
+{
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  return (ob && (ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES) && BKE_object_is_in_editmode(ob)));
+}
+
+static void apply_to_active_object(
+    bContext *C,
+    blender::FunctionRef<void(const CurvesDataPanelState &modified_state,
+                              const blender::IndexMask &selection,
+                              blender::bke::CurvesGeometry &curves)> curves_geometry_handler)
+{
+  using namespace blender;
+
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+
+  View3D *v3d = CTX_wm_view3d(C);
+  const TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
+  const CurvesDataPanelState &modified = tfp.modified;
+
+  if (ob->type == OB_GREASE_PENCIL) {
+    using namespace ed::greasepencil;
+    Scene &scene = *CTX_data_scene(C);
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+    Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
+
+    threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      IndexMaskMemory memory;
+      const IndexMask selection = ed::curves::retrieve_selected_curves(curves, memory);
+      if (selection.is_empty()) {
+        return;
+      }
+
+      curves_geometry_handler(modified, selection, curves);
+      info.drawing.tag_topology_changed();
+    });
+  }
+  else {
+    Curves &curves_id = *static_cast<Curves *>(ob->data);
+    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    IndexMaskMemory memory;
+    const IndexMask selection = ed::curves::retrieve_selected_curves(curves, memory);
+
+    if (!selection.is_empty()) {
+      curves_geometry_handler(modified, selection, curves);
+      curves.tag_topology_changed();
+    }
+  }
+
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+}
+
+static void handle_curves_cyclic(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(C,
+                         [](const CurvesDataPanelState &modified_state,
+                            const IndexMask &selection,
+                            bke::CurvesGeometry &curves) {
+                           index_mask::masked_fill(
+                               curves.cyclic_for_write(), bool(modified_state.cyclic), selection);
+                         });
+}
+
+static void update_custom_knots(const blender::OffsetIndices<int> &src_custom_knots_by_curve,
+                                const blender::Span<int8_t> src_knot_modes,
+                                const blender::Span<float> src_custom_knots,
+                                blender::bke::CurvesGeometry &curves)
+{
+  using namespace blender;
+  curves.nurbs_custom_knots_update_size();
+  IndexMaskMemory memory;
+  const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
+  if (!custom_knot_curves.is_empty()) {
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+    const VArray<int8_t> orders = curves.nurbs_orders();
+    const VArray<bool> cyclic = curves.cyclic();
+    MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
+
+    custom_knot_curves.foreach_index(GrainSize(512), [&](const int curve) {
+      const IndexRange dst_knots = custom_knots_by_curve[curve];
+      const IndexRange src_knots = src_custom_knots_by_curve[curve];
+      if (src_knots.is_empty()) {
+        const int points_num = points_by_curve[curve].size();
+        const int order = orders[curve];
+        const bool is_cyclic = cyclic[curve];
+        Array<float> knots_buffer(bke::curves::nurbs::knots_num(points_num, order, is_cyclic));
+        bke::curves::nurbs::calculate_knots(
+            points_num, KnotsMode(src_knot_modes[curve]), order, is_cyclic, knots_buffer);
+        custom_knots.slice(dst_knots).copy_from(
+            knots_buffer.as_span().take_front(dst_knots.size()));
+      }
+      else {
+        custom_knots.slice(dst_knots).copy_from(src_custom_knots.slice(src_knots));
+      }
+    });
+  }
+}
+
+static void handle_curves_knot_mode(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(
+      C,
+      [](const CurvesDataPanelState &modified_state,
+         const IndexMask &selection,
+         bke::CurvesGeometry &curves) {
+        const OffsetIndices<int> src_custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+        /* Ensure `src_custom_knots_by_curve` will not get deleted. */
+        const SharedCache<Vector<int>> custom_knot_offsets_cache =
+            curves.runtime->custom_knot_offsets_cache;
+        const Span<float> src_custom_knots = curves.nurbs_custom_knots();
+        const ImplicitSharingInfo *knots_sharing_info = curves.runtime->custom_knots_sharing_info;
+        if (knots_sharing_info != nullptr) {
+          knots_sharing_info->add_weak_user();
+        }
+
+        Array<int8_t> src_knot_modes;
+        if (!src_custom_knots.is_empty() ||
+            modified_state.nurbs_knot_mode == NURBS_KNOT_MODE_CUSTOM) {
+          src_knot_modes.reinitialize(curves.curves_num());
+          curves.nurbs_knots_modes().materialize(src_knot_modes);
+        }
+
+        const MutableSpan<int8_t> nurbs_knot_modes = curves.nurbs_knots_modes_for_write();
+
+        index_mask::masked_fill(
+            nurbs_knot_modes, int8_t(modified_state.nurbs_knot_mode), selection);
+        /**
+         * Copies custom knots from the original array for curves which retain
+         * NURBS_KNOT_MODE_CUSTOM. Calculates custom knots for curves which gain
+         * NURBS_KNOT_MODE_CUSTOM.
+         */
+        update_custom_knots(src_custom_knots_by_curve, src_knot_modes, src_custom_knots, curves);
+
+        if (knots_sharing_info != nullptr) {
+          knots_sharing_info->remove_weak_user_and_delete_if_last();
+        }
+      });
+}
+
+static void handle_curves_order(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(
+      C,
+      [](const CurvesDataPanelState &modified_state,
+         const IndexMask &selection,
+         bke::CurvesGeometry &curves) {
+        const MutableSpan<int8_t> nurbs_knot_modes = curves.nurbs_knots_modes_for_write();
+        const MutableSpan<int8_t> orders = curves.nurbs_orders_for_write();
+
+        const OffsetIndices<int> src_custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+        /* Ensure `src_custom_knots_by_curve` will not get deleted. */
+        const SharedCache<Vector<int>> custom_knot_offsets_cache =
+            curves.runtime->custom_knot_offsets_cache;
+        const Span<float> src_custom_knots = curves.nurbs_custom_knots();
+        const ImplicitSharingInfo *knots_sharing_info = curves.runtime->custom_knots_sharing_info;
+        if (knots_sharing_info != nullptr) {
+          knots_sharing_info->add_weak_user();
+        }
+
+        bool knot_modes_changed = false;
+
+        selection.foreach_index(GrainSize(512), [&](const int curve) {
+          if (orders[curve] != modified_state.order &&
+              nurbs_knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM)
+          {
+            nurbs_knot_modes[curve] = NURBS_KNOT_MODE_NORMAL;
+            knot_modes_changed = true;
+          }
+          orders[curve] = modified_state.order;
+        });
+
+        /**
+         * Custom knots need to be recopied, if some curves loose NURBS_KNOT_MODE_CUSTOM.
+         */
+        if (knot_modes_changed) {
+          update_custom_knots(src_custom_knots_by_curve, {}, src_custom_knots, curves);
+        }
+
+        if (knots_sharing_info != nullptr) {
+          knots_sharing_info->remove_weak_user_and_delete_if_last();
+        }
+      });
+}
+
+static void handle_curves_resolution(bContext *C, void *, void *)
+{
+  using namespace blender;
+
+  apply_to_active_object(C,
+                         [](const CurvesDataPanelState &modified_state,
+                            const IndexMask &selection,
+                            bke::CurvesGeometry &curves) {
+                           index_mask::masked_fill(curves.resolution_for_write(),
+                                                   modified_state.resolution,
+                                                   selection);
+                         });
+}
+
+constexpr std::array<EnumPropertyItem, 5> enum_curve_knot_mode_items{{
+    {NURBS_KNOT_MODE_NORMAL, "NORMAL", ICON_NONE, "Normal", ""},
+    {NURBS_KNOT_MODE_ENDPOINT, "ENDPOINT", ICON_NONE, "Endpoint", ""},
+    {NURBS_KNOT_MODE_BEZIER, "BEZIER", ICON_NONE, "Bezier", ""},
+    {NURBS_KNOT_MODE_ENDPOINT_BEZIER, "ENDPOINT_BEZIER", ICON_NONE, "Endpoint Bezier", ""},
+    {NURBS_KNOT_MODE_CUSTOM, "CUSTOM", ICON_NONE, "Custom", ""},
+}};
+
+static void knot_modes_menu(bContext * /*C*/, uiLayout *layout, void *knot_mode_p)
+{
+  uiBlock *block = layout->block();
+  blender::ui::block_layout_set_current(block, layout);
+  layout->column(false);
+
+  for (const EnumPropertyItem &item : enum_curve_knot_mode_items) {
+    uiDefButI(block,
+              ButType::ButMenu,
+              0,
+              IFACE_(item.name),
+              0,
+              0,
+              UI_UNIT_X * 5,
+              UI_UNIT_Y,
+              reinterpret_cast<int *>(knot_mode_p),
+              item.value,
+              0.0,
+              "");
+  }
+}
+
+static void view3d_panel_curve_data(const bContext *C, Panel *panel)
+{
+  using namespace blender;
+  using namespace ed::curves;
+
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  uiBlock *block = panel->layout->block();
+
+  CurvesSelectionStatus status;
+
+  if (ob->type == OB_GREASE_PENCIL) {
+    using namespace ed::greasepencil;
+    Scene &scene = *CTX_data_scene(C);
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+    Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
+
+    status = threading::parallel_reduce(
+        drawings.index_range(),
+        1L,
+        CurvesSelectionStatus(),
+        [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+          CurvesSelectionStatus value = acc;
+          for (const int drawing : range) {
+            value = CurvesSelectionStatus::sum(
+                value, init_curves_selection_status(drawings[drawing].drawing.strokes()));
+          }
+          return value;
+        },
+        CurvesSelectionStatus::sum);
+  }
+  else {
+    const Curves &curves_id = *static_cast<Curves *>(ob->data);
+    status = init_curves_selection_status(curves_id.geometry.wrap());
+  }
+
+  if (status.curve_count == 0) {
+    uiDefBut(
+        block, ButType::Label, 0, IFACE_("Nothing selected"), 0, 130, 200, 20, nullptr, 0, 0, "");
+    return;
+  }
+
+  View3D *v3d = CTX_wm_view3d(C);
+  TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
+  CurvesDataPanelState &modified = tfp.modified;
+  CurvesDataPanelState &current = tfp.current;
+
+  current.cyclic = status.cyclic_count > 0;
+  current.nurbs_knot_mode = KnotsMode(
+      math::safe_divide(status.nurbs_knot_mode_sum, status.nurbs_count));
+  current.order = math::safe_divide(status.order_sum, status.nurbs_count);
+  current.resolution = math::safe_divide(status.resolution_sum, status.curve_count);
+
+  modified = current;
+
+  panel->layout->use_property_split_set(true);
+  uiLayout &bcol = panel->layout->column(false);
+
+  auto add_labeled_field =
+      [&](const StringRef label, const bool active, FunctionRef<uiBut *()> add_button) {
+        uiLayout &row = bcol.row(true);
+        uiLayout &split = row.split(0.4, true);
+        uiLayout &col = split.column(true);
+        col.alignment_set(ui::LayoutAlign::Right);
+        col.label(label, ICON_NONE);
+        split.column(false);
+        uiBut *but = add_button();
+        if (active) {
+          UI_but_drawflag_disable(but, UI_BUT_INDETERMINATE);
+        }
+        else {
+          UI_but_drawflag_enable(but, UI_BUT_INDETERMINATE);
+        }
+      };
+
+  const int butw = 10 * UI_UNIT_X;
+  const int buth = 20 * UI_SCALE_FAC;
+
+  add_labeled_field(
+      "Cyclic", status.cyclic_count == 0 || status.cyclic_count == status.curve_count, [&]() {
+        uiBut *but = uiDefButC(
+            block, ButType::Checkbox, 0, "", 0, 0, butw, buth, &modified.cyclic, 0, 1, "");
+        UI_but_func_set(but, handle_curves_cyclic, nullptr, nullptr);
+        return but;
+      });
+
+  if (status.nurbs_count == status.curve_count) {
+    add_labeled_field(
+        "Knot Mode",
+        status.nurbs_knot_mode_max * status.nurbs_count == status.nurbs_knot_mode_sum,
+        [&]() {
+          uiBut *but = uiDefMenuBut(block,
+                                    knot_modes_menu,
+                                    &modified.nurbs_knot_mode,
+                                    enum_curve_knot_mode_items[modified.nurbs_knot_mode].name,
+                                    0,
+                                    0,
+                                    butw,
+                                    buth,
+                                    "");
+          UI_but_type_set_menu_from_pulldown(but);
+          UI_but_func_set(but, handle_curves_knot_mode, nullptr, nullptr);
+          return but;
+        });
+
+    add_labeled_field("Order", status.order_max * status.nurbs_count == status.order_sum, [&]() {
+      uiBut *but = uiDefButI(
+          block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.order, 2, 6, "");
+      UI_but_number_step_size_set(but, 1);
+      UI_but_number_precision_set(but, -1);
+      UI_but_func_set(but, handle_curves_order, nullptr, nullptr);
+      return but;
+    });
+  }
+
+  if (status.poly_count == 0) {
+    add_labeled_field(
+        "Resolution", status.resolution_max * status.curve_count == status.resolution_sum, [&]() {
+          uiBut *but = uiDefButI(
+              block, ButType::Num, 0, "", 0, 0, butw, buth, &modified.resolution, 1, 64, "");
+          UI_but_number_step_size_set(but, 1);
+          UI_but_number_precision_set(but, -1);
+          UI_but_func_set(but, handle_curves_resolution, nullptr, nullptr);
+          return but;
+        });
+  }
+}
+
 void view3d_buttons_register(ARegionType *art)
 {
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype view3d panel object");
-  STRNCPY(pt->idname, "VIEW3D_PT_transform");
-  STRNCPY(pt->label, N_("Transform")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY(pt->category, "Item");
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "VIEW3D_PT_transform");
+  STRNCPY_UTF8(pt->label, N_("Transform")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY_UTF8(pt->category, "Item");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = view3d_panel_transform;
   pt->poll = view3d_panel_transform_poll;
   BLI_addtail(&art->paneltypes, pt);
 
   pt = MEM_callocN<PanelType>("spacetype view3d panel vgroup");
-  STRNCPY(pt->idname, "VIEW3D_PT_vgroup");
-  STRNCPY(pt->label, N_("Vertex Weights")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY(pt->category, "Item");
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "VIEW3D_PT_vgroup");
+  STRNCPY_UTF8(pt->label,
+               N_("Vertex Weights")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY_UTF8(pt->category, "Item");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = view3d_panel_vgroup;
   pt->poll = view3d_panel_vgroup_poll;
+  BLI_addtail(&art->paneltypes, pt);
+
+  pt = MEM_callocN<PanelType>("spacetype view3d panel curves");
+  STRNCPY_UTF8(pt->idname, "VIEW3D_PT_curves");
+  STRNCPY_UTF8(pt->label, N_("Curve Data")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY_UTF8(pt->category, "Item");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  pt->draw = view3d_panel_curve_data;
+  pt->poll = view3d_panel_curve_data_poll;
   BLI_addtail(&art->paneltypes, pt);
 }
 

@@ -282,7 +282,7 @@ bool ShaderModule::request_specializations(bool block_until_ready,
       [&]() {
         Vector<ShaderSpecialization> specializations;
         for (int i : IndexRange(3)) {
-          GPUShader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
+          gpu::Shader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
           int render_pass_shadow_id_index = GPU_shader_get_constant(sh, "render_pass_shadow_id");
           int use_split_indirect_index = GPU_shader_get_constant(sh, "use_split_indirect");
           int use_lightprobe_eval_index = GPU_shader_get_constant(sh, "use_lightprobe_eval");
@@ -551,7 +551,7 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
   return "";
 }
 
-GPUShader *ShaderModule::static_shader_get(eShaderType shader_type)
+gpu::Shader *ShaderModule::static_shader_get(eShaderType shader_type)
 {
   return shaders_[shader_type].get();
 }
@@ -890,7 +890,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     frag_gen << global_vars.str() << attr_load.str();
   }
 
-  /* TODO(fclem): This should become part of the dependency system.  */
+  /* TODO(fclem): This should become part of the dependency system. */
   std::string deps_concat;
   for (const StringRefNull &str : info.dependencies_generated) {
     deps_concat += str;

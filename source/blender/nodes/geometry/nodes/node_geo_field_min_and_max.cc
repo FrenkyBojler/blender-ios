@@ -187,7 +187,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               result = math::min(result, values[i]);
             }
-            g_outputs = VArray<T>::ForSingle(result, domain_size);
+            g_outputs = VArray<T>::from_single(result, domain_size);
           }
           else {
             Map<int, T> results;
@@ -199,7 +199,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               outputs[i] = results.lookup(group_indices[i]);
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
         else {
@@ -208,7 +208,7 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               result = math::max(result, values[i]);
             }
-            g_outputs = VArray<T>::ForSingle(result, domain_size);
+            g_outputs = VArray<T>::from_single(result, domain_size);
           }
           else {
             Map<int, T> results;
@@ -220,13 +220,19 @@ class FieldMinMaxInput final : public bke::GeometryFieldInput {
             for (const int i : values.index_range()) {
               outputs[i] = results.lookup(group_indices[i]);
             }
-            g_outputs = VArray<T>::ForContainer(std::move(outputs));
+            g_outputs = VArray<T>::from_container(std::move(outputs));
           }
         }
       }
     });
 
     return attributes.adapt_domain(std::move(g_outputs), source_domain_, context.domain());
+  }
+
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const final
+  {
+    input_.node().for_each_field_input_recursive(fn);
+    group_index_.node().for_each_field_input_recursive(fn);
   }
 
   uint64_t hash() const override
@@ -272,9 +278,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-      {CD_PROP_INT32, "INT", 0, "Integer", "32-bit integer"},
-      {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
+      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {CD_PROP_INT32, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
+      {CD_PROP_FLOAT3,
+       "FLOAT_VECTOR",
+       ICON_NODE_SOCKET_VECTOR,
+       "Vector",
+       "3D vector with floating-point values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

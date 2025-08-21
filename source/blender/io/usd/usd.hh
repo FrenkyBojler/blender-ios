@@ -51,7 +51,7 @@ enum eUSDMtlPurpose {
  *  attributes / properties outside
  *  a prim's regular schema.
  */
-enum eUSDAttrImportMode {
+enum eUSDPropertyImportMode {
   USD_ATTR_IMPORT_NONE = 0,
   USD_ATTR_IMPORT_USER = 1,
   USD_ATTR_IMPORT_ALL = 2,
@@ -152,7 +152,7 @@ struct USDExportParams {
   bool use_instancing = false;
   bool export_custom_properties = true;
   bool author_blender_name = true;
-  bool allow_unicode = false;
+  bool allow_unicode = true;
 
   eSubdivExportMode export_subdiv = USD_SUBDIV_BEST_MATCH;
   enum eEvaluationMode evaluation_mode = DAG_EVAL_VIEWPORT;
@@ -176,7 +176,7 @@ struct USDExportParams {
   eUSDZTextureDownscaleSize usdz_downscale_size = eUSDZTextureDownscaleSize::USD_TEXTURE_SIZE_KEEP;
   int usdz_downscale_custom_size = 128;
 
-  char root_prim_path[1024] = ""; /* FILE_MAX */
+  std::string root_prim_path = "";
   char collection[MAX_ID_NAME - 2] = "";
   char custom_properties_namespace[MAX_IDPROP_NAME] = "";
 
@@ -189,7 +189,6 @@ struct USDExportParams {
 };
 
 struct USDImportParams {
-  char *prim_path_mask;
   float scale;
   float light_intensity_scale;
   bool apply_unit_conversion_scale;
@@ -210,7 +209,7 @@ struct USDImportParams {
   bool import_all_materials;
   bool import_meshes;
   bool import_points;
-  bool import_subdiv;
+  bool import_subdivision;
   bool import_volumes;
 
   bool import_shapes;
@@ -234,9 +233,10 @@ struct USDImportParams {
   eUSDMtlNameCollisionMode mtl_name_collision_mode;
   eUSDTexImportMode import_textures_mode;
 
+  std::string prim_path_mask;
   char import_textures_dir[/*FILE_MAXDIR*/ 768];
   eUSDTexNameCollisionMode tex_name_collision_mode;
-  eUSDAttrImportMode attr_import_mode;
+  eUSDPropertyImportMode property_import_mode;
 
   /**
    * Communication structure between the wmJob management code and the worker code. Currently used
@@ -321,7 +321,7 @@ struct USDHook {
   /* Identifier used as label. */
   char name[64];
   /* Short help/description. */
-  char description[1024]; /* #RNA_DYN_DESCR_MAX */
+  char description[/*RNA_DYN_DESCR_MAX*/ 1024];
 
   /* rna_ext.data points to the USDHook class PyObject. */
   ExtensionRNA rna_ext;

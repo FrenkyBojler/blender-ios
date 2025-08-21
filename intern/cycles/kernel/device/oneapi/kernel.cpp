@@ -31,7 +31,7 @@ static const RTCFeatureFlags CYCLES_ONEAPI_EMBREE_BASIC_FEATURES = (const RTCFea
     RTC_FEATURE_FLAG_MOTION_BLUR);
 static const RTCFeatureFlags CYCLES_ONEAPI_EMBREE_ALL_FEATURES = (const RTCFeatureFlags)(
     CYCLES_ONEAPI_EMBREE_BASIC_FEATURES | RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE |
-    RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE);
+    RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE | RTC_FEATURE_FLAG_ROUND_LINEAR_CURVE);
 #  endif
 
 void oneapi_set_error_cb(OneAPIErrorCallback cb, void *user_ptr)
@@ -248,7 +248,8 @@ bool oneapi_load_kernels(SyclQueue *queue_,
         }
 
         sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle_input =
-            sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
+            sycl::get_kernel_bundle<sycl::bundle_state::input>(
+                queue->get_context(), {queue->get_device()}, {kernel_id});
 
         /* Hair requires embree curves support. */
         if (kernel_features & KERNEL_FEATURE_HAIR) {
@@ -294,7 +295,8 @@ bool oneapi_load_kernels(SyclQueue *queue_,
 #  ifdef WITH_EMBREE_GPU
       if (oneapi_kernel_has_intersections(kernel_name)) {
         sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle_input =
-            sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
+            sycl::get_kernel_bundle<sycl::bundle_state::input>(
+                queue->get_context(), {queue->get_device()}, {kernel_id});
         one_kernel_bundle_input
             .set_specialization_constant<ONEAPIKernelContext::oneapi_embree_features>(
                 RTC_FEATURE_FLAG_NONE);
@@ -304,8 +306,8 @@ bool oneapi_load_kernels(SyclQueue *queue_,
 #  endif
       /* This call will ensure that AoT or cached JIT binaries are available
        * for execution. It will trigger compilation if it is not already the case. */
-      (void)sycl::get_kernel_bundle<sycl::bundle_state::executable>(queue->get_context(),
-                                                                    {kernel_id});
+      (void)sycl::get_kernel_bundle<sycl::bundle_state::executable>(
+          queue->get_context(), {queue->get_device()}, {kernel_id});
     }
   }
   catch (const sycl::exception &e) {
@@ -592,8 +594,23 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
                       oneapi_kernel_shader_eval_curve_shadow_transparency);
           break;
         }
+        case DEVICE_KERNEL_SHADER_EVAL_VOLUME_DENSITY: {
+          oneapi_call(
+              kg, cgh, global_size, local_size, args, oneapi_kernel_shader_eval_volume_density);
+          break;
+        }
         case DEVICE_KERNEL_PREFIX_SUM: {
           oneapi_call(kg, cgh, global_size, local_size, args, oneapi_kernel_prefix_sum);
+          break;
+        }
+        case DEVICE_KERNEL_VOLUME_GUIDING_FILTER_X: {
+          oneapi_call(
+              kg, cgh, global_size, local_size, args, oneapi_kernel_volume_guiding_filter_x);
+          break;
+        }
+        case DEVICE_KERNEL_VOLUME_GUIDING_FILTER_Y: {
+          oneapi_call(
+              kg, cgh, global_size, local_size, args, oneapi_kernel_volume_guiding_filter_y);
           break;
         }
 
@@ -614,9 +631,11 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
 
       DEVICE_KERNEL_FILM_CONVERT(depth, DEPTH);
       DEVICE_KERNEL_FILM_CONVERT(mist, MIST);
+      DEVICE_KERNEL_FILM_CONVERT(volume_majorant, VOLUME_MAJORANT);
       DEVICE_KERNEL_FILM_CONVERT(sample_count, SAMPLE_COUNT);
       DEVICE_KERNEL_FILM_CONVERT(float, FLOAT);
       DEVICE_KERNEL_FILM_CONVERT(light_path, LIGHT_PATH);
+      DEVICE_KERNEL_FILM_CONVERT(rgbe, RGBE);
       DEVICE_KERNEL_FILM_CONVERT(float3, FLOAT3);
       DEVICE_KERNEL_FILM_CONVERT(motion, MOTION);
       DEVICE_KERNEL_FILM_CONVERT(cryptomatte, CRYPTOMATTE);

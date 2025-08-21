@@ -565,22 +565,14 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
   }
 
   /* VK_KHR_dynamic_rendering */
-  if (extensions.dynamic_rendering) {
-    vk_pipeline_rendering_create_info_.depthAttachmentFormat =
-        graphics_info.fragment_out.depth_attachment_format;
-    vk_pipeline_rendering_create_info_.stencilAttachmentFormat =
-        graphics_info.fragment_out.stencil_attachment_format;
-    vk_pipeline_rendering_create_info_.colorAttachmentCount =
-        graphics_info.fragment_out.color_attachment_formats.size();
-    vk_pipeline_rendering_create_info_.pColorAttachmentFormats =
-        graphics_info.fragment_out.color_attachment_formats.data();
-  }
-  else {
-    BLI_assert(ELEM(
-        vk_graphics_pipeline_create_info_.pNext, &vk_pipeline_rendering_create_info_, nullptr));
-    vk_graphics_pipeline_create_info_.pNext = nullptr;
-    vk_graphics_pipeline_create_info_.renderPass = graphics_info.fragment_out.vk_render_pass;
-  }
+  vk_pipeline_rendering_create_info_.depthAttachmentFormat =
+      graphics_info.fragment_out.depth_attachment_format;
+  vk_pipeline_rendering_create_info_.stencilAttachmentFormat =
+      graphics_info.fragment_out.stencil_attachment_format;
+  vk_pipeline_rendering_create_info_.colorAttachmentCount =
+      graphics_info.fragment_out.color_attachment_formats.size();
+  vk_pipeline_rendering_create_info_.pColorAttachmentFormats =
+      graphics_info.fragment_out.color_attachment_formats.data();
 
   /* Common values */
   vk_graphics_pipeline_create_info_.layout = graphics_info.vk_pipeline_layout;
@@ -610,7 +602,6 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
   vk_graphics_pipeline_create_info_.stageCount = 0;
   vk_graphics_pipeline_create_info_.layout = VK_NULL_HANDLE;
   vk_graphics_pipeline_create_info_.basePipelineHandle = VK_NULL_HANDLE;
-  vk_graphics_pipeline_create_info_.renderPass = VK_NULL_HANDLE;
   for (VkPipelineShaderStageCreateInfo &info :
        MutableSpan<VkPipelineShaderStageCreateInfo>(vk_pipeline_shader_stage_create_info_, 3))
   {
@@ -768,14 +759,13 @@ void VKPipelinePool::read_from_disk()
      */
     MEM_freeN(buffer);
     CLOG_INFO(&LOG,
-              1,
               "Pipeline cache on disk [%s] is ignored as it was written by a different driver or "
               "Blender version. Cache will be overwritten when exiting.",
               cache_file.c_str());
     return;
   }
 
-  CLOG_INFO(&LOG, 1, "Initialize static pipeline cache from disk [%s].", cache_file.c_str());
+  CLOG_INFO(&LOG, "Initialize static pipeline cache from disk [%s].", cache_file.c_str());
   VKDevice &device = VKBackend::get().device;
   VkPipelineCacheCreateInfo create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
@@ -806,7 +796,7 @@ void VKPipelinePool::write_to_disk()
   vkGetPipelineCacheData(device.vk_handle(), vk_pipeline_cache_static_, &data_size, buffer);
 
   std::string cache_file = pipeline_cache_filepath_get();
-  CLOG_INFO(&LOG, 1, "Writing static pipeline cache to disk [%s].", cache_file.c_str());
+  CLOG_INFO(&LOG, "Writing static pipeline cache to disk [%s].", cache_file.c_str());
 
   fstream file(cache_file, std::ios::binary | std::ios::out);
 

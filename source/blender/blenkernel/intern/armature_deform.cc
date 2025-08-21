@@ -42,7 +42,7 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.armature_deform"};
+static CLG_LogRef LOG = {"geom.armature_deform"};
 
 /* -------------------------------------------------------------------- */
 /** \name Armature Deform Internal Utilities
@@ -587,7 +587,7 @@ static void armature_deform_editmesh(const Object &ob_arm,
   TaskParallelSettings settings;
   BLI_parallel_mempool_settings_defaults(&settings);
 
-  if (deform_params.use_dverts) {
+  if (data.deform_params.use_dverts) {
     BLI_task_parallel_mempool(
         em_target.bm->vpool, &data, armature_vert_task_editmesh<true>, &settings);
   }

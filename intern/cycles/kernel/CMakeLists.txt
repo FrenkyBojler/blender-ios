@@ -62,6 +62,7 @@ set(SRC_KERNEL_DEVICE_CPU_HEADERS
   device/cpu/kernel_arch_impl.h
 )
 set(SRC_KERNEL_DEVICE_GPU_HEADERS
+  device/gpu/block_sizes.h
   device/gpu/image.h
   device/gpu/kernel.h
   device/gpu/parallel_active_index.h
@@ -282,6 +283,7 @@ set(SRC_KERNEL_FILM_HEADERS
   film/aov_passes.h
   film/data_passes.h
   film/denoising_passes.h
+  film/volume_guiding_denoise.h
   film/cryptomatte_passes.h
   film/light_passes.h
   film/read.h
@@ -352,6 +354,7 @@ set(SRC_KERNEL_UTIL_HEADERS
   util/ies.h
   util/lookup_table.h
   util/nanovdb.h
+  util/texture_3d.h
   util/profiler.h
 )
 
@@ -399,6 +402,7 @@ set(SRC_UTIL_HEADERS
   ../util/math_int3.h
   ../util/math_int4.h
   ../util/math_int8.h
+  ../util/math_dual.h
   ../util/projection.h
   ../util/projection_inverse.h
   ../util/rect.h
@@ -416,6 +420,7 @@ set(SRC_UTIL_HEADERS
   ../util/types_int4.h
   ../util/types_int8.h
   ../util/types_spectrum.h
+  ../util/types_rgbe.h
   ../util/types_uchar2.h
   ../util/types_uchar3.h
   ../util/types_uchar4.h
@@ -423,6 +428,7 @@ set(SRC_UTIL_HEADERS
   ../util/types_uint3.h
   ../util/types_uint4.h
   ../util/types_ushort4.h
+  ../util/types_dual.h
 )
 
 set(LIB
@@ -531,10 +537,8 @@ if(WITH_CYCLES_CUDA_BINARIES)
       set(cuda_flags ${cuda_flags} --ptxas-options="-v")
     endif()
 
-    if(${cuda_version} GREATER_EQUAL 110)
-      # Helps with compatibility when using recent clang host compiler.
-      set(cuda_flags ${cuda_flags} -std=c++17)
-    endif()
+    # Helps with compatibility when using recent clang host compiler.
+    set(cuda_flags ${cuda_flags} -std=c++17)
 
     set(_cuda_nvcc_args
       -arch=${arch}
@@ -570,32 +574,8 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
   set(prev_arch "none")
   foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})
-    if(${arch} MATCHES ".*_2.")
+    if(${arch} MATCHES ".*_3.")
       message(STATUS "CUDA binaries for ${arch} are no longer supported, skipped.")
-    elseif(${arch} MATCHES ".*_30")
-      if(DEFINED CUDA10_NVCC_EXECUTABLE)
-        set(cuda_nvcc_executable ${CUDA10_NVCC_EXECUTABLE})
-        set(cuda_toolkit_root_dir ${CUDA10_TOOLKIT_ROOT_DIR})
-        set(cuda_version 100)
-      elseif("${CUDA_VERSION}" LESS 110) # Support for sm_30 was removed in CUDA 11
-        set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
-        set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
-        set(cuda_version ${CUDA_VERSION})
-      else()
-        message(STATUS "CUDA binaries for ${arch} require CUDA 10 or earlier, skipped.")
-      endif()
-    elseif(${arch} MATCHES ".*_3.")
-      if(DEFINED CUDA11_NVCC_EXECUTABLE)
-        set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
-        set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
-        set(cuda_version 110)
-      elseif("${CUDA_VERSION}" LESS 120) # Support for sm_35, sm_37 was removed in CUDA 12
-        set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
-        set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
-        set(cuda_version ${CUDA_VERSION})
-      else()
-        message(STATUS "CUDA binaries for ${arch} require CUDA 11 or earlier, skipped.")
-      endif()
     elseif(${arch} MATCHES "compute_7." AND DEFINED CUDA11_NVCC_EXECUTABLE)
       # Use CUDA 11 if available for the default PTX kernel. This allows us to
       # keep the driver requirements for user machines low.
@@ -720,6 +700,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       -Wno-parentheses-equality
       -Wno-unused-value
       -ffast-math
+      -std=c++17
       ${math_flag}
       ${hip_opt_flags}
       -o ${CMAKE_CURRENT_BINARY_DIR}/${hip_file})
@@ -890,6 +871,7 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
       COMMAND
         ${CUDA_NVCC_EXECUTABLE}
         --ptx
+        -std=c++17
         -arch=sm_50
         ${cuda_flags}
         ${input}
