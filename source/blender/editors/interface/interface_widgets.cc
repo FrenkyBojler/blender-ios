@@ -2065,7 +2065,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     }
   }
   if (lines.size() <= visible_lines) {
-    textbox_but->block->buttons[textbox_but->block->but_index(but) + 2]->flag |= UI_HIDDEN;
+    textbox_but->block->buttons[textbox_but->block->but_index(but) + 3]->flag |= UI_HIDDEN;
   }
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data;

@@ -39,6 +39,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface_layout.hh"
+#include "UI_view2d.hh"
 
 #include "ED_id_management.hh"
 
@@ -2672,7 +2673,8 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   }
 
   uiLayout &overlap = this->overlap();
-  overlap.alignment_set(blender::ui::LayoutAlign::Expand);
+  uiLayout &row = overlap.row(true);
+  row.row(true).alignment_set(blender::ui::LayoutAlign::Expand);
 
   if (block->oldblock && block->oldblock->textbox_status.contains_as(idname)) {
     block->textbox_status.add(block->oldblock->textbox_status.lookup_key_as(idname));
@@ -2685,8 +2687,8 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   }
 
   TextboxStatus &textbox_status = *block->textbox_status.lookup_key_as(idname).get();
-  float line_heigth = UI_UNIT_Y * 0.75;
-  overlap.row(true);
+  float line_heigth = UI_UNIT_Y;
+  row.row(true);
   uiBut *but = uiDefButR_prop(block,
                               ButType::TextBox,
                               0,
@@ -2707,6 +2709,20 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
   /* Clamp scroll, resizing the region could add/remove wrapped lines. */
   textbox->line_scroll_set(textbox->line_scroll());
 
+  blender::ui::block_layout_set_current(block, &row);
+  uiDefBut(block,
+           ButType::Roundbox,
+           0,
+           "",
+           0,
+           0,
+           V2D_SCROLL_WIDTH + 0.15f * UI_UNIT_X,
+           line_heigth * (textbox_status.visible_lines_get()),
+           nullptr,
+           0.0,
+           0.0,
+           "");
+
   uiLayout &sub = overlap.column(true);
   uiDefBut(block, ButType::Sepr, 0, "", 0, 0, 0, 0.1f * UI_UNIT_Y, nullptr, 0.0, 0.0, "");
 
@@ -2718,8 +2734,8 @@ void uiLayout::prop_textbox(PointerRNA *ptr,
       "",
       0,
       0,
-      UI_TEXT_MARGIN_X * U.widget_unit,
-      line_heigth * (float(textbox_status.visible_lines_get()) - 0.85f),
+      V2D_SCROLL_WIDTH,
+      line_heigth * (float(textbox_status.visible_lines_get()) - 0.75f),
       &textbox_status.line_scroll,
       0,
       std::max<int>(textbox_status.last_total_lines - textbox_status.visible_lines_get(), 0),
@@ -4063,7 +4079,6 @@ static void ui_litem_layout_panel_body(uiLayout *litem)
 /* box layout */
 static void ui_litem_estimate_box(uiLayout *litem)
 {
-  uiLayoutItemBx *box = static_cast<uiLayoutItemBx *>(litem);
   const uiStyle *style = litem->root_->style;
 
   ui_litem_estimate_column(litem, true);
