@@ -5011,9 +5011,8 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "show_area_corner_icon", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_VISIBLE_AREA_CORNER_ICON);
-  RNA_def_property_ui_text(
-      prop, "Visible Corner Icon", "Show visible area maintenance icon in corner");
+  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_VISIBLE_AREA_HANDLE);
+  RNA_def_property_ui_text(prop, "Corner Handle", "Show visible area maintenance corner handle");
   RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "show_object_info", PROP_BOOLEAN, PROP_NONE);

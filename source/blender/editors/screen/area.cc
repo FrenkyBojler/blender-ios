@@ -159,7 +159,7 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
  */
 static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
 {
-  if (!(U.uiflag & USER_VISIBLE_AREA_CORNER_ICON)) {
+  if (!(U.uiflag & USER_VISIBLE_AREA_HANDLE)) {
     return;
   }
 
