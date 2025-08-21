@@ -5220,14 +5220,24 @@ struct ObjectModifierUpdateContext {
   blender::FunctionRef<void(Object *object, bool update_mesh)> update_or_tag_fn;
 };
 
-static bool object_modifier_update_subframe_impl(const ObjectModifierUpdateContext &ctx,
-                                                 Object *ob,
-                                                 const bool update_mesh,
-                                                 const int parent_recursion_limit)
+/**
+ * Utility used to implement
+ * - #BKE_object_modifier_update_subframe
+ * - #BKE_object_modifier_update_subframe_only_callback
+ *
+ * The actual updating may be done by a callback: `ctx.update_or_tag_fn`,
+ * called by this function for each object.
+ */
+static bool object_modifier_recurse_for_update_subframe(const ObjectModifierUpdateContext &ctx,
+                                                        Object *ob,
+                                                        const bool update_mesh,
+                                                        const int parent_recursion_limit)
 {
-  /* NOTE: this function should not actually update the object
-   * since this is used for setting up the depsgraph.
-   * The actual updates must be done by the #ObjectModifierUpdateContext::update_or_tag_fn. */
+  /* NOTE: this function must not modify the object
+   * since this is used for setting up depsgraph relationships.
+   *
+   * Although the #ObjectModifierUpdateContext::update_or_tag_fn callback may change the object
+   * as this is needed to implement #BKE_object_modifier_update_subframe. */
 
   /* NOTE(@ideasman42): `parent_recursion_limit` is used to prevent this function attempting to
    * scan object hierarchies infinitely, needed since constraint targets are also included.
@@ -5258,10 +5268,10 @@ static bool object_modifier_update_subframe_impl(const ObjectModifierUpdateConte
     const int recursion = parent_recursion_limit - 1;
     bool no_update = false;
     if (ob->parent) {
-      no_update |= object_modifier_update_subframe_impl(ctx, ob->parent, false, recursion);
+      no_update |= object_modifier_recurse_for_update_subframe(ctx, ob->parent, false, recursion);
     }
     if (ob->track) {
-      no_update |= object_modifier_update_subframe_impl(ctx, ob->track, false, recursion);
+      no_update |= object_modifier_recurse_for_update_subframe(ctx, ob->track, false, recursion);
     }
 
     /* Skip sub-frame if object is parented to vertex of a dynamic paint canvas. */
@@ -5276,7 +5286,7 @@ static bool object_modifier_update_subframe_impl(const ObjectModifierUpdateConte
       if (BKE_constraint_targets_get(con, &targets)) {
         LISTBASE_FOREACH (bConstraintTarget *, ct, &targets) {
           if (ct->tar) {
-            object_modifier_update_subframe_impl(ctx, ct->tar, false, recursion);
+            object_modifier_recurse_for_update_subframe(ctx, ct->tar, false, recursion);
           }
         }
         /* free temp targets */
@@ -5301,7 +5311,7 @@ void BKE_object_modifier_update_subframe_only_callback(
       ModifierType(modifier_type),
       update_or_tag_fn,
   };
-  object_modifier_update_subframe_impl(ctx, ob, update_mesh, parent_recursion_limit);
+  object_modifier_recurse_for_update_subframe(ctx, ob, update_mesh, parent_recursion_limit);
 }
 
 void BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
