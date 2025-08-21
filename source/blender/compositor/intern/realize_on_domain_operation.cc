@@ -85,10 +85,15 @@ float2 RealizeOnDomainOperation::compute_corrective_translation()
 
 void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_transformation)
 {
+  // matrix is between pixel corners, change to pixel centers:
+  float3x3 imat = math::from_location<float3x3>(float2(-0.5f)) * inverse_transformation * math::from_location<float3x3>(float2(0.5f));
+
   gpu::Shader *shader = this->context().get_shader(this->get_realization_shader_name());
   GPU_shader_bind(shader);
 
-  GPU_shader_uniform_mat3_as_mat4(shader, "inverse_transformation", inverse_transformation.ptr());
+  GPU_shader_uniform_mat3_as_mat4(shader, "imat", imat.ptr());
+
+  GPU_shader_uniform_2f(shader, "wh", hypotf(imat[0][0], imat[1][0]), hypotf(imat[0][1], imat[1][1]));
 
   /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
    * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
