@@ -51,15 +51,11 @@ wmOperatorStatus add_editor_exec(bContext *C, wmOperator *op)
 
   ScrArea *docked_area = lookup_docked_area(C);
 
-  add_docked_space(docked_area, type, CTX_data_scene(C));
-  ED_area_init(C, CTX_wm_window(C), docked_area);
+  SpaceLink *new_space = add_docked_space(docked_area, type, CTX_data_scene(C));
+  activate_docked_space(C, docked_area, new_space);
 
   return OPERATOR_FINISHED;
 }
-
-// wmOperatorStatus add_editor_invoke(bContext *C, wmOperator *op, const wmEvent *event) {
-
-// }
 
 void SCREEN_OT_editor_dock_add_editor(wmOperatorType *ot)
 {

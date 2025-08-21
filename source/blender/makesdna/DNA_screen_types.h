@@ -486,6 +486,8 @@ typedef struct ScrArea {
    * The first item is the active/visible one.
    */
   ListBase spacedata;
+  /* The docked editors in this area, in order we want to display them in. */
+  ListBase docked_spaces_ordered; /* #LinkData (#SpaceLink) */
   /**
    * #ARegion.
    * \note This region list is the one from the active/visible editor (first item in
