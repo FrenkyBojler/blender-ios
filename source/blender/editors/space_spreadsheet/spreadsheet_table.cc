@@ -36,7 +36,7 @@ void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
   dst.instance_ids_num = src.instance_ids_num;
   dst.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(src.bundle_path_num, __func__);
   for (const int i : IndexRange(src.bundle_path_num)) {
-    dst.bundle_path[i].identifier = BLI_strdup(src.bundle_path[i].identifier);
+    dst.bundle_path[i].identifier = BLI_strdup_null(src.bundle_path[i].identifier);
   }
   dst.bundle_path_num = src.bundle_path_num;
 }
@@ -62,7 +62,7 @@ void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
       BKE_viewer_path_clear(&table_id_->viewer_path);
       MEM_SAFE_FREE(table_id_->instance_ids);
       for (const int i : IndexRange(table_id_->bundle_path_num)) {
-        MEM_freeN(table_id_->bundle_path[i].identifier);
+        MEM_SAFE_FREE(table_id_->bundle_path[i].identifier);
       }
       MEM_SAFE_FREE(table_id_->bundle_path);
       break;
