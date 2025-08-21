@@ -87,7 +87,7 @@ static int get_divisor(const int distance)
   /* In case none of the above if is true, the divisor will be 2. This can cause major lines to be
    * drawn on subframes, but this will only happen on custom fps that cannot be broken down by
    * 2, 3 or 5. */
-  return 2;
+  return distance;
 }
 
 /**
@@ -302,7 +302,7 @@ static void view2d_draw_lines(const View2D *v2d,
     const int pixel_width = BLI_rcti_size_x(&v2d->mask);
     const float view_width = BLI_rctf_size_x(&v2d->cur);
 
-    if ((pixel_width / view_width) * (major_distance / divisor) > MIN_MAJOR_LINE_DISTANCE / 2) {
+    if ((pixel_width / view_width) * (major_distance / divisor) > MIN_MAJOR_LINE_DISTANCE / 3) {
       view2d_draw_lines_internal(v2d, &minor_lines, minor_color, direction);
     }
   }
