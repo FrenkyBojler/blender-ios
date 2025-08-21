@@ -70,7 +70,7 @@ static int get_divisor(const int distance)
     /* If the division was without loss due to integer cast and the result is a power of two return
      * that. We prefer any opportunity to get onto the power of two ladder since halfing the range
      * every time is the most intuitive way for artists. */
-    if (result * divisor == distance && (result & (result - 1)) == 0) {
+    if (result * divisor == distance && ELEM(result, 2, 4)) {
       return divisor;
     }
     division_results[i] = result;
@@ -299,7 +299,12 @@ static void view2d_draw_lines(const View2D *v2d,
     const int divisor = get_divisor(major_distance_int);
     minor_lines.distance = major_distance / divisor;
     minor_lines.offset = 0;
-    view2d_draw_lines_internal(v2d, &minor_lines, minor_color, direction);
+    const int pixel_width = BLI_rcti_size_x(&v2d->mask);
+    const float view_width = BLI_rctf_size_x(&v2d->cur);
+
+    if ((pixel_width / view_width) * (major_distance / divisor) > MIN_MAJOR_LINE_DISTANCE / 2) {
+      view2d_draw_lines_internal(v2d, &minor_lines, minor_color, direction);
+    }
   }
 
   {
