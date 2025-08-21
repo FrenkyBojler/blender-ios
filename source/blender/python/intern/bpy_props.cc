@@ -1339,8 +1339,6 @@ static void bpy_prop_string_set_fn(PointerRNA *ptr, PropertyRNA *prop, const cha
     if (!py_value) {
       PyErr_SetString(PyExc_ValueError, "the set value must be a valid string");
       PyC_Err_PrintWithFunc(py_func);
-    }
-    else {
       py_value = Py_None;
       Py_INCREF(py_value);
     }
@@ -1534,6 +1532,8 @@ static bool bpy_prop_pointer_poll_fn(PointerRNA *self, PointerRNA candidate, Pro
   bool result;
 
   BLI_assert(self != nullptr);
+
+  py_func = prop_store->py_data.pointer_data.poll_fn;
 
   {
     PyObject *args = PyTuple_New(2);
