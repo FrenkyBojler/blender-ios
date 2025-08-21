@@ -26,13 +26,14 @@ void main()
    * output size since textureGrad assumes derivatives with respect to texel coordinates. */
   float2 x_gradient = (homography_matrix[0].xy / transformed_coordinates.z) / output_size.x;
   float2 y_gradient = (homography_matrix[1].xy / transformed_coordinates.z) / output_size.y;
-
-  //float4 sampled_color = textureGrad(input_tx, projected_coordinates, x_gradient, y_gradient);
-  // TODO: Remove this once approved.
   float4 sampled_color = texture_ewa(input_tx, projected_coordinates, x_gradient, y_gradient);
 
   /* Premultiply the mask value as an alpha. */
+#if defined(PREMULTIPLY_MASK)
   float4 plane_color = sampled_color * texture_load(mask_tx, texel).x;
+#else
+  float4 plane_color = sampled_color;
+#endif
 
   imageStore(output_img, texel, plane_color);
 }

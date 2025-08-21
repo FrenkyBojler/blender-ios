@@ -5,8 +5,6 @@
 /** \file
  * \ingroup cmpnodes
  */
-#include <iostream>
-
 #include "BLI_assert.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix_types.hh"
@@ -319,7 +317,6 @@ class CornerPinOperation : public NodeOperation {
     /* The inputs are invalid because the plane is not convex, fall back to an identity operation
      * in that case. */
     if (!is_quad_convex_v2(lower_left, lower_right, upper_right, upper_left)) {
-      std::cout << "Not convex" << std::endl;
       return float3x3::identity();
     }
 
@@ -402,9 +399,8 @@ class CornerPinOperation : public NodeOperation {
         return "compositor_plane_deform";
       case Interpolation::Bicubic:
         return "compositor_plane_deform_bicubic";
-      /* Anisotropic does not implement extension modes. Return masked shader. */
       case Interpolation::Anisotropic:
-        break;
+        return "compositor_plane_deform_anisotropic";
     }
     BLI_assert_unreachable();
     return "compositor_plane_deform_anisotropic_masked";

@@ -1116,9 +1116,8 @@ void BLI_ewa_single_level(const int2 &dimensions,
   /* Scale the coordinates and the Jacobian into texel space. */
   float2 size = static_cast<float2>(dimensions);
   float2 coords = uv_center * size;
-
-  /* Clamp gradient to the max dimension of the output dimension. */
-  const float max_gradient_scale = 1.0f;
+  /* Clip gradients to the max length. */
+  const float max_gradient_scale = 1000.0f;
   const float max_grad = float(max(size.x, size.y)) * max_gradient_scale;
   float2 x_grad = normalize(x_gradient) * min(length(x_gradient), max_grad);
   float2 y_grad = normalize(y_gradient) * min(length(y_gradient), max_grad);

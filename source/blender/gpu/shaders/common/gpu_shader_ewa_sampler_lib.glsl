@@ -133,12 +133,16 @@ float4 texture_ewa(sampler2D input_tx, float2 uv_coordinates, float2 x_gradient,
    * paramemters. */
   constexpr float smoothness = 2.0f;
   constexpr float max_ratio_between_axes = 8.0f;
+  constexpr float max_gradient_scale = 1000.0f;
 
   /* Scale the coordinates and the Jacobian into texel space. */
   float2 size = float2(textureSize(input_tx, 0));
   float2 coordinates = uv_coordinates * size;
-  x_gradient *= size;
-  y_gradient *= size;
+
+  /* Gradient clipping. */
+  float max_grad = float(max(size.x, size.y)) * max_gradient_scale;
+  x_gradient = normalize(x_gradient) * min(length(x_gradient), max_grad);
+  y_gradient = normalize(y_gradient) * min(length(y_gradient), max_grad);
 
   /* Build ellipsoid. */
   Ellipse ellipse = build_ellipse(coordinates, x_gradient, y_gradient, max_ratio_between_axes);
@@ -166,7 +170,8 @@ float4 texture_ewa(sampler2D input_tx, float2 uv_coordinates, float2 x_gradient,
       if (r2 < 1.0f) {
         float weight = exp(-smoothness * r2);
         if (weight > 0.0f) {
-          float4 rgba = texelFetch(input_tx, int2(x, y), 0);
+          float2 coords = (float2(x, y) + 0.5f) / size;
+          float4 rgba = texture(input_tx, coords);
           accum_rgba += weight * rgba;
           accum_weight += weight;
         }
