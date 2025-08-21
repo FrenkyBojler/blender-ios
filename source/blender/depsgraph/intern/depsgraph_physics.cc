@@ -146,7 +146,14 @@ void DEG_add_collision_relations(DepsNodeHandle *handle,
        * When #BKE_object_modifier_update_subframe is used by a modifier,
        * it's important the depsgraph tags objects this modifier uses.
        *
-       * Without this, access to objects is not thread-safe, see: #142137. */
+       * Without this, access to objects is not thread-safe, see: #142137.
+       *
+       * NOTE(@ideasman42): #BKE_object_modifier_update_subframe calls
+       * #BKE_animsys_evaluate_animdata, depending on the object type.
+       * Equivalent relations could be added here.
+       * This was not done and there are no bug reports relating to this,
+       * so leave as-is unless the current code is failing in a real world scenario. */
+
       BKE_object_modifier_update_subframe_only_callback(
           ob1,
           true,
