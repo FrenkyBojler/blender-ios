@@ -24,8 +24,6 @@
 
 #include "node_composite_util.hh"
 
-/* **************** Kuwahara ******************** */
-
 namespace blender::nodes::node_composite_kuwahara_cc {
 
 static const EnumPropertyItem type_items[] = {

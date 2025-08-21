@@ -1351,8 +1351,8 @@ typedef struct NodeScriptDict {
 
 /** glare node. */
 typedef struct NodeGlare {
-  char type;
-  char quality;
+  char type DNA_DEPRECATED;
+  char quality DNA_DEPRECATED;
   char iter DNA_DEPRECATED;
   char angle DNA_DEPRECATED;
   char _pad0;
@@ -1586,7 +1586,7 @@ typedef struct NodeKeyingData {
   float clip_white DNA_DEPRECATED;
   int dilate_distance DNA_DEPRECATED;
   int feather_distance DNA_DEPRECATED;
-  int feather_falloff;
+  int feather_falloff DNA_DEPRECATED;
   int blur_pre DNA_DEPRECATED;
   int blur_post DNA_DEPRECATED;
 } NodeKeyingData;

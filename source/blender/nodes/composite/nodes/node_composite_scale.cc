@@ -18,11 +18,7 @@
 
 #include "DNA_node_types.h"
 
-#include "RNA_access.hh"
 #include "RNA_enum_types.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -77,6 +73,7 @@ static void cmp_node_scale_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("Frame Type")
       .default_value(CMP_NODE_SCALE_RENDER_SIZE_STRETCH)
       .static_items(frame_type_items)
+      .usage_by_menu("Type", CMP_NODE_SCALE_RENDER_SIZE)
       .description("How the image fits in the camera frame");
 
   PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling").default_closed(true);
@@ -99,32 +96,6 @@ static void node_composit_init_scale(bNodeTree * /*ntree*/, bNode *node)
   /* Unused, kept for forward compatibility. */
   NodeScaleData *data = MEM_callocN<NodeScaleData>(__func__);
   node->storage = data;
-}
-
-static void node_composite_update_scale(bNodeTree *ntree, bNode *node)
-{
-  bool use_xy_scale = ELEM(node->custom1, CMP_NODE_SCALE_RELATIVE, CMP_NODE_SCALE_ABSOLUTE);
-
-  /* Only show X/Y scale factor inputs for modes using them! */
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    if (STR_ELEM(sock->name, "X", "Y")) {
-      bke::node_set_socket_availability(*ntree, *sock, use_xy_scale);
-    }
-  }
-}
-
-static void node_composit_buts_scale(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiLayout &column = layout->column(true);
-  column.prop(ptr, "space", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-
-  if (RNA_enum_get(ptr, "space") == CMP_NODE_SCALE_RENDER_SIZE) {
-    column.prop(ptr,
-                "frame_method",
-                UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND,
-                std::nullopt,
-                ICON_NONE);
-  }
 }
 
 using namespace blender::compositor;
@@ -440,9 +411,7 @@ static void register_node_type_cmp_scale()
   ntype.enum_name_legacy = "SCALE";
   ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_scale_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_scale;
   ntype.initfunc = file_ns::node_composit_init_scale;
-  ntype.updatefunc = file_ns::node_composite_update_scale;
   blender::bke::node_type_storage(
       ntype, "NodeScaleData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;

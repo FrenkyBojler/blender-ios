@@ -1590,22 +1590,20 @@ static void do_version_world_remove_use_nodes(Main *bmain, World *world)
 
 static void do_version_blur_menus_to_inputs(bNodeTree &ntree, bNode &node)
 {
-  if (blender::bke::node_find_socket(node, SOCK_IN, "Filter Type")) {
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
     return;
   }
   const auto &storage = *static_cast<NodeBlurData *>(node.storage);
-  bNodeSocket &socket = version_node_add_socket(
-      ntree, node, SOCK_IN, "NodeSocketMenu", "Filter Type");
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
   socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.filtertype;
 }
 
 static void do_version_filter_menus_to_inputs(bNodeTree &ntree, bNode &node)
 {
-  if (blender::bke::node_find_socket(node, SOCK_IN, "Filter Type")) {
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
     return;
   }
-  bNodeSocket &socket = version_node_add_socket(
-      ntree, node, SOCK_IN, "NodeSocketMenu", "Filter Type");
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
   socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
 }
 
@@ -1661,9 +1659,9 @@ static void do_version_kuwahara_menus_to_inputs(bNodeTree &ntree, bNode &node)
     return;
   }
 
-  const auto &storage = *static_cast<NodeLensDist *>(node.storage);
+  const auto &storage = *static_cast<NodeKuwaharaData *>(node.storage);
   bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
-  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.distortion_type;
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.variation;
 }
 
 static void do_version_denoise_menus_to_inputs(bNodeTree &ntree, bNode &node)
@@ -1823,6 +1821,92 @@ static void do_version_stabilize_2d_menus_to_inputs(bNodeTree &ntree, bNode &nod
   bNodeSocket &interpolation_socket = version_node_add_socket(
       ntree, node, SOCK_IN, "NodeSocketMenu", "Interpolation");
   interpolation_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_box_mask_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Operation")) {
+    return;
+  }
+
+  bNodeSocket &operation_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Operation");
+  operation_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_ellipse_mask_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Operation")) {
+    return;
+  }
+
+  bNodeSocket &operation_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Operation");
+  operation_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_track_position_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+
+  bNodeSocket &mode_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  mode_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+  bNodeSocket &frame_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketInt", "Frame");
+  frame_socket.default_value_typed<bNodeSocketValueInt>()->value = node.custom2;
+}
+
+static void do_version_keying_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Feather Falloff")) {
+    return;
+  }
+
+  const auto &storage = *static_cast<NodeKeyingData *>(node.storage);
+  bNodeSocket &feather_falloff_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Feather Falloff");
+  feather_falloff_socket.default_value_typed<bNodeSocketValueMenu>()->value =
+      storage.feather_falloff;
+}
+
+static void do_version_mask_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Size Source")) {
+    return;
+  }
+
+  bNodeSocket &size_source_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Size Source");
+  size_source_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_movie_distortion_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
+    return;
+  }
+
+  bNodeSocket &type_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
+  type_socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_glare_menus_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Type")) {
+    return;
+  }
+
+  const auto &storage = *static_cast<NodeGlare *>(node.storage);
+  bNodeSocket &type_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Type");
+  type_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.type;
+  bNodeSocket &quality_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Quality");
+  quality_socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.quality;
 }
 
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
@@ -2591,6 +2675,27 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
         else if (node->type_legacy == CMP_NODE_STABILIZE2D) {
           do_version_stabilize_2d_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_MASK_BOX) {
+          do_version_box_mask_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_MASK_ELLIPSE) {
+          do_version_ellipse_mask_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_TRACKPOS) {
+          do_version_track_position_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_KEYING) {
+          do_version_keying_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_MASK) {
+          do_version_mask_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_MOVIEDISTORTION) {
+          do_version_movie_distortion_menus_to_inputs(*node_tree, *node);
+        }
+        else if (node->type_legacy == CMP_NODE_GLARE) {
+          do_version_glare_menus_to_inputs(*node_tree, *node);
         }
       }
     }
