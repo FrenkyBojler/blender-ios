@@ -19,7 +19,6 @@ class TestFileImportNodes(unittest.TestCase):
         cls.testdir = args.testdir
 
     def test_obj_import_node(self):
-        obj_path = self.testdir / "obj/all_tris.obj"
         blend_path = self.testdir / "blend_scene/geonodes_import_obj.blend"
 
         bpy.ops.wm.open_mainfile(filepath=str(blend_path))
@@ -27,8 +26,11 @@ class TestFileImportNodes(unittest.TestCase):
         node_tree = bpy.data.node_groups['Import OBJ']
         file_path_map: dict[bpy.types.ID, set[str]] = bpy.data.file_path_map()
 
+        # Go through Path(...) to ensure platform-native slashes.
+        relative_path = f"//{Path('../obj/all_tris.obj'):s}"
+
         self.assertIn(node_tree, list(file_path_map.keys()))
-        self.assertEqual({"//../obj/all_tris.obj"}, file_path_map[node_tree],
+        self.assertEqual({relative_path}, file_path_map[node_tree],
                          "The path to the OBJ file should be reported, as relative path")
 
 
