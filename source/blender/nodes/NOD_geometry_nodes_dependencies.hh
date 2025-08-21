@@ -6,27 +6,12 @@
 
 #include "BLI_map.hh"
 #include "BLI_struct_equality_utils.hh"
-#include "BLI_vector_set.hh"
 
 struct ID;
 struct Object;
 struct bNodeTree;
 
 namespace blender::nodes {
-
-struct ExternalFilePath {
-  /** Path to a file. May be absolute or relative. */
-  std::string path;
-  /** ID that accesses the path. Will be used to resolve relative paths. */
-  const ID *id;
-
-  BLI_STRUCT_EQUALITY_OPERATORS_2(ExternalFilePath, path, id)
-
-  uint64_t hash() const
-  {
-    return get_default_hash(this->path, this->id);
-  }
-};
 
 /**
  * Gathers dependencies that the node tree requires before it can be evaluated.
@@ -55,15 +40,6 @@ struct GeometryNodesEvalDependencies {
   /** Additional information for object dependencies. */
   Map<uint32_t, ObjectDependencyInfo> objects_info;
 
-  /**
-   * Absolute paths of files the node depends on.
-   *
-   * Nodes can add items here via add_eval_dependencies_from_node_data().
-   *
-   * This is for file reporting via `node_foreach_path()` in `blenkernel/intern/node.cc`.
-   */
-  VectorSet<ExternalFilePath> filepaths;
-
   bool needs_own_transform = false;
   bool needs_active_camera = false;
   bool needs_scene_render_params = false;
@@ -87,12 +63,6 @@ struct GeometryNodesEvalDependencies {
    * required.
    */
   void add_object(Object *object, const ObjectDependencyInfo &object_deps = all_object_deps);
-
-  /**
-   * Add a file path as dependency.
-   * Empty paths are allowed and silently ignored.
-   */
-  void add_filepath(const StringRef filepath, const ID *accessing_id);
 
   /**
    * Add all the given dependencies to this one.

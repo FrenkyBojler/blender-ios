@@ -435,23 +435,33 @@ static void node_foreach_path(ID *id, BPathForeachPathData *bpath_data)
       break;
     }
     case NTREE_GEOMETRY: {
-      const nodes::GeometryNodesEvalDependencies eval_deps =
-          nodes::gather_geometry_nodes_eval_dependencies_recursive(*ntree);
+      for (bNode *node : ntree->all_nodes()) {
+        if (!BLI_str_startswith(node->idname, "GeometryNodeImport")) {
+          continue;
+        }
 
-      for (const nodes::ExternalFilePath &efp : eval_deps.filepaths) {
-        const std::optional<std::string> abspath = nodes::path_abs_via_id(
-            efp.path, *bpath_data->bmain, *efp.id);
-        BLI_assert_msg(abspath, "Empty paths should not have been added to eval_deps.filepaths");
+        bNodeSocket *path_socket = node->input_by_identifier("Path");
+        BLI_assert_msg(path_socket,
+                       "Expecting each GeometryNodeImportXXX node to have a 'Path' input socket");
+        if (!path_socket) {
+          continue;
+        }
 
-        char buffer[FILE_MAX];
-        STRNCPY_UTF8(buffer, abspath.value().c_str());
-        BKE_bpath_foreach_path_fixed_process(bpath_data, buffer, sizeof(buffer));
+        BLI_assert_msg(
+            path_socket->type == SOCK_STRING,
+            "Expecting GeometryNodeImportXXX nodes to have a 'Path' input socket of type STRING");
+        if (path_socket->type != SOCK_STRING) {
+          continue;
+        }
 
-        /* TODO: handle any changes to `buffer` that the above function made, by propagating them
-         * back to the nodes. This is necessary for path remapping, which is used when saving the
-         * blend file to another path (to ensure a relative path is still correct) as well as when
-         * loading from a library file (to ensure all relative paths resolve against the main blend
-         * file). */
+        bNodeSocketValueString *path_value = static_cast<bNodeSocketValueString *>(
+            path_socket->default_value);
+        if (path_value->value[0] == '\0') {
+          continue;
+        }
+
+        BKE_bpath_foreach_path_fixed_process(
+            bpath_data, path_value->value, sizeof(path_value->value));
       }
       break;
     }

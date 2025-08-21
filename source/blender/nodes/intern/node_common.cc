@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstring>
 
-#include "DNA_ID.h"
 #include "DNA_asset_types.h"
 #include "DNA_node_types.h"
 
@@ -18,7 +17,6 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
-#include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
@@ -27,8 +25,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_library.hh"
-#include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_interface.hh"
@@ -942,35 +938,5 @@ void register_node_type_group_output()
 
   blender::bke::node_register_type(*ntype);
 }
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name File path resolving
- * \{ */
-
-namespace blender::nodes {
-
-std::optional<std::string> path_abs_via_id(const blender::StringRefNull path,
-                                           const Main &bmain,
-                                           const ID &owner_id)
-{
-  if (path.is_empty()) {
-    return std::nullopt;
-  }
-  if (!BLI_path_is_rel(path.c_str())) {
-    return path;
-  }
-  const char *base_path = ID_BLEND_PATH(&bmain, &owner_id);
-  if (!base_path || base_path[0] == '\0') {
-    return std::nullopt;
-  }
-  char absolute_path[FILE_MAX];
-  STRNCPY(absolute_path, path.c_str());
-  BLI_path_abs(absolute_path, base_path);
-  return absolute_path;
-}
-
-}  // namespace blender::nodes
 
 /** \} */

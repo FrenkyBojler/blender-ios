@@ -28,7 +28,8 @@ class TestFileImportNodes(unittest.TestCase):
         file_path_map: dict[bpy.types.ID, set[str]] = bpy.data.file_path_map()
 
         self.assertIn(node_tree, list(file_path_map.keys()))
-        self.assertEqual({str(obj_path.absolute())}, file_path_map[node_tree])
+        self.assertEqual({"//../obj/all_tris.obj"}, file_path_map[node_tree],
+                         "The path to the OBJ file should be reported, as relative path")
 
 
 def main():
