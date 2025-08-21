@@ -91,14 +91,9 @@ void evaluate_node(const DepsgraphEvalState *state, OperationNode *operation_nod
   /* Sanity checks. */
   BLI_assert_msg(!operation_node->is_noop(), "NOOP nodes should not actually be scheduled");
   /* Perform operation. */
-  if (state->do_stats) {
-    const double start_time = BLI_time_now_seconds();
-    operation_node->evaluate(depsgraph);
-    operation_node->stats.current_time += BLI_time_now_seconds() - start_time;
-  }
-  else {
-    operation_node->evaluate(depsgraph);
-  }
+  const double start_time = BLI_time_now_seconds();
+  operation_node->evaluate(depsgraph);
+  operation_node->stats.current_time += BLI_time_now_seconds() - start_time;
 
   /* Clear the flag early on, allowing partial updates without re-evaluating the same node multiple
    * times.
@@ -188,11 +183,11 @@ void calculate_pending_parents_if_needed(DepsgraphEvalState *state)
 void initialize_execution(DepsgraphEvalState *state, Depsgraph *graph)
 {
   /* Clear tags and other things which needs to be clear. */
-  if (state->do_stats) {
-    for (OperationNode *node : graph->operations) {
-      node->stats.reset_current();
-    }
+  // if (state->do_stats) {
+  for (OperationNode *node : graph->operations) {
+    node->stats.reset_current();
   }
+  // }
 }
 
 bool is_metaball_object_operation(const OperationNode *operation_node)
@@ -461,9 +456,9 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
   /* Finalize statistics gathering. This is because we only gather single
    * operation timing here, without aggregating anything to avoid any extra
    * synchronization. */
-  if (state.do_stats) {
-    deg_eval_stats_aggregate(graph);
-  }
+  // if (state.do_stats) {
+  deg_eval_stats_aggregate(graph);
+  // }
 
   /* Clear any uncleared tags. */
   deg_graph_clear_tags(graph);

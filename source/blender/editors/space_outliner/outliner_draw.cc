@@ -6,6 +6,8 @@
  * \ingroup spoutliner
  */
 
+#include <fmt/format.h>
+
 #include "DNA_armature_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
@@ -73,6 +75,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -80,6 +83,7 @@
 
 #include "outliner_intern.hh"
 #include "tree/tree_element.hh"
+#include "tree/tree_element_depsgraph_id_node.hh"
 #include "tree/tree_element_grease_pencil_node.hh"
 #include "tree/tree_element_id.hh"
 #include "tree/tree_element_overrides.hh"
@@ -2157,6 +2161,39 @@ static void outliner_draw_rnabuts(uiBlock *block,
   });
 }
 
+static void outliner_draw_evaluation_timings(uiBlock *block,
+                                             ARegion *region,
+                                             SpaceOutliner *space_outliner,
+                                             int sizex)
+{
+  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+    if (!outliner_is_element_in_view(te, &region->v2d)) {
+      return;
+    }
+
+    if (const TreeElementDepsgraphIDNode *te_depsgraph_id_node =
+            tree_element_cast<TreeElementDepsgraphIDNode>(te))
+    {
+      std::optional<double> node_eval_time = te_depsgraph_id_node->node_evaluation_time();
+      std::string eval_time_str = node_eval_time ?
+                                      fmt::format("{0:.2f} ms", *node_eval_time * 1000.0) :
+                                      "-";
+      uiDefBut(block,
+               ButType::Label,
+               -1,
+               eval_time_str,
+               sizex + UI_PANEL_MARGIN_X,
+               te->ys,
+               OL_RNA_COL_SIZEX,
+               UI_UNIT_Y - 1,
+               nullptr,
+               0.0,
+               0.0,
+               std::nullopt);
+    }
+  });
+}
+
 static void outliner_buttons(const bContext *C,
                              uiBlock *block,
                              ARegion *region,
@@ -2622,7 +2659,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 {
   TreeElementIcon data = {nullptr};
 
-  if (tselem->type != TSE_SOME_ID) {
+  if (!ELEM(tselem->type, TSE_SOME_ID, TSE_DEPSGRAPH_ID_NODE)) {
     switch (tselem->type) {
       case TSE_ACTION_SLOT:
         data.icon = ICON_ACTION_SLOT;
@@ -2920,6 +2957,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         data.icon = ICON_DOT;
         break;
     }
+  }
+  else if (tselem->type == TSE_DEPSGRAPH_ID_NODE) {
+    data.icon = tree_element_get_icon_from_id(tselem->id);
   }
   else if (tselem->id) {
     data.drag_id = tselem->id;
@@ -3511,7 +3551,9 @@ static void outliner_draw_tree_element(uiBlock *block,
     /* Closed item, we draw the icons, not when it's a scene, or master-server list though. */
     if (!TSELEM_OPEN(tselem, space_outliner)) {
       if (te->subtree.first) {
-        if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_SCE)) {
+        if (((tselem->type == TSE_SOME_ID) && (te->idcode == ID_SCE)) ||
+            tselem->type == TSE_DEPSGRAPH_ID_NODE)
+        {
           /* Pass. */
         }
         /* this tree element always has same amount of branches, so don't draw */
@@ -4112,6 +4154,8 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     int buttons_start_x = outliner_data_api_buttons_start_x(tree_width);
     outliner_draw_separator(region, buttons_start_x);
     outliner_draw_separator(region, buttons_start_x + OL_RNA_COL_SIZEX);
+
+    outliner_draw_evaluation_timings(block, region, space_outliner, buttons_start_x);
   }
   else if (right_column_width > 0.0f) {
     /* draw restriction columns */

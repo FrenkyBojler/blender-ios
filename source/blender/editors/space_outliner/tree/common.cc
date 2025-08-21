@@ -46,7 +46,7 @@ void outliner_make_object_parent_hierarchy(ListBase *lb)
     TreeElement *ten = te->next;
     TreeStoreElem *tselem = TREESTORE(te);
 
-    if ((tselem->type == TSE_SOME_ID) && te->idcode == ID_OB) {
+    if ((ELEM(tselem->type, TSE_SOME_ID, TSE_DEPSGRAPH_ID_NODE)) && te->idcode == ID_OB) {
       Object *ob = (Object *)tselem->id;
       if (ob->parent && ob->parent->id.newid) {
         BLI_remlink(lb, te);

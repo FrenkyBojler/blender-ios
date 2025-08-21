@@ -35,7 +35,7 @@ ListBase TreeDisplayEvaluationTime::build_tree(const TreeSourceData &source_data
   DepsgraphIDNodeData data;
   data.depsgraph = depsgraph;
   data.orig_id = &scene->id;
-  add_element(&tree, nullptr, (void *)&data, nullptr, TSE_DEPSGRAPH_ID_NODE, -1);
+  add_element(&tree, &scene->id, (void *)&data, nullptr, TSE_DEPSGRAPH_ID_NODE, -1);
 
   return tree;
 }
