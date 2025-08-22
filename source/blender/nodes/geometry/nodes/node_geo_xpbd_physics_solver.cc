@@ -966,7 +966,7 @@ static void gather_edge_length_constraints(ResourceScope &scope,
           scope, state, mesh_positions, key, constraint_edges);
 
       /* Add the actual constraint. */
-      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintEvaluator>(
+      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintSet>(
           key_i, constraint_edges, constraint_lengths, compliance_terms));
     }
   }
@@ -1034,7 +1034,7 @@ static void gather_curve_segment_constraints(
       const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
           scope, state, positions, key, constraint_segments);
 
-      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintEvaluator>(
+      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintSet>(
           key_i, constraint_segments, constraint_lengths, constraint_compliance_terms));
     }
   }
@@ -1065,7 +1065,7 @@ static void gather_pressure_constraints(ResourceScope &scope,
     for (const PressureXPBDConstraintBundle *constraint_bundle : overpressure_constraints) {
       const float pressure = constraint_bundle->pressure;
       const float initial_volume = state.initial_volumes.lookup_or_add_cb(key, [&]() {
-        return xpbd::PressureConstraintEvaluator::compute_volume(tris, corner_verts, positions);
+        return xpbd::PressureConstraintSet::compute_volume(tris, corner_verts, positions);
       });
       if (initial_volume <= 0.0f) {
         continue;
@@ -1075,7 +1075,7 @@ static void gather_pressure_constraints(ResourceScope &scope,
       offsets[0] = 0;
       offsets[1] = affected_points.size();
       array_utils::fill_index_range<int>(affected_points);
-      r_constraint_sets.append(&scope.construct<xpbd::PressureConstraintEvaluator>(
+      r_constraint_sets.append(&scope.construct<xpbd::PressureConstraintSet>(
           key_i, tris, corner_verts, pressure, initial_volume));
     }
   }
@@ -1137,7 +1137,7 @@ static void gather_curves_rod_stretch_and_shear_constraints(
       }
       const Span<float> constraint_lenghts = prepare_distance_constraint_lengths(
           scope, state, sim_points.positions, key, constraint_segments);
-      r_constraint_sets.append(&scope.construct<xpbd::RodStretchAndShearConstraintEvaluator>(
+      r_constraint_sets.append(&scope.construct<xpbd::RodStretchAndShearConstraintSet>(
           key_i, constraint_segments, constraint_lenghts, constraint_compliance_terms));
     }
   }
@@ -1198,7 +1198,7 @@ static void gather_curves_rod_bend_and_twist_constraints(
       }
       const Span<math::Quaternion> rest_rotations = prepare_relative_rotations(
           scope, state, sim_points.rotations, key, constraint_segments);
-      r_constraint_sets.append(&scope.construct<xpbd::RodBendAndTwistConstraintEvaluator>(
+      r_constraint_sets.append(&scope.construct<xpbd::RodBendAndTwistConstraintSet>(
           key_i, constraint_segments, rest_rotations, constraint_compliance_terms));
     }
   }
@@ -1230,7 +1230,7 @@ static Map<SimPointsKey, MutableSpan<float3>> gather_soft_pinned_position_constr
         constraints_num);
     result.add(key, soft_pinned_positions);
 
-    r_constraint_sets.append(&scope.construct<xpbd::PinnedPositionConstraintEvaluator>(
+    r_constraint_sets.append(&scope.construct<xpbd::PinnedPositionConstraintSet>(
         key_i, pinned_positions.soft_indices, soft_pinned_positions, compliance_terms));
   }
   return result;
@@ -1264,7 +1264,7 @@ static Map<SimPointsKey, MutableSpan<math::Quaternion>> gather_soft_pinned_rotat
         scope.allocator().allocate_array<math::Quaternion>(constraints_num);
     result.add(key, soft_pinned_rotations);
 
-    r_constraint_sets.append(&scope.construct<xpbd::PinRotationConstraintEvaluator>(
+    r_constraint_sets.append(&scope.construct<xpbd::PinRotationConstraintSet>(
         key_i, pinned_rotations.soft_indices, soft_pinned_rotations, compliance_terms));
   }
   return result;
@@ -1363,10 +1363,10 @@ static void gather_align_positions_constraints(
     }
 
     r_constraint_sets.append(
-        &scope.construct<xpbd::AlignPositionsConstraintEvaluator>(offset_indices,
-                                                                  constraint_compliance_terms,
-                                                                  constraint_geo_indices,
-                                                                  constraint_point_indices));
+        &scope.construct<xpbd::AlignPositionsConstraintSet>(offset_indices,
+                                                            constraint_compliance_terms,
+                                                            constraint_geo_indices,
+                                                            constraint_point_indices));
   }
 }
 
@@ -1463,7 +1463,7 @@ static void gather_attach_uv_surface_constraints(
         continue;
       }
 
-      r_constraint_sets.append(&scope.construct<xpbd::AttachUVSurfaceConstraintEvaluator>(
+      r_constraint_sets.append(&scope.construct<xpbd::AttachUVSurfaceConstraintSet>(
           mesh_key_i, key_i, indices, triangle_indices, bary_weights, compliance_terms));
     }
   }
@@ -1548,7 +1548,7 @@ static void gather_distance_based_edge_bending_constraints(
       const Span<float> constraint_lengths = prepare_distance_constraint_lengths(
           scope, state, mesh_positions, key, point_pairs);
 
-      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintEvaluator>(
+      r_constraint_sets.append(&scope.construct<xpbd::DistanceConstraintSet>(
           key_i, point_pairs, constraint_lengths, compliance_terms));
     }
   }
@@ -1730,16 +1730,16 @@ static void generate_collision_constraint_sets(
     const int key_i = keys.index_of(item.key);
     const StaticPlaneContacts &plane_contacts = item.value;
     r_constraint_sets.append(
-        &scope.construct<xpbd::CollisionPlaneConstraintEvaluator>(key_i,
-                                                                  plane_contacts.indices,
-                                                                  plane_contacts.plane_positions,
-                                                                  plane_contacts.plane_normals));
+        &scope.construct<xpbd::CollisionPlaneConstraintSet>(key_i,
+                                                            plane_contacts.indices,
+                                                            plane_contacts.plane_positions,
+                                                            plane_contacts.plane_normals));
   }
   for (auto item : contacts.dynamic_sphere_contacts.items()) {
     const int key_i = keys.index_of(item.key);
     const DynamicSphereContacts &sphere_contacts = item.value;
     const float compliance_term = math::safe_divide(1e-4f, pow2f(delta_time));
-    r_constraint_sets.append(&scope.construct<xpbd::MinimumDistanceConstraintEvaluator>(
+    r_constraint_sets.append(&scope.construct<xpbd::MinimumDistanceConstraintSet>(
         key_i,
         sphere_contacts.indices,
         sphere_contacts.min_distance,

@@ -82,8 +82,7 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
   return {offset0, offset1};
 }
 
-class PinnedPositionConstraintEvaluator
-    : public TemplatedConstraintSet<PinnedPositionConstraintEvaluator> {
+class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPositionConstraintSet> {
  private:
   int geo_i_;
   Span<int> indices_;
@@ -91,11 +90,11 @@ class PinnedPositionConstraintEvaluator
   Span<float> compliance_terms_;
 
  public:
-  PinnedPositionConstraintEvaluator(const int geo_i,
-                                    const Span<int> indices,
-                                    const Span<float3> pin_positions,
-                                    const Span<float> compliance_terms)
-      : TemplatedConstraintSet<PinnedPositionConstraintEvaluator>(indices.size(), {geo_i}),
+  PinnedPositionConstraintSet(const int geo_i,
+                              const Span<int> indices,
+                              const Span<float3> pin_positions,
+                              const Span<float> compliance_terms)
+      : TemplatedConstraintSet<PinnedPositionConstraintSet>(indices.size(), {geo_i}),
         geo_i_(geo_i),
         indices_(indices),
         pin_positions_(pin_positions),
@@ -125,8 +124,7 @@ class PinnedPositionConstraintEvaluator
   }
 };
 
-class PinRotationConstraintEvaluator
-    : public TemplatedConstraintSet<PinRotationConstraintEvaluator> {
+class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstraintSet> {
  private:
   int geo_i_;
   Span<int> indices_;
@@ -134,11 +132,11 @@ class PinRotationConstraintEvaluator
   Span<float> compliance_terms_;
 
  public:
-  PinRotationConstraintEvaluator(const int geo_i,
-                                 const Span<int> indices,
-                                 const Span<math::Quaternion> pin_rotations,
-                                 const Span<float> compliance_terms)
-      : TemplatedConstraintSet<PinRotationConstraintEvaluator>(indices.size(), {geo_i}),
+  PinRotationConstraintSet(const int geo_i,
+                           const Span<int> indices,
+                           const Span<math::Quaternion> pin_rotations,
+                           const Span<float> compliance_terms)
+      : TemplatedConstraintSet<PinRotationConstraintSet>(indices.size(), {geo_i}),
         geo_i_(geo_i),
         indices_(indices),
         pin_rotations_(pin_rotations),
@@ -168,7 +166,7 @@ class PinRotationConstraintEvaluator
   }
 };
 
-class DistanceConstraintEvaluator : public TemplatedConstraintSet<DistanceConstraintEvaluator> {
+class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSet> {
  private:
   int geo_i_;
   Span<int2> point_pairs_;
@@ -176,11 +174,11 @@ class DistanceConstraintEvaluator : public TemplatedConstraintSet<DistanceConstr
   Span<float> compliance_terms_;
 
  public:
-  DistanceConstraintEvaluator(const int geo_i,
-                              const Span<int2> point_pairs,
-                              const Span<float> distances,
-                              const Span<float> compliance_terms)
-      : TemplatedConstraintSet<DistanceConstraintEvaluator>(point_pairs.size(), {geo_i}),
+  DistanceConstraintSet(const int geo_i,
+                        const Span<int2> point_pairs,
+                        const Span<float> distances,
+                        const Span<float> compliance_terms)
+      : TemplatedConstraintSet<DistanceConstraintSet>(point_pairs.size(), {geo_i}),
         geo_i_(geo_i),
         point_pairs_(point_pairs),
         distances_(distances),
@@ -214,8 +212,7 @@ class DistanceConstraintEvaluator : public TemplatedConstraintSet<DistanceConstr
   }
 };
 
-class CollisionPlaneConstraintEvaluator
-    : public TemplatedConstraintSet<CollisionPlaneConstraintEvaluator> {
+class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlaneConstraintSet> {
  private:
   int geo_i_;
   Span<int> points_;
@@ -223,11 +220,11 @@ class CollisionPlaneConstraintEvaluator
   Span<float3> plane_normals_;
 
  public:
-  CollisionPlaneConstraintEvaluator(const int geo_i,
-                                    const Span<int> points,
-                                    const Span<float3> plane_positions,
-                                    const Span<float3> plane_normals)
-      : TemplatedConstraintSet<CollisionPlaneConstraintEvaluator>(points.size(), {geo_i}),
+  CollisionPlaneConstraintSet(const int geo_i,
+                              const Span<int> points,
+                              const Span<float3> plane_positions,
+                              const Span<float3> plane_normals)
+      : TemplatedConstraintSet<CollisionPlaneConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
         plane_positions_(plane_positions),
@@ -261,8 +258,7 @@ class CollisionPlaneConstraintEvaluator
   }
 };
 
-class MinimumDistanceConstraintEvaluator
-    : public TemplatedConstraintSet<MinimumDistanceConstraintEvaluator> {
+class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistanceConstraintSet> {
  private:
   int geo_i_;
   Span<int2> points_;
@@ -270,11 +266,11 @@ class MinimumDistanceConstraintEvaluator
   Span<float> compliance_terms_;
 
  public:
-  MinimumDistanceConstraintEvaluator(const int geo_i,
-                                     const Span<int2> points,
-                                     const Span<float> min_distances,
-                                     const Span<float> compliance_terms)
-      : TemplatedConstraintSet<MinimumDistanceConstraintEvaluator>(points.size(), {geo_i}),
+  MinimumDistanceConstraintSet(const int geo_i,
+                               const Span<int2> points,
+                               const Span<float> min_distances,
+                               const Span<float> compliance_terms)
+      : TemplatedConstraintSet<MinimumDistanceConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
         min_distances_(min_distances),
@@ -318,7 +314,7 @@ class MinimumDistanceConstraintEvaluator
   }
 };
 
-class PressureConstraintEvaluator : public TemplatedConstraintSet<PressureConstraintEvaluator> {
+class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSet> {
  private:
   int geo_i_;
   Span<int3> tris_;
@@ -327,12 +323,12 @@ class PressureConstraintEvaluator : public TemplatedConstraintSet<PressureConstr
   float initial_volume_;
 
  public:
-  PressureConstraintEvaluator(const int geo_i,
-                              const Span<int3> tris,
-                              const Span<int> corner_verts,
-                              const float pressure,
-                              const float initial_volume)
-      : TemplatedConstraintSet<PressureConstraintEvaluator>(1, {geo_i}),
+  PressureConstraintSet(const int geo_i,
+                        const Span<int3> tris,
+                        const Span<int> corner_verts,
+                        const float pressure,
+                        const float initial_volume)
+      : TemplatedConstraintSet<PressureConstraintSet>(1, {geo_i}),
         geo_i_(geo_i),
         tris_(tris),
         corner_verts_(corner_verts),
@@ -428,8 +424,8 @@ class PressureConstraintEvaluator : public TemplatedConstraintSet<PressureConstr
  * the actual tangent of the rod. If it is misaligned, it moves the start position, end position
  * and rotation of the frame. At the same time, it enforces a certain length.
  */
-class RodStretchAndShearConstraintEvaluator
-    : public TemplatedConstraintSet<RodStretchAndShearConstraintEvaluator> {
+class RodStretchAndShearConstraintSet
+    : public TemplatedConstraintSet<RodStretchAndShearConstraintSet> {
  private:
   int geo_i_;
   Span<int2> point_pairs_;
@@ -437,11 +433,11 @@ class RodStretchAndShearConstraintEvaluator
   Span<float> compliance_terms_;
 
  public:
-  RodStretchAndShearConstraintEvaluator(const int geo_i,
-                                        const Span<int2> point_pairs,
-                                        const Span<float> rest_lengths,
-                                        const Span<float> compliance_terms)
-      : TemplatedConstraintSet<RodStretchAndShearConstraintEvaluator>(point_pairs.size(), {geo_i}),
+  RodStretchAndShearConstraintSet(const int geo_i,
+                                  const Span<int2> point_pairs,
+                                  const Span<float> rest_lengths,
+                                  const Span<float> compliance_terms)
+      : TemplatedConstraintSet<RodStretchAndShearConstraintSet>(point_pairs.size(), {geo_i}),
         geo_i_(geo_i),
         point_pairs_(point_pairs),
         rest_lengths_(rest_lengths),
@@ -508,8 +504,7 @@ class RodStretchAndShearConstraintEvaluator
 };
 
 /* Aligns rotations of two consecutive rods based on a rest rotation. */
-class RodBendAndTwistConstraintEvaluator
-    : public TemplatedConstraintSet<RodBendAndTwistConstraintEvaluator> {
+class RodBendAndTwistConstraintSet : public TemplatedConstraintSet<RodBendAndTwistConstraintSet> {
  private:
   int geo_i_;
   Span<int2> point_pairs_;
@@ -517,11 +512,11 @@ class RodBendAndTwistConstraintEvaluator
   Span<float> compliance_terms_;
 
  public:
-  RodBendAndTwistConstraintEvaluator(const int geo_i,
-                                     const Span<int2> point_pairs,
-                                     const Span<math::Quaternion> rest_rotations,
-                                     const Span<float> compliance_terms)
-      : TemplatedConstraintSet<RodBendAndTwistConstraintEvaluator>(point_pairs.size(), {geo_i}),
+  RodBendAndTwistConstraintSet(const int geo_i,
+                               const Span<int2> point_pairs,
+                               const Span<math::Quaternion> rest_rotations,
+                               const Span<float> compliance_terms)
+      : TemplatedConstraintSet<RodBendAndTwistConstraintSet>(point_pairs.size(), {geo_i}),
         geo_i_(geo_i),
         point_pairs_(point_pairs),
         rest_rotations_(rest_rotations),
@@ -554,8 +549,7 @@ class RodBendAndTwistConstraintEvaluator
   }
 };
 
-class AlignPositionsConstraintEvaluator
-    : public TemplatedConstraintSet<AlignPositionsConstraintEvaluator> {
+class AlignPositionsConstraintSet : public TemplatedConstraintSet<AlignPositionsConstraintSet> {
  private:
   /* Indexed by constraint index. */
   OffsetIndices<int> offsets_;
@@ -566,11 +560,11 @@ class AlignPositionsConstraintEvaluator
   Span<int> point_indices_;
 
  public:
-  AlignPositionsConstraintEvaluator(OffsetIndices<int> offsets,
-                                    Span<float> compliance_terms,
-                                    Span<int> geo_indices,
-                                    Span<int> point_indices)
-      : TemplatedConstraintSet<AlignPositionsConstraintEvaluator>(
+  AlignPositionsConstraintSet(OffsetIndices<int> offsets,
+                              Span<float> compliance_terms,
+                              Span<int> geo_indices,
+                              Span<int> point_indices)
+      : TemplatedConstraintSet<AlignPositionsConstraintSet>(
             point_indices.size(), VectorSet<int>(geo_indices).extract_vector()),
         offsets_(offsets),
         compliance_terms_(compliance_terms),
@@ -633,8 +627,7 @@ class AlignPositionsConstraintEvaluator
   }
 };
 
-class AttachUVSurfaceConstraintEvaluator
-    : public TemplatedConstraintSet<AttachUVSurfaceConstraintEvaluator> {
+class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfaceConstraintSet> {
  private:
   int mesh_geo_i_;
   int points_geo_i_;
@@ -644,14 +637,14 @@ class AttachUVSurfaceConstraintEvaluator
   Span<float> compliance_terms_;
 
  public:
-  AttachUVSurfaceConstraintEvaluator(const int mesh_geo_i,
-                                     const int points_geo_i,
-                                     const Span<int> indices,
-                                     const Span<int3> triangle_indices,
-                                     const Span<float3> bary_weights,
-                                     const Span<float> compliance_terms)
-      : TemplatedConstraintSet<AttachUVSurfaceConstraintEvaluator>(indices.size(),
-                                                                   {mesh_geo_i, points_geo_i}),
+  AttachUVSurfaceConstraintSet(const int mesh_geo_i,
+                               const int points_geo_i,
+                               const Span<int> indices,
+                               const Span<int3> triangle_indices,
+                               const Span<float3> bary_weights,
+                               const Span<float> compliance_terms)
+      : TemplatedConstraintSet<AttachUVSurfaceConstraintSet>(indices.size(),
+                                                             {mesh_geo_i, points_geo_i}),
         mesh_geo_i_(mesh_geo_i),
         points_geo_i_(points_geo_i),
         indices_(indices),
