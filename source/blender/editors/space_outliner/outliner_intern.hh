@@ -201,6 +201,8 @@ enum eOLSetState {
 #define OL_RNA_COL_SIZEX (UI_UNIT_X * 7.5f)
 #define OL_RNA_COL_SPACEX (UI_UNIT_X * 2.5f)
 
+#define OL_EVAL_COL_SIZEX (UI_UNIT_X * 7.5f)
+
 /* The outliner display modes that support the filter system.
  * NOTE: keep it synced with `space_outliner.py`. */
 #define SUPPORT_FILTER_OUTLINER(space_outliner_) \

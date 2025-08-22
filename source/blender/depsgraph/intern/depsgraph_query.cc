@@ -399,12 +399,21 @@ bool DEG_collection_geometry_is_evaluated(const Collection &collection)
       collection.id, deg::NodeType::GEOMETRY, deg::OperationCode::GEOMETRY_EVAL_DONE);
 }
 
-std::optional<double> DEG_get_id_evaluation_time(const Depsgraph *depsgraph, const ID &id_orig)
+std::optional<double> DEG_get_total_evaluation_time(const Depsgraph *depsgraph)
+{
+  if (!DEG_is_fully_evaluated(depsgraph)) {
+    return std::nullopt;
+  }
+  const deg::Depsgraph &deg_graph = *reinterpret_cast<const deg::Depsgraph *>(depsgraph);
+  return deg_graph.debug.total_evaluation_time();
+}
+
+std::optional<double> DEG_get_id_self_evaluation_time(const Depsgraph *depsgraph, const ID &id_orig)
 {
   const deg::Depsgraph &deg_graph = *reinterpret_cast<const deg::Depsgraph *>(depsgraph);
   const deg::IDNode *id_node = deg_graph.find_id_node(&id_orig);
-  if (!id_node || id_node->stats.current_dependent_time <= 0.0) {
+  if (!id_node || id_node->stats.current_time <= 0.0) {
     return std::nullopt;
   }
-  return id_node->stats.current_dependent_time;
+  return id_node->stats.current_time;
 }

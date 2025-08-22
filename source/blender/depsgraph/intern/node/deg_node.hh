@@ -170,8 +170,6 @@ struct Node {
     void reset_current();
     /* Time spent on this node during current graph evaluation. */
     double current_time;
-    /* Time spent on this node including all dependent nodes during current graph evaluation. */
-    double current_dependent_time;
   };
   /* Relationships between nodes
    * The reason why all depsgraph nodes are descended from this type (apart

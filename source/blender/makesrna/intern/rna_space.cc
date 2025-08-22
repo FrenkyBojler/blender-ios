@@ -4137,7 +4137,7 @@ static void rna_def_space_outliner(BlenderRNA *brna)
        "Unused Data",
        "Display data that is unused and/or will be lost when the file is reloaded"},
       {SO_EVALUATION_TIME,
-       "SO_EVALUATION_TIME",
+       "EVALUATION_TIME",
        ICON_TIME,
        "Evaluation Time",
        "Display evaluation times of data-blocks of the current scene and viewlayer"},
@@ -4206,6 +4206,11 @@ static void rna_def_space_outliner(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_sort_alpha", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", SO_SKIP_SORT_ALPHA);
   RNA_def_property_ui_text(prop, "Sort Alphabetically", "");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+
+  prop = RNA_def_property(srna, "use_sort_eval_time", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SO_SORT_EVAL_TIME);
+  RNA_def_property_ui_text(prop, "Sort By Evaluation Time", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   prop = RNA_def_property(srna, "use_sync_select", PROP_BOOLEAN, PROP_NONE);

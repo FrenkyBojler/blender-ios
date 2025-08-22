@@ -58,7 +58,7 @@ class OUTLINER_HT_header(Header):
             row.prop(space, "use_sync_select", icon='UV_SYNC_SELECT', text="")
 
         row = layout.row(align=True)
-        if display_mode in {'SCENES', 'VIEW_LAYER', 'LIBRARY_OVERRIDES'}:
+        if display_mode in {'SCENES', 'VIEW_LAYER', 'LIBRARY_OVERRIDES', 'EVALUATION_TIME'}:
             row.popover(
                 panel="OUTLINER_PT_filter",
                 text="",
@@ -429,12 +429,15 @@ class OUTLINER_PT_filter(Panel):
             row.prop(space, "show_restrict_column_viewport", text="")
             row.prop(space, "show_restrict_column_render", text="")
             layout.separator()
+        elif display_mode == 'EVALUATION_TIME':
+            col = layout.column(align=True)
+            col.prop(space, "use_sort_eval_time")
 
         if display_mode != 'DATA_API':
             col = layout.column(align=True)
             col.prop(space, "use_sort_alpha")
 
-        if display_mode != 'LIBRARY_OVERRIDES':
+        if display_mode not in {'LIBRARY_OVERRIDES', 'EVALUATION_TIME'}:
             row = layout.row(align=True)
             row.prop(space, "use_sync_select", text="Sync Selection")
 

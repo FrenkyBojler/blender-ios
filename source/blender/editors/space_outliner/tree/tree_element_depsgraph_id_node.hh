@@ -21,12 +21,9 @@ struct DepsgraphIDNodeData {
  * TODO!
  */
 class TreeElementDepsgraphIDNode final : public AbstractTreeElement {
+ private:
   Depsgraph *depsgraph_;
-  const ID &orig_id_;
-
-  double accumulated_evaluation_time_;
-
-  void expand_scene() const;
+  const ID *orig_id_;
 
  public:
   TreeElementDepsgraphIDNode(TreeElement &legacy_te, const DepsgraphIDNodeData &data);
@@ -34,6 +31,10 @@ class TreeElementDepsgraphIDNode final : public AbstractTreeElement {
   void expand(SpaceOutliner & /*soops*/) const override;
 
   std::optional<double> node_evaluation_time() const;
+  std::optional<float> node_evaluation_percent() const;
+
+  private:
+    void expand_scene(const Scene *scene) const;
 };
 
 }  // namespace blender::ed::outliner

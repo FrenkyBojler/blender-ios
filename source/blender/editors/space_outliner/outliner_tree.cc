@@ -34,6 +34,7 @@
 #include "outliner_intern.hh"
 #include "tree/tree_display.hh"
 #include "tree/tree_element.hh"
+#include "tree/tree_element_depsgraph_id_node.hh"
 
 #ifdef WIN32
 #  include "BLI_math_base.h" /* M_PI */
@@ -518,6 +519,35 @@ static int treesort_alpha(const void *v1, const void *v2)
   return 0;
 }
 
+static int treesort_eval_time(const void *v1, const void *v2)
+{
+  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
+  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
+
+  const TreeElementDepsgraphIDNode *tx1 = tree_element_cast<TreeElementDepsgraphIDNode>(x1->te);
+  const TreeElementDepsgraphIDNode *tx2 = tree_element_cast<TreeElementDepsgraphIDNode>(x2->te);
+
+  const std::optional<double> t1 = tx1->node_evaluation_time();
+  const std::optional<double> t2 = tx2->node_evaluation_time();
+
+  if (!t1 && !t2) {
+    return 0;
+  }
+  if (!t1) {
+    return 1;
+  }
+  if (!t2) {
+    return -1;
+  }
+  if (*t1 < *t2) {
+    return 1;
+  }
+  if (*t1 > *t2) {
+    return -1;
+  }
+  return 0;
+}
+
 /* this is nice option for later? doesn't look too useful... */
 #if 0
 static int treesort_obtype_alpha(const void *v1, const void *v2)
@@ -667,6 +697,35 @@ static void outliner_collections_children_sort(ListBase *lb)
 
   LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
     outliner_collections_children_sort(&te_iter->subtree);
+  }
+}
+
+static void outliner_sort_evaluation_time(ListBase *lb)
+{
+  int totelem = BLI_listbase_count(lb);
+
+  if (totelem > 1) {
+    tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
+    tTreeSort *tp = tear;
+
+    LISTBASE_FOREACH (TreeElement *, te, lb) {
+      tp->te = te;
+      tp++;
+    }
+
+    qsort(tear, totelem, sizeof(tTreeSort), treesort_eval_time);
+
+    BLI_listbase_clear(lb);
+    tp = tear;
+    while (totelem--) {
+      BLI_addtail(lb, tp->te);
+      tp++;
+    }
+    MEM_freeN(tear);
+  }
+
+  LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
+    outliner_sort_evaluation_time(&te_iter->subtree);
   }
 }
 
@@ -1208,6 +1267,9 @@ void outliner_build_tree(Main *mainvar,
      * We also have to respect the original order of the elements in case alphabetical
      * sorting is not enabled. This keep object data and modifiers before its children. */
     outliner_collections_children_sort(&space_outliner->tree);
+  }
+  if ((space_outliner->flag & SO_SORT_EVAL_TIME) != 0) {
+    outliner_sort_evaluation_time(&space_outliner->tree);
   }
 
   outliner_filter_tree(space_outliner, scene, view_layer);

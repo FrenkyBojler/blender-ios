@@ -10,6 +10,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_outliner_types.h"
+#include "DNA_scene_types.h"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -22,19 +23,22 @@ namespace blender::ed::outliner {
 
 TreeElementDepsgraphIDNode::TreeElementDepsgraphIDNode(TreeElement &legacy_te,
                                                        const DepsgraphIDNodeData &data)
-    : AbstractTreeElement(legacy_te), depsgraph_(data.depsgraph), orig_id_(*data.orig_id)
+    : AbstractTreeElement(legacy_te), depsgraph_(data.depsgraph), orig_id_(data.orig_id)
 {
   BLI_assert(legacy_te.store_elem->type == TSE_DEPSGRAPH_ID_NODE);
 
-  legacy_te.name = data.orig_id->name + 2;
-  legacy_te.idcode = GS(data.orig_id->name);
+  if (!data.orig_id) {
+    legacy_te.name = "Total";
+  }
+  else {
+    legacy_te.name = data.orig_id->name + 2;
+    legacy_te.idcode = GS(data.orig_id->name);
+  }
 }
 
-void TreeElementDepsgraphIDNode::expand_scene() const
+void TreeElementDepsgraphIDNode::expand_scene(const Scene *scene) const
 {
-  BLI_assert(GS(orig_id_.name) == ID_SCE);
-  const Scene *scene = reinterpret_cast<const Scene *>(&orig_id_);
-  FOREACH_SCENE_OBJECT_BEGIN ((void *)scene, ob) {
+  FOREACH_SCENE_OBJECT_BEGIN (const_cast<Scene *>(scene), ob) {
     ID *ob_id = &ob->id;
     DepsgraphIDNodeData data{depsgraph_, ob_id};
     add_element(&legacy_te_.subtree, ob_id, &data, &legacy_te_, TSE_DEPSGRAPH_ID_NODE, 0);
@@ -45,9 +49,17 @@ void TreeElementDepsgraphIDNode::expand_scene() const
 
 void TreeElementDepsgraphIDNode::expand(SpaceOutliner & /*soops*/) const
 {
-  switch (GS(orig_id_.name)) {
+  if (!orig_id_) {
+    Scene *scene = DEG_get_input_scene(depsgraph_);
+    DepsgraphIDNodeData data{depsgraph_, &scene->id};
+    add_element(&legacy_te_.subtree, &scene->id, &data, &legacy_te_, TSE_DEPSGRAPH_ID_NODE, 0);
+    return;
+  }
+
+  switch (GS(orig_id_->name)) {
     case ID_SCE: {
-      this->expand_scene();
+      const Scene *scene = reinterpret_cast<const Scene *>(orig_id_);
+      this->expand_scene(scene);
       break;
     }
     default:
@@ -57,7 +69,24 @@ void TreeElementDepsgraphIDNode::expand(SpaceOutliner & /*soops*/) const
 
 std::optional<double> TreeElementDepsgraphIDNode::node_evaluation_time() const
 {
-  return DEG_get_id_evaluation_time(depsgraph_, orig_id_);
+  if (!orig_id_) {
+    return DEG_get_total_evaluation_time(depsgraph_);
+  }
+  return DEG_get_id_self_evaluation_time(depsgraph_, *orig_id_);
+}
+
+std::optional<float> TreeElementDepsgraphIDNode::node_evaluation_percent() const
+{
+  if (!orig_id_) {
+    return 100.0f;
+  }
+
+  if (std::optional<double> id_eval_time = DEG_get_id_self_evaluation_time(depsgraph_, *orig_id_))
+  {
+    double eval_time = *DEG_get_total_evaluation_time(depsgraph_);
+    return float(*id_eval_time / eval_time) * 100.0f;
+  }
+  return std::nullopt;
 }
 
 }  // namespace blender::ed::outliner

@@ -2166,6 +2166,8 @@ static void outliner_draw_evaluation_timings(uiBlock *block,
                                              SpaceOutliner *space_outliner,
                                              int sizex)
 {
+  int offsetx = sizex;
+  /* Time accumulated per node. */
   tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
     if (!outliner_is_element_in_view(te, &region->v2d)) {
       return;
@@ -2182,7 +2184,37 @@ static void outliner_draw_evaluation_timings(uiBlock *block,
                ButType::Label,
                -1,
                eval_time_str,
-               sizex + UI_PANEL_MARGIN_X,
+               offsetx + UI_PANEL_MARGIN_X,
+               te->ys,
+               OL_EVAL_COL_SIZEX,
+               UI_UNIT_Y - 1,
+               nullptr,
+               0.0,
+               0.0,
+               std::nullopt);
+    }
+  });
+
+  offsetx += OL_EVAL_COL_SIZEX;
+
+  /* Time percent. */
+  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+    if (!outliner_is_element_in_view(te, &region->v2d)) {
+      return;
+    }
+
+    if (const TreeElementDepsgraphIDNode *te_depsgraph_id_node =
+            tree_element_cast<TreeElementDepsgraphIDNode>(te))
+    {
+      std::optional<float> node_eval_percent = te_depsgraph_id_node->node_evaluation_percent();
+      std::string eval_percent_str = node_eval_percent ?
+                                         fmt::format("{0:.2f} %", *node_eval_percent) :
+                                         "-";
+      uiDefBut(block,
+               ButType::Label,
+               -1,
+               eval_percent_str,
+               offsetx + UI_PANEL_MARGIN_X,
                te->ys,
                OL_RNA_COL_SIZEX,
                UI_UNIT_Y - 1,
@@ -4153,7 +4185,8 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   else if (space_outliner->outlinevis == SO_EVALUATION_TIME) {
     int buttons_start_x = outliner_data_api_buttons_start_x(tree_width);
     outliner_draw_separator(region, buttons_start_x);
-    outliner_draw_separator(region, buttons_start_x + OL_RNA_COL_SIZEX);
+    outliner_draw_separator(region, buttons_start_x + OL_EVAL_COL_SIZEX);
+    outliner_draw_separator(region, buttons_start_x + 2 * OL_EVAL_COL_SIZEX);
 
     outliner_draw_evaluation_timings(block, region, space_outliner, buttons_start_x);
   }
