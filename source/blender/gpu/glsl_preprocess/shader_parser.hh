@@ -764,7 +764,7 @@ inline void ParserData::parse_scopes(report_callback &report_error)
 
     enter_scope(ScopeType::Global, 0);
 
-    bool in_template = false;
+    int in_template = 0;
 
     int tok_id = -1;
     for (char &c : token_types) {
@@ -826,16 +826,17 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           enter_scope(ScopeType::Subscript, tok_id);
           break;
         case AngleOpen:
-          if ((tok_id >= 1 && token_types[tok_id - 1] == Template) ||
-              /* Catch case of specialized declaration. */
-              ScopeType(scope_types.back()) == ScopeType::Template)
-          {
-            enter_scope(ScopeType::Template, tok_id);
-            in_template = true;
+          if (tok_id >= 1) {
+            char prev_char = str[token_offsets[tok_id - 1].last()];
+            /* Rely on the fact that template are formatted without spaces but comparison isn't. */
+            if (prev_char != '\n' && prev_char != '\n') {
+              enter_scope(ScopeType::Template, tok_id);
+              in_template++;
+            }
           }
           break;
         case AngleClose:
-          if (in_template && scopes.top().type == ScopeType::Assignment) {
+          if (in_template > 0 && scopes.top().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
           if (scopes.top().type == ScopeType::TemplateArg) {
@@ -843,6 +844,7 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           }
           if (scopes.top().type == ScopeType::Template) {
             exit_scope(tok_id);
+            in_template--;
           }
           break;
         case BracketClose:
