@@ -9822,10 +9822,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 
         bt = ui_but_find_mouse_over(region, event);
 
-        if (bt && ui_can_activate_other_menu(but, bt, event))
-        // if (bt && bt->active != data)
-        {
-          /* Close open menu when over another. */
+        if (bt && ui_can_activate_other_menu(but, bt, event)) {
           if (but->type != ButType::Color) { /* exception */
             data->cancel = true;
           }
@@ -11982,13 +11979,11 @@ static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEve
     return false;
   }
 
-  if (!ELEM(but_other->type,
-            ButType::Pulldown,
-            ButType::Popover,
-            ButType::Menu,
-            ButType::But,
-            ButType::IconToggle))
-  {
+  if (U.flag & USER_MENU_KEEP_OPEN) {
+    return false;
+  }
+
+  if (!ELEM(but_other->type, ButType::Pulldown, ButType::Popover, ButType::Menu)) {
     return false;
   }
 
@@ -11999,10 +11994,6 @@ static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEve
   uiHandleButtonData *data = but->active;
   if (!(data->menu->direction & (UI_DIR_DOWN | UI_DIR_UP))) {
     return true;
-  }
-
-  if (U.flag & USER_MENU_KEEP_OPEN) {
-    return false;
   }
 
   if (data->menu && data->menu->region &&
@@ -12067,7 +12058,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
     /* handle activated button events */
     uiHandleButtonData *data = but->active;
 
-    if (data->menu && (data->state == BUTTON_STATE_MENU_OPEN) &&
+    if ((data->state == BUTTON_STATE_MENU_OPEN) &&
         /* Make sure this popup isn't dragging a button.
          * can happen with popovers (see #67882). */
         (ui_region_find_active_but(data->menu->region) == nullptr) &&
