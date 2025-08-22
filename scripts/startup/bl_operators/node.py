@@ -198,13 +198,17 @@ class NodeAddOperator(NodeOperator):
 class NodeSwapOperator(NodeOperator):
     @classmethod
     def poll(cls, context):
-        return (
-            (context.area is not None)
-            and (context.area.type == "NODE_EDITOR")
-            and (context.active_node is not None)
-            and (context.active_node.select)
-        )
-    
+        if (context.area is None) or (context.area.type != "NODE_EDITOR"):
+            return False
+
+        active_node = context.active_node
+
+        if (active_node is None) or (not active_node.select):
+            cls.poll_message_set("Active node must be selected")
+            return False
+        
+        return True
+
     @staticmethod
     def transfer_input_values(old_node, new_node):
         for input in old_node.inputs:
