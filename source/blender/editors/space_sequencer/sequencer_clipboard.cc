@@ -512,6 +512,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   /* Restore "first" pointer as BLI_movelisttolist sets it to nullptr */
   nseqbase.first = iseq_first;
 
+  int2 strip_mean_pos = {0, 0};
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     if (istrip->name == active_seq_name) {
       seq::select_active_set(scene_dst, istrip);
@@ -519,14 +520,12 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     /* Make sure, that pasted strips have unique names. This has to be done after
      * adding strips to seqbase, for lookup cache to work correctly. */
     seq::ensure_unique_name(istrip, scene_dst);
+
+    const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, istrip);
+    strip_mean_pos[0] += origin[0];
+    strip_mean_pos[1] += origin[1];
   }
 
-  int strip_mean_pos[2] = {0, 0};
-  LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
-    const float2 mirror = seq::image_transform_mirror_factor_get(istrip);
-    strip_mean_pos[0] += istrip->data->transform->xofs * mirror[0];
-    strip_mean_pos[1] += istrip->data->transform->yofs * mirror[1];
-  }
   strip_mean_pos[0] /= BLI_listbase_count(&nseqbase);
   strip_mean_pos[1] /= BLI_listbase_count(&nseqbase);
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
@@ -539,8 +538,10 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     }
     if (region->regiontype == RGN_TYPE_PREVIEW) {
       StripTransform *transform = istrip->data->transform;
-      transform->xofs = view_mval[0] - (strip_mean_pos[0] - transform->xofs);
-      transform->yofs = view_mval[1] - (strip_mean_pos[1] - transform->yofs);
+      const float2 mirror = seq::image_transform_mirror_factor_get(istrip);
+      const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, istrip);
+      transform->xofs = (view_mval[0] - (strip_mean_pos[0] - origin[0])) * mirror[0];
+      transform->yofs = (view_mval[1] - (strip_mean_pos[1] - origin[1])) * mirror[1];
       seq::relations_invalidate_cache(scene, istrip);
     }
   }
