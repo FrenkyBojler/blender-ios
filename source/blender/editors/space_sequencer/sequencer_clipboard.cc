@@ -456,7 +456,6 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   int ofs;
 
   deselect_all_strips(scene_dst);
-  // always keep offsetof in preview for now, change later
   if (RNA_boolean_get(op->ptr, "keep_offset") || (region->regiontype == RGN_TYPE_PREVIEW)) {
     ofs = scene_dst->r.cfra - scene_src->r.cfra;
   }

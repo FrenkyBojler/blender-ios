@@ -2628,8 +2628,7 @@ void SEQUENCER_OT_paste(wmOperatorType *ot)
   ot->description = "Paste strips from the internal clipboard";
 
   /* API callbacks. */
-  ot->invoke = sequencer_clipboard_paste_invoke; /* I just use this  function to populate the mouse
-  x and y for now.*/
+  ot->invoke = sequencer_clipboard_paste_invoke;
   ot->exec = sequencer_clipboard_paste_exec;
   ot->poll = ED_operator_sequencer_active;
 
