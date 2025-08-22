@@ -74,10 +74,11 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
                               residual_neg :
                               residual_pos;
 
-  const float4 lambda = residual / (inv_lumped_inertia0 + inv_lumped_inertia1 + compliance_term);
+  const float4 lambda = -residual / (inv_lumped_inertia0 + inv_lumped_inertia1 + compliance_term);
 
-  const math::Quaternion offset0 = r1 * math::Quaternion(lambda * inv_lumped_inertia0);
-  const math::Quaternion offset1 = r0 * math::Quaternion(-lambda * inv_lumped_inertia1);
+  const math::Quaternion offset0 = r1 *
+                                   math::conjugate(math::Quaternion(lambda * inv_lumped_inertia0));
+  const math::Quaternion offset1 = r0 * math::Quaternion(lambda * inv_lumped_inertia1);
 
   return {offset0, offset1};
 }
