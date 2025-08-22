@@ -22,6 +22,9 @@ namespace blender::geometry::xpbd_constraint_solver {
 struct PointsRef {
   MutableSpan<float3> positions;
   MutableSpan<math::Quaternion> rotations;
+  Span<float> inverse_masses;
+  Span<float3> inertias;
+  Span<float3> inverse_inertias;
 
   uint64_t size() const;
 };
@@ -38,6 +41,15 @@ class ConstraintSetParams {
 
   Span<float3> positions(int points_ref_i) const;
   Span<math::Quaternion> rotations(int points_ref_i) const;
+
+  float inverse_mass(int points_ref_i, int point_i) const;
+  Span<float> inverse_masses(int points_ref_i) const;
+
+  float3 inertia(int points_ref_i, int point_i) const;
+  Span<float3> inertias(int points_ref_i) const;
+
+  float3 inverse_inertia(int points_ref_i, int point_i) const;
+  Span<float3> inverse_inertias(int points_ref_i) const;
 };
 
 /**
@@ -370,6 +382,36 @@ inline Span<float3> ConstraintSetParams::positions(int points_ref_i) const
 inline Span<math::Quaternion> ConstraintSetParams::rotations(int points_ref_i) const
 {
   return points_refs_[points_ref_i].rotations;
+}
+
+inline float ConstraintSetParams::inverse_mass(int points_ref_i, int point_i) const
+{
+  return points_refs_[points_ref_i].inverse_masses[point_i];
+}
+
+inline Span<float> ConstraintSetParams::inverse_masses(int points_ref_i) const
+{
+  return points_refs_[points_ref_i].inverse_masses;
+}
+
+inline float3 ConstraintSetParams::inertia(int points_ref_i, int point_i) const
+{
+  return points_refs_[points_ref_i].inertias[point_i];
+}
+
+inline Span<float3> ConstraintSetParams::inertias(int points_ref_i) const
+{
+  return points_refs_[points_ref_i].inertias;
+}
+
+inline float3 ConstraintSetParams::inverse_inertia(int points_ref_i, int point_i) const
+{
+  return points_refs_[points_ref_i].inverse_inertias[point_i];
+}
+
+inline Span<float3> ConstraintSetParams::inverse_inertias(int points_ref_i) const
+{
+  return points_refs_[points_ref_i].inverse_inertias;
 }
 
 /** \} */
