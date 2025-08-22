@@ -2,3 +2,4 @@ Referenced by issue #38314, Negative rotation (With minus) after degree to rever
 Referenced by issue #38252, Transforms = invalid
 Referenced by issue #37600, Tool modal input does not take scene units into account
 Referenced by issue #28293, Cannot enter decimal point when scaling
+Referenced by issue #144916, Blender crashes when snapping after aligning in edit mode
