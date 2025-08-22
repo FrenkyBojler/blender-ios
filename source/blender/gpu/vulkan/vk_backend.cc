@@ -15,6 +15,8 @@
 
 #include "CLG_log.h"
 
+#include "DNA_userdef_types.h"
+
 #include "GPU_capabilities.hh"
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
@@ -215,6 +217,10 @@ bool VKBackend::is_supported()
   }
   BLI_setenv("VK_LOADER_LAYERS_DISABLE", "~implicit~");
   BLI_setenv("VK_LOADER_LAYERS_ALLOW", allowed_layers.str().c_str());
+
+  if (bool(U.gpu_flag & USER_GPU_FLAG_SKIP_SUPPORT_CHECK)) {
+    return true;
+  }
 
   /* Initialize an vulkan 1.2 instance. */
   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};

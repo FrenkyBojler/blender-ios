@@ -6182,6 +6182,14 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Preferred device to select during detection (requires restarting "
                            "Blender for changes to take effect)");
 
+  prop = RNA_def_property(srna, "use_gpu_support_check", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "gpu_flag", USER_GPU_FLAG_SKIP_SUPPORT_CHECK);
+  RNA_def_property_ui_text(prop,
+                           "Fallback to OpenGL",
+                           "Check if GPU meets minimum requirements and allow fallback to OpenGL. "
+                           "Disabling can improve stability of GPU drivers");
+
   prop = RNA_def_property(srna, "gpu_shader_workers", PROP_INT, PROP_NONE);
   RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_text(prop,
