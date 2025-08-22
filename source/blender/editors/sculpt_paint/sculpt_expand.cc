@@ -33,6 +33,8 @@
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
 
+#include "BLT_translation.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -2287,6 +2289,45 @@ static int active_face_set_id_get(Object &object, Cache &expand_cache)
   return SCULPT_FACE_SET_NONE;
 }
 
+static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cache)
+{
+  WorkspaceStatus status(C);
+
+  status.opmodal(IFACE_("Confirm"), op->type, SCULPT_EXPAND_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op->type, SCULPT_EXPAND_MODAL_CANCEL);
+  status.opmodal(IFACE_("Invert"), op->type, SCULPT_EXPAND_MODAL_INVERT, expand_cache->invert);
+  status.opmodal(IFACE_("Snap"), op->type, SCULPT_EXPAND_MODAL_SNAP_TOGGLE, expand_cache->snap);
+  status.opmodal(IFACE_("Move"), op->type, SCULPT_EXPAND_MODAL_MOVE_TOGGLE, expand_cache->move);
+  status.opmodal(
+      IFACE_("Preserve"), op->type, SCULPT_EXPAND_MODAL_PRESERVE_TOGGLE, expand_cache->preserve);
+  status.opmodal(IFACE_("Falloff Gradient"),
+                 op->type,
+                 SCULPT_EXPAND_MODAL_GRADIENT_TOGGLE,
+                 expand_cache->falloff_gradient);
+  status.opmodal(IFACE_("Brush Gradient"),
+                 op->type,
+                 SCULPT_EXPAND_MODAL_BRUSH_GRADIENT_TOGGLE,
+                 expand_cache->brush_gradient);
+
+  status.opmodal(IFACE_("Geodesic Step"), op->type, SCULPT_EXPAND_MODAL_RECURSION_STEP_GEODESIC);
+  status.opmodal(IFACE_("Topology Step"), op->type, SCULPT_EXPAND_MODAL_RECURSION_STEP_TOPOLOGY);
+
+  status.opmodal({}, op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_INCREASE);
+  status.opmodal(IFACE_("Loop Count +/-"), op->type, SCULPT_EXPAND_MODAL_LOOP_COUNT_DECREASE);
+
+  status.opmodal({}, op->type, SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_INCREASE);
+  status.opmodal(
+      IFACE_("Texture Distortion +/-"), op->type, SCULPT_EXPAND_MODAL_TEXTURE_DISTORTION_DECREASE);
+
+  status.opmodal(IFACE_("Falloff Cycle"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_CYCLE);
+
+  status.opmodal(IFACE_("Geodesic Falloff"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_GEODESIC);
+  status.opmodal(IFACE_("Topology Falloff"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY);
+  status.opmodal(
+      IFACE_("Diagonals Falloff"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_TOPOLOGY_DIAGONALS);
+  status.opmodal(IFACE_("Spherical Falloff"), op->type, SCULPT_EXPAND_MODAL_FALLOFF_SPHERICAL);
+}
+
 static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
@@ -2471,6 +2512,8 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
 
   /* Update the sculpt data with the current state of the #Cache. */
   update_for_vert(C, ob, target_expand_vertex);
+
+  sculpt_expand_status(C, op, &expand_cache);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2792,6 +2835,8 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
 
   /* Initial mesh data update, resets all target data in the sculpt mesh. */
   update_for_vert(C, ob, initial_vert);
+
+  sculpt_expand_status(C, op, ss.expand_cache);
 
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
