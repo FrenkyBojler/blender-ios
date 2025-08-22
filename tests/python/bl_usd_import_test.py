@@ -1639,6 +1639,16 @@ class USDImportTest(AbstractUSDTest):
             self.assertTrue(len(ob.modifiers) == 1 and ob.modifiers[0].type ==
                             'MESH_SEQUENCE_CACHE', f"{ob.name} has incorrect modifiers")
 
+        # Check that the shape with the color attribute properly updates and has correct values
+        def get_first_color_value(blender_object, frame):
+            bpy.context.scene.frame_set(frame)
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            return blender_object.evaluated_get(depsgraph).data.attributes["displayColor"].data.values()[0].color
+        blender_color = get_first_color_value(bpy.data.objects["capsule_color"], 1)
+        self.assertEqual(self.round_vector(blender_color), [0.8, 1.0, 0.0, 1.0])
+        blender_color = get_first_color_value(bpy.data.objects["capsule_color"], 2)
+        self.assertEqual(self.round_vector(blender_color), [0.1, 0.8, 0.0, 1.0])
+
     def test_import_collection_creation(self):
         """Test that the 'create_collection' option functions correctly."""
 
@@ -1789,7 +1799,7 @@ class USDImportTest(AbstractUSDTest):
         self.assertEqual({'FINISHED'}, res, f"Unable to export to {usdz2}")
 
         def check_image(name, tiles_num, size, is_packed):
-            self.assertTrue(name in bpy.data.images)
+            self.assertTrue(name in bpy.data.images, f"Could not find '{name}'")
 
             image = bpy.data.images[name]
             self.assertEqual(len(image.tiles), tiles_num)
@@ -1816,7 +1826,7 @@ class USDImportTest(AbstractUSDTest):
         check_image("test_grid_<UDIM>.png", 2, 1024, True)
         check_image("test_normal.exr", 1, 128, True)
         check_image("test_normal_invertY.exr", 1, 128, True)
-        check_image("color_121212.hdr", 1, 4, True)
+        check_image("color_0C0C0C.exr", 1, 1, True)
         check_materials()
 
         # Reload the empty file and import back in using IMPORT_COPY
@@ -1832,7 +1842,7 @@ class USDImportTest(AbstractUSDTest):
         check_image("test_grid_<UDIM>.png", 2, 128, False)
         check_image("test_normal.exr", 1, 128, False)
         check_image("test_normal_invertY.exr", 1, 128, False)
-        check_image("color_121212.hdr", 1, 4, False)
+        check_image("color_0C0C0C.exr", 1, 1, False)
         check_materials()
 
     def test_get_prim_map_parent_xform_not_merged(self):

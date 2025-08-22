@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'a7042ca30c82')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'066280446c16')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-29 08:51+0000\n"
+"POT-Creation-Date: 2025-08-18 09:16+0000\n"
 "PO-Revision-Date: 2025-07-23 15:18+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -2199,10 +2199,6 @@ msgid "Zip"
 msgstr "„Zip“"
 
 
-msgid "Blosc"
-msgstr "„Blosc“"
-
-
 msgctxt "Amount"
 msgid "Number"
 msgstr "Skaičius"
@@ -2523,38 +2519,6 @@ msgstr "Pirma/-s"
 
 msgid "Last"
 msgstr "Paskutinė/-is"
-
-
-msgid "BMP"
-msgstr "„BMP“"
-
-
-msgid "Iris"
-msgstr "„Iris“"
-
-
-msgid "JPEG"
-msgstr "„JPEG“"
-
-
-msgid "Targa"
-msgstr "„Targa“"
-
-
-msgid "Cineon"
-msgstr "„Cineon“"
-
-
-msgid "DPX"
-msgstr "„DPX“"
-
-
-msgid "TIFF"
-msgstr "„TIFF“"
-
-
-msgid "WebP"
-msgstr "„WebP“"
 
 
 msgid "Pixels"
@@ -3141,12 +3105,12 @@ msgid "Apply"
 msgstr "Pritaikyti"
 
 
-msgid "Track"
-msgstr "Sekti"
-
-
 msgid "Show/Hide"
 msgstr "Rodyti/Slėpti"
+
+
+msgid "Track"
+msgstr "Sekti"
 
 
 msgid "Text"
@@ -3259,6 +3223,10 @@ msgid "px"
 msgstr "pks."
 
 
+msgid "JPEG"
+msgstr "„JPEG“"
+
+
 msgid "Growing/shrinking mode"
 msgstr "Augimo/Susitraukimo veiksena"
 
@@ -3313,10 +3281,6 @@ msgstr "Projektuoti A ant B"
 msgctxt "NodeTree"
 msgid "Reflect"
 msgstr "Atspindys"
-
-
-msgid "Reflect A around the normal B. B doesn't need to be normalized."
-msgstr "A atspindys aplink normalę B. B ilgis nebūtinai vienetinis."
 
 
 msgctxt "NodeTree"
@@ -3542,6 +3506,18 @@ msgstr "Objektas"
 
 msgid "Add Mode"
 msgstr "Pridėti veikseną"
+
+
+msgid "BMP"
+msgstr "„BMP“"
+
+
+msgid "DPX"
+msgstr "„DPX“"
+
+
+msgid "TIFF"
+msgstr "„TIFF“"
 
 
 msgctxt "Operator"

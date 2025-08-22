@@ -217,7 +217,7 @@ static bool bake_strokes(Object *ob,
       lmd->mask_switches,
       lmd->material_mask_bits,
       lmd->intersection_mask,
-      float(lmd->thickness) / 1000.0f,
+      lmd->radius,
       lmd->opacity,
       lmd->shadow_selection,
       lmd->silhouette_selection,
@@ -392,7 +392,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
     wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                                 CTX_wm_window(C),
                                 scene,
-                                "Line Art",
+                                "Baking Line Art...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_LINEART);
 
@@ -411,6 +411,10 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
 
   wmJobWorkerStatus worker_status = {};
   lineart_bake_startjob(bj, &worker_status);
+
+  /* Need to call endjob manually to clear interface locking status when bake is not called as
+   * background task, otherwise spaes like 3d viewport can be unresponsive. */
+  lineart_bake_endjob(bj);
 
   MEM_delete(bj);
 

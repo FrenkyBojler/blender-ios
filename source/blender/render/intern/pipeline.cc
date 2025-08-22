@@ -1425,10 +1425,7 @@ static void renderresult_stampinfo(Render *re)
       BKE_image_stamp_buf(re->scene,
                           ob_camera_eval,
                           (re->scene->r.stamp & R_STAMP_STRIPMETA) ? rres.stamp_data : nullptr,
-                          rres.ibuf->byte_buffer.data,
-                          rres.ibuf->float_buffer.data,
-                          rres.rectx,
-                          rres.recty);
+                          rres.ibuf);
     }
 
     RE_ReleaseResultImage(re);
@@ -2073,7 +2070,7 @@ void RE_RenderFrame(Render *re,
     if (should_write && !G.is_break) {
       if (BKE_imtype_is_movie(rd.im_format.imtype)) {
         /* operator checks this but in case its called from elsewhere */
-        printf("Error: can't write single images with a movie format!\n");
+        printf("Error: cannot write single images with a movie format!\n");
       }
       else {
         char filepath_override[FILE_MAX];

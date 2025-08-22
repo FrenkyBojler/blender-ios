@@ -600,7 +600,7 @@ void RNA_identifier_sanitize(char *identifier, int property)
 {
   int a = 0;
 
-  /*  list from http://docs.python.org/py3k/reference/lexical_analysis.html#keywords */
+  /* List from: http://docs.python.org/py3k/reference/lexical_analysis.html#keywords */
   static const char *kwlist[] = {
       /* "False", "None", "True", */
       "and",    "as",     "assert", "break",   "class",    "continue", "def",    "del",
@@ -1569,7 +1569,29 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
 
 void RNA_def_property_flag(PropertyRNA *prop, PropertyFlag flag)
 {
+  switch (prop->type) {
+    case PROP_ENUM: {
+      /* In some cases the flag will have been set, ignore that case. */
+      if ((flag & PROP_ENUM_FLAG) && (prop->flag & PROP_ENUM_FLAG) == 0) {
+        EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+        if (eprop->item) {
+          StructRNA *srna = DefRNA.laststruct;
+          CLOG_ERROR(&LOG,
+                     "\"%s.%s\", PROP_ENUM_FLAG must be set before setting items",
+                     srna->identifier,
+                     prop->identifier);
+          DefRNA.error = true;
+        }
+      }
+    }
+    default:
+      break;
+  }
+
   prop->flag |= flag;
+  if (flag & PROP_ID_REFCOUNT) {
+    prop->flag_internal |= PROP_INTERN_PTR_ID_REFCOUNT_FORCED;
+  }
 }
 
 void RNA_def_property_clear_flag(PropertyRNA *prop, PropertyFlag flag)
@@ -1577,6 +1599,9 @@ void RNA_def_property_clear_flag(PropertyRNA *prop, PropertyFlag flag)
   prop->flag &= ~flag;
   if (flag & PROP_PTR_NO_OWNERSHIP) {
     prop->flag_internal |= PROP_INTERN_PTR_OWNERSHIP_FORCED;
+  }
+  if (flag & PROP_ID_REFCOUNT) {
+    prop->flag_internal |= PROP_INTERN_PTR_ID_REFCOUNT_FORCED;
   }
 }
 
@@ -1970,8 +1995,12 @@ void RNA_def_property_struct_runtime(StructOrFunctionRNA *cont, PropertyRNA *pro
         return;
       }
 
-      if (type && (type->flag & STRUCT_ID_REFCOUNT)) {
-        RNA_def_property_flag(prop, PROP_ID_REFCOUNT);
+      if ((prop->flag_internal & PROP_INTERN_PTR_ID_REFCOUNT_FORCED) == 0 && type &&
+          (type->flag & STRUCT_ID_REFCOUNT))
+      {
+        /* Do not use #RNA_def_property_flag, to avoid this automatic flag definition to set
+         * #PROP_INTERN_PTR_ID_REFCOUNT_FORCED. */
+        prop->flag |= PROP_ID_REFCOUNT;
       }
 
       break;
@@ -2015,7 +2044,7 @@ void RNA_def_property_enum_native_type(PropertyRNA *prop, const char *native_enu
 void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item)
 {
   StructRNA *srna = DefRNA.laststruct;
-  int i, defaultfound = 0;
+  int i, defaultfound = 0, defaultflag = 0;
 
   switch (prop->type) {
     case PROP_ENUM: {
@@ -2106,17 +2135,30 @@ void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item
             }
           }
 
-          if (item[i].value == eprop->defaultvalue) {
-            defaultfound = 1;
+          if (prop->flag & PROP_ENUM_FLAG) {
+            defaultflag |= item[i].value;
+          }
+          else {
+            if (item[i].value == eprop->defaultvalue) {
+              defaultfound = 1;
+            }
           }
         }
       }
 
-      if (!defaultfound) {
-        for (i = 0; item[i].identifier; i++) {
-          if (item[i].identifier[0]) {
-            eprop->defaultvalue = item[i].value;
-            break;
+      if (prop->flag & PROP_ENUM_FLAG) {
+        /* This may have been initialized from the DNA defaults.
+         * In rare cases the DNA defaults define flags assigned to other RNA properties.
+         * In this case it's necessary to mask the default. */
+        eprop->defaultvalue &= defaultflag;
+      }
+      else {
+        if (!defaultfound) {
+          for (i = 0; item[i].identifier; i++) {
+            if (item[i].identifier[0]) {
+              eprop->defaultvalue = item[i].value;
+              break;
+            }
           }
         }
       }
@@ -2965,17 +3007,6 @@ void RNA_def_property_enum_bitflag_sdna(PropertyRNA *prop,
 
   if (dp) {
     dp->enumbitflags = 1;
-
-#ifndef RNA_RUNTIME
-    int defaultvalue_mask = 0;
-    EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
-    for (int i = 0; i < eprop->totitem; i++) {
-      if (eprop->item[i].identifier[0]) {
-        defaultvalue_mask |= eprop->defaultvalue & eprop->item[i].value;
-      }
-    }
-    eprop->defaultvalue = defaultvalue_mask;
-#endif
   }
 }
 

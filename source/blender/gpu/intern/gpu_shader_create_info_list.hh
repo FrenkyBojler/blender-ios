@@ -50,6 +50,10 @@
 #  include "gpu_shader_fullscreen_blit_info.hh"
 #endif
 
+#ifdef WITH_VULKAN_BACKEND
+#  include "vk_backbuffer_blit_info.hh"
+#endif
+
 /* Compositor. */
 #include "compositor_alpha_crop_info.hh"
 #include "compositor_bilateral_blur_info.hh"
@@ -97,11 +101,11 @@
 #include "compositor_premultiply_alpha_info.hh"
 #include "compositor_read_input_info.hh"
 #include "compositor_realize_on_domain_info.hh"
+#include "compositor_sample_pixel_info.hh"
 #include "compositor_scale_variable_info.hh"
 #include "compositor_smaa_info.hh"
 #include "compositor_split_info.hh"
 #include "compositor_summed_area_table_info.hh"
-#include "compositor_sun_beams_info.hh"
 #include "compositor_symmetric_blur_info.hh"
 #include "compositor_symmetric_blur_variable_size_info.hh"
 #include "compositor_symmetric_separable_blur_info.hh"

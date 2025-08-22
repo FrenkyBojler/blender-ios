@@ -952,7 +952,7 @@ void ED_region_exit(bContext *C, ARegion *region)
     region->runtime->regiontimer = nullptr;
   }
 
-  WM_msgbus_clear_by_owner(wm->message_bus, region);
+  WM_msgbus_clear_by_owner(wm->runtime->message_bus, region);
 
   CTX_wm_region_set(C, prevar);
 }
@@ -1375,9 +1375,13 @@ void screen_change_prepare(
   if (screen_old != screen_new) {
     wmTimer *wt = screen_old->animtimer;
 
+    /* Remove popup handlers (menus), while unlikely, it's possible an "error"
+     * popup is displayed when switching screens, see: #144958. */
+    UI_popup_handlers_remove_all(C, &win->modalhandlers);
+
     /* remove handlers referencing areas in old screen */
     LISTBASE_FOREACH (ScrArea *, area, &screen_old->areabase) {
-      WM_event_remove_area_handler(&win->modalhandlers, area);
+      WM_event_remove_handlers_by_area(&win->modalhandlers, area);
     }
 
     /* we put timer to sleep, so screen_exit has to think there's no timer */
@@ -1889,8 +1893,6 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
                                    int display_type,
                                    bool dialog)
 {
-  ScrArea *area = nullptr;
-
   switch (display_type) {
     case USER_TEMP_SPACE_DISPLAY_WINDOW:
       if (WM_window_open(C,
@@ -1904,27 +1906,42 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
                          nullptr,
                          nullptr))
       {
-        area = CTX_wm_area(C);
+        return CTX_wm_area(C);
       }
       break;
     case USER_TEMP_SPACE_DISPLAY_FULLSCREEN: {
+      bScreen *ctx_screen = CTX_wm_screen(C);
+
+      if (ctx_screen->state == SCREENMAXIMIZED) {
+        /* Find the maximized area, check if it has the same type as the one we want to create. */
+        LISTBASE_FOREACH (ScrArea *, screen_area, &ctx_screen->areabase) {
+          if (screen_area->full && screen_area->spacetype == space_type) {
+            /* Return the existing area instead of recreating an area on top, which would make the
+             * "Back to Previous" button seem ineffective. */
+            return screen_area;
+          }
+        }
+      }
+
       ScrArea *ctx_area = CTX_wm_area(C);
 
+      /* The current area is already fullscreen, stack the new area on top of it. */
       if (ctx_area != nullptr && ctx_area->full) {
-        area = ctx_area;
+        ScrArea *area = ctx_area;
         ED_area_newspace(C, ctx_area, space_type, true);
         area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
         ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
+        return area;
       }
-      else {
-        area = ED_screen_full_newspace(C, ctx_area, int(space_type));
-        ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
-      }
-      break;
+
+      /* Create a new fullscreen area. */
+      ScrArea *area = ED_screen_full_newspace(C, ctx_area, int(space_type));
+      ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
+      return area;
     }
   }
 
-  return area;
+  return nullptr;
 }
 
 void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
@@ -1943,7 +1960,7 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
   if (enable) {
     ScreenAnimData *sad = MEM_callocN<ScreenAnimData>("ScreenAnimData");
 
-    screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / FPS));
+    screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / scene->frames_per_second()));
 
     sad->region = CTX_wm_region(C);
     sad->sfra = scene->r.cfra;

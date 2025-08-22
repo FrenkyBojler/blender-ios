@@ -727,6 +727,25 @@ static bool screen_active_editable(bContext *C)
   return false;
 }
 
+/**
+ * Begin a modal operation,
+ * the caller is responsible for calling #screen_modal_action_end when it's ended.
+ */
+static void screen_modal_action_begin()
+{
+  G.moving |= G_TRANSFORM_WM;
+}
+
+/** Call once the modal action has finished. */
+static void screen_modal_action_end()
+{
+  G.moving &= ~G_TRANSFORM_WM;
+
+  /* Full refresh after `G.moving` is cleared otherwise tool gizmos
+   * won't be refreshed with the modified flag, see: #143629. */
+  WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1068,7 +1087,7 @@ static void actionzone_exit(wmOperator *op)
   }
   op->customdata = nullptr;
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 /* send EVT_ACTIONZONE event */
@@ -1132,7 +1151,7 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   /* add modal handler */
-  G.moving |= G_TRANSFORM_WM;
+  screen_modal_action_begin();
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2042,7 +2061,8 @@ static void area_move_exit(bContext *C, wmOperator *op)
   BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
   BKE_screen_remove_double_scredges(CTX_wm_screen(C));
   ED_workspace_status_text(C, nullptr);
-  G.moving &= ~G_TRANSFORM_WM;
+
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus area_move_exec(bContext *C, wmOperator *op)
@@ -2075,7 +2095,7 @@ static wmOperatorStatus area_move_invoke(bContext *C, wmOperator *op, const wmEv
   status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
 
   /* add temp handler */
-  G.moving |= G_TRANSFORM_WM;
+  screen_modal_action_begin();
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -2402,7 +2422,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
   BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
   BKE_screen_remove_double_scredges(CTX_wm_screen(C));
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static void area_split_preview_update_cursor(bContext *C, wmOperator *op)
@@ -2538,7 +2558,7 @@ static wmOperatorStatus area_split_invoke(bContext *C, wmOperator *op, const wmE
       area_move_set_limits(win, screen, dir_axis, &sd->bigger, &sd->smaller, nullptr);
 
       /* add temp handler for edge move or cancel */
-      G.moving |= G_TRANSFORM_WM;
+      screen_modal_action_begin();
       WM_event_add_modal_handler(C, op);
 
       return OPERATOR_RUNNING_MODAL;
@@ -2868,7 +2888,7 @@ static void region_scale_exit(wmOperator *op)
   MEM_freeN(rmd);
   op->customdata = nullptr;
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2942,7 +2962,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
     /* add temp handler */
-    G.moving |= G_TRANSFORM_WM;
+    screen_modal_action_begin();
     WM_event_add_modal_handler(C, op);
 
     return OPERATOR_RUNNING_MODAL;
@@ -3670,7 +3690,7 @@ static bool screen_maximize_area_poll(bContext *C)
          /* Don't change temporary screens. */
          !WM_window_is_temp_screen(win) &&
          /* Don't maximize when dragging. */
-         BLI_listbase_is_empty(&wm->drags);
+         BLI_listbase_is_empty(&wm->runtime->drags);
 }
 
 static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
@@ -3911,7 +3931,7 @@ static void area_join_exit(bContext *C, wmOperator *op)
 
   ED_workspace_status_text(C, nullptr);
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus area_join_exec(bContext *C, wmOperator *op)
@@ -4504,9 +4524,9 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
                                   (jd->start_y > event->xy[1] && jd->split_fac < 0.5f));
 
             if (large_v || large_h) {
-              /* Swap areas to follow old behavior of new area added based on starting location. If
-               * from above the new area is above, if from below the new area is below, etc. Note
-               * that this preserves runtime data, unlike ED_area_swapspace. */
+              /* Swap areas to follow old behavior of new area added based on starting location.
+               * When from above the new area is above, when from below the new area is below, etc.
+               * Note that this preserves runtime data, unlike #ED_area_swapspace. */
               std::swap(jd->sa1->v1, jd->sa2->v1);
               std::swap(jd->sa1->v2, jd->sa2->v2);
               std::swap(jd->sa1->v3, jd->sa2->v3);
@@ -4759,13 +4779,13 @@ static bool repeat_history_poll(bContext *C)
     return false;
   }
   wmWindowManager *wm = CTX_wm_manager(C);
-  return !BLI_listbase_is_empty(&wm->operators);
+  return !BLI_listbase_is_empty(&wm->runtime->operators);
 }
 
 static wmOperatorStatus repeat_last_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmOperator *lastop = static_cast<wmOperator *>(wm->operators.last);
+  wmOperator *lastop = static_cast<wmOperator *>(wm->runtime->operators.last);
 
   /* Seek last registered operator */
   while (lastop) {
@@ -4808,7 +4828,7 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  int items = BLI_listbase_count(&wm->operators);
+  int items = BLI_listbase_count(&wm->runtime->operators);
   if (items == 0) {
     return OPERATOR_CANCELLED;
   }
@@ -4819,7 +4839,7 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
 
   wmOperator *lastop;
   int i;
-  for (i = items - 1, lastop = static_cast<wmOperator *>(wm->operators.last); lastop;
+  for (i = items - 1, lastop = static_cast<wmOperator *>(wm->runtime->operators.last); lastop;
        lastop = lastop->prev, i--)
   {
     if ((lastop->type->flag & OPTYPE_REGISTER) && WM_operator_repeat_check(C, lastop)) {
@@ -4838,11 +4858,12 @@ static wmOperatorStatus repeat_history_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  op = static_cast<wmOperator *>(BLI_findlink(&wm->operators, RNA_int_get(op->ptr, "index")));
+  op = static_cast<wmOperator *>(
+      BLI_findlink(&wm->runtime->operators, RNA_int_get(op->ptr, "index")));
   if (op) {
     /* let's put it as last operator in list */
-    BLI_remlink(&wm->operators, op);
-    BLI_addtail(&wm->operators, op);
+    BLI_remlink(&wm->runtime->operators, op);
+    BLI_addtail(&wm->runtime->operators, op);
 
     WM_operator_repeat(C, op);
   }
@@ -5630,7 +5651,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   else if ((scene->audio.flag & AUDIO_SYNC) && (sad->flag & ANIMPLAY_FLAG_REVERSE) == false &&
            isfinite(time = BKE_sound_sync_scene(scene_eval)))
   {
-    scene->r.cfra = round(time * FPS);
+    scene->r.cfra = round(time * scene->frames_per_second());
 
 #ifdef PROFILE_AUDIO_SYNC
     newfra_int = scene->r.cfra;
@@ -5649,7 +5670,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
       /* Try to keep the playback in realtime by dropping frames. */
 
       /* How much time (in frames) has passed since the last frame was drawn? */
-      double delta_frames = wt->time_delta * FPS;
+      double delta_frames = wt->time_delta * scene->frames_per_second();
 
       /* Add the remaining fraction from the last time step. */
       delta_frames += sad->lagging_frame_count;
@@ -5783,7 +5804,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
    */
   /* TODO: this may make evaluation a bit slower if the value doesn't change...
    * any way to avoid this? */
-  wt->time_step = (1.0 / FPS);
+  wt->time_step = (1.0 / scene->frames_per_second());
 
   return OPERATOR_FINISHED;
 }
@@ -6114,7 +6135,7 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   wmWindow *win_cur = CTX_wm_window(C);
   /* Use eventstate, not event from _invoke, so this can be called through exec(). */
   const wmEvent *event = win_cur->eventstate;
-  int sizex = (500 + UI_NAVIGATION_REGION_WIDTH) * UI_SCALE_FAC;
+  int sizex = (680 + UI_NAVIGATION_REGION_WIDTH) * UI_SCALE_FAC;
   int sizey = 520 * UI_SCALE_FAC;
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "section");
@@ -6136,24 +6157,15 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   };
 
   /* changes context! */
-  if (WM_window_open(C,
-                     nullptr,
-                     &window_rect,
-                     SPACE_USERPREF,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
+  if (ScrArea *area = ED_screen_temp_space_open(
+          C, nullptr, &window_rect, SPACE_USERPREF, U.preferences_display_type, false))
   {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
-    ScrArea *area = CTX_wm_area(C);
-    ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
+    ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
-    region->flag |= RGN_FLAG_HIDDEN;
-    ED_region_visibility_change_update(C, area, region);
+    region_header->flag |= RGN_FLAG_HIDDEN;
+    ED_region_visibility_change_update(C, area, region_header);
 
     return OPERATOR_FINISHED;
   }
