@@ -521,13 +521,12 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
      * adding strips to seqbase, for lookup cache to work correctly. */
     seq::ensure_unique_name(istrip, scene_dst);
 
-    const float2 origin = seq::image_transform_origin_offset_pixelspace_get(scene, istrip);
-    strip_mean_pos[0] += origin[0];
-    strip_mean_pos[1] += origin[1];
+    strip_mean_pos += static_cast<int2>(
+        seq::image_transform_origin_offset_pixelspace_get(scene, istrip));
   }
 
-  strip_mean_pos[0] /= BLI_listbase_count(&nseqbase);
-  strip_mean_pos[1] /= BLI_listbase_count(&nseqbase);
+  strip_mean_pos /= BLI_listbase_count(&nseqbase);
+
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     /* Translate after name has been changed, otherwise this will affect animdata of original
      * strip. */
