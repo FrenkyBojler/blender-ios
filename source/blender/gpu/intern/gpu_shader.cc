@@ -163,7 +163,7 @@ blender::gpu::Shader *GPU_shader_create_from_info_name(const char *info_name)
 blender::gpu::Shader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
 {
   using namespace blender::gpu::shader;
-  const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
+  ShaderCreateInfo info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
   return GPUBackend::get()->get_compiler()->compile(info, false);
 }
 
@@ -653,13 +653,13 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 /** \name ShaderCompiler
  * \{ */
 
-Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
+Shader *ShaderCompiler::compile(shader::ShaderCreateInfo &info, bool is_batch_compilation)
 {
   using Clock = std::chrono::steady_clock;
   using TimePoint = Clock::time_point;
 
   using namespace blender::gpu::shader;
-  const_cast<ShaderCreateInfo &>(info).finalize();
+  info.finalize();
 
   TimePoint start_time;
 
@@ -872,7 +872,7 @@ ShaderCompiler::~ShaderCompiler()
   BLI_assert(batches_.is_empty());
 }
 
-Shader *ShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
+Shader *ShaderCompiler::compile_shader(shader::ShaderCreateInfo &info)
 {
   return compile(info, false);
 }
@@ -883,8 +883,12 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
   std::unique_lock lock(mutex_);
 
   Batch *batch = MEM_new<Batch>(__func__);
-  batch->infos = infos;
   batch->shaders.reserve(infos.size());
+  batch->infos.reserve(infos.size());
+  for (const shader::ShaderCreateInfo *info : infos) {
+    /* Make a local copy so we don't have to care about the calling code deleting it. */
+    batch->infos.append(*info);
+  }
 
   BatchHandle handle = next_batch_handle_++;
   batches_.add(handle, batch);
@@ -900,8 +904,8 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
     }
   }
   else {
-    for (const shader::ShaderCreateInfo *info : infos) {
-      batch->shaders.append(compile(*info, false));
+    for (shader::ShaderCreateInfo &info : batch->infos) {
+      batch->shaders.append(compile(info, false));
     }
   }
 
@@ -920,12 +924,10 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
     }
   }
 
-  if (wait) {
-    /* Block until ready. */
+  if (batch->is_specialization_batch()) {
+    /* Block until ready, otherwise the base shader might be deleted before an ongoing
+     * specialization finishes. */
     compilation_finished_notification_.wait(lock, [&]() { return batch->is_ready(); });
-  }
-  else {
-    BLI_assert(!batch->is_specialization_batch());
   }
 
   if (batch->is_ready()) {
@@ -1026,7 +1028,7 @@ void ShaderCompiler::do_work(ParallelWork &work)
 
   /* Compile */
   if (!batch->is_specialization_batch()) {
-    batch->shaders[shader_index] = compile_shader(*batch->infos[shader_index]);
+    batch->shaders[shader_index] = compile_shader(batch->infos[shader_index]);
   }
   else {
     specialize_shader(batch->specializations[shader_index]);

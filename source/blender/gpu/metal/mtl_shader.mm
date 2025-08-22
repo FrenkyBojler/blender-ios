@@ -1553,7 +1553,7 @@ MTLShaderCompiler::MTLShaderCompiler()
 {
 }
 
-Shader *MTLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
+Shader *MTLShaderCompiler::compile_shader(shader::ShaderCreateInfo &info)
 {
   MTLShader *shader = static_cast<MTLShader *>(compile(info, true));
 

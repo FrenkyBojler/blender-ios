@@ -1846,9 +1846,9 @@ GLCompilerWorker *GLSubprocessShaderCompiler::get_compiler_worker()
   return worker;
 }
 
-Shader *GLSubprocessShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
+Shader *GLSubprocessShaderCompiler::compile_shader(shader::ShaderCreateInfo &info)
 {
-  const_cast<ShaderCreateInfo *>(&info)->finalize();
+  info.finalize();
   GLShader *shader = static_cast<GLShader *>(compile(info, true));
   GLSourcesBaked sources = shader->get_sources();
 

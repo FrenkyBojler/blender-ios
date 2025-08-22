@@ -325,7 +325,7 @@ class MTLShaderCompiler : public ShaderCompiler {
  public:
   MTLShaderCompiler();
 
-  Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
+  Shader *compile_shader(shader::ShaderCreateInfo &info) override;
   void specialize_shader(ShaderSpecialization &specialization) override;
 };
 
