@@ -377,6 +377,7 @@ static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
       BMO_op_finish(bm, &bmop_attr);
       BMO_op_finish(bm, &bmop_fill);
     }
+
     BMO_slot_buffer_hflag_enable(
         bm, bmop.slots_out, "geom_cut.out", BM_VERT | BM_EDGE, BM_ELEM_SELECT, true);
 
