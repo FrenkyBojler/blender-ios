@@ -256,7 +256,7 @@ class NODE_MT_editor_menus(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        #layout.menu("NODE_MT_view")
+        layout.menu("NODE_MT_view")
         layout.menu("NODE_MT_select")
         layout.menu("NODE_MT_add")
         layout.menu("NODE_MT_swap")
@@ -1243,6 +1243,7 @@ classes = (
     NODE_MT_context_menu_show_hide_menu,
     NODE_MT_context_menu_select_menu,
     NODE_MT_context_menu,
+    NODE_MT_view,
     NODE_MT_view_pie,
     NODE_PT_material_slots,
     NODE_PT_geometry_node_tool_object_types,
