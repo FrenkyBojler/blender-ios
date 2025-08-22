@@ -561,7 +561,6 @@ class UVAABBIsland {
 };
 
 static float2 uvedit_uv_island_arrange(Scene *scene,
-                                       Object *obedit,
                                        BMesh *bm,
                                        eUVAlignIslandAxis axis,
                                        eUVAlignIsland align,
@@ -710,8 +709,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
     if (em->bm->totvertsel == 0) {
       continue;
     }
-    position = uvedit_uv_island_arrange(
-        scene, obedit, em->bm, axis, align, order, offset, position);
+    position = uvedit_uv_island_arrange(scene, em->bm, axis, align, order, offset, position);
     if (axis == X) {
       position[0] += offset;
     }
