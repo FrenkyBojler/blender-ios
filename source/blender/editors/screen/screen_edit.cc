@@ -952,7 +952,7 @@ void ED_region_exit(bContext *C, ARegion *region)
     region->runtime->regiontimer = nullptr;
   }
 
-  WM_msgbus_clear_by_owner(wm->message_bus, region);
+  WM_msgbus_clear_by_owner(wm->runtime->message_bus, region);
 
   CTX_wm_region_set(C, prevar);
 }
@@ -1377,7 +1377,7 @@ void screen_change_prepare(
 
     /* remove handlers referencing areas in old screen */
     LISTBASE_FOREACH (ScrArea *, area, &screen_old->areabase) {
-      WM_event_remove_area_handler(&win->modalhandlers, area);
+      WM_event_remove_handlers_by_area(&win->modalhandlers, area);
     }
 
     /* we put timer to sleep, so screen_exit has to think there's no timer */
