@@ -19,18 +19,25 @@ namespace blender::geometry::xpbd_constraint_solver {
 /**
  * Mutable reference to the data that is actually being simulated.
  */
-struct MutablePointsRef {
+struct PointsRef {
   MutableSpan<float3> positions;
   MutableSpan<math::Quaternion> rotations;
 
   uint64_t size() const;
 };
 
-struct PointsRef {
-  Span<float3> positions;
-  Span<math::Quaternion> rotations;
+class ConstraintSetParams {
+ private:
+  Span<PointsRef> points_refs_;
 
-  PointsRef(const MutablePointsRef &other);
+ public:
+  ConstraintSetParams(Span<PointsRef> points_refs);
+
+  const float3 &position(int points_ref_i, int point_i) const;
+  const math::Quaternion &rotation(int points_ref_i, int point_i) const;
+
+  Span<float3> positions(int points_ref_i) const;
+  Span<math::Quaternion> rotations(int points_ref_i) const;
 };
 
 /**
@@ -38,10 +45,10 @@ struct PointsRef {
  */
 class GaussSeidelUpdater {
  private:
-  Span<MutablePointsRef> points_refs_;
+  Span<PointsRef> points_refs_;
 
  public:
-  GaussSeidelUpdater(Span<MutablePointsRef> point_sets);
+  GaussSeidelUpdater(Span<PointsRef> point_sets);
   void update_position(const int points_ref_i, const int point_i, const float3 &offset);
   void update_rotation(const int points_ref_i, const int point_i, const math::Quaternion &offset);
 };
@@ -89,11 +96,11 @@ class ConstraintSet {
   virtual ~ConstraintSet() = default;
 
   virtual void evaluate_parallel_non_deterministic_jacobian(
-      NonDeterministicJacobianUpdater &updater, Span<PointsRef> points_refs) const = 0;
+      NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) const = 0;
   virtual void evaluate_parallel_gauss_seidel(GaussSeidelUpdater &updater,
-                                              Span<PointsRef> points_refs) const = 0;
+                                              ConstraintSetParams &params) const = 0;
   virtual void evaluate_serial_gauss_seidel(GaussSeidelUpdater &updater,
-                                            Span<PointsRef> points_refs) const = 0;
+                                            ConstraintSetParams &params) const = 0;
 
   Span<int> get_affected_points_refs() const;
 };
@@ -118,11 +125,11 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
   TemplatedConstraintSet(int constraints_num, Vector<int> affected_points_refs);
 
   void evaluate_parallel_non_deterministic_jacobian(NonDeterministicJacobianUpdater &updater,
-                                                    Span<PointsRef> points_refs) const override;
+                                                    ConstraintSetParams &params) const override;
   void evaluate_parallel_gauss_seidel(GaussSeidelUpdater &updater,
-                                      Span<PointsRef> points_refs) const override;
+                                      ConstraintSetParams &params) const override;
   void evaluate_serial_gauss_seidel(GaussSeidelUpdater &updater,
-                                    Span<PointsRef> points_refs) const override;
+                                    ConstraintSetParams &params) const override;
 
   Span<IndexMask> get_independent_masks() const;
 
@@ -134,7 +141,7 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
    */
   // template<typename UpdaterT>
   // void evaluate_single(
-  //   UpdaterT &updater, const Span<PointsRef> points_refs, const int constraint_i) const;
+  //   UpdaterT &updater, ConstraintSetParams &params, const int constraint_i) const;
 };
 
 Vector<IndexMask> unary_constraints_to_independent_masks(const Span<int> affected_points,
@@ -152,32 +159,27 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
  * Slow but simple iterative Gauss Seidel solver. It evaluates each constraints serially without
  * any parallelism.
  */
-void solve_gauss_seidel_one_at_a_time(Span<MutablePointsRef> points_refs,
+void solve_gauss_seidel_one_at_a_time(Span<PointsRef> points_refs,
                                       Span<const ConstraintSet *> constraint_sets);
 
 /**
  * Fully parallel Jacobian solver, but it is not deterministic. This is mainly for testing
  * purposes.
  */
-void solve_jacobian_non_deterministic(Span<MutablePointsRef> points_refs,
+void solve_jacobian_non_deterministic(Span<PointsRef> points_refs,
                                       Span<const ConstraintSet *> constraint_sets);
 
 /**
  * A Gauss Seidel solver that attempts to parallelize the evaluation of constraints.
  */
-void solve_gauss_seidel_parallel(Span<MutablePointsRef> points_refs,
+void solve_gauss_seidel_parallel(Span<PointsRef> points_refs,
                                  Span<const ConstraintSet *> constraint_sets);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
  * \{ */
 
-inline PointsRef::PointsRef(const MutablePointsRef &other)
-    : positions(other.positions), rotations(other.rotations)
-{
-}
-
-inline uint64_t MutablePointsRef::size() const
+inline uint64_t PointsRef::size() const
 {
   return this->positions.size();
 }
@@ -213,7 +215,7 @@ inline void NonDeterministicJacobianUpdater::update_rotation(const int points_re
   item.rotation_offset += float4(offset);
 }
 
-inline GaussSeidelUpdater::GaussSeidelUpdater(Span<MutablePointsRef> point_sets)
+inline GaussSeidelUpdater::GaussSeidelUpdater(Span<PointsRef> point_sets)
     : points_refs_(point_sets)
 {
 }
@@ -310,38 +312,64 @@ inline TemplatedConstraintSet<Child>::TemplatedConstraintSet(int constraints_num
 
 template<typename Child>
 inline void TemplatedConstraintSet<Child>::evaluate_parallel_non_deterministic_jacobian(
-    NonDeterministicJacobianUpdater &updater, const Span<PointsRef> points_refs) const
+    NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) const
 {
   const Child &self = static_cast<const Child &>(*this);
   threading::parallel_for(IndexRange(constraints_num_), grain_size_, [&](const IndexRange range) {
     for (const int constraint_i : range) {
-      self.evaluate_single(updater, points_refs, constraint_i);
+      self.evaluate_single(updater, params, constraint_i);
     }
   });
 }
 
 template<typename Child>
 inline void TemplatedConstraintSet<Child>::evaluate_parallel_gauss_seidel(
-    GaussSeidelUpdater &updater, const Span<PointsRef> points_refs) const
+    GaussSeidelUpdater &updater, ConstraintSetParams &params) const
 {
   const Child &self = static_cast<const Child &>(*this);
   const Span<IndexMask> constraint_masks = this->get_independent_masks();
   for (const int color_i : constraint_masks.index_range()) {
     const IndexMask &constraint_mask = constraint_masks[color_i];
     constraint_mask.foreach_index(GrainSize(grain_size_), [&](const int constraint_i) {
-      self.evaluate_single(updater, points_refs, constraint_i);
+      self.evaluate_single(updater, params, constraint_i);
     });
   }
 }
 
 template<typename Child>
 inline void TemplatedConstraintSet<Child>::evaluate_serial_gauss_seidel(
-    GaussSeidelUpdater &updater, const Span<PointsRef> points_refs) const
+    GaussSeidelUpdater &updater, ConstraintSetParams &params) const
 {
   const Child &self = static_cast<const Child &>(*this);
   for (const int constraint_i : IndexRange(constraints_num_)) {
-    self.evaluate_single(updater, points_refs, constraint_i);
+    self.evaluate_single(updater, params, constraint_i);
   }
+}
+
+inline ConstraintSetParams::ConstraintSetParams(Span<PointsRef> points_refs)
+    : points_refs_(points_refs)
+{
+}
+
+inline const float3 &ConstraintSetParams::position(const int points_ref_i, const int point_i) const
+{
+  return points_refs_[points_ref_i].positions[point_i];
+}
+
+inline const math::Quaternion &ConstraintSetParams::rotation(const int points_ref_i,
+                                                             const int point_i) const
+{
+  return points_refs_[points_ref_i].rotations[point_i];
+}
+
+inline Span<float3> ConstraintSetParams::positions(int points_ref_i) const
+{
+  return points_refs_[points_ref_i].positions;
+}
+
+inline Span<math::Quaternion> ConstraintSetParams::rotations(int points_ref_i) const
+{
+  return points_refs_[points_ref_i].rotations;
 }
 
 /** \} */

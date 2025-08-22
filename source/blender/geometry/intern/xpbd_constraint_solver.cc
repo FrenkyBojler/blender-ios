@@ -61,21 +61,21 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
       memory);
 }
 
-void solve_gauss_seidel_one_at_a_time(const Span<MutablePointsRef> points_refs,
+void solve_gauss_seidel_one_at_a_time(const Span<PointsRef> points_refs,
                                       const Span<const ConstraintSet *> constraint_sets)
 {
-  const Vector<PointsRef> readonly_points_refs = points_refs;
+  ConstraintSetParams params{points_refs};
   GaussSeidelUpdater updater{points_refs};
   for (const ConstraintSet *constraint_set : constraint_sets) {
-    constraint_set->evaluate_serial_gauss_seidel(updater, readonly_points_refs);
+    constraint_set->evaluate_serial_gauss_seidel(updater, params);
   }
 }
 
-void solve_jacobian_non_deterministic(const Span<MutablePointsRef> points_refs,
+void solve_jacobian_non_deterministic(const Span<PointsRef> points_refs,
                                       const Span<const ConstraintSet *> constraint_sets)
 {
   using Item = NonDeterministicJacobianUpdater::Item;
-  const Vector<PointsRef> readonly_points_refs = points_refs;
+  ConstraintSetParams params{points_refs};
 
   Array<Array<Item>> items_arrays(points_refs.size());
   Array<MutableSpan<Item>> items_spans(points_refs.size());
@@ -89,15 +89,14 @@ void solve_jacobian_non_deterministic(const Span<MutablePointsRef> points_refs,
       constraint_sets.index_range(), 1, [&](const IndexRange constraint_sets_range) {
         for (const int constraint_set_i : constraint_sets_range) {
           const ConstraintSet *constraint_set = constraint_sets[constraint_set_i];
-          constraint_set->evaluate_parallel_non_deterministic_jacobian(updater,
-                                                                       readonly_points_refs);
+          constraint_set->evaluate_parallel_non_deterministic_jacobian(updater, params);
         }
       });
 
   threading::parallel_for(points_refs.index_range(), 1, [&](const IndexRange point_set_range) {
     for (const int point_set_i : point_set_range) {
       const Span<Item> items = items_arrays[point_set_i];
-      const MutablePointsRef &point_set = points_refs[point_set_i];
+      const PointsRef &point_set = points_refs[point_set_i];
       threading::parallel_for(IndexRange(point_set.size()), 512, [&](const IndexRange range) {
         for (const int point_i : range) {
           const Item &item = items[point_i];
@@ -124,10 +123,10 @@ void solve_jacobian_non_deterministic(const Span<MutablePointsRef> points_refs,
   });
 }
 
-void solve_gauss_seidel_parallel(const Span<MutablePointsRef> points_refs,
+void solve_gauss_seidel_parallel(const Span<PointsRef> points_refs,
                                  const Span<const ConstraintSet *> constraint_sets)
 {
-  const Vector<PointsRef> readonly_points_refs = points_refs;
+  ConstraintSetParams params{points_refs};
   MultiValueMap<int, const ConstraintSet *> single_target_constraints_by_point_set;
   Vector<const ConstraintSet *> multi_target_constraints;
 
@@ -160,13 +159,13 @@ void solve_gauss_seidel_parallel(const Span<MutablePointsRef> points_refs,
           /* These constraint sets have to be evaluated serially because they effect the same
            * points.*/
           for (const ConstraintSet *constraint_set : single_target_constraint_sets[i]) {
-            constraint_set->evaluate_parallel_gauss_seidel(updater, readonly_points_refs);
+            constraint_set->evaluate_parallel_gauss_seidel(updater, params);
           }
         }
       });
 
   for (const ConstraintSet *constraint_set : multi_target_constraints) {
-    constraint_set->evaluate_parallel_gauss_seidel(updater, readonly_points_refs);
+    constraint_set->evaluate_parallel_gauss_seidel(updater, params);
   }
 }
 

@@ -112,12 +112,12 @@ class PinnedPositionConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i = indices_[constraint_i];
     const DistanceConstraintResult result = evaluate_distance_constraint(
-        points_refs[points_ref_i_].positions[point_i],
+        params.position(points_ref_i_, point_i),
         pin_positions_[constraint_i],
         inverse_masses_[point_i],
         0.0f,
@@ -162,12 +162,12 @@ class PinRotationConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i = indices_[constraint_i];
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-        points_refs[points_ref_i_].rotations[point_i],
+        params.rotation(points_ref_i_, point_i),
         pin_rotations_[constraint_i],
         inertias_[point_i],
         float3(std::numeric_limits<float>::infinity()),
@@ -212,16 +212,15 @@ class DistanceConstraintEvaluator : public TemplatedConstraintSet<DistanceConstr
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int2 &point_pair = point_pairs_[constraint_i];
     const int point_i0 = point_pair[0];
     const int point_i1 = point_pair[1];
-    const Span<float3> positions = points_refs[points_ref_i_].positions;
     const DistanceConstraintResult result = evaluate_distance_constraint(
-        positions[point_i0],
-        positions[point_i1],
+        params.position(points_ref_i_, point_i0),
+        params.position(points_ref_i_, point_i1),
         inverse_masses_[point_i0],
         inverse_masses_[point_i1],
         distances_[constraint_i],
@@ -261,11 +260,11 @@ class CollisionPlaneConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i = points_[constraint_i];
-    const float3 pos = points_refs[points_ref_i_].positions[point_i];
+    const float3 pos = params.position(points_ref_i_, point_i);
     const float3 plane_pos = plane_positions_[constraint_i];
     const float3 plane_normal = plane_normals_[constraint_i];
     BLI_assert(math::is_unit(plane_normal));
@@ -315,14 +314,14 @@ class MinimumDistanceConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i0 = points_[constraint_i][0];
     const int point_i1 = points_[constraint_i][1];
     const float min_distance = min_distances_[constraint_i];
-    const float3 &p0 = points_refs[points_ref_i_].positions[point_i0];
-    const float3 &p1 = points_refs[points_ref_i_].positions[point_i1];
+    const float3 &p0 = params.position(points_ref_i_, point_i0);
+    const float3 &p1 = params.position(points_ref_i_, point_i1);
     const float3 diff = p1 - p0;
     float distance;
     const float3 normalized_dir = math::normalize_and_get_length(diff, distance);
@@ -378,14 +377,14 @@ class OverpressureConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     /* This is just a single global constraint. */
     BLI_assert(constraint_i == 0);
     UNUSED_VARS_NDEBUG(constraint_i);
 
-    const Span<float3> positions = points_refs[points_ref_i_].positions;
+    const Span<float3> positions = params.positions(points_ref_i_);
     const float current_volume = compute_volume(tris_, corner_verts_, positions);
     const float volume_diff = current_volume - overpressure_ * initial_volume_;
 
@@ -496,7 +495,7 @@ class RodStretchAndShearConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int2 &point_pair = point_pairs_[constraint_i];
@@ -505,9 +504,9 @@ class RodStretchAndShearConstraintEvaluator
 
     const int rotation_i = point_i0;
 
-    const float3 &p0 = points_refs[points_ref_i_].positions[point_i0];
-    const float3 &p1 = points_refs[points_ref_i_].positions[point_i1];
-    const math::Quaternion &rot = points_refs[points_ref_i_].rotations[rotation_i];
+    const float3 &p0 = params.position(points_ref_i_, point_i0);
+    const float3 &p1 = params.position(points_ref_i_, point_i1);
+    const math::Quaternion &rot = params.rotation(points_ref_i_, rotation_i);
     const float inv_m0 = inverse_masses_[point_i0];
     const float inv_m1 = inverse_masses_[point_i1];
     const float3 &inertia = inertias_[point_i0];
@@ -584,16 +583,15 @@ class RodBendAndTwistConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int2 &point_pair = point_pairs_[constraint_i];
     const int point_i0 = point_pair[0];
     const int point_i1 = point_pair[1];
-    const Span<math::Quaternion> rotations = points_refs[points_ref_i_].rotations;
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-        rotations[point_i0],
-        rotations[point_i1],
+        params.rotation(points_ref_i_, point_i0),
+        params.rotation(points_ref_i_, point_i1),
         inertias_[point_i0],
         inertias_[point_i1],
         rest_rotations_[constraint_i],
@@ -638,12 +636,12 @@ class AlignPositionsConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const IndexRange range = offsets_[constraint_i];
     BLI_assert(!range.is_empty());
-    const float3 center = this->compute_center(range, points_refs);
+    const float3 center = this->compute_center(range, params);
 
     const float compliance_term = compliance_terms_[constraint_i];
     for (const int i : range) {
@@ -654,14 +652,14 @@ class AlignPositionsConstraintEvaluator
       }
       const int point_i = point_indices_[i];
       const int points_ref_i = points_ref_indices_[i];
-      const float3 &pos = points_refs[points_ref_i].positions[point_i];
+      const float3 &pos = params.position(points_ref_i, point_i);
       const DistanceConstraintResult result = evaluate_distance_constraint(
           pos, center, inv_m, 0.0f, 0.0f, compliance_term);
       updater.update_position(points_ref_i, point_i, result.offset0);
     }
   }
 
-  float3 compute_center(const IndexRange range, const Span<PointsRef> points_refs) const
+  float3 compute_center(const IndexRange range, ConstraintSetParams &params) const
   {
     float3 center_sum = float3(0.0f);
     float mass_sum = 0.0f;
@@ -669,7 +667,7 @@ class AlignPositionsConstraintEvaluator
     for (const int i : range) {
       const int point_i = point_indices_[i];
       const int points_ref_i = points_ref_indices_[i];
-      const float3 &pos = points_refs[points_ref_i].positions[point_i];
+      const float3 &pos = params.position(points_ref_i, point_i);
       const float inv_m = inverse_masses_[i];
       if (inv_m <= 0.0f) {
         /* This position is pinned, so it becomes the center. */
@@ -733,7 +731,7 @@ class AttachUVSurfaceConstraintEvaluator
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       const Span<PointsRef> points_refs,
+                       ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i = indices_[constraint_i];
@@ -741,13 +739,13 @@ class AttachUVSurfaceConstraintEvaluator
     const float compliance_term = compliance_terms_[constraint_i];
 
     const float inv_mass = inv_masses_[point_i];
-    const float3 &p = points_refs[points_ref_i_].positions[point_i];
+    const float3 &p = params.position(points_ref_i_, point_i);
 
     const int3 triangle = triangle_indices_[constraint_i];
     const int mesh_i0 = triangle[0];
     const int mesh_i1 = triangle[1];
     const int mesh_i2 = triangle[2];
-    const Span<float3> mesh_positions = points_refs[mesh_points_ref_i_].positions;
+    const Span<float3> mesh_positions = params.positions(mesh_points_ref_i_);
     const float3 &mesh_p0 = mesh_positions[mesh_i0];
     const float3 &mesh_p1 = mesh_positions[mesh_i1];
     const float3 &mesh_p2 = mesh_positions[mesh_i2];
