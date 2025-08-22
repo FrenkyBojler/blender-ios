@@ -700,7 +700,8 @@ static bool collect_targets_and_bounds(
     bContext *C,
     blender::Vector<Object *> &r_targets,
     blender::float3 &r_min,
-    blender::float3 &r_max)
+    blender::float3 &r_max,
+    float &r_avg_rot_z) 
 {
   using namespace blender;
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -708,19 +709,33 @@ static bool collect_targets_and_bounds(
 
   r_min = float3(FLT_MAX);
   r_max = float3(-FLT_MAX);
+  r_avg_rot_z = 0.0f;  
   bool any = false;
+  int count = 0;
 
   LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
     if (BASE_SELECTED_EDITABLE(v3d, base) && object_can_have_lattice_modifier(base->object)) {
-      r_targets.append(base->object);
+      Object *ob = base->object;
+      r_targets.append(ob);
 
-      BKE_object_minmax(base->object, r_min, r_max);
+      float3 ob_min(FLT_MAX), ob_max(-FLT_MAX);
+      BKE_object_minmax(ob, ob_min, ob_max);
+      
+      for (int i = 0; i < 3; i++) {
+        r_min[i] = min_ff(r_min[i], ob_min[i]);
+        r_max[i] = max_ff(r_max[i], ob_max[i]);
+      }
+      r_avg_rot_z += ob->rot[2]; 
+      count++;      
       any = true;
     }
   }
+  if (count > 0) {
+    r_avg_rot_z /= count;
+  }
+  
   return any;
 }
-
 
 /* for object add operator */
 static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
@@ -735,9 +750,9 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
   const int object_type = RNA_enum_get(op->ptr, "type");
 
   blender::Vector<Object *> targets;
-  float3 sel_min, sel_max;
-  const bool had_bounds = collect_targets_and_bounds(C, targets, sel_min, sel_max);
-
+  blender::float3 sel_min, sel_max;
+  float avg_rot_z = 0.0f;
+  const bool had_bounds = collect_targets_and_bounds(C, targets, sel_min, sel_max, avg_rot_z);
 
   Object *ob = add_type(C, object_type, nullptr, loc, rot, enter_editmode, local_view_bits);
 
@@ -759,42 +774,73 @@ static wmOperatorStatus object_add_exec(bContext *C, wmOperator *op)
                    nullptr);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     if (fit_to_selected && had_bounds) {
-      float bb_min[3], bb_max[3];
-      copy_v3_v3(bb_min, sel_min);
-      copy_v3_v3(bb_max, sel_max);
-      for (int i = 0; i < 3; i++) {
-        bb_min[i] -= offset;
-        bb_max[i] += offset;
+      if (targets.size() > 0) {
+        ob->rot[2] = avg_rot_z;
       }
+      
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+      BKE_object_transform_copy(ob, ob);
+      
+      blender::float3 bb_min = sel_min;
+      blender::float3 bb_max = sel_max;
+      
+      float imat[4][4];
+      BKE_object_to_mat4(ob, imat);
+      invert_m4(imat);
+      
+      float corners[8][3];
+      for (int i = 0; i < 8; i++) {
+        corners[i][0] = (i & 1) ? bb_max[0] : bb_min[0];
+        corners[i][1] = (i & 2) ? bb_max[1] : bb_min[1];
+        corners[i][2] = (i & 4) ? bb_max[2] : bb_min[2];
+        
+        mul_v3_m4v3(corners[i], imat, corners[i]);
+      }
+      
+      blender::float3 local_min(FLT_MAX);
+      blender::float3 local_max(-FLT_MAX);
+      
+      for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 3; j++) {
+          local_min[j] = min_ff(local_min[j], corners[i][j]);
+          local_max[j] = max_ff(local_max[j], corners[i][j]);
+        }
+      }
+      
+      for (int i = 0; i < 3; i++) {
+        local_min[i] -= offset;
+        local_max[i] += offset;
+      }
+      
       float center[3], size[3];
-      mid_v3_v3v3(center, bb_min, bb_max);
-      sub_v3_v3v3(size, bb_max, bb_min);
-
+      mid_v3_v3v3(center, local_min, local_max);
+      sub_v3_v3v3(size, local_max, local_min);
+      
       copy_v3_v3(ob->loc, center);
+      
       BKE_object_dimensions_set(ob, size, 0);
     }
     else {
       copy_v3_fl(ob->scale, radius);
     }
 
-if (add_modifiers) {
-  for (Object *tob : targets) {
-    if (tob == ob) {
-      continue;
+    if (add_modifiers) {
+      for (Object *tob : targets) {
+        if (tob == ob) {
+          continue;
+        }
+        if (!object_can_have_lattice_modifier(tob)) {
+          continue;
+        }
+
+        ModifierData *md = BKE_modifier_new(eModifierType_Lattice);
+        BLI_addtail(&tob->modifiers, md);
+        ((LatticeModifierData *)md)->object = ob;
+
+        DEG_id_tag_update(&tob->id, ID_RECALC_GEOMETRY);
+        WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, tob);
+      }
     }
-    if (!object_can_have_lattice_modifier(tob)) {
-      continue;
-    }
-
-    ModifierData *md = BKE_modifier_new(eModifierType_Lattice);
-    BLI_addtail(&tob->modifiers, md);
-    ((LatticeModifierData *)md)->object = ob;
-
-    DEG_id_tag_update(&tob->id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, tob);
-  }
-}
-
   }
   else {
     BKE_object_obdata_size_init(ob, radius);
