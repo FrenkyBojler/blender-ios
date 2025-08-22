@@ -14,7 +14,7 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
-namespace blender::geometry::xpbd_constraint_solver {
+namespace blender::xpbd {
 
 /**
  * Mutable reference to the data that is actually being simulated.
@@ -416,4 +416,4 @@ inline Span<float3> ConstraintSetParams::inverse_inertias(int points_ref_i) cons
 
 /** \} */
 
-}  // namespace blender::geometry::xpbd_constraint_solver
+}  // namespace blender::xpbd

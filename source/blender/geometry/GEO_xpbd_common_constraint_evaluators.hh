@@ -9,7 +9,7 @@
 
 #include "BLI_math_vector.hh"
 
-namespace blender::geometry::xpbd_constraint_solver {
+namespace blender::xpbd {
 
 struct DistanceConstraintResult {
   float3 offset0 = float3(0.0f);
@@ -727,4 +727,4 @@ class AttachUVSurfaceConstraintEvaluator
   }
 };
 
-}  // namespace blender::geometry::xpbd_constraint_solver
+}  // namespace blender::xpbd

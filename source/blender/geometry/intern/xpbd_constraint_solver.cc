@@ -7,7 +7,7 @@
 
 #include "GEO_xpbd_constraint_solver.hh"
 
-namespace blender::geometry::xpbd_constraint_solver {
+namespace blender::xpbd {
 
 ConstraintSet::ConstraintSet(Vector<int> affected_points_refs)
     : affected_points_refs_(std::move(affected_points_refs))
@@ -169,4 +169,4 @@ void solve_gauss_seidel_parallel(const Span<PointsRef> points_refs,
   }
 }
 
-}  // namespace blender::geometry::xpbd_constraint_solver
+}  // namespace blender::xpbd
