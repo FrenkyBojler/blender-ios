@@ -60,6 +60,10 @@ class TOPBAR_HT_upper_bar(Header):
             unlink="scene.view_layer_remove",
         )
 
+        row = layout.row()
+        row.scale_x = 1.2
+        row.menu("TOPBAR_MT_blender", text="", icon='EDITOR_DOCK')
+
 
 class TOPBAR_PT_tool_settings_extra(Panel):
     """

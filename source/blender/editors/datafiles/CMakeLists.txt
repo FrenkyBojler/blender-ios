@@ -322,6 +322,7 @@ if(WITH_BLENDER)
       edge_seam
       edge_sharp
       editmode_hlt
+      editor_dock
       empty_arrows
       empty_axis
       empty_data
