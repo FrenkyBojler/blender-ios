@@ -377,16 +377,24 @@ static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
       BMO_op_finish(bm, &bmop_attr);
       BMO_op_finish(bm, &bmop_fill);
     }
-
     BMO_slot_buffer_hflag_enable(
         bm, bmop.slots_out, "geom_cut.out", BM_VERT | BM_EDGE, BM_ELEM_SELECT, true);
 
-    if (EDBM_op_finish(em, &bmop, op, true)) {
+    bool changed = false;
+    if (scene->toolsettings->automerge & AUTO_MERGE) {
+      changed |= EDBM_automerge(obedit, false, BM_ELEM_SELECT, scene->toolsettings->doublimit);
+    }
+
+    bool finished = EDBM_op_finish(em, &bmop, op, true);
+
+    if (changed || finished) {
       EDBMUpdate_Params params{};
       params.calc_looptris = true;
       params.calc_normals = false;
       params.is_destructive = true;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+    }
+    if (finished) {
       EDBM_selectmode_flush(em);
       ret = OPERATOR_FINISHED;
     }
