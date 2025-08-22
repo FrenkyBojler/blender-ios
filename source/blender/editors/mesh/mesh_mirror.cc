@@ -391,12 +391,7 @@ void EditMeshSymmetryHelper::build_mirror_maps_for_axis(int axis)
   BMesh *bmesh = em_->bm;
   BMIter iter;
 
-  EDBM_verts_mirror_cache_begin(em_,
-                                axis,
-                                (htype_ & BM_VERT) != 0,
-                                (htype_ & BM_EDGE) != 0,
-                                (htype_ & BM_FACE) != 0,
-                                use_topology_mirror_);
+ EDBM_verts_mirror_cache_begin(em_, axis, true, true, true, use_topology_mirror_);
 
   if (htype_ & BM_VERT) {
     BMVert *v_curr;
