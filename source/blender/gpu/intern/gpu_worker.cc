@@ -4,8 +4,6 @@
 
 #include "GPU_worker.hh"
 
-#include "deque"
-
 namespace blender::gpu {
 
 GPUWorker::GPUWorker(uint32_t threads_count, ContextType context_type, WorkCB callback)

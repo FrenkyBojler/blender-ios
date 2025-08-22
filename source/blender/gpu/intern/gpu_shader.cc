@@ -935,7 +935,7 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
     MEM_delete(batch);
   }
   else {
-    /* The worker thread will handle destruction. */
+    /* If it's currently compiling, the compilation thread makes the cleanup. */
     batch->is_cancelled = true;
   }
 
@@ -952,7 +952,6 @@ bool ShaderCompiler::batch_is_ready(BatchHandle handle)
 Vector<Shader *> ShaderCompiler::batch_finalize(BatchHandle &handle)
 {
   std::unique_lock lock(mutex_);
-
   /* TODO: Move to be first on the queue. */
   compilation_finished_notification_.wait(lock,
                                           [&]() { return batches_.lookup(handle)->is_ready(); });
