@@ -61,6 +61,7 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
+#include "bmesh_class.hh"
 #include "uvedit_intern.hh"
 
 using namespace blender;
@@ -545,11 +546,12 @@ enum eUVAlignIsland {
   MAX,
   MIN,
   CENTER,
-  NONE,
+  ALIGN_NONE,
 };
 enum eUVAlignIslandOrder {
   LARGE_TO_SMALL,
   SMALL_TO_LARGE,
+  ORDER_NONE,
 };
 
 class UVAABBIsland {
@@ -577,9 +579,6 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
     return position;
   }
 
-  float bound_min[2], bound_max[2];
-  INIT_MINMAX2(bound_min, bound_max);
-
   Vector<UvElement *> island_vector;
   Array<std::unique_ptr<UVAABBIsland>> aabbs(element_map->total_islands);
   for (int i = 0; i < element_map->total_islands; i++) {
@@ -591,10 +590,6 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
       minmax_v2v2_v2(aabb->min, aabb->max, luv);
     }
-    bound_max[0] = max_ff(bound_max[0], aabb->max[0]);
-    bound_max[1] = max_ff(bound_max[1], aabb->max[1]);
-    bound_min[0] = min_ff(bound_min[0], aabb->min[0]);
-    bound_min[1] = min_ff(bound_min[1], aabb->min[1]);
     aabb->cent[0] = (aabb->max[0] - aabb->min[0]) / 2.0;
     aabb->cent[1] = (aabb->max[1] - aabb->min[1]) / 2.0;
     aabb->index = i;
@@ -604,7 +599,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       aabbs.begin(),
       aabbs.end(),
       [&](const std::unique_ptr<UVAABBIsland> &a, const std::unique_ptr<UVAABBIsland> &b) {
-        if (order == NONE) {
+        if (order == ORDER_NONE) {
           if (axis == X) {
             return a->min[0] < b->min[0];
           }
@@ -618,57 +613,32 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
           return (order == LARGE_TO_SMALL) ? (size_a > size_b) : (size_a < size_b);
         }
       });
-  bool changed = false;
 
-  if (axis == Y) {
-    if (align == MAX) {
-      position[0] = bound_max[0];
-    }
-    else if (align == CENTER) {
-      position[0] = bound_min[0] + ((bound_max[0] - bound_min[0]) / 2.0);
-    }
-    else {
-      position[0] = (bound_min[0]);
-    }
-    position[1] = bound_max[1];
-  }
-  else {
-    if (align == MAX) {
-      position[1] = bound_min[1];
-    }
-    else if (align == CENTER) {
-      position[1] = bound_min[1] + ((bound_max[1] - bound_min[1]) / 2.0);
-    }
-    else {
-      position[1] = bound_max[1];
-    }
-    position[0] = bound_min[0];
-  }
   for (int i = 0; i < aabbs.size(); i++) {
     UvElement *element = island_vector[aabbs[i]->index];
     for (int j = 0; j < element_map->island_total_uvs[aabbs[i]->index]; j++) {
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
       if (axis == Y) {
-        if (align == MAX) {
-          luv[0] += position[0] - aabbs[i]->max[0];
+        if (align == MIN) {
+          luv[0] += position[0] - aabbs[i]->min[0];
         }
         else if (align == CENTER) {
           luv[0] += position[0] - aabbs[i]->min[0] - aabbs[i]->cent[0];
         }
-        else if (align == MIN) {
-          luv[0] += position[0] - aabbs[i]->min[0];
+        else if (align == MAX) {
+          luv[0] += position[0] - aabbs[i]->max[0];
         }
         luv[1] += (i == 0) ? position[1] - aabbs[i]->max[1] :
                              position[1] - aabbs[i]->max[1] - offset;
       }
       else {
-        if (align == MAX) {
+        if (align == MIN) {
           luv[1] += position[1] - aabbs[i]->min[1];
         }
         else if (align == CENTER) {
           luv[1] += position[1] - aabbs[i]->min[1] - aabbs[i]->cent[1];
         }
-        else if (align == MIN) {
+        else if (align == MAX) {
           luv[1] -= aabbs[i]->max[1] - position[1];
         }
         luv[0] += (i == 0) ? position[0] - aabbs[i]->min[0] :
@@ -681,7 +651,6 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
     else {
       position[0] += aabbs[i]->max[0] - aabbs[i]->min[0] + offset;
     }
-    changed = true;
   }
   BM_uv_element_map_free(element_map);
   return position;
@@ -702,24 +671,53 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
 
   eUVAlignIslandOrder order = eUVAlignIslandOrder(RNA_enum_get(op->ptr, "order"));
   float offset = RNA_float_get(op->ptr, "offset");
+
+  float bound_min[2], bound_max[2];
+  INIT_MINMAX2(bound_min, bound_max);
+
+  for (Object *obedit : objects) {
+    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+    ED_uvedit_foreach_uv(
+        scene, bm, true, true, [&](float luv[2]) { minmax_v2v2_v2(bound_min, bound_max, luv); });
+  }
+  if (axis == Y) {
+    if (align == MIN) {
+      position[0] = bound_min[0];
+    }
+    else if (align == CENTER) {
+      position[0] = bound_min[0] + ((bound_max[0] - bound_min[0]) / 2.0);
+    }
+    else {
+      position[0] = (bound_max[0]);
+    }
+    position[1] = bound_max[1];
+  }
+  else {
+    if (align == MAX) {
+      position[1] = bound_max[1];
+    }
+    else if (align == CENTER) {
+      position[1] = bound_min[1] + ((bound_max[1] - bound_min[1]) / 2.0);
+    }
+    else {
+      position[1] = bound_min[1];
+    }
+    position[0] = bound_min[0];
+  }
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
     if (em->bm->totvertsel == 0) {
       continue;
     }
-
     position = uvedit_uv_island_arrange(
         scene, obedit, em->bm, axis, align, order, offset, position);
-    if (ELEM(align, MAX, CENTER, MIN)) {
-      if (axis == Y) {
-        position[0] = 0;
-      }
-      else {
-        position[1] = (float)sima->tile_grid_shape[1];
-      }
+    if (axis == X) {
+      position[0] += offset;
     }
-
+    else {
+      position[1] -= offset;
+    }
     uvedit_live_unwrap_update(sima, scene, obedit);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
@@ -739,7 +737,7 @@ static void UV_OT_align_island(wmOperatorType *ot)
       {MIN, "MIN", 0, "Min", "Align the islands to the min of the island"},
       {MAX, "MAX", 0, "Max", "Align the islands to the left side of the island"},
       {CENTER, "CENTER", 0, "Center", "Align the islands to the center of the largest island"},
-      {NONE, "NONE", 0, "Do not align", "Do not Align islands"},
+      {ALIGN_NONE, "NONE", 0, "Do not align", "Do not Align islands"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -754,7 +752,7 @@ static void UV_OT_align_island(wmOperatorType *ot)
        0,
        "Smallest to Largest",
        "Sort Islands from Smallest to Largest"},
-      {NONE, "NONE", 0, "Do not arrange", "Do not Sort Islands"},
+      {ORDER_NONE, "NONE", 0, "Do not arrange", "Do not Sort Islands"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
