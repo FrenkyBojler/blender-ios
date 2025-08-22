@@ -29,7 +29,7 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
   mutable Vector<IndexMask> independent_masks_;
 
  public:
-  TemplatedConstraintSet(int constraints_num, Vector<int> affected_points_refs);
+  TemplatedConstraintSet(int constraints_num, Vector<int> affected_geo_indices);
 
   void evaluate_jacobian_non_deterministic_parallel(NonDeterministicJacobianUpdater &updater,
                                                     ConstraintSetParams &params) const override;
@@ -58,29 +58,29 @@ Vector<IndexMask> binary_constraints_to_independent_masks(const Span<int2> affec
 Vector<IndexMask> n_ary_constraints_to_independent_masks(const GroupedSpan<int> affected_points,
                                                          IndexMaskMemory &memory);
 Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
+    const GroupedSpan<int> affected_geometries,
     const GroupedSpan<int> affected_points,
-    const GroupedSpan<int> effected_points_refs,
     IndexMaskMemory &memory);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
  * \{ */
 
-template<typename PointID, typename GetConstraintPointsFn>
-inline int color_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
+template<typename PointID, typename GetConstraintPointIdsFn>
+inline int color_constraints(GetConstraintPointIdsFn &&get_constraint_point_ids_fn,
                              MutableSpan<int> r_colors)
 {
   const int constraints_num = r_colors.size();
   MultiValueMap<PointID, int> constraints_by_point;
   for (const int constraint_i : IndexRange(constraints_num)) {
-    for (const PointID point_id : get_constraint_points_fn(constraint_i)) {
+    for (const PointID point_id : get_constraint_point_ids_fn(constraint_i)) {
       constraints_by_point.add(point_id, constraint_i);
     }
   }
   int colors_num = 0;
   for (const int constraint_i : IndexRange(constraints_num)) {
     Vector<int> used_colors;
-    for (const PointID point_id : get_constraint_points_fn(constraint_i)) {
+    for (const PointID point_id : get_constraint_point_ids_fn(constraint_i)) {
       for (const int other_constraint_i : constraints_by_point.lookup(point_id)) {
         if (other_constraint_i >= constraint_i) {
           continue;
@@ -98,9 +98,9 @@ inline int color_constraints(GetConstraintPointsFn &&get_constraint_points_fn,
   return colors_num;
 }
 
-template<typename PointID, typename GetConstraintPointsFn>
+template<typename PointID, typename GetConstraintPointIdsFn>
 inline Vector<IndexMask> detect_independent_constraints(
-    GetConstraintPointsFn &&get_constraint_points_fn,
+    GetConstraintPointIdsFn &&get_constraint_points_fn,
     const int constraints_num,
     IndexMaskMemory &memory)
 {
@@ -131,8 +131,8 @@ inline Span<IndexMask> TemplatedConstraintSet<Child>::get_independent_masks() co
 
 template<typename Child>
 inline TemplatedConstraintSet<Child>::TemplatedConstraintSet(int constraints_num,
-                                                             Vector<int> affected_points_refs)
-    : ConstraintSet(std::move(affected_points_refs)), constraints_num_(constraints_num)
+                                                             Vector<int> affected_geo_indices)
+    : ConstraintSet(std::move(affected_geo_indices)), constraints_num_(constraints_num)
 {
 }
 

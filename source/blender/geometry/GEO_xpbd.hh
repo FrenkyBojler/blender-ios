@@ -16,7 +16,7 @@ namespace blender::xpbd {
 /**
  * Reference to the data that is actually being simulated.
  */
-struct PointsRef {
+struct GeometryRef {
   /** The position of each points. */
   MutableSpan<float3> positions;
   /* Inverse mass of each point. This is expected to be zero for pinned points. */
@@ -33,25 +33,25 @@ struct PointsRef {
 /** Provides access to the input data that should be considered by a constraint. */
 class ConstraintSetParams {
  private:
-  Span<PointsRef> points_refs_;
+  Span<GeometryRef> geometry_refs_;
 
  public:
-  ConstraintSetParams(Span<PointsRef> points_refs);
+  ConstraintSetParams(Span<GeometryRef> geometry_refs);
 
-  const float3 &position(int points_ref_i, int point_i) const;
-  const math::Quaternion &rotation(int points_ref_i, int point_i) const;
+  const float3 &position(int geo_i, int point_i) const;
+  const math::Quaternion &rotation(int geo_i, int point_i) const;
 
-  Span<float3> positions(int points_ref_i) const;
-  Span<math::Quaternion> rotations(int points_ref_i) const;
+  Span<float3> positions(int geo_i) const;
+  Span<math::Quaternion> rotations(int geo_i) const;
 
-  float inverse_mass(int points_ref_i, int point_i) const;
-  Span<float> inverse_masses(int points_ref_i) const;
+  float inverse_mass(int geo_i, int point_i) const;
+  Span<float> inverse_masses(int geo_i) const;
 
-  float3 inertia(int points_ref_i, int point_i) const;
-  Span<float3> inertias(int points_ref_i) const;
+  float3 inertia(int geo_i, int point_i) const;
+  Span<float3> inertias(int geo_i) const;
 
-  float3 inverse_inertia(int points_ref_i, int point_i) const;
-  Span<float3> inverse_inertias(int points_ref_i) const;
+  float3 inverse_inertia(int geo_i, int point_i) const;
+  Span<float3> inverse_inertias(int geo_i) const;
 };
 
 /**
@@ -59,12 +59,12 @@ class ConstraintSetParams {
  */
 class GaussSeidelUpdater {
  private:
-  Span<PointsRef> points_refs_;
+  Span<GeometryRef> geometry_refs_;
 
  public:
-  GaussSeidelUpdater(Span<PointsRef> point_sets);
-  void update_position(const int points_ref_i, const int point_i, const float3 &offset);
-  void update_rotation(const int points_ref_i, const int point_i, const math::Quaternion &offset);
+  GaussSeidelUpdater(Span<GeometryRef> geometry_refs);
+  void update_position(const int geo_i, const int point_i, const float3 &offset);
+  void update_rotation(const int geo_i, const int point_i, const math::Quaternion &offset);
 };
 
 /**
@@ -88,8 +88,8 @@ class NonDeterministicJacobianUpdater {
 
  public:
   NonDeterministicJacobianUpdater(Span<MutableSpan<Item>> offsets);
-  void update_position(const int points_ref_i, const int point_i, const float3 &offset);
-  void update_rotation(const int points_ref_i, const int point_i, const math::Quaternion &offset);
+  void update_position(const int geo_i, const int point_i, const float3 &offset);
+  void update_rotation(const int geo_i, const int point_i, const math::Quaternion &offset);
 };
 
 /**
@@ -102,10 +102,10 @@ class NonDeterministicJacobianUpdater {
  */
 class ConstraintSet {
  protected:
-  Vector<int> affected_points_refs_;
+  Vector<int> affected_geo_indices_;
 
  public:
-  ConstraintSet(Vector<int> affected_points_refs);
+  ConstraintSet(Vector<int> affected_geo_indices);
 
   virtual ~ConstraintSet() = default;
 
@@ -131,34 +131,34 @@ class ConstraintSet {
   virtual void evaluate_jacobian_non_deterministic_parallel(
       NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) const = 0;
 
-  Span<int> get_affected_points_refs() const;
+  Span<int> get_affected_geo_indices() const;
 };
 
 /**
  * Slow but simple iterative Gauss Seidel solver. It evaluates each constraints serially without
  * any parallelism.
  */
-void solve_gauss_seidel_one_at_a_time(Span<PointsRef> points_refs,
+void solve_gauss_seidel_one_at_a_time(Span<GeometryRef> geometry_refs,
                                       Span<const ConstraintSet *> constraint_sets);
 
 /**
  * Fully parallel Jacobian solver, but it is not deterministic. This is mainly for testing
  * purposes.
  */
-void solve_jacobian_non_deterministic(Span<PointsRef> points_refs,
+void solve_jacobian_non_deterministic(Span<GeometryRef> geometry_refs,
                                       Span<const ConstraintSet *> constraint_sets);
 
 /**
  * A Gauss Seidel solver that attempts to parallelize the evaluation of constraints.
  */
-void solve_gauss_seidel_parallel(Span<PointsRef> points_refs,
+void solve_gauss_seidel_parallel(Span<GeometryRef> geometry_refs,
                                  Span<const ConstraintSet *> constraint_sets);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
  * \{ */
 
-inline uint64_t PointsRef::size() const
+inline uint64_t GeometryRef::size() const
 {
   return this->positions.size();
 }
@@ -174,105 +174,105 @@ inline NonDeterministicJacobianUpdater::NonDeterministicJacobianUpdater(
 {
 }
 
-inline void NonDeterministicJacobianUpdater::update_position(const int points_ref_i,
+inline void NonDeterministicJacobianUpdater::update_position(const int geo_i,
                                                              const int point_i,
                                                              const float3 &offset)
 {
-  Item &item = offsets_[points_ref_i][point_i];
+  Item &item = offsets_[geo_i][point_i];
   std::lock_guard lock(item.linear_mutex);
   item.linear_counter++;
   item.linear_offset += offset;
 }
 
-inline void NonDeterministicJacobianUpdater::update_rotation(const int points_ref_i,
+inline void NonDeterministicJacobianUpdater::update_rotation(const int geo_i,
                                                              const int point_i,
                                                              const math::Quaternion &offset)
 {
-  Item &item = offsets_[points_ref_i][point_i];
+  Item &item = offsets_[geo_i][point_i];
   std::lock_guard lock(item.rotation_mutex);
   item.rotation_counter++;
   item.rotation_offset += float4(offset);
 }
 
-inline GaussSeidelUpdater::GaussSeidelUpdater(Span<PointsRef> point_sets)
-    : points_refs_(point_sets)
+inline GaussSeidelUpdater::GaussSeidelUpdater(Span<GeometryRef> geometry_refs)
+    : geometry_refs_(geometry_refs)
 {
 }
 
-inline void GaussSeidelUpdater::update_position(const int points_ref_i,
+inline void GaussSeidelUpdater::update_position(const int geo_i,
                                                 const int point_i,
                                                 const float3 &offset)
 {
-  points_refs_[points_ref_i].positions[point_i] += offset;
+  geometry_refs_[geo_i].positions[point_i] += offset;
 }
 
-inline void GaussSeidelUpdater::update_rotation(const int points_ref_i,
+inline void GaussSeidelUpdater::update_rotation(const int geo_i,
                                                 const int point_i,
                                                 const math::Quaternion &offset)
 {
-  math::Quaternion &rotation = points_refs_[points_ref_i].rotations[point_i];
+  math::Quaternion &rotation = geometry_refs_[geo_i].rotations[point_i];
   rotation = apply_rotation_offset(rotation, float4(offset));
 }
 
-inline Span<int> ConstraintSet::get_affected_points_refs() const
+inline Span<int> ConstraintSet::get_affected_geo_indices() const
 {
-  return affected_points_refs_;
+  return affected_geo_indices_;
 }
 
-inline ConstraintSetParams::ConstraintSetParams(Span<PointsRef> points_refs)
-    : points_refs_(points_refs)
+inline ConstraintSetParams::ConstraintSetParams(Span<GeometryRef> geometry_refs)
+    : geometry_refs_(geometry_refs)
 {
 }
 
-inline const float3 &ConstraintSetParams::position(const int points_ref_i, const int point_i) const
+inline const float3 &ConstraintSetParams::position(const int geo_i, const int point_i) const
 {
-  return points_refs_[points_ref_i].positions[point_i];
+  return geometry_refs_[geo_i].positions[point_i];
 }
 
-inline const math::Quaternion &ConstraintSetParams::rotation(const int points_ref_i,
+inline const math::Quaternion &ConstraintSetParams::rotation(const int geo_i,
                                                              const int point_i) const
 {
-  return points_refs_[points_ref_i].rotations[point_i];
+  return geometry_refs_[geo_i].rotations[point_i];
 }
 
-inline Span<float3> ConstraintSetParams::positions(int points_ref_i) const
+inline Span<float3> ConstraintSetParams::positions(const int geo_i) const
 {
-  return points_refs_[points_ref_i].positions;
+  return geometry_refs_[geo_i].positions;
 }
 
-inline Span<math::Quaternion> ConstraintSetParams::rotations(int points_ref_i) const
+inline Span<math::Quaternion> ConstraintSetParams::rotations(const int geo_i) const
 {
-  return points_refs_[points_ref_i].rotations;
+  return geometry_refs_[geo_i].rotations;
 }
 
-inline float ConstraintSetParams::inverse_mass(int points_ref_i, int point_i) const
+inline float ConstraintSetParams::inverse_mass(const int geo_i, const int point_i) const
 {
-  return points_refs_[points_ref_i].inverse_masses[point_i];
+  return geometry_refs_[geo_i].inverse_masses[point_i];
 }
 
-inline Span<float> ConstraintSetParams::inverse_masses(int points_ref_i) const
+inline Span<float> ConstraintSetParams::inverse_masses(const int geo_i) const
 {
-  return points_refs_[points_ref_i].inverse_masses;
+  return geometry_refs_[geo_i].inverse_masses;
 }
 
-inline float3 ConstraintSetParams::inertia(int points_ref_i, int point_i) const
+inline float3 ConstraintSetParams::inertia(const int geo_i, const int point_i) const
 {
-  return points_refs_[points_ref_i].inertias[point_i];
+  return geometry_refs_[geo_i].inertias[point_i];
 }
 
-inline Span<float3> ConstraintSetParams::inertias(int points_ref_i) const
+inline Span<float3> ConstraintSetParams::inertias(const int geo_i) const
 {
-  return points_refs_[points_ref_i].inertias;
+  return geometry_refs_[geo_i].inertias;
 }
 
-inline float3 ConstraintSetParams::inverse_inertia(int points_ref_i, int point_i) const
+inline float3 ConstraintSetParams::inverse_inertia(const int geo_i, const int point_i) const
 {
-  return points_refs_[points_ref_i].inverse_inertias[point_i];
+  return geometry_refs_[geo_i].inverse_inertias[point_i];
 }
 
-inline Span<float3> ConstraintSetParams::inverse_inertias(int points_ref_i) const
+inline Span<float3> ConstraintSetParams::inverse_inertias(const int geo_i) const
 {
-  return points_refs_[points_ref_i].inverse_inertias;
+  return geometry_refs_[geo_i].inverse_inertias;
 }
 
 /** \} */

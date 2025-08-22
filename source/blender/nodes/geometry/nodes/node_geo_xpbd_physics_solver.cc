@@ -1328,7 +1328,7 @@ static void gather_align_positions_constraints(
     }
 
     Vector<int> &offsets = scope.construct<Vector<int>>();
-    Vector<int> &constraint_points_ref_indices = scope.construct<Vector<int>>();
+    Vector<int> &constraint_geo_indices = scope.construct<Vector<int>>();
     Vector<int> &constraint_point_indices = scope.construct<Vector<int>>();
     Vector<float> &constraint_compliance_terms = scope.construct<Vector<float>>();
 
@@ -1352,7 +1352,7 @@ static void gather_align_positions_constraints(
       const float compliance_term = compliance * compliance_factor;
 
       for (const PointInfo &point_info : point_infos) {
-        constraint_points_ref_indices.append(point_info.key_i);
+        constraint_geo_indices.append(point_info.key_i);
         constraint_point_indices.append(point_info.point_i);
       }
       constraint_compliance_terms.append(compliance_term);
@@ -1367,7 +1367,7 @@ static void gather_align_positions_constraints(
     r_constraint_sets.append(
         &scope.construct<xpbd::AlignPositionsConstraintEvaluator>(offset_indices,
                                                                   constraint_compliance_terms,
-                                                                  constraint_points_ref_indices,
+                                                                  constraint_geo_indices,
                                                                   constraint_point_indices));
   }
 }
@@ -1438,11 +1438,6 @@ static void gather_attach_uv_surface_constraints(
       const VArray<float2> sample_uvs = field_evaluator.get_evaluated<float2>(0);
       const VArray<float> compliances = field_evaluator.get_evaluated<float>(1);
 
-      Vector<int> &all_affected_points = scope.construct<Vector<int>>();
-      Vector<int> &all_affected_points_refs = scope.construct<Vector<int>>();
-      Vector<int> &all_affected_points_offsets = scope.construct<Vector<int>>();
-      all_affected_points_offsets.append(0);
-
       Vector<int> &indices = scope.construct<Vector<int>>();
       Vector<int3> &triangle_indices = scope.construct<Vector<int3>>();
       Vector<float3> &bary_weights = scope.construct<Vector<float3>>();
@@ -1464,19 +1459,11 @@ static void gather_attach_uv_surface_constraints(
         const float compliance = compliances[point_i];
         const float compliance_term = compliance * compliance_factor;
         compliance_terms.append(compliance_term);
-
-        all_affected_points.append(point_i);
-        all_affected_points_refs.append(key_i);
-        all_affected_points.extend({&triangle_verts[0], 3});
-        all_affected_points_refs.append_n_times(mesh_key_i, 3);
-        all_affected_points_offsets.append(all_affected_points.size());
       });
 
       if (indices.is_empty()) {
         continue;
       }
-
-      const OffsetIndices<int> all_affected_points_offset_indices(all_affected_points_offsets);
 
       r_constraint_sets.append(&scope.construct<xpbd::AttachUVSurfaceConstraintEvaluator>(
           mesh_key_i, key_i, indices, triangle_indices, bary_weights, compliance_terms));
@@ -1828,20 +1815,20 @@ static void remove_unused_states(XPBDState &state)
 }
 
 static void solve_constraints(const SolverType solver_type,
-                              const Span<xpbd::PointsRef> points_refs,
+                              const Span<xpbd::GeometryRef> geometry_refs,
                               const Span<const xpbd::ConstraintSet *> constraint_sets)
 {
   switch (solver_type) {
     case SolverType::SerialGaussSeidel: {
-      xpbd::solve_gauss_seidel_one_at_a_time(points_refs, constraint_sets);
+      xpbd::solve_gauss_seidel_one_at_a_time(geometry_refs, constraint_sets);
       break;
     }
     case SolverType::ParallelGaussSeidel: {
-      xpbd::solve_gauss_seidel_parallel(points_refs, constraint_sets);
+      xpbd::solve_gauss_seidel_parallel(geometry_refs, constraint_sets);
       break;
     }
     case SolverType::NonDeterministicJacobian: {
-      xpbd::solve_jacobian_non_deterministic(points_refs, constraint_sets);
+      xpbd::solve_jacobian_non_deterministic(geometry_refs, constraint_sets);
       break;
     }
   }
@@ -1932,26 +1919,26 @@ static void update_angular_velocities(XPBDState &state,
   }
 }
 
-static Vector<xpbd::PointsRef> prepare_points_refs_for_solver(
+static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solver(
     XPBDState &state,
     const Span<SimPointsKey> keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props)
 {
-  Vector<xpbd::PointsRef> points_refs;
+  Vector<xpbd::GeometryRef> geometry_refs;
   for (const SimPointsKey &key : keys) {
     SimPoints &sim_points = state.sim_points.lookup(key);
     const SimPointsWorldProperties &props = sim_points_props.lookup(key);
-    xpbd::PointsRef points_ref;
-    points_ref.positions = sim_points.positions;
-    points_ref.inverse_masses = props.inverse_masses;
+    xpbd::GeometryRef geometry_ref;
+    geometry_ref.positions = sim_points.positions;
+    geometry_ref.inverse_masses = props.inverse_masses;
     if (sim_points.has_rotation) {
-      points_ref.rotations = sim_points.rotations;
-      points_ref.inertias = props.inertias;
-      points_ref.inverse_inertias = props.inverse_inertias;
+      geometry_ref.rotations = sim_points.rotations;
+      geometry_ref.inertias = props.inertias;
+      geometry_ref.inverse_inertias = props.inverse_inertias;
     }
-    points_refs.append(points_ref);
+    geometry_refs.append(geometry_ref);
   }
-  return points_refs;
+  return geometry_refs;
 }
 
 static Map<SimPointsKey, PinnedPositions> compute_pinned_positions(
@@ -2211,7 +2198,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     }
   }
 
-  const Vector<xpbd::PointsRef> points_refs = prepare_points_refs_for_solver(
+  const Vector<xpbd::GeometryRef> geometry_refs = prepare_geometry_refs_for_solver(
       state, keys, sim_points_props);
 
   for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
@@ -2244,7 +2231,7 @@ static void update_and_step_xpbd_state(XPBDState &state,
     generate_collision_constraint_sets(scope, contacts, keys, sub_delta_time, constraint_sets);
 
     /* Actually solve the constraints. */
-    solve_constraints(solver_type, points_refs, constraint_sets);
+    solve_constraints(solver_type, geometry_refs, constraint_sets);
 
     if (sub_delta_time > 0.0f) {
       /* Apply friction by updating current positions before the new velocity is computed. */

@@ -85,18 +85,18 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
 class PinnedPositionConstraintEvaluator
     : public TemplatedConstraintSet<PinnedPositionConstraintEvaluator> {
  private:
-  int points_ref_i_;
+  int geo_i_;
   Span<int> indices_;
   Span<float3> pin_positions_;
   Span<float> compliance_terms_;
 
  public:
-  PinnedPositionConstraintEvaluator(const int points_ref_i,
+  PinnedPositionConstraintEvaluator(const int geo_i,
                                     const Span<int> indices,
                                     const Span<float3> pin_positions,
                                     const Span<float> compliance_terms)
-      : TemplatedConstraintSet<PinnedPositionConstraintEvaluator>(indices.size(), {points_ref_i}),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<PinnedPositionConstraintEvaluator>(indices.size(), {geo_i}),
+        geo_i_(geo_i),
         indices_(indices),
         pin_positions_(pin_positions),
         compliance_terms_(compliance_terms)
@@ -110,13 +110,13 @@ class PinnedPositionConstraintEvaluator
   {
     const int point_i = indices_[constraint_i];
     const DistanceConstraintResult result = evaluate_distance_constraint(
-        params.position(points_ref_i_, point_i),
+        params.position(geo_i_, point_i),
         pin_positions_[constraint_i],
-        params.inverse_mass(points_ref_i_, point_i),
+        params.inverse_mass(geo_i_, point_i),
         0.0f,
         0.0f,
         compliance_terms_[constraint_i]);
-    updater.update_position(points_ref_i_, point_i, result.offset0);
+    updater.update_position(geo_i_, point_i, result.offset0);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
@@ -128,18 +128,18 @@ class PinnedPositionConstraintEvaluator
 class PinRotationConstraintEvaluator
     : public TemplatedConstraintSet<PinRotationConstraintEvaluator> {
  private:
-  int points_ref_i_;
+  int geo_i_;
   Span<int> indices_;
   Span<math::Quaternion> pin_rotations_;
   Span<float> compliance_terms_;
 
  public:
-  PinRotationConstraintEvaluator(const int points_ref_i,
+  PinRotationConstraintEvaluator(const int geo_i,
                                  const Span<int> indices,
                                  const Span<math::Quaternion> pin_rotations,
                                  const Span<float> compliance_terms)
-      : TemplatedConstraintSet<PinRotationConstraintEvaluator>(indices.size(), {points_ref_i}),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<PinRotationConstraintEvaluator>(indices.size(), {geo_i}),
+        geo_i_(geo_i),
         indices_(indices),
         pin_rotations_(pin_rotations),
         compliance_terms_(compliance_terms)
@@ -153,13 +153,13 @@ class PinRotationConstraintEvaluator
   {
     const int point_i = indices_[constraint_i];
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-        params.rotation(points_ref_i_, point_i),
+        params.rotation(geo_i_, point_i),
         pin_rotations_[constraint_i],
-        params.inertia(points_ref_i_, point_i),
+        params.inertia(geo_i_, point_i),
         float3(std::numeric_limits<float>::infinity()),
         math::Quaternion::identity(),
         compliance_terms_[constraint_i]);
-    updater.update_rotation(points_ref_i_, point_i, result.offset0);
+    updater.update_rotation(geo_i_, point_i, result.offset0);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
@@ -170,18 +170,18 @@ class PinRotationConstraintEvaluator
 
 class DistanceConstraintEvaluator : public TemplatedConstraintSet<DistanceConstraintEvaluator> {
  private:
-  int points_ref_i_;
+  int geo_i_;
   Span<int2> point_pairs_;
   Span<float> distances_;
   Span<float> compliance_terms_;
 
  public:
-  DistanceConstraintEvaluator(const int points_ref_i,
+  DistanceConstraintEvaluator(const int geo_i,
                               const Span<int2> point_pairs,
                               const Span<float> distances,
                               const Span<float> compliance_terms)
-      : TemplatedConstraintSet<DistanceConstraintEvaluator>(point_pairs.size(), {points_ref_i}),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<DistanceConstraintEvaluator>(point_pairs.size(), {geo_i}),
+        geo_i_(geo_i),
         point_pairs_(point_pairs),
         distances_(distances),
         compliance_terms_(compliance_terms)
@@ -198,14 +198,14 @@ class DistanceConstraintEvaluator : public TemplatedConstraintSet<DistanceConstr
     const int point_i0 = point_pair[0];
     const int point_i1 = point_pair[1];
     const DistanceConstraintResult result = evaluate_distance_constraint(
-        params.position(points_ref_i_, point_i0),
-        params.position(points_ref_i_, point_i1),
-        params.inverse_mass(points_ref_i_, point_i0),
-        params.inverse_mass(points_ref_i_, point_i1),
+        params.position(geo_i_, point_i0),
+        params.position(geo_i_, point_i1),
+        params.inverse_mass(geo_i_, point_i0),
+        params.inverse_mass(geo_i_, point_i1),
         distances_[constraint_i],
         compliance_terms_[constraint_i]);
-    updater.update_position(points_ref_i_, point_i0, result.offset0);
-    updater.update_position(points_ref_i_, point_i1, result.offset1);
+    updater.update_position(geo_i_, point_i0, result.offset0);
+    updater.update_position(geo_i_, point_i1, result.offset1);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
@@ -217,18 +217,18 @@ class DistanceConstraintEvaluator : public TemplatedConstraintSet<DistanceConstr
 class CollisionPlaneConstraintEvaluator
     : public TemplatedConstraintSet<CollisionPlaneConstraintEvaluator> {
  private:
-  int points_ref_i_;
+  int geo_i_;
   Span<int> points_;
   Span<float3> plane_positions_;
   Span<float3> plane_normals_;
 
  public:
-  CollisionPlaneConstraintEvaluator(const int points_ref_i,
+  CollisionPlaneConstraintEvaluator(const int geo_i,
                                     const Span<int> points,
                                     const Span<float3> plane_positions,
                                     const Span<float3> plane_normals)
-      : TemplatedConstraintSet<CollisionPlaneConstraintEvaluator>(points.size(), {points_ref_i}),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<CollisionPlaneConstraintEvaluator>(points.size(), {geo_i}),
+        geo_i_(geo_i),
         points_(points),
         plane_positions_(plane_positions),
         plane_normals_(plane_normals)
@@ -241,7 +241,7 @@ class CollisionPlaneConstraintEvaluator
                        const int constraint_i) const
   {
     const int point_i = points_[constraint_i];
-    const float3 &pos = params.position(points_ref_i_, point_i);
+    const float3 &pos = params.position(geo_i_, point_i);
     const float3 &plane_pos = plane_positions_[constraint_i];
     const float3 &plane_normal = plane_normals_[constraint_i];
     BLI_assert(math::is_unit(plane_normal));
@@ -252,7 +252,7 @@ class CollisionPlaneConstraintEvaluator
       return;
     }
     const float3 offset = plane_normal * -distance;
-    updater.update_position(points_ref_i_, point_i, offset);
+    updater.update_position(geo_i_, point_i, offset);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
@@ -264,18 +264,18 @@ class CollisionPlaneConstraintEvaluator
 class MinimumDistanceConstraintEvaluator
     : public TemplatedConstraintSet<MinimumDistanceConstraintEvaluator> {
  private:
-  int points_ref_i_;
+  int geo_i_;
   Span<int2> points_;
   Span<float> min_distances_;
   Span<float> compliance_terms_;
 
  public:
-  MinimumDistanceConstraintEvaluator(const int points_ref_i,
+  MinimumDistanceConstraintEvaluator(const int geo_i,
                                      const Span<int2> points,
                                      const Span<float> min_distances,
                                      const Span<float> compliance_terms)
-      : TemplatedConstraintSet<MinimumDistanceConstraintEvaluator>(points.size(), {points_ref_i}),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<MinimumDistanceConstraintEvaluator>(points.size(), {geo_i}),
+        geo_i_(geo_i),
         points_(points),
         min_distances_(min_distances),
         compliance_terms_(compliance_terms)
@@ -290,16 +290,16 @@ class MinimumDistanceConstraintEvaluator
     const int point_i0 = points_[constraint_i][0];
     const int point_i1 = points_[constraint_i][1];
     const float min_distance = min_distances_[constraint_i];
-    const float3 &p0 = params.position(points_ref_i_, point_i0);
-    const float3 &p1 = params.position(points_ref_i_, point_i1);
+    const float3 &p0 = params.position(geo_i_, point_i0);
+    const float3 &p1 = params.position(geo_i_, point_i1);
     const float3 diff = p1 - p0;
     float distance;
     const float3 normalized_dir = math::normalize_and_get_length(diff, distance);
     if (distance >= min_distance) {
       return;
     }
-    const float inv_m0 = params.inverse_mass(points_ref_i_, point_i0);
-    const float inv_m1 = params.inverse_mass(points_ref_i_, point_i1);
+    const float inv_m0 = params.inverse_mass(geo_i_, point_i0);
+    const float inv_m1 = params.inverse_mass(geo_i_, point_i1);
     const float length_diff = min_distance - distance;
     if (length_diff < 1e-5f) {
       return;
@@ -308,8 +308,8 @@ class MinimumDistanceConstraintEvaluator
     const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
     const float3 offset0 = -lambda * inv_m0 * normalized_dir;
     const float3 offset1 = lambda * inv_m1 * normalized_dir;
-    updater.update_position(points_ref_i_, point_i0, offset0);
-    updater.update_position(points_ref_i_, point_i1, offset1);
+    updater.update_position(geo_i_, point_i0, offset0);
+    updater.update_position(geo_i_, point_i1, offset1);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
@@ -321,20 +321,20 @@ class MinimumDistanceConstraintEvaluator
 class OverpressureConstraintEvaluator
     : public TemplatedConstraintSet<OverpressureConstraintEvaluator> {
  private:
-  int points_ref_i_;
+  int geo_i_;
   Span<int3> tris_;
   Span<int> corner_verts_;
   float overpressure_;
   float initial_volume_;
 
  public:
-  OverpressureConstraintEvaluator(const int points_ref_i,
+  OverpressureConstraintEvaluator(const int geo_i,
                                   const Span<int3> tris,
                                   const Span<int> corner_verts,
                                   const float overpressure,
                                   const float initial_volume)
-      : TemplatedConstraintSet<OverpressureConstraintEvaluator>(1, {points_ref_i}),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<OverpressureConstraintEvaluator>(1, {geo_i}),
+        geo_i_(geo_i),
         tris_(tris),
         corner_verts_(corner_verts),
         overpressure_(overpressure),
@@ -351,8 +351,8 @@ class OverpressureConstraintEvaluator
     BLI_assert(constraint_i == 0);
     UNUSED_VARS_NDEBUG(constraint_i);
 
-    const Span<float3> positions = params.positions(points_ref_i_);
-    const Span<float> inverse_masses = params.inverse_masses(points_ref_i_);
+    const Span<float3> positions = params.positions(geo_i_);
+    const Span<float> inverse_masses = params.inverse_masses(geo_i_);
     const float current_volume = compute_volume(tris_, corner_verts_, positions);
     const float volume_diff = current_volume - overpressure_ * initial_volume_;
 
@@ -388,7 +388,7 @@ class OverpressureConstraintEvaluator
           continue;
         }
         const float3 offset = -lambda * inverse_mass * gradients[i];
-        updater.update_position(points_ref_i_, i, offset);
+        updater.update_position(geo_i_, i, offset);
       }
     });
   }
@@ -432,19 +432,18 @@ class OverpressureConstraintEvaluator
 class RodStretchAndShearConstraintEvaluator
     : public TemplatedConstraintSet<RodStretchAndShearConstraintEvaluator> {
  private:
-  int points_ref_i_;
+  int geo_i_;
   Span<int2> point_pairs_;
   Span<float> rest_lengths_;
   Span<float> compliance_terms_;
 
  public:
-  RodStretchAndShearConstraintEvaluator(const int points_ref_i,
+  RodStretchAndShearConstraintEvaluator(const int geo_i,
                                         const Span<int2> point_pairs,
                                         const Span<float> rest_lengths,
                                         const Span<float> compliance_terms)
-      : TemplatedConstraintSet<RodStretchAndShearConstraintEvaluator>(point_pairs.size(),
-                                                                      {points_ref_i}),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<RodStretchAndShearConstraintEvaluator>(point_pairs.size(), {geo_i}),
+        geo_i_(geo_i),
         point_pairs_(point_pairs),
         rest_lengths_(rest_lengths),
         compliance_terms_(compliance_terms)
@@ -462,12 +461,12 @@ class RodStretchAndShearConstraintEvaluator
 
     const int rotation_i = point_i0;
 
-    const float3 &p0 = params.position(points_ref_i_, point_i0);
-    const float3 &p1 = params.position(points_ref_i_, point_i1);
-    const math::Quaternion &rot = params.rotation(points_ref_i_, rotation_i);
-    const float inv_m0 = params.inverse_mass(points_ref_i_, point_i0);
-    const float inv_m1 = params.inverse_mass(points_ref_i_, point_i1);
-    const float3 &inertia = params.inertia(points_ref_i_, point_i0);
+    const float3 &p0 = params.position(geo_i_, point_i0);
+    const float3 &p1 = params.position(geo_i_, point_i1);
+    const math::Quaternion &rot = params.rotation(geo_i_, rotation_i);
+    const float inv_m0 = params.inverse_mass(geo_i_, point_i0);
+    const float inv_m1 = params.inverse_mass(geo_i_, point_i1);
+    const float3 &inertia = params.inertia(geo_i_, point_i0);
     const float compliance_term = compliance_terms_[constraint_i];
     const float rest_length = rest_lengths_[constraint_i];
 
@@ -498,9 +497,9 @@ class RodStretchAndShearConstraintEvaluator
                                             0.0f, lambda * inv_lumped_inertia * rest_length) *
                                         rot * math::Quaternion(0, 0, 0, -1);
 
-    updater.update_position(points_ref_i_, point_i0, offset0);
-    updater.update_position(points_ref_i_, point_i1, offset1);
-    updater.update_rotation(points_ref_i_, rotation_i, offset_rot);
+    updater.update_position(geo_i_, point_i0, offset0);
+    updater.update_position(geo_i_, point_i1, offset1);
+    updater.update_rotation(geo_i_, rotation_i, offset_rot);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
@@ -513,19 +512,18 @@ class RodStretchAndShearConstraintEvaluator
 class RodBendAndTwistConstraintEvaluator
     : public TemplatedConstraintSet<RodBendAndTwistConstraintEvaluator> {
  private:
-  int points_ref_i_;
+  int geo_i_;
   Span<int2> point_pairs_;
   Span<math::Quaternion> rest_rotations_;
   Span<float> compliance_terms_;
 
  public:
-  RodBendAndTwistConstraintEvaluator(const int points_ref_i,
+  RodBendAndTwistConstraintEvaluator(const int geo_i,
                                      const Span<int2> point_pairs,
                                      const Span<math::Quaternion> rest_rotations,
                                      const Span<float> compliance_terms)
-      : TemplatedConstraintSet<RodBendAndTwistConstraintEvaluator>(point_pairs.size(),
-                                                                   {points_ref_i}),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<RodBendAndTwistConstraintEvaluator>(point_pairs.size(), {geo_i}),
+        geo_i_(geo_i),
         point_pairs_(point_pairs),
         rest_rotations_(rest_rotations),
         compliance_terms_(compliance_terms)
@@ -541,14 +539,14 @@ class RodBendAndTwistConstraintEvaluator
     const int point_i0 = point_pair[0];
     const int point_i1 = point_pair[1];
     const AlignRotationsConstraintResult result = evaluate_align_rotations_constraint(
-        params.rotation(points_ref_i_, point_i0),
-        params.rotation(points_ref_i_, point_i1),
-        params.inertia(points_ref_i_, point_i0),
-        params.inertia(points_ref_i_, point_i1),
+        params.rotation(geo_i_, point_i0),
+        params.rotation(geo_i_, point_i1),
+        params.inertia(geo_i_, point_i0),
+        params.inertia(geo_i_, point_i1),
         rest_rotations_[constraint_i],
         compliance_terms_[constraint_i]);
-    updater.update_rotation(points_ref_i_, point_i0, result.offset0);
-    updater.update_rotation(points_ref_i_, point_i1, result.offset1);
+    updater.update_rotation(geo_i_, point_i0, result.offset0);
+    updater.update_rotation(geo_i_, point_i1, result.offset1);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
@@ -565,19 +563,19 @@ class AlignPositionsConstraintEvaluator
   Span<float> compliance_terms_;
 
   /* Indexed by offset indices. */
-  Span<int> points_ref_indices_;
+  Span<int> geo_indices_;
   Span<int> point_indices_;
 
  public:
   AlignPositionsConstraintEvaluator(OffsetIndices<int> offsets,
                                     Span<float> compliance_terms,
-                                    Span<int> points_ref_indices,
+                                    Span<int> geo_indices,
                                     Span<int> point_indices)
       : TemplatedConstraintSet<AlignPositionsConstraintEvaluator>(
-            point_indices.size(), VectorSet<int>(points_ref_indices).extract_vector()),
+            point_indices.size(), VectorSet<int>(geo_indices).extract_vector()),
         offsets_(offsets),
         compliance_terms_(compliance_terms),
-        points_ref_indices_(points_ref_indices),
+        geo_indices_(geo_indices),
         point_indices_(point_indices)
   {
   }
@@ -594,16 +592,16 @@ class AlignPositionsConstraintEvaluator
     const float compliance_term = compliance_terms_[constraint_i];
     for (const int i : range) {
       const int point_i = point_indices_[i];
-      const int points_ref_i = points_ref_indices_[i];
-      const float inv_m = params.inverse_mass(points_ref_i, point_i);
+      const int geo_i = geo_indices_[i];
+      const float inv_m = params.inverse_mass(geo_i, point_i);
       if (inv_m <= 0.0f) {
         /* Ignored pinned position. */
         continue;
       }
-      const float3 &pos = params.position(points_ref_i, point_i);
+      const float3 &pos = params.position(geo_i, point_i);
       const DistanceConstraintResult result = evaluate_distance_constraint(
           pos, center, inv_m, 0.0f, 0.0f, compliance_term);
-      updater.update_position(points_ref_i, point_i, result.offset0);
+      updater.update_position(geo_i, point_i, result.offset0);
     }
   }
 
@@ -614,9 +612,9 @@ class AlignPositionsConstraintEvaluator
     /* Computed mass weighted center. */
     for (const int i : range) {
       const int point_i = point_indices_[i];
-      const int points_ref_i = points_ref_indices_[i];
-      const float3 &pos = params.position(points_ref_i, point_i);
-      const float inv_m = params.inverse_mass(points_ref_i, point_i);
+      const int geo_i = geo_indices_[i];
+      const float3 &pos = params.position(geo_i, point_i);
+      const float inv_m = params.inverse_mass(geo_i, point_i);
       if (inv_m <= 0.0f) {
         /* This position is pinned, so it becomes the center. */
         return pos;
@@ -632,31 +630,31 @@ class AlignPositionsConstraintEvaluator
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
   {
     return n_ary_constraints_to_independent_masks_multi(
-        {offsets_, point_indices_}, {offsets_, points_ref_indices_}, memory);
+        {offsets_, geo_indices_}, {offsets_, point_indices_}, memory);
   }
 };
 
 class AttachUVSurfaceConstraintEvaluator
     : public TemplatedConstraintSet<AttachUVSurfaceConstraintEvaluator> {
  private:
-  int mesh_points_ref_i_;
-  int points_ref_i_;
+  int mesh_geo_i_;
+  int points_geo_i_;
   Span<int> indices_;
   Span<int3> triangle_indices_;
   Span<float3> bary_weights_;
   Span<float> compliance_terms_;
 
  public:
-  AttachUVSurfaceConstraintEvaluator(const int mesh_points_ref_i,
-                                     const int points_ref_i,
+  AttachUVSurfaceConstraintEvaluator(const int mesh_geo_i,
+                                     const int points_geo_i,
                                      const Span<int> indices,
                                      const Span<int3> triangle_indices,
                                      const Span<float3> bary_weights,
                                      const Span<float> compliance_terms)
-      : TemplatedConstraintSet<AttachUVSurfaceConstraintEvaluator>(
-            indices.size(), {mesh_points_ref_i, points_ref_i}),
-        mesh_points_ref_i_(mesh_points_ref_i),
-        points_ref_i_(points_ref_i),
+      : TemplatedConstraintSet<AttachUVSurfaceConstraintEvaluator>(indices.size(),
+                                                                   {mesh_geo_i, points_geo_i}),
+        mesh_geo_i_(mesh_geo_i),
+        points_geo_i_(points_geo_i),
         indices_(indices),
         triangle_indices_(triangle_indices),
         bary_weights_(bary_weights),
@@ -673,20 +671,20 @@ class AttachUVSurfaceConstraintEvaluator
     const float3 bary_weights = bary_weights_[constraint_i];
     const float compliance_term = compliance_terms_[constraint_i];
 
-    const float inv_mass = params.inverse_mass(points_ref_i_, point_i);
-    const float3 &p = params.position(points_ref_i_, point_i);
+    const float inv_mass = params.inverse_mass(points_geo_i_, point_i);
+    const float3 &p = params.position(points_geo_i_, point_i);
 
     const int3 triangle = triangle_indices_[constraint_i];
     const int mesh_i0 = triangle[0];
     const int mesh_i1 = triangle[1];
     const int mesh_i2 = triangle[2];
-    const Span<float3> mesh_positions = params.positions(mesh_points_ref_i_);
+    const Span<float3> mesh_positions = params.positions(mesh_geo_i_);
     const float3 &mesh_p0 = mesh_positions[mesh_i0];
     const float3 &mesh_p1 = mesh_positions[mesh_i1];
     const float3 &mesh_p2 = mesh_positions[mesh_i2];
-    const float mesh_inv_mass0 = params.inverse_mass(mesh_points_ref_i_, mesh_i0);
-    const float mesh_inv_mass1 = params.inverse_mass(mesh_points_ref_i_, mesh_i1);
-    const float mesh_inv_mass2 = params.inverse_mass(mesh_points_ref_i_, mesh_i2);
+    const float mesh_inv_mass0 = params.inverse_mass(mesh_geo_i_, mesh_i0);
+    const float mesh_inv_mass1 = params.inverse_mass(mesh_geo_i_, mesh_i1);
+    const float mesh_inv_mass2 = params.inverse_mass(mesh_geo_i_, mesh_i2);
 
     const float effective_weight = inv_mass + pow2f(bary_weights[0]) * mesh_inv_mass0 +
                                    pow2f(bary_weights[1]) * mesh_inv_mass1 +
@@ -701,13 +699,10 @@ class AttachUVSurfaceConstraintEvaluator
 
     const float3 lambda = -diff / (effective_weight + compliance_term);
 
-    updater.update_position(points_ref_i_, point_i, inv_mass * lambda);
-    updater.update_position(
-        mesh_points_ref_i_, mesh_i0, -bary_weights[0] * mesh_inv_mass0 * lambda);
-    updater.update_position(
-        mesh_points_ref_i_, mesh_i1, -bary_weights[1] * mesh_inv_mass1 * lambda);
-    updater.update_position(
-        mesh_points_ref_i_, mesh_i2, -bary_weights[2] * mesh_inv_mass2 * lambda);
+    updater.update_position(points_geo_i_, point_i, inv_mass * lambda);
+    updater.update_position(mesh_geo_i_, mesh_i0, -bary_weights[0] * mesh_inv_mass0 * lambda);
+    updater.update_position(mesh_geo_i_, mesh_i1, -bary_weights[1] * mesh_inv_mass1 * lambda);
+    updater.update_position(mesh_geo_i_, mesh_i2, -bary_weights[2] * mesh_inv_mass2 * lambda);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
@@ -716,10 +711,10 @@ class AttachUVSurfaceConstraintEvaluator
         [&](const int constraint_i) {
           const int3 &tri = triangle_indices_[constraint_i];
           std::array<std::pair<int, int>, 4> affected_points;
-          affected_points[0] = {mesh_points_ref_i_, tri[0]};
-          affected_points[1] = {mesh_points_ref_i_, tri[1]};
-          affected_points[2] = {mesh_points_ref_i_, tri[2]};
-          affected_points[3] = {points_ref_i_, indices_[constraint_i]};
+          affected_points[0] = {mesh_geo_i_, tri[0]};
+          affected_points[1] = {mesh_geo_i_, tri[1]};
+          affected_points[2] = {mesh_geo_i_, tri[2]};
+          affected_points[3] = {points_geo_i_, indices_[constraint_i]};
           return affected_points;
         },
         indices_.size(),

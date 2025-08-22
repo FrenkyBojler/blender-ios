@@ -9,8 +9,8 @@
 
 namespace blender::xpbd {
 
-ConstraintSet::ConstraintSet(Vector<int> affected_points_refs)
-    : affected_points_refs_(std::move(affected_points_refs))
+ConstraintSet::ConstraintSet(Vector<int> affected_geo_indices)
+    : affected_geo_indices_(std::move(affected_geo_indices))
 {
 }
 
@@ -42,45 +42,45 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks(const GroupedSpan<int> 
 }
 
 Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
+    const GroupedSpan<int> affected_geometries,
     const GroupedSpan<int> affected_points,
-    const GroupedSpan<int> effected_points_refs,
     IndexMaskMemory &memory)
 {
   return detect_independent_constraints<std::pair<int, int>>(
       [&](const int constraint_i) {
-        const Span<int> points_refs = effected_points_refs[constraint_i];
+        const Span<int> geo_refs = affected_geometries[constraint_i];
         const Span<int> points_indices = affected_points[constraint_i];
-        Vector<std::pair<int, int>> affected_points;
-        affected_points.reserve(points_indices.size());
+        Vector<std::pair<int, int>> point_keys;
+        point_keys.reserve(points_indices.size());
         for (const int i : points_indices.index_range()) {
-          affected_points.append({points_refs[i], points_indices[i]});
+          point_keys.append({geo_refs[i], points_indices[i]});
         }
-        return affected_points;
+        return point_keys;
       },
       affected_points.size(),
       memory);
 }
 
-void solve_gauss_seidel_one_at_a_time(const Span<PointsRef> points_refs,
+void solve_gauss_seidel_one_at_a_time(const Span<GeometryRef> geometry_refs,
                                       const Span<const ConstraintSet *> constraint_sets)
 {
-  ConstraintSetParams params{points_refs};
-  GaussSeidelUpdater updater{points_refs};
+  ConstraintSetParams params{geometry_refs};
+  GaussSeidelUpdater updater{geometry_refs};
   for (const ConstraintSet *constraint_set : constraint_sets) {
     constraint_set->evaluate_gauss_seidel_one_at_a_time(updater, params);
   }
 }
 
-void solve_jacobian_non_deterministic(const Span<PointsRef> points_refs,
+void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
                                       const Span<const ConstraintSet *> constraint_sets)
 {
   using Item = NonDeterministicJacobianUpdater::Item;
-  ConstraintSetParams params{points_refs};
+  ConstraintSetParams params{geometry_refs};
 
-  Array<Array<Item>> items_arrays(points_refs.size());
-  Array<MutableSpan<Item>> items_spans(points_refs.size());
-  for (const int point_set_i : points_refs.index_range()) {
-    items_arrays[point_set_i].reinitialize(points_refs[point_set_i].size());
+  Array<Array<Item>> items_arrays(geometry_refs.size());
+  Array<MutableSpan<Item>> items_spans(geometry_refs.size());
+  for (const int point_set_i : geometry_refs.index_range()) {
+    items_arrays[point_set_i].reinitialize(geometry_refs[point_set_i].size());
     items_spans[point_set_i] = items_arrays[point_set_i];
   }
 
@@ -93,10 +93,10 @@ void solve_jacobian_non_deterministic(const Span<PointsRef> points_refs,
         }
       });
 
-  threading::parallel_for(points_refs.index_range(), 1, [&](const IndexRange point_set_range) {
+  threading::parallel_for(geometry_refs.index_range(), 1, [&](const IndexRange point_set_range) {
     for (const int point_set_i : point_set_range) {
       const Span<Item> items = items_arrays[point_set_i];
-      const PointsRef &point_set = points_refs[point_set_i];
+      const GeometryRef &point_set = geometry_refs[point_set_i];
       threading::parallel_for(IndexRange(point_set.size()), 512, [&](const IndexRange range) {
         for (const int point_i : range) {
           const Item &item = items[point_i];
@@ -123,21 +123,21 @@ void solve_jacobian_non_deterministic(const Span<PointsRef> points_refs,
   });
 }
 
-void solve_gauss_seidel_parallel(const Span<PointsRef> points_refs,
+void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
                                  const Span<const ConstraintSet *> constraint_sets)
 {
-  ConstraintSetParams params{points_refs};
-  MultiValueMap<int, const ConstraintSet *> single_target_constraints_by_point_set;
+  ConstraintSetParams params{geometry_refs};
+  MultiValueMap<int, const ConstraintSet *> single_target_constraints_by_geo_index;
   Vector<const ConstraintSet *> multi_target_constraints;
 
   for (const ConstraintSet *constraint_set : constraint_sets) {
-    const Span<int> affected_points_refs = constraint_set->get_affected_points_refs();
-    if (affected_points_refs.is_empty()) {
+    const Span<int> affected_geo_refs = constraint_set->get_affected_geo_indices();
+    if (affected_geo_refs.is_empty()) {
       continue;
     }
-    if (affected_points_refs.size() == 1) {
-      const int point_set_i = affected_points_refs[0];
-      single_target_constraints_by_point_set.add(point_set_i, constraint_set);
+    if (affected_geo_refs.size() == 1) {
+      const int geo_set_i = affected_geo_refs[0];
+      single_target_constraints_by_geo_index.add(geo_set_i, constraint_set);
     }
     else {
       multi_target_constraints.append(constraint_set);
@@ -146,12 +146,12 @@ void solve_gauss_seidel_parallel(const Span<PointsRef> points_refs,
 
   Vector<Span<const ConstraintSet *>> single_target_constraint_sets;
   for (const Span<const ConstraintSet *> constraint_sets :
-       single_target_constraints_by_point_set.values())
+       single_target_constraints_by_geo_index.values())
   {
     single_target_constraint_sets.append(constraint_sets);
   }
 
-  GaussSeidelUpdater updater{points_refs};
+  GaussSeidelUpdater updater{geometry_refs};
 
   threading::parallel_for(
       single_target_constraint_sets.index_range(), 1, [&](const IndexRange range) {
