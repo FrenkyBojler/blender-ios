@@ -627,8 +627,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
         else if (align == MAX) {
           luv[0] += position[0] - aabbs[i]->max[0];
         }
-        luv[1] += (i == 0) ? position[1] - aabbs[i]->max[1] :
-                             position[1] - aabbs[i]->max[1] - offset;
+        luv[1] += position[1] - aabbs[i]->max[1];
       }
       else {
         if (align == MIN) {
@@ -640,8 +639,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
         else if (align == MAX) {
           luv[1] -= aabbs[i]->max[1] - position[1];
         }
-        luv[0] += (i == 0) ? position[0] - aabbs[i]->min[0] :
-                             position[0] - aabbs[i]->min[0] + offset;
+        luv[0] += position[0] - aabbs[i]->min[0];
       }
     }
     if (axis == Y) {
@@ -710,12 +708,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
       continue;
     }
     position = uvedit_uv_island_arrange(scene, em->bm, axis, align, order, offset, position);
-    if (axis == X) {
-      position[0] += offset;
-    }
-    else {
-      position[1] -= offset;
-    }
+
     uvedit_live_unwrap_update(sima, scene, obedit);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
