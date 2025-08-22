@@ -31,12 +31,12 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
  public:
   TemplatedConstraintSet(int constraints_num, Vector<int> affected_points_refs);
 
-  void evaluate_parallel_non_deterministic_jacobian(NonDeterministicJacobianUpdater &updater,
+  void evaluate_jacobian_non_deterministic_parallel(NonDeterministicJacobianUpdater &updater,
                                                     ConstraintSetParams &params) const override;
-  void evaluate_parallel_gauss_seidel(GaussSeidelUpdater &updater,
+  void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
                                       ConstraintSetParams &params) const override;
-  void evaluate_serial_gauss_seidel(GaussSeidelUpdater &updater,
-                                    ConstraintSetParams &params) const override;
+  void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
+                                           ConstraintSetParams &params) const override;
 
   Span<IndexMask> get_independent_masks() const;
 
@@ -137,7 +137,7 @@ inline TemplatedConstraintSet<Child>::TemplatedConstraintSet(int constraints_num
 }
 
 template<typename Child>
-inline void TemplatedConstraintSet<Child>::evaluate_parallel_non_deterministic_jacobian(
+inline void TemplatedConstraintSet<Child>::evaluate_jacobian_non_deterministic_parallel(
     NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) const
 {
   const Child &self = static_cast<const Child &>(*this);
@@ -149,7 +149,7 @@ inline void TemplatedConstraintSet<Child>::evaluate_parallel_non_deterministic_j
 }
 
 template<typename Child>
-inline void TemplatedConstraintSet<Child>::evaluate_parallel_gauss_seidel(
+inline void TemplatedConstraintSet<Child>::evaluate_gauss_seidel_parallel(
     GaussSeidelUpdater &updater, ConstraintSetParams &params) const
 {
   const Child &self = static_cast<const Child &>(*this);
@@ -163,7 +163,7 @@ inline void TemplatedConstraintSet<Child>::evaluate_parallel_gauss_seidel(
 }
 
 template<typename Child>
-inline void TemplatedConstraintSet<Child>::evaluate_serial_gauss_seidel(
+inline void TemplatedConstraintSet<Child>::evaluate_gauss_seidel_one_at_a_time(
     GaussSeidelUpdater &updater, ConstraintSetParams &params) const
 {
   const Child &self = static_cast<const Child &>(*this);

@@ -14,18 +14,23 @@
 namespace blender::xpbd {
 
 /**
- * Mutable reference to the data that is actually being simulated.
+ * Reference to the data that is actually being simulated.
  */
 struct PointsRef {
+  /** The position of each points. */
   MutableSpan<float3> positions;
-  MutableSpan<math::Quaternion> rotations;
+  /* Inverse mass of each point. This is expected to be zero for pinned points. */
   Span<float> inverse_masses;
+
+  /** Optional rotation data. */
+  MutableSpan<math::Quaternion> rotations;
   Span<float3> inertias;
   Span<float3> inverse_inertias;
 
   uint64_t size() const;
 };
 
+/** Provides access to the input data that should be considered by a constraint. */
 class ConstraintSetParams {
  private:
   Span<PointsRef> points_refs_;
@@ -88,7 +93,7 @@ class NonDeterministicJacobianUpdater {
 };
 
 /**
- * Base class for constraint evaluators. It evaluates batches of constraints and writes back the
+ * Base class for constraint evaluators. It evaluate a batch of constraints and writes back the
  * results using a passed in "updater".
  *
  * Use #TemplatedConstraintSet to instantiate the constraint evaluation for each updater
@@ -104,12 +109,27 @@ class ConstraintSet {
 
   virtual ~ConstraintSet() = default;
 
-  virtual void evaluate_parallel_non_deterministic_jacobian(
-      NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) const = 0;
-  virtual void evaluate_parallel_gauss_seidel(GaussSeidelUpdater &updater,
+  /**
+   * Simplest evaluation method. It evaluates all the constraints serially, one at a time. This is
+   * mainly meant for debugging purposes.
+   */
+  virtual void evaluate_gauss_seidel_one_at_a_time(GaussSeidelUpdater &updater,
+                                                   ConstraintSetParams &params) const = 0;
+
+  /**
+   * Evaluates the constraints in parallel if possible. Internally, it may use
+   * constraint-graph-coloring or other strategies to split up the constraints into independent
+   * sets that can be solved in parallel.
+   */
+  virtual void evaluate_gauss_seidel_parallel(GaussSeidelUpdater &updater,
                                               ConstraintSetParams &params) const = 0;
-  virtual void evaluate_serial_gauss_seidel(GaussSeidelUpdater &updater,
-                                            ConstraintSetParams &params) const = 0;
+
+  /**
+   * Evaluates the constraints in parallel.
+   * TODO: Replace this with a deterministic Jacobian solver.
+   */
+  virtual void evaluate_jacobian_non_deterministic_parallel(
+      NonDeterministicJacobianUpdater &updater, ConstraintSetParams &params) const = 0;
 
   Span<int> get_affected_points_refs() const;
 };

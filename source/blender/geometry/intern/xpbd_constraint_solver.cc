@@ -67,7 +67,7 @@ void solve_gauss_seidel_one_at_a_time(const Span<PointsRef> points_refs,
   ConstraintSetParams params{points_refs};
   GaussSeidelUpdater updater{points_refs};
   for (const ConstraintSet *constraint_set : constraint_sets) {
-    constraint_set->evaluate_serial_gauss_seidel(updater, params);
+    constraint_set->evaluate_gauss_seidel_one_at_a_time(updater, params);
   }
 }
 
@@ -89,7 +89,7 @@ void solve_jacobian_non_deterministic(const Span<PointsRef> points_refs,
       constraint_sets.index_range(), 1, [&](const IndexRange constraint_sets_range) {
         for (const int constraint_set_i : constraint_sets_range) {
           const ConstraintSet *constraint_set = constraint_sets[constraint_set_i];
-          constraint_set->evaluate_parallel_non_deterministic_jacobian(updater, params);
+          constraint_set->evaluate_jacobian_non_deterministic_parallel(updater, params);
         }
       });
 
@@ -159,13 +159,13 @@ void solve_gauss_seidel_parallel(const Span<PointsRef> points_refs,
           /* These constraint sets have to be evaluated serially because they effect the same
            * points.*/
           for (const ConstraintSet *constraint_set : single_target_constraint_sets[i]) {
-            constraint_set->evaluate_parallel_gauss_seidel(updater, params);
+            constraint_set->evaluate_gauss_seidel_parallel(updater, params);
           }
         }
       });
 
   for (const ConstraintSet *constraint_set : multi_target_constraints) {
-    constraint_set->evaluate_parallel_gauss_seidel(updater, params);
+    constraint_set->evaluate_gauss_seidel_parallel(updater, params);
   }
 }
 
