@@ -15,12 +15,12 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_brush.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_undo_system.hh"
-#include "BKE_colortools.hh"
 
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
@@ -294,8 +294,6 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
 
   copy_v2_v2(pop->prevmouse, mouse);
   copy_v2_v2(pop->startmouse, mouse);
-
-  BKE_curvemapping_init(brush->curve_strength);
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);

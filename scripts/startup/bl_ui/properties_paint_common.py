@@ -556,7 +556,7 @@ class StrokePanel(BrushPanel):
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
             col.row().prop(brush, "jitter_unit", expand=True)
             # Pen pressure mapping curve for Jitter.
-            if brush.use_pressure_jitter:
+            if brush.use_pressure_jitter and self.is_popover is False:
                 col.template_curve_mapping(brush, "curve_jitter", brush=True, use_negative_slope=True)
 
         col.separator()

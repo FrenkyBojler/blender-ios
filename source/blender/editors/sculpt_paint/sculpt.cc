@@ -60,7 +60,6 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_types.hh"
-#include "BKE_colortools.hh"
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
@@ -1298,7 +1297,7 @@ static float area_normal_and_center_get_position_radius(const SculptSession &ss,
     if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PLANE && brush.area_radius_factor > 0.0f) {
       test_radius *= brush.area_radius_factor;
       if (ss.cache && brush.flag2 & BRUSH_AREA_RADIUS_PRESSURE) {
-        test_radius *= BKE_curvemapping_evaluateF(brush.curve_size, 0, ss.cache->pressure);;
+        test_radius *= ss.cache->pressure;
       }
     }
     else {
@@ -2167,10 +2166,7 @@ static float brush_strength(const Sculpt &sd,
   /* Primary strength input; square it to make lower values more sensitive. */
   const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   const float alpha = root_alpha * root_alpha;
-  float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
-  if (BKE_brush_use_alpha_pressure(&brush)) {
-    pressure = BKE_curvemapping_evaluateF(brush.curve_strength, 0, pressure);
-  }
+  const float pressure = BKE_brush_use_alpha_pressure(&brush) ? BKE_curvemapping_evaluateF(brush.curve_strength, 0, cache.pressure) : 1.0f;
   float overlap = paint_runtime.overlap_factor;
   /* Spacing is integer percentage of radius, divide by 50 to get
    * normalized diameter. */
@@ -4067,9 +4063,7 @@ static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
                                     float initial_size)
 {
-  float pressure_eval = cache.pressure;
-  pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, pressure_eval);
-
+  float pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache.pressure);
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_CLAY:
       return max_ff(initial_size * 0.20f, initial_size * pow3f(pressure_eval));
@@ -4077,7 +4071,7 @@ static float brush_dynamic_size_get(const Brush &brush,
       return max_ff(initial_size * 0.30f, initial_size * powf(pressure_eval, 1.5f));
     case SCULPT_BRUSH_TYPE_CLAY_THUMB: {
       float clay_stabilized_pressure = brushes::clay_thumb_get_stabilized_pressure(cache);
-      return initial_size * clay_stabilized_pressure;
+      return initial_size * BKE_curvemapping_evaluateF(brush.curve_size, 0, clay_stabilized_pressure);
     }
     default:
       return initial_size * pressure_eval;
@@ -5501,9 +5495,6 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
 
     CursorGeometryInfo cgi;
     cursor_geometry_info_update(C, &cgi, mval, false);
-
-  BKE_curvemapping_init(brush->curve_size);
-  BKE_curvemapping_init(brush->curve_strength);
 
     stroke_undo_begin(C, op);
 

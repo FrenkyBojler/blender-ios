@@ -537,9 +537,7 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
   }
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, paint_mode)) {
-    float pressure_eval = cache->pressure;
-    pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache->pressure);
-    cache->radius = cache->initial_radius * pressure_eval;
+    cache->radius = cache->initial_radius * BKE_curvemapping_evaluateF(brush.curve_size, 0, cache->pressure);
   }
   else {
     cache->radius = cache->initial_radius;
@@ -559,21 +557,11 @@ void get_brush_alpha_data(const SculptSession &ss,
                           float *r_brush_alpha_value,
                           float *r_brush_alpha_pressure)
 {
-  const float pressure_raw = ss.cache->pressure;
-
-  float size_pressure = 1.0f;
-  if (BKE_brush_use_size_pressure(&brush)) {
-    size_pressure = BKE_curvemapping_evaluateF(brush.curve_size, 0, pressure_raw);
-  }
-  *r_brush_size_pressure = BKE_brush_size_get(&paint, &brush) * size_pressure;
-
+  *r_brush_size_pressure = BKE_brush_size_get(&paint, &brush) * (
+    BKE_brush_use_size_pressure(&brush) ? BKE_curvemapping_evaluateF(brush.curve_size, 0, ss.cache->pressure) : 1.0f
+  );
   *r_brush_alpha_value = BKE_brush_alpha_get(&paint, &brush);
-
-  float alpha_pressure = 1.0f;
-  if (BKE_brush_use_alpha_pressure(&brush)) {
-    alpha_pressure = BKE_curvemapping_evaluateF(brush.curve_strength, 0, pressure_raw);
-  }
-  *r_brush_alpha_pressure = alpha_pressure;
+  *r_brush_alpha_pressure = BKE_brush_use_alpha_pressure(&brush) ? BKE_curvemapping_evaluateF(brush.curve_strength, 0, ss.cache->pressure) : 1.0f;
 }
 
 void last_stroke_update(const float location[3], Paint &paint)
@@ -1079,9 +1067,6 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
   if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
     return false;
   }
-
-  BKE_curvemapping_init(brush.curve_size);
-  BKE_curvemapping_init(brush.curve_strength);
 
   std::unique_ptr<VPaintData> vpd = vpaint_init_vpaint(
       C, op, scene, depsgraph, vp, ob, *mesh, meta_data->domain, meta_data->data_type, brush);

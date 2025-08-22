@@ -339,6 +339,7 @@ bool paint_brush_update(bContext *C,
     copy_v2_v2(paint_runtime.mask_tex_mouse, mouse);
     stroke->cached_size_pressure = pressure;
     BKE_curvemapping_init(brush.curve_size);
+    BKE_curvemapping_init(brush.curve_strength);
     BKE_curvemapping_init(brush.curve_jitter);
 
     stroke->brush_init = true;
@@ -533,9 +534,7 @@ void paint_stroke_jitter_pos(const PaintStroke &stroke,
 
     if (brush.flag & BRUSH_JITTER_PRESSURE) {
       float pressure_eval = pressure;
-      if (brush.curve_jitter) {
-        pressure_eval = BKE_curvemapping_evaluateF(brush.curve_jitter, 0, pressure);
-      }
+      pressure_eval = BKE_curvemapping_evaluateF(brush.curve_jitter, 0, pressure);
       factor *= pressure_eval;
     }
 
