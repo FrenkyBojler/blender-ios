@@ -26,7 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Data");
   b.add_output<decl::Bundle>("Data").align_with_previous();
-  b.add_input<decl::Bundle>("Behavior");
+  b.add_input<decl::Bundle>("Behavior").field_on_all().structure_type(StructureType::Single);
   b.add_input<decl::Float>("Delta Time").min(0).hide_value();
   b.add_input<decl::Int>("Substeps").default_value(0).min(0);
 }

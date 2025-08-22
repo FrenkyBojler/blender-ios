@@ -87,7 +87,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bundle>("State").align_with_previous();
   b.add_input<decl::Bundle>("World")
       .bundle_type(world_type)
-      .description("Simulation world description that is simulated");
+      .description("Simulation world description that is simulated")
+      .field_on_all()
+      .structure_type(StructureType::Single);
   b.add_output<decl::Bundle>("World")
       .pass_through_input_index(1)
       .align_with_previous()
