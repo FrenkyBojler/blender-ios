@@ -9823,6 +9823,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
         bt = ui_but_find_mouse_over(region, event);
 
         if (bt && ui_can_activate_other_menu(but, bt, event))
+        // if (bt && bt->active != data)
         {
           /* Close open menu when over another. */
           if (but->type != ButType::Color) { /* exception */
@@ -11281,7 +11282,7 @@ static int ui_handle_menu_event(bContext *C,
           }
 
           /* strict check, and include the parent rect */
-          if (!menu->dotowards && !saferct && (U.flag & USER_MENU_MOUSE_OUT_CLOSE)) {
+          if (!menu->dotowards && !saferct && (!(U.flag & USER_MENU_KEEP_OPEN) || level > 0)) {
             if (block->flag & UI_BLOCK_OUT_1) {
               menu->menuretval = UI_RETURN_OK;
             }
@@ -12000,7 +12001,7 @@ static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEve
     return true;
   }
 
-  if (!(U.flag & USER_MENU_NEIGHBOR_OPEN)) {
+  if (U.flag & USER_MENU_KEEP_OPEN) {
     return false;
   }
 

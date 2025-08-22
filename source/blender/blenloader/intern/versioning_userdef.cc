@@ -1034,8 +1034,9 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(278, 6)) {
     /* Clear preference flags for re-use. */
-    userdef->flag &= ~(USER_FLAG_NUMINPUT_ADVANCED | (1 << 2) | USER_FLAG_UNUSED_6 |
-                       USER_FLAG_UNUSED_7 | USER_INTERNET_ALLOW | USER_DEVELOPER_UI);
+    userdef->flag &= ~(USER_FLAG_NUMINPUT_ADVANCED | (1 << 2) | USER_FLAG_UNUSED_3 |
+                       USER_FLAG_UNUSED_6 | USER_FLAG_UNUSED_7 | USER_INTERNET_ALLOW |
+                       USER_DEVELOPER_UI);
     userdef->uiflag &= ~USER_HEADER_BOTTOM;
     userdef->transopts &= ~(USER_TR_UNUSED_3 | USER_TR_UNUSED_4 | USER_TR_UNUSED_6 |
                             USER_TR_UNUSED_7);
@@ -1656,10 +1657,6 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(500, 59)) {
     userdef->preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
-  }
-
-  if (!USER_VERSION_ATLEAST(500, 100)) {
-    userdef->flag |= (USER_MENU_MOUSE_OUT_CLOSE | USER_MENU_NEIGHBOR_OPEN);
   }
 
   /**

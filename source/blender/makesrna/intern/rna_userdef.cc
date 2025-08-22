@@ -5114,15 +5114,10 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       "Open on Mouse Over",
       "Open menu buttons and pull-downs automatically when the mouse is hovering");
 
-  prop = RNA_def_property(srna, "use_mouse_out_close", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_MENU_MOUSE_OUT_CLOSE);
+  prop = RNA_def_property(srna, "menu_keep_open", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_MENU_KEEP_OPEN);
   RNA_def_property_ui_text(
-      prop, "Close on Mouse Out", "Close menus when the mouse is moved out of it.");
-
-  prop = RNA_def_property(srna, "use_mouse_neighbor_open", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_MENU_NEIGHBOR_OPEN);
-  RNA_def_property_ui_text(
-      prop, "Open Neighboring Menus", "Open nearby menus when the mouse hovers them.");
+      prop, "Keep Menus Open", "Keep top-level menus open as much as possible.");
 
   prop = RNA_def_property(srna, "open_toplevel_delay", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "menuthreshold1");
